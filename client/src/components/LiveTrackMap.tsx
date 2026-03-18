@@ -15,8 +15,7 @@ export function LiveTrackMap({ packet }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointsRef = useRef<Point[]>([]);
   const lastLapRef = useRef<number>(-1);
-  const lastPosRef = useRef<{ x: number; z: number } | null>(null);
-  const lastTimestampRef = useRef<number>(0);
+  const frameCountRef = useRef<number>(0);
 
   useEffect(() => {
     if (!packet) return;
@@ -25,23 +24,22 @@ export function LiveTrackMap({ packet }: Props) {
     if (packet.LapNumber !== lastLapRef.current) {
       lastLapRef.current = packet.LapNumber;
       pointsRef.current = [];
-      lastPosRef.current = null;
-      lastTimestampRef.current = 0;
+      frameCountRef.current = 0;
     }
 
-    // Use real PositionX/Z from the Dash packet
     const x = packet.PositionX;
     const z = packet.PositionZ;
-    const speed = packet.Speed * 2.23694; // m/s to mph
+    const speed = packet.Speed * 2.23694;
 
-    // Downsample: add point every 3rd sample
-    if (pointsRef.current.length === 0 || pointsRef.current.length % 3 === 0) {
+    // Skip zero positions (car not loaded / in menu)
+    if (x === 0 && z === 0) return;
+
+    // Add point every 5th frame to avoid too many points
+    frameCountRef.current++;
+    if (frameCountRef.current % 5 === 0) {
       pointsRef.current.push({ x, z, speed });
-    } else {
-      pointsRef.current[pointsRef.current.length - 1] = { x, z, speed };
     }
 
-    // Draw
     draw();
   });
 
@@ -66,7 +64,7 @@ export function LiveTrackMap({ packet }: Props) {
 
     // Find bounds
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    let maxSpeed = 0;
+    let maxSpeed = 1;
     for (const p of points) {
       minX = Math.min(minX, p.x);
       maxX = Math.max(maxX, p.x);
@@ -75,8 +73,8 @@ export function LiveTrackMap({ packet }: Props) {
       maxSpeed = Math.max(maxSpeed, p.speed);
     }
 
-    const rangeX = maxX - minX || 1;
-    const rangeZ = maxZ - minZ || 1;
+    const rangeX = (maxX - minX) || 1;
+    const rangeZ = (maxZ - minZ) || 1;
     const padding = 20;
     const scaleX = (w - padding * 2) / rangeX;
     const scaleZ = (h - padding * 2) / rangeZ;
@@ -92,8 +90,7 @@ export function LiveTrackMap({ packet }: Props) {
     }
 
     function speedColor(speed: number): string {
-      const t = maxSpeed > 0 ? speed / maxSpeed : 0;
-      // Blue (slow) → Green → Yellow → Red (fast)
+      const t = Math.min(speed / maxSpeed, 1);
       if (t < 0.33) {
         const s = t / 0.33;
         return `rgb(${Math.round(s * 50)}, ${Math.round(100 + s * 155)}, ${Math.round(255 - s * 100)})`;
@@ -105,7 +102,7 @@ export function LiveTrackMap({ packet }: Props) {
       return `rgb(255, ${Math.round(200 - s * 200)}, 0)`;
     }
 
-    // Draw track line segments colored by speed
+    // Draw track segments colored by speed
     ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -119,33 +116,29 @@ export function LiveTrackMap({ packet }: Props) {
       ctx.stroke();
     }
 
-    // Draw current position dot
-    if (points.length > 0) {
-      const [cx, cy] = toCanvas(points[points.length - 1]);
-      ctx.beginPath();
-      ctx.arc(cx, cy, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "#22d3ee";
-      ctx.fill();
-      ctx.strokeStyle = "#0f172a";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    }
+    // Current position dot
+    const [cx, cy] = toCanvas(points[points.length - 1]);
+    ctx.beginPath();
+    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "#22d3ee";
+    ctx.fill();
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
 
     // Start marker
-    if (points.length > 1) {
-      const [sx, sy] = toCanvas(points[0]);
-      ctx.beginPath();
-      ctx.arc(sx, sy, 4, 0, Math.PI * 2);
-      ctx.fillStyle = "#10b981";
-      ctx.fill();
-    }
+    const [sx, sy] = toCanvas(points[0]);
+    ctx.beginPath();
+    ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+    ctx.fillStyle = "#10b981";
+    ctx.fill();
   }
 
   return (
     <canvas
       ref={canvasRef}
       className="w-full h-full"
-      style={{ minHeight: 180 }}
+      style={{ minHeight: 200 }}
     />
   );
 }
