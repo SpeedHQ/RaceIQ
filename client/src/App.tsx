@@ -63,7 +63,7 @@ export default function App() {
       )}
 
       {activeTab === "live" && (
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-0">
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0">
           <div className="border-r border-slate-800 overflow-auto">
             <div className="p-2 border-b border-slate-800">
               <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">

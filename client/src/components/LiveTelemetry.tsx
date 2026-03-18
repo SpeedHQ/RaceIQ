@@ -159,22 +159,39 @@ function SuspensionTravel({ packet }: { packet: TelemetryPacket }) {
 
 export function LiveTelemetry({ packet }: Props) {
   const [carName, setCarName] = useState<string>("");
-  const lastOrdinalRef = useRef<number | null>(null);
+  const [trackName, setTrackName] = useState<string>("");
+  const lastCarOrdRef = useRef<number | null>(null);
+  const lastTrackOrdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!packet || packet.CarOrdinal === 0) {
-      setCarName("");
-      lastOrdinalRef.current = null;
-      return;
-    }
-    if (packet.CarOrdinal === lastOrdinalRef.current) return;
-    lastOrdinalRef.current = packet.CarOrdinal;
+    if (!packet) return;
+    const ord = packet.CarOrdinal;
+    if (ord === lastCarOrdRef.current) return;
+    lastCarOrdRef.current = ord;
 
-    fetch(`/api/car-name/${packet.CarOrdinal}`)
+    fetch(`/api/car-name/${ord}`)
       .then((r) => r.text())
-      .then(setCarName)
-      .catch(() => setCarName(`Car #${packet.CarOrdinal}`));
+      .then((name) => setCarName(name))
+      .catch(() => setCarName(`Car #${ord}`));
   }, [packet?.CarOrdinal]);
+
+  useEffect(() => {
+    if (!packet) return;
+    // CarCategory field is used as track ordinal in some implementations
+    // but there's no track ordinal in the packet — we get it from session
+    // For now, fetch from status endpoint which has current session info
+    fetch("/api/status")
+      .then((r) => r.json())
+      .then((status) => {
+        const trackOrd = status.currentSession?.trackOrdinal;
+        if (trackOrd == null || trackOrd === lastTrackOrdRef.current) return;
+        lastTrackOrdRef.current = trackOrd;
+        return fetch(`/api/track-name/${trackOrd}`);
+      })
+      .then((r) => r?.text())
+      .then((name) => { if (name) setTrackName(name); })
+      .catch(() => {});
+  }, [packet?.LapNumber]); // refresh on lap change
 
   if (!packet) {
     return (
@@ -191,10 +208,15 @@ export function LiveTelemetry({ packet }: Props) {
 
   return (
     <div className="grid gap-4 p-4">
-      {/* Car Name */}
-      {carName && (
-        <div className="text-lg font-semibold text-white truncate">{carName}</div>
-      )}
+      {/* Car & Track Name */}
+      <div>
+        {carName && (
+          <div className="text-lg font-semibold text-white truncate">{carName}</div>
+        )}
+        {trackName && (
+          <div className="text-xs text-slate-400 truncate">{trackName}</div>
+        )}
+      </div>
 
       {/* Speed + Gear */}
       <div className="flex items-end gap-4">
