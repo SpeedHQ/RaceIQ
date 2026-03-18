@@ -13,6 +13,8 @@ class UdpListener {
   private _packetsPerSec = 0;
   private _lastWindowStart = Date.now();
   private _socket: ReturnType<typeof Bun.udpSocket> | null = null;
+  private _port = 5300;
+  private _hostname = "0.0.0.0";
 
   get droppedPackets(): number {
     return this._droppedPackets;
@@ -30,11 +32,22 @@ class UdpListener {
     return this._totalPackets;
   }
 
-  async start(port: number = 5300): Promise<void> {
-    console.log(`[UDP] Starting listener on port ${port}...`);
+  get port(): number {
+    return this._port;
+  }
+
+  get hostname(): string {
+    return this._hostname;
+  }
+
+  async start(port: number = 5300, hostname: string = "0.0.0.0"): Promise<void> {
+    this._port = port;
+    this._hostname = hostname;
+    console.log(`[UDP] Starting listener on ${hostname}:${port}...`);
 
     this._socket = await Bun.udpSocket({
       port,
+      hostname,
       socket: {
         data: (_socket, buf, _port, _addr) => {
           this.handlePacket(Buffer.from(buf));
@@ -42,7 +55,7 @@ class UdpListener {
       },
     });
 
-    console.log(`[UDP] Listening on port ${port}`);
+    console.log(`[UDP] Listening on ${hostname}:${port}`);
 
     // Update packets/sec every second
     setInterval(() => {
@@ -88,6 +101,16 @@ class UdpListener {
       this._socket = null;
       console.log("[UDP] Listener stopped");
     }
+  }
+
+  async restart(port: number, hostname?: string): Promise<void> {
+    this.stop();
+    this._droppedPackets = 0;
+    this._totalPackets = 0;
+    this._receiving = false;
+    this._packetsInWindow = 0;
+    this._packetsPerSec = 0;
+    await this.start(port, hostname ?? this._hostname);
   }
 }
 
