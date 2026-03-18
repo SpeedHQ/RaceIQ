@@ -16,8 +16,7 @@ function formatLapTime(seconds: number): string {
 }
 
 function getSpeedMph(p: TelemetryPacket): number {
-  const ms = Math.sqrt(p.VelocityX ** 2 + p.VelocityY ** 2 + p.VelocityZ ** 2);
-  return ms * 2.23694;
+  return p.Speed * 2.23694; // m/s to mph
 }
 
 function GaugeBar({ value, max, color }: { value: number; max: number; color: string }) {

@@ -2,7 +2,7 @@ import { parsePacket } from "./parser";
 import { wsManager } from "./ws";
 import { lapDetector } from "./lap-detector";
 
-const PACKET_LENGTH = 331;
+const MIN_PACKET_LENGTH = 324; // Dash format minimum
 const PACKETS_PER_SEC_WINDOW = 1000; // 1 second window for rate calculation
 
 class UdpListener {
@@ -75,7 +75,7 @@ class UdpListener {
     this._packetsInWindow++;
 
     // Validate packet length
-    if (buf.length !== PACKET_LENGTH) {
+    if (buf.length < MIN_PACKET_LENGTH) {
       this._droppedPackets++;
       return;
     }

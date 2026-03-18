@@ -29,30 +29,17 @@ export function LiveTrackMap({ packet }: Props) {
       lastTimestampRef.current = 0;
     }
 
-    // Integrate velocity to get position
-    const ts = packet.TimestampMS;
-    if (lastTimestampRef.current > 0 && ts > lastTimestampRef.current) {
-      const dt = (ts - lastTimestampRef.current) / 1000;
-      if (dt > 0 && dt < 1) { // skip gaps
-        const last = lastPosRef.current ?? { x: 0, z: 0 };
-        const x = last.x + packet.VelocityX * dt;
-        const z = last.z + packet.VelocityZ * dt;
-        const speed = Math.sqrt(packet.VelocityX ** 2 + packet.VelocityY ** 2 + packet.VelocityZ ** 2) * 2.23694;
-        lastPosRef.current = { x, z };
+    // Use real PositionX/Z from the Dash packet
+    const x = packet.PositionX;
+    const z = packet.PositionZ;
+    const speed = packet.Speed * 2.23694; // m/s to mph
 
-        // Downsample: only add point every ~5 samples
-        if (pointsRef.current.length === 0 || pointsRef.current.length % 3 === 0) {
-          pointsRef.current.push({ x, z, speed });
-        } else {
-          // Update last point position
-          pointsRef.current[pointsRef.current.length - 1] = { x, z, speed };
-        }
-      }
-    } else if (!lastPosRef.current) {
-      lastPosRef.current = { x: 0, z: 0 };
-      pointsRef.current.push({ x: 0, z: 0, speed: 0 });
+    // Downsample: add point every 3rd sample
+    if (pointsRef.current.length === 0 || pointsRef.current.length % 3 === 0) {
+      pointsRef.current.push({ x, z, speed });
+    } else {
+      pointsRef.current[pointsRef.current.length - 1] = { x, z, speed };
     }
-    lastTimestampRef.current = ts;
 
     // Draw
     draw();

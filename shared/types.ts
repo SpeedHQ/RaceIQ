@@ -138,12 +138,14 @@ export interface TelemetryPacket {
   CarPerformanceIndex: number; // s32
   DrivetrainType: number; // s32 (0=FWD, 1=RWD, 2=AWD)
   NumCylinders: number; // s32
-  CarCategory: number; // s32
 
-  // Unknown trailing bytes
-  Unknown1: number; // u8
-  Unknown2: number; // u8
-  Unknown3: number; // u8
+  // Dash extension — position, speed, power
+  PositionX: number; // f32 world space
+  PositionY: number; // f32
+  PositionZ: number; // f32
+  Speed: number; // f32 meters/sec
+  Power: number; // f32 watts
+  Torque: number; // f32 newton meters
 }
 
 export interface LapMeta {

@@ -1,14 +1,18 @@
 import type { TelemetryPacket } from "../shared/types";
 
-const PACKET_LENGTH = 331;
-
 /**
- * Parse a 331-byte Forza Car Dash binary packet into a structured object.
- * Returns null if packet is wrong length or IsRaceOn == 0.
- * All values are little-endian.
+ * Parse a Forza Motorsport "Dash" format UDP packet.
+ * Based on the official FM7/FM2023 Data Out documentation.
+ * Packet is 324 bytes. All values little-endian.
+ *
+ * Offsets 0-231: "Sled" base data
+ * Offsets 232-323: "Dash" extended data (position, speed, power, torque, temps, etc.)
+ *
+ * Returns null if IsRaceOn == 0.
  */
 export function parsePacket(buf: Buffer): TelemetryPacket | null {
-  if (buf.length !== PACKET_LENGTH) {
+  // Accept both 311 (V1 sled) and 324 (dash) byte packets, and 331 (car dash with extras)
+  if (buf.length < 324) {
     return null;
   }
 
@@ -21,120 +25,140 @@ export function parsePacket(buf: Buffer): TelemetryPacket | null {
     IsRaceOn: isRaceOn,
     TimestampMS: buf.readUInt32LE(4),
 
+    // Engine
     EngineMaxRpm: buf.readFloatLE(8),
     EngineIdleRpm: buf.readFloatLE(12),
     CurrentEngineRpm: buf.readFloatLE(16),
 
+    // Acceleration (local space: X=right, Y=up, Z=forward)
     AccelerationX: buf.readFloatLE(20),
     AccelerationY: buf.readFloatLE(24),
     AccelerationZ: buf.readFloatLE(28),
 
+    // Velocity (local space: X=right, Y=up, Z=forward)
     VelocityX: buf.readFloatLE(32),
     VelocityY: buf.readFloatLE(36),
     VelocityZ: buf.readFloatLE(40),
 
+    // Angular velocity (X=pitch, Y=yaw, Z=roll)
     AngularVelocityX: buf.readFloatLE(44),
     AngularVelocityY: buf.readFloatLE(48),
     AngularVelocityZ: buf.readFloatLE(52),
 
+    // Orientation
     Yaw: buf.readFloatLE(56),
     Pitch: buf.readFloatLE(60),
     Roll: buf.readFloatLE(64),
 
+    // Normalized suspension travel (0=max stretch, 1=max compression)
     NormSuspensionTravelFL: buf.readFloatLE(68),
     NormSuspensionTravelFR: buf.readFloatLE(72),
     NormSuspensionTravelRL: buf.readFloatLE(76),
     NormSuspensionTravelRR: buf.readFloatLE(80),
 
+    // Tire slip ratio (0=100% grip, >1=loss of grip)
     TireSlipRatioFL: buf.readFloatLE(84),
     TireSlipRatioFR: buf.readFloatLE(88),
     TireSlipRatioRL: buf.readFloatLE(92),
     TireSlipRatioRR: buf.readFloatLE(96),
 
+    // Wheel rotation speed (rad/s)
     WheelRotationSpeedFL: buf.readFloatLE(100),
     WheelRotationSpeedFR: buf.readFloatLE(104),
     WheelRotationSpeedRL: buf.readFloatLE(108),
     WheelRotationSpeedRR: buf.readFloatLE(112),
 
-    WheelOnRumbleStripFL: buf.readFloatLE(116),
-    WheelOnRumbleStripFR: buf.readFloatLE(120),
-    WheelOnRumbleStripRL: buf.readFloatLE(124),
-    WheelOnRumbleStripRR: buf.readFloatLE(128),
+    // Wheel on rumble strip (s32: 1=on, 0=off)
+    WheelOnRumbleStripFL: buf.readInt32LE(116),
+    WheelOnRumbleStripFR: buf.readInt32LE(120),
+    WheelOnRumbleStripRL: buf.readInt32LE(124),
+    WheelOnRumbleStripRR: buf.readInt32LE(128),
 
+    // Wheel in puddle depth (0-1)
     WheelInPuddleDepthFL: buf.readFloatLE(132),
     WheelInPuddleDepthFR: buf.readFloatLE(136),
     WheelInPuddleDepthRL: buf.readFloatLE(140),
     WheelInPuddleDepthRR: buf.readFloatLE(144),
 
-    SurfaceRumbleFL_2: buf.readFloatLE(148),
-    SurfaceRumbleFR_2: buf.readFloatLE(152),
-    SurfaceRumbleRL_2: buf.readFloatLE(156),
-    SurfaceRumbleRR_2: buf.readFloatLE(160),
+    // Surface rumble (force feedback)
+    SurfaceRumbleFL: buf.readFloatLE(148),
+    SurfaceRumbleFR: buf.readFloatLE(152),
+    SurfaceRumbleRL: buf.readFloatLE(156),
+    SurfaceRumbleRR: buf.readFloatLE(160),
 
-    TireSlipCombinedFL_2: buf.readFloatLE(164),
+    // Tire slip angle (0=100% grip, >1=loss of grip)
+    TireSlipAngleFL: buf.readFloatLE(164),
+    TireSlipAngleFR: buf.readFloatLE(168),
+    TireSlipAngleRL: buf.readFloatLE(172),
+    TireSlipAngleRR: buf.readFloatLE(176),
 
-    TireTempFL: buf.readFloatLE(168),
-    TireTempFR: buf.readFloatLE(172),
-    TireTempRL: buf.readFloatLE(176),
-    TireTempRR: buf.readFloatLE(180),
+    // Tire combined slip (0=100% grip, >1=loss of grip)
+    TireCombinedSlipFL: buf.readFloatLE(180),
+    TireCombinedSlipFR: buf.readFloatLE(184),
+    TireCombinedSlipRL: buf.readFloatLE(188),
+    TireCombinedSlipRR: buf.readFloatLE(192),
 
-    Boost: buf.readFloatLE(184),
-    Fuel: buf.readFloatLE(188),
+    // Suspension travel (meters)
+    SuspensionTravelMetersFL: buf.readFloatLE(196),
+    SuspensionTravelMetersFR: buf.readFloatLE(200),
+    SuspensionTravelMetersRL: buf.readFloatLE(204),
+    SuspensionTravelMetersRR: buf.readFloatLE(208),
 
-    DistanceTraveled: buf.readFloatLE(192),
-    BestLap: buf.readFloatLE(196),
-    LastLap: buf.readFloatLE(200),
-    CurrentLap: buf.readFloatLE(204),
-    CurrentRaceTime: buf.readFloatLE(208),
+    // Car info
+    CarOrdinal: buf.readInt32LE(212),
+    CarClass: buf.readInt32LE(216),
+    CarPerformanceIndex: buf.readInt32LE(220),
+    DrivetrainType: buf.readInt32LE(224),
+    NumCylinders: buf.readInt32LE(228),
 
-    LapNumber: buf.readUInt16LE(212),
-    RacePosition: buf.readUInt8(214),
+    // === Dash extension (offset 232+) ===
 
-    Accel: buf.readUInt8(215),
-    Brake: buf.readUInt8(216),
-    Clutch: buf.readUInt8(217),
-    HandBrake: buf.readUInt8(218),
-    Gear: buf.readUInt8(219),
-    Steer: buf.readUInt8(220),
+    // Position (world space)
+    PositionX: buf.readFloatLE(232),
+    PositionY: buf.readFloatLE(236),
+    PositionZ: buf.readFloatLE(240),
 
-    NormDrivingLine: buf.readInt8(221),
-    NormAIBrakeDiff: buf.readInt8(222),
+    // Speed, power, torque
+    Speed: buf.readFloatLE(244),
+    Power: buf.readFloatLE(248),
+    Torque: buf.readFloatLE(252),
 
-    TireWearFL: buf.readFloatLE(224),
-    TireWearFR: buf.readFloatLE(228),
-    TireWearRL: buf.readFloatLE(232),
-    TireWearRR: buf.readFloatLE(236),
+    // Tire temps
+    TireTempFL: buf.readFloatLE(256),
+    TireTempFR: buf.readFloatLE(260),
+    TireTempRL: buf.readFloatLE(264),
+    TireTempRR: buf.readFloatLE(268),
 
-    SurfaceRumbleFL: buf.readInt32LE(240),
-    SurfaceRumbleFR: buf.readInt32LE(244),
-    SurfaceRumbleRL: buf.readInt32LE(248),
-    SurfaceRumbleRR: buf.readInt32LE(252),
+    // Engine/fuel
+    Boost: buf.readFloatLE(272),
+    Fuel: buf.readFloatLE(276),
 
-    TireSlipAngleFL: buf.readFloatLE(256),
-    TireSlipAngleFR: buf.readFloatLE(260),
-    TireSlipAngleRL: buf.readFloatLE(264),
-    TireSlipAngleRR: buf.readFloatLE(268),
+    // Distance & lap times
+    DistanceTraveled: buf.readFloatLE(280),
+    BestLap: buf.readFloatLE(284),
+    LastLap: buf.readFloatLE(288),
+    CurrentLap: buf.readFloatLE(292),
+    CurrentRaceTime: buf.readFloatLE(296),
 
-    TireCombinedSlipFL: buf.readFloatLE(272),
-    TireCombinedSlipFR: buf.readFloatLE(276),
-    TireCombinedSlipRL: buf.readFloatLE(280),
-    TireCombinedSlipRR: buf.readFloatLE(284),
+    // Lap/position/inputs
+    LapNumber: buf.readUInt16LE(300),
+    RacePosition: buf.readUInt8(302),
+    Accel: buf.readUInt8(303),
+    Brake: buf.readUInt8(304),
+    Clutch: buf.readUInt8(305),
+    HandBrake: buf.readUInt8(306),
+    Gear: buf.readUInt8(307),
+    Steer: buf.readInt8(308),
 
-    SuspensionTravelMetersFL: buf.readFloatLE(288),
-    SuspensionTravelMetersFR: buf.readFloatLE(292),
-    SuspensionTravelMetersRL: buf.readFloatLE(296),
-    SuspensionTravelMetersRR: buf.readFloatLE(300),
+    // Driving aids
+    NormDrivingLine: buf.readInt8(309),
+    NormAIBrakeDiff: buf.readInt8(310),
 
-    CarOrdinal: buf.readInt32LE(304),
-    CarClass: buf.readInt32LE(308),
-    CarPerformanceIndex: buf.readInt32LE(312),
-    DrivetrainType: buf.readInt32LE(316),
-    NumCylinders: buf.readInt32LE(320),
-    CarCategory: buf.readInt32LE(324),
-
-    Unknown1: buf.readUInt8(328),
-    Unknown2: buf.readUInt8(329),
-    Unknown3: buf.readUInt8(330),
+    // Extra fields (offsets 311-323) — tire wear etc. if present
+    TireWearFL: buf.length > 311 ? buf.readFloatLE(311) : 0,
+    TireWearFR: buf.length > 315 ? buf.readFloatLE(315) : 0,
+    TireWearRL: buf.length > 319 ? buf.readFloatLE(319) : 0,
+    TireWearRR: buf.length > 323 ? buf.readFloatLE(323) : 0,
   };
 
   return packet;
