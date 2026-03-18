@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import type { TelemetryPacket } from "@shared/types";
 
 interface Props {
@@ -13,33 +13,60 @@ interface Point {
 
 export function LiveTrackMap({ packet }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const pointsRef = useRef<Point[]>([]);
-  const lastLapRef = useRef<number>(-1);
-  const frameCountRef = useRef<number>(0);
+  const [trackPoints, setTrackPoints] = useState<Point[]>([]);
+  const lastFetchedSessionRef = useRef<number | null>(null);
 
+  // Fetch track outline from the most recent completed lap
+  const fetchTrackOutline = useCallback(async () => {
+    try {
+      const res = await fetch("/api/laps");
+      if (!res.ok) return;
+      const laps = await res.json();
+      if (!laps.length) return;
+
+      // Use the most recent valid lap
+      const lap = laps.find((l: { isValid: boolean }) => l.isValid) ?? laps[0];
+      const lapRes = await fetch(`/api/laps/${lap.id}`);
+      if (!lapRes.ok) return;
+      const lapData = await lapRes.json();
+
+      const points: Point[] = [];
+      for (let i = 0; i < lapData.telemetry.length; i += 5) {
+        const p = lapData.telemetry[i];
+        if (p.PositionX === 0 && p.PositionZ === 0) continue;
+        points.push({
+          x: p.PositionX,
+          z: p.PositionZ,
+          speed: (p.Speed ?? 0) * 2.23694,
+        });
+      }
+      if (points.length > 10) {
+        setTrackPoints(points);
+      }
+    } catch {}
+  }, []);
+
+  // Fetch track outline when session changes or on first lap completion
   useEffect(() => {
     if (!packet) return;
-
-    // Reset on new lap
-    if (packet.LapNumber !== lastLapRef.current) {
-      lastLapRef.current = packet.LapNumber;
-      pointsRef.current = [];
-      frameCountRef.current = 0;
+    // Refetch when we have no track points and laps exist, or on lap change
+    if (trackPoints.length === 0 || packet.LapNumber > 1) {
+      // Debounce: only fetch once per session
+      const sessionCheck = packet.CarOrdinal;
+      if (sessionCheck !== lastFetchedSessionRef.current) {
+        lastFetchedSessionRef.current = sessionCheck;
+        fetchTrackOutline();
+      }
     }
+  }, [packet?.LapNumber, packet?.CarOrdinal, trackPoints.length, fetchTrackOutline]);
 
-    const x = packet.PositionX;
-    const z = packet.PositionZ;
-    const speed = packet.Speed * 2.23694;
+  // Also try fetching on mount
+  useEffect(() => {
+    fetchTrackOutline();
+  }, [fetchTrackOutline]);
 
-    // Skip zero positions (car not loaded / in menu)
-    if (x === 0 && z === 0) return;
-
-    // Add point every 5th frame to avoid too many points
-    frameCountRef.current++;
-    if (frameCountRef.current % 5 === 0) {
-      pointsRef.current.push({ x, z, speed });
-    }
-
+  // Redraw on every packet
+  useEffect(() => {
     draw();
   });
 
@@ -49,23 +76,28 @@ export function LiveTrackMap({ packet }: Props) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const points = pointsRef.current;
-    if (points.length < 2) return;
-
     const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
     const w = rect.width;
     const h = rect.height;
-
     ctx.clearRect(0, 0, w, h);
 
-    // Find bounds
+    if (trackPoints.length < 2) {
+      ctx.fillStyle = "#475569";
+      ctx.font = "12px system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("Complete a lap to render track map", w / 2, h / 2);
+      return;
+    }
+
+    // Find bounds from track outline
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     let maxSpeed = 1;
-    for (const p of points) {
+    for (const p of trackPoints) {
       minX = Math.min(minX, p.x);
       maxX = Math.max(maxX, p.x);
       minZ = Math.min(minZ, p.z);
@@ -75,17 +107,17 @@ export function LiveTrackMap({ packet }: Props) {
 
     const rangeX = (maxX - minX) || 1;
     const rangeZ = (maxZ - minZ) || 1;
-    const padding = 20;
+    const padding = 25;
     const scaleX = (w - padding * 2) / rangeX;
     const scaleZ = (h - padding * 2) / rangeZ;
     const scale = Math.min(scaleX, scaleZ);
     const offsetX = (w - rangeX * scale) / 2;
     const offsetZ = (h - rangeZ * scale) / 2;
 
-    function toCanvas(p: Point): [number, number] {
+    function toCanvas(x: number, z: number): [number, number] {
       return [
-        offsetX + (p.x - minX) * scale,
-        offsetZ + (p.z - minZ) * scale,
+        offsetX + (x - minX) * scale,
+        offsetZ + (z - minZ) * scale,
       ];
     }
 
@@ -102,36 +134,41 @@ export function LiveTrackMap({ packet }: Props) {
       return `rgb(255, ${Math.round(200 - s * 200)}, 0)`;
     }
 
-    // Draw track segments colored by speed
-    ctx.lineWidth = 2.5;
+    // Draw static track outline colored by speed
+    ctx.lineWidth = 3;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    for (let i = 1; i < points.length; i++) {
-      const [x1, y1] = toCanvas(points[i - 1]);
-      const [x2, y2] = toCanvas(points[i]);
+    for (let i = 1; i < trackPoints.length; i++) {
+      const [x1, y1] = toCanvas(trackPoints[i - 1].x, trackPoints[i - 1].z);
+      const [x2, y2] = toCanvas(trackPoints[i].x, trackPoints[i].z);
       ctx.beginPath();
-      ctx.strokeStyle = speedColor(points[i].speed);
+      ctx.strokeStyle = speedColor(trackPoints[i].speed);
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
       ctx.stroke();
     }
 
-    // Current position dot
-    const [cx, cy] = toCanvas(points[points.length - 1]);
+    // Start/finish marker
+    const [sx, sy] = toCanvas(trackPoints[0].x, trackPoints[0].z);
     ctx.beginPath();
-    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
-    ctx.fillStyle = "#22d3ee";
+    ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "#10b981";
     ctx.fill();
     ctx.strokeStyle = "#0f172a";
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Start marker
-    const [sx, sy] = toCanvas(points[0]);
-    ctx.beginPath();
-    ctx.arc(sx, sy, 4, 0, Math.PI * 2);
-    ctx.fillStyle = "#10b981";
-    ctx.fill();
+    // Live car position dot
+    if (packet && (packet.PositionX !== 0 || packet.PositionZ !== 0)) {
+      const [cx, cy] = toCanvas(packet.PositionX, packet.PositionZ);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+      ctx.fillStyle = "#22d3ee";
+      ctx.fill();
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
   }
 
   return (
