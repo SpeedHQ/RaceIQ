@@ -1,7 +1,136 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import type { TelemetryPacket } from "@shared/types";
 import { CAR_CLASS_NAMES, DRIVETRAIN_NAMES } from "@shared/types";
 import { SteeringWheel } from "./SteeringWheel";
+
+const GRIP_HISTORY_SECONDS = 60;
+const GRIP_SAMPLE_RATE = 10; // samples per second
+const GRIP_MAX_SAMPLES = GRIP_HISTORY_SECONDS * GRIP_SAMPLE_RATE;
+
+function GripSparkline({ data, label, renderKey, width = 140, height = 40 }: {
+  data: number[];
+  label: string;
+  renderKey: number;
+  width?: number;
+  height?: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || data.length < 2) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+
+    const maxY = 3;
+
+    // Zone backgrounds (top = 100% grip/green, bottom = 0% loss/red)
+    const zones = [
+      { from: 0, to: 0.5, color: "rgba(52,211,153,0.08)" },
+      { from: 0.5, to: 1.0, color: "rgba(250,204,21,0.08)" },
+      { from: 1.0, to: 2.0, color: "rgba(251,146,60,0.06)" },
+      { from: 2.0, to: 3.0, color: "rgba(239,68,68,0.06)" },
+    ];
+    for (const z of zones) {
+      const yTop = (z.from / maxY) * height;
+      const yBot = (z.to / maxY) * height;
+      ctx.fillStyle = z.color;
+      ctx.fillRect(0, yTop, width, yBot - yTop);
+    }
+
+    // Draw line (inverted: 100% grip at top, 0% at bottom)
+    ctx.beginPath();
+    const step = width / (GRIP_MAX_SAMPLES - 1);
+    const startIdx = GRIP_MAX_SAMPLES - data.length;
+    for (let i = 0; i < data.length; i++) {
+      const x = (startIdx + i) * step;
+      const val = Math.min(data[i], maxY);
+      const y = (val / maxY) * height; // high slip = low on chart
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = "rgba(148,163,184,0.7)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Current value dot
+    if (data.length > 0) {
+      const last = data[data.length - 1];
+      const lx = (startIdx + data.length - 1) * step;
+      const ly = (Math.min(last, maxY) / maxY) * height;
+      const gripPctVal = Math.max(0, 100 - (last / maxY) * 100);
+      const dotColor = gripPctVal > 83 ? "#34d399" : gripPctVal > 67 ? "#facc15" : gripPctVal > 33 ? "#fb923c" : "#ef4444";
+      ctx.beginPath();
+      ctx.arc(lx, ly, 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = dotColor;
+      ctx.fill();
+    }
+  }, [renderKey, width, height]);
+
+  const raw = data.length > 0 ? data[data.length - 1] : 0;
+  const gripPct = Math.max(0, Math.round(100 - (raw / 3) * 100));
+  const valColor = gripPct > 83 ? "text-emerald-400" : gripPct > 67 ? "text-yellow-400" : gripPct > 33 ? "text-orange-400" : "text-red-400";
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[9px] font-semibold text-slate-500 uppercase">{label}</span>
+      <div className="flex items-center gap-1.5">
+        <canvas
+          ref={canvasRef}
+          style={{ width, height }}
+          className="rounded bg-slate-900/40"
+        />
+        <span className={`text-xs font-mono font-bold tabular-nums ${valColor}`}>
+          {gripPct}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function GripHistory({ packet }: { packet: TelemetryPacket }) {
+  const historyRef = useRef<{ fl: number[]; fr: number[]; rl: number[]; rr: number[] }>({
+    fl: [], fr: [], rl: [], rr: [],
+  });
+  const [renderKey, setRenderKey] = useState(0);
+  const frameRef = useRef(0);
+
+  useEffect(() => {
+    const h = historyRef.current;
+
+    // Downsample: only keep every 6th packet (~10 samples/sec from 60Hz)
+    frameRef.current++;
+    if (frameRef.current % 6 !== 0) return;
+
+    h.fl.push(Math.abs(packet.TireCombinedSlipFL));
+    h.fr.push(Math.abs(packet.TireCombinedSlipFR));
+    h.rl.push(Math.abs(packet.TireCombinedSlipRL));
+    h.rr.push(Math.abs(packet.TireCombinedSlipRR));
+
+    if (h.fl.length > GRIP_MAX_SAMPLES) {
+      h.fl.shift(); h.fr.shift(); h.rl.shift(); h.rr.shift();
+    }
+
+    setRenderKey((v) => v + 1);
+  }, [packet]);
+
+  const h = historyRef.current;
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <GripSparkline data={h.fl} label="FL" renderKey={renderKey} />
+      <GripSparkline data={h.fr} label="FR" renderKey={renderKey} />
+      <GripSparkline data={h.rl} label="RL" renderKey={renderKey} />
+      <GripSparkline data={h.rr} label="RR" renderKey={renderKey} />
+    </div>
+  );
+}
 
 interface Props {
   packet: TelemetryPacket | null;
@@ -76,34 +205,55 @@ function WheelCard({ label, temp, wear, combined }: {
   combined: number;
 }) {
   return (
-    <div className={`rounded-lg border p-2.5 transition-colors ${tempBg(temp)}`}>
+    <div className={`rounded-lg border p-2 transition-colors ${tempBg(temp)}`}>
       {/* Header: label + traction badge */}
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
-        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${gripColor(combined)} bg-slate-900/60 ${gripPulse(combined)}`}>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[10px] font-semibold text-slate-400 uppercase">{label}</span>
+        <span className={`text-[9px] font-mono font-bold px-1 py-px rounded ${gripColor(combined)} bg-slate-900/60 ${gripPulse(combined)}`}>
           {gripLabel(combined)}
         </span>
       </div>
 
       {/* Temp */}
-      <div className={`text-2xl font-mono font-bold tabular-nums leading-none mb-1.5 ${tempColor(temp)}`}>
+      <div className={`text-xl font-mono font-bold tabular-nums leading-none mb-1.5 ${tempColor(temp)}`}>
         {temp.toFixed(0)}°
       </div>
 
       {/* Wear bar */}
       {wear >= 0 ? (
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <div className="flex-1 h-1.5 bg-slate-900/50 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all ${wearBarColor(wear)}`}
               style={{ width: `${wear * 100}%` }}
             />
           </div>
-          <span className="text-[10px] font-mono text-slate-400 w-7 text-right">{(wear * 100).toFixed(0)}%</span>
+          <span className="text-[9px] font-mono text-slate-400">{(wear * 100).toFixed(0)}%</span>
         </div>
       ) : (
-        <div className="text-[10px] text-slate-600 italic">wear n/a</div>
+        <div className="text-[9px] text-slate-600 italic">n/a</div>
       )}
+    </div>
+  );
+}
+
+function suspColor(norm: number): string {
+  if (norm < 0.6) return "bg-cyan-400";
+  if (norm < 0.85) return "bg-yellow-400";
+  return "bg-red-500";
+}
+
+function SuspBar({ norm }: { norm: number }) {
+  const pct = Math.min(norm * 100, 100);
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <div className="w-4 h-16 bg-slate-900/60 rounded-sm overflow-hidden relative">
+        <div
+          className={`absolute bottom-0 w-full rounded-sm transition-all ${suspColor(norm)}`}
+          style={{ height: `${pct}%` }}
+        />
+      </div>
+      <span className="text-[8px] font-mono text-slate-500">{pct.toFixed(0)}%</span>
     </div>
   );
 }
@@ -116,58 +266,33 @@ function TireDiagram({ packet }: { packet: TelemetryPacket }) {
     { label: "RR", temp: packet.TireTempRR, wear: packet.TireWearRR, combined: Math.abs(packet.TireCombinedSlipRR) },
   ];
 
-  return (
-    <div className="relative">
-      {/* Car silhouette connector lines */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-12 h-24 border border-slate-700/50 rounded-md" />
-      </div>
-
-      <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-        {/* Front axle */}
-        <WheelCard {...wheels[0]} />
-        <WheelCard {...wheels[1]} />
-
-        {/* Axle label */}
-        <div className="col-span-2 flex items-center justify-center">
-          <div className="h-px w-full bg-slate-700/30" />
-        </div>
-
-        {/* Rear axle */}
-        <WheelCard {...wheels[2]} />
-        <WheelCard {...wheels[3]} />
-      </div>
-    </div>
-  );
-}
-
-function SuspensionTravel({ packet }: { packet: TelemetryPacket }) {
-  const corners = [
-    { label: "FL", norm: packet.NormSuspensionTravelFL, meters: packet.SuspensionTravelMetersFL },
-    { label: "FR", norm: packet.NormSuspensionTravelFR, meters: packet.SuspensionTravelMetersFR },
-    { label: "RL", norm: packet.NormSuspensionTravelRL, meters: packet.SuspensionTravelMetersRL },
-    { label: "RR", norm: packet.NormSuspensionTravelRR, meters: packet.SuspensionTravelMetersRR },
+  const susp = [
+    packet.NormSuspensionTravelFL,
+    packet.NormSuspensionTravelFR,
+    packet.NormSuspensionTravelRL,
+    packet.NormSuspensionTravelRR,
   ];
 
-  function suspColor(norm: number): string {
-    if (norm < 0.6) return "bg-cyan-400";
-    if (norm < 0.85) return "bg-yellow-400";
-    return "bg-red-500";
-  }
-
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {corners.map((c) => (
-        <div key={c.label} className="bg-slate-800/50 rounded px-2 py-1.5">
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-slate-500">{c.label}</span>
-            <span className="text-slate-400 font-mono">{(c.norm * 100).toFixed(0)}%</span>
-          </div>
-          <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full ${suspColor(c.norm)}`} style={{ width: `${c.norm * 100}%` }} />
-          </div>
-        </div>
-      ))}
+    <div className="grid grid-cols-[80px_auto_80px] gap-x-3 gap-y-3 items-center justify-center mx-auto" style={{ maxWidth: 280 }}>
+      {/* Front axle */}
+      <WheelCard {...wheels[0]} />
+      <div className="flex gap-2">
+        <SuspBar norm={susp[0]} />
+        <SuspBar norm={susp[1]} />
+      </div>
+      <WheelCard {...wheels[1]} />
+
+      {/* Divider */}
+      <div className="col-span-3 h-px bg-slate-700/30" />
+
+      {/* Rear axle */}
+      <WheelCard {...wheels[2]} />
+      <div className="flex gap-2">
+        <SuspBar norm={susp[2]} />
+        <SuspBar norm={susp[3]} />
+      </div>
+      <WheelCard {...wheels[3]} />
     </div>
   );
 }
@@ -309,11 +434,12 @@ export function LiveTelemetry({ packet }: Props) {
         <TireDiagram packet={packet} />
       </div>
 
-      {/* Suspension */}
+      {/* Grip history — 60s sparklines */}
       <div>
-        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Suspension Travel</div>
-        <SuspensionTravel packet={packet} />
+        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Grip History (60s)</div>
+        <GripHistory packet={packet} />
       </div>
+
     </div>
   );
 }
