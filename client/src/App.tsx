@@ -7,14 +7,16 @@ import { LiveTrackMap } from "./components/LiveTrackMap";
 import { LapList } from "./components/LapList";
 import { LapComparison } from "./components/LapComparison";
 import { RawTelemetry } from "./components/RawTelemetry";
+import { TrackViewer } from "./components/TrackViewer";
 import { Settings } from "./components/Settings";
 import { Button } from "@/components/ui/button";
 
-type Tab = "live" | "compare" | "raw";
+type Tab = "live" | "compare" | "tracks" | "raw";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "live", label: "Live" },
   { id: "compare", label: "Compare" },
+  { id: "tracks", label: "Tracks" },
   { id: "raw", label: "Raw" },
 ];
 
@@ -132,6 +134,12 @@ export default function App() {
       {activeTab === "compare" && (
         <div className="flex-1 overflow-hidden">
           <LapComparison />
+        </div>
+      )}
+
+      {activeTab === "tracks" && (
+        <div className="flex-1 overflow-auto">
+          <TrackViewer />
         </div>
       )}
 

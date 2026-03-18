@@ -21,7 +21,8 @@ import {
 import { compareLaps } from "./comparison";
 import { detectCorners, type Corner } from "./corner-detection";
 import { carMap, getCarName, trackMap, getTrackName } from "../shared/car-data";
-import { getTrackOutlineByOrdinal } from "../shared/track-outlines/index";
+import { getTrackOutlineByOrdinal, hasTrackOutline } from "../shared/track-outlines/index";
+import { trackMap as trackInfoMap } from "../shared/car-data";
 
 const app = new Hono();
 
@@ -257,6 +258,25 @@ app.get("/api/track-name/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);
   if (isNaN(ordinal)) return c.text("Unknown track");
   return c.text(getTrackName(ordinal));
+});
+
+// GET /api/tracks — list all tracks with outline availability
+app.get("/api/tracks", (c) => {
+  const tracks = Array.from(trackInfoMap.entries()).map(([ordinal, info]) => ({
+    ordinal,
+    name: info.name,
+    location: info.location,
+    country: info.country,
+    variant: info.variant,
+    lengthKm: info.lengthKm,
+    hasOutline: hasTrackOutline(ordinal),
+  }));
+  // Sort: tracks with outlines first, then alphabetically
+  tracks.sort((a, b) => {
+    if (a.hasOutline !== b.hasOutline) return a.hasOutline ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+  return c.json(tracks);
 });
 
 // GET /api/track-outline/:ordinal — bundled track outline coordinates
