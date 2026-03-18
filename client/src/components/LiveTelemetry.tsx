@@ -1268,22 +1268,37 @@ export function LiveTelemetry({ packet }: Props) {
         })}
       </div>
 
-      {/* Row 3: Throttle/Brake + Steering + G-Force */}
+      {/* Row 3: Throttle/Brake pedals + Fuel + Steering + G-Force */}
       <div className="flex items-center gap-3">
-        <div className="flex-1 flex flex-col gap-1">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[9px] text-slate-500 w-4">T</span>
-            <GaugeBar value={throttlePct} max={100} color="bg-emerald-400" />
-            <span className="text-[9px] font-mono text-slate-500 w-6 text-right">{throttlePct.toFixed(0)}%</span>
+        {/* Pedal bars — vertical, fill from bottom */}
+        <div className="flex gap-1.5 items-end shrink-0" style={{ height: 80 }}>
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{throttlePct.toFixed(0)}</span>
+            <div className="w-6 bg-slate-800 rounded-sm overflow-hidden relative" style={{ height: 60 }}>
+              <div
+                className="absolute bottom-0 w-full bg-emerald-400 rounded-sm transition-all"
+                style={{ height: `${throttlePct}%` }}
+              />
+            </div>
+            <span className="text-[8px] text-slate-500">T</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[9px] text-slate-500 w-4">B</span>
-            <GaugeBar value={brakePct} max={100} color="bg-red-500" />
-            <span className="text-[9px] font-mono text-slate-500 w-6 text-right">{brakePct.toFixed(0)}%</span>
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-[9px] font-mono text-red-400 font-bold tabular-nums">{brakePct.toFixed(0)}</span>
+            <div className="w-6 bg-slate-800 rounded-sm overflow-hidden relative" style={{ height: 60 }}>
+              <div
+                className="absolute bottom-0 w-full bg-red-500 rounded-sm transition-all"
+                style={{ height: `${brakePct}%` }}
+              />
+            </div>
+            <span className="text-[8px] text-slate-500">B</span>
           </div>
-          {/* Fuel */}
+        </div>
+
+        {/* Fuel */}
+        <div className="flex-1">
           <FuelGauge packet={packet} />
         </div>
+
         <SteeringWheel steer={packet.Steer} />
         <GForceCircle packet={packet} />
       </div>

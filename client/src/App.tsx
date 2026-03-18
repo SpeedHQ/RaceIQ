@@ -9,6 +9,7 @@ import { LapList } from "./components/LapList";
 import { LapComparison } from "./components/LapComparison";
 import { RawTelemetry } from "./components/RawTelemetry";
 import { TrackViewer } from "./components/TrackViewer";
+import { LapAnalyse } from "./components/LapAnalyse";
 import { Settings } from "./components/Settings";
 import { Button } from "@/components/ui/button";
 
@@ -406,11 +407,12 @@ function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
   );
 }
 
-type Tab = "live" | "compare" | "tracks" | "raw";
+type Tab = "live" | "compare" | "analyse" | "tracks" | "raw";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "live", label: "Live" },
   { id: "compare", label: "Compare" },
+  { id: "analyse", label: "Analyse" },
   { id: "tracks", label: "Tracks" },
   { id: "raw", label: "Raw" },
 ];
@@ -574,6 +576,12 @@ export default function App() {
       {activeTab === "compare" && (
         <div className="flex-1 overflow-hidden">
           <LapComparison />
+        </div>
+      )}
+
+      {activeTab === "analyse" && (
+        <div className="flex-1 overflow-hidden">
+          <LapAnalyse />
         </div>
       )}
 
