@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { TelemetryPacket, LapMeta } from "@shared/types";
 import { CAR_CLASS_NAMES, DRIVETRAIN_NAMES } from "@shared/types";
-import { formatLapTime } from "./LiveTelemetry";
+import { formatLapTime, TireDiagram } from "./LiveTelemetry";
 
 interface Point {
   x: number;
@@ -292,7 +292,7 @@ function MetricsPanel({ pkt }: { pkt: TelemetryPacket }) {
   const speedMph = pkt.Speed * 2.23694;
   const throttlePct = ((pkt.Accel / 255) * 100).toFixed(0);
   const brakePct = ((pkt.Brake / 255) * 100).toFixed(0);
-  const steerAngle = pkt.Steer - 127;
+  const steerAngle = pkt.Steer;
 
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono">
@@ -381,7 +381,9 @@ export function LapAnalyse() {
   const [cursorIdx, setCursorIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const playRef = useRef(false);
+  const speedRef = useRef(1);
   const cursorRef = useRef(0);
 
   // Fetch lap list
@@ -430,17 +432,26 @@ export function LapAnalyse() {
       .finally(() => setLoading(false));
   }, [selectedLapId]);
 
-  // Play/pause animation
+  // Keep speedRef in sync and signal the animation to re-anchor timing
+  const speedChangeRef = useRef(0);
+  useEffect(() => {
+    speedRef.current = playbackSpeed;
+    speedChangeRef.current++;
+  }, [playbackSpeed]);
+
+  // Play/pause animation — uses CurrentLap timer for accurate real-time playback
   useEffect(() => {
     playRef.current = playing;
     if (!playing || telemetry.length < 2) return;
 
     let rafId: number;
-    let lastTime = performance.now();
+    // Track wall-clock time elapsed since playback started at current index
+    let wallStart = performance.now();
+    let gameStart = telemetry[cursorRef.current].CurrentLap;
+    let lastSpeedChange = speedChangeRef.current;
 
     function step(now: number) {
       if (!playRef.current) return;
-      const elapsed = now - lastTime;
       const idx = cursorRef.current;
       if (idx >= telemetry.length - 1) {
         setPlaying(false);
@@ -448,15 +459,28 @@ export function LapAnalyse() {
         return;
       }
 
-      // Advance based on real-time delta between packets
-      const dtPacket = telemetry[idx + 1].TimestampMS - telemetry[idx].TimestampMS;
-      const dtTarget = Math.max(dtPacket, 1); // ms between packets
-      if (elapsed >= dtTarget) {
-        const nextIdx = Math.min(idx + 1, telemetry.length - 1);
+      // Re-anchor timing when speed changes mid-playback
+      if (speedChangeRef.current !== lastSpeedChange) {
+        lastSpeedChange = speedChangeRef.current;
+        wallStart = now;
+        gameStart = telemetry[idx].CurrentLap;
+      }
+
+      // How much game-time should have elapsed based on wall-clock and speed
+      const wallElapsed = (now - wallStart) / 1000; // seconds
+      const gameTarget = gameStart + wallElapsed * speedRef.current;
+
+      // Advance cursor to the packet matching the target game time
+      let nextIdx = idx;
+      while (nextIdx < telemetry.length - 1 && telemetry[nextIdx + 1].CurrentLap <= gameTarget) {
+        nextIdx++;
+      }
+
+      if (nextIdx !== idx) {
         cursorRef.current = nextIdx;
         setCursorIdx(nextIdx);
-        lastTime = now;
       }
+
       rafId = requestAnimationFrame(step);
     }
     rafId = requestAnimationFrame(step);
@@ -505,7 +529,7 @@ export function LapAnalyse() {
       throttle.push((p.Accel / 255) * 100);
       brake.push((p.Brake / 255) * 100);
       rpm.push(p.CurrentEngineRpm);
-      steering.push(p.Steer - 127);
+      steering.push(p.Steer);
     }
     return { speed, throttle, brake, rpm, steering };
   }, [telemetry]);
@@ -638,9 +662,9 @@ export function LapAnalyse() {
       ) : (
         <>
           {/* Top section: Track Map + Metrics */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] border-b border-slate-800" style={{ minHeight: 280 }}>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_280px] border-b border-slate-800 shrink-0">
             {/* Track map */}
-            <div className="border-r border-slate-800 bg-slate-950 p-2">
+            <div className="border-r border-slate-800 bg-slate-950 p-2" style={{ height: 280 }}>
               <AnalyseTrackMap
                 telemetry={telemetry}
                 cursorIdx={cursorIdx}
@@ -648,8 +672,13 @@ export function LapAnalyse() {
               />
             </div>
 
-            {/* Metrics panel */}
-            <div className="p-3 overflow-y-auto" style={{ maxHeight: 340 }}>
+            {/* Tire diagram */}
+            <div className="border-r border-slate-800 p-2 flex items-center">
+              {currentPacket && <TireDiagram packet={currentPacket} />}
+            </div>
+
+            {/* Metrics panel — full height, no scroll */}
+            <div className="p-3">
               <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 font-semibold">
                 Metrics at Cursor
               </h3>
@@ -667,6 +696,21 @@ export function LapAnalyse() {
               >
                 {playing ? "\u275A\u275A" : "\u25B6"}
               </button>
+              <div className="flex gap-1">
+                {[0.5, 1, 1.5, 2, 5, 10].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setPlaybackSpeed(s)}
+                    className={`px-1.5 py-0.5 text-[10px] font-mono rounded transition-colors ${
+                      playbackSpeed === s
+                        ? "bg-cyan-600 text-white"
+                        : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300"
+                    }`}
+                  >
+                    {s}x
+                  </button>
+                ))}
+              </div>
               <input
                 type="range"
                 min={0}

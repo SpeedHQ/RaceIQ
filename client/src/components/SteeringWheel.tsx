@@ -1,11 +1,14 @@
+import { getSteeringLock } from "./Settings";
+
 interface Props {
-  steer: number; // 0-255, 127 = center
+  steer: number; // signed int8: -128 to 127, 0 = center
 }
 
 export function SteeringWheel({ steer }: Props) {
-  // Convert 0-255 to degrees: 127=0°, 0=-540°, 255=+540° (full lock ~1.5 turns)
-  const normalized = (steer - 127) / 128;
-  const degrees = normalized * 540;
+  // Map signed int8 to degrees using user's configured wheel rotation
+  const lock = getSteeringLock();
+  const normalized = steer / 127;
+  const degrees = normalized * (lock / 2); // half lock = full deflection one way
 
   return (
     <div className="flex flex-col items-center gap-1">

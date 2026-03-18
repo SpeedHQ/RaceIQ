@@ -215,10 +215,12 @@ export function isCalibrated(trackOrdinal: number): boolean {
 export function getCalibrationStatus(trackOrdinal: number): {
   calibrated: boolean;
   pointsCollected: number;
+  transform: Transform | null;
 } {
   const state = calibrations.get(trackOrdinal);
   return {
     calibrated: state?.transform != null,
     pointsCollected: state?.forzaPoints.length ?? 0,
+    transform: state?.transform ?? null,
   };
 }

@@ -10,11 +10,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
+// Steering lock stored in localStorage so it persists across refreshes
+const STEER_LOCK_KEY = "forza-steer-lock";
+
+export function getSteeringLock(): number {
+  const val = localStorage.getItem(STEER_LOCK_KEY);
+  return val ? parseInt(val, 10) : 900;
+}
+
 export function Settings() {
   const [udpPort, setUdpPort] = useState("5300");
   const [savedPort, setSavedPort] = useState<number | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [steerLock, setSteerLock] = useState(() => String(getSteeringLock()));
 
   useEffect(() => {
     fetch("/api/settings")
@@ -116,6 +125,34 @@ export function Settings() {
             Listening on 0.0.0.0:{savedPort}
           </p>
         )}
+
+        <div className="mt-4 pt-4 border-t border-slate-800">
+          <Label htmlFor="steer-lock" className="text-slate-400">
+            Steering Wheel Rotation (degrees)
+          </Label>
+          <p className="text-xs text-slate-500 mb-1.5">
+            Full lock-to-lock rotation of your wheel. Common: 900° (default), 540°, 360°, 270°
+          </p>
+          <div className="flex items-end gap-3">
+            <Input
+              id="steer-lock"
+              type="number"
+              min={180}
+              max={1800}
+              step={10}
+              value={steerLock}
+              onChange={(e) => {
+                setSteerLock(e.target.value);
+                const val = parseInt(e.target.value, 10);
+                if (!isNaN(val) && val >= 180 && val <= 1800) {
+                  localStorage.setItem(STEER_LOCK_KEY, String(val));
+                }
+              }}
+              className="bg-slate-800 border-slate-700 text-white font-mono w-24"
+            />
+            <span className="text-xs text-slate-500 mb-2">°</span>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

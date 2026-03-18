@@ -261,7 +261,7 @@ function slipLineColor(deg: number): string {
  * the angle between tire heading and actual travel direction.
  * Spin/lockup detection uses animated glow rings and X/arrow overlays.
  */
-function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, spinPct }: {
+function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, spinPct, steerAngle }: {
   label: string;
   temp: number;
   wear: number;
@@ -269,6 +269,7 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, spinPct 
   slipAngle: number;
   outerSide: "left" | "right";
   spinPct: number;
+  steerAngle: number;
 }) {
   const clampedAngle = Math.max(-25, Math.min(25, slipAngle));
   const stroke = tireStrokeColor(temp);
@@ -306,9 +307,8 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, spinPct 
           </rect>
         )}
 
-        {/* Tire group — rotated by slip angle */}
-        <g transform={`rotate(${clampedAngle}, ${cx}, ${cy})`}>
-          {/* Tire outline */}
+        {/* Tire outline — rotates with steering for front wheels */}
+        <g transform={steerAngle !== 0 ? `rotate(${Math.max(-20, Math.min(20, steerAngle))}, ${cx}, ${cy})` : undefined}>
           <rect
             x={cx - tW / 2} y={cy - tH / 2}
             width={tW} height={tH}
@@ -331,42 +331,44 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, spinPct 
             clipPath={`url(#wear-${label})`}
           />
 
-          {/* Center line (direction of travel) */}
-          <line x1={cx} y1={cy + tH / 2 - 4} x2={cx} y2={cy - tH / 2 + 4} stroke={stroke} strokeWidth={0.8} opacity={0.3} />
-
           {/* Tread marks */}
           {[-12, -4, 4, 12].map((dy) => (
             <line key={dy} x1={cx - 8} y1={cy + dy} x2={cx + 8} y2={cy + dy} stroke={stroke} strokeWidth={0.5} opacity={0.15} />
           ))}
-
-          {/* Spin/Lock arrows inside tire */}
-          {isSpin && (
-            <>
-              <polygon points={`${cx},${cy - 18} ${cx - 4},${cy - 12} ${cx + 4},${cy - 12}`} fill={spinColor!} opacity={0.7}>
-                <animate attributeName="opacity" values="0.7;0.2;0.7" dur="0.4s" repeatCount="indefinite" />
-              </polygon>
-              <polygon points={`${cx},${cy + 18} ${cx - 4},${cy + 12} ${cx + 4},${cy + 12}`} fill={spinColor!} opacity={0.7} transform={`rotate(180, ${cx}, ${cy})`}>
-                <animate attributeName="opacity" values="0.7;0.2;0.7" dur="0.4s" repeatCount="indefinite" />
-              </polygon>
-            </>
-          )}
-          {isLockup && (
-            <>
-              <line x1={cx - 6} y1={cy - 6} x2={cx + 6} y2={cy + 6} stroke={spinColor!} strokeWidth={2.5} strokeLinecap="round" opacity={0.8}>
-                <animate attributeName="opacity" values="0.8;0.3;0.8" dur="0.5s" repeatCount="indefinite" />
-              </line>
-              <line x1={cx + 6} y1={cy - 6} x2={cx - 6} y2={cy + 6} stroke={spinColor!} strokeWidth={2.5} strokeLinecap="round" opacity={0.8}>
-                <animate attributeName="opacity" values="0.8;0.3;0.8" dur="0.5s" repeatCount="indefinite" />
-              </line>
-            </>
-          )}
         </g>
 
-        {/* Slip angle line */}
+        {/* Center line — rotates with slip angle to show actual travel direction */}
+        <g transform={`rotate(${clampedAngle}, ${cx}, ${cy})`}>
+          <line x1={cx} y1={cy + tH / 2 - 4} x2={cx} y2={cy - tH / 2 + 4} stroke={slipCol} strokeWidth={1.2} opacity={0.6} />
+        </g>
+
+        {/* Spin/Lock indicators (static, inside tire) */}
+        {isSpin && (
+          <>
+            <polygon points={`${cx},${cy - 18} ${cx - 4},${cy - 12} ${cx + 4},${cy - 12}`} fill={spinColor!} opacity={0.7}>
+              <animate attributeName="opacity" values="0.7;0.2;0.7" dur="0.4s" repeatCount="indefinite" />
+            </polygon>
+            <polygon points={`${cx},${cy + 18} ${cx - 4},${cy + 12} ${cx + 4},${cy + 12}`} fill={spinColor!} opacity={0.7} transform={`rotate(180, ${cx}, ${cy})`}>
+              <animate attributeName="opacity" values="0.7;0.2;0.7" dur="0.4s" repeatCount="indefinite" />
+            </polygon>
+          </>
+        )}
+        {isLockup && (
+          <>
+            <line x1={cx - 6} y1={cy - 6} x2={cx + 6} y2={cy + 6} stroke={spinColor!} strokeWidth={2.5} strokeLinecap="round" opacity={0.8}>
+              <animate attributeName="opacity" values="0.8;0.3;0.8" dur="0.5s" repeatCount="indefinite" />
+            </line>
+            <line x1={cx + 6} y1={cy - 6} x2={cx - 6} y2={cy + 6} stroke={spinColor!} strokeWidth={2.5} strokeLinecap="round" opacity={0.8}>
+              <animate attributeName="opacity" values="0.8;0.3;0.8" dur="0.5s" repeatCount="indefinite" />
+            </line>
+          </>
+        )}
+
+        {/* Slip angle line — shows direction of slip force */}
         <line
           x1={cx} y1={cy}
           x2={cx + Math.sin(clampedAngle * Math.PI / 180) * 35}
-          y2={cy - Math.cos(clampedAngle * Math.PI / 180) * 35}
+          y2={cy + Math.cos(clampedAngle * Math.PI / 180) * 35}
           stroke={slipCol}
           strokeWidth={1.5}
           strokeDasharray="3 2"
@@ -442,7 +444,7 @@ function SuspBar({ norm }: { norm: number }) {
  * spin percentage (how much faster/slower each wheel turns vs ground truth).
  * Falls back to 0.33m radius when stationary to avoid division by zero.
  */
-function TireDiagram({ packet }: { packet: TelemetryPacket }) {
+export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
   const toDeg = 180 / Math.PI;
   const gs = packet.Speed;
 
@@ -463,11 +465,14 @@ function TireDiagram({ packet }: { packet: TelemetryPacket }) {
     return gs > 3 ? ((wheelSpeed - gs) / gs) * 100 : 0;
   };
 
+  // Steer: signed int8 (-128 to 127), 0=center. Convert to degrees (~20° max visual lock)
+  const steerDeg = (packet.Steer / 127) * 20;
+
   const wheels = [
-    { label: "FL", temp: packet.TireTempFL, wear: packet.TireWearFL, combined: Math.abs(packet.TireCombinedSlipFL), slipAngle: packet.TireSlipAngleFL * toDeg, spinPct: spinPct(packet.WheelRotationSpeedFL) },
-    { label: "FR", temp: packet.TireTempFR, wear: packet.TireWearFR, combined: Math.abs(packet.TireCombinedSlipFR), slipAngle: packet.TireSlipAngleFR * toDeg, spinPct: spinPct(packet.WheelRotationSpeedFR) },
-    { label: "RL", temp: packet.TireTempRL, wear: packet.TireWearRL, combined: Math.abs(packet.TireCombinedSlipRL), slipAngle: packet.TireSlipAngleRL * toDeg, spinPct: spinPct(packet.WheelRotationSpeedRL) },
-    { label: "RR", temp: packet.TireTempRR, wear: packet.TireWearRR, combined: Math.abs(packet.TireCombinedSlipRR), slipAngle: packet.TireSlipAngleRR * toDeg, spinPct: spinPct(packet.WheelRotationSpeedRR) },
+    { label: "FL", temp: packet.TireTempFL, wear: packet.TireWearFL, combined: Math.abs(packet.TireCombinedSlipFL), slipAngle: packet.TireSlipAngleFL * toDeg, spinPct: spinPct(packet.WheelRotationSpeedFL), steerAngle: steerDeg },
+    { label: "FR", temp: packet.TireTempFR, wear: packet.TireWearFR, combined: Math.abs(packet.TireCombinedSlipFR), slipAngle: packet.TireSlipAngleFR * toDeg, spinPct: spinPct(packet.WheelRotationSpeedFR), steerAngle: steerDeg },
+    { label: "RL", temp: packet.TireTempRL, wear: packet.TireWearRL, combined: Math.abs(packet.TireCombinedSlipRL), slipAngle: packet.TireSlipAngleRL * toDeg, spinPct: spinPct(packet.WheelRotationSpeedRL), steerAngle: 0 },
+    { label: "RR", temp: packet.TireTempRR, wear: packet.TireWearRR, combined: Math.abs(packet.TireCombinedSlipRR), slipAngle: packet.TireSlipAngleRR * toDeg, spinPct: spinPct(packet.WheelRotationSpeedRR), steerAngle: 0 },
   ];
 
   const susp = [
@@ -544,9 +549,10 @@ function GForceCircle({ packet }: { packet: TelemetryPacket }) {
     ctx.strokeStyle = "rgba(100,116,139,0.1)";
     ctx.stroke();
 
-    // Lateral = X (left/right), Longitudinal = Z (accel/brake)
-    const latG = packet.AccelerationX / 9.81;
-    const lonG = packet.AccelerationZ / 9.81;
+    // Forza acceleration values are inverted relative to felt G-force:
+    // braking produces positive Z, but on a G-meter the dot should go UP (negative canvas Y)
+    const latG = -packet.AccelerationX / 9.81;
+    const lonG = -packet.AccelerationZ / 9.81;
     const dotX = cx + (latG / maxG) * r;
     const dotY = cy - (lonG / maxG) * r;
 
@@ -559,8 +565,8 @@ function GForceCircle({ packet }: { packet: TelemetryPacket }) {
     ctx.fill();
   }, [packet]);
 
-  const latG = packet.AccelerationX / 9.81;
-  const lonG = packet.AccelerationZ / 9.81;
+  const latG = -packet.AccelerationX / 9.81;
+  const lonG = -packet.AccelerationZ / 9.81;
 
   return (
     <div className="flex flex-col items-center gap-0.5 shrink-0" style={{ width: size }}>

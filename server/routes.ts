@@ -24,7 +24,7 @@ import {
 import { compareLaps } from "./comparison";
 import { detectCorners, type Corner } from "./corner-detection";
 import { carMap, getCarName, trackMap, getTrackName } from "../shared/car-data";
-import { getTrackOutlineByOrdinal, hasTrackOutline, getTrackSectorsByOrdinal } from "../shared/track-outlines/index";
+import { getTrackOutlineByOrdinal, hasTrackOutline, hasRecordedOutline, getTrackSectorsByOrdinal, getStartYaw, deleteRecordedOutline } from "../shared/track-outlines/index";
 import { trackMap as trackInfoMap } from "../shared/car-data";
 
 const app = new Hono();
@@ -457,20 +457,38 @@ app.delete("/api/laps", (c) => {
   return c.json({ deleted: count });
 });
 
-// GET /api/track-outline/:ordinal — track outline coordinates (bundled first, then DB)
+// GET /api/track-outline/:ordinal — track outline coordinates.
+// Returns { points, recorded } so the client knows if coords are Forza-native
+// (recorded=true, direct plotting) or external (recorded=false, distance-based mapping).
 app.get("/api/track-outline/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);
   if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
 
-  // 1. Check bundled outlines first
-  const bundled = getTrackOutlineByOrdinal(ordinal);
-  if (bundled) return c.json(bundled);
+  const startYaw = getStartYaw(ordinal);
 
-  // 2. Fall back to DB-recorded outlines
-  const recorded = getDbTrackOutline(ordinal);
-  if (recorded) return c.json(recorded);
+  // 1. Prefer recorded outlines (in Forza coords — allows direct position plotting)
+  if (hasRecordedOutline(ordinal)) {
+    return c.json({ points: getTrackOutlineByOrdinal(ordinal), recorded: true, startYaw });
+  }
+
+  // 2. Bundled external outlines (different coord system — need distance mapping)
+  const bundled = getTrackOutlineByOrdinal(ordinal);
+  if (bundled) return c.json({ points: bundled, recorded: false, startYaw });
+
+  // 3. DB-recorded outlines
+  const dbOutline = getDbTrackOutline(ordinal);
+  if (dbOutline) return c.json({ points: dbOutline, recorded: true, startYaw });
 
   return c.json({ error: "No outline available" }, 404);
+});
+
+// DELETE /api/track-outline/:ordinal — delete recorded outline for a track
+app.delete("/api/track-outline/:ordinal", (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  const deleted = deleteRecordedOutline(ordinal);
+  return c.json({ success: true, hadRecorded: deleted });
 });
 
 /**

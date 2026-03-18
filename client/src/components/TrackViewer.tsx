@@ -300,6 +300,38 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
   ctx.arc(sx, sy, large ? 5 : 3, 0, Math.PI * 2);
   ctx.fillStyle = "#10b981";
   ctx.fill();
+
+  // Direction arrow from start point along first ~5% of outline
+  const arrowIdx = Math.min(Math.floor(outline.length * 0.05), outline.length - 1);
+  if (arrowIdx > 0) {
+    const [ax, ay] = toCanvas(outline[arrowIdx].x, outline[arrowIdx].z);
+    const dx = ax - sx;
+    const dy = ay - sy;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len > 3) {
+      const nx = dx / len;
+      const ny = dy / len;
+      const arrowLen = large ? 18 : 12;
+      const wingLen = large ? 5 : 3;
+      const tipX = sx + nx * arrowLen;
+      const tipY = sy + ny * arrowLen;
+
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(tipX, tipY);
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = large ? 2 : 1.5;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(tipX, tipY);
+      ctx.lineTo(tipX - nx * wingLen * 2 + ny * wingLen, tipY - ny * wingLen * 2 - nx * wingLen);
+      ctx.lineTo(tipX - nx * wingLen * 2 - ny * wingLen, tipY - ny * wingLen * 2 + nx * wingLen);
+      ctx.closePath();
+      ctx.fillStyle = "#10b981";
+      ctx.fill();
+    }
+  }
 }
 
 /** TrackViewer — Gallery view of all known tracks, split into "with outlines" and "without". */

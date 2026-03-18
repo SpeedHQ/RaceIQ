@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { getTrackSectorsByName, DEFAULT_SECTORS, type TrackSectors } from "./sectors";
@@ -70,8 +70,6 @@ for (const [trackName, entry] of Object.entries(TRACK_FILES)) {
   if (existsSync(filePath)) {
     try {
       const data = JSON.parse(readFileSync(filePath, "utf-8")) as Point[];
-      // Reverse outline to match racing direction (external data sources are typically opposite)
-      data.reverse();
       outlinesByName.set(trackName, data);
       sourceByName.set(trackName, entry.source);
     } catch {}
@@ -96,25 +94,215 @@ if (existsSync(tracksPath)) {
   }
 }
 
+// Recorded outlines from in-game telemetry (Forza coords) — preferred over external data
+// because Forza coords allow direct position plotting without calibration.
+const recordedOutlines = new Map<number, Point[]>();
+const recordedLapCounts = new Map<number, number>();
+
+// Load previously recorded outlines (from in-game telemetry)
+import { readdirSync } from "fs";
+try {
+  const files = readdirSync(__dirname).filter((f: string) => f.startsWith("recorded-") && f.endsWith(".json"));
+  for (const file of files) {
+    const match = file.match(/recorded-(\d+)\.json/);
+    if (!match) continue;
+    const ordinal = parseInt(match[1], 10);
+    const filePath = resolve(__dirname, file);
+    try {
+      const data = JSON.parse(readFileSync(filePath, "utf-8")) as Point[];
+      if (data.length > 10) {
+        recordedOutlines.set(ordinal, data);
+      }
+    } catch {}
+  }
+} catch {}
+
 console.log(
-  `[Tracks] Loaded ${outlinesByName.size} bundled track outlines (${Array.from(sourceByName.values()).filter(s => s === "tumftm").length} TUMFTM, ${Array.from(sourceByName.values()).filter(s => s === "osm").length} OSM), mapped to ${outlinesByOrdinal.size} ordinals`
+  `[Tracks] Loaded ${outlinesByName.size} bundled outlines (${Array.from(sourceByName.values()).filter(s => s === "tumftm").length} TUMFTM, ${Array.from(sourceByName.values()).filter(s => s === "osm").length} OSM), ${recordedOutlines.size} recorded, mapped to ${outlinesByOrdinal.size} ordinals`
 );
 
 export function getTrackOutline(trackName: string): Point[] | null {
   return outlinesByName.get(trackName) ?? null;
 }
 
+const LAPS_BEFORE_SAVE = 1; // Save after first complete lap
+
+// Store all lap traces for averaging
+const lapTraces = new Map<number, Point[][]>();
+// Store start-line positions from lap boundaries for averaging
+const startLinePositions = new Map<number, Point[]>();
+// Store start-line yaw values for direction arrow
+const startLineYaws = new Map<number, number[]>();
+
+/**
+ * Record a lap trace for a track.
+ * - After 1 lap: use it immediately (so position tracking works right away)
+ * - After 5 laps: average the traces for a smoother outline, save to disk
+ * - After 10 laps: refine further with more data
+ * - Every 10 laps after: re-refine
+ *
+ * startLinePos: the car's position when LapNumber incremented (start/finish crossing).
+ * startYaw: the car's Yaw (radians) at lap start, used for direction arrow.
+ * Both are averaged across valid laps.
+ */
+export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Point | null, startYaw: number | null): void {
+  if (trace.length < 50) return;
+
+  const count = (recordedLapCounts.get(ordinal) ?? 0) + 1;
+  recordedLapCounts.set(ordinal, count);
+
+  // Accumulate start-line positions
+  if (startLinePos) {
+    if (!startLinePositions.has(ordinal)) startLinePositions.set(ordinal, []);
+    const positions = startLinePositions.get(ordinal)!;
+    positions.push(startLinePos);
+    if (positions.length > 10) positions.shift(); // keep last 10
+  }
+
+  // Accumulate start-line yaw values
+  if (startYaw != null) {
+    if (!startLineYaws.has(ordinal)) startLineYaws.set(ordinal, []);
+    const yaws = startLineYaws.get(ordinal)!;
+    yaws.push(startYaw);
+    if (yaws.length > 10) yaws.shift();
+  }
+
+  // Store trace for averaging (keep last 10)
+  if (!lapTraces.has(ordinal)) lapTraces.set(ordinal, []);
+  const traces = lapTraces.get(ordinal)!;
+  traces.push(trace);
+  if (traces.length > 10) traces.shift();
+
+  // Downsample a single trace to ~500 points
+  const downsample = (pts: Point[], target: number): Point[] => {
+    if (pts.length <= target) return pts;
+    const step = pts.length / target;
+    const result: Point[] = [];
+    for (let i = 0; i < target; i++) result.push(pts[Math.floor(i * step)]);
+    return result;
+  };
+
+  let outline: Point[];
+  const shouldSave = count === 1 || count === 5 || count === 10 || count % 10 === 0;
+
+  if (traces.length >= 5) {
+    // Average multiple traces: downsample each to 500 pts, then average x/z per index
+    const target = 500;
+    const sampled = traces.map((t) => downsample(t, target));
+    outline = [];
+    for (let i = 0; i < target; i++) {
+      let sx = 0, sz = 0, n = 0;
+      for (const s of sampled) {
+        if (i < s.length) { sx += s[i].x; sz += s[i].z; n++; }
+      }
+      outline.push({ x: sx / n, z: sz / n });
+    }
+    console.log(`[Tracks] Averaged ${traces.length} laps for track ${ordinal} (lap ${count})`);
+  } else {
+    // Just use the latest trace
+    outline = downsample(trace, 500);
+  }
+
+  // Rotate outline so the averaged start-line position becomes index 0
+  const positions = startLinePositions.get(ordinal);
+  if (positions && positions.length > 0) {
+    // Average all collected start-line positions
+    let sx = 0, sz = 0;
+    for (const p of positions) { sx += p.x; sz += p.z; }
+    const avgStart = { x: sx / positions.length, z: sz / positions.length };
+
+    // Find nearest outline point to averaged start position
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < outline.length; i++) {
+      const dx = outline[i].x - avgStart.x;
+      const dz = outline[i].z - avgStart.z;
+      const d = dx * dx + dz * dz;
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = i;
+      }
+    }
+
+    // Rotate array so bestIdx becomes index 0
+    if (bestIdx > 0) {
+      outline = [...outline.slice(bestIdx), ...outline.slice(0, bestIdx)];
+      console.log(`[Tracks] Rotated outline for track ${ordinal}: start at point ${bestIdx} (avg of ${positions.length} lap starts)`);
+    }
+  }
+
+  recordedOutlines.set(ordinal, outline);
+
+  if (shouldSave) {
+    const filePath = resolve(__dirname, `recorded-${ordinal}.json`);
+    try {
+      writeFileSync(filePath, JSON.stringify(outline));
+      console.log(`[Tracks] Saved recorded outline for track ${ordinal} (${outline.length} pts, lap ${count})`);
+    } catch (err) {
+      console.error(`[Tracks] Failed to save recorded outline:`, err);
+    }
+  }
+}
+
+/**
+ * Get outline for a track. Prefers recorded (Forza coords) over external data.
+ */
 export function getTrackOutlineByOrdinal(ordinal: number): Point[] | null {
-  return outlinesByOrdinal.get(ordinal) ?? null;
+  return recordedOutlines.get(ordinal) ?? outlinesByOrdinal.get(ordinal) ?? null;
+}
+
+/**
+ * Check if a recorded outline exists (Forza coords, direct plotting).
+ */
+export function hasRecordedOutline(ordinal: number): boolean {
+  return recordedOutlines.has(ordinal);
 }
 
 export function hasTrackOutline(ordinal: number): boolean {
-  return outlinesByOrdinal.has(ordinal);
+  return recordedOutlines.has(ordinal) || outlinesByOrdinal.has(ordinal);
 }
 
 export function getTrackSource(trackName: string): Source | null {
   return sourceByName.get(trackName) ?? null;
 }
+
+/**
+ * Get the averaged start-line Yaw (radians) for a track. Returns null if not yet recorded.
+ */
+export function getStartYaw(ordinal: number): number | null {
+  const yaws = startLineYaws.get(ordinal);
+  if (!yaws || yaws.length === 0) return null;
+  // Average yaw using circular mean (handles wrapping around ±π)
+  let sinSum = 0, cosSum = 0;
+  for (const y of yaws) { sinSum += Math.sin(y); cosSum += Math.cos(y); }
+  return Math.atan2(sinSum / yaws.length, cosSum / yaws.length);
+}
+
+/**
+ * Delete a recorded outline for a track (resets to bundled or no outline).
+ */
+export function deleteRecordedOutline(ordinal: number): boolean {
+  const had = recordedOutlines.has(ordinal);
+  recordedOutlines.delete(ordinal);
+  recordedLapCounts.delete(ordinal);
+  lapTraces.delete(ordinal);
+  startLinePositions.delete(ordinal);
+  startLineYaws.delete(ordinal);
+
+  // Delete the file on disk
+  const filePath = resolve(__dirname, `recorded-${ordinal}.json`);
+  if (existsSync(filePath)) {
+    try {
+      const { unlinkSync } = require("fs");
+      unlinkSync(filePath);
+      console.log(`[Tracks] Deleted recorded outline for track ${ordinal}`);
+    } catch (err) {
+      console.error(`[Tracks] Failed to delete recorded outline file:`, err);
+    }
+  }
+  return had;
+}
+
 
 // Sector support
 const ordinalToName = new Map<number, string>();

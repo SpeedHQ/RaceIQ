@@ -1,7 +1,18 @@
+import { spawn } from "child_process";
 import app from "./routes";
 import { udpListener } from "./udp";
 import { wsManager, type WSData } from "./ws";
 import { loadSettings } from "./settings";
+
+// Prevent macOS sleep while the server is running (non-fatal if caffeinate unavailable)
+try {
+  const caffeinate = spawn("caffeinate", ["-i"], { stdio: "ignore", detached: true });
+  caffeinate.unref();
+  process.on("exit", () => { try { caffeinate.kill(); } catch {} });
+  console.log("[Server] caffeinate started — macOS will not sleep while server is running");
+} catch {
+  console.log("[Server] caffeinate not available — sleep prevention disabled");
+}
 
 const HTTP_PORT = 3117;
 

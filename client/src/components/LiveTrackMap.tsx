@@ -24,69 +24,106 @@ interface TrackSectors {
 export function LiveTrackMap({ packet }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
-  const [sectors, setSectors] = useState<TrackSectors | null>(null);
   const [noOutline, setNoOutline] = useState(false);
+  const [isRecorded, setIsRecorded] = useState(false); // true = Forza coords, can plot directly
+  const [startYaw, setStartYaw] = useState<number | null>(null); // Yaw at start/finish line
   const lastTrackOrdRef = useRef<number | null>(null);
 
+  // Distance-based position tracking
+  const lapDistRef = useRef<{ startDist: number; totalDist: number; lastLap: number }>({
+    startDist: 0,
+    totalDist: 0,
+    lastLap: -1,
+  });
+
   // Live trace: build outline from driving data when no pre-made outline exists.
-  // Points are only recorded if they're >3m apart to avoid clustering at low speeds.
   const liveTraceRef = useRef<Point[]>([]);
   const lastTracePos = useRef<Point | null>(null);
-  const traceMinDist = 3; // minimum meters between recorded points
+  const traceMinDist = 3;
 
-  // Fetch track outline and sectors when session/track changes
-  const fetchOutline = useCallback(async () => {
-    try {
-      const statusRes = await fetch("/api/status");
-      if (!statusRes.ok) return;
-      const status = await statusRes.json();
-      const trackOrd = status.currentSession?.trackOrdinal;
-      if (trackOrd == null || trackOrd === lastTrackOrdRef.current) return;
-      lastTrackOrdRef.current = trackOrd;
-
-      const [outlineRes, sectorsRes] = await Promise.all([
-        fetch(`/api/track-outline/${trackOrd}`),
-        fetch(`/api/track-sectors/${trackOrd}`),
-      ]);
-
-      if (outlineRes.ok) {
-        const data = await outlineRes.json();
-        setOutline(data);
-        setNoOutline(false);
-      } else {
-        setOutline(null);
-        setNoOutline(true);
-      }
-
-      if (sectorsRes.ok) {
-        const sectorData = await sectorsRes.json();
-        setSectors(sectorData);
-      }
-    } catch {
-      setNoOutline(true);
-    }
-  }, []);
-
+  // Auto-detect track changes from packet.TrackOrdinal and fetch outline
   useEffect(() => {
-    fetchOutline();
-  }, [fetchOutline]);
+    if (!packet || !packet.TrackOrdinal) return;
+    const trackOrd = packet.TrackOrdinal;
+    if (trackOrd === lastTrackOrdRef.current) return;
+    lastTrackOrdRef.current = trackOrd;
 
-  // Refetch when lap changes (might be new session)
-  useEffect(() => {
-    if (packet && lastTrackOrdRef.current === null) {
-      fetchOutline();
-    }
-  }, [packet?.LapNumber, fetchOutline]);
-
-  // Reset live trace when track changes
-  useEffect(() => {
+    // Reset state for new track
     liveTraceRef.current = [];
     lastTracePos.current = null;
-  }, [lastTrackOrdRef.current]);
+    lapDistRef.current = { startDist: 0, totalDist: 0, lastLap: -1 };
+    setOutline(null);
+    setNoOutline(false);
 
-  // Collect live trace points when no pre-made outline
+    fetch(`/api/track-outline/${trackOrd}`)
+      .then((r) => {
+        if (r.ok) return r.json();
+        throw new Error("no outline");
+      })
+      .then((data) => {
+        // New format: { points, recorded, startYaw } or legacy array format
+        if (data.points && Array.isArray(data.points)) {
+          setOutline(data.points);
+          setIsRecorded(!!data.recorded);
+          setStartYaw(data.startYaw ?? null);
+        } else if (Array.isArray(data)) {
+          setOutline(data);
+          setIsRecorded(false);
+          setStartYaw(null);
+        } else {
+          throw new Error("invalid format");
+        }
+        setNoOutline(false);
+      })
+      .catch(() => {
+        setOutline(null);
+        setIsRecorded(false);
+        setStartYaw(null);
+        setNoOutline(true);
+      });
+  }, [packet?.TrackOrdinal]);
+
+  // Re-fetch outline on lap completion if we don't have a recorded one yet.
+  // The server may have just recorded the first lap trace.
   useEffect(() => {
-    if (!packet || !noOutline) return;
+    if (!packet || isRecorded) return;
+    const trackOrd = lastTrackOrdRef.current;
+    if (!trackOrd) return;
+
+    fetch(`/api/track-outline/${trackOrd}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.points && data.recorded) {
+          setOutline(data.points);
+          setIsRecorded(true);
+          setStartYaw(data.startYaw ?? null);
+        }
+      })
+      .catch(() => {});
+  }, [packet?.LapNumber]);
+
+  // Track distance at lap boundaries for position estimation
+  useEffect(() => {
+    if (!packet) return;
+    const d = lapDistRef.current;
+    if (packet.LapNumber !== d.lastLap) {
+      // Lap boundary: record total distance of completed lap, reset start
+      if (d.lastLap >= 0 && d.startDist > 0) {
+        const completedDist = packet.DistanceTraveled - d.startDist;
+        if (completedDist > 50) {
+          d.totalDist = completedDist;
+        }
+      }
+      d.startDist = packet.DistanceTraveled;
+      d.lastLap = packet.LapNumber;
+    }
+  }, [packet?.LapNumber, packet?.DistanceTraveled]);
+
+
+  // Always collect Forza positions — used for live trace (no outline) and
+  // for nearest-point mapping (pre-made outline where coords don't match)
+  useEffect(() => {
+    if (!packet) return;
     if (packet.PositionX === 0 && packet.PositionZ === 0) return;
 
     const pos = { x: packet.PositionX, z: packet.PositionZ };
@@ -106,7 +143,7 @@ export function LiveTrackMap({ packet }: Props) {
     if (liveTraceRef.current.length > 2000) {
       liveTraceRef.current.shift();
     }
-  }, [packet, noOutline]);
+  }, [packet]);
 
   // Redraw
   useEffect(() => {
@@ -199,67 +236,7 @@ export function LiveTrackMap({ packet }: Props) {
     ctx.stroke();
     ctx.globalAlpha = 1;
 
-    // Sector boundary markers — perpendicular tick marks at fractional positions along the outline.
-    // frac maps [0,1] to outline array indices. Perpendicular is computed from neighboring points.
-    if (sectors && !isLiveTrace) {
-      const sectorMarkers = [
-        { frac: sectors.s1End, color: "#ef4444", label: "S1" },
-        { frac: sectors.s2End, color: "#3b82f6", label: "S2" },
-      ];
-      const n = displayOutline.length;
-
-      for (const { frac, color, label } of sectorMarkers) {
-        const idx = Math.round(frac * n) % n;
-        const point = displayOutline[idx];
-        const [bx, by] = toCanvas(point.x, point.z);
-
-        // Perpendicular tick mark
-        const prevIdx = (idx - 1 + n) % n;
-        const nextIdx = (idx + 1) % n;
-        const dx = displayOutline[nextIdx].x - displayOutline[prevIdx].x;
-        const dz = displayOutline[nextIdx].z - displayOutline[prevIdx].z;
-        const len = Math.sqrt(dx * dx + dz * dz) || 1;
-        const perpX = -dz / len;
-        const perpZ = dx / len;
-        const tickLen = 10;
-
-        ctx.beginPath();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 3;
-        ctx.lineCap = "round";
-        const [t1x, t1y] = toCanvas(
-          point.x + perpX * tickLen / scale,
-          point.z + perpZ * tickLen / scale
-        );
-        const [t2x, t2y] = toCanvas(
-          point.x - perpX * tickLen / scale,
-          point.z - perpZ * tickLen / scale
-        );
-        ctx.moveTo(t1x, t1y);
-        ctx.lineTo(t2x, t2y);
-        ctx.stroke();
-
-        // Sector dot
-        ctx.beginPath();
-        ctx.arc(bx, by, 4, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.fill();
-
-        // Label
-        ctx.font = "bold 10px system-ui";
-        ctx.fillStyle = color;
-        ctx.textAlign = "center";
-        ctx.fillText(label, bx, by - 8);
-      }
-
-      // S3 label at start/finish
-      ctx.font = "bold 10px system-ui";
-      ctx.fillStyle = "#eab308"; // yellow
-      ctx.textAlign = "center";
-      ctx.fillText("S3", sx, sy - 8);
-    }
-
-    // Start/finish marker
+    // Start/finish marker + direction arrow
     if (!isLiveTrace) {
       ctx.beginPath();
       ctx.arc(sx, sy, 5, 0, Math.PI * 2);
@@ -268,6 +245,53 @@ export function LiveTrackMap({ packet }: Props) {
       ctx.strokeStyle = "#0f172a";
       ctx.lineWidth = 1.5;
       ctx.stroke();
+
+      // Direction arrow: use Yaw from telemetry if available, else fallback to outline geometry
+      let nx: number, ny: number;
+      let hasDirection = false;
+
+      if (startYaw != null) {
+        // Forza Yaw: radians, 0 = +Z, positive = clockwise when viewed from above
+        // Canvas: X maps to world X, Y maps to world Z (via toCanvas)
+        // Direction in world space: dx = sin(yaw), dz = cos(yaw)
+        // Convert to canvas direction using scale (uniform, so just direction matters)
+        nx = Math.sin(startYaw) * scale;
+        ny = Math.cos(startYaw) * scale;
+        const len = Math.sqrt(nx * nx + ny * ny);
+        if (len > 0) { nx /= len; ny /= len; hasDirection = true; }
+      }
+
+      if (!hasDirection) {
+        // Fallback: compute from first few outline points
+        const aheadIdx = Math.min(Math.floor(displayOutline.length * 0.03) + 1, displayOutline.length - 1);
+        const [aheadX, aheadY] = toCanvas(displayOutline[aheadIdx].x, displayOutline[aheadIdx].z);
+        const adx = aheadX - sx;
+        const ady = aheadY - sy;
+        const alen = Math.sqrt(adx * adx + ady * ady);
+        if (alen > 3) { nx = adx / alen; ny = ady / alen; hasDirection = true; }
+        else { nx = 0; ny = 0; }
+      }
+
+      if (hasDirection) {
+        const tipX = sx + nx * 20;
+        const tipY = sy + ny * 20;
+        const wl = 5;
+
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(tipX, tipY);
+        ctx.strokeStyle = "#10b981";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(tipX - nx * wl * 2 + ny * wl, tipY - ny * wl * 2 - nx * wl);
+        ctx.lineTo(tipX - nx * wl * 2 - ny * wl, tipY - ny * wl * 2 + nx * wl);
+        ctx.closePath();
+        ctx.fillStyle = "#10b981";
+        ctx.fill();
+      }
     }
 
     // "Building map..." label for live trace
@@ -279,29 +303,90 @@ export function LiveTrackMap({ packet }: Props) {
     }
 
     // Live car position
-    if (packet && (packet.PositionX !== 0 || packet.PositionZ !== 0)) {
-      const [cx, cy] = toCanvas(packet.PositionX, packet.PositionZ);
-      // Glow
-      ctx.beginPath();
-      ctx.arc(cx, cy, 10, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(34, 211, 238, 0.2)";
-      ctx.fill();
-      // Dot
-      ctx.beginPath();
-      ctx.arc(cx, cy, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "#22d3ee";
-      ctx.fill();
-      ctx.strokeStyle = "#0f172a";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+    if (packet) {
+      let cx: number, cy: number;
+      let hasPos = false;
+
+      if (isLiveTrace || isRecorded) {
+        // Forza coords: live trace or recorded outline — plot directly
+        if (packet.PositionX !== 0 || packet.PositionZ !== 0) {
+          [cx, cy] = toCanvas(packet.PositionX, packet.PositionZ);
+          hasPos = true;
+        } else {
+          [cx, cy] = [0, 0];
+        }
+      } else {
+        // Pre-made outline: use distance fraction to determine position.
+        // (distance traveled this lap) / (total lap distance) = 0-1 progress
+        const d = lapDistRef.current;
+        if (d.totalDist > 50) {
+          const lapDist = packet.DistanceTraveled - d.startDist;
+          const frac = Math.max(0, Math.min(lapDist / d.totalDist, 1));
+          const idx = Math.round(frac * (displayOutline.length - 1));
+          const pt = displayOutline[Math.min(idx, displayOutline.length - 1)];
+          if (pt) {
+            [cx, cy] = toCanvas(pt.x, pt.z);
+            hasPos = true;
+          } else {
+            [cx, cy] = [0, 0];
+          }
+        } else {
+          [cx, cy] = [0, 0];
+          ctx.fillStyle = "#475569";
+          ctx.font = "9px system-ui";
+          ctx.textAlign = "left";
+          ctx.fillText("Complete a lap to track position", 8, h - 8);
+        }
+      }
+
+      if (hasPos) {
+        // Glow
+        ctx.beginPath();
+        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(34, 211, 238, 0.2)";
+        ctx.fill();
+        // Dot
+        ctx.beginPath();
+        ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+        ctx.fillStyle = "#22d3ee";
+        ctx.fill();
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
     }
   }
 
+  async function handleDeleteMap() {
+    const trackOrd = lastTrackOrdRef.current;
+    if (!trackOrd) return;
+    try {
+      await fetch(`/api/track-outline/${trackOrd}`, { method: "DELETE" });
+      setOutline(null);
+      setIsRecorded(false);
+      setStartYaw(null);
+      setNoOutline(true);
+      liveTraceRef.current = [];
+      lastTracePos.current = null;
+    } catch {}
+  }
+
   return (
-    <canvas
-      ref={canvasRef}
-      className="w-full"
-      style={{ height: 250 }}
-    />
+    <div className="relative">
+      <canvas
+        ref={canvasRef}
+        className="w-full"
+        style={{ height: 250 }}
+      />
+      {isRecorded && (
+        <button
+          onClick={handleDeleteMap}
+          className="absolute top-2 right-2 px-2 py-1 text-xs bg-slate-800/80 hover:bg-red-900/80 text-slate-400 hover:text-red-300 rounded border border-slate-700 hover:border-red-700 transition-colors"
+          title="Delete recorded track map and re-record from driving"
+        >
+          Reset Map
+        </button>
+      )}
+    </div>
   );
 }

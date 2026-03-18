@@ -96,7 +96,7 @@ export interface TelemetryPacket {
   Clutch: number;
   HandBrake: number;
   Gear: number;
-  Steer: number; // 127 = center
+  Steer: number; // signed int8: 0 = center, -128 = full left, 127 = full right
 
   // Normalized driving line / AI
   NormDrivingLine: number; // s8
