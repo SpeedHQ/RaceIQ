@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { ConnectionStatus } from "./components/ConnectionStatus";
 import { LiveTelemetry } from "./components/LiveTelemetry";
+import { CurrentLapStats } from "./components/CurrentLapStats";
+import { LiveTrackMap } from "./components/LiveTrackMap";
 import { LapList } from "./components/LapList";
 import { LapComparison } from "./components/LapComparison";
 import { RawTelemetry } from "./components/RawTelemetry";
@@ -72,13 +74,36 @@ export default function App() {
             </div>
             <LiveTelemetry packet={packet} />
           </div>
-          <div className="overflow-auto">
-            <div className="p-2 border-b border-slate-800">
-              <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Recorded Laps
-              </h2>
+          <div className="overflow-auto flex flex-col">
+            {/* Live Track Map + Current Lap Stats */}
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] border-b border-slate-800">
+              <div className="border-r border-slate-800 bg-slate-950" style={{ minHeight: 220 }}>
+                <div className="p-2 border-b border-slate-800">
+                  <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Track Map
+                  </h2>
+                </div>
+                <LiveTrackMap packet={packet} />
+              </div>
+              <div>
+                <div className="p-2 border-b border-slate-800">
+                  <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Current Lap
+                  </h2>
+                </div>
+                <CurrentLapStats packet={packet} />
+              </div>
             </div>
-            <LapList />
+
+            {/* Recorded Laps */}
+            <div className="flex-1">
+              <div className="p-2 border-b border-slate-800">
+                <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Recorded Laps
+                </h2>
+              </div>
+              <LapList />
+            </div>
           </div>
         </div>
       )}
