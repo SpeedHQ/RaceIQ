@@ -298,6 +298,11 @@ app.get("/api/grip-history", (c) => {
   return c.json(wsManager.getGripHistory());
 });
 
+// GET /api/telemetry-history — full 60s telemetry history
+app.get("/api/telemetry-history", (c) => {
+  return c.json(wsManager.getTelemetryHistory());
+});
+
 // DELETE /api/laps — delete all laps
 app.delete("/api/laps", (c) => {
   const laps = getLaps();

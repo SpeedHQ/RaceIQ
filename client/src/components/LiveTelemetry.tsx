@@ -847,6 +847,349 @@ function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
   );
 }
 
+const TIRE_COLORS = ["#22d3ee", "#a855f7", "#fbbf24", "#34d399"]; // FL=cyan, FR=purple, RL=amber, RR=emerald
+const TIRE_LABELS = ["FL", "FR", "RL", "RR"];
+
+function FourLineChart({ data, label, maxY, unit, height = 50 }: {
+  data: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
+  label: string;
+  maxY?: number;
+  unit?: string;
+  height?: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [renderTick, setRenderTick] = useState(0);
+
+  // Re-render periodically
+  useEffect(() => {
+    const id = setInterval(() => setRenderTick((v) => v + 1), 200);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const width = container.clientWidth;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+
+    const arrays = [data.fl, data.fr, data.rl, data.rr];
+    const allVals = arrays.flatMap((a) => a);
+    if (allVals.length === 0) return;
+
+    const computedMax = maxY ?? (Math.max(...allVals) * 1.1 || 1);
+    const computedMin = maxY != null ? 0 : Math.min(...allVals) * 0.9;
+    const yRange = computedMax - computedMin || 1;
+    const maxLen = GRIP_MAX_SAMPLES;
+
+    // Y axis: min/max labels
+    ctx.font = "7px monospace";
+    ctx.fillStyle = "#475569";
+    ctx.textAlign = "left";
+    ctx.fillText(`${computedMax.toFixed(0)}${unit ?? ""}`, 1, 8);
+    ctx.fillText(`${computedMin.toFixed(0)}${unit ?? ""}`, 1, height - 2);
+
+    // Draw each tire line
+    for (let t = 0; t < 4; t++) {
+      const arr = arrays[t];
+      if (arr.length < 2) continue;
+      const startIdx = maxLen - arr.length;
+      const step = width / (maxLen - 1);
+
+      ctx.beginPath();
+      for (let i = 0; i < arr.length; i++) {
+        const x = (startIdx + i) * step;
+        const y = height - ((arr[i] - computedMin) / yRange) * height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = TIRE_COLORS[t];
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.7;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+    }
+  }, [renderTick, data, maxY, height]);
+
+  const _ = renderTick;
+  const arrays = [data.fl, data.fr, data.rl, data.rr];
+  const currentVals = arrays.map((a) => a.length > 0 ? a[a.length - 1] : 0);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="text-[9px] text-slate-500 font-semibold uppercase">{label}</span>
+        <div className="flex gap-2">
+          {TIRE_LABELS.map((l, i) => (
+            <span key={l} className="text-[8px] font-mono" style={{ color: TIRE_COLORS[i] }}>{l}</span>
+          ))}
+        </div>
+      </div>
+      <div className="flex gap-1.5">
+        <div className="flex-1" ref={containerRef}>
+          <canvas ref={canvasRef} style={{ width: "100%", height }} className="rounded bg-slate-900/40" />
+        </div>
+        <div className="flex flex-col justify-between w-10 shrink-0" style={{ height }}>
+          {TIRE_LABELS.map((l, i) => (
+            <span key={l} className="text-[10px] font-mono font-bold tabular-nums text-right" style={{ color: TIRE_COLORS[i] }}>
+              {currentVals[i].toFixed(1)}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SingleLineChart({ data, label, color, maxY, unit, height = 50 }: {
+  data: number[];
+  label: string;
+  color: string;
+  maxY?: number;
+  unit?: string;
+  height?: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [renderTick, setRenderTick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setRenderTick((v) => v + 1), 200);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container || data.length < 2) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const width = container.clientWidth;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+
+    const computedMax = maxY ?? (Math.max(...data) * 1.1 || 1);
+    const yRange = computedMax || 1;
+    const maxLen = GRIP_MAX_SAMPLES;
+    const startIdx = maxLen - data.length;
+    const step = width / (maxLen - 1);
+
+    ctx.beginPath();
+    for (let i = 0; i < data.length; i++) {
+      const x = (startIdx + i) * step;
+      const y = height - (data[i] / yRange) * height;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.8;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+  }, [renderTick, data, maxY, height, color]);
+
+  // Force read current value on each tick
+  const _ = renderTick;
+  const currentVal = data.length > 0 ? data[data.length - 1] : 0;
+
+  return (
+    <div>
+      <span className="text-[9px] text-slate-500 font-semibold uppercase">{label}</span>
+      <div className="flex gap-1.5">
+        <div className="flex-1" ref={containerRef}>
+          <canvas ref={canvasRef} style={{ width: "100%", height }} className="rounded bg-slate-900/40" />
+        </div>
+        <div className="flex items-center w-12 shrink-0">
+          <span className="text-[10px] font-mono font-bold tabular-nums text-right w-full" style={{ color }}>{currentVal.toFixed(0)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DualLineChart({ data1, data2, label1, label2, color1, color2, label, maxY, unit, height = 50 }: {
+  data1: number[];
+  data2: number[];
+  label1: string;
+  label2: string;
+  color1: string;
+  color2: string;
+  label: string;
+  maxY?: number;
+  unit?: string;
+  height?: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [renderTick, setRenderTick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setRenderTick((v) => v + 1), 200);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container || data1.length < 2) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const width = container.clientWidth;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+
+    const computedMax = maxY ?? (Math.max(...data1, ...data2) * 1.1 || 1);
+    const yRange = computedMax || 1;
+    const maxLen = GRIP_MAX_SAMPLES;
+
+    const drawLine = (data: number[], color: string) => {
+      const startIdx = maxLen - data.length;
+      const step = width / (maxLen - 1);
+      ctx.beginPath();
+      for (let i = 0; i < data.length; i++) {
+        const x = (startIdx + i) * step;
+        const y = height - (data[i] / yRange) * height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.8;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+    };
+
+    drawLine(data1, color1);
+    drawLine(data2, color2);
+  }, [renderTick, data1, data2, maxY, height, color1, color2]);
+
+  const val1 = data1.length > 0 ? data1[data1.length - 1] : 0;
+  const val2 = data2.length > 0 ? data2[data2.length - 1] : 0;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="text-[9px] text-slate-500 font-semibold uppercase">{label}</span>
+        <div className="flex gap-2">
+          <span className="text-[8px] font-mono" style={{ color: color1 }}>{label1}</span>
+          <span className="text-[8px] font-mono" style={{ color: color2 }}>{label2}</span>
+        </div>
+      </div>
+      <div className="flex gap-1.5">
+        <div className="flex-1" ref={containerRef}>
+          <canvas ref={canvasRef} style={{ width: "100%", height }} className="rounded bg-slate-900/40" />
+        </div>
+        <div className="flex flex-col justify-between w-10 shrink-0" style={{ height }}>
+          <span className="text-[10px] font-mono font-bold tabular-nums text-right" style={{ color: color1 }}>{val1.toFixed(0)}</span>
+          <span className="text-[10px] font-mono font-bold tabular-nums text-right" style={{ color: color2 }}>{val2.toFixed(0)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TelemetryCharts({ packet }: { packet: TelemetryPacket }) {
+  const histRef = useRef<{
+    grip: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
+    temp: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
+    wear: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
+    slipAngle: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
+    slipRatio: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
+    suspension: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
+    throttle: number[];
+    brake: number[];
+    speed: number[];
+  }>({
+    grip: { fl: [], fr: [], rl: [], rr: [] },
+    temp: { fl: [], fr: [], rl: [], rr: [] },
+    wear: { fl: [], fr: [], rl: [], rr: [] },
+    slipAngle: { fl: [], fr: [], rl: [], rr: [] },
+    slipRatio: { fl: [], fr: [], rl: [], rr: [] },
+    suspension: { fl: [], fr: [], rl: [], rr: [] },
+    throttle: [],
+    brake: [],
+    speed: [],
+  });
+  const frameRef = useRef(0);
+  const fetchedRef = useRef(false);
+
+  // Seed from server
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    fetch("/api/telemetry-history")
+      .then((r) => r.json())
+      .then((data: any) => {
+        if (data && Array.isArray(data.grip?.fl)) {
+          histRef.current = data;
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Sample at ~10Hz
+  useEffect(() => {
+    frameRef.current++;
+    if (frameRef.current % 6 !== 0) return;
+
+    const h = histRef.current;
+    const push4 = (t: { fl: number[]; fr: number[]; rl: number[]; rr: number[] }, fl: number, fr: number, rl: number, rr: number) => {
+      t.fl.push(fl); t.fr.push(fr); t.rl.push(rl); t.rr.push(rr);
+      if (t.fl.length > GRIP_MAX_SAMPLES) { t.fl.shift(); t.fr.shift(); t.rl.shift(); t.rr.shift(); }
+    };
+    push4(h.grip, Math.abs(packet.TireCombinedSlipFL), Math.abs(packet.TireCombinedSlipFR), Math.abs(packet.TireCombinedSlipRL), Math.abs(packet.TireCombinedSlipRR));
+    push4(h.temp, packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR);
+    push4(h.wear, packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR);
+    push4(h.slipAngle, packet.TireSlipAngleFL * (180 / Math.PI), packet.TireSlipAngleFR * (180 / Math.PI), packet.TireSlipAngleRL * (180 / Math.PI), packet.TireSlipAngleRR * (180 / Math.PI));
+    push4(h.slipRatio, Math.abs(packet.TireSlipRatioFL), Math.abs(packet.TireSlipRatioFR), Math.abs(packet.TireSlipRatioRL), Math.abs(packet.TireSlipRatioRR));
+    push4(h.suspension, packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR);
+    h.throttle.push(packet.Accel / 255 * 100);
+    h.brake.push(packet.Brake / 255 * 100);
+    h.speed.push(packet.Speed * 2.23694);
+    if (h.throttle.length > GRIP_MAX_SAMPLES) { h.throttle.shift(); h.brake.shift(); h.speed.shift(); }
+  }, [packet]);
+
+  const h = histRef.current;
+
+  return (
+    <div className="grid gap-2">
+      <FourLineChart data={h.grip} label="Combined Slip" maxY={3} />
+      <FourLineChart data={h.temp} label="Tire Temp" unit="°" />
+      <FourLineChart data={h.wear} label="Tire Wear" maxY={1} />
+      <FourLineChart data={h.slipAngle} label="Slip Angle" unit="°" />
+      <FourLineChart data={h.slipRatio} label="Slip Ratio" />
+      <FourLineChart data={h.suspension} label="Suspension" maxY={1} />
+      <SingleLineChart data={h.speed} label="Speed" color="#22d3ee" unit="mph" />
+      <DualLineChart data1={h.throttle} data2={h.brake} label1="Throttle" label2="Brake" color1="#34d399" color2="#ef4444" label="Throttle / Brake" maxY={100} unit="%" />
+    </div>
+  );
+}
+
 export function LiveTelemetry({ packet }: Props) {
   const [carName, setCarName] = useState<string>("");
   const lastCarOrdRef = useRef<number | null>(null);
@@ -969,6 +1312,12 @@ export function LiveTelemetry({ packet }: Props) {
       <div>
         <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Body Attitude</div>
         <BodyAttitude packet={packet} />
+      </div>
+
+      {/* Telemetry History Charts (60s) */}
+      <div>
+        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Telemetry History (60s)</div>
+        <TelemetryCharts packet={packet} />
       </div>
 
     </div>

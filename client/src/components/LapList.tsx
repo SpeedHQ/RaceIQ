@@ -9,11 +9,16 @@ function formatLapTime(seconds: number): string {
   return `${m}:${s.toFixed(3).padStart(6, "0")}`;
 }
 
+type SortKey = "lap" | "time";
+type SortDir = "asc" | "desc";
+
 export function LapList() {
   const [laps, setLaps] = useState<LapMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [carNames, setCarNames] = useState<Record<number, string>>({});
   const fetchedOrdinals = useRef(new Set<number>());
+  const [sortKey, setSortKey] = useState<SortKey>("lap");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   // Fetch car names for any new ordinals
   useEffect(() => {
@@ -73,20 +78,42 @@ export function LapList() {
     );
   }
 
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "time" ? "asc" : "desc");
+    }
+  };
+
+  const sortedLaps = [...laps].sort((a, b) => {
+    const valA = sortKey === "lap" ? a.lapNumber : a.lapTime;
+    const valB = sortKey === "lap" ? b.lapNumber : b.lapTime;
+    return sortDir === "asc" ? valA - valB : valB - valA;
+  });
+
+  const arrow = (key: SortKey) =>
+    sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
+
   return (
     <div className="overflow-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
-            <th className="text-left p-2">Lap</th>
-            <th className="text-left p-2">Time</th>
+            <th className="text-left p-2 cursor-pointer hover:text-slate-300 select-none" onClick={() => toggleSort("lap")}>
+              Lap{arrow("lap")}
+            </th>
+            <th className="text-left p-2 cursor-pointer hover:text-slate-300 select-none" onClick={() => toggleSort("time")}>
+              Time{arrow("time")}
+            </th>
             <th className="text-left p-2">Car</th>
             <th className="text-center p-2">Valid</th>
             <th className="text-right p-2">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {laps.map((lap) => (
+          {sortedLaps.map((lap) => (
             <tr key={lap.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
               <td className="p-2 font-mono text-slate-300">{lap.lapNumber}</td>
               <td className="p-2 font-mono text-white">{formatLapTime(lap.lapTime)}</td>

@@ -14,12 +14,42 @@ export interface GripHistoryData {
   rr: number[];
 }
 
+export interface FourWheelHistory {
+  fl: number[];
+  fr: number[];
+  rl: number[];
+  rr: number[];
+}
+
+export interface TelemetryHistoryData {
+  grip: FourWheelHistory;
+  temp: FourWheelHistory;
+  wear: FourWheelHistory;
+  slipAngle: FourWheelHistory;
+  slipRatio: FourWheelHistory;
+  suspension: FourWheelHistory;
+  throttle: number[];
+  brake: number[];
+  speed: number[];
+}
+
 class WebSocketManager {
   private clients = new Set<ServerWebSocket<WSData>>();
   private packetCount = 0;
   private shouldBroadcast = true; // Toggle every packet for 30Hz throttle
   private gripSampleCounter = 0;
   private gripHistory: GripHistoryData = { fl: [], fr: [], rl: [], rr: [] };
+  private telemetryHistory: TelemetryHistoryData = {
+    grip: { fl: [], fr: [], rl: [], rr: [] },
+    temp: { fl: [], fr: [], rl: [], rr: [] },
+    wear: { fl: [], fr: [], rl: [], rr: [] },
+    slipAngle: { fl: [], fr: [], rl: [], rr: [] },
+    slipRatio: { fl: [], fr: [], rl: [], rr: [] },
+    suspension: { fl: [], fr: [], rl: [], rr: [] },
+    throttle: [],
+    brake: [],
+    speed: [],
+  };
 
   get connectedClients(): number {
     return this.clients.size;
@@ -43,6 +73,10 @@ class WebSocketManager {
     return this.gripHistory;
   }
 
+  getTelemetryHistory(): TelemetryHistoryData {
+    return this.telemetryHistory;
+  }
+
   /**
    * Broadcast a parsed telemetry packet to all connected clients.
    * Throttled to ~30Hz by skipping every other packet (game sends at 60Hz).
@@ -50,7 +84,7 @@ class WebSocketManager {
   broadcast(packet: TelemetryPacket): void {
     this.packetCount++;
 
-    // Sample grip data at ~10Hz (every 6th packet from 60Hz)
+    // Sample telemetry data at ~10Hz (every 6th packet from 60Hz)
     this.gripSampleCounter++;
     if (this.gripSampleCounter % 6 === 0) {
       const h = this.gripHistory;
@@ -61,6 +95,24 @@ class WebSocketManager {
       if (h.fl.length > GRIP_MAX_SAMPLES) {
         h.fl.shift(); h.fr.shift(); h.rl.shift(); h.rr.shift();
       }
+
+      const t = this.telemetryHistory;
+      const push4 = (target: FourWheelHistory, fl: number, fr: number, rl: number, rr: number) => {
+        target.fl.push(fl); target.fr.push(fr); target.rl.push(rl); target.rr.push(rr);
+        if (target.fl.length > GRIP_MAX_SAMPLES) {
+          target.fl.shift(); target.fr.shift(); target.rl.shift(); target.rr.shift();
+        }
+      };
+      push4(t.grip, Math.abs(packet.TireCombinedSlipFL), Math.abs(packet.TireCombinedSlipFR), Math.abs(packet.TireCombinedSlipRL), Math.abs(packet.TireCombinedSlipRR));
+      push4(t.temp, packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR);
+      push4(t.wear, packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR);
+      push4(t.slipAngle, packet.TireSlipAngleFL, packet.TireSlipAngleFR, packet.TireSlipAngleRL, packet.TireSlipAngleRR);
+      push4(t.slipRatio, packet.TireSlipRatioFL, packet.TireSlipRatioFR, packet.TireSlipRatioRL, packet.TireSlipRatioRR);
+      push4(t.suspension, packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR);
+      t.throttle.push(packet.Accel / 255);
+      t.brake.push(packet.Brake / 255);
+      t.speed.push(packet.Speed * 2.23694);
+      if (t.throttle.length > GRIP_MAX_SAMPLES) { t.throttle.shift(); t.brake.shift(); t.speed.shift(); }
     }
 
     // Skip every other packet for 30Hz throttle
