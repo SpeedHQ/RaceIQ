@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { ConnectionStatus } from "./components/ConnectionStatus";
 import { LiveTelemetry } from "./components/LiveTelemetry";
@@ -22,6 +22,24 @@ export default function App() {
   const { connected, packet, packetsPerSec } = useWebSocket();
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("live");
+  const [trackName, setTrackName] = useState("");
+  const lastTrackFetchRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!packet) return;
+    // Fetch track name from session — only refetch when lap changes
+    fetch("/api/status")
+      .then((r) => r.json())
+      .then((status) => {
+        const trackOrd = status.currentSession?.trackOrdinal;
+        if (trackOrd == null || trackOrd === lastTrackFetchRef.current) return;
+        lastTrackFetchRef.current = trackOrd;
+        return fetch(`/api/track-name/${trackOrd}`);
+      })
+      .then((r) => r?.text())
+      .then((name) => { if (name) setTrackName(name); })
+      .catch(() => {});
+  }, [packet?.LapNumber]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
@@ -78,10 +96,13 @@ export default function App() {
             {/* Live Track Map + Current Lap Stats */}
             <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] border-b border-slate-800">
               <div className="border-r border-slate-800 bg-slate-950" style={{ minHeight: 220 }}>
-                <div className="p-2 border-b border-slate-800">
+                <div className="p-2 border-b border-slate-800 flex items-center justify-between">
                   <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Track Map
                   </h2>
+                  {trackName && (
+                    <span className="text-xs text-slate-400 truncate ml-2">{trackName}</span>
+                  )}
                 </div>
                 <LiveTrackMap packet={packet} />
               </div>
