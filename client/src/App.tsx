@@ -4,10 +4,17 @@ import { ConnectionStatus } from "./components/ConnectionStatus";
 import { LiveTelemetry } from "./components/LiveTelemetry";
 import { LapList } from "./components/LapList";
 import { LapComparison } from "./components/LapComparison";
+import { RawTelemetry } from "./components/RawTelemetry";
 import { Settings } from "./components/Settings";
 import { Button } from "@/components/ui/button";
 
-type Tab = "live" | "compare";
+type Tab = "live" | "compare" | "raw";
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: "live", label: "Live" },
+  { id: "compare", label: "Compare" },
+  { id: "raw", label: "Raw" },
+];
 
 export default function App() {
   const { connected, packet, packetsPerSec } = useWebSocket();
@@ -20,28 +27,20 @@ export default function App() {
         <div className="flex items-center">
           <ConnectionStatus connected={connected} packetsPerSec={packetsPerSec} forzaReceiving={packetsPerSec > 0} />
 
-          {/* Tab Navigation */}
           <div className="flex items-center gap-0 ml-4">
-            <button
-              onClick={() => setActiveTab("live")}
-              className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors ${
-                activeTab === "live"
-                  ? "border-cyan-400 text-cyan-400"
-                  : "border-transparent text-slate-500 hover:text-slate-300"
-              }`}
-            >
-              Live
-            </button>
-            <button
-              onClick={() => setActiveTab("compare")}
-              className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors ${
-                activeTab === "compare"
-                  ? "border-cyan-400 text-cyan-400"
-                  : "border-transparent text-slate-500 hover:text-slate-300"
-              }`}
-            >
-              Compare
-            </button>
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors ${
+                  activeTab === tab.id
+                    ? "border-cyan-400 text-cyan-400"
+                    : "border-transparent text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -63,9 +62,8 @@ export default function App() {
         </div>
       )}
 
-      {activeTab === "live" ? (
+      {activeTab === "live" && (
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-0">
-          {/* Left: Live Telemetry */}
           <div className="border-r border-slate-800 overflow-auto">
             <div className="p-2 border-b border-slate-800">
               <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -74,8 +72,6 @@ export default function App() {
             </div>
             <LiveTelemetry packet={packet} />
           </div>
-
-          {/* Right: Lap List */}
           <div className="overflow-auto">
             <div className="p-2 border-b border-slate-800">
               <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -85,9 +81,17 @@ export default function App() {
             <LapList />
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === "compare" && (
         <div className="flex-1 overflow-hidden">
           <LapComparison />
+        </div>
+      )}
+
+      {activeTab === "raw" && (
+        <div className="flex-1 overflow-hidden">
+          <RawTelemetry packet={packet} />
         </div>
       )}
     </div>

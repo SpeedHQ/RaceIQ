@@ -57,6 +57,105 @@ function TireTemps({ packet }: { packet: TelemetryPacket }) {
   );
 }
 
+function TireWear({ packet }: { packet: TelemetryPacket }) {
+  const tires = [
+    { label: "FL", value: packet.TireWearFL },
+    { label: "FR", value: packet.TireWearFR },
+    { label: "RL", value: packet.TireWearRL },
+    { label: "RR", value: packet.TireWearRR },
+  ];
+
+  function wearColor(w: number): string {
+    if (w > 0.75) return "bg-emerald-400";
+    if (w > 0.5) return "bg-yellow-400";
+    if (w > 0.25) return "bg-orange-400";
+    return "bg-red-500";
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {tires.map((t) => (
+        <div key={t.label} className="bg-slate-800/50 rounded px-2 py-1.5">
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-slate-500">{t.label}</span>
+            <span className="text-slate-400 font-mono">{(t.value * 100).toFixed(0)}%</span>
+          </div>
+          <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full ${wearColor(t.value)}`} style={{ width: `${t.value * 100}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TireTraction({ packet }: { packet: TelemetryPacket }) {
+  const tires = [
+    { label: "FL", slip: Math.abs(packet.TireSlipRatioFL), combined: Math.abs(packet.TireCombinedSlipFL) },
+    { label: "FR", slip: Math.abs(packet.TireSlipRatioFR), combined: Math.abs(packet.TireCombinedSlipFR) },
+    { label: "RL", slip: Math.abs(packet.TireSlipRatioRL), combined: Math.abs(packet.TireCombinedSlipRL) },
+    { label: "RR", slip: Math.abs(packet.TireSlipRatioRR), combined: Math.abs(packet.TireCombinedSlipRR) },
+  ];
+
+  function gripColor(combined: number): string {
+    if (combined < 0.5) return "text-emerald-400";
+    if (combined < 1.0) return "text-yellow-400";
+    if (combined < 2.0) return "text-orange-400";
+    return "text-red-400";
+  }
+
+  function gripLabel(combined: number): string {
+    if (combined < 0.5) return "Grip";
+    if (combined < 1.0) return "Slide";
+    if (combined < 2.0) return "Slip";
+    return "Loss";
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {tires.map((t) => (
+        <div key={t.label} className="flex items-center justify-between bg-slate-800/50 rounded px-2 py-1">
+          <span className="text-xs text-slate-500">{t.label}</span>
+          <span className={`text-xs font-mono font-medium ${gripColor(t.combined)}`}>
+            {gripLabel(t.combined)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SuspensionTravel({ packet }: { packet: TelemetryPacket }) {
+  const corners = [
+    { label: "FL", norm: packet.NormSuspensionTravelFL, meters: packet.SuspensionTravelMetersFL },
+    { label: "FR", norm: packet.NormSuspensionTravelFR, meters: packet.SuspensionTravelMetersFR },
+    { label: "RL", norm: packet.NormSuspensionTravelRL, meters: packet.SuspensionTravelMetersRL },
+    { label: "RR", norm: packet.NormSuspensionTravelRR, meters: packet.SuspensionTravelMetersRR },
+  ];
+
+  function suspColor(norm: number): string {
+    if (norm < 0.6) return "bg-cyan-400";
+    if (norm < 0.85) return "bg-yellow-400";
+    return "bg-red-500";
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {corners.map((c) => (
+        <div key={c.label} className="bg-slate-800/50 rounded px-2 py-1.5">
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-slate-500">{c.label}</span>
+            <span className="text-slate-400 font-mono">{(c.norm * 100).toFixed(0)}%</span>
+          </div>
+          <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full ${suspColor(c.norm)}`} style={{ width: `${c.norm * 100}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function LiveTelemetry({ packet }: Props) {
   const [carName, setCarName] = useState<string>("");
   const lastOrdinalRef = useRef<number | null>(null);
@@ -180,6 +279,24 @@ export function LiveTelemetry({ packet }: Props) {
       <div>
         <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Tire Temps</div>
         <TireTemps packet={packet} />
+      </div>
+
+      {/* Tire Wear */}
+      <div>
+        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Tire Wear</div>
+        <TireWear packet={packet} />
+      </div>
+
+      {/* Traction / Slip */}
+      <div>
+        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Traction</div>
+        <TireTraction packet={packet} />
+      </div>
+
+      {/* Suspension */}
+      <div>
+        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Suspension Travel</div>
+        <SuspensionTravel packet={packet} />
       </div>
     </div>
   );
