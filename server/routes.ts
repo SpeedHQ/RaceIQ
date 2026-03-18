@@ -12,6 +12,9 @@ import {
   getCorners,
   saveCorners,
   getFirstLapIdForTrack,
+  getTrackOutline as getDbTrackOutline,
+  getTrackOutlineSectors,
+  hasRecordedOutline,
 } from "./db/queries";
 import {
   CAR_CLASS_NAMES,
@@ -271,7 +274,7 @@ app.get("/api/tracks", (c) => {
     country: info.country,
     variant: info.variant,
     lengthKm: info.lengthKm,
-    hasOutline: hasTrackOutline(ordinal),
+    hasOutline: hasTrackOutline(ordinal) || hasRecordedOutline(ordinal),
   }));
   // Sort: tracks with outlines first, then alphabetically
   tracks.sort((a, b) => {
@@ -287,7 +290,14 @@ app.get("/api/track-sectors/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);
   if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
 
-  const outline = getTrackOutlineByOrdinal(ordinal);
+  // Check bundled outlines first, then DB-recorded
+  let outline = getTrackOutlineByOrdinal(ordinal);
+  if (!outline) {
+    const recorded = getDbTrackOutline(ordinal);
+    if (recorded) {
+      outline = recorded.map((p: { x: number; z: number }) => ({ x: p.x, z: p.z }));
+    }
+  }
   if (!outline || outline.length < 20) return c.json({ segments: [] });
 
   const n = outline.length;
@@ -447,15 +457,20 @@ app.delete("/api/laps", (c) => {
   return c.json({ deleted: count });
 });
 
-// GET /api/track-outline/:ordinal — bundled track outline coordinates
+// GET /api/track-outline/:ordinal — track outline coordinates (bundled first, then DB)
 app.get("/api/track-outline/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);
   if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
 
-  const outline = getTrackOutlineByOrdinal(ordinal);
-  if (!outline) return c.json({ error: "No outline available" }, 404);
+  // 1. Check bundled outlines first
+  const bundled = getTrackOutlineByOrdinal(ordinal);
+  if (bundled) return c.json(bundled);
 
-  return c.json(outline);
+  // 2. Fall back to DB-recorded outlines
+  const recorded = getDbTrackOutline(ordinal);
+  if (recorded) return c.json(recorded);
+
+  return c.json({ error: "No outline available" }, 404);
 });
 
 /**

@@ -254,10 +254,51 @@ export function getTrackOutline(
 }
 
 /**
- * Save a track outline. Extracts position + speed from telemetry packets,
- * downsamples, compresses, and stores. Replaces any existing outline.
+ * Save a track outline from pre-processed points array.
+ * Compresses and stores. Replaces any existing outline.
+ * Optionally stores auto-computed sectors.
  */
 export function saveTrackOutline(
+  trackOrdinal: number,
+  points: { x: number; z: number; speed: number }[],
+  sectors?: { s1End: number; s2End: number }
+): void {
+  if (points.length < 10) return;
+
+  const compressed = Buffer.from(
+    Bun.gzipSync(Buffer.from(JSON.stringify(points)))
+  );
+
+  const sectorsJson = sectors ? JSON.stringify(sectors) : null;
+
+  // Upsert
+  const existing = db
+    .select({ id: trackOutlines.id })
+    .from(trackOutlines)
+    .where(eq(trackOutlines.trackOrdinal, trackOrdinal))
+    .get();
+
+  if (existing) {
+    db.update(trackOutlines)
+      .set({ outline: compressed, sectors: sectorsJson })
+      .where(eq(trackOutlines.trackOrdinal, trackOrdinal))
+      .run();
+  } else {
+    db.insert(trackOutlines)
+      .values({ trackOrdinal, outline: compressed, sectors: sectorsJson })
+      .run();
+  }
+
+  console.log(
+    `[Track] Saved outline for track ${trackOrdinal}: ${points.length} points`
+  );
+}
+
+/**
+ * Save a track outline from raw telemetry packets (legacy API).
+ * Extracts position + speed, downsamples, and stores.
+ */
+export function saveTrackOutlineFromPackets(
   trackOrdinal: number,
   packets: TelemetryPacket[]
 ): void {
@@ -271,31 +312,38 @@ export function saveTrackOutline(
       speed: (p.Speed ?? 0) * 2.23694,
     });
   }
-  if (points.length < 10) return;
+  saveTrackOutline(trackOrdinal, points);
+}
 
-  const compressed = Buffer.from(
-    Bun.gzipSync(Buffer.from(JSON.stringify(points)))
-  );
-
-  // Upsert
-  const existing = db
-    .select({ id: trackOutlines.id })
+/**
+ * Get stored sectors for a track ordinal from the track_outlines table.
+ * Returns {s1End, s2End} or null if not stored.
+ */
+export function getTrackOutlineSectors(
+  trackOrdinal: number
+): { s1End: number; s2End: number } | null {
+  const row = db
+    .select({ sectors: trackOutlines.sectors })
     .from(trackOutlines)
     .where(eq(trackOutlines.trackOrdinal, trackOrdinal))
     .get();
 
-  if (existing) {
-    db.update(trackOutlines)
-      .set({ outline: compressed })
-      .where(eq(trackOutlines.trackOrdinal, trackOrdinal))
-      .run();
-  } else {
-    db.insert(trackOutlines)
-      .values({ trackOrdinal, outline: compressed })
-      .run();
+  if (!row?.sectors) return null;
+  try {
+    return JSON.parse(row.sectors as string);
+  } catch {
+    return null;
   }
+}
 
-  console.log(
-    `[Track] Saved outline for track ${trackOrdinal}: ${points.length} points`
-  );
+/**
+ * Check if a recorded (DB) outline exists for a track ordinal.
+ */
+export function hasRecordedOutline(trackOrdinal: number): boolean {
+  const row = db
+    .select({ id: trackOutlines.id })
+    .from(trackOutlines)
+    .where(eq(trackOutlines.trackOrdinal, trackOrdinal))
+    .get();
+  return !!row;
 }

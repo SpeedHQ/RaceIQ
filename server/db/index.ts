@@ -55,11 +55,22 @@ sqlite.exec(`
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     track_ordinal   INTEGER NOT NULL UNIQUE,
     outline         BLOB NOT NULL,
+    sectors         TEXT,
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
   CREATE INDEX IF NOT EXISTS idx_outlines_track ON track_outlines(track_ordinal);
+
+
+
 `);
+
+// Migration: add sectors column to track_outlines if it doesn't exist (for existing DBs)
+try {
+  sqlite.exec("ALTER TABLE track_outlines ADD COLUMN sectors TEXT");
+} catch {
+  // Column already exists — ignore
+}
 
 export const db = drizzle(sqlite, { schema });
 export { sqlite };
