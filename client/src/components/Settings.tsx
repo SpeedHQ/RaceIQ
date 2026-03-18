@@ -10,44 +10,29 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-interface SettingsData {
-  forzaMachine: string;
-  udpPort: number;
-}
-
 export function Settings() {
-  const [machine, setMachine] = useState("0.0.0.0");
   const [udpPort, setUdpPort] = useState("5300");
-  const [saved, setSaved] = useState<SettingsData | null>(null);
+  const [savedPort, setSavedPort] = useState<number | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.json())
-      .then((data: SettingsData) => {
-        setMachine(data.forzaMachine);
+      .then((data: { udpPort: number }) => {
         setUdpPort(String(data.udpPort));
-        setSaved(data);
+        setSavedPort(data.udpPort);
       })
       .catch(() => {});
   }, []);
 
   const port = parseInt(udpPort, 10);
-  const hasChanges =
-    saved === null ||
-    machine.trim() !== saved.forzaMachine ||
-    port !== saved.udpPort;
+  const hasChanges = savedPort === null || port !== savedPort;
 
   async function handleSave() {
     if (isNaN(port) || port < 1024 || port > 65535) {
       setStatus("error");
       setErrorMsg("Port must be between 1024-65535");
-      return;
-    }
-    if (!machine.trim()) {
-      setStatus("error");
-      setErrorMsg("Forza machine address is required");
       return;
     }
 
@@ -57,16 +42,15 @@ export function Settings() {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ forzaMachine: machine.trim(), udpPort: port }),
+        body: JSON.stringify({ udpPort: port }),
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to save");
       }
-      const data: SettingsData = await res.json();
-      setMachine(data.forzaMachine);
+      const data = await res.json();
+      setSavedPort(data.udpPort);
       setUdpPort(String(data.udpPort));
-      setSaved(data);
       setStatus("saved");
       setTimeout(() => setStatus("idle"), 2000);
     } catch (err) {
@@ -80,28 +64,11 @@ export function Settings() {
       <CardHeader>
         <CardTitle className="text-white">Forza Connection</CardTitle>
         <CardDescription>
-          Configure where to listen for Forza telemetry. Use 0.0.0.0 for local,
-          or enter your Xbox/PC IP for a remote machine.
+          Set the UDP port to listen on. In Forza: Settings &gt; Gameplay &gt;
+          Data Out &gt; set IP to this machine's address and the port below.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <Label htmlFor="forza-machine" className="text-slate-400">
-            Forza Machine (IP or hostname)
-          </Label>
-          <Input
-            id="forza-machine"
-            type="text"
-            value={machine}
-            onChange={(e) => {
-              setMachine(e.target.value);
-              setStatus("idle");
-            }}
-            onKeyDown={(e) => e.key === "Enter" && handleSave()}
-            className="bg-slate-800 border-slate-700 text-white font-mono mt-1.5"
-            placeholder="0.0.0.0 or 192.168.1.50"
-          />
-        </div>
+      <CardContent>
         <div className="flex items-end gap-3">
           <div className="flex-1">
             <Label htmlFor="udp-port" className="text-slate-400">
@@ -136,11 +103,11 @@ export function Settings() {
           </Button>
         </div>
         {status === "error" && (
-          <p className="text-red-400 text-sm">{errorMsg}</p>
+          <p className="text-red-400 text-sm mt-2">{errorMsg}</p>
         )}
-        {saved && (
-          <p className="text-slate-500 text-xs">
-            Listening on {saved.forzaMachine}:{saved.udpPort}
+        {savedPort && (
+          <p className="text-slate-500 text-xs mt-3">
+            Listening on 0.0.0.0:{savedPort}
           </p>
         )}
       </CardContent>

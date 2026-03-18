@@ -47,7 +47,7 @@ console.log(`[Server] HTTP/WS server listening on http://localhost:${HTTP_PORT}`
 console.log(`[Server] WebSocket endpoint: ws://localhost:${HTTP_PORT}/ws`);
 
 // Start UDP listener with saved settings
-udpListener.start(settings.udpPort, settings.forzaMachine);
+udpListener.start(settings.udpPort);
 
 console.log(`[Server] Forza Telemetry Server is ready!`);
-console.log(`[Server] Listening for Forza on ${settings.forzaMachine}:${settings.udpPort}`);
+console.log(`[Server] Listening for Forza UDP on port ${settings.udpPort}`);

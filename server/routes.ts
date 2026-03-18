@@ -43,43 +43,24 @@ app.get("/api/status", (c) => {
 
 // GET /api/settings
 app.get("/api/settings", (c) => {
-  return c.json({
-    forzaMachine: udpListener.hostname,
-    udpPort: udpListener.port,
-  });
+  return c.json({ udpPort: udpListener.port });
 });
 
 // PUT /api/settings
 app.put("/api/settings", async (c) => {
-  const body = await c.req.json<{ forzaMachine?: string; udpPort?: number }>();
+  const body = await c.req.json<{ udpPort?: number }>();
   const port = body.udpPort ?? udpListener.port;
-  const machine = body.forzaMachine ?? udpListener.hostname;
 
   if (!Number.isInteger(port) || port < 1024 || port > 65535) {
     return c.json({ error: "Port must be between 1024-65535" }, 400);
   }
 
-  // Validate machine is an IP or hostname (strip protocol if URL-like)
-  let hostname = machine.trim();
   try {
-    // Handle if user pastes a URL like http://192.168.1.50
-    if (hostname.includes("://")) {
-      hostname = new URL(hostname).hostname;
-    }
+    await udpListener.restart(port);
+    saveSettings({ udpPort: port });
+    return c.json({ udpPort: port });
   } catch {
-    return c.json({ error: "Invalid machine address" }, 400);
-  }
-
-  if (!hostname) {
-    return c.json({ error: "Machine address cannot be empty" }, 400);
-  }
-
-  try {
-    await udpListener.restart(port, hostname);
-    saveSettings({ forzaMachine: hostname, udpPort: port });
-    return c.json({ forzaMachine: hostname, udpPort: port });
-  } catch {
-    return c.json({ error: `Failed to bind to ${hostname}:${port}` }, 500);
+    return c.json({ error: `Failed to bind to port ${port}` }, 500);
   }
 });
 
