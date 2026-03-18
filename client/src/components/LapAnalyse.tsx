@@ -538,7 +538,8 @@ export function LapAnalyse() {
       }
     }
 
-    const totalLapTime = selectedLap?.lapTime ?? (telemetry[telemetry.length - 1].CurrentLap - telemetry[0].CurrentLap);
+    const lapMeta = laps.find((l) => l.id === selectedLapId);
+    const totalLapTime = lapMeta?.lapTime ?? (telemetry[telemetry.length - 1].CurrentLap - telemetry[0].CurrentLap);
     s3Time = totalLapTime - s1Time - s2Time;
     if (s3Time < 0) s3Time = 0;
 
@@ -554,7 +555,7 @@ export function LapAnalyse() {
       s2Idx,
       cursorSector,
     };
-  }, [telemetry, sectors, cursorIdx, selectedLap]);
+  }, [telemetry, sectors, cursorIdx, selectedLapId, laps]);
 
   const handleSliderChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

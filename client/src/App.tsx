@@ -438,12 +438,31 @@ const TABS: { id: Tab; label: string }[] = [
  * current lap stats, race info, sector times, lap time chart, and recorded laps.
  * Track name is resolved from ordinal via /api/track-name on session change.
  */
+// Read initial tab from URL hash, default to "live"
+function getTabFromHash(): Tab {
+  const hash = window.location.hash.replace("#", "");
+  return TABS.some((t) => t.id === hash) ? (hash as Tab) : "live";
+}
+
 export default function App() {
   const { connected, packet, packetsPerSec } = useWebSocket();
   const [showSettings, setShowSettings] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>("live");
+  const [activeTab, setActiveTab] = useState<Tab>(getTabFromHash);
   const [trackName, setTrackName] = useState("");
   const lastTrackFetchRef = useRef<number | null>(null);
+
+  // Sync tab to URL hash
+  const setTab = useCallback((tab: Tab) => {
+    setActiveTab(tab);
+    window.location.hash = tab;
+  }, []);
+
+  // Listen for browser back/forward
+  useEffect(() => {
+    const onHashChange = () => setActiveTab(getTabFromHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   useEffect(() => {
     if (!packet) return;
@@ -471,7 +490,7 @@ export default function App() {
             {TABS.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => setTab(tab.id)}
                 className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors ${
                   activeTab === tab.id
                     ? "border-cyan-400 text-cyan-400"

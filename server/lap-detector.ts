@@ -36,8 +36,13 @@ export interface LapTireWearData {
   worn: { fl: number; fr: number; rl: number; rr: number };
 }
 
+const OUTLINE_SAMPLE_POINTS = 350;
+const OUTLINE_LAPS_TO_AVERAGE = 10;
+
 class LapDetector {
   private currentSession: SessionState | null = null;
+  // Accumulate normalized lap outlines per track for averaging
+  private outlineAccumulator = new Map<number, { x: number; z: number; speed: number }[][]>();
   private currentLapNumber: number = -1; // -1 = no lap yet (awaiting first packet)
   private lapBuffer: TelemetryPacket[] = []; // all packets for the in-progress lap
   private lapIsValid: boolean = true; // false if rewind detected mid-lap
@@ -228,8 +233,10 @@ class LapDetector {
       // Don't crash — buffer is lost but server continues
     }
 
-    // Auto-record track outline if no bundled or recorded outline exists
-    this.maybeRecordTrackOutline(this.currentSession.trackOrdinal, this.lapBuffer);
+    // Accumulate valid laps for track outline averaging
+    if (this.lapIsValid && this.currentSession.trackOrdinal > 0) {
+      this.accumulateLapForOutline(this.currentSession.trackOrdinal, this.lapBuffer);
+    }
 
     this.resetLapState(newLapFirstPacket);
   }
@@ -265,18 +272,14 @@ class LapDetector {
   }
 
   /**
-   * If no bundled or previously recorded outline exists for this track,
-   * extract positions from the lap buffer, smooth them, auto-compute sectors,
-   * and save everything to the database.
+   * Accumulate a valid lap's position data for track outline averaging.
+   * After the first valid lap, saves immediately (so the user gets a map right away).
+   * Continues collecting up to OUTLINE_LAPS_TO_AVERAGE laps, then computes the
+   * averaged outline and overwrites the DB entry with a smoother result.
    */
-  private maybeRecordTrackOutline(trackOrdinal: number, buffer: TelemetryPacket[]): void {
-    if (trackOrdinal <= 0) return;
-
+  private accumulateLapForOutline(trackOrdinal: number, buffer: TelemetryPacket[]): void {
     // Skip if a bundled outline already exists
     if (hasTrackOutline(trackOrdinal)) return;
-
-    // Skip if we already recorded one
-    if (hasRecordedOutline(trackOrdinal)) return;
 
     try {
       // Extract PositionX/Z, skip zero positions
@@ -285,38 +288,39 @@ class LapDetector {
         if (p.PositionX === 0 && p.PositionZ === 0) continue;
         raw.push({ x: p.PositionX, z: p.PositionZ, speed: (p.Speed ?? 0) * 2.23694 });
       }
+      if (raw.length < 50) return;
 
-      if (raw.length < 50) return; // Not enough data
+      // Normalize to fixed number of points via linear interpolation on distance
+      const normalized = normalizeToFixedPoints(raw, OUTLINE_SAMPLE_POINTS);
+      if (normalized.length < OUTLINE_SAMPLE_POINTS) return;
 
-      // Downsample to ~300-400 points
-      const targetPoints = 350;
-      const step = Math.max(1, Math.floor(raw.length / targetPoints));
-      const downsampled: { x: number; z: number; speed: number }[] = [];
-      for (let i = 0; i < raw.length; i += step) {
-        downsampled.push(raw[i]);
+      // Add to accumulator
+      if (!this.outlineAccumulator.has(trackOrdinal)) {
+        this.outlineAccumulator.set(trackOrdinal, []);
       }
+      const laps = this.outlineAccumulator.get(trackOrdinal)!;
+      laps.push(normalized);
 
-      // Smooth with moving average (window=5)
-      const smoothed = smoothOutline(downsampled, 5);
+      const lapCount = laps.length;
+      console.log(`[Track] Accumulated lap ${lapCount}/${OUTLINE_LAPS_TO_AVERAGE} for track ${trackOrdinal}`);
 
-      // Re-attach speed values from downsampled
-      const points = smoothed.map((p, i) => ({
-        x: p.x,
-        z: p.z,
-        speed: downsampled[i]?.speed ?? 0,
-      }));
-
-      // Auto-compute sectors from geometry
-      const sectors = computeSectorsFromGeometry(points);
-
-      // Save to database
-      saveTrackOutline(trackOrdinal, points, sectors);
+      // Save on first lap (immediate feedback) and on every subsequent lap
+      const averaged = averageOutlines(laps);
+      const smoothed = smoothOutline(averaged, 5);
+      const sectors = computeSectorsFromGeometry(smoothed);
+      saveTrackOutline(trackOrdinal, smoothed, sectors);
 
       console.log(
-        `[Track] Auto-recorded outline for track ${trackOrdinal}: ${points.length} points`
+        `[Track] Saved ${lapCount === 1 ? "initial" : "averaged"} outline for track ${trackOrdinal}: ${smoothed.length} pts from ${lapCount} lap(s)`
       );
+
+      // Stop accumulating after enough laps
+      if (lapCount >= OUTLINE_LAPS_TO_AVERAGE) {
+        this.outlineAccumulator.delete(trackOrdinal);
+        console.log(`[Track] Finalized outline for track ${trackOrdinal} (${OUTLINE_LAPS_TO_AVERAGE} laps averaged)`);
+      }
     } catch (err) {
-      console.error(`[Track] Failed to auto-record outline for track ${trackOrdinal}:`, err);
+      console.error(`[Track] Failed to record outline for track ${trackOrdinal}:`, err);
     }
   }
 
@@ -358,6 +362,88 @@ function smoothOutline(
     }
     return { x: sx / count, z: sz / count };
   });
+}
+
+/**
+ * Normalize a variable-length point array to a fixed number of points
+ * using linear interpolation along cumulative distance.
+ */
+function normalizeToFixedPoints(
+  raw: { x: number; z: number; speed: number }[],
+  targetPoints: number
+): { x: number; z: number; speed: number }[] {
+  if (raw.length <= targetPoints) return raw;
+
+  // Compute cumulative distances
+  const dists: number[] = [0];
+  for (let i = 1; i < raw.length; i++) {
+    const dx = raw[i].x - raw[i - 1].x;
+    const dz = raw[i].z - raw[i - 1].z;
+    dists.push(dists[i - 1] + Math.sqrt(dx * dx + dz * dz));
+  }
+  const totalDist = dists[dists.length - 1];
+  if (totalDist <= 0) return raw.slice(0, targetPoints);
+
+  // Sample at equal distance intervals
+  const result: { x: number; z: number; speed: number }[] = [];
+  let rawIdx = 0;
+
+  for (let i = 0; i < targetPoints; i++) {
+    const targetDist = (i / (targetPoints - 1)) * totalDist;
+
+    // Advance rawIdx to bracket the target distance
+    while (rawIdx < raw.length - 2 && dists[rawIdx + 1] < targetDist) {
+      rawIdx++;
+    }
+
+    // Linear interpolation between rawIdx and rawIdx+1
+    const d0 = dists[rawIdx];
+    const d1 = dists[rawIdx + 1] ?? d0;
+    const t = d1 > d0 ? (targetDist - d0) / (d1 - d0) : 0;
+    const p0 = raw[rawIdx];
+    const p1 = raw[rawIdx + 1] ?? p0;
+
+    result.push({
+      x: p0.x + (p1.x - p0.x) * t,
+      z: p0.z + (p1.z - p0.z) * t,
+      speed: p0.speed + (p1.speed - p0.speed) * t,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Average multiple normalized outlines (all same length) into one.
+ * Each point is the mean of the corresponding points across all laps.
+ */
+function averageOutlines(
+  laps: { x: number; z: number; speed: number }[][]
+): { x: number; z: number; speed: number }[] {
+  if (laps.length === 0) return [];
+  if (laps.length === 1) return laps[0];
+
+  const len = laps[0].length;
+  const result: { x: number; z: number; speed: number }[] = [];
+
+  for (let i = 0; i < len; i++) {
+    let sx = 0, sz = 0, ss = 0;
+    for (const lap of laps) {
+      if (i < lap.length) {
+        sx += lap[i].x;
+        sz += lap[i].z;
+        ss += lap[i].speed;
+      }
+    }
+    const n = laps.length;
+    result.push({
+      x: sx / n,
+      z: sz / n,
+      speed: ss / n,
+    });
+  }
+
+  return result;
 }
 
 /**
