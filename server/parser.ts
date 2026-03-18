@@ -154,11 +154,12 @@ export function parsePacket(buf: Buffer): TelemetryPacket | null {
     NormDrivingLine: buf.readInt8(309),
     NormAIBrakeDiff: buf.readInt8(310),
 
-    // Extra fields (offsets 311-323) — tire wear etc. if present
-    TireWearFL: buf.length > 311 ? buf.readFloatLE(311) : 0,
-    TireWearFR: buf.length > 315 ? buf.readFloatLE(315) : 0,
-    TireWearRL: buf.length > 319 ? buf.readFloatLE(319) : 0,
-    TireWearRR: buf.length > 323 ? buf.readFloatLE(323) : 0,
+    // Tire wear is NOT in the standard FM7/FM2023 Dash format.
+    // Set to -1 to indicate unavailable.
+    TireWearFL: -1,
+    TireWearFR: -1,
+    TireWearRL: -1,
+    TireWearRR: -1,
   };
 
   return packet;

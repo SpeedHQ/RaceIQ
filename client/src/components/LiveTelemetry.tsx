@@ -28,99 +28,114 @@ function GaugeBar({ value, max, color }: { value: number; max: number; color: st
   );
 }
 
-function TireTemps({ packet }: { packet: TelemetryPacket }) {
-  const temps = [
-    { label: "FL", value: packet.TireTempFL },
-    { label: "FR", value: packet.TireTempFR },
-    { label: "RL", value: packet.TireTempRL },
-    { label: "RR", value: packet.TireTempRR },
-  ];
+function tempColor(t: number): string {
+  if (t < 150) return "text-blue-400";
+  if (t < 220) return "text-emerald-400";
+  if (t < 280) return "text-amber-400";
+  return "text-red-400";
+}
 
-  function tempColor(t: number): string {
-    if (t < 150) return "text-blue-400";
-    if (t < 220) return "text-emerald-400";
-    if (t < 280) return "text-amber-400";
-    return "text-red-400";
-  }
+function tempBg(t: number): string {
+  if (t < 150) return "bg-blue-500/20 border-blue-500/40";
+  if (t < 220) return "bg-emerald-500/20 border-emerald-500/40";
+  if (t < 280) return "bg-amber-500/20 border-amber-500/40";
+  return "bg-red-500/20 border-red-500/40";
+}
 
+function wearBarColor(w: number): string {
+  if (w > 0.75) return "bg-emerald-400";
+  if (w > 0.5) return "bg-yellow-400";
+  if (w > 0.25) return "bg-orange-400";
+  return "bg-red-500";
+}
+
+function gripColor(combined: number): string {
+  if (combined < 0.5) return "text-emerald-400";
+  if (combined < 1.0) return "text-yellow-400";
+  if (combined < 2.0) return "text-orange-400";
+  return "text-red-400";
+}
+
+function gripLabel(combined: number): string {
+  if (combined < 0.5) return "GRIP";
+  if (combined < 1.0) return "SLIDE";
+  if (combined < 2.0) return "SLIP";
+  return "LOSS";
+}
+
+function gripPulse(combined: number): string {
+  if (combined >= 2.0) return "animate-pulse";
+  return "";
+}
+
+function WheelCard({ label, temp, wear, combined }: {
+  label: string;
+  temp: number;
+  wear: number;
+  combined: number;
+}) {
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {temps.map((t) => (
-        <div key={t.label} className="flex items-center justify-between bg-slate-800/50 rounded px-2 py-1">
-          <span className="text-xs text-slate-500">{t.label}</span>
-          <span className={`text-sm font-mono font-medium ${tempColor(t.value)}`}>
-            {t.value.toFixed(0)}°
-          </span>
+    <div className={`rounded-lg border p-2.5 transition-colors ${tempBg(temp)}`}>
+      {/* Header: label + traction badge */}
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
+        <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${gripColor(combined)} bg-slate-900/60 ${gripPulse(combined)}`}>
+          {gripLabel(combined)}
+        </span>
+      </div>
+
+      {/* Temp */}
+      <div className={`text-2xl font-mono font-bold tabular-nums leading-none mb-1.5 ${tempColor(temp)}`}>
+        {temp.toFixed(0)}°
+      </div>
+
+      {/* Wear bar */}
+      {wear >= 0 ? (
+        <div className="flex items-center gap-1.5">
+          <div className="flex-1 h-1.5 bg-slate-900/50 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${wearBarColor(wear)}`}
+              style={{ width: `${wear * 100}%` }}
+            />
+          </div>
+          <span className="text-[10px] font-mono text-slate-400 w-7 text-right">{(wear * 100).toFixed(0)}%</span>
         </div>
-      ))}
+      ) : (
+        <div className="text-[10px] text-slate-600 italic">wear n/a</div>
+      )}
     </div>
   );
 }
 
-function TireWear({ packet }: { packet: TelemetryPacket }) {
-  const tires = [
-    { label: "FL", value: packet.TireWearFL },
-    { label: "FR", value: packet.TireWearFR },
-    { label: "RL", value: packet.TireWearRL },
-    { label: "RR", value: packet.TireWearRR },
+function TireDiagram({ packet }: { packet: TelemetryPacket }) {
+  const wheels = [
+    { label: "FL", temp: packet.TireTempFL, wear: packet.TireWearFL, combined: Math.abs(packet.TireCombinedSlipFL) },
+    { label: "FR", temp: packet.TireTempFR, wear: packet.TireWearFR, combined: Math.abs(packet.TireCombinedSlipFR) },
+    { label: "RL", temp: packet.TireTempRL, wear: packet.TireWearRL, combined: Math.abs(packet.TireCombinedSlipRL) },
+    { label: "RR", temp: packet.TireTempRR, wear: packet.TireWearRR, combined: Math.abs(packet.TireCombinedSlipRR) },
   ];
 
-  function wearColor(w: number): string {
-    if (w > 0.75) return "bg-emerald-400";
-    if (w > 0.5) return "bg-yellow-400";
-    if (w > 0.25) return "bg-orange-400";
-    return "bg-red-500";
-  }
-
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {tires.map((t) => (
-        <div key={t.label} className="bg-slate-800/50 rounded px-2 py-1.5">
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-slate-500">{t.label}</span>
-            <span className="text-slate-400 font-mono">{(t.value * 100).toFixed(0)}%</span>
-          </div>
-          <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full ${wearColor(t.value)}`} style={{ width: `${t.value * 100}%` }} />
-          </div>
+    <div className="relative">
+      {/* Car silhouette connector lines */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="w-12 h-24 border border-slate-700/50 rounded-md" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+        {/* Front axle */}
+        <WheelCard {...wheels[0]} />
+        <WheelCard {...wheels[1]} />
+
+        {/* Axle label */}
+        <div className="col-span-2 flex items-center justify-center">
+          <div className="h-px w-full bg-slate-700/30" />
         </div>
-      ))}
-    </div>
-  );
-}
 
-function TireTraction({ packet }: { packet: TelemetryPacket }) {
-  const tires = [
-    { label: "FL", slip: Math.abs(packet.TireSlipRatioFL), combined: Math.abs(packet.TireCombinedSlipFL) },
-    { label: "FR", slip: Math.abs(packet.TireSlipRatioFR), combined: Math.abs(packet.TireCombinedSlipFR) },
-    { label: "RL", slip: Math.abs(packet.TireSlipRatioRL), combined: Math.abs(packet.TireCombinedSlipRL) },
-    { label: "RR", slip: Math.abs(packet.TireSlipRatioRR), combined: Math.abs(packet.TireCombinedSlipRR) },
-  ];
-
-  function gripColor(combined: number): string {
-    if (combined < 0.5) return "text-emerald-400";
-    if (combined < 1.0) return "text-yellow-400";
-    if (combined < 2.0) return "text-orange-400";
-    return "text-red-400";
-  }
-
-  function gripLabel(combined: number): string {
-    if (combined < 0.5) return "Grip";
-    if (combined < 1.0) return "Slide";
-    if (combined < 2.0) return "Slip";
-    return "Loss";
-  }
-
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {tires.map((t) => (
-        <div key={t.label} className="flex items-center justify-between bg-slate-800/50 rounded px-2 py-1">
-          <span className="text-xs text-slate-500">{t.label}</span>
-          <span className={`text-xs font-mono font-medium ${gripColor(t.combined)}`}>
-            {gripLabel(t.combined)}
-          </span>
-        </div>
-      ))}
+        {/* Rear axle */}
+        <WheelCard {...wheels[2]} />
+        <WheelCard {...wheels[3]} />
+      </div>
     </div>
   );
 }
@@ -277,22 +292,10 @@ export function LiveTelemetry({ packet }: Props) {
         </div>
       </div>
 
-      {/* Tire Temps */}
+      {/* Tires — unified 4-wheel display */}
       <div>
-        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Tire Temps</div>
-        <TireTemps packet={packet} />
-      </div>
-
-      {/* Tire Wear */}
-      <div>
-        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Tire Wear</div>
-        <TireWear packet={packet} />
-      </div>
-
-      {/* Traction / Slip */}
-      <div>
-        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Traction</div>
-        <TireTraction packet={packet} />
+        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Tires</div>
+        <TireDiagram packet={packet} />
       </div>
 
       {/* Suspension */}

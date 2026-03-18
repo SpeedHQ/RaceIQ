@@ -9,31 +9,61 @@ interface Point {
   z: number;
 }
 
+type Source = "tumftm" | "osm" | "recorded";
+
+interface TrackOutlineEntry {
+  filename: string;
+  source: Source;
+}
+
 // Map FM track name -> outline points
 const outlinesByName = new Map<string, Point[]>();
 // Map track ordinal -> outline points
 const outlinesByOrdinal = new Map<number, Point[]>();
+// Source attribution per track name
+const sourceByName = new Map<string, Source>();
 
-// FM track name -> JSON filename mapping
-const TRACK_FILES: Record<string, string> = {
-  "Brand Hatch": "brands-hatch.json",
-  "Circuit de Barcelona-Catalunya": "catalunya.json",
-  "Circuit de Spa-Francorchamps": "spa.json",
-  "Hockenheimring": "hockenheim.json",
-  "Indianapolis Motor Speedway": "indianapolis.json",
-  "Nürburgring": "nurburgring.json",
-  "Silverstone Racing Circuit": "silverstone.json",
-  "Suzuka Circuit": "suzuka.json",
-  "Yas Marina Circuit": "yas-marina.json",
+// FM track name -> JSON filename + source mapping
+// Sources:
+//   tumftm  = TUMFTM/racetrack-database (OpenStreetMap-derived, academic)
+//   osm     = OpenStreetMap Overpass API (direct query)
+//   recorded = Captured from in-game telemetry
+const TRACK_FILES: Record<string, TrackOutlineEntry> = {
+  // TUMFTM racetrack-database (9 tracks)
+  "Brand Hatch": { filename: "brands-hatch.json", source: "tumftm" },
+  "Circuit de Barcelona-Catalunya": { filename: "catalunya.json", source: "tumftm" },
+  "Circuit de Spa-Francorchamps": { filename: "spa.json", source: "tumftm" },
+  "Hockenheimring": { filename: "hockenheim.json", source: "tumftm" },
+  "Indianapolis Motor Speedway": { filename: "indianapolis.json", source: "tumftm" },
+  "Nürburgring": { filename: "nurburgring.json", source: "tumftm" },
+  "Silverstone Racing Circuit": { filename: "silverstone.json", source: "tumftm" },
+  "Suzuka Circuit": { filename: "suzuka.json", source: "tumftm" },
+  "Yas Marina Circuit": { filename: "yas-marina.json", source: "tumftm" },
+
+  // OpenStreetMap Overpass API (4 tracks)
+  "WeatherTech Raceway Laguna Seca": { filename: "laguna-seca.json", source: "osm" },
+  "Road Atlanta": { filename: "road-atlanta.json", source: "osm" },
+  "Daytona Intl Speedway": { filename: "daytona.json", source: "osm" },
+  "Lime Rock Park": { filename: "lime-rock.json", source: "osm" },
 };
 
+// Fictional FM tracks (no real-world data available):
+// Fujimi Kaido, Grand Oak Raceway, Hakone, Maple Valley,
+// Eaglerock Speedway, Sunset Peninsula Raceway
+
+// Real tracks missing data (OSM rate-limited / no data):
+// Mugello Circuit, Mount Panorama, Le Mans, Mid-Ohio,
+// Sebring International, Watkins Glen, Kyalami, Road America,
+// Virginia International Raceway, Homestead-Miami Speedway
+
 // Load all bundled outlines
-for (const [trackName, filename] of Object.entries(TRACK_FILES)) {
-  const filePath = resolve(__dirname, filename);
+for (const [trackName, entry] of Object.entries(TRACK_FILES)) {
+  const filePath = resolve(__dirname, entry.filename);
   if (existsSync(filePath)) {
     try {
       const data = JSON.parse(readFileSync(filePath, "utf-8")) as Point[];
       outlinesByName.set(trackName, data);
+      sourceByName.set(trackName, entry.source);
     } catch {}
   }
 }
@@ -49,7 +79,6 @@ if (existsSync(tracksPath)) {
     const ordinal = parseInt(ordStr, 10);
     if (isNaN(ordinal)) continue;
 
-    // Check if this track name has a bundled outline
     const outline = outlinesByName.get(name);
     if (outline) {
       outlinesByOrdinal.set(ordinal, outline);
@@ -58,7 +87,7 @@ if (existsSync(tracksPath)) {
 }
 
 console.log(
-  `[Tracks] Loaded ${outlinesByName.size} bundled track outlines, mapped to ${outlinesByOrdinal.size} ordinals`
+  `[Tracks] Loaded ${outlinesByName.size} bundled track outlines (${Array.from(sourceByName.values()).filter(s => s === "tumftm").length} TUMFTM, ${Array.from(sourceByName.values()).filter(s => s === "osm").length} OSM), mapped to ${outlinesByOrdinal.size} ordinals`
 );
 
 export function getTrackOutline(trackName: string): Point[] | null {
@@ -71,4 +100,8 @@ export function getTrackOutlineByOrdinal(ordinal: number): Point[] | null {
 
 export function hasTrackOutline(ordinal: number): boolean {
   return outlinesByOrdinal.has(ordinal);
+}
+
+export function getTrackSource(trackName: string): Source | null {
+  return sourceByName.get(trackName) ?? null;
 }
