@@ -127,7 +127,7 @@ export function LapComparison() {
         <div className="flex-1 flex items-center justify-center text-slate-600 text-sm">
           Select two different laps to compare
         </div>
-      ) : comparison ? (
+      ) : comparison?.traces?.distance ? (
         <div className="flex flex-col gap-4">
           {/* Track Maps */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -162,7 +162,27 @@ app.get("/api/laps/:id1/compare/:id2", (c) => {
   }
 
   const result = compareLaps(lapA.telemetry, lapB.telemetry, corners);
-  return c.json(result);
+
+  // Transform to client-expected shape
+  return c.json({
+    lapA: { lapNumber: lapA.lapNumber, lapTime: lapA.lapTime, isValid: lapA.isValid, trackOrdinal: lapA.trackOrdinal, carOrdinal: lapA.carOrdinal },
+    lapB: { lapNumber: lapB.lapNumber, lapTime: lapB.lapTime, isValid: lapB.isValid, trackOrdinal: lapB.trackOrdinal, carOrdinal: lapB.carOrdinal },
+    traces: {
+      distance: result.distances,
+      speedA: result.lapA.speed,
+      speedB: result.lapB.speed,
+      throttleA: result.lapA.throttle,
+      throttleB: result.lapB.throttle,
+      brakeA: result.lapA.brake,
+      brakeB: result.lapB.brake,
+      rpmA: result.lapA.rpm,
+      rpmB: result.lapB.rpm,
+    },
+    timeDelta: result.timeDelta,
+    corners: result.cornerDeltas,
+    telemetryA: lapA.telemetry,
+    telemetryB: lapB.telemetry,
+  });
 });
 
 // GET /api/tracks/:trackOrdinal/corners — get stored corners or auto-detect

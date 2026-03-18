@@ -37,13 +37,12 @@ function AnalyseTrackMap({
     const h = rect.height;
     ctx.clearRect(0, 0, w, h);
 
-    // Build points from outline or telemetry
-    const displayOutline: Point[] =
-      outline && outline.length > 2
-        ? outline
-        : telemetry
-            .filter((p) => p.PositionX !== 0 || p.PositionZ !== 0)
-            .map((p) => ({ x: p.PositionX, z: p.PositionZ }));
+    // In Analyse, always use telemetry positions for the track line so the car dot aligns perfectly.
+    // The outline is only used for the start/finish marker.
+    const telemetryPoints = telemetry
+      .filter((p) => p.PositionX !== 0 || p.PositionZ !== 0)
+      .map((p) => ({ x: p.PositionX, z: p.PositionZ }));
+    const displayOutline: Point[] = telemetryPoints.length > 2 ? telemetryPoints : (outline ?? []);
 
     if (displayOutline.length < 2) return;
 
@@ -627,7 +626,13 @@ export function LapAnalyse() {
   // Export handler
   const handleExport = useCallback(() => {
     if (telemetry.length === 0) return;
+    const header = [
+      `# Car: ${carName || `Ordinal ${telemetry[0].CarOrdinal}`}`,
+      `# Track: ${trackName || `Ordinal ${telemetry[0].TrackOrdinal}`}`,
+      `# Lap: ${selectedLap?.lapNumber ?? "?"} | Time: ${selectedLap ? formatLapTime(selectedLap.lapTime) : "?"}`,
+    ].join("\n");
     const csv = [
+      header,
       Object.keys(telemetry[0]).join(","),
       ...telemetry.map((p) => Object.values(p).join(",")),
     ].join("\n");
@@ -638,7 +643,7 @@ export function LapAnalyse() {
     a.download = `lap-${selectedLapId}-telemetry.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [telemetry, selectedLapId]);
+  }, [telemetry, selectedLapId, selectedLap, carName, trackName]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">

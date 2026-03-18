@@ -1,26 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TelemetryPacket } from "@shared/types";
 
 interface Props {
   packet: TelemetryPacket | null;
-}
-
-interface LapAccumulator {
-  lapNumber: number;
-  sampleCount: number;
-  speedSum: number;
-  maxSpeed: number;
-  throttleSum: number;
-  brakeSum: number;
-  rpmSum: number;
-  maxRpm: number;
-  fullThrottleCount: number;
-  fullBrakeCount: number;
-  startDistance: number;
-}
-
-function getSpeedMph(p: TelemetryPacket): number {
-  return Math.sqrt(p.VelocityX ** 2 + p.VelocityY ** 2 + p.VelocityZ ** 2) * 2.23694;
 }
 
 function formatLapTime(seconds: number): string {
@@ -30,76 +12,106 @@ function formatLapTime(seconds: number): string {
   return `${m}:${s.toFixed(3).padStart(6, "0")}`;
 }
 
-function StatRow({ label, value, unit }: { label: string; value: string; unit?: string }) {
-  return (
-    <div className="flex justify-between items-center py-0.5">
-      <span className="text-xs text-slate-500">{label}</span>
-      <span className="text-xs font-mono text-slate-200 tabular-nums">
-        {value}{unit && <span className="text-slate-500 ml-0.5">{unit}</span>}
-      </span>
-    </div>
-  );
-}
+const SECTOR_COLORS = ["#ef4444", "#3b82f6", "#eab308"];
 
 export function CurrentLapStats({ packet }: Props) {
-  const accRef = useRef<LapAccumulator>({
-    lapNumber: -1,
-    sampleCount: 0,
-    speedSum: 0,
-    maxSpeed: 0,
-    throttleSum: 0,
-    brakeSum: 0,
-    rpmSum: 0,
-    maxRpm: 0,
-    fullThrottleCount: 0,
-    fullBrakeCount: 0,
-    startDistance: 0,
+  const [sectors, setSectors] = useState<{ s1End: number; s2End: number } | null>(null);
+  const trackOrdRef = useRef<number | null>(null);
+  const stateRef = useRef({
+    lapDistStart: 0,
+    lapDistTotal: 0,
+    currentSector: 0,
+    sectorStartTime: 0,
+    currentTimes: [0, 0, 0] as [number, number, number],
+    bestTimes: [Infinity, Infinity, Infinity] as [number, number, number],
+    lastTimes: [0, 0, 0] as [number, number, number],
+    lastLap: 0,
   });
+  const [, tick] = useState(0);
 
+  // Fetch sectors when track changes
   useEffect(() => {
-    if (!packet) return;
+    if (!packet?.TrackOrdinal) return;
+    if (packet.TrackOrdinal === trackOrdRef.current) return;
+    trackOrdRef.current = packet.TrackOrdinal;
 
-    const acc = accRef.current;
+    // Reset state for new track
+    stateRef.current = {
+      lapDistStart: 0,
+      lapDistTotal: 0,
+      currentSector: 0,
+      sectorStartTime: 0,
+      currentTimes: [0, 0, 0],
+      bestTimes: [Infinity, Infinity, Infinity],
+      lastTimes: [0, 0, 0],
+      lastLap: 0,
+    };
 
-    // Reset on new lap
-    if (packet.LapNumber !== acc.lapNumber) {
-      acc.lapNumber = packet.LapNumber;
-      acc.sampleCount = 0;
-      acc.speedSum = 0;
-      acc.maxSpeed = 0;
-      acc.throttleSum = 0;
-      acc.brakeSum = 0;
-      acc.rpmSum = 0;
-      acc.maxRpm = 0;
-      acc.fullThrottleCount = 0;
-      acc.fullBrakeCount = 0;
-      acc.startDistance = packet.DistanceTraveled;
+    fetch(`/api/track-sectors/${packet.TrackOrdinal}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.s1End) setSectors(data);
+        else setSectors(null);
+      })
+      .catch(() => setSectors(null));
+  }, [packet?.TrackOrdinal]);
+
+  // Track sector crossings
+  useEffect(() => {
+    if (!packet || !sectors) return;
+    const s = stateRef.current;
+
+    // Detect new lap
+    if (packet.LapNumber > s.lastLap && s.lastLap > 0) {
+      if (s.currentTimes[0] > 0 && s.currentTimes[1] > 0) {
+        s.lastTimes = [...s.currentTimes] as [number, number, number];
+        s.lastTimes[2] = packet.LastLap - s.currentTimes[0] - s.currentTimes[1];
+        if (s.lastTimes[2] < 0) s.lastTimes[2] = 0;
+
+        for (let i = 0; i < 3; i++) {
+          if (s.lastTimes[i] > 0 && s.lastTimes[i] < s.bestTimes[i]) {
+            s.bestTimes[i] = s.lastTimes[i];
+          }
+        }
+      }
+
+      // Record lap distance for next lap
+      if (s.lapDistStart > 0) {
+        const completedDist = packet.DistanceTraveled - s.lapDistStart;
+        if (completedDist > 100) s.lapDistTotal = completedDist;
+      }
+
+      s.lapDistStart = packet.DistanceTraveled;
+      s.currentSector = 0;
+      s.sectorStartTime = 0;
+      s.currentTimes = [0, 0, 0];
+    }
+    s.lastLap = packet.LapNumber;
+
+    // Sector crossing detection
+    if (s.lapDistTotal > 0) {
+      const lapDist = packet.DistanceTraveled - s.lapDistStart;
+      const frac = lapDist / s.lapDistTotal;
+      const expectedSector = frac < sectors.s1End ? 0 : frac < sectors.s2End ? 1 : 2;
+
+      if (expectedSector > s.currentSector) {
+        s.currentTimes[s.currentSector] = packet.CurrentLap - s.sectorStartTime;
+        s.sectorStartTime = packet.CurrentLap;
+        s.currentSector = expectedSector;
+      }
     }
 
-    const speed = getSpeedMph(packet);
-    const throttle = packet.Accel / 255;
-    const brake = packet.Brake / 255;
-
-    acc.sampleCount++;
-    acc.speedSum += speed;
-    acc.maxSpeed = Math.max(acc.maxSpeed, speed);
-    acc.throttleSum += throttle;
-    acc.brakeSum += brake;
-    acc.rpmSum += packet.CurrentEngineRpm;
-    acc.maxRpm = Math.max(acc.maxRpm, packet.CurrentEngineRpm);
-    if (throttle > 0.95) acc.fullThrottleCount++;
-    if (brake > 0.95) acc.fullBrakeCount++;
-  });
+    tick((v) => v + 1);
+  }, [packet, sectors]);
 
   if (!packet) return null;
 
-  const acc = accRef.current;
-  const n = Math.max(acc.sampleCount, 1);
-  const distance = packet.DistanceTraveled - acc.startDistance;
+  const s = stateRef.current;
+  const sectorNames = ["S1", "S2", "S3"];
 
   return (
-    <div className="p-3 space-y-1">
-      <div className="flex justify-between items-end mb-2">
+    <div className="p-3 space-y-2">
+      <div className="flex justify-between items-end mb-1">
         <div>
           <div className="text-xs text-slate-500 uppercase tracking-wider">Current Lap</div>
           <div className="text-xl font-mono font-semibold text-white tabular-nums">
@@ -108,20 +120,82 @@ export function CurrentLapStats({ packet }: Props) {
         </div>
         <div className="text-right">
           <div className="text-xs text-slate-500">Lap {packet.LapNumber}</div>
-          <div className="text-xs font-mono text-slate-400">{(distance / 1000).toFixed(2)} km</div>
         </div>
       </div>
 
-      <div className="border-t border-slate-800 pt-1">
-        <StatRow label="Avg Speed" value={(acc.speedSum / n).toFixed(1)} unit="mph" />
-        <StatRow label="Max Speed" value={acc.maxSpeed.toFixed(1)} unit="mph" />
-        <StatRow label="Avg RPM" value={(acc.rpmSum / n).toFixed(0)} />
-        <StatRow label="Peak RPM" value={acc.maxRpm.toFixed(0)} />
-        <StatRow label="Avg Throttle" value={((acc.throttleSum / n) * 100).toFixed(0)} unit="%" />
-        <StatRow label="Full Throttle" value={((acc.fullThrottleCount / n) * 100).toFixed(0)} unit="%" />
-        <StatRow label="Avg Brake" value={((acc.brakeSum / n) * 100).toFixed(0)} unit="%" />
-        <StatRow label="Full Brake" value={((acc.fullBrakeCount / n) * 100).toFixed(0)} unit="%" />
-      </div>
+      {sectors ? (
+        <div className="space-y-1.5 border-t border-slate-800 pt-2">
+          {sectorNames.map((name, i) => {
+            const current = i === s.currentSector
+              ? packet.CurrentLap - s.sectorStartTime
+              : s.currentTimes[i];
+            const best = s.bestTimes[i] < Infinity ? s.bestTimes[i] : 0;
+            const last = s.lastTimes[i];
+            const isActive = i === s.currentSector;
+            const isDone = i < s.currentSector && s.currentTimes[i] > 0;
+
+            // Delta vs best
+            let delta = "";
+            let deltaColor = "";
+            if (isDone && best > 0) {
+              const diff = s.currentTimes[i] - best;
+              delta = diff >= 0 ? `+${diff.toFixed(3)}` : diff.toFixed(3);
+              deltaColor = diff <= 0 ? "#34d399" : "#ef4444";
+            }
+
+            return (
+              <div
+                key={name}
+                className={`rounded px-2 py-1.5 ${isActive ? "bg-slate-800/80 ring-1 ring-inset" : "bg-slate-800/30"}`}
+                style={isActive ? { boxShadow: `inset 0 0 0 1px ${SECTOR_COLORS[i]}40` } : {}}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLORS[i] }} />
+                    <span className="text-[10px] font-semibold text-slate-400">{name}</span>
+                  </div>
+                  <span className={`text-sm font-mono font-bold tabular-nums ${isActive ? "text-white" : "text-slate-300"}`}>
+                    {current > 0 ? formatLapTime(current) : "--:--.---"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-0.5">
+                  <div className="flex gap-3">
+                    <span className="text-[9px] text-slate-500">
+                      Last <span className="font-mono text-slate-400">{last > 0 ? formatLapTime(last) : "-"}</span>
+                    </span>
+                    <span className="text-[9px] text-purple-400">
+                      Best <span className="font-mono">{best > 0 ? formatLapTime(best) : "-"}</span>
+                    </span>
+                  </div>
+                  {delta && (
+                    <span className="text-[9px] font-mono font-bold" style={{ color: deltaColor }}>
+                      {delta}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Last/Best total */}
+          <div className="flex justify-between pt-1 border-t border-slate-800/50">
+            <span className="text-[9px] text-slate-500">
+              Last <span className="font-mono text-slate-400">
+                {s.lastTimes[0] > 0 ? formatLapTime(s.lastTimes[0] + s.lastTimes[1] + s.lastTimes[2]) : "-"}
+              </span>
+            </span>
+            <span className="text-[9px] text-purple-400">
+              Best <span className="font-mono">
+                {s.bestTimes[0] < Infinity ? formatLapTime(s.bestTimes[0] + s.bestTimes[1] + s.bestTimes[2]) : "-"}
+              </span>
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="border-t border-slate-800 pt-2 text-xs text-slate-500">
+          Complete a lap to see sector times
+        </div>
+      )}
     </div>
   );
 }

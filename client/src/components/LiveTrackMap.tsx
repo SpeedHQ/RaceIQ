@@ -27,6 +27,7 @@ export function LiveTrackMap({ packet }: Props) {
   const [noOutline, setNoOutline] = useState(false);
   const [isRecorded, setIsRecorded] = useState(false); // true = Forza coords, can plot directly
   const [startYaw, setStartYaw] = useState<number | null>(null); // Yaw at start/finish line
+  const [sectors, setSectors] = useState<{ s1End: number; s2End: number } | null>(null);
   const lastTrackOrdRef = useRef<number | null>(null);
 
   // Distance-based position tracking
@@ -54,6 +55,13 @@ export function LiveTrackMap({ packet }: Props) {
     lapDistRef.current = { startDist: 0, totalDist: 0, lastLap: -1 };
     setOutline(null);
     setNoOutline(false);
+    setSectors(null);
+
+    // Fetch sectors
+    fetch(`/api/track-sectors/${trackOrd}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.s1End) setSectors(data); })
+      .catch(() => {});
 
     fetch(`/api/track-outline/${trackOrd}`)
       .then((r) => {
@@ -208,7 +216,8 @@ export function LiveTrackMap({ packet }: Props) {
       ];
     }
 
-    // Compute jump threshold: skip segments where world-space distance is >5x median
+    // Compute jump threshold: skip segments where world-space distance is abnormally large.
+    // Use the 90th percentile * 3 to avoid breaking at normal sparse sections (straights).
     const worldDists: number[] = [];
     for (let i = 1; i < displayOutline.length; i++) {
       const dx = displayOutline[i].x - displayOutline[i - 1].x;
@@ -216,8 +225,8 @@ export function LiveTrackMap({ packet }: Props) {
       worldDists.push(Math.sqrt(dx * dx + dz * dz));
     }
     const sortedDists = [...worldDists].sort((a, b) => a - b);
-    const medianDist = sortedDists[Math.floor(sortedDists.length / 2)] || 1;
-    const jumpThreshold = Math.max(medianDist * 5, 20);
+    const p90 = sortedDists[Math.floor(sortedDists.length * 0.9)] || 1;
+    const jumpThreshold = Math.max(p90 * 3, 50);
 
     function isJump(i: number): boolean {
       return i > 0 && i <= worldDists.length && worldDists[i - 1] > jumpThreshold;
@@ -308,6 +317,48 @@ export function LiveTrackMap({ packet }: Props) {
         ctx.closePath();
         ctx.fillStyle = "#10b981";
         ctx.fill();
+      }
+    }
+
+    // Sector boundary markers on the outline
+    if (!isLiveTrace && sectors && displayOutline.length > 10) {
+      const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
+      const sectorFracs = [sectors.s1End, sectors.s2End];
+
+      for (let si = 0; si < sectorFracs.length; si++) {
+        const idx = Math.round(sectorFracs[si] * (displayOutline.length - 1));
+        const pt = displayOutline[Math.min(idx, displayOutline.length - 1)];
+        if (!pt) continue;
+        const [mx, my] = toCanvas(pt.x, pt.z);
+
+        // Small colored tick perpendicular to the track direction
+        const prevIdx = Math.max(0, idx - 3);
+        const nextIdx = Math.min(displayOutline.length - 1, idx + 3);
+        const dx = displayOutline[nextIdx].x - displayOutline[prevIdx].x;
+        const dz = displayOutline[nextIdx].z - displayOutline[prevIdx].z;
+        const len = Math.sqrt(dx * dx + dz * dz);
+        if (len > 0) {
+          // Perpendicular direction (flipped for canvas X mirror)
+          const nx = dz / len;
+          const nz = -dx / len;
+          // Account for X flip in toCanvas
+          const tickLen = 8;
+          ctx.beginPath();
+          ctx.moveTo(mx - nx * tickLen, my + nz * tickLen);
+          ctx.lineTo(mx + nx * tickLen, my - nz * tickLen);
+          ctx.strokeStyle = sectorColors[si];
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        // Small dot at sector boundary
+        ctx.beginPath();
+        ctx.arc(mx, my, 3, 0, Math.PI * 2);
+        ctx.fillStyle = sectorColors[si];
+        ctx.fill();
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = 1;
+        ctx.stroke();
       }
     }
 

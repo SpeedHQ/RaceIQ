@@ -12,29 +12,33 @@ import { formatLapTime } from "./LiveTelemetry";
 export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
   const [laps, setLaps] = useState<{ lap: number; time: number }[]>([]);
   const lastLapRef = useRef<number>(0);
-  const fetchedRef = useRef(false);
+  const trackOrdRef = useRef<number | null>(null);
 
-  // Fetch recorded laps on mount
+  // Fetch laps for the current track, re-fetch when track changes
   useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
+    if (!packet?.TrackOrdinal) return;
+    if (packet.TrackOrdinal === trackOrdRef.current) return;
+    trackOrdRef.current = packet.TrackOrdinal;
+    lastLapRef.current = 0;
+
     fetch("/api/laps")
       .then((r) => r.json())
-      .then((data: { id: number; lapNumber: number; lapTime: number }[]) => {
-        if (Array.isArray(data) && data.length > 0) {
+      .then((data: { id: number; lapNumber: number; lapTime: number; trackOrdinal?: number }[]) => {
+        if (Array.isArray(data)) {
           const recorded = data
-            .filter((l) => l.lapTime > 0)
+            .filter((l) => l.lapTime > 0 && l.trackOrdinal === packet.TrackOrdinal)
             .map((l) => ({ lap: l.lapNumber, time: l.lapTime }))
             .slice(-10);
           setLaps(recorded);
         }
       })
       .catch(() => {});
-  }, []);
+  }, [packet?.TrackOrdinal]);
 
-  // Accumulate live laps
+  // Accumulate live laps (only if same track)
   useEffect(() => {
     if (!packet) return;
+    if (packet.TrackOrdinal !== trackOrdRef.current) return;
     if (packet.LapNumber > lastLapRef.current && packet.LastLap > 0 && lastLapRef.current > 0) {
       setLaps((prev) => {
         if (prev.some((l) => l.lap === lastLapRef.current)) return prev;
