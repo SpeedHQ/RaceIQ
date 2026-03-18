@@ -1,11 +1,22 @@
+/**
+ * UDP listener: receives raw Forza telemetry datagrams and dispatches them.
+ *
+ * Packet flow:
+ *   Forza (60Hz UDP) -> parsePacket -> lapDetector (session/lap/DB)
+ *                                   -> feedPosition (track calibration, 10Hz)
+ *                                   -> wsManager.broadcast (WebSocket, 30Hz)
+ *
+ * The game sends either Sled (232 bytes) or Dash (324 bytes) format.
+ * We require Dash format for the richer data set.
+ */
 import { parsePacket } from "./parser";
 import { wsManager } from "./ws";
 import { lapDetector } from "./lap-detector";
 import { feedPosition } from "./track-calibration";
 import { getTrackOutlineByOrdinal } from "../shared/track-outlines/index";
 
-const MIN_PACKET_LENGTH = 324; // Dash format minimum
-const PACKETS_PER_SEC_WINDOW = 1000; // 1 second window for rate calculation
+const MIN_PACKET_LENGTH = 324; // Reject Sled-format packets (too few fields)
+const PACKETS_PER_SEC_WINDOW = 1000; // 1-second sliding window for rate display
 
 class UdpListener {
   private _droppedPackets = 0;
@@ -82,7 +93,7 @@ class UdpListener {
       return;
     }
 
-    // Parse the packet (returns null if IsRaceOn == 0)
+    // Returns null when game is paused/in menus (IsRaceOn == 0)
     const packet = parsePacket(buf);
     if (!packet) {
       return;
@@ -90,10 +101,10 @@ class UdpListener {
 
     this._receiving = true;
 
-    // Feed to lap detector (handles session + lap boundary detection + DB storage)
+    // Pipeline: each consumer handles its own throttling/filtering
     lapDetector.feed(packet);
 
-    // Feed position for track calibration (every 6th packet = ~10Hz)
+    // Track calibration only needs sparse position data (~10Hz)
     if (this._totalPackets % 6 === 0) {
       const session = lapDetector.session;
       if (session && session.trackOrdinal) {

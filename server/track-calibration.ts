@@ -26,7 +26,9 @@ interface CalibrationState {
   collecting: boolean;
 }
 
-const calibrations = new Map<number, CalibrationState>(); // trackOrdinal -> state
+// One calibration per track — persists for the server lifetime.
+// Re-calibrates each time the player completes a full lap.
+const calibrations = new Map<number, CalibrationState>();
 
 /**
  * Find the closest point index on an outline for a given position.
@@ -82,7 +84,8 @@ function procrustes(source: Point[], target: Point[]): Transform {
   const srcC = source.map((p) => ({ x: p.x - cSrc.x, z: p.z - cSrc.z }));
   const tgtC = target.map((p) => ({ x: p.x - cTgt.x, z: p.z - cTgt.z }));
 
-  // Compute optimal rotation using SVD-like approach for 2D
+  // Optimal rotation via cross/dot product sums (closed-form 2D SVD).
+  // num = sum of cross products (sine component), den = sum of dot products (cosine).
   let num = 0, den = 0;
   for (let i = 0; i < n; i++) {
     num += srcC[i].x * tgtC[i].z - srcC[i].z * tgtC[i].x;
@@ -145,7 +148,8 @@ export function feedPosition(
   }
   state.lastLap = lapNumber;
 
-  // Collect points (downsample by distance)
+  // Spatial downsampling: only keep points >5m apart to avoid
+  // clustering at slow corners and gaps on straights
   if (state.collecting) {
     const last = state.forzaPoints[state.forzaPoints.length - 1];
     if (!last) {
@@ -153,7 +157,7 @@ export function feedPosition(
     } else {
       const dx = forzaPos.x - last.x;
       const dz = forzaPos.z - last.z;
-      if (dx * dx + dz * dz > 25) { // ~5m spacing
+      if (dx * dx + dz * dz > 25) { // 25 = 5m squared
         state.forzaPoints.push(forzaPos);
       }
     }

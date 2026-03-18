@@ -3,10 +3,16 @@ import type { TelemetryPacket } from "@shared/types";
 import { CAR_CLASS_NAMES, DRIVETRAIN_NAMES } from "@shared/types";
 import { SteeringWheel } from "./SteeringWheel";
 
+// Rolling window for grip sparklines — 60s at 10Hz gives a manageable 600-point buffer
 const GRIP_HISTORY_SECONDS = 60;
 const GRIP_SAMPLE_RATE = 10; // samples per second
 const GRIP_MAX_SAMPLES = GRIP_HISTORY_SECONDS * GRIP_SAMPLE_RATE;
 
+/**
+ * GripSparkline — Canvas-drawn mini chart showing combined tire slip over time.
+ * Y-axis is inverted: 0 (top) = perfect grip, 3 (bottom) = total loss.
+ * Color zones provide at-a-glance severity bands (green/yellow/orange/red).
+ */
 function GripSparkline({ data, label, renderKey, width = 140, height = 40 }: {
   data: number[];
   label: string;
@@ -94,6 +100,11 @@ function GripSparkline({ data, label, renderKey, width = 140, height = 40 }: {
   );
 }
 
+/**
+ * GripHistory — Manages a per-wheel rolling buffer of combined slip values.
+ * Seeds from server history on mount so the chart isn't empty after page refresh.
+ * Downsamples 60Hz telemetry to ~10Hz to keep buffer sizes reasonable.
+ */
 function GripHistory({ packet }: { packet: TelemetryPacket }) {
   const historyRef = useRef<{ fl: number[]; fr: number[]; rl: number[]; rr: number[] }>({
     fl: [], fr: [], rl: [], rr: [],
@@ -178,6 +189,7 @@ function GaugeBar({ value, max, color }: { value: number; max: number; color: st
   );
 }
 
+// Tire temp thresholds (Fahrenheit): <150 cold, 150-220 optimal, 220-280 hot, >280 overheating
 function tempColor(t: number): string {
   if (t < 150) return "text-blue-400";
   if (t < 220) return "text-emerald-400";
@@ -199,6 +211,7 @@ function wearBarColor(w: number): string {
   return "bg-red-500";
 }
 
+// Combined slip thresholds: <0.5 = grip, 0.5-1.0 = sliding, 1.0-2.0 = slipping, >2.0 = total loss
 function gripColor(combined: number): string {
   if (combined < 0.5) return "text-emerald-400";
   if (combined < 1.0) return "text-yellow-400";
@@ -240,6 +253,14 @@ function slipLineColor(deg: number): string {
   return "#ef4444";
 }
 
+/**
+ * WheelCard — SVG tire visualization for a single wheel.
+ * Shows temp (fill color), wear (fill height from bottom), slip angle (tire rotation),
+ * combined grip state, and wheel spin/lockup detection.
+ * The tire SVG rotates to match the slip angle, with a dashed line showing
+ * the angle between tire heading and actual travel direction.
+ * Spin/lockup detection uses animated glow rings and X/arrow overlays.
+ */
 function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, spinPct }: {
   label: string;
   temp: number;
@@ -415,6 +436,12 @@ function SuspBar({ norm }: { norm: number }) {
   );
 }
 
+/**
+ * TireDiagram — Arranges 4 WheelCards in a front/rear axle layout with suspension bars.
+ * Derives effective wheel radius from ground speed / rotation speed to calculate
+ * spin percentage (how much faster/slower each wheel turns vs ground truth).
+ * Falls back to 0.33m radius when stationary to avoid division by zero.
+ */
 function TireDiagram({ packet }: { packet: TelemetryPacket }) {
   const toDeg = 180 / Math.PI;
   const gs = packet.Speed;
@@ -474,6 +501,12 @@ function TireDiagram({ packet }: { packet: TelemetryPacket }) {
   );
 }
 
+/**
+ * GForceCircle — Canvas-drawn G-force plot (friction circle).
+ * Lateral G on X-axis, longitudinal G on Y-axis. Concentric rings at 0.83G intervals.
+ * Raw acceleration (m/s^2) is divided by 9.81 to convert to G units.
+ * Dot color indicates total G magnitude.
+ */
 function GForceCircle({ packet }: { packet: TelemetryPacket }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const size = 110;
@@ -540,6 +573,11 @@ function GForceCircle({ packet }: { packet: TelemetryPacket }) {
   );
 }
 
+/**
+ * ArcGauge — 270-degree SVG arc gauge (135deg to 405deg sweep).
+ * Used for power, torque, and boost readouts. SVG arc path is computed
+ * from polar coordinates converted to Cartesian for the arc endpoints.
+ */
 function ArcGauge({ value, max, label, unit, color }: {
   value: number;
   max: number;
@@ -589,11 +627,23 @@ function ArcGauge({ value, max, label, unit, color }: {
   );
 }
 
+/**
+ * FuelGauge — Tracks fuel consumption per lap to estimate remaining laps.
+ * Strategy: records fuel level at each lap start, computes delta on lap boundary,
+ * averages last 5 laps for the burn rate estimate. Seeds from server history
+ * so estimates survive page refreshes. Filters out impossible values (>100% per lap).
+ */
 function FuelGauge({ packet }: { packet: TelemetryPacket }) {
-  const fuelRef = useRef<{ lapStart: number; lastLap: number; perLap: number | null }>({
+  const fuelRef = useRef<{
+    lapStart: number;
+    lastLap: number;
+    history: number[];  // fuel used per lap (all recorded)
+    avgPerLap: number | null;
+  }>({
     lapStart: packet.Fuel,
     lastLap: packet.LapNumber,
-    perLap: null,
+    history: [],
+    avgPerLap: null,
   });
   const fetchedRef = useRef(false);
 
@@ -604,11 +654,13 @@ function FuelGauge({ packet }: { packet: TelemetryPacket }) {
     fetch("/api/fuel-history")
       .then((r) => r.json())
       .then((data: { fuelUsed: number }[]) => {
-        if (Array.isArray(data) && data.length > 0 && fuelRef.current.perLap == null) {
-          // Average fuel usage from recent laps
-          const recent = data.slice(-5);
-          const avg = recent.reduce((s, d) => s + d.fuelUsed, 0) / recent.length;
-          if (avg > 0) fuelRef.current.perLap = avg;
+        if (Array.isArray(data) && data.length > 0) {
+          const f = fuelRef.current;
+          f.history = data.map((d) => d.fuelUsed).filter((v) => v > 0 && v < 1);
+          if (f.history.length > 0) {
+            const recent = f.history.slice(-5);
+            f.avgPerLap = recent.reduce((s, v) => s + v, 0) / recent.length;
+          }
         }
       })
       .catch(() => {});
@@ -620,35 +672,53 @@ function FuelGauge({ packet }: { packet: TelemetryPacket }) {
     if (packet.LapNumber !== f.lastLap && packet.LapNumber > f.lastLap) {
       const used = f.lapStart - packet.Fuel;
       if (used > 0 && used < 1) {
-        f.perLap = used;
+        f.history.push(used);
+        if (f.history.length > 50) f.history.shift();
+        // Recalculate average from last 5 laps
+        const recent = f.history.slice(-5);
+        f.avgPerLap = recent.reduce((s, v) => s + v, 0) / recent.length;
       }
       f.lapStart = packet.Fuel;
-      f.lastLap = packet.LapNumber;
     }
+    f.lastLap = packet.LapNumber;
   }, [packet.LapNumber, packet.Fuel]);
 
   const pct = packet.Fuel * 100;
   const fuelColor = pct < 20 ? "bg-red-500" : pct < 40 ? "bg-amber-400" : "bg-emerald-400";
   const textColor = pct < 20 ? "text-red-400" : pct < 40 ? "text-amber-400" : "text-emerald-400";
-  const perLap = fuelRef.current.perLap;
-  const lapsRemaining = perLap && perLap > 0 ? Math.floor(packet.Fuel / perLap) : null;
+  const avg = fuelRef.current.avgPerLap;
+  const lapsRemaining = avg && avg > 0 ? Math.floor(packet.Fuel / avg) : null;
+
+  // Current lap fuel used so far
+  const currentLapUsed = fuelRef.current.lapStart - packet.Fuel;
+  const currentLapPct = currentLapUsed * 100;
+
+  // Delta vs average: positive = using more than avg, negative = saving
+  const delta = avg ? currentLapUsed - (avg * (packet.CurrentLap > 0 ? 1 : 0)) : null;
 
   return (
     <div className="flex-1">
       <div className="flex justify-between text-[10px] mb-0.5">
-        <span className="text-slate-500">Fuel {pct.toFixed(0)}%</span>
-        {lapsRemaining != null ? (
-          <span className={`font-mono font-bold ${textColor}`}>
-            ~{lapsRemaining} laps
-            <span className="text-slate-500 font-normal ml-1">({(perLap! * 100).toFixed(1)}%/lap)</span>
+        <span className={`font-mono font-bold ${textColor}`}>Fuel {pct.toFixed(0)}%</span>
+        {lapsRemaining != null && (
+          <span className="font-mono text-slate-400">
+            ~{lapsRemaining} laps left
           </span>
-        ) : (
-          <span className={`font-mono font-bold ${textColor}`}>{pct.toFixed(0)}%</span>
         )}
       </div>
       <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${fuelColor} ${pct < 20 ? "animate-pulse" : ""}`} style={{ width: `${pct}%` }} />
       </div>
+      {avg != null && (
+        <div className="flex justify-between text-[9px] font-mono mt-0.5">
+          <span className="text-slate-500">
+            {(avg * 100).toFixed(1)}%/lap avg
+          </span>
+          <span className="text-slate-500">
+            This lap: {currentLapPct.toFixed(1)}%
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -782,6 +852,13 @@ function SlipAngles({ packet }: { packet: TelemetryPacket }) {
   );
 }
 
+/**
+ * BodyAttitude — Three SVG mini-views showing car orientation:
+ * 1. Rear view: car body rotates with roll angle (weight transfer in corners)
+ * 2. Side view: car body rotates with pitch angle (braking/acceleration dive)
+ * 3. Compass: arrow rotates with yaw heading
+ * All angles converted from radians to degrees, clamped for visual sanity.
+ */
 function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
   const toDeg = 180 / Math.PI;
   const roll = packet.Roll * toDeg;
@@ -847,9 +924,15 @@ function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
   );
 }
 
-const TIRE_COLORS = ["#22d3ee", "#a855f7", "#fbbf24", "#34d399"]; // FL=cyan, FR=purple, RL=amber, RR=emerald
+// Consistent color coding across all per-wheel charts: FL=cyan, FR=purple, RL=amber, RR=emerald
+const TIRE_COLORS = ["#22d3ee", "#a855f7", "#fbbf24", "#34d399"];
 const TIRE_LABELS = ["FL", "FR", "RL", "RR"];
 
+/**
+ * FourLineChart — Overlays all 4 tire channels on one canvas (e.g., temp, wear, grip).
+ * X-axis is a fixed-width sliding window (GRIP_MAX_SAMPLES); new data enters from the right.
+ * Re-renders on a 200ms interval timer rather than per-packet to avoid excessive repaints.
+ */
 function FourLineChart({ data, label, maxY, unit, height = 50 }: {
   data: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
   label: string;
@@ -952,6 +1035,7 @@ function FourLineChart({ data, label, maxY, unit, height = 50 }: {
   );
 }
 
+/** SingleLineChart — Same sliding-window canvas approach as FourLineChart but for a single metric. */
 function SingleLineChart({ data, label, color, maxY, unit, height = 50 }: {
   data: number[];
   label: string;
@@ -1025,6 +1109,7 @@ function SingleLineChart({ data, label, color, maxY, unit, height = 50 }: {
   );
 }
 
+/** DualLineChart — Two overlaid lines sharing one Y-axis (e.g., throttle vs brake trace). */
 function DualLineChart({ data1, data2, label1, label2, color1, color2, label, maxY, unit, height = 50 }: {
   data1: number[];
   data2: number[];
@@ -1113,6 +1198,12 @@ function DualLineChart({ data1, data2, label1, label2, color1, color2, label, ma
   );
 }
 
+/**
+ * TelemetryCharts — Aggregates all rolling 60s time-series data into chart components.
+ * Downsamples from 60Hz to ~10Hz (every 6th frame) to keep buffers at 600 samples.
+ * Seeds from server on mount so charts populate immediately after page refresh.
+ * Converts raw telemetry units (rad->deg, m/s->mph, 0-255->0-100%) for display.
+ */
 function TelemetryCharts({ packet }: { packet: TelemetryPacket }) {
   const histRef = useRef<{
     grip: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };

@@ -89,7 +89,8 @@ app.get("/api/laps/:id", (c) => {
   return c.json(lap);
 });
 
-// GET /api/laps/:id/export — Claude-formatted text summary
+// GET /api/laps/:id/export — plain-text summary designed for pasting into
+// an LLM conversation for driving/tuning advice
 app.get("/api/laps/:id/export", (c) => {
   const id = parseInt(c.req.param("id"), 10);
   if (isNaN(id)) return c.json({ error: "Invalid lap ID" }, 400);
@@ -123,7 +124,8 @@ app.get("/api/sessions", (c) => {
   return c.json(sessionList);
 });
 
-// GET /api/laps/:id1/compare/:id2 — pre-computed comparison data
+// GET /api/laps/:id1/compare/:id2 — distance-aligned delta comparison.
+// Auto-detects corners on first use, caches them in DB for the track.
 app.get("/api/laps/:id1/compare/:id2", (c) => {
   const id1 = parseInt(c.req.param("id1"), 10);
   const id2 = parseInt(c.req.param("id2"), 10);
@@ -279,7 +281,8 @@ app.get("/api/tracks", (c) => {
   return c.json(tracks);
 });
 
-// GET /api/track-sectors/:ordinal — auto-detect corners and straights from curvature
+// GET /api/track-sectors/:ordinal — derives corner/straight segments from outline
+// curvature. Uses median curvature as threshold, merges segments <2% of track.
 app.get("/api/track-sectors/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);
   if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
@@ -418,6 +421,11 @@ app.get("/api/fuel-history", (c) => {
   return c.json(lapDetector.fuelHistory);
 });
 
+// GET /api/tire-wear-history — tire wear per lap
+app.get("/api/tire-wear-history", (c) => {
+  return c.json(lapDetector.tireWearHistory);
+});
+
 // GET /api/grip-history — server-side grip ring buffer
 app.get("/api/grip-history", (c) => {
   return c.json(wsManager.getGripHistory());
@@ -428,7 +436,8 @@ app.get("/api/telemetry-history", (c) => {
   return c.json(wsManager.getTelemetryHistory());
 });
 
-// DELETE /api/laps — delete all laps
+// DELETE /api/laps — bulk delete. Iterates individually because deleteLap
+// also cleans up associated telemetry blobs.
 app.delete("/api/laps", (c) => {
   const laps = getLaps();
   let count = 0;

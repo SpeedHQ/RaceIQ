@@ -13,6 +13,13 @@ import { LapAnalyse } from "./components/LapAnalyse";
 import { Settings } from "./components/Settings";
 import { Button } from "@/components/ui/button";
 
+/**
+ * LapTimeChart — Canvas-drawn lap time trend with pace reference lines.
+ * "Optimum" = median of top 5 laps (robust to single-flier best laps).
+ * "Avg" = mean of last 4 laps (recent rolling pace).
+ * Dots are colored: purple=best, green=on pace (<=optimum), orange=off pace.
+ * Seeds from /api/laps on mount, then appends live laps on LapNumber boundary.
+ */
 function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
   const [laps, setLaps] = useState<{ lap: number; time: number }[]>([]);
   const lastLapRef = useRef<number>(0);
@@ -87,7 +94,7 @@ function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
     const maxY = worst + pad;
     const yRange = maxY - minY;
 
-    // Optimum pace — median of top 5
+    // Optimum pace — median of top 5 (more stable than raw best lap)
     const sorted = [...times].sort((a, b) => a - b);
     const top5 = sorted.slice(0, Math.min(5, sorted.length));
     const optimum = top5.length % 2 === 0
@@ -226,6 +233,14 @@ function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
   );
 }
 
+/**
+ * SectorTimes — Distance-based sector split timing.
+ * Forza doesn't expose sector boundaries, so we use pre-computed fractional
+ * positions (s1End, s2End) from the track outline's distance analysis.
+ * Total lap distance is estimated from the first completed lap, then
+ * (distanceTraveled / lapDistance) gives a fraction to compare against sector boundaries.
+ * Sector crossing is detected when the fraction exceeds the next boundary.
+ */
 function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
   const [sectors, setSectors] = useState<{ s1End: number; s2End: number } | null>(null);
   const trackOrdRef = useRef<number | null>(null);
@@ -277,7 +292,7 @@ function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
     if (!packet || !sectors) return;
     const s = sectorStateRef.current;
 
-    // Detect new lap
+    // Detect new lap — finalize S3 time by subtraction (total lap - S1 - S2)
     if (packet.LapNumber > s.lastLap && s.lastLap > 0) {
       // Complete S3
       const s3Time = packet.CurrentLap > 0 ? 0 : s.currentTimes[2]; // lap just reset
@@ -417,6 +432,12 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "raw", label: "Raw" },
 ];
 
+/**
+ * App — Main layout: tabbed interface (Live, Compare, Analyse, Tracks, Raw).
+ * Live tab uses a 2-column grid: left = LiveTelemetry widget, right = track map,
+ * current lap stats, race info, sector times, lap time chart, and recorded laps.
+ * Track name is resolved from ordinal via /api/track-name on session change.
+ */
 export default function App() {
   const { connected, packet, packetsPerSec } = useWebSocket();
   const [showSettings, setShowSettings] = useState(false);

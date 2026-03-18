@@ -15,6 +15,12 @@ interface TrackSectors {
   s2End: number;
 }
 
+/**
+ * LiveTrackMap — Renders the car's position on a 2D track outline.
+ * Two modes: (1) pre-made outline fetched by track ordinal, or (2) live trace
+ * built in real-time from position data when no outline exists.
+ * Coordinates use Forza's world-space X/Z (Y is vertical/ignored).
+ */
 export function LiveTrackMap({ packet }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
@@ -22,7 +28,8 @@ export function LiveTrackMap({ packet }: Props) {
   const [noOutline, setNoOutline] = useState(false);
   const lastTrackOrdRef = useRef<number | null>(null);
 
-  // Live trace: build outline from driving data when no pre-made outline exists
+  // Live trace: build outline from driving data when no pre-made outline exists.
+  // Points are only recorded if they're >3m apart to avoid clustering at low speeds.
   const liveTraceRef = useRef<Point[]>([]);
   const lastTracePos = useRef<Point | null>(null);
   const traceMinDist = 3; // minimum meters between recorded points
@@ -137,7 +144,7 @@ export function LiveTrackMap({ packet }: Props) {
 
     const isLiveTrace = !outline;
 
-    // Find bounds
+    // Fit-to-canvas: compute bounding box, then uniform scale to preserve aspect ratio
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     for (const p of displayOutline) {
       minX = Math.min(minX, p.x);
@@ -155,6 +162,7 @@ export function LiveTrackMap({ packet }: Props) {
     const offsetX = (w - rangeX * scale) / 2;
     const offsetZ = (h - rangeZ * scale) / 2;
 
+    // Transform world-space (meters) to canvas pixels, centered with uniform scale
     function toCanvas(x: number, z: number): [number, number] {
       return [
         offsetX + (x - minX) * scale,
@@ -191,7 +199,8 @@ export function LiveTrackMap({ packet }: Props) {
     ctx.stroke();
     ctx.globalAlpha = 1;
 
-    // Sector boundary markers (only for pre-made outlines)
+    // Sector boundary markers — perpendicular tick marks at fractional positions along the outline.
+    // frac maps [0,1] to outline array indices. Perpendicular is computed from neighboring points.
     if (sectors && !isLiveTrace) {
       const sectorMarkers = [
         { frac: sectors.s1End, color: "#ef4444", label: "S1" },

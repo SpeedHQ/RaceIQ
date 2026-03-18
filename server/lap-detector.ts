@@ -1,3 +1,15 @@
+/**
+ * Lap detection state machine.
+ *
+ * Forza streams telemetry at 60Hz but has no explicit "session start" or
+ * "lap complete" event. We infer both from packet fields:
+ *   - Session boundary: car/track ordinal change, or 30s silence gap
+ *   - Lap boundary:     LapNumber field increments
+ *   - Rewind:           TimestampMS decreases (marks lap invalid)
+ *
+ * Each completed lap's full packet buffer is persisted to SQLite.
+ * Fuel and tire wear deltas are tracked per-lap for strategy overlays.
+ */
 import type { TelemetryPacket } from "../shared/types";
 import { insertSession, insertLap } from "./db/queries";
 
@@ -16,16 +28,25 @@ export interface LapFuelData {
   fuelUsed: number;
 }
 
+export interface LapTireWearData {
+  lap: number;
+  start: { fl: number; fr: number; rl: number; rr: number };
+  end: { fl: number; fr: number; rl: number; rr: number };
+  worn: { fl: number; fr: number; rl: number; rr: number };
+}
+
 class LapDetector {
   private currentSession: SessionState | null = null;
-  private currentLapNumber: number = -1;
-  private lapBuffer: TelemetryPacket[] = [];
-  private lapIsValid: boolean = true;
-  private lastTimestampMS: number = 0;
-  private lastPacketTime: number = 0; // wall clock time of last received packet
+  private currentLapNumber: number = -1; // -1 = no lap yet (awaiting first packet)
+  private lapBuffer: TelemetryPacket[] = []; // all packets for the in-progress lap
+  private lapIsValid: boolean = true; // false if rewind detected mid-lap
+  private lastTimestampMS: number = 0; // in-game timestamp for rewind detection
+  private lastPacketTime: number = 0; // wall clock for silence timeout detection
   private distanceAtLapStart: number = 0;
-  private fuelAtLapStart: number = -1;
-  private _fuelHistory: LapFuelData[] = [];
+  private fuelAtLapStart: number = -1; // -1 = not yet initialized
+  private _fuelHistory: LapFuelData[] = []; // rolling window (last 50 laps)
+  private tireWearAtLapStart = { fl: -1, fr: -1, rl: -1, rr: -1 };
+  private _tireWearHistory: LapTireWearData[] = []; // rolling window (last 50 laps)
 
   get session(): SessionState | null {
     return this.currentSession;
@@ -33,6 +54,10 @@ class LapDetector {
 
   get fuelHistory(): LapFuelData[] {
     return this._fuelHistory;
+  }
+
+  get tireWearHistory(): LapTireWearData[] {
+    return this._tireWearHistory;
   }
 
   /**
@@ -152,6 +177,25 @@ class LapDetector {
       if (this._fuelHistory.length > 50) this._fuelHistory.shift();
     }
 
+    // Record tire wear
+    const lastPacket = this.lapBuffer[this.lapBuffer.length - 1];
+    if (this.tireWearAtLapStart.fl >= 0) {
+      const end = { fl: lastPacket.TireWearFL, fr: lastPacket.TireWearFR, rl: lastPacket.TireWearRL, rr: lastPacket.TireWearRR };
+      const start = this.tireWearAtLapStart;
+      this._tireWearHistory.push({
+        lap: this.currentLapNumber,
+        start: { ...start },
+        end,
+        worn: {
+          fl: start.fl - end.fl,
+          fr: start.fr - end.fr,
+          rl: start.rl - end.rl,
+          rr: start.rr - end.rr,
+        },
+      });
+      if (this._tireWearHistory.length > 50) this._tireWearHistory.shift();
+    }
+
     // Use LastLap from the first packet of the new lap as authoritative lap time
     const lapTime = newLapFirstPacket.LastLap;
 
@@ -186,6 +230,7 @@ class LapDetector {
     this.resetLapState(newLapFirstPacket);
   }
 
+  /** Best-effort save of an incomplete lap when the session ends mid-lap. */
   private finalizeLapIfNeeded(nextPacket: TelemetryPacket): void {
     // Try to save current in-progress lap when session changes
     if (
@@ -221,6 +266,12 @@ class LapDetector {
     this.lapIsValid = true;
     this.distanceAtLapStart = newLapFirstPacket.DistanceTraveled;
     this.fuelAtLapStart = newLapFirstPacket.Fuel;
+    this.tireWearAtLapStart = {
+      fl: newLapFirstPacket.TireWearFL,
+      fr: newLapFirstPacket.TireWearFR,
+      rl: newLapFirstPacket.TireWearRL,
+      rr: newLapFirstPacket.TireWearRR,
+    };
   }
 }
 

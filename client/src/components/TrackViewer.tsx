@@ -29,6 +29,7 @@ interface TrackSectors {
   totalDist: number;
 }
 
+/** TrackCard — Gallery thumbnail: fetches outline by ordinal and renders a small static track map. */
 function TrackCard({ track, onSelect }: { track: TrackInfo; onSelect: (t: TrackInfo) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
@@ -71,6 +72,10 @@ function TrackCard({ track, onSelect }: { track: TrackInfo; onSelect: (t: TrackI
   );
 }
 
+/**
+ * TrackDetail — Full-size track view with segment overlay and stats sidebar.
+ * Fetches both outline and sector data; segments are color-coded (red=corner, blue=straight).
+ */
 function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
@@ -179,6 +184,12 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   );
 }
 
+/**
+ * drawTrack — Shared canvas rendering for both gallery thumbnails and detail views.
+ * Draws a thick base outline, then overlays color-coded segments (corner/straight).
+ * Segment labels are offset perpendicular to the track direction so they don't overlap the line.
+ * The perpendicular offset is computed from neighboring outline points' tangent vector.
+ */
 function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, sectors?: TrackSectors | null) {
   const ctx = canvas.getContext("2d");
   if (!ctx || outline.length < 2) return;
@@ -226,7 +237,7 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
   ctx.lineTo(sx, sy);
   ctx.stroke();
 
-  // Inner line — color-coded by segment type
+  // Inner line — color-coded by segment type. startFrac/endFrac map [0,1] to outline indices.
   if (sectors && sectors.segments.length > 0) {
     const n = outline.length;
     for (const seg of sectors.segments) {
@@ -291,6 +302,7 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
   ctx.fill();
 }
 
+/** TrackViewer — Gallery view of all known tracks, split into "with outlines" and "without". */
 export function TrackViewer() {
   const [tracks, setTracks] = useState<TrackInfo[]>([]);
   const [loading, setLoading] = useState(true);

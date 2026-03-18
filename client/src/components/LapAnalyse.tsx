@@ -377,6 +377,7 @@ export function LapAnalyse() {
   const [selectedLapId, setSelectedLapId] = useState<number | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetryPacket[]>([]);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [sectors, setSectors] = useState<{ s1End: number; s2End: number } | null>(null);
   const [cursorIdx, setCursorIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -408,15 +409,20 @@ export function LapAnalyse() {
           setCursorIdx(0);
           cursorRef.current = 0;
 
-          // Fetch track outline
+          // Fetch track outline + sectors
           const trackOrd = data.meta?.trackOrdinal ?? data.telemetry[0]?.TrackOrdinal;
-          if (trackOrd) {
+          if (trackOrd != null) {
             fetch(`/api/track-outline/${trackOrd}`)
               .then((r) => (r.ok ? r.json() : null))
               .then((pts) => setOutline(pts))
               .catch(() => setOutline(null));
+            fetch(`/api/track-sectors/${trackOrd}`)
+              .then((r) => (r.ok ? r.json() : null))
+              .then((s) => setSectors(s))
+              .catch(() => setSectors(null));
           } else {
             setOutline(null);
+            setSectors(null);
           }
         }
       })
@@ -503,6 +509,52 @@ export function LapAnalyse() {
     }
     return { speed, throttle, brake, rpm, steering };
   }, [telemetry]);
+
+  // Compute sector times from telemetry distance + sector boundaries
+  const sectorTimes = useMemo(() => {
+    if (!sectors || telemetry.length < 10) return null;
+
+    const firstDist = telemetry[0].DistanceTraveled;
+    const lastDist = telemetry[telemetry.length - 1].DistanceTraveled;
+    const lapDist = lastDist - firstDist;
+    if (lapDist <= 0) return null;
+
+    let s1Time = 0;
+    let s2Time = 0;
+    let s3Time = 0;
+    let s1Idx = -1;
+    let s2Idx = -1;
+
+    // Find sector boundary packet indices
+    for (let i = 0; i < telemetry.length; i++) {
+      const frac = (telemetry[i].DistanceTraveled - firstDist) / lapDist;
+      if (s1Idx < 0 && frac >= sectors.s1End) {
+        s1Idx = i;
+        s1Time = telemetry[i].CurrentLap - telemetry[0].CurrentLap;
+      }
+      if (s2Idx < 0 && frac >= sectors.s2End) {
+        s2Idx = i;
+        s2Time = telemetry[i].CurrentLap - (s1Idx >= 0 ? telemetry[s1Idx].CurrentLap : telemetry[0].CurrentLap);
+      }
+    }
+
+    const totalLapTime = selectedLap?.lapTime ?? (telemetry[telemetry.length - 1].CurrentLap - telemetry[0].CurrentLap);
+    s3Time = totalLapTime - s1Time - s2Time;
+    if (s3Time < 0) s3Time = 0;
+
+    // Determine which sector the cursor is in
+    const cursorFrac = telemetry.length > 1
+      ? (telemetry[cursorIdx]?.DistanceTraveled - firstDist) / lapDist
+      : 0;
+    const cursorSector = cursorFrac < sectors.s1End ? 0 : cursorFrac < sectors.s2End ? 1 : 2;
+
+    return {
+      times: [s1Time, s2Time, s3Time] as [number, number, number],
+      s1Idx,
+      s2Idx,
+      cursorSector,
+    };
+  }, [telemetry, sectors, cursorIdx, selectedLap]);
 
   const handleSliderChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -631,6 +683,37 @@ export function LapAnalyse() {
               </span>
             </div>
           </div>
+
+          {/* Sector times */}
+          {sectorTimes && (
+            <div className="px-3 py-2 border-b border-slate-800 flex items-center gap-3">
+              {(["S1", "S2", "S3"] as const).map((name, i) => {
+                const colors = ["#ef4444", "#3b82f6", "#eab308"];
+                const isActive = sectorTimes.cursorSector === i;
+                return (
+                  <div
+                    key={name}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded ${
+                      isActive ? "bg-slate-800 ring-1" : "bg-slate-800/30"
+                    }`}
+                    style={isActive ? { boxShadow: `inset 0 0 0 1px ${colors[i]}40` } : {}}
+                  >
+                    <div
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: colors[i] }}
+                    />
+                    <span className="text-xs font-semibold text-slate-400">{name}</span>
+                    <span className={`text-sm font-mono font-bold tabular-nums ${isActive ? "text-white" : "text-slate-300"}`}>
+                      {formatLapTime(sectorTimes.times[i])}
+                    </span>
+                  </div>
+                );
+              })}
+              <span className="text-[10px] text-slate-500 ml-auto font-mono">
+                Total: {formatLapTime(sectorTimes.times[0] + sectorTimes.times[1] + sectorTimes.times[2])}
+              </span>
+            </div>
+          )}
 
           {/* Stacked charts */}
           {chartData && (

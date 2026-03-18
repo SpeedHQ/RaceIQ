@@ -1,3 +1,13 @@
+/**
+ * WebSocket manager: bridges UDP telemetry to browser clients.
+ *
+ * Two concerns handled here:
+ * 1. Broadcast throttling — Forza sends at 60Hz, browsers only need 30Hz.
+ *    We skip every other packet before serializing to JSON.
+ * 2. Server-side history ring buffers — telemetry charts need ~60s of
+ *    backfill when a client connects or a tab switches. Sampling at 10Hz
+ *    (every 6th packet) keeps memory bounded at 600 samples per channel.
+ */
 import type { ServerWebSocket } from "bun";
 import type { TelemetryPacket } from "../shared/types";
 
@@ -5,7 +15,7 @@ export interface WSData {
   createdAt: number;
 }
 
-const GRIP_MAX_SAMPLES = 600; // 60s at 10 samples/sec
+const GRIP_MAX_SAMPLES = 600; // 60s of history at 10Hz sampling
 
 export interface GripHistoryData {
   fl: number[];
@@ -36,8 +46,8 @@ export interface TelemetryHistoryData {
 class WebSocketManager {
   private clients = new Set<ServerWebSocket<WSData>>();
   private packetCount = 0;
-  private shouldBroadcast = true; // Toggle every packet for 30Hz throttle
-  private gripSampleCounter = 0;
+  private shouldBroadcast = true; // Toggled every packet — true = send, false = skip
+  private gripSampleCounter = 0; // Counts to 6 for 10Hz history sampling
   private gripHistory: GripHistoryData = { fl: [], fr: [], rl: [], rr: [] };
   private telemetryHistory: TelemetryHistoryData = {
     grip: { fl: [], fr: [], rl: [], rr: [] },
@@ -109,9 +119,9 @@ class WebSocketManager {
       push4(t.slipAngle, packet.TireSlipAngleFL, packet.TireSlipAngleFR, packet.TireSlipAngleRL, packet.TireSlipAngleRR);
       push4(t.slipRatio, packet.TireSlipRatioFL, packet.TireSlipRatioFR, packet.TireSlipRatioRL, packet.TireSlipRatioRR);
       push4(t.suspension, packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR);
-      t.throttle.push(packet.Accel / 255);
+      t.throttle.push(packet.Accel / 255); // 0-255 -> 0-1
       t.brake.push(packet.Brake / 255);
-      t.speed.push(packet.Speed * 2.23694);
+      t.speed.push(packet.Speed * 2.23694); // m/s -> mph
       if (t.throttle.length > GRIP_MAX_SAMPLES) { t.throttle.shift(); t.brake.shift(); t.speed.shift(); }
     }
 
