@@ -69,7 +69,7 @@ function AnalyseTrackMap({
     const offsetZ = (h - rangeZ * scale) / 2;
 
     function toCanvas(x: number, z: number): [number, number] {
-      return [offsetX + (x - minX) * scale, offsetZ + (z - minZ) * scale];
+      return [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
     }
 
     // Draw track outline (thick dark)
@@ -378,6 +378,8 @@ export function LapAnalyse() {
   const [telemetry, setTelemetry] = useState<TelemetryPacket[]>([]);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [sectors, setSectors] = useState<{ s1End: number; s2End: number } | null>(null);
+  const [carName, setCarName] = useState("");
+  const [trackName, setTrackName] = useState("");
   const [cursorIdx, setCursorIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -411,12 +413,31 @@ export function LapAnalyse() {
           setCursorIdx(0);
           cursorRef.current = 0;
 
-          // Fetch track outline + sectors
+          // Fetch car name
+          const carOrd = data.meta?.carOrdinal ?? data.telemetry[0]?.CarOrdinal;
+          if (carOrd != null) {
+            fetch(`/api/car-name/${carOrd}`)
+              .then((r) => r.ok ? r.text() : "")
+              .then(setCarName)
+              .catch(() => setCarName(""));
+          } else {
+            setCarName("");
+          }
+
+          // Fetch track outline + sectors + track name
           const trackOrd = data.meta?.trackOrdinal ?? data.telemetry[0]?.TrackOrdinal;
           if (trackOrd != null) {
+            fetch(`/api/track-name/${trackOrd}`)
+              .then((r) => r.ok ? r.text() : "")
+              .then(setTrackName)
+              .catch(() => setTrackName(""));
             fetch(`/api/track-outline/${trackOrd}`)
               .then((r) => (r.ok ? r.json() : null))
-              .then((pts) => setOutline(pts))
+              .then((data) => {
+                if (data?.points && Array.isArray(data.points)) setOutline(data.points);
+                else if (Array.isArray(data)) setOutline(data);
+                else setOutline(null);
+              })
               .catch(() => setOutline(null));
             fetch(`/api/track-sectors/${trackOrd}`)
               .then((r) => (r.ok ? r.json() : null))
@@ -425,6 +446,7 @@ export function LapAnalyse() {
           } else {
             setOutline(null);
             setSectors(null);
+            setTrackName("");
           }
         }
       })
@@ -640,19 +662,28 @@ export function LapAnalyse() {
             );
           })}
         </select>
-        {telemetry.length > 0 && (
-          <button
-            onClick={handleExport}
-            className="text-xs text-slate-400 hover:text-white border border-slate-700 rounded px-3 py-1.5 transition-colors"
-          >
-            Export CSV
-          </button>
+        {(carName || trackName) && (
+          <div className="flex items-center gap-2 text-xs text-slate-400 truncate">
+            {trackName && <span className="font-medium text-slate-300">{trackName}</span>}
+            {trackName && carName && <span className="text-slate-600">/</span>}
+            {carName && <span>{carName}</span>}
+          </div>
         )}
-        {loading && (
-          <span className="text-xs text-slate-500 animate-pulse">
-            Loading...
-          </span>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {telemetry.length > 0 && (
+            <button
+              onClick={handleExport}
+              className="text-xs text-slate-400 hover:text-white border border-slate-700 rounded px-3 py-1.5 transition-colors"
+            >
+              Export CSV
+            </button>
+          )}
+          {loading && (
+            <span className="text-xs text-slate-500 animate-pulse">
+              Loading...
+            </span>
+          )}
+        </div>
       </div>
 
       {telemetry.length === 0 ? (

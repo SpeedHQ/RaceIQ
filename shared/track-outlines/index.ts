@@ -135,6 +135,38 @@ const startLinePositions = new Map<number, Point[]>();
 const startLineYaws = new Map<number, number[]>();
 
 /**
+ * Remove outlier points where the distance to the next point is abnormally large.
+ * This catches pit lane teleports, rewind jumps, and other glitches.
+ * Uses median spacing * 5 as the threshold — anything larger is a jump.
+ */
+function filterOutlierPoints(points: Point[]): Point[] {
+  if (points.length < 10) return points;
+
+  // Compute all consecutive distances
+  const dists: number[] = [];
+  for (let i = 1; i < points.length; i++) {
+    const dx = points[i].x - points[i - 1].x;
+    const dz = points[i].z - points[i - 1].z;
+    dists.push(Math.sqrt(dx * dx + dz * dz));
+  }
+
+  // Median distance
+  const sorted = [...dists].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const threshold = Math.max(median * 5, 20); // at least 20m to avoid filtering tight corners
+
+  // Keep points where the gap FROM the previous point is reasonable
+  const filtered: Point[] = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    if (dists[i - 1] <= threshold) {
+      filtered.push(points[i]);
+    }
+  }
+
+  return filtered;
+}
+
+/**
  * Record a lap trace for a track.
  * - After 1 lap: use it immediately (so position tracking works right away)
  * - After 5 laps: average the traces for a smoother outline, save to disk
@@ -166,6 +198,10 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
     yaws.push(startYaw);
     if (yaws.length > 10) yaws.shift();
   }
+
+  // Filter outlier points from the trace (pit lane teleports, rewind jumps)
+  trace = filterOutlierPoints(trace);
+  if (trace.length < 50) return;
 
   // Store trace for averaging (keep last 10)
   if (!lapTraces.has(ordinal)) lapTraces.set(ordinal, []);

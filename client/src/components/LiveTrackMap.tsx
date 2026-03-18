@@ -199,15 +199,31 @@ export function LiveTrackMap({ packet }: Props) {
     const offsetX = (w - rangeX * scale) / 2;
     const offsetZ = (h - rangeZ * scale) / 2;
 
-    // Transform world-space (meters) to canvas pixels, centered with uniform scale
+    // Transform world-space (meters) to canvas pixels, centered with uniform scale.
+    // X is flipped so that turning right in-game shows as right on the map.
     function toCanvas(x: number, z: number): [number, number] {
       return [
-        offsetX + (x - minX) * scale,
+        offsetX + (maxX - x) * scale,
         offsetZ + (z - minZ) * scale,
       ];
     }
 
-    // Draw track outline
+    // Compute jump threshold: skip segments where world-space distance is >5x median
+    const worldDists: number[] = [];
+    for (let i = 1; i < displayOutline.length; i++) {
+      const dx = displayOutline[i].x - displayOutline[i - 1].x;
+      const dz = displayOutline[i].z - displayOutline[i - 1].z;
+      worldDists.push(Math.sqrt(dx * dx + dz * dz));
+    }
+    const sortedDists = [...worldDists].sort((a, b) => a - b);
+    const medianDist = sortedDists[Math.floor(sortedDists.length / 2)] || 1;
+    const jumpThreshold = Math.max(medianDist * 5, 20);
+
+    function isJump(i: number): boolean {
+      return i > 0 && i <= worldDists.length && worldDists[i - 1] > jumpThreshold;
+    }
+
+    // Draw track outline, breaking at jumps
     ctx.beginPath();
     ctx.strokeStyle = isLiveTrace ? "#1e3a5f" : "#334155";
     ctx.lineWidth = isLiveTrace ? 3 : 4;
@@ -217,9 +233,10 @@ export function LiveTrackMap({ packet }: Props) {
     ctx.moveTo(sx, sy);
     for (let i = 1; i < displayOutline.length; i++) {
       const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
-      ctx.lineTo(px, py);
+      if (isJump(i)) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
     }
-    if (!isLiveTrace) ctx.lineTo(sx, sy); // only close loop for pre-made outlines
+    if (!isLiveTrace) ctx.lineTo(sx, sy);
     ctx.stroke();
 
     // Draw thinner colored line on top
@@ -230,7 +247,8 @@ export function LiveTrackMap({ packet }: Props) {
     ctx.moveTo(sx, sy);
     for (let i = 1; i < displayOutline.length; i++) {
       const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
-      ctx.lineTo(px, py);
+      if (isJump(i)) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
     }
     if (!isLiveTrace) ctx.lineTo(sx, sy);
     ctx.stroke();
@@ -252,11 +270,10 @@ export function LiveTrackMap({ packet }: Props) {
 
       if (startYaw != null) {
         // Forza Yaw: radians, 0 = +Z, positive = clockwise when viewed from above
-        // Canvas: X maps to world X, Y maps to world Z (via toCanvas)
+        // Canvas X is flipped (maxX - x), so negate the X component
         // Direction in world space: dx = sin(yaw), dz = cos(yaw)
-        // Convert to canvas direction using scale (uniform, so just direction matters)
-        nx = Math.sin(startYaw) * scale;
-        ny = Math.cos(startYaw) * scale;
+        nx = -Math.sin(startYaw);
+        ny = Math.cos(startYaw);
         const len = Math.sqrt(nx * nx + ny * ny);
         if (len > 0) { nx /= len; ny /= len; hasDirection = true; }
       }

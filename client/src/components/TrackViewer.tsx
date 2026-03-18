@@ -38,7 +38,11 @@ function TrackCard({ track, onSelect }: { track: TrackInfo; onSelect: (t: TrackI
     if (!track.hasOutline) return;
     fetch(`/api/track-outline/${track.ordinal}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then(setOutline)
+      .then((data) => {
+        if (data?.points && Array.isArray(data.points)) setOutline(data.points);
+        else if (Array.isArray(data)) setOutline(data);
+        else setOutline(null);
+      })
       .catch(() => {});
   }, [track.ordinal, track.hasOutline]);
 
@@ -87,7 +91,9 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
       fetch(`/api/track-outline/${track.ordinal}`).then((r) => (r.ok ? r.json() : null)),
       fetch(`/api/track-sectors/${track.ordinal}`).then((r) => (r.ok ? r.json() : null)),
     ]).then(([outlineData, sectorData]) => {
-      setOutline(outlineData);
+      if (outlineData?.points && Array.isArray(outlineData.points)) setOutline(outlineData.points);
+      else if (Array.isArray(outlineData)) setOutline(outlineData);
+      else setOutline(null);
       setSectors(sectorData);
     }).catch(() => {});
   }, [track.ordinal, track.hasOutline]);

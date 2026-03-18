@@ -438,30 +438,31 @@ const TABS: { id: Tab; label: string }[] = [
  * current lap stats, race info, sector times, lap time chart, and recorded laps.
  * Track name is resolved from ordinal via /api/track-name on session change.
  */
-// Read initial tab from URL hash, default to "live"
-function getTabFromHash(): Tab {
-  const hash = window.location.hash.replace("#", "");
-  return TABS.some((t) => t.id === hash) ? (hash as Tab) : "live";
+// Read initial tab from URL path, default to "live"
+function getTabFromPath(): Tab {
+  const path = window.location.pathname.replace(/^\//, "");
+  return TABS.some((t) => t.id === path) ? (path as Tab) : "live";
 }
 
 export default function App() {
   const { connected, packet, packetsPerSec } = useWebSocket();
   const [showSettings, setShowSettings] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>(getTabFromHash);
+  const [activeTab, setActiveTab] = useState<Tab>(getTabFromPath);
   const [trackName, setTrackName] = useState("");
   const lastTrackFetchRef = useRef<number | null>(null);
 
-  // Sync tab to URL hash
+  // Sync tab to URL path via History API
   const setTab = useCallback((tab: Tab) => {
     setActiveTab(tab);
-    window.location.hash = tab;
+    const path = tab === "live" ? "/" : `/${tab}`;
+    window.history.pushState(null, "", path);
   }, []);
 
   // Listen for browser back/forward
   useEffect(() => {
-    const onHashChange = () => setActiveTab(getTabFromHash());
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
+    const onPopState = () => setActiveTab(getTabFromPath());
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
   useEffect(() => {
