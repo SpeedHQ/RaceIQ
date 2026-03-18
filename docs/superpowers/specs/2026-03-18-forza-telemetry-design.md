@@ -9,7 +9,7 @@ A local React app that connects to Forza Motorsport (2023) telemetry output, vis
 - **Runtime:** Bun (native UDP, WebSocket, SQLite)
 - **API:** Hono
 - **Frontend:** Vite + React + Tailwind CSS
-- **Storage:** SQLite via `bun:sqlite`
+- **Storage:** SQLite via `bun:sqlite` + Drizzle ORM (type-safe queries, schema-as-code)
 - **Export:** Manual clipboard/file for Claude conversations
 
 ## Architecture
@@ -162,7 +162,25 @@ CREATE TABLE laps (
 );
 
 CREATE INDEX idx_laps_session ON laps(session_id);
+
+-- Phase 2: corner definitions per track
+CREATE TABLE track_corners (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  track_ordinal   INTEGER NOT NULL,
+  corner_index    INTEGER NOT NULL,
+  label           TEXT NOT NULL,           -- e.g. "T1", "T2"
+  distance_start  REAL NOT NULL,           -- meters from lap start
+  distance_end    REAL NOT NULL,           -- meters from lap start
+  is_auto         BOOLEAN NOT NULL DEFAULT 1,  -- true = auto-detected, false = user-edited
+  UNIQUE(track_ordinal, corner_index)
+);
+
+CREATE INDEX idx_corners_track ON track_corners(track_ordinal);
 ```
+
+**Lap-to-track resolution:** queries needing `track_ordinal` for a lap JOIN through `sessions`. No denormalization — the join is cheap and avoids data duplication.
+
+**Per-lap distance:** `DistanceTraveled` in packets is cumulative across the session. Per-lap distance is computed as `DistanceTraveled - distanceAtLapStart` where `distanceAtLapStart` is the `DistanceTraveled` value from the first packet of that lap.
 
 ### Telemetry Storage
 - Full packet array stored as gzip-compressed JSON blob (`Bun.gzipSync` / `Bun.gunzipSync`)
@@ -231,7 +249,10 @@ forza-telemetry/
 │   ├── udp.ts            -- UDP socket listener
 │   ├── parser.ts         -- Car Dash 331-byte binary decoder
 │   ├── ws.ts             -- WebSocket broadcaster with throttle
-│   ├── db.ts             -- SQLite schema, queries, compression
+│   ├── db/
+│   │   ├── schema.ts     -- Drizzle schema definitions (sessions, laps, track_corners)
+│   │   ├── index.ts      -- DB connection + Drizzle instance
+│   │   └── queries.ts    -- Typed query helpers, compression utils
 │   ├── routes.ts         -- Hono REST routes
 │   └── lap-detector.ts   -- Lap boundary detection + session mgmt
 ├── client/
@@ -275,30 +296,39 @@ Everything described above — UDP ingestion, packet parsing, WebSocket broadcas
 - Render circuit from X/Z position data in telemetry packets
 - Color-code the racing line by channel: speed, throttle, brake, tire temp
 - Show car position dot during lap replay/scrubbing
-- Canvas-based rendering (HTML5 Canvas or lightweight lib like `rough-notation` — no heavy map libraries)
+- Canvas-based rendering (HTML5 Canvas 2D context — no heavy libraries needed, raw canvas API is sufficient)
 
 **Telemetry Traces**
 - Time-series graphs: speed, throttle %, brake %, steering, RPM, gear vs distance traveled
 - Use a charting library suited for high-density data (e.g., `uPlot` — fast, small, handles 10k+ points)
-- Synchronized cursor across all charts — hover on one, all highlight the same distance point
+- Synchronized cursor across all charts via uPlot's `sync.key` feature — all charts share a sync key string and a `setCursor` hook so hovering on one highlights the same distance point on all others
 
 **Lap Overlay / Comparison**
 - Select two laps to compare side-by-side
 - Overlay traces on the same chart (Lap A = orange, Lap B = blue, matching TrackTitan's convention)
 - Laps aligned by distance traveled (not time) so cornering differences are visible
+- When two laps have samples at slightly different distance points, use linear interpolation to align them to a common distance grid (1-meter resolution)
 - Synced track map showing both racing lines
 
 **Time Delta Graph**
 - Cumulative time gain/loss vs reference lap plotted over distance
-- Calculated by comparing elapsed time at matching distance points between two laps
+- Calculated by comparing elapsed time at matching distance points (1-meter grid) between two laps
 - Green = gaining time, red = losing time
 - This is the single most useful view for identifying where time is lost
 
 **Corner-by-Corner Segmentation**
-- Auto-detect corners from steering + speed data (speed dip + steering angle > threshold = corner)
-- Segment laps into straights and corners, assign labels (T1, T2, etc.)
+- Auto-detect corners using the following algorithm:
+  1. Smooth speed data with a rolling average (window = 15 samples / 0.5s) to remove noise
+  2. Smooth steering data similarly (`Steer` field is u8 where 127 = center)
+  3. Identify corner entry: speed drops by >15 mph from local max AND steering deviates >15 units from 127 (center)
+  4. Identify corner exit: speed begins rising AND steering returns within 10 units of 127
+  5. Merge corners separated by <50m (chicane = single complex corner)
+  6. Corners shorter than 30m of distance are discarded (noise)
+- Assign labels sequentially: T1, T2, T3, etc.
+- Segments between corners are labeled as straights: S1, S2, etc.
 - Show per-corner time delta table vs reference lap
-- Store corner definitions per track so they persist across sessions
+- Store corner definitions per track in `track_corners` table so they persist across sessions
+- User can manually adjust corner boundaries via the UI (sets `is_auto = false`)
 
 **New REST endpoints for Phase 2:**
 - `GET /api/laps/:id1/compare/:id2` — pre-computed comparison data (aligned traces, time deltas, per-corner breakdown)
@@ -326,7 +356,7 @@ Everything described above — UDP ingestion, packet parsing, WebSocket broadcas
 
 **Tune Analysis Export**
 - Dedicated tuning export that focuses on car behavior signals:
-  - Understeer/oversteer indicators (tire slip angle front vs rear)
+  - Understeer/oversteer indicators: compare avg front slip angle (`(TireSlipAngleFL + TireSlipAngleFR) / 2`) vs avg rear slip angle (`(TireSlipAngleRL + TireSlipAngleRR) / 2`) per corner. Front > rear = understeer, rear > front = oversteer. Report the delta and which corners are worst
   - Tire temp distribution (hot outside = too much camber, hot inside = not enough)
   - Tire wear pattern across a stint
   - Suspension travel utilization (% of travel used = spring rate indicator)
@@ -346,9 +376,11 @@ Everything described above — UDP ingestion, packet parsing, WebSocket broadcas
 - "Setup comparison" — record laps with two different setups, export both for Claude to compare and recommend which direction to go
 
 **New REST endpoints for Phase 3:**
-- `GET /api/laps/:id/coaching` — structured per-corner analysis for Claude
-- `GET /api/laps/:id/tune-analysis` — car behavior analysis for Claude
+- `GET /api/laps/:id/export?detail=corners` — structured per-corner analysis for Claude (extends Phase 1 export endpoint)
+- `GET /api/laps/:id/export?detail=tune` — car behavior analysis for Claude (extends Phase 1 export endpoint)
 - `GET /api/sessions/:id/consistency` — multi-lap variance report
+
+The Phase 1 `?detail=basic` (default) export is preserved. Single endpoint, multiple detail levels.
 
 ### Phase Summary
 
@@ -363,6 +395,7 @@ Each phase is independently useful. Phase 1 proves data works. Phase 2 makes it 
 ## Decisions & Trade-offs
 
 1. **Bun over Node.js** — native UDP, WebSocket, and SQLite eliminate 3 dependencies
+1a. **Drizzle ORM** — type-safe schema-as-code with `drizzle-orm/bun-sqlite` driver; avoids raw SQL strings, gives us typed query results, and schema migrations via `drizzle-kit`
 2. **Hono over Express** — lightweight, built for Bun, fast
 3. **BLOB over normalized rows** — telemetry only accessed as full lap array, avoids millions of rows
 4. **30Hz throttle** — halves bandwidth to client with no perceptible loss for visualization
