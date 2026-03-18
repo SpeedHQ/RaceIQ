@@ -30,7 +30,8 @@ export function Settings() {
   const hasChanges = savedPort === null || port !== savedPort;
 
   async function handleSave() {
-    if (isNaN(port) || port < 1024 || port > 65535) {
+    const savePort = parseInt(udpPort, 10);
+    if (isNaN(savePort) || savePort < 1024 || savePort > 65535) {
       setStatus("error");
       setErrorMsg("Port must be between 1024-65535");
       return;
@@ -42,13 +43,18 @@ export function Settings() {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ udpPort: port }),
+        body: JSON.stringify({ udpPort: savePort }),
       });
+      const text = await res.text();
+      let data: { udpPort?: number; error?: string };
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(`Server error: ${text.slice(0, 100)}`);
+      }
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.error || "Failed to save");
       }
-      const data = await res.json();
       setSavedPort(data.udpPort);
       setUdpPort(String(data.udpPort));
       setStatus("saved");

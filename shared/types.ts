@@ -190,3 +190,32 @@ export const DRIVETRAIN_NAMES: Record<number, string> = {
   1: "RWD",
   2: "AWD",
 };
+
+// Phase 2: Comparison types
+
+export interface AlignedTrace {
+  distance: number[];
+  speedA: number[];
+  speedB: number[];
+  throttleA: number[];
+  throttleB: number[];
+  brakeA: number[];
+  brakeB: number[];
+  rpmA: number[];
+  rpmB: number[];
+}
+
+export interface CornerDelta {
+  label: string;
+  deltaSeconds: number;
+}
+
+export interface ComparisonData {
+  lapA: LapMeta;
+  lapB: LapMeta;
+  traces: AlignedTrace;
+  timeDelta: number[]; // cumulative time gain/loss at each distance point
+  corners: CornerDelta[];
+  telemetryA: TelemetryPacket[];
+  telemetryB: TelemetryPacket[];
+}

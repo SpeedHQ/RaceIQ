@@ -9,12 +9,17 @@ import {
   getLapById,
   deleteLap,
   getSessions,
+  getCorners,
+  saveCorners,
+  getFirstLapIdForTrack,
 } from "./db/queries";
 import {
   CAR_CLASS_NAMES,
   DRIVETRAIN_NAMES,
   type TelemetryPacket,
 } from "../shared/types";
+import { compareLaps } from "./comparison";
+import { detectCorners, type Corner } from "./corner-detection";
 
 const app = new Hono();
 
@@ -113,6 +118,107 @@ app.delete("/api/laps/:id", (c) => {
 app.get("/api/sessions", (c) => {
   const sessionList = getSessions();
   return c.json(sessionList);
+});
+
+// GET /api/laps/:id1/compare/:id2 — pre-computed comparison data
+app.get("/api/laps/:id1/compare/:id2", (c) => {
+  const id1 = parseInt(c.req.param("id1"), 10);
+  const id2 = parseInt(c.req.param("id2"), 10);
+  if (isNaN(id1) || isNaN(id2)) {
+    return c.json({ error: "Invalid lap IDs" }, 400);
+  }
+  if (id1 === id2) {
+    return c.json({ error: "Cannot compare a lap with itself" }, 400);
+  }
+
+  const lapA = getLapById(id1);
+  if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
+
+  const lapB = getLapById(id2);
+  if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
+
+  if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) {
+    return c.json({ error: "One or both laps have no telemetry data" }, 400);
+  }
+
+  // Get corner definitions for the track (use lapA's track)
+  const trackOrdinal = lapA.trackOrdinal ?? 0;
+  let corners = getCorners(trackOrdinal);
+
+  // Auto-detect if no stored corners and we have a track
+  if (corners.length === 0 && trackOrdinal > 0) {
+    corners = detectCorners(lapA.telemetry);
+    if (corners.length > 0) {
+      saveCorners(trackOrdinal, corners, true);
+    }
+  }
+
+  const result = compareLaps(lapA.telemetry, lapB.telemetry, corners);
+  return c.json(result);
+});
+
+// GET /api/tracks/:trackOrdinal/corners — get stored corners or auto-detect
+app.get("/api/tracks/:trackOrdinal/corners", (c) => {
+  const trackOrdinal = parseInt(c.req.param("trackOrdinal"), 10);
+  if (isNaN(trackOrdinal)) {
+    return c.json({ error: "Invalid track ordinal" }, 400);
+  }
+
+  let corners = getCorners(trackOrdinal);
+
+  // If no stored corners, try to auto-detect from a lap on this track
+  if (corners.length === 0) {
+    const lapId = getFirstLapIdForTrack(trackOrdinal);
+    if (lapId !== null) {
+      const lap = getLapById(lapId);
+      if (lap && lap.telemetry.length > 0) {
+        corners = detectCorners(lap.telemetry);
+        if (corners.length > 0) {
+          saveCorners(trackOrdinal, corners, true);
+        }
+      }
+    }
+  }
+
+  return c.json(corners);
+});
+
+// PUT /api/tracks/:trackOrdinal/corners — save/update corner definitions
+app.put("/api/tracks/:trackOrdinal/corners", async (c) => {
+  const trackOrdinal = parseInt(c.req.param("trackOrdinal"), 10);
+  if (isNaN(trackOrdinal)) {
+    return c.json({ error: "Invalid track ordinal" }, 400);
+  }
+
+  const body = await c.req.json<Corner[]>();
+
+  if (!Array.isArray(body)) {
+    return c.json({ error: "Body must be an array of corner definitions" }, 400);
+  }
+
+  // Validate each corner
+  for (const corner of body) {
+    if (
+      typeof corner.index !== "number" ||
+      typeof corner.label !== "string" ||
+      typeof corner.distanceStart !== "number" ||
+      typeof corner.distanceEnd !== "number"
+    ) {
+      return c.json(
+        { error: "Each corner must have index, label, distanceStart, distanceEnd" },
+        400
+      );
+    }
+    if (corner.distanceEnd <= corner.distanceStart) {
+      return c.json(
+        { error: `Corner ${corner.label}: distanceEnd must be > distanceStart` },
+        400
+      );
+    }
+  }
+
+  saveCorners(trackOrdinal, body, false);
+  return c.json({ success: true, count: body.length });
 });
 
 /**

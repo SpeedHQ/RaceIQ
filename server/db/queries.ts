@@ -1,7 +1,8 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps } from "./schema";
+import { sessions, laps, trackCorners } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta } from "../../shared/types";
+import type { Corner } from "../corner-detection";
 
 /**
  * Compress telemetry packets to a gzip'd JSON blob for storage.
@@ -159,4 +160,77 @@ export function getSessions(): SessionMeta[] {
       lapCount: lapRows.length,
     };
   });
+}
+
+/**
+ * Get stored corner definitions for a track.
+ * Returns empty array if none stored.
+ */
+export function getCorners(trackOrdinal: number): Corner[] {
+  const rows = db
+    .select({
+      cornerIndex: trackCorners.cornerIndex,
+      label: trackCorners.label,
+      distanceStart: trackCorners.distanceStart,
+      distanceEnd: trackCorners.distanceEnd,
+    })
+    .from(trackCorners)
+    .where(eq(trackCorners.trackOrdinal, trackOrdinal))
+    .orderBy(trackCorners.cornerIndex)
+    .all();
+
+  return rows.map((r) => ({
+    index: r.cornerIndex,
+    label: r.label,
+    distanceStart: r.distanceStart,
+    distanceEnd: r.distanceEnd,
+  }));
+}
+
+/**
+ * Save/update corner definitions for a track.
+ * Replaces all existing corners for that track.
+ */
+export function saveCorners(
+  trackOrdinal: number,
+  corners: Corner[],
+  isAuto: boolean = false
+): void {
+  // Delete existing corners for this track
+  db.delete(trackCorners)
+    .where(eq(trackCorners.trackOrdinal, trackOrdinal))
+    .run();
+
+  // Insert new corners
+  if (corners.length > 0) {
+    db.insert(trackCorners)
+      .values(
+        corners.map((c) => ({
+          trackOrdinal,
+          cornerIndex: c.index,
+          label: c.label,
+          distanceStart: c.distanceStart,
+          distanceEnd: c.distanceEnd,
+          isAuto,
+        }))
+      )
+      .run();
+  }
+}
+
+/**
+ * Find the first lap for a given track (to use for auto-detection).
+ * Returns the lap ID or null if no laps exist for this track.
+ */
+export function getFirstLapIdForTrack(trackOrdinal: number): number | null {
+  const row = db
+    .select({ id: laps.id })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(eq(sessions.trackOrdinal, trackOrdinal))
+    .orderBy(desc(laps.id))
+    .limit(1)
+    .get();
+
+  return row?.id ?? null;
 }
