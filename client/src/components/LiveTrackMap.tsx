@@ -10,13 +10,19 @@ interface Point {
   z: number;
 }
 
+interface TrackSectors {
+  s1End: number;
+  s2End: number;
+}
+
 export function LiveTrackMap({ packet }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [sectors, setSectors] = useState<TrackSectors | null>(null);
   const [noOutline, setNoOutline] = useState(false);
   const lastTrackOrdRef = useRef<number | null>(null);
 
-  // Fetch track outline when session/track changes
+  // Fetch track outline and sectors when session/track changes
   const fetchOutline = useCallback(async () => {
     try {
       const statusRes = await fetch("/api/status");
@@ -26,7 +32,11 @@ export function LiveTrackMap({ packet }: Props) {
       if (trackOrd == null || trackOrd === lastTrackOrdRef.current) return;
       lastTrackOrdRef.current = trackOrd;
 
-      const outlineRes = await fetch(`/api/track-outline/${trackOrd}`);
+      const [outlineRes, sectorsRes] = await Promise.all([
+        fetch(`/api/track-outline/${trackOrd}`),
+        fetch(`/api/track-sectors/${trackOrd}`),
+      ]);
+
       if (outlineRes.ok) {
         const data = await outlineRes.json();
         setOutline(data);
@@ -34,6 +44,11 @@ export function LiveTrackMap({ packet }: Props) {
       } else {
         setOutline(null);
         setNoOutline(true);
+      }
+
+      if (sectorsRes.ok) {
+        const sectorData = await sectorsRes.json();
+        setSectors(sectorData);
       }
     } catch {
       setNoOutline(true);
@@ -134,6 +149,65 @@ export function LiveTrackMap({ packet }: Props) {
     }
     ctx.lineTo(sx, sy);
     ctx.stroke();
+
+    // Sector boundary markers
+    if (sectors) {
+      const sectorMarkers = [
+        { frac: sectors.s1End, color: "#ef4444", label: "S1" }, // red
+        { frac: sectors.s2End, color: "#3b82f6", label: "S2" }, // blue
+      ];
+      const n = outline.length;
+
+      for (const { frac, color, label } of sectorMarkers) {
+        const idx = Math.round(frac * n) % n;
+        const point = outline[idx];
+        const [bx, by] = toCanvas(point.x, point.z);
+
+        // Perpendicular tick mark
+        const prevIdx = (idx - 1 + n) % n;
+        const nextIdx = (idx + 1) % n;
+        const dx = outline[nextIdx].x - outline[prevIdx].x;
+        const dz = outline[nextIdx].z - outline[prevIdx].z;
+        const len = Math.sqrt(dx * dx + dz * dz) || 1;
+        const perpX = -dz / len;
+        const perpZ = dx / len;
+        const tickLen = 10;
+
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        const [t1x, t1y] = toCanvas(
+          point.x + perpX * tickLen / scale,
+          point.z + perpZ * tickLen / scale
+        );
+        const [t2x, t2y] = toCanvas(
+          point.x - perpX * tickLen / scale,
+          point.z - perpZ * tickLen / scale
+        );
+        ctx.moveTo(t1x, t1y);
+        ctx.lineTo(t2x, t2y);
+        ctx.stroke();
+
+        // Sector dot
+        ctx.beginPath();
+        ctx.arc(bx, by, 4, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        // Label
+        ctx.font = "bold 10px system-ui";
+        ctx.fillStyle = color;
+        ctx.textAlign = "center";
+        ctx.fillText(label, bx, by - 8);
+      }
+
+      // S3 label at start/finish
+      ctx.font = "bold 10px system-ui";
+      ctx.fillStyle = "#eab308"; // yellow
+      ctx.textAlign = "center";
+      ctx.fillText("S3", sx, sy - 8);
+    }
 
     // Start/finish marker
     ctx.beginPath();

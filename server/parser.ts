@@ -154,12 +154,15 @@ export function parsePacket(buf: Buffer): TelemetryPacket | null {
     NormDrivingLine: buf.readInt8(309),
     NormAIBrakeDiff: buf.readInt8(310),
 
-    // Tire wear is NOT in the standard FM7/FM2023 Dash format.
-    // Set to -1 to indicate unavailable.
-    TireWearFL: -1,
-    TireWearFR: -1,
-    TireWearRL: -1,
-    TireWearRR: -1,
+    // Tire wear (after Steer/NormDrivingLine/NormAIBrakeDiff at offset 308-310)
+    // Offsets: 311, 315, 319, 323
+    TireWearFL: buf.length >= 331 ? buf.readFloatLE(311) : -1,
+    TireWearFR: buf.length >= 331 ? buf.readFloatLE(315) : -1,
+    TireWearRL: buf.length >= 331 ? buf.readFloatLE(319) : -1,
+    TireWearRR: buf.length >= 331 ? buf.readFloatLE(323) : -1,
+
+    // Track ordinal (offset 327)
+    TrackOrdinal: buf.length >= 331 ? buf.readInt32LE(327) : 0,
   };
 
   return packet;

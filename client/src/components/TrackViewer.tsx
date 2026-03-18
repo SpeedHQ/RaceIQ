@@ -15,9 +15,15 @@ interface Point {
   z: number;
 }
 
+interface TrackSectors {
+  s1End: number;
+  s2End: number;
+}
+
 function TrackCard({ track }: { track: TrackInfo }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [sectors, setSectors] = useState<TrackSectors | null>(null);
   const [selected, setSelected] = useState(false);
 
   useEffect(() => {
@@ -26,12 +32,16 @@ function TrackCard({ track }: { track: TrackInfo }) {
       .then((r) => (r.ok ? r.json() : null))
       .then(setOutline)
       .catch(() => {});
+    fetch(`/api/track-sectors/${track.ordinal}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setSectors)
+      .catch(() => {});
   }, [track.ordinal, track.hasOutline]);
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
-    drawTrack(canvasRef.current, outline, selected);
-  }, [outline, selected]);
+    drawTrack(canvasRef.current, outline, selected, sectors);
+  }, [outline, selected, sectors]);
 
   return (
     <div
@@ -62,7 +72,7 @@ function TrackCard({ track }: { track: TrackInfo }) {
   );
 }
 
-function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean) {
+function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, sectors?: TrackSectors | null) {
   const ctx = canvas.getContext("2d");
   if (!ctx || outline.length < 2) return;
 
@@ -121,11 +131,75 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean) 
   ctx.lineTo(sx, sy);
   ctx.stroke();
 
+  // Sector boundary markers
+  if (sectors) {
+    const sectorColors = [
+      { frac: sectors.s1End, color: "#ef4444", label: "S1" }, // red
+      { frac: sectors.s2End, color: "#3b82f6", label: "S2" }, // blue
+    ];
+    const n = outline.length;
+
+    for (const { frac, color, label } of sectorColors) {
+      const idx = Math.round(frac * n) % n;
+      const point = outline[idx];
+      const [bx, by] = toCanvas(point.x, point.z);
+
+      // Draw a perpendicular tick mark at sector boundary
+      const prevIdx = (idx - 1 + n) % n;
+      const nextIdx = (idx + 1) % n;
+      const dx = outline[nextIdx].x - outline[prevIdx].x;
+      const dz = outline[nextIdx].z - outline[prevIdx].z;
+      const len = Math.sqrt(dx * dx + dz * dz) || 1;
+      // Perpendicular direction (normalized)
+      const perpX = -dz / len;
+      const perpZ = dx / len;
+      const tickLen = large ? 10 : 6;
+
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = large ? 3 : 2;
+      ctx.lineCap = "round";
+      const [t1x, t1y] = toCanvas(
+        point.x + perpX * tickLen / scale,
+        point.z + perpZ * tickLen / scale
+      );
+      const [t2x, t2y] = toCanvas(
+        point.x - perpX * tickLen / scale,
+        point.z - perpZ * tickLen / scale
+      );
+      ctx.moveTo(t1x, t1y);
+      ctx.lineTo(t2x, t2y);
+      ctx.stroke();
+
+      // Sector dot
+      ctx.beginPath();
+      ctx.arc(bx, by, large ? 4 : 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+
+      // Label (only when expanded)
+      if (large) {
+        ctx.font = "bold 10px system-ui";
+        ctx.fillStyle = color;
+        ctx.textAlign = "center";
+        ctx.fillText(label, bx, by - 8);
+      }
+    }
+  }
+
   // Start marker
   ctx.beginPath();
   ctx.arc(sx, sy, large ? 5 : 3, 0, Math.PI * 2);
   ctx.fillStyle = "#10b981";
   ctx.fill();
+
+  // S3 label at start/finish (only when expanded)
+  if (sectors && large) {
+    ctx.font = "bold 10px system-ui";
+    ctx.fillStyle = "#eab308"; // yellow for S3
+    ctx.textAlign = "center";
+    ctx.fillText("S3", sx, sy - 8);
+  }
 }
 
 export function TrackViewer() {

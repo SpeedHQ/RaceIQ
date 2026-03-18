@@ -146,6 +146,9 @@ export interface TelemetryPacket {
   Speed: number; // f32 meters/sec
   Power: number; // f32 watts
   Torque: number; // f32 newton meters
+
+  // Track ID
+  TrackOrdinal: number; // s32
 }
 
 export interface LapMeta {

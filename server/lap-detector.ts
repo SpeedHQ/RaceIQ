@@ -73,10 +73,16 @@ class LapDetector {
   ): boolean {
     if (!this.currentSession) return true;
 
-    // Car changed (packet has no TrackOrdinal field, so we detect via CarOrdinal + silence)
+    // Car or track changed
     if (packet.CarOrdinal !== this.currentSession.carOrdinal) {
       console.log(
         `[Session] Car changed: ${this.currentSession.carOrdinal} -> ${packet.CarOrdinal}`
+      );
+      return true;
+    }
+    if (packet.TrackOrdinal && packet.TrackOrdinal !== this.currentSession.trackOrdinal) {
+      console.log(
+        `[Session] Track changed: ${this.currentSession.trackOrdinal} -> ${packet.TrackOrdinal}`
       );
       return true;
     }
@@ -96,11 +102,12 @@ class LapDetector {
   }
 
   private startNewSession(packet: TelemetryPacket): void {
-    const sessionId = insertSession(packet.CarOrdinal, 0);
+    const trackOrd = packet.TrackOrdinal ?? 0;
+    const sessionId = insertSession(packet.CarOrdinal, trackOrd);
     this.currentSession = {
       sessionId,
       carOrdinal: packet.CarOrdinal,
-      trackOrdinal: 0,
+      trackOrdinal: trackOrd,
     };
     this.currentLapNumber = -1;
     this.lapBuffer = [];

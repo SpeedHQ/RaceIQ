@@ -1,6 +1,7 @@
 import { readFileSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { getTrackSectorsByName, DEFAULT_SECTORS, type TrackSectors } from "./sectors";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -104,4 +105,32 @@ export function hasTrackOutline(ordinal: number): boolean {
 
 export function getTrackSource(trackName: string): Source | null {
   return sourceByName.get(trackName) ?? null;
+}
+
+// Sector support
+const ordinalToName = new Map<number, string>();
+// Re-read tracks.csv to build ordinal -> name mapping for sectors
+if (existsSync(tracksPath)) {
+  const raw2 = readFileSync(tracksPath, "utf-8");
+  for (const line of raw2.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const [ordStr, name] = trimmed.split(",");
+    const ordinal = parseInt(ordStr, 10);
+    if (!isNaN(ordinal) && name) {
+      ordinalToName.set(ordinal, name);
+    }
+  }
+}
+
+export type { TrackSectors };
+
+export function getTrackSectors(trackName: string): TrackSectors {
+  return getTrackSectorsByName(trackName);
+}
+
+export function getTrackSectorsByOrdinal(ordinal: number): TrackSectors {
+  const name = ordinalToName.get(ordinal);
+  if (!name) return DEFAULT_SECTORS;
+  return getTrackSectorsByName(name);
 }

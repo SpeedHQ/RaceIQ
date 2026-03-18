@@ -21,7 +21,7 @@ import {
 import { compareLaps } from "./comparison";
 import { detectCorners, type Corner } from "./corner-detection";
 import { carMap, getCarName, trackMap, getTrackName } from "../shared/car-data";
-import { getTrackOutlineByOrdinal, hasTrackOutline } from "../shared/track-outlines/index";
+import { getTrackOutlineByOrdinal, hasTrackOutline, getTrackSectorsByOrdinal } from "../shared/track-outlines/index";
 import { trackMap as trackInfoMap } from "../shared/car-data";
 
 const app = new Hono();
@@ -277,6 +277,15 @@ app.get("/api/tracks", (c) => {
     return a.name.localeCompare(b.name);
   });
   return c.json(tracks);
+});
+
+// GET /api/track-sectors/:ordinal — sector boundaries for a track
+app.get("/api/track-sectors/:ordinal", (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  const sectors = getTrackSectorsByOrdinal(ordinal);
+  return c.json(sectors);
 });
 
 // GET /api/track-outline/:ordinal — bundled track outline coordinates
