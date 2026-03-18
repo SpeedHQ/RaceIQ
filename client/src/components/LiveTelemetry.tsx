@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import type { TelemetryPacket } from "@shared/types";
+import { SteeringWheel } from "./SteeringWheel";
 
 interface Props {
   packet: TelemetryPacket | null;
@@ -210,6 +211,11 @@ export function LiveTelemetry({ packet }: Props) {
             {packet.Gear === 0 ? "R" : packet.Gear === 11 ? "N" : packet.Gear}
           </div>
         </div>
+      </div>
+
+      {/* Steering Wheel */}
+      <div className="flex justify-center">
+        <SteeringWheel steer={packet.Steer} />
       </div>
 
       {/* RPM */}
