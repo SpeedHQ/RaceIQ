@@ -405,6 +405,14 @@ app.get("/api/track-sectors/:ordinal", (c) => {
   return c.json({ segments: named, totalDist });
 });
 
+// GET /api/track-calibration/:ordinal — calibration status
+import { getCalibrationStatus, getNormalizedPosition } from "./track-calibration";
+app.get("/api/track-calibration/:ordinal", (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+  return c.json(getCalibrationStatus(ordinal));
+});
+
 // GET /api/fuel-history — fuel usage per lap
 app.get("/api/fuel-history", (c) => {
   return c.json(lapDetector.fuelHistory);

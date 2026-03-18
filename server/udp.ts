@@ -1,6 +1,8 @@
 import { parsePacket } from "./parser";
 import { wsManager } from "./ws";
 import { lapDetector } from "./lap-detector";
+import { feedPosition } from "./track-calibration";
+import { getTrackOutlineByOrdinal } from "../shared/track-outlines/index";
 
 const MIN_PACKET_LENGTH = 324; // Dash format minimum
 const PACKETS_PER_SEC_WINDOW = 1000; // 1 second window for rate calculation
@@ -90,6 +92,22 @@ class UdpListener {
 
     // Feed to lap detector (handles session + lap boundary detection + DB storage)
     lapDetector.feed(packet);
+
+    // Feed position for track calibration (every 6th packet = ~10Hz)
+    if (this._totalPackets % 6 === 0) {
+      const session = lapDetector.session;
+      if (session && session.trackOrdinal) {
+        const outline = getTrackOutlineByOrdinal(session.trackOrdinal);
+        if (outline) {
+          feedPosition(
+            session.trackOrdinal,
+            { x: packet.PositionX, z: packet.PositionZ },
+            packet.LapNumber,
+            outline
+          );
+        }
+      }
+    }
 
     // Broadcast to WebSocket clients (handles 30Hz throttle internally)
     wsManager.broadcast(packet);
