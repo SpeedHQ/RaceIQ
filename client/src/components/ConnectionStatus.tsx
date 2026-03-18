@@ -29,11 +29,9 @@ export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving }: P
           {forzaReceiving ? "Forza" : "No Signal"}
         </span>
       </div>
-      {forzaReceiving && (
-        <span className="text-sm text-slate-500 font-mono">
-          {packetsPerSec} pkt/s
-        </span>
-      )}
+      <span className="text-sm text-slate-500 font-mono tabular-nums w-16">
+        {forzaReceiving ? `${packetsPerSec} pkt/s` : ""}
+      </span>
     </div>
   );
 }

@@ -288,6 +288,26 @@ app.get("/api/track-sectors/:ordinal", (c) => {
   return c.json(sectors);
 });
 
+// GET /api/fuel-history — fuel usage per lap
+app.get("/api/fuel-history", (c) => {
+  return c.json(lapDetector.fuelHistory);
+});
+
+// GET /api/grip-history — server-side grip ring buffer
+app.get("/api/grip-history", (c) => {
+  return c.json(wsManager.getGripHistory());
+});
+
+// DELETE /api/laps — delete all laps
+app.delete("/api/laps", (c) => {
+  const laps = getLaps();
+  let count = 0;
+  for (const lap of laps) {
+    if (deleteLap(lap.id)) count++;
+  }
+  return c.json({ deleted: count });
+});
+
 // GET /api/track-outline/:ordinal — bundled track outline coordinates
 app.get("/api/track-outline/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);

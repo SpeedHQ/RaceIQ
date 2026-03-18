@@ -5,10 +5,21 @@ export interface WSData {
   createdAt: number;
 }
 
+const GRIP_MAX_SAMPLES = 600; // 60s at 10 samples/sec
+
+export interface GripHistoryData {
+  fl: number[];
+  fr: number[];
+  rl: number[];
+  rr: number[];
+}
+
 class WebSocketManager {
   private clients = new Set<ServerWebSocket<WSData>>();
   private packetCount = 0;
   private shouldBroadcast = true; // Toggle every packet for 30Hz throttle
+  private gripSampleCounter = 0;
+  private gripHistory: GripHistoryData = { fl: [], fr: [], rl: [], rr: [] };
 
   get connectedClients(): number {
     return this.clients.size;
@@ -28,12 +39,29 @@ class WebSocketManager {
     );
   }
 
+  getGripHistory(): GripHistoryData {
+    return this.gripHistory;
+  }
+
   /**
    * Broadcast a parsed telemetry packet to all connected clients.
    * Throttled to ~30Hz by skipping every other packet (game sends at 60Hz).
    */
   broadcast(packet: TelemetryPacket): void {
     this.packetCount++;
+
+    // Sample grip data at ~10Hz (every 6th packet from 60Hz)
+    this.gripSampleCounter++;
+    if (this.gripSampleCounter % 6 === 0) {
+      const h = this.gripHistory;
+      h.fl.push(Math.abs(packet.TireCombinedSlipFL));
+      h.fr.push(Math.abs(packet.TireCombinedSlipFR));
+      h.rl.push(Math.abs(packet.TireCombinedSlipRL));
+      h.rr.push(Math.abs(packet.TireCombinedSlipRR));
+      if (h.fl.length > GRIP_MAX_SAMPLES) {
+        h.fl.shift(); h.fr.shift(); h.rl.shift(); h.rr.shift();
+      }
+    }
 
     // Skip every other packet for 30Hz throttle
     this.shouldBroadcast = !this.shouldBroadcast;

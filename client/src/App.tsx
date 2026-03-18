@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import type { TelemetryPacket } from "@shared/types";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { ConnectionStatus } from "./components/ConnectionStatus";
-import { LiveTelemetry } from "./components/LiveTelemetry";
+import { LiveTelemetry, formatLapTime } from "./components/LiveTelemetry";
 import { CurrentLapStats } from "./components/CurrentLapStats";
 import { LiveTrackMap } from "./components/LiveTrackMap";
 import { LapList } from "./components/LapList";
@@ -10,6 +11,219 @@ import { RawTelemetry } from "./components/RawTelemetry";
 import { TrackViewer } from "./components/TrackViewer";
 import { Settings } from "./components/Settings";
 import { Button } from "@/components/ui/button";
+
+function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
+  const [laps, setLaps] = useState<{ lap: number; time: number }[]>([]);
+  const lastLapRef = useRef<number>(0);
+  const fetchedRef = useRef(false);
+
+  // Fetch recorded laps on mount
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    fetch("/api/laps")
+      .then((r) => r.json())
+      .then((data: { id: number; lapNumber: number; lapTime: number }[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const recorded = data
+            .filter((l) => l.lapTime > 0)
+            .map((l) => ({ lap: l.lapNumber, time: l.lapTime }))
+            .slice(-10);
+          setLaps(recorded);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Accumulate live laps
+  useEffect(() => {
+    if (!packet) return;
+    if (packet.LapNumber > lastLapRef.current && packet.LastLap > 0 && lastLapRef.current > 0) {
+      setLaps((prev) => {
+        // Avoid duplicates
+        if (prev.some((l) => l.lap === lastLapRef.current)) return prev;
+        const next = [...prev, { lap: lastLapRef.current, time: packet.LastLap }];
+        return next.slice(-10);
+      });
+    }
+    lastLapRef.current = packet.LapNumber;
+  }, [packet?.LapNumber]);
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const height = 100;
+
+  const handleClearAll = () => {
+    fetch("/api/laps", { method: "DELETE" })
+      .then(() => setLaps([]))
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container || laps.length < 1) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const width = container.clientWidth;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+
+    const leftPad = 45;
+    const rightPad = 10;
+
+    const times = laps.map((l) => l.time);
+    const best = Math.min(...times);
+    const worst = Math.max(...times);
+    const pad = (worst - best) * 0.15 || 1;
+    const minY = best - pad;
+    const maxY = worst + pad;
+    const yRange = maxY - minY;
+
+    // Optimum pace — median of top 5
+    const sorted = [...times].sort((a, b) => a - b);
+    const top5 = sorted.slice(0, Math.min(5, sorted.length));
+    const optimum = top5.length % 2 === 0
+      ? (top5[top5.length / 2 - 1] + top5[top5.length / 2]) / 2
+      : top5[Math.floor(top5.length / 2)];
+    const optimumY = height - ((optimum - minY) / yRange) * height;
+
+    // Avg pace — average of last 4 laps
+    const recent4 = times.slice(-4);
+    const avgPace = recent4.reduce((a, b) => a + b, 0) / recent4.length;
+    const avgY = height - ((avgPace - minY) / yRange) * height;
+
+    const chartW = width - leftPad - rightPad;
+
+    // Y axis labels (3-4 ticks)
+    const tickCount = 4;
+    ctx.font = "8px monospace";
+    ctx.fillStyle = "#475569";
+    ctx.textAlign = "right";
+    for (let i = 0; i <= tickCount; i++) {
+      const val = minY + (yRange * i) / tickCount;
+      const y = height - (i / tickCount) * height;
+      ctx.fillText(formatLapTime(val), leftPad - 4, y + 3);
+      // Grid line
+      ctx.strokeStyle = "rgba(100,116,139,0.08)";
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(leftPad, y);
+      ctx.lineTo(width - rightPad, y);
+      ctx.stroke();
+    }
+
+    // Optimum pace line (purple)
+    ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = "rgba(168,85,247,0.5)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(leftPad, optimumY);
+    ctx.lineTo(width - rightPad, optimumY);
+    ctx.stroke();
+
+    // Avg pace line (amber)
+    ctx.strokeStyle = "rgba(251,191,36,0.4)";
+    ctx.beginPath();
+    ctx.moveTo(leftPad, avgY);
+    ctx.lineTo(width - rightPad, avgY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Pace labels
+    ctx.font = "9px monospace";
+    ctx.textAlign = "right";
+    ctx.fillStyle = "rgba(168,85,247,0.7)";
+    ctx.fillText(`optimum`, width - rightPad - 2, optimumY - 3);
+    ctx.fillStyle = "rgba(251,191,36,0.6)";
+    ctx.fillText(`avg`, width - rightPad - 2, avgY - 3);
+
+    // Line
+    const step = laps.length > 1 ? chartW / (laps.length - 1) : chartW / 2;
+    ctx.beginPath();
+    for (let i = 0; i < laps.length; i++) {
+      const x = leftPad + i * step;
+      const y = height - ((laps[i].time - minY) / yRange) * height;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = "rgba(34,211,238,0.8)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Dots + lap numbers
+    for (let i = 0; i < laps.length; i++) {
+      const x = leftPad + i * step;
+      const y = height - ((laps[i].time - minY) / yRange) * height;
+      const isBest = laps[i].time === best;
+      ctx.beginPath();
+      ctx.arc(x, y, isBest ? 3.5 : 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = isBest ? "#a855f7" : laps[i].time <= optimum ? "#34d399" : "#fb923c";
+      ctx.fill();
+
+      // Lap number below
+      ctx.fillStyle = "#475569";
+      ctx.font = "7px monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(`${laps[i].lap}`, x, height - 2);
+    }
+  }, [laps]);
+
+  if (laps.length === 0) return null;
+
+  return (
+    <div className="border-b border-slate-800">
+      <div className="p-2 border-b border-slate-800 flex items-center justify-between">
+        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Lap Times</h2>
+        <button
+          onClick={handleClearAll}
+          className="text-[10px] text-red-400 hover:text-red-300 font-mono"
+        >
+          Clear All
+        </button>
+      </div>
+      <div className="p-3" ref={containerRef}>
+        <canvas
+          ref={canvasRef}
+          style={{ width: "100%", height }}
+          className="rounded bg-slate-900/40"
+        />
+        <div className="flex gap-3 mt-1.5 flex-wrap">
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-0.5 bg-cyan-400 rounded" />
+            <span className="text-[9px] text-slate-500">Lap time</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-0.5 bg-purple-500 rounded border-dashed" style={{ borderTop: "1px dashed #a855f7", height: 0 }} />
+            <span className="text-[9px] text-slate-500">Optimum (top 5 median)</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3" style={{ borderTop: "1px dashed #fbbf24", height: 0 }} />
+            <span className="text-[9px] text-slate-500">Avg (last 4)</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-purple-500" />
+            <span className="text-[9px] text-slate-500">Best</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="text-[9px] text-slate-500">On pace</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-orange-400" />
+            <span className="text-[9px] text-slate-500">Off pace</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 type Tab = "live" | "compare" | "tracks" | "raw";
 
@@ -117,6 +331,48 @@ export default function App() {
                 <CurrentLapStats packet={packet} />
               </div>
             </div>
+
+            {/* Lap Info */}
+            {packet && (
+              <div className="border-b border-slate-800">
+                <div className="p-2 border-b border-slate-800">
+                  <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Race Info</h2>
+                </div>
+                <div className="p-3">
+                  <div className="flex items-baseline gap-4 mb-2">
+                    <div>
+                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">Position</div>
+                      <div className="text-2xl font-mono font-bold text-white tabular-nums">P{packet.RacePosition}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">Lap</div>
+                      <div className="text-2xl font-mono font-bold text-white tabular-nums">{packet.LapNumber}</div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">Current</div>
+                      <div className="text-2xl font-mono font-bold text-white tabular-nums">{formatLapTime(packet.CurrentLap)}</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div>
+                      <span className="text-[10px] text-slate-500">Last </span>
+                      <span className="text-sm font-mono text-slate-300 tabular-nums">{formatLapTime(packet.LastLap)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500">Best </span>
+                      <span className="text-sm font-mono text-purple-400 tabular-nums">{formatLapTime(packet.BestLap)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500">Dist </span>
+                      <span className="text-sm font-mono text-slate-300 tabular-nums">{(packet.DistanceTraveled / 1609.34).toFixed(2)} mi</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Lap Time Chart */}
+            <LapTimeChart packet={packet} />
 
             {/* Recorded Laps */}
             <div className="flex-1">

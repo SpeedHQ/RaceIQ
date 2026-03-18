@@ -9,6 +9,13 @@ interface SessionState {
   trackOrdinal: number;
 }
 
+export interface LapFuelData {
+  lap: number;
+  fuelStart: number;
+  fuelEnd: number;
+  fuelUsed: number;
+}
+
 class LapDetector {
   private currentSession: SessionState | null = null;
   private currentLapNumber: number = -1;
@@ -17,9 +24,15 @@ class LapDetector {
   private lastTimestampMS: number = 0;
   private lastPacketTime: number = 0; // wall clock time of last received packet
   private distanceAtLapStart: number = 0;
+  private fuelAtLapStart: number = -1;
+  private _fuelHistory: LapFuelData[] = [];
 
   get session(): SessionState | null {
     return this.currentSession;
+  }
+
+  get fuelHistory(): LapFuelData[] {
+    return this._fuelHistory;
   }
 
   /**
@@ -126,6 +139,19 @@ class LapDetector {
       return;
     }
 
+    // Record fuel usage
+    const fuelEnd = this.lapBuffer[this.lapBuffer.length - 1].Fuel;
+    if (this.fuelAtLapStart >= 0) {
+      this._fuelHistory.push({
+        lap: this.currentLapNumber,
+        fuelStart: this.fuelAtLapStart,
+        fuelEnd,
+        fuelUsed: this.fuelAtLapStart - fuelEnd,
+      });
+      // Keep last 50 laps
+      if (this._fuelHistory.length > 50) this._fuelHistory.shift();
+    }
+
     // Use LastLap from the first packet of the new lap as authoritative lap time
     const lapTime = newLapFirstPacket.LastLap;
 
@@ -194,6 +220,7 @@ class LapDetector {
     this.lapBuffer = [];
     this.lapIsValid = true;
     this.distanceAtLapStart = newLapFirstPacket.DistanceTraveled;
+    this.fuelAtLapStart = newLapFirstPacket.Fuel;
   }
 }
 
