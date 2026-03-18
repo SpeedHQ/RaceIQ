@@ -1,3 +1,4 @@
+import { useEffect, useState, useRef } from "react";
 import type { TelemetryPacket } from "@shared/types";
 
 interface Props {
@@ -57,6 +58,24 @@ function TireTemps({ packet }: { packet: TelemetryPacket }) {
 }
 
 export function LiveTelemetry({ packet }: Props) {
+  const [carName, setCarName] = useState<string>("");
+  const lastOrdinalRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!packet || packet.CarOrdinal === 0) {
+      setCarName("");
+      lastOrdinalRef.current = null;
+      return;
+    }
+    if (packet.CarOrdinal === lastOrdinalRef.current) return;
+    lastOrdinalRef.current = packet.CarOrdinal;
+
+    fetch(`/api/car-name/${packet.CarOrdinal}`)
+      .then((r) => r.text())
+      .then(setCarName)
+      .catch(() => setCarName(`Car #${packet.CarOrdinal}`));
+  }, [packet?.CarOrdinal]);
+
   if (!packet) {
     return (
       <div className="flex items-center justify-center h-full text-slate-600">
@@ -72,6 +91,11 @@ export function LiveTelemetry({ packet }: Props) {
 
   return (
     <div className="grid gap-4 p-4">
+      {/* Car Name */}
+      {carName && (
+        <div className="text-lg font-semibold text-white truncate">{carName}</div>
+      )}
+
       {/* Speed + Gear */}
       <div className="flex items-end gap-4">
         <div>

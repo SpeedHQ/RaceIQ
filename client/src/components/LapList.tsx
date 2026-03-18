@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import type { LapMeta } from "@shared/types";
 import { ExportButton } from "./ExportButton";
 
@@ -12,6 +12,23 @@ function formatLapTime(seconds: number): string {
 export function LapList() {
   const [laps, setLaps] = useState<LapMeta[]>([]);
   const [loading, setLoading] = useState(true);
+  const [carNames, setCarNames] = useState<Record<number, string>>({});
+  const fetchedOrdinals = useRef(new Set<number>());
+
+  // Fetch car names for any new ordinals
+  useEffect(() => {
+    const ordinals = [...new Set(laps.map((l) => l.carOrdinal).filter((o): o is number => o != null))];
+    const newOrdinals = ordinals.filter((o) => !fetchedOrdinals.current.has(o));
+    if (newOrdinals.length === 0) return;
+
+    for (const ord of newOrdinals) {
+      fetchedOrdinals.current.add(ord);
+      fetch(`/api/car-name/${ord}`)
+        .then((r) => r.text())
+        .then((name) => setCarNames((prev) => ({ ...prev, [ord]: name })))
+        .catch(() => setCarNames((prev) => ({ ...prev, [ord]: `Car #${ord}` })));
+    }
+  }, [laps]);
 
   const fetchLaps = useCallback(async () => {
     try {
@@ -73,7 +90,9 @@ export function LapList() {
             <tr key={lap.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
               <td className="p-2 font-mono text-slate-300">{lap.lapNumber}</td>
               <td className="p-2 font-mono text-white">{formatLapTime(lap.lapTime)}</td>
-              <td className="p-2 font-mono text-slate-400">#{lap.carOrdinal ?? "?"}</td>
+              <td className="p-2 text-slate-400 truncate max-w-[160px]" title={lap.carOrdinal != null ? carNames[lap.carOrdinal] ?? `#${lap.carOrdinal}` : "?"}>
+                {lap.carOrdinal != null ? carNames[lap.carOrdinal] ?? `#${lap.carOrdinal}` : "?"}
+              </td>
               <td className="p-2 text-center">
                 {lap.isValid ? (
                   <span className="text-emerald-400">&#10003;</span>

@@ -20,6 +20,7 @@ import {
 } from "../shared/types";
 import { compareLaps } from "./comparison";
 import { detectCorners, type Corner } from "./corner-detection";
+import { carMap, getCarName, trackMap, getTrackName } from "../shared/car-data";
 
 const app = new Hono();
 
@@ -219,6 +220,42 @@ app.put("/api/tracks/:trackOrdinal/corners", async (c) => {
 
   saveCorners(trackOrdinal, body, false);
   return c.json({ success: true, count: body.length });
+});
+
+// GET /api/cars/:ordinal
+app.get("/api/cars/:ordinal", (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  const car = carMap.get(ordinal);
+  if (!car) return c.json({ error: "Car not found" }, 404);
+
+  return c.json({ ordinal, ...car, name: `${car.year} ${car.make} ${car.model}` });
+});
+
+// GET /api/tracks/:ordinal (info)
+app.get("/api/tracks/:ordinal", (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  const track = trackMap.get(ordinal);
+  if (!track) return c.json({ error: "Track not found" }, 404);
+
+  return c.json({ ordinal, ...track });
+});
+
+// GET /api/car-name/:ordinal — plain text
+app.get("/api/car-name/:ordinal", (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.text("Unknown car");
+  return c.text(getCarName(ordinal));
+});
+
+// GET /api/track-name/:ordinal — plain text
+app.get("/api/track-name/:ordinal", (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.text("Unknown track");
+  return c.text(getTrackName(ordinal));
 });
 
 /**

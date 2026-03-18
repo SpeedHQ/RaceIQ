@@ -3,7 +3,7 @@ import { udpListener } from "./udp";
 import { wsManager, type WSData } from "./ws";
 import { loadSettings } from "./settings";
 
-const HTTP_PORT = 3001;
+const HTTP_PORT = 3117;
 
 // Import DB to ensure schema is created on startup
 import "./db/index";

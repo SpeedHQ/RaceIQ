@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun run dev:server & bun run dev:client",
-    "dev:server": "bun run server/index.ts",
+    "dev:server": "bun --watch run server/index.ts",
     "dev:client": "cd client && portless run --name forza bun vite",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
