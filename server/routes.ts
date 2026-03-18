@@ -21,6 +21,7 @@ import {
 import { compareLaps } from "./comparison";
 import { detectCorners, type Corner } from "./corner-detection";
 import { carMap, getCarName, trackMap, getTrackName } from "../shared/car-data";
+import { getTrackOutlineByOrdinal } from "../shared/track-outlines/index";
 
 const app = new Hono();
 
@@ -256,6 +257,17 @@ app.get("/api/track-name/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);
   if (isNaN(ordinal)) return c.text("Unknown track");
   return c.text(getTrackName(ordinal));
+});
+
+// GET /api/track-outline/:ordinal — bundled track outline coordinates
+app.get("/api/track-outline/:ordinal", (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  const outline = getTrackOutlineByOrdinal(ordinal);
+  if (!outline) return c.json({ error: "No outline available" }, 404);
+
+  return c.json(outline);
 });
 
 /**

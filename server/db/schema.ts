@@ -38,6 +38,21 @@ export const laps = sqliteTable(
   })
 );
 
+export const trackOutlines = sqliteTable(
+  "track_outlines",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    trackOrdinal: integer("track_ordinal").notNull().unique(),
+    outline: blob("outline", { mode: "buffer" }).notNull(), // gzip'd JSON array of {x,z,speed}
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    trackIdx: index("idx_outlines_track").on(table.trackOrdinal),
+  })
+);
+
 export const trackCorners = sqliteTable(
   "track_corners",
   {

@@ -1,6 +1,6 @@
 import { eq, desc, and } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, trackCorners } from "./schema";
+import { sessions, laps, trackCorners, trackOutlines } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 
@@ -233,4 +233,69 @@ export function getFirstLapIdForTrack(trackOrdinal: number): number | null {
     .get();
 
   return row?.id ?? null;
+}
+
+/**
+ * Get stored track outline for a track ordinal.
+ * Returns array of {x, z, speed} or null if not stored.
+ */
+export function getTrackOutline(
+  trackOrdinal: number
+): { x: number; z: number; speed: number }[] | null {
+  const row = db
+    .select({ outline: trackOutlines.outline })
+    .from(trackOutlines)
+    .where(eq(trackOutlines.trackOrdinal, trackOrdinal))
+    .get();
+
+  if (!row) return null;
+  const decompressed = Bun.gunzipSync(row.outline as Buffer);
+  return JSON.parse(new TextDecoder().decode(decompressed));
+}
+
+/**
+ * Save a track outline. Extracts position + speed from telemetry packets,
+ * downsamples, compresses, and stores. Replaces any existing outline.
+ */
+export function saveTrackOutline(
+  trackOrdinal: number,
+  packets: TelemetryPacket[]
+): void {
+  const points: { x: number; z: number; speed: number }[] = [];
+  for (let i = 0; i < packets.length; i += 5) {
+    const p = packets[i];
+    if (p.PositionX === 0 && p.PositionZ === 0) continue;
+    points.push({
+      x: p.PositionX,
+      z: p.PositionZ,
+      speed: (p.Speed ?? 0) * 2.23694,
+    });
+  }
+  if (points.length < 10) return;
+
+  const compressed = Buffer.from(
+    Bun.gzipSync(Buffer.from(JSON.stringify(points)))
+  );
+
+  // Upsert
+  const existing = db
+    .select({ id: trackOutlines.id })
+    .from(trackOutlines)
+    .where(eq(trackOutlines.trackOrdinal, trackOrdinal))
+    .get();
+
+  if (existing) {
+    db.update(trackOutlines)
+      .set({ outline: compressed })
+      .where(eq(trackOutlines.trackOrdinal, trackOrdinal))
+      .run();
+  } else {
+    db.insert(trackOutlines)
+      .values({ trackOrdinal, outline: compressed })
+      .run();
+  }
+
+  console.log(
+    `[Track] Saved outline for track ${trackOrdinal}: ${points.length} points`
+  );
 }

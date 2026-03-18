@@ -50,6 +50,15 @@ sqlite.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_corners_track ON track_corners(track_ordinal);
+
+  CREATE TABLE IF NOT EXISTS track_outlines (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    track_ordinal   INTEGER NOT NULL UNIQUE,
+    outline         BLOB NOT NULL,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_outlines_track ON track_outlines(track_ordinal);
 `);
 
 export const db = drizzle(sqlite, { schema });
