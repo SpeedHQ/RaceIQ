@@ -41,16 +41,23 @@ const TRACK_FILES: Record<string, TrackOutlineEntry> = {
   "Suzuka Circuit": { filename: "suzuka.json", source: "tumftm" },
   "Yas Marina Circuit": { filename: "yas-marina.json", source: "tumftm" },
 
-  // OpenStreetMap Overpass API (4 tracks)
+  // OpenStreetMap Overpass API (7 tracks)
   "WeatherTech Raceway Laguna Seca": { filename: "laguna-seca.json", source: "osm" },
   "Road Atlanta": { filename: "road-atlanta.json", source: "osm" },
   "Daytona Intl Speedway": { filename: "daytona.json", source: "osm" },
   "Lime Rock Park": { filename: "lime-rock.json", source: "osm" },
+  "Mugello Circuit": { filename: "mugello.json", source: "osm" },
+  "Road America": { filename: "road-america.json", source: "osm" },
+  "Virginia International Raceway": { filename: "virginia.json", source: "osm" },
 };
 
 // Fictional FM tracks (no real-world data available):
 // Fujimi Kaido, Grand Oak Raceway, Hakone, Maple Valley,
 // Eaglerock Speedway, Sunset Peninsula Raceway
+
+// Real tracks still missing outline data:
+// Mount Panorama, Le Mans, Mid-Ohio, Sebring,
+// Watkins Glen, Kyalami, Homestead-Miami
 
 // Real tracks missing data (OSM rate-limited / no data):
 // Mugello Circuit, Mount Panorama, Le Mans, Mid-Ohio,

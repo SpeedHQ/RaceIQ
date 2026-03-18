@@ -297,6 +297,182 @@ function TireDiagram({ packet }: { packet: TelemetryPacket }) {
   );
 }
 
+function GForceCircle({ packet }: { packet: TelemetryPacket }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const size = 120;
+  const maxG = 2.5;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, size, size);
+
+    const cx = size / 2;
+    const cy = size / 2;
+    const r = size / 2 - 8;
+
+    // Background rings
+    for (let i = 1; i <= 3; i++) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, (r / 3) * i, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(100,116,139,0.15)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Crosshairs
+    ctx.beginPath();
+    ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy);
+    ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r);
+    ctx.strokeStyle = "rgba(100,116,139,0.1)";
+    ctx.stroke();
+
+    // Lateral = X (left/right), Longitudinal = Z (accel/brake)
+    const latG = packet.AccelerationX / 9.81;
+    const lonG = packet.AccelerationZ / 9.81;
+    const dotX = cx + (latG / maxG) * r;
+    const dotY = cy - (lonG / maxG) * r;
+
+    const totalG = Math.sqrt(latG * latG + lonG * lonG);
+    const dotColor = totalG < 0.5 ? "#34d399" : totalG < 1.0 ? "#facc15" : totalG < 1.5 ? "#fb923c" : "#ef4444";
+
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = dotColor;
+    ctx.fill();
+  }, [packet]);
+
+  const latG = packet.AccelerationX / 9.81;
+  const lonG = packet.AccelerationZ / 9.81;
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <canvas ref={canvasRef} style={{ width: size, height: size }} className="rounded bg-slate-900/40" />
+      <div className="flex gap-3 text-[10px] font-mono text-slate-400">
+        <span>Lat {latG.toFixed(2)}g</span>
+        <span>Lon {lonG.toFixed(2)}g</span>
+      </div>
+    </div>
+  );
+}
+
+function PowerTorque({ packet }: { packet: TelemetryPacket }) {
+  const hp = packet.Power / 745.7; // watts to HP
+  const nm = packet.Torque;
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div className="bg-slate-800/50 rounded p-2">
+        <div className="text-xs text-slate-500">Power</div>
+        <div className="text-lg font-mono font-semibold text-orange-400 tabular-nums">
+          {hp.toFixed(0)} <span className="text-xs text-slate-500">hp</span>
+        </div>
+      </div>
+      <div className="bg-slate-800/50 rounded p-2">
+        <div className="text-xs text-slate-500">Torque</div>
+        <div className="text-lg font-mono font-semibold text-amber-400 tabular-nums">
+          {nm.toFixed(0)} <span className="text-xs text-slate-500">Nm</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WheelSpin({ packet }: { packet: TelemetryPacket }) {
+  const groundSpeed = packet.Speed; // m/s
+  const wheelRadius = 0.33; // ~avg tire radius in meters
+
+  const wheels = [
+    { label: "FL", rpm: packet.WheelRotationSpeedFL },
+    { label: "FR", rpm: packet.WheelRotationSpeedFR },
+    { label: "RL", rpm: packet.WheelRotationSpeedRL },
+    { label: "RR", rpm: packet.WheelRotationSpeedRR },
+  ];
+
+  return (
+    <div className="grid grid-cols-4 gap-1.5">
+      {wheels.map((w) => {
+        const wheelSpeed = Math.abs(w.rpm) * wheelRadius;
+        const diff = groundSpeed > 1 ? ((wheelSpeed - groundSpeed) / groundSpeed) * 100 : 0;
+        const isLockup = diff < -10;
+        const isSpin = diff > 10;
+        const color = isLockup ? "text-red-400" : isSpin ? "text-orange-400" : "text-slate-400";
+        const stateLabel = isLockup ? "LOCK" : isSpin ? "SPIN" : "";
+
+        return (
+          <div key={w.label} className="bg-slate-800/50 rounded px-1.5 py-1 text-center">
+            <div className="text-[9px] text-slate-500 font-semibold">{w.label}</div>
+            <div className={`text-xs font-mono font-bold tabular-nums ${color}`}>
+              {diff.toFixed(0)}%
+            </div>
+            {stateLabel && (
+              <div className={`text-[8px] font-bold ${color} animate-pulse`}>{stateLabel}</div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SlipAngles({ packet }: { packet: TelemetryPacket }) {
+  const toDeg = 180 / Math.PI;
+  const angles = [
+    { label: "FL", value: packet.TireSlipAngleFL * toDeg },
+    { label: "FR", value: packet.TireSlipAngleFR * toDeg },
+    { label: "RL", value: packet.TireSlipAngleRL * toDeg },
+    { label: "RR", value: packet.TireSlipAngleRR * toDeg },
+  ];
+
+  function angleColor(deg: number): string {
+    const a = Math.abs(deg);
+    if (a < 4) return "text-emerald-400";
+    if (a < 8) return "text-yellow-400";
+    if (a < 14) return "text-orange-400";
+    return "text-red-400";
+  }
+
+  return (
+    <div className="grid grid-cols-4 gap-1.5">
+      {angles.map((a) => (
+        <div key={a.label} className="bg-slate-800/50 rounded px-1.5 py-1 text-center">
+          <div className="text-[9px] text-slate-500 font-semibold">{a.label}</div>
+          <div className={`text-xs font-mono font-bold tabular-nums ${angleColor(a.value)}`}>
+            {a.value.toFixed(1)}°
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
+  const toDeg = 180 / Math.PI;
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {[
+        { label: "Yaw", value: packet.Yaw * toDeg },
+        { label: "Pitch", value: packet.Pitch * toDeg },
+        { label: "Roll", value: packet.Roll * toDeg },
+      ].map((a) => (
+        <div key={a.label} className="bg-slate-800/50 rounded px-2 py-1 text-center">
+          <div className="text-[9px] text-slate-500 font-semibold">{a.label}</div>
+          <div className="text-xs font-mono font-medium text-slate-300 tabular-nums">
+            {a.value.toFixed(1)}°
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function LiveTelemetry({ packet }: Props) {
   const [carName, setCarName] = useState<string>("");
   const lastCarOrdRef = useRef<number | null>(null);
@@ -428,6 +604,31 @@ export function LiveTelemetry({ packet }: Props) {
         </div>
       </div>
 
+      {/* Power / Torque */}
+      <PowerTorque packet={packet} />
+
+      {/* Boost / Fuel / Position */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-slate-800/50 rounded p-2">
+          <div className="text-xs text-slate-500">Boost</div>
+          <div className="text-lg font-mono font-semibold text-cyan-400 tabular-nums">
+            {packet.Boost.toFixed(1)} <span className="text-xs text-slate-500">psi</span>
+          </div>
+        </div>
+        <div className="bg-slate-800/50 rounded p-2">
+          <div className="text-xs text-slate-500">Fuel</div>
+          <div className={`text-lg font-mono font-semibold tabular-nums ${packet.Fuel < 0.2 ? "text-red-400 animate-pulse" : packet.Fuel < 0.4 ? "text-amber-400" : "text-emerald-400"}`}>
+            {(packet.Fuel * 100).toFixed(0)}%
+          </div>
+        </div>
+        <div className="bg-slate-800/50 rounded p-2">
+          <div className="text-xs text-slate-500">Position</div>
+          <div className="text-lg font-mono font-semibold text-white tabular-nums">
+            P{packet.RacePosition}
+          </div>
+        </div>
+      </div>
+
       {/* Tires — unified 4-wheel display */}
       <div>
         <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Tires</div>
@@ -438,6 +639,36 @@ export function LiveTelemetry({ packet }: Props) {
       <div>
         <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Grip History (60s)</div>
         <GripHistory packet={packet} />
+      </div>
+
+      {/* Wheel Spin (lockup/spin detection) */}
+      <div>
+        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Wheel Spin</div>
+        <WheelSpin packet={packet} />
+      </div>
+
+      {/* Slip Angles */}
+      <div>
+        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Slip Angle</div>
+        <SlipAngles packet={packet} />
+      </div>
+
+      {/* G-Force + Body Attitude side by side */}
+      <div className="grid grid-cols-[auto_1fr] gap-3 items-start">
+        <div>
+          <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">G-Force</div>
+          <GForceCircle packet={packet} />
+        </div>
+        <div>
+          <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Body Attitude</div>
+          <BodyAttitude packet={packet} />
+          <div className="mt-2 bg-slate-800/50 rounded p-2">
+            <div className="text-xs text-slate-500">Distance</div>
+            <div className="text-sm font-mono text-slate-300 tabular-nums">
+              {(packet.DistanceTraveled / 1609.34).toFixed(2)} mi
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
