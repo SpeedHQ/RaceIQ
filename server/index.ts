@@ -1,12 +1,15 @@
 import app from "./routes";
 import { udpListener } from "./udp";
 import { wsManager, type WSData } from "./ws";
+import { loadSettings } from "./settings";
 
 const HTTP_PORT = 3001;
-const UDP_PORT = parseInt(process.env.UDP_PORT ?? "5300", 10);
 
 // Import DB to ensure schema is created on startup
 import "./db/index";
+
+// Load persisted settings
+const settings = loadSettings();
 
 console.log(`[Server] Starting Forza Telemetry Server...`);
 
@@ -43,8 +46,8 @@ const server = Bun.serve<WSData>({
 console.log(`[Server] HTTP/WS server listening on http://localhost:${HTTP_PORT}`);
 console.log(`[Server] WebSocket endpoint: ws://localhost:${HTTP_PORT}/ws`);
 
-// Start UDP listener
-udpListener.start(UDP_PORT);
+// Start UDP listener with saved settings
+udpListener.start(settings.udpPort, settings.forzaMachine);
 
 console.log(`[Server] Forza Telemetry Server is ready!`);
-console.log(`[Server] Configure Forza: Settings > Gameplay > Data Out > IP: 127.0.0.1, Port: ${UDP_PORT}`);
+console.log(`[Server] Listening for Forza on ${settings.forzaMachine}:${settings.udpPort}`);

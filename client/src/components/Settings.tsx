@@ -33,12 +33,13 @@ export function Settings() {
       .catch(() => {});
   }, []);
 
+  const port = parseInt(udpPort, 10);
   const hasChanges =
-    saved !== null &&
-    (machine !== saved.forzaMachine || parseInt(udpPort, 10) !== saved.udpPort);
+    saved === null ||
+    machine.trim() !== saved.forzaMachine ||
+    port !== saved.udpPort;
 
   async function handleSave() {
-    const port = parseInt(udpPort, 10);
     if (isNaN(port) || port < 1024 || port > 65535) {
       setStatus("error");
       setErrorMsg("Port must be between 1024-65535");

@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { udpListener } from "./udp";
 import { wsManager } from "./ws";
 import { lapDetector } from "./lap-detector";
+import { saveSettings } from "./settings";
 import {
   getLaps,
   getLapById,
@@ -75,6 +76,7 @@ app.put("/api/settings", async (c) => {
 
   try {
     await udpListener.restart(port, hostname);
+    saveSettings({ forzaMachine: hostname, udpPort: port });
     return c.json({ forzaMachine: hostname, udpPort: port });
   } catch {
     return c.json({ error: `Failed to bind to ${hostname}:${port}` }, 500);

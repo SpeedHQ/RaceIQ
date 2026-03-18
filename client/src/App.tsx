@@ -13,7 +13,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       <div className="flex items-center justify-between border-b border-slate-800">
-        <ConnectionStatus connected={connected} packetsPerSec={packetsPerSec} />
+        <ConnectionStatus connected={connected} packetsPerSec={packetsPerSec} forzaReceiving={packetsPerSec > 0} />
         <Button
           variant="ghost"
           size="sm"
