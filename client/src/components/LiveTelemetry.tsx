@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import type { TelemetryPacket } from "@shared/types";
+import { CAR_CLASS_NAMES, DRIVETRAIN_NAMES } from "@shared/types";
 import { SteeringWheel } from "./SteeringWheel";
 
 interface Props {
@@ -202,9 +203,19 @@ export function LiveTelemetry({ packet }: Props) {
 
   return (
     <div className="grid gap-4 p-4">
-      {/* Car Name */}
+      {/* Car Info */}
       {carName && (
-        <div className="text-lg font-semibold text-white truncate">{carName}</div>
+        <div>
+          <div className="text-lg font-semibold text-white truncate">{carName}</div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-xs font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400">
+              {CAR_CLASS_NAMES[packet.CarClass] ?? "?"} {packet.CarPerformanceIndex}
+            </span>
+            <span className="text-xs text-slate-500">
+              {DRIVETRAIN_NAMES[packet.DrivetrainType] ?? "?"} &middot; {packet.NumCylinders}cyl
+            </span>
+          </div>
+        </div>
       )}
 
       {/* Speed + Gear */}
