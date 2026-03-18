@@ -225,6 +225,187 @@ function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
   );
 }
 
+function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
+  const [sectors, setSectors] = useState<{ s1End: number; s2End: number } | null>(null);
+  const trackOrdRef = useRef<number | null>(null);
+  const sectorStateRef = useRef<{
+    lapDistStart: number;
+    lapDistTotal: number; // estimated lap distance
+    currentSector: number; // 0=S1, 1=S2, 2=S3
+    sectorStartTime: number; // CurrentLap time at sector start
+    currentTimes: [number, number, number]; // current lap sector times
+    bestTimes: [number, number, number]; // session best per sector
+    lastTimes: [number, number, number]; // last completed lap sector times
+    lastLap: number;
+  }>({
+    lapDistStart: 0,
+    lapDistTotal: 0,
+    currentSector: 0,
+    sectorStartTime: 0,
+    currentTimes: [0, 0, 0],
+    bestTimes: [Infinity, Infinity, Infinity],
+    lastTimes: [0, 0, 0],
+    lastLap: 0,
+  });
+  const [, tick] = useState(0);
+
+  // Fetch sectors when track changes
+  useEffect(() => {
+    if (!packet) return;
+    const fetchSectors = async () => {
+      try {
+        const statusRes = await fetch("/api/status");
+        if (!statusRes.ok) return;
+        const status = await statusRes.json();
+        const trackOrd = status.currentSession?.trackOrdinal;
+        if (trackOrd == null || trackOrd === trackOrdRef.current) return;
+        trackOrdRef.current = trackOrd;
+
+        const res = await fetch(`/api/track-sectors/${trackOrd}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.s1End) setSectors(data);
+        }
+      } catch {}
+    };
+    fetchSectors();
+  }, [packet?.LapNumber]);
+
+  // Track sector crossings
+  useEffect(() => {
+    if (!packet || !sectors) return;
+    const s = sectorStateRef.current;
+
+    // Detect new lap
+    if (packet.LapNumber > s.lastLap && s.lastLap > 0) {
+      // Complete S3
+      const s3Time = packet.CurrentLap > 0 ? 0 : s.currentTimes[2]; // lap just reset
+      if (s.currentTimes[0] > 0 && s.currentTimes[1] > 0) {
+        // Save last completed sector times
+        s.lastTimes = [...s.currentTimes] as [number, number, number];
+        // The S3 time was everything after S2 started
+        s.lastTimes[2] = packet.LastLap - s.currentTimes[0] - s.currentTimes[1];
+        if (s.lastTimes[2] < 0) s.lastTimes[2] = 0;
+
+        // Update bests
+        for (let i = 0; i < 3; i++) {
+          if (s.lastTimes[i] > 0 && s.lastTimes[i] < s.bestTimes[i]) {
+            s.bestTimes[i] = s.lastTimes[i];
+          }
+        }
+      }
+
+      s.lapDistStart = packet.DistanceTraveled;
+      s.currentSector = 0;
+      s.sectorStartTime = 0;
+      s.currentTimes = [0, 0, 0];
+    }
+    s.lastLap = packet.LapNumber;
+
+    // Estimate progress through lap using distance
+    if (s.lapDistTotal <= 0 && packet.LastLap > 0 && s.lapDistStart > 0) {
+      // Can't easily get lap distance, estimate from outline. Use a large fallback.
+      // We'll detect sector crossings based on accumulated distance fraction.
+    }
+
+    // Use CurrentLap time for sector timing
+    const lapTime = packet.CurrentLap;
+    const lapDist = packet.DistanceTraveled - s.lapDistStart;
+
+    // We need total lap distance to compute fraction. Estimate from first completed lap.
+    if (s.lapDistTotal <= 0 && lapDist > 100) {
+      // Will be set properly on lap completion
+    }
+
+    // Simple approach: use the outline fraction. Since we don't have normalized distance,
+    // track total distance on first lap completion, then use it for subsequent laps.
+    // For now, detect based on distance traveled in this lap vs estimated lap distance.
+
+    // Trigger re-render periodically
+    tick((v) => v + 1);
+  }, [packet, sectors]);
+
+  // Simpler approach: use distance fraction from first completed lap
+  useEffect(() => {
+    if (!packet || !sectors) return;
+    const s = sectorStateRef.current;
+
+    // On lap boundary, record lap distance
+    if (packet.LapNumber > s.lastLap && s.lapDistStart > 0) {
+      const completedDist = packet.DistanceTraveled - s.lapDistStart;
+      if (completedDist > 100) {
+        s.lapDistTotal = completedDist;
+      }
+    }
+  }, [packet?.LapNumber]);
+
+  // Sector crossing detection
+  useEffect(() => {
+    if (!packet || !sectors) return;
+    const s = sectorStateRef.current;
+    if (s.lapDistTotal <= 0) return;
+
+    const lapDist = packet.DistanceTraveled - s.lapDistStart;
+    const frac = lapDist / s.lapDistTotal;
+
+    const sectorBounds = [0, sectors.s1End, sectors.s2End, 1];
+    const expectedSector =
+      frac < sectors.s1End ? 0 :
+      frac < sectors.s2End ? 1 : 2;
+
+    if (expectedSector > s.currentSector) {
+      // Crossed into next sector — record time for completed sector
+      s.currentTimes[s.currentSector] = packet.CurrentLap - s.sectorStartTime;
+      s.sectorStartTime = packet.CurrentLap;
+      s.currentSector = expectedSector;
+    }
+  }, [packet, sectors]);
+
+  if (!sectors) return null;
+
+  const s = sectorStateRef.current;
+  const sectorNames = ["S1", "S2", "S3"];
+  const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
+
+  return (
+    <div className="border-b border-slate-800">
+      <div className="p-2 border-b border-slate-800">
+        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sectors</h2>
+      </div>
+      <div className="p-3">
+        <div className="grid grid-cols-3 gap-2">
+          {sectorNames.map((name, i) => {
+            const current = i === s.currentSector ? (packet ? packet.CurrentLap - s.sectorStartTime : 0) : s.currentTimes[i];
+            const best = s.bestTimes[i] < Infinity ? s.bestTimes[i] : 0;
+            const last = s.lastTimes[i];
+            const isActive = i === s.currentSector;
+
+            return (
+              <div key={name} className={`rounded p-2 ${isActive ? "bg-slate-800/80 ring-1" : "bg-slate-800/30"}`} style={isActive ? { ringColor: sectorColors[i] } : {}}>
+                <div className="flex items-center gap-1 mb-1">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: sectorColors[i] }} />
+                  <span className="text-[10px] font-semibold text-slate-400">{name}</span>
+                </div>
+                <div className={`text-sm font-mono font-bold tabular-nums ${isActive ? "text-white" : "text-slate-300"}`}>
+                  {current > 0 ? formatLapTime(current) : "--:--.---"}
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span className="text-[8px] text-slate-500">Last</span>
+                  <span className="text-[8px] font-mono text-slate-400">{last > 0 ? formatLapTime(last) : "-"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[8px] text-purple-400">Best</span>
+                  <span className="text-[8px] font-mono text-purple-400">{best > 0 ? formatLapTime(best) : "-"}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type Tab = "live" | "compare" | "tracks" | "raw";
 
 const TABS: { id: Tab; label: string }[] = [
@@ -370,6 +551,9 @@ export default function App() {
                 </div>
               </div>
             )}
+
+            {/* Sector Times */}
+            <SectorTimes packet={packet} />
 
             {/* Lap Time Chart */}
             <LapTimeChart packet={packet} />

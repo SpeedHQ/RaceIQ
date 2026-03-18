@@ -279,13 +279,130 @@ app.get("/api/tracks", (c) => {
   return c.json(tracks);
 });
 
-// GET /api/track-sectors/:ordinal — sector boundaries for a track
+// GET /api/track-sectors/:ordinal — auto-detect corners and straights from curvature
 app.get("/api/track-sectors/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);
   if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
 
-  const sectors = getTrackSectorsByOrdinal(ordinal);
-  return c.json(sectors);
+  const outline = getTrackOutlineByOrdinal(ordinal);
+  if (!outline || outline.length < 20) return c.json({ segments: [] });
+
+  const n = outline.length;
+
+  // Compute cumulative distance
+  const dists = [0];
+  for (let i = 1; i < n; i++) {
+    const dx = outline[i].x - outline[i - 1].x;
+    const dz = outline[i].z - outline[i - 1].z;
+    dists.push(dists[i - 1] + Math.sqrt(dx * dx + dz * dz));
+  }
+  const totalDist = dists[n - 1];
+
+  // Compute curvature at each point using angle change over a window
+  const window = Math.max(3, Math.floor(n / 80));
+  const signedCurvature: number[] = [];
+  const curvature: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const prev = (i - window + n) % n;
+    const next = (i + window) % n;
+    const dx1 = outline[i].x - outline[prev].x;
+    const dz1 = outline[i].z - outline[prev].z;
+    const dx2 = outline[next].x - outline[i].x;
+    const dz2 = outline[next].z - outline[i].z;
+    const angle1 = Math.atan2(dz1, dx1);
+    const angle2 = Math.atan2(dz2, dx2);
+    let diff = angle2 - angle1;
+    while (diff > Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    signedCurvature.push(diff);
+    curvature.push(Math.abs(diff));
+  }
+
+  // Smooth curvature
+  const smoothWindow = Math.max(2, Math.floor(n / 60));
+  const smoothed: number[] = [];
+  for (let i = 0; i < n; i++) {
+    let sum = 0;
+    for (let j = -smoothWindow; j <= smoothWindow; j++) {
+      sum += curvature[(i + j + n) % n];
+    }
+    smoothed.push(sum / (smoothWindow * 2 + 1));
+  }
+
+  // Threshold: points above this are "corner", below are "straight"
+  const sorted = [...smoothed].sort((a, b) => a - b);
+  const threshold = sorted[Math.floor(n * 0.5)]; // median
+
+  // Build segments by classifying each point
+  const segments: { type: "corner" | "straight"; startFrac: number; endFrac: number; startIdx: number; endIdx: number }[] = [];
+  let currentType: "corner" | "straight" = smoothed[0] > threshold ? "corner" : "straight";
+  let segStart = 0;
+
+  for (let i = 1; i < n; i++) {
+    const type = smoothed[i] > threshold ? "corner" : "straight";
+    if (type !== currentType) {
+      segments.push({
+        type: currentType,
+        startFrac: segStart / n,
+        endFrac: i / n,
+        startIdx: segStart,
+        endIdx: i,
+      });
+      currentType = type;
+      segStart = i;
+    }
+  }
+  // Close last segment
+  segments.push({
+    type: currentType,
+    startFrac: segStart / n,
+    endFrac: 1,
+    startIdx: segStart,
+    endIdx: n - 1,
+  });
+
+  // Merge tiny segments (< 2% of track) into neighbors
+  const minFrac = 0.02;
+  const merged: typeof segments = [];
+  for (const seg of segments) {
+    const frac = seg.endFrac - seg.startFrac;
+    if (frac < minFrac && merged.length > 0) {
+      merged[merged.length - 1].endFrac = seg.endFrac;
+      merged[merged.length - 1].endIdx = seg.endIdx;
+    } else {
+      merged.push({ ...seg });
+    }
+  }
+
+  // Name segments with direction for corners
+  let cornerNum = 1;
+  let straightNum = 1;
+  const named = merged.map((seg) => {
+    let name: string;
+    let direction: "left" | "right" | null = null;
+
+    if (seg.type === "corner") {
+      // Sum signed curvature over the segment to determine direction
+      let sumCurv = 0;
+      for (let i = seg.startIdx; i <= Math.min(seg.endIdx, n - 1); i++) {
+        sumCurv += signedCurvature[i];
+      }
+      direction = sumCurv > 0 ? "right" : "left";
+      name = `T${cornerNum++} ${direction === "left" ? "L" : "R"}`;
+    } else {
+      name = `S${straightNum++}`;
+    }
+
+    return {
+      ...seg,
+      name,
+      direction,
+      distStart: dists[seg.startIdx],
+      distEnd: seg.endIdx < n ? dists[seg.endIdx] : totalDist,
+    };
+  });
+
+  return c.json({ segments: named, totalDist });
 });
 
 // GET /api/fuel-history — fuel usage per lap

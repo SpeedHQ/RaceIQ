@@ -22,6 +22,11 @@ export function LiveTrackMap({ packet }: Props) {
   const [noOutline, setNoOutline] = useState(false);
   const lastTrackOrdRef = useRef<number | null>(null);
 
+  // Live trace: build outline from driving data when no pre-made outline exists
+  const liveTraceRef = useRef<Point[]>([]);
+  const lastTracePos = useRef<Point | null>(null);
+  const traceMinDist = 3; // minimum meters between recorded points
+
   // Fetch track outline and sectors when session/track changes
   const fetchOutline = useCallback(async () => {
     try {
@@ -66,6 +71,36 @@ export function LiveTrackMap({ packet }: Props) {
     }
   }, [packet?.LapNumber, fetchOutline]);
 
+  // Reset live trace when track changes
+  useEffect(() => {
+    liveTraceRef.current = [];
+    lastTracePos.current = null;
+  }, [lastTrackOrdRef.current]);
+
+  // Collect live trace points when no pre-made outline
+  useEffect(() => {
+    if (!packet || !noOutline) return;
+    if (packet.PositionX === 0 && packet.PositionZ === 0) return;
+
+    const pos = { x: packet.PositionX, z: packet.PositionZ };
+    const last = lastTracePos.current;
+
+    if (last) {
+      const dx = pos.x - last.x;
+      const dz = pos.z - last.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < traceMinDist) return;
+    }
+
+    liveTraceRef.current.push(pos);
+    lastTracePos.current = pos;
+
+    // Cap at 2000 points (enough for most tracks)
+    if (liveTraceRef.current.length > 2000) {
+      liveTraceRef.current.shift();
+    }
+  }, [packet, noOutline]);
+
   // Redraw
   useEffect(() => {
     draw();
@@ -87,19 +122,24 @@ export function LiveTrackMap({ packet }: Props) {
     const h = rect.height;
     ctx.clearRect(0, 0, w, h);
 
-    if (!outline || outline.length < 2) {
+    // Use live trace as fallback when no pre-made outline
+    const displayOutline = outline ?? (liveTraceRef.current.length >= 5 ? liveTraceRef.current : null);
+
+    if (!displayOutline || displayOutline.length < 2) {
       if (noOutline) {
         ctx.fillStyle = "#475569";
         ctx.font = "12px system-ui";
         ctx.textAlign = "center";
-        ctx.fillText("Track outline not available", w / 2, h / 2);
+        ctx.fillText("Drive to map track...", w / 2, h / 2);
       }
       return;
     }
 
+    const isLiveTrace = !outline;
+
     // Find bounds
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for (const p of outline) {
+    for (const p of displayOutline) {
       minX = Math.min(minX, p.x);
       maxX = Math.max(maxX, p.x);
       minZ = Math.min(minZ, p.z);
@@ -124,50 +164,51 @@ export function LiveTrackMap({ packet }: Props) {
 
     // Draw track outline
     ctx.beginPath();
-    ctx.strokeStyle = "#334155";
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = isLiveTrace ? "#1e3a5f" : "#334155";
+    ctx.lineWidth = isLiveTrace ? 3 : 4;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    const [sx, sy] = toCanvas(outline[0].x, outline[0].z);
+    const [sx, sy] = toCanvas(displayOutline[0].x, displayOutline[0].z);
     ctx.moveTo(sx, sy);
-    for (let i = 1; i < outline.length; i++) {
-      const [px, py] = toCanvas(outline[i].x, outline[i].z);
+    for (let i = 1; i < displayOutline.length; i++) {
+      const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
       ctx.lineTo(px, py);
     }
-    // Close the loop
-    ctx.lineTo(sx, sy);
+    if (!isLiveTrace) ctx.lineTo(sx, sy); // only close loop for pre-made outlines
     ctx.stroke();
 
     // Draw thinner colored line on top
     ctx.beginPath();
-    ctx.strokeStyle = "#64748b";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = isLiveTrace ? "#22d3ee" : "#64748b";
+    ctx.lineWidth = isLiveTrace ? 1.5 : 2;
+    ctx.globalAlpha = isLiveTrace ? 0.6 : 1;
     ctx.moveTo(sx, sy);
-    for (let i = 1; i < outline.length; i++) {
-      const [px, py] = toCanvas(outline[i].x, outline[i].z);
+    for (let i = 1; i < displayOutline.length; i++) {
+      const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
       ctx.lineTo(px, py);
     }
-    ctx.lineTo(sx, sy);
+    if (!isLiveTrace) ctx.lineTo(sx, sy);
     ctx.stroke();
+    ctx.globalAlpha = 1;
 
-    // Sector boundary markers
-    if (sectors) {
+    // Sector boundary markers (only for pre-made outlines)
+    if (sectors && !isLiveTrace) {
       const sectorMarkers = [
-        { frac: sectors.s1End, color: "#ef4444", label: "S1" }, // red
-        { frac: sectors.s2End, color: "#3b82f6", label: "S2" }, // blue
+        { frac: sectors.s1End, color: "#ef4444", label: "S1" },
+        { frac: sectors.s2End, color: "#3b82f6", label: "S2" },
       ];
-      const n = outline.length;
+      const n = displayOutline.length;
 
       for (const { frac, color, label } of sectorMarkers) {
         const idx = Math.round(frac * n) % n;
-        const point = outline[idx];
+        const point = displayOutline[idx];
         const [bx, by] = toCanvas(point.x, point.z);
 
         // Perpendicular tick mark
         const prevIdx = (idx - 1 + n) % n;
         const nextIdx = (idx + 1) % n;
-        const dx = outline[nextIdx].x - outline[prevIdx].x;
-        const dz = outline[nextIdx].z - outline[prevIdx].z;
+        const dx = displayOutline[nextIdx].x - displayOutline[prevIdx].x;
+        const dz = displayOutline[nextIdx].z - displayOutline[prevIdx].z;
         const len = Math.sqrt(dx * dx + dz * dz) || 1;
         const perpX = -dz / len;
         const perpZ = dx / len;
@@ -210,13 +251,23 @@ export function LiveTrackMap({ packet }: Props) {
     }
 
     // Start/finish marker
-    ctx.beginPath();
-    ctx.arc(sx, sy, 5, 0, Math.PI * 2);
-    ctx.fillStyle = "#10b981";
-    ctx.fill();
-    ctx.strokeStyle = "#0f172a";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    if (!isLiveTrace) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx.fillStyle = "#10b981";
+      ctx.fill();
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    // "Building map..." label for live trace
+    if (isLiveTrace) {
+      ctx.fillStyle = "#475569";
+      ctx.font = "10px system-ui";
+      ctx.textAlign = "left";
+      ctx.fillText(`Mapping... ${displayOutline.length} pts`, 8, h - 8);
+    }
 
     // Live car position
     if (packet && (packet.PositionX !== 0 || packet.PositionZ !== 0)) {

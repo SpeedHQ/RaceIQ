@@ -15,16 +15,23 @@ interface Point {
   z: number;
 }
 
-interface TrackSectors {
-  s1End: number;
-  s2End: number;
+interface TrackSegment {
+  type: "corner" | "straight";
+  name: string;
+  startFrac: number;
+  endFrac: number;
+  startIdx: number;
+  endIdx: number;
 }
 
-function TrackCard({ track }: { track: TrackInfo }) {
+interface TrackSectors {
+  segments: TrackSegment[];
+  totalDist: number;
+}
+
+function TrackCard({ track, onSelect }: { track: TrackInfo; onSelect: (t: TrackInfo) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
-  const [sectors, setSectors] = useState<TrackSectors | null>(null);
-  const [selected, setSelected] = useState(false);
 
   useEffect(() => {
     if (!track.hasOutline) return;
@@ -32,25 +39,17 @@ function TrackCard({ track }: { track: TrackInfo }) {
       .then((r) => (r.ok ? r.json() : null))
       .then(setOutline)
       .catch(() => {});
-    fetch(`/api/track-sectors/${track.ordinal}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setSectors)
-      .catch(() => {});
   }, [track.ordinal, track.hasOutline]);
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
-    drawTrack(canvasRef.current, outline, selected, sectors);
-  }, [outline, selected, sectors]);
+    drawTrack(canvasRef.current, outline, false, null);
+  }, [outline]);
 
   return (
     <div
-      className={`border rounded-lg overflow-hidden cursor-pointer transition-all ${
-        selected
-          ? "border-cyan-500 bg-slate-800/80"
-          : "border-slate-800 bg-slate-900/50 hover:border-slate-700"
-      }`}
-      onClick={() => setSelected(!selected)}
+      className="border border-slate-800 rounded-lg overflow-hidden cursor-pointer transition-all bg-slate-900/50 hover:border-slate-700 hover:bg-slate-800/50"
+      onClick={() => onSelect(track)}
     >
       <div className="p-3">
         <div className="text-sm font-medium text-white">{track.name}</div>
@@ -59,7 +58,7 @@ function TrackCard({ track }: { track: TrackInfo }) {
           {track.lengthKm > 0 && ` &middot; ${track.lengthKm} km`}
         </div>
       </div>
-      <div className="bg-slate-950" style={{ height: selected ? 300 : 150 }}>
+      <div className="bg-slate-950" style={{ height: 150 }}>
         {track.hasOutline ? (
           <canvas ref={canvasRef} className="w-full h-full" />
         ) : (
@@ -67,6 +66,114 @@ function TrackCard({ track }: { track: TrackInfo }) {
             No outline available
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [outline, setOutline] = useState<Point[] | null>(null);
+  const [sectors, setSectors] = useState<TrackSectors | null>(null);
+
+  useEffect(() => {
+    if (!track.hasOutline) return;
+    Promise.all([
+      fetch(`/api/track-outline/${track.ordinal}`).then((r) => (r.ok ? r.json() : null)),
+      fetch(`/api/track-sectors/${track.ordinal}`).then((r) => (r.ok ? r.json() : null)),
+    ]).then(([outlineData, sectorData]) => {
+      setOutline(outlineData);
+      setSectors(sectorData);
+    }).catch(() => {});
+  }, [track.ordinal, track.hasOutline]);
+
+  useEffect(() => {
+    if (!outline || !canvasRef.current) return;
+    drawTrack(canvasRef.current, outline, true, sectors);
+  }, [outline, sectors]);
+
+  const corners = sectors?.segments.filter((s) => s.type === "corner") ?? [];
+  const straights = sectors?.segments.filter((s) => s.type === "straight") ?? [];
+
+  return (
+    <div className="p-4 overflow-auto h-full">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <button
+          onClick={onBack}
+          className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 transition-colors"
+        >
+          &larr; Back
+        </button>
+        <div>
+          <div className="text-lg font-semibold text-white">{track.name}</div>
+          <div className="text-xs text-slate-500">
+            {track.variant} &middot; {track.location}, {track.country.toUpperCase()}
+            {track.lengthKm > 0 && ` &middot; ${track.lengthKm} km`}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
+        {/* Large track map */}
+        <div className="bg-slate-950 rounded-lg border border-slate-800" style={{ height: 400 }}>
+          {track.hasOutline ? (
+            <canvas ref={canvasRef} className="w-full h-full" />
+          ) : (
+            <div className="flex items-center justify-center h-full text-xs text-slate-600">
+              No outline available
+            </div>
+          )}
+        </div>
+
+        {/* Track info sidebar */}
+        <div className="flex flex-col gap-3">
+          {/* Stats */}
+          <div className="bg-slate-900/50 rounded-lg border border-slate-800 p-3">
+            <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Track Info</div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <span className="text-slate-500 text-xs">Length</span>
+                <div className="font-mono text-white">{track.lengthKm > 0 ? `${track.lengthKm} km` : "—"}</div>
+              </div>
+              <div>
+                <span className="text-slate-500 text-xs">Corners</span>
+                <div className="font-mono text-white">{corners.length}</div>
+              </div>
+              <div>
+                <span className="text-slate-500 text-xs">Straights</span>
+                <div className="font-mono text-white">{straights.length}</div>
+              </div>
+              <div>
+                <span className="text-slate-500 text-xs">Segments</span>
+                <div className="font-mono text-white">{sectors?.segments.length ?? 0}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Segment list */}
+          {sectors && sectors.segments.length > 0 && (
+            <div className="bg-slate-900/50 rounded-lg border border-slate-800 p-3">
+              <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Segments</div>
+              <div className="flex flex-col gap-1 max-h-[250px] overflow-auto">
+                {sectors.segments.map((seg, i) => {
+                  const pct = ((seg.endFrac - seg.startFrac) * 100).toFixed(1);
+                  const color = seg.type === "corner" ? "text-red-400" : "text-blue-400";
+                  const bg = seg.type === "corner" ? "bg-red-500/10" : "bg-blue-500/10";
+                  return (
+                    <div key={i} className={`flex items-center justify-between px-2 py-1 rounded ${bg}`}>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-mono font-bold ${color}`}>{seg.name}</span>
+                        <span className="text-[10px] text-slate-500 capitalize">{seg.type}</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-400">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -119,72 +226,62 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
   ctx.lineTo(sx, sy);
   ctx.stroke();
 
-  // Inner line
-  ctx.beginPath();
-  ctx.strokeStyle = large ? "#94a3b8" : "#64748b";
-  ctx.lineWidth = large ? 2 : 1.5;
-  ctx.moveTo(sx, sy);
-  for (let i = 1; i < outline.length; i++) {
-    const [px, py] = toCanvas(outline[i].x, outline[i].z);
-    ctx.lineTo(px, py);
-  }
-  ctx.lineTo(sx, sy);
-  ctx.stroke();
-
-  // Sector boundary markers
-  if (sectors) {
-    const sectorColors = [
-      { frac: sectors.s1End, color: "#ef4444", label: "S1" }, // red
-      { frac: sectors.s2End, color: "#3b82f6", label: "S2" }, // blue
-    ];
+  // Inner line — color-coded by segment type
+  if (sectors && sectors.segments.length > 0) {
     const n = outline.length;
-
-    for (const { frac, color, label } of sectorColors) {
-      const idx = Math.round(frac * n) % n;
-      const point = outline[idx];
-      const [bx, by] = toCanvas(point.x, point.z);
-
-      // Draw a perpendicular tick mark at sector boundary
-      const prevIdx = (idx - 1 + n) % n;
-      const nextIdx = (idx + 1) % n;
-      const dx = outline[nextIdx].x - outline[prevIdx].x;
-      const dz = outline[nextIdx].z - outline[prevIdx].z;
-      const len = Math.sqrt(dx * dx + dz * dz) || 1;
-      // Perpendicular direction (normalized)
-      const perpX = -dz / len;
-      const perpZ = dx / len;
-      const tickLen = large ? 10 : 6;
+    for (const seg of sectors.segments) {
+      const start = Math.round(seg.startFrac * n);
+      const end = Math.min(Math.round(seg.endFrac * n), n - 1);
+      const color = seg.type === "corner" ? "#ef4444" : "#3b82f6";
 
       ctx.beginPath();
       ctx.strokeStyle = color;
-      ctx.lineWidth = large ? 3 : 2;
-      ctx.lineCap = "round";
-      const [t1x, t1y] = toCanvas(
-        point.x + perpX * tickLen / scale,
-        point.z + perpZ * tickLen / scale
-      );
-      const [t2x, t2y] = toCanvas(
-        point.x - perpX * tickLen / scale,
-        point.z - perpZ * tickLen / scale
-      );
-      ctx.moveTo(t1x, t1y);
-      ctx.lineTo(t2x, t2y);
+      ctx.globalAlpha = large ? 0.8 : 0.5;
+      ctx.lineWidth = large ? 2 : 1.5;
+      const [fx, fy] = toCanvas(outline[start].x, outline[start].z);
+      ctx.moveTo(fx, fy);
+      for (let i = start + 1; i <= end; i++) {
+        const [px, py] = toCanvas(outline[i].x, outline[i].z);
+        ctx.lineTo(px, py);
+      }
       ctx.stroke();
+      ctx.globalAlpha = 1;
 
-      // Sector dot
-      ctx.beginPath();
-      ctx.arc(bx, by, large ? 4 : 2.5, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
+      // Label at midpoint of segment
+      if (large || seg.type === "corner") {
+        const midIdx = Math.round((start + end) / 2);
+        const midPt = outline[Math.min(midIdx, n - 1)];
+        const [mx, my] = toCanvas(midPt.x, midPt.z);
 
-      // Label (only when expanded)
-      if (large) {
-        ctx.font = "bold 10px system-ui";
+        // Offset label away from track using perpendicular
+        const prevIdx = Math.max(0, midIdx - 2);
+        const nextIdx = Math.min(n - 1, midIdx + 2);
+        const dx = outline[nextIdx].x - outline[prevIdx].x;
+        const dz = outline[nextIdx].z - outline[prevIdx].z;
+        const len = Math.sqrt(dx * dx + dz * dz) || 1;
+        const offDist = large ? 14 : 8;
+        const lx = mx + (-dz / len) * offDist;
+        const ly = my + (dx / len) * offDist;
+
+        ctx.font = large ? "bold 9px monospace" : "bold 7px monospace";
         ctx.fillStyle = color;
+        ctx.globalAlpha = large ? 0.9 : 0.7;
         ctx.textAlign = "center";
-        ctx.fillText(label, bx, by - 8);
+        ctx.fillText(seg.name, lx, ly + 3);
+        ctx.globalAlpha = 1;
       }
     }
+  } else {
+    ctx.beginPath();
+    ctx.strokeStyle = large ? "#94a3b8" : "#64748b";
+    ctx.lineWidth = large ? 2 : 1.5;
+    ctx.moveTo(sx, sy);
+    for (let i = 1; i < outline.length; i++) {
+      const [px, py] = toCanvas(outline[i].x, outline[i].z);
+      ctx.lineTo(px, py);
+    }
+    ctx.lineTo(sx, sy);
+    ctx.stroke();
   }
 
   // Start marker
@@ -192,19 +289,12 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
   ctx.arc(sx, sy, large ? 5 : 3, 0, Math.PI * 2);
   ctx.fillStyle = "#10b981";
   ctx.fill();
-
-  // S3 label at start/finish (only when expanded)
-  if (sectors && large) {
-    ctx.font = "bold 10px system-ui";
-    ctx.fillStyle = "#eab308"; // yellow for S3
-    ctx.textAlign = "center";
-    ctx.fillText("S3", sx, sy - 8);
-  }
 }
 
 export function TrackViewer() {
   const [tracks, setTracks] = useState<TrackInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTrack, setSelectedTrack] = useState<TrackInfo | null>(null);
 
   useEffect(() => {
     fetch("/api/tracks")
@@ -216,6 +306,10 @@ export function TrackViewer() {
 
   if (loading) {
     return <div className="p-4 text-slate-600">Loading tracks...</div>;
+  }
+
+  if (selectedTrack) {
+    return <TrackDetail track={selectedTrack} onBack={() => setSelectedTrack(null)} />;
   }
 
   const withOutline = tracks.filter((t) => t.hasOutline);
@@ -230,7 +324,7 @@ export function TrackViewer() {
       {withOutline.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
           {withOutline.map((t) => (
-            <TrackCard key={t.ordinal} track={t} />
+            <TrackCard key={t.ordinal} track={t} onSelect={setSelectedTrack} />
           ))}
         </div>
       )}
@@ -244,7 +338,8 @@ export function TrackViewer() {
             {withoutOutline.map((t) => (
               <div
                 key={t.ordinal}
-                className="border border-slate-800 rounded-lg p-3 bg-slate-900/30"
+                className="border border-slate-800 rounded-lg p-3 bg-slate-900/30 cursor-pointer hover:border-slate-700"
+                onClick={() => setSelectedTrack(t)}
               >
                 <div className="text-sm text-slate-400">{t.name}</div>
                 <div className="text-xs text-slate-600">

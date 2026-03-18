@@ -70,6 +70,8 @@ for (const [trackName, entry] of Object.entries(TRACK_FILES)) {
   if (existsSync(filePath)) {
     try {
       const data = JSON.parse(readFileSync(filePath, "utf-8")) as Point[];
+      // Reverse outline to match racing direction (external data sources are typically opposite)
+      data.reverse();
       outlinesByName.set(trackName, data);
       sourceByName.set(trackName, entry.source);
     } catch {}
