@@ -264,6 +264,102 @@ forza-telemetry/
 - `client/src/lib/types.ts` — removed; client imports directly from `shared/types.ts` via Vite alias
 - Car/track ordinal-to-name lookup tables are deferred — out of scope for v1, ordinals displayed as numbers
 
+## Phased Roadmap
+
+### Phase 1: Telemetry Pipeline (current spec scope)
+Everything described above — UDP ingestion, packet parsing, WebSocket broadcast, SQLite storage, basic React client with connection status, live values, lap list, and clipboard export. Goal: prove the data pipeline works end-to-end.
+
+### Phase 2: Visualization & Lap Comparison
+
+**Track Map**
+- Render circuit from X/Z position data in telemetry packets
+- Color-code the racing line by channel: speed, throttle, brake, tire temp
+- Show car position dot during lap replay/scrubbing
+- Canvas-based rendering (HTML5 Canvas or lightweight lib like `rough-notation` — no heavy map libraries)
+
+**Telemetry Traces**
+- Time-series graphs: speed, throttle %, brake %, steering, RPM, gear vs distance traveled
+- Use a charting library suited for high-density data (e.g., `uPlot` — fast, small, handles 10k+ points)
+- Synchronized cursor across all charts — hover on one, all highlight the same distance point
+
+**Lap Overlay / Comparison**
+- Select two laps to compare side-by-side
+- Overlay traces on the same chart (Lap A = orange, Lap B = blue, matching TrackTitan's convention)
+- Laps aligned by distance traveled (not time) so cornering differences are visible
+- Synced track map showing both racing lines
+
+**Time Delta Graph**
+- Cumulative time gain/loss vs reference lap plotted over distance
+- Calculated by comparing elapsed time at matching distance points between two laps
+- Green = gaining time, red = losing time
+- This is the single most useful view for identifying where time is lost
+
+**Corner-by-Corner Segmentation**
+- Auto-detect corners from steering + speed data (speed dip + steering angle > threshold = corner)
+- Segment laps into straights and corners, assign labels (T1, T2, etc.)
+- Show per-corner time delta table vs reference lap
+- Store corner definitions per track so they persist across sessions
+
+**New REST endpoints for Phase 2:**
+- `GET /api/laps/:id1/compare/:id2` — pre-computed comparison data (aligned traces, time deltas, per-corner breakdown)
+- `GET /api/tracks/:trackOrdinal/corners` — stored corner definitions
+- `PUT /api/tracks/:trackOrdinal/corners` — save/update corner definitions
+
+**New client components:**
+- `TrackMap.tsx` — canvas-rendered circuit with racing line
+- `TelemetryChart.tsx` — uPlot-based trace charts with synced cursor
+- `LapComparison.tsx` — dual-lap overlay view
+- `TimeDelta.tsx` — gain/loss graph
+- `CornerTable.tsx` — per-corner time delta breakdown
+
+### Phase 3: AI-Powered Coaching & Tune Optimization
+
+**Structured Corner Analysis Export**
+- Expand the Claude export format to include per-corner breakdowns:
+  - Entry speed, apex speed, exit speed
+  - Braking point (distance from corner entry)
+  - Throttle application point (distance from apex)
+  - Time delta vs reference lap per corner
+  - Tire temp differential (inner vs outer, front vs rear)
+  - Suspension travel extremes (bottoming out, full extension)
+- Format designed for Claude to give actionable advice like "You're braking 15m too early into T3, costing 0.3s — try trail-braking deeper"
+
+**Tune Analysis Export**
+- Dedicated tuning export that focuses on car behavior signals:
+  - Understeer/oversteer indicators (tire slip angle front vs rear)
+  - Tire temp distribution (hot outside = too much camber, hot inside = not enough)
+  - Tire wear pattern across a stint
+  - Suspension travel utilization (% of travel used = spring rate indicator)
+  - Ride height inference from suspension data
+  - Brake bias indicators (front vs rear lock-up frequency from wheel speed data)
+- Claude receives this and suggests specific Forza tuning changes:
+  - Spring rates, damping, anti-roll bars
+  - Camber, toe, caster
+  - Brake bias, brake pressure
+  - Differential accel/decel
+  - Aero (if applicable)
+  - Tire pressures
+
+**Coaching Flows**
+- "Biggest time loss" — automatically identify the corner with the largest time delta and generate a focused coaching prompt
+- "Consistency check" — compare multiple laps from the same session, highlight corners with high variance
+- "Setup comparison" — record laps with two different setups, export both for Claude to compare and recommend which direction to go
+
+**New REST endpoints for Phase 3:**
+- `GET /api/laps/:id/coaching` — structured per-corner analysis for Claude
+- `GET /api/laps/:id/tune-analysis` — car behavior analysis for Claude
+- `GET /api/sessions/:id/consistency` — multi-lap variance report
+
+### Phase Summary
+
+| Phase | Focus | Key Deliverable |
+|-------|-------|----------------|
+| 1 | Data pipeline | UDP → WebSocket → SQLite → basic UI |
+| 2 | Visualization | Track map, traces, lap comparison, corner segmentation |
+| 3 | AI coaching | Structured exports for Claude driving & tuning advice |
+
+Each phase is independently useful. Phase 1 proves data works. Phase 2 makes it visual. Phase 3 makes it intelligent.
+
 ## Decisions & Trade-offs
 
 1. **Bun over Node.js** — native UDP, WebSocket, and SQLite eliminate 3 dependencies
@@ -272,3 +368,7 @@ forza-telemetry/
 4. **30Hz throttle** — halves bandwidth to client with no perceptible loss for visualization
 5. **Manual Claude export over API** — no API key management, user controls what data is shared
 6. **Gzip compression** — significant storage savings on repetitive float data with negligible CPU cost
+7. **uPlot for charts** — tiny footprint (~35KB), handles 10k+ data points at 60fps, no React wrapper overhead
+8. **Distance-based alignment** — comparing laps by distance (not time) is standard in motorsport telemetry; reveals cornering differences that time-alignment hides
+9. **Auto corner detection** — avoids manual track configuration; steering + speed heuristics work well enough for initial segmentation, with manual override stored per track
+10. **Phased delivery** — each phase is independently useful; no big-bang launch risk
