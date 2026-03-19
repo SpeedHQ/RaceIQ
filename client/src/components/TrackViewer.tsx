@@ -875,8 +875,8 @@ function TrackTunes({ trackName, trackVariant }: { trackName: string; trackVaria
                         <div className="flex justify-between"><span className="text-app-text-muted">Final Drive</span><span className="font-mono text-app-text">{tune.settings.gearing.finalDrive.toFixed(2)}</span></div>
                         <div className="flex justify-between"><span className="text-app-text-muted">Front Camber</span><span className="font-mono text-app-text">{tune.settings.alignment.frontCamber.toFixed(1)}&deg;</span></div>
                         <div className="flex justify-between"><span className="text-app-text-muted">Rear Camber</span><span className="font-mono text-app-text">{tune.settings.alignment.rearCamber.toFixed(1)}&deg;</span></div>
-                        <div className="flex justify-between"><span className="text-app-text-muted">Front ARB</span><span className="font-mono text-app-text">{tune.settings.antirollBars.front.toFixed(1)}</span></div>
-                        <div className="flex justify-between"><span className="text-app-text-muted">Rear ARB</span><span className="font-mono text-app-text">{tune.settings.antirollBars.rear.toFixed(1)}</span></div>
+                        <div className="flex justify-between"><span className="text-app-text-muted">Front ARB</span><span className="font-mono text-app-text">{tune.settings.antiRollBars.front.toFixed(1)}</span></div>
+                        <div className="flex justify-between"><span className="text-app-text-muted">Rear ARB</span><span className="font-mono text-app-text">{tune.settings.antiRollBars.rear.toFixed(1)}</span></div>
                       </div>
                     </div>
 
