@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 
 interface TrackInfo {
@@ -148,6 +148,8 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
     setEditSegments((prev) => {
       const next = prev.map((s) => ({ ...s }));
       next[idx].type = next[idx].type === "corner" ? "straight" : "corner";
+      // Clear name when type changes so display auto-name kicks in
+      next[idx].name = "";
       return next;
     });
   }, []);
@@ -157,10 +159,10 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
       const next = [...prev];
       const current = next[afterIdx];
       const midFrac = (current.startFrac + current.endFrac) / 2;
-      // Split current segment at midpoint
+      const newType = current.type === "corner" ? "straight" : "corner";
       const newSeg: TrackSegment = {
-        type: current.type === "corner" ? "straight" : "corner",
-        name: current.type === "corner" ? "S?" : "T?",
+        type: newType,
+        name: newType === "straight" ? "S?" : "T?",
         startFrac: midFrac,
         endFrac: current.endFrac,
         startIdx: 0,
@@ -202,6 +204,19 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
     } catch {}
     setSaving(false);
   }, [editSegments, track.ordinal, sectors]);
+
+  // Build display names: auto-number empty/unnamed straights
+  const segDisplayNames = useMemo(() => {
+    const segs = editing ? editSegments : (displaySectors?.segments ?? []);
+    let sNum = 1;
+    return segs.map((s) => {
+      if (s.type === "straight" && (!s.name || /^S[\d?]*$/.test(s.name))) {
+        return `S${sNum++}`;
+      }
+      if (s.type === "straight") sNum++;
+      return s.name;
+    });
+  }, [editing, editSegments, displaySectors]);
 
   const corners = displaySectors?.segments.filter((s) => s.type === "corner") ?? [];
   const straights = displaySectors?.segments.filter((s) => s.type === "straight") ?? [];
@@ -320,7 +335,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
                     return (
                       <div key={i} className={`flex items-center justify-between px-2 py-1 rounded ${bg}`}>
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs font-mono font-bold ${color}`}>{seg.name}</span>
+                          <span className={`text-xs font-mono font-bold ${color}`}>{segDisplayNames[i]}</span>
                           <span className="text-[10px] text-slate-500 capitalize">{seg.type}</span>
                         </div>
                         <span className="text-[10px] font-mono text-slate-400">{pct}%</span>
@@ -339,8 +354,9 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
                         </button>
                         <input
                           value={seg.name}
+                          placeholder={segDisplayNames[i]}
                           onChange={(e) => updateSegName(i, e.target.value)}
-                          className="flex-1 text-xs font-mono bg-transparent border-b border-slate-700 text-white outline-none px-1"
+                          className="flex-1 text-xs font-mono bg-transparent border-b border-slate-700 text-white outline-none px-1 placeholder:text-slate-600"
                         />
                         <button
                           onClick={() => addSegment(i)}
@@ -450,7 +466,17 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
     const n = outline.length;
     let cornerIdx = 0, straightIdx = 0;
 
+    // Build display names: auto-number unnamed straights
+    let sNum = 1;
+    const displayNames = sectors.segments.map((s) => {
+      if (s.type === "straight" && (!s.name || /^S[\d?]*$/.test(s.name))) return `S${sNum++}`;
+      if (s.type === "straight") sNum++;
+      return s.name;
+    });
+
+    let segIdx = 0;
     for (const seg of sectors.segments) {
+      const displayName = displayNames[segIdx++];
       const start = Math.round(seg.startFrac * n);
       const end = Math.min(Math.round(seg.endFrac * n), n - 1);
       const color = seg.type === "corner"
@@ -499,10 +525,19 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
         const ly = my + (dx / len) * offDist;
 
         ctx.font = large ? "bold 9px monospace" : "bold 7px monospace";
-        ctx.fillStyle = color;
-        ctx.globalAlpha = large ? 0.9 : 0.7;
         ctx.textAlign = "center";
-        ctx.fillText(seg.name, lx, ly + 3);
+        // Background pill behind label
+        const textWidth = ctx.measureText(displayName).width;
+        const padX = 3, padY = 2;
+        ctx.globalAlpha = large ? 0.85 : 0.6;
+        ctx.fillStyle = "#0f172a";
+        ctx.beginPath();
+        ctx.roundRect(lx - textWidth / 2 - padX, ly + 3 - 7 - padY, textWidth + padX * 2, 10 + padY * 2, 3);
+        ctx.fill();
+        // Label text
+        ctx.globalAlpha = large ? 0.95 : 0.8;
+        ctx.fillStyle = color;
+        ctx.fillText(displayName, lx, ly + 3);
         ctx.globalAlpha = 1;
       }
     }
