@@ -302,6 +302,30 @@ function detectEarlyBraking(telemetry: TelemetryPacket[]): LapInsight | null {
   };
 }
 
+function detectCounterSteer(telemetry: TelemetryPacket[]): LapInsight | null {
+  // Car is rotating one way (yaw rate) but driver is steering the opposite way to catch a slide
+  // AngularVelocityY = yaw rate (rad/s), Steer = -128 to 127
+  // Positive yaw + negative steer (or vice versa) at speed = counter-steering
+  const flags = telemetry.map((p) => {
+    if (p.Speed * 2.23694 < 20) return false; // skip low speed
+    const yawRate = p.AngularVelocityY;
+    const steer = p.Steer;
+    // Both must be significant, and in opposite directions
+    return Math.abs(yawRate) > 0.3 && Math.abs(steer) > 20 &&
+           Math.sign(yawRate) !== Math.sign(steer);
+  });
+  const events = groupEvents(flags, 3);
+  if (events.length === 0) return null;
+  return {
+    id: "driving-counter-steer",
+    category: "driving",
+    severity: events.length >= 5 ? "critical" : events.length >= 2 ? "warning" : "info",
+    label: "Counter-Steer",
+    detail: `${events.length} correction${events.length > 1 ? "s" : ""} — Loss of rear traction`,
+    frameIndices: midFrame(events),
+  };
+}
+
 function detectThrottleTractionLoss(telemetry: TelemetryPacket[]): LapInsight | null {
   // Heavy throttle + any wheel spinning = losing drive
   const flags = telemetry.map((p) => {
@@ -461,6 +485,8 @@ export function analyzeLap(telemetry: TelemetryPacket[]): LapInsight[] {
   if (coast) insights.push(coast);
   const trail = detectTrailBraking(telemetry);
   if (trail) insights.push(trail);
+  const counterSteer = detectCounterSteer(telemetry);
+  if (counterSteer) insights.push(counterSteer);
   const earlyBrake = detectEarlyBraking(telemetry);
   if (earlyBrake) insights.push(earlyBrake);
   const throttleLoss = detectThrottleTractionLoss(telemetry);
