@@ -91,6 +91,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   const [editSegments, setEditSegments] = useState<TrackSegment[]>([]);
   const [saving, setSaving] = useState(false);
   const [leaderboard, setLeaderboard] = useState<Record<string, { lapId: number; lapNumber: number; lapTime: number; carName: string; carClass: string; pi: number }[]> | null>(null);
+  const [selectedClass, setSelectedClass] = useState<string>("all");
 
   useEffect(() => {
     if (!track.hasOutline) return;
@@ -411,32 +412,52 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
       </div>
 
       {/* Fastest laps by PI class */}
-      {leaderboard && Object.keys(leaderboard).length > 0 && (
-        <div className="mt-4">
-          <div className="text-xs text-slate-500 uppercase tracking-wider mb-3">Fastest Laps by Class</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {Object.entries(leaderboard).map(([cls, laps]) => {
-              const classColors: Record<string, string> = {
-                X: "border-purple-500/50 bg-purple-500/5",
-                P: "border-pink-500/50 bg-pink-500/5",
-                R: "border-red-500/50 bg-red-500/5",
-                S2: "border-orange-500/50 bg-orange-500/5",
-                S1: "border-amber-500/50 bg-amber-500/5",
-                A: "border-green-500/50 bg-green-500/5",
-                B: "border-blue-500/50 bg-blue-500/5",
-                C: "border-cyan-500/50 bg-cyan-500/5",
-                D: "border-slate-500/50 bg-slate-500/5",
-              };
-              const textColors: Record<string, string> = {
-                X: "text-purple-400", P: "text-pink-400", R: "text-red-400",
-                S2: "text-orange-400", S1: "text-amber-400", A: "text-green-400",
-                B: "text-blue-400", C: "text-cyan-400", D: "text-slate-400",
-              };
-              return (
+      {leaderboard && Object.keys(leaderboard).length > 0 && (() => {
+        const classes = Object.keys(leaderboard);
+        const textColors: Record<string, string> = {
+          X: "text-purple-400", P: "text-pink-400", R: "text-red-400",
+          S2: "text-orange-400", S1: "text-amber-400", A: "text-green-400",
+          B: "text-blue-400", C: "text-cyan-400", D: "text-slate-400",
+        };
+        const classColors: Record<string, string> = {
+          X: "border-purple-500/50 bg-purple-500/5",
+          P: "border-pink-500/50 bg-pink-500/5",
+          R: "border-red-500/50 bg-red-500/5",
+          S2: "border-orange-500/50 bg-orange-500/5",
+          S1: "border-amber-500/50 bg-amber-500/5",
+          A: "border-green-500/50 bg-green-500/5",
+          B: "border-blue-500/50 bg-blue-500/5",
+          C: "border-cyan-500/50 bg-cyan-500/5",
+          D: "border-slate-500/50 bg-slate-500/5",
+        };
+        const filtered = selectedClass === "all"
+          ? Object.entries(leaderboard)
+          : Object.entries(leaderboard).filter(([cls]) => cls === selectedClass);
+
+        return (
+          <div className="mt-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="text-xs text-slate-500 uppercase tracking-wider">Fastest Laps</div>
+              <select
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                className="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+              >
+                <option value="all">All Classes ({classes.length})</option>
+                {classes.map((cls) => (
+                  <option key={cls} value={cls}>
+                    {cls} Class ({leaderboard[cls].length} laps)
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {filtered.map(([cls, laps]) => (
                 <div key={cls} className={`rounded-lg border p-3 ${classColors[cls] ?? "border-slate-800 bg-slate-900/50"}`}>
                   <div className="flex items-center gap-2 mb-2">
                     <span className={`text-sm font-bold font-mono ${textColors[cls] ?? "text-slate-400"}`}>{cls}</span>
                     <span className="text-[10px] text-slate-500">Class</span>
+                    <span className="text-[10px] text-slate-600 ml-auto">{laps.length} laps</span>
                   </div>
                   <div className="space-y-1">
                     {laps.map((lap, i) => (
@@ -453,11 +474,11 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
                     ))}
                   </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

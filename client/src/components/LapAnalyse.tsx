@@ -114,7 +114,17 @@ function AnalyseTrackMap({
     // Thinner line — colored by segments (corners vs straights) if available
     if (segments && segments.length > 0) {
       const n = displayOutline.length;
-      for (const seg of segments) {
+
+      // Auto-number unnamed straights for display
+      let sNum = 1;
+      const segDisplayNames = segments.map((s) => {
+        if (s.type === "straight" && (!s.name || /^S[\d?]*$/.test(s.name))) return `S${sNum++}`;
+        if (s.type === "straight") sNum++;
+        return s.name;
+      });
+
+      for (let si = 0; si < segments.length; si++) {
+        const seg = segments[si];
         const startIdx = Math.round(seg.startFrac * (n - 1));
         const endIdx = Math.round(seg.endFrac * (n - 1));
         if (startIdx >= endIdx) continue;
@@ -132,14 +142,15 @@ function AnalyseTrackMap({
         ctx.stroke();
 
         // Label at midpoint
+        const displayName = segDisplayNames[si];
         const midIdx = Math.round((startIdx + endIdx) / 2);
         const midPt = displayOutline[Math.min(midIdx, n - 1)];
-        if (midPt && seg.name) {
+        if (midPt && displayName) {
           const [lx, ly] = toCanvas(midPt.x, midPt.z);
           ctx.font = "bold 7px monospace";
           ctx.fillStyle = seg.type === "corner" ? "#fbbf24" : "#60a5fa";
           ctx.textAlign = "center";
-          ctx.fillText(seg.name, lx, ly - 6);
+          ctx.fillText(displayName, lx, ly - 6);
         }
       }
     } else {
@@ -840,7 +851,16 @@ export function LapAnalyse() {
       ? (telemetry[cursorIdx]?.DistanceTraveled - firstDist) / lapDist
       : 0;
 
-    for (const seg of segments) {
+    // Auto-number unnamed straights for display
+    let sNum = 1;
+    const displayNames = segments.map((s) => {
+      if (s.type === "straight" && (!s.name || /^S[\d?]*$/.test(s.name))) return `S${sNum++}`;
+      if (s.type === "straight") sNum++;
+      return s.name;
+    });
+
+    for (let si = 0; si < segments.length; si++) {
+      const seg = segments[si];
       let startTime = 0;
       let endTime = 0;
       let foundStart = false;
@@ -863,7 +883,7 @@ export function LapAnalyse() {
       const active = cursorFrac >= seg.startFrac && cursorFrac < seg.endFrac;
       const completed = cursorFrac >= seg.endFrac;
       result.push({
-        name: seg.name,
+        name: displayNames[si],
         type: seg.type,
         time: foundStart ? endTime - startTime : 0,
         active,
