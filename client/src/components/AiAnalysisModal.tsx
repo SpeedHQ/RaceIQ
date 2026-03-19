@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import html2canvas from "html2canvas";
 import {
   Sparkles, X, RefreshCw, Gauge, Sliders, AlertTriangle,
-  Lightbulb, Wrench, SlidersHorizontal,
+  Lightbulb, Wrench, SlidersHorizontal, Download,
 } from "lucide-react";
 
 interface AiAnalysisModalProps {
@@ -111,6 +112,7 @@ export function AiAnalysisModal({
   trackName,
 }: AiAnalysisModalProps) {
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -136,6 +138,29 @@ export function AiAnalysisModal({
     },
     [lapId]
   );
+
+  const handleExportImage = useCallback(async () => {
+    const el = contentRef.current;
+    if (!el) return;
+    // Temporarily expand to full scroll height so html2canvas captures everything
+    const origHeight = el.style.maxHeight;
+    const origOverflow = el.style.overflow;
+    el.style.maxHeight = "none";
+    el.style.overflow = "visible";
+    try {
+      const canvas = await html2canvas(el, {
+        backgroundColor: "#0f172a", // slate-900
+        scale: 2,
+      });
+      const link = document.createElement("a");
+      link.download = `ai-analysis-${carName}-${trackName}.png`.replace(/\s+/g, "-");
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } finally {
+      el.style.maxHeight = origHeight;
+      el.style.overflow = origOverflow;
+    }
+  }, [carName, trackName]);
 
   useEffect(() => {
     if (open && lapId) {
@@ -165,7 +190,7 @@ export function AiAnalysisModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+        <div ref={contentRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           {loading && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <div className="size-8 border-2 border-slate-600 border-t-amber-400 rounded-full animate-spin" />
@@ -300,6 +325,13 @@ export function AiAnalysisModal({
         {/* Footer */}
         {analysis && !loading && (
           <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-700 shrink-0">
+            <button
+              onClick={handleExportImage}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 rounded px-3 py-1.5 transition-colors"
+            >
+              <Download className="size-3" />
+              Save Image
+            </button>
             <button
               onClick={() => fetchAnalysis(true)}
               disabled={loading}
