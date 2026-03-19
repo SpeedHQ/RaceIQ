@@ -348,36 +348,70 @@ export function hasRecordedOutline(trackOrdinal: number): boolean {
   return !!row;
 }
 
+export interface AnalysisRow {
+  analysis: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  durationMs: number;
+  model: string;
+}
+
 /**
- * Get cached AI analysis for a lap. Returns the analysis text or null.
+ * Get cached AI analysis for a lap. Returns analysis + usage stats or null.
  */
-export function getAnalysis(lapId: number): string | null {
+export function getAnalysis(lapId: number): AnalysisRow | null {
   const row = db
-    .select({ analysis: lapAnalyses.analysis })
+    .select({
+      analysis: lapAnalyses.analysis,
+      inputTokens: lapAnalyses.inputTokens,
+      outputTokens: lapAnalyses.outputTokens,
+      costUsd: lapAnalyses.costUsd,
+      durationMs: lapAnalyses.durationMs,
+      model: lapAnalyses.model,
+    })
     .from(lapAnalyses)
     .where(eq(lapAnalyses.lapId, lapId))
     .get();
-  return row?.analysis ?? null;
+  return row ?? null;
+}
+
+export interface AnalysisUsage {
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  durationMs: number;
+  model: string;
 }
 
 /**
  * Save or replace AI analysis for a lap.
  */
-export function saveAnalysis(lapId: number, analysis: string): void {
+export function saveAnalysis(lapId: number, analysis: string, usage: AnalysisUsage): void {
   const existing = db
     .select({ id: lapAnalyses.id })
     .from(lapAnalyses)
     .where(eq(lapAnalyses.lapId, lapId))
     .get();
 
+  const values = {
+    analysis,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    costUsd: usage.costUsd,
+    durationMs: usage.durationMs,
+    model: usage.model,
+    createdAt: sql`(datetime('now'))`,
+  };
+
   if (existing) {
     db.update(lapAnalyses)
-      .set({ analysis, createdAt: sql`(datetime('now'))` })
+      .set(values)
       .where(eq(lapAnalyses.lapId, lapId))
       .run();
   } else {
     db.insert(lapAnalyses)
-      .values({ lapId, analysis })
+      .values({ lapId, ...values })
       .run();
   }
 }

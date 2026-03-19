@@ -112,6 +112,7 @@ export function AiAnalysisModal({
   trackName,
 }: AiAnalysisModalProps) {
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
+  const [usage, setUsage] = useState<{ inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -130,6 +131,7 @@ export function AiAnalysisModal({
         const data = await res.json();
         const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
         setAnalysis(parsed);
+        if (data.usage) setUsage(data.usage);
       } catch (err: any) {
         setError(err.message || "Failed to fetch analysis");
       } finally {
@@ -331,7 +333,15 @@ export function AiAnalysisModal({
 
         {/* Footer */}
         {analysis && !loading && (
-          <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-700 shrink-0">
+          <div className="flex items-center gap-2 px-5 py-3 border-t border-slate-700 shrink-0">
+            {usage && (
+              <div className="flex items-center gap-3 text-[10px] text-slate-500 font-mono mr-auto">
+                <span>{usage.inputTokens.toLocaleString()} in</span>
+                <span>{usage.outputTokens.toLocaleString()} out</span>
+                <span>${usage.costUsd.toFixed(4)}</span>
+                <span>{(usage.durationMs / 1000).toFixed(1)}s</span>
+              </div>
+            )}
             <button
               onClick={handleExportImage}
               className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 rounded px-3 py-1.5 transition-colors"

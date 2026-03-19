@@ -161,7 +161,17 @@ app.post("/api/laps/:id/analyse", async (c) => {
   if (!regenerate) {
     const cached = getAnalysis(id);
     if (cached) {
-      return c.json({ analysis: cached, cached: true });
+      return c.json({
+        analysis: cached.analysis,
+        cached: true,
+        usage: {
+          inputTokens: cached.inputTokens,
+          outputTokens: cached.outputTokens,
+          costUsd: cached.costUsd,
+          durationMs: cached.durationMs,
+          model: cached.model,
+        },
+      });
     }
   }
 
@@ -184,7 +194,7 @@ app.post("/api/laps/:id/analyse", async (c) => {
 
   // Spawn claude CLI, pipe prompt via stdin
   try {
-    const proc = Bun.spawn(["claude", "-p", "-", "--model", "haiku"], {
+    const proc = Bun.spawn(["claude", "-p", "-", "--model", "haiku", "--output-format", "json"], {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
@@ -223,23 +233,48 @@ app.post("/api/laps/:id/analyse", async (c) => {
       return c.json({ error: "AI returned empty response" }, 500);
     }
 
-    // Extract JSON from response (Claude may wrap in markdown fences)
-    let jsonStr = raw.trim();
-    const fenceMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-    if (fenceMatch) jsonStr = fenceMatch[1].trim();
-
-    // Validate it parses as JSON
+    // Parse the Claude CLI JSON envelope
+    let envelope: any;
     try {
-      JSON.parse(jsonStr);
+      envelope = JSON.parse(raw.trim());
     } catch {
-      console.error("[AI] Claude returned invalid JSON:", jsonStr.slice(0, 200));
+      console.error("[AI] Claude returned invalid envelope:", raw.slice(0, 200));
       return c.json({ error: "AI returned invalid response format" }, 500);
     }
 
-    // Cache the validated JSON string
-    saveAnalysis(id, jsonStr);
+    const resultText = envelope.result ?? "";
+    if (!resultText.trim()) {
+      return c.json({ error: "AI returned empty result" }, 500);
+    }
 
-    return c.json({ analysis: jsonStr, cached: false });
+    // Extract the analysis JSON from the result (may be wrapped in markdown fences)
+    let jsonStr = resultText.trim();
+    const fenceMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+    if (fenceMatch) jsonStr = fenceMatch[1].trim();
+
+    // Validate analysis JSON
+    try {
+      JSON.parse(jsonStr);
+    } catch {
+      console.error("[AI] Claude returned invalid analysis JSON:", jsonStr.slice(0, 200));
+      return c.json({ error: "AI returned invalid analysis format" }, 500);
+    }
+
+    // Extract usage stats
+    const usage = {
+      inputTokens: (envelope.usage?.input_tokens ?? 0) +
+        (envelope.usage?.cache_read_input_tokens ?? 0) +
+        (envelope.usage?.cache_creation_input_tokens ?? 0),
+      outputTokens: envelope.usage?.output_tokens ?? 0,
+      costUsd: envelope.total_cost_usd ?? 0,
+      durationMs: envelope.duration_ms ?? 0,
+      model: Object.keys(envelope.modelUsage ?? {})[0] ?? "unknown",
+    };
+
+    // Cache the validated JSON string with usage
+    saveAnalysis(id, jsonStr, usage);
+
+    return c.json({ analysis: jsonStr, cached: false, usage });
   } catch (err) {
     console.error("[AI] Failed to spawn claude:", err);
     return c.json(

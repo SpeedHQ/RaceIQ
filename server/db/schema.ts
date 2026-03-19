@@ -77,6 +77,11 @@ export const lapAnalyses = sqliteTable("lap_analyses", {
     .notNull()
     .references(() => laps.id, { onDelete: "cascade" }),
   analysis: text("analysis").notNull(),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  costUsd: real("cost_usd").notNull().default(0),
+  durationMs: integer("duration_ms").notNull().default(0),
+  model: text("model").notNull().default(""),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),

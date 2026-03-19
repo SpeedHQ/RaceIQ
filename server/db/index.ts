@@ -62,10 +62,15 @@ sqlite.exec(`
   CREATE INDEX IF NOT EXISTS idx_outlines_track ON track_outlines(track_ordinal);
 
   CREATE TABLE IF NOT EXISTS lap_analyses (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    lap_id      INTEGER NOT NULL UNIQUE REFERENCES laps(id) ON DELETE CASCADE,
-    analysis    TEXT NOT NULL,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    lap_id          INTEGER NOT NULL UNIQUE REFERENCES laps(id) ON DELETE CASCADE,
+    analysis        TEXT NOT NULL,
+    input_tokens    INTEGER NOT NULL DEFAULT 0,
+    output_tokens   INTEGER NOT NULL DEFAULT 0,
+    cost_usd        REAL NOT NULL DEFAULT 0,
+    duration_ms     INTEGER NOT NULL DEFAULT 0,
+    model           TEXT NOT NULL DEFAULT '',
+    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
 `);
@@ -75,6 +80,17 @@ try {
   sqlite.exec("ALTER TABLE track_outlines ADD COLUMN sectors TEXT");
 } catch {
   // Column already exists — ignore
+}
+
+// Migration: add token tracking columns to lap_analyses (for existing DBs)
+for (const col of [
+  "ALTER TABLE lap_analyses ADD COLUMN input_tokens INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE lap_analyses ADD COLUMN output_tokens INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE lap_analyses ADD COLUMN cost_usd REAL NOT NULL DEFAULT 0",
+  "ALTER TABLE lap_analyses ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE lap_analyses ADD COLUMN model TEXT NOT NULL DEFAULT ''",
+]) {
+  try { sqlite.exec(col); } catch {}
 }
 
 export const db = drizzle(sqlite, { schema });
