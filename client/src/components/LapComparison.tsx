@@ -4,6 +4,8 @@ import { TrackMap } from "./TrackMap";
 import { TelemetryChart } from "./TelemetryChart";
 import { TimeDelta } from "./TimeDelta";
 import { CornerTable } from "./CornerTable";
+import { speedLabel } from "../lib/speed";
+import { useTelemetry } from "../context/telemetry";
 
 const SYNC_KEY = "lap-compare";
 const COLOR_A = "#f97316"; // orange
@@ -23,6 +25,7 @@ interface TrackGroup {
 }
 
 export function LapComparison() {
+  const { displaySettings } = useTelemetry();
   const [laps, setLaps] = useState<LapMeta[]>([]);
   const [trackGroups, setTrackGroups] = useState<TrackGroup[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<number | null>(null);
@@ -314,7 +317,7 @@ export function LapComparison() {
               data={{
                 distance: comparison.traces.distance,
                 values: [comparison.traces.speedA, comparison.traces.speedB],
-                labels: ["Speed A (mph)", "Speed B (mph)"],
+                labels: [`Speed A (${speedLabel(displaySettings.speedUnit)})`, `Speed B (${speedLabel(displaySettings.speedUnit)})`],
                 colors: [COLOR_A, COLOR_B],
               }}
               syncKey={SYNC_KEY}

@@ -16,6 +16,8 @@ import {
   frictionUtilColor,
   balanceColor,
 } from "../lib/vehicle-dynamics";
+import { convertSpeed, speedLabel } from "../lib/speed";
+import { useTelemetry } from "../context/telemetry";
 
 interface Point {
   x: number;
@@ -406,7 +408,8 @@ function TelemetryChart({
 // ── Metrics Panel ────────────────────────────────────────────────────
 
 function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket; startFuel?: number }) {
-  const speedMph = pkt.Speed * 2.23694;
+  const { displaySettings } = useTelemetry();
+  const speed = convertSpeed(pkt.Speed, displaySettings.speedUnit);
   const throttlePct = ((pkt.Accel / 255) * 100).toFixed(0);
   const brakePct = ((pkt.Brake / 255) * 100).toFixed(0);
   const lock = getSteeringLock();
@@ -414,7 +417,7 @@ function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket; startFuel?: nu
 
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono">
-      <MetricRow label="Speed" value={`${speedMph.toFixed(0)} mph`} />
+      <MetricRow label="Speed" value={`${speed.toFixed(0)} ${speedLabel(displaySettings.speedUnit)}`} />
       <MetricRow label="RPM" value={`${pkt.CurrentEngineRpm.toFixed(0)}`} />
       <MetricRow label="Gear" value={`${pkt.Gear}`} />
       <MetricRow label="Throttle" value={`${throttlePct}%`} color={Number(throttlePct) > 50 ? "#34d399" : undefined} />
@@ -514,6 +517,7 @@ function SuspValue({ label, value }: { label: string; value: number }) {
 export function LapAnalyse() {
   const search = useSearch({ from: "/analyse" });
   const navigate = useNavigate({ from: "/analyse" });
+  const { displaySettings } = useTelemetry();
 
   const [laps, setLaps] = useState<LapMeta[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);
@@ -770,7 +774,7 @@ export function LapAnalyse() {
     const steering: number[] = [];
 
     for (const p of telemetry) {
-      speed.push(p.Speed * 2.23694); // m/s -> mph
+      speed.push(convertSpeed(p.Speed, displaySettings.speedUnit));
       throttle.push((p.Accel / 255) * 100);
       brake.push((p.Brake / 255) * 100);
       rpm.push(p.CurrentEngineRpm);
@@ -922,7 +926,7 @@ export function LapAnalyse() {
       `Packet ${cursorIdx + 1}/${telemetry.length} | ${formatLapTime(p.CurrentLap)} / ${formatLapTime(totalTime)}`,
       `Track: ${trackName} | Car: ${carName} | Lap: ${selectedLap?.lapNumber ?? "?"}`,
       ``,
-      `Speed: ${(p.Speed * 2.23694).toFixed(0)} mph`,
+      `Speed: ${convertSpeed(p.Speed, displaySettings.speedUnit).toFixed(0)} ${speedLabel(displaySettings.speedUnit)}`,
       `RPM: ${p.CurrentEngineRpm.toFixed(0)} / ${p.EngineMaxRpm.toFixed(0)}`,
       `Gear: ${p.Gear}`,
       `Throttle: ${((p.Accel / 255) * 100).toFixed(0)}%`,
@@ -1118,7 +1122,7 @@ export function LapAnalyse() {
               {currentPacket && (
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-lg font-mono font-bold text-cyan-400">{currentPacket.Gear === 0 ? "R" : currentPacket.Gear === 11 ? "N" : currentPacket.Gear}</span>
-                  <span className="text-xl font-mono font-bold tabular-nums text-white">{(currentPacket.Speed * 2.23694).toFixed(0)} <span className="text-[10px] text-slate-500">mph</span></span>
+                  <span className="text-xl font-mono font-bold tabular-nums text-white">{convertSpeed(currentPacket.Speed, displaySettings.speedUnit).toFixed(0)} <span className="text-[10px] text-slate-500">{speedLabel(displaySettings.speedUnit)}</span></span>
                 </div>
               )}
               {currentPacket && (
@@ -1217,7 +1221,7 @@ export function LapAnalyse() {
             <div className="p-3 space-y-2">
               <TelemetryChart
                 series={[
-                  { data: chartData.speed, color: "#22d3ee", label: "Speed (mph)" },
+                  { data: chartData.speed, color: "#22d3ee", label: `Speed (${speedLabel(displaySettings.speedUnit)})` },
                 ]}
                 cursorIdx={cursorIdx}
                 totalPackets={telemetry.length}
