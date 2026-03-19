@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import html2canvas from "html2canvas";
+import { toPng } from "html-to-image";
 import {
   Sparkles, X, RefreshCw, Gauge, Sliders, AlertTriangle,
   Lightbulb, Wrench, SlidersHorizontal, Download,
@@ -143,35 +143,29 @@ export function AiAnalysisModal({
     const el = contentRef.current;
     if (!el) return;
 
-    // Clone content into an off-screen container so we can render it
-    // at full height without affecting the modal layout
-    const clone = el.cloneNode(true) as HTMLElement;
-    clone.style.position = "absolute";
-    clone.style.left = "-9999px";
-    clone.style.top = "0";
-    clone.style.width = `${el.offsetWidth}px`;
-    clone.style.maxHeight = "none";
-    clone.style.overflow = "visible";
-    clone.style.height = "auto";
-    document.body.appendChild(clone);
+    // Temporarily expand to full scroll height
+    const origMaxH = el.style.maxHeight;
+    const origOverflow = el.style.overflow;
+    const origFlex = el.style.flex;
+    el.style.maxHeight = "none";
+    el.style.overflow = "visible";
+    el.style.flex = "none";
 
     try {
-      const canvas = await html2canvas(clone, {
+      const url = await toPng(el, {
         backgroundColor: "#0f172a",
-        scale: 2,
-        logging: false,
+        pixelRatio: 2,
       });
-      const url = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.download = `ai-analysis-${carName}-${trackName}.png`.replace(/\s+/g, "-");
       link.href = url;
-      document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
     } catch (err) {
       console.error("[AI] Image export failed:", err);
     } finally {
-      document.body.removeChild(clone);
+      el.style.maxHeight = origMaxH;
+      el.style.overflow = origOverflow;
+      el.style.flex = origFlex;
     }
   }, [carName, trackName]);
 
