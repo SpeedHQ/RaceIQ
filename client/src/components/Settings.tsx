@@ -35,8 +35,15 @@ export function Settings() {
 
   const tempSettingsJson = JSON.stringify(tempSettings);
   useEffect(() => {
-    setTempUnit(tempSettings.temperatureUnit);
-    setThresholds(tempSettings.tireTemperatureThresholds);
+    const unit = tempSettings.temperatureUnit;
+    const raw = tempSettings.tireTemperatureThresholds;
+    setTempUnit(unit);
+    // Server always stores in °F — convert to display unit
+    setThresholds(unit === "C" ? {
+      cold: convertTemp(raw.cold, "C"),
+      warm: convertTemp(raw.warm, "C"),
+      hot: convertTemp(raw.hot, "C"),
+    } : raw);
   }, [tempSettingsJson]);
 
   useEffect(() => {
