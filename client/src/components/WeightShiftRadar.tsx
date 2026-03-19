@@ -71,18 +71,25 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
 
     const totalLoad = loads[0] + loads[1] + loads[2] + loads[3];
 
-    // Weighted centroid of the four corners
+    // Weighted centroid of the four corners, amplified from center
+    const sensitivity = 3;
     let dotX = cx;
     let dotY = cy;
     if (totalLoad > 0.01) {
-      dotX = 0;
-      dotY = 0;
+      let rawX = 0;
+      let rawY = 0;
       for (let i = 0; i < 4; i++) {
-        dotX += corners[i].x * loads[i];
-        dotY += corners[i].y * loads[i];
+        rawX += corners[i].x * loads[i];
+        rawY += corners[i].y * loads[i];
       }
-      dotX /= totalLoad;
-      dotY /= totalLoad;
+      rawX /= totalLoad;
+      rawY /= totalLoad;
+      // Amplify offset from center to increase sensitivity
+      dotX = cx + (rawX - cx) * sensitivity;
+      dotY = cy + (rawY - cy) * sensitivity;
+      // Clamp to car outline bounds
+      dotX = Math.max(carX + 4, Math.min(carX + carW - 4, dotX));
+      dotY = Math.max(carY + 6, Math.min(carY + carH - 6, dotY));
     }
 
     // Magnitude: how far from center (0 = even, 1 = fully loaded on one corner)
