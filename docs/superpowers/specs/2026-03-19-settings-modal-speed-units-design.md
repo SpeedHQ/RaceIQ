@@ -5,7 +5,7 @@
 
 ## Overview
 
-Two changes: (1) render Settings as a modal overlay instead of pushing down page content, (2) add speed/distance unit preference (mph/mi vs km/h/km) following the same pattern as temperature units.
+Three changes: (1) render Settings as a modal overlay instead of pushing down page content, (2) add speed/distance unit preference (mph/mi vs km/h/km) following the same pattern as temperature units, (3) add car body attitude (yaw/roll/pitch) visualization to the analyse page track map.
 
 ## 1. Settings Modal
 
@@ -116,6 +116,33 @@ Add a Speed/Distance section with a toggle: **mph / mi** | **km/h / km**. Save s
 
 Find all speed and distance displays. Currently speed is calculated as `Math.sqrt(vx² + vy² + vz²) * 2.237` (hardcoded mph conversion). Replace with `convertSpeed(rawMs, settings.speedUnit)`. Distance displays use `/ 1609.34` — replace with `convertDistance()`. Update unit labels.
 
+## 3. Body Attitude Widget in Analyse
+
+### Current State
+
+`LiveTelemetry.tsx` has a `BodyAttitude` component (lines 872-935) that renders three SVG mini-views: rear (roll), side (pitch), and compass (yaw). It takes a `TelemetryPacket` prop. This component is currently defined locally in LiveTelemetry.tsx.
+
+### Change
+
+Extract `BodyAttitude` to a shared component `client/src/components/BodyAttitude.tsx` so both LiveTelemetry and LapAnalyse can use it.
+
+In LapAnalyse, the track map container (line 1070) is a `relative` div at 420px height. Add the `BodyAttitude` widget as an `absolute`-positioned overlay at the bottom-right of the track map, using `currentPacket` (which already exists at line 885 — `telemetry[cursorIdx]`).
+
+```tsx
+{/* Bottom-right: body attitude overlay */}
+{currentPacket && (
+  <div className="absolute bottom-2 right-2 bg-slate-950/80 rounded p-1">
+    <BodyAttitude packet={currentPacket} />
+  </div>
+)}
+```
+
+The widget animates automatically as the playback cursor advances through the lap — no extra work needed since `currentPacket` updates with `cursorIdx`.
+
+### Extraction
+
+Move `BodyAttitude` from `LiveTelemetry.tsx` to `client/src/components/BodyAttitude.tsx`. Import it in both files. No logic changes — just a file move.
+
 ## Files Modified
 
 | File | Change |
@@ -126,7 +153,9 @@ Find all speed and distance displays. Currently speed is calculated as `Math.sqr
 | `client/src/lib/speed.ts` | New: `convertSpeed`, `convertDistance`, `speedLabel`, `distanceLabel` |
 | `client/src/context/telemetry.tsx` | Rename TempSettings → DisplaySettings, add speedUnit |
 | `client/src/components/Settings.tsx` | Add speed unit toggle |
-| `client/src/components/LiveTelemetry.tsx` | Use speedUnit for speed/distance display and labels |
+| `client/src/components/LiveTelemetry.tsx` | Use speedUnit for speed/distance display and labels; remove BodyAttitude (now imported) |
+| `client/src/components/BodyAttitude.tsx` | New: extracted shared BodyAttitude component (roll/pitch/yaw SVGs) |
+| `client/src/components/LapAnalyse.tsx` | Add BodyAttitude overlay at bottom-right of track map |
 | `test/speed.test.ts` | New: tests for speed/distance conversion utilities |
 
 ## Edge Cases
