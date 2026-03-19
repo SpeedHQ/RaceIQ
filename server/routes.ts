@@ -499,6 +499,125 @@ app.get("/api/track-sectors/:ordinal", (c) => {
   return c.json({ segments: named, totalDist });
 });
 
+// POST /api/tracks/:trackOrdinal/recompute-outline — rebuild outline from stored laps
+import {
+  filterLapOutliers,
+  normalizeToFixedPoints,
+  averageOutlines,
+  smoothOutline,
+  computeSectorsFromGeometry,
+} from "./lap-detector";
+import { saveTrackOutline } from "./db/queries";
+
+app.post("/api/tracks/:trackOrdinal/recompute-outline", async (c) => {
+  const trackOrdinal = parseInt(c.req.param("trackOrdinal"), 10);
+  if (isNaN(trackOrdinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  // Check for ?lapId= query param to use a single lap directly
+  const lapIdParam = new URL(c.req.url).searchParams.get("lapId");
+
+  if (lapIdParam) {
+    // Single lap mode — use its telemetry directly as the outline
+    const lapId = parseInt(lapIdParam, 10);
+    const lapData = getLapById(lapId);
+    if (!lapData || !lapData.telemetry) {
+      return c.json({ error: `Lap ${lapId} not found` }, 404);
+    }
+
+    let raw: { x: number; z: number }[] = [];
+    for (const p of lapData.telemetry) {
+      if (p.PositionX === 0 && p.PositionZ === 0) continue;
+      raw.push({ x: p.PositionX, z: p.PositionZ });
+    }
+    if (raw.length < 50) {
+      return c.json({ error: "Not enough telemetry data" }, 400);
+    }
+
+    // Light smoothing to clean up noise while preserving shape
+    let outline = smoothOutline(raw, 5);
+
+    const sectors = computeSectorsFromGeometry(outline);
+    saveTrackOutline(trackOrdinal, outline, sectors);
+
+    return c.json({
+      success: true,
+      lapsUsed: 1,
+      lapId,
+      points: outline.length,
+      message: `Saved outline from lap ${lapId} (${outline.length} points)`,
+    });
+  }
+
+  // Multi-lap mode — average best laps
+  const allLaps = getLaps().filter(
+    (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0
+  );
+  if (allLaps.length === 0) {
+    return c.json({ error: "No laps found for this track" }, 404);
+  }
+
+  const sorted = [...allLaps].sort((a, b) => a.lapTime - b.lapTime);
+  const bestLaps = sorted.slice(0, 10);
+
+  const SAMPLE_POINTS = 1000;
+  const normalized: { x: number; z: number; speed: number }[][] = [];
+  const startPositions: { x: number; z: number }[] = [];
+
+  for (const lapMeta of bestLaps) {
+    const lapData = getLapById(lapMeta.id);
+    if (!lapData || !lapData.telemetry || lapData.telemetry.length < 50) continue;
+
+    let raw: { x: number; z: number; speed: number }[] = [];
+    for (const p of lapData.telemetry) {
+      if (p.PositionX === 0 && p.PositionZ === 0) continue;
+      raw.push({ x: p.PositionX, z: p.PositionZ, speed: (p.Speed ?? 0) * 2.23694 });
+    }
+    raw = filterLapOutliers(raw);
+    if (raw.length < 50) continue;
+
+    const norm = normalizeToFixedPoints(raw, SAMPLE_POINTS);
+    if (norm.length === SAMPLE_POINTS) {
+      normalized.push(norm);
+      const last = raw[raw.length - 1];
+      startPositions.push({ x: last.x, z: last.z });
+    }
+  }
+
+  if (normalized.length === 0) {
+    return c.json({ error: "No usable telemetry data" }, 400);
+  }
+
+  const averaged = averageOutlines(normalized);
+  let outline = smoothOutline(smoothOutline(averaged, 9), 7);
+
+  if (startPositions.length > 0) {
+    let sx = 0, sz = 0;
+    for (const p of startPositions) { sx += p.x; sz += p.z; }
+    const avgStart = { x: sx / startPositions.length, z: sz / startPositions.length };
+
+    let bestIdx = 0, bestDist = Infinity;
+    for (let i = 0; i < outline.length; i++) {
+      const dx = outline[i].x - avgStart.x;
+      const dz = outline[i].z - avgStart.z;
+      const d = dx * dx + dz * dz;
+      if (d < bestDist) { bestDist = d; bestIdx = i; }
+    }
+    if (bestIdx > 0) {
+      outline = [...outline.slice(bestIdx), ...outline.slice(0, bestIdx)];
+    }
+  }
+
+  const sectors = computeSectorsFromGeometry(outline);
+  saveTrackOutline(trackOrdinal, outline, sectors);
+
+  return c.json({
+    success: true,
+    lapsUsed: normalized.length,
+    points: outline.length,
+    message: `Recomputed outline from ${normalized.length} laps (${SAMPLE_POINTS} points)`,
+  });
+});
+
 // GET /api/track-calibration/:ordinal — calibration status
 import { getCalibrationStatus, getNormalizedPosition } from "./track-calibration";
 app.get("/api/track-calibration/:ordinal", (c) => {
@@ -547,18 +666,18 @@ app.get("/api/track-outline/:ordinal", (c) => {
 
   const startYaw = getStartYaw(ordinal);
 
-  // 1. Prefer recorded outlines (in Forza coords — allows direct position plotting)
+  // 1. Prefer DB-recorded outlines (recomputed or captured from telemetry — Forza coords)
+  const dbOutline = getDbTrackOutline(ordinal);
+  if (dbOutline) return c.json({ points: dbOutline, recorded: true, startYaw });
+
+  // 2. Recorded outlines from bundled data (in Forza coords)
   if (hasRecordedOutline(ordinal)) {
     return c.json({ points: getTrackOutlineByOrdinal(ordinal), recorded: true, startYaw });
   }
 
-  // 2. Bundled external outlines (different coord system — need distance mapping)
+  // 3. Bundled external outlines (different coord system — need distance mapping)
   const bundled = getTrackOutlineByOrdinal(ordinal);
   if (bundled) return c.json({ points: bundled, recorded: false, startYaw });
-
-  // 3. DB-recorded outlines
-  const dbOutline = getDbTrackOutline(ordinal);
-  if (dbOutline) return c.json({ points: dbOutline, recorded: true, startYaw });
 
   return c.json({ error: "No outline available" }, 404);
 });

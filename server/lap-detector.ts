@@ -304,12 +304,13 @@ class LapDetector {
     if (hasTrackOutline(trackOrdinal)) return;
 
     try {
-      // Extract PositionX/Z, skip zero positions
-      const raw: { x: number; z: number; speed: number }[] = [];
+      // Extract PositionX/Z, skip zero positions, filter outlier jumps
+      let raw: { x: number; z: number; speed: number }[] = [];
       for (const p of buffer) {
         if (p.PositionX === 0 && p.PositionZ === 0) continue;
         raw.push({ x: p.PositionX, z: p.PositionZ, speed: (p.Speed ?? 0) * 2.23694 });
       }
+      raw = filterLapOutliers(raw);
       if (raw.length < 50) return;
 
       // Accumulate start-line position from lap boundary
@@ -394,25 +395,21 @@ class LapDetector {
 }
 
 /**
- * Smooth an outline using a simple moving average.
+ * Smooth an outline using a circular moving average (wraps around start/finish).
  */
-function smoothOutline(
+export function smoothOutline(
   points: { x: number; z: number }[],
   window: number = 5
 ): { x: number; z: number }[] {
+  const n = points.length;
   const half = Math.floor(window / 2);
   return points.map((_, i) => {
-    let sx = 0,
-      sz = 0,
-      count = 0;
-    for (
-      let j = Math.max(0, i - half);
-      j <= Math.min(points.length - 1, i + half);
-      j++
-    ) {
-      sx += points[j].x;
-      sz += points[j].z;
-      count++;
+    let sx = 0, sz = 0;
+    const count = half * 2 + 1;
+    for (let j = -half; j <= half; j++) {
+      const idx = (i + j + n) % n;
+      sx += points[idx].x;
+      sz += points[idx].z;
     }
     return { x: sx / count, z: sz / count };
   });
@@ -422,7 +419,7 @@ function smoothOutline(
  * Normalize a variable-length point array to a fixed number of points
  * using linear interpolation along cumulative distance.
  */
-function normalizeToFixedPoints(
+export function normalizeToFixedPoints(
   raw: { x: number; z: number; speed: number }[],
   targetPoints: number
 ): { x: number; z: number; speed: number }[] {
@@ -468,33 +465,102 @@ function normalizeToFixedPoints(
 }
 
 /**
- * Average multiple normalized outlines (all same length) into one.
- * Each point is the mean of the corresponding points across all laps.
+ * Filter outlier jumps from raw lap telemetry (rewinds, pit teleports).
+ * Removes points where the step distance exceeds median * 5.
  */
-function averageOutlines(
+export function filterLapOutliers(
+  points: { x: number; z: number; speed: number }[]
+): { x: number; z: number; speed: number }[] {
+  if (points.length < 10) return points;
+
+  // Compute step distances
+  const steps: number[] = [];
+  for (let i = 1; i < points.length; i++) {
+    const dx = points[i].x - points[i - 1].x;
+    const dz = points[i].z - points[i - 1].z;
+    steps.push(Math.sqrt(dx * dx + dz * dz));
+  }
+  const sorted = [...steps].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const maxStep = median * 5;
+
+  const result = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    if (steps[i - 1] <= maxStep) {
+      result.push(points[i]);
+    }
+  }
+  return result;
+}
+
+/**
+ * Average multiple normalized outlines (all same length) into one.
+ * Aligns each subsequent lap to the reference (first lap) by finding
+ * the best rotational offset that minimizes position error, then averages.
+ */
+export function averageOutlines(
   laps: { x: number; z: number; speed: number }[][]
 ): { x: number; z: number; speed: number }[] {
   if (laps.length === 0) return [];
   if (laps.length === 1) return laps[0];
 
   const len = laps[0].length;
-  const result: { x: number; z: number; speed: number }[] = [];
+  const ref = laps[0];
 
+  // Align each lap to the reference by finding the best circular shift
+  const aligned: typeof laps = [ref];
+  for (let l = 1; l < laps.length; l++) {
+    const lap = laps[l];
+    if (lap.length !== len) { aligned.push(lap); continue; }
+
+    // Test shifts at coarse intervals, then refine around the best
+    let bestShift = 0;
+    let bestError = Infinity;
+    const step = Math.max(1, Math.floor(len / 50)); // coarse: ~50 candidates
+    for (let shift = 0; shift < len; shift += step) {
+      let err = 0;
+      // Sample every 10th point for speed
+      for (let i = 0; i < len; i += 10) {
+        const j = (i + shift) % len;
+        const dx = lap[j].x - ref[i].x;
+        const dz = lap[j].z - ref[i].z;
+        err += dx * dx + dz * dz;
+      }
+      if (err < bestError) { bestError = err; bestShift = shift; }
+    }
+    // Refine around best coarse shift
+    const refineStart = Math.max(0, bestShift - step);
+    const refineEnd = Math.min(len - 1, bestShift + step);
+    for (let shift = refineStart; shift <= refineEnd; shift++) {
+      let err = 0;
+      for (let i = 0; i < len; i += 5) {
+        const j = (i + shift) % len;
+        const dx = lap[j].x - ref[i].x;
+        const dz = lap[j].z - ref[i].z;
+        err += dx * dx + dz * dz;
+      }
+      if (err < bestError) { bestError = err; bestShift = shift; }
+    }
+
+    // Apply shift
+    if (bestShift === 0) {
+      aligned.push(lap);
+    } else {
+      aligned.push([...lap.slice(bestShift), ...lap.slice(0, bestShift)]);
+    }
+  }
+
+  // Point-by-point average of aligned laps
+  const result: { x: number; z: number; speed: number }[] = [];
   for (let i = 0; i < len; i++) {
     let sx = 0, sz = 0, ss = 0;
-    for (const lap of laps) {
-      if (i < lap.length) {
-        sx += lap[i].x;
-        sz += lap[i].z;
-        ss += lap[i].speed;
-      }
+    for (const lap of aligned) {
+      sx += lap[i].x;
+      sz += lap[i].z;
+      ss += lap[i].speed;
     }
-    const n = laps.length;
-    result.push({
-      x: sx / n,
-      z: sz / n,
-      speed: ss / n,
-    });
+    const n = aligned.length;
+    result.push({ x: sx / n, z: sz / n, speed: ss / n });
   }
 
   return result;
@@ -505,7 +571,7 @@ function averageOutlines(
  * braking zones (clusters of high direction change). Returns sector
  * boundaries as fractions of total outline length.
  */
-function computeSectorsFromGeometry(
+export function computeSectorsFromGeometry(
   points: { x: number; z: number; speed?: number }[]
 ): { s1End: number; s2End: number } {
   const n = points.length;

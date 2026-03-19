@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useSearch, useNavigate } from "@tanstack/react-router";
 
 interface TrackInfo {
   ordinal: number;
@@ -84,6 +85,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [sectors, setSectors] = useState<TrackSectors | null>(null);
+  const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     if (!track.hasOutline) return;
@@ -100,8 +102,8 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
-    drawTrack(canvasRef.current, outline, true, sectors);
-  }, [outline, sectors]);
+    drawTrack(canvasRef.current, outline, true, sectors, zoom);
+  }, [outline, sectors, zoom]);
 
   const corners = sectors?.segments.filter((s) => s.type === "corner") ?? [];
   const straights = sectors?.segments.filter((s) => s.type === "straight") ?? [];
@@ -127,7 +129,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
         {/* Large track map */}
-        <div className="bg-slate-950 rounded-lg border border-slate-800" style={{ height: 400 }}>
+        <div className="bg-slate-950 rounded-lg border border-slate-800 relative" style={{ height: 600 }}>
           {track.hasOutline ? (
             <canvas ref={canvasRef} className="w-full h-full" />
           ) : (
@@ -135,6 +137,23 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
               No outline available
             </div>
           )}
+          {/* Zoom controls */}
+          <div className="absolute top-2 right-2 flex flex-col gap-1">
+            <button
+              onClick={() => setZoom((z) => Math.min(z + 0.25, 4))}
+              className="w-7 h-7 text-sm bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white rounded flex items-center justify-center"
+            >+</button>
+            <button
+              onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
+              className="w-7 h-7 text-sm bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white rounded flex items-center justify-center"
+            >-</button>
+            {zoom !== 1 && (
+              <button
+                onClick={() => setZoom(1)}
+                className="w-7 h-7 text-[10px] bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white rounded flex items-center justify-center"
+              >1x</button>
+            )}
+          </div>
         </div>
 
         {/* Track info sidebar */}
@@ -196,7 +215,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
  * Segment labels are offset perpendicular to the track direction so they don't overlap the line.
  * The perpendicular offset is computed from neighboring outline points' tangent vector.
  */
-function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, sectors?: TrackSectors | null) {
+function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, sectors?: TrackSectors | null, zoom: number = 1) {
   const ctx = canvas.getContext("2d");
   if (!ctx || outline.length < 2) return;
 
@@ -220,7 +239,8 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
   const rangeX = (maxX - minX) || 1;
   const rangeZ = (maxZ - minZ) || 1;
   const padding = large ? 20 : 12;
-  const scale = Math.min((w - padding * 2) / rangeX, (h - padding * 2) / rangeZ);
+  const baseScale = Math.min((w - padding * 2) / rangeX, (h - padding * 2) / rangeZ);
+  const scale = baseScale * zoom;
   const offsetX = (w - rangeX * scale) / 2;
   const offsetZ = (h - rangeZ * scale) / 2;
 
@@ -307,8 +327,8 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
   ctx.fillStyle = "#10b981";
   ctx.fill();
 
-  // Direction arrow from start point along first ~5% of outline
-  const arrowIdx = Math.min(Math.floor(outline.length * 0.05), outline.length - 1);
+  // Direction arrow from start point — use ~0.5% of outline (just a few meters ahead)
+  const arrowIdx = Math.min(Math.max(3, Math.floor(outline.length * 0.005)), outline.length - 1);
   if (arrowIdx > 0) {
     const [ax, ay] = toCanvas(outline[arrowIdx].x, outline[arrowIdx].z);
     const dx = ax - sx;
@@ -342,15 +362,35 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
 
 /** TrackViewer — Gallery view of all known tracks, split into "with outlines" and "without". */
 export function TrackViewer() {
+  const routeSearch = useSearch({ from: "/tracks" });
+  const navigate = useNavigate({ from: "/tracks" });
+
   const [tracks, setTracks] = useState<TrackInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTrack, setSelectedTrack] = useState<TrackInfo | null>(null);
   const [search, setSearch] = useState("");
 
+  const handleSelectTrack = useCallback((t: TrackInfo) => {
+    setSelectedTrack(t);
+    navigate({ search: { track: t.ordinal }, replace: true });
+  }, [navigate]);
+
+  const handleBack = useCallback(() => {
+    setSelectedTrack(null);
+    navigate({ search: {}, replace: true });
+  }, [navigate]);
+
   useEffect(() => {
     fetch("/api/tracks")
       .then((r) => r.json())
-      .then(setTracks)
+      .then((data: TrackInfo[]) => {
+        setTracks(data);
+        // If URL has a track param, select it
+        if (routeSearch.track) {
+          const match = data.find((t) => t.ordinal === routeSearch.track);
+          if (match) setSelectedTrack(match);
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -360,7 +400,7 @@ export function TrackViewer() {
   }
 
   if (selectedTrack) {
-    return <TrackDetail track={selectedTrack} onBack={() => setSelectedTrack(null)} />;
+    return <TrackDetail track={selectedTrack} onBack={handleBack} />;
   }
 
   const query = search.toLowerCase().trim();
@@ -399,7 +439,7 @@ export function TrackViewer() {
       {withOutline.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
           {withOutline.map((t) => (
-            <TrackCard key={t.ordinal} track={t} onSelect={setSelectedTrack} />
+            <TrackCard key={t.ordinal} track={t} onSelect={handleSelectTrack} />
           ))}
         </div>
       )}
@@ -414,7 +454,7 @@ export function TrackViewer() {
               <div
                 key={t.ordinal}
                 className="border border-slate-800 rounded-lg p-3 bg-slate-900/30 cursor-pointer hover:border-slate-700"
-                onClick={() => setSelectedTrack(t)}
+                onClick={() => handleSelectTrack(t)}
               >
                 <div className="text-sm text-slate-400">{t.name}</div>
                 <div className="text-xs text-slate-600">
