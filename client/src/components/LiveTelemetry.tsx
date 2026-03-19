@@ -490,7 +490,7 @@ export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
   ];
 
   return (
-    <div className="grid grid-cols-[80px_auto_80px] gap-x-3 gap-y-3 items-center justify-center mx-auto" style={{ maxWidth: 280 }}>
+    <div className="relative grid grid-cols-[80px_auto_80px] gap-x-3 gap-y-3 items-center justify-center mx-auto" style={{ maxWidth: 280 }}>
       {/* Front axle */}
       <WheelCard {...wheels[0]} outerSide="left" thresholds={displaySettings.tireTemperatureThresholds} temperatureUnit={displaySettings.temperatureUnit} />
       <div className="flex gap-2">
@@ -499,13 +499,6 @@ export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
       </div>
       <WheelCard {...wheels[1]} outerSide="right" thresholds={displaySettings.tireTemperatureThresholds} temperatureUnit={displaySettings.temperatureUnit} />
 
-      {/* Weight shift radar — center between axles */}
-      <div />
-      <div className="flex justify-center">
-        <WeightShiftRadar packet={packet} />
-      </div>
-      <div />
-
       {/* Rear axle */}
       <WheelCard {...wheels[2]} outerSide="left" thresholds={displaySettings.tireTemperatureThresholds} temperatureUnit={displaySettings.temperatureUnit} />
       <div className="flex gap-2">
@@ -513,6 +506,11 @@ export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
         <SuspBar norm={susp[3]} />
       </div>
       <WheelCard {...wheels[3]} outerSide="right" thresholds={displaySettings.tireTemperatureThresholds} temperatureUnit={displaySettings.temperatureUnit} />
+
+      {/* Weight shift radar — absolutely centered between axles */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <WeightShiftRadar packet={packet} />
+      </div>
     </div>
   );
 }
