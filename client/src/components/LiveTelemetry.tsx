@@ -3,6 +3,7 @@ import type { TelemetryPacket } from "@shared/types";
 import { CAR_CLASS_NAMES, DRIVETRAIN_NAMES } from "@shared/types";
 import { SteeringWheel } from "./SteeringWheel";
 import { BodyAttitude } from "./BodyAttitude";
+import { WeightShiftRadar } from "./WeightShiftRadar";
 import { convertTemp } from "../lib/temperature";
 import { convertSpeed, speedLabel } from "../lib/speed";
 import { useTelemetry } from "../context/telemetry";
@@ -498,8 +499,12 @@ export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
       </div>
       <WheelCard {...wheels[1]} outerSide="right" thresholds={displaySettings.tireTemperatureThresholds} temperatureUnit={displaySettings.temperatureUnit} />
 
-      {/* Divider */}
-      <div className="col-span-3 h-px bg-slate-700/30" />
+      {/* Weight shift radar — center between axles */}
+      <div />
+      <div className="flex justify-center">
+        <WeightShiftRadar packet={packet} />
+      </div>
+      <div />
 
       {/* Rear axle */}
       <WheelCard {...wheels[2]} outerSide="left" thresholds={displaySettings.tireTemperatureThresholds} temperatureUnit={displaySettings.temperatureUnit} />
