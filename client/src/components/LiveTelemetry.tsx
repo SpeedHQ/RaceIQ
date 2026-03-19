@@ -4,6 +4,7 @@ import { CAR_CLASS_NAMES, DRIVETRAIN_NAMES } from "@shared/types";
 import { SteeringWheel } from "./SteeringWheel";
 import { BodyAttitude } from "./BodyAttitude";
 import { convertTemp } from "../lib/temperature";
+import { convertSpeed, speedLabel } from "../lib/speed";
 import { useTelemetry } from "../context/telemetry";
 
 // Rolling window for grip sparklines — 60s at 10Hz gives a manageable 600-point buffer
@@ -179,8 +180,8 @@ export function formatLapTime(seconds: number): string {
   return `${m}:${s.toFixed(3).padStart(6, "0")}`;
 }
 
-function getSpeedMph(p: TelemetryPacket): number {
-  return p.Speed * 2.23694; // m/s to mph
+function getSpeed(p: TelemetryPacket, unit: "mph" | "kmh"): number {
+  return convertSpeed(p.Speed, unit);
 }
 
 function GaugeBar({ value, max, color }: { value: number; max: number; color: string }) {
@@ -1144,6 +1145,7 @@ function DualLineChart({ data1, data2, label1, label2, color1, color2, label, ma
  * Converts raw telemetry units (rad->deg, m/s->mph, 0-255->0-100%) for display.
  */
 function TelemetryCharts({ packet }: { packet: TelemetryPacket }) {
+  const { displaySettings } = useTelemetry();
   const histRef = useRef<{
     grip: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
     temp: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
@@ -1200,7 +1202,7 @@ function TelemetryCharts({ packet }: { packet: TelemetryPacket }) {
     push4(h.suspension, packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR);
     h.throttle.push(packet.Accel / 255 * 100);
     h.brake.push(packet.Brake / 255 * 100);
-    h.speed.push(packet.Speed * 2.23694);
+    h.speed.push(convertSpeed(packet.Speed, displaySettings.speedUnit));
     if (h.throttle.length > GRIP_MAX_SAMPLES) { h.throttle.shift(); h.brake.shift(); h.speed.shift(); }
   }, [packet]);
 
@@ -1214,7 +1216,7 @@ function TelemetryCharts({ packet }: { packet: TelemetryPacket }) {
       <FourLineChart data={h.slipAngle} label="Slip Angle" unit="°" />
       <FourLineChart data={h.slipRatio} label="Slip Ratio" />
       <FourLineChart data={h.suspension} label="Suspension" maxY={1} />
-      <SingleLineChart data={h.speed} label="Speed" color="#22d3ee" unit="mph" />
+      <SingleLineChart data={h.speed} label="Speed" color="#22d3ee" unit={speedLabel(displaySettings.speedUnit)} />
       <DualLineChart data1={h.throttle} data2={h.brake} label1="Throttle" label2="Brake" color1="#34d399" color2="#ef4444" label="Throttle / Brake" maxY={100} unit="%" />
     </div>
   );
@@ -1236,6 +1238,8 @@ export function LiveTelemetry({ packet }: Props) {
       .catch(() => setCarName(`Car #${ord}`));
   }, [packet?.CarOrdinal]);
 
+  const { displaySettings } = useTelemetry();
+
   if (!packet) {
     return (
       <div className="flex items-center justify-center h-full text-slate-600">
@@ -1244,7 +1248,7 @@ export function LiveTelemetry({ packet }: Props) {
     );
   }
 
-  const speed = getSpeedMph(packet);
+  const speed = getSpeed(packet, displaySettings.speedUnit);
   const throttlePct = (packet.Accel / 255) * 100;
   const brakePct = (packet.Brake / 255) * 100;
   const rpmPct = packet.EngineMaxRpm > 0 ? (packet.CurrentEngineRpm / packet.EngineMaxRpm) * 100 : 0;
@@ -1268,7 +1272,7 @@ export function LiveTelemetry({ packet }: Props) {
         )}
         <div className="text-right">
           <div className="text-3xl font-mono font-bold text-white tabular-nums leading-none">
-            {speed.toFixed(0)} <span className="text-xs text-slate-500">mph</span>
+            {speed.toFixed(0)} <span className="text-xs text-slate-500">{speedLabel(displaySettings.speedUnit)}</span>
           </div>
         </div>
         <div className="text-3xl font-mono font-bold text-cyan-400 tabular-nums leading-none">
