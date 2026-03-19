@@ -27,16 +27,16 @@ export function Settings() {
   const [errorMsg, setErrorMsg] = useState("");
   const [steerLock, setSteerLock] = useState(() => String(getSteeringLock()));
 
-  const { tempSettings, refetchSettings } = useTelemetry();
-  const [tempUnit, setTempUnit] = useState<"F" | "C">(tempSettings.temperatureUnit);
-  const [thresholds, setThresholds] = useState(tempSettings.tireTemperatureThresholds);
+  const { displaySettings, refetchSettings } = useTelemetry();
+  const [tempUnit, setTempUnit] = useState<"F" | "C">(displaySettings.temperatureUnit);
+  const [thresholds, setThresholds] = useState(displaySettings.tireTemperatureThresholds);
   const [tempStatus, setTempStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [tempError, setTempError] = useState("");
 
-  const tempSettingsJson = JSON.stringify(tempSettings);
+  const tempSettingsJson = JSON.stringify(displaySettings);
   useEffect(() => {
-    const unit = tempSettings.temperatureUnit;
-    const raw = tempSettings.tireTemperatureThresholds;
+    const unit = displaySettings.temperatureUnit;
+    const raw = displaySettings.tireTemperatureThresholds;
     setTempUnit(unit);
     // Server always stores in °F — convert to display unit
     setThresholds(unit === "C" ? {

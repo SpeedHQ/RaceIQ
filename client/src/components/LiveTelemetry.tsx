@@ -448,7 +448,7 @@ function SuspBar({ norm }: { norm: number }) {
  * Falls back to 0.33m radius when stationary to avoid division by zero.
  */
 export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
-  const { tempSettings } = useTelemetry();
+  const { displaySettings } = useTelemetry();
   const toDeg = 180 / Math.PI;
   const gs = packet.Speed;
 
@@ -489,23 +489,23 @@ export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
   return (
     <div className="grid grid-cols-[80px_auto_80px] gap-x-3 gap-y-3 items-center justify-center mx-auto" style={{ maxWidth: 280 }}>
       {/* Front axle */}
-      <WheelCard {...wheels[0]} outerSide="left" thresholds={tempSettings.tireTemperatureThresholds} temperatureUnit={tempSettings.temperatureUnit} />
+      <WheelCard {...wheels[0]} outerSide="left" thresholds={displaySettings.tireTemperatureThresholds} temperatureUnit={displaySettings.temperatureUnit} />
       <div className="flex gap-2">
         <SuspBar norm={susp[0]} />
         <SuspBar norm={susp[1]} />
       </div>
-      <WheelCard {...wheels[1]} outerSide="right" thresholds={tempSettings.tireTemperatureThresholds} temperatureUnit={tempSettings.temperatureUnit} />
+      <WheelCard {...wheels[1]} outerSide="right" thresholds={displaySettings.tireTemperatureThresholds} temperatureUnit={displaySettings.temperatureUnit} />
 
       {/* Divider */}
       <div className="col-span-3 h-px bg-slate-700/30" />
 
       {/* Rear axle */}
-      <WheelCard {...wheels[2]} outerSide="left" thresholds={tempSettings.tireTemperatureThresholds} temperatureUnit={tempSettings.temperatureUnit} />
+      <WheelCard {...wheels[2]} outerSide="left" thresholds={displaySettings.tireTemperatureThresholds} temperatureUnit={displaySettings.temperatureUnit} />
       <div className="flex gap-2">
         <SuspBar norm={susp[2]} />
         <SuspBar norm={susp[3]} />
       </div>
-      <WheelCard {...wheels[3]} outerSide="right" thresholds={tempSettings.tireTemperatureThresholds} temperatureUnit={tempSettings.temperatureUnit} />
+      <WheelCard {...wheels[3]} outerSide="right" thresholds={displaySettings.tireTemperatureThresholds} temperatureUnit={displaySettings.temperatureUnit} />
     </div>
   );
 }
