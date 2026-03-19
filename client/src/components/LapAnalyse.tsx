@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useSearch, useNavigate } from "@tanstack/react-router";
 import type { TelemetryPacket, LapMeta } from "@shared/types";
 import { CAR_CLASS_NAMES, DRIVETRAIN_NAMES } from "@shared/types";
 import { formatLapTime, TireDiagram } from "./LiveTelemetry";
+import { SteeringWheel } from "./SteeringWheel";
+import { getSteeringLock } from "./Settings";
+import { Compass } from "./Compass";
 
 interface Point {
   x: number;
@@ -14,10 +18,18 @@ function AnalyseTrackMap({
   telemetry,
   cursorIdx,
   outline,
+  sectors,
+  segments,
+  rotateWithCar,
+  zoom = 1,
 }: {
   telemetry: TelemetryPacket[];
   cursorIdx: number;
   outline: Point[] | null;
+  sectors: { s1End: number; s2End: number } | null;
+  segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
+  rotateWithCar: boolean;
+  zoom?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -59,16 +71,29 @@ function AnalyseTrackMap({
     }
     const rangeX = (maxX - minX) || 1;
     const rangeZ = (maxZ - minZ) || 1;
-    const padding = 24;
-    const scale = Math.min(
+    const padding = rotateWithCar ? 60 : 24;
+    const baseScale = Math.min(
       (w - padding * 2) / rangeX,
       (h - padding * 2) / rangeZ
     );
+    const scale = baseScale * zoom;
     const offsetX = (w - rangeX * scale) / 2;
     const offsetZ = (h - rangeZ * scale) / 2;
 
     function toCanvas(x: number, z: number): [number, number] {
       return [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
+    }
+
+    // Rotate map so car always points up when toggled, anchored to screen center
+    if (rotateWithCar) {
+      const pkt = telemetry[cursorIdx];
+      if (pkt && (pkt.PositionX !== 0 || pkt.PositionZ !== 0)) {
+        const [carCx, carCy] = toCanvas(pkt.PositionX, pkt.PositionZ);
+        // Move car to screen center, rotate around it
+        ctx.translate(w / 2, h / 2);
+        ctx.rotate(Math.PI - pkt.Yaw);
+        ctx.translate(-carCx, -carCy);
+      }
     }
 
     // Draw track outline (thick dark)
@@ -86,17 +111,50 @@ function AnalyseTrackMap({
     if (outline) ctx.lineTo(sx, sy);
     ctx.stroke();
 
-    // Thinner colored line
-    ctx.beginPath();
-    ctx.strokeStyle = "#64748b";
-    ctx.lineWidth = 2;
-    ctx.moveTo(sx, sy);
-    for (let i = 1; i < displayOutline.length; i++) {
-      const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
-      ctx.lineTo(px, py);
+    // Thinner line — colored by segments (corners vs straights) if available
+    if (segments && segments.length > 0) {
+      const n = displayOutline.length;
+      for (const seg of segments) {
+        const startIdx = Math.round(seg.startFrac * (n - 1));
+        const endIdx = Math.round(seg.endFrac * (n - 1));
+        if (startIdx >= endIdx) continue;
+
+        ctx.beginPath();
+        ctx.strokeStyle = seg.type === "corner" ? "#f59e0b" : "#3b82f6";
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = "round";
+        const [mx, my] = toCanvas(displayOutline[startIdx].x, displayOutline[startIdx].z);
+        ctx.moveTo(mx, my);
+        for (let i = startIdx + 1; i <= endIdx && i < n; i++) {
+          const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
+          ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+
+        // Label at midpoint
+        const midIdx = Math.round((startIdx + endIdx) / 2);
+        const midPt = displayOutline[Math.min(midIdx, n - 1)];
+        if (midPt && seg.name) {
+          const [lx, ly] = toCanvas(midPt.x, midPt.z);
+          ctx.font = "bold 7px monospace";
+          ctx.fillStyle = seg.type === "corner" ? "#fbbf24" : "#60a5fa";
+          ctx.textAlign = "center";
+          ctx.fillText(seg.name, lx, ly - 6);
+        }
+      }
+    } else {
+      // Fallback: solid thin line
+      ctx.beginPath();
+      ctx.strokeStyle = "#64748b";
+      ctx.lineWidth = 2;
+      ctx.moveTo(sx, sy);
+      for (let i = 1; i < displayOutline.length; i++) {
+        const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
+        ctx.lineTo(px, py);
+      }
+      if (outline) ctx.lineTo(sx, sy);
+      ctx.stroke();
     }
-    if (outline) ctx.lineTo(sx, sy);
-    ctx.stroke();
 
     // Start/finish
     if (outline) {
@@ -107,6 +165,45 @@ function AnalyseTrackMap({
       ctx.strokeStyle = "#0f172a";
       ctx.lineWidth = 1.5;
       ctx.stroke();
+    }
+
+    // Sector boundary markers on the telemetry line
+    if (sectors && displayOutline.length > 10) {
+      const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
+      const sectorFracs = [sectors.s1End, sectors.s2End];
+
+      for (let si = 0; si < sectorFracs.length; si++) {
+        const idx = Math.round(sectorFracs[si] * (displayOutline.length - 1));
+        const pt = displayOutline[Math.min(idx, displayOutline.length - 1)];
+        if (!pt) continue;
+        const [mx, my] = toCanvas(pt.x, pt.z);
+
+        // Perpendicular tick
+        const prevIdx = Math.max(0, idx - 3);
+        const nextIdx = Math.min(displayOutline.length - 1, idx + 3);
+        const dx = displayOutline[nextIdx].x - displayOutline[prevIdx].x;
+        const dz = displayOutline[nextIdx].z - displayOutline[prevIdx].z;
+        const len = Math.sqrt(dx * dx + dz * dz);
+        if (len > 0) {
+          const nx = dz / len;
+          const nz = -dx / len;
+          const tickLen = 8;
+          ctx.beginPath();
+          ctx.moveTo(mx - nx * tickLen, my + nz * tickLen);
+          ctx.lineTo(mx + nx * tickLen, my - nz * tickLen);
+          ctx.strokeStyle = sectorColors[si];
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        ctx.beginPath();
+        ctx.arc(mx, my, 3, 0, Math.PI * 2);
+        ctx.fillStyle = sectorColors[si];
+        ctx.fill();
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
     }
 
     // Car position dot at cursor
@@ -127,7 +224,7 @@ function AnalyseTrackMap({
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
-  }, [telemetry, cursorIdx, outline]);
+  }, [telemetry, cursorIdx, outline, sectors, segments, rotateWithCar, zoom]);
 
   return (
     <canvas
@@ -291,7 +388,8 @@ function MetricsPanel({ pkt }: { pkt: TelemetryPacket }) {
   const speedMph = pkt.Speed * 2.23694;
   const throttlePct = ((pkt.Accel / 255) * 100).toFixed(0);
   const brakePct = ((pkt.Brake / 255) * 100).toFixed(0);
-  const steerAngle = pkt.Steer;
+  const lock = getSteeringLock();
+  const steerDeg = (pkt.Steer / 127) * (lock / 2);
 
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono">
@@ -300,7 +398,7 @@ function MetricsPanel({ pkt }: { pkt: TelemetryPacket }) {
       <MetricRow label="Gear" value={`${pkt.Gear}`} />
       <MetricRow label="Throttle" value={`${throttlePct}%`} color={Number(throttlePct) > 50 ? "#34d399" : undefined} />
       <MetricRow label="Brake" value={`${brakePct}%`} color={Number(brakePct) > 10 ? "#ef4444" : undefined} />
-      <MetricRow label="Steer" value={`${steerAngle > 0 ? "+" : ""}${steerAngle}`} />
+      <MetricRow label="Steer" value={`${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`} />
       <MetricRow label="Boost" value={`${pkt.Boost.toFixed(1)} psi`} />
       <MetricRow label="Power" value={`${(pkt.Power / 745.7).toFixed(0)} hp`} />
       <MetricRow label="Torque" value={`${pkt.Torque.toFixed(0)} Nm`} />
@@ -333,6 +431,26 @@ function MetricsPanel({ pkt }: { pkt: TelemetryPacket }) {
           <SlipValue label="FR" value={pkt.TireCombinedSlipFR} />
           <SlipValue label="RL" value={pkt.TireCombinedSlipRL} />
           <SlipValue label="RR" value={pkt.TireCombinedSlipRR} />
+        </div>
+      </div>
+
+      <div className="col-span-2 mt-1 border-t border-slate-800 pt-1">
+        <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Slip Angle (°)</div>
+        <div className="grid grid-cols-2 gap-1 text-[11px]">
+          <SlipAngleValue label="FL" value={pkt.TireSlipAngleFL} />
+          <SlipAngleValue label="FR" value={pkt.TireSlipAngleFR} />
+          <SlipAngleValue label="RL" value={pkt.TireSlipAngleRL} />
+          <SlipAngleValue label="RR" value={pkt.TireSlipAngleRR} />
+        </div>
+      </div>
+
+      <div className="col-span-2 mt-1 border-t border-slate-800 pt-1">
+        <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Suspension</div>
+        <div className="grid grid-cols-2 gap-1 text-[11px]">
+          <SuspValue label="FL" value={pkt.NormSuspensionTravelFL} />
+          <SuspValue label="FR" value={pkt.NormSuspensionTravelFR} />
+          <SuspValue label="RL" value={pkt.NormSuspensionTravelRL} />
+          <SuspValue label="RR" value={pkt.NormSuspensionTravelRR} />
         </div>
       </div>
     </div>
@@ -369,23 +487,56 @@ function SlipValue({ label, value }: { label: string; value: number }) {
   );
 }
 
+function SlipAngleValue({ label, value }: { label: string; value: number }) {
+  const deg = value * (180 / Math.PI);
+  const a = Math.abs(deg);
+  const color = a < 4 ? "#34d399" : a < 8 ? "#fbbf24" : a < 14 ? "#fb923c" : "#ef4444";
+  return (
+    <span className="text-slate-400">
+      {label}: <span style={{ color }}>{deg.toFixed(1)}°</span>
+    </span>
+  );
+}
+
+function SuspValue({ label, value }: { label: string; value: number }) {
+  const pct = (value * 100).toFixed(0);
+  const color = value < 0.6 ? "#22d3ee" : value < 0.85 ? "#fbbf24" : "#ef4444";
+  return (
+    <span className="text-slate-400">
+      {label}: <span style={{ color }}>{pct}%</span>
+    </span>
+  );
+}
+
 // ── Main Component ───────────────────────────────────────────────────
 
 export function LapAnalyse() {
+  const search = useSearch({ from: "/analyse" });
+  const navigate = useNavigate({ from: "/analyse" });
+
   const [laps, setLaps] = useState<LapMeta[]>([]);
-  const [selectedLapId, setSelectedLapId] = useState<number | null>(null);
+  const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);
+  const [selectedCar, setSelectedCar] = useState<number | null>(search.car ?? null);
+  const [selectedLapId, setSelectedLapId] = useState<number | null>(search.lap ?? null);
   const [telemetry, setTelemetry] = useState<TelemetryPacket[]>([]);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [sectors, setSectors] = useState<{ s1End: number; s2End: number } | null>(null);
+  const [segments, setSegments] = useState<{ type: string; name: string; startFrac: number; endFrac: number }[] | null>(null);
   const [carName, setCarName] = useState("");
   const [trackName, setTrackName] = useState("");
   const [cursorIdx, setCursorIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [rotateWithCar, setRotateWithCar] = useState(false);
+  const [mapZoom, setMapZoom] = useState(1);
   const [loading, setLoading] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const playRef = useRef(false);
   const speedRef = useRef(1);
   const cursorRef = useRef(0);
+
+  // Name caches for track/car ordinals
+  const [trackNames, setTrackNames] = useState<Record<number, string>>({});
+  const [carNames, setCarNames] = useState<Record<number, string>>({});
 
   // Fetch lap list
   useEffect(() => {
@@ -397,12 +548,96 @@ export function LapAnalyse() {
       .catch(() => {});
   }, []);
 
+  // Derive unique tracks from laps
+  const tracks = useMemo(() => {
+    const seen = new Map<number, number>(); // trackOrdinal -> lap count
+    for (const l of laps) {
+      if (l.trackOrdinal != null) seen.set(l.trackOrdinal, (seen.get(l.trackOrdinal) ?? 0) + 1);
+    }
+    return Array.from(seen.entries())
+      .sort((a, b) => (trackNames[a[0]] ?? `Track ${a[0]}`).localeCompare(trackNames[b[0]] ?? `Track ${b[0]}`));
+  }, [laps, trackNames]);
+
+  // Derive unique cars for the selected track
+  const carsForTrack = useMemo(() => {
+    if (selectedTrack == null) return [];
+    const seen = new Map<number, number>();
+    for (const l of laps) {
+      if (l.trackOrdinal === selectedTrack && l.carOrdinal != null) {
+        seen.set(l.carOrdinal, (seen.get(l.carOrdinal) ?? 0) + 1);
+      }
+    }
+    return Array.from(seen.entries())
+      .sort((a, b) => (carNames[a[0]] ?? `Car ${a[0]}`).localeCompare(carNames[b[0]] ?? `Car ${b[0]}`));
+  }, [laps, selectedTrack, carNames]);
+
+  // Derive laps for the selected track + car
+  const filteredLaps = useMemo(() => {
+    if (selectedTrack == null || selectedCar == null) return [];
+    return laps.filter((l) => l.trackOrdinal === selectedTrack && l.carOrdinal === selectedCar);
+  }, [laps, selectedTrack, selectedCar]);
+
+  // Fetch track/car names for display
+  useEffect(() => {
+    const trackOrdinals = new Set<number>();
+    const carOrdinals = new Set<number>();
+    for (const l of laps) {
+      if (l.trackOrdinal != null) trackOrdinals.add(l.trackOrdinal);
+      if (l.carOrdinal != null) carOrdinals.add(l.carOrdinal);
+    }
+    for (const ord of trackOrdinals) {
+      if (!trackNames[ord]) {
+        fetch(`/api/track-name/${ord}`)
+          .then((r) => r.ok ? r.text() : "")
+          .then((name) => { if (name) setTrackNames((prev) => ({ ...prev, [ord]: name })); })
+          .catch(() => {});
+      }
+    }
+    for (const ord of carOrdinals) {
+      if (!carNames[ord]) {
+        fetch(`/api/car-name/${ord}`)
+          .then((r) => r.ok ? r.text() : "")
+          .then((name) => { if (name) setCarNames((prev) => ({ ...prev, [ord]: name })); })
+          .catch(() => {});
+      }
+    }
+  }, [laps]);
+
+  // Sync selections to URL
+  useEffect(() => {
+    navigate({
+      search: {
+        track: selectedTrack ?? undefined,
+        car: selectedCar ?? undefined,
+        lap: selectedLapId ?? undefined,
+      },
+      replace: true,
+    });
+  }, [selectedTrack, selectedCar, selectedLapId, navigate]);
+
+  // Reset downstream selections when track changes
+  const handleTrackChange = useCallback((trackOrd: number | null) => {
+    setSelectedTrack(trackOrd);
+    setSelectedCar(null);
+    setSelectedLapId(null);
+  }, []);
+
+  // Reset lap selection when car changes
+  const handleCarChange = useCallback((carOrd: number | null) => {
+    setSelectedCar(carOrd);
+    setSelectedLapId(null);
+  }, []);
+
   // Fetch telemetry when lap selected
   useEffect(() => {
     if (selectedLapId == null) return;
     setLoading(true);
     setPlaying(false);
     playRef.current = false;
+
+    // Set car/track name from caches
+    setCarName(selectedCar != null ? (carNames[selectedCar] ?? "") : "");
+    setTrackName(selectedTrack != null ? (trackNames[selectedTrack] ?? "") : "");
 
     fetch(`/api/laps/${selectedLapId}`)
       .then((r) => r.json())
@@ -412,24 +647,9 @@ export function LapAnalyse() {
           setCursorIdx(0);
           cursorRef.current = 0;
 
-          // Fetch car name
-          const carOrd = data.meta?.carOrdinal ?? data.telemetry[0]?.CarOrdinal;
-          if (carOrd != null) {
-            fetch(`/api/car-name/${carOrd}`)
-              .then((r) => r.ok ? r.text() : "")
-              .then(setCarName)
-              .catch(() => setCarName(""));
-          } else {
-            setCarName("");
-          }
-
-          // Fetch track outline + sectors + track name
-          const trackOrd = data.meta?.trackOrdinal ?? data.telemetry[0]?.TrackOrdinal;
+          // Fetch track outline + sectors
+          const trackOrd = selectedTrack ?? data.meta?.trackOrdinal ?? data.telemetry[0]?.TrackOrdinal;
           if (trackOrd != null) {
-            fetch(`/api/track-name/${trackOrd}`)
-              .then((r) => r.ok ? r.text() : "")
-              .then(setTrackName)
-              .catch(() => setTrackName(""));
             fetch(`/api/track-outline/${trackOrd}`)
               .then((r) => (r.ok ? r.json() : null))
               .then((data) => {
@@ -438,14 +658,17 @@ export function LapAnalyse() {
                 else setOutline(null);
               })
               .catch(() => setOutline(null));
+            fetch(`/api/track-sector-boundaries/${trackOrd}`)
+              .then((r) => (r.ok ? r.json() : null))
+              .then((s) => { if (s?.s1End) setSectors(s); else setSectors(null); })
+              .catch(() => setSectors(null));
             fetch(`/api/track-sectors/${trackOrd}`)
               .then((r) => (r.ok ? r.json() : null))
-              .then((s) => setSectors(s))
-              .catch(() => setSectors(null));
+              .then((s) => { if (s?.segments) setSegments(s.segments); else setSegments(null); })
+              .catch(() => setSegments(null));
           } else {
             setOutline(null);
             setSectors(null);
-            setTrackName("");
           }
         }
       })
@@ -602,6 +825,55 @@ export function LapAnalyse() {
     };
   }, [telemetry, sectors, cursorIdx, selectedLapId, laps]);
 
+  // Compute per-segment (turn/straight) times from telemetry
+  const segmentTimes = useMemo(() => {
+    if (!segments || segments.length === 0 || telemetry.length < 10) return null;
+
+    const firstDist = telemetry[0].DistanceTraveled;
+    const lastDist = telemetry[telemetry.length - 1].DistanceTraveled;
+    const lapDist = lastDist - firstDist;
+    if (lapDist <= 0) return null;
+
+    // For each segment, find the time between its start and end fractions
+    const result: { name: string; type: string; time: number; active: boolean }[] = [];
+    const cursorFrac = telemetry.length > 1
+      ? (telemetry[cursorIdx]?.DistanceTraveled - firstDist) / lapDist
+      : 0;
+
+    for (const seg of segments) {
+      let startTime = 0;
+      let endTime = 0;
+      let foundStart = false;
+      let foundEnd = false;
+
+      for (let i = 0; i < telemetry.length; i++) {
+        const frac = (telemetry[i].DistanceTraveled - firstDist) / lapDist;
+        if (!foundStart && frac >= seg.startFrac) {
+          startTime = telemetry[i].CurrentLap;
+          foundStart = true;
+        }
+        if (!foundEnd && frac >= seg.endFrac) {
+          endTime = telemetry[i].CurrentLap;
+          foundEnd = true;
+          break;
+        }
+      }
+      if (!foundEnd) endTime = telemetry[telemetry.length - 1].CurrentLap;
+
+      const active = cursorFrac >= seg.startFrac && cursorFrac < seg.endFrac;
+      const completed = cursorFrac >= seg.endFrac;
+      result.push({
+        name: seg.name,
+        type: seg.type,
+        time: foundStart ? endTime - startTime : 0,
+        active,
+        completed,
+      });
+    }
+
+    return result;
+  }, [segments, telemetry, cursorIdx]);
+
   const handleSliderChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const idx = Number(e.target.value);
@@ -647,33 +919,52 @@ export function LapAnalyse() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Header: lap selector + export */}
-      <div className="flex items-center gap-3 p-3 border-b border-slate-800">
+      {/* Header: cascading selectors + export */}
+      <div className="flex items-center gap-2 p-3 border-b border-slate-800 flex-wrap">
+        {/* Track selector */}
+        <select
+          value={selectedTrack ?? ""}
+          onChange={(e) => handleTrackChange(e.target.value ? Number(e.target.value) : null)}
+          className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-cyan-400 min-w-[200px]"
+        >
+          <option value="">Select track...</option>
+          {tracks.map(([ord, count]) => (
+            <option key={ord} value={ord}>
+              {trackNames[ord] || `Track ${ord}`} ({count})
+            </option>
+          ))}
+        </select>
+
+        {/* Car selector */}
+        <select
+          value={selectedCar ?? ""}
+          onChange={(e) => handleCarChange(e.target.value ? Number(e.target.value) : null)}
+          disabled={selectedTrack == null}
+          className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-cyan-400 min-w-[200px] disabled:opacity-40"
+        >
+          <option value="">Select car...</option>
+          {carsForTrack.map(([ord, count]) => (
+            <option key={ord} value={ord}>
+              {carNames[ord] || `Car ${ord}`} ({count})
+            </option>
+          ))}
+        </select>
+
+        {/* Lap selector */}
         <select
           value={selectedLapId ?? ""}
-          onChange={(e) =>
-            setSelectedLapId(e.target.value ? Number(e.target.value) : null)
-          }
-          className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-cyan-400 min-w-[280px]"
+          onChange={(e) => setSelectedLapId(e.target.value ? Number(e.target.value) : null)}
+          disabled={selectedCar == null}
+          className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-cyan-400 min-w-[200px] disabled:opacity-40"
         >
-          <option value="">Select a lap...</option>
-          {laps.map((lap) => {
-            const cls = lap.carOrdinal != null ? ` [${CAR_CLASS_NAMES[0] ?? ""}]` : "";
-            return (
-              <option key={lap.id} value={lap.id}>
-                Lap {lap.lapNumber} - {formatLapTime(lap.lapTime)}
-                {lap.carOrdinal != null ? ` - Car ${lap.carOrdinal}` : ""}
-              </option>
-            );
-          })}
+          <option value="">Select lap...</option>
+          {filteredLaps.map((lap) => (
+            <option key={lap.id} value={lap.id}>
+              Lap {lap.lapNumber} - {formatLapTime(lap.lapTime)}
+            </option>
+          ))}
         </select>
-        {(carName || trackName) && (
-          <div className="flex items-center gap-2 text-xs text-slate-400 truncate">
-            {trackName && <span className="font-medium text-slate-300">{trackName}</span>}
-            {trackName && carName && <span className="text-slate-600">/</span>}
-            {carName && <span>{carName}</span>}
-          </div>
-        )}
+
         <div className="ml-auto flex items-center gap-2">
           {telemetry.length > 0 && (
             <button
@@ -693,23 +984,97 @@ export function LapAnalyse() {
 
       {telemetry.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
-          {selectedLapId ? "No telemetry data for this lap." : "Select a recorded lap to analyse."}
+          {selectedLapId ? "No telemetry data for this lap." : "Select a track, car, and lap to analyse."}
         </div>
       ) : (
         <>
           {/* Top section: Track Map + Metrics */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_280px] border-b border-slate-800 shrink-0">
+          <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_auto_280px] border-b border-slate-800 shrink-0">
+            {/* Segment table + legend */}
+            <div className="border-r border-slate-800 overflow-y-auto p-2" style={{ height: 420 }}>
+              {/* Legend */}
+              <div className="flex items-center gap-3 mb-2 pb-2 border-b border-slate-800">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-1.5 rounded-sm bg-amber-500" />
+                  <span className="text-[9px] text-slate-500">Corner</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-1.5 rounded-sm bg-blue-500" />
+                  <span className="text-[9px] text-slate-500">Straight</span>
+                </div>
+              </div>
+              {/* Segment list */}
+              {segmentTimes ? (
+                <div className="space-y-0.5">
+                  {segmentTimes.map((seg, i) => (
+                    <div
+                      key={i}
+                      className={`flex items-center justify-between px-1.5 py-1 rounded text-[11px] font-mono ${
+                        seg.active ? "bg-slate-800 ring-1 ring-inset ring-slate-600" : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className="w-1.5 h-1.5 rounded-full"
+                          style={{ backgroundColor: seg.type === "corner" ? "#f59e0b" : "#3b82f6" }}
+                        />
+                        <span className={seg.active ? "text-white" : "text-slate-400"}>{seg.name}</span>
+                      </div>
+                      <span className={seg.active ? "text-white" : "text-slate-500"}>
+                        {seg.completed && seg.time > 0 ? seg.time.toFixed(3) + "s" : seg.active ? "..." : "-"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-[10px] text-slate-600">No segment data</div>
+              )}
+            </div>
+
             {/* Track map */}
-            <div className="border-r border-slate-800 bg-slate-950 p-2" style={{ height: 280 }}>
+            <div className="border-r border-slate-800 bg-slate-950 p-2 relative" style={{ height: 420 }}>
               <AnalyseTrackMap
                 telemetry={telemetry}
                 cursorIdx={cursorIdx}
                 outline={outline}
+                sectors={sectors}
+                segments={segments}
+                rotateWithCar={rotateWithCar}
+                zoom={mapZoom}
               />
+              {/* Map controls overlay — top right */}
+              <div className="absolute top-2 right-2 flex items-start gap-2">
+                {/* Zoom controls */}
+                <div className="flex flex-col gap-1">
+                  <button
+                    onClick={() => setMapZoom((z) => Math.min(z + 0.25, 4))}
+                    className="w-6 h-6 text-xs bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white rounded flex items-center justify-center"
+                  >+</button>
+                  <button
+                    onClick={() => setMapZoom((z) => Math.max(z - 0.25, 0.5))}
+                    className="w-6 h-6 text-xs bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white rounded flex items-center justify-center"
+                  >-</button>
+                </div>
+                {/* View toggle */}
+                <button
+                  onClick={() => setRotateWithCar((r) => !r)}
+                  className={`px-2 py-1 text-[10px] rounded border transition-colors ${
+                    rotateWithCar
+                      ? "bg-cyan-900/50 border-cyan-700 text-cyan-300"
+                      : "bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-300"
+                  }`}
+                  title="Rotate map to follow car direction"
+                >
+                  {rotateWithCar ? "Car View" : "Fixed View"}
+                </button>
+                {/* Compass */}
+                {currentPacket && <Compass yaw={currentPacket.Yaw} />}
+              </div>
             </div>
 
-            {/* Tire diagram */}
-            <div className="border-r border-slate-800 p-2 flex items-center">
+            {/* Steering wheel + Tire diagram */}
+            <div className="border-r border-slate-800 p-2 flex flex-col items-center justify-center gap-2">
+              {currentPacket && <SteeringWheel steer={currentPacket.Steer} />}
               {currentPacket && <TireDiagram packet={currentPacket} />}
             </div>
 
