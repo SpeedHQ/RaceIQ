@@ -348,13 +348,65 @@ app.get("/api/tracks", (c) => {
   return c.json(tracks);
 });
 
-// GET /api/track-sectors/:ordinal — returns named segments for known tracks,
-// or auto-detects corner/straight segments from outline curvature.
+// User-edited segments storage — one JSON file per track in shared/track-outlines/segments/
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from "fs";
+import { resolve } from "path";
+
+const SEGMENTS_DIR = resolve(__dirname, "../shared/track-outlines/segments");
+const userSegmentsStore: Map<number, any[]> = new Map();
+
+// Load all on startup
+if (existsSync(SEGMENTS_DIR)) {
+  try {
+    for (const file of readdirSync(SEGMENTS_DIR)) {
+      if (!file.endsWith(".json")) continue;
+      const ordinal = parseInt(file.replace(".json", ""), 10);
+      if (isNaN(ordinal)) continue;
+      const data = JSON.parse(readFileSync(resolve(SEGMENTS_DIR, file), "utf-8"));
+      const segs = Array.isArray(data) ? data : data.segments;
+      if (Array.isArray(segs)) userSegmentsStore.set(ordinal, segs);
+    }
+  } catch {}
+}
+
+function saveUserSegmentsForTrack(ordinal: number, segments: any[]) {
+  try {
+    if (!existsSync(SEGMENTS_DIR)) mkdirSync(SEGMENTS_DIR, { recursive: true });
+    const trackInfo = trackInfoMap.get(ordinal);
+    const name = trackInfo?.name ?? `Track ${ordinal}`;
+    const payload = { name, ordinal, segments };
+    writeFileSync(resolve(SEGMENTS_DIR, `${ordinal}.json`), JSON.stringify(payload, null, 2));
+  } catch (e) {
+    console.error("[Segments] Failed to save:", e);
+  }
+}
+
+// PUT /api/tracks/:trackOrdinal/segments — save user-edited segments
+app.put("/api/tracks/:trackOrdinal/segments", async (c) => {
+  const trackOrdinal = parseInt(c.req.param("trackOrdinal"), 10);
+  if (isNaN(trackOrdinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  const body = await c.req.json();
+  if (!body.segments || !Array.isArray(body.segments)) {
+    return c.json({ error: "segments array required" }, 400);
+  }
+  userSegmentsStore.set(trackOrdinal, body.segments);
+  saveUserSegmentsForTrack(trackOrdinal, body.segments);
+  return c.json({ success: true, count: body.segments.length });
+});
+
+// GET /api/track-sectors/:ordinal — returns user-edited, named, or auto-detected segments.
 app.get("/api/track-sectors/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);
   if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
 
-  // Check for hand-curated named segments first
+  // 1. User-edited segments (highest priority)
+  const userSegs = userSegmentsStore.get(ordinal);
+  if (userSegs && userSegs.length > 0) {
+    return c.json({ segments: userSegs, totalDist: 0, source: "user" });
+  }
+
+  // 2. Hand-curated named segments from code
   const trackInfo = trackInfoMap.get(ordinal);
   if (trackInfo) {
     const named = namedSegments[trackInfo.name];

@@ -86,6 +86,9 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [sectors, setSectors] = useState<TrackSectors | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [editing, setEditing] = useState(false);
+  const [editSegments, setEditSegments] = useState<TrackSegment[]>([]);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!track.hasOutline) return;
@@ -100,13 +103,108 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
     }).catch(() => {});
   }, [track.ordinal, track.hasOutline]);
 
+  // Use edit segments for preview when editing, otherwise use fetched sectors
+  const displaySectors = editing && editSegments.length > 0
+    ? { segments: editSegments, totalDist: sectors?.totalDist ?? 0 }
+    : sectors;
+
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
-    drawTrack(canvasRef.current, outline, true, sectors, zoom);
-  }, [outline, sectors, zoom]);
+    drawTrack(canvasRef.current, outline, true, displaySectors, zoom);
+  }, [outline, displaySectors, zoom]);
 
-  const corners = sectors?.segments.filter((s) => s.type === "corner") ?? [];
-  const straights = sectors?.segments.filter((s) => s.type === "straight") ?? [];
+  const startEditing = useCallback(() => {
+    if (sectors?.segments) {
+      setEditSegments(sectors.segments.map((s) => ({ ...s })));
+      setEditing(true);
+    }
+  }, [sectors]);
+
+  const updateSegFrac = useCallback((idx: number, field: "startFrac" | "endFrac", value: number) => {
+    setEditSegments((prev) => {
+      const next = prev.map((s) => ({ ...s }));
+      next[idx][field] = value;
+      // Auto-chain: if changing endFrac, update next segment's startFrac
+      if (field === "endFrac" && idx + 1 < next.length) {
+        next[idx + 1].startFrac = value;
+      }
+      // Auto-chain: if changing startFrac, update prev segment's endFrac
+      if (field === "startFrac" && idx > 0) {
+        next[idx - 1].endFrac = value;
+      }
+      return next;
+    });
+  }, []);
+
+  const updateSegName = useCallback((idx: number, name: string) => {
+    setEditSegments((prev) => {
+      const next = prev.map((s) => ({ ...s }));
+      next[idx].name = name;
+      return next;
+    });
+  }, []);
+
+  const toggleSegType = useCallback((idx: number) => {
+    setEditSegments((prev) => {
+      const next = prev.map((s) => ({ ...s }));
+      next[idx].type = next[idx].type === "corner" ? "straight" : "corner";
+      return next;
+    });
+  }, []);
+
+  const addSegment = useCallback((afterIdx: number) => {
+    setEditSegments((prev) => {
+      const next = [...prev];
+      const current = next[afterIdx];
+      const midFrac = (current.startFrac + current.endFrac) / 2;
+      // Split current segment at midpoint
+      const newSeg: TrackSegment = {
+        type: current.type === "corner" ? "straight" : "corner",
+        name: current.type === "corner" ? "S?" : "T?",
+        startFrac: midFrac,
+        endFrac: current.endFrac,
+        startIdx: 0,
+        endIdx: 0,
+      };
+      next[afterIdx] = { ...current, endFrac: midFrac };
+      next.splice(afterIdx + 1, 0, newSeg);
+      return next;
+    });
+  }, []);
+
+  const removeSegment = useCallback((idx: number) => {
+    setEditSegments((prev) => {
+      if (prev.length <= 1) return prev;
+      const next = [...prev];
+      const removed = next.splice(idx, 1)[0];
+      // Extend the previous segment to cover the gap
+      if (idx > 0) {
+        next[idx - 1] = { ...next[idx - 1], endFrac: removed.endFrac };
+      } else if (next.length > 0) {
+        next[0] = { ...next[0], startFrac: removed.startFrac };
+      }
+      return next;
+    });
+  }, []);
+
+  const saveSegments = useCallback(async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/tracks/${track.ordinal}/segments`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ segments: editSegments }),
+      });
+      if (res.ok) {
+        setSectors({ segments: editSegments, totalDist: sectors?.totalDist ?? 0 });
+        setEditing(false);
+      }
+    } catch {}
+    setSaving(false);
+  }, [editSegments, track.ordinal, sectors]);
+
+  const corners = displaySectors?.segments.filter((s) => s.type === "corner") ?? [];
+  const straights = displaySectors?.segments.filter((s) => s.type === "straight") ?? [];
 
   return (
     <div className="p-4 overflow-auto h-full">
@@ -127,7 +225,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
         {/* Large track map */}
         <div className="bg-slate-950 rounded-lg border border-slate-800 relative" style={{ height: 600 }}>
           {track.hasOutline ? (
@@ -176,27 +274,107 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
               </div>
               <div>
                 <span className="text-slate-500 text-xs">Segments</span>
-                <div className="font-mono text-white">{sectors?.segments.length ?? 0}</div>
+                <div className="font-mono text-white">{displaySectors?.segments.length ?? 0}</div>
               </div>
             </div>
           </div>
 
-          {/* Segment list */}
-          {sectors && sectors.segments.length > 0 && (
+          {/* Segment list / editor */}
+          {displaySectors && displaySectors.segments.length > 0 && (
             <div className="bg-slate-900/50 rounded-lg border border-slate-800 p-3">
-              <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Segments</div>
-              <div className="flex flex-col gap-1 max-h-[250px] overflow-auto">
-                {sectors.segments.map((seg, i) => {
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs text-slate-500 uppercase tracking-wider">Segments</div>
+                {!editing ? (
+                  <button
+                    onClick={startEditing}
+                    className="text-[10px] text-cyan-400 hover:text-cyan-300 px-2 py-0.5 rounded bg-cyan-900/30 border border-cyan-800/50"
+                  >
+                    Edit
+                  </button>
+                ) : (
+                  <div className="flex gap-1">
+                    <button
+                      onClick={saveSegments}
+                      disabled={saving}
+                      className="text-[10px] text-emerald-400 hover:text-emerald-300 px-2 py-0.5 rounded bg-emerald-900/30 border border-emerald-800/50 disabled:opacity-50"
+                    >
+                      {saving ? "..." : "Save"}
+                    </button>
+                    <button
+                      onClick={() => setEditing(false)}
+                      className="text-[10px] text-slate-400 hover:text-slate-300 px-2 py-0.5 rounded bg-slate-800 border border-slate-700"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-0.5 max-h-[420px] overflow-auto">
+                {(editing ? editSegments : displaySectors.segments).map((seg, i) => {
                   const pct = ((seg.endFrac - seg.startFrac) * 100).toFixed(1);
-                  const color = seg.type === "corner" ? "text-red-400" : "text-blue-400";
-                  const bg = seg.type === "corner" ? "bg-red-500/10" : "bg-blue-500/10";
-                  return (
-                    <div key={i} className={`flex items-center justify-between px-2 py-1 rounded ${bg}`}>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-mono font-bold ${color}`}>{seg.name}</span>
-                        <span className="text-[10px] text-slate-500 capitalize">{seg.type}</span>
+                  const isCorner = seg.type === "corner";
+                  const color = isCorner ? "text-red-400" : "text-blue-400";
+                  const bg = isCorner ? "bg-red-500/10" : "bg-blue-500/10";
+
+                  if (!editing) {
+                    return (
+                      <div key={i} className={`flex items-center justify-between px-2 py-1 rounded ${bg}`}>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-mono font-bold ${color}`}>{seg.name}</span>
+                          <span className="text-[10px] text-slate-500 capitalize">{seg.type}</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-400">{pct}%</span>
                       </div>
-                      <span className="text-[10px] font-mono text-slate-400">{pct}%</span>
+                    );
+                  }
+
+                  return (
+                    <div key={i} className={`px-2 py-1.5 rounded ${bg} space-y-1`}>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => toggleSegType(i)}
+                          className={`text-[10px] font-bold px-1 rounded ${isCorner ? "bg-red-500/20 text-red-400" : "bg-blue-500/20 text-blue-400"}`}
+                        >
+                          {isCorner ? "T" : "S"}
+                        </button>
+                        <input
+                          value={seg.name}
+                          onChange={(e) => updateSegName(i, e.target.value)}
+                          className="flex-1 text-xs font-mono bg-transparent border-b border-slate-700 text-white outline-none px-1"
+                        />
+                        <button
+                          onClick={() => addSegment(i)}
+                          className="text-[10px] text-slate-500 hover:text-white px-1"
+                          title="Split segment"
+                        >+</button>
+                        <button
+                          onClick={() => removeSegment(i)}
+                          className="text-[10px] text-slate-500 hover:text-red-400 px-1"
+                          title="Remove segment"
+                        >x</button>
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400">
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="100"
+                          value={(seg.startFrac * 100).toFixed(1)}
+                          onChange={(e) => updateSegFrac(i, "startFrac", Number(e.target.value) / 100)}
+                          className="w-14 bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-white text-center"
+                        />
+                        <span>-</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="100"
+                          value={(seg.endFrac * 100).toFixed(1)}
+                          onChange={(e) => updateSegFrac(i, "endFrac", Number(e.target.value) / 100)}
+                          className="w-14 bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-white text-center"
+                        />
+                        <span className="text-slate-600">({pct}%)</span>
+                      </div>
                     </div>
                   );
                 })}
@@ -264,17 +442,26 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
   ctx.stroke();
 
   // Inner line — color-coded by segment type. startFrac/endFrac map [0,1] to outline indices.
+  // Alternating color palettes for distinct segment visibility
+  const cornerColors = ["#ef4444", "#f97316", "#ec4899", "#f59e0b", "#e11d48", "#d946ef"];
+  const straightColors = ["#3b82f6", "#06b6d4", "#8b5cf6", "#2dd4bf", "#6366f1", "#0ea5e9"];
+
   if (sectors && sectors.segments.length > 0) {
     const n = outline.length;
+    let cornerIdx = 0, straightIdx = 0;
+
     for (const seg of sectors.segments) {
       const start = Math.round(seg.startFrac * n);
       const end = Math.min(Math.round(seg.endFrac * n), n - 1);
-      const color = seg.type === "corner" ? "#ef4444" : "#3b82f6";
+      const color = seg.type === "corner"
+        ? cornerColors[cornerIdx++ % cornerColors.length]
+        : straightColors[straightIdx++ % straightColors.length];
 
       ctx.beginPath();
       ctx.strokeStyle = color;
-      ctx.globalAlpha = large ? 0.8 : 0.5;
-      ctx.lineWidth = large ? 2 : 1.5;
+      ctx.globalAlpha = large ? 0.85 : 0.5;
+      ctx.lineWidth = large ? 3 : 1.5;
+      ctx.lineCap = "round";
       const [fx, fy] = toCanvas(outline[start].x, outline[start].z);
       ctx.moveTo(fx, fy);
       for (let i = start + 1; i <= end; i++) {
@@ -283,6 +470,17 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
       }
       ctx.stroke();
       ctx.globalAlpha = 1;
+
+      // Boundary dot at segment start
+      if (large && start > 0) {
+        ctx.beginPath();
+        ctx.arc(fx, fy, 3, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
 
       // Label at midpoint of segment
       if (large || seg.type === "corner") {
