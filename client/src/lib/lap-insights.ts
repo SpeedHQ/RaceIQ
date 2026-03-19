@@ -260,6 +260,65 @@ function detectTrailBraking(telemetry: TelemetryPacket[]): LapInsight | null {
   };
 }
 
+function detectThrottleTractionLoss(telemetry: TelemetryPacket[]): LapInsight | null {
+  // Heavy throttle + any wheel spinning = losing drive
+  const flags = telemetry.map((p) => {
+    if (p.Accel < 150) return false;
+    const ws = allWheelStates(p);
+    return ws.fl.state === "spin" || ws.fr.state === "spin" ||
+           ws.rl.state === "spin" || ws.rr.state === "spin";
+  });
+  const events = groupEvents(flags, 3);
+  if (events.length === 0) return null;
+  return {
+    id: "driving-throttle-traction-loss",
+    category: "driving",
+    severity: events.length >= 5 ? "critical" : events.length >= 2 ? "warning" : "info",
+    label: "Throttle Traction Loss",
+    detail: `${events.length} wheelspin event${events.length > 1 ? "s" : ""} under power`,
+    frameIndices: midFrame(events),
+  };
+}
+
+function detectEarlyThrottle(telemetry: TelemetryPacket[]): LapInsight | null {
+  // Applying throttle while still carrying significant steering = risk of snap oversteer
+  const flags = telemetry.map((p) => {
+    return p.Accel > 100 && Math.abs(p.Steer) > 40 && p.Speed * 2.23694 > 30;
+  });
+  const events = groupEvents(flags, 5);
+  if (events.length === 0) return null;
+  return {
+    id: "driving-early-throttle",
+    category: "driving",
+    severity: events.length >= 5 ? "warning" : "info",
+    label: "Early Throttle",
+    detail: `${events.length} zone${events.length > 1 ? "s" : ""} — throttle applied with heavy steering`,
+    frameIndices: midFrame(events),
+  };
+}
+
+function detectBinaryThrottle(telemetry: TelemetryPacket[]): LapInsight | null {
+  // Count frames where throttle is either <10% or >90% while at speed
+  let binaryFrames = 0;
+  let totalDrivingFrames = 0;
+  for (const p of telemetry) {
+    if (p.Speed * 2.23694 < 15) continue; // skip low speed (pit, start)
+    totalDrivingFrames++;
+    if (p.Accel < 25 || p.Accel > 230) binaryFrames++;
+  }
+  if (totalDrivingFrames < 100) return null;
+  const pct = (binaryFrames / totalDrivingFrames) * 100;
+  if (pct < 70) return null; // some binary input is normal
+  return {
+    id: "driving-binary-throttle",
+    category: "driving",
+    severity: pct > 90 ? "warning" : "info",
+    label: "Binary Throttle",
+    detail: `${pct.toFixed(0)}% of driving is full-on or full-off`,
+    frameIndices: [Math.round(telemetry.length / 2)],
+  };
+}
+
 function detectFuelConsumption(telemetry: TelemetryPacket[]): LapInsight | null {
   if (telemetry.length < 2) return null;
   const startFuel = telemetry[0].Fuel;
@@ -360,6 +419,12 @@ export function analyzeLap(telemetry: TelemetryPacket[]): LapInsight[] {
   if (coast) insights.push(coast);
   const trail = detectTrailBraking(telemetry);
   if (trail) insights.push(trail);
+  const throttleLoss = detectThrottleTractionLoss(telemetry);
+  if (throttleLoss) insights.push(throttleLoss);
+  const earlyThrottle = detectEarlyThrottle(telemetry);
+  if (earlyThrottle) insights.push(earlyThrottle);
+  const binary = detectBinaryThrottle(telemetry);
+  if (binary) insights.push(binary);
 
   // Mechanical
   const fuel = detectFuelConsumption(telemetry);
