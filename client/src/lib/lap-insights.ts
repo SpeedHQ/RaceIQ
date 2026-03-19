@@ -260,6 +260,48 @@ function detectTrailBraking(telemetry: TelemetryPacket[]): LapInsight | null {
   };
 }
 
+function detectEarlyBraking(telemetry: TelemetryPacket[]): LapInsight | null {
+  // Pattern: brake zone ends → coasting/no input → throttle applied while still turning
+  // This means the driver braked too early, lost speed, then had to accelerate mid-corner
+  const brakeFlags = telemetry.map((p) => p.Brake > 10);
+  const brakeZones = groupEvents(brakeFlags, 3);
+  if (brakeZones.length === 0) return null;
+
+  const events: [number, number][] = [];
+  for (const [, brakeEnd] of brakeZones) {
+    // After brake release, look for: low throttle gap then throttle while still steering
+    let gapFrames = 0;
+    let foundThrottleInTurn = false;
+    let eventFrame = brakeEnd;
+    for (let i = brakeEnd + 1; i < Math.min(brakeEnd + 90, telemetry.length); i++) {
+      const p = telemetry[i];
+      if (p.Accel < 30 && p.Brake < 10) {
+        gapFrames++;
+      } else if (p.Accel > 80 && Math.abs(p.Steer) > 20 && gapFrames >= 5) {
+        // Driver is accelerating mid-corner after a coast gap = braked too early
+        foundThrottleInTurn = true;
+        eventFrame = i;
+        break;
+      } else {
+        break; // immediate throttle with no gap = normal corner exit
+      }
+    }
+    if (foundThrottleInTurn) {
+      events.push([brakeEnd, eventFrame]);
+    }
+  }
+
+  if (events.length === 0) return null;
+  return {
+    id: "driving-early-braking",
+    category: "driving",
+    severity: events.length >= 4 ? "warning" : "info",
+    label: "Early Braking",
+    detail: `${events.length} corner${events.length > 1 ? "s" : ""} — braked early, had to accelerate mid-turn`,
+    frameIndices: midFrame(events),
+  };
+}
+
 function detectThrottleTractionLoss(telemetry: TelemetryPacket[]): LapInsight | null {
   // Heavy throttle + any wheel spinning = losing drive
   const flags = telemetry.map((p) => {
@@ -419,6 +461,8 @@ export function analyzeLap(telemetry: TelemetryPacket[]): LapInsight[] {
   if (coast) insights.push(coast);
   const trail = detectTrailBraking(telemetry);
   if (trail) insights.push(trail);
+  const earlyBrake = detectEarlyBraking(telemetry);
+  if (earlyBrake) insights.push(earlyBrake);
   const throttleLoss = detectThrottleTractionLoss(telemetry);
   if (throttleLoss) insights.push(throttleLoss);
   const earlyThrottle = detectEarlyThrottle(telemetry);
