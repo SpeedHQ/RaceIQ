@@ -78,7 +78,7 @@ function detectSuspensionImbalance(telemetry: TelemetryPacket[]): LapInsight | n
       category: "suspension",
       severity: Math.abs(avgDelta) > 0.25 ? "critical" : "warning",
       label: "Suspension Imbalance",
-      detail: `${side} side ${Math.abs(avgDelta).toFixed(0)}% stiffer on average`,
+      detail: `${side} side ${(Math.abs(avgDelta) * 100).toFixed(0)}% stiffer on average`,
       frameIndices: [Math.round(telemetry.length / 2)],
     };
   }
