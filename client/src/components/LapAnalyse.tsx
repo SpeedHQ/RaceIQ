@@ -18,6 +18,8 @@ import {
 } from "../lib/vehicle-dynamics";
 import { convertSpeed, speedLabel } from "../lib/speed";
 import { useTelemetry } from "../context/telemetry";
+import { analyzeLap } from "../lib/lap-insights";
+import { InsightPanel } from "./InsightPanel";
 
 interface Point {
   x: number;
@@ -530,6 +532,7 @@ export function LapAnalyse() {
   const [carName, setCarName] = useState("");
   const [trackName, setTrackName] = useState("");
   const [cursorIdx, setCursorIdx] = useState(0);
+  const [sidebarTab, setSidebarTab] = useState<"live" | "insights">("live");
   const [playing, setPlaying] = useState(false);
   const [rotateWithCar, setRotateWithCar] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
@@ -888,6 +891,7 @@ export function LapAnalyse() {
   }, []);
 
   const currentPacket = telemetry[cursorIdx] ?? null;
+  const lapInsights = useMemo(() => analyzeLap(telemetry), [telemetry]);
 
   // Time display
   const currentTime = currentPacket ? currentPacket.CurrentLap : 0;
@@ -1261,10 +1265,42 @@ export function LapAnalyse() {
           </div>
 
           {/* Right panel – full height */}
-          <div className="w-80 shrink-0 border-l border-slate-800 overflow-y-auto bg-slate-900/50 p-3">
-              <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 font-semibold">
-                Metrics at Cursor
-              </h3>
+          <div className="w-80 shrink-0 border-l border-slate-800 overflow-y-auto bg-slate-900/50 flex flex-col">
+              {/* Tab switcher */}
+              <div className="flex border-b border-slate-800 shrink-0">
+                <button
+                  onClick={() => setSidebarTab("live")}
+                  className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
+                    sidebarTab === "live"
+                      ? "text-white border-b-2 border-cyan-400"
+                      : "text-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  Live
+                </button>
+                <button
+                  onClick={() => setSidebarTab("insights")}
+                  className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
+                    sidebarTab === "insights"
+                      ? "text-white border-b-2 border-cyan-400"
+                      : "text-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  Insights
+                  {lapInsights.length > 0 && (
+                    <span className="ml-1 text-[9px] bg-slate-700 text-slate-300 rounded-full px-1.5">
+                      {lapInsights.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              <div className="p-3 flex-1 overflow-y-auto">
+              {sidebarTab === "live" ? (
+                <>
+                <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 font-semibold">
+                  Metrics at Cursor
+                </h3>
               {currentPacket && <MetricsPanel pkt={currentPacket} startFuel={telemetry[0]?.Fuel} />}
 
               {currentPacket && (
@@ -1409,6 +1445,11 @@ export function LapAnalyse() {
                   </div>
                 </>
               )}
+              </>
+            ) : (
+              <InsightPanel insights={lapInsights} onJumpToFrame={setCursorIdx} />
+            )}
+            </div>
           </div>
         </div>
       )}
