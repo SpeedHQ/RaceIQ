@@ -482,8 +482,8 @@ export default function App() {
   }, [packet?.LapNumber]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      <div className="flex items-center justify-between border-b border-slate-800">
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-slate-950 flex items-center justify-between border-b border-slate-800">
         <div className="flex items-center">
           <ConnectionStatus connected={connected} packetsPerSec={packetsPerSec} forzaReceiving={packetsPerSec > 0} />
 
@@ -513,6 +513,8 @@ export default function App() {
           {showSettings ? "Close" : "Settings"}
         </Button>
       </div>
+
+      <div className="pt-[41px]" />
 
       {showSettings && (
         <div className="p-4 border-b border-slate-800 bg-slate-950">
@@ -621,15 +623,13 @@ export default function App() {
       )}
 
       {activeTab === "analyse" && (
-        <div className="flex-1 overflow-hidden">
+        <div className="overflow-hidden" style={{ height: 'calc(100vh - 41px)' }}>
           <LapAnalyse />
         </div>
       )}
 
       {activeTab === "tracks" && (
-        <div className="flex-1 overflow-auto">
-          <TrackViewer />
-        </div>
+        <TrackViewer />
       )}
 
       {activeTab === "raw" && (
