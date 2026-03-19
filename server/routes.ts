@@ -15,6 +15,8 @@ import {
   getTrackOutline as getDbTrackOutline,
   getTrackOutlineSectors,
   hasRecordedOutline,
+  getAnalysis,
+  saveAnalysis,
 } from "./db/queries";
 import {
   CAR_CLASS_NAMES,
@@ -28,6 +30,7 @@ import { carMap, getCarName, trackMap, getTrackName } from "../shared/car-data";
 import { getTrackOutlineByOrdinal, hasTrackOutline, hasRecordedOutline, getTrackSectorsByOrdinal, getStartYaw, deleteRecordedOutline } from "../shared/track-outlines/index";
 import { trackMap as trackInfoMap } from "../shared/car-data";
 import { namedSegments } from "../shared/track-outlines/named-segments";
+import { buildAnalystPrompt } from "./ai/analyst-prompt";
 
 const app = new Hono();
 
@@ -144,6 +147,89 @@ app.get("/api/laps/:id/export", (c) => {
 
   const exportText = generateExport(lap, packets);
   return c.text(exportText);
+});
+
+// POST /api/laps/:id/analyse — AI-powered lap analysis via Claude CLI
+app.post("/api/laps/:id/analyse", async (c) => {
+  const id = parseInt(c.req.param("id"), 10);
+  if (isNaN(id)) return c.json({ error: "Invalid lap ID" }, 400);
+
+  const url = new URL(c.req.url);
+  const regenerate = url.searchParams.get("regenerate") === "true";
+
+  // Check cache first
+  if (!regenerate) {
+    const cached = getAnalysis(id);
+    if (cached) {
+      return c.json({ analysis: cached, cached: true });
+    }
+  }
+
+  const lap = getLapById(id);
+  if (!lap) return c.json({ error: "Lap not found" }, 404);
+  if (lap.telemetry.length === 0) {
+    return c.json({ error: "No telemetry data" }, 400);
+  }
+
+  // Get corner definitions for the track
+  const trackOrdinal = lap.trackOrdinal ?? 0;
+  const corners = trackOrdinal > 0 ? getCorners(trackOrdinal) : [];
+
+  // Build prompt
+  const prompt = buildAnalystPrompt(lap, lap.telemetry, corners);
+
+  // Spawn claude CLI, pipe prompt via stdin
+  try {
+    const proc = Bun.spawn(["claude", "-p", "-"], {
+      stdin: "pipe",
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+
+    // Write prompt to stdin (Bun.spawn stdin is a FileSink)
+    proc.stdin.write(prompt);
+    proc.stdin.end();
+
+    // Start reading stdout concurrently before awaiting exit
+    const stdoutPromise = new Response(proc.stdout).text();
+    const stderrPromise = new Response(proc.stderr).text();
+
+    // Set up timeout (90 seconds)
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      proc.kill();
+    }, 90_000);
+
+    const exitCode = await proc.exited;
+    clearTimeout(timeout);
+
+    if (timedOut) {
+      return c.json({ error: "Analysis timed out" }, 504);
+    }
+
+    if (exitCode !== 0) {
+      const stderr = await stderrPromise;
+      console.error("[AI] Claude CLI failed:", stderr);
+      return c.json({ error: "AI analysis failed. Is Claude CLI installed and authenticated?" }, 500);
+    }
+
+    const analysis = await stdoutPromise;
+    if (!analysis.trim()) {
+      return c.json({ error: "AI returned empty response" }, 500);
+    }
+
+    // Cache the result
+    saveAnalysis(id, analysis.trim());
+
+    return c.json({ analysis: analysis.trim(), cached: false });
+  } catch (err) {
+    console.error("[AI] Failed to spawn claude:", err);
+    return c.json(
+      { error: "Failed to run Claude CLI. Make sure 'claude' is installed and in PATH." },
+      500
+    );
+  }
 });
 
 // DELETE /api/laps/:id
