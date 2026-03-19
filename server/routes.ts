@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import { udpListener } from "./udp";
 import { wsManager } from "./ws";
 import { lapDetector } from "./lap-detector";
-import { saveSettings } from "./settings";
+import { loadSettings, saveSettings } from "./settings";
 import {
   getLaps,
   getLapById,
@@ -54,22 +54,50 @@ app.get("/api/status", (c) => {
 
 // GET /api/settings
 app.get("/api/settings", (c) => {
-  return c.json({ udpPort: udpListener.port });
+  const settings = loadSettings();
+  return c.json({ ...settings, udpPort: udpListener.port });
 });
 
 // PUT /api/settings
 app.put("/api/settings", async (c) => {
-  const body = await c.req.json<{ udpPort?: number }>();
-  const port = body.udpPort ?? udpListener.port;
+  const body = await c.req.json();
+  const current = loadSettings();
 
+  // Whitelist fields — only allow known settings to be updated
+  const merged = {
+    udpPort: body.udpPort ?? current.udpPort,
+    temperatureUnit: body.temperatureUnit ?? current.temperatureUnit,
+    tireTemperatureThresholds: {
+      cold: body.tireTemperatureThresholds?.cold ?? current.tireTemperatureThresholds.cold,
+      warm: body.tireTemperatureThresholds?.warm ?? current.tireTemperatureThresholds.warm,
+      hot: body.tireTemperatureThresholds?.hot ?? current.tireTemperatureThresholds.hot,
+    },
+  };
+
+  // Validate port
+  const port = merged.udpPort;
   if (!Number.isInteger(port) || port < 1024 || port > 65535) {
     return c.json({ error: "Port must be between 1024-65535" }, 400);
   }
 
+  // Validate temperature unit
+  if (merged.temperatureUnit !== "F" && merged.temperatureUnit !== "C") {
+    return c.json({ error: "temperatureUnit must be 'F' or 'C'" }, 400);
+  }
+
+  // Validate threshold ordering
+  const t = merged.tireTemperatureThresholds;
+  if (t.cold >= t.warm || t.warm >= t.hot) {
+    return c.json({ error: "Thresholds must be in order: cold < warm < hot" }, 400);
+  }
+
   try {
-    await udpListener.restart(port);
-    saveSettings({ udpPort: port });
-    return c.json({ udpPort: port });
+    // Only restart UDP if port actually changed
+    if (port !== udpListener.port) {
+      await udpListener.restart(port);
+    }
+    saveSettings(merged);
+    return c.json(merged);
   } catch {
     return c.json({ error: `Failed to bind to port ${port}` }, 500);
   }
@@ -177,6 +205,8 @@ app.get("/api/laps/:id1/compare/:id2", (c) => {
       brakeB: result.lapB.brake,
       rpmA: result.lapA.rpm,
       rpmB: result.lapB.rpm,
+      tireWearA: result.lapA.tireWear,
+      tireWearB: result.lapB.tireWear,
     },
     timeDelta: result.timeDelta,
     corners: result.cornerDeltas,
@@ -285,6 +315,19 @@ app.get("/api/track-name/:ordinal", (c) => {
   return c.text(getTrackName(ordinal));
 });
 
+// GET /api/track-sector-boundaries/:ordinal — returns s1End/s2End fractions for timing
+app.get("/api/track-sector-boundaries/:ordinal", (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  // Try DB first, then bundled sectors
+  const dbSectors = getTrackOutlineSectors(ordinal);
+  if (dbSectors) return c.json(dbSectors);
+
+  const bundled = getTrackSectorsByOrdinal(ordinal);
+  return c.json(bundled);
+});
+
 // GET /api/tracks — list all tracks with outline availability
 app.get("/api/tracks", (c) => {
   const tracks = Array.from(trackInfoMap.entries()).map(([ordinal, info]) => ({
@@ -362,44 +405,90 @@ app.get("/api/track-sectors/:ordinal", (c) => {
     smoothed.push(sum / (smoothWindow * 2 + 1));
   }
 
-  // Threshold: points above this are "corner", below are "straight"
+  // ── Peak-finding approach ──────────────────────────────────────────
+  // 1. Find curvature peaks (corners) using local maxima
+  // 2. Expand each peak outward until curvature drops to the entry/exit floor
+  // 3. Add braking/exit buffers around each corner
+  // 4. Merge nearby corners; everything else is a straight
+
   const sorted = [...smoothed].sort((a, b) => a - b);
-  const threshold = sorted[Math.floor(n * 0.5)]; // median
+  // Peak threshold: must be above 70th percentile to count as a corner peak
+  const peakThreshold = sorted[Math.floor(n * 0.7)];
+  // Floor: curvature below 25th percentile = definitely straight
+  const floorThreshold = sorted[Math.floor(n * 0.25)];
+  // Buffer: extend corners by this many indices for entry/exit zones
+  const bufferIdx = Math.max(2, Math.floor(n / 100));
 
-  // Build segments by classifying each point
-  const segments: { type: "corner" | "straight"; startFrac: number; endFrac: number; startIdx: number; endIdx: number }[] = [];
-  let currentType: "corner" | "straight" = smoothed[0] > threshold ? "corner" : "straight";
-  let segStart = 0;
+  // Find local maxima in smoothed curvature above peakThreshold
+  const peaks: number[] = [];
+  const peakWindow = Math.max(2, Math.floor(n / 150));
+  for (let i = 0; i < n; i++) {
+    if (smoothed[i] < peakThreshold) continue;
+    let isMax = true;
+    for (let j = -peakWindow; j <= peakWindow; j++) {
+      if (j === 0) continue;
+      if (smoothed[(i + j + n) % n] > smoothed[i]) { isMax = false; break; }
+    }
+    if (isMax) peaks.push(i);
+  }
 
-  for (let i = 1; i < n; i++) {
-    const type = smoothed[i] > threshold ? "corner" : "straight";
-    if (type !== currentType) {
-      segments.push({
-        type: currentType,
-        startFrac: segStart / n,
-        endFrac: i / n,
-        startIdx: segStart,
-        endIdx: i,
-      });
-      currentType = type;
-      segStart = i;
+  // Expand each peak outward until curvature drops below floor
+  type Seg = { type: "corner" | "straight"; startIdx: number; endIdx: number; startFrac: number; endFrac: number };
+  const corners: { startIdx: number; endIdx: number }[] = [];
+  for (const peak of peaks) {
+    let lo = peak;
+    while (lo > 0 && smoothed[(lo - 1 + n) % n] > floorThreshold) lo--;
+    let hi = peak;
+    while (hi < n - 1 && smoothed[(hi + 1) % n] > floorThreshold) hi++;
+    // Add entry/exit buffer
+    lo = Math.max(0, lo - bufferIdx);
+    hi = Math.min(n - 1, hi + bufferIdx);
+    corners.push({ startIdx: lo, endIdx: hi });
+  }
+
+  // Merge overlapping/adjacent corners
+  corners.sort((a, b) => a.startIdx - b.startIdx);
+  const mergedCorners: typeof corners = [];
+  for (const c of corners) {
+    if (mergedCorners.length > 0 && c.startIdx <= mergedCorners[mergedCorners.length - 1].endIdx + 1) {
+      mergedCorners[mergedCorners.length - 1].endIdx = Math.max(mergedCorners[mergedCorners.length - 1].endIdx, c.endIdx);
+    } else {
+      mergedCorners.push({ ...c });
     }
   }
-  // Close last segment
-  segments.push({
-    type: currentType,
-    startFrac: segStart / n,
-    endFrac: 1,
-    startIdx: segStart,
-    endIdx: n - 1,
-  });
 
-  // Merge tiny segments (< 2% of track) into neighbors
-  const minFrac = 0.02;
-  const merged: typeof segments = [];
+  // Build segment list: corners + straights between them
+  const segments: Seg[] = [];
+  let pos = 0;
+  for (const c of mergedCorners) {
+    if (c.startIdx > pos) {
+      // Straight before this corner
+      segments.push({ type: "straight", startIdx: pos, endIdx: c.startIdx, startFrac: pos / n, endFrac: c.startIdx / n });
+    }
+    segments.push({ type: "corner", startIdx: c.startIdx, endIdx: c.endIdx, startFrac: c.startIdx / n, endFrac: c.endIdx / n });
+    pos = c.endIdx;
+  }
+  // Closing segment (after last corner to end, wrapping to first corner)
+  if (pos < n) {
+    // If track starts with a corner, merge the trailing straight with any leading straight
+    if (segments.length > 0 && segments[0].type === "straight") {
+      segments[0].startIdx = pos;
+      segments[0].startFrac = pos / n;
+      // Move to end of array so it wraps correctly — actually keep it as last
+      segments.push({ type: "straight", startIdx: pos, endIdx: n - 1, startFrac: pos / n, endFrac: 1 });
+    } else {
+      segments.push({ type: "straight", startIdx: pos, endIdx: n - 1, startFrac: pos / n, endFrac: 1 });
+    }
+  }
+
+  // Consolidate adjacent same-type and merge tiny segments (< 2% of track)
+  const merged: Seg[] = [];
   for (const seg of segments) {
     const frac = seg.endFrac - seg.startFrac;
-    if (frac < minFrac && merged.length > 0) {
+    if (frac < 0.02 && merged.length > 0) {
+      merged[merged.length - 1].endFrac = seg.endFrac;
+      merged[merged.length - 1].endIdx = seg.endIdx;
+    } else if (merged.length > 0 && merged[merged.length - 1].type === seg.type) {
       merged[merged.length - 1].endFrac = seg.endFrac;
       merged[merged.length - 1].endIdx = seg.endIdx;
     } else {
