@@ -8,7 +8,6 @@ function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
       rows: [
         ["Front Pressure", `${settings.tires.frontPressure.toFixed(2)} bar`],
         ["Rear Pressure", `${settings.tires.rearPressure.toFixed(2)} bar`],
-        ...(settings.tires.compound ? [["Compound", settings.tires.compound] as [string, string]] : []),
       ],
     },
     {
@@ -85,17 +84,17 @@ function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-w-2xl">
       {sections.map((section) => (
         <div key={section.title} className="rounded-lg bg-app-bg/60 p-3">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">
             {section.title}
           </h4>
-          <div className="space-y-1">
+          <div className="space-y-0">
             {section.rows.map(([label, value]) => (
-              <div key={label} className="flex justify-between text-xs">
-                <span className="text-app-text-muted">{label}</span>
-                <span className="text-app-text font-mono">{value}</span>
+              <div key={label} className="flex justify-between text-xs gap-2">
+                <span className="text-app-text-muted whitespace-nowrap">{label}</span>
+                <span className="text-app-text font-mono whitespace-nowrap" style={label === "Notes" ? { whiteSpace: "normal", textAlign: "right" } : undefined}>{value}</span>
               </div>
             ))}
           </div>
@@ -138,20 +137,20 @@ function StrategyPanel({ strategies, tuneId }: { strategies: RaceStrategy[]; tun
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-2">
         <div className="text-center">
-          <div className="text-lg font-bold text-app-text font-mono">{strategy.totalLaps}</div>
-          <div className="text-[10px] text-app-text-muted uppercase">Laps</div>
+          <div className="text-sm font-bold text-app-text font-mono leading-tight">{strategy.totalLaps}</div>
+          <div className="text-[10px] text-app-text-muted uppercase leading-tight">Laps</div>
         </div>
         <div className="text-center">
-          <div className="text-lg font-bold text-app-text font-mono">{strategy.fuelLoadPercent}%</div>
-          <div className="text-[10px] text-app-text-muted uppercase">Fuel Load</div>
+          <div className="text-sm font-bold text-app-text font-mono leading-tight">{strategy.fuelLoadPercent}%</div>
+          <div className="text-[10px] text-app-text-muted uppercase leading-tight">Fuel Load</div>
         </div>
         <div className="text-center">
-          <div className="text-lg font-bold text-app-text font-mono">{strategy.pitStops}</div>
-          <div className="text-[10px] text-app-text-muted uppercase">Pit Stops</div>
+          <div className="text-sm font-bold text-app-text font-mono leading-tight">{strategy.pitStops}</div>
+          <div className="text-[10px] text-app-text-muted uppercase leading-tight">Pit Stops</div>
         </div>
         <div className="text-center">
-          <div className="text-lg font-bold text-app-text font-mono">{strategy.tireCompound}</div>
-          <div className="text-[10px] text-app-text-muted uppercase">Tire</div>
+          <div className="text-sm font-bold text-app-text font-mono leading-tight">{strategy.tireCompound}</div>
+          <div className="text-[10px] text-app-text-muted uppercase leading-tight">Tire</div>
         </div>
       </div>
       {strategy.pitLaps && strategy.pitLaps.length > 0 && (
@@ -170,6 +169,34 @@ function StrategyPanel({ strategies, tuneId }: { strategies: RaceStrategy[]; tun
     </div>
   );
 }
+
+const CATEGORY_ICONS: Record<string, JSX.Element> = {
+  circuit: (
+    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" /><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20M2 12h20" />
+    </svg>
+  ),
+  wet: (
+    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l-3.5 11a4 4 0 1 0 7 0L12 2z" />
+    </svg>
+  ),
+  "low-drag": (
+    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14M12 5l7 7-7 7" />
+    </svg>
+  ),
+  stable: (
+    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22V2M2 12l10-10 10 10" />
+    </svg>
+  ),
+  "track-specific": (
+    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 1 1 18 0z" /><circle cx="12" cy="10" r="3" />
+    </svg>
+  ),
+};
 
 const CATEGORY_LABELS: Record<string, string> = {
   circuit: "Circuit",
@@ -198,11 +225,11 @@ function TuneCard({ tune, isExpanded, onToggle }: { tune: CatalogTune; isExpande
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-app-text">{tune.name}</span>
-              <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${CATEGORY_COLORS[tune.category]}`}>
-                {CATEGORY_LABELS[tune.category]}
+              <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded inline-flex items-center gap-1 ${CATEGORY_COLORS[tune.category]}`}>
+                {CATEGORY_ICONS[tune.category]}{CATEGORY_LABELS[tune.category]}
               </span>
             </div>
-            <p className="text-xs text-app-text-muted mt-0.5 line-clamp-1">{tune.description}</p>
+            <p className={`text-xs text-app-text-muted mt-0.5 ${isExpanded ? "" : "line-clamp-1"}`}>{tune.description}</p>
           </div>
         </div>
         <svg
@@ -217,7 +244,7 @@ function TuneCard({ tune, isExpanded, onToggle }: { tune: CatalogTune; isExpande
       </button>
 
       {isExpanded && (
-        <div className="px-4 pb-4 space-y-4 border-t border-app-border">
+        <div className="px-4 pb-4 space-y-4 border-t border-app-border max-w-2xl">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3">
             <div>
               <h4 className="text-xs font-semibold uppercase tracking-wider text-green-400 mb-1">Strengths</h4>
@@ -275,6 +302,12 @@ export function TuneCatalog() {
   const [selectedCar, setSelectedCar] = useState(CATALOG_CARS[0].ordinal);
   const [expandedTune, setExpandedTune] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [carSearch, setCarSearch] = useState("");
+  const [carDropdownOpen, setCarDropdownOpen] = useState(false);
+
+  const filteredCars = carSearch
+    ? CATALOG_CARS.filter((c) => c.name.toLowerCase().includes(carSearch.toLowerCase()))
+    : CATALOG_CARS;
 
   const car = getCatalogCar(selectedCar);
   const tunes = getTunesByCar(selectedCar);
@@ -283,7 +316,7 @@ export function TuneCatalog() {
   const categories = [...new Set(tunes.map((t) => t.category))];
 
   return (
-    <div className="flex-1 overflow-auto p-4 space-y-4">
+    <div className="flex-1 overflow-auto p-4 space-y-4 max-w-xl mx-auto">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -300,21 +333,48 @@ export function TuneCatalog() {
           <p className="text-xs text-app-text-muted">No upgrades — tuning only setups for GT3 spec events</p>
         </div>
 
-        <select
-          value={selectedCar}
-          onChange={(e) => {
-            setSelectedCar(Number(e.target.value));
-            setExpandedTune(null);
-            setCategoryFilter(null);
-          }}
-          className="bg-app-surface/60 text-app-text text-xs rounded-lg px-3 py-1.5 ring-1 ring-app-border focus:outline-none focus:ring-app-accent"
-        >
-          {CATALOG_CARS.map((car) => (
-            <option key={car.ordinal} value={car.ordinal}>
-              {car.name}
-            </option>
-          ))}
-        </select>
+        <div className="relative">
+          <input
+            type="text"
+            value={carDropdownOpen ? carSearch : (getCatalogCar(selectedCar)?.name ?? "")}
+            onChange={(e) => {
+              setCarSearch(e.target.value);
+              setCarDropdownOpen(true);
+            }}
+            onFocus={() => {
+              setCarDropdownOpen(true);
+              setCarSearch("");
+            }}
+            onBlur={() => setTimeout(() => setCarDropdownOpen(false), 150)}
+            placeholder="Search cars..."
+            className="bg-app-surface/60 text-app-text text-xs rounded-lg px-3 py-1.5 ring-1 ring-app-border focus:outline-none focus:ring-app-accent w-56"
+          />
+          {carDropdownOpen && (
+            <div className="absolute right-0 mt-1 w-56 max-h-60 overflow-auto rounded-lg bg-app-surface ring-1 ring-app-border z-50 shadow-lg">
+              {filteredCars.map((c) => (
+                <button
+                  key={c.ordinal}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setSelectedCar(c.ordinal);
+                    setExpandedTune(null);
+                    setCategoryFilter(null);
+                    setCarSearch("");
+                    setCarDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-app-accent/20 transition-colors ${
+                    selectedCar === c.ordinal ? "text-app-accent" : "text-app-text"
+                  }`}
+                >
+                  {c.name}
+                </button>
+              ))}
+              {filteredCars.length === 0 && (
+                <div className="px-3 py-2 text-xs text-app-text-muted">No cars found</div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -338,7 +398,7 @@ export function TuneCatalog() {
                 : "text-app-text-muted hover:text-app-text-secondary"
             }`}
           >
-            {CATEGORY_LABELS[cat]} ({tunes.filter((t) => t.category === cat).length})
+            <span className="inline-flex items-center gap-1">{CATEGORY_ICONS[cat]}{CATEGORY_LABELS[cat]}</span> ({tunes.filter((t) => t.category === cat).length})
           </button>
         ))}
       </div>

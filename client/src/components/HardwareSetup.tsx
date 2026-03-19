@@ -95,7 +95,7 @@ export function HardwareSetup() {
   const preset = profile.inGamePresets.find((p) => p.id === activePreset) ?? profile.inGamePresets[0];
 
   return (
-    <div className="flex-1 overflow-auto p-4 space-y-4">
+    <div className="flex-1 overflow-auto p-4 space-y-4 max-w-xl mx-auto">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2">

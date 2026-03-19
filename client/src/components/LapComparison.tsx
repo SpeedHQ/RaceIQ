@@ -166,6 +166,21 @@ function drawTrackCanvas(
       ctx.strokeStyle = "#0f172a";
       ctx.lineWidth = 1.5;
       ctx.stroke();
+      // Direction line from Yaw (heading)
+      if (zoom && p.Yaw !== undefined) {
+        const lineLen = 22;
+        // Yaw: 0 = +Z, positive = clockwise from above
+        // Canvas: X is flipped (viewCenterX - x), Z is normal (z - viewCenterZ)
+        const dx = -Math.sin(p.Yaw) * lineLen;
+        const dy = Math.cos(p.Yaw) * lineLen;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + dx, cy + dy);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = "round";
+        ctx.stroke();
+      }
     };
     drawDot(telemetryA, COLOR_A);
     drawDot(telemetryB, COLOR_B);
