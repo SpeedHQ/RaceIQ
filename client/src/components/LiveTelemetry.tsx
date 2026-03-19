@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import type { TelemetryPacket } from "@shared/types";
 import { CAR_CLASS_NAMES, DRIVETRAIN_NAMES } from "@shared/types";
 import { SteeringWheel } from "./SteeringWheel";
+import { BodyAttitude } from "./BodyAttitude";
 import { convertTemp } from "../lib/temperature";
 import { useTelemetry } from "../context/telemetry";
 
@@ -858,78 +859,6 @@ function SlipAngles({ packet }: { packet: TelemetryPacket }) {
         {/* Front arrow (direction of travel) */}
         <polygon points="50,2 47,7 53,7" fill="rgba(100,116,139,0.3)" />
       </svg>
-    </div>
-  );
-}
-
-/**
- * BodyAttitude — Three SVG mini-views showing car orientation:
- * 1. Rear view: car body rotates with roll angle (weight transfer in corners)
- * 2. Side view: car body rotates with pitch angle (braking/acceleration dive)
- * 3. Compass: arrow rotates with yaw heading
- * All angles converted from radians to degrees, clamped for visual sanity.
- */
-function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
-  const toDeg = 180 / Math.PI;
-  const roll = packet.Roll * toDeg;
-  const pitch = packet.Pitch * toDeg;
-  const yaw = packet.Yaw * toDeg;
-  const clampRoll = Math.max(-25, Math.min(25, roll));
-  const clampPitch = Math.max(-15, Math.min(15, pitch));
-
-  return (
-    <div className="flex items-center gap-3">
-      {/* Rear view — shows roll */}
-      <div className="flex flex-col items-center">
-        <svg viewBox="0 0 70 50" width={70} height={50}>
-          {/* Horizon line */}
-          <line x1={5} y1={25} x2={65} y2={25} stroke="rgba(100,116,139,0.15)" strokeWidth={0.5} />
-          {/* Car body — rotates with roll */}
-          <g transform={`rotate(${clampRoll}, 35, 30)`}>
-            {/* Body */}
-            <rect x={15} y={22} width={40} height={14} rx={3} fill="none" stroke="rgba(34,211,238,0.5)" strokeWidth={1.5} />
-            {/* Roof */}
-            <path d="M22 22 L25 14 L45 14 L48 22" fill="none" stroke="rgba(34,211,238,0.5)" strokeWidth={1.5} />
-            {/* Wheels */}
-            <rect x={11} y={32} width={8} height={5} rx={1.5} fill="rgba(34,211,238,0.3)" stroke="rgba(34,211,238,0.5)" strokeWidth={1} />
-            <rect x={51} y={32} width={8} height={5} rx={1.5} fill="rgba(34,211,238,0.3)" stroke="rgba(34,211,238,0.5)" strokeWidth={1} />
-          </g>
-          <text x={35} y={48} textAnchor="middle" fill="#64748b" fontSize={7} fontFamily="monospace">Roll {roll.toFixed(1)}°</text>
-        </svg>
-      </div>
-
-      {/* Side view — shows pitch */}
-      <div className="flex flex-col items-center">
-        <svg viewBox="0 0 70 50" width={70} height={50}>
-          {/* Horizon */}
-          <line x1={5} y1={25} x2={65} y2={25} stroke="rgba(100,116,139,0.15)" strokeWidth={0.5} />
-          {/* Car body — rotates with pitch */}
-          <g transform={`rotate(${-clampPitch}, 35, 28)`}>
-            {/* Body */}
-            <rect x={10} y={20} width={50} height={12} rx={3} fill="none" stroke="rgba(251,191,36,0.5)" strokeWidth={1.5} />
-            {/* Windshield */}
-            <path d="M42 20 L48 12 L55 12 L55 20" fill="none" stroke="rgba(251,191,36,0.5)" strokeWidth={1.5} />
-            {/* Wheels */}
-            <circle cx={20} cy={34} r={4} fill="rgba(251,191,36,0.3)" stroke="rgba(251,191,36,0.5)" strokeWidth={1} />
-            <circle cx={50} cy={34} r={4} fill="rgba(251,191,36,0.3)" stroke="rgba(251,191,36,0.5)" strokeWidth={1} />
-          </g>
-          <text x={35} y={48} textAnchor="middle" fill="#64748b" fontSize={7} fontFamily="monospace">Pitch {pitch.toFixed(1)}°</text>
-        </svg>
-      </div>
-
-      {/* Yaw value */}
-      <div className="flex flex-col items-center">
-        <svg viewBox="0 0 40 50" width={40} height={50}>
-          {/* Compass circle */}
-          <circle cx={20} cy={22} r={14} fill="none" stroke="rgba(100,116,139,0.2)" strokeWidth={0.8} />
-          {/* Direction arrow */}
-          <g transform={`rotate(${yaw}, 20, 22)`}>
-            <line x1={20} y1={22} x2={20} y2={10} stroke="rgba(52,211,153,0.7)" strokeWidth={1.5} />
-            <polygon points="20,8 17,13 23,13" fill="rgba(52,211,153,0.7)" />
-          </g>
-          <text x={20} y={48} textAnchor="middle" fill="#64748b" fontSize={7} fontFamily="monospace">Yaw {yaw.toFixed(0)}°</text>
-        </svg>
-      </div>
     </div>
   );
 }
