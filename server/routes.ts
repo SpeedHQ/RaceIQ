@@ -175,8 +175,12 @@ app.post("/api/laps/:id/analyse", async (c) => {
   const trackOrdinal = lap.trackOrdinal ?? 0;
   const corners = trackOrdinal > 0 ? getCorners(trackOrdinal) : [];
 
+  // Load user settings for unit conversion
+  const settings = loadSettings();
+  const units = { speedUnit: settings.speedUnit, temperatureUnit: settings.temperatureUnit };
+
   // Build prompt
-  const prompt = buildAnalystPrompt(lap, lap.telemetry, corners);
+  const prompt = buildAnalystPrompt(lap, lap.telemetry, corners, units);
 
   // Spawn claude CLI, pipe prompt via stdin
   try {
@@ -214,15 +218,28 @@ app.post("/api/laps/:id/analyse", async (c) => {
       return c.json({ error: "AI analysis failed. Is Claude CLI installed and authenticated?" }, 500);
     }
 
-    const analysis = await stdoutPromise;
-    if (!analysis.trim()) {
+    const raw = await stdoutPromise;
+    if (!raw.trim()) {
       return c.json({ error: "AI returned empty response" }, 500);
     }
 
-    // Cache the result
-    saveAnalysis(id, analysis.trim());
+    // Extract JSON from response (Claude may wrap in markdown fences)
+    let jsonStr = raw.trim();
+    const fenceMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+    if (fenceMatch) jsonStr = fenceMatch[1].trim();
 
-    return c.json({ analysis: analysis.trim(), cached: false });
+    // Validate it parses as JSON
+    try {
+      JSON.parse(jsonStr);
+    } catch {
+      console.error("[AI] Claude returned invalid JSON:", jsonStr.slice(0, 200));
+      return c.json({ error: "AI returned invalid response format" }, 500);
+    }
+
+    // Cache the validated JSON string
+    saveAnalysis(id, jsonStr);
+
+    return c.json({ analysis: jsonStr, cached: false });
   } catch (err) {
     console.error("[AI] Failed to spawn claude:", err);
     return c.json(

@@ -21,16 +21,19 @@ interface CornerMetrics {
   balance: "oversteer" | "understeer" | "neutral";
 }
 
-function packetSpeed(p: TelemetryPacket): number {
-  return Math.sqrt(p.VelocityX ** 2 + p.VelocityY ** 2 + p.VelocityZ ** 2) * 2.237;
+function packetSpeed(p: TelemetryPacket, factor: number): number {
+  return Math.sqrt(p.VelocityX ** 2 + p.VelocityY ** 2 + p.VelocityZ ** 2) * factor;
 }
 
 export function buildCornerData(
   packets: TelemetryPacket[],
-  corners: CornerDef[]
+  corners: CornerDef[],
+  speedUnit: "mph" | "kmh" = "mph"
 ): string {
   if (corners.length === 0 || packets.length === 0) return "";
 
+  const speedFactor = speedUnit === "kmh" ? 3.6 : 2.237;
+  const speedLabel = speedUnit === "kmh" ? "km/h" : "mph";
   const metrics: CornerMetrics[] = [];
 
   for (const corner of corners) {
@@ -39,7 +42,7 @@ export function buildCornerData(
     );
     if (cornerPackets.length === 0) continue;
 
-    const speeds = cornerPackets.map(packetSpeed);
+    const speeds = cornerPackets.map(p => packetSpeed(p, speedFactor));
     const entrySpeed = speeds[0];
     const minSpeed = Math.min(...speeds);
     const exitSpeed = speeds[speeds.length - 1];
@@ -105,7 +108,7 @@ export function buildCornerData(
   if (metrics.length === 0) return "";
 
   let out = "\n--- Corner-by-Corner Data ---\n";
-  out += "Corner | Entry mph | Min mph | Exit mph | Gear | Brake dist m | Time s | Throttle% | Brake% | Throttle-on m | Balance\n";
+  out += `Corner | Entry ${speedLabel} | Min ${speedLabel} | Exit ${speedLabel} | Gear | Brake dist m | Time s | Throttle% | Brake% | Throttle-on m | Balance\n`;
   out += "-------|-----------|---------|----------|------|-------------|--------|-----------|--------|--------------|--------\n";
   for (const m of metrics) {
     out += `${m.label.padEnd(6)} | ${m.entrySpeed.toFixed(0).padStart(9)} | ${m.minSpeed.toFixed(0).padStart(7)} | ${m.exitSpeed.toFixed(0).padStart(8)} | ${m.gear.toString().padStart(4)} | ${m.brakingDistance.toFixed(0).padStart(11)} | ${m.timeInCorner.toFixed(1).padStart(6)} | ${m.avgThrottle.toFixed(0).padStart(9)} | ${m.avgBrake.toFixed(0).padStart(5)} | ${m.throttleOnDist.toFixed(0).padStart(12)} | ${m.balance}\n`;

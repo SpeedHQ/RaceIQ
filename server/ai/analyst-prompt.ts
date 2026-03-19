@@ -1,5 +1,5 @@
 import type { TelemetryPacket } from "../../shared/types";
-import { generateExport } from "../export";
+import { generateExport, type ExportUnits } from "../export";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import { buildCornerData } from "./corner-data";
 
@@ -12,33 +12,43 @@ interface CornerDef {
 
 const SYSTEM_PROMPT = `You are an expert Forza Motorsport racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
 
-Your response MUST follow this exact structure using markdown headers:
+Your response MUST be valid JSON matching this exact schema. Output ONLY the JSON object, no markdown fences, no extra text.
 
-## Performance Summary
-2-3 sentences assessing the overall lap quality — pace, consistency, and where the biggest time gains are hiding.
+{
+  "verdict": "2-3 sentences assessing overall lap quality, pace, and where the biggest time gains are.",
+  "pace": [
+    { "label": "short metric name", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
+  ],
+  "handling": [
+    { "label": "short metric name", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
+  ],
+  "corners": [
+    { "name": "corner/zone name", "issue": "what's wrong in 1 sentence", "fix": "specific actionable fix in 1-2 sentences", "severity": "minor|moderate|major" }
+  ],
+  "technique": [
+    { "tip": "short imperative title", "detail": "1-2 sentence explanation referencing specific data" }
+  ],
+  "setup": [
+    { "change": "short imperative title", "symptom": "what the data shows", "fix": "specific tuning change with values" }
+  ],
+  "tuning": [
+    { "component": "e.g. Front Springs", "current": "what the data suggests (e.g. Too stiff — 0.00m travel)", "direction": "increase|decrease|adjust", "target": "specific value or range to aim for", "reason": "1 sentence why" }
+  ]
+}
 
-## Strengths
-3-5 bullet points of what the driver did well. Reference specific telemetry values (speeds, percentages, corner names).
-
-## Weaknesses
-3-5 bullet points of areas for improvement. Be specific — cite corner names, speeds, brake/throttle percentages.
-
-## Problem Corners
-For each of the top 3-5 corners where time is being lost:
-- **Corner name**: What's wrong and how to fix it (braking point, line, gear choice, exit speed).
-
-## Driving Technique
-3-5 actionable tips based on the telemetry patterns (trail braking, throttle modulation, racing line, gear selection, etc.).
-
-## Tuning Recommendations
-3-5 specific tuning changes based on the telemetry data (suspension, aero, gearing, differential, tire pressure). Explain the symptom you see in the data and the tuning change that addresses it.
+CATEGORY GUIDELINES:
+- "pace": 4-6 items covering speed, throttle %, braking efficiency, full-throttle time, gear usage. Each with a concrete value.
+- "handling": 4-6 items covering suspension travel, tire temps, tire wear balance, oversteer/understeer, weight transfer. Each with a concrete value.
+- "corners": Top 3-5 problem corners where time is being lost. Include speed numbers.
+- "technique": 3-5 actionable driving tips. Reference specific telemetry values.
+- "setup": 3-5 high-level tuning changes. Always include the symptom from data and the specific fix.
+- "tuning": 4-8 specific component adjustments with concrete target values. Cover: springs, dampers, anti-roll bars, aero, alignment, differential, tire pressure, gearing, brake bias. Only include components where the data suggests a change is needed.
 
 RULES:
 - Reference specific numbers from the data — don't be vague
 - Be specific and actionable, not generic
-- Keep total output under 800 words
-- Use markdown formatting
-- Address the driver as "you"`;
+- Address the driver as "you"
+- Output ONLY valid JSON, nothing else`;
 
 export function buildAnalystPrompt(
   lap: {
@@ -49,13 +59,14 @@ export function buildAnalystPrompt(
     trackOrdinal?: number;
   },
   packets: TelemetryPacket[],
-  corners: CornerDef[]
+  corners: CornerDef[],
+  units: ExportUnits = { speedUnit: "mph", temperatureUnit: "F" }
 ): string {
   const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
   const trackName = getTrackName(lap.trackOrdinal ?? 0);
 
-  const exportText = generateExport(lap, packets);
-  const cornerData = buildCornerData(packets, corners);
+  const exportText = generateExport(lap, packets, units);
+  const cornerData = buildCornerData(packets, corners, units.speedUnit);
 
   const context = `Car: ${carName}
 Track: ${trackName}

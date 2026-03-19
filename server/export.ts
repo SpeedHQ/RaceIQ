@@ -4,6 +4,17 @@ import {
   type TelemetryPacket,
 } from "../shared/types";
 
+export interface ExportUnits {
+  speedUnit: "mph" | "kmh";
+  temperatureUnit: "F" | "C";
+}
+
+const DEFAULT_UNITS: ExportUnits = { speedUnit: "mph", temperatureUnit: "F" };
+
+function convertTemp(fahrenheit: number, unit: "F" | "C"): number {
+  return unit === "C" ? (fahrenheit - 32) * 5 / 9 : fahrenheit;
+}
+
 /**
  * Generate a Claude-formatted lap export summary.
  */
@@ -15,18 +26,23 @@ export function generateExport(
     carOrdinal?: number;
     trackOrdinal?: number;
   },
-  packets: TelemetryPacket[]
+  packets: TelemetryPacket[],
+  units: ExportUnits = DEFAULT_UNITS
 ): string {
   const first = packets[0];
   const className = CAR_CLASS_NAMES[first.CarClass] ?? String(first.CarClass);
   const drivetrainName =
     DRIVETRAIN_NAMES[first.DrivetrainType] ?? String(first.DrivetrainType);
 
-  // Speed calculations (m/s -> mph)
+  const speedFactor = units.speedUnit === "kmh" ? 3.6 : 2.237; // m/s to kmh or mph
+  const speedLabel = units.speedUnit === "kmh" ? "km/h" : "mph";
+  const tempLabel = units.temperatureUnit === "C" ? "C" : "F";
+
+  // Speed calculations
   const speeds = packets.map(
     (p) =>
       Math.sqrt(p.VelocityX ** 2 + p.VelocityY ** 2 + p.VelocityZ ** 2) *
-      2.237 // m/s to mph
+      speedFactor
   );
   const minSpeed = Math.min(...speeds);
   const maxSpeed = Math.max(...speeds);
@@ -48,15 +64,15 @@ export function generateExport(
   const avgBrake = brakes.reduce((a, b) => a + b, 0) / brakes.length;
   const fullBrake = brakes.filter((b) => b > 0.95).length / brakes.length;
 
-  // Tire temps
-  const avgTireTempFL =
-    packets.reduce((a, p) => a + p.TireTempFL, 0) / packets.length;
-  const avgTireTempFR =
-    packets.reduce((a, p) => a + p.TireTempFR, 0) / packets.length;
-  const avgTireTempRL =
-    packets.reduce((a, p) => a + p.TireTempRL, 0) / packets.length;
-  const avgTireTempRR =
-    packets.reduce((a, p) => a + p.TireTempRR, 0) / packets.length;
+  // Tire temps (Forza sends Fahrenheit)
+  const avgTireTempFL = convertTemp(
+    packets.reduce((a, p) => a + p.TireTempFL, 0) / packets.length, units.temperatureUnit);
+  const avgTireTempFR = convertTemp(
+    packets.reduce((a, p) => a + p.TireTempFR, 0) / packets.length, units.temperatureUnit);
+  const avgTireTempRL = convertTemp(
+    packets.reduce((a, p) => a + p.TireTempRL, 0) / packets.length, units.temperatureUnit);
+  const avgTireTempRR = convertTemp(
+    packets.reduce((a, p) => a + p.TireTempRR, 0) / packets.length, units.temperatureUnit);
 
   // Gear distribution
   const gearCounts = new Map<number, number>();
@@ -103,12 +119,12 @@ Car: #${first.CarOrdinal} | Class: ${className} (PI ${first.CarPerformanceIndex}
 Track: #${lap.trackOrdinal ?? 0} | Lap: ${lap.lapNumber} | Time: ${lapTimeStr} | Valid: ${lap.isValid ? "Yes" : "No"}
 
 --- Performance Summary ---
-Speed (mph):    min=${minSpeed.toFixed(1)}  avg=${avgSpeed.toFixed(1)}  max=${maxSpeed.toFixed(1)}
+Speed (${speedLabel}):    min=${minSpeed.toFixed(1)}  avg=${avgSpeed.toFixed(1)}  max=${maxSpeed.toFixed(1)}
 RPM:            min=${Math.round(minRpm)}  avg=${Math.round(avgRpm)}  max=${Math.round(maxRpm)}
 Throttle:       avg=${(avgThrottle * 100).toFixed(0)}%   full=${(fullThrottle * 100).toFixed(0)}%
 Brake:          avg=${(avgBrake * 100).toFixed(0)}%   full=${(fullBrake * 100).toFixed(0)}%
 
---- Tire Temps (avg F) ---
+--- Tire Temps (avg ${tempLabel}) ---
 FL: ${Math.round(avgTireTempFL)}  FR: ${Math.round(avgTireTempFR)}  RL: ${Math.round(avgTireTempRL)}  RR: ${Math.round(avgTireTempRR)}
 
 --- Gear Distribution ---
@@ -119,7 +135,7 @@ ${gearDist}
 
   for (let i = 0; i < Math.min(5, brakingZones.length); i++) {
     const bz = brakingZones[i];
-    output += `${i + 1}. Speed ${bz.startSpeed.toFixed(0)}->${bz.endSpeed.toFixed(0)} mph at ${bz.distance.toFixed(0)}m\n`;
+    output += `${i + 1}. Speed ${bz.startSpeed.toFixed(0)}->${bz.endSpeed.toFixed(0)} ${speedLabel} at ${bz.distance.toFixed(0)}m\n`;
   }
 
   output += `
