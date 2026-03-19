@@ -27,6 +27,7 @@ console.log(`[Server] Starting Forza Telemetry Server...`);
 // Start the HTTP/WebSocket server
 const server = Bun.serve<WSData>({
   port: HTTP_PORT,
+  idleTimeout: 120, // seconds — AI analysis via Claude CLI can take up to 90s
   fetch(req, server) {
     // Handle WebSocket upgrade
     const url = new URL(req.url);

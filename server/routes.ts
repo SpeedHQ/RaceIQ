@@ -180,7 +180,7 @@ app.post("/api/laps/:id/analyse", async (c) => {
 
   // Spawn claude CLI, pipe prompt via stdin
   try {
-    const proc = Bun.spawn(["claude", "-p", "-"], {
+    const proc = Bun.spawn(["claude", "-p", "-", "--model", "haiku"], {
       stdin: "pipe",
       stdout: "pipe",
       stderr: "pipe",
