@@ -1,0 +1,28 @@
+{
+  "id": "amv-gt3-balanced-circuit",
+  "name": "Balanced Circuit",
+  "author": "Community",
+  "carOrdinal": 2860,
+  "category": "circuit",
+  "description": "Well-rounded circuit tune that balances stability with turn-in response. Great starting point for most tracks.",
+  "strengths": ["Consistent lap times", "Forgiving on entry", "Good tire wear"],
+  "weaknesses": ["Not the fastest in a straight line", "Mild understeer at low speed"],
+  "bestTracks": ["Spa", "Silverstone", "Nürburgring GP"],
+  "settings": {
+    "tires": { "frontPressure": 1.72, "rearPressure": 1.79, "compound": "Medium" },
+    "gearing": { "finalDrive": 3.42, "description": "Slightly shorter for mid-range acceleration" },
+    "alignment": {
+      "frontCamber": -1.2,
+      "rearCamber": -0.8,
+      "frontToe": 0.0,
+      "rearToe": 0.1,
+      "frontCaster": 5.8
+    },
+    "antiRollBars": { "front": 22.0, "rear": 18.5 },
+    "springs": { "frontRate": 120.0, "rearRate": 110.0, "frontHeight": 6.2, "rearHeight": 6.5, "unit": "kgf/mm" },
+    "damping": { "frontRebound": 10.5, "rearRebound": 9.8, "frontBump": 5.5, "rearBump": 5.0 },
+    "aero": { "frontDownforce": 135, "rearDownforce": 155, "unit": "kgf" },
+    "differential": { "rearAccel": 72, "rearDecel": 45 },
+    "brakes": { "balance": 54, "pressure": 95 }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "amv-gt3-aggressive-circuit",
+  "name": "Aggressive Track Attack",
+  "author": "Community",
+  "carOrdinal": 2860,
+  "category": "circuit",
+  "description": "Sharper turn-in and more rear rotation for experienced drivers. Rewards precision with faster lap times but punishes mistakes.",
+  "strengths": ["Fast corner entry", "Strong mid-corner rotation", "High downforce"],
+  "weaknesses": ["Snappy rear under braking", "Requires smooth inputs"],
+  "bestTracks": ["Brands Hatch", "Bathurst", "Suzuka"],
+  "settings": {
+    "tires": { "frontPressure": 1.69, "rearPressure": 1.83, "compound": "Soft" },
+    "gearing": { "finalDrive": 3.38, "description": "Optimised for top-end on longer straights" },
+    "alignment": {
+      "frontCamber": -1.5,
+      "rearCamber": -1.0,
+      "frontToe": -0.1,
+      "rearToe": 0.2,
+      "frontCaster": 6.2
+    },
+    "antiRollBars": { "front": 26.0, "rear": 15.0 },
+    "springs": { "frontRate": 135.0, "rearRate": 105.0, "frontHeight": 5.8, "rearHeight": 6.0, "unit": "kgf/mm" },
+    "damping": { "frontRebound": 11.5, "rearRebound": 9.0, "frontBump": 6.0, "rearBump": 4.5 },
+    "aero": { "frontDownforce": 145, "rearDownforce": 170, "unit": "kgf" },
+    "differential": { "rearAccel": 80, "rearDecel": 38 },
+    "brakes": { "balance": 56, "pressure": 100 }
+  }
+}

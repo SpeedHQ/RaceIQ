@@ -1,0 +1,47 @@
+{
+  "id": "amv-gt3-nordschleife",
+  "name": "Nordschleife",
+  "author": "Community",
+  "carOrdinal": 2860,
+  "category": "track-specific",
+  "trackOrdinal": 32,
+  "description": "Tuned for the Nordschleife's unique demands — high-speed compression zones, blind crests, and elevation changes. Softer springs absorb kerbs and bumps, higher ride height clears dips, and moderate downforce balances the mix of fast sweepers and tight sections.",
+  "strengths": ["Absorbs bumps and kerbs well", "Stable over crests", "Confidence through Karussell and Flugplatz"],
+  "weaknesses": ["Softer setup trades some peak cornering grip", "Not optimal for flat circuits"],
+  "bestTracks": ["Nürburgring Nordschleife", "Nürburgring Full Circuit"],
+  "strategies": [
+    {
+      "condition": "Dry",
+      "totalLaps": 3,
+      "fuelLoadPercent": 65,
+      "tireCompound": "Medium",
+      "pitStops": 0,
+      "notes": "Long lap means high fuel per lap. 65% is enough for 3 laps with a small margin. Medium compound balances grip and durability over the 20km lap. Switch to Hard if running 5+ laps."
+    },
+    {
+      "condition": "Wet",
+      "totalLaps": 3,
+      "fuelLoadPercent": 70,
+      "tireCompound": "Wet",
+      "pitStops": 0,
+      "notes": "Extra fuel needed — slower pace and more wheelspin burns more. Wet compound is mandatory for grip. Reduce throttle input through Karussell and Flugplatz. If rain clears mid-race, pit for Mediums."
+    }
+  ],
+  "settings": {
+    "tires": { "frontPressure": 1.69, "rearPressure": 1.76, "compound": "Medium" },
+    "gearing": { "finalDrive": 3.30, "description": "Taller for Döttinger Höhe straight while keeping mid-range pull" },
+    "alignment": {
+      "frontCamber": -1.3,
+      "rearCamber": -0.9,
+      "frontToe": 0.0,
+      "rearToe": 0.1,
+      "frontCaster": 5.6
+    },
+    "antiRollBars": { "front": 18.0, "rear": 16.0 },
+    "springs": { "frontRate": 100.0, "rearRate": 95.0, "frontHeight": 6.8, "rearHeight": 7.0, "unit": "kgf/mm" },
+    "damping": { "frontRebound": 9.5, "rearRebound": 9.0, "frontBump": 4.8, "rearBump": 4.5 },
+    "aero": { "frontDownforce": 130, "rearDownforce": 150, "unit": "kgf" },
+    "differential": { "rearAccel": 65, "rearDecel": 40 },
+    "brakes": { "balance": 54, "pressure": 92 }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "amv-gt3-spa",
+  "name": "Spa-Francorchamps",
+  "author": "Community",
+  "carOrdinal": 2860,
+  "category": "track-specific",
+  "trackOrdinal": 530,
+  "description": "Built for Spa's combination of high-speed straights (Kemmel) and technical sections (La Source, Bus Stop). Moderate downforce with stiffer front for Eau Rouge commitment and stable braking into La Source.",
+  "strengths": ["Strong through Eau Rouge/Raidillon", "Good top speed on Kemmel straight", "Stable heavy braking zones"],
+  "weaknesses": ["Stiffer front can feel nervous in slow chicanes"],
+  "bestTracks": ["Circuit de Spa-Francorchamps"],
+  "strategies": [
+    {
+      "condition": "Dry",
+      "totalLaps": 10,
+      "fuelLoadPercent": 55,
+      "tireCompound": "Soft",
+      "pitStops": 1,
+      "pitLaps": [5],
+      "notes": "Start on Softs for early pace advantage. Pit lap 5 for fuel and switch to Mediums for the second stint. Softs degrade noticeably after 5 laps at Spa. For 20+ lap races, add a third stint on Hards."
+    },
+    {
+      "condition": "Wet",
+      "totalLaps": 10,
+      "fuelLoadPercent": 60,
+      "tireCompound": "Wet",
+      "pitStops": 1,
+      "pitLaps": [5],
+      "notes": "Extra fuel for reduced efficiency in the wet. Stay on Wet compound both stints unless track dries — then pit early for Mediums. Reduce speed through Eau Rouge and Blanchimont, aquaplaning risk is high. Brake earlier into La Source and Bus Stop."
+    }
+  ],
+  "settings": {
+    "tires": { "frontPressure": 1.72, "rearPressure": 1.79, "compound": "Soft" },
+    "gearing": { "finalDrive": 3.28, "description": "Balanced for Kemmel straight speed and Les Combes exit pull" },
+    "alignment": {
+      "frontCamber": -1.4,
+      "rearCamber": -0.9,
+      "frontToe": 0.0,
+      "rearToe": 0.1,
+      "frontCaster": 6.0
+    },
+    "antiRollBars": { "front": 24.0, "rear": 17.0 },
+    "springs": { "frontRate": 125.0, "rearRate": 110.0, "frontHeight": 6.0, "rearHeight": 6.2, "unit": "kgf/mm" },
+    "damping": { "frontRebound": 10.8, "rearRebound": 9.5, "frontBump": 5.5, "rearBump": 4.8 },
+    "aero": { "frontDownforce": 125, "rearDownforce": 148, "unit": "kgf" },
+    "differential": { "rearAccel": 70, "rearDecel": 42 },
+    "brakes": { "balance": 55, "pressure": 96 }
+  }
+}

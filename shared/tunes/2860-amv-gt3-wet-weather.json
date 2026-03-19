@@ -1,0 +1,28 @@
+{
+  "id": "amv-gt3-wet-weather",
+  "name": "Wet Weather Setup",
+  "author": "Community",
+  "carOrdinal": 2860,
+  "category": "wet",
+  "description": "Softened setup for reduced grip conditions. Lower aero dependency, gentler differential, and softer springs keep the car predictable in the wet.",
+  "strengths": ["Predictable in low grip", "Gentle power delivery", "Good traction"],
+  "weaknesses": ["Slower in dry conditions", "Less responsive turn-in"],
+  "bestTracks": ["Any wet circuit"],
+  "settings": {
+    "tires": { "frontPressure": 1.62, "rearPressure": 1.69, "compound": "Wet" },
+    "gearing": { "finalDrive": 3.50, "description": "Shorter gearing for better traction out of corners" },
+    "alignment": {
+      "frontCamber": -0.8,
+      "rearCamber": -0.5,
+      "frontToe": 0.0,
+      "rearToe": 0.0,
+      "frontCaster": 5.5
+    },
+    "antiRollBars": { "front": 16.0, "rear": 14.0 },
+    "springs": { "frontRate": 95.0, "rearRate": 90.0, "frontHeight": 7.0, "rearHeight": 7.2, "unit": "kgf/mm" },
+    "damping": { "frontRebound": 8.5, "rearRebound": 8.0, "frontBump": 4.5, "rearBump": 4.0 },
+    "aero": { "frontDownforce": 120, "rearDownforce": 140, "unit": "kgf" },
+    "differential": { "rearAccel": 55, "rearDecel": 30 },
+    "brakes": { "balance": 52, "pressure": 85 }
+  }
+}

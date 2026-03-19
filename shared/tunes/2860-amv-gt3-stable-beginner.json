@@ -1,0 +1,27 @@
+{
+  "id": "amv-gt3-stable-beginner",
+  "name": "Stable / Beginner Friendly",
+  "author": "Community",
+  "carOrdinal": 2860,
+  "category": "stable",
+  "description": "Maximum stability setup for drivers learning the car. Slight understeer bias keeps things predictable while still being competitive.",
+  "strengths": ["Very stable under braking", "Forgiving on throttle", "Easy to drive consistently"],
+  "weaknesses": ["Understeers in tight corners", "Slower overall pace"],
+  "settings": {
+    "tires": { "frontPressure": 1.76, "rearPressure": 1.76, "compound": "Medium" },
+    "gearing": { "finalDrive": 3.45, "description": "Balanced for all-round use" },
+    "alignment": {
+      "frontCamber": -0.8,
+      "rearCamber": -0.5,
+      "frontToe": 0.1,
+      "rearToe": 0.1,
+      "frontCaster": 5.2
+    },
+    "antiRollBars": { "front": 18.0, "rear": 20.0 },
+    "springs": { "frontRate": 105.0, "rearRate": 110.0, "frontHeight": 6.8, "rearHeight": 7.0, "unit": "kgf/mm" },
+    "damping": { "frontRebound": 9.0, "rearRebound": 9.5, "frontBump": 5.0, "rearBump": 5.2 },
+    "aero": { "frontDownforce": 140, "rearDownforce": 165, "unit": "kgf" },
+    "differential": { "rearAccel": 58, "rearDecel": 35 },
+    "brakes": { "balance": 50, "pressure": 88 }
+  }
+}

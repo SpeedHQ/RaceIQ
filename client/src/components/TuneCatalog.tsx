@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CATALOG_CARS, getCatalogCar, getTunesByCar, type CatalogTune, type TuneSettings } from "../data/tune-catalog";
+import { CATALOG_CARS, getCatalogCar, getTunesByCar, type CatalogTune, type RaceStrategy, type TuneSettings } from "../data/tune-catalog";
 
 function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
   const sections: { title: string; rows: [string, string][] }[] = [
@@ -105,11 +105,78 @@ function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
   );
 }
 
+const CONDITION_COLORS: Record<string, string> = {
+  Dry: "bg-amber-500/20 text-amber-400",
+  Wet: "bg-cyan-500/20 text-cyan-400",
+};
+
+function StrategyPanel({ strategies, tuneId }: { strategies: RaceStrategy[]; tuneId: string }) {
+  const [activeCondition, setActiveCondition] = useState(strategies[0].condition);
+  const strategy = strategies.find((s) => s.condition === activeCondition) ?? strategies[0];
+
+  return (
+    <div className="rounded-lg bg-app-bg/60 p-3">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">
+          Race Strategy
+        </h4>
+        <div className="flex gap-1">
+          {strategies.map((s) => (
+            <button
+              key={`${tuneId}-${s.condition}`}
+              onClick={() => setActiveCondition(s.condition)}
+              className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded transition-colors ${
+                activeCondition === s.condition
+                  ? CONDITION_COLORS[s.condition]
+                  : "text-app-text-muted hover:text-app-text-secondary"
+              }`}
+            >
+              {s.condition}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-2">
+        <div className="text-center">
+          <div className="text-lg font-bold text-app-text font-mono">{strategy.totalLaps}</div>
+          <div className="text-[10px] text-app-text-muted uppercase">Laps</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-app-text font-mono">{strategy.fuelLoadPercent}%</div>
+          <div className="text-[10px] text-app-text-muted uppercase">Fuel Load</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-app-text font-mono">{strategy.pitStops}</div>
+          <div className="text-[10px] text-app-text-muted uppercase">Pit Stops</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-app-text font-mono">{strategy.tireCompound}</div>
+          <div className="text-[10px] text-app-text-muted uppercase">Tire</div>
+        </div>
+      </div>
+      {strategy.pitLaps && strategy.pitLaps.length > 0 && (
+        <div className="flex items-center gap-1.5 text-xs mb-2">
+          <span className="text-app-text-muted">Pit on lap:</span>
+          {strategy.pitLaps.map((lap) => (
+            <span key={lap} className="font-mono px-1.5 py-0.5 rounded bg-app-surface/60 text-app-text ring-1 ring-app-border">
+              {lap}
+            </span>
+          ))}
+        </div>
+      )}
+      {strategy.notes && (
+        <p className="text-xs text-app-text-secondary">{strategy.notes}</p>
+      )}
+    </div>
+  );
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   circuit: "Circuit",
   wet: "Wet",
   "low-drag": "Low Drag",
   stable: "Stable",
+  "track-specific": "Track Specific",
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -117,6 +184,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   wet: "bg-cyan-500/20 text-cyan-400",
   "low-drag": "bg-red-500/20 text-red-400",
   stable: "bg-green-500/20 text-green-400",
+  "track-specific": "bg-orange-500/20 text-orange-400",
 };
 
 function TuneCard({ tune, isExpanded, onToggle }: { tune: CatalogTune; isExpanded: boolean; onToggle: () => void }) {
@@ -186,6 +254,10 @@ function TuneCard({ tune, isExpanded, onToggle }: { tune: CatalogTune; isExpande
                 ))}
               </div>
             </div>
+          )}
+
+          {tune.strategies && tune.strategies.length > 0 && (
+            <StrategyPanel strategies={tune.strategies} tuneId={tune.id} />
           )}
 
           <TuneSettingsPanel settings={tune.settings} />

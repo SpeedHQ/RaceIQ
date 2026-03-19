@@ -1,0 +1,28 @@
+{
+  "id": "amv-gt3-top-speed",
+  "name": "Low Drag / Top Speed",
+  "author": "Community",
+  "carOrdinal": 2860,
+  "category": "low-drag",
+  "description": "Minimum downforce setup for tracks with long straights. Trades cornering grip for straight-line speed.",
+  "strengths": ["Highest top speed", "Great for Le Mans / Monza style tracks"],
+  "weaknesses": ["Less cornering grip", "Rear can get light at speed"],
+  "bestTracks": ["Le Mans", "Monza", "Road America"],
+  "settings": {
+    "tires": { "frontPressure": 1.76, "rearPressure": 1.83, "compound": "Hard" },
+    "gearing": { "finalDrive": 3.20, "description": "Taller gearing for maximum top speed" },
+    "alignment": {
+      "frontCamber": -1.0,
+      "rearCamber": -0.6,
+      "frontToe": 0.0,
+      "rearToe": 0.1,
+      "frontCaster": 5.5
+    },
+    "antiRollBars": { "front": 20.0, "rear": 17.0 },
+    "springs": { "frontRate": 115.0, "rearRate": 108.0, "frontHeight": 5.5, "rearHeight": 5.8, "unit": "kgf/mm" },
+    "damping": { "frontRebound": 10.0, "rearRebound": 9.5, "frontBump": 5.0, "rearBump": 4.8 },
+    "aero": { "frontDownforce": 95, "rearDownforce": 110, "unit": "kgf" },
+    "differential": { "rearAccel": 68, "rearDecel": 42 },
+    "brakes": { "balance": 54, "pressure": 92 }
+  }
+}

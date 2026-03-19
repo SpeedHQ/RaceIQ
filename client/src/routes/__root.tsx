@@ -14,6 +14,7 @@ const TABS = [
   { to: "/analyse", label: "Analyse" },
   { to: "/tracks", label: "Tracks" },
   { to: "/tunes", label: "Tunes" },
+  { to: "/setup", label: "Setup" },
   { to: "/raw", label: "Raw" },
 ] as const;
 
