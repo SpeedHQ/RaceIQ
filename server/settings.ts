@@ -5,10 +5,22 @@ const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 
 export interface AppSettings {
   udpPort: number;
+  temperatureUnit: "F" | "C";
+  tireTemperatureThresholds: {
+    cold: number;
+    warm: number;
+    hot: number;
+  };
 }
 
 const DEFAULTS: AppSettings = {
   udpPort: 5300,
+  temperatureUnit: "F",
+  tireTemperatureThresholds: {
+    cold: 150,
+    warm: 220,
+    hot: 280,
+  },
 };
 
 export function loadSettings(): AppSettings {
@@ -24,6 +36,12 @@ export function loadSettings(): AppSettings {
     const parsed = JSON.parse(raw);
     return {
       udpPort: parsed.udpPort ?? DEFAULTS.udpPort,
+      temperatureUnit: parsed.temperatureUnit ?? DEFAULTS.temperatureUnit,
+      tireTemperatureThresholds: {
+        cold: parsed.tireTemperatureThresholds?.cold ?? DEFAULTS.tireTemperatureThresholds.cold,
+        warm: parsed.tireTemperatureThresholds?.warm ?? DEFAULTS.tireTemperatureThresholds.warm,
+        hot: parsed.tireTemperatureThresholds?.hot ?? DEFAULTS.tireTemperatureThresholds.hot,
+      },
     };
   } catch {
     return { ...DEFAULTS };
