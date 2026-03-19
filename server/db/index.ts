@@ -61,7 +61,12 @@ sqlite.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_outlines_track ON track_outlines(track_ordinal);
 
-
+  CREATE TABLE IF NOT EXISTS lap_analyses (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    lap_id      INTEGER NOT NULL UNIQUE REFERENCES laps(id) ON DELETE CASCADE,
+    analysis    TEXT NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 
 `);
 

@@ -1,6 +1,6 @@
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, trackCorners, trackOutlines } from "./schema";
+import { sessions, laps, trackCorners, trackOutlines, lapAnalyses } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 
@@ -346,4 +346,38 @@ export function hasRecordedOutline(trackOrdinal: number): boolean {
     .where(eq(trackOutlines.trackOrdinal, trackOrdinal))
     .get();
   return !!row;
+}
+
+/**
+ * Get cached AI analysis for a lap. Returns the analysis text or null.
+ */
+export function getAnalysis(lapId: number): string | null {
+  const row = db
+    .select({ analysis: lapAnalyses.analysis })
+    .from(lapAnalyses)
+    .where(eq(lapAnalyses.lapId, lapId))
+    .get();
+  return row?.analysis ?? null;
+}
+
+/**
+ * Save or replace AI analysis for a lap.
+ */
+export function saveAnalysis(lapId: number, analysis: string): void {
+  const existing = db
+    .select({ id: lapAnalyses.id })
+    .from(lapAnalyses)
+    .where(eq(lapAnalyses.lapId, lapId))
+    .get();
+
+  if (existing) {
+    db.update(lapAnalyses)
+      .set({ analysis, createdAt: sql`(datetime('now'))` })
+      .where(eq(lapAnalyses.lapId, lapId))
+      .run();
+  } else {
+    db.insert(lapAnalyses)
+      .values({ lapId, analysis })
+      .run();
+  }
 }

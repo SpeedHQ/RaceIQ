@@ -70,3 +70,16 @@ export const trackCorners = sqliteTable(
     trackCornerUnique: unique().on(table.trackOrdinal, table.cornerIndex),
   })
 );
+
+export const lapAnalyses = sqliteTable("lap_analyses", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  lapId: integer("lap_id")
+    .notNull()
+    .references(() => laps.id, { onDelete: "cascade" }),
+  analysis: text("analysis").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+}, (table) => [
+  unique().on(table.lapId),
+]);
