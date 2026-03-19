@@ -450,18 +450,14 @@ function WearValue({ label, value }: { label: string; value: number }) {
   const pct = (value * 100).toFixed(1);
   const color = value > 0.7 ? "#34d399" : value > 0.4 ? "#fbbf24" : "#ef4444";
   return (
-    <div className="text-slate-400 flex justify-between">
-      <span>{label}:</span> <span className="tabular-nums" style={{ color }}>{pct}%</span>
-    </div>
+    <span className="text-slate-400">{label}: <span className="tabular-nums" style={{ color }}>{pct}%</span></span>
   );
 }
 
 function SlipValue({ label, value }: { label: string; value: number }) {
   const color = Math.abs(value) < 0.5 ? "#34d399" : Math.abs(value) < 1.5 ? "#fbbf24" : "#ef4444";
   return (
-    <div className="text-slate-400 flex justify-between">
-      <span>{label}:</span> <span className="tabular-nums" style={{ color }}>{value.toFixed(2)}</span>
-    </div>
+    <span className="text-slate-400">{label}: <span className="tabular-nums" style={{ color }}>{value.toFixed(2)}</span></span>
   );
 }
 
@@ -475,9 +471,7 @@ function SlipAngleValue({ label, value, speedMph }: { label: string; value: numb
   const t3 = 14 / speedFactor; // orange->red
   const color = a < t1 ? "#34d399" : a < t2 ? "#fbbf24" : a < t3 ? "#fb923c" : "#ef4444";
   return (
-    <div className="text-slate-400 flex justify-between">
-      <span>{label}:</span> <span className="tabular-nums" style={{ color }}>{deg.toFixed(1)}°</span>
-    </div>
+    <span className="text-slate-400">{label}: <span className="tabular-nums" style={{ color }}>{deg.toFixed(1)}°</span></span>
   );
 }
 
@@ -502,9 +496,7 @@ function WheelSpeedValue({ label, value }: { label: string; value: number }) {
   const abs = Math.abs(value);
   const color = abs < 10 ? "#94a3b8" : abs < 50 ? "#34d399" : abs < 100 ? "#fbbf24" : "#ef4444";
   return (
-    <div className="text-slate-400 flex justify-between">
-      <span>{label}:</span> <span className="tabular-nums" style={{ color }}>{value.toFixed(1)}</span>
-    </div>
+    <span className="text-slate-400">{label}: <span className="tabular-nums" style={{ color }}>{value.toFixed(1)}</span></span>
   );
 }
 
@@ -512,9 +504,7 @@ function SuspValue({ label, value }: { label: string; value: number }) {
   const pct = (value * 100).toFixed(0);
   const color = value < 0.6 ? "#22d3ee" : value < 0.85 ? "#fbbf24" : "#ef4444";
   return (
-    <div className="text-slate-400 flex justify-between">
-      <span>{label}:</span> <span className="tabular-nums" style={{ color }}>{pct}%</span>
-    </div>
+    <span className="text-slate-400">{label}: <span className="tabular-nums" style={{ color }}>{pct}%</span></span>
   );
 }
 
@@ -1249,10 +1239,10 @@ export function LapAnalyse() {
                       <div className="border-t border-slate-800 pt-1">
                         <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Temp</div>
                         <div className="grid grid-cols-2 gap-x-2">
-                          <div className="text-slate-400 flex justify-between"><span>FL:</span> <span className="tabular-nums text-white">{currentPacket.TireTempFL.toFixed(0)}°</span></div>
-                          <div className="text-slate-400 flex justify-between"><span>FR:</span> <span className="tabular-nums text-white">{currentPacket.TireTempFR.toFixed(0)}°</span></div>
-                          <div className="text-slate-400 flex justify-between"><span>RL:</span> <span className="tabular-nums text-white">{currentPacket.TireTempRL.toFixed(0)}°</span></div>
-                          <div className="text-slate-400 flex justify-between"><span>RR:</span> <span className="tabular-nums text-white">{currentPacket.TireTempRR.toFixed(0)}°</span></div>
+                          <span className="text-slate-400">FL: <span className="tabular-nums text-white">{currentPacket.TireTempFL.toFixed(0)}°</span></span>
+                          <span className="text-slate-400">FR: <span className="tabular-nums text-white">{currentPacket.TireTempFR.toFixed(0)}°</span></span>
+                          <span className="text-slate-400">RL: <span className="tabular-nums text-white">{currentPacket.TireTempRL.toFixed(0)}°</span></span>
+                          <span className="text-slate-400">RR: <span className="tabular-nums text-white">{currentPacket.TireTempRR.toFixed(0)}°</span></span>
                         </div>
                       </div>
                       <div className="border-t border-slate-800 pt-1">
