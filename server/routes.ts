@@ -68,6 +68,7 @@ app.put("/api/settings", async (c) => {
   const merged = {
     udpPort: body.udpPort ?? current.udpPort,
     temperatureUnit: body.temperatureUnit ?? current.temperatureUnit,
+    speedUnit: body.speedUnit ?? current.speedUnit,
     tireTemperatureThresholds: {
       cold: body.tireTemperatureThresholds?.cold ?? current.tireTemperatureThresholds.cold,
       warm: body.tireTemperatureThresholds?.warm ?? current.tireTemperatureThresholds.warm,
@@ -84,6 +85,11 @@ app.put("/api/settings", async (c) => {
   // Validate temperature unit
   if (merged.temperatureUnit !== "F" && merged.temperatureUnit !== "C") {
     return c.json({ error: "temperatureUnit must be 'F' or 'C'" }, 400);
+  }
+
+  // Validate speed unit
+  if (merged.speedUnit !== "mph" && merged.speedUnit !== "kmh") {
+    return c.json({ error: "speedUnit must be 'mph' or 'kmh'" }, 400);
   }
 
   // Validate threshold ordering
