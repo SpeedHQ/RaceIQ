@@ -274,8 +274,12 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, spinPct,
   const slipCol = slipLineColor(slipAngle);
   const wearPct = Math.max(0, Math.min(1, wear));
 
-  const isLockup = spinPct < -5;
-  const isSpin = spinPct > 5;
+  // Adjust thresholds based on steering — in turns, inner wheels are naturally slower
+  const steerFactor = Math.abs(steerAngle) / 20; // 0-1 based on steering lock
+  const lockThreshold = -(8 + steerFactor * 15); // -8% straight, up to -23% in hard turn
+  const spinThreshold = 8 + steerFactor * 10; // 8% straight, up to 18% in hard turn
+  const isLockup = spinPct < lockThreshold;
+  const isSpin = spinPct > spinThreshold;
   const spinColor = isLockup ? "#ef4444" : isSpin ? "#fb923c" : null;
   const spinLabel = isLockup ? "LOCK" : isSpin ? "SPIN" : null;
 
@@ -512,7 +516,7 @@ export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
  * Raw acceleration (m/s^2) is divided by 9.81 to convert to G units.
  * Dot color indicates total G magnitude.
  */
-function GForceCircle({ packet }: { packet: TelemetryPacket }) {
+export function GForceCircle({ packet }: { packet: TelemetryPacket }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const size = 110;
   const maxG = 2.5;
