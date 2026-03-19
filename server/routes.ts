@@ -352,33 +352,53 @@ app.get("/api/tracks", (c) => {
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from "fs";
 import { resolve } from "path";
 
-const SEGMENTS_DIR = resolve(__dirname, "../shared/track-outlines/segments");
+const TRACK_DATA_DIR = resolve(__dirname, "../shared/track-outlines/tracks");
 const userSegmentsStore: Map<number, any[]> = new Map();
 
-// Load all on startup
-if (existsSync(SEGMENTS_DIR)) {
+// Load user segments from track data files on startup
+if (existsSync(TRACK_DATA_DIR)) {
   try {
-    for (const file of readdirSync(SEGMENTS_DIR)) {
+    for (const file of readdirSync(TRACK_DATA_DIR)) {
       if (!file.endsWith(".json")) continue;
       const ordinal = parseInt(file.replace(".json", ""), 10);
       if (isNaN(ordinal)) continue;
-      const data = JSON.parse(readFileSync(resolve(SEGMENTS_DIR, file), "utf-8"));
-      const segs = Array.isArray(data) ? data : data.segments;
-      if (Array.isArray(segs)) userSegmentsStore.set(ordinal, segs);
+      const filePath = resolve(TRACK_DATA_DIR, `${ordinal}.json`);
+      const data = JSON.parse(readFileSync(filePath, "utf-8"));
+      if (data?.segments && Array.isArray(data.segments)) {
+        userSegmentsStore.set(ordinal, data.segments);
+      }
     }
   } catch {}
 }
 
-function saveUserSegmentsForTrack(ordinal: number, segments: any[]) {
+function loadTrackDataFile(ordinal: number): { outline?: any[]; segments?: any[] } | null {
+  const filePath = resolve(TRACK_DATA_DIR, `${ordinal}.json`);
+  if (!existsSync(filePath)) return null;
   try {
-    if (!existsSync(SEGMENTS_DIR)) mkdirSync(SEGMENTS_DIR, { recursive: true });
+    return JSON.parse(readFileSync(filePath, "utf-8"));
+  } catch { return null; }
+}
+
+function saveTrackDataFile(ordinal: number, updates: { outline?: { x: number; z: number }[]; segments?: any[] }) {
+  try {
+    if (!existsSync(TRACK_DATA_DIR)) mkdirSync(TRACK_DATA_DIR, { recursive: true });
     const trackInfo = trackInfoMap.get(ordinal);
     const name = trackInfo?.name ?? `Track ${ordinal}`;
-    const payload = { name, ordinal, segments };
-    writeFileSync(resolve(SEGMENTS_DIR, `${ordinal}.json`), JSON.stringify(payload, null, 2));
+
+    // Merge with existing data
+    const existing = loadTrackDataFile(ordinal) ?? {};
+    const payload: any = { name, ordinal, ...existing, ...updates };
+    if (updates.outline) payload.points = updates.outline.length;
+
+    writeFileSync(resolve(TRACK_DATA_DIR, `${ordinal}.json`), JSON.stringify(payload));
+    console.log(`[Track] Saved track data for ${name} (${ordinal})`);
   } catch (e) {
-    console.error("[Segments] Failed to save:", e);
+    console.error("[Track] Failed to save track data:", e);
   }
+}
+
+function saveUserSegmentsForTrack(ordinal: number, segments: any[]) {
+  saveTrackDataFile(ordinal, { segments });
 }
 
 // PUT /api/tracks/:trackOrdinal/segments — save user-edited segments
@@ -590,6 +610,7 @@ app.post("/api/tracks/:trackOrdinal/recompute-outline", async (c) => {
 
     const sectors = computeSectorsFromGeometry(outline);
     saveTrackOutline(trackOrdinal, outline, sectors);
+    saveTrackDataFile(trackOrdinal, { outline });
 
     return c.json({
       success: true,
@@ -661,6 +682,7 @@ app.post("/api/tracks/:trackOrdinal/recompute-outline", async (c) => {
 
   const sectors = computeSectorsFromGeometry(outline);
   saveTrackOutline(trackOrdinal, outline, sectors);
+  saveTrackDataFile(trackOrdinal, { outline });
 
   return c.json({
     success: true,
