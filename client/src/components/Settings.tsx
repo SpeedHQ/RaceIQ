@@ -30,6 +30,7 @@ export function Settings() {
   const { displaySettings, refetchSettings } = useTelemetry();
   const [tempUnit, setTempUnit] = useState<"F" | "C">(displaySettings.temperatureUnit);
   const [thresholds, setThresholds] = useState(displaySettings.tireTemperatureThresholds);
+  const [speedUnit, setSpeedUnit] = useState<"mph" | "kmh">(displaySettings.speedUnit);
   const [tempStatus, setTempStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [tempError, setTempError] = useState("");
 
@@ -38,6 +39,7 @@ export function Settings() {
     const unit = displaySettings.temperatureUnit;
     const raw = displaySettings.tireTemperatureThresholds;
     setTempUnit(unit);
+    setSpeedUnit(displaySettings.speedUnit);
     // Server always stores in °F — convert to display unit
     setThresholds(unit === "C" ? {
       cold: convertTemp(raw.cold, "C"),
@@ -119,6 +121,7 @@ export function Settings() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           temperatureUnit: tempUnit,
+          speedUnit: speedUnit,
           tireTemperatureThresholds: thresholdsInF,
         }),
       });
@@ -138,6 +141,7 @@ export function Settings() {
   function handleTempReset() {
     setThresholds({ cold: 150, warm: 220, hot: 280 });
     setTempUnit("F");
+    setSpeedUnit("mph");
   }
 
   return (
@@ -320,6 +324,37 @@ export function Settings() {
         {tempStatus === "error" && (
           <p className="text-red-400 text-sm mt-2">{tempError}</p>
         )}
+      </CardContent>
+    </Card>
+
+    <Card className="bg-slate-900 border-slate-800 mt-4">
+      <CardHeader>
+        <CardTitle className="text-white">Speed & Distance</CardTitle>
+        <CardDescription>
+          Set the display units for speed and distance.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-2">
+          <Label className="text-slate-400 mr-2">Unit</Label>
+          <Button
+            size="sm"
+            variant={speedUnit === "mph" ? "default" : "outline"}
+            onClick={() => setSpeedUnit("mph")}
+          >
+            mph / mi
+          </Button>
+          <Button
+            size="sm"
+            variant={speedUnit === "kmh" ? "default" : "outline"}
+            onClick={() => setSpeedUnit("kmh")}
+          >
+            km/h / km
+          </Button>
+        </div>
+        <p className="text-xs text-slate-500 mt-2">
+          Changes are saved with the Apply button above.
+        </p>
       </CardContent>
     </Card>
     </>
