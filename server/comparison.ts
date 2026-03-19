@@ -12,6 +12,7 @@ export interface AlignedTrace {
   posX: number[];
   posZ: number[];
   elapsedTime: number[]; // seconds from lap start
+  tireWear: number[]; // average of all 4 tires (0-1)
 }
 
 export interface ComparisonResult {
@@ -71,6 +72,7 @@ interface LapData {
   posXs: number[];
   posZs: number[];
   times: number[];
+  tireWears: number[];
 }
 
 function extractLapData(packets: TelemetryPacket[]): LapData {
@@ -88,6 +90,7 @@ function extractLapData(packets: TelemetryPacket[]): LapData {
     posXs: packets.map((p) => p.VelocityX), // Using position proxy; actual X from integration
     posZs: packets.map((p) => p.VelocityZ),
     times: packets.map((p) => elapsedSeconds(p, first)),
+    tireWears: packets.map((p) => (p.TireWearFL + p.TireWearFR + p.TireWearRL + p.TireWearRR) / 4),
   };
 }
 
@@ -144,6 +147,7 @@ function alignLap(data: LapData, grid: number[]): AlignedTrace {
     posX: interpolateChannel(data.distances, data.posXs, grid),
     posZ: interpolateChannel(data.distances, data.posZs, grid),
     elapsedTime: interpolateChannel(data.distances, data.times, grid),
+    tireWear: interpolateChannel(data.distances, data.tireWears, grid),
   };
 }
 

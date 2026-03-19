@@ -1,7 +1,7 @@
 import { createRootRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { TelemetryContext } from "../context/telemetry";
+import { TelemetryContext, useTempSettings } from "../context/telemetry";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { Settings } from "../components/Settings";
 import { Button } from "@/components/ui/button";
@@ -17,11 +17,15 @@ const TABS = [
 
 function RootLayout() {
   const ws = useWebSocket();
+  const { tempSettings, refetchSettings } = useTempSettings();
+
+  useEffect(() => { refetchSettings(); }, [refetchSettings]);
+
   const [showSettings, setShowSettings] = useState(false);
   const isLive = useRouterState({ select: (s) => s.location.pathname === "/" });
 
   return (
-    <TelemetryContext.Provider value={ws}>
+    <TelemetryContext.Provider value={{ ...ws, tempSettings, refetchSettings }}>
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
         <div className="flex items-center justify-between border-b border-slate-800">
           <div className="flex items-center">

@@ -26,6 +26,7 @@ import { detectCorners, type Corner } from "./corner-detection";
 import { carMap, getCarName, trackMap, getTrackName } from "../shared/car-data";
 import { getTrackOutlineByOrdinal, hasTrackOutline, hasRecordedOutline, getTrackSectorsByOrdinal, getStartYaw, deleteRecordedOutline } from "../shared/track-outlines/index";
 import { trackMap as trackInfoMap } from "../shared/car-data";
+import { namedSegments } from "../shared/track-outlines/named-segments";
 
 const app = new Hono();
 
@@ -347,13 +348,32 @@ app.get("/api/tracks", (c) => {
   return c.json(tracks);
 });
 
-// GET /api/track-sectors/:ordinal — derives corner/straight segments from outline
-// curvature. Uses median curvature as threshold, merges segments <2% of track.
+// GET /api/track-sectors/:ordinal — returns named segments for known tracks,
+// or auto-detects corner/straight segments from outline curvature.
 app.get("/api/track-sectors/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);
   if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
 
-  // Check bundled outlines first, then DB-recorded
+  // Check for hand-curated named segments first
+  const trackInfo = trackInfoMap.get(ordinal);
+  if (trackInfo) {
+    const named = namedSegments[trackInfo.name];
+    if (named) {
+      return c.json({
+        segments: named.map((s) => ({
+          ...s,
+          startIdx: 0,
+          endIdx: 0,
+          distStart: 0,
+          distEnd: 0,
+        })),
+        totalDist: 0,
+        source: "named",
+      });
+    }
+  }
+
+  // Fall back to auto-detection from outline curvature
   let outline = getTrackOutlineByOrdinal(ordinal);
   if (!outline) {
     const recorded = getDbTrackOutline(ordinal);
