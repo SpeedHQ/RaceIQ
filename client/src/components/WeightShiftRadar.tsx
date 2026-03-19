@@ -1,18 +1,15 @@
 import { useEffect, useRef } from "react";
 import type { TelemetryPacket } from "@shared/types";
 
-const toDeg = 180 / Math.PI;
-
 /**
  * WeightShiftRadar — Canvas-drawn weight transfer visualization.
- * Uses Roll (lateral) and Pitch (longitudinal) to show where
- * weight is shifting. Dot moves toward the loaded corner.
- * Roll right = weight shifts left, braking = weight shifts forward.
+ * Uses the 4 normalized suspension travel values (0-1) to compute
+ * where weight is concentrated. More compression = more load on that corner.
+ * Dot position is the weighted centroid of the four corners.
  */
 export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const size = 70;
-  const maxAngle = 15; // degrees — clamp range for visualization
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -41,10 +38,10 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     ctx.roundRect(carX, carY, carW, carH, 4);
     ctx.stroke();
 
-    // Corner dots (FL, FR, RL, RR positions)
+    // Corner positions in canvas space: FL, FR, RL, RR
     const corners = [
-      { x: carX + 4, y: carY + 6 },       // FL
-      { x: carX + carW - 4, y: carY + 6 }, // FR
+      { x: carX + 4, y: carY + 6 },             // FL
+      { x: carX + carW - 4, y: carY + 6 },       // FR
       { x: carX + 4, y: carY + carH - 6 },       // RL
       { x: carX + carW - 4, y: carY + carH - 6 }, // RR
     ];
@@ -64,21 +61,35 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     ctx.strokeStyle = "rgba(100,116,139,0.1)";
     ctx.stroke();
 
-    // Roll and pitch in degrees
-    const roll = packet.Roll * toDeg;
-    const pitch = packet.Pitch * toDeg;
+    // Suspension loads (0-1 normalized, higher = more compressed = more load)
+    const loads = [
+      packet.NormSuspensionTravelFL,
+      packet.NormSuspensionTravelFR,
+      packet.NormSuspensionTravelRL,
+      packet.NormSuspensionTravelRR,
+    ];
 
-    // Clamp for visual range
-    const clampRoll = Math.max(-maxAngle, Math.min(maxAngle, roll));
-    const clampPitch = Math.max(-maxAngle, Math.min(maxAngle, pitch));
+    const totalLoad = loads[0] + loads[1] + loads[2] + loads[3];
 
-    // Weight shifts opposite to roll/pitch:
-    // Roll right (positive) = weight on left side = dot goes left (negative X)
-    // Pitch forward (positive, nose down/braking) = weight on front = dot goes up (negative Y)
-    const dotX = cx - (clampRoll / maxAngle) * (carW / 2 - 4);
-    const dotY = cy - (clampPitch / maxAngle) * (carH / 2 - 6);
+    // Weighted centroid of the four corners
+    let dotX = cx;
+    let dotY = cy;
+    if (totalLoad > 0.01) {
+      dotX = 0;
+      dotY = 0;
+      for (let i = 0; i < 4; i++) {
+        dotX += corners[i].x * loads[i];
+        dotY += corners[i].y * loads[i];
+      }
+      dotX /= totalLoad;
+      dotY /= totalLoad;
+    }
 
-    const magnitude = Math.sqrt(clampRoll * clampRoll + clampPitch * clampPitch) / maxAngle;
+    // Magnitude: how far from center (0 = even, 1 = fully loaded on one corner)
+    const dx = dotX - cx;
+    const dy = dotY - cy;
+    const maxDist = Math.sqrt((carW / 2) ** 2 + (carH / 2) ** 2);
+    const magnitude = Math.min(1, Math.sqrt(dx * dx + dy * dy) / maxDist * 2);
     const dotColor = magnitude < 0.3 ? "#34d399" : magnitude < 0.6 ? "#facc15" : magnitude < 0.85 ? "#fb923c" : "#ef4444";
 
     // Weight dot
@@ -90,7 +101,8 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     // Subtle glow
     ctx.beginPath();
     ctx.arc(dotX, dotY, 7, 0, Math.PI * 2);
-    ctx.fillStyle = dotColor.replace(")", ",0.15)").replace("rgb", "rgba");
+    const glowColor = dotColor + "26"; // ~15% opacity hex
+    ctx.fillStyle = glowColor;
     ctx.fill();
   }, [packet]);
 
