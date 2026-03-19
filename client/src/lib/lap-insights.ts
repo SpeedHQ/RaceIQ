@@ -1,0 +1,367 @@
+import type { TelemetryPacket } from "@shared/types";
+import { allWheelStates } from "./vehicle-dynamics";
+
+export type InsightCategory = "suspension" | "tires" | "driving" | "mechanical";
+export type InsightSeverity = "info" | "warning" | "critical";
+
+export interface LapInsight {
+  id: string;
+  category: InsightCategory;
+  severity: InsightSeverity;
+  label: string;
+  detail: string;
+  frameIndices: number[];
+}
+
+function groupEvents(flags: boolean[], minFrames: number): [number, number][] {
+  const events: [number, number][] = [];
+  let start = -1;
+  for (let i = 0; i < flags.length; i++) {
+    if (flags[i]) {
+      if (start === -1) start = i;
+    } else {
+      if (start !== -1 && i - start >= minFrames) {
+        events.push([start, i - 1]);
+      }
+      start = -1;
+    }
+  }
+  if (start !== -1 && flags.length - start >= minFrames) {
+    events.push([start, flags.length - 1]);
+  }
+  return events;
+}
+
+function midFrame(events: [number, number][]): number[] {
+  return events.map(([s, e]) => Math.round((s + e) / 2));
+}
+
+function detectSuspensionOverload(telemetry: TelemetryPacket[]): LapInsight[] {
+  const wheels = ["FL", "FR", "RL", "RR"] as const;
+  const fields = {
+    FL: "NormSuspensionTravelFL",
+    FR: "NormSuspensionTravelFR",
+    RL: "NormSuspensionTravelRL",
+    RR: "NormSuspensionTravelRR",
+  } as const;
+
+  const insights: LapInsight[] = [];
+  for (const w of wheels) {
+    const flags = telemetry.map((p) => p[fields[w]] > 0.95);
+    const events = groupEvents(flags, 3);
+    if (events.length > 0) {
+      insights.push({
+        id: `susp-overload-${w}`,
+        category: "suspension",
+        severity: events.length >= 3 ? "critical" : "warning",
+        label: "Suspension Overload",
+        detail: `${w} bottomed out ${events.length} time${events.length > 1 ? "s" : ""}`,
+        frameIndices: midFrame(events),
+      });
+    }
+  }
+  return insights;
+}
+
+function detectSuspensionImbalance(telemetry: TelemetryPacket[]): LapInsight | null {
+  let totalDelta = 0;
+  for (const p of telemetry) {
+    const left = (p.NormSuspensionTravelFL + p.NormSuspensionTravelRL) / 2;
+    const right = (p.NormSuspensionTravelFR + p.NormSuspensionTravelRR) / 2;
+    totalDelta += left - right;
+  }
+  const avgDelta = totalDelta / telemetry.length;
+  if (Math.abs(avgDelta) > 0.15) {
+    const side = avgDelta > 0 ? "left" : "right";
+    return {
+      id: "susp-imbalance",
+      category: "suspension",
+      severity: Math.abs(avgDelta) > 0.25 ? "critical" : "warning",
+      label: "Suspension Imbalance",
+      detail: `${side} side ${Math.abs(avgDelta).toFixed(0)}% stiffer on average`,
+      frameIndices: [Math.round(telemetry.length / 2)],
+    };
+  }
+  return null;
+}
+
+function detectTireOverheat(telemetry: TelemetryPacket[]): LapInsight[] {
+  const wheels = ["FL", "FR", "RL", "RR"] as const;
+  const fields = {
+    FL: "TireTempFL", FR: "TireTempFR", RL: "TireTempRL", RR: "TireTempRR",
+  } as const;
+
+  const insights: LapInsight[] = [];
+  for (const w of wheels) {
+    const flags = telemetry.map((p) => p[fields[w]] > 250);
+    const events = groupEvents(flags, 10);
+    if (events.length > 0) {
+      const peak = Math.max(...telemetry.map((p) => p[fields[w]]));
+      insights.push({
+        id: `tire-overheat-${w}`,
+        category: "tires",
+        severity: peak > 300 ? "critical" : "warning",
+        label: "Tire Overheat",
+        detail: `${w} exceeded 250°F (peak ${peak.toFixed(0)}°F)`,
+        frameIndices: midFrame(events),
+      });
+    }
+  }
+  return insights;
+}
+
+function detectLockups(telemetry: TelemetryPacket[]): LapInsight[] {
+  const wheels = ["FL", "FR", "RL", "RR"] as const;
+  const insights: LapInsight[] = [];
+
+  for (const w of wheels) {
+    const flags = telemetry.map((p) => {
+      const ws = allWheelStates(p);
+      return ws[w.toLowerCase() as "fl" | "fr" | "rl" | "rr"].state === "lockup";
+    });
+    const events = groupEvents(flags, 5);
+    if (events.length > 0) {
+      insights.push({
+        id: `tire-lockup-${w}`,
+        category: "tires",
+        severity: events.length >= 3 ? "critical" : "warning",
+        label: "Wheel Lockup",
+        detail: `${w} locked ${events.length} time${events.length > 1 ? "s" : ""}`,
+        frameIndices: midFrame(events),
+      });
+    }
+  }
+  return insights;
+}
+
+function detectWheelspin(telemetry: TelemetryPacket[]): LapInsight[] {
+  const wheels = ["FL", "FR", "RL", "RR"] as const;
+  const insights: LapInsight[] = [];
+
+  for (const w of wheels) {
+    const flags = telemetry.map((p) => {
+      const ws = allWheelStates(p);
+      return ws[w.toLowerCase() as "fl" | "fr" | "rl" | "rr"].state === "spin";
+    });
+    const events = groupEvents(flags, 5);
+    if (events.length > 0) {
+      insights.push({
+        id: `tire-spin-${w}`,
+        category: "tires",
+        severity: events.length >= 3 ? "critical" : "warning",
+        label: "Wheelspin",
+        detail: `${w} spun ${events.length} time${events.length > 1 ? "s" : ""}`,
+        frameIndices: midFrame(events),
+      });
+    }
+  }
+  return insights;
+}
+
+function detectWearImbalance(telemetry: TelemetryPacket[]): LapInsight | null {
+  const last = telemetry[telemetry.length - 1];
+  if (!last) return null;
+  const wears = [last.TireWearFL, last.TireWearFR, last.TireWearRL, last.TireWearRR];
+  const labels = ["FL", "FR", "RL", "RR"];
+  const maxW = Math.max(...wears);
+  const minW = Math.min(...wears);
+  const delta = maxW - minW;
+  if (delta > 0.15) {
+    const maxLabel = labels[wears.indexOf(maxW)];
+    const minLabel = labels[wears.indexOf(minW)];
+    return {
+      id: "tire-wear-imbalance",
+      category: "tires",
+      severity: delta > 0.3 ? "critical" : "warning",
+      label: "Wear Imbalance",
+      detail: `${minLabel} most worn, ${maxLabel} least (${(delta * 100).toFixed(0)}% spread)`,
+      frameIndices: [telemetry.length - 1],
+    };
+  }
+  return null;
+}
+
+function detectHarshBraking(telemetry: TelemetryPacket[]): LapInsight | null {
+  const flags = telemetry.map((p) => p.AccelerationZ / 9.81 < -1.2);
+  const events = groupEvents(flags, 3);
+  if (events.length === 0) return null;
+  return {
+    id: "driving-harsh-brake",
+    category: "driving",
+    severity: events.length >= 5 ? "critical" : events.length >= 2 ? "warning" : "info",
+    label: "Harsh Braking",
+    detail: `${events.length} heavy brake zone${events.length > 1 ? "s" : ""} (> 1.2g)`,
+    frameIndices: midFrame(events),
+  };
+}
+
+function detectRevLimiter(telemetry: TelemetryPacket[]): LapInsight | null {
+  if (telemetry.length === 0) return null;
+  const maxRpm = telemetry[0].EngineMaxRpm;
+  if (maxRpm === 0) return null;
+  const flags = telemetry.map((p) => p.CurrentEngineRpm >= maxRpm - 50);
+  const events = groupEvents(flags, 10);
+  if (events.length === 0) return null;
+  return {
+    id: "driving-rev-limiter",
+    category: "driving",
+    severity: events.length >= 5 ? "warning" : "info",
+    label: "Rev Limiter",
+    detail: `Hit limiter ${events.length} time${events.length > 1 ? "s" : ""}`,
+    frameIndices: midFrame(events),
+  };
+}
+
+function detectCoasting(telemetry: TelemetryPacket[]): LapInsight | null {
+  const flags = telemetry.map(
+    (p) => p.Accel < 5 && p.Brake < 5 && p.Speed * 2.23694 > 20,
+  );
+  const events = groupEvents(flags, 30);
+  if (events.length === 0) return null;
+  const totalFrames = events.reduce((s, [a, b]) => s + (b - a + 1), 0);
+  return {
+    id: "driving-coasting",
+    category: "driving",
+    severity: totalFrames > 120 ? "warning" : "info",
+    label: "Coasting",
+    detail: `${events.length} zone${events.length > 1 ? "s" : ""}, ${((totalFrames / telemetry.length) * 100).toFixed(1)}% of lap`,
+    frameIndices: midFrame(events),
+  };
+}
+
+function detectTrailBraking(telemetry: TelemetryPacket[]): LapInsight | null {
+  const brakeFlags = telemetry.map((p) => p.Brake > 10);
+  const brakeZones = groupEvents(brakeFlags, 3);
+  if (brakeZones.length === 0) return null;
+
+  let trailBrakedCount = 0;
+  for (const [start, end] of brakeZones) {
+    for (let i = start; i <= end; i++) {
+      if (Math.abs(telemetry[i].Steer) > 15) {
+        trailBrakedCount++;
+        break;
+      }
+    }
+  }
+  const pct = (trailBrakedCount / brakeZones.length) * 100;
+  return {
+    id: "driving-trail-brake",
+    category: "driving",
+    severity: "info",
+    label: "Trail Braking",
+    detail: `${trailBrakedCount}/${brakeZones.length} brake zones (${pct.toFixed(0)}%)`,
+    frameIndices: midFrame(brakeZones),
+  };
+}
+
+function detectFuelConsumption(telemetry: TelemetryPacket[]): LapInsight | null {
+  if (telemetry.length < 2) return null;
+  const startFuel = telemetry[0].Fuel;
+  const endFuel = telemetry[telemetry.length - 1].Fuel;
+  const used = startFuel - endFuel;
+  if (used <= 0) return null;
+  const lapsRemaining = endFuel > 0 ? endFuel / used : Infinity;
+  return {
+    id: "mech-fuel",
+    category: "mechanical",
+    severity: lapsRemaining < 3 ? "critical" : lapsRemaining < 5 ? "warning" : "info",
+    label: "Fuel",
+    detail: `Used ${(used * 100).toFixed(1)}% — ~${lapsRemaining === Infinity ? "∞" : lapsRemaining.toFixed(1)} laps remaining`,
+    frameIndices: [telemetry.length - 1],
+  };
+}
+
+function detectPeakPower(telemetry: TelemetryPacket[]): LapInsight | null {
+  if (telemetry.length === 0) return null;
+  let peakIdx = 0;
+  let peakVal = 0;
+  for (let i = 0; i < telemetry.length; i++) {
+    if (telemetry[i].Power > peakVal) {
+      peakVal = telemetry[i].Power;
+      peakIdx = i;
+    }
+  }
+  if (peakVal === 0) return null;
+  const pkt = telemetry[peakIdx];
+  const hp = peakVal / 745.7;
+  return {
+    id: "mech-peak-power",
+    category: "mechanical",
+    severity: "info",
+    label: "Peak Power",
+    detail: `${hp.toFixed(0)} hp @ ${pkt.CurrentEngineRpm.toFixed(0)} RPM (gear ${pkt.Gear})`,
+    frameIndices: [peakIdx],
+  };
+}
+
+function detectBoostAnomaly(telemetry: TelemetryPacket[]): LapInsight | null {
+  const maxBoost = Math.max(...telemetry.map((p) => p.Boost));
+  if (maxBoost <= 0) return null;
+
+  const flags: boolean[] = new Array(telemetry.length).fill(false);
+  let rollingPeak = 0;
+  for (let i = 0; i < telemetry.length; i++) {
+    rollingPeak = Math.max(rollingPeak, telemetry[i].Boost);
+    if (i >= 60) {
+      rollingPeak = 0;
+      for (let j = i - 59; j <= i; j++) {
+        rollingPeak = Math.max(rollingPeak, telemetry[j].Boost);
+      }
+    }
+    if (
+      telemetry[i].Accel > 240 &&
+      rollingPeak > 0 &&
+      telemetry[i].Boost < rollingPeak * 0.5
+    ) {
+      flags[i] = true;
+    }
+  }
+  const events = groupEvents(flags, 5);
+  if (events.length === 0) return null;
+  return {
+    id: "mech-boost-anomaly",
+    category: "mechanical",
+    severity: events.length >= 3 ? "critical" : "warning",
+    label: "Boost Drop",
+    detail: `${events.length} unexpected boost drop${events.length > 1 ? "s" : ""} at full throttle`,
+    frameIndices: midFrame(events),
+  };
+}
+
+export function analyzeLap(telemetry: TelemetryPacket[]): LapInsight[] {
+  if (telemetry.length < 10) return [];
+
+  const insights: LapInsight[] = [];
+
+  // Suspension
+  insights.push(...detectSuspensionOverload(telemetry));
+  const imbalance = detectSuspensionImbalance(telemetry);
+  if (imbalance) insights.push(imbalance);
+
+  // Tires
+  insights.push(...detectTireOverheat(telemetry));
+  insights.push(...detectLockups(telemetry));
+  insights.push(...detectWheelspin(telemetry));
+  const wearImb = detectWearImbalance(telemetry);
+  if (wearImb) insights.push(wearImb);
+
+  // Driving
+  const harsh = detectHarshBraking(telemetry);
+  if (harsh) insights.push(harsh);
+  const rev = detectRevLimiter(telemetry);
+  if (rev) insights.push(rev);
+  const coast = detectCoasting(telemetry);
+  if (coast) insights.push(coast);
+  const trail = detectTrailBraking(telemetry);
+  if (trail) insights.push(trail);
+
+  // Mechanical
+  const fuel = detectFuelConsumption(telemetry);
+  if (fuel) insights.push(fuel);
+  const power = detectPeakPower(telemetry);
+  if (power) insights.push(power);
+  const boost = detectBoostAnomaly(telemetry);
+  if (boost) insights.push(boost);
+
+  return insights;
+}
