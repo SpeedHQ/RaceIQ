@@ -29,7 +29,7 @@ Server checks `lapAnalyses` table → cached? return it
     ↓ (cache miss)
 Builds prompt: enriched telemetry export + corner data + car/track names
     ↓
-Spawns `claude -p "<prompt>"` subprocess, waits for stdout
+Pipes prompt to `claude -p -` via stdin (Bun.spawn), waits for stdout
     ↓
 Saves response to DB, returns { analysis, cached }
     ↓
@@ -40,7 +40,20 @@ Client renders markdown in modal + "Regenerate" button
 
 ### 1. Database: `lapAnalyses` table
 
-New table in `server/db/schema.ts`:
+New table added in two places (matching existing codebase pattern):
+
+**Raw SQL in `server/db/index.ts`** (appended to existing `CREATE TABLE` block):
+
+```sql
+CREATE TABLE IF NOT EXISTS lap_analyses (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  lap_id      INTEGER NOT NULL UNIQUE REFERENCES laps(id) ON DELETE CASCADE,
+  analysis    TEXT NOT NULL,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+**Drizzle schema in `server/db/schema.ts`:**
 
 ```typescript
 export const lapAnalyses = sqliteTable("lap_analyses", {
@@ -49,7 +62,7 @@ export const lapAnalyses = sqliteTable("lap_analyses", {
   analysis: text("analysis").notNull(),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 }, (table) => [
-  uniqueIndex("idx_analyses_lap").on(table.lapId),
+  unique().on(table.lapId),
 ]);
 ```
 
@@ -76,17 +89,26 @@ Flow:
 1. Validate lap ID, fetch lap data
 2. If not `regenerate`, check `lapAnalyses` table → return if found
 3. Build prompt context:
-   - Reuse `generateExport()` for telemetry summary
+   - Reuse `generateExport()` for telemetry summary (extract from `routes.ts` to `server/export.ts` — currently a local function)
    - Enrich with car name (`getCarName()`) and track name (`getTrackName()`)
    - Add corner-level data: per-corner min speed, braking point, exit speed, gear, time spent
    - Add track segment data if available
-4. Spawn `claude -p "<system_prompt>\n\n<telemetry_context>"` as child process
+4. Pipe prompt to `claude` via stdin using `Bun.spawn`:
+   ```typescript
+   const proc = Bun.spawn(["claude", "-p", "-"], { stdin: "pipe" });
+   proc.stdin.write(prompt);
+   proc.stdin.end();
+   const output = await new Response(proc.stdout).text();
+   ```
+   This avoids OS argument length limits with large telemetry payloads.
 5. Capture stdout, save to DB (upsert — replace if regenerating)
 6. Return response
 
+Concurrency: The client disables the "Regenerate" button while a request is in-flight to prevent duplicate subprocess spawns for the same lap.
+
 Error handling:
 - `claude` not found → 500 with clear error message
-- Process timeout (60s) → kill and return 504
+- Process timeout (90s) → kill and return 504 (no partial DB state to clean up — save only happens on success)
 - Empty response → 500
 
 ### 3. Prompt Template (`server/ai/analyst-prompt.ts`)
@@ -146,7 +168,7 @@ States:
 - `error` — show error message with retry button
 
 UI:
-- Custom modal (no existing dialog component — build with Base-UI patterns matching existing component style)
+- Custom modal built with existing Base-UI + Tailwind patterns (matching `client/src/components/ui/` style)
 - Dark theme consistent with app
 - Header: "AI Analysis — {carName} at {trackName}"
 - Body: rendered markdown (using `react-markdown`)
@@ -171,7 +193,7 @@ LapAnalyse (button click)
   → POST /api/laps/:id/analyse
     → Check lapAnalyses table
     → [cache miss] generateExport() + getCarName() + getTrackName() + buildCornerData()
-    → spawn("claude", ["-p", prompt])
+    → Bun.spawn(["claude", "-p", "-"], stdin: prompt)
     → Save to lapAnalyses table
     → Return { analysis, cached }
   → AiAnalysisModal renders markdown
@@ -185,7 +207,9 @@ LapAnalyse (button click)
 | `server/db/queries.ts` | Add `getAnalysis()`, `saveAnalysis()` query functions |
 | `server/ai/analyst-prompt.ts` | New — prompt template and builder |
 | `server/ai/corner-data.ts` | New — corner-level telemetry extraction |
-| `server/routes.ts` | Add `POST /api/laps/:id/analyse` endpoint |
+| `server/export.ts` | New — extract `generateExport()` + `findBrakingZones()` from `routes.ts` |
+| `server/routes.ts` | Add `POST /api/laps/:id/analyse` endpoint, import `generateExport` from `export.ts` |
+| `server/db/index.ts` | Add `CREATE TABLE IF NOT EXISTS lap_analyses` SQL |
 | `client/src/components/AiAnalysisModal.tsx` | New — modal component |
 | `client/src/components/LapAnalyse.tsx` | Add AI Analysis button + modal state |
 | `client/package.json` | Add `react-markdown` dependency |
@@ -196,3 +220,7 @@ LapAnalyse (button click)
 - No comparison analysis (two-lap) — single lap only for now
 - No prompt customization in the UI
 - No analysis history/versioning — one cached result per lap, regenerate replaces
+
+## Known Limitations
+
+- If corner definitions for a track are updated after an analysis was cached, the cached analysis won't reflect the new corners. User can click "Regenerate" to get fresh analysis with updated corners.
