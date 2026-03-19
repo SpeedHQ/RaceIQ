@@ -425,90 +425,42 @@ app.get("/api/track-sectors/:ordinal", (c) => {
     smoothed.push(sum / (smoothWindow * 2 + 1));
   }
 
-  // ── Peak-finding approach ──────────────────────────────────────────
-  // 1. Find curvature peaks (corners) using local maxima
-  // 2. Expand each peak outward until curvature drops to the entry/exit floor
-  // 3. Add braking/exit buffers around each corner
-  // 4. Merge nearby corners; everything else is a straight
-
+  // Threshold: 54th percentile — slightly above median to avoid classifying
+  // gentle curves as corners, making corner starts tighter and straights longer
   const sorted = [...smoothed].sort((a, b) => a - b);
-  // Peak threshold: must be above 70th percentile to count as a corner peak
-  const peakThreshold = sorted[Math.floor(n * 0.7)];
-  // Floor: curvature below 25th percentile = definitely straight
-  const floorThreshold = sorted[Math.floor(n * 0.25)];
-  // Buffer: extend corners by this many indices for entry/exit zones
-  const bufferIdx = Math.max(2, Math.floor(n / 100));
+  const threshold = sorted[Math.floor(n * 0.54)];
 
-  // Find local maxima in smoothed curvature above peakThreshold
-  const peaks: number[] = [];
-  const peakWindow = Math.max(2, Math.floor(n / 150));
-  for (let i = 0; i < n; i++) {
-    if (smoothed[i] < peakThreshold) continue;
-    let isMax = true;
-    for (let j = -peakWindow; j <= peakWindow; j++) {
-      if (j === 0) continue;
-      if (smoothed[(i + j + n) % n] > smoothed[i]) { isMax = false; break; }
-    }
-    if (isMax) peaks.push(i);
-  }
-
-  // Expand each peak outward until curvature drops below floor
+  // Build segments by classifying each point
   type Seg = { type: "corner" | "straight"; startIdx: number; endIdx: number; startFrac: number; endFrac: number };
-  const corners: { startIdx: number; endIdx: number }[] = [];
-  for (const peak of peaks) {
-    let lo = peak;
-    while (lo > 0 && smoothed[(lo - 1 + n) % n] > floorThreshold) lo--;
-    let hi = peak;
-    while (hi < n - 1 && smoothed[(hi + 1) % n] > floorThreshold) hi++;
-    // Add entry/exit buffer
-    lo = Math.max(0, lo - bufferIdx);
-    hi = Math.min(n - 1, hi + bufferIdx);
-    corners.push({ startIdx: lo, endIdx: hi });
-  }
-
-  // Merge overlapping/adjacent corners
-  corners.sort((a, b) => a.startIdx - b.startIdx);
-  const mergedCorners: typeof corners = [];
-  for (const c of corners) {
-    if (mergedCorners.length > 0 && c.startIdx <= mergedCorners[mergedCorners.length - 1].endIdx + 1) {
-      mergedCorners[mergedCorners.length - 1].endIdx = Math.max(mergedCorners[mergedCorners.length - 1].endIdx, c.endIdx);
-    } else {
-      mergedCorners.push({ ...c });
-    }
-  }
-
-  // Build segment list: corners + straights between them
   const segments: Seg[] = [];
-  let pos = 0;
-  for (const c of mergedCorners) {
-    if (c.startIdx > pos) {
-      // Straight before this corner
-      segments.push({ type: "straight", startIdx: pos, endIdx: c.startIdx, startFrac: pos / n, endFrac: c.startIdx / n });
+  let currentType: "corner" | "straight" = smoothed[0] > threshold ? "corner" : "straight";
+  let segStart = 0;
+
+  for (let i = 1; i < n; i++) {
+    const type = smoothed[i] > threshold ? "corner" : "straight";
+    if (type !== currentType) {
+      segments.push({ type: currentType, startFrac: segStart / n, endFrac: i / n, startIdx: segStart, endIdx: i });
+      currentType = type;
+      segStart = i;
     }
-    segments.push({ type: "corner", startIdx: c.startIdx, endIdx: c.endIdx, startFrac: c.startIdx / n, endFrac: c.endIdx / n });
-    pos = c.endIdx;
   }
-  // Closing segment (after last corner to end, wrapping to first corner)
-  if (pos < n) {
-    // If track starts with a corner, merge the trailing straight with any leading straight
-    if (segments.length > 0 && segments[0].type === "straight") {
-      segments[0].startIdx = pos;
-      segments[0].startFrac = pos / n;
-      // Move to end of array so it wraps correctly — actually keep it as last
-      segments.push({ type: "straight", startIdx: pos, endIdx: n - 1, startFrac: pos / n, endFrac: 1 });
+  segments.push({ type: currentType, startFrac: segStart / n, endFrac: 1, startIdx: segStart, endIdx: n - 1 });
+
+  // Merge tiny segments (< 1.5% of track) into neighbor
+  const pass1: Seg[] = [];
+  for (const seg of segments) {
+    if ((seg.endFrac - seg.startFrac) < 0.015 && pass1.length > 0) {
+      pass1[pass1.length - 1].endFrac = seg.endFrac;
+      pass1[pass1.length - 1].endIdx = seg.endIdx;
     } else {
-      segments.push({ type: "straight", startIdx: pos, endIdx: n - 1, startFrac: pos / n, endFrac: 1 });
+      pass1.push({ ...seg });
     }
   }
 
-  // Consolidate adjacent same-type and merge tiny segments (< 2% of track)
+  // Consolidate adjacent same-type segments
   const merged: Seg[] = [];
-  for (const seg of segments) {
-    const frac = seg.endFrac - seg.startFrac;
-    if (frac < 0.02 && merged.length > 0) {
-      merged[merged.length - 1].endFrac = seg.endFrac;
-      merged[merged.length - 1].endIdx = seg.endIdx;
-    } else if (merged.length > 0 && merged[merged.length - 1].type === seg.type) {
+  for (const seg of pass1) {
+    if (merged.length > 0 && merged[merged.length - 1].type === seg.type) {
       merged[merged.length - 1].endFrac = seg.endFrac;
       merged[merged.length - 1].endIdx = seg.endIdx;
     } else {

@@ -2,6 +2,8 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import type { TelemetryPacket } from "@shared/types";
 import { CAR_CLASS_NAMES, DRIVETRAIN_NAMES } from "@shared/types";
 import { SteeringWheel } from "./SteeringWheel";
+import { convertTemp } from "../lib/temperature";
+import { useTelemetry } from "../context/telemetry";
 
 // Rolling window for grip sparklines — 60s at 10Hz gives a manageable 600-point buffer
 const GRIP_HISTORY_SECONDS = 60;
@@ -190,17 +192,17 @@ function GaugeBar({ value, max, color }: { value: number; max: number; color: st
 }
 
 // Tire temp thresholds (Fahrenheit): <150 cold, 150-220 optimal, 220-280 hot, >280 overheating
-function tempColor(t: number): string {
-  if (t < 150) return "text-blue-400";
-  if (t < 220) return "text-emerald-400";
-  if (t < 280) return "text-amber-400";
+function tempColor(t: number, thresholds: { cold: number; warm: number; hot: number }): string {
+  if (t < thresholds.cold) return "text-blue-400";
+  if (t < thresholds.warm) return "text-emerald-400";
+  if (t < thresholds.hot) return "text-amber-400";
   return "text-red-400";
 }
 
-function tempBg(t: number): string {
-  if (t < 150) return "bg-blue-500/20 border-blue-500/40";
-  if (t < 220) return "bg-emerald-500/20 border-emerald-500/40";
-  if (t < 280) return "bg-amber-500/20 border-amber-500/40";
+function tempBg(t: number, thresholds: { cold: number; warm: number; hot: number }): string {
+  if (t < thresholds.cold) return "bg-blue-500/20 border-blue-500/40";
+  if (t < thresholds.warm) return "bg-emerald-500/20 border-emerald-500/40";
+  if (t < thresholds.hot) return "bg-amber-500/20 border-amber-500/40";
   return "bg-red-500/20 border-red-500/40";
 }
 
@@ -231,17 +233,10 @@ function gripPulse(combined: number): string {
   return "";
 }
 
-function tireStrokeColor(t: number): string {
-  if (t < 150) return "#3b82f6";
-  if (t < 220) return "#34d399";
-  if (t < 280) return "#f59e0b";
-  return "#ef4444";
-}
-
-function tireFillColor(t: number): string {
-  if (t < 150) return "#3b82f6";
-  if (t < 220) return "#34d399";
-  if (t < 280) return "#f59e0b";
+function tireColor(t: number, thresholds: { cold: number; warm: number; hot: number }): string {
+  if (t < thresholds.cold) return "#3b82f6";
+  if (t < thresholds.warm) return "#34d399";
+  if (t < thresholds.hot) return "#f59e0b";
   return "#ef4444";
 }
 
@@ -261,7 +256,7 @@ function slipLineColor(deg: number): string {
  * the angle between tire heading and actual travel direction.
  * Spin/lockup detection uses animated glow rings and X/arrow overlays.
  */
-function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, spinPct, steerAngle }: {
+function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, spinPct, steerAngle, thresholds, temperatureUnit }: {
   label: string;
   temp: number;
   wear: number;
@@ -270,10 +265,12 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, spinPct,
   outerSide: "left" | "right";
   spinPct: number;
   steerAngle: number;
+  thresholds: { cold: number; warm: number; hot: number };
+  temperatureUnit: "F" | "C";
 }) {
   const clampedAngle = Math.max(-25, Math.min(25, slipAngle));
-  const stroke = tireStrokeColor(temp);
-  const fill = tireFillColor(temp);
+  const stroke = tireColor(temp, thresholds);
+  const fill = tireColor(temp, thresholds);
   const slipCol = slipLineColor(slipAngle);
   const wearPct = Math.max(0, Math.min(1, wear));
 
@@ -404,7 +401,7 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, spinPct,
 
         {/* Below tire: temp, wear, traction */}
         <text x={cx} y={93} textAnchor="middle" fill={stroke} fontSize={9} fontWeight="bold" fontFamily="monospace">
-          {temp.toFixed(0)}°F
+          {convertTemp(temp, temperatureUnit).toFixed(0)}°{temperatureUnit}
         </text>
         <text x={cx} y={105} textAnchor="middle" fill="#94a3b8" fontSize={7} fontFamily="monospace">
           Wear {(wearPct * 100).toFixed(0)}%
@@ -445,6 +442,7 @@ function SuspBar({ norm }: { norm: number }) {
  * Falls back to 0.33m radius when stationary to avoid division by zero.
  */
 export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
+  const { tempSettings } = useTelemetry();
   const toDeg = 180 / Math.PI;
   const gs = packet.Speed;
 
@@ -485,23 +483,23 @@ export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
   return (
     <div className="grid grid-cols-[80px_auto_80px] gap-x-3 gap-y-3 items-center justify-center mx-auto" style={{ maxWidth: 280 }}>
       {/* Front axle */}
-      <WheelCard {...wheels[0]} outerSide="left" />
+      <WheelCard {...wheels[0]} outerSide="left" thresholds={tempSettings.tireTemperatureThresholds} temperatureUnit={tempSettings.temperatureUnit} />
       <div className="flex gap-2">
         <SuspBar norm={susp[0]} />
         <SuspBar norm={susp[1]} />
       </div>
-      <WheelCard {...wheels[1]} outerSide="right" />
+      <WheelCard {...wheels[1]} outerSide="right" thresholds={tempSettings.tireTemperatureThresholds} temperatureUnit={tempSettings.temperatureUnit} />
 
       {/* Divider */}
       <div className="col-span-3 h-px bg-slate-700/30" />
 
       {/* Rear axle */}
-      <WheelCard {...wheels[2]} outerSide="left" />
+      <WheelCard {...wheels[2]} outerSide="left" thresholds={tempSettings.tireTemperatureThresholds} temperatureUnit={tempSettings.temperatureUnit} />
       <div className="flex gap-2">
         <SuspBar norm={susp[2]} />
         <SuspBar norm={susp[3]} />
       </div>
-      <WheelCard {...wheels[3]} outerSide="right" />
+      <WheelCard {...wheels[3]} outerSide="right" thresholds={tempSettings.tireTemperatureThresholds} temperatureUnit={tempSettings.temperatureUnit} />
     </div>
   );
 }

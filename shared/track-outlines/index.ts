@@ -69,7 +69,8 @@ for (const [trackName, entry] of Object.entries(TRACK_FILES)) {
   const filePath = resolve(__dirname, entry.filename);
   if (existsSync(filePath)) {
     try {
-      const data = JSON.parse(readFileSync(filePath, "utf-8")) as Point[];
+      let data = JSON.parse(readFileSync(filePath, "utf-8")) as Point[];
+      data = filterOutlierPoints(data);
       outlinesByName.set(trackName, data);
       sourceByName.set(trackName, entry.source);
     } catch {}

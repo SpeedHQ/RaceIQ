@@ -225,7 +225,7 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
   const offsetZ = (h - rangeZ * scale) / 2;
 
   function toCanvas(x: number, z: number): [number, number] {
-    return [offsetX + (x - minX) * scale, offsetZ + (z - minZ) * scale];
+    return [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
   }
 
   // Track outline
@@ -345,6 +345,7 @@ export function TrackViewer() {
   const [tracks, setTracks] = useState<TrackInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTrack, setSelectedTrack] = useState<TrackInfo | null>(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     fetch("/api/tracks")
@@ -362,14 +363,38 @@ export function TrackViewer() {
     return <TrackDetail track={selectedTrack} onBack={() => setSelectedTrack(null)} />;
   }
 
-  const withOutline = tracks.filter((t) => t.hasOutline);
-  const withoutOutline = tracks.filter((t) => !t.hasOutline);
+  const query = search.toLowerCase().trim();
+  const filtered = query
+    ? tracks.filter(
+        (t) =>
+          t.name.toLowerCase().includes(query) ||
+          t.variant.toLowerCase().includes(query) ||
+          t.location.toLowerCase().includes(query) ||
+          t.country.toLowerCase().includes(query),
+      )
+    : tracks;
+
+  const withOutline = filtered.filter((t) => t.hasOutline);
+  const withoutOutline = filtered.filter((t) => !t.hasOutline);
 
   return (
     <div className="p-4 overflow-auto h-full">
-      <div className="text-xs text-slate-500 uppercase tracking-wider mb-3">
-        Available Tracks ({withOutline.length} with outlines, {withoutOutline.length} without)
+      <div className="flex items-center gap-3 mb-3">
+        <div className="text-xs text-slate-500 uppercase tracking-wider whitespace-nowrap">
+          Available Tracks ({withOutline.length} with outlines, {withoutOutline.length} without)
+        </div>
+        <input
+          type="text"
+          placeholder="Search tracks..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-7 w-full max-w-xs rounded-md border border-slate-700 bg-slate-900/50 px-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-slate-500 transition-colors"
+        />
       </div>
+
+      {filtered.length === 0 && (
+        <div className="text-sm text-slate-600 mt-6">No tracks matching &ldquo;{search}&rdquo;</div>
+      )}
 
       {withOutline.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
