@@ -65,8 +65,10 @@ function RootLayout() {
         </div>
 
         {showSettings && (
-          <div className="p-4 border-b border-slate-800 bg-slate-950">
-            <div className="max-w-md">
+          <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/60"
+               onClick={() => setShowSettings(false)}>
+            <div className="max-w-md w-full max-h-[80vh] overflow-y-auto"
+                 onClick={(e) => e.stopPropagation()}>
               <Settings />
             </div>
           </div>
