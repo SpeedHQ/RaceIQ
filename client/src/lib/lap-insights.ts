@@ -181,16 +181,22 @@ function detectWearImbalance(telemetry: TelemetryPacket[]): LapInsight | null {
   return null;
 }
 
-function detectHarshBraking(telemetry: TelemetryPacket[]): LapInsight | null {
-  const flags = telemetry.map((p) => p.AccelerationZ / 9.81 < -1.2);
+function detectBrakeTractionLoss(telemetry: TelemetryPacket[]): LapInsight | null {
+  // Detect braking while any wheel is locked — losing traction under braking
+  const flags = telemetry.map((p) => {
+    if (p.Brake < 30) return false; // must be braking
+    const ws = allWheelStates(p);
+    return ws.fl.state === "lockup" || ws.fr.state === "lockup" ||
+           ws.rl.state === "lockup" || ws.rr.state === "lockup";
+  });
   const events = groupEvents(flags, 3);
   if (events.length === 0) return null;
   return {
-    id: "driving-harsh-brake",
+    id: "driving-brake-traction-loss",
     category: "driving",
     severity: events.length >= 5 ? "critical" : events.length >= 2 ? "warning" : "info",
-    label: "Harsh Braking",
-    detail: `${events.length} heavy brake zone${events.length > 1 ? "s" : ""} (> 1.2g)`,
+    label: "Brake Traction Loss",
+    detail: `${events.length} lockup${events.length > 1 ? "s" : ""} under braking`,
     frameIndices: midFrame(events),
   };
 }
@@ -346,8 +352,8 @@ export function analyzeLap(telemetry: TelemetryPacket[]): LapInsight[] {
   if (wearImb) insights.push(wearImb);
 
   // Driving
-  const harsh = detectHarshBraking(telemetry);
-  if (harsh) insights.push(harsh);
+  const brakeLoss = detectBrakeTractionLoss(telemetry);
+  if (brakeLoss) insights.push(brakeLoss);
   const rev = detectRevLimiter(telemetry);
   if (rev) insights.push(rev);
   const coast = detectCoasting(telemetry);
