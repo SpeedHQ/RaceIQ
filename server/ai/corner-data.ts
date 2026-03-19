@@ -54,10 +54,18 @@ export function buildCornerData(
       if (g > 0 && c > maxCount) { gear = g; maxCount = c; }
     }
 
+    // Find the packet index nearest to corner start, then scan backwards for braking
     const cornerStartDist = corner.distanceStart;
+    let nearestIdx = 0;
+    let nearestDelta = Infinity;
+    for (let i = 0; i < packets.length; i++) {
+      const delta = Math.abs(packets[i].DistanceTraveled - cornerStartDist);
+      if (delta < nearestDelta) { nearestDelta = delta; nearestIdx = i; }
+      if (packets[i].DistanceTraveled > cornerStartDist) break;
+    }
     let brakingDistance = 0;
-    for (let i = packets.length - 1; i >= 0; i--) {
-      if (packets[i].DistanceTraveled <= cornerStartDist && packets[i].Brake > 50) {
+    for (let i = nearestIdx; i >= 0; i--) {
+      if (packets[i].Brake > 50) {
         brakingDistance = cornerStartDist - packets[i].DistanceTraveled;
         while (i > 0 && packets[i - 1].Brake > 50) {
           i--;
@@ -65,6 +73,8 @@ export function buildCornerData(
         }
         break;
       }
+      // Stop scanning if we're too far back (more than 300m before corner)
+      if (cornerStartDist - packets[i].DistanceTraveled > 300) break;
     }
 
     const timeInCorner = cornerPackets.length / 60;
