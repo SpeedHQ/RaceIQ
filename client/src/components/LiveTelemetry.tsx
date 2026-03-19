@@ -435,7 +435,7 @@ function SuspBar({ norm }: { norm: number }) {
     <div className="flex flex-col items-center gap-0.5">
       <div className="w-4 h-16 bg-slate-900/60 rounded-sm overflow-hidden relative">
         <div
-          className={`absolute bottom-0 w-full rounded-sm transition-all ${suspColor(norm)}`}
+          className={`absolute bottom-0 w-full rounded-sm ${suspColor(norm)}`}
           style={{ height: `${pct}%` }}
         />
       </div>

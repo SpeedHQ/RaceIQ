@@ -13,6 +13,7 @@ interface Props {
   height?: number;
   title?: string;
   fillColors?: (string | null)[];
+  onCursorMove?: (distance: number | null) => void;
 }
 
 const SYNC_INSTANCES = new Map<string, uPlot.SyncPubSub>();
@@ -24,9 +25,11 @@ function getSync(key: string): uPlot.SyncPubSub {
   return SYNC_INSTANCES.get(key)!;
 }
 
-export function TelemetryChart({ data, syncKey, height = 200, title, fillColors }: Props) {
+export function TelemetryChart({ data, syncKey, height = 200, title, fillColors, onCursorMove }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const plotRef = useRef<uPlot | null>(null);
+  const onCursorMoveRef = useRef(onCursorMove);
+  onCursorMoveRef.current = onCursorMove;
 
   const buildOpts = useCallback(
     (width: number): uPlot.Options => {
@@ -71,11 +74,23 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors 
           },
         ],
         series,
+        hooks: {
+          setCursor: [
+            (upl: uPlot) => {
+              if (!onCursorMoveRef.current) return;
+              const idx = upl.cursor.idx;
+              if (idx != null && idx >= 0 && idx < data.distance.length) {
+                onCursorMoveRef.current(data.distance[idx]);
+              }
+              // Don't send null — keep last position visible until user hovers again
+            },
+          ],
+        },
       };
 
       return opts;
     },
-    [data.labels, data.colors, syncKey, height, title, fillColors]
+    [data.labels, data.colors, syncKey, height, title, fillColors, data.distance]
   );
 
   useEffect(() => {

@@ -5,9 +5,10 @@ interface Props {
   timeDelta: number[];
   syncKey?: string;
   height?: number;
+  onCursorMove?: (distance: number | null) => void;
 }
 
-export function TimeDelta({ distances, timeDelta, syncKey, height = 160 }: Props) {
+export function TimeDelta({ distances, timeDelta, syncKey, height = 160, onCursorMove }: Props) {
   // Split into positive (losing time = red) and negative (gaining time = green) for fill
   const gaining = timeDelta.map((d) => (d <= 0 ? d : 0));
   const losing = timeDelta.map((d) => (d > 0 ? d : 0));
@@ -24,6 +25,7 @@ export function TimeDelta({ distances, timeDelta, syncKey, height = 160 }: Props
       syncKey={syncKey}
       height={height}
       title="Time Delta"
+      onCursorMove={onCursorMove}
     />
   );
 }
