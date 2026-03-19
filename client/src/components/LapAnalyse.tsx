@@ -1265,7 +1265,7 @@ export function LapAnalyse() {
           </div>
 
           {/* Right panel – full height */}
-          <div className="w-80 shrink-0 border-l border-slate-800 overflow-y-auto bg-slate-900/50 flex flex-col">
+          <div className="w-80 shrink-0 border-l border-slate-800 bg-slate-900/50 flex flex-col overflow-hidden">
               {/* Tab switcher */}
               <div className="flex border-b border-slate-800 shrink-0">
                 <button
