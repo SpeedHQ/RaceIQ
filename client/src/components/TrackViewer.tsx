@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { formatLapTime } from "./LiveTelemetry";
+import { TUNE_CATALOG, getCatalogCar, type CatalogTune } from "../data/tune-catalog";
 
 interface TrackInfo {
   ordinal: number;
@@ -87,6 +88,8 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [sectors, setSectors] = useState<TrackSectors | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, z: 0 });
+  const dragging = useRef<{ startX: number; startY: number; startPanX: number; startPanZ: number } | null>(null);
   const [editing, setEditing] = useState(false);
   const [editSegments, setEditSegments] = useState<TrackSegment[]>([]);
   const [saving, setSaving] = useState(false);
@@ -107,6 +110,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmSingleDelete, setConfirmSingleDelete] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<"laps" | "tunes">("laps");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -145,8 +149,8 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
-    drawTrack(canvasRef.current, outline, true, displaySectors, zoom);
-  }, [outline, displaySectors, zoom]);
+    drawTrack(canvasRef.current, outline, true, displaySectors, zoom, pan);
+  }, [outline, displaySectors, zoom, pan]);
 
   const startEditing = useCallback(() => {
     if (sectors?.segments) {
@@ -360,7 +364,21 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
         {/* Large track map */}
         <div className="bg-app-bg rounded-lg border border-app-border relative" style={{ height: 600 }}>
           {track.hasOutline ? (
-            <canvas ref={canvasRef} className="w-full h-full" />
+            <canvas
+              ref={canvasRef}
+              className="w-full h-full cursor-grab active:cursor-grabbing"
+              onMouseDown={(e) => {
+                dragging.current = { startX: e.clientX, startY: e.clientY, startPanX: pan.x, startPanZ: pan.z };
+              }}
+              onMouseMove={(e) => {
+                if (!dragging.current) return;
+                const dx = e.clientX - dragging.current.startX;
+                const dy = e.clientY - dragging.current.startY;
+                setPan({ x: dragging.current.startPanX + dx, z: dragging.current.startPanZ + dy });
+              }}
+              onMouseUp={() => { dragging.current = null; }}
+              onMouseLeave={() => { dragging.current = null; }}
+            />
           ) : (
             <div className="flex items-center justify-center h-full text-xs text-app-text-dim">
               No outline available
@@ -378,7 +396,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
             >-</button>
             {zoom !== 1 && (
               <button
-                onClick={() => setZoom(1)}
+                onClick={() => { setZoom(1); setPan({ x: 0, z: 0 }); }}
                 className="w-7 h-7 text-[10px] bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
               >1x</button>
             )}
@@ -516,9 +534,38 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="mt-4">
+        <div className="flex items-center gap-1 border-b border-app-border mb-3">
+          <button
+            onClick={() => setActiveTab("laps")}
+            className={`text-xs uppercase tracking-wider px-3 py-1.5 -mb-px border-b-2 transition-colors ${
+              activeTab === "laps"
+                ? "border-app-accent text-app-accent"
+                : "border-transparent text-app-text-muted hover:text-app-text-secondary"
+            }`}
+          >
+            Laps {trackLaps.length > 0 && `(${trackLaps.length})`}
+          </button>
+          <button
+            onClick={() => setActiveTab("tunes")}
+            className={`text-xs uppercase tracking-wider px-3 py-1.5 -mb-px border-b-2 transition-colors ${
+              activeTab === "tunes"
+                ? "border-app-accent text-app-accent"
+                : "border-transparent text-app-text-muted hover:text-app-text-secondary"
+            }`}
+          >
+            Tunes
+          </button>
+        </div>
+
+        {activeTab === "tunes" && (
+          <TrackTunes trackName={track.name} trackVariant={track.variant} />
+        )}
+
       {/* Lap Manager */}
-      {trackLaps.length > 0 && (
-        <div className="mt-4">
+      {activeTab === "laps" && trackLaps.length > 0 && (
+        <div>
           {/* Car filter */}
           <div className="flex items-center gap-3 mb-3 flex-wrap">
             <div className="text-xs text-app-text-muted uppercase tracking-wider">Laps ({filteredLaps.length})</div>
@@ -699,6 +746,148 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
           )}
         </div>
       )}
+      </div>
+    </div>
+  );
+}
+
+function TrackTunes({ trackName, trackVariant }: { trackName: string; trackVariant: string }) {
+  const fullName = trackVariant ? `${trackName} ${trackVariant}`.trim() : trackName;
+  const nameLower = fullName.toLowerCase();
+  const trackNameLower = trackName.toLowerCase();
+  const [carSearch, setCarSearch] = useState("");
+  const [expandedTune, setExpandedTune] = useState<string | null>(null);
+
+  const allTunes = TUNE_CATALOG.filter((t) =>
+    t.bestTracks?.some((bt) => {
+      const btl = bt.toLowerCase();
+      return btl.includes(nameLower) || nameLower.includes(btl) || btl.includes(trackNameLower) || trackNameLower.includes(btl);
+    }) || t.category === "track-specific"
+  );
+
+  const carQuery = carSearch.toLowerCase();
+  const tunes = carQuery
+    ? allTunes.filter((t) => {
+        const carName = getCatalogCar(t.carOrdinal)?.name ?? "";
+        return carName.toLowerCase().includes(carQuery);
+      })
+    : allTunes;
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-3">
+        <div className="text-xs text-app-text-muted uppercase tracking-wider whitespace-nowrap">
+          Tunes ({tunes.length})
+        </div>
+        <input
+          type="text"
+          value={carSearch}
+          onChange={(e) => setCarSearch(e.target.value)}
+          placeholder="Search cars..."
+          className="h-7 w-full max-w-xs rounded-md border border-app-border-input bg-app-dropdown px-2.5 text-sm text-app-text placeholder:text-app-text-dim outline-none focus:border-app-text-muted transition-colors"
+        />
+      </div>
+
+      {tunes.length === 0 ? (
+        <div className="text-center py-12 text-app-text-dim text-sm">
+          No tunes found{carSearch ? ` matching "${carSearch}"` : " for this track"}.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {tunes.map((tune) => {
+            const isExpanded = expandedTune === tune.id;
+            return (
+              <div key={tune.id} className="rounded-lg bg-app-surface border border-app-border overflow-hidden">
+                <button
+                  onClick={() => setExpandedTune(isExpanded ? null : tune.id)}
+                  className="w-full text-left p-3 hover:bg-app-surface-alt/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-sm text-app-text">{tune.name}</span>
+                    <span className="text-[10px] font-mono text-app-text-muted">
+                      {getCatalogCar(tune.carOrdinal)?.name ?? `Car ${tune.carOrdinal}`}
+                    </span>
+                    <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                      tune.category === "circuit" ? "bg-blue-500/20 text-blue-400" :
+                      tune.category === "wet" ? "bg-cyan-500/20 text-cyan-400" :
+                      tune.category === "low-drag" ? "bg-red-500/20 text-red-400" :
+                      tune.category === "stable" ? "bg-green-500/20 text-green-400" :
+                      "bg-orange-500/20 text-orange-400"
+                    }`}>
+                      {tune.category}
+                    </span>
+                    <svg
+                      className={`w-3.5 h-3.5 text-app-text-muted ml-auto shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  <p className={`text-xs text-app-text-secondary mt-1 ${isExpanded ? "" : "line-clamp-1"}`}>{tune.description}</p>
+                </button>
+
+                {isExpanded && (
+                  <div className="px-3 pb-3 space-y-3 border-t border-app-border">
+                    {/* Strengths & Weaknesses */}
+                    <div className="grid grid-cols-2 gap-3 pt-3">
+                      <div>
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-green-400 mb-1">Strengths</h4>
+                        <ul className="space-y-0.5">
+                          {tune.strengths.map((s) => (
+                            <li key={s} className="text-xs text-app-text-secondary flex items-start gap-1.5">
+                              <span className="text-green-400 mt-0.5">+</span> {s}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-red-400 mb-1">Weaknesses</h4>
+                        <ul className="space-y-0.5">
+                          {tune.weaknesses.map((w) => (
+                            <li key={w} className="text-xs text-app-text-secondary flex items-start gap-1.5">
+                              <span className="text-red-400 mt-0.5">-</span> {w}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Best Tracks */}
+                    {tune.bestTracks && tune.bestTracks.length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted mb-1">Best Tracks</h4>
+                        <div className="flex flex-wrap gap-1">
+                          {tune.bestTracks.map((bt) => (
+                            <span key={bt} className="text-[10px] px-2 py-0.5 rounded-full bg-app-surface-alt text-app-text-secondary border border-app-border">
+                              {bt}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tune Settings */}
+                    <div>
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted mb-1">Settings</h4>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                        <div className="flex justify-between"><span className="text-app-text-muted">Front Pressure</span><span className="font-mono text-app-text">{tune.settings.tires.frontPressure.toFixed(2)} bar</span></div>
+                        <div className="flex justify-between"><span className="text-app-text-muted">Rear Pressure</span><span className="font-mono text-app-text">{tune.settings.tires.rearPressure.toFixed(2)} bar</span></div>
+                        <div className="flex justify-between"><span className="text-app-text-muted">Final Drive</span><span className="font-mono text-app-text">{tune.settings.gearing.finalDrive.toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span className="text-app-text-muted">Front Camber</span><span className="font-mono text-app-text">{tune.settings.alignment.frontCamber.toFixed(1)}&deg;</span></div>
+                        <div className="flex justify-between"><span className="text-app-text-muted">Rear Camber</span><span className="font-mono text-app-text">{tune.settings.alignment.rearCamber.toFixed(1)}&deg;</span></div>
+                        <div className="flex justify-between"><span className="text-app-text-muted">Front ARB</span><span className="font-mono text-app-text">{tune.settings.antirollBars.front.toFixed(1)}</span></div>
+                        <div className="flex justify-between"><span className="text-app-text-muted">Rear ARB</span><span className="font-mono text-app-text">{tune.settings.antirollBars.rear.toFixed(1)}</span></div>
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-app-text-dim">by {tune.author}</div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -709,7 +898,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
  * Segment labels are offset perpendicular to the track direction so they don't overlap the line.
  * The perpendicular offset is computed from neighboring outline points' tangent vector.
  */
-function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, sectors?: TrackSectors | null, zoom: number = 1) {
+function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, sectors?: TrackSectors | null, zoom: number = 1, pan: { x: number; z: number } = { x: 0, z: 0 }) {
   const ctx = canvas.getContext("2d");
   if (!ctx || outline.length < 2) return;
 
@@ -735,8 +924,8 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
   const padding = large ? 20 : 12;
   const baseScale = Math.min((w - padding * 2) / rangeX, (h - padding * 2) / rangeZ);
   const scale = baseScale * zoom;
-  const offsetX = (w - rangeX * scale) / 2;
-  const offsetZ = (h - rangeZ * scale) / 2;
+  const offsetX = (w - rangeX * scale) / 2 + pan.x;
+  const offsetZ = (h - rangeZ * scale) / 2 + pan.z;
 
   function toCanvas(x: number, z: number): [number, number] {
     return [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
@@ -961,7 +1150,7 @@ export function TrackViewer() {
           placeholder="Search tracks..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-7 w-full max-w-xs rounded-md border border-app-border-input bg-app-surface/50 px-2.5 text-sm text-app-text placeholder:text-app-text-dim outline-none focus:border-app-text-muted transition-colors"
+          className="h-7 w-full max-w-xs rounded-md border border-app-border-input bg-app-surface-alt px-2.5 text-sm text-app-text placeholder:text-app-text-dim outline-none focus:border-app-text-muted transition-colors"
         />
       </div>
 

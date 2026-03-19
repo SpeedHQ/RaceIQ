@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import type { LapMeta, ComparisonData, TelemetryPacket } from "@shared/types";
 import { TrackMap } from "./TrackMap";
@@ -7,6 +7,7 @@ import { TimeDelta } from "./TimeDelta";
 import { CornerTable } from "./CornerTable";
 import { speedLabel } from "../lib/speed";
 import { useTelemetry } from "../context/telemetry";
+import { SearchSelect } from "./ui/SearchSelect";
 
 const SYNC_KEY = "lap-compare";
 const COLOR_A = "#f97316"; // orange
@@ -176,7 +177,7 @@ function drawTrackCanvas(
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.lineTo(cx + dx, cy + dy);
-        ctx.strokeStyle = color;
+        ctx.strokeStyle = "#ffffff";
         ctx.lineWidth = 2.5;
         ctx.lineCap = "round";
         ctx.stroke();
@@ -346,8 +347,23 @@ function computeZoom(
   return { centerX: cx, centerZ: cz, range: needed };
 }
 
+interface SegmentTiming {
+  name: string;
+  type: "corner" | "straight";
+  timeA: number;
+  timeB: number;
+  startFrac: number;
+  endFrac: number;
+}
+
+function formatSectionTime(seconds: number): string {
+  if (seconds <= 0) return "-";
+  return seconds.toFixed(3);
+}
+
+
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
-function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapTimeA, lapTimeB, hoveredDistanceRef, redrawRef }: {
+function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapTimeA, lapTimeB, segments, hoveredDistanceRef, redrawRef }: {
   outline: OutlinePoint[];
   telemetryA: TelemetryPacket[];
   telemetryB: TelemetryPacket[];
@@ -355,6 +371,7 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
   labelB: string;
   lapTimeA: string;
   lapTimeB: string;
+  segments: SegmentTiming[];
   hoveredDistanceRef: React.RefObject<number | null>;
   redrawRef: React.RefObject<(() => void) | null>;
 }) {
@@ -362,6 +379,8 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
   const zoomCanvasRef = useRef<HTMLCanvasElement>(null);
   const overviewContainerRef = useRef<HTMLDivElement>(null);
   const zoomContainerRef = useRef<HTMLDivElement>(null);
+  const segmentTableRef = useRef<HTMLTableSectionElement>(null);
+  const prevActiveSegRef = useRef<number>(-1);
 
   const trackRange = useRef(1);
 
@@ -421,7 +440,29 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
         }
       }
     }
-  }, [outline, telemetryA, telemetryB, hoveredDistanceRef]);
+    // Highlight active segment row
+    if (segmentTableRef.current && segments.length > 0) {
+      let activeIdx = -1;
+      if (hd != null && telemetryA.length >= 2) {
+        const totalDist = telemetryA[telemetryA.length - 1].DistanceTraveled - telemetryA[0].DistanceTraveled;
+        if (totalDist > 0) {
+          const frac = hd / totalDist;
+          activeIdx = segments.findIndex(s => frac >= s.startFrac && frac < s.endFrac);
+        }
+      }
+      if (activeIdx !== prevActiveSegRef.current) {
+        const rows = segmentTableRef.current.children;
+        if (prevActiveSegRef.current >= 0 && prevActiveSegRef.current < rows.length) {
+          (rows[prevActiveSegRef.current] as HTMLElement).style.backgroundColor = "";
+        }
+        if (activeIdx >= 0 && activeIdx < rows.length) {
+          (rows[activeIdx] as HTMLElement).style.backgroundColor = "rgba(148, 163, 184, 0.15)";
+          (rows[activeIdx] as HTMLElement).scrollIntoView({ block: "nearest" });
+        }
+        prevActiveSegRef.current = activeIdx;
+      }
+    }
+  }, [outline, telemetryA, telemetryB, hoveredDistanceRef, segments]);
 
   // Register redraw function so parent can trigger canvas updates without React re-render
   useEffect(() => {
@@ -454,7 +495,50 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
         </div>
         <span className="text-[10px] text-app-text-dim uppercase tracking-wider">Racing Lines</span>
       </div>
-      <div className="grid grid-cols-2 h-[300px]">
+      <div className="grid grid-cols-[minmax(280px,1fr)_1fr_1fr] h-[300px]">
+        {/* Segment Times Table */}
+        {segments.length > 0 ? (
+          <div className="border-r border-app-border overflow-auto">
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 bg-app-surface z-10">
+                <tr className="text-[10px] text-app-text-muted uppercase tracking-wider border-b border-app-border">
+                  <th className="text-left px-2 py-1.5">Segment</th>
+                  <th className="text-right px-2 py-1.5" style={{ color: COLOR_A }}>A</th>
+                  <th className="text-right px-2 py-1.5" style={{ color: COLOR_B }}>B</th>
+                  <th className="text-right px-2 py-1.5">+/-</th>
+                </tr>
+              </thead>
+              <tbody ref={segmentTableRef}>
+                {segments.map((s) => {
+                  const fasterA = s.timeA > 0 && s.timeB > 0 && s.timeA < s.timeB;
+                  const fasterB = s.timeA > 0 && s.timeB > 0 && s.timeB < s.timeA;
+                  const delta = s.timeA - s.timeB;
+                  const isNeutral = Math.abs(delta) < 0.005;
+                  const deltaColor = isNeutral ? "text-app-text-secondary" : delta < 0 ? "text-emerald-400" : "text-red-400";
+                  const sign = delta > 0 ? "+" : "";
+                  return (
+                    <tr key={s.name} className="border-b border-app-border/50 hover:bg-app-surface-alt/30">
+                      <td className="px-2 py-1 font-mono text-app-text whitespace-nowrap">{s.name}</td>
+                      <td className={`px-2 py-1 font-mono text-right ${fasterA ? "text-emerald-400" : "text-app-text-secondary"}`}>
+                        {formatSectionTime(s.timeA)}
+                      </td>
+                      <td className={`px-2 py-1 font-mono text-right ${fasterB ? "text-emerald-400" : "text-app-text-secondary"}`}>
+                        {formatSectionTime(s.timeB)}
+                      </td>
+                      <td className={`px-2 py-1 font-mono text-right ${deltaColor}`}>
+                        {s.timeA > 0 && s.timeB > 0 ? `${sign}${delta.toFixed(3)}` : "-"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="border-r border-app-border w-[200px] flex items-center justify-center text-app-text-dim text-xs">
+            No segment data
+          </div>
+        )}
         {/* Overview — full track, static */}
         <div ref={overviewContainerRef} className="relative border-r border-app-border">
           <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">Overview</span>
@@ -509,6 +593,10 @@ export function LapComparison() {
   const [error, setError] = useState<string | null>(null);
   const [carNames, setCarNames] = useState<Map<number, string>>(new Map());
   const [trackOutline, setTrackOutline] = useState<OutlinePoint[] | null>(null);
+  const [trackSegments, setTrackSegments] = useState<{ type: string; name: string; startFrac: number; endFrac: number }[] | null>(null);
+  const prevTrackRef = useRef<number | null | undefined>(undefined);
+  const prevCarARef = useRef<number | null | undefined>(undefined);
+  const prevCarBRef = useRef<number | null | undefined>(undefined);
   const hoveredDistanceRef = useRef<number | null>(null);
   const mapRedrawRef = useRef<(() => void) | null>(null);
   const handleCursorMove = useCallback((d: number | null) => {
@@ -580,16 +668,22 @@ export function LapComparison() {
     fetchLaps();
   }, []);
 
-  // Reset car/lap selections when track changes
+  // Reset car/lap selections when track changes (skip initial mount to preserve URL params)
   useEffect(() => {
-    setCarAOrd(null);
-    setCarBOrd(null);
-    setLapAId(null);
-    setLapBId(null);
-    setComparison(null);
+    if (prevTrackRef.current === undefined) {
+      prevTrackRef.current = selectedTrack;
+    } else if (prevTrackRef.current !== selectedTrack) {
+      prevTrackRef.current = selectedTrack;
+      setCarAOrd(null);
+      setCarBOrd(null);
+      setLapAId(null);
+      setLapBId(null);
+      setComparison(null);
+    }
     setTrackOutline(null);
+    setTrackSegments(null);
 
-    // Fetch track outline
+    // Fetch track outline + segments
     if (selectedTrack != null) {
       fetch(`/api/track-outline/${selectedTrack}`)
         .then((r) => r.ok ? r.json() : null)
@@ -601,22 +695,36 @@ export function LapComparison() {
           }
         })
         .catch(() => setTrackOutline(null));
+      fetch(`/api/track-sectors/${selectedTrack}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((s) => { if (s?.segments) setTrackSegments(s.segments); else setTrackSegments(null); })
+        .catch(() => setTrackSegments(null));
     }
   }, [selectedTrack]);
 
   // Reset lap A when car A changes, default car B to same
   useEffect(() => {
-    setLapAId(null);
-    setComparison(null);
-    if (carAOrd != null && carBOrd == null) {
-      setCarBOrd(carAOrd);
+    if (prevCarARef.current === undefined) {
+      prevCarARef.current = carAOrd;
+    } else if (prevCarARef.current !== carAOrd) {
+      prevCarARef.current = carAOrd;
+      setLapAId(null);
+      setComparison(null);
+      if (carAOrd != null && carBOrd == null) {
+        setCarBOrd(carAOrd);
+      }
     }
   }, [carAOrd]);
 
   // Reset lap B when car B changes
   useEffect(() => {
-    setLapBId(null);
-    setComparison(null);
+    if (prevCarBRef.current === undefined) {
+      prevCarBRef.current = carBOrd;
+    } else if (prevCarBRef.current !== carBOrd) {
+      prevCarBRef.current = carBOrd;
+      setLapBId(null);
+      setComparison(null);
+    }
   }, [carBOrd]);
 
   // Laps filtered to selected track
@@ -660,6 +768,39 @@ export function LapComparison() {
     fetchComparison();
   }, [fetchComparison]);
 
+  // Compute per-segment times for both laps
+  const segmentTimings = useMemo((): SegmentTiming[] => {
+    if (!trackSegments || trackSegments.length === 0 || !comparison) return [];
+    const telA = comparison.telemetryA;
+    const telB = comparison.telemetryB;
+    if (telA.length < 10 || telB.length < 10) return [];
+
+    let sNum = 1;
+    return trackSegments.map((seg) => {
+      const displayName = (seg.type === "straight" && (!seg.name || /^S[\d?]*$/.test(seg.name)))
+        ? `S${sNum++}`
+        : (seg.type === "straight" ? (sNum++, seg.name) : seg.name);
+
+      const computeTime = (tel: TelemetryPacket[]) => {
+        const n = tel.length;
+        const startIdx = Math.round(seg.startFrac * (n - 1));
+        const endIdx = Math.min(Math.round(seg.endFrac * (n - 1)), n - 1);
+        const startTime = tel[startIdx]?.CurrentLap ?? 0;
+        const endTime = tel[endIdx]?.CurrentLap ?? 0;
+        return Math.round((endTime - startTime) * 1000) / 1000;
+      };
+
+      return {
+        name: displayName,
+        type: seg.type as "corner" | "straight",
+        timeA: computeTime(telA),
+        timeB: computeTime(telB),
+        startFrac: seg.startFrac,
+        endFrac: seg.endFrac,
+      };
+    });
+  }, [trackSegments, comparison]);
+
   return (
     <div className="flex flex-col gap-4 p-4 h-full overflow-auto">
       {/* Selectors: Track → Car A → Lap A → Car B → Lap B */}
@@ -667,18 +808,13 @@ export function LapComparison() {
         {/* Track selector */}
         <div className="flex flex-col gap-1">
           <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Track</label>
-          <select
-            value={selectedTrack ?? ""}
-            onChange={(e) => setSelectedTrack(e.target.value ? Number(e.target.value) : null)}
-            className="bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-border-input min-w-[200px]"
-          >
-            <option value="">Select track...</option>
-            {trackGroups.map((g) => (
-              <option key={g.trackOrdinal} value={g.trackOrdinal}>
-                {g.trackName} ({g.laps.length} laps)
-              </option>
-            ))}
-          </select>
+          <SearchSelect
+            value={selectedTrack != null ? String(selectedTrack) : ""}
+            onChange={(v) => setSelectedTrack(v ? Number(v) : null)}
+            options={trackGroups.map((g) => ({ value: String(g.trackOrdinal), label: `${g.trackName} (${g.laps.length} laps)` }))}
+            placeholder="Search tracks..."
+            className="min-w-[200px]"
+          />
         </div>
 
         {/* Car A */}
@@ -687,38 +823,29 @@ export function LapComparison() {
             <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
             <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Car A</label>
           </div>
-          <select
-            value={carAOrd ?? ""}
-            onChange={(e) => setCarAOrd(e.target.value ? Number(e.target.value) : null)}
+          <SearchSelect
+            value={carAOrd != null ? String(carAOrd) : ""}
+            onChange={(v) => setCarAOrd(v ? Number(v) : null)}
+            options={trackCars.map((ord) => ({ value: String(ord), label: carNames.get(ord) || `Car ${ord}` }))}
+            placeholder="Search cars..."
             disabled={!selectedTrack}
-            className="bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:border-orange-500 disabled:opacity-50 min-w-[200px]"
-          >
-            <option value="">Select car...</option>
-            {trackCars.map((ord) => (
-              <option key={ord} value={ord}>
-                {carNames.get(ord) || `Car ${ord}`}
-              </option>
-            ))}
-          </select>
+            className="min-w-[200px]"
+            focusColor="orange-500"
+          />
         </div>
 
         {/* Lap A */}
         <div className="flex flex-col gap-1">
           <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap A</label>
-          <select
-            value={lapAId ?? ""}
-            onChange={(e) => setLapAId(e.target.value ? Number(e.target.value) : null)}
+          <SearchSelect
+            value={lapAId != null ? String(lapAId) : ""}
+            onChange={(v) => setLapAId(v ? Number(v) : null)}
+            options={carALaps.map((lap) => ({ value: String(lap.id), label: `Lap ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
+            placeholder="Search laps..."
             disabled={!carAOrd}
-            className="bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text font-mono focus:outline-none focus:border-orange-500 disabled:opacity-50 min-w-[180px]"
-          >
-            <option value="">Select lap...</option>
-            {carALaps.map((lap) => (
-              <option key={lap.id} value={lap.id}>
-                Lap {lap.lapNumber} — {formatLapTime(lap.lapTime)}
-                {!lap.isValid ? " (inv)" : ""}
-              </option>
-            ))}
-          </select>
+            className="min-w-[180px]"
+            focusColor="orange-500"
+          />
         </div>
 
         {/* Car B */}
@@ -727,38 +854,29 @@ export function LapComparison() {
             <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
             <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Car B</label>
           </div>
-          <select
-            value={carBOrd ?? ""}
-            onChange={(e) => setCarBOrd(e.target.value ? Number(e.target.value) : null)}
+          <SearchSelect
+            value={carBOrd != null ? String(carBOrd) : ""}
+            onChange={(v) => setCarBOrd(v ? Number(v) : null)}
+            options={trackCars.map((ord) => ({ value: String(ord), label: carNames.get(ord) || `Car ${ord}` }))}
+            placeholder="Search cars..."
             disabled={!selectedTrack}
-            className="bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:border-blue-500 disabled:opacity-50 min-w-[200px]"
-          >
-            <option value="">Select car...</option>
-            {trackCars.map((ord) => (
-              <option key={ord} value={ord}>
-                {carNames.get(ord) || `Car ${ord}`}
-              </option>
-            ))}
-          </select>
+            className="min-w-[200px]"
+            focusColor="blue-500"
+          />
         </div>
 
         {/* Lap B */}
         <div className="flex flex-col gap-1">
           <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap B</label>
-          <select
-            value={lapBId ?? ""}
-            onChange={(e) => setLapBId(e.target.value ? Number(e.target.value) : null)}
+          <SearchSelect
+            value={lapBId != null ? String(lapBId) : ""}
+            onChange={(v) => setLapBId(v ? Number(v) : null)}
+            options={carBLaps.map((lap) => ({ value: String(lap.id), label: `Lap ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
+            placeholder="Search laps..."
             disabled={!carBOrd}
-            className="bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text font-mono focus:outline-none focus:border-blue-500 disabled:opacity-50 min-w-[180px]"
-          >
-            <option value="">Select lap...</option>
-            {carBLaps.map((lap) => (
-              <option key={lap.id} value={lap.id}>
-                Lap {lap.lapNumber} — {formatLapTime(lap.lapTime)}
-                {!lap.isValid ? " (inv)" : ""}
-              </option>
-            ))}
-          </select>
+            className="min-w-[180px]"
+            focusColor="blue-500"
+          />
         </div>
       </div>
 
@@ -791,6 +909,7 @@ export function LapComparison() {
               labelB={`${carNames.get(comparison.lapB.carOrdinal!) || "Car B"} — Lap ${comparison.lapB.lapNumber}`}
               lapTimeA={formatLapTime(comparison.lapA.lapTime)}
               lapTimeB={formatLapTime(comparison.lapB.lapTime)}
+              segments={segmentTimings}
               hoveredDistanceRef={hoveredDistanceRef}
               redrawRef={mapRedrawRef}
             />

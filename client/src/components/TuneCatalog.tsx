@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CATALOG_CARS, getCatalogCar, getTunesByCar, type CatalogTune, type RaceStrategy, type TuneSettings } from "../data/tune-catalog";
+import { CATALOG_CARS, TUNE_CATALOG, getCatalogCar, getTunesByCar, type CatalogTune, type RaceStrategy, type TuneSettings } from "../data/tune-catalog";
 
 function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
   const sections: { title: string; rows: [string, string][] }[] = [
@@ -214,7 +214,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   "track-specific": "bg-orange-500/20 text-orange-400",
 };
 
-function TuneCard({ tune, isExpanded, onToggle }: { tune: CatalogTune; isExpanded: boolean; onToggle: () => void }) {
+function TuneCard({ tune, isExpanded, onToggle, showCar }: { tune: CatalogTune; isExpanded: boolean; onToggle: () => void; showCar?: boolean }) {
   return (
     <div className="rounded-xl bg-app-surface/40 ring-1 ring-app-border overflow-hidden">
       <button
@@ -225,6 +225,9 @@ function TuneCard({ tune, isExpanded, onToggle }: { tune: CatalogTune; isExpande
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-app-text">{tune.name}</span>
+              {showCar && (
+                <span className="text-[10px] font-mono text-app-text-muted">{getCatalogCar(tune.carOrdinal)?.name ?? `Car ${tune.carOrdinal}`}</span>
+              )}
               <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded inline-flex items-center gap-1 ${CATEGORY_COLORS[tune.category]}`}>
                 {CATEGORY_ICONS[tune.category]}{CATEGORY_LABELS[tune.category]}
               </span>
@@ -298,22 +301,34 @@ function TuneCard({ tune, isExpanded, onToggle }: { tune: CatalogTune; isExpande
   );
 }
 
+const PAGE_SIZE = 10;
+
 export function TuneCatalog() {
-  const [selectedCar, setSelectedCar] = useState(CATALOG_CARS[0].ordinal);
+  const [selectedCar, setSelectedCar] = useState<number | null>(null);
   const [expandedTune, setExpandedTune] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [carSearch, setCarSearch] = useState("");
   const [carDropdownOpen, setCarDropdownOpen] = useState(false);
+  const [trackSearch, setTrackSearch] = useState("");
+  const [page, setPage] = useState(0);
 
   const filteredCars = carSearch
     ? CATALOG_CARS.filter((c) => c.name.toLowerCase().includes(carSearch.toLowerCase()))
     : CATALOG_CARS;
 
-  const car = getCatalogCar(selectedCar);
-  const tunes = getTunesByCar(selectedCar);
-  const filteredTunes = categoryFilter ? tunes.filter((t) => t.category === categoryFilter) : tunes;
+  const car = selectedCar != null ? getCatalogCar(selectedCar) : null;
+  const allTunes = selectedCar != null ? getTunesByCar(selectedCar) : TUNE_CATALOG;
+  const trackQuery = trackSearch.toLowerCase();
+  const filteredTunes = allTunes.filter((t) => {
+    if (categoryFilter && t.category !== categoryFilter) return false;
+    if (trackQuery && !(t.bestTracks?.some((tr) => tr.toLowerCase().includes(trackQuery)))) return false;
+    return true;
+  });
 
-  const categories = [...new Set(tunes.map((t) => t.category))];
+  const totalPages = Math.ceil(filteredTunes.length / PAGE_SIZE);
+  const paginatedTunes = filteredTunes.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const categories = [...new Set(allTunes.map((t) => t.category))];
 
   return (
     <div className="flex-1 overflow-auto p-4 space-y-4 max-w-xl mx-auto">
@@ -322,7 +337,7 @@ export function TuneCatalog() {
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-bold text-app-text">Tune Catalog</h1>
             <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
-              Stock Spec
+              {selectedCar != null ? "Stock Spec" : `${TUNE_CATALOG.length} Tunes`}
             </span>
             {car && (
               <span className="text-[10px] font-mono text-app-text-muted">
@@ -333,10 +348,18 @@ export function TuneCatalog() {
           <p className="text-xs text-app-text-muted">No upgrades — tuning only setups for GT3 spec events</p>
         </div>
 
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={trackSearch}
+            onChange={(e) => { setTrackSearch(e.target.value); setPage(0); }}
+            placeholder="Search tracks..."
+            className="bg-app-dropdown text-app-text text-xs rounded-lg px-3 py-1.5 border border-app-border-input focus:outline-none focus:ring-1 focus:ring-app-accent w-44"
+          />
         <div className="relative">
           <input
             type="text"
-            value={carDropdownOpen ? carSearch : (getCatalogCar(selectedCar)?.name ?? "")}
+            value={carDropdownOpen ? carSearch : (selectedCar != null ? getCatalogCar(selectedCar)?.name ?? "" : "")}
             onChange={(e) => {
               setCarSearch(e.target.value);
               setCarDropdownOpen(true);
@@ -347,10 +370,28 @@ export function TuneCatalog() {
             }}
             onBlur={() => setTimeout(() => setCarDropdownOpen(false), 150)}
             placeholder="Search cars..."
-            className="bg-app-surface/60 text-app-text text-xs rounded-lg px-3 py-1.5 ring-1 ring-app-border focus:outline-none focus:ring-app-accent w-56"
+            className="bg-app-surface-alt text-app-text text-xs rounded-lg px-3 py-1.5 border border-app-border-input focus:outline-none focus:ring-1 focus:ring-app-accent w-56"
           />
           {carDropdownOpen && (
-            <div className="absolute right-0 mt-1 w-56 max-h-60 overflow-auto rounded-lg bg-app-surface ring-1 ring-app-border z-50 shadow-lg">
+            <div className="absolute right-0 mt-1 w-56 max-h-60 overflow-auto rounded-lg bg-app-dropdown border border-app-border z-50 shadow-lg">
+              {!carSearch && (
+                <button
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setSelectedCar(null);
+                    setExpandedTune(null);
+                    setCategoryFilter(null);
+                    setCarSearch("");
+                    setCarDropdownOpen(false);
+                    setPage(0);
+                  }}
+                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-app-accent/20 transition-colors ${
+                    selectedCar == null ? "text-app-accent" : "text-app-text"
+                  }`}
+                >
+                  All Cars
+                </button>
+              )}
               {filteredCars.map((c) => (
                 <button
                   key={c.ordinal}
@@ -361,6 +402,7 @@ export function TuneCatalog() {
                     setCategoryFilter(null);
                     setCarSearch("");
                     setCarDropdownOpen(false);
+                    setPage(0);
                   }}
                   className={`w-full text-left px-3 py-1.5 text-xs hover:bg-app-accent/20 transition-colors ${
                     selectedCar === c.ordinal ? "text-app-accent" : "text-app-text"
@@ -375,6 +417,7 @@ export function TuneCatalog() {
             </div>
           )}
         </div>
+        </div>
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -386,30 +429,31 @@ export function TuneCatalog() {
               : "text-app-text-muted hover:text-app-text-secondary"
           }`}
         >
-          All ({tunes.length})
+          All ({allTunes.length})
         </button>
         {categories.map((cat) => (
           <button
             key={cat}
-            onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
+            onClick={() => { setCategoryFilter(categoryFilter === cat ? null : cat); setPage(0); }}
             className={`text-[10px] font-semibold uppercase px-2 py-1 rounded transition-colors ${
               categoryFilter === cat
                 ? CATEGORY_COLORS[cat]
                 : "text-app-text-muted hover:text-app-text-secondary"
             }`}
           >
-            <span className="inline-flex items-center gap-1">{CATEGORY_ICONS[cat]}{CATEGORY_LABELS[cat]}</span> ({tunes.filter((t) => t.category === cat).length})
+            <span className="inline-flex items-center gap-1">{CATEGORY_ICONS[cat]}{CATEGORY_LABELS[cat]}</span> ({allTunes.filter((t) => t.category === cat).length})
           </button>
         ))}
       </div>
 
       <div className="space-y-2">
-        {filteredTunes.map((tune) => (
+        {paginatedTunes.map((tune) => (
           <TuneCard
             key={tune.id}
             tune={tune}
             isExpanded={expandedTune === tune.id}
             onToggle={() => setExpandedTune(expandedTune === tune.id ? null : tune.id)}
+            showCar={selectedCar == null}
           />
         ))}
       </div>
@@ -417,6 +461,28 @@ export function TuneCatalog() {
       {filteredTunes.length === 0 && (
         <div className="text-center py-12 text-app-text-muted text-sm">
           No tunes found for this filter.
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-2">
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="text-xs px-3 py-1 rounded border border-app-border text-app-text-secondary hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            Prev
+          </button>
+          <span className="text-xs text-app-text-muted">
+            {page + 1} / {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page >= totalPages - 1}
+            className="text-xs px-3 py-1 rounded border border-app-border text-app-text-secondary hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
         </div>
       )}
     </div>

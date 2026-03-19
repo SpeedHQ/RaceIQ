@@ -59,6 +59,7 @@
     --app-glass-surface-alt: var(--app-surface-alt);
     --app-glass-border: var(--app-border);
     --app-glass-card: var(--app-surface);
+    --app-dropdown: #1e293b;
 }
 
 .dark {
@@ -114,6 +115,7 @@
     --app-glass-surface-alt: var(--app-surface-alt);
     --app-glass-border: var(--app-border);
     --app-glass-card: var(--app-surface);
+    --app-dropdown: #1e293b;
 }
 
 /* ─── Morph Theme (Glassmorphic Black) ─── */
@@ -121,6 +123,7 @@
     --app-bg: #000000;
     --app-surface: rgba(255, 255, 255, 0.04);
     --app-surface-alt: rgba(255, 255, 255, 0.07);
+    --app-dropdown: #1a1a2e;
     --app-border: rgba(255, 255, 255, 0.08);
     --app-border-input: rgba(255, 255, 255, 0.12);
     --app-text: rgba(255, 255, 255, 0.95);
@@ -195,6 +198,7 @@
     --color-app-glass-surface-alt: var(--app-glass-surface-alt);
     --color-app-glass-border: var(--app-glass-border);
     --color-app-glass-card: var(--app-glass-card);
+    --color-app-dropdown: var(--app-dropdown);
 }
 
 @layer base {

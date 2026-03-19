@@ -26,6 +26,8 @@ export interface ComparisonResult {
 export interface CornerDelta {
   label: string;
   deltaSeconds: number; // positive = lapA slower in this corner
+  timeA: number; // section time for lap A in seconds
+  timeB: number; // section time for lap B in seconds
 }
 
 /**
@@ -170,7 +172,9 @@ function computeTimeDelta(
 function computeCornerDeltas(
   corners: Corner[],
   distances: number[],
-  timeDelta: number[]
+  timeDelta: number[],
+  lapATime: number[],
+  lapBTime: number[],
 ): CornerDelta[] {
   return corners.map((corner) => {
     // Find grid indices closest to corner start/end
@@ -178,13 +182,17 @@ function computeCornerDeltas(
     let endIdx = distances.findIndex((d) => d >= corner.distanceEnd);
     if (endIdx === -1) endIdx = distances.length - 1;
     if (startIdx === -1 || startIdx >= endIdx) {
-      return { label: corner.label, deltaSeconds: 0 };
+      return { label: corner.label, deltaSeconds: 0, timeA: 0, timeB: 0 };
     }
 
     const deltaSeconds = timeDelta[endIdx] - timeDelta[startIdx];
+    const timeA = lapATime[endIdx] - lapATime[startIdx];
+    const timeB = lapBTime[endIdx] - lapBTime[startIdx];
     return {
       label: corner.label,
-      deltaSeconds: Math.round(deltaSeconds * 1000) / 1000, // 1ms precision
+      deltaSeconds: Math.round(deltaSeconds * 1000) / 1000,
+      timeA: Math.round(timeA * 1000) / 1000,
+      timeB: Math.round(timeB * 1000) / 1000,
     };
   });
 }
@@ -225,7 +233,7 @@ export function compareLaps(
   const timeDelta = computeTimeDelta(lapA.elapsedTime, lapB.elapsedTime);
 
   // Compute per-corner deltas if corners provided
-  const cornerDeltas = computeCornerDeltas(corners, distances, timeDelta);
+  const cornerDeltas = computeCornerDeltas(corners, distances, timeDelta, lapA.elapsedTime, lapB.elapsedTime);
 
   return {
     distances,

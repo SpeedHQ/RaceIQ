@@ -213,6 +213,8 @@ export interface AlignedTrace {
 export interface CornerDelta {
   label: string;
   deltaSeconds: number;
+  timeA: number; // section time for lap A in seconds
+  timeB: number; // section time for lap B in seconds
 }
 
 export interface ComparisonData {

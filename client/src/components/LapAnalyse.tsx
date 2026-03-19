@@ -22,6 +22,7 @@ import { analyzeLap } from "../lib/lap-insights";
 import { InsightPanel } from "./InsightPanel";
 import { AiAnalysisModal } from "./AiAnalysisModal";
 import { Sparkles } from "lucide-react";
+import { SearchSelect } from "./ui/SearchSelect";
 
 interface Point {
   x: number;
@@ -995,48 +996,33 @@ export function LapAnalyse() {
       {/* Header: cascading selectors + export */}
       <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
         {/* Track selector */}
-        <select
-          value={selectedTrack ?? ""}
-          onChange={(e) => handleTrackChange(e.target.value ? Number(e.target.value) : null)}
-          className="bg-app-surface-alt border border-app-border-input text-app-text text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-app-border-input min-w-[200px]"
-        >
-          <option value="">Select track...</option>
-          {tracks.map(([ord, count]) => (
-            <option key={ord} value={ord}>
-              {trackNames[ord] || `Track ${ord}`} ({count})
-            </option>
-          ))}
-        </select>
+        <SearchSelect
+          value={selectedTrack != null ? String(selectedTrack) : ""}
+          onChange={(v) => handleTrackChange(v ? Number(v) : null)}
+          options={tracks.map(([ord, count]) => ({ value: String(ord), label: `${trackNames[ord] || `Track ${ord}`} (${count})` }))}
+          placeholder="Search tracks..."
+          className="min-w-[200px]"
+        />
 
         {/* Car selector */}
-        <select
-          value={selectedCar ?? ""}
-          onChange={(e) => handleCarChange(e.target.value ? Number(e.target.value) : null)}
+        <SearchSelect
+          value={selectedCar != null ? String(selectedCar) : ""}
+          onChange={(v) => handleCarChange(v ? Number(v) : null)}
+          options={carsForTrack.map(([ord, count]) => ({ value: String(ord), label: `${carNames[ord] || `Car ${ord}`} (${count})` }))}
+          placeholder="Search cars..."
           disabled={selectedTrack == null}
-          className="bg-app-surface-alt border border-app-border-input text-app-text text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-app-border-input min-w-[200px] disabled:opacity-40"
-        >
-          <option value="">Select car...</option>
-          {carsForTrack.map(([ord, count]) => (
-            <option key={ord} value={ord}>
-              {carNames[ord] || `Car ${ord}`} ({count})
-            </option>
-          ))}
-        </select>
+          className="min-w-[200px]"
+        />
 
         {/* Lap selector */}
-        <select
-          value={selectedLapId ?? ""}
-          onChange={(e) => setSelectedLapId(e.target.value ? Number(e.target.value) : null)}
+        <SearchSelect
+          value={selectedLapId != null ? String(selectedLapId) : ""}
+          onChange={(v) => setSelectedLapId(v ? Number(v) : null)}
+          options={filteredLaps.map((lap) => ({ value: String(lap.id), label: `Lap ${lap.lapNumber} - ${formatLapTime(lap.lapTime)}` }))}
+          placeholder="Search laps..."
           disabled={selectedCar == null}
-          className="bg-app-surface-alt border border-app-border-input text-app-text text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-app-border-input min-w-[200px] disabled:opacity-40"
-        >
-          <option value="">Select lap...</option>
-          {filteredLaps.map((lap) => (
-            <option key={lap.id} value={lap.id}>
-              Lap {lap.lapNumber} - {formatLapTime(lap.lapTime)}
-            </option>
-          ))}
-        </select>
+          className="min-w-[200px]"
+        />
 
         <div className="ml-auto flex items-center gap-2">
           {telemetry.length > 0 && (

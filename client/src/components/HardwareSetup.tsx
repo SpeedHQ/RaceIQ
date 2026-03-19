@@ -1,5 +1,6 @@
 import { useState } from "react";
 import fanatec15nm from "@shared/setup/fanatec-15nm.json";
+import { SearchSelect } from "./ui/SearchSelect";
 
 interface Setting {
   name: string;
@@ -108,19 +109,17 @@ export function HardwareSetup() {
         </div>
 
         {PROFILES.length > 1 && (
-          <select
+          <SearchSelect
             value={selectedProfile}
-            onChange={(e) => {
-              setSelectedProfile(e.target.value);
-              const p = PROFILES.find((pr) => pr.id === e.target.value);
+            onChange={(v) => {
+              setSelectedProfile(v);
+              const p = PROFILES.find((pr) => pr.id === v);
               if (p) setActivePreset(p.inGamePresets[0].id);
             }}
-            className="bg-app-surface/60 text-app-text text-xs rounded-lg px-3 py-1.5 ring-1 ring-app-border focus:outline-none focus:ring-app-accent"
-          >
-            {PROFILES.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+            options={PROFILES.map((p) => ({ value: p.id, label: p.name }))}
+            placeholder="Search profiles..."
+            className="w-56"
+          />
         )}
       </div>
 

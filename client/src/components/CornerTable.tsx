@@ -1,6 +1,8 @@
 interface CornerDelta {
   label: string;
   deltaSeconds: number;
+  timeA: number;
+  timeB: number;
 }
 
 interface Props {

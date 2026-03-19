@@ -7,6 +7,7 @@ import { WeightShiftRadar } from "./WeightShiftRadar";
 import { convertTemp } from "../lib/temperature";
 import { convertSpeed, speedLabel } from "../lib/speed";
 import { useTelemetry } from "../context/telemetry";
+import { allWheelStates, type WheelState } from "../lib/vehicle-dynamics";
 
 // Rolling window for grip sparklines — 60s at 10Hz gives a manageable 600-point buffer
 const GRIP_HISTORY_SECONDS = 60;
@@ -259,14 +260,14 @@ function slipLineColor(deg: number): string {
  * the angle between tire heading and actual travel direction.
  * Spin/lockup detection uses animated glow rings and X/arrow overlays.
  */
-function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, spinPct, steerAngle, thresholds, temperatureUnit }: {
+function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, wheelState, steerAngle, thresholds, temperatureUnit }: {
   label: string;
   temp: number;
   wear: number;
   combined: number;
   slipAngle: number;
   outerSide: "left" | "right";
-  spinPct: number;
+  wheelState: WheelState;
   steerAngle: number;
   thresholds: { cold: number; warm: number; hot: number };
   temperatureUnit: "F" | "C";
@@ -277,14 +278,12 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, spinPct,
   const slipCol = slipLineColor(slipAngle);
   const wearPct = Math.max(0, Math.min(1, wear));
 
-  // Adjust thresholds based on steering — in turns, inner wheels are naturally slower
-  const steerFactor = Math.abs(steerAngle) / 20; // 0-1 based on steering lock
-  const lockThreshold = -(8 + steerFactor * 15); // -8% straight, up to -23% in hard turn
-  const spinThreshold = 8 + steerFactor * 10; // 8% straight, up to 18% in hard turn
-  const isLockup = spinPct < lockThreshold;
-  const isSpin = spinPct > spinThreshold;
+  // Use canonical wheel state from vehicle-dynamics
+  const isLockup = wheelState.state === "lockup";
+  const isSpin = wheelState.state === "spin";
   const spinColor = isLockup ? "#ef4444" : isSpin ? "#fb923c" : null;
   const spinLabel = isLockup ? "LOCK" : isSpin ? "SPIN" : null;
+  const spinPct = wheelState.slipRatio * 100;
 
   // Tire dimensions in SVG units
   const tW = 28, tH = 50, cx = 40, cy = 55;
@@ -453,33 +452,18 @@ function SuspBar({ norm }: { norm: number }) {
 export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
   const { displaySettings } = useTelemetry();
   const toDeg = 180 / Math.PI;
-  const gs = packet.Speed;
 
-  // Derive effective wheel radius from the average of all wheels when driving straight
-  // wheelSpeed = rotSpeed * radius => radius = groundSpeed / rotSpeed
-  const rotSpeeds = [
-    Math.abs(packet.WheelRotationSpeedFL),
-    Math.abs(packet.WheelRotationSpeedFR),
-    Math.abs(packet.WheelRotationSpeedRL),
-    Math.abs(packet.WheelRotationSpeedRR),
-  ];
-  const avgRot = (rotSpeeds[0] + rotSpeeds[1] + rotSpeeds[2] + rotSpeeds[3]) / 4;
-  // Use derived radius, fallback to 0.33 if stationary
-  const effectiveRadius = avgRot > 5 && gs > 3 ? gs / avgRot : 0.33;
-
-  const spinPct = (rotSpeed: number) => {
-    const wheelSpeed = Math.abs(rotSpeed) * effectiveRadius;
-    return gs > 3 ? ((wheelSpeed - gs) / gs) * 100 : 0;
-  };
+  // Use canonical wheel states from vehicle-dynamics (same as LapAnalyse)
+  const ws = allWheelStates(packet);
 
   // Steer: signed int8 (-128 to 127), 0=center. Convert to degrees (~20° max visual lock)
   const steerDeg = (packet.Steer / 127) * 20;
 
   const wheels = [
-    { label: "FL", temp: packet.TireTempFL, wear: packet.TireWearFL, combined: Math.abs(packet.TireCombinedSlipFL), slipAngle: packet.TireSlipAngleFL * toDeg, spinPct: spinPct(packet.WheelRotationSpeedFL), steerAngle: steerDeg },
-    { label: "FR", temp: packet.TireTempFR, wear: packet.TireWearFR, combined: Math.abs(packet.TireCombinedSlipFR), slipAngle: packet.TireSlipAngleFR * toDeg, spinPct: spinPct(packet.WheelRotationSpeedFR), steerAngle: steerDeg },
-    { label: "RL", temp: packet.TireTempRL, wear: packet.TireWearRL, combined: Math.abs(packet.TireCombinedSlipRL), slipAngle: packet.TireSlipAngleRL * toDeg, spinPct: spinPct(packet.WheelRotationSpeedRL), steerAngle: 0 },
-    { label: "RR", temp: packet.TireTempRR, wear: packet.TireWearRR, combined: Math.abs(packet.TireCombinedSlipRR), slipAngle: packet.TireSlipAngleRR * toDeg, spinPct: spinPct(packet.WheelRotationSpeedRR), steerAngle: 0 },
+    { label: "FL", temp: packet.TireTempFL, wear: packet.TireWearFL, combined: Math.abs(packet.TireCombinedSlipFL), slipAngle: packet.TireSlipAngleFL * toDeg, wheelState: ws.fl, steerAngle: steerDeg },
+    { label: "FR", temp: packet.TireTempFR, wear: packet.TireWearFR, combined: Math.abs(packet.TireCombinedSlipFR), slipAngle: packet.TireSlipAngleFR * toDeg, wheelState: ws.fr, steerAngle: steerDeg },
+    { label: "RL", temp: packet.TireTempRL, wear: packet.TireWearRL, combined: Math.abs(packet.TireCombinedSlipRL), slipAngle: packet.TireSlipAngleRL * toDeg, wheelState: ws.rl, steerAngle: 0 },
+    { label: "RR", temp: packet.TireTempRR, wear: packet.TireWearRR, combined: Math.abs(packet.TireCombinedSlipRR), slipAngle: packet.TireSlipAngleRR * toDeg, wheelState: ws.rr, steerAngle: 0 },
   ];
 
   const susp = [
