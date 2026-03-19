@@ -395,7 +395,7 @@ function TelemetryChart({
 
 // ── Metrics Panel ────────────────────────────────────────────────────
 
-function MetricsPanel({ pkt }: { pkt: TelemetryPacket }) {
+function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket; startFuel?: number }) {
   const speedMph = pkt.Speed * 2.23694;
   const throttlePct = ((pkt.Accel / 255) * 100).toFixed(0);
   const brakePct = ((pkt.Brake / 255) * 100).toFixed(0);
@@ -413,9 +413,15 @@ function MetricsPanel({ pkt }: { pkt: TelemetryPacket }) {
       <MetricRow label="Boost" value={`${pkt.Boost.toFixed(1)} psi`} />
       <MetricRow label="Power" value={`${(pkt.Power / 745.7).toFixed(0)} hp`} />
       <MetricRow label="Torque" value={`${pkt.Torque.toFixed(0)} Nm`} />
-      <MetricRow label="Fuel" value={`${(pkt.Fuel * 100).toFixed(1)}%`} />
-
-
+      <div className="col-span-2 flex justify-between">
+        <span className="text-slate-500">Fuel</span>
+        <span className="tabular-nums">
+          <span className="text-amber-400">{startFuel != null ? ((startFuel - pkt.Fuel) * 100).toFixed(1) : "?"}</span>
+          <span className="text-slate-600"> used </span>
+          <span className="text-white">{(pkt.Fuel * 100).toFixed(1)}%</span>
+          <span className="text-slate-600"> left</span>
+        </span>
+      </div>
     </div>
   );
 }
@@ -435,8 +441,8 @@ function WearValue({ label, value }: { label: string; value: number }) {
   const pct = (value * 100).toFixed(1);
   const color = value > 0.7 ? "#34d399" : value > 0.4 ? "#fbbf24" : "#ef4444";
   return (
-    <span className="text-slate-400">
-      {label}: <span style={{ color }}>{pct}%</span>
+    <span className="text-slate-400 flex justify-between">
+      <span>{label}:</span> <span className="tabular-nums" style={{ color }}>{pct}%</span>
     </span>
   );
 }
@@ -444,8 +450,8 @@ function WearValue({ label, value }: { label: string; value: number }) {
 function SlipValue({ label, value }: { label: string; value: number }) {
   const color = Math.abs(value) < 0.5 ? "#34d399" : Math.abs(value) < 1.5 ? "#fbbf24" : "#ef4444";
   return (
-    <span className="text-slate-400">
-      {label}: <span style={{ color }}>{value.toFixed(2)}</span>
+    <span className="text-slate-400 flex justify-between">
+      <span>{label}:</span> <span className="tabular-nums" style={{ color }}>{value.toFixed(2)}</span>
     </span>
   );
 }
@@ -455,8 +461,8 @@ function SlipAngleValue({ label, value }: { label: string; value: number }) {
   const a = Math.abs(deg);
   const color = a < 4 ? "#34d399" : a < 8 ? "#fbbf24" : a < 14 ? "#fb923c" : "#ef4444";
   return (
-    <span className="text-slate-400">
-      {label}: <span style={{ color }}>{deg.toFixed(1)}°</span>
+    <span className="text-slate-400 flex justify-between">
+      <span>{label}:</span> <span className="tabular-nums" style={{ color }}>{deg.toFixed(1)}°</span>
     </span>
   );
 }
@@ -482,8 +488,8 @@ function WheelSpeedValue({ label, value }: { label: string; value: number }) {
   const abs = Math.abs(value);
   const color = abs < 10 ? "#94a3b8" : abs < 50 ? "#34d399" : abs < 100 ? "#fbbf24" : "#ef4444";
   return (
-    <span className="text-slate-400">
-      {label}: <span style={{ color }}>{value.toFixed(1)}</span>
+    <span className="text-slate-400 flex justify-between">
+      <span>{label}:</span> <span className="tabular-nums" style={{ color }}>{value.toFixed(1)}</span>
     </span>
   );
 }
@@ -492,8 +498,8 @@ function SuspValue({ label, value }: { label: string; value: number }) {
   const pct = (value * 100).toFixed(0);
   const color = value < 0.6 ? "#22d3ee" : value < 0.85 ? "#fbbf24" : "#ef4444";
   return (
-    <span className="text-slate-400">
-      {label}: <span style={{ color }}>{pct}%</span>
+    <span className="text-slate-400 flex justify-between">
+      <span>{label}:</span> <span className="tabular-nums" style={{ color }}>{pct}%</span>
     </span>
   );
 }
@@ -901,6 +907,37 @@ export function LapAnalyse() {
     URL.revokeObjectURL(url);
   }, [telemetry, selectedLapId, selectedLap, carName, trackName]);
 
+  const handleCopyMetrics = useCallback(() => {
+    if (!currentPacket) return;
+    const p = currentPacket;
+    const lock = getSteeringLock();
+    const steerDeg = (p.Steer / 127) * (lock / 2);
+    const startFuel = telemetry[0]?.Fuel ?? 0;
+    const lines = [
+      `Packet ${cursorIdx + 1}/${telemetry.length} | ${formatLapTime(p.CurrentLap)} / ${formatLapTime(totalTime)}`,
+      `Track: ${trackName} | Car: ${carName} | Lap: ${selectedLap?.lapNumber ?? "?"}`,
+      ``,
+      `Speed: ${(p.Speed * 2.23694).toFixed(0)} mph`,
+      `RPM: ${p.CurrentEngineRpm.toFixed(0)} / ${p.EngineMaxRpm.toFixed(0)}`,
+      `Gear: ${p.Gear}`,
+      `Throttle: ${((p.Accel / 255) * 100).toFixed(0)}%`,
+      `Brake: ${((p.Brake / 255) * 100).toFixed(0)}%`,
+      `Steer: ${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`,
+      `Boost: ${p.Boost.toFixed(1)} psi`,
+      `Power: ${(p.Power / 745.7).toFixed(0)} hp`,
+      `Torque: ${p.Torque.toFixed(0)} Nm`,
+      `Fuel: ${(p.Fuel * 100).toFixed(1)}% left, ${((startFuel - p.Fuel) * 100).toFixed(1)}% used`,
+      ``,
+      `Wheel Speed (rad/s): FL=${p.WheelRotationSpeedFL.toFixed(1)} FR=${p.WheelRotationSpeedFR.toFixed(1)} RL=${p.WheelRotationSpeedRL.toFixed(1)} RR=${p.WheelRotationSpeedRR.toFixed(1)}`,
+      `Tire Temp: FL=${p.TireTempFL.toFixed(0)}° FR=${p.TireTempFR.toFixed(0)}° RL=${p.TireTempRL.toFixed(0)}° RR=${p.TireTempRR.toFixed(0)}°`,
+      `Tire Wear: FL=${(p.TireWearFL*100).toFixed(1)}% FR=${(p.TireWearFR*100).toFixed(1)}% RL=${(p.TireWearRL*100).toFixed(1)}% RR=${(p.TireWearRR*100).toFixed(1)}%`,
+      `Slip Combined: FL=${p.TireCombinedSlipFL.toFixed(2)} FR=${p.TireCombinedSlipFR.toFixed(2)} RL=${p.TireCombinedSlipRL.toFixed(2)} RR=${p.TireCombinedSlipRR.toFixed(2)}`,
+      `Slip Angle: FL=${(p.TireSlipAngleFL*180/Math.PI).toFixed(1)}° FR=${(p.TireSlipAngleFR*180/Math.PI).toFixed(1)}° RL=${(p.TireSlipAngleRL*180/Math.PI).toFixed(1)}° RR=${(p.TireSlipAngleRR*180/Math.PI).toFixed(1)}°`,
+      `Suspension: FL=${(p.NormSuspensionTravelFL*100).toFixed(0)}% FR=${(p.NormSuspensionTravelFR*100).toFixed(0)}% RL=${(p.NormSuspensionTravelRL*100).toFixed(0)}% RR=${(p.NormSuspensionTravelRR*100).toFixed(0)}%`,
+    ];
+    navigator.clipboard.writeText(lines.join("\n"));
+  }, [currentPacket, cursorIdx, telemetry, totalTime, trackName, carName, selectedLap]);
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header: cascading selectors + export */}
@@ -952,6 +989,14 @@ export function LapAnalyse() {
         <div className="ml-auto flex items-center gap-2">
           {telemetry.length > 0 && (
             <button
+              onClick={handleCopyMetrics}
+              className="text-xs text-slate-400 hover:text-white border border-slate-700 rounded px-3 py-1.5 transition-colors"
+            >
+              Copy
+            </button>
+          )}
+          {telemetry.length > 0 && (
+            <button
               onClick={handleExport}
               className="text-xs text-slate-400 hover:text-white border border-slate-700 rounded px-3 py-1.5 transition-colors"
             >
@@ -973,7 +1018,7 @@ export function LapAnalyse() {
       ) : (
         <>
           {/* Top section: Track Map + Metrics */}
-          <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_auto_420px] border-b border-slate-800 shrink-0">
+          <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_320px_420px] border-b border-slate-800 shrink-0">
             {/* Segment table + legend */}
             <div className="border-r border-slate-800 overflow-y-auto p-2" style={{ height: 420 }}>
               {/* Legend */}
@@ -1056,9 +1101,36 @@ export function LapAnalyse() {
               </div>
             </div>
 
-            {/* Steering wheel + Tire diagram */}
+            {/* Rev meter + Steering wheel + Tire diagram */}
             <div className="border-r border-slate-800 p-2 flex flex-col items-center justify-center gap-2">
-              {currentPacket && <SteeringWheel steer={currentPacket.Steer} />}
+              {currentPacket && (
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-lg font-mono font-bold text-cyan-400">{currentPacket.Gear === 0 ? "R" : currentPacket.Gear === 11 ? "N" : currentPacket.Gear}</span>
+                  <span className="text-xl font-mono font-bold tabular-nums text-white">{(currentPacket.Speed * 2.23694).toFixed(0)} <span className="text-[10px] text-slate-500">mph</span></span>
+                </div>
+              )}
+              {currentPacket && (
+                <div className="flex items-center gap-2">
+                  {/* Pedal bars */}
+                  <div className="flex gap-1 items-end shrink-0" style={{ height: 80 }}>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{((currentPacket.Accel / 255) * 100).toFixed(0)}</span>
+                      <div className="w-5 bg-slate-800 rounded-sm overflow-hidden relative" style={{ height: 60 }}>
+                        <div className="absolute bottom-0 w-full bg-emerald-400 rounded-sm transition-all" style={{ height: `${(currentPacket.Accel / 255) * 100}%` }} />
+                      </div>
+                      <span className="text-[8px] text-slate-500">T</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-[9px] font-mono text-red-400 font-bold tabular-nums">{((currentPacket.Brake / 255) * 100).toFixed(0)}</span>
+                      <div className="w-5 bg-slate-800 rounded-sm overflow-hidden relative" style={{ height: 60 }}>
+                        <div className="absolute bottom-0 w-full bg-red-500 rounded-sm transition-all" style={{ height: `${(currentPacket.Brake / 255) * 100}%` }} />
+                      </div>
+                      <span className="text-[8px] text-slate-500">B</span>
+                    </div>
+                  </div>
+                  <SteeringWheel steer={currentPacket.Steer} rpm={currentPacket.CurrentEngineRpm} maxRpm={currentPacket.EngineMaxRpm} />
+                </div>
+              )}
               {currentPacket && <TireDiagram packet={currentPacket} />}
             </div>
 
@@ -1067,7 +1139,7 @@ export function LapAnalyse() {
               <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 font-semibold">
                 Metrics at Cursor
               </h3>
-              {currentPacket && <MetricsPanel pkt={currentPacket} />}
+              {currentPacket && <MetricsPanel pkt={currentPacket} startFuel={telemetry[0]?.Fuel} />}
 
               {currentPacket && (
                 <>
@@ -1089,10 +1161,10 @@ export function LapAnalyse() {
                       <div className="border-t border-slate-800 pt-1">
                         <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Temp</div>
                         <div className="grid grid-cols-2 gap-x-2">
-                          <span className="text-slate-400">FL: <span className="text-white">{currentPacket.TireTempFL.toFixed(0)}°</span></span>
-                          <span className="text-slate-400">FR: <span className="text-white">{currentPacket.TireTempFR.toFixed(0)}°</span></span>
-                          <span className="text-slate-400">RL: <span className="text-white">{currentPacket.TireTempRL.toFixed(0)}°</span></span>
-                          <span className="text-slate-400">RR: <span className="text-white">{currentPacket.TireTempRR.toFixed(0)}°</span></span>
+                          <span className="text-slate-400 flex justify-between"><span>FL:</span> <span className="tabular-nums text-white">{currentPacket.TireTempFL.toFixed(0)}°</span></span>
+                          <span className="text-slate-400 flex justify-between"><span>FR:</span> <span className="tabular-nums text-white">{currentPacket.TireTempFR.toFixed(0)}°</span></span>
+                          <span className="text-slate-400 flex justify-between"><span>RL:</span> <span className="tabular-nums text-white">{currentPacket.TireTempRL.toFixed(0)}°</span></span>
+                          <span className="text-slate-400 flex justify-between"><span>RR:</span> <span className="tabular-nums text-white">{currentPacket.TireTempRR.toFixed(0)}°</span></span>
                         </div>
                       </div>
                       <div className="border-t border-slate-800 pt-1">

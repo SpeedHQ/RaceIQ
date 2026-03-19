@@ -334,10 +334,12 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, spinPct,
           ))}
         </g>
 
-        {/* Center line — rotates with slip angle to show actual travel direction */}
-        <g transform={`rotate(${clampedAngle}, ${cx}, ${cy})`}>
-          <line x1={cx} y1={cy + tH / 2 - 4} x2={cx} y2={cy - tH / 2 + 4} stroke={slipCol} strokeWidth={1.2} opacity={0.6} />
-        </g>
+        {/* Slip angle line — only for front wheels where steering makes it meaningful */}
+        {steerAngle !== 0 && (
+          <g transform={`rotate(${clampedAngle}, ${cx}, ${cy})`}>
+            <line x1={cx} y1={cy + tH / 2 - 4} x2={cx} y2={cy - tH / 2 + 4} stroke={slipCol} strokeWidth={1.2} opacity={0.6} />
+          </g>
+        )}
 
         {/* Spin/Lock indicators (static, inside tire) */}
         {isSpin && (
