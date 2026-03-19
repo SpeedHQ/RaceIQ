@@ -2,6 +2,7 @@ import type { TelemetryPacket } from "../../shared/types";
 import { generateExport, type ExportUnits } from "../export";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import { buildCornerData } from "./corner-data";
+import { analyzeLap } from "../../client/src/lib/lap-insights";
 
 interface CornerDef {
   index: number;
@@ -68,11 +69,30 @@ export function buildAnalystPrompt(
   const exportText = generateExport(lap, packets, units);
   const cornerData = buildCornerData(packets, corners, units.speedUnit);
 
+  // Run precomputed insight analysis
+  const insights = analyzeLap(packets);
+  let insightsText = "";
+  if (insights.length > 0) {
+    insightsText = "\n--- Precomputed Insights (unverified — validate against raw data) ---\n";
+    insightsText += "These are automated detections that may contain false positives. Use them as hints, not facts.\n\n";
+    for (const insight of insights) {
+      // Convert frame index to approximate lap timestamp
+      const frameIdx = insight.frameIndices[0];
+      const pkt = packets[frameIdx];
+      const timestamp = pkt ? `${(pkt.DistanceTraveled).toFixed(0)}m` : "?";
+      const count = insight.frameIndices.length;
+      insightsText += `[${insight.severity.toUpperCase()}] ${insight.category}: ${insight.label}`;
+      insightsText += ` (at ${timestamp}${count > 1 ? `, ${count} occurrences` : ""})\n`;
+      insightsText += `  ${insight.detail}\n`;
+    }
+  }
+
   const context = `Car: ${carName}
 Track: ${trackName}
 
 ${exportText}
-${cornerData}`;
+${cornerData}
+${insightsText}`;
 
   return `${SYSTEM_PROMPT}
 
