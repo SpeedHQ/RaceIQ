@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
+import { formatLapTime } from "./LiveTelemetry";
 
 interface TrackInfo {
   ordinal: number;
@@ -89,6 +90,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   const [editing, setEditing] = useState(false);
   const [editSegments, setEditSegments] = useState<TrackSegment[]>([]);
   const [saving, setSaving] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<Record<string, { lapId: number; lapNumber: number; lapTime: number; carName: string; carClass: string; pi: number }[]> | null>(null);
 
   useEffect(() => {
     if (!track.hasOutline) return;
@@ -102,6 +104,14 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
       setSectors(sectorData);
     }).catch(() => {});
   }, [track.ordinal, track.hasOutline]);
+
+  // Fetch leaderboard
+  useEffect(() => {
+    fetch(`/api/tracks/${track.ordinal}/leaderboard`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setLeaderboard)
+      .catch(() => {});
+  }, [track.ordinal]);
 
   // Use edit segments for preview when editing, otherwise use fetched sectors
   const displaySectors = editing && editSegments.length > 0
@@ -399,6 +409,55 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
           )}
         </div>
       </div>
+
+      {/* Fastest laps by PI class */}
+      {leaderboard && Object.keys(leaderboard).length > 0 && (
+        <div className="mt-4">
+          <div className="text-xs text-slate-500 uppercase tracking-wider mb-3">Fastest Laps by Class</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {Object.entries(leaderboard).map(([cls, laps]) => {
+              const classColors: Record<string, string> = {
+                X: "border-purple-500/50 bg-purple-500/5",
+                P: "border-pink-500/50 bg-pink-500/5",
+                R: "border-red-500/50 bg-red-500/5",
+                S2: "border-orange-500/50 bg-orange-500/5",
+                S1: "border-amber-500/50 bg-amber-500/5",
+                A: "border-green-500/50 bg-green-500/5",
+                B: "border-blue-500/50 bg-blue-500/5",
+                C: "border-cyan-500/50 bg-cyan-500/5",
+                D: "border-slate-500/50 bg-slate-500/5",
+              };
+              const textColors: Record<string, string> = {
+                X: "text-purple-400", P: "text-pink-400", R: "text-red-400",
+                S2: "text-orange-400", S1: "text-amber-400", A: "text-green-400",
+                B: "text-blue-400", C: "text-cyan-400", D: "text-slate-400",
+              };
+              return (
+                <div key={cls} className={`rounded-lg border p-3 ${classColors[cls] ?? "border-slate-800 bg-slate-900/50"}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`text-sm font-bold font-mono ${textColors[cls] ?? "text-slate-400"}`}>{cls}</span>
+                    <span className="text-[10px] text-slate-500">Class</span>
+                  </div>
+                  <div className="space-y-1">
+                    {laps.map((lap, i) => (
+                      <div key={lap.lapId} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-600 w-4">{i + 1}.</span>
+                          <span className="text-slate-300 truncate max-w-[160px]">{lap.carName}</span>
+                          <span className="text-[10px] text-slate-600">PI {lap.pi}</span>
+                        </div>
+                        <span className={`font-mono tabular-nums ${i === 0 ? "text-white font-bold" : "text-slate-400"}`}>
+                          {formatLapTime(lap.lapTime)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

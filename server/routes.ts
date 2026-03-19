@@ -692,6 +692,76 @@ app.post("/api/tracks/:trackOrdinal/recompute-outline", async (c) => {
   });
 });
 
+// GET /api/tracks/:trackOrdinal/leaderboard — fastest laps grouped by PI class
+app.get("/api/tracks/:trackOrdinal/leaderboard", (c) => {
+  const trackOrdinal = parseInt(c.req.param("trackOrdinal"), 10);
+  if (isNaN(trackOrdinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  const trackLaps = getLaps().filter(
+    (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0
+  );
+
+  // For each lap, get car info from first telemetry packet
+  const entries: {
+    lapId: number;
+    lapNumber: number;
+    lapTime: number;
+    carOrdinal: number;
+    carName: string;
+    carClass: string;
+    pi: number;
+  }[] = [];
+
+  for (const lap of trackLaps) {
+    const lapData = getLapById(lap.id);
+    if (!lapData?.telemetry?.length) continue;
+    const first = lapData.telemetry[0];
+    const pi = first.CarPerformanceIndex ?? 0;
+    const cls = CAR_CLASS_NAMES[first.CarClass] ?? "?";
+    const carName = getCarName(lap.carOrdinal ?? first.CarOrdinal ?? 0);
+    entries.push({
+      lapId: lap.id,
+      lapNumber: lap.lapNumber,
+      lapTime: lap.lapTime,
+      carOrdinal: lap.carOrdinal ?? first.CarOrdinal ?? 0,
+      carName,
+      carClass: cls,
+      pi,
+    });
+  }
+
+  // Group by PI class bracket: D(100-299), C(300-399), B(400-499), A(500-599), S1(600-699), S2(700-799), R(800-899), P(900-998), X(999)
+  const piClass = (pi: number): string => {
+    if (pi >= 999) return "X";
+    if (pi >= 900) return "P";
+    if (pi >= 800) return "R";
+    if (pi >= 700) return "S2";
+    if (pi >= 600) return "S1";
+    if (pi >= 500) return "A";
+    if (pi >= 400) return "B";
+    if (pi >= 300) return "C";
+    return "D";
+  };
+
+  const grouped: Record<string, typeof entries> = {};
+  for (const e of entries) {
+    const cls = piClass(e.pi);
+    if (!grouped[cls]) grouped[cls] = [];
+    grouped[cls].push(e);
+  }
+
+  // Sort each group by lap time, keep top 5 per class
+  const result: Record<string, typeof entries> = {};
+  const classOrder = ["X", "P", "R", "S2", "S1", "A", "B", "C", "D"];
+  for (const cls of classOrder) {
+    if (grouped[cls]) {
+      result[cls] = grouped[cls].sort((a, b) => a.lapTime - b.lapTime).slice(0, 5);
+    }
+  }
+
+  return c.json(result);
+});
+
 // GET /api/track-calibration/:ordinal — calibration status
 import { getCalibrationStatus, getNormalizedPosition } from "./track-calibration";
 app.get("/api/track-calibration/:ordinal", (c) => {
