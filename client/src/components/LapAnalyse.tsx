@@ -6,6 +6,7 @@ import { formatLapTime, TireDiagram, GForceCircle } from "./LiveTelemetry";
 import { SteeringWheel } from "./SteeringWheel";
 import { getSteeringLock } from "./Settings";
 import { Compass } from "./Compass";
+import { BodyAttitude } from "./BodyAttitude";
 import {
   allWheelStates,
   allFrictionCircle,
@@ -945,7 +946,7 @@ export function LapAnalyse() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header: cascading selectors + export */}
-      <div className="flex items-center gap-2 p-3 border-b border-slate-800 flex-wrap">
+      <div className="flex items-center gap-2 p-3 border-b border-slate-800 flex-wrap shrink-0">
         {/* Track selector */}
         <select
           value={selectedTrack ?? ""}
@@ -1020,9 +1021,11 @@ export function LapAnalyse() {
           {selectedLapId ? "No telemetry data for this lap." : "Select a track, car, and lap to analyse."}
         </div>
       ) : (
-        <>
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left: main content (map, charts, scrubber) */}
+          <div className="flex-1 min-w-0 h-full overflow-y-auto">
           {/* Top section: Track Map + Metrics */}
-          <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_320px_420px] border-b border-slate-800 shrink-0">
+          <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_320px] border-b border-slate-800 shrink-0">
             {/* Segment table + legend */}
             <div className="border-r border-slate-800 overflow-y-auto p-2" style={{ height: 420 }}>
               {/* Legend */}
@@ -1103,6 +1106,11 @@ export function LapAnalyse() {
                 {/* Compass */}
                 {currentPacket && <Compass yaw={currentPacket.Yaw} />}
               </div>
+              {currentPacket && (
+                <div className="absolute bottom-2 right-2 bg-slate-950/80 rounded p-1">
+                  <BodyAttitude packet={currentPacket} />
+                </div>
+              )}
             </div>
 
             {/* Rev meter + Steering wheel + Tire diagram */}
@@ -1139,8 +1147,117 @@ export function LapAnalyse() {
               {currentPacket && <TireDiagram packet={currentPacket} />}
             </div>
 
-            {/* Metrics + Wheels panel */}
-            <div className="p-3 overflow-y-auto" style={{ height: 420 }}>
+          </div>
+
+          {/* Lap time + Timeline scrubber */}
+          <div className="px-3 py-2 border-b border-slate-800 bg-slate-900/50 shrink-0">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-[10px] text-slate-500">Lap {selectedLap?.lapNumber ?? "?"}</span>
+              <span className="text-2xl font-mono font-bold tabular-nums text-cyan-400">{formatLapTime(currentTime)}</span>
+              <span className="text-sm font-mono tabular-nums text-slate-400">/ {formatLapTime(totalTime)}</span>
+              {sectorTimes && (["S1", "S2", "S3"] as const).map((name, i) => {
+                const colors = ["#ef4444", "#3b82f6", "#eab308"];
+                const isActive = sectorTimes.cursorSector === i;
+                return (
+                  <div
+                    key={name}
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded ${
+                      isActive ? "bg-slate-800 ring-1" : "bg-slate-800/30"
+                    }`}
+                    style={isActive ? { boxShadow: `inset 0 0 0 1px ${colors[i]}40` } : {}}
+                  >
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[i] }} />
+                    <span className="text-[10px] font-semibold text-slate-500">{name}</span>
+                    <span className={`text-xs font-mono font-bold tabular-nums ${isActive ? "text-white" : "text-slate-400"}`}>
+                      {formatLapTime(sectorTimes.times[i])}
+                    </span>
+                  </div>
+                );
+              })}
+              <span className="text-[10px] font-mono text-slate-600 ml-auto">
+                Packet {cursorIdx + 1}/{telemetry.length}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setPlaying((p) => !p)}
+                className="text-lg w-8 h-8 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                title={playing ? "Pause (Space)" : "Play (Space)"}
+              >
+                {playing ? "\u275A\u275A" : "\u25B6"}
+              </button>
+              <div className="flex gap-1">
+                {[0.25, 0.5, 1, 1.5, 2, 2.5].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setPlaybackSpeed(s)}
+                    className={`px-1.5 py-0.5 text-[10px] font-mono rounded transition-colors ${
+                      playbackSpeed === s
+                        ? "bg-cyan-600 text-white"
+                        : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300"
+                    }`}
+                  >
+                    {s}x
+                  </button>
+                ))}
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={telemetry.length - 1}
+                value={cursorIdx}
+                onChange={handleSliderChange}
+                className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+              />
+            </div>
+          </div>
+
+          {/* Stacked charts */}
+          {chartData && (
+            <div className="p-3 space-y-2">
+              <TelemetryChart
+                series={[
+                  { data: chartData.speed, color: "#22d3ee", label: "Speed (mph)" },
+                ]}
+                cursorIdx={cursorIdx}
+                totalPackets={telemetry.length}
+                onClickIndex={handleChartClick}
+                height={100}
+              />
+              <TelemetryChart
+                series={[
+                  { data: chartData.throttle, color: "#34d399", label: "Throttle %" },
+                  { data: chartData.brake, color: "#ef4444", label: "Brake %" },
+                ]}
+                cursorIdx={cursorIdx}
+                totalPackets={telemetry.length}
+                onClickIndex={handleChartClick}
+                height={100}
+              />
+              <TelemetryChart
+                series={[
+                  { data: chartData.rpm, color: "#a855f7", label: "RPM" },
+                ]}
+                cursorIdx={cursorIdx}
+                totalPackets={telemetry.length}
+                onClickIndex={handleChartClick}
+                height={100}
+              />
+              <TelemetryChart
+                series={[
+                  { data: chartData.steering, color: "#fbbf24", label: "Steering" },
+                ]}
+                cursorIdx={cursorIdx}
+                totalPackets={telemetry.length}
+                onClickIndex={handleChartClick}
+                height={80}
+              />
+            </div>
+          )}
+          </div>
+
+          {/* Right panel – full height */}
+          <div className="w-80 shrink-0 border-l border-slate-800 overflow-y-auto bg-slate-900/50 p-3">
               <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 font-semibold">
                 Metrics at Cursor
               </h3>
@@ -1288,115 +1405,8 @@ export function LapAnalyse() {
                   </div>
                 </>
               )}
-            </div>
           </div>
-
-          {/* Lap time + Timeline scrubber */}
-          <div className="px-3 py-2 border-b border-slate-800 bg-slate-900/50">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-[10px] text-slate-500">Lap {selectedLap?.lapNumber ?? "?"}</span>
-              <span className="text-2xl font-mono font-bold tabular-nums text-cyan-400">{formatLapTime(currentTime)}</span>
-              <span className="text-sm font-mono tabular-nums text-slate-400">/ {formatLapTime(totalTime)}</span>
-              {sectorTimes && (["S1", "S2", "S3"] as const).map((name, i) => {
-                const colors = ["#ef4444", "#3b82f6", "#eab308"];
-                const isActive = sectorTimes.cursorSector === i;
-                return (
-                  <div
-                    key={name}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded ${
-                      isActive ? "bg-slate-800 ring-1" : "bg-slate-800/30"
-                    }`}
-                    style={isActive ? { boxShadow: `inset 0 0 0 1px ${colors[i]}40` } : {}}
-                  >
-                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[i] }} />
-                    <span className="text-[10px] font-semibold text-slate-500">{name}</span>
-                    <span className={`text-xs font-mono font-bold tabular-nums ${isActive ? "text-white" : "text-slate-400"}`}>
-                      {formatLapTime(sectorTimes.times[i])}
-                    </span>
-                  </div>
-                );
-              })}
-              <span className="text-[10px] font-mono text-slate-600 ml-auto">
-                Packet {cursorIdx + 1}/{telemetry.length}
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setPlaying((p) => !p)}
-                className="text-lg w-8 h-8 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-                title={playing ? "Pause (Space)" : "Play (Space)"}
-              >
-                {playing ? "\u275A\u275A" : "\u25B6"}
-              </button>
-              <div className="flex gap-1">
-                {[0.25, 0.5, 1, 1.5, 2, 2.5].map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setPlaybackSpeed(s)}
-                    className={`px-1.5 py-0.5 text-[10px] font-mono rounded transition-colors ${
-                      playbackSpeed === s
-                        ? "bg-cyan-600 text-white"
-                        : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300"
-                    }`}
-                  >
-                    {s}x
-                  </button>
-                ))}
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={telemetry.length - 1}
-                value={cursorIdx}
-                onChange={handleSliderChange}
-                className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400"
-              />
-            </div>
-          </div>
-
-          {/* Stacked charts */}
-          {chartData && (
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              <TelemetryChart
-                series={[
-                  { data: chartData.speed, color: "#22d3ee", label: "Speed (mph)" },
-                ]}
-                cursorIdx={cursorIdx}
-                totalPackets={telemetry.length}
-                onClickIndex={handleChartClick}
-                height={100}
-              />
-              <TelemetryChart
-                series={[
-                  { data: chartData.throttle, color: "#34d399", label: "Throttle %" },
-                  { data: chartData.brake, color: "#ef4444", label: "Brake %" },
-                ]}
-                cursorIdx={cursorIdx}
-                totalPackets={telemetry.length}
-                onClickIndex={handleChartClick}
-                height={100}
-              />
-              <TelemetryChart
-                series={[
-                  { data: chartData.rpm, color: "#a855f7", label: "RPM" },
-                ]}
-                cursorIdx={cursorIdx}
-                totalPackets={telemetry.length}
-                onClickIndex={handleChartClick}
-                height={100}
-              />
-              <TelemetryChart
-                series={[
-                  { data: chartData.steering, color: "#fbbf24", label: "Steering" },
-                ]}
-                cursorIdx={cursorIdx}
-                totalPackets={telemetry.length}
-                onClickIndex={handleChartClick}
-                height={80}
-              />
-            </div>
-          )}
-        </>
+        </div>
       )}
     </div>
   );
