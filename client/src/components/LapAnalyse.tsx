@@ -20,6 +20,8 @@ import { convertSpeed, speedLabel } from "../lib/speed";
 import { useTelemetry } from "../context/telemetry";
 import { analyzeLap } from "../lib/lap-insights";
 import { InsightPanel } from "./InsightPanel";
+import { AiAnalysisModal } from "./AiAnalysisModal";
+import { Sparkles } from "lucide-react";
 
 interface Point {
   x: number;
@@ -538,6 +540,7 @@ export function LapAnalyse() {
   const [mapZoom, setMapZoom] = useState(1);
   const [loading, setLoading] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
   const playRef = useRef(false);
   const speedRef = useRef(1);
   const cursorRef = useRef(0);
@@ -1016,6 +1019,15 @@ export function LapAnalyse() {
               Export CSV
             </button>
           )}
+          {telemetry.length > 0 && (
+            <button
+              onClick={() => setAiModalOpen(true)}
+              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-amber-400 border border-slate-700 rounded px-3 py-1.5 transition-colors"
+            >
+              <Sparkles className="size-3" />
+              AI Analysis
+            </button>
+          )}
           {loading && (
             <span className="text-xs text-slate-500 animate-pulse">
               Loading...
@@ -1452,6 +1464,15 @@ export function LapAnalyse() {
             </div>
           </div>
         </div>
+      )}
+      {selectedLapId && (
+        <AiAnalysisModal
+          lapId={selectedLapId}
+          open={aiModalOpen}
+          onClose={() => setAiModalOpen(false)}
+          carName={carName}
+          trackName={trackName}
+        />
       )}
     </div>
   );
