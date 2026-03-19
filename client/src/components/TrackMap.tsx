@@ -162,7 +162,7 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
   return (
     <div ref={containerRef} className={`relative w-full h-full min-h-[200px] ${className ?? ""}`}>
       {telemetry.length < 2 ? (
-        <div className="absolute inset-0 flex items-center justify-center text-slate-600 text-sm">
+        <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">
           No position data
         </div>
       ) : (

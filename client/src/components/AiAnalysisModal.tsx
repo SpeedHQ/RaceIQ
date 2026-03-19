@@ -76,7 +76,7 @@ const ASSESSMENT_BG = {
 };
 
 const SEVERITY_COLORS = {
-  minor: "bg-slate-600",
+  minor: "bg-app-text-dim",
   moderate: "bg-amber-500",
   major: "bg-red-500",
 };
@@ -85,12 +85,12 @@ function MetricCard({ item }: { item: PaceItem | HandlingItem }) {
   return (
     <div className={`rounded-lg border px-3 py-2 ${ASSESSMENT_BG[item.assessment]}`}>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[11px] text-slate-400 uppercase tracking-wide">{item.label}</span>
+        <span className="text-[11px] text-app-text-secondary uppercase tracking-wide">{item.label}</span>
         <span className={`text-sm font-mono font-semibold ${ASSESSMENT_COLORS[item.assessment]}`}>
           {item.value}
         </span>
       </div>
-      <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{item.detail}</p>
+      <p className="text-[11px] text-app-text-secondary mt-1 leading-relaxed">{item.detail}</p>
     </div>
   );
 }
@@ -98,8 +98,8 @@ function MetricCard({ item }: { item: PaceItem | HandlingItem }) {
 function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }) {
   return (
     <div className="flex items-center gap-2 mb-2.5">
-      <span className="text-slate-400">{icon}</span>
-      <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider">{title}</h3>
+      <span className="text-app-text-secondary">{icon}</span>
+      <h3 className="text-xs font-semibold text-app-text uppercase tracking-wider">{title}</h3>
     </div>
   );
 }
@@ -184,16 +184,16 @@ export function AiAnalysisModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative z-10 w-full max-w-2xl max-h-[85vh] flex flex-col bg-slate-900 border border-slate-700 rounded-xl shadow-2xl mx-4">
+      <div className="relative z-10 w-full max-w-2xl max-h-[85vh] flex flex-col bg-app-surface border border-app-border-input rounded-xl shadow-2xl mx-4">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-700 shrink-0">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-app-border-input shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <Sparkles className="size-4 text-amber-400 shrink-0" />
-            <h2 className="text-sm font-semibold text-white truncate">
+            <h2 className="text-sm font-semibold text-app-text truncate">
               AI Analysis — {carName} at {trackName}
             </h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors shrink-0 ml-2">
+          <button onClick={onClose} className="text-app-text-secondary hover:text-app-text transition-colors shrink-0 ml-2">
             <X className="size-4" />
           </button>
         </div>
@@ -202,9 +202,9 @@ export function AiAnalysisModal({
         <div ref={contentRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           {loading && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <div className="size-8 border-2 border-slate-600 border-t-amber-400 rounded-full animate-spin" />
-              <p className="text-sm text-slate-400">Analysing lap telemetry...</p>
-              <p className="text-xs text-slate-600">This may take up to 90 seconds</p>
+              <div className="size-8 border-2 border-app-text-dim border-t-amber-400 rounded-full animate-spin" />
+              <p className="text-sm text-app-text-secondary">Analysing lap telemetry...</p>
+              <p className="text-xs text-app-text-dim">This may take up to 90 seconds</p>
             </div>
           )}
 
@@ -213,7 +213,7 @@ export function AiAnalysisModal({
               <p className="text-sm text-red-400">{error}</p>
               <button
                 onClick={() => fetchAnalysis(false)}
-                className="text-xs text-slate-400 hover:text-white border border-slate-700 rounded px-3 py-1.5 transition-colors"
+                className="text-xs text-app-text-secondary hover:text-app-text border border-app-border-input rounded px-3 py-1.5 transition-colors"
               >
                 Retry
               </button>
@@ -223,8 +223,8 @@ export function AiAnalysisModal({
           {analysis && !loading && (
             <>
               {/* Verdict */}
-              <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-3">
-                <p className="text-sm text-slate-200 leading-relaxed">{analysis.verdict}</p>
+              <div className="bg-app-surface-alt/50 border border-app-border-input/50 rounded-lg px-4 py-3">
+                <p className="text-sm text-app-text leading-relaxed">{analysis.verdict}</p>
               </div>
 
               {/* Pace */}
@@ -253,12 +253,12 @@ export function AiAnalysisModal({
                   <SectionHeader icon={<AlertTriangle className="size-3.5" />} title="Problem Corners" />
                   <div className="space-y-2">
                     {analysis.corners.map((corner, i) => (
-                      <div key={i} className="bg-slate-800/40 border border-slate-700/40 rounded-lg px-3.5 py-2.5">
+                      <div key={i} className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-3.5 py-2.5">
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`size-2 rounded-full ${SEVERITY_COLORS[corner.severity]}`} />
-                          <span className="text-xs font-semibold text-white">{corner.name}</span>
+                          <span className="text-xs font-semibold text-app-text">{corner.name}</span>
                         </div>
-                        <p className="text-[11px] text-slate-400 mb-1">{corner.issue}</p>
+                        <p className="text-[11px] text-app-text-secondary mb-1">{corner.issue}</p>
                         <p className="text-[11px] text-emerald-400/80">{corner.fix}</p>
                       </div>
                     ))}
@@ -275,8 +275,8 @@ export function AiAnalysisModal({
                       <div key={i} className="flex gap-2.5">
                         <span className="text-amber-400/60 text-xs font-mono mt-0.5">{i + 1}.</span>
                         <div>
-                          <span className="text-xs font-medium text-slate-200">{item.tip}</span>
-                          <p className="text-[11px] text-slate-400 mt-0.5">{item.detail}</p>
+                          <span className="text-xs font-medium text-app-text">{item.tip}</span>
+                          <p className="text-[11px] text-app-text-secondary mt-0.5">{item.detail}</p>
                         </div>
                       </div>
                     ))}
@@ -290,12 +290,12 @@ export function AiAnalysisModal({
                   <SectionHeader icon={<Wrench className="size-3.5" />} title="Setup Changes" />
                   <div className="space-y-2">
                     {analysis.setup.map((item, i) => (
-                      <div key={i} className="bg-slate-800/40 border border-slate-700/40 rounded-lg px-3.5 py-2.5">
-                        <span className="text-xs font-semibold text-white">{item.change}</span>
-                        <p className="text-[11px] text-slate-400 mt-1">
+                      <div key={i} className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-3.5 py-2.5">
+                        <span className="text-xs font-semibold text-app-text">{item.change}</span>
+                        <p className="text-[11px] text-app-text-secondary mt-1">
                           <span className="text-red-400/70">Symptom:</span> {item.symptom}
                         </p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
+                        <p className="text-[11px] text-app-text-secondary mt-0.5">
                           <span className="text-emerald-400/70">Fix:</span> {item.fix}
                         </p>
                       </div>
@@ -310,9 +310,9 @@ export function AiAnalysisModal({
                   <SectionHeader icon={<SlidersHorizontal className="size-3.5" />} title="Tuning Values" />
                   <div className="grid grid-cols-1 gap-1.5">
                     {analysis.tuning.map((item, i) => (
-                      <div key={i} className="bg-slate-800/40 border border-slate-700/40 rounded-lg px-3.5 py-2.5">
+                      <div key={i} className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-3.5 py-2.5">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-semibold text-white">{item.component}</span>
+                          <span className="text-xs font-semibold text-app-text">{item.component}</span>
                           <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
                             item.direction === "increase" ? "bg-emerald-400/10 text-emerald-400" :
                             item.direction === "decrease" ? "bg-red-400/10 text-red-400" :
@@ -321,7 +321,7 @@ export function AiAnalysisModal({
                             {item.direction === "increase" ? "+" : item.direction === "decrease" ? "-" : "~"} {item.target}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-400">{item.reason}</p>
+                        <p className="text-[11px] text-app-text-secondary">{item.reason}</p>
                       </div>
                     ))}
                   </div>
@@ -333,9 +333,9 @@ export function AiAnalysisModal({
 
         {/* Footer */}
         {analysis && !loading && (
-          <div className="flex items-center gap-2 px-5 py-3 border-t border-slate-700 shrink-0">
+          <div className="flex items-center gap-2 px-5 py-3 border-t border-app-border-input shrink-0">
             {usage && (
-              <div className="flex items-center gap-3 text-[10px] text-slate-500 font-mono mr-auto">
+              <div className="flex items-center gap-3 text-[10px] text-app-text-muted font-mono mr-auto">
                 <span>{usage.inputTokens.toLocaleString()} in</span>
                 <span>{usage.outputTokens.toLocaleString()} out</span>
                 <span>${usage.costUsd.toFixed(4)}</span>
@@ -344,7 +344,7 @@ export function AiAnalysisModal({
             )}
             <button
               onClick={handleExportImage}
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 rounded px-3 py-1.5 transition-colors"
+              className="flex items-center gap-1.5 text-xs text-app-text-secondary hover:text-app-text border border-app-border-input rounded px-3 py-1.5 transition-colors"
             >
               <Download className="size-3" />
               Save Image
@@ -352,14 +352,14 @@ export function AiAnalysisModal({
             <button
               onClick={() => fetchAnalysis(true)}
               disabled={loading}
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white border border-slate-700 rounded px-3 py-1.5 transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs text-app-text-secondary hover:text-app-text border border-app-border-input rounded px-3 py-1.5 transition-colors disabled:opacity-50"
             >
               <RefreshCw className="size-3" />
               Regenerate
             </button>
             <button
               onClick={onClose}
-              className="text-xs text-slate-400 hover:text-white border border-slate-700 rounded px-3 py-1.5 transition-colors"
+              className="text-xs text-app-text-secondary hover:text-app-text border border-app-border-input rounded px-3 py-1.5 transition-colors"
             >
               Close
             </button>

@@ -935,7 +935,21 @@ app.get("/api/telemetry-history", (c) => {
   return c.json(wsManager.getTelemetryHistory());
 });
 
-// DELETE /api/laps — bulk delete. Iterates individually because deleteLap
+// POST /api/laps/bulk-delete — selective bulk delete by IDs.
+app.post("/api/laps/bulk-delete", async (c) => {
+  const body = await c.req.json<{ ids?: number[] }>();
+  const ids = body?.ids;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return c.json({ error: "ids array required" }, 400);
+  }
+  let count = 0;
+  for (const id of ids) {
+    if (typeof id === "number" && deleteLap(id)) count++;
+  }
+  return c.json({ deleted: count });
+});
+
+// DELETE /api/laps — bulk delete ALL. Iterates individually because deleteLap
 // also cleans up associated telemetry blobs.
 app.delete("/api/laps", (c) => {
   const laps = getLaps();

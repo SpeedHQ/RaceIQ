@@ -90,12 +90,12 @@ function GripSparkline({ data, label, renderKey, width = 140, height = 40 }: {
 
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[9px] font-semibold text-slate-500 uppercase">{label}</span>
+      <span className="text-[9px] font-semibold text-app-text-muted uppercase">{label}</span>
       <div className="flex items-center gap-1.5">
         <canvas
           ref={canvasRef}
           style={{ width, height }}
-          className="rounded bg-slate-900/40"
+          className="rounded bg-app-surface/40"
         />
         <span className={`text-xs font-mono font-bold tabular-nums ${valColor}`}>
           {gripPct}%
@@ -188,7 +188,7 @@ function getSpeed(p: TelemetryPacket, unit: "mph" | "kmh"): number {
 function GaugeBar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = Math.min((value / max) * 100, 100);
   return (
-    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+    <div className="h-2 bg-app-surface-alt rounded-full overflow-hidden">
       <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
     </div>
   );
@@ -433,13 +433,13 @@ function SuspBar({ norm }: { norm: number }) {
   const pct = Math.min(norm * 100, 100);
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <div className="w-4 h-16 bg-slate-900/60 rounded-sm overflow-hidden relative">
+      <div className="w-4 h-16 bg-app-surface/60 rounded-sm overflow-hidden relative">
         <div
           className={`absolute bottom-0 w-full rounded-sm ${suspColor(norm)}`}
           style={{ height: `${pct}%` }}
         />
       </div>
-      <span className="text-[8px] font-mono text-slate-500">{pct.toFixed(0)}%</span>
+      <span className="text-[8px] font-mono text-app-text-muted">{pct.toFixed(0)}%</span>
     </div>
   );
 }
@@ -579,8 +579,8 @@ export function GForceCircle({ packet }: { packet: TelemetryPacket }) {
 
   return (
     <div className="flex flex-col items-center gap-0.5 shrink-0" style={{ width: size }}>
-      <canvas ref={canvasRef} style={{ width: size, height: size }} className="rounded bg-slate-900/40" />
-      <div className="flex gap-2 text-[8px] font-mono text-slate-400 tabular-nums">
+      <canvas ref={canvasRef} style={{ width: size, height: size }} className="rounded bg-app-surface/40" />
+      <div className="flex gap-2 text-[8px] font-mono text-app-text-secondary tabular-nums">
         <span className="w-6 text-right">{latG >= 0 ? " " : ""}{latG.toFixed(1)}</span>
         <span className="w-6 text-right">{lonG >= 0 ? " " : ""}{lonG.toFixed(1)}</span>
       </div>
@@ -637,7 +637,7 @@ function ArcGauge({ value, max, label, unit, color }: {
           {unit}
         </text>
       </svg>
-      <span className="text-[9px] text-slate-500 -mt-1">{label}</span>
+      <span className="text-[9px] text-app-text-muted -mt-1">{label}</span>
     </div>
   );
 }
@@ -716,20 +716,20 @@ function FuelGauge({ packet }: { packet: TelemetryPacket }) {
       <div className="flex justify-between text-[10px] mb-0.5">
         <span className={`font-mono font-bold ${textColor}`}>Fuel {pct.toFixed(0)}%</span>
         {lapsRemaining != null && (
-          <span className="font-mono text-slate-400">
+          <span className="font-mono text-app-text-secondary">
             ~{lapsRemaining} laps left
           </span>
         )}
       </div>
-      <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+      <div className="h-2 bg-app-surface-alt rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${fuelColor} ${pct < 20 ? "animate-pulse" : ""}`} style={{ width: `${pct}%` }} />
       </div>
       {avg != null && (
         <div className="flex justify-between text-[9px] font-mono mt-0.5">
-          <span className="text-slate-500">
+          <span className="text-app-text-muted">
             {(avg * 100).toFixed(1)}%/lap avg
           </span>
-          <span className="text-slate-500">
+          <span className="text-app-text-muted">
             This lap: {currentLapPct.toFixed(1)}%
           </span>
         </div>
@@ -770,12 +770,12 @@ function WheelSpin({ packet }: { packet: TelemetryPacket }) {
         const diff = groundSpeed > 1 ? ((wheelSpeed - groundSpeed) / groundSpeed) * 100 : 0;
         const isLockup = diff < -10;
         const isSpin = diff > 10;
-        const color = isLockup ? "text-red-400" : isSpin ? "text-orange-400" : "text-slate-400";
+        const color = isLockup ? "text-red-400" : isSpin ? "text-orange-400" : "text-app-text-secondary";
         const stateLabel = isLockup ? "LOCK" : isSpin ? "SPIN" : "";
 
         return (
-          <div key={w.label} className="bg-slate-800/50 rounded px-1.5 py-1 text-center">
-            <div className="text-[9px] text-slate-500 font-semibold">{w.label}</div>
+          <div key={w.label} className="bg-app-surface-alt/50 rounded px-1.5 py-1 text-center">
+            <div className="text-[9px] text-app-text-muted font-semibold">{w.label}</div>
             <div className={`text-xs font-mono font-bold tabular-nums ${color}`}>
               {diff.toFixed(0)}%
             </div>
@@ -955,7 +955,7 @@ function FourLineChart({ data, label, maxY, unit, height = 50 }: {
   return (
     <div>
       <div className="flex items-center justify-between mb-0.5">
-        <span className="text-[9px] text-slate-500 font-semibold uppercase">{label}</span>
+        <span className="text-[9px] text-app-text-muted font-semibold uppercase">{label}</span>
         <div className="flex gap-2">
           {TIRE_LABELS.map((l, i) => (
             <span key={l} className="text-[8px] font-mono" style={{ color: TIRE_COLORS[i] }}>{l}</span>
@@ -964,7 +964,7 @@ function FourLineChart({ data, label, maxY, unit, height = 50 }: {
       </div>
       <div className="flex gap-1.5">
         <div className="flex-1" ref={containerRef}>
-          <canvas ref={canvasRef} style={{ width: "100%", height }} className="rounded bg-slate-900/40" />
+          <canvas ref={canvasRef} style={{ width: "100%", height }} className="rounded bg-app-surface/40" />
         </div>
         <div className="flex flex-col justify-between w-10 shrink-0" style={{ height }}>
           {TIRE_LABELS.map((l, i) => (
@@ -1039,10 +1039,10 @@ function SingleLineChart({ data, label, color, maxY, unit, height = 50 }: {
 
   return (
     <div>
-      <span className="text-[9px] text-slate-500 font-semibold uppercase">{label}</span>
+      <span className="text-[9px] text-app-text-muted font-semibold uppercase">{label}</span>
       <div className="flex gap-1.5">
         <div className="flex-1" ref={containerRef}>
-          <canvas ref={canvasRef} style={{ width: "100%", height }} className="rounded bg-slate-900/40" />
+          <canvas ref={canvasRef} style={{ width: "100%", height }} className="rounded bg-app-surface/40" />
         </div>
         <div className="flex items-center w-12 shrink-0">
           <span className="text-[10px] font-mono font-bold tabular-nums text-right w-full" style={{ color }}>{currentVal.toFixed(0)}</span>
@@ -1122,7 +1122,7 @@ function DualLineChart({ data1, data2, label1, label2, color1, color2, label, ma
   return (
     <div>
       <div className="flex items-center justify-between mb-0.5">
-        <span className="text-[9px] text-slate-500 font-semibold uppercase">{label}</span>
+        <span className="text-[9px] text-app-text-muted font-semibold uppercase">{label}</span>
         <div className="flex gap-2">
           <span className="text-[8px] font-mono" style={{ color: color1 }}>{label1}</span>
           <span className="text-[8px] font-mono" style={{ color: color2 }}>{label2}</span>
@@ -1130,7 +1130,7 @@ function DualLineChart({ data1, data2, label1, label2, color1, color2, label, ma
       </div>
       <div className="flex gap-1.5">
         <div className="flex-1" ref={containerRef}>
-          <canvas ref={canvasRef} style={{ width: "100%", height }} className="rounded bg-slate-900/40" />
+          <canvas ref={canvasRef} style={{ width: "100%", height }} className="rounded bg-app-surface/40" />
         </div>
         <div className="flex flex-col justify-between w-10 shrink-0" style={{ height }}>
           <span className="text-[10px] font-mono font-bold tabular-nums text-right" style={{ color: color1 }}>{val1.toFixed(0)}</span>
@@ -1245,7 +1245,7 @@ export function LiveTelemetry({ packet }: Props) {
 
   if (!packet) {
     return (
-      <div className="flex items-center justify-center h-full text-slate-600">
+      <div className="flex items-center justify-center h-full text-app-text-dim">
         Waiting for telemetry data...
       </div>
     );
@@ -1262,29 +1262,29 @@ export function LiveTelemetry({ packet }: Props) {
       <div className="flex items-center gap-3">
         {carName && (
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-white truncate">{carName}</div>
+            <div className="text-sm font-semibold text-app-text truncate">{carName}</div>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-mono font-semibold px-1 py-px rounded bg-slate-800 text-cyan-400">
+              <span className="text-[10px] font-mono font-semibold px-1 py-px rounded bg-app-surface-alt text-app-accent">
                 {CAR_CLASS_NAMES[packet.CarClass] ?? "?"} {packet.CarPerformanceIndex}
               </span>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[10px] text-app-text-muted">
                 {DRIVETRAIN_NAMES[packet.DrivetrainType] ?? "?"} &middot; {packet.NumCylinders}cyl
               </span>
             </div>
           </div>
         )}
         <div className="text-right">
-          <div className="text-3xl font-mono font-bold text-white tabular-nums leading-none">
-            {speed.toFixed(0)} <span className="text-xs text-slate-500">{speedLabel(displaySettings.speedUnit)}</span>
+          <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
+            {speed.toFixed(0)} <span className="text-xs text-app-text-muted">{speedLabel(displaySettings.speedUnit)}</span>
           </div>
         </div>
-        <div className="text-3xl font-mono font-bold text-cyan-400 tabular-nums leading-none">
+        <div className="text-3xl font-mono font-bold text-app-accent tabular-nums leading-none">
           {packet.Gear === 0 ? "R" : packet.Gear === 11 ? "N" : packet.Gear}
         </div>
       </div>
 
       {/* Row 2: RPM segments */}
-      <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+      <div className="flex justify-between text-[10px] text-app-text-muted font-mono">
         <span>RPM</span>
         <span>{packet.CurrentEngineRpm.toFixed(0)} / {packet.EngineMaxRpm.toFixed(0)}</span>
       </div>
@@ -1311,23 +1311,23 @@ export function LiveTelemetry({ packet }: Props) {
         <div className="flex gap-1.5 items-end shrink-0" style={{ height: 80 }}>
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{throttlePct.toFixed(0)}</span>
-            <div className="w-6 bg-slate-800 rounded-sm overflow-hidden relative" style={{ height: 60 }}>
+            <div className="w-6 bg-app-surface-alt rounded-sm overflow-hidden relative" style={{ height: 60 }}>
               <div
                 className="absolute bottom-0 w-full bg-emerald-400 rounded-sm transition-all"
                 style={{ height: `${throttlePct}%` }}
               />
             </div>
-            <span className="text-[8px] text-slate-500">T</span>
+            <span className="text-[8px] text-app-text-muted">T</span>
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-[9px] font-mono text-red-400 font-bold tabular-nums">{brakePct.toFixed(0)}</span>
-            <div className="w-6 bg-slate-800 rounded-sm overflow-hidden relative" style={{ height: 60 }}>
+            <div className="w-6 bg-app-surface-alt rounded-sm overflow-hidden relative" style={{ height: 60 }}>
               <div
                 className="absolute bottom-0 w-full bg-red-500 rounded-sm transition-all"
                 style={{ height: `${brakePct}%` }}
               />
             </div>
-            <span className="text-[8px] text-slate-500">B</span>
+            <span className="text-[8px] text-app-text-muted">B</span>
           </div>
         </div>
 
@@ -1348,13 +1348,13 @@ export function LiveTelemetry({ packet }: Props) {
 
       {/* Tires — unified 4-wheel display */}
       <div>
-        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Tires</div>
+        <div className="text-xs text-app-text-muted uppercase tracking-wider mb-2">Tires</div>
         <TireDiagram packet={packet} />
       </div>
 
       {/* Grip history — 60s sparklines */}
       <div>
-        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Grip History (60s)</div>
+        <div className="text-xs text-app-text-muted uppercase tracking-wider mb-2">Grip History (60s)</div>
         <GripHistory packet={packet} />
       </div>
 
@@ -1362,13 +1362,13 @@ export function LiveTelemetry({ packet }: Props) {
 
       {/* Body Attitude */}
       <div>
-        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Body Attitude</div>
+        <div className="text-xs text-app-text-muted uppercase tracking-wider mb-2">Body Attitude</div>
         <BodyAttitude packet={packet} />
       </div>
 
       {/* Telemetry History Charts (60s) */}
       <div>
-        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Telemetry History (60s)</div>
+        <div className="text-xs text-app-text-muted uppercase tracking-wider mb-2">Telemetry History (60s)</div>
         <TelemetryCharts packet={packet} />
       </div>
 

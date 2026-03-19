@@ -38,6 +38,27 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+
+    /* App-level theme tokens */
+    --app-bg: #020617;
+    --app-surface: #0f172a;
+    --app-surface-alt: #1e293b;
+    --app-border: #1e293b;
+    --app-border-input: #334155;
+    --app-text: #f1f5f9;
+    --app-text-secondary: #94a3b8;
+    --app-text-muted: #64748b;
+    --app-text-dim: #475569;
+    --app-accent: #22d3ee;
+    --app-accent-hover: #67e8f9;
+    --app-highlight: #06b6d4;
+
+    /* Glass effects (no-op on default) */
+    --app-glass-blur: 0px;
+    --app-glass-surface: var(--app-surface);
+    --app-glass-surface-alt: var(--app-surface-alt);
+    --app-glass-border: var(--app-border);
+    --app-glass-card: var(--app-surface);
 }
 
 .dark {
@@ -72,6 +93,48 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* ─── Default Theme ─── */
+[data-theme="default"] {
+    --app-bg: #020617;
+    --app-surface: #0f172a;
+    --app-surface-alt: #1e293b;
+    --app-border: #1e293b;
+    --app-border-input: #334155;
+    --app-text: #f1f5f9;
+    --app-text-secondary: #94a3b8;
+    --app-text-muted: #64748b;
+    --app-text-dim: #475569;
+    --app-accent: #22d3ee;
+    --app-accent-hover: #67e8f9;
+    --app-highlight: #06b6d4;
+    --app-glass-blur: 0px;
+    --app-glass-surface: var(--app-surface);
+    --app-glass-surface-alt: var(--app-surface-alt);
+    --app-glass-border: var(--app-border);
+    --app-glass-card: var(--app-surface);
+}
+
+/* ─── Morph Theme (Glassmorphic Black) ─── */
+[data-theme="morph"] {
+    --app-bg: #000000;
+    --app-surface: rgba(255, 255, 255, 0.04);
+    --app-surface-alt: rgba(255, 255, 255, 0.07);
+    --app-border: rgba(255, 255, 255, 0.08);
+    --app-border-input: rgba(255, 255, 255, 0.12);
+    --app-text: rgba(255, 255, 255, 0.95);
+    --app-text-secondary: rgba(255, 255, 255, 0.55);
+    --app-text-muted: rgba(255, 255, 255, 0.35);
+    --app-text-dim: rgba(255, 255, 255, 0.20);
+    --app-accent: #22d3ee;
+    --app-accent-hover: #67e8f9;
+    --app-highlight: #06b6d4;
+    --app-glass-blur: 16px;
+    --app-glass-surface: rgba(255, 255, 255, 0.03);
+    --app-glass-surface-alt: rgba(255, 255, 255, 0.06);
+    --app-glass-border: rgba(255, 255, 255, 0.10);
+    --app-glass-card: rgba(255, 255, 255, 0.04);
 }
 
 @theme inline {
@@ -114,6 +177,24 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+
+    /* App theme colors */
+    --color-app-bg: var(--app-bg);
+    --color-app-surface: var(--app-surface);
+    --color-app-surface-alt: var(--app-surface-alt);
+    --color-app-border: var(--app-border);
+    --color-app-border-input: var(--app-border-input);
+    --color-app-text: var(--app-text);
+    --color-app-text-secondary: var(--app-text-secondary);
+    --color-app-text-muted: var(--app-text-muted);
+    --color-app-text-dim: var(--app-text-dim);
+    --color-app-accent: var(--app-accent);
+    --color-app-accent-hover: var(--app-accent-hover);
+    --color-app-highlight: var(--app-highlight);
+    --color-app-glass-surface: var(--app-glass-surface);
+    --color-app-glass-surface-alt: var(--app-glass-surface-alt);
+    --color-app-glass-border: var(--app-glass-border);
+    --color-app-glass-card: var(--app-glass-card);
 }
 
 @layer base {
@@ -126,4 +207,28 @@
   html {
     @apply font-sans;
     }
+}
+
+/* ─── Glassmorphism utility classes ─── */
+@layer utilities {
+  .glass-panel {
+    background: var(--app-glass-surface);
+    backdrop-filter: blur(var(--app-glass-blur));
+    -webkit-backdrop-filter: blur(var(--app-glass-blur));
+    border-color: var(--app-glass-border);
+  }
+
+  .glass-card {
+    background: var(--app-glass-card);
+    backdrop-filter: blur(var(--app-glass-blur));
+    -webkit-backdrop-filter: blur(var(--app-glass-blur));
+    border-color: var(--app-glass-border);
+  }
+
+  .glass-input {
+    background: var(--app-glass-surface-alt);
+    backdrop-filter: blur(var(--app-glass-blur));
+    -webkit-backdrop-filter: blur(var(--app-glass-blur));
+    border-color: var(--app-glass-border);
+  }
 }

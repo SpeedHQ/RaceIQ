@@ -125,9 +125,9 @@ export function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
   const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
 
   return (
-    <div className="border-b border-slate-800">
-      <div className="p-2 border-b border-slate-800">
-        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sectors</h2>
+    <div className="border-b border-app-border">
+      <div className="p-2 border-b border-app-border">
+        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Sectors</h2>
       </div>
       <div className="p-3">
         <div className="grid grid-cols-3 gap-2">
@@ -138,17 +138,17 @@ export function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
             const isActive = i === s.currentSector;
 
             return (
-              <div key={name} className={`rounded p-2 ${isActive ? "bg-slate-800/80 ring-1" : "bg-slate-800/30"}`} style={isActive ? { ringColor: sectorColors[i] } : {}}>
+              <div key={name} className={`rounded p-2 ${isActive ? "bg-app-surface-alt/80 ring-1" : "bg-app-surface-alt/30"}`} style={isActive ? { ringColor: sectorColors[i] } : {}}>
                 <div className="flex items-center gap-1 mb-1">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: sectorColors[i] }} />
-                  <span className="text-[10px] font-semibold text-slate-400">{name}</span>
+                  <span className="text-[10px] font-semibold text-app-text-secondary">{name}</span>
                 </div>
-                <div className={`text-sm font-mono font-bold tabular-nums ${isActive ? "text-white" : "text-slate-300"}`}>
+                <div className={`text-sm font-mono font-bold tabular-nums ${isActive ? "text-app-text" : "text-app-text"}`}>
                   {current > 0 ? formatLapTime(current) : "--:--.---"}
                 </div>
                 <div className="flex justify-between mt-1">
-                  <span className="text-[8px] text-slate-500">Last</span>
-                  <span className="text-[8px] font-mono text-slate-400">{last > 0 ? formatLapTime(last) : "-"}</span>
+                  <span className="text-[8px] text-app-text-muted">Last</span>
+                  <span className="text-[8px] font-mono text-app-text-secondary">{last > 0 ? formatLapTime(last) : "-"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[8px] text-purple-400">Best</span>

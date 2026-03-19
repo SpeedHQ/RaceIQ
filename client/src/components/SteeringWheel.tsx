@@ -17,7 +17,7 @@ export function SteeringWheel({ steer, rpm, maxRpm }: Props) {
       {/* Shift light LEDs — full width bar */}
       {rpm != null && maxRpm != null && (
         <div className="w-full">
-          <div className="flex justify-between text-[10px] text-slate-500 font-mono mb-0.5">
+          <div className="flex justify-between text-[10px] text-app-text-muted font-mono mb-0.5">
             <span>RPM</span>
             <span className="tabular-nums">{rpm.toFixed(0)} / {maxRpm.toFixed(0)}</span>
           </div>

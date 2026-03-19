@@ -186,9 +186,9 @@ function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
   if (laps.length === 0) return null;
 
   return (
-    <div className="border-b border-slate-800">
-      <div className="p-2 border-b border-slate-800 flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Lap Times</h2>
+    <div className="border-b border-app-border">
+      <div className="p-2 border-b border-app-border flex items-center justify-between">
+        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Lap Times</h2>
         <button
           onClick={handleClearAll}
           className="text-[10px] text-red-400 hover:text-red-300 font-mono"
@@ -200,32 +200,32 @@ function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
         <canvas
           ref={canvasRef}
           style={{ width: "100%", height }}
-          className="rounded bg-slate-900/40"
+          className="rounded bg-app-surface/40"
         />
         <div className="flex gap-3 mt-1.5 flex-wrap">
           <div className="flex items-center gap-1">
             <div className="w-3 h-0.5 bg-cyan-400 rounded" />
-            <span className="text-[9px] text-slate-500">Lap time</span>
+            <span className="text-[9px] text-app-text-muted">Lap time</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-0.5 bg-purple-500 rounded border-dashed" style={{ borderTop: "1px dashed #a855f7", height: 0 }} />
-            <span className="text-[9px] text-slate-500">Optimum (top 5 median)</span>
+            <span className="text-[9px] text-app-text-muted">Optimum (top 5 median)</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3" style={{ borderTop: "1px dashed #fbbf24", height: 0 }} />
-            <span className="text-[9px] text-slate-500">Avg (last 4)</span>
+            <span className="text-[9px] text-app-text-muted">Avg (last 4)</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full bg-purple-500" />
-            <span className="text-[9px] text-slate-500">Best</span>
+            <span className="text-[9px] text-app-text-muted">Best</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="text-[9px] text-slate-500">On pace</span>
+            <span className="text-[9px] text-app-text-muted">On pace</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full bg-orange-400" />
-            <span className="text-[9px] text-slate-500">Off pace</span>
+            <span className="text-[9px] text-app-text-muted">Off pace</span>
           </div>
         </div>
       </div>
@@ -384,9 +384,9 @@ function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
   const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
 
   return (
-    <div className="border-b border-slate-800">
-      <div className="p-2 border-b border-slate-800">
-        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sectors</h2>
+    <div className="border-b border-app-border">
+      <div className="p-2 border-b border-app-border">
+        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Sectors</h2>
       </div>
       <div className="p-3">
         <div className="grid grid-cols-3 gap-2">
@@ -397,17 +397,17 @@ function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
             const isActive = i === s.currentSector;
 
             return (
-              <div key={name} className={`rounded p-2 ${isActive ? "bg-slate-800/80 ring-1" : "bg-slate-800/30"}`} style={isActive ? { ringColor: sectorColors[i] } : {}}>
+              <div key={name} className={`rounded p-2 ${isActive ? "bg-app-surface-alt/80 ring-1" : "bg-app-surface-alt/30"}`} style={isActive ? { ringColor: sectorColors[i] } : {}}>
                 <div className="flex items-center gap-1 mb-1">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: sectorColors[i] }} />
-                  <span className="text-[10px] font-semibold text-slate-400">{name}</span>
+                  <span className="text-[10px] font-semibold text-app-text-secondary">{name}</span>
                 </div>
-                <div className={`text-sm font-mono font-bold tabular-nums ${isActive ? "text-white" : "text-slate-300"}`}>
+                <div className={`text-sm font-mono font-bold tabular-nums ${isActive ? "text-app-text" : "text-app-text"}`}>
                   {current > 0 ? formatLapTime(current) : "--:--.---"}
                 </div>
                 <div className="flex justify-between mt-1">
-                  <span className="text-[8px] text-slate-500">Last</span>
-                  <span className="text-[8px] font-mono text-slate-400">{last > 0 ? formatLapTime(last) : "-"}</span>
+                  <span className="text-[8px] text-app-text-muted">Last</span>
+                  <span className="text-[8px] font-mono text-app-text-secondary">{last > 0 ? formatLapTime(last) : "-"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[8px] text-purple-400">Best</span>
@@ -482,8 +482,8 @@ export default function App() {
   }, [packet?.LapNumber]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="fixed top-0 left-0 right-0 z-50 bg-slate-950 flex items-center justify-between border-b border-slate-800">
+    <div className="min-h-screen bg-app-bg text-app-text">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-app-bg flex items-center justify-between border-b border-app-border">
         <div className="flex items-center">
           <ConnectionStatus connected={connected} packetsPerSec={packetsPerSec} forzaReceiving={packetsPerSec > 0} />
 
@@ -494,8 +494,8 @@ export default function App() {
                 onClick={() => setTab(tab.id)}
                 className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors ${
                   activeTab === tab.id
-                    ? "border-cyan-400 text-cyan-400"
-                    : "border-transparent text-slate-500 hover:text-slate-300"
+                    ? "border-app-accent text-app-accent"
+                    : "border-transparent text-app-text-muted hover:text-app-text"
                 }`}
               >
                 {tab.label}
@@ -508,7 +508,7 @@ export default function App() {
           variant="ghost"
           size="sm"
           onClick={() => setShowSettings(!showSettings)}
-          className="mr-2 text-slate-400 hover:text-white"
+          className="mr-2 text-app-text-secondary hover:text-app-text"
         >
           {showSettings ? "Close" : "Settings"}
         </Button>
@@ -517,7 +517,7 @@ export default function App() {
       <div className="pt-[41px]" />
 
       {showSettings && (
-        <div className="p-4 border-b border-slate-800 bg-slate-950">
+        <div className="p-4 border-b border-app-border bg-app-bg">
           <div className="max-w-md">
             <Settings />
           </div>
@@ -526,9 +526,9 @@ export default function App() {
 
       {activeTab === "live" && (
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0">
-          <div className="border-r border-slate-800 overflow-auto">
-            <div className="p-2 border-b border-slate-800">
-              <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <div className="border-r border-app-border overflow-auto">
+            <div className="p-2 border-b border-app-border">
+              <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">
                 Live Telemetry
               </h2>
             </div>
@@ -536,21 +536,21 @@ export default function App() {
           </div>
           <div className="overflow-auto flex flex-col">
             {/* Live Track Map + Current Lap Stats */}
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] border-b border-slate-800">
-              <div className="border-r border-slate-800 bg-slate-950" style={{ minHeight: 220 }}>
-                <div className="p-2 border-b border-slate-800 flex items-center justify-between">
-                  <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] border-b border-app-border">
+              <div className="border-r border-app-border bg-app-bg" style={{ minHeight: 220 }}>
+                <div className="p-2 border-b border-app-border flex items-center justify-between">
+                  <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">
                     Track Map
                   </h2>
                   {trackName && (
-                    <span className="text-xs text-slate-400 truncate ml-2">{trackName}</span>
+                    <span className="text-xs text-app-text-secondary truncate ml-2">{trackName}</span>
                   )}
                 </div>
                 <LiveTrackMap packet={packet} />
               </div>
               <div>
-                <div className="p-2 border-b border-slate-800">
-                  <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <div className="p-2 border-b border-app-border">
+                  <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">
                     Current Lap
                   </h2>
                 </div>
@@ -560,37 +560,37 @@ export default function App() {
 
             {/* Lap Info */}
             {packet && (
-              <div className="border-b border-slate-800">
-                <div className="p-2 border-b border-slate-800">
-                  <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Race Info</h2>
+              <div className="border-b border-app-border">
+                <div className="p-2 border-b border-app-border">
+                  <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Race Info</h2>
                 </div>
                 <div className="p-3">
                   <div className="flex items-baseline gap-4 mb-2">
                     <div>
-                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">Position</div>
-                      <div className="text-2xl font-mono font-bold text-white tabular-nums">P{packet.RacePosition}</div>
+                      <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Position</div>
+                      <div className="text-2xl font-mono font-bold text-app-text tabular-nums">P{packet.RacePosition}</div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">Lap</div>
-                      <div className="text-2xl font-mono font-bold text-white tabular-nums">{packet.LapNumber}</div>
+                      <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap</div>
+                      <div className="text-2xl font-mono font-bold text-app-text tabular-nums">{packet.LapNumber}</div>
                     </div>
                     <div className="flex-1">
-                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">Current</div>
-                      <div className="text-2xl font-mono font-bold text-white tabular-nums">{formatLapTime(packet.CurrentLap)}</div>
+                      <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Current</div>
+                      <div className="text-2xl font-mono font-bold text-app-text tabular-nums">{formatLapTime(packet.CurrentLap)}</div>
                     </div>
                   </div>
                   <div className="flex gap-4">
                     <div>
-                      <span className="text-[10px] text-slate-500">Last </span>
-                      <span className="text-sm font-mono text-slate-300 tabular-nums">{formatLapTime(packet.LastLap)}</span>
+                      <span className="text-[10px] text-app-text-muted">Last </span>
+                      <span className="text-sm font-mono text-app-text tabular-nums">{formatLapTime(packet.LastLap)}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-500">Best </span>
+                      <span className="text-[10px] text-app-text-muted">Best </span>
                       <span className="text-sm font-mono text-purple-400 tabular-nums">{formatLapTime(packet.BestLap)}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-500">Dist </span>
-                      <span className="text-sm font-mono text-slate-300 tabular-nums">{(packet.DistanceTraveled / 1609.34).toFixed(2)} mi</span>
+                      <span className="text-[10px] text-app-text-muted">Dist </span>
+                      <span className="text-sm font-mono text-app-text tabular-nums">{(packet.DistanceTraveled / 1609.34).toFixed(2)} mi</span>
                     </div>
                   </div>
                 </div>
@@ -605,8 +605,8 @@ export default function App() {
 
             {/* Recorded Laps */}
             <div className="flex-1">
-              <div className="p-2 border-b border-slate-800">
-                <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <div className="p-2 border-b border-app-border">
+                <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">
                   Recorded Laps
                 </h2>
               </div>

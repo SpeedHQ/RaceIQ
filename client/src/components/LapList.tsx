@@ -67,12 +67,12 @@ export function LapList() {
   }
 
   if (loading) {
-    return <div className="p-4 text-slate-600">Loading laps...</div>;
+    return <div className="p-4 text-app-text-dim">Loading laps...</div>;
   }
 
   if (laps.length === 0) {
     return (
-      <div className="p-4 text-slate-600 text-sm">
+      <div className="p-4 text-app-text-dim text-sm">
         No laps recorded yet. Start driving in Forza to record telemetry.
       </div>
     );
@@ -100,11 +100,11 @@ export function LapList() {
     <div className="overflow-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
-            <th className="text-left p-2 cursor-pointer hover:text-slate-300 select-none" onClick={() => toggleSort("lap")}>
+          <tr className="text-xs text-app-text-muted uppercase tracking-wider border-b border-app-border">
+            <th className="text-left p-2 cursor-pointer hover:text-app-text select-none" onClick={() => toggleSort("lap")}>
               Lap{arrow("lap")}
             </th>
-            <th className="text-left p-2 cursor-pointer hover:text-slate-300 select-none" onClick={() => toggleSort("time")}>
+            <th className="text-left p-2 cursor-pointer hover:text-app-text select-none" onClick={() => toggleSort("time")}>
               Time{arrow("time")}
             </th>
             <th className="text-left p-2">Car</th>
@@ -114,10 +114,10 @@ export function LapList() {
         </thead>
         <tbody>
           {sortedLaps.map((lap) => (
-            <tr key={lap.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
-              <td className="p-2 font-mono text-slate-300">{lap.lapNumber}</td>
-              <td className="p-2 font-mono text-white">{formatLapTime(lap.lapTime)}</td>
-              <td className="p-2 text-slate-400 truncate max-w-[160px]" title={lap.carOrdinal != null ? carNames[lap.carOrdinal] ?? `#${lap.carOrdinal}` : "?"}>
+            <tr key={lap.id} className="border-b border-app-border/50 hover:bg-app-surface-alt/30">
+              <td className="p-2 font-mono text-app-text">{lap.lapNumber}</td>
+              <td className="p-2 font-mono text-app-text">{formatLapTime(lap.lapTime)}</td>
+              <td className="p-2 text-app-text-secondary truncate max-w-[160px]" title={lap.carOrdinal != null ? carNames[lap.carOrdinal] ?? `#${lap.carOrdinal}` : "?"}>
                 {lap.carOrdinal != null ? carNames[lap.carOrdinal] ?? `#${lap.carOrdinal}` : "?"}
               </td>
               <td className="p-2 text-center">
@@ -132,7 +132,7 @@ export function LapList() {
                   <ExportButton lapId={lap.id} />
                   <button
                     onClick={() => handleDelete(lap.id)}
-                    className="px-2 py-1 text-xs rounded bg-slate-700 hover:bg-red-600 text-slate-300 hover:text-white transition-colors"
+                    className="px-2 py-1 text-xs rounded bg-slate-700 hover:bg-red-600 text-app-text hover:text-app-text transition-colors"
                   >
                     Delete
                   </button>

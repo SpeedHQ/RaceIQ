@@ -7,7 +7,7 @@ interface Props {
 export function RawTelemetry({ packet }: Props) {
   if (!packet) {
     return (
-      <div className="p-4 text-slate-600">
+      <div className="p-4 text-app-text-dim">
         Waiting for telemetry data...
       </div>
     );
@@ -17,17 +17,17 @@ export function RawTelemetry({ packet }: Props) {
 
   return (
     <div className="p-4 overflow-auto h-full">
-      <div className="text-xs text-slate-500 uppercase tracking-wider mb-3">
+      <div className="text-xs text-app-text-muted uppercase tracking-wider mb-3">
         All Telemetry Values ({entries.length} fields)
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-0.5">
         {entries.map(([key, value]) => (
           <div
             key={key}
-            className="flex justify-between items-center py-0.5 border-b border-slate-800/50"
+            className="flex justify-between items-center py-0.5 border-b border-app-border/50"
           >
-            <span className="text-xs text-slate-400 truncate mr-2">{key}</span>
-            <span className="text-xs font-mono text-slate-200 tabular-nums shrink-0">
+            <span className="text-xs text-app-text-secondary truncate mr-2">{key}</span>
+            <span className="text-xs font-mono text-app-text tabular-nums shrink-0">
               {typeof value === "number"
                 ? Number.isInteger(value)
                   ? value

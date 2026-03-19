@@ -113,18 +113,18 @@ export function CurrentLapStats({ packet }: Props) {
     <div className="p-3 space-y-2">
       <div className="flex justify-between items-end mb-1">
         <div>
-          <div className="text-xs text-slate-500 uppercase tracking-wider">Current Lap</div>
-          <div className="text-xl font-mono font-semibold text-white tabular-nums">
+          <div className="text-xs text-app-text-muted uppercase tracking-wider">Current Lap</div>
+          <div className="text-xl font-mono font-semibold text-app-text tabular-nums">
             {formatLapTime(packet.CurrentLap)}
           </div>
         </div>
         <div className="text-right">
-          <div className="text-xs text-slate-500">Lap {packet.LapNumber}</div>
+          <div className="text-xs text-app-text-muted">Lap {packet.LapNumber}</div>
         </div>
       </div>
 
       {sectors ? (
-        <div className="space-y-1.5 border-t border-slate-800 pt-2">
+        <div className="space-y-1.5 border-t border-app-border pt-2">
           {sectorNames.map((name, i) => {
             const current = i === s.currentSector
               ? packet.CurrentLap - s.sectorStartTime
@@ -146,22 +146,22 @@ export function CurrentLapStats({ packet }: Props) {
             return (
               <div
                 key={name}
-                className={`rounded px-2 py-1.5 ${isActive ? "bg-slate-800/80 ring-1 ring-inset" : "bg-slate-800/30"}`}
+                className={`rounded px-2 py-1.5 ${isActive ? "bg-app-surface-alt/80 ring-1 ring-inset" : "bg-app-surface-alt/30"}`}
                 style={isActive ? { boxShadow: `inset 0 0 0 1px ${SECTOR_COLORS[i]}40` } : {}}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLORS[i] }} />
-                    <span className="text-[10px] font-semibold text-slate-400">{name}</span>
+                    <span className="text-[10px] font-semibold text-app-text-secondary">{name}</span>
                   </div>
-                  <span className={`text-sm font-mono font-bold tabular-nums ${isActive ? "text-white" : "text-slate-300"}`}>
+                  <span className={`text-sm font-mono font-bold tabular-nums ${isActive ? "text-app-text" : "text-app-text"}`}>
                     {current > 0 ? formatLapTime(current) : "--:--.---"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between mt-0.5">
                   <div className="flex gap-3">
-                    <span className="text-[9px] text-slate-500">
-                      Last <span className="font-mono text-slate-400">{last > 0 ? formatLapTime(last) : "-"}</span>
+                    <span className="text-[9px] text-app-text-muted">
+                      Last <span className="font-mono text-app-text-secondary">{last > 0 ? formatLapTime(last) : "-"}</span>
                     </span>
                     <span className="text-[9px] text-purple-400">
                       Best <span className="font-mono">{best > 0 ? formatLapTime(best) : "-"}</span>
@@ -178,9 +178,9 @@ export function CurrentLapStats({ packet }: Props) {
           })}
 
           {/* Last/Best total */}
-          <div className="flex justify-between pt-1 border-t border-slate-800/50">
-            <span className="text-[9px] text-slate-500">
-              Last <span className="font-mono text-slate-400">
+          <div className="flex justify-between pt-1 border-t border-app-border/50">
+            <span className="text-[9px] text-app-text-muted">
+              Last <span className="font-mono text-app-text-secondary">
                 {s.lastTimes[0] > 0 ? formatLapTime(s.lastTimes[0] + s.lastTimes[1] + s.lastTimes[2]) : "-"}
               </span>
             </span>
@@ -192,7 +192,7 @@ export function CurrentLapStats({ packet }: Props) {
           </div>
         </div>
       ) : (
-        <div className="border-t border-slate-800 pt-2 text-xs text-slate-500">
+        <div className="border-t border-app-border pt-2 text-xs text-app-text-muted">
           Complete a lap to see sector times
         </div>
       )}

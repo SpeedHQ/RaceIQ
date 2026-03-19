@@ -275,12 +275,14 @@ function TelemetryChart({
   cursorIdx,
   totalPackets,
   onClickIndex,
+  onScrubStart,
   height = 100,
 }: {
   series: ChartSeries[];
   cursorIdx: number;
   totalPackets: number;
   onClickIndex: (idx: number) => void;
+  onScrubStart?: () => void;
   height?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -379,31 +381,51 @@ function TelemetryChart({
     }
   }, [series, cursorIdx, totalPackets, height]);
 
-  const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const idxFromEvent = useCallback(
+    (clientX: number): number | null => {
       const canvas = canvasRef.current;
       const container = containerRef.current;
-      if (!canvas || !container || totalPackets < 2) return;
+      if (!canvas || !container || totalPackets < 2) return null;
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
+      const x = clientX - rect.left;
       const w = container.clientWidth;
       const leftPad = 40;
       const rightPad = 8;
       const chartW = w - leftPad - rightPad;
       const frac = (x - leftPad) / chartW;
       const idx = Math.round(frac * (totalPackets - 1));
-      if (idx >= 0 && idx < totalPackets) onClickIndex(idx);
+      return idx >= 0 && idx < totalPackets ? idx : null;
     },
-    [totalPackets, onClickIndex]
+    [totalPackets]
+  );
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      onScrubStart?.();
+      const idx = idxFromEvent(e.clientX);
+      if (idx !== null) onClickIndex(idx);
+
+      const handleMouseMove = (ev: MouseEvent) => {
+        const i = idxFromEvent(ev.clientX);
+        if (i !== null) onClickIndex(i);
+      };
+      const handleMouseUp = () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    },
+    [idxFromEvent, onClickIndex, onScrubStart]
   );
 
   return (
     <div ref={containerRef} className="w-full">
       <canvas
         ref={canvasRef}
-        className="w-full cursor-crosshair rounded bg-slate-900/40"
+        className="w-full cursor-crosshair rounded bg-app-surface/40"
         style={{ height }}
-        onClick={handleClick}
+        onMouseDown={handleMouseDown}
       />
     </div>
   );
@@ -431,12 +453,12 @@ function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket; startFuel?: nu
       <MetricRow label="Power" value={`${(pkt.Power / 745.7).toFixed(0)} hp`} />
       <MetricRow label="Torque" value={`${pkt.Torque.toFixed(0)} Nm`} />
       <div className="col-span-2 flex justify-between">
-        <span className="text-slate-500">Fuel</span>
+        <span className="text-app-text-muted">Fuel</span>
         <span className="tabular-nums">
           <span className="text-amber-400">{startFuel != null ? ((startFuel - pkt.Fuel) * 100).toFixed(1) : "?"}</span>
-          <span className="text-slate-600"> used </span>
-          <span className="text-white">{(pkt.Fuel * 100).toFixed(1)}%</span>
-          <span className="text-slate-600"> left</span>
+          <span className="text-app-text-dim"> used </span>
+          <span className="text-app-text">{(pkt.Fuel * 100).toFixed(1)}%</span>
+          <span className="text-app-text-dim"> left</span>
         </span>
       </div>
     </div>
@@ -446,8 +468,8 @@ function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket; startFuel?: nu
 function MetricRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="flex justify-between">
-      <span className="text-slate-500">{label}</span>
-      <span className={color ? "" : "text-white"} style={color ? { color } : undefined}>
+      <span className="text-app-text-muted">{label}</span>
+      <span className={color ? "" : "text-app-text"} style={color ? { color } : undefined}>
         {value}
       </span>
     </div>
@@ -458,14 +480,14 @@ function WearValue({ label, value }: { label: string; value: number }) {
   const pct = (value * 100).toFixed(1);
   const color = value > 0.7 ? "#34d399" : value > 0.4 ? "#fbbf24" : "#ef4444";
   return (
-    <span className="text-slate-400">{label}: <span className="tabular-nums" style={{ color }}>{pct}%</span></span>
+    <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{pct}%</span></span>
   );
 }
 
 function SlipValue({ label, value }: { label: string; value: number }) {
   const color = Math.abs(value) < 0.5 ? "#34d399" : Math.abs(value) < 1.5 ? "#fbbf24" : "#ef4444";
   return (
-    <span className="text-slate-400">{label}: <span className="tabular-nums" style={{ color }}>{value.toFixed(2)}</span></span>
+    <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{value.toFixed(2)}</span></span>
   );
 }
 
@@ -479,7 +501,7 @@ function SlipAngleValue({ label, value, speedMph }: { label: string; value: numb
   const t3 = 14 / speedFactor; // orange->red
   const color = a < t1 ? "#34d399" : a < t2 ? "#fbbf24" : a < t3 ? "#fb923c" : "#ef4444";
   return (
-    <span className="text-slate-400">{label}: <span className="tabular-nums" style={{ color }}>{deg.toFixed(1)}°</span></span>
+    <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{deg.toFixed(1)}°</span></span>
   );
 }
 
@@ -493,8 +515,8 @@ function WheelRow({ label, unit, fl, fr, rl, rr, fmt, colorFn }: {
     </td>
   );
   return (
-    <tr className="border-t border-slate-800/50">
-      <td className="text-slate-500 text-[10px] pr-2 py-0.5">{label}</td>
+    <tr className="border-t border-app-border/50">
+      <td className="text-app-text-muted text-[10px] pr-2 py-0.5">{label}</td>
       {cell(fl)}{cell(fr)}{cell(rl)}{cell(rr)}
     </tr>
   );
@@ -504,7 +526,7 @@ function WheelSpeedValue({ label, value }: { label: string; value: number }) {
   const abs = Math.abs(value);
   const color = abs < 10 ? "#94a3b8" : abs < 50 ? "#34d399" : abs < 100 ? "#fbbf24" : "#ef4444";
   return (
-    <span className="text-slate-400">{label}: <span className="tabular-nums" style={{ color }}>{value.toFixed(1)}</span></span>
+    <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{value.toFixed(1)}</span></span>
   );
 }
 
@@ -512,7 +534,7 @@ function SuspValue({ label, value }: { label: string; value: number }) {
   const pct = (value * 100).toFixed(0);
   const color = value < 0.6 ? "#22d3ee" : value < 0.85 ? "#fbbf24" : "#ef4444";
   return (
-    <span className="text-slate-400">{label}: <span className="tabular-nums" style={{ color }}>{pct}%</span></span>
+    <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{pct}%</span></span>
   );
 }
 
@@ -544,6 +566,7 @@ export function LapAnalyse() {
   const playRef = useRef(false);
   const speedRef = useRef(1);
   const cursorRef = useRef(0);
+  const seekRef = useRef(0);
 
   // Name caches for track/car ordinals
   const [trackNames, setTrackNames] = useState<Record<number, string>>({});
@@ -704,6 +727,7 @@ export function LapAnalyse() {
     let wallStart = performance.now();
     let gameStart = telemetry[cursorRef.current].CurrentLap;
     let lastSpeedChange = speedChangeRef.current;
+    let lastSeek = seekRef.current;
 
     function step(now: number) {
       if (!playRef.current) return;
@@ -714,7 +738,12 @@ export function LapAnalyse() {
         return;
       }
 
-      // Re-anchor timing when speed changes mid-playback
+      // Re-anchor timing when user seeks or speed changes mid-playback
+      if (seekRef.current !== lastSeek) {
+        lastSeek = seekRef.current;
+        wallStart = now;
+        gameStart = telemetry[idx].CurrentLap;
+      }
       if (speedChangeRef.current !== lastSpeedChange) {
         lastSpeedChange = speedChangeRef.current;
         wallStart = now;
@@ -884,6 +913,7 @@ export function LapAnalyse() {
       const idx = Number(e.target.value);
       setCursorIdx(idx);
       cursorRef.current = idx;
+      seekRef.current++;
     },
     []
   );
@@ -891,6 +921,12 @@ export function LapAnalyse() {
   const handleChartClick = useCallback((idx: number) => {
     setCursorIdx(idx);
     cursorRef.current = idx;
+    seekRef.current++;
+  }, []);
+
+  const handleScrubStart = useCallback(() => {
+    setPlaying(false);
+    playRef.current = false;
   }, []);
 
   const currentPacket = telemetry[cursorIdx] ?? null;
@@ -957,12 +993,12 @@ export function LapAnalyse() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header: cascading selectors + export */}
-      <div className="flex items-center gap-2 p-3 border-b border-slate-800 flex-wrap shrink-0">
+      <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
         {/* Track selector */}
         <select
           value={selectedTrack ?? ""}
           onChange={(e) => handleTrackChange(e.target.value ? Number(e.target.value) : null)}
-          className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-cyan-400 min-w-[200px]"
+          className="bg-app-surface-alt border border-app-border-input text-app-text text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-app-border-input min-w-[200px]"
         >
           <option value="">Select track...</option>
           {tracks.map(([ord, count]) => (
@@ -977,7 +1013,7 @@ export function LapAnalyse() {
           value={selectedCar ?? ""}
           onChange={(e) => handleCarChange(e.target.value ? Number(e.target.value) : null)}
           disabled={selectedTrack == null}
-          className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-cyan-400 min-w-[200px] disabled:opacity-40"
+          className="bg-app-surface-alt border border-app-border-input text-app-text text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-app-border-input min-w-[200px] disabled:opacity-40"
         >
           <option value="">Select car...</option>
           {carsForTrack.map(([ord, count]) => (
@@ -992,7 +1028,7 @@ export function LapAnalyse() {
           value={selectedLapId ?? ""}
           onChange={(e) => setSelectedLapId(e.target.value ? Number(e.target.value) : null)}
           disabled={selectedCar == null}
-          className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-cyan-400 min-w-[200px] disabled:opacity-40"
+          className="bg-app-surface-alt border border-app-border-input text-app-text text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-app-border-input min-w-[200px] disabled:opacity-40"
         >
           <option value="">Select lap...</option>
           {filteredLaps.map((lap) => (
@@ -1006,7 +1042,7 @@ export function LapAnalyse() {
           {telemetry.length > 0 && (
             <button
               onClick={handleCopyMetrics}
-              className="text-xs text-slate-400 hover:text-white border border-slate-700 rounded px-3 py-1.5 transition-colors"
+              className="text-xs text-app-text-secondary hover:text-app-text border border-app-border-input rounded px-3 py-1.5 transition-colors"
             >
               Copy
             </button>
@@ -1014,7 +1050,7 @@ export function LapAnalyse() {
           {telemetry.length > 0 && (
             <button
               onClick={handleExport}
-              className="text-xs text-slate-400 hover:text-white border border-slate-700 rounded px-3 py-1.5 transition-colors"
+              className="text-xs text-app-text-secondary hover:text-app-text border border-app-border-input rounded px-3 py-1.5 transition-colors"
             >
               Export CSV
             </button>
@@ -1022,14 +1058,14 @@ export function LapAnalyse() {
           {telemetry.length > 0 && (
             <button
               onClick={() => setAiModalOpen(true)}
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-amber-400 border border-slate-700 rounded px-3 py-1.5 transition-colors"
+              className="flex items-center gap-1.5 text-xs text-app-text-secondary hover:text-amber-400 border border-app-border-input rounded px-3 py-1.5 transition-colors"
             >
               <Sparkles className="size-3" />
               AI Analysis
             </button>
           )}
           {loading && (
-            <span className="text-xs text-slate-500 animate-pulse">
+            <span className="text-xs text-app-text-muted animate-pulse">
               Loading...
             </span>
           )}
@@ -1037,7 +1073,7 @@ export function LapAnalyse() {
       </div>
 
       {telemetry.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
+        <div className="flex-1 flex items-center justify-center text-app-text-muted text-sm">
           {selectedLapId ? "No telemetry data for this lap." : "Select a track, car, and lap to analyse."}
         </div>
       ) : (
@@ -1045,18 +1081,18 @@ export function LapAnalyse() {
           {/* Left: main content (map, charts, scrubber) */}
           <div className="flex-1 min-w-0 h-full overflow-y-auto">
           {/* Top section: Track Map + Metrics */}
-          <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_320px] border-b border-slate-800 shrink-0">
+          <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_320px] border-b border-app-border shrink-0">
             {/* Segment table + legend */}
-            <div className="border-r border-slate-800 overflow-y-auto p-2" style={{ height: 420 }}>
+            <div className="border-r border-app-border overflow-y-auto p-2" style={{ height: 420 }}>
               {/* Legend */}
-              <div className="flex items-center gap-3 mb-2 pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-3 mb-2 pb-2 border-b border-app-border">
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-1.5 rounded-sm bg-amber-500" />
-                  <span className="text-[9px] text-slate-500">Corner</span>
+                  <span className="text-[9px] text-app-text-muted">Corner</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-1.5 rounded-sm bg-blue-500" />
-                  <span className="text-[9px] text-slate-500">Straight</span>
+                  <span className="text-[9px] text-app-text-muted">Straight</span>
                 </div>
               </div>
               {/* Segment list */}
@@ -1066,7 +1102,7 @@ export function LapAnalyse() {
                     <div
                       key={i}
                       className={`flex items-center justify-between px-1.5 py-1 rounded text-[11px] font-mono ${
-                        seg.active ? "bg-slate-800 ring-1 ring-inset ring-slate-600" : ""
+                        seg.active ? "bg-app-surface-alt ring-1 ring-inset ring-app-text-dim" : ""
                       }`}
                     >
                       <div className="flex items-center gap-1.5">
@@ -1074,21 +1110,21 @@ export function LapAnalyse() {
                           className="w-1.5 h-1.5 rounded-full"
                           style={{ backgroundColor: seg.type === "corner" ? "#f59e0b" : "#3b82f6" }}
                         />
-                        <span className={seg.active ? "text-white" : "text-slate-400"}>{seg.name}</span>
+                        <span className={seg.active ? "text-app-text" : "text-app-text-secondary"}>{seg.name}</span>
                       </div>
-                      <span className={seg.active ? "text-white" : "text-slate-500"}>
+                      <span className={seg.active ? "text-app-text" : "text-app-text-muted"}>
                         {seg.completed && seg.time > 0 ? seg.time.toFixed(3) + "s" : seg.active ? "..." : "-"}
                       </span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-[10px] text-slate-600">No segment data</div>
+                <div className="text-[10px] text-app-text-dim">No segment data</div>
               )}
             </div>
 
             {/* Track map */}
-            <div className="border-r border-slate-800 bg-slate-950 p-2 relative" style={{ height: 420 }}>
+            <div className="border-r border-app-border bg-app-bg p-2 relative" style={{ height: 420 }}>
               <AnalyseTrackMap
                 telemetry={telemetry}
                 cursorIdx={cursorIdx}
@@ -1104,11 +1140,11 @@ export function LapAnalyse() {
                 <div className="flex flex-col gap-1">
                   <button
                     onClick={() => setMapZoom((z) => Math.min(z + 0.25, 4))}
-                    className="w-6 h-6 text-xs bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white rounded flex items-center justify-center"
+                    className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
                   >+</button>
                   <button
                     onClick={() => setMapZoom((z) => Math.max(z - 0.25, 0.5))}
-                    className="w-6 h-6 text-xs bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white rounded flex items-center justify-center"
+                    className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
                   >-</button>
                 </div>
                 {/* View toggle */}
@@ -1116,8 +1152,8 @@ export function LapAnalyse() {
                   onClick={() => setRotateWithCar((r) => !r)}
                   className={`px-2 py-1 text-[10px] rounded border transition-colors ${
                     rotateWithCar
-                      ? "bg-cyan-900/50 border-cyan-700 text-cyan-300"
-                      : "bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-300"
+                      ? "bg-cyan-900/50 border-cyan-700 text-app-accent"
+                      : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
                   }`}
                   title="Rotate map to follow car direction"
                 >
@@ -1127,18 +1163,18 @@ export function LapAnalyse() {
                 {currentPacket && <Compass yaw={currentPacket.Yaw} />}
               </div>
               {currentPacket && (
-                <div className="absolute bottom-2 right-2 bg-slate-950/80 rounded p-1">
+                <div className="absolute bottom-2 right-2 bg-app-bg/80 rounded p-1">
                   <BodyAttitude packet={currentPacket} />
                 </div>
               )}
             </div>
 
             {/* Rev meter + Steering wheel + Tire diagram */}
-            <div className="border-r border-slate-800 p-2 flex flex-col items-center justify-center gap-2">
+            <div className="border-r border-app-border p-2 flex flex-col items-center justify-center gap-2">
               {currentPacket && (
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg font-mono font-bold text-cyan-400">{currentPacket.Gear === 0 ? "R" : currentPacket.Gear === 11 ? "N" : currentPacket.Gear}</span>
-                  <span className="text-xl font-mono font-bold tabular-nums text-white">{convertSpeed(currentPacket.Speed, displaySettings.speedUnit).toFixed(0)} <span className="text-[10px] text-slate-500">{speedLabel(displaySettings.speedUnit)}</span></span>
+                  <span className="text-lg font-mono font-bold text-app-accent">{currentPacket.Gear === 0 ? "R" : currentPacket.Gear === 11 ? "N" : currentPacket.Gear}</span>
+                  <span className="text-xl font-mono font-bold tabular-nums text-app-text">{convertSpeed(currentPacket.Speed, displaySettings.speedUnit).toFixed(0)} <span className="text-[10px] text-app-text-muted">{speedLabel(displaySettings.speedUnit)}</span></span>
                 </div>
               )}
               {currentPacket && (
@@ -1147,17 +1183,17 @@ export function LapAnalyse() {
                   <div className="flex gap-1 items-end shrink-0" style={{ height: 80 }}>
                     <div className="flex flex-col items-center gap-0.5">
                       <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{((currentPacket.Accel / 255) * 100).toFixed(0)}</span>
-                      <div className="w-5 bg-slate-800 rounded-sm overflow-hidden relative" style={{ height: 60 }}>
+                      <div className="w-5 bg-app-surface-alt rounded-sm overflow-hidden relative" style={{ height: 60 }}>
                         <div className="absolute bottom-0 w-full bg-emerald-400 rounded-sm transition-all" style={{ height: `${(currentPacket.Accel / 255) * 100}%` }} />
                       </div>
-                      <span className="text-[8px] text-slate-500">T</span>
+                      <span className="text-[8px] text-app-text-muted">T</span>
                     </div>
                     <div className="flex flex-col items-center gap-0.5">
                       <span className="text-[9px] font-mono text-red-400 font-bold tabular-nums">{((currentPacket.Brake / 255) * 100).toFixed(0)}</span>
-                      <div className="w-5 bg-slate-800 rounded-sm overflow-hidden relative" style={{ height: 60 }}>
+                      <div className="w-5 bg-app-surface-alt rounded-sm overflow-hidden relative" style={{ height: 60 }}>
                         <div className="absolute bottom-0 w-full bg-red-500 rounded-sm transition-all" style={{ height: `${(currentPacket.Brake / 255) * 100}%` }} />
                       </div>
-                      <span className="text-[8px] text-slate-500">B</span>
+                      <span className="text-[8px] text-app-text-muted">B</span>
                     </div>
                   </div>
                   <SteeringWheel steer={currentPacket.Steer} rpm={currentPacket.CurrentEngineRpm} maxRpm={currentPacket.EngineMaxRpm} />
@@ -1170,11 +1206,11 @@ export function LapAnalyse() {
           </div>
 
           {/* Lap time + Timeline scrubber */}
-          <div className="px-3 py-2 border-b border-slate-800 bg-slate-900/50 shrink-0">
+          <div className="px-3 py-2 border-b border-app-border bg-app-surface/50 shrink-0">
             <div className="flex items-center gap-3 mb-2">
-              <span className="text-[10px] text-slate-500">Lap {selectedLap?.lapNumber ?? "?"}</span>
-              <span className="text-2xl font-mono font-bold tabular-nums text-cyan-400">{formatLapTime(currentTime)}</span>
-              <span className="text-sm font-mono tabular-nums text-slate-400">/ {formatLapTime(totalTime)}</span>
+              <span className="text-[10px] text-app-text-muted">Lap {selectedLap?.lapNumber ?? "?"}</span>
+              <span className="text-2xl font-mono font-bold tabular-nums text-app-accent">{formatLapTime(currentTime)}</span>
+              <span className="text-sm font-mono tabular-nums text-app-text-secondary">/ {formatLapTime(totalTime)}</span>
               {sectorTimes && (["S1", "S2", "S3"] as const).map((name, i) => {
                 const colors = ["#ef4444", "#3b82f6", "#eab308"];
                 const isActive = sectorTimes.cursorSector === i;
@@ -1182,26 +1218,26 @@ export function LapAnalyse() {
                   <div
                     key={name}
                     className={`flex items-center gap-1.5 px-2 py-1 rounded ${
-                      isActive ? "bg-slate-800 ring-1" : "bg-slate-800/30"
+                      isActive ? "bg-app-surface-alt ring-1" : "bg-app-surface-alt/30"
                     }`}
                     style={isActive ? { boxShadow: `inset 0 0 0 1px ${colors[i]}40` } : {}}
                   >
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[i] }} />
-                    <span className="text-[10px] font-semibold text-slate-500">{name}</span>
-                    <span className={`text-xs font-mono font-bold tabular-nums ${isActive ? "text-white" : "text-slate-400"}`}>
+                    <span className="text-[10px] font-semibold text-app-text-muted">{name}</span>
+                    <span className={`text-xs font-mono font-bold tabular-nums ${isActive ? "text-app-text" : "text-app-text-secondary"}`}>
                       {formatLapTime(sectorTimes.times[i])}
                     </span>
                   </div>
                 );
               })}
-              <span className="text-[10px] font-mono text-slate-600 ml-auto">
+              <span className="text-[10px] font-mono text-app-text-dim ml-auto">
                 Packet {cursorIdx + 1}/{telemetry.length}
               </span>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setPlaying((p) => !p)}
-                className="text-lg w-8 h-8 flex items-center justify-center rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                className="text-lg w-8 h-8 flex items-center justify-center rounded bg-app-surface-alt hover:bg-app-border-input text-app-text transition-colors"
                 title={playing ? "Pause (Space)" : "Play (Space)"}
               >
                 {playing ? "\u275A\u275A" : "\u25B6"}
@@ -1214,7 +1250,7 @@ export function LapAnalyse() {
                     className={`px-1.5 py-0.5 text-[10px] font-mono rounded transition-colors ${
                       playbackSpeed === s
                         ? "bg-cyan-600 text-white"
-                        : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300"
+                        : "bg-app-surface-alt text-app-text-secondary hover:bg-app-border-input hover:text-app-text"
                     }`}
                   >
                     {s}x
@@ -1227,7 +1263,7 @@ export function LapAnalyse() {
                 max={telemetry.length - 1}
                 value={cursorIdx}
                 onChange={handleSliderChange}
-                className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                className="flex-1 h-2 bg-app-border-input rounded-lg appearance-none cursor-pointer accent-cyan-400"
               />
             </div>
           </div>
@@ -1242,6 +1278,7 @@ export function LapAnalyse() {
                 cursorIdx={cursorIdx}
                 totalPackets={telemetry.length}
                 onClickIndex={handleChartClick}
+                onScrubStart={handleScrubStart}
                 height={100}
               />
               <TelemetryChart
@@ -1252,6 +1289,7 @@ export function LapAnalyse() {
                 cursorIdx={cursorIdx}
                 totalPackets={telemetry.length}
                 onClickIndex={handleChartClick}
+                onScrubStart={handleScrubStart}
                 height={100}
               />
               <TelemetryChart
@@ -1261,6 +1299,7 @@ export function LapAnalyse() {
                 cursorIdx={cursorIdx}
                 totalPackets={telemetry.length}
                 onClickIndex={handleChartClick}
+                onScrubStart={handleScrubStart}
                 height={100}
               />
               <TelemetryChart
@@ -1270,6 +1309,7 @@ export function LapAnalyse() {
                 cursorIdx={cursorIdx}
                 totalPackets={telemetry.length}
                 onClickIndex={handleChartClick}
+                onScrubStart={handleScrubStart}
                 height={80}
               />
             </div>
@@ -1277,15 +1317,15 @@ export function LapAnalyse() {
           </div>
 
           {/* Right panel – full height */}
-          <div className="w-80 shrink-0 border-l border-slate-800 bg-slate-900/50 flex flex-col overflow-hidden">
+          <div className="w-80 shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
               {/* Tab switcher */}
-              <div className="flex border-b border-slate-800 shrink-0">
+              <div className="flex border-b border-app-border shrink-0">
                 <button
                   onClick={() => setSidebarTab("live")}
                   className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
                     sidebarTab === "live"
-                      ? "text-white border-b-2 border-cyan-400"
-                      : "text-slate-500 hover:text-slate-300"
+                      ? "text-app-text border-b-2 border-app-accent"
+                      : "text-app-text-muted hover:text-app-text"
                   }`}
                 >
                   Live
@@ -1294,13 +1334,13 @@ export function LapAnalyse() {
                   onClick={() => setSidebarTab("insights")}
                   className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
                     sidebarTab === "insights"
-                      ? "text-white border-b-2 border-cyan-400"
-                      : "text-slate-500 hover:text-slate-300"
+                      ? "text-app-text border-b-2 border-app-accent"
+                      : "text-app-text-muted hover:text-app-text"
                   }`}
                 >
                   Insights
                   {lapInsights.length > 0 && (
-                    <span className="ml-1 text-[9px] bg-slate-700 text-slate-300 rounded-full px-1.5">
+                    <span className="ml-1 text-[9px] bg-app-border-input text-app-text rounded-full px-1.5">
                       {lapInsights.length}
                     </span>
                   )}
@@ -1310,14 +1350,14 @@ export function LapAnalyse() {
               <div className="p-3 flex-1 overflow-y-auto">
               {sidebarTab === "live" ? (
                 <>
-                <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 font-semibold">
+                <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 font-semibold">
                   Metrics at Cursor
                 </h3>
               {currentPacket && <MetricsPanel pkt={currentPacket} startFuel={telemetry[0]?.Fuel} />}
 
               {currentPacket && (
                 <>
-                  <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 mt-3 pt-2 border-t border-slate-800 font-semibold">
+                  <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 mt-3 pt-2 border-t border-app-border font-semibold">
                     Dynamics
                   </h3>
                   {(() => {
@@ -1330,54 +1370,54 @@ export function LapAnalyse() {
                       <div className="text-[11px] font-mono space-y-1.5 mb-3">
                         {/* Balance */}
                         <div className="flex justify-between">
-                          <span className="text-slate-500">Balance</span>
+                          <span className="text-app-text-muted">Balance</span>
                           <span className="tabular-nums" style={{ color: balanceColor(bal.state) }}>
                             {bal.state === "neutral" ? "Neutral" : bal.state === "understeer" ? "Understeer" : "Oversteer"}
-                            <span className="text-slate-600 ml-1">({bal.deltaDeg > 0 ? "+" : ""}{bal.deltaDeg.toFixed(1)}°)</span>
+                            <span className="text-app-text-dim ml-1">({bal.deltaDeg > 0 ? "+" : ""}{bal.deltaDeg.toFixed(1)}°)</span>
                           </span>
                         </div>
                         {/* G-Force */}
                         <div className="flex justify-between">
-                          <span className="text-slate-500">Lat G</span>
+                          <span className="text-app-text-muted">Lat G</span>
                           <span className="tabular-nums" style={{ color: latG > 1.5 ? "#ef4444" : latG > 0.8 ? "#fbbf24" : "#34d399" }}>
                             {latG.toFixed(2)}g
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-500">Lon G</span>
+                          <span className="text-app-text-muted">Lon G</span>
                           <span className="tabular-nums" style={{ color: lonG < -0.5 ? "#ef4444" : lonG > 0.3 ? "#34d399" : "#94a3b8" }}>
                             {lonG > 0 ? "+" : ""}{lonG.toFixed(2)}g
                           </span>
                         </div>
                         {/* Friction circle utilization */}
                         <div className="flex justify-between">
-                          <span className="text-slate-500">Grip Used</span>
+                          <span className="text-app-text-muted">Grip Used</span>
                           <span className="tabular-nums">
                             <span style={{ color: frictionUtilColor(fc.fl) }}>FL {(fc.fl * 100).toFixed(0)}</span>
-                            <span className="text-slate-600"> </span>
+                            <span className="text-app-text-dim"> </span>
                             <span style={{ color: frictionUtilColor(fc.fr) }}>FR {(fc.fr * 100).toFixed(0)}</span>
-                            <span className="text-slate-600"> </span>
+                            <span className="text-app-text-dim"> </span>
                             <span style={{ color: frictionUtilColor(fc.rl) }}>RL {(fc.rl * 100).toFixed(0)}</span>
-                            <span className="text-slate-600"> </span>
+                            <span className="text-app-text-dim"> </span>
                             <span style={{ color: frictionUtilColor(fc.rr) }}>RR {(fc.rr * 100).toFixed(0)}%</span>
                           </span>
                         </div>
                         {/* Slip ratios */}
                         <div className="flex justify-between">
-                          <span className="text-slate-500">Slip Ratio</span>
+                          <span className="text-app-text-muted">Slip Ratio</span>
                           <span className="tabular-nums">
                             <span style={{ color: slipRatioColor(ws.fl.slipRatio) }}>FL {(ws.fl.slipRatio * 100).toFixed(0)}</span>
-                            <span className="text-slate-600"> </span>
+                            <span className="text-app-text-dim"> </span>
                             <span style={{ color: slipRatioColor(ws.fr.slipRatio) }}>FR {(ws.fr.slipRatio * 100).toFixed(0)}</span>
-                            <span className="text-slate-600"> </span>
+                            <span className="text-app-text-dim"> </span>
                             <span style={{ color: slipRatioColor(ws.rl.slipRatio) }}>RL {(ws.rl.slipRatio * 100).toFixed(0)}</span>
-                            <span className="text-slate-600"> </span>
+                            <span className="text-app-text-dim"> </span>
                             <span style={{ color: slipRatioColor(ws.rr.slipRatio) }}>RR {(ws.rr.slipRatio * 100).toFixed(0)}%</span>
                           </span>
                         </div>
                         {/* Wheel states */}
                         <div className="flex justify-between">
-                          <span className="text-slate-500">State</span>
+                          <span className="text-app-text-muted">State</span>
                           <span className="tabular-nums">
                             {[{l:"FL",s:ws.fl},{l:"FR",s:ws.fr},{l:"RL",s:ws.rl},{l:"RR",s:ws.rr}].map(({l,s}) => (
                               <span key={l} className="ml-1" style={{ color: s.state === "grip" ? "#34d399" : s.state === "lockup" ? "#ef4444" : s.state === "spin" ? "#fb923c" : "#94a3b8" }}>
@@ -1390,14 +1430,14 @@ export function LapAnalyse() {
                     );
                   })()}
 
-                  <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 pt-2 border-t border-slate-800 font-semibold">
+                  <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 pt-2 border-t border-app-border font-semibold">
                     Wheels
                   </h3>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] font-mono">
                     {/* Left column: Speed, Temp, Wear */}
                     <div className="space-y-2">
                       <div>
-                        <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Speed (rad/s)</div>
+                        <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Speed (rad/s)</div>
                         <div className="grid grid-cols-2 gap-x-2">
                           <WheelSpeedValue label="FL" value={currentPacket.WheelRotationSpeedFL} />
                           <WheelSpeedValue label="FR" value={currentPacket.WheelRotationSpeedFR} />
@@ -1405,17 +1445,17 @@ export function LapAnalyse() {
                           <WheelSpeedValue label="RR" value={currentPacket.WheelRotationSpeedRR} />
                         </div>
                       </div>
-                      <div className="border-t border-slate-800 pt-1">
-                        <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Temp</div>
+                      <div className="border-t border-app-border pt-1">
+                        <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Temp</div>
                         <div className="grid grid-cols-2 gap-x-2">
-                          <span className="text-slate-400">FL: <span className="tabular-nums text-white">{currentPacket.TireTempFL.toFixed(0)}°</span></span>
-                          <span className="text-slate-400">FR: <span className="tabular-nums text-white">{currentPacket.TireTempFR.toFixed(0)}°</span></span>
-                          <span className="text-slate-400">RL: <span className="tabular-nums text-white">{currentPacket.TireTempRL.toFixed(0)}°</span></span>
-                          <span className="text-slate-400">RR: <span className="tabular-nums text-white">{currentPacket.TireTempRR.toFixed(0)}°</span></span>
+                          <span className="text-app-text-secondary">FL: <span className="tabular-nums text-app-text">{currentPacket.TireTempFL.toFixed(0)}°</span></span>
+                          <span className="text-app-text-secondary">FR: <span className="tabular-nums text-app-text">{currentPacket.TireTempFR.toFixed(0)}°</span></span>
+                          <span className="text-app-text-secondary">RL: <span className="tabular-nums text-app-text">{currentPacket.TireTempRL.toFixed(0)}°</span></span>
+                          <span className="text-app-text-secondary">RR: <span className="tabular-nums text-app-text">{currentPacket.TireTempRR.toFixed(0)}°</span></span>
                         </div>
                       </div>
-                      <div className="border-t border-slate-800 pt-1">
-                        <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Wear</div>
+                      <div className="border-t border-app-border pt-1">
+                        <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Wear</div>
                         <div className="grid grid-cols-2 gap-x-2">
                           <WearValue label="FL" value={currentPacket.TireWearFL} />
                           <WearValue label="FR" value={currentPacket.TireWearFR} />
@@ -1427,7 +1467,7 @@ export function LapAnalyse() {
                     {/* Right column: Slip, Angle, Suspension */}
                     <div className="space-y-2">
                       <div>
-                        <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Slip</div>
+                        <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Slip</div>
                         <div className="grid grid-cols-2 gap-x-2">
                           <SlipValue label="FL" value={currentPacket.TireCombinedSlipFL} />
                           <SlipValue label="FR" value={currentPacket.TireCombinedSlipFR} />
@@ -1435,8 +1475,8 @@ export function LapAnalyse() {
                           <SlipValue label="RR" value={currentPacket.TireCombinedSlipRR} />
                         </div>
                       </div>
-                      <div className="border-t border-slate-800 pt-1">
-                        <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Slip Angle</div>
+                      <div className="border-t border-app-border pt-1">
+                        <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Slip Angle</div>
                         <div className="grid grid-cols-2 gap-x-2">
                           <SlipAngleValue label="FL" value={currentPacket.TireSlipAngleFL} speedMph={currentPacket.Speed * 2.23694} />
                           <SlipAngleValue label="FR" value={currentPacket.TireSlipAngleFR} speedMph={currentPacket.Speed * 2.23694} />
@@ -1444,8 +1484,8 @@ export function LapAnalyse() {
                           <SlipAngleValue label="RR" value={currentPacket.TireSlipAngleRR} speedMph={currentPacket.Speed * 2.23694} />
                         </div>
                       </div>
-                      <div className="border-t border-slate-800 pt-1">
-                        <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Suspension</div>
+                      <div className="border-t border-app-border pt-1">
+                        <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Suspension</div>
                         <div className="grid grid-cols-2 gap-x-2">
                           <SuspValue label="FL" value={currentPacket.NormSuspensionTravelFL} />
                           <SuspValue label="FR" value={currentPacket.NormSuspensionTravelFR} />

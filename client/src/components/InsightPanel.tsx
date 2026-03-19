@@ -27,7 +27,7 @@ function InsightRow({
   return (
     <button
       onClick={() => onJump(insight.frameIndices[eventIdx])}
-      className="w-full text-left px-2 py-1.5 rounded hover:bg-slate-800/60 transition-colors group"
+      className="w-full text-left px-2 py-1.5 rounded hover:bg-app-surface-alt/60 transition-colors group"
     >
       <div className="flex items-start gap-1.5">
         <span
@@ -35,10 +35,10 @@ function InsightRow({
           style={{ backgroundColor: SEVERITY_COLOR[insight.severity] }}
         />
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-mono text-slate-300 group-hover:text-white">
+          <div className="text-[11px] font-mono text-app-text group-hover:text-app-text">
             {insight.label}
           </div>
-          <div className="text-[10px] text-slate-500">{insight.detail}</div>
+          <div className="text-[10px] text-app-text-muted">{insight.detail}</div>
         </div>
       </div>
       {hasMultiple && (
@@ -50,11 +50,11 @@ function InsightRow({
               setEventIdx(prev);
               onJump(insight.frameIndices[prev]);
             }}
-            className="text-[9px] text-slate-500 hover:text-white px-1"
+            className="text-[9px] text-app-text-muted hover:text-app-text px-1"
           >
             ‹
           </button>
-          <span className="text-[9px] text-slate-600 tabular-nums">
+          <span className="text-[9px] text-app-text-dim tabular-nums">
             {eventIdx + 1}/{insight.frameIndices.length}
           </span>
           <button
@@ -64,7 +64,7 @@ function InsightRow({
               setEventIdx(next);
               onJump(insight.frameIndices[next]);
             }}
-            className="text-[9px] text-slate-500 hover:text-white px-1"
+            className="text-[9px] text-app-text-muted hover:text-app-text px-1"
           >
             ›
           </button>
@@ -89,17 +89,17 @@ export function InsightPanel({
           <div key={key}>
             <div className="flex items-center gap-1.5 mb-1">
               <span className="text-xs">{icon}</span>
-              <h4 className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+              <h4 className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold">
                 {label}
               </h4>
               {items.length > 0 && (
-                <span className="text-[9px] bg-slate-800 text-slate-400 rounded-full px-1.5 tabular-nums">
+                <span className="text-[9px] bg-app-surface-alt text-app-text-secondary rounded-full px-1.5 tabular-nums">
                   {items.length}
                 </span>
               )}
             </div>
             {items.length === 0 ? (
-              <div className="text-[10px] text-slate-600 pl-5">
+              <div className="text-[10px] text-app-text-dim pl-5">
                 ✓ No issues detected
               </div>
             ) : (

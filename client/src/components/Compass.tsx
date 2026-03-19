@@ -78,7 +78,7 @@ export function Compass({ yaw }: Props) {
           <circle cx="50" cy="50" r="2.5" fill="#22d3ee" />
         </svg>
       </div>
-      <div className="text-[10px] font-mono text-slate-400 tabular-nums">
+      <div className="text-[10px] font-mono text-app-text-secondary tabular-nums">
         {headingDeg.toFixed(0)}°
       </div>
     </div>

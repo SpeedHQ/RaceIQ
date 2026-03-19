@@ -10,7 +10,7 @@ interface Props {
 export function CornerTable({ corners }: Props) {
   if (corners.length === 0) {
     return (
-      <div className="text-slate-600 text-sm p-4">
+      <div className="text-app-text-dim text-sm p-4">
         No corner data available.
       </div>
     );
@@ -20,7 +20,7 @@ export function CornerTable({ corners }: Props) {
     <div className="overflow-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-xs text-slate-500 uppercase tracking-wider border-b border-slate-800">
+          <tr className="text-xs text-app-text-muted uppercase tracking-wider border-b border-app-border">
             <th className="text-left p-2">Corner</th>
             <th className="text-right p-2">Delta</th>
           </tr>
@@ -30,7 +30,7 @@ export function CornerTable({ corners }: Props) {
             const isGaining = c.deltaSeconds < 0;
             const isNeutral = Math.abs(c.deltaSeconds) < 0.005;
             const colorClass = isNeutral
-              ? "text-slate-400"
+              ? "text-app-text-secondary"
               : isGaining
                 ? "text-emerald-400"
                 : "text-red-400";
@@ -39,9 +39,9 @@ export function CornerTable({ corners }: Props) {
             return (
               <tr
                 key={c.label}
-                className="border-b border-slate-800/50 hover:bg-slate-800/30"
+                className="border-b border-app-border/50 hover:bg-app-surface-alt/30"
               >
-                <td className="p-2 font-mono text-slate-300">{c.label}</td>
+                <td className="p-2 font-mono text-app-text">{c.label}</td>
                 <td className={`p-2 font-mono text-right ${colorClass}`}>
                   {sign}{c.deltaSeconds.toFixed(3)}s
                 </td>

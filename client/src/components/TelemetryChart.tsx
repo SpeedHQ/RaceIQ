@@ -132,6 +132,6 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
   }, [height]);
 
   return (
-    <div ref={containerRef} className="w-full [&_.u-title]:text-slate-400 [&_.u-title]:text-xs [&_.u-title]:font-semibold [&_.u-title]:uppercase [&_.u-title]:tracking-wider [&_.u-legend]:text-slate-400 [&_.u-legend]:text-xs [&_.u-series]:px-1" />
+    <div ref={containerRef} className="w-full [&_.u-title]:text-app-text-secondary [&_.u-title]:text-xs [&_.u-title]:font-semibold [&_.u-title]:uppercase [&_.u-title]:tracking-wider [&_.u-legend]:text-app-text-secondary [&_.u-legend]:text-xs [&_.u-series]:px-1" />
   );
 }

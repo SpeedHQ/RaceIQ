@@ -55,21 +55,21 @@ function TrackCard({ track, onSelect }: { track: TrackInfo; onSelect: (t: TrackI
 
   return (
     <div
-      className="border border-slate-800 rounded-lg overflow-hidden cursor-pointer transition-all bg-slate-900/50 hover:border-slate-700 hover:bg-slate-800/50"
+      className="border border-app-border rounded-lg overflow-hidden cursor-pointer transition-all bg-app-surface/50 hover:border-app-border-input hover:bg-app-surface-alt/50"
       onClick={() => onSelect(track)}
     >
       <div className="p-3">
-        <div className="text-sm font-medium text-white">{track.name}</div>
-        <div className="text-xs text-slate-500">
+        <div className="text-sm font-medium text-app-text">{track.name}</div>
+        <div className="text-xs text-app-text-muted">
           {track.variant} &middot; {track.location}, {track.country.toUpperCase()}
           {track.lengthKm > 0 && ` &middot; ${track.lengthKm} km`}
         </div>
       </div>
-      <div className="bg-slate-950" style={{ height: 150 }}>
+      <div className="bg-app-bg" style={{ height: 150 }}>
         {track.hasOutline ? (
           <canvas ref={canvasRef} className="w-full h-full" />
         ) : (
-          <div className="flex items-center justify-center h-full text-xs text-slate-600">
+          <div className="flex items-center justify-center h-full text-xs text-app-text-dim">
             No outline available
           </div>
         )}
@@ -90,8 +90,24 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   const [editing, setEditing] = useState(false);
   const [editSegments, setEditSegments] = useState<TrackSegment[]>([]);
   const [saving, setSaving] = useState(false);
-  const [leaderboard, setLeaderboard] = useState<Record<string, { lapId: number; lapNumber: number; lapTime: number; carName: string; carClass: string; pi: number }[]> | null>(null);
-  const [selectedClass, setSelectedClass] = useState<string>("all");
+  interface TrackLap {
+    lapId: number;
+    lapNumber: number;
+    lapTime: number;
+    carOrdinal: number;
+    carName: string;
+    carClass: string;
+    pi: number;
+  }
+  const [trackLaps, setTrackLaps] = useState<TrackLap[]>([]);
+  const [selectedCars, setSelectedCars] = useState<Set<number>>(new Set());
+  const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
+  const [sortBy, setSortBy] = useState<"time" | "lap">("time");
+  const [sortAsc, setSortAsc] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmSingleDelete, setConfirmSingleDelete] = useState<number | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!track.hasOutline) return;
@@ -106,13 +122,21 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
     }).catch(() => {});
   }, [track.ordinal, track.hasOutline]);
 
-  // Fetch leaderboard
-  useEffect(() => {
+  // Fetch all laps for this track
+  const fetchTrackLaps = useCallback(() => {
     fetch(`/api/tracks/${track.ordinal}/leaderboard`)
       .then((r) => (r.ok ? r.json() : null))
-      .then(setLeaderboard)
+      .then((data: Record<string, TrackLap[]> | null) => {
+        if (!data) { setTrackLaps([]); return; }
+        const all = Object.values(data).flat();
+        setTrackLaps(all);
+        // Initialize car filter to all cars
+        setSelectedCars(new Set(all.map((l) => l.carOrdinal)));
+      })
       .catch(() => {});
   }, [track.ordinal]);
+
+  useEffect(() => { fetchTrackLaps(); }, [fetchTrackLaps]);
 
   // Use edit segments for preview when editing, otherwise use fetched sectors
   const displaySectors = editing && editSegments.length > 0
@@ -232,19 +256,100 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   const corners = displaySectors?.segments.filter((s) => s.type === "corner") ?? [];
   const straights = displaySectors?.segments.filter((s) => s.type === "straight") ?? [];
 
+  // Lap manager: unique cars, filtered & sorted laps
+  const uniqueCars = useMemo(() => {
+    const map = new Map<number, { carOrdinal: number; carName: string; carClass: string }>();
+    for (const l of trackLaps) {
+      if (!map.has(l.carOrdinal)) map.set(l.carOrdinal, { carOrdinal: l.carOrdinal, carName: l.carName, carClass: l.carClass });
+    }
+    return Array.from(map.values()).sort((a, b) => a.carName.localeCompare(b.carName));
+  }, [trackLaps]);
+
+  const filteredLaps = useMemo(() => {
+    let laps = trackLaps.filter((l) => selectedCars.has(l.carOrdinal));
+    laps.sort((a, b) => {
+      const cmp = sortBy === "time" ? a.lapTime - b.lapTime : a.lapNumber - b.lapNumber;
+      return sortAsc ? cmp : -cmp;
+    });
+    return laps;
+  }, [trackLaps, selectedCars, sortBy, sortAsc]);
+
+  const toggleCar = useCallback((ord: number) => {
+    setSelectedCars((prev) => {
+      const next = new Set(prev);
+      if (next.has(ord)) next.delete(ord); else next.add(ord);
+      return next;
+    });
+    setSelectedLaps(new Set());
+  }, []);
+
+  const toggleAllCars = useCallback(() => {
+    if (selectedCars.size === uniqueCars.length) setSelectedCars(new Set());
+    else setSelectedCars(new Set(uniqueCars.map((c) => c.carOrdinal)));
+    setSelectedLaps(new Set());
+  }, [selectedCars.size, uniqueCars]);
+
+  const toggleLapSelect = useCallback((lapId: number) => {
+    setSelectedLaps((prev) => {
+      const next = new Set(prev);
+      if (next.has(lapId)) next.delete(lapId); else next.add(lapId);
+      return next;
+    });
+  }, []);
+
+  const toggleAllLaps = useCallback(() => {
+    if (selectedLaps.size === filteredLaps.length) setSelectedLaps(new Set());
+    else setSelectedLaps(new Set(filteredLaps.map((l) => l.lapId)));
+  }, [selectedLaps.size, filteredLaps]);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedLaps.size === 0) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/laps/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedLaps) }),
+      });
+      if (res.ok) {
+        setSelectedLaps(new Set());
+        setConfirmDelete(false);
+        fetchTrackLaps();
+      }
+    } catch {}
+    setDeleting(false);
+  }, [selectedLaps, fetchTrackLaps]);
+
+  const handleSingleDelete = useCallback(async (lapId: number) => {
+    await fetch(`/api/laps/${lapId}`, { method: "DELETE" });
+    setSelectedLaps((prev) => { const next = new Set(prev); next.delete(lapId); return next; });
+    fetchTrackLaps();
+  }, [fetchTrackLaps]);
+
+  const handleSort = useCallback((col: "time" | "lap") => {
+    if (sortBy === col) setSortAsc((a) => !a);
+    else { setSortBy(col); setSortAsc(true); }
+  }, [sortBy]);
+
+  const classTextColors: Record<string, string> = {
+    X: "text-purple-400", P: "text-pink-400", R: "text-red-400",
+    S2: "text-orange-400", S1: "text-amber-400", A: "text-green-400",
+    B: "text-blue-400", C: "text-cyan-400", D: "text-slate-400",
+  };
+
   return (
     <div className="p-4 overflow-auto h-full">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <button
           onClick={onBack}
-          className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 transition-colors"
+          className="text-xs text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-border-input transition-colors"
         >
           &larr; Back
         </button>
         <div>
-          <div className="text-lg font-semibold text-white">{track.name}</div>
-          <div className="text-xs text-slate-500">
+          <div className="text-lg font-semibold text-app-text">{track.name}</div>
+          <div className="text-xs text-app-text-muted">
             {track.variant} &middot; {track.location}, {track.country.toUpperCase()}
             {track.lengthKm > 0 && ` &middot; ${track.lengthKm} km`}
           </div>
@@ -253,11 +358,11 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
         {/* Large track map */}
-        <div className="bg-slate-950 rounded-lg border border-slate-800 relative" style={{ height: 600 }}>
+        <div className="bg-app-bg rounded-lg border border-app-border relative" style={{ height: 600 }}>
           {track.hasOutline ? (
             <canvas ref={canvasRef} className="w-full h-full" />
           ) : (
-            <div className="flex items-center justify-center h-full text-xs text-slate-600">
+            <div className="flex items-center justify-center h-full text-xs text-app-text-dim">
               No outline available
             </div>
           )}
@@ -265,16 +370,16 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
           <div className="absolute top-2 right-2 flex flex-col gap-1">
             <button
               onClick={() => setZoom((z) => Math.min(z + 0.25, 4))}
-              className="w-7 h-7 text-sm bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white rounded flex items-center justify-center"
+              className="w-7 h-7 text-sm bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
             >+</button>
             <button
               onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
-              className="w-7 h-7 text-sm bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white rounded flex items-center justify-center"
+              className="w-7 h-7 text-sm bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
             >-</button>
             {zoom !== 1 && (
               <button
                 onClick={() => setZoom(1)}
-                className="w-7 h-7 text-[10px] bg-slate-800/80 border border-slate-700 text-slate-400 hover:text-white rounded flex items-center justify-center"
+                className="w-7 h-7 text-[10px] bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
               >1x</button>
             )}
           </div>
@@ -283,33 +388,33 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
         {/* Track info sidebar */}
         <div className="flex flex-col gap-3">
           {/* Stats */}
-          <div className="bg-slate-900/50 rounded-lg border border-slate-800 p-3">
-            <div className="text-xs text-slate-500 uppercase tracking-wider mb-2">Track Info</div>
+          <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
+            <div className="text-xs text-app-text-muted uppercase tracking-wider mb-2">Track Info</div>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
-                <span className="text-slate-500 text-xs">Length</span>
-                <div className="font-mono text-white">{track.lengthKm > 0 ? `${track.lengthKm} km` : "—"}</div>
+                <span className="text-app-text-muted text-xs">Length</span>
+                <div className="font-mono text-app-text">{track.lengthKm > 0 ? `${track.lengthKm} km` : "—"}</div>
               </div>
               <div>
-                <span className="text-slate-500 text-xs">Corners</span>
-                <div className="font-mono text-white">{corners.length}</div>
+                <span className="text-app-text-muted text-xs">Corners</span>
+                <div className="font-mono text-app-text">{corners.length}</div>
               </div>
               <div>
-                <span className="text-slate-500 text-xs">Straights</span>
-                <div className="font-mono text-white">{straights.length}</div>
+                <span className="text-app-text-muted text-xs">Straights</span>
+                <div className="font-mono text-app-text">{straights.length}</div>
               </div>
               <div>
-                <span className="text-slate-500 text-xs">Segments</span>
-                <div className="font-mono text-white">{displaySectors?.segments.length ?? 0}</div>
+                <span className="text-app-text-muted text-xs">Segments</span>
+                <div className="font-mono text-app-text">{displaySectors?.segments.length ?? 0}</div>
               </div>
             </div>
           </div>
 
           {/* Segment list / editor */}
           {displaySectors && displaySectors.segments.length > 0 && (
-            <div className="bg-slate-900/50 rounded-lg border border-slate-800 p-3">
+            <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
               <div className="flex items-center justify-between mb-2">
-                <div className="text-xs text-slate-500 uppercase tracking-wider">Segments</div>
+                <div className="text-xs text-app-text-muted uppercase tracking-wider">Segments</div>
                 {!editing ? (
                   <button
                     onClick={startEditing}
@@ -328,7 +433,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
                     </button>
                     <button
                       onClick={() => setEditing(false)}
-                      className="text-[10px] text-slate-400 hover:text-slate-300 px-2 py-0.5 rounded bg-slate-800 border border-slate-700"
+                      className="text-[10px] text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
                     >
                       Cancel
                     </button>
@@ -347,9 +452,9 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
                       <div key={i} className={`flex items-center justify-between px-2 py-1 rounded ${bg}`}>
                         <div className="flex items-center gap-2">
                           <span className={`text-xs font-mono font-bold ${color}`}>{segDisplayNames[i]}</span>
-                          <span className="text-[10px] text-slate-500 capitalize">{seg.type}</span>
+                          <span className="text-[10px] text-app-text-muted capitalize">{seg.type}</span>
                         </div>
-                        <span className="text-[10px] font-mono text-slate-400">{pct}%</span>
+                        <span className="text-[10px] font-mono text-app-text-secondary">{pct}%</span>
                       </div>
                     );
                   }
@@ -367,20 +472,20 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
                           value={seg.name}
                           placeholder={segDisplayNames[i]}
                           onChange={(e) => updateSegName(i, e.target.value)}
-                          className="flex-1 text-xs font-mono bg-transparent border-b border-slate-700 text-white outline-none px-1 placeholder:text-slate-600"
+                          className="flex-1 text-xs font-mono bg-transparent border-b border-app-border-input text-app-text outline-none px-1 placeholder:text-app-text-dim"
                         />
                         <button
                           onClick={() => addSegment(i)}
-                          className="text-[10px] text-slate-500 hover:text-white px-1"
+                          className="text-[10px] text-app-text-muted hover:text-app-text px-1"
                           title="Split segment"
                         >+</button>
                         <button
                           onClick={() => removeSegment(i)}
-                          className="text-[10px] text-slate-500 hover:text-red-400 px-1"
+                          className="text-[10px] text-app-text-muted hover:text-red-400 px-1"
                           title="Remove segment"
                         >x</button>
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400">
+                      <div className="flex items-center gap-2 text-[10px] font-mono text-app-text-secondary">
                         <input
                           type="number"
                           step="0.1"
@@ -388,7 +493,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
                           max="100"
                           value={(seg.startFrac * 100).toFixed(1)}
                           onChange={(e) => updateSegFrac(i, "startFrac", Number(e.target.value) / 100)}
-                          className="w-14 bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-white text-center"
+                          className="w-14 bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
                         />
                         <span>-</span>
                         <input
@@ -398,9 +503,9 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
                           max="100"
                           value={(seg.endFrac * 100).toFixed(1)}
                           onChange={(e) => updateSegFrac(i, "endFrac", Number(e.target.value) / 100)}
-                          className="w-14 bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-white text-center"
+                          className="w-14 bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
                         />
-                        <span className="text-slate-600">({pct}%)</span>
+                        <span className="text-app-text-dim">({pct}%)</span>
                       </div>
                     </div>
                   );
@@ -411,74 +516,189 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
         </div>
       </div>
 
-      {/* Fastest laps by PI class */}
-      {leaderboard && Object.keys(leaderboard).length > 0 && (() => {
-        const classes = Object.keys(leaderboard);
-        const textColors: Record<string, string> = {
-          X: "text-purple-400", P: "text-pink-400", R: "text-red-400",
-          S2: "text-orange-400", S1: "text-amber-400", A: "text-green-400",
-          B: "text-blue-400", C: "text-cyan-400", D: "text-slate-400",
-        };
-        const classColors: Record<string, string> = {
-          X: "border-purple-500/50 bg-purple-500/5",
-          P: "border-pink-500/50 bg-pink-500/5",
-          R: "border-red-500/50 bg-red-500/5",
-          S2: "border-orange-500/50 bg-orange-500/5",
-          S1: "border-amber-500/50 bg-amber-500/5",
-          A: "border-green-500/50 bg-green-500/5",
-          B: "border-blue-500/50 bg-blue-500/5",
-          C: "border-cyan-500/50 bg-cyan-500/5",
-          D: "border-slate-500/50 bg-slate-500/5",
-        };
-        const filtered = selectedClass === "all"
-          ? Object.entries(leaderboard)
-          : Object.entries(leaderboard).filter(([cls]) => cls === selectedClass);
-
-        return (
-          <div className="mt-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="text-xs text-slate-500 uppercase tracking-wider">Fastest Laps</div>
-              <select
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-                className="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-cyan-400"
-              >
-                <option value="all">All Classes ({classes.length})</option>
-                {classes.map((cls) => (
-                  <option key={cls} value={cls}>
-                    {cls} Class ({leaderboard[cls].length} laps)
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {filtered.map(([cls, laps]) => (
-                <div key={cls} className={`rounded-lg border p-3 ${classColors[cls] ?? "border-slate-800 bg-slate-900/50"}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`text-sm font-bold font-mono ${textColors[cls] ?? "text-slate-400"}`}>{cls}</span>
-                    <span className="text-[10px] text-slate-500">Class</span>
-                    <span className="text-[10px] text-slate-600 ml-auto">{laps.length} laps</span>
-                  </div>
-                  <div className="space-y-1">
-                    {laps.map((lap, i) => (
-                      <div key={lap.lapId} className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="text-slate-600 w-4">{i + 1}.</span>
-                          <span className="text-slate-300 truncate max-w-[160px]">{lap.carName}</span>
-                          <span className="text-[10px] text-slate-600">PI {lap.pi}</span>
-                        </div>
-                        <span className={`font-mono tabular-nums ${i === 0 ? "text-white font-bold" : "text-slate-400"}`}>
-                          {formatLapTime(lap.lapTime)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+      {/* Lap Manager */}
+      {trackLaps.length > 0 && (
+        <div className="mt-4">
+          {/* Car filter */}
+          <div className="flex items-center gap-3 mb-3 flex-wrap">
+            <div className="text-xs text-app-text-muted uppercase tracking-wider">Laps ({filteredLaps.length})</div>
+            <button
+              onClick={toggleAllCars}
+              className="text-[10px] px-2 py-0.5 rounded border border-app-border-input text-app-text-secondary hover:text-app-text"
+            >
+              {selectedCars.size === uniqueCars.length ? "None" : "All"}
+            </button>
+            <div className="flex flex-wrap gap-1">
+              {uniqueCars.map((car) => {
+                const active = selectedCars.has(car.carOrdinal);
+                return (
+                  <button
+                    key={car.carOrdinal}
+                    onClick={() => toggleCar(car.carOrdinal)}
+                    className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                      active
+                        ? "border-app-accent/50 bg-app-accent/10 text-app-text"
+                        : "border-app-border text-app-text-dim hover:text-app-text-secondary"
+                    }`}
+                  >
+                    <span className={`font-bold font-mono mr-1 ${classTextColors[car.carClass] ?? "text-app-text-secondary"}`}>{car.carClass}</span>
+                    {car.carName}
+                  </button>
+                );
+              })}
             </div>
           </div>
-        );
-      })()}
+
+          {/* Lap table */}
+          <div className="bg-app-surface/50 rounded-lg border border-app-border overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-app-border text-app-text-muted">
+                  <th className="w-8 px-2 py-2 text-left">
+                    <input
+                      type="checkbox"
+                      checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0}
+                      onChange={toggleAllLaps}
+                      className="accent-cyan-400"
+                    />
+                  </th>
+                  <th className="px-2 py-2 text-left">Car</th>
+                  <th className="px-2 py-2 text-left">Class</th>
+                  <th
+                    className="px-2 py-2 text-left cursor-pointer hover:text-app-text select-none"
+                    onClick={() => handleSort("lap")}
+                  >
+                    Lap # {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
+                  </th>
+                  <th
+                    className="px-2 py-2 text-left cursor-pointer hover:text-app-text select-none"
+                    onClick={() => handleSort("time")}
+                  >
+                    Time {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
+                  </th>
+                  <th className="px-2 py-2 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLaps.map((lap) => (
+                  <tr
+                    key={lap.lapId}
+                    className={`border-b border-app-border/50 hover:bg-app-surface-alt/30 ${
+                      selectedLaps.has(lap.lapId) ? "bg-cyan-500/5" : ""
+                    }`}
+                  >
+                    <td className="px-2 py-1.5">
+                      <input
+                        type="checkbox"
+                        checked={selectedLaps.has(lap.lapId)}
+                        onChange={() => toggleLapSelect(lap.lapId)}
+                        className="accent-cyan-400"
+                      />
+                    </td>
+                    <td className="px-2 py-1.5 text-app-text truncate max-w-[200px]">{lap.carName}</td>
+                    <td className="px-2 py-1.5">
+                      <span className={`font-bold font-mono ${classTextColors[lap.carClass] ?? "text-app-text-secondary"}`}>{lap.carClass}</span>
+                      <span className="text-app-text-dim ml-1">PI {lap.pi}</span>
+                    </td>
+                    <td className="px-2 py-1.5 font-mono text-app-text-secondary">{lap.lapNumber}</td>
+                    <td className="px-2 py-1.5 font-mono tabular-nums text-app-text">{formatLapTime(lap.lapTime)}</td>
+                    <td className="px-2 py-1.5 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => navigate({ to: "/analyse", search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } })}
+                          className="text-[10px] px-1.5 py-0.5 rounded text-cyan-400 hover:text-cyan-300 bg-cyan-900/20 hover:bg-cyan-900/40"
+                        >
+                          Analyse
+                        </button>
+                        {confirmSingleDelete === lap.lapId ? (
+                          <>
+                            <button
+                              onClick={() => { handleSingleDelete(lap.lapId); setConfirmSingleDelete(null); }}
+                              className="text-[10px] px-1.5 py-0.5 rounded text-white bg-red-600 hover:bg-red-500"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setConfirmSingleDelete(null)}
+                              className="text-[10px] px-1.5 py-0.5 rounded text-app-text-secondary hover:text-app-text bg-app-surface-alt"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmSingleDelete(lap.lapId)}
+                            className="text-[10px] px-1.5 py-0.5 rounded text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/40"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredLaps.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-2 py-4 text-center text-app-text-dim">
+                      No laps match the selected filters
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Action bar */}
+          {selectedLaps.size > 0 && (
+            <div className="mt-3 flex items-center gap-2 p-2 bg-app-surface-alt/50 rounded-lg border border-app-border">
+              <span className="text-xs text-app-text-secondary">{selectedLaps.size} selected</span>
+              <div className="flex-1" />
+              {selectedLaps.size === 2 && (() => {
+                const [lapA, lapB] = Array.from(selectedLaps);
+                return (
+                  <button
+                    onClick={() => navigate({ to: "/compare", search: {
+                      track: track.ordinal,
+                      lapA,
+                      lapB,
+                      carA: trackLaps.find((l) => l.lapId === lapA)?.carOrdinal,
+                      carB: trackLaps.find((l) => l.lapId === lapB)?.carOrdinal,
+                    } })}
+                    className="text-xs px-3 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-medium"
+                  >
+                    Compare
+                  </button>
+                );
+              })()}
+              {!confirmDelete ? (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="text-xs px-3 py-1 rounded bg-red-600/80 hover:bg-red-600 text-white font-medium"
+                >
+                  Delete ({selectedLaps.size})
+                </button>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-red-400">Confirm?</span>
+                  <button
+                    onClick={handleBulkDelete}
+                    disabled={deleting}
+                    className="text-xs px-2 py-1 rounded bg-red-600 hover:bg-red-500 text-white font-medium disabled:opacity-50"
+                  >
+                    {deleting ? "..." : "Yes, delete"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="text-xs px-2 py-1 rounded bg-app-surface-alt text-app-text-secondary hover:text-app-text"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -709,7 +929,7 @@ export function TrackViewer() {
   }, []);
 
   if (loading) {
-    return <div className="p-4 text-slate-600">Loading tracks...</div>;
+    return <div className="p-4 text-app-text-dim">Loading tracks...</div>;
   }
 
   if (selectedTrack) {
@@ -733,7 +953,7 @@ export function TrackViewer() {
   return (
     <div className="p-4 overflow-auto h-full">
       <div className="flex items-center gap-3 mb-3">
-        <div className="text-xs text-slate-500 uppercase tracking-wider whitespace-nowrap">
+        <div className="text-xs text-app-text-muted uppercase tracking-wider whitespace-nowrap">
           Available Tracks ({withOutline.length} with outlines, {withoutOutline.length} without)
         </div>
         <input
@@ -741,12 +961,12 @@ export function TrackViewer() {
           placeholder="Search tracks..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-7 w-full max-w-xs rounded-md border border-slate-700 bg-slate-900/50 px-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-slate-500 transition-colors"
+          className="h-7 w-full max-w-xs rounded-md border border-app-border-input bg-app-surface/50 px-2.5 text-sm text-app-text placeholder:text-app-text-dim outline-none focus:border-app-text-muted transition-colors"
         />
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-sm text-slate-600 mt-6">No tracks matching &ldquo;{search}&rdquo;</div>
+        <div className="text-sm text-app-text-dim mt-6">No tracks matching &ldquo;{search}&rdquo;</div>
       )}
 
       {withOutline.length > 0 && (
@@ -759,18 +979,18 @@ export function TrackViewer() {
 
       {withoutOutline.length > 0 && (
         <>
-          <div className="text-xs text-slate-500 uppercase tracking-wider mb-3 mt-4">
+          <div className="text-xs text-app-text-muted uppercase tracking-wider mb-3 mt-4">
             Tracks Without Outlines
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
             {withoutOutline.map((t) => (
               <div
                 key={t.ordinal}
-                className="border border-slate-800 rounded-lg p-3 bg-slate-900/30 cursor-pointer hover:border-slate-700"
+                className="border border-app-border rounded-lg p-3 bg-app-surface/30 cursor-pointer hover:border-app-border-input"
                 onClick={() => handleSelectTrack(t)}
               >
-                <div className="text-sm text-slate-400">{t.name}</div>
-                <div className="text-xs text-slate-600">
+                <div className="text-sm text-app-text-secondary">{t.name}</div>
+                <div className="text-xs text-app-text-dim">
                   {t.variant} &middot; {t.location}
                 </div>
               </div>

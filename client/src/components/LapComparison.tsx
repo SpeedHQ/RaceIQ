@@ -423,39 +423,39 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
   }, [drawBoth]);
 
   return (
-    <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
-      <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between">
+    <div className="bg-app-surface rounded-lg border border-app-border overflow-hidden">
+      <div className="px-3 py-2 border-b border-app-border flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_A }} />
             <span className="text-xs uppercase tracking-wider" style={{ color: COLOR_A }}>{labelA}</span>
-            <span className="text-xs font-mono text-slate-500 ml-1">{lapTimeA}</span>
+            <span className="text-xs font-mono text-app-text-muted ml-1">{lapTimeA}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_B }} />
             <span className="text-xs uppercase tracking-wider" style={{ color: COLOR_B }}>{labelB}</span>
-            <span className="text-xs font-mono text-slate-500 ml-1">{lapTimeB}</span>
+            <span className="text-xs font-mono text-app-text-muted ml-1">{lapTimeB}</span>
           </div>
         </div>
-        <span className="text-[10px] text-slate-600 uppercase tracking-wider">Racing Lines</span>
+        <span className="text-[10px] text-app-text-dim uppercase tracking-wider">Racing Lines</span>
       </div>
       <div className="grid grid-cols-2 h-[300px]">
         {/* Overview — full track, static */}
-        <div ref={overviewContainerRef} className="relative border-r border-slate-800">
-          <span className="absolute top-2 left-2 text-[10px] text-slate-600 uppercase tracking-wider z-10">Overview</span>
+        <div ref={overviewContainerRef} className="relative border-r border-app-border">
+          <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">Overview</span>
           {outline.length < 2 ? (
-            <div className="absolute inset-0 flex items-center justify-center text-slate-600 text-sm">No track outline</div>
+            <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No track outline</div>
           ) : (
             <canvas ref={overviewCanvasRef} className="absolute inset-0" />
           )}
         </div>
         {/* Zoomed — follows cursor position */}
         <div ref={zoomContainerRef} className="relative">
-          <span className="absolute top-2 left-2 text-[10px] text-slate-600 uppercase tracking-wider z-10">
+          <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">
 Zoomed
           </span>
           {outline.length < 2 ? (
-            <div className="absolute inset-0 flex items-center justify-center text-slate-600 text-sm">No track outline</div>
+            <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No track outline</div>
           ) : (
             <canvas ref={zoomCanvasRef} className="absolute inset-0" />
           )}
@@ -651,11 +651,11 @@ export function LapComparison() {
       <div className="flex items-start gap-4 flex-wrap">
         {/* Track selector */}
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-slate-500 uppercase tracking-wider">Track</label>
+          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Track</label>
           <select
             value={selectedTrack ?? ""}
             onChange={(e) => setSelectedTrack(e.target.value ? Number(e.target.value) : null)}
-            className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-400 min-w-[200px]"
+            className="bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-border-input min-w-[200px]"
           >
             <option value="">Select track...</option>
             {trackGroups.map((g) => (
@@ -670,13 +670,13 @@ export function LapComparison() {
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-            <label className="text-[10px] text-slate-500 uppercase tracking-wider">Car A</label>
+            <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Car A</label>
           </div>
           <select
             value={carAOrd ?? ""}
             onChange={(e) => setCarAOrd(e.target.value ? Number(e.target.value) : null)}
             disabled={!selectedTrack}
-            className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-orange-500 disabled:opacity-50 min-w-[200px]"
+            className="bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:border-orange-500 disabled:opacity-50 min-w-[200px]"
           >
             <option value="">Select car...</option>
             {trackCars.map((ord) => (
@@ -689,12 +689,12 @@ export function LapComparison() {
 
         {/* Lap A */}
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-slate-500 uppercase tracking-wider">Lap A</label>
+          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap A</label>
           <select
             value={lapAId ?? ""}
             onChange={(e) => setLapAId(e.target.value ? Number(e.target.value) : null)}
             disabled={!carAOrd}
-            className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-orange-500 disabled:opacity-50 min-w-[180px]"
+            className="bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text font-mono focus:outline-none focus:border-orange-500 disabled:opacity-50 min-w-[180px]"
           >
             <option value="">Select lap...</option>
             {carALaps.map((lap) => (
@@ -710,13 +710,13 @@ export function LapComparison() {
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-            <label className="text-[10px] text-slate-500 uppercase tracking-wider">Car B</label>
+            <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Car B</label>
           </div>
           <select
             value={carBOrd ?? ""}
             onChange={(e) => setCarBOrd(e.target.value ? Number(e.target.value) : null)}
             disabled={!selectedTrack}
-            className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500 disabled:opacity-50 min-w-[200px]"
+            className="bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:border-blue-500 disabled:opacity-50 min-w-[200px]"
           >
             <option value="">Select car...</option>
             {trackCars.map((ord) => (
@@ -729,12 +729,12 @@ export function LapComparison() {
 
         {/* Lap B */}
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-slate-500 uppercase tracking-wider">Lap B</label>
+          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap B</label>
           <select
             value={lapBId ?? ""}
             onChange={(e) => setLapBId(e.target.value ? Number(e.target.value) : null)}
             disabled={!carBOrd}
-            className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-blue-500 disabled:opacity-50 min-w-[180px]"
+            className="bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text font-mono focus:outline-none focus:border-blue-500 disabled:opacity-50 min-w-[180px]"
           >
             <option value="">Select lap...</option>
             {carBLaps.map((lap) => (
@@ -749,7 +749,7 @@ export function LapComparison() {
 
       {/* Loading / Error */}
       {loading && (
-        <div className="text-slate-500 text-sm">Loading comparison data...</div>
+        <div className="text-app-text-muted text-sm">Loading comparison data...</div>
       )}
       {error && (
         <div className="text-red-400 text-sm">{error}</div>
@@ -757,11 +757,11 @@ export function LapComparison() {
 
       {/* No selection prompt */}
       {!lapAId || !lapBId ? (
-        <div className="flex-1 flex items-center justify-center text-slate-600 text-sm">
+        <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">
           Select two laps above to compare
         </div>
       ) : lapAId === lapBId ? (
-        <div className="flex-1 flex items-center justify-center text-slate-600 text-sm">
+        <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">
           Select two different laps to compare
         </div>
       ) : comparison?.traces?.distance ? (
@@ -782,23 +782,23 @@ export function LapComparison() {
           ) : (
             /* Fallback: velocity-integrated racing lines side-by-side */
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
-                <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between">
+              <div className="bg-app-surface rounded-lg border border-app-border overflow-hidden">
+                <div className="px-3 py-2 border-b border-app-border flex items-center justify-between">
                   <span className="text-xs uppercase tracking-wider" style={{ color: COLOR_A }}>
                     {carNames.get(comparison.lapA.carOrdinal!) || "Car A"} — Lap {comparison.lapA.lapNumber}
                   </span>
-                  <span className="text-xs font-mono text-slate-400">{formatLapTime(comparison.lapA.lapTime)}</span>
+                  <span className="text-xs font-mono text-app-text-secondary">{formatLapTime(comparison.lapA.lapTime)}</span>
                 </div>
                 <div className="h-[250px]">
                   <TrackMap telemetry={comparison.telemetryA} lineColor={COLOR_A} />
                 </div>
               </div>
-              <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
-                <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between">
+              <div className="bg-app-surface rounded-lg border border-app-border overflow-hidden">
+                <div className="px-3 py-2 border-b border-app-border flex items-center justify-between">
                   <span className="text-xs uppercase tracking-wider" style={{ color: COLOR_B }}>
                     {carNames.get(comparison.lapB.carOrdinal!) || "Car B"} — Lap {comparison.lapB.lapNumber}
                   </span>
-                  <span className="text-xs font-mono text-slate-400">{formatLapTime(comparison.lapB.lapTime)}</span>
+                  <span className="text-xs font-mono text-app-text-secondary">{formatLapTime(comparison.lapB.lapTime)}</span>
                 </div>
                 <div className="h-[250px]">
                   <TrackMap telemetry={comparison.telemetryB} lineColor={COLOR_B} />
@@ -808,7 +808,7 @@ export function LapComparison() {
           )}
 
           {/* Time Delta */}
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+          <div className="bg-app-surface rounded-lg border border-app-border p-3">
             <TimeDelta
               distances={comparison.traces.distance}
               timeDelta={comparison.timeDelta}
@@ -819,7 +819,7 @@ export function LapComparison() {
           </div>
 
           {/* Speed Chart */}
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+          <div className="bg-app-surface rounded-lg border border-app-border p-3">
             <TelemetryChart
               data={{
                 distance: comparison.traces.distance,
@@ -835,7 +835,7 @@ export function LapComparison() {
           </div>
 
           {/* Throttle + Brake Chart */}
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+          <div className="bg-app-surface rounded-lg border border-app-border p-3">
             <TelemetryChart
               data={{
                 distance: comparison.traces.distance,
@@ -856,7 +856,7 @@ export function LapComparison() {
           </div>
 
           {/* RPM Chart */}
-          <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+          <div className="bg-app-surface rounded-lg border border-app-border p-3">
             <TelemetryChart
               data={{
                 distance: comparison.traces.distance,
@@ -873,7 +873,7 @@ export function LapComparison() {
 
           {/* Tire Wear Chart */}
           {comparison.traces.tireWearA && (
-            <div className="bg-slate-900 rounded-lg border border-slate-800 p-3">
+            <div className="bg-app-surface rounded-lg border border-app-border p-3">
               <TelemetryChart
                 data={{
                   distance: comparison.traces.distance,
@@ -891,9 +891,9 @@ export function LapComparison() {
 
           {/* Corner Table */}
           {comparison.corners.length > 0 && (
-            <div className="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
-              <div className="px-3 py-2 border-b border-slate-800">
-                <span className="text-xs text-slate-500 uppercase tracking-wider">
+            <div className="bg-app-surface rounded-lg border border-app-border overflow-hidden">
+              <div className="px-3 py-2 border-b border-app-border">
+                <span className="text-xs text-app-text-muted uppercase tracking-wider">
                   Corner-by-Corner Delta
                 </span>
               </div>

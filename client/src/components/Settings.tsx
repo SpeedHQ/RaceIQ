@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { convertTemp, celsiusToFahrenheit } from "../lib/temperature";
 import { useTelemetry } from "../context/telemetry";
+import { useTheme, type Theme } from "../context/theme";
 
 // Steering lock stored in localStorage so it persists across refreshes
 const STEER_LOCK_KEY = "forza-steer-lock";
@@ -28,6 +29,7 @@ export function Settings() {
   const [steerLock, setSteerLock] = useState(() => String(getSteeringLock()));
 
   const { displaySettings, refetchSettings } = useTelemetry();
+  const { theme, setTheme } = useTheme();
   const [tempUnit, setTempUnit] = useState<"F" | "C">(displaySettings.temperatureUnit);
   const [thresholds, setThresholds] = useState(displaySettings.tireTemperatureThresholds);
   const [speedUnit, setSpeedUnit] = useState<"mph" | "kmh">(displaySettings.speedUnit);
@@ -144,11 +146,49 @@ export function Settings() {
     setSpeedUnit("mph");
   }
 
+  const themes: { value: Theme; label: string; description: string }[] = [
+    { value: "default", label: "Default", description: "Classic dark theme" },
+    { value: "morph", label: "Morph", description: "Glassmorphic black" },
+  ];
+
   return (
     <>
-    <Card className="bg-slate-900 border-slate-800">
+    <Card className="glass-card border bg-app-surface border-app-border">
       <CardHeader>
-        <CardTitle className="text-white">Forza Connection</CardTitle>
+        <CardTitle className="text-app-text">Theme</CardTitle>
+        <CardDescription>
+          Choose the visual style for the interface.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-3">
+          {themes.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setTheme(t.value)}
+              className={`relative rounded-lg border p-3 text-left transition-all ${
+                theme === t.value
+                  ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30"
+                  : "border-app-border bg-app-surface-alt hover:border-app-border-input"
+              }`}
+            >
+              <div className="text-sm font-medium text-app-text">{t.label}</div>
+              <div className="text-xs text-app-text-muted mt-0.5">{t.description}</div>
+              {t.value === "morph" && (
+                <div className="mt-2 h-8 rounded-md border border-white/10 bg-gradient-to-br from-white/5 to-transparent backdrop-blur-sm" />
+              )}
+              {t.value === "default" && (
+                <div className="mt-2 h-8 rounded-md border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900" />
+              )}
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+
+    <Card className="glass-card border bg-app-surface border-app-border mt-4">
+      <CardHeader>
+        <CardTitle className="text-app-text">Forza Connection</CardTitle>
         <CardDescription>
           Set the UDP port to listen on. In Forza: Settings &gt; Gameplay &gt;
           Data Out &gt; set IP to this machine's address and the port below.
@@ -157,7 +197,7 @@ export function Settings() {
       <CardContent>
         <div className="flex items-end gap-3">
           <div className="flex-1">
-            <Label htmlFor="udp-port" className="text-slate-400">
+            <Label htmlFor="udp-port" className="text-app-text-secondary">
               UDP Port
             </Label>
             <Input
@@ -171,7 +211,7 @@ export function Settings() {
                 setStatus("idle");
               }}
               onKeyDown={(e) => e.key === "Enter" && handleSave()}
-              className="bg-slate-800 border-slate-700 text-white font-mono mt-1.5"
+              className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono mt-1.5"
               placeholder="5300"
             />
           </div>
@@ -192,16 +232,16 @@ export function Settings() {
           <p className="text-red-400 text-sm mt-2">{errorMsg}</p>
         )}
         {savedPort && (
-          <p className="text-slate-500 text-xs mt-3">
+          <p className="text-app-text-muted text-xs mt-3">
             Listening on 0.0.0.0:{savedPort}
           </p>
         )}
 
-        <div className="mt-4 pt-4 border-t border-slate-800">
-          <Label htmlFor="steer-lock" className="text-slate-400">
+        <div className="mt-4 pt-4 border-t border-app-border">
+          <Label htmlFor="steer-lock" className="text-app-text-secondary">
             Steering Wheel Rotation (degrees)
           </Label>
-          <p className="text-xs text-slate-500 mb-1.5">
+          <p className="text-xs text-app-text-muted mb-1.5">
             Full lock-to-lock rotation of your wheel. Common: 900° (default), 540°, 360°, 270°
           </p>
           <div className="flex items-end gap-3">
@@ -219,24 +259,24 @@ export function Settings() {
                   localStorage.setItem(STEER_LOCK_KEY, String(val));
                 }
               }}
-              className="bg-slate-800 border-slate-700 text-white font-mono w-24"
+              className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono w-24"
             />
-            <span className="text-xs text-slate-500 mb-2">°</span>
+            <span className="text-xs text-app-text-muted mb-2">°</span>
           </div>
         </div>
       </CardContent>
     </Card>
 
-    <Card className="bg-slate-900 border-slate-800 mt-4">
+    <Card className="glass-card border bg-app-surface border-app-border mt-4">
       <CardHeader>
-        <CardTitle className="text-white">Temperature</CardTitle>
+        <CardTitle className="text-app-text">Temperature</CardTitle>
         <CardDescription>
           Set the display unit and tire temperature color thresholds.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex items-center gap-2 mb-4">
-          <Label className="text-slate-400 mr-2">Unit</Label>
+          <Label className="text-app-text-secondary mr-2">Unit</Label>
           <Button
             size="sm"
             variant={tempUnit === "F" ? "default" : "outline"}
@@ -283,7 +323,7 @@ export function Settings() {
               type="number"
               value={parseFloat(thresholds.cold.toFixed(1))}
               onChange={(e) => setThresholds({ ...thresholds, cold: parseFloat(e.target.value) || 0 })}
-              className="bg-slate-800 border-slate-700 text-white font-mono mt-1 w-24"
+              className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono mt-1 w-24"
             />
           </div>
           <div>
@@ -295,7 +335,7 @@ export function Settings() {
               type="number"
               value={parseFloat(thresholds.warm.toFixed(1))}
               onChange={(e) => setThresholds({ ...thresholds, warm: parseFloat(e.target.value) || 0 })}
-              className="bg-slate-800 border-slate-700 text-white font-mono mt-1 w-24"
+              className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono mt-1 w-24"
             />
           </div>
           <div>
@@ -307,7 +347,7 @@ export function Settings() {
               type="number"
               value={parseFloat(thresholds.hot.toFixed(1))}
               onChange={(e) => setThresholds({ ...thresholds, hot: parseFloat(e.target.value) || 0 })}
-              className="bg-slate-800 border-slate-700 text-white font-mono mt-1 w-24"
+              className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono mt-1 w-24"
             />
           </div>
         </div>
@@ -327,16 +367,16 @@ export function Settings() {
       </CardContent>
     </Card>
 
-    <Card className="bg-slate-900 border-slate-800 mt-4">
+    <Card className="glass-card border bg-app-surface border-app-border mt-4">
       <CardHeader>
-        <CardTitle className="text-white">Speed & Distance</CardTitle>
+        <CardTitle className="text-app-text">Speed & Distance</CardTitle>
         <CardDescription>
           Set the display units for speed and distance.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex items-center gap-2">
-          <Label className="text-slate-400 mr-2">Unit</Label>
+          <Label className="text-app-text-secondary mr-2">Unit</Label>
           <Button
             size="sm"
             variant={speedUnit === "mph" ? "default" : "outline"}
@@ -352,7 +392,7 @@ export function Settings() {
             km/h / km
           </Button>
         </div>
-        <p className="text-xs text-slate-500 mt-2">
+        <p className="text-xs text-app-text-muted mt-2">
           Changes are saved with the Apply button above.
         </p>
       </CardContent>
