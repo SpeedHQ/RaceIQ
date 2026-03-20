@@ -17,11 +17,11 @@ export default defineConfig({
     host: true,
     proxy: {
       "/api": {
-        target: "http://localhost:3117",
+        target: process.env.PROXY_TARGET ?? "http://localhost:3117",
         changeOrigin: true,
       },
       "/ws": {
-        target: "ws://localhost:3117",
+        target: (process.env.PROXY_TARGET ?? "http://localhost:3117").replace(/^http/, "ws"),
         ws: true,
       },
     },

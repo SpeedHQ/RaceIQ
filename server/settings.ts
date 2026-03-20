@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 
-const SETTINGS_DIR = "./data";
+const SETTINGS_DIR = process.env.DATA_DIR ?? "./data";
 const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 
 export interface AppSettings {

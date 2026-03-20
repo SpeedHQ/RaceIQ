@@ -1,0 +1,57 @@
+services:
+
+  # ── Production (single container) ──────────────────────────────────────────
+  server:
+    profiles: [prod]
+    build:
+      context: .
+      target: prod
+    ports:
+      - "${SERVER_PORT:-3117}:${SERVER_PORT:-3117}"
+      - "${UDP_PORT:-5300}:${UDP_PORT:-5300}/udp"
+    volumes:
+      - ./data:/app/data
+    environment:
+      SERVER_PORT: ${SERVER_PORT:-3117}
+      UDP_PORT: ${UDP_PORT:-5300}
+      DATA_DIR: ${DATA_DIR:-/app/data}
+      NODE_ENV: production
+    restart: unless-stopped
+
+  # ── Development: server with hot reload ────────────────────────────────────
+  server-dev:
+    profiles: [dev]
+    build:
+      context: .
+      target: dev
+    ports:
+      - "${SERVER_PORT:-3117}:${SERVER_PORT:-3117}"
+      - "${UDP_PORT:-5300}:${UDP_PORT:-5300}/udp"
+    volumes:
+      - .:/app
+      # Prevent host directory from shadowing container's installed node_modules
+      - /app/node_modules
+      - ./data:/app/data
+    environment:
+      SERVER_PORT: ${SERVER_PORT:-3117}
+      UDP_PORT: ${UDP_PORT:-5300}
+    command: bun --watch run server/index.ts
+
+  # ── Development: Vite client with hot reload ────────────────────────────────
+  client-dev:
+    profiles: [dev]
+    build:
+      context: .
+      target: dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      # Preserve both sets of node_modules from the image
+      - /app/node_modules
+      - /app/client/node_modules
+    environment:
+      PROXY_TARGET: http://server-dev:${SERVER_PORT:-3117}
+    command: sh -c "cd /app/client && bun run vite --host"
+    depends_on:
+      - server-dev

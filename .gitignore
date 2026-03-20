@@ -5,3 +5,4 @@ data/
 *.db-journal
 *.db-wal
 .vite/
+.env

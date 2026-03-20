@@ -4,17 +4,19 @@ import { udpListener } from "./udp";
 import { wsManager, type WSData } from "./ws";
 import { loadSettings, saveSettings } from "./settings";
 
-// Prevent macOS sleep while the server is running (non-fatal if caffeinate unavailable)
-try {
-  const caffeinate = spawn("caffeinate", ["-i"], { stdio: "ignore", detached: true });
-  caffeinate.unref();
-  process.on("exit", () => { try { caffeinate.kill(); } catch {} });
-  console.log("[Server] caffeinate started — macOS will not sleep while server is running");
-} catch {
-  console.log("[Server] caffeinate not available — sleep prevention disabled");
+// Prevent macOS sleep while the server is running
+if (process.platform === "darwin") {
+  try {
+    const caffeinate = spawn("caffeinate", ["-i"], { stdio: "ignore", detached: true });
+    caffeinate.unref();
+    process.on("exit", () => { try { caffeinate.kill(); } catch {} });
+    console.log("[Server] caffeinate started — macOS will not sleep while server is running");
+  } catch {
+    console.log("[Server] caffeinate not available — sleep prevention disabled");
+  }
 }
 
-const HTTP_PORT = 3117;
+const HTTP_PORT = Number(process.env.SERVER_PORT) || 3117;
 
 // Import DB to ensure schema is created on startup
 import { sqlite } from "./db/index";
@@ -39,18 +41,34 @@ console.log(`[Server] Starting Forza Telemetry Server...`);
 const server = Bun.serve<WSData>({
   port: HTTP_PORT,
   idleTimeout: 120, // seconds — AI analysis via Claude CLI can take up to 90s
-  fetch(req, server) {
+  async fetch(req, server) {
     // Handle WebSocket upgrade
     const url = new URL(req.url);
     if (url.pathname === "/ws") {
       const upgraded = server.upgrade(req, {
         data: { createdAt: Date.now() },
       });
-      if (upgraded) return undefined;
+      // Bun expects undefined on successful upgrade; cast satisfies TypeScript
+      if (upgraded) return undefined as unknown as Response;
       return new Response("WebSocket upgrade failed", { status: 400 });
     }
 
-    // Handle HTTP via Hono
+    // API routes always go to Hono
+    if (url.pathname.startsWith("/api")) {
+      return app.fetch(req);
+    }
+
+    // In production, serve static files from built client
+    if (process.env.NODE_ENV === "production") {
+      const file = Bun.file(`./client/dist${url.pathname}`);
+      if (await file.exists()) {
+        return new Response(file);
+      }
+      // SPA fallback: serve index.html for client-side routes
+      return new Response(Bun.file("./client/dist/index.html"));
+    }
+
+    // Handle HTTP via Hono (dev mode)
     return app.fetch(req);
   },
   websocket: {
@@ -69,8 +87,9 @@ const server = Bun.serve<WSData>({
 console.log(`[Server] HTTP/WS server listening on http://localhost:${HTTP_PORT}`);
 console.log(`[Server] WebSocket endpoint: ws://localhost:${HTTP_PORT}/ws`);
 
-// Start UDP listener with saved settings
-udpListener.start(settings.udpPort);
+// Start UDP listener — settings.udpPort takes priority, env var is the fallback
+const udpPort = settings.udpPort ?? Number(process.env.UDP_PORT) || 5300;
+udpListener.start(udpPort);
 
 console.log(`[Server] Forza Telemetry Server is ready!`);
-console.log(`[Server] Listening for Forza UDP on port ${settings.udpPort}`);
+console.log(`[Server] Listening for Forza UDP on port ${udpPort}`);

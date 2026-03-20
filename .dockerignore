@@ -1,0 +1,12 @@
+node_modules
+client/node_modules
+client/dist
+data/
+.git
+.gitignore
+*.log
+firebase-debug.log
+docs/
+test/
+.superpowers/
+drizzle/
