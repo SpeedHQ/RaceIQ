@@ -1216,7 +1216,7 @@ export function TuneCatalog() {
   const [carDropdownOpen, setCarDropdownOpen] = useState(false);
   const [trackSearch, setTrackSearch] = useState("");
   const [catalogPage, setCatalogPage] = useState(0);
-  const [activeTab, setActiveTab] = useState<"my" | "catalog">("my");
+  const [myTunesOpen, setMyTunesOpen] = useState(false);
 
   // Dialog state
   const [formOpen, setFormOpen] = useState(false);
@@ -1282,11 +1282,7 @@ export function TuneCatalog() {
   );
 
   const categories = [
-    ...new Set(
-      activeTab === "catalog"
-        ? allCatalogTunes.map((t) => t.category)
-        : userTunes.map((t) => t.category),
-    ),
+    ...new Set(allCatalogTunes.map((t) => t.category)),
   ];
 
   // Handlers
@@ -1294,7 +1290,6 @@ export function TuneCatalog() {
     createTune.mutate(data as any, {
       onSuccess: () => {
         setFormOpen(false);
-        setActiveTab("my");
       },
     });
   };
@@ -1322,9 +1317,7 @@ export function TuneCatalog() {
   };
 
   const handleClone = (catalogId: string) => {
-    cloneTune.mutate(catalogId, {
-      onSuccess: () => setActiveTab("my"),
-    });
+    cloneTune.mutate(catalogId);
   };
 
   return (
@@ -1333,13 +1326,11 @@ export function TuneCatalog() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold text-app-text">Tune Manager</h1>
+            <h1 className="text-lg font-bold text-app-text">Tune Catalog</h1>
             <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
-              {activeTab === "my"
-                ? `${filteredUserTunes.length} User Tunes`
-                : selectedCar != null
-                  ? "Stock Spec"
-                  : `${catalogTunes.length} Catalog`}
+              {selectedCar != null
+                ? "Stock Spec"
+                : `${catalogTunes.length} Tunes`}
             </span>
             {car && (
               <span className="text-[10px] font-mono text-app-text-muted">
@@ -1348,21 +1339,21 @@ export function TuneCatalog() {
             )}
           </div>
           <p className="text-xs text-app-text-muted">
-            {activeTab === "my"
-              ? "Your saved tunes and cloned catalog tunes"
-              : "Read-only stock spec tunes -- clone to edit"}
+            Reference tunes — clone to your collection to edit
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              setEditingTune(null);
-              setFormOpen(true);
-            }}
-            className="text-xs px-3 py-1.5 rounded bg-app-accent text-white hover:bg-app-accent/80 transition-colors"
+            onClick={() => setMyTunesOpen(true)}
+            className="text-xs px-3 py-1.5 rounded bg-app-accent text-white hover:bg-app-accent/80 transition-colors flex items-center gap-1.5"
           >
-            + New Tune
+            My Tunes
+            {userTunes.length > 0 && (
+              <span className="bg-white/20 rounded-full px-1.5 py-0 text-[10px] font-bold">
+                {userTunes.length}
+              </span>
+            )}
           </button>
           <input
             type="text"
@@ -1452,38 +1443,6 @@ export function TuneCatalog() {
         </div>
       </div>
 
-      {/* Tab switcher */}
-      <div className="flex items-center gap-1 border-b border-app-border pb-1">
-        <button
-          onClick={() => {
-            setActiveTab("my");
-            setCategoryFilter(null);
-            setExpandedTune(null);
-          }}
-          className={`text-xs font-semibold uppercase px-3 py-1.5 rounded-t transition-colors ${
-            activeTab === "my"
-              ? "bg-app-accent/20 text-app-accent border-b-2 border-app-accent"
-              : "text-app-text-muted hover:text-app-text-secondary"
-          }`}
-        >
-          My Tunes ({filteredUserTunes.length})
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab("catalog");
-            setCategoryFilter(null);
-            setExpandedTune(null);
-          }}
-          className={`text-xs font-semibold uppercase px-3 py-1.5 rounded-t transition-colors ${
-            activeTab === "catalog"
-              ? "bg-app-accent/20 text-app-accent border-b-2 border-app-accent"
-              : "text-app-text-muted hover:text-app-text-secondary"
-          }`}
-        >
-          Catalog ({filteredCatalogTunes.length})
-        </button>
-      </div>
-
       {/* Category filters */}
       <div className="flex items-center gap-1.5 flex-wrap">
         <button
@@ -1517,139 +1476,169 @@ export function TuneCatalog() {
         ))}
       </div>
 
-      {/* Content */}
-      {activeTab === "my" ? (
-        <div className="space-y-2">
-          {loadingUserTunes ? (
-            <div className="text-center py-12 text-app-text-muted text-sm">
-              Loading tunes...
-            </div>
-          ) : filteredUserTunes.length === 0 ? (
-            <div className="text-center py-12 text-app-text-muted text-sm">
-              <p>No user tunes yet.</p>
-              <p className="mt-1">
-                Create a new tune or clone one from the Catalog tab.
-              </p>
-            </div>
-          ) : (
-            filteredUserTunes.map((tune) => (
-              <UserTuneCard
-                key={tune.id}
-                tune={tune}
-                isExpanded={expandedTune === `user-${tune.id}`}
-                onToggle={() =>
-                  setExpandedTune(
-                    expandedTune === `user-${tune.id}`
-                      ? null
-                      : `user-${tune.id}`,
-                  )
-                }
-                showCar={selectedCar == null}
-                onEdit={() => handleEdit(tune)}
-                onDelete={() => handleDelete(tune.id)}
-                isDeleting={deleteTuneMut.isPending}
-              />
-            ))
-          )}
+      {/* Catalog Content */}
+      <div className="space-y-2">
+        {paginatedCatalogTunes.map((tune) => (
+          <CatalogTuneCard
+            key={tune.id}
+            tune={tune}
+            isExpanded={expandedTune === `catalog-${tune.id}`}
+            onToggle={() =>
+              setExpandedTune(
+                expandedTune === `catalog-${tune.id}`
+                  ? null
+                  : `catalog-${tune.id}`,
+              )
+            }
+            showCar={selectedCar == null}
+            onClone={() => handleClone(tune.id)}
+            isCloning={cloneTune.isPending}
+          />
+        ))}
+      </div>
 
-          {/* Tune Assignments section */}
-          {filteredUserTunes.length > 0 && assignments.length > 0 && (
-            <div className="mt-6 pt-4 border-t border-app-border">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted mb-2">
-                Active Tune Assignments
-              </h3>
-              <div className="space-y-1">
-                {assignments
-                  .filter(
-                    (a) =>
-                      selectedCar == null ||
-                      a.carOrdinal === selectedCar,
-                  )
-                  .map((a) => (
-                    <div
-                      key={`${a.carOrdinal}-${a.trackOrdinal}`}
-                      className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-app-bg/60"
-                    >
-                      <span className="text-app-text-secondary">
-                        Car {a.carOrdinal} / Track {a.trackOrdinal}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-app-text font-medium">
-                          {a.tuneName ?? `Tune #${a.tuneId}`}
-                        </span>
-                        <button
-                          onClick={() =>
-                            deleteAssignment.mutate({
-                              carOrdinal: a.carOrdinal,
-                              trackOrdinal: a.trackOrdinal,
-                            })
-                          }
-                          className="text-red-400 hover:text-red-300 transition-colors"
-                          title="Remove assignment"
-                        >
-                          x
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+      {filteredCatalogTunes.length === 0 && (
+        <div className="text-center py-12 text-app-text-muted text-sm">
+          No catalog tunes found for this filter.
+        </div>
+      )}
+
+      {totalCatalogPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-2">
+          <button
+            onClick={() => setCatalogPage((p) => Math.max(0, p - 1))}
+            disabled={catalogPage === 0}
+            className="text-xs px-3 py-1 rounded border border-app-border text-app-text-secondary hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            Prev
+          </button>
+          <span className="text-xs text-app-text-muted">
+            {catalogPage + 1} / {totalCatalogPages}
+          </span>
+          <button
+            onClick={() =>
+              setCatalogPage((p) =>
+                Math.min(totalCatalogPages - 1, p + 1),
+              )
+            }
+            disabled={catalogPage >= totalCatalogPages - 1}
+            className="text-xs px-3 py-1 rounded border border-app-border text-app-text-secondary hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+      )}
+
+      {/* My Tunes Modal */}
+      {myTunesOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 pb-8">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setMyTunesOpen(false)} />
+          <div className="relative bg-app-surface rounded-xl ring-1 ring-app-border shadow-2xl w-full max-w-xl max-h-[calc(100vh-4rem)] overflow-auto mx-4">
+            <div className="sticky top-0 bg-app-surface px-4 py-3 border-b border-app-border flex items-center justify-between z-10">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-app-text">My Tunes</h2>
+                <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
+                  {filteredUserTunes.length}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setEditingTune(null);
+                    setFormOpen(true);
+                  }}
+                  className="text-[10px] font-semibold uppercase px-2.5 py-1 rounded bg-app-accent text-white hover:bg-app-accent/80 transition-colors"
+                >
+                  + New Tune
+                </button>
+                <button
+                  onClick={() => setMyTunesOpen(false)}
+                  className="text-app-text-muted hover:text-app-text text-lg leading-none"
+                >
+                  &times;
+                </button>
               </div>
             </div>
-          )}
-        </div>
-      ) : (
-        <>
-          <div className="space-y-2">
-            {paginatedCatalogTunes.map((tune) => (
-              <CatalogTuneCard
-                key={tune.id}
-                tune={tune}
-                isExpanded={expandedTune === `catalog-${tune.id}`}
-                onToggle={() =>
-                  setExpandedTune(
-                    expandedTune === `catalog-${tune.id}`
-                      ? null
-                      : `catalog-${tune.id}`,
-                  )
-                }
-                showCar={selectedCar == null}
-                onClone={() => handleClone(tune.id)}
-                isCloning={cloneTune.isPending}
-              />
-            ))}
+
+            <div className="p-4 space-y-2">
+              {loadingUserTunes ? (
+                <div className="text-center py-12 text-app-text-muted text-sm">
+                  Loading tunes...
+                </div>
+              ) : filteredUserTunes.length === 0 ? (
+                <div className="text-center py-12 text-app-text-muted text-sm">
+                  <p>No user tunes yet.</p>
+                  <p className="mt-1">
+                    Create a new tune or clone one from the catalog.
+                  </p>
+                </div>
+              ) : (
+                filteredUserTunes.map((tune) => (
+                  <UserTuneCard
+                    key={tune.id}
+                    tune={tune}
+                    isExpanded={expandedTune === `user-${tune.id}`}
+                    onToggle={() =>
+                      setExpandedTune(
+                        expandedTune === `user-${tune.id}`
+                          ? null
+                          : `user-${tune.id}`,
+                      )
+                    }
+                    showCar={selectedCar == null}
+                    onEdit={() => handleEdit(tune)}
+                    onDelete={() => handleDelete(tune.id)}
+                    isDeleting={deleteTuneMut.isPending}
+                  />
+                ))
+              )}
+
+              {/* Tune Assignments section */}
+              {assignments.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-app-border">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted mb-2">
+                    Active Tune Assignments
+                  </h3>
+                  <div className="space-y-1">
+                    {assignments
+                      .filter(
+                        (a) =>
+                          selectedCar == null ||
+                          a.carOrdinal === selectedCar,
+                      )
+                      .map((a) => (
+                        <div
+                          key={`${a.carOrdinal}-${a.trackOrdinal}`}
+                          className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-app-bg/60"
+                        >
+                          <span className="text-app-text-secondary">
+                            Car {a.carOrdinal} / Track {a.trackOrdinal}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-app-text font-medium">
+                              {a.tuneName ?? `Tune #${a.tuneId}`}
+                            </span>
+                            <button
+                              onClick={() =>
+                                deleteAssignment.mutate({
+                                  carOrdinal: a.carOrdinal,
+                                  trackOrdinal: a.trackOrdinal,
+                                })
+                              }
+                              className="text-red-400 hover:text-red-300 transition-colors"
+                              title="Remove assignment"
+                            >
+                              &times;
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-
-          {filteredCatalogTunes.length === 0 && (
-            <div className="text-center py-12 text-app-text-muted text-sm">
-              No catalog tunes found for this filter.
-            </div>
-          )}
-
-          {totalCatalogPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-2">
-              <button
-                onClick={() => setCatalogPage((p) => Math.max(0, p - 1))}
-                disabled={catalogPage === 0}
-                className="text-xs px-3 py-1 rounded border border-app-border text-app-text-secondary hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                Prev
-              </button>
-              <span className="text-xs text-app-text-muted">
-                {catalogPage + 1} / {totalCatalogPages}
-              </span>
-              <button
-                onClick={() =>
-                  setCatalogPage((p) =>
-                    Math.min(totalCatalogPages - 1, p + 1),
-                  )
-                }
-                disabled={catalogPage >= totalCatalogPages - 1}
-                className="text-xs px-3 py-1 rounded border border-app-border text-app-text-secondary hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
-          )}
-        </>
+        </div>
       )}
 
       {/* Create / Edit Dialog */}
