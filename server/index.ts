@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 import app from "./routes";
 import { udpListener } from "./udp";
 import { wsManager, type WSData } from "./ws";
-import { loadSettings } from "./settings";
+import { loadSettings, saveSettings } from "./settings";
 
 // Prevent macOS sleep while the server is running (non-fatal if caffeinate unavailable)
 try {
@@ -17,10 +17,21 @@ try {
 const HTTP_PORT = 3117;
 
 // Import DB to ensure schema is created on startup
-import "./db/index";
+import { sqlite } from "./db/index";
 
 // Load persisted settings
 const settings = loadSettings();
+
+// Auto-activate the first profile if no activeProfileId is set yet
+{
+  const _settings = loadSettings();
+  if (_settings.activeProfileId == null) {
+    const firstProfile = (sqlite as any).query("SELECT id FROM profiles LIMIT 1").get() as { id: number } | null;
+    if (firstProfile) {
+      saveSettings({ ..._settings, activeProfileId: firstProfile.id });
+    }
+  }
+}
 
 console.log(`[Server] Starting Forza Telemetry Server...`);
 
