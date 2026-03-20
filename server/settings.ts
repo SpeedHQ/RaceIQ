@@ -12,6 +12,7 @@ export interface AppSettings {
     warm: number;
     hot: number;
   };
+  activeProfileId: number | null;
 }
 
 const DEFAULTS: AppSettings = {
@@ -23,6 +24,7 @@ const DEFAULTS: AppSettings = {
     warm: 220,
     hot: 280,
   },
+  activeProfileId: null,
 };
 
 export function loadSettings(): AppSettings {
@@ -45,6 +47,7 @@ export function loadSettings(): AppSettings {
         warm: parsed.tireTemperatureThresholds?.warm ?? DEFAULTS.tireTemperatureThresholds.warm,
         hot: parsed.tireTemperatureThresholds?.hot ?? DEFAULTS.tireTemperatureThresholds.hot,
       },
+      activeProfileId: parsed.activeProfileId ?? DEFAULTS.activeProfileId,
     };
   } catch {
     return { ...DEFAULTS };
