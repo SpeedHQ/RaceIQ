@@ -337,6 +337,30 @@ export function getTrackOutlineSectors(
 }
 
 /**
+ * Update just the sector boundaries (s1End, s2End) for a track outline.
+ * Returns true if a row was updated.
+ */
+export function updateTrackOutlineSectors(
+  trackOrdinal: number,
+  sectors: { s1End: number; s2End: number }
+): boolean {
+  const existing = db
+    .select({ id: trackOutlines.id })
+    .from(trackOutlines)
+    .where(eq(trackOutlines.trackOrdinal, trackOrdinal))
+    .get();
+
+  if (!existing) return false;
+
+  db.update(trackOutlines)
+    .set({ sectors: JSON.stringify(sectors) })
+    .where(eq(trackOutlines.trackOrdinal, trackOrdinal))
+    .run();
+
+  return true;
+}
+
+/**
  * Check if a recorded (DB) outline exists for a track ordinal.
  */
 export function hasRecordedOutline(trackOrdinal: number): boolean {

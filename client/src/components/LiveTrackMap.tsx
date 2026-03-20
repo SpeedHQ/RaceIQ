@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { TelemetryPacket } from "@shared/types";
+import { api } from "../lib/api";
 
 interface Props {
   packet: TelemetryPacket | null;
@@ -58,17 +59,12 @@ export function LiveTrackMap({ packet }: Props) {
     setSectors(null);
 
     // Fetch sectors
-    fetch(`/api/track-sectors/${trackOrd}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data?.s1End) setSectors(data); })
+    api.getTrackSectors(trackOrd)
+      .then((data: any) => { if (data?.s1End) setSectors(data); })
       .catch(() => {});
 
-    fetch(`/api/track-outline/${trackOrd}`)
-      .then((r) => {
-        if (r.ok) return r.json();
-        throw new Error("no outline");
-      })
-      .then((data) => {
+    api.getTrackOutline(trackOrd)
+      .then((data: any) => {
         // New format: { points, recorded, startYaw } or legacy array format
         if (data.points && Array.isArray(data.points)) {
           setOutline(data.points);
@@ -98,9 +94,8 @@ export function LiveTrackMap({ packet }: Props) {
     const trackOrd = lastTrackOrdRef.current;
     if (!trackOrd) return;
 
-    fetch(`/api/track-outline/${trackOrd}`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => {
+    api.getTrackOutline(trackOrd)
+      .then((data: any) => {
         if (data?.points && data.recorded) {
           setOutline(data.points);
           setIsRecorded(true);
@@ -429,7 +424,7 @@ export function LiveTrackMap({ packet }: Props) {
     const trackOrd = lastTrackOrdRef.current;
     if (!trackOrd) return;
     try {
-      await fetch(`/api/track-outline/${trackOrd}`, { method: "DELETE" });
+      await api.deleteTrackOutline(trackOrd);
       setOutline(null);
       setIsRecorded(false);
       setStartYaw(null);

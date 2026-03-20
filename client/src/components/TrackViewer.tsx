@@ -2,6 +2,8 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { formatLapTime } from "./LiveTelemetry";
 import { TUNE_CATALOG, getCatalogCar, type CatalogTune } from "../data/tune-catalog";
+import { useTracks, useBulkDeleteLaps, useDeleteLap } from "../hooks/queries";
+import { api } from "../lib/api";
 
 interface TrackInfo {
   ordinal: number;
@@ -39,9 +41,8 @@ function TrackCard({ track, onSelect }: { track: TrackInfo; onSelect: (t: TrackI
 
   useEffect(() => {
     if (!track.hasOutline) return;
-    fetch(`/api/track-outline/${track.ordinal}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+    api.getTrackOutline(track.ordinal)
+      .then((data: any) => {
         if (data?.points && Array.isArray(data.points)) setOutline(data.points);
         else if (Array.isArray(data)) setOutline(data);
         else setOutline(null);
@@ -83,6 +84,16 @@ function TrackCard({ track, onSelect }: { track: TrackInfo; onSelect: (t: TrackI
  * TrackDetail — Full-size track view with segment overlay and stats sidebar.
  * Fetches both outline and sector data; segments are color-coded (red=corner, blue=straight).
  */
+interface TrackLap {
+  lapId: number;
+  lapNumber: number;
+  lapTime: number;
+  carOrdinal: number;
+  carName: string;
+  carClass: string;
+  pi: number;
+}
+
 function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
@@ -93,15 +104,11 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   const [editing, setEditing] = useState(false);
   const [editSegments, setEditSegments] = useState<TrackSegment[]>([]);
   const [saving, setSaving] = useState(false);
-  interface TrackLap {
-    lapId: number;
-    lapNumber: number;
-    lapTime: number;
-    carOrdinal: number;
-    carName: string;
-    carClass: string;
-    pi: number;
-  }
+  const [sectorBounds, setSectorBounds] = useState<{ s1End: number; s2End: number } | null>(null);
+  const [editingSectors, setEditingSectors] = useState(false);
+  const [editS1, setEditS1] = useState(33.3);
+  const [editS2, setEditS2] = useState(66.6);
+  const [savingSectors, setSavingSectors] = useState(false);
   const [trackLaps, setTrackLaps] = useState<TrackLap[]>([]);
   const [selectedCars, setSelectedCars] = useState<Set<number>>(new Set());
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
@@ -116,23 +123,24 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   useEffect(() => {
     if (!track.hasOutline) return;
     Promise.all([
-      fetch(`/api/track-outline/${track.ordinal}`).then((r) => (r.ok ? r.json() : null)),
-      fetch(`/api/track-sectors/${track.ordinal}`).then((r) => (r.ok ? r.json() : null)),
-    ]).then(([outlineData, sectorData]) => {
+      api.getTrackOutline(track.ordinal),
+      api.getTrackSectors(track.ordinal),
+      api.getTrackSectorBoundaries(track.ordinal),
+    ]).then(([outlineData, sectorData, boundsData]: [any, any, any]) => {
       if (outlineData?.points && Array.isArray(outlineData.points)) setOutline(outlineData.points);
       else if (Array.isArray(outlineData)) setOutline(outlineData);
       else setOutline(null);
       setSectors(sectorData);
+      if (boundsData?.s1End) setSectorBounds(boundsData);
     }).catch(() => {});
   }, [track.ordinal, track.hasOutline]);
 
   // Fetch all laps for this track
   const fetchTrackLaps = useCallback(() => {
-    fetch(`/api/tracks/${track.ordinal}/leaderboard`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: Record<string, TrackLap[]> | null) => {
+    api.getTrackLeaderboard(track.ordinal)
+      .then((data) => {
         if (!data) { setTrackLaps([]); return; }
-        const all = Object.values(data).flat();
+        const all = Object.values(data).flat() as TrackLap[];
         setTrackLaps(all);
         // Initialize car filter to all cars
         setSelectedCars(new Set(all.map((l) => l.carOrdinal)));
@@ -231,11 +239,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   const saveSegments = useCallback(async () => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/tracks/${track.ordinal}/segments`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ segments: editSegments }),
-      });
+      const res = await api.saveTrackSegments(track.ordinal, editSegments);
       if (res.ok) {
         setSectors({ segments: editSegments, totalDist: sectors?.totalDist ?? 0 });
         setEditing(false);
@@ -243,6 +247,26 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
     } catch {}
     setSaving(false);
   }, [editSegments, track.ordinal, sectors]);
+
+  const startEditingSectors = useCallback(() => {
+    if (sectorBounds) {
+      setEditS1(Math.round(sectorBounds.s1End * 1000) / 10);
+      setEditS2(Math.round(sectorBounds.s2End * 1000) / 10);
+    }
+    setEditingSectors(true);
+  }, [sectorBounds]);
+
+  const saveSectorBounds = useCallback(async () => {
+    setSavingSectors(true);
+    try {
+      const res = await api.saveTrackSectorBoundaries(track.ordinal, editS1 / 100, editS2 / 100);
+      if (res.ok) {
+        setSectorBounds({ s1End: editS1 / 100, s2End: editS2 / 100 });
+        setEditingSectors(false);
+      }
+    } catch {}
+    setSavingSectors(false);
+  }, [editS1, editS2, track.ordinal]);
 
   // Build display names: auto-number empty/unnamed straights
   const segDisplayNames = useMemo(() => {
@@ -306,29 +330,26 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
     else setSelectedLaps(new Set(filteredLaps.map((l) => l.lapId)));
   }, [selectedLaps.size, filteredLaps]);
 
+  const bulkDelete = useBulkDeleteLaps();
+  const singleDelete = useDeleteLap();
+
   const handleBulkDelete = useCallback(async () => {
     if (selectedLaps.size === 0) return;
     setDeleting(true);
     try {
-      const res = await fetch("/api/laps/bulk-delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: Array.from(selectedLaps) }),
-      });
-      if (res.ok) {
-        setSelectedLaps(new Set());
-        setConfirmDelete(false);
-        fetchTrackLaps();
-      }
+      await bulkDelete.mutateAsync(Array.from(selectedLaps));
+      setSelectedLaps(new Set());
+      setConfirmDelete(false);
+      fetchTrackLaps();
     } catch {}
     setDeleting(false);
-  }, [selectedLaps, fetchTrackLaps]);
+  }, [selectedLaps, fetchTrackLaps, bulkDelete]);
 
   const handleSingleDelete = useCallback(async (lapId: number) => {
-    await fetch(`/api/laps/${lapId}`, { method: "DELETE" });
+    await singleDelete.mutateAsync(lapId);
     setSelectedLaps((prev) => { const next = new Set(prev); next.delete(lapId); return next; });
     fetchTrackLaps();
-  }, [fetchTrackLaps]);
+  }, [fetchTrackLaps, singleDelete]);
 
   const handleSort = useCallback((col: "time" | "lap") => {
     if (sortBy === col) setSortAsc((a) => !a);
@@ -531,6 +552,106 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
               </div>
             </div>
           )}
+
+          {/* Sector Boundaries (S1/S2/S3) */}
+          <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs text-app-text-muted uppercase tracking-wider">Sector Boundaries</div>
+              {!editingSectors ? (
+                <button
+                  onClick={startEditingSectors}
+                  disabled={!sectorBounds}
+                  className="text-[10px] text-cyan-400 hover:text-cyan-300 px-2 py-0.5 rounded bg-cyan-900/30 border border-cyan-800/50 disabled:opacity-50"
+                >
+                  Edit
+                </button>
+              ) : (
+                <div className="flex gap-1">
+                  <button
+                    onClick={saveSectorBounds}
+                    disabled={savingSectors}
+                    className="text-[10px] text-emerald-400 hover:text-emerald-300 px-2 py-0.5 rounded bg-emerald-900/30 border border-emerald-800/50 disabled:opacity-50"
+                  >
+                    {savingSectors ? "..." : "Save"}
+                  </button>
+                  <button
+                    onClick={() => setEditingSectors(false)}
+                    className="text-[10px] text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+            {sectorBounds ? (
+              editingSectors ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-red-500" />
+                    <span className="text-xs text-app-text-muted w-16">S1 End</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="1"
+                      max={editS2 - 1}
+                      value={editS1.toFixed(1)}
+                      onChange={(e) => setEditS1(Number(e.target.value))}
+                      className="w-16 text-xs font-mono bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
+                    />
+                    <span className="text-[10px] text-app-text-dim">%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span className="text-xs text-app-text-muted w-16">S2 End</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min={editS1 + 1}
+                      max="99"
+                      value={editS2.toFixed(1)}
+                      onChange={(e) => setEditS2(Number(e.target.value))}
+                      className="w-16 text-xs font-mono bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
+                    />
+                    <span className="text-[10px] text-app-text-dim">%</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                    <span className="text-xs text-app-text-muted w-16">S3 End</span>
+                    <span className="text-xs font-mono text-app-text-secondary">100.0</span>
+                    <span className="text-[10px] text-app-text-dim">% (finish)</span>
+                  </div>
+                  {/* Visual bar */}
+                  <div className="flex h-2 rounded overflow-hidden mt-1">
+                    <div className="bg-red-500/60" style={{ width: `${editS1}%` }} />
+                    <div className="bg-blue-500/60" style={{ width: `${editS2 - editS1}%` }} />
+                    <div className="bg-yellow-500/60" style={{ width: `${100 - editS2}%` }} />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {[
+                    { name: "S1", color: "bg-red-500", pct: (sectorBounds.s1End * 100).toFixed(1) },
+                    { name: "S2", color: "bg-blue-500", pct: ((sectorBounds.s2End - sectorBounds.s1End) * 100).toFixed(1) },
+                    { name: "S3", color: "bg-yellow-500", pct: ((1 - sectorBounds.s2End) * 100).toFixed(1) },
+                  ].map((s) => (
+                    <div key={s.name} className="flex items-center gap-2 px-2 py-1 rounded bg-app-surface-alt/30">
+                      <div className={`w-2 h-2 rounded-full ${s.color}`} />
+                      <span className="text-xs font-mono font-bold text-app-text">{s.name}</span>
+                      <span className="text-[10px] font-mono text-app-text-secondary ml-auto">{s.pct}%</span>
+                    </div>
+                  ))}
+                  {/* Visual bar */}
+                  <div className="flex h-2 rounded overflow-hidden mt-1">
+                    <div className="bg-red-500/60" style={{ width: `${sectorBounds.s1End * 100}%` }} />
+                    <div className="bg-blue-500/60" style={{ width: `${(sectorBounds.s2End - sectorBounds.s1End) * 100}%` }} />
+                    <div className="bg-yellow-500/60" style={{ width: `${(1 - sectorBounds.s2End) * 100}%` }} />
+                  </div>
+                </div>
+              )
+            ) : (
+              <div className="text-xs text-app-text-dim">No sector data available</div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1087,8 +1208,7 @@ export function TrackViewer() {
   const routeSearch = useSearch({ from: "/tracks" });
   const navigate = useNavigate({ from: "/tracks" });
 
-  const [tracks, setTracks] = useState<TrackInfo[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: tracks = [], isLoading: loading } = useTracks() as { data: TrackInfo[]; isLoading: boolean };
   const [selectedTrack, setSelectedTrack] = useState<TrackInfo | null>(null);
   const [search, setSearch] = useState("");
 
@@ -1102,20 +1222,13 @@ export function TrackViewer() {
     navigate({ search: {}, replace: true });
   }, [navigate]);
 
+  // If URL has a track param, select it once tracks load
   useEffect(() => {
-    fetch("/api/tracks")
-      .then((r) => r.json())
-      .then((data: TrackInfo[]) => {
-        setTracks(data);
-        // If URL has a track param, select it
-        if (routeSearch.track) {
-          const match = data.find((t) => t.ordinal === routeSearch.track);
-          if (match) setSelectedTrack(match);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    if (tracks.length > 0 && routeSearch.track && !selectedTrack) {
+      const match = tracks.find((t) => t.ordinal === routeSearch.track);
+      if (match) setSelectedTrack(match);
+    }
+  }, [tracks, routeSearch.track]);
 
   if (loading) {
     return <div className="p-4 text-app-text-dim">Loading tracks...</div>;

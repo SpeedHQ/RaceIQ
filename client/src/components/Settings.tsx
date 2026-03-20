@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { convertTemp, celsiusToFahrenheit } from "../lib/temperature";
-import { useTelemetryStore } from "../stores/telemetry";
+import { useSettings, useSaveSettings } from "../hooks/queries";
 import { useTheme, type Theme } from "../context/theme";
 
 // Steering lock stored in localStorage so it persists across refreshes
@@ -28,7 +28,8 @@ export function Settings() {
   const [errorMsg, setErrorMsg] = useState("");
   const [steerLock, setSteerLock] = useState(() => String(getSteeringLock()));
 
-  const { displaySettings, refetchSettings } = useTelemetryStore();
+  const { displaySettings } = useSettings();
+  const saveSettings = useSaveSettings();
   const { theme, setTheme } = useTheme();
   const [tempUnit, setTempUnit] = useState<"F" | "C">(displaySettings.temperatureUnit);
   const [thresholds, setThresholds] = useState(displaySettings.tireTemperatureThresholds);
@@ -50,15 +51,15 @@ export function Settings() {
     } : raw);
   }, [tempSettingsJson]);
 
+  // Seed UDP port from settings query
+  const settingsQuery = useSettings();
   useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => r.json())
-      .then((data: { udpPort: number }) => {
-        setUdpPort(String(data.udpPort));
-        setSavedPort(data.udpPort);
-      })
-      .catch(() => {});
-  }, []);
+    const data = settingsQuery.displaySettings as any;
+    if (data?.udpPort != null && savedPort === null) {
+      setUdpPort(String(data.udpPort));
+      setSavedPort(data.udpPort);
+    }
+  }, [settingsQuery.displaySettings]);
 
   const port = parseInt(udpPort, 10);
   const hasChanges = savedPort === null || port !== savedPort;
@@ -74,23 +75,8 @@ export function Settings() {
     setStatus("saving");
     setErrorMsg("");
     try {
-      const res = await fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ udpPort: savePort }),
-      });
-      const text = await res.text();
-      let data: { udpPort?: number; error?: string };
-      try {
-        data = JSON.parse(text);
-      } catch {
-        throw new Error(`Server error: ${text.slice(0, 100)}`);
-      }
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to save");
-      }
-      setSavedPort(data.udpPort ?? null);
-      setUdpPort(String(data.udpPort));
+      await saveSettings.mutateAsync({ udpPort: savePort } as any);
+      setSavedPort(savePort);
       setStatus("saved");
       setTimeout(() => setStatus("idle"), 2000);
     } catch (err) {
@@ -118,20 +104,11 @@ export function Settings() {
     setTempStatus("saving");
     setTempError("");
     try {
-      const res = await fetch("/api/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          temperatureUnit: tempUnit,
-          speedUnit: speedUnit,
-          tireTemperatureThresholds: thresholdsInF,
-        }),
+      await saveSettings.mutateAsync({
+        temperatureUnit: tempUnit,
+        speedUnit: speedUnit,
+        tireTemperatureThresholds: thresholdsInF,
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to save");
-      }
-      await refetchSettings();
       setTempStatus("saved");
       setTimeout(() => setTempStatus("idle"), 2000);
     } catch (err) {

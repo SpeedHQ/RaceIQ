@@ -6,7 +6,8 @@ import { BodyAttitude } from "./BodyAttitude";
 import { WeightShiftRadar } from "./WeightShiftRadar";
 import { convertTemp } from "../lib/temperature";
 import { convertSpeed, speedLabel } from "../lib/speed";
-import { useTelemetryStore } from "../stores/telemetry";
+import { useSettings } from "../hooks/queries";
+import { api } from "../lib/api";
 import { allWheelStates, type WheelState } from "../lib/vehicle-dynamics";
 
 // Rolling window for grip sparklines — 60s at 10Hz gives a manageable 600-point buffer
@@ -123,8 +124,8 @@ function GripHistory({ packet }: { packet: TelemetryPacket }) {
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
-    fetch("/api/grip-history")
-      .then((r) => r.json())
+    api.getGripHistory()
+      .then((data: any) => data as { fl: number[]; fr: number[]; rl: number[]; rr: number[] })
       .then((data: { fl: number[]; fr: number[]; rl: number[]; rr: number[] }) => {
         if (data && Array.isArray(data.fl) && data.fl.length > 0) {
           const h = historyRef.current;
@@ -450,7 +451,7 @@ function SuspBar({ norm }: { norm: number }) {
  * Falls back to 0.33m radius when stationary to avoid division by zero.
  */
 export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
-  const { displaySettings } = useTelemetryStore();
+  const { displaySettings } = useSettings();
   const toDeg = 180 / Math.PI;
 
   // Use canonical wheel states from vehicle-dynamics (same as LapAnalyse)
@@ -650,8 +651,8 @@ function FuelGauge({ packet }: { packet: TelemetryPacket }) {
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
-    fetch("/api/fuel-history")
-      .then((r) => r.json())
+    api.getFuelHistory()
+      .then((data: any) => data as { fuelUsed: number }[])
       .then((data: { fuelUsed: number }[]) => {
         if (Array.isArray(data) && data.length > 0) {
           const f = fuelRef.current;
@@ -1132,7 +1133,7 @@ function DualLineChart({ data1, data2, label1, label2, color1, color2, label, ma
  * Converts raw telemetry units (rad->deg, m/s->mph, 0-255->0-100%) for display.
  */
 function TelemetryCharts({ packet }: { packet: TelemetryPacket }) {
-  const { displaySettings } = useTelemetryStore();
+  const { displaySettings } = useSettings();
   const histRef = useRef<{
     grip: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
     temp: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
@@ -1161,8 +1162,7 @@ function TelemetryCharts({ packet }: { packet: TelemetryPacket }) {
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
-    fetch("/api/telemetry-history")
-      .then((r) => r.json())
+    api.getTelemetryHistory()
       .then((data: any) => {
         if (data && Array.isArray(data.grip?.fl)) {
           histRef.current = data;
@@ -1219,13 +1219,12 @@ export function LiveTelemetry({ packet }: Props) {
     if (ord === lastCarOrdRef.current) return;
     lastCarOrdRef.current = ord;
 
-    fetch(`/api/car-name/${ord}`)
-      .then((r) => r.text())
+    api.getCarName(ord)
       .then((name) => setCarName(name))
       .catch(() => setCarName(`Car #${ord}`));
   }, [packet?.CarOrdinal]);
 
-  const { displaySettings } = useTelemetryStore();
+  const { displaySettings } = useSettings();
 
   if (!packet) {
     return (

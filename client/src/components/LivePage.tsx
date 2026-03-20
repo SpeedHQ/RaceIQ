@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
 import { useTelemetryStore } from "../stores/telemetry";
+import { useStatus, useTrackName } from "../hooks/queries";
 import { LiveTelemetry, formatLapTime } from "./LiveTelemetry";
 import { CurrentLapStats } from "./CurrentLapStats";
 import { LiveTrackMap } from "./LiveTrackMap";
@@ -8,24 +8,10 @@ import { LapTimeChart } from "./LapTimeChart";
 import { SectorTimes } from "./SectorTimes";
 
 export function LivePage() {
-  const { packet } = useTelemetryStore();
-  const [trackName, setTrackName] = useState("");
-  const lastTrackFetchRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!packet) return;
-    fetch("/api/status")
-      .then((r) => r.json())
-      .then((status) => {
-        const trackOrd = status.currentSession?.trackOrdinal;
-        if (trackOrd == null || trackOrd === lastTrackFetchRef.current) return;
-        lastTrackFetchRef.current = trackOrd;
-        return fetch(`/api/track-name/${trackOrd}`);
-      })
-      .then((r) => r?.text())
-      .then((name) => { if (name) setTrackName(name); })
-      .catch(() => {});
-  }, [packet?.LapNumber]);
+  const packet = useTelemetryStore((s) => s.packet);
+  const { data: status } = useStatus();
+  const trackOrd = (status as any)?.currentSession?.trackOrdinal;
+  const { data: trackName } = useTrackName(trackOrd);
 
   return (
     <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0">

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { api } from "../lib/api";
 
 interface Props {
   lapId: number;
@@ -10,9 +11,8 @@ export function ExportButton({ lapId }: Props) {
   async function handleExport() {
     setStatus("copying");
     try {
-      const res = await fetch(`/api/laps/${lapId}/export`);
-      if (!res.ok) throw new Error("Export failed");
-      const text = await res.text();
+      const blob = await api.exportLap(lapId);
+      const text = await blob.text();
       await navigator.clipboard.writeText(text);
       setStatus("copied");
       setTimeout(() => setStatus("idle"), 2000);

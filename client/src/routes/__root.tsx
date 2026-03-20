@@ -1,11 +1,21 @@
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useTelemetryStore } from "../stores/telemetry";
 import { ThemeProvider } from "../context/theme";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { Settings } from "../components/Settings";
 import { Button } from "@/components/ui/button";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5_000,
+      retry: 1,
+    },
+  },
+});
 
 const TABS = [
   { to: "/", label: "Live" },
@@ -19,13 +29,13 @@ const TABS = [
 
 function RootLayout() {
   useWebSocket();
-  const { connected, packetsPerSec, refetchSettings } = useTelemetryStore();
-
-  useEffect(() => { refetchSettings(); }, [refetchSettings]);
+  const connected = useTelemetryStore((s) => s.connected);
+  const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
 
   const [showSettings, setShowSettings] = useState(false);
 
   return (
+    <QueryClientProvider client={queryClient}>
     <ThemeProvider>
         <div className="h-screen grid grid-rows-[auto_1fr] bg-app-bg text-app-text">
           <div className="flex items-center justify-between border-b border-app-border">
@@ -80,6 +90,7 @@ function RootLayout() {
           </div>
         </div>
     </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 

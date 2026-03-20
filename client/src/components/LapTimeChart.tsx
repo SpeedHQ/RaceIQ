@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import type { TelemetryPacket } from "@shared/types";
 import { formatLapTime } from "./LiveTelemetry";
+import { useLaps } from "../hooks/queries";
 
 /**
  * LapTimeChart — Canvas-drawn lap time trend with pace reference lines.
@@ -10,40 +11,36 @@ import { formatLapTime } from "./LiveTelemetry";
  * Seeds from /api/laps on mount, then appends live laps on LapNumber boundary.
  */
 export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
-  const [laps, setLaps] = useState<{ lap: number; time: number }[]>([]);
+  const { data: allLaps = [] } = useLaps();
+  const [liveLaps, setLiveLaps] = useState<{ lap: number; time: number }[]>([]);
   const lastLapRef = useRef<number>(0);
-  const trackOrdRef = useRef<number | null>(null);
 
-  // Fetch laps for the current track, re-fetch when track changes
-  useEffect(() => {
-    if (!packet?.TrackOrdinal) return;
-    if (packet.TrackOrdinal === trackOrdRef.current) return;
-    trackOrdRef.current = packet.TrackOrdinal;
-    lastLapRef.current = 0;
+  const recordedLaps = useMemo(() => {
+    if (!packet?.TrackOrdinal) return [];
+    return allLaps
+      .filter((l) => l.lapTime > 0 && l.trackOrdinal === packet.TrackOrdinal)
+      .map((l) => ({ lap: l.lapNumber, time: l.lapTime }))
+      .slice(-10);
+  }, [allLaps, packet?.TrackOrdinal]);
 
-    fetch("/api/laps")
-      .then((r) => r.json())
-      .then((data: { id: number; lapNumber: number; lapTime: number; trackOrdinal?: number }[]) => {
-        if (Array.isArray(data)) {
-          const recorded = data
-            .filter((l) => l.lapTime > 0 && l.trackOrdinal === packet.TrackOrdinal)
-            .map((l) => ({ lap: l.lapNumber, time: l.lapTime }))
-            .slice(-10);
-          setLaps(recorded);
-        }
-      })
-      .catch(() => {});
-  }, [packet?.TrackOrdinal]);
+  // Merge recorded + live laps
+  const laps = useMemo(() => {
+    const merged = [...recordedLaps];
+    for (const live of liveLaps) {
+      if (!merged.some((l) => l.lap === live.lap && Math.abs(l.time - live.time) < 0.01)) {
+        merged.push(live);
+      }
+    }
+    return merged.slice(-10);
+  }, [recordedLaps, liveLaps]);
 
-  // Accumulate live laps (only if same track)
+  // Accumulate live laps
   useEffect(() => {
     if (!packet) return;
-    if (packet.TrackOrdinal !== trackOrdRef.current) return;
     if (packet.LapNumber > lastLapRef.current && packet.LastLap > 0 && lastLapRef.current > 0) {
-      setLaps((prev) => {
+      setLiveLaps((prev) => {
         if (prev.some((l) => l.lap === lastLapRef.current)) return prev;
-        const next = [...prev, { lap: lastLapRef.current, time: packet.LastLap }];
-        return next.slice(-10);
+        return [...prev, { lap: lastLapRef.current, time: packet.LastLap }];
       });
     }
     lastLapRef.current = packet.LapNumber;
@@ -54,9 +51,7 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
   const height = 160;
 
   const handleClearAll = () => {
-    fetch("/api/laps", { method: "DELETE" })
-      .then(() => setLaps([]))
-      .catch(() => {});
+    setLiveLaps([]);
   };
 
   useEffect(() => {

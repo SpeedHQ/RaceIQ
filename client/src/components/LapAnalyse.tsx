@@ -17,7 +17,8 @@ import {
   balanceColor,
 } from "../lib/vehicle-dynamics";
 import { convertSpeed, speedLabel } from "../lib/speed";
-import { useTelemetryStore } from "../stores/telemetry";
+import { useSettings, useLaps as useLapsQuery } from "../hooks/queries";
+import { api } from "../lib/api";
 import { analyzeLap } from "../lib/lap-insights";
 import { InsightPanel } from "./InsightPanel";
 import { AiAnalysisModal } from "./AiAnalysisModal";
@@ -435,7 +436,7 @@ function TelemetryChart({
 // ── Metrics Panel ────────────────────────────────────────────────────
 
 function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket; startFuel?: number }) {
-  const { displaySettings } = useTelemetryStore();
+  const { displaySettings } = useSettings();
   const speed = convertSpeed(pkt.Speed, displaySettings.speedUnit);
   const throttlePct = ((pkt.Accel / 255) * 100).toFixed(0);
   const brakePct = ((pkt.Brake / 255) * 100).toFixed(0);
@@ -544,7 +545,7 @@ function SuspValue({ label, value }: { label: string; value: number }) {
 export function LapAnalyse() {
   const search = useSearch({ from: "/analyse" });
   const navigate = useNavigate({ from: "/analyse" });
-  const { displaySettings } = useTelemetryStore();
+  const { displaySettings } = useSettings();
 
   const [laps, setLaps] = useState<LapMeta[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);
@@ -574,14 +575,13 @@ export function LapAnalyse() {
   const [carNames, setCarNames] = useState<Record<number, string>>({});
 
   // Fetch lap list
+  const { data: allLaps = [] } = useLapsQuery();
   useEffect(() => {
-    fetch("/api/laps")
-      .then((r) => r.json())
-      .then((data: LapMeta[]) => {
-        if (Array.isArray(data)) setLaps(data.filter((l) => l.lapTime > 0));
-      })
-      .catch(() => {});
-  }, []);
+    const valid = allLaps.filter((l) => l.lapTime > 0);
+    if (valid.length !== laps.length || valid.some((l, i) => l.id !== laps[i]?.id)) {
+      setLaps(valid);
+    }
+  }, [allLaps]);
 
   // Derive unique tracks from laps
   const tracks = useMemo(() => {
@@ -622,16 +622,14 @@ export function LapAnalyse() {
     }
     for (const ord of trackOrdinals) {
       if (!trackNames[ord]) {
-        fetch(`/api/track-name/${ord}`)
-          .then((r) => r.ok ? r.text() : "")
+        api.getTrackName(ord)
           .then((name) => { if (name) setTrackNames((prev) => ({ ...prev, [ord]: name })); })
           .catch(() => {});
       }
     }
     for (const ord of carOrdinals) {
       if (!carNames[ord]) {
-        fetch(`/api/car-name/${ord}`)
-          .then((r) => r.ok ? r.text() : "")
+        api.getCarName(ord)
           .then((name) => { if (name) setCarNames((prev) => ({ ...prev, [ord]: name })); })
           .catch(() => {});
       }
@@ -674,32 +672,27 @@ export function LapAnalyse() {
     setCarName(selectedCar != null ? (carNames[selectedCar] ?? "") : "");
     setTrackName(selectedTrack != null ? (trackNames[selectedTrack] ?? "") : "");
 
-    fetch(`/api/laps/${selectedLapId}`)
-      .then((r) => r.json())
-      .then((data: { meta: LapMeta; telemetry: TelemetryPacket[] }) => {
+    api.getLap(selectedLapId)
+      .then((data: any) => {
         if (data && Array.isArray(data.telemetry)) {
           setTelemetry(data.telemetry);
           setCursorIdx(0);
           cursorRef.current = 0;
 
-          // Fetch track outline + sectors
           const trackOrd = selectedTrack ?? data.meta?.trackOrdinal ?? data.telemetry[0]?.TrackOrdinal;
           if (trackOrd != null) {
-            fetch(`/api/track-outline/${trackOrd}`)
-              .then((r) => (r.ok ? r.json() : null))
-              .then((data) => {
-                if (data?.points && Array.isArray(data.points)) setOutline(data.points);
-                else if (Array.isArray(data)) setOutline(data);
+            api.getTrackOutline(trackOrd)
+              .then((d: any) => {
+                if (d?.points && Array.isArray(d.points)) setOutline(d.points);
+                else if (Array.isArray(d)) setOutline(d);
                 else setOutline(null);
               })
               .catch(() => setOutline(null));
-            fetch(`/api/track-sector-boundaries/${trackOrd}`)
-              .then((r) => (r.ok ? r.json() : null))
-              .then((s) => { if (s?.s1End) setSectors(s); else setSectors(null); })
+            api.getTrackSectorBoundaries(trackOrd)
+              .then((s: any) => { if (s?.s1End) setSectors(s); else setSectors(null); })
               .catch(() => setSectors(null));
-            fetch(`/api/track-sectors/${trackOrd}`)
-              .then((r) => (r.ok ? r.json() : null))
-              .then((s) => { if (s?.segments) setSegments(s.segments); else setSegments(null); })
+            api.getTrackSectors(trackOrd)
+              .then((s: any) => { if (s?.segments) setSegments(s.segments); else setSegments(null); })
               .catch(() => setSegments(null));
           } else {
             setOutline(null);

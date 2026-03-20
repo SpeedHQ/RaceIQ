@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { TelemetryPacket } from "@shared/types";
+import { api } from "../lib/api";
 
 interface Props {
   packet: TelemetryPacket | null;
@@ -47,9 +48,8 @@ export function CurrentLapStats({ packet }: Props) {
       lastLap: 0,
     };
 
-    fetch(`/api/track-sectors/${packet.TrackOrdinal}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
+    api.getTrackSectors(packet.TrackOrdinal)
+      .then((data: any) => {
         if (data?.s1End) setSectors(data);
         else setSectors(null);
       })

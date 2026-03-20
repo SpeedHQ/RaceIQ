@@ -6,7 +6,8 @@ import { TelemetryChart } from "./TelemetryChart";
 import { TimeDelta } from "./TimeDelta";
 import { CornerTable } from "./CornerTable";
 import { speedLabel } from "../lib/speed";
-import { useTelemetryStore } from "../stores/telemetry";
+import { useSettings, useLaps, useTrackOutline, useTrackSectors } from "../hooks/queries";
+import { api } from "../lib/api";
 import { SearchSelect } from "./ui/SearchSelect";
 
 const SYNC_KEY = "lap-compare";
@@ -580,8 +581,9 @@ interface TrackGroup {
 export function LapComparison() {
   const search = useSearch({ from: "/compare" });
   const navigate = useNavigate({ from: "/compare" });
-  const { displaySettings } = useTelemetryStore();
-  const [laps, setLaps] = useState<LapMeta[]>([]);
+  const { displaySettings } = useSettings();
+  const { data: allLaps = [] } = useLaps();
+  const laps = useMemo(() => allLaps.filter((l) => l.lapTime > 0 && l.trackOrdinal), [allLaps]);
   const [trackGroups, setTrackGroups] = useState<TrackGroup[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);
   const [carAOrd, setCarAOrd] = useState<number | null>(search.carA ?? null);
@@ -592,8 +594,19 @@ export function LapComparison() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [carNames, setCarNames] = useState<Map<number, string>>(new Map());
-  const [trackOutline, setTrackOutline] = useState<OutlinePoint[] | null>(null);
-  const [trackSegments, setTrackSegments] = useState<{ type: string; name: string; startFrac: number; endFrac: number }[] | null>(null);
+  const { data: outlineData } = useTrackOutline(selectedTrack ?? undefined);
+  const trackOutline = useMemo(() => {
+    if (!outlineData) return null;
+    const d = outlineData as any;
+    if (d?.points && Array.isArray(d.points)) return d.points as OutlinePoint[];
+    if (Array.isArray(d)) return d as OutlinePoint[];
+    return null;
+  }, [outlineData]);
+  const { data: sectorsData } = useTrackSectors(selectedTrack ?? undefined);
+  const trackSegments = useMemo(() => {
+    const s = sectorsData as any;
+    return s?.segments ?? null;
+  }, [sectorsData]);
   const prevTrackRef = useRef<number | null | undefined>(undefined);
   const prevCarARef = useRef<number | null | undefined>(undefined);
   const prevCarBRef = useRef<number | null | undefined>(undefined);
@@ -620,53 +633,43 @@ export function LapComparison() {
     });
   }, [selectedTrack, carAOrd, carBOrd, lapAId, lapBId, navigate]);
 
-  // Fetch lap list and group by track
+  // Build track groups and fetch names when laps data changes
   useEffect(() => {
-    async function fetchLaps() {
-      try {
-        const res = await fetch("/api/laps");
-        if (!res.ok) return;
-        const data: LapMeta[] = await res.json();
-        const validLaps = data.filter((l) => l.lapTime > 0 && l.trackOrdinal);
-        setLaps(validLaps);
+    if (laps.length === 0) return;
+    let cancelled = false;
 
-        // Group by track
-        const byTrack = new Map<number, LapMeta[]>();
-        for (const lap of validLaps) {
-          const t = lap.trackOrdinal!;
-          if (!byTrack.has(t)) byTrack.set(t, []);
-          byTrack.get(t)!.push(lap);
-        }
+    async function buildGroups() {
+      const byTrack = new Map<number, LapMeta[]>();
+      for (const lap of laps) {
+        const t = lap.trackOrdinal!;
+        if (!byTrack.has(t)) byTrack.set(t, []);
+        byTrack.get(t)!.push(lap);
+      }
 
-        // Fetch track names
-        const groups: TrackGroup[] = [];
-        for (const [ordinal, trackLaps] of byTrack) {
-          let name = `Track ${ordinal}`;
-          try {
-            const r = await fetch(`/api/track-name/${ordinal}`);
-            if (r.ok) name = await r.text();
-          } catch {}
-          groups.push({ trackOrdinal: ordinal, trackName: name, laps: trackLaps });
-        }
-        groups.sort((a, b) => a.trackName.localeCompare(b.trackName));
+      const groups: TrackGroup[] = [];
+      for (const [ordinal, trackLaps] of byTrack) {
+        let name = `Track ${ordinal}`;
+        try { name = await api.getTrackName(ordinal); } catch {}
+        groups.push({ trackOrdinal: ordinal, trackName: name, laps: trackLaps });
+      }
+      groups.sort((a, b) => a.trackName.localeCompare(b.trackName));
+
+      const carOrds = new Set(laps.map((l) => l.carOrdinal).filter((c): c is number => c != null));
+      const names = new Map<number, string>();
+      await Promise.all(
+        Array.from(carOrds).map(async (ord) => {
+          try { names.set(ord, await api.getCarName(ord)); } catch {}
+        })
+      );
+
+      if (!cancelled) {
         setTrackGroups(groups);
-
-        // Fetch car names for unique car ordinals
-        const carOrds = new Set(validLaps.map((l) => l.carOrdinal).filter((c): c is number => c != null));
-        const names = new Map<number, string>();
-        await Promise.all(
-          Array.from(carOrds).map(async (ord) => {
-            try {
-              const r = await fetch(`/api/car-name/${ord}`);
-              if (r.ok) names.set(ord, await r.text());
-            } catch {}
-          })
-        );
         setCarNames(names);
-      } catch {}
+      }
     }
-    fetchLaps();
-  }, []);
+    buildGroups();
+    return () => { cancelled = true; };
+  }, [laps]);
 
   // Reset car/lap selections when track changes (skip initial mount to preserve URL params)
   useEffect(() => {
@@ -679,26 +682,6 @@ export function LapComparison() {
       setLapAId(null);
       setLapBId(null);
       setComparison(null);
-    }
-    setTrackOutline(null);
-    setTrackSegments(null);
-
-    // Fetch track outline + segments
-    if (selectedTrack != null) {
-      fetch(`/api/track-outline/${selectedTrack}`)
-        .then((r) => r.ok ? r.json() : null)
-        .then((data) => {
-          if (data?.points && Array.isArray(data.points)) {
-            setTrackOutline(data.points);
-          } else if (Array.isArray(data)) {
-            setTrackOutline(data);
-          }
-        })
-        .catch(() => setTrackOutline(null));
-      fetch(`/api/track-sectors/${selectedTrack}`)
-        .then((r) => r.ok ? r.json() : null)
-        .then((s) => { if (s?.segments) setTrackSegments(s.segments); else setTrackSegments(null); })
-        .catch(() => setTrackSegments(null));
     }
   }, [selectedTrack]);
 
@@ -748,13 +731,7 @@ export function LapComparison() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/laps/${lapAId}/compare/${lapBId}`);
-      if (!res.ok) {
-        setError(`Failed to load comparison: ${res.statusText}`);
-        setComparison(null);
-        return;
-      }
-      const data: ComparisonData = await res.json();
+      const data = await api.compareLaps(lapAId, lapBId);
       setComparison(data);
     } catch (e) {
       setError("Failed to load comparison data");

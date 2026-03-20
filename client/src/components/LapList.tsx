@@ -1,6 +1,8 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { LapMeta } from "@shared/types";
 import { ExportButton } from "./ExportButton";
+import { useLaps, useDeleteLap } from "../hooks/queries";
+import { api } from "../lib/api";
 
 function formatLapTime(seconds: number): string {
   if (seconds <= 0) return "--:--.---";
@@ -13,8 +15,8 @@ type SortKey = "lap" | "time";
 type SortDir = "asc" | "desc";
 
 export function LapList() {
-  const [laps, setLaps] = useState<LapMeta[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: laps = [], isLoading } = useLaps();
+  const deleteLap = useDeleteLap();
   const [carNames, setCarNames] = useState<Record<number, string>>({});
   const fetchedOrdinals = useRef(new Set<number>());
   const [sortKey, setSortKey] = useState<SortKey>("lap");
@@ -28,45 +30,13 @@ export function LapList() {
 
     for (const ord of newOrdinals) {
       fetchedOrdinals.current.add(ord);
-      fetch(`/api/car-name/${ord}`)
-        .then((r) => r.text())
+      api.getCarName(ord)
         .then((name) => setCarNames((prev) => ({ ...prev, [ord]: name })))
         .catch(() => setCarNames((prev) => ({ ...prev, [ord]: `Car #${ord}` })));
     }
   }, [laps]);
 
-  const fetchLaps = useCallback(async () => {
-    try {
-      const res = await fetch("/api/laps");
-      if (res.ok) {
-        const data = await res.json();
-        setLaps(data);
-      }
-    } catch {
-      // server not ready yet
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchLaps();
-    const interval = setInterval(fetchLaps, 5000);
-    return () => clearInterval(interval);
-  }, [fetchLaps]);
-
-  async function handleDelete(id: number) {
-    try {
-      const res = await fetch(`/api/laps/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setLaps((prev) => prev.filter((l) => l.id !== id));
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  if (loading) {
+  if (isLoading) {
     return <div className="p-4 text-app-text-dim">Loading laps...</div>;
   }
 
@@ -131,7 +101,7 @@ export function LapList() {
                 <div className="flex items-center justify-end gap-2">
                   <ExportButton lapId={lap.id} />
                   <button
-                    onClick={() => handleDelete(lap.id)}
+                    onClick={() => deleteLap.mutate(lap.id)}
                     className="px-2 py-1 text-xs rounded bg-slate-700 hover:bg-red-600 text-app-text hover:text-app-text transition-colors"
                   >
                     Delete

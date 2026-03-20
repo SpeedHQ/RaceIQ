@@ -14,6 +14,7 @@ import {
   getFirstLapIdForTrack,
   getTrackOutline as getDbTrackOutline,
   getTrackOutlineSectors,
+  updateTrackOutlineSectors,
   hasRecordedOutline,
   getAnalysis,
   saveAnalysis,
@@ -472,6 +473,26 @@ app.get("/api/track-sector-boundaries/:ordinal", (c) => {
 
   const bundled = getTrackSectorsByOrdinal(ordinal);
   return c.json(bundled);
+});
+
+// PUT /api/track-sector-boundaries/:ordinal — update s1End/s2End fractions
+app.put("/api/track-sector-boundaries/:ordinal", async (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  const body = await c.req.json();
+  const { s1End, s2End } = body;
+  if (typeof s1End !== "number" || typeof s2End !== "number") {
+    return c.json({ error: "s1End and s2End numbers required" }, 400);
+  }
+  if (s1End <= 0 || s1End >= s2End || s2End >= 1) {
+    return c.json({ error: "Invalid sector boundaries: need 0 < s1End < s2End < 1" }, 400);
+  }
+
+  const updated = updateTrackOutlineSectors(ordinal, { s1End, s2End });
+  if (!updated) return c.json({ error: "No outline found for track" }, 404);
+
+  return c.json({ success: true, s1End, s2End });
 });
 
 // GET /api/tracks — list all tracks with outline availability

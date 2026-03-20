@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { TelemetryPacket } from "@shared/types";
 import { formatLapTime } from "./LiveTelemetry";
+import { useStatus, useTrackSectors } from "../hooks/queries";
 
 /**
  * SectorTimes — Distance-based sector split timing.
@@ -8,8 +9,10 @@ import { formatLapTime } from "./LiveTelemetry";
  * positions (s1End, s2End) from the track outline's distance analysis.
  */
 export function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
-  const [sectors, setSectors] = useState<{ s1End: number; s2End: number } | null>(null);
-  const trackOrdRef = useRef<number | null>(null);
+  const { data: status } = useStatus();
+  const trackOrd = (status as any)?.currentSession?.trackOrdinal;
+  const { data: sectorsData } = useTrackSectors(trackOrd);
+  const sectors = (sectorsData as any)?.s1End ? sectorsData as { s1End: number; s2End: number } : null;
   const sectorStateRef = useRef<{
     lapDistStart: number;
     lapDistTotal: number;
@@ -30,27 +33,6 @@ export function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
     lastLap: 0,
   });
   const [, tick] = useState(0);
-
-  useEffect(() => {
-    if (!packet) return;
-    const fetchSectors = async () => {
-      try {
-        const statusRes = await fetch("/api/status");
-        if (!statusRes.ok) return;
-        const status = await statusRes.json();
-        const trackOrd = status.currentSession?.trackOrdinal;
-        if (trackOrd == null || trackOrd === trackOrdRef.current) return;
-        trackOrdRef.current = trackOrd;
-
-        const res = await fetch(`/api/track-sectors/${trackOrd}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.s1End) setSectors(data);
-        }
-      } catch {}
-    };
-    fetchSectors();
-  }, [packet?.LapNumber]);
 
   useEffect(() => {
     if (!packet || !sectors) return;
