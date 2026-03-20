@@ -144,3 +144,75 @@ export function useTelemetryHistory() {
 export function useExportLap() {
   return useMutation({ mutationFn: api.exportLap });
 }
+
+// ── Tunes ────────────────────────────────────────────────────────────────────
+export function useUserTunes() {
+  return useQuery({
+    queryKey: queryKeys.userTunes,
+    queryFn: api.getUserTunes,
+  });
+}
+
+export function useCatalogTunes() {
+  return useQuery({
+    queryKey: queryKeys.catalogTunes,
+    queryFn: api.getCatalogTunes,
+  });
+}
+
+export function useCreateTune() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.createTune,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
+  });
+}
+
+export function useUpdateTune() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.updateTune,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
+  });
+}
+
+export function useDeleteTune() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.deleteTune,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
+  });
+}
+
+export function useCloneCatalogTune() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.cloneCatalogTune,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
+  });
+}
+
+// ── Tune Assignments ─────────────────────────────────────────────────────────
+export function useTuneAssignments() {
+  return useQuery({
+    queryKey: queryKeys.tuneAssignments,
+    queryFn: api.getTuneAssignments,
+  });
+}
+
+export function useSetTuneAssignment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.setTuneAssignment,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.tuneAssignments }),
+  });
+}
+
+export function useDeleteTuneAssignment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ carOrdinal, trackOrdinal }: { carOrdinal: number; trackOrdinal: number }) =>
+      api.deleteTuneAssignment(carOrdinal, trackOrdinal),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.tuneAssignments }),
+  });
+}

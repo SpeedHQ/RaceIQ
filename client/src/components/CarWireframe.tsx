@@ -244,20 +244,37 @@ function TireTrails({
     for (let w = 0; w < 4; w++) {
       const points: [number, number, number][] = [];
       const colors: string[] = [];
+      const [wheelOffX, wheelOffZ] = WHEEL_OFFSETS[w];
 
-      for (let i = startIdx; i <= cursorIdx; i += 3) { // sample every 3rd for perf
+      for (let i = startIdx; i <= cursorIdx; i += 3) {
         const p = telemetry[i];
-        // Car center world position delta
-        const dx = p.PositionX - cx;
-        const dz = p.PositionZ - cz;
+        // Compute wheel world position using historical yaw
+        const pSin = Math.sin(p.Yaw);
+        const pCos = Math.cos(p.Yaw);
+        // wheelOffX = forward offset, wheelOffZ = lateral (right+) offset
+        // Forza forward = (sin(yaw), cos(yaw)), right = (cos(yaw), -sin(yaw))
+        const fwd = wheelOffX;
+        const rgt = wheelOffZ;
+        const wx = p.PositionX + fwd * pSin + rgt * pCos;
+        const wz = p.PositionZ + fwd * pCos - rgt * pSin;
 
-        // Transform world delta to car-local frame
-        // forward = dx*sin(yaw) + dz*cos(yaw), right = dx*cos(yaw) - dz*sin(yaw)
-        const localFwd = (dx * curSin + dz * curCos) * scale;
-        const localRight = (dx * curCos - dz * curSin) * scale;
+        // Delta from current car center
+        const dx = wx - cx;
+        const dz = wz - cz;
 
-        // Car-local → scene: forward = +X, right = +Z
-        points.push([localFwd, -0.42, localRight]);
+        // Transform to current car-local frame
+        const localFwd = dx * curSin + dz * curCos;
+        const localRight = dx * curCos - dz * curSin;
+
+        // Scale only the distance from car center, preserve wheel offset at endpoints
+        // Split into car-center path (scaled) + wheel offset (unscaled)
+        const cdx = p.PositionX - cx;
+        const cdz = p.PositionZ - cz;
+        const centerFwd = (cdx * curSin + cdz * curCos) * scale;
+        const centerRight = (cdx * curCos - cdz * curSin) * scale;
+
+        // Add unscaled wheel offset in car-local frame
+        points.push([centerFwd + wheelOffX, -0.42, centerRight + wheelOffZ]);
         colors.push(slipColor(slips[w](p)));
       }
 

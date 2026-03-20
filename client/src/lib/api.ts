@@ -1,4 +1,5 @@
-import type { TelemetryPacket, LapMeta, ComparisonData } from "@shared/types";
+import type { TelemetryPacket, LapMeta, ComparisonData, Tune, TuneAssignment } from "@shared/types";
+import type { CatalogTune } from "../data/tune-catalog";
 import type { DisplaySettings } from "../stores/telemetry";
 
 // ── Query Keys ──────────────────────────────────────────────────────────────
@@ -16,6 +17,9 @@ export const queryKeys = {
   gripHistory: ["grip-history"] as const,
   fuelHistory: ["fuel-history"] as const,
   telemetryHistory: ["telemetry-history"] as const,
+  userTunes: ["user-tunes"] as const,
+  catalogTunes: ["catalog-tunes"] as const,
+  tuneAssignments: ["tune-assignments"] as const,
 };
 
 // ── Fetch Helpers ───────────────────────────────────────────────────────────
@@ -74,4 +78,49 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ s1End, s2End }),
     }),
+
+  // ── Tunes ───────────────────────────────────────────────────────────────
+  getUserTunes: () => fetchJson<Tune[]>("/api/tunes"),
+  getCatalogTunes: () => fetchJson<CatalogTune[]>("/api/catalog/tunes"),
+  createTune: (data: Partial<Tune>) =>
+    fetch("/api/tunes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }).then(async (r) => {
+      if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
+      return r.json() as Promise<Tune>;
+    }),
+  updateTune: ({ id, ...data }: Partial<Tune> & { id: number }) =>
+    fetch(`/api/tunes/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }).then(async (r) => {
+      if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
+      return r.json() as Promise<Tune>;
+    }),
+  deleteTune: (id: number) =>
+    fetch(`/api/tunes/${id}`, { method: "DELETE" }).then(async (r) => {
+      if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
+    }),
+  cloneCatalogTune: (catalogId: string) =>
+    fetch(`/api/tunes/clone/${catalogId}`, { method: "POST" }).then(async (r) => {
+      if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
+      return r.json() as Promise<Tune>;
+    }),
+
+  // ── Tune Assignments ──────────────────────────────────────────────────
+  getTuneAssignments: () => fetchJson<TuneAssignment[]>("/api/tune-assignments"),
+  setTuneAssignment: (data: { carOrdinal: number; trackOrdinal: number; tuneId: number }) =>
+    fetch("/api/tune-assignments", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }).then(async (r) => {
+      if (!r.ok) throw new Error((await r.json()).error ?? r.statusText);
+      return r.json() as Promise<TuneAssignment>;
+    }),
+  deleteTuneAssignment: (carOrdinal: number, trackOrdinal: number) =>
+    fetch(`/api/tune-assignments/${carOrdinal}/${trackOrdinal}`, { method: "DELETE" }),
 };
