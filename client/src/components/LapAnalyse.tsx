@@ -25,6 +25,7 @@ import { InsightPanel } from "./InsightPanel";
 import { AiAnalysisModal } from "./AiAnalysisModal";
 import { Sparkles } from "lucide-react";
 import { SearchSelect } from "./ui/SearchSelect";
+import { CarWireframe } from "./CarWireframe";
 
 interface Point {
   x: number;
@@ -1310,9 +1311,9 @@ export function LapAnalyse() {
                   {currentPacket && <TireDiagram packet={currentPacket} />}
                 </>
               ) : (
-                <div className="flex items-center justify-center h-full text-app-text-muted text-sm">
-                  Visual tab
-                </div>
+                <>
+                  {currentPacket && <CarWireframe packet={currentPacket} />}
+                </>
               )}
               </div>
             </div>
