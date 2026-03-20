@@ -779,9 +779,9 @@ export function LapComparison() {
   }, [trackSegments, comparison]);
 
   return (
-    <div className="flex flex-col gap-4 p-4 h-full overflow-auto">
+    <div className="flex flex-col gap-4 p-4 h-full overflow-hidden">
       {/* Selectors: Track → Car A → Lap A → Car B → Lap B */}
-      <div className="flex items-start gap-4 flex-wrap">
+      <div className="flex items-start gap-4 flex-wrap shrink-0">
         {/* Track selector */}
         <div className="flex flex-col gap-1">
           <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Track</label>
@@ -858,11 +858,15 @@ export function LapComparison() {
       </div>
 
       {/* Loading / Error */}
-      {loading && (
-        <div className="text-app-text-muted text-sm">Loading comparison data...</div>
-      )}
-      {error && (
-        <div className="text-red-400 text-sm">{error}</div>
+      {(loading || error) && (
+        <div className="shrink-0">
+          {loading && (
+            <div className="text-app-text-muted text-sm">Loading comparison data...</div>
+          )}
+          {error && (
+            <div className="text-red-400 text-sm">{error}</div>
+          )}
+        </div>
       )}
 
       {/* No selection prompt */}
@@ -875,7 +879,9 @@ export function LapComparison() {
           Select two different laps to compare
         </div>
       ) : comparison?.traces?.distance ? (
-        <div className="flex flex-col gap-4">
+        <>
+        <div className="flex flex-col gap-4 shrink-0">
+          {/* Top static content: Track Map and Time Delta */}
           {/* Track Map — both racing lines overlaid on outline */}
           {trackOutline && trackOutline.length >= 2 ? (
             <CompareTrackMap
@@ -917,7 +923,11 @@ export function LapComparison() {
               </div>
             </div>
           )}
+        </div>
 
+        {/* Scrollable charts section */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex flex-col gap-4">
           {/* Time Delta */}
           <div className="bg-app-surface rounded-lg border border-app-border p-3">
             <TimeDelta
@@ -1011,7 +1021,9 @@ export function LapComparison() {
               <CornerTable corners={comparison.corners} />
             </div>
           )}
+          </div>
         </div>
+        </>
       ) : null}
     </div>
   );
