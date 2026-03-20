@@ -6,6 +6,7 @@ import { useTelemetryStore } from "../stores/telemetry";
 import { ThemeProvider } from "../context/theme";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { Settings } from "../components/Settings";
+import { ProfileSwitcher } from "../components/ProfileSwitcher";
 import { Button } from "@/components/ui/button";
 
 const queryClient = new QueryClient({
@@ -65,14 +66,17 @@ function RootLayout() {
               </div>
             </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowSettings(!showSettings)}
-              className="mr-2 text-app-text-secondary hover:text-app-text"
-            >
-              {showSettings ? "Close" : "Settings"}
-            </Button>
+            <div className="flex items-center gap-2 mr-2">
+              <ProfileSwitcher />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSettings(!showSettings)}
+                className="text-app-text-secondary hover:text-app-text"
+              >
+                {showSettings ? "Close" : "Settings"}
+              </Button>
+            </div>
           </div>
 
           {showSettings && (
