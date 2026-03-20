@@ -4,6 +4,7 @@ import { formatLapTime } from "./LiveTelemetry";
 import { TUNE_CATALOG, getCatalogCar, type CatalogTune } from "../data/tune-catalog";
 import { useTracks, useBulkDeleteLaps, useDeleteLap } from "../hooks/queries";
 import { api } from "../lib/api";
+import { AppInput } from "./ui/AppInput";
 
 interface TrackInfo {
   ordinal: number;
@@ -776,12 +777,11 @@ function TrackTunes({ trackName, trackVariant }: { trackName: string; trackVaria
         <div className="text-app-label text-app-text-muted uppercase tracking-wider whitespace-nowrap">
           Tunes ({tunes.length})
         </div>
-        <input
-          type="text"
+        <AppInput
           value={carSearch}
           onChange={(e) => setCarSearch(e.target.value)}
           placeholder="Search cars..."
-          className="h-7 w-full max-w-xs rounded-md border border-app-border-input bg-app-dropdown px-2.5 text-app-body text-app-text placeholder:text-app-text-dim outline-none focus:border-app-text-muted transition-colors"
+          className="w-full max-w-xs"
         />
       </div>
 
@@ -1134,12 +1134,11 @@ export function TrackViewer() {
         <div className="text-app-label text-app-text-muted uppercase tracking-wider whitespace-nowrap">
           Available Tracks ({withOutline.length} with outlines, {withoutOutline.length} without)
         </div>
-        <input
-          type="text"
+        <AppInput
           placeholder="Search tracks..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-7 w-full max-w-xs rounded-md border border-app-border-input bg-app-surface-alt px-2.5 text-app-body text-app-text placeholder:text-app-text-dim outline-none focus:border-app-text-muted transition-colors"
+          className="w-full max-w-xs"
         />
       </div>
 

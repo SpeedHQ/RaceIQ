@@ -1,6 +1,7 @@
 import { useState } from "react";
 import fanatec15nm from "@shared/setup/fanatec-15nm.json";
 import { SearchSelect } from "./ui/SearchSelect";
+import { AppInput } from "./ui/AppInput";
 
 interface Setting {
   name: string;

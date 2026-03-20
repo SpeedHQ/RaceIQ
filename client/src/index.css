@@ -217,9 +217,32 @@
     --color-app-dropdown: var(--app-dropdown);
 }
 
+/* ─── Always-visible scrollbar (must be outside @layer to override browser defaults) ─── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  -webkit-appearance: none;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  min-height: 40px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255 255 255 / 0.25) rgba(255 255 255 / 0.05);
     }
   html, body, #root {
     @apply h-full overflow-hidden;
