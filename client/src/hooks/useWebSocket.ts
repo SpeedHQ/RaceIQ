@@ -1,16 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import type { TelemetryPacket } from "@shared/types";
+import { useTelemetryStore } from "../stores/telemetry";
 
-interface UseWebSocketReturn {
-  connected: boolean;
-  packet: TelemetryPacket | null;
-  packetsPerSec: number;
-}
-
-export function useWebSocket(): UseWebSocketReturn {
-  const [connected, setConnected] = useState(false);
-  const [packet, setPacket] = useState<TelemetryPacket | null>(null);
-  const [packetsPerSec, setPacketsPerSec] = useState(0);
+export function useWebSocket() {
+  const { setConnected, setPacket, setPacketsPerSec } = useTelemetryStore();
   const wsRef = useRef<WebSocket | null>(null);
   const packetCountRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
@@ -41,7 +34,7 @@ export function useWebSocket(): UseWebSocketReturn {
     ws.onerror = () => {
       ws.close();
     };
-  }, []);
+  }, [setConnected, setPacket]);
 
   useEffect(() => {
     connect();
@@ -56,7 +49,5 @@ export function useWebSocket(): UseWebSocketReturn {
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       wsRef.current?.close();
     };
-  }, [connect]);
-
-  return { connected, packet, packetsPerSec };
+  }, [connect, setPacketsPerSec]);
 }

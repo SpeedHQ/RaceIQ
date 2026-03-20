@@ -1,12 +1,11 @@
-import { createRootRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { TelemetryContext, useDisplaySettings } from "../context/telemetry";
+import { useTelemetryStore } from "../stores/telemetry";
 import { ThemeProvider } from "../context/theme";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { Settings } from "../components/Settings";
 import { Button } from "@/components/ui/button";
-import { LivePage } from "../components/LivePage";
 
 const TABS = [
   { to: "/", label: "Live" },
@@ -19,24 +18,22 @@ const TABS = [
 ] as const;
 
 function RootLayout() {
-  const ws = useWebSocket();
-  const { displaySettings, refetchSettings } = useDisplaySettings();
+  useWebSocket();
+  const { connected, packetsPerSec, refetchSettings } = useTelemetryStore();
 
   useEffect(() => { refetchSettings(); }, [refetchSettings]);
 
   const [showSettings, setShowSettings] = useState(false);
-  const isLive = useRouterState({ select: (s) => s.location.pathname === "/" });
 
   return (
     <ThemeProvider>
-      <TelemetryContext.Provider value={{ ...ws, displaySettings, refetchSettings }}>
-        <div className="min-h-screen bg-app-bg text-app-text flex flex-col">
+        <div className="h-screen grid grid-rows-[auto_1fr] bg-app-bg text-app-text">
           <div className="flex items-center justify-between border-b border-app-border">
             <div className="flex items-center">
               <ConnectionStatus
-                connected={ws.connected}
-                packetsPerSec={ws.packetsPerSec}
-                forzaReceiving={ws.packetsPerSec > 0}
+                connected={connected}
+                packetsPerSec={packetsPerSec}
+                forzaReceiving={packetsPerSec > 0}
               />
 
               <div className="flex items-center gap-0 ml-4">
@@ -78,13 +75,10 @@ function RootLayout() {
             </div>
           )}
 
-          {/* Live page stays mounted always so state persists between tab switches */}
-          <div className={isLive ? "flex-1 flex flex-col" : "hidden"}>
-            <LivePage />
+          <div className="min-h-0 overflow-y-auto">
+            <Outlet />
           </div>
-          {!isLive && <Outlet />}
         </div>
-      </TelemetryContext.Provider>
     </ThemeProvider>
   );
 }

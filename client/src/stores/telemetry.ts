@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { create } from "zustand";
 import type { TelemetryPacket } from "@shared/types";
 
 export interface DisplaySettings {
@@ -13,42 +13,40 @@ const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   tireTemperatureThresholds: { cold: 150, warm: 220, hot: 280 },
 };
 
-interface TelemetryContextValue {
+interface TelemetryState {
   connected: boolean;
   packet: TelemetryPacket | null;
   packetsPerSec: number;
   displaySettings: DisplaySettings;
+  setConnected: (connected: boolean) => void;
+  setPacket: (packet: TelemetryPacket) => void;
+  setPacketsPerSec: (pps: number) => void;
   refetchSettings: () => Promise<void>;
 }
 
-export const TelemetryContext = createContext<TelemetryContextValue>({
+export const useTelemetryStore = create<TelemetryState>((set) => ({
   connected: false,
   packet: null,
   packetsPerSec: 0,
   displaySettings: DEFAULT_DISPLAY_SETTINGS,
-  refetchSettings: async () => {},
-});
-
-export function useTelemetry() {
-  return useContext(TelemetryContext);
-}
-
-export function useDisplaySettings() {
-  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>(DEFAULT_DISPLAY_SETTINGS);
-
-  const refetchSettings = useCallback(async () => {
+  setConnected: (connected) => set({ connected }),
+  setPacket: (packet) => set({ packet }),
+  setPacketsPerSec: (packetsPerSec) => set({ packetsPerSec }),
+  refetchSettings: async () => {
     try {
       const res = await fetch("/api/settings");
       const data = await res.json();
-      setDisplaySettings({
-        temperatureUnit: data.temperatureUnit ?? "F",
-        speedUnit: data.speedUnit ?? "mph",
-        tireTemperatureThresholds: data.tireTemperatureThresholds ?? DEFAULT_DISPLAY_SETTINGS.tireTemperatureThresholds,
+      set({
+        displaySettings: {
+          temperatureUnit: data.temperatureUnit ?? "F",
+          speedUnit: data.speedUnit ?? "mph",
+          tireTemperatureThresholds:
+            data.tireTemperatureThresholds ??
+            DEFAULT_DISPLAY_SETTINGS.tireTemperatureThresholds,
+        },
       });
     } catch {
       // Keep defaults on error
     }
-  }, []);
-
-  return { displaySettings, refetchSettings };
-}
+  },
+}));

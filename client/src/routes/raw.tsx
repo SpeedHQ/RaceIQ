@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { RawTelemetry } from "../components/RawTelemetry";
-import { useTelemetry } from "../context/telemetry";
+import { useTelemetryStore } from "../stores/telemetry";
 
 function RawPage() {
-  const { packet } = useTelemetry();
+  const { packet } = useTelemetryStore();
   return (
     <div className="flex-1 overflow-hidden">
       <RawTelemetry packet={packet} />

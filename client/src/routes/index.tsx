@@ -1,11 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-
-// LivePage is rendered persistently in __root.tsx to preserve state.
-// This route exists so the router knows "/" is valid.
-function EmptyLive() {
-  return null;
-}
+import { LivePage } from "../components/LivePage";
 
 export const Route = createFileRoute("/")({
-  component: EmptyLive,
+  component: LivePage,
 });

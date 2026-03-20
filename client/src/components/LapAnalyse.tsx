@@ -17,7 +17,7 @@ import {
   balanceColor,
 } from "../lib/vehicle-dynamics";
 import { convertSpeed, speedLabel } from "../lib/speed";
-import { useTelemetry } from "../context/telemetry";
+import { useTelemetryStore } from "../stores/telemetry";
 import { analyzeLap } from "../lib/lap-insights";
 import { InsightPanel } from "./InsightPanel";
 import { AiAnalysisModal } from "./AiAnalysisModal";
@@ -435,7 +435,7 @@ function TelemetryChart({
 // ── Metrics Panel ────────────────────────────────────────────────────
 
 function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket; startFuel?: number }) {
-  const { displaySettings } = useTelemetry();
+  const { displaySettings } = useTelemetryStore();
   const speed = convertSpeed(pkt.Speed, displaySettings.speedUnit);
   const throttlePct = ((pkt.Accel / 255) * 100).toFixed(0);
   const brakePct = ((pkt.Brake / 255) * 100).toFixed(0);
@@ -544,7 +544,7 @@ function SuspValue({ label, value }: { label: string; value: number }) {
 export function LapAnalyse() {
   const search = useSearch({ from: "/analyse" });
   const navigate = useNavigate({ from: "/analyse" });
-  const { displaySettings } = useTelemetry();
+  const { displaySettings } = useTelemetryStore();
 
   const [laps, setLaps] = useState<LapMeta[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);

@@ -6,7 +6,7 @@ import { TelemetryChart } from "./TelemetryChart";
 import { TimeDelta } from "./TimeDelta";
 import { CornerTable } from "./CornerTable";
 import { speedLabel } from "../lib/speed";
-import { useTelemetry } from "../context/telemetry";
+import { useTelemetryStore } from "../stores/telemetry";
 import { SearchSelect } from "./ui/SearchSelect";
 
 const SYNC_KEY = "lap-compare";
@@ -580,7 +580,7 @@ interface TrackGroup {
 export function LapComparison() {
   const search = useSearch({ from: "/compare" });
   const navigate = useNavigate({ from: "/compare" });
-  const { displaySettings } = useTelemetry();
+  const { displaySettings } = useTelemetryStore();
   const [laps, setLaps] = useState<LapMeta[]>([]);
   const [trackGroups, setTrackGroups] = useState<TrackGroup[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { convertTemp, celsiusToFahrenheit } from "../lib/temperature";
-import { useTelemetry } from "../context/telemetry";
+import { useTelemetryStore } from "../stores/telemetry";
 import { useTheme, type Theme } from "../context/theme";
 
 // Steering lock stored in localStorage so it persists across refreshes
@@ -28,7 +28,7 @@ export function Settings() {
   const [errorMsg, setErrorMsg] = useState("");
   const [steerLock, setSteerLock] = useState(() => String(getSteeringLock()));
 
-  const { displaySettings, refetchSettings } = useTelemetry();
+  const { displaySettings, refetchSettings } = useTelemetryStore();
   const { theme, setTheme } = useTheme();
   const [tempUnit, setTempUnit] = useState<"F" | "C">(displaySettings.temperatureUnit);
   const [thresholds, setThresholds] = useState(displaySettings.tireTemperatureThresholds);

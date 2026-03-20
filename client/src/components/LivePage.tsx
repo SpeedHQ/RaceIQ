@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useTelemetry } from "../context/telemetry";
+import { useTelemetryStore } from "../stores/telemetry";
 import { LiveTelemetry, formatLapTime } from "./LiveTelemetry";
 import { CurrentLapStats } from "./CurrentLapStats";
 import { LiveTrackMap } from "./LiveTrackMap";
@@ -8,7 +8,7 @@ import { LapTimeChart } from "./LapTimeChart";
 import { SectorTimes } from "./SectorTimes";
 
 export function LivePage() {
-  const { packet } = useTelemetry();
+  const { packet } = useTelemetryStore();
   const [trackName, setTrackName] = useState("");
   const lastTrackFetchRef = useRef<number | null>(null);
 

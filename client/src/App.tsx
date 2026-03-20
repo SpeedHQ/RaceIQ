@@ -482,8 +482,8 @@ export default function App() {
   }, [packet?.LapNumber]);
 
   return (
-    <div className="min-h-screen bg-app-bg text-app-text">
-      <div className="fixed top-0 left-0 right-0 z-50 bg-app-bg flex items-center justify-between border-b border-app-border">
+    <div className="h-screen grid grid-rows-[auto_1fr] bg-app-bg text-app-text">
+      <div className="bg-app-bg flex items-center justify-between border-b border-app-border z-50">
         <div className="flex items-center">
           <ConnectionStatus connected={connected} packetsPerSec={packetsPerSec} forzaReceiving={packetsPerSec > 0} />
 
@@ -514,8 +514,7 @@ export default function App() {
         </Button>
       </div>
 
-      <div className="pt-[41px]" />
-
+      <div className="overflow-y-auto min-h-0">
       {showSettings && (
         <div className="p-4 border-b border-app-border bg-app-bg">
           <div className="max-w-md">
@@ -525,7 +524,7 @@ export default function App() {
       )}
 
       {activeTab === "live" && (
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0">
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-0 overflow-hidden">
           <div className="border-r border-app-border overflow-auto">
             <div className="p-2 border-b border-app-border">
               <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">
@@ -617,26 +616,29 @@ export default function App() {
       )}
 
       {activeTab === "compare" && (
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden">
           <LapComparison />
         </div>
       )}
 
       {activeTab === "analyse" && (
-        <div className="overflow-hidden" style={{ height: 'calc(100vh - 41px)' }}>
+        <div className="flex-1 min-h-0 overflow-hidden">
           <LapAnalyse />
         </div>
       )}
 
       {activeTab === "tracks" && (
-        <TrackViewer />
+        <div className="flex-1 min-h-0 overflow-auto">
+          <TrackViewer />
+        </div>
       )}
 
       {activeTab === "raw" && (
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden">
           <RawTelemetry packet={packet} />
         </div>
       )}
+      </div>
     </div>
   );
 }

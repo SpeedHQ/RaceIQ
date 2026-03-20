@@ -6,7 +6,7 @@ import { BodyAttitude } from "./BodyAttitude";
 import { WeightShiftRadar } from "./WeightShiftRadar";
 import { convertTemp } from "../lib/temperature";
 import { convertSpeed, speedLabel } from "../lib/speed";
-import { useTelemetry } from "../context/telemetry";
+import { useTelemetryStore } from "../stores/telemetry";
 import { allWheelStates, type WheelState } from "../lib/vehicle-dynamics";
 
 // Rolling window for grip sparklines — 60s at 10Hz gives a manageable 600-point buffer
@@ -450,7 +450,7 @@ function SuspBar({ norm }: { norm: number }) {
  * Falls back to 0.33m radius when stationary to avoid division by zero.
  */
 export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
-  const { displaySettings } = useTelemetry();
+  const { displaySettings } = useTelemetryStore();
   const toDeg = 180 / Math.PI;
 
   // Use canonical wheel states from vehicle-dynamics (same as LapAnalyse)
@@ -1132,7 +1132,7 @@ function DualLineChart({ data1, data2, label1, label2, color1, color2, label, ma
  * Converts raw telemetry units (rad->deg, m/s->mph, 0-255->0-100%) for display.
  */
 function TelemetryCharts({ packet }: { packet: TelemetryPacket }) {
-  const { displaySettings } = useTelemetry();
+  const { displaySettings } = useTelemetryStore();
   const histRef = useRef<{
     grip: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
     temp: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
@@ -1225,7 +1225,7 @@ export function LiveTelemetry({ packet }: Props) {
       .catch(() => setCarName(`Car #${ord}`));
   }, [packet?.CarOrdinal]);
 
-  const { displaySettings } = useTelemetry();
+  const { displaySettings } = useTelemetryStore();
 
   if (!packet) {
     return (
