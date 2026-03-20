@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   CATALOG_CARS,
   TUNE_CATALOG,
@@ -135,7 +136,7 @@ function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-w-2xl">
       {sections.map((section) => (
-        <div key={section.title} className="rounded-lg bg-app-bg/60 p-3">
+        <div key={section.title} className="rounded-lg bg-app-bg/85 p-3">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">
             {section.title}
           </h4>
@@ -185,7 +186,7 @@ function StrategyPanel({
     strategies.find((s) => s.condition === activeCondition) ?? strategies[0];
 
   return (
-    <div className="rounded-lg bg-app-bg/60 p-3">
+    <div className="rounded-lg bg-app-bg/85 p-3">
       <div className="flex items-center justify-between mb-2">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">
           Race Strategy
@@ -246,7 +247,7 @@ function StrategyPanel({
           {strategy.pitLaps.map((lap) => (
             <span
               key={lap}
-              className="font-mono px-1.5 py-0.5 rounded bg-app-surface/60 text-app-text ring-1 ring-app-border"
+              className="font-mono px-1.5 py-0.5 rounded bg-app-surface text-app-text ring-1 ring-app-border"
             >
               {lap}
             </span>
@@ -402,7 +403,7 @@ function NumberField({
         value={value}
         step={step ?? 0.1}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-        className="w-20 bg-app-bg/60 border border-app-border rounded px-1.5 py-0.5 text-xs text-app-text font-mono text-right focus:outline-none focus:ring-1 focus:ring-app-accent"
+        className="w-20 bg-app-bg/85 border border-app-border rounded px-1.5 py-0.5 text-xs text-app-text font-mono text-right focus:outline-none focus:ring-1 focus:ring-app-accent"
       />
     </label>
   );
@@ -424,7 +425,7 @@ function SettingsSection({
       <button
         type="button"
         onClick={onToggle}
-        className="w-full text-left px-3 py-2 flex items-center justify-between bg-app-surface/40 hover:bg-app-surface/60 transition-colors"
+        className="w-full text-left px-3 py-2 flex items-center justify-between bg-app-surface/85 hover:bg-app-surface transition-colors"
       >
         <span className="text-xs font-semibold uppercase tracking-wider text-app-accent">
           {title}
@@ -559,7 +560,7 @@ function TuneFormDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 pb-8">
       <div
-        className="absolute inset-0 bg-black/60"
+        className="absolute inset-0 bg-black/70"
         onClick={onClose}
       />
       <div className="relative bg-app-surface rounded-xl ring-1 ring-app-border shadow-2xl w-full max-w-lg max-h-[calc(100vh-4rem)] overflow-auto mx-4">
@@ -587,7 +588,7 @@ function TuneFormDialog({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  className="w-full bg-app-bg/60 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+                  className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
                 />
               </label>
               <label className="space-y-1">
@@ -599,7 +600,7 @@ function TuneFormDialog({
                   value={author}
                   onChange={(e) => setAuthor(e.target.value)}
                   required
-                  className="w-full bg-app-bg/60 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+                  className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
                 />
               </label>
               <label className="space-y-1">
@@ -613,7 +614,7 @@ function TuneFormDialog({
                     setCarOrdinal(parseInt(e.target.value) || 0)
                   }
                   required
-                  className="w-full bg-app-bg/60 border border-app-border rounded px-2 py-1.5 text-sm text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent"
+                  className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-sm text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent"
                 />
               </label>
               <label className="space-y-1">
@@ -625,7 +626,7 @@ function TuneFormDialog({
                   onChange={(e) =>
                     setCategory(e.target.value as TuneCategory)
                   }
-                  className="w-full bg-app-bg/60 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+                  className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
                 >
                   {ALL_CATEGORIES.map((c) => (
                     <option key={c} value={c}>
@@ -642,7 +643,7 @@ function TuneFormDialog({
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-app-bg/60 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+                  className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
                 />
               </label>
             </div>
@@ -677,7 +678,7 @@ function TuneFormDialog({
                   }}
                   placeholder='Paste tune JSON (full tune object or just settings)...'
                   rows={10}
-                  className="w-full bg-app-bg/60 border border-app-border rounded px-2 py-1.5 text-xs text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent resize-y"
+                  className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-xs text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent resize-y"
                 />
                 {jsonError && (
                   <p className="text-xs text-red-400">{jsonError}</p>
@@ -950,10 +951,10 @@ function CatalogTuneCard({
   isCloning: boolean;
 }) {
   return (
-    <div className="rounded-xl bg-app-surface/40 ring-1 ring-app-border overflow-hidden">
+    <div className="rounded-xl bg-app-surface/85 ring-1 ring-app-border overflow-hidden">
       <button
         onClick={onToggle}
-        className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface/60 transition-colors"
+        className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface transition-colors"
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className="min-w-0">
@@ -1051,7 +1052,7 @@ function CatalogTuneCard({
                 {tune.bestTracks.map((t) => (
                   <span
                     key={t}
-                    className="text-[10px] px-2 py-0.5 rounded-full bg-app-bg/60 text-app-text-secondary ring-1 ring-app-border"
+                    className="text-[10px] px-2 py-0.5 rounded-full bg-app-bg/85 text-app-text-secondary ring-1 ring-app-border"
                   >
                     {t}
                   </span>
@@ -1096,10 +1097,10 @@ function UserTuneCard({
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   return (
-    <div className="rounded-xl bg-app-surface/40 ring-1 ring-app-border overflow-hidden">
+    <div className="rounded-xl bg-app-surface/85 ring-1 ring-app-border overflow-hidden">
       <button
         onClick={onToggle}
-        className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface/60 transition-colors"
+        className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface transition-colors"
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className="min-w-0">
@@ -1216,7 +1217,6 @@ export function TuneCatalog() {
   const [carDropdownOpen, setCarDropdownOpen] = useState(false);
   const [trackSearch, setTrackSearch] = useState("");
   const [catalogPage, setCatalogPage] = useState(0);
-  const [myTunesOpen, setMyTunesOpen] = useState(false);
 
   // Dialog state
   const [formOpen, setFormOpen] = useState(false);
@@ -1344,9 +1344,9 @@ export function TuneCatalog() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setMyTunesOpen(true)}
-            className="text-xs px-3 py-1.5 rounded bg-app-accent text-white hover:bg-app-accent/80 transition-colors flex items-center gap-1.5"
+          <Link
+            to="/tunes/manage"
+            className="text-xs px-3 py-1.5 rounded bg-app-accent text-white hover:bg-app-accent/80 transition-colors flex items-center gap-1.5 no-underline"
           >
             My Tunes
             {userTunes.length > 0 && (
@@ -1354,7 +1354,7 @@ export function TuneCatalog() {
                 {userTunes.length}
               </span>
             )}
-          </button>
+          </Link>
           <input
             type="text"
             value={trackSearch}
@@ -1529,117 +1529,6 @@ export function TuneCatalog() {
         </div>
       )}
 
-      {/* My Tunes Modal */}
-      {myTunesOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 pb-8">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setMyTunesOpen(false)} />
-          <div className="relative bg-app-surface rounded-xl ring-1 ring-app-border shadow-2xl w-full max-w-xl max-h-[calc(100vh-4rem)] overflow-auto mx-4">
-            <div className="sticky top-0 bg-app-surface px-4 py-3 border-b border-app-border flex items-center justify-between z-10">
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-app-text">My Tunes</h2>
-                <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
-                  {filteredUserTunes.length}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setEditingTune(null);
-                    setFormOpen(true);
-                  }}
-                  className="text-[10px] font-semibold uppercase px-2.5 py-1 rounded bg-app-accent text-white hover:bg-app-accent/80 transition-colors"
-                >
-                  + New Tune
-                </button>
-                <button
-                  onClick={() => setMyTunesOpen(false)}
-                  className="text-app-text-muted hover:text-app-text text-lg leading-none"
-                >
-                  &times;
-                </button>
-              </div>
-            </div>
-
-            <div className="p-4 space-y-2">
-              {loadingUserTunes ? (
-                <div className="text-center py-12 text-app-text-muted text-sm">
-                  Loading tunes...
-                </div>
-              ) : filteredUserTunes.length === 0 ? (
-                <div className="text-center py-12 text-app-text-muted text-sm">
-                  <p>No user tunes yet.</p>
-                  <p className="mt-1">
-                    Create a new tune or clone one from the catalog.
-                  </p>
-                </div>
-              ) : (
-                filteredUserTunes.map((tune) => (
-                  <UserTuneCard
-                    key={tune.id}
-                    tune={tune}
-                    isExpanded={expandedTune === `user-${tune.id}`}
-                    onToggle={() =>
-                      setExpandedTune(
-                        expandedTune === `user-${tune.id}`
-                          ? null
-                          : `user-${tune.id}`,
-                      )
-                    }
-                    showCar={selectedCar == null}
-                    onEdit={() => handleEdit(tune)}
-                    onDelete={() => handleDelete(tune.id)}
-                    isDeleting={deleteTuneMut.isPending}
-                  />
-                ))
-              )}
-
-              {/* Tune Assignments section */}
-              {assignments.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-app-border">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted mb-2">
-                    Active Tune Assignments
-                  </h3>
-                  <div className="space-y-1">
-                    {assignments
-                      .filter(
-                        (a) =>
-                          selectedCar == null ||
-                          a.carOrdinal === selectedCar,
-                      )
-                      .map((a) => (
-                        <div
-                          key={`${a.carOrdinal}-${a.trackOrdinal}`}
-                          className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-app-bg/60"
-                        >
-                          <span className="text-app-text-secondary">
-                            Car {a.carOrdinal} / Track {a.trackOrdinal}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-app-text font-medium">
-                              {a.tuneName ?? `Tune #${a.tuneId}`}
-                            </span>
-                            <button
-                              onClick={() =>
-                                deleteAssignment.mutate({
-                                  carOrdinal: a.carOrdinal,
-                                  trackOrdinal: a.trackOrdinal,
-                                })
-                              }
-                              className="text-red-400 hover:text-red-300 transition-colors"
-                              title="Remove assignment"
-                            >
-                              &times;
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Create / Edit Dialog */}
       <TuneFormDialog
