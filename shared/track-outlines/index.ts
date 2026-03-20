@@ -103,14 +103,18 @@ const recordedLapCounts = new Map<number, number>();
 // Load previously recorded outlines (from in-game telemetry)
 import { readdirSync } from "fs";
 try {
-  const files = readdirSync(__dirname).filter((f: string) => f.startsWith("recorded-") && f.endsWith(".json"));
+  const files = readdirSync(__dirname).filter((f: string) => f.startsWith("recorded-") && f.endsWith(".csv"));
   for (const file of files) {
-    const match = file.match(/recorded-(\d+)\.json/);
+    const match = file.match(/recorded-(\d+)\.csv/);
     if (!match) continue;
     const ordinal = parseInt(match[1], 10);
     const filePath = resolve(__dirname, file);
     try {
-      const data = JSON.parse(readFileSync(filePath, "utf-8")) as Point[];
+      const lines = readFileSync(filePath, "utf-8").split("\n").filter(Boolean);
+      const data: Point[] = lines.slice(1).map((l) => {
+        const [x, z] = l.split(",").map(Number);
+        return { x, z };
+      });
       if (data.length > 10) {
         recordedOutlines.set(ordinal, data);
       }
@@ -271,9 +275,9 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
   recordedOutlines.set(ordinal, outline);
 
   if (shouldSave) {
-    const filePath = resolve(__dirname, `recorded-${ordinal}.json`);
+    const filePath = resolve(__dirname, `recorded-${ordinal}.csv`);
     try {
-      writeFileSync(filePath, JSON.stringify(outline, null, 2));
+      writeFileSync(filePath, "x,z\n" + outline.map((p) => `${p.x},${p.z}`).join("\n"));
       console.log(`[Tracks] Saved recorded outline for track ${ordinal} (${outline.length} pts, lap ${count})`);
     } catch (err) {
       console.error(`[Tracks] Failed to save recorded outline:`, err);
@@ -327,7 +331,7 @@ export function deleteRecordedOutline(ordinal: number): boolean {
   startLineYaws.delete(ordinal);
 
   // Delete the file on disk
-  const filePath = resolve(__dirname, `recorded-${ordinal}.json`);
+  const filePath = resolve(__dirname, `recorded-${ordinal}.csv`);
   if (existsSync(filePath)) {
     try {
       const { unlinkSync } = require("fs");

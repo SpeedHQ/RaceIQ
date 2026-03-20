@@ -20,7 +20,7 @@ export function useSaveSettings() {
 }
 
 // ── Laps ────────────────────────────────────────────────────────────────────
-export function useLaps(activeProfileId?: number | null) {
+export function useLaps(activeProfileId?: number | null, options?: { refetchInterval?: number | false }) {
   return useQuery({
     queryKey: ["laps", activeProfileId ?? null],
     queryFn: () => {
@@ -29,6 +29,7 @@ export function useLaps(activeProfileId?: number | null) {
         : `/api/laps`;
       return fetch(url).then((r) => r.json());
     },
+    ...options,
   });
 }
 

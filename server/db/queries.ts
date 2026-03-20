@@ -1,4 +1,4 @@
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql, or, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, profiles } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta } from "../../shared/types";
@@ -87,7 +87,7 @@ export function getLaps(profileId?: number | null): LapMeta[] {
     .orderBy(desc(laps.id));
 
   const rows = profileId != null
-    ? query.where(eq(laps.profileId, profileId)).all()
+    ? query.where(or(eq(laps.profileId, profileId), isNull(laps.profileId))).all()
     : query.all();
 
   return rows.map((r) => ({

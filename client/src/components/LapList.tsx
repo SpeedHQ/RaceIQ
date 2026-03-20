@@ -18,7 +18,7 @@ type SortDir = "asc" | "desc";
 export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTelemetry?: boolean }) {
   const navigate = useNavigate({ from: "/" });
   const { data: activeProfileId } = useActiveProfileId();
-  const { data: allLaps = [], isLoading } = useLaps(activeProfileId);
+  const { data: allLaps = [], isLoading } = useLaps(activeProfileId, { refetchInterval: 5_000 });
   const deleteLap = useDeleteLap();
   const [carNames, setCarNames] = useState<Record<number, string>>({});
   const fetchedOrdinals = useRef(new Set<number>());
