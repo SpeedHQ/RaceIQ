@@ -16,6 +16,7 @@ import {
   frictionUtilColor,
   balanceColor,
 } from "../lib/vehicle-dynamics";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUnits } from "../hooks/useUnits";
 import { useLaps as useLapsQuery } from "../hooks/queries";
 import { useActiveProfileId } from "../hooks/useProfiles";
@@ -626,6 +627,7 @@ export function LapAnalyse() {
   const navigate = useNavigate({ from: "/analyse" });
   const units = useUnits();
   const { data: activeProfileId } = useActiveProfileId();
+  const queryClient = useQueryClient();
 
   const [laps, setLaps] = useState<LapMeta[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);
@@ -1028,6 +1030,25 @@ export function LapAnalyse() {
   const selectedLap = laps.find((l) => l.id === selectedLapId);
   const totalTime = selectedLap?.lapTime ?? 0;
 
+  // Tune selector
+  const { data: availableTunes } = useQuery({
+    queryKey: ["tunes", selectedLap?.carOrdinal],
+    queryFn: () => fetch(`/api/tunes?carOrdinal=${selectedLap?.carOrdinal}`).then((r) => r.json()),
+    enabled: !!selectedLap?.carOrdinal,
+  });
+
+  const updateLapTune = useMutation({
+    mutationFn: (tuneId: number | null) =>
+      fetch(`/api/laps/${selectedLapId}/tune`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tuneId }),
+      }).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["laps", activeProfileId ?? null] });
+    },
+  });
+
   // Export handler
   const handleExport = useCallback(() => {
     if (telemetry.length === 0) return;
@@ -1115,6 +1136,30 @@ export function LapAnalyse() {
           disabled={selectedCar == null}
           fallbackLabel={selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
         />
+
+        {/* Tune selector */}
+        {selectedLapId && telemetry.length > 0 && (
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-app-text-muted">Tune:</span>
+            <select
+              value={selectedLap?.tuneId ?? ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                updateLapTune.mutate(val ? parseInt(val, 10) : null);
+              }}
+              disabled={updateLapTune.isPending}
+              className="bg-app-surface border border-app-border-input rounded px-2 py-1 text-sm text-app-text"
+            >
+              <option value="">No tune</option>
+              {availableTunes?.map((t: { id: number; name: string }) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            {updateLapTune.isPending && (
+              <span className="text-xs text-app-text-muted animate-pulse">Saving...</span>
+            )}
+          </div>
+        )}
 
         <div className="ml-auto flex items-center gap-2">
           {telemetry.length > 0 && (
