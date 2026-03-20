@@ -1075,7 +1075,7 @@ export function LapAnalyse() {
       ) : (
         <div className="flex flex-1 overflow-hidden">
           {/* Left: main content (map, charts, scrubber) */}
-          <div className="flex-1 min-w-0 h-full overflow-y-auto">
+          <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
           {/* Top section: Track Map + Metrics */}
           <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_320px] border-b border-app-border shrink-0">
             {/* Segment table + legend */}
@@ -1264,8 +1264,9 @@ export function LapAnalyse() {
             </div>
           </div>
 
-          {/* Stacked charts */}
-          {chartData && (
+          {/* Stacked charts — with own scroll */}
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {chartData && (
             <div className="p-3 space-y-2">
               <TelemetryChart
                 series={[
@@ -1309,11 +1310,12 @@ export function LapAnalyse() {
                 height={80}
               />
             </div>
-          )}
+            )}
+          </div>
           </div>
 
           {/* Right panel – full height */}
-          <div className="w-80 shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
+          <div className="w-80 h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
               {/* Tab switcher */}
               <div className="flex border-b border-app-border shrink-0">
                 <button
@@ -1343,7 +1345,7 @@ export function LapAnalyse() {
                 </button>
               </div>
 
-              <div className="p-3 flex-1 overflow-y-auto">
+              <div className="p-3 flex-1 min-h-0 overflow-y-auto">
               {sidebarTab === "live" ? (
                 <>
                 <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 font-semibold">
