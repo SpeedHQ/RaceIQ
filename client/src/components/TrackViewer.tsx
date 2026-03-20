@@ -3,6 +3,7 @@ import { useSearch, useNavigate } from "@tanstack/react-router";
 import { formatLapTime } from "./LiveTelemetry";
 import { TUNE_CATALOG, getCatalogCar, type CatalogTune } from "../data/tune-catalog";
 import { useTracks, useBulkDeleteLaps, useDeleteLap } from "../hooks/queries";
+import { useActiveProfileId } from "../hooks/useProfiles";
 import { api } from "../lib/api";
 import { AppInput } from "./ui/AppInput";
 
@@ -98,6 +99,7 @@ interface TrackLap {
 }
 
 function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }) {
+  const { data: activeProfileId } = useActiveProfileId();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [sectors, setSectors] = useState<TrackSectors | null>(null);
@@ -145,7 +147,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
 
   // Fetch all laps for this track
   const fetchTrackLaps = useCallback(() => {
-    api.getTrackLeaderboard(track.ordinal)
+    api.getTrackLeaderboard(track.ordinal, activeProfileId)
       .then((data) => {
         if (!data) { setTrackLaps([]); return; }
         const all = Object.values(data).flat() as TrackLap[];

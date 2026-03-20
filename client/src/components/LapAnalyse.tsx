@@ -18,6 +18,7 @@ import {
 } from "../lib/vehicle-dynamics";
 import { useUnits } from "../hooks/useUnits";
 import { useLaps as useLapsQuery } from "../hooks/queries";
+import { useActiveProfileId } from "../hooks/useProfiles";
 import { api } from "../lib/api";
 import { analyzeLap } from "../lib/lap-insights";
 import { InsightPanel } from "./InsightPanel";
@@ -623,6 +624,7 @@ export function LapAnalyse() {
   const search = useSearch({ from: "/analyse" });
   const navigate = useNavigate({ from: "/analyse" });
   const units = useUnits();
+  const { data: activeProfileId } = useActiveProfileId();
 
   const [laps, setLaps] = useState<LapMeta[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);
@@ -654,7 +656,7 @@ export function LapAnalyse() {
   const [carNames, setCarNames] = useState<Record<number, string>>({});
 
   // Fetch lap list
-  const { data: allLaps = [] } = useLapsQuery();
+  const { data: allLaps = [] } = useLapsQuery(activeProfileId);
   useEffect(() => {
     const valid = allLaps.filter((l) => l.lapTime > 0);
     if (valid.length !== laps.length || valid.some((l, i) => l.id !== laps[i]?.id)) {

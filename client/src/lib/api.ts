@@ -60,8 +60,8 @@ export const api = {
     fetchJson<ComparisonData>(`/api/laps/${lapAId}/compare/${lapBId}`),
   deleteTrackOutline: (ord: number) =>
     fetch(`/api/track-outline/${ord}`, { method: "DELETE" }),
-  getTrackLeaderboard: (ord: number) =>
-    fetchJson<Record<string, unknown[]>>(`/api/tracks/${ord}/leaderboard`),
+  getTrackLeaderboard: (ord: number, profileId?: number | null) =>
+    fetchJson<Record<string, unknown[]>>(`/api/tracks/${ord}/leaderboard${profileId != null ? `?profileId=${profileId}` : ""}`),
   saveTrackSegments: (ord: number, segments: unknown[]) =>
     fetch(`/api/tracks/${ord}/segments`, {
       method: "PUT",

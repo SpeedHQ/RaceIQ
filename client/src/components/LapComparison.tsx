@@ -7,6 +7,7 @@ import { TimeDelta } from "./TimeDelta";
 import { CornerTable } from "./CornerTable";
 import { useUnits } from "../hooks/useUnits";
 import { useLaps, useTrackOutline, useTrackSectors } from "../hooks/queries";
+import { useActiveProfileId } from "../hooks/useProfiles";
 import { api } from "../lib/api";
 import { SearchSelect } from "./ui/SearchSelect";
 
@@ -582,7 +583,8 @@ export function LapComparison() {
   const search = useSearch({ from: "/compare" });
   const navigate = useNavigate({ from: "/compare" });
   const units = useUnits();
-  const { data: allLaps = [] } = useLaps();
+  const { data: activeProfileId } = useActiveProfileId();
+  const { data: allLaps = [] } = useLaps(activeProfileId);
   const laps = useMemo(() => allLaps.filter((l) => l.lapTime > 0 && l.trackOrdinal), [allLaps]);
   const [trackGroups, setTrackGroups] = useState<TrackGroup[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);

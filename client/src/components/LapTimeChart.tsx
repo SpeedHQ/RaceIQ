@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import type { TelemetryPacket } from "@shared/types";
 import { formatLapTime } from "./LiveTelemetry";
 import { useLaps } from "../hooks/queries";
+import { useActiveProfileId } from "../hooks/useProfiles";
 
 /**
  * LapTimeChart — Canvas-drawn lap time trend with pace reference lines.
@@ -11,7 +12,8 @@ import { useLaps } from "../hooks/queries";
  * Seeds from /api/laps on mount, then appends live laps on LapNumber boundary.
  */
 export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
-  const { data: allLaps = [] } = useLaps();
+  const { data: activeProfileId } = useActiveProfileId();
+  const { data: allLaps = [] } = useLaps(activeProfileId);
   const [liveLaps, setLiveLaps] = useState<{ lap: number; time: number }[]>([]);
   const lastLapRef = useRef<number>(0);
 

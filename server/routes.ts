@@ -915,7 +915,11 @@ app.get("/api/tracks/:trackOrdinal/leaderboard", (c) => {
   const trackOrdinal = parseInt(c.req.param("trackOrdinal"), 10);
   if (isNaN(trackOrdinal)) return c.json({ error: "Invalid ordinal" }, 400);
 
-  const trackLaps = getLaps().filter(
+  const profileIdParam = c.req.query("profileId");
+  const profileIdParsed = profileIdParam ? parseInt(profileIdParam, 10) : undefined;
+  const profileId = profileIdParsed !== undefined && !isNaN(profileIdParsed) ? profileIdParsed : undefined;
+
+  const trackLaps = getLaps(profileId).filter(
     (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0
   );
 
