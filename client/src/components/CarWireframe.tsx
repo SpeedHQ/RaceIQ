@@ -65,9 +65,9 @@ function Wheel({
   );
 }
 
-// ── Suspension strut (dashed line from body to wheel) ──────────────
+// ── Suspension spring (coil + damper) ──────────────────────────────
 
-function SuspensionStrut({
+function SuspensionSpring({
   bodyPos,
   wheelPos,
   suspTravel,
@@ -77,17 +77,45 @@ function SuspensionStrut({
   suspTravel: number;
 }) {
   const suspOffset = (suspTravel - 0.5) * 0.3;
-  const endY = wheelPos[1] + suspOffset;
+  const wheelY = wheelPos[1] + suspOffset;
+
+  const coilRadius = 0.08;
+  const coils = 6;
+  const segments = coils * 12; // 12 points per coil
+  const topY = bodyPos[1];
+  const botY = wheelY + 0.15; // slightly above wheel center
+  const height = topY - botY;
+
+  // Generate helix points
+  const points = useMemo(() => {
+    const pts: [number, number, number][] = [];
+    for (let i = 0; i <= segments; i++) {
+      const t = i / segments;
+      const angle = t * coils * Math.PI * 2;
+      const y = botY + t * height;
+      pts.push([
+        bodyPos[0] + Math.cos(angle) * coilRadius,
+        y,
+        bodyPos[2] + Math.sin(angle) * coilRadius,
+      ]);
+    }
+    return pts;
+  }, [botY, height, bodyPos[0], bodyPos[2]]);
+
+  // Color: green when neutral, amber when compressed, red when bottomed out
+  const color = suspTravel > 0.85 ? "#ef4444" : suspTravel > 0.6 ? "#fbbf24" : "#34d399";
 
   return (
-    <Line
-      points={[bodyPos, [wheelPos[0], endY, wheelPos[2]]]}
-      color="#475569"
-      lineWidth={1}
-      dashed
-      dashSize={0.08}
-      gapSize={0.06}
-    />
+    <group>
+      {/* Coil spring */}
+      <Line points={points} color={color} lineWidth={1.5} />
+      {/* Damper rod (thin line through center) */}
+      <Line
+        points={[[bodyPos[0], topY + 0.05, bodyPos[2]], [bodyPos[0], botY - 0.05, bodyPos[2]]]}
+        color="#64748b"
+        lineWidth={1}
+      />
+    </group>
   );
 }
 
@@ -226,14 +254,43 @@ function CarScene({ packet }: { packet: TelemetryPacket }) {
           />
         ))}
 
-        {/* Suspension struts */}
-        {wheelData.map((w, i) => (
-          <SuspensionStrut
-            key={`susp-${i}`}
-            bodyPos={[w.pos[0], 0, w.pos[2]]}
-            wheelPos={w.pos}
-            suspTravel={w.susp}
-          />
+        {/* Suspension springs — inboard of each wheel */}
+        {wheelData.map((w, i) => {
+          const inboardZ = w.pos[2] > 0 ? w.pos[2] - 0.45 : w.pos[2] + 0.45;
+          return (
+            <SuspensionSpring
+              key={`susp-${i}`}
+              bodyPos={[w.pos[0], 0.1, inboardZ]}
+              wheelPos={[w.pos[0], w.pos[1], inboardZ]}
+              suspTravel={w.susp}
+            />
+          );
+        })}
+
+        {/* Front axle */}
+        <Line
+          points={[[1.6, 0, -1.05], [1.6, 0, 1.05]]}
+          color="#64748b"
+          lineWidth={2}
+        />
+        {/* Rear axle */}
+        <Line
+          points={[[-1.6, 0, -1.05], [-1.6, 0, 1.05]]}
+          color="#64748b"
+          lineWidth={2}
+        />
+        {/* Driveshaft (center tunnel, front axle to rear axle) */}
+        <Line
+          points={[[1.6, -0.05, 0], [-1.6, -0.05, 0]]}
+          color="#94a3b8"
+          lineWidth={1.5}
+        />
+        {/* Differential housings */}
+        {[1.6, -1.6].map((x) => (
+          <mesh key={`diff-${x}`} position={[x, -0.05, 0]}>
+            <boxGeometry args={[0.15, 0.12, 0.2]} />
+            <meshBasicMaterial color="#64748b" wireframe />
+          </mesh>
         ))}
       </group>
 

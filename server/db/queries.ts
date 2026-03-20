@@ -45,7 +45,8 @@ export function insertLap(
   lapTime: number,
   isValid: boolean,
   telemetryPackets: TelemetryPacket[],
-  profileId: number | null = null
+  profileId: number | null = null,
+  tuneId: number | null = null
 ): number {
   const compressed = compressTelemetry(telemetryPackets);
   const pi = telemetryPackets[0]?.CarPerformanceIndex ?? 0;
@@ -59,6 +60,7 @@ export function insertLap(
       pi,
       telemetry: compressed,
       profileId,
+      tuneId,
     })
     .returning({ id: laps.id })
     .get();
@@ -81,9 +83,12 @@ export function getLaps(profileId?: number | null): LapMeta[] {
       createdAt: laps.createdAt,
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
     .orderBy(desc(laps.id));
 
   const rows = profileId != null
@@ -94,6 +99,8 @@ export function getLaps(profileId?: number | null): LapMeta[] {
     ...r,
     isValid: Boolean(r.isValid),
     pi: r.pi ?? 0,
+    tuneId: r.tuneId ?? undefined,
+    tuneName: r.tuneName ?? undefined,
   }));
 }
 
@@ -114,9 +121,12 @@ export function getLapById(
       telemetry: laps.telemetry,
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
     .where(eq(laps.id, id))
     .get();
 
@@ -131,6 +141,8 @@ export function getLapById(
     createdAt: row.createdAt,
     carOrdinal: row.carOrdinal,
     trackOrdinal: row.trackOrdinal,
+    tuneId: row.tuneId ?? undefined,
+    tuneName: row.tuneName ?? undefined,
     telemetry: decompressTelemetry(row.telemetry as Buffer),
   };
 }

@@ -81,6 +81,41 @@ sqlite.exec(`
 
 `);
 
+// Migration: add tunes table
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS tunes (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL,
+    author          TEXT NOT NULL,
+    car_ordinal     INTEGER NOT NULL,
+    category        TEXT NOT NULL,
+    track_ordinal   INTEGER,
+    description     TEXT NOT NULL DEFAULT '',
+    strengths       TEXT,
+    weaknesses      TEXT,
+    best_tracks     TEXT,
+    strategies      TEXT,
+    settings        TEXT NOT NULL,
+    source          TEXT NOT NULL DEFAULT 'user',
+    catalog_id      TEXT,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_tunes_car ON tunes(car_ordinal);
+
+  CREATE TABLE IF NOT EXISTS tune_assignments (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    car_ordinal     INTEGER NOT NULL,
+    track_ordinal   INTEGER NOT NULL,
+    tune_id         INTEGER NOT NULL REFERENCES tunes(id) ON DELETE CASCADE,
+    UNIQUE(car_ordinal, track_ordinal)
+  );
+  CREATE INDEX IF NOT EXISTS idx_assignments_tune ON tune_assignments(tune_id);
+`);
+
+// Migration: add tune_id column to laps
+try { sqlite.exec("ALTER TABLE laps ADD COLUMN tune_id INTEGER REFERENCES tunes(id) ON DELETE SET NULL"); } catch {}
+
 // Migration: add sectors column to track_outlines if it doesn't exist (for existing DBs)
 try {
   sqlite.exec("ALTER TABLE track_outlines ADD COLUMN sectors TEXT");
