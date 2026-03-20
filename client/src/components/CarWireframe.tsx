@@ -486,18 +486,19 @@ function CarScene({ packet, telemetry, cursorIdx, outline, solid }: { packet: Te
   const suspRR = packet.NormSuspensionTravelRR;
 
   // Body drops when suspension compresses (wheels stay on ground)
+  // GT3 total travel ~80mm (±40mm from neutral)
   const avgSusp = (suspFL + suspFR + suspRL + suspRR) / 4;
-  const bodyDrop = -(avgSusp - 0.5) * 0.5; // compressed → body drops (negative Y)
+  const bodyDrop = -(avgSusp - 0.5) * 0.08;
 
-  // Roll: left more compressed than right = body leans left
+  // Roll: ~5° max at full differential compression
   const leftAvg = (suspFL + suspRL) / 2;
   const rightAvg = (suspFR + suspRR) / 2;
-  const bodyRoll = (rightAvg - leftAvg) * 0.3;
+  const bodyRoll = (rightAvg - leftAvg) * 0.1;
 
-  // Pitch: front more compressed than rear = nose dives
+  // Pitch: ~3° max at full differential compression
   const frontAvg = (suspFL + suspFR) / 2;
   const rearAvg = (suspRL + suspRR) / 2;
-  const bodyPitch = (frontAvg - rearAvg) * 0.3;
+  const bodyPitch = (frontAvg - rearAvg) * 0.06;
 
   useFrame(() => {
     if (!carGroupRef.current) return;
