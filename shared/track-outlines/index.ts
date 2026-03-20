@@ -273,7 +273,7 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
   if (shouldSave) {
     const filePath = resolve(__dirname, `recorded-${ordinal}.json`);
     try {
-      writeFileSync(filePath, JSON.stringify(outline));
+      writeFileSync(filePath, JSON.stringify(outline, null, 2));
       console.log(`[Tracks] Saved recorded outline for track ${ordinal} (${outline.length} pts, lap ${count})`);
     } catch (err) {
       console.error(`[Tracks] Failed to save recorded outline:`, err);

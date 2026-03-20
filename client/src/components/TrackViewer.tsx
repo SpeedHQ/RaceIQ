@@ -103,6 +103,10 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   const [sectors, setSectors] = useState<TrackSectors | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, z: 0 });
+  const zoomRef = useRef(1);
+  const panRef = useRef({ x: 0, z: 0 });
+  zoomRef.current = zoom;
+  panRef.current = pan;
   const dragging = useRef<{ startX: number; startY: number; startPanX: number; startPanZ: number } | null>(null);
   const [mapDisplayMode, setMapDisplayMode] = useState<"segments" | "sectors">("segments");
   const [editing, setEditing] = useState(false);
@@ -168,6 +172,39 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
     const sectorOverride = showSectors ? sectorBoundsForDraw : undefined;
     drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride);
   }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const currentZoom = zoomRef.current;
+      const currentPan = panRef.current;
+      const factor = Math.pow(0.999, e.deltaY);
+      const newZoom = Math.min(Math.max(currentZoom * factor, 0.5), 4);
+      if (Math.abs(newZoom - currentZoom) < 0.001) return;
+
+      if (newZoom <= 0.51) {
+        setZoom(1);
+        setPan({ x: 0, z: 0 });
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+      const ratio = newZoom / currentZoom;
+      setZoom(newZoom);
+      setPan({
+        x: mouseX - cx - (mouseX - cx - currentPan.x) * ratio,
+        z: mouseY - cy - (mouseY - cy - currentPan.z) * ratio,
+      });
+    };
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onWheel);
+  }, []);
 
   const startEditing = useCallback(() => {
     if (sectors?.segments) {
@@ -429,9 +466,11 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
                 <button
                   onClick={() => { setZoom(1); setPan({ x: 0, z: 0 }); }}
                   className="w-7 h-7 text-app-unit bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-                >1x</button>
+                >{zoom % 1 === 0 ? `${zoom}x` : `${zoom.toFixed(2)}x`}</button>
               )}
-              {(sectorBounds || displaySectors) && (
+            </div>
+            {(sectorBounds || displaySectors) && (
+              <div className="absolute bottom-2 right-2">
                 <button
                   onClick={() => setMapDisplayMode((m) => m === "segments" ? "sectors" : "segments")}
                   className={`px-1.5 py-1 text-[9px] font-mono rounded border transition-colors ${
@@ -443,8 +482,8 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
                 >
                   {mapDisplayMode === "sectors" ? "S1/2/3" : "Segs"}
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Tabs */}
