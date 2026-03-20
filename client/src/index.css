@@ -39,6 +39,14 @@
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
 
+    /* App-level font size scale (semantic) */
+    --app-font-title: 1.125rem;    /* 18px — page/section titles */
+    --app-font-heading: 1rem;      /* 16px — card headings */
+    --app-font-body: 0.9375rem;    /* 15px — primary body, values */
+    --app-font-subtext: 0.875rem;  /* 14px — descriptions, secondary content */
+    --app-font-label: 0.75rem;     /* 12px — caps labels, badges, timestamps */
+    --app-font-unit: 0.6875rem;    /* 11px — units, fine print */
+
     /* App-level theme tokens */
     --app-bg: #020617;
     --app-surface: #0f172a;
@@ -47,8 +55,8 @@
     --app-border-input: #334155;
     --app-text: #f1f5f9;
     --app-text-secondary: #94a3b8;
-    --app-text-muted: #64748b;
-    --app-text-dim: #475569;
+    --app-text-muted: #94a3b8;
+    --app-text-dim: #64748b;
     --app-accent: #22d3ee;
     --app-accent-hover: #67e8f9;
     --app-highlight: #06b6d4;
@@ -105,8 +113,8 @@
     --app-border-input: #334155;
     --app-text: #f1f5f9;
     --app-text-secondary: #94a3b8;
-    --app-text-muted: #64748b;
-    --app-text-dim: #475569;
+    --app-text-muted: #94a3b8;
+    --app-text-dim: #64748b;
     --app-accent: #22d3ee;
     --app-accent-hover: #67e8f9;
     --app-highlight: #06b6d4;
@@ -127,9 +135,9 @@
     --app-border: rgba(255, 255, 255, 0.08);
     --app-border-input: rgba(255, 255, 255, 0.12);
     --app-text: rgba(255, 255, 255, 0.95);
-    --app-text-secondary: rgba(255, 255, 255, 0.55);
-    --app-text-muted: rgba(255, 255, 255, 0.35);
-    --app-text-dim: rgba(255, 255, 255, 0.20);
+    --app-text-secondary: rgba(255, 255, 255, 0.65);
+    --app-text-muted: rgba(255, 255, 255, 0.55);
+    --app-text-dim: rgba(255, 255, 255, 0.38);
     --app-accent: #22d3ee;
     --app-accent-hover: #67e8f9;
     --app-highlight: #06b6d4;
@@ -180,6 +188,14 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+
+    /* App font sizes */
+    --text-app-title: var(--app-font-title);
+    --text-app-heading: var(--app-font-heading);
+    --text-app-body: var(--app-font-body);
+    --text-app-subtext: var(--app-font-subtext);
+    --text-app-label: var(--app-font-label);
+    --text-app-unit: var(--app-font-unit);
 
     /* App theme colors */
     --color-app-bg: var(--app-bg);

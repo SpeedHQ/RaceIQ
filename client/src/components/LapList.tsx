@@ -14,7 +14,7 @@ function formatLapTime(seconds: number): string {
 type SortKey = "lap" | "time";
 type SortDir = "asc" | "desc";
 
-export function LapList() {
+export function LapList({ trackOrd }: { trackOrd?: number }) {
   const navigate = useNavigate({ from: "/" });
   const { data: laps = [], isLoading } = useLaps();
   const deleteLap = useDeleteLap();
@@ -39,6 +39,14 @@ export function LapList() {
 
   if (isLoading) {
     return <div className="p-4 text-app-text-dim">Loading laps...</div>;
+  }
+
+  if (!trackOrd) {
+    return (
+      <div className="p-4 text-app-text-dim text-sm">
+        No track detected. Start driving to identify the track and view recorded laps.
+      </div>
+    );
   }
 
   if (laps.length === 0) {

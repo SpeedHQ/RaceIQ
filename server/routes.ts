@@ -882,6 +882,7 @@ app.get("/api/tracks/:trackOrdinal/leaderboard", (c) => {
     carName: string;
     carClass: string;
     pi: number;
+    createdAt: string;
   }[] = [];
 
   for (const lap of trackLaps) {
@@ -899,6 +900,7 @@ app.get("/api/tracks/:trackOrdinal/leaderboard", (c) => {
       carName,
       carClass: cls,
       pi,
+      createdAt: lap.createdAt,
     });
   }
 

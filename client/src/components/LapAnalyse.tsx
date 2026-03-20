@@ -1027,10 +1027,9 @@ export function LapAnalyse() {
         <SearchSelect
           value={selectedLapId != null ? String(selectedLapId) : ""}
           onChange={(v) => setSelectedLapId(v ? Number(v) : null)}
-          options={filteredLaps.map((lap) => ({ value: String(lap.id), label: `Lap ${lap.lapNumber} - ${formatLapTime(lap.lapTime)}` }))}
+          options={filteredLaps.map((lap) => ({ value: String(lap.id), label: `Lap ${lap.lapNumber} - ${formatLapTime(lap.lapTime)} · ${new Date(lap.createdAt).toLocaleDateString()}` }))}
           placeholder="Search laps..."
           disabled={selectedCar == null}
-          className="min-w-[200px]"
           fallbackLabel={selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
         />
 

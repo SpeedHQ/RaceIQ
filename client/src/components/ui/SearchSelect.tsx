@@ -87,8 +87,26 @@ export function SearchSelect({
     ? `focus:border-${focusColor}`
     : "focus:ring-1 focus:ring-app-border-input";
 
+  // Auto-size: measure the selected label to set min-width
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const [autoWidth, setAutoWidth] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    if (measureRef.current) {
+      // Add padding (px-2 = 8px*2) + chevron space (20px) + border (2px)
+      setAutoWidth(measureRef.current.scrollWidth + 38);
+    }
+  }, [selectedLabel, placeholder]);
+
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div ref={containerRef} className={`relative ${className}`} style={autoWidth ? { minWidth: Math.max(autoWidth, 120) } : undefined}>
+      {/* Hidden measurer */}
+      <span
+        ref={measureRef}
+        className="invisible absolute whitespace-nowrap text-sm pointer-events-none"
+        aria-hidden
+      >
+        {selectedLabel || placeholder}
+      </span>
       <input
         ref={inputRef}
         type="text"

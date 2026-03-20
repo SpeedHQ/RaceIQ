@@ -14,7 +14,7 @@ export function LivePage() {
   const { data: trackName } = useTrackName(trackOrd);
 
   return (
-    <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0">
+    <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
       <div className="border-r border-app-border overflow-auto">
         <div className="p-2 border-b border-app-border">
           <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">
@@ -93,7 +93,7 @@ export function LivePage() {
               Recorded Laps
             </h2>
           </div>
-          <LapList />
+          <LapList trackOrd={trackOrd} />
         </div>
       </div>
     </div>
