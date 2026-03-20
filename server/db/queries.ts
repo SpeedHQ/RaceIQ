@@ -1,6 +1,6 @@
 import { eq, desc, and, sql, or, isNull } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, profiles } from "./schema";
+import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, profiles, tunes } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 

@@ -18,11 +18,10 @@ function tireTempColor(temp: number): string {
 // Pre-rotated geometries — baked orientation, no runtime Euler nesting
 const useWheelGeometries = () =>
   useMemo(() => {
-    // Default: torus ring in XZ plane, hole along Y; cylinder axis along Y.
-    // rotateX(PI/2) stands them upright: hole/axle along Z (car lateral).
-    const tire = new THREE.TorusGeometry(0.28, 0.06, 6, 16);
+    // rotateX(PI/2) stands geometries upright: axis Y → Z (car lateral axle).
+    const tire = new THREE.CylinderGeometry(0.34, 0.34, 0.18, 16, 1, false);
     tire.rotateX(Math.PI / 2);
-    const rim = new THREE.CylinderGeometry(0.22, 0.22, 0.12, 8, 1, true);
+    const rim = new THREE.CylinderGeometry(0.22, 0.22, 0.19, 8, 1, true);
     rim.rotateX(Math.PI / 2);
     const hub = new THREE.CircleGeometry(0.22, 5);
     hub.rotateX(Math.PI / 2);
