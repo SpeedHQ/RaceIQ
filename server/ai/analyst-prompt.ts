@@ -1,8 +1,9 @@
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket, Tune } from "../../shared/types";
 import { generateExport, type ExportUnits } from "../export";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../client/src/lib/lap-insights";
+import { formatTuneForPrompt } from "./format-tune";
 
 interface CornerDef {
   index: number;
@@ -49,6 +50,8 @@ RULES:
 - Reference specific numbers from the data — don't be vague
 - Be specific and actionable, not generic
 - Address the driver as "you"
+- When tune settings are provided, correlate telemetry symptoms (e.g., understeer, tire temps, suspension bottoming) with specific setup values and recommend concrete adjustments with target numbers
+- Reference the actual tune values when suggesting changes (e.g., "Front springs at 750 lb/in are too stiff for this track — try 650-680 lb/in")
 - Output ONLY valid JSON, nothing else`;
 
 export function buildAnalystPrompt(
@@ -61,7 +64,8 @@ export function buildAnalystPrompt(
   },
   packets: TelemetryPacket[],
   corners: CornerDef[],
-  units: ExportUnits = { speedUnit: "mph", temperatureUnit: "F" }
+  units: ExportUnits = { speedUnit: "mph", temperatureUnit: "F" },
+  tune?: Tune
 ): string {
   const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
   const trackName = getTrackName(lap.trackOrdinal ?? 0);
@@ -87,9 +91,19 @@ export function buildAnalystPrompt(
     }
   }
 
+  let tuneText = "";
+  if (tune) {
+    tuneText = "\n" + formatTuneForPrompt({
+      name: tune.name,
+      author: tune.author,
+      category: tune.category,
+      settings: tune.settings,
+    }) + "\n";
+  }
+
   const context = `Car: ${carName}
 Track: ${trackName}
-
+${tuneText}
 ${exportText}
 ${cornerData}
 ${insightsText}`;
