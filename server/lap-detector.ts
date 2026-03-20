@@ -14,6 +14,7 @@ import type { TelemetryPacket } from "../shared/types";
 import { insertSession, insertLap, saveTrackOutline, hasRecordedOutline } from "./db/queries";
 import { hasTrackOutline, recordLapTrace } from "../shared/track-outlines/index";
 import { loadSettings } from "./settings";
+import { getTuneAssignment } from "./db/tune-queries";
 
 const SESSION_TIMEOUT_MS = 30_000; // 30 seconds of silence = new session
 
@@ -239,13 +240,19 @@ class LapDetector {
 
     try {
       const { activeProfileId } = loadSettings();
+      const tuneAssignment = getTuneAssignment(
+        this.currentSession.carOrdinal,
+        this.currentSession.trackOrdinal
+      );
+      const tuneId = tuneAssignment?.tuneId ?? null;
       const lapId = insertLap(
         this.currentSession.sessionId,
         this.currentLapNumber,
         lapTime,
         this.lapIsValid,
         this.lapBuffer,
-        activeProfileId
+        activeProfileId,
+        tuneId
       );
       console.log(
         `[Lap] Saved lap ${this.currentLapNumber} | Time: ${formatLapTime(lapTime)} | Valid: ${this.lapIsValid} | Packets: ${this.lapBuffer.length} | DB ID: ${lapId}`
@@ -280,13 +287,18 @@ class LapDetector {
       if (lapTime > 0) {
         try {
           const { activeProfileId } = loadSettings();
+          const tuneAssignment = getTuneAssignment(
+            this.currentSession.carOrdinal,
+            this.currentSession.trackOrdinal
+          );
           insertLap(
             this.currentSession.sessionId,
             this.currentLapNumber,
             lapTime,
             false, // Mark as invalid since lap wasn't properly completed
             this.lapBuffer,
-            activeProfileId
+            activeProfileId,
+            tuneAssignment?.tuneId ?? null
           );
           console.log(
             `[Lap] Saved incomplete lap ${this.currentLapNumber} (session ended)`
