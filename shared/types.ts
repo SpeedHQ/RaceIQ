@@ -158,6 +158,7 @@ export interface LapMeta {
   lapTime: number;
   isValid: boolean;
   createdAt: string;
+  pi?: number;
   // Joined from session
   carOrdinal?: number;
   trackOrdinal?: number;

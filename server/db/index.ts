@@ -104,6 +104,29 @@ try { sqlite.exec("ALTER TABLE laps ADD COLUMN profile_id INTEGER REFERENCES pro
   // Column already exists — ignore
 }
 
+// Migration: add pi column to laps for fast class lookups
+try { sqlite.exec("ALTER TABLE laps ADD COLUMN pi INTEGER"); } catch {}
+
+// Backfill pi from telemetry blobs for existing laps missing it
+{
+  const rows = sqlite.query("SELECT id, telemetry FROM laps WHERE pi IS NULL").all() as { id: number; telemetry: Buffer }[];
+  if (rows.length > 0) {
+    console.log(`[Migration] Backfilling PI for ${rows.length} laps...`);
+    const update = sqlite.prepare("UPDATE laps SET pi = ? WHERE id = ?");
+    for (const row of rows) {
+      try {
+        const decompressed = Bun.gunzipSync(row.telemetry);
+        const packets = JSON.parse(new TextDecoder().decode(decompressed));
+        const pi = packets[0]?.CarPerformanceIndex ?? 0;
+        update.run(pi, row.id);
+      } catch {
+        update.run(0, row.id);
+      }
+    }
+    console.log(`[Migration] PI backfill complete.`);
+  }
+}
+
 // Seed default profile if none exist
 const profileCount = sqlite.query("SELECT COUNT(*) as c FROM profiles").get() as { c: number };
 if (profileCount.c === 0) {

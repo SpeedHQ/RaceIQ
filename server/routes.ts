@@ -21,7 +21,6 @@ import {
   saveAnalysis,
 } from "./db/queries";
 import {
-  CAR_CLASS_NAMES,
   DRIVETRAIN_NAMES,
   type TelemetryPacket,
 } from "../shared/types";
@@ -887,35 +886,19 @@ app.get("/api/tracks/:trackOrdinal/leaderboard", (c) => {
     return "E";
   };
 
-  // For each lap, get car info from first telemetry packet
-  const entries: {
-    lapId: number;
-    lapNumber: number;
-    lapTime: number;
-    carOrdinal: number;
-    carName: string;
-    carClass: string;
-    pi: number;
-    createdAt: string;
-  }[] = [];
-
-  for (const lap of trackLaps) {
-    const lapData = getLapById(lap.id);
-    if (!lapData?.telemetry?.length) continue;
-    const first = lapData.telemetry[0];
-    const pi = first.CarPerformanceIndex ?? 0;
-    const carName = getCarName(lap.carOrdinal ?? first.CarOrdinal ?? 0);
-    entries.push({
+  const entries = trackLaps.map((lap) => {
+    const pi = lap.pi ?? 0;
+    return {
       lapId: lap.id,
       lapNumber: lap.lapNumber,
       lapTime: lap.lapTime,
-      carOrdinal: lap.carOrdinal ?? first.CarOrdinal ?? 0,
-      carName,
+      carOrdinal: lap.carOrdinal ?? 0,
+      carName: getCarName(lap.carOrdinal ?? 0),
       carClass: piClass(pi),
       pi,
       createdAt: lap.createdAt,
-    });
-  }
+    };
+  });
 
   const grouped: Record<string, typeof entries> = {};
   for (const e of entries) {

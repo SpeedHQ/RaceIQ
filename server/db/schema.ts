@@ -37,6 +37,7 @@ export const laps = sqliteTable(
     lapTime: real("lap_time").notNull(),
     isValid: integer("is_valid", { mode: "boolean" }).notNull().default(true),
     profileId: integer("profile_id").references(() => profiles.id),
+    pi: integer("pi"),
     telemetry: blob("telemetry", { mode: "buffer" }).notNull(),
     createdAt: text("created_at")
       .notNull()
