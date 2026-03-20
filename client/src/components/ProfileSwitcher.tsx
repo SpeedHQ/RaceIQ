@@ -98,7 +98,7 @@ export function ProfileSwitcher() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-52 bg-app-surface border border-app-border rounded shadow-lg z-50">
+        <div className="absolute right-0 top-full mt-1 w-52 bg-app-bg border border-app-border rounded shadow-lg z-50">
           <div className="py-1">
             {profiles.map((p) => (
               <div
