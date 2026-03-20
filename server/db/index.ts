@@ -73,6 +73,12 @@ sqlite.exec(`
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS profiles (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
 `);
 
 // Migration: add sectors column to track_outlines if it doesn't exist (for existing DBs)
@@ -91,6 +97,16 @@ for (const col of [
   "ALTER TABLE lap_analyses ADD COLUMN model TEXT NOT NULL DEFAULT ''",
 ]) {
   try { sqlite.exec(col); } catch {}
+}
+
+// Migration: add profiles table support
+try { sqlite.exec("ALTER TABLE laps ADD COLUMN profile_id INTEGER REFERENCES profiles(id)"); } catch {}
+
+// Seed default profile if none exist, then backfill laps
+const profileCount = sqlite.query("SELECT COUNT(*) as c FROM profiles").get() as { c: number };
+if (profileCount.c === 0) {
+  sqlite.exec("INSERT INTO profiles (name) VALUES ('Driver 1')");
+  sqlite.exec("UPDATE laps SET profile_id = (SELECT id FROM profiles LIMIT 1) WHERE profile_id IS NULL");
 }
 
 export const db = drizzle(sqlite, { schema });

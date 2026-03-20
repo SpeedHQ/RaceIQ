@@ -9,6 +9,14 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
+export const profiles = sqliteTable("profiles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 export const sessions = sqliteTable("sessions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   carOrdinal: integer("car_ordinal").notNull(),
@@ -28,6 +36,7 @@ export const laps = sqliteTable(
     lapNumber: integer("lap_number").notNull(),
     lapTime: real("lap_time").notNull(),
     isValid: integer("is_valid", { mode: "boolean" }).notNull().default(true),
+    profileId: integer("profile_id").references(() => profiles.id),
     telemetry: blob("telemetry", { mode: "buffer" }).notNull(),
     createdAt: text("created_at")
       .notNull()
