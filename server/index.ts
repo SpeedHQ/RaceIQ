@@ -60,7 +60,8 @@ const server = Bun.serve<WSData>({
 
     // In production, serve static files from built client
     if (process.env.NODE_ENV === "production") {
-      const file = Bun.file(`./client/dist${url.pathname}`);
+      const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
+      const file = Bun.file(`./client/dist${pathname}`);
       if (await file.exists()) {
         return new Response(file);
       }
@@ -88,7 +89,7 @@ console.log(`[Server] HTTP/WS server listening on http://localhost:${HTTP_PORT}`
 console.log(`[Server] WebSocket endpoint: ws://localhost:${HTTP_PORT}/ws`);
 
 // Start UDP listener — settings.udpPort takes priority, env var is the fallback
-const udpPort = settings.udpPort ?? Number(process.env.UDP_PORT) || 5300;
+const udpPort = settings.udpPort ?? (Number(process.env.UDP_PORT) || 5300);
 udpListener.start(udpPort);
 
 console.log(`[Server] Forza Telemetry Server is ready!`);
