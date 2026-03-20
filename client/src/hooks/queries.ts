@@ -20,8 +20,16 @@ export function useSaveSettings() {
 }
 
 // ── Laps ────────────────────────────────────────────────────────────────────
-export function useLaps() {
-  return useQuery({ queryKey: queryKeys.laps, queryFn: api.getLaps });
+export function useLaps(activeProfileId?: number | null) {
+  return useQuery({
+    queryKey: ["laps", activeProfileId ?? null],
+    queryFn: () => {
+      const url = activeProfileId != null
+        ? `/api/laps?profileId=${activeProfileId}`
+        : `/api/laps`;
+      return fetch(url).then((r) => r.json());
+    },
+  });
 }
 
 export function useLap(id: number | null) {

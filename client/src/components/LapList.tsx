@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import type { LapMeta } from "@shared/types";
 import { useNavigate } from "@tanstack/react-router";
 import { useLaps, useDeleteLap } from "../hooks/queries";
+import { useActiveProfileId } from "../hooks/useProfiles";
 import { api } from "../lib/api";
 
 function formatLapTime(seconds: number): string {
@@ -16,7 +17,8 @@ type SortDir = "asc" | "desc";
 
 export function LapList({ trackOrd }: { trackOrd?: number }) {
   const navigate = useNavigate({ from: "/" });
-  const { data: laps = [], isLoading } = useLaps();
+  const { data: activeProfileId } = useActiveProfileId();
+  const { data: laps = [], isLoading } = useLaps(activeProfileId);
   const deleteLap = useDeleteLap();
   const [carNames, setCarNames] = useState<Record<number, string>>({});
   const fetchedOrdinals = useRef(new Set<number>());
