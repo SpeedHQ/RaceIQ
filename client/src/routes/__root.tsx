@@ -76,11 +76,22 @@ function RootLayout() {
           </div>
 
           {showSettings && (
-            <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 bg-black/60"
+            <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 pb-12 bg-black/60"
                  onClick={() => setShowSettings(false)}>
-              <div className="max-w-md w-full max-h-[80vh] overflow-y-auto"
+              <div className="w-full max-w-2xl h-full rounded-lg border border-app-border bg-app-bg overflow-hidden shadow-2xl"
                    onClick={(e) => e.stopPropagation()}>
-                <Settings />
+                <div className="flex items-center justify-between px-4 py-3 border-b border-app-border bg-app-surface">
+                  <h1 className="text-sm font-semibold text-app-text">Settings</h1>
+                  <button
+                    onClick={() => setShowSettings(false)}
+                    className="text-app-text-muted hover:text-app-text text-lg leading-none"
+                  >
+                    &times;
+                  </button>
+                </div>
+                <div className="h-[calc(100%-3rem)]">
+                  <Settings />
+                </div>
               </div>
             </div>
           )}
