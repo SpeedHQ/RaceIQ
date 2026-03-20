@@ -122,7 +122,7 @@ export function SearchSelect({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full bg-app-dropdown border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text focus:outline-none disabled:opacity-50 ${focusBorderClass}`}
+        className={`w-full bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text placeholder:text-app-text-dim focus:outline-none disabled:opacity-50 ${focusBorderClass}`}
       />
       {/* Chevron indicator */}
       <svg
@@ -135,7 +135,7 @@ export function SearchSelect({
         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
       </svg>
       {open && !disabled && (
-        <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-auto rounded-lg bg-app-dropdown border border-app-border z-50 shadow-lg">
+        <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-auto rounded-lg bg-app-surface-alt border border-app-border-input z-50 shadow-lg">
           {filtered.map((o, i) => (
             <button
               key={o.value}
