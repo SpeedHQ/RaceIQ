@@ -828,8 +828,13 @@ export function LapAnalyse() {
       if (!playRef.current) return;
       const idx = cursorRef.current;
       if (idx >= telemetry.length - 1) {
-        setPlaying(false);
-        playRef.current = false;
+        // Loop back to start
+        cursorRef.current = 0;
+        setCursorIdx(0);
+        wallStart = now;
+        gameStart = telemetry[0].CurrentLap;
+        lastSeek = seekRef.current;
+        rafId = requestAnimationFrame(step);
         return;
       }
 
@@ -1025,6 +1030,18 @@ export function LapAnalyse() {
   }, []);
 
   const currentPacket = telemetry[cursorIdx] ?? null;
+  const prevPacket = cursorIdx > 0 ? telemetry[cursorIdx - 1] : null;
+  const wearRate = useMemo(() => {
+    if (!currentPacket || !prevPacket) return null;
+    const dt = currentPacket.CurrentLap - prevPacket.CurrentLap;
+    if (dt <= 0) return null;
+    return {
+      FL: (currentPacket.TireWearFL - prevPacket.TireWearFL) / dt,
+      FR: (currentPacket.TireWearFR - prevPacket.TireWearFR) / dt,
+      RL: (currentPacket.TireWearRL - prevPacket.TireWearRL) / dt,
+      RR: (currentPacket.TireWearRR - prevPacket.TireWearRR) / dt,
+    };
+  }, [currentPacket, prevPacket]);
   const lapInsights = useMemo(() => analyzeLap(telemetry), [telemetry]);
 
   // Time display
@@ -1679,13 +1696,26 @@ export function LapAnalyse() {
                         </div>
                       </div>
                       <div className="border-t border-app-border pt-1">
-                        <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Wear</div>
+                        <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Wear /s</div>
                         <div className="grid grid-cols-2 gap-x-2">
                           <WearValue label="FL" value={currentPacket.TireWearFL} />
                           <WearValue label="FR" value={currentPacket.TireWearFR} />
                           <WearValue label="RL" value={currentPacket.TireWearRL} />
                           <WearValue label="RR" value={currentPacket.TireWearRR} />
                         </div>
+                        {wearRate && (
+                          <div className="grid grid-cols-2 gap-x-2 mt-1 opacity-70">
+                            {(["FL", "FR", "RL", "RR"] as const).map((w) => {
+                              const rate = wearRate[w] * 100;
+                              const color = rate < 0.01 ? "#94a3b8" : rate < 0.05 ? "#34d399" : rate < 0.1 ? "#fbbf24" : "#ef4444";
+                              return (
+                                <span key={w} className="text-app-text-secondary">
+                                  {w}: <span className="tabular-nums" style={{ color }}>{rate.toFixed(3)}%</span>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
                     {/* Right column: Slip, Angle, Suspension */}

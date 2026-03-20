@@ -262,10 +262,21 @@ const WHEEL_OFFSETS: [number, number][] = [
   [-1.6, 1.05],   // RR
 ];
 
+// Pre-allocated color objects to avoid GC pressure
+const SLIP_GREEN = new THREE.Color("#34d399");
+const SLIP_AMBER = new THREE.Color("#fbbf24");
+const SLIP_RED = new THREE.Color("#ef4444");
+
 function slipColor(slip: number): string {
-  if (slip < 0.3) return "#34d399";   // grip - green
-  if (slip < 0.8) return "#fbbf24";   // sliding - amber
-  return "#ef4444";                     // spinning - red
+  if (slip < 0.3) return "#34d399";
+  if (slip < 0.8) return "#fbbf24";
+  return "#ef4444";
+}
+
+function slipColorObj(slip: number): THREE.Color {
+  if (slip < 0.3) return SLIP_GREEN;
+  if (slip < 0.8) return SLIP_AMBER;
+  return SLIP_RED;
 }
 
 function TireTrails({
@@ -280,7 +291,7 @@ function TireTrails({
     if (!cur) return null;
 
     const curTime = cur.TimestampMS;
-    const trailMs = 2000;
+    const trailMs = 800;
 
     // Find start index (~2 seconds back)
     let startIdx = cursorIdx;
@@ -315,15 +326,23 @@ function TireTrails({
       const colors: string[] = [];
       const [wheelOffX, wheelOffZ] = WHEEL_OFFSETS[w];
 
-      for (let i = startIdx; i <= cursorIdx; i += 3) {
+      for (let i = startIdx; i <= cursorIdx; i += 5) {
         const p = telemetry[i];
         // Compute wheel world position using historical yaw
         const pSin = Math.sin(p.Yaw);
         const pCos = Math.cos(p.Yaw);
-        // wheelOffX = forward offset, wheelOffZ = lateral (right+) offset
+        // For front wheels, rotate offset by steer angle to get true contact patch position
+        let fwd = wheelOffX;
+        let rgt = wheelOffZ;
+        if (w < 2) {
+          const steer = (p.Steer / 127) * 0.35;
+          const cs = Math.cos(steer), ss = Math.sin(steer);
+          const rf = fwd * cs - rgt * ss;
+          const rr = fwd * ss + rgt * cs;
+          fwd = rf;
+          rgt = rr;
+        }
         // Forza forward = (sin(yaw), cos(yaw)), right = (cos(yaw), -sin(yaw))
-        const fwd = wheelOffX;
-        const rgt = wheelOffZ;
         const wx = p.PositionX + fwd * pSin + rgt * pCos;
         const wz = p.PositionZ + fwd * pCos - rgt * pSin;
 
@@ -344,7 +363,7 @@ function TireTrails({
 
         // Add unscaled wheel offset in car-local frame
         points.push([centerFwd + wheelOffX, -0.42, centerRight + wheelOffZ]);
-        colors.push(slipColor(slips[w](p)));
+        colors.push(slipColorObj(slips[w](p)));
       }
 
       wheelTrails.push({ points, colors });
@@ -362,7 +381,7 @@ function TireTrails({
           <Line
             key={`trail-${w}`}
             points={trail.points}
-            vertexColors={trail.colors.map((c) => new THREE.Color(c))}
+            vertexColors={trail.colors}
             lineWidth={3}
           />
         ) : null
@@ -380,26 +399,33 @@ function TrackOutline({
   outline: { x: number; z: number }[];
   packet: TelemetryPacket;
 }) {
+  // Pre-compute downsampled outline once (max 1500 points)
+  const sampledOutline = useMemo(() => {
+    const step = Math.max(1, Math.floor(outline.length / 1500));
+    const pts: { x: number; z: number }[] = [];
+    for (let i = 0; i < outline.length; i += step) pts.push(outline[i]);
+    return pts;
+  }, [outline]);
+
+  // Transform to car-local on cursor change
   const points = useMemo(() => {
     const cx = packet.PositionX;
     const cz = packet.PositionZ;
     const yaw = packet.Yaw;
     const curSin = Math.sin(yaw);
     const curCos = Math.cos(yaw);
-    const scale = 1.0;
 
     const pts: [number, number, number][] = [];
-    for (let i = 0; i < outline.length; i++) {
-      const dx = outline[i].x - cx;
-      const dz = outline[i].z - cz;
-      const localFwd = (dx * curSin + dz * curCos) * scale;
-      const localRight = (dx * curCos - dz * curSin) * scale;
+    for (let i = 0; i < sampledOutline.length; i++) {
+      const dx = sampledOutline[i].x - cx;
+      const dz = sampledOutline[i].z - cz;
+      const localFwd = dx * curSin + dz * curCos;
+      const localRight = dx * curCos - dz * curSin;
       pts.push([localFwd, -0.44, localRight]);
     }
-    // Close the loop
     if (pts.length > 2) pts.push(pts[0]);
     return pts;
-  }, [outline, packet.PositionX, packet.PositionZ, packet.Yaw]);
+  }, [sampledOutline, packet.PositionX, packet.PositionZ, packet.Yaw]);
 
   if (points.length < 3) return null;
 
