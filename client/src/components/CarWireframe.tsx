@@ -133,6 +133,14 @@ function SuspensionSpring({
 
 const MODEL_PATH = "/models/aston_martin_vantage_gt3.glb";
 
+// GLB meshes to hide in solid mode (wheels, tires, brake discs/calipers)
+const SOLID_HIDDEN_MESHES = new Set([
+  // Wheels & tires (round: ~0.5-0.72 square cross-section)
+  94, 125, 126, 161, 183, 184, 211, 212, 214, 215, 217, 219,
+  // Brake calipers & discs
+  119, 120, 122, 123, 174, 175, 177, 178,
+]);
+
 function CarBody({ solid }: { solid: boolean }) {
   const { scene } = useGLTF(MODEL_PATH);
 
@@ -165,13 +173,20 @@ function CarBody({ solid }: { solid: boolean }) {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         if (solid) {
-          mesh.material = new THREE.MeshBasicMaterial({
-            color: "#1a2332",
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.9,
-          });
+          // Hide wheels, shocks, suspension, brakes from GLB in solid mode
+          const num = parseInt(mesh.name.replace(/\D/g, ""), 10);
+          if (SOLID_HIDDEN_MESHES.has(num)) {
+            mesh.visible = false;
+          } else {
+            mesh.material = new THREE.MeshStandardMaterial({
+              color: "#4a6a8a",
+              metalness: 0.7,
+              roughness: 0.25,
+              side: THREE.DoubleSide,
+            });
+          }
         } else {
+          mesh.visible = true;
           mesh.material = new THREE.MeshBasicMaterial({
             color: "#94a3b8",
             wireframe: true,
@@ -219,8 +234,10 @@ const WHEEL_OFFSETS: [number, number][] = [
 const SLIP_GREEN = new THREE.Color("#34d399");
 const SLIP_AMBER = new THREE.Color("#fbbf24");
 const SLIP_RED = new THREE.Color("#ef4444");
-const BRAKE_RED = new THREE.Color("#cc3300");
-const BRAKE_ORANGE = new THREE.Color("#ff6600");
+const BRAKE_FULL = new THREE.Color("#cc0000");
+const BRAKE_HEAVY = new THREE.Color("#ee2200");
+const BRAKE_MED = new THREE.Color("#ff6600");
+const BRAKE_LIGHT = new THREE.Color("#ff9933");
 
 function slipColor(slip: number): string {
   if (slip < 0.3) return "#34d399";
@@ -228,10 +245,16 @@ function slipColor(slip: number): string {
   return "#ef4444";
 }
 
+function brakeColor(brake: number): THREE.Color {
+  if (brake > 200) return BRAKE_FULL;
+  if (brake > 130) return BRAKE_HEAVY;
+  if (brake > 60) return BRAKE_MED;
+  return BRAKE_LIGHT;
+}
+
 function trailColorObj(slip: number, brake: number): THREE.Color {
   // Braking overrides slip color with brake trail
-  if (brake > 50) return BRAKE_RED;
-  if (brake > 10) return BRAKE_ORANGE;
+  if (brake > 10) return brakeColor(brake);
   if (slip < 0.3) return SLIP_GREEN;
   if (slip < 0.8) return SLIP_AMBER;
   return SLIP_RED;
@@ -393,7 +416,7 @@ function BrakeTrail({
 
         // Position at rear of car + light offset, at tail light height
         points.push([centerFwd + (-2.01), 0.22, centerRight + lightZ]);
-        colors.push(p.Brake > 50 ? BRAKE_RED : BRAKE_ORANGE);
+        colors.push(brakeColor(p.Brake));
       }
 
       if (points.length > 1) lights.push({ points, colors });
@@ -468,7 +491,7 @@ function TrackOutline({
   );
 }
 
-function CarScene({ packet, telemetry, cursorIdx, outline, solid }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; solid: boolean }) {
+function CarScene({ packet, telemetry, cursorIdx, outline, toggles }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; toggles: ViewToggles }) {
   const carGroupRef = useRef<THREE.Group>(null);
   const prevTimeRef = useRef(packet.TimestampMS);
   const spinAngles = useRef([0, 0, 0, 0]);
@@ -531,29 +554,34 @@ function CarScene({ packet, telemetry, cursorIdx, outline, solid }: { packet: Te
   return (
     <>
       {/* Lighting */}
-      <ambientLight intensity={0.5} />
+      <ambientLight intensity={0.8} />
+      <directionalLight position={[5, 8, 5]} intensity={2} />
+      <directionalLight position={[-3, 4, -2]} intensity={1} />
+      <directionalLight position={[0, 6, -5]} intensity={0.8} />
 
       {/* Ground grid — scrolls with car movement */}
-      <Grid
-        args={[10, 10]}
-        position={[
-          -(packet.PositionX % 2),
-          -0.45,
-          -(packet.PositionZ % 2),
-        ]}
-        cellSize={0.5}
-        cellThickness={0.5}
-        cellColor="#1e293b"
-        sectionSize={2}
-        sectionThickness={1}
-        sectionColor="#334155"
-        fadeDistance={8}
-        infiniteGrid
-      />
+      {toggles.grid && (
+        <Grid
+          args={[10, 10]}
+          position={[
+            -(packet.PositionX % 2),
+            -0.45,
+            -(packet.PositionZ % 2),
+          ]}
+          cellSize={0.5}
+          cellThickness={0.5}
+          cellColor="#1e293b"
+          sectionSize={2}
+          sectionThickness={1}
+          sectionColor="#334155"
+          fadeDistance={8}
+          infiniteGrid
+        />
+      )}
 
       {/* Body — rolls with pitch/roll */}
       <group ref={carGroupRef}>
-        <CarBody solid={solid} />
+        <CarBody solid={toggles.solid} />
         {/* Tail lights — glow red when braking */}
         {(() => {
           const braking = packet.Brake > 10;
@@ -595,7 +623,7 @@ function CarScene({ packet, telemetry, cursorIdx, outline, solid }: { packet: Te
         ))}
 
         {/* Suspension springs — connect dropped body to grounded wheels */}
-        {wheelData.map((w, i) => {
+        {toggles.springs && wheelData.map((w, i) => {
           const inboardZ = w.pos[2] > 0 ? w.pos[2] - 0.35 : w.pos[2] + 0.35;
           return (
             <SuspensionSpring
@@ -607,43 +635,48 @@ function CarScene({ packet, telemetry, cursorIdx, outline, solid }: { packet: Te
           );
         })}
 
-        {/* Front axle — fixed at ground level */}
-        <Line
-          points={[[1.35, 0, -0.83], [1.35, 0, 0.83]]}
-          color="#64748b"
-          lineWidth={2}
-        />
-        {/* Rear axle */}
-        <Line
-          points={[[-1.35, 0, -0.81], [-1.35, 0, 0.81]]}
-          color="#64748b"
-          lineWidth={2}
-        />
-        {/* Driveshaft */}
-        <Line
-          points={[[1.35, 0, 0], [-1.35, 0, 0]]}
-          color="#94a3b8"
-          lineWidth={1.5}
-        />
-        {/* Differential housings */}
-        <mesh position={[1.35, 0, 0]}>
-          <boxGeometry args={[0.15, 0.12, 0.2]} />
-          <meshBasicMaterial color="#64748b" wireframe />
-        </mesh>
-        <mesh position={[-1.35, 0, 0]}>
-          <boxGeometry args={[0.15, 0.12, 0.2]} />
-          <meshBasicMaterial color="#64748b" wireframe />
-        </mesh>
+        {/* Drivetrain: axles, driveshaft, diff housings */}
+        {toggles.drivetrain && (
+          <>
+            {/* Front axle */}
+            <Line
+              points={[[1.35, 0, -0.83], [1.35, 0, 0.83]]}
+              color="#64748b"
+              lineWidth={2}
+            />
+            {/* Rear axle */}
+            <Line
+              points={[[-1.35, 0, -0.81], [-1.35, 0, 0.81]]}
+              color="#64748b"
+              lineWidth={2}
+            />
+            {/* Driveshaft */}
+            <Line
+              points={[[1.35, 0, 0], [-1.35, 0, 0]]}
+              color="#94a3b8"
+              lineWidth={1.5}
+            />
+            {/* Differential housings */}
+            <mesh position={[1.35, 0, 0]}>
+              <boxGeometry args={[0.15, 0.12, 0.2]} />
+              <meshBasicMaterial color="#64748b" wireframe />
+            </mesh>
+            <mesh position={[-1.35, 0, 0]}>
+              <boxGeometry args={[0.15, 0.12, 0.2]} />
+              <meshBasicMaterial color="#64748b" wireframe />
+            </mesh>
+          </>
+        )}
       </group>
 
       {/* Track outline (subtle) */}
-      {outline && <TrackOutline outline={outline} packet={packet} />}
+      {toggles.track && outline && <TrackOutline outline={outline} packet={packet} />}
 
       {/* Tire trails (ground, colored by slip) */}
-      <TireTrails telemetry={telemetry} cursorIdx={cursorIdx} />
+      {toggles.trails && <TireTrails telemetry={telemetry} cursorIdx={cursorIdx} />}
 
       {/* Brake trail (tail light height, only when braking) */}
-      <BrakeTrail telemetry={telemetry} cursorIdx={cursorIdx} />
+      {toggles.brakeTrails && <BrakeTrail telemetry={telemetry} cursorIdx={cursorIdx} />}
 
       {/* Camera controls */}
       <OrbitControls
@@ -660,6 +693,49 @@ function CarScene({ packet, telemetry, cursorIdx, outline, solid }: { packet: Te
 
 // ── Exported wrapper ───────────────────────────────────────────────
 
+interface ViewToggles {
+  solid: boolean;
+  springs: boolean;
+  trails: boolean;
+  brakeTrails: boolean;
+  track: boolean;
+  grid: boolean;
+  drivetrain: boolean;
+}
+
+const DEFAULT_TOGGLES: ViewToggles = {
+  solid: false,
+  springs: true,
+  trails: true,
+  brakeTrails: true,
+  track: true,
+  grid: true,
+  drivetrain: true,
+};
+
+function ToggleButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-2 py-1 text-[9px] uppercase tracking-wider font-semibold rounded border transition-colors ${
+        active
+          ? "bg-cyan-900/50 border-cyan-700 text-app-accent"
+          : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
 export function CarWireframe({
   packet,
   telemetry,
@@ -673,7 +749,10 @@ export function CarWireframe({
 }) {
   const throttlePct = (packet.Accel / 255) * 100;
   const brakePct = (packet.Brake / 255) * 100;
-  const [solid, setSolid] = useState(false);
+  const [toggles, setToggles] = useState<ViewToggles>(DEFAULT_TOGGLES);
+
+  const toggle = (key: keyof ViewToggles) =>
+    setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
 
   return (
     <div className="w-full h-full relative flex-1">
@@ -682,20 +761,19 @@ export function CarWireframe({
         gl={{ antialias: true, alpha: true }}
         style={{ background: "transparent" }}
       >
-        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} solid={solid} />
+        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} toggles={toggles} />
       </Canvas>
 
-      {/* Solid shell toggle */}
-      <button
-        onClick={() => setSolid((s) => !s)}
-        className={`absolute top-2 left-2 px-2 py-1 text-[9px] uppercase tracking-wider font-semibold rounded border transition-colors ${
-          solid
-            ? "bg-cyan-900/50 border-cyan-700 text-app-accent"
-            : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
-        }`}
-      >
-        {solid ? "Solid" : "Wire"}
-      </button>
+      {/* View toggles */}
+      <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+        <ToggleButton label={toggles.solid ? "Solid" : "Wire"} active={toggles.solid} onClick={() => toggle("solid")} />
+        <ToggleButton label="Springs" active={toggles.springs} onClick={() => toggle("springs")} />
+        <ToggleButton label="Trails" active={toggles.trails} onClick={() => toggle("trails")} />
+        <ToggleButton label="Brake" active={toggles.brakeTrails} onClick={() => toggle("brakeTrails")} />
+        <ToggleButton label="Track" active={toggles.track} onClick={() => toggle("track")} />
+        <ToggleButton label="Grid" active={toggles.grid} onClick={() => toggle("grid")} />
+        <ToggleButton label="Drive" active={toggles.drivetrain} onClick={() => toggle("drivetrain")} />
+      </div>
 
       {/* Throttle / Brake overlay */}
       <div className="absolute bottom-2 right-2 flex gap-1 items-end" style={{ height: 60 }}>

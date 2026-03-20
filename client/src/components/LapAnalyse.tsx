@@ -642,8 +642,8 @@ export function LapAnalyse() {
   const [cursorIdx, setCursorIdx] = useState(0);
   const [sidebarTab, setSidebarTab] = useState<"live" | "insights">("live");
   const [wheelTab, setWheelTab] = useState<"render" | "visual">("render");
-  const [leftColWidth, setLeftColWidth] = useState(200);
-  const [rightColWidth, setRightColWidth] = useState(320);
+  const [leftColWidth, setLeftColWidth] = useState(150);
+  const [rightColWidth, setRightColWidth] = useState(250);
   const [playing, setPlaying] = useState(false);
   const [rotateWithCar, setRotateWithCar] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
