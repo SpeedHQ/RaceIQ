@@ -17,6 +17,35 @@ export const profiles = sqliteTable("profiles", {
     .default(sql`(datetime('now'))`),
 });
 
+export const tunes = sqliteTable(
+  "tunes",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    author: text("author").notNull(),
+    carOrdinal: integer("car_ordinal").notNull(),
+    category: text("category").notNull(),
+    trackOrdinal: integer("track_ordinal"),
+    description: text("description").notNull().default(""),
+    strengths: text("strengths"),
+    weaknesses: text("weaknesses"),
+    bestTracks: text("best_tracks"),
+    strategies: text("strategies"),
+    settings: text("settings").notNull(),
+    source: text("source").notNull().default("user"),
+    catalogId: text("catalog_id"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    carIdx: index("idx_tunes_car").on(table.carOrdinal),
+  })
+);
+
 export const sessions = sqliteTable("sessions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   carOrdinal: integer("car_ordinal").notNull(),
@@ -38,6 +67,7 @@ export const laps = sqliteTable(
     isValid: integer("is_valid", { mode: "boolean" }).notNull().default(true),
     profileId: integer("profile_id").references(() => profiles.id),
     pi: integer("pi"),
+    tuneId: integer("tune_id").references(() => tunes.id, { onDelete: "set null" }),
     telemetry: blob("telemetry", { mode: "buffer" }).notNull(),
     createdAt: text("created_at")
       .notNull()
@@ -45,6 +75,22 @@ export const laps = sqliteTable(
   },
   (table) => ({
     sessionIdx: index("idx_laps_session").on(table.sessionId),
+  })
+);
+
+export const tuneAssignments = sqliteTable(
+  "tune_assignments",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    carOrdinal: integer("car_ordinal").notNull(),
+    trackOrdinal: integer("track_ordinal").notNull(),
+    tuneId: integer("tune_id")
+      .notNull()
+      .references(() => tunes.id, { onDelete: "cascade" }),
+  },
+  (table) => ({
+    carTrackUnique: unique().on(table.carOrdinal, table.trackOrdinal),
+    tuneIdx: index("idx_assignments_tune").on(table.tuneId),
   })
 );
 

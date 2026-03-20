@@ -31,24 +31,24 @@ const sourceByName = new Map<string, Source>();
 //   recorded = Captured from in-game telemetry
 const TRACK_FILES: Record<string, TrackOutlineEntry> = {
   // TUMFTM racetrack-database (9 tracks)
-  "Brand Hatch": { filename: "brands-hatch.json", source: "tumftm" },
-  "Circuit de Barcelona-Catalunya": { filename: "catalunya.json", source: "tumftm" },
-  "Circuit de Spa-Francorchamps": { filename: "spa.json", source: "tumftm" },
-  "Hockenheimring": { filename: "hockenheim.json", source: "tumftm" },
-  "Indianapolis Motor Speedway": { filename: "indianapolis.json", source: "tumftm" },
-  "Nürburgring": { filename: "nurburgring.json", source: "tumftm" },
-  "Silverstone Racing Circuit": { filename: "silverstone.json", source: "tumftm" },
-  "Suzuka Circuit": { filename: "suzuka.json", source: "tumftm" },
-  "Yas Marina Circuit": { filename: "yas-marina.json", source: "tumftm" },
+  "Brand Hatch": { filename: "brands-hatch.csv", source: "tumftm" },
+  "Circuit de Barcelona-Catalunya": { filename: "catalunya.csv", source: "tumftm" },
+  "Circuit de Spa-Francorchamps": { filename: "spa.csv", source: "tumftm" },
+  "Hockenheimring": { filename: "hockenheim.csv", source: "tumftm" },
+  "Indianapolis Motor Speedway": { filename: "indianapolis.csv", source: "tumftm" },
+  "Nürburgring": { filename: "nurburgring.csv", source: "tumftm" },
+  "Silverstone Racing Circuit": { filename: "silverstone.csv", source: "tumftm" },
+  "Suzuka Circuit": { filename: "suzuka.csv", source: "tumftm" },
+  "Yas Marina Circuit": { filename: "yas-marina.csv", source: "tumftm" },
 
   // OpenStreetMap Overpass API (7 tracks)
-  "WeatherTech Raceway Laguna Seca": { filename: "laguna-seca.json", source: "osm" },
-  "Road Atlanta": { filename: "road-atlanta.json", source: "osm" },
-  "Daytona Intl Speedway": { filename: "daytona.json", source: "osm" },
-  "Lime Rock Park": { filename: "lime-rock.json", source: "osm" },
-  "Mugello Circuit": { filename: "mugello.json", source: "osm" },
-  "Road America": { filename: "road-america.json", source: "osm" },
-  "Virginia International Raceway": { filename: "virginia.json", source: "osm" },
+  "WeatherTech Raceway Laguna Seca": { filename: "laguna-seca.csv", source: "osm" },
+  "Road Atlanta": { filename: "road-atlanta.csv", source: "osm" },
+  "Daytona Intl Speedway": { filename: "daytona.csv", source: "osm" },
+  "Lime Rock Park": { filename: "lime-rock.csv", source: "osm" },
+  "Mugello Circuit": { filename: "mugello.csv", source: "osm" },
+  "Road America": { filename: "road-america.csv", source: "osm" },
+  "Virginia International Raceway": { filename: "virginia.csv", source: "osm" },
 };
 
 // Fictional FM tracks (no real-world data available):
@@ -69,7 +69,11 @@ for (const [trackName, entry] of Object.entries(TRACK_FILES)) {
   const filePath = resolve(__dirname, entry.filename);
   if (existsSync(filePath)) {
     try {
-      let data = JSON.parse(readFileSync(filePath, "utf-8")) as Point[];
+      const lines = readFileSync(filePath, "utf-8").split("\n").filter(Boolean);
+      let data: Point[] = lines.slice(1).map((l) => {
+        const [x, z] = l.split(",").map(Number);
+        return { x, z };
+      });
       data = filterOutlierPoints(data);
       outlinesByName.set(trackName, data);
       sourceByName.set(trackName, entry.source);

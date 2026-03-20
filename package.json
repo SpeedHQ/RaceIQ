@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@types/bun": "^1.2.0",
+    "better-sqlite3": "^12.8.0",
     "drizzle-kit": "^0.30.0",
     "portless": "^0.7.1"
   }
