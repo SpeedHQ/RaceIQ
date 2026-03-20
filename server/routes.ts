@@ -161,7 +161,8 @@ app.delete("/api/profiles/:id", (c) => {
 // GET /api/laps
 app.get("/api/laps", (c) => {
   const profileIdParam = c.req.query("profileId");
-  const profileId = profileIdParam ? parseInt(profileIdParam, 10) : undefined;
+  const profileIdParsed = profileIdParam ? parseInt(profileIdParam, 10) : undefined;
+  const profileId = profileIdParsed !== undefined && !isNaN(profileIdParsed) ? profileIdParsed : undefined;
   const lapList = getLaps(profileId);
   return c.json(lapList);
 });
