@@ -19,6 +19,10 @@ import {
   getTrackOutlineMetadata,
   getAnalysis,
   saveAnalysis,
+  getProfiles,
+  insertProfile,
+  updateProfile,
+  deleteProfile,
 } from "./db/queries";
 import {
   DRIVETRAIN_NAMES,
@@ -74,6 +78,7 @@ app.put("/api/settings", async (c) => {
     udpPort: body.udpPort ?? current.udpPort,
     temperatureUnit: body.temperatureUnit ?? current.temperatureUnit,
     speedUnit: body.speedUnit ?? current.speedUnit,
+    activeProfileId: body.activeProfileId !== undefined ? body.activeProfileId : current.activeProfileId,
     tireTemperatureThresholds: {
       cold: body.tireTemperatureThresholds?.cold ?? current.tireTemperatureThresholds.cold,
       warm: body.tireTemperatureThresholds?.warm ?? current.tireTemperatureThresholds.warm,
@@ -115,9 +120,49 @@ app.put("/api/settings", async (c) => {
   }
 });
 
+// GET /api/profiles
+app.get("/api/profiles", (c) => {
+  return c.json(getProfiles());
+});
+
+// POST /api/profiles
+app.post("/api/profiles", async (c) => {
+  const body = await c.req.json();
+  const name = (body.name ?? "").trim();
+  if (!name) return c.json({ error: "Name is required" }, 400);
+  const id = insertProfile(name);
+  return c.json({ id, name }, 201);
+});
+
+// PATCH /api/profiles/:id
+app.patch("/api/profiles/:id", async (c) => {
+  const id = parseInt(c.req.param("id"), 10);
+  if (isNaN(id)) return c.json({ error: "Invalid profile ID" }, 400);
+  const body = await c.req.json();
+  const name = (body.name ?? "").trim();
+  if (!name) return c.json({ error: "Name is required" }, 400);
+  const ok = updateProfile(id, name);
+  if (!ok) return c.json({ error: "Profile not found" }, 404);
+  return c.json({ id, name });
+});
+
+// DELETE /api/profiles/:id
+app.delete("/api/profiles/:id", (c) => {
+  const id = parseInt(c.req.param("id"), 10);
+  if (isNaN(id)) return c.json({ error: "Invalid profile ID" }, 400);
+  // Block deleting the last profile
+  const all = getProfiles();
+  if (all.length <= 1) return c.json({ error: "Cannot delete the last profile" }, 400);
+  const ok = deleteProfile(id);
+  if (!ok) return c.json({ error: "Profile not found" }, 404);
+  return c.json({ ok: true });
+});
+
 // GET /api/laps
 app.get("/api/laps", (c) => {
-  const lapList = getLaps();
+  const profileIdParam = c.req.query("profileId");
+  const profileId = profileIdParam ? parseInt(profileIdParam, 10) : undefined;
+  const lapList = getLaps(profileId);
   return c.json(lapList);
 });
 
