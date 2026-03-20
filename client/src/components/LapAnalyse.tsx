@@ -96,7 +96,7 @@ function AnalyseTrackMap({
       (w - padding * 2) / rangeX,
       (h - padding * 2) / rangeZ
     );
-    const scale = baseScale * zoom * (rotateWithCar ? 5 : 1);
+    const scale = baseScale * zoom * (rotateWithCar ? 3 : 1);
     const offsetX = (w - rangeX * scale) / 2;
     const offsetZ = (h - rangeZ * scale) / 2;
 
@@ -1151,9 +1151,9 @@ export function LapAnalyse() {
           {/* Left: main content (map, charts, scrubber) */}
           <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
           {/* Top section: Track Map + Metrics */}
-          <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_320px] border-b border-app-border shrink-0">
+          <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_320px] border-b border-app-border shrink-0">
             {/* Segment table + legend */}
-            <div className="border-r border-app-border overflow-y-auto p-2" style={{ height: 420 }}>
+            <div className="border-r border-app-border overflow-y-auto p-2" style={{ height: 500 }}>
               {/* Legend */}
               <div className="flex flex-wrap items-center gap-3 mb-2 pb-2 border-b border-app-border">
                 <div className="flex items-center gap-1">
@@ -1194,7 +1194,7 @@ export function LapAnalyse() {
             </div>
 
             {/* Track map */}
-            <div className="border-r border-app-border bg-app-bg p-2 relative" style={{ height: 420 }}>
+            <div className="border-r border-app-border bg-app-bg p-2 relative" style={{ height: 500 }}>
               <AnalyseTrackMap
                 telemetry={telemetry}
                 cursorIdx={cursorIdx}
