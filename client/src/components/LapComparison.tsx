@@ -5,8 +5,8 @@ import { TrackMap } from "./TrackMap";
 import { TelemetryChart } from "./TelemetryChart";
 import { TimeDelta } from "./TimeDelta";
 import { CornerTable } from "./CornerTable";
-import { speedLabel } from "../lib/speed";
-import { useSettings, useLaps, useTrackOutline, useTrackSectors } from "../hooks/queries";
+import { useUnits } from "../hooks/useUnits";
+import { useLaps, useTrackOutline, useTrackSectors } from "../hooks/queries";
 import { api } from "../lib/api";
 import { SearchSelect } from "./ui/SearchSelect";
 
@@ -581,7 +581,7 @@ interface TrackGroup {
 export function LapComparison() {
   const search = useSearch({ from: "/compare" });
   const navigate = useNavigate({ from: "/compare" });
-  const { displaySettings } = useSettings();
+  const units = useUnits();
   const { data: allLaps = [] } = useLaps();
   const laps = useMemo(() => allLaps.filter((l) => l.lapTime > 0 && l.trackOrdinal), [allLaps]);
   const [trackGroups, setTrackGroups] = useState<TrackGroup[]>([]);
@@ -944,8 +944,8 @@ export function LapComparison() {
             <TelemetryChart
               data={{
                 distance: comparison.traces.distance,
-                values: [comparison.traces.speedA, comparison.traces.speedB],
-                labels: [`Speed A (${speedLabel(displaySettings.speedUnit)})`, `Speed B (${speedLabel(displaySettings.speedUnit)})`],
+                values: [comparison.traces.speedA.map(units.fromMph), comparison.traces.speedB.map(units.fromMph)],
+                labels: [`Speed A (${units.speedLabel})`, `Speed B (${units.speedLabel})`],
                 colors: [COLOR_A, COLOR_B],
               }}
               syncKey={SYNC_KEY}

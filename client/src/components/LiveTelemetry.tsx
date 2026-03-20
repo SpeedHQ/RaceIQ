@@ -4,9 +4,7 @@ import { CAR_CLASS_NAMES, DRIVETRAIN_NAMES } from "@shared/types";
 import { SteeringWheel } from "./SteeringWheel";
 import { BodyAttitude } from "./BodyAttitude";
 import { WeightShiftRadar } from "./WeightShiftRadar";
-import { convertTemp } from "../lib/temperature";
-import { convertSpeed, speedLabel } from "../lib/speed";
-import { useSettings } from "../hooks/queries";
+import { useUnits } from "../hooks/useUnits";
 import { api } from "../lib/api";
 import { allWheelStates, type WheelState } from "../lib/vehicle-dynamics";
 
@@ -183,8 +181,8 @@ export function formatLapTime(seconds: number): string {
   return `${m}:${s.toFixed(3).padStart(6, "0")}`;
 }
 
-function getSpeed(p: TelemetryPacket, unit: "mph" | "kmh"): number {
-  return convertSpeed(p.Speed, unit);
+function getSpeed(p: TelemetryPacket, speedFn: (ms: number) => number): number {
+  return speedFn(p.Speed);
 }
 
 function GaugeBar({ value, max, color }: { value: number; max: number; color: string }) {
@@ -261,7 +259,7 @@ function slipLineColor(deg: number): string {
  * the angle between tire heading and actual travel direction.
  * Spin/lockup detection uses animated glow rings and X/arrow overlays.
  */
-function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, wheelState, steerAngle, thresholds, temperatureUnit }: {
+function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, wheelState, steerAngle, thresholds, tempFn, tempUnit }: {
   label: string;
   temp: number;
   wear: number;
@@ -271,7 +269,8 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, wheelSta
   wheelState: WheelState;
   steerAngle: number;
   thresholds: { cold: number; warm: number; hot: number };
-  temperatureUnit: "F" | "C";
+  tempFn: (f: number) => number;
+  tempUnit: string;
 }) {
   const clampedAngle = Math.max(-25, Math.min(25, slipAngle));
   const stroke = tireColor(temp, thresholds);
@@ -410,9 +409,9 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, wheelSta
 
         {/* Below tire: temp, wear, traction */}
         <text x={cx} y={93} textAnchor="middle" fill={stroke} fontSize={9} fontWeight="bold" fontFamily="monospace">
-          {convertTemp(temp, temperatureUnit).toFixed(0)}°{temperatureUnit}
+          {tempFn(temp).toFixed(0)}°{tempUnit}
         </text>
-        <text x={cx} y={105} textAnchor="middle" fill="#94a3b8" fontSize={7} fontFamily="monospace">
+        <text x={cx} y={105} textAnchor="middle" fill="#94a3b8" fontSize={9} fontFamily="monospace">
           Wear {(wearPct * 100).toFixed(0)}%
         </text>
         <text x={cx} y={117} textAnchor="middle" fill={combined < 0.5 ? "#34d399" : combined < 1.0 ? "#facc15" : combined < 2.0 ? "#fb923c" : "#ef4444"} fontSize={8} fontWeight="bold" fontFamily="monospace">
@@ -433,13 +432,13 @@ function SuspBar({ norm }: { norm: number }) {
   const pct = Math.min(norm * 100, 100);
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <div className="w-4 h-16 bg-app-surface/60 rounded-sm overflow-hidden relative">
+      <div className="w-4 h-16 bg-slate-800/80 border border-slate-600/50 rounded-sm overflow-hidden relative">
         <div
           className={`absolute bottom-0 w-full rounded-sm ${suspColor(norm)}`}
           style={{ height: `${pct}%` }}
         />
       </div>
-      <span className="text-[8px] font-mono text-app-text-muted">{pct.toFixed(0)}%</span>
+      <span className="text-[10px] font-mono text-app-text-muted tabular-nums w-7 text-center">{pct.toFixed(0)}%</span>
     </div>
   );
 }
@@ -451,7 +450,7 @@ function SuspBar({ norm }: { norm: number }) {
  * Falls back to 0.33m radius when stationary to avoid division by zero.
  */
 export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
-  const { displaySettings } = useSettings();
+  const units = useUnits();
   const toDeg = 180 / Math.PI;
 
   // Use canonical wheel states from vehicle-dynamics (same as LapAnalyse)
@@ -475,22 +474,30 @@ export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
   ];
 
   return (
-    <div className="relative grid grid-cols-[80px_auto_80px] gap-x-3 gap-y-3 items-center justify-center mx-auto" style={{ maxWidth: 280 }}>
+    <div className="relative flex flex-col gap-3 w-full">
       {/* Front axle */}
-      <WheelCard {...wheels[0]} outerSide="left" thresholds={displaySettings.tireTemperatureThresholds} temperatureUnit={displaySettings.temperatureUnit} />
-      <div className="flex gap-2">
-        <SuspBar norm={susp[0]} />
-        <SuspBar norm={susp[1]} />
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-1">
+          <WheelCard {...wheels[0]} outerSide="left" thresholds={units.thresholds} tempFn={units.temp} tempUnit={units.tempUnit} />
+          <SuspBar norm={susp[0]} />
+        </div>
+        <div className="flex items-center gap-1">
+          <SuspBar norm={susp[1]} />
+          <WheelCard {...wheels[1]} outerSide="right" thresholds={units.thresholds} tempFn={units.temp} tempUnit={units.tempUnit} />
+        </div>
       </div>
-      <WheelCard {...wheels[1]} outerSide="right" thresholds={displaySettings.tireTemperatureThresholds} temperatureUnit={displaySettings.temperatureUnit} />
 
       {/* Rear axle */}
-      <WheelCard {...wheels[2]} outerSide="left" thresholds={displaySettings.tireTemperatureThresholds} temperatureUnit={displaySettings.temperatureUnit} />
-      <div className="flex gap-2">
-        <SuspBar norm={susp[2]} />
-        <SuspBar norm={susp[3]} />
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center gap-1">
+          <WheelCard {...wheels[2]} outerSide="left" thresholds={units.thresholds} tempFn={units.temp} tempUnit={units.tempUnit} />
+          <SuspBar norm={susp[2]} />
+        </div>
+        <div className="flex items-center gap-1">
+          <SuspBar norm={susp[3]} />
+          <WheelCard {...wheels[3]} outerSide="right" thresholds={units.thresholds} tempFn={units.temp} tempUnit={units.tempUnit} />
+        </div>
       </div>
-      <WheelCard {...wheels[3]} outerSide="right" thresholds={displaySettings.tireTemperatureThresholds} temperatureUnit={displaySettings.temperatureUnit} />
 
       {/* Weight shift radar — absolutely centered between axles */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -1133,7 +1140,7 @@ function DualLineChart({ data1, data2, label1, label2, color1, color2, label, ma
  * Converts raw telemetry units (rad->deg, m/s->mph, 0-255->0-100%) for display.
  */
 function TelemetryCharts({ packet }: { packet: TelemetryPacket }) {
-  const { displaySettings } = useSettings();
+  const units = useUnits();
   const histRef = useRef<{
     grip: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
     temp: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
@@ -1189,7 +1196,7 @@ function TelemetryCharts({ packet }: { packet: TelemetryPacket }) {
     push4(h.suspension, packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR);
     h.throttle.push(packet.Accel / 255 * 100);
     h.brake.push(packet.Brake / 255 * 100);
-    h.speed.push(convertSpeed(packet.Speed, displaySettings.speedUnit));
+    h.speed.push(units.speed(packet.Speed));
     if (h.throttle.length > GRIP_MAX_SAMPLES) { h.throttle.shift(); h.brake.shift(); h.speed.shift(); }
   }, [packet]);
 
@@ -1203,7 +1210,7 @@ function TelemetryCharts({ packet }: { packet: TelemetryPacket }) {
       <FourLineChart data={h.slipAngle} label="Slip Angle" unit="°" />
       <FourLineChart data={h.slipRatio} label="Slip Ratio" />
       <FourLineChart data={h.suspension} label="Suspension" maxY={1} />
-      <SingleLineChart data={h.speed} label="Speed" color="#22d3ee" unit={speedLabel(displaySettings.speedUnit)} />
+      <SingleLineChart data={h.speed} label="Speed" color="#22d3ee" unit={units.speedLabel} />
       <DualLineChart data1={h.throttle} data2={h.brake} label1="Throttle" label2="Brake" color1="#34d399" color2="#ef4444" label="Throttle / Brake" maxY={100} unit="%" />
     </div>
   );
@@ -1224,7 +1231,7 @@ export function LiveTelemetry({ packet }: Props) {
       .catch(() => setCarName(`Car #${ord}`));
   }, [packet?.CarOrdinal]);
 
-  const { displaySettings } = useSettings();
+  const units = useUnits();
 
   if (!packet) {
     return (
@@ -1234,7 +1241,7 @@ export function LiveTelemetry({ packet }: Props) {
     );
   }
 
-  const speed = getSpeed(packet, displaySettings.speedUnit);
+  const speed = getSpeed(packet, units.speed);
   const throttlePct = (packet.Accel / 255) * 100;
   const brakePct = (packet.Brake / 255) * 100;
   const rpmPct = packet.EngineMaxRpm > 0 ? (packet.CurrentEngineRpm / packet.EngineMaxRpm) * 100 : 0;
@@ -1258,7 +1265,7 @@ export function LiveTelemetry({ packet }: Props) {
         )}
         <div className="text-right">
           <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
-            {speed.toFixed(0)} <span className="text-xs text-app-text-muted">{speedLabel(displaySettings.speedUnit)}</span>
+            {speed.toFixed(0)} <span className="text-xs text-app-text-muted">{units.speedLabel}</span>
           </div>
         </div>
         <div className="text-3xl font-mono font-bold text-app-accent tabular-nums leading-none">

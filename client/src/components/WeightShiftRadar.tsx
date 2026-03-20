@@ -9,7 +9,7 @@ import type { TelemetryPacket } from "@shared/types";
  */
 export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const size = 70;
+  const size = 85;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -28,8 +28,8 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     const r = size / 2 - 6;
 
     // Background: car outline (rounded rect)
-    ctx.strokeStyle = "rgba(100,116,139,0.2)";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(148,163,184,0.8)";
+    ctx.lineWidth = 1.5;
     const carW = r * 1.2;
     const carH = r * 1.6;
     const carX = cx - carW / 2;
@@ -48,7 +48,7 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     for (const c of corners) {
       ctx.beginPath();
       ctx.arc(c.x, c.y, 1.5, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(100,116,139,0.25)";
+      ctx.fillStyle = "rgba(148,163,184,0.85)";
       ctx.fill();
     }
 
@@ -114,8 +114,9 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
   }, [packet]);
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="relative flex flex-col items-center">
       <canvas ref={canvasRef} style={{ width: size, height: size }} className="rounded" />
+      <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[9px] font-mono text-app-text-muted text-center leading-tight">Load<br />Distribution</span>
     </div>
   );
 }

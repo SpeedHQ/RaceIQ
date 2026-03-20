@@ -295,8 +295,8 @@ export function Settings() {
             </p>
             <div className="grid grid-cols-2 gap-3 max-w-sm">
               {([
-                { value: "svg" as WheelStyle, label: "SVG", description: "Minimal vector wheel" },
-                { value: "fanatec" as WheelStyle, label: "Fanatec F1", description: "Fanatec ClubSport F1 wheel" },
+                { value: "svg" as WheelStyle, label: "Vector", description: "SVG illustration" },
+                { value: "fanatec" as WheelStyle, label: "Photo", description: "Fanatec ClubSport F1" },
               ] as const).map((opt) => (
                 <button
                   key={opt.value}
@@ -316,13 +316,7 @@ export function Settings() {
                     {opt.value === "fanatec" ? (
                       <img src="/fanatec-f1-wheel.webp" alt="Fanatec F1 wheel" className="h-full object-contain" />
                     ) : (
-                      <svg viewBox="0 0 140 110" className="w-20 h-14">
-                        <path d="M 18 30 Q 6 55 18 80" fill="none" stroke="#475569" strokeWidth="10" strokeLinecap="round" />
-                        <path d="M 122 30 Q 134 55 122 80" fill="none" stroke="#475569" strokeWidth="10" strokeLinecap="round" />
-                        <path d="M 18 30 L 55 22 L 85 22 L 122 30" fill="none" stroke="#475569" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-                        <path d="M 30 78 L 55 84 L 85 84 L 110 78" fill="none" stroke="#475569" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-                        <rect x="38" y="32" width="64" height="46" rx="8" fill="#1e293b" stroke="#334155" strokeWidth="1.5" />
-                      </svg>
+                      <img src="/fanatec-f1-wheel.svg" alt="steering wheel" className="h-full object-contain" />
                     )}
                   </div>
                 </button>

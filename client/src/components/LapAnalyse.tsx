@@ -16,8 +16,8 @@ import {
   frictionUtilColor,
   balanceColor,
 } from "../lib/vehicle-dynamics";
-import { convertSpeed, speedLabel } from "../lib/speed";
-import { useSettings, useLaps as useLapsQuery } from "../hooks/queries";
+import { useUnits } from "../hooks/useUnits";
+import { useLaps as useLapsQuery } from "../hooks/queries";
 import { api } from "../lib/api";
 import { analyzeLap } from "../lib/lap-insights";
 import { InsightPanel } from "./InsightPanel";
@@ -436,8 +436,8 @@ function TelemetryChart({
 // ── Metrics Panel ────────────────────────────────────────────────────
 
 function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket; startFuel?: number }) {
-  const { displaySettings } = useSettings();
-  const speed = convertSpeed(pkt.Speed, displaySettings.speedUnit);
+  const units = useUnits();
+  const speed = units.speed(pkt.Speed);
   const throttlePct = ((pkt.Accel / 255) * 100).toFixed(0);
   const brakePct = ((pkt.Brake / 255) * 100).toFixed(0);
   const lock = getSteeringLock();
@@ -445,7 +445,7 @@ function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket; startFuel?: nu
 
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono">
-      <MetricRow label="Speed" value={`${speed.toFixed(0)} ${speedLabel(displaySettings.speedUnit)}`} />
+      <MetricRow label="Speed" value={`${speed.toFixed(0)} ${units.speedLabel}`} />
       <MetricRow label="RPM" value={`${pkt.CurrentEngineRpm.toFixed(0)}`} />
       <MetricRow label="Gear" value={`${pkt.Gear}`} />
       <MetricRow label="Throttle" value={`${throttlePct}%`} color={Number(throttlePct) > 50 ? "#34d399" : undefined} />
@@ -545,7 +545,7 @@ function SuspValue({ label, value }: { label: string; value: number }) {
 export function LapAnalyse() {
   const search = useSearch({ from: "/analyse" });
   const navigate = useNavigate({ from: "/analyse" });
-  const { displaySettings } = useSettings();
+  const units = useUnits();
 
   const [laps, setLaps] = useState<LapMeta[]>([]);
   const [selectedTrack, setSelectedTrack] = useState<number | null>(search.track ?? null);
@@ -817,7 +817,7 @@ export function LapAnalyse() {
     const steering: number[] = [];
 
     for (const p of telemetry) {
-      speed.push(convertSpeed(p.Speed, displaySettings.speedUnit));
+      speed.push(units.speed(p.Speed));
       throttle.push((p.Accel / 255) * 100);
       brake.push((p.Brake / 255) * 100);
       rpm.push(p.CurrentEngineRpm);
@@ -977,7 +977,7 @@ export function LapAnalyse() {
       `Packet ${cursorIdx + 1}/${telemetry.length} | ${formatLapTime(p.CurrentLap)} / ${formatLapTime(totalTime)}`,
       `Track: ${trackName} | Car: ${carName} | Lap: ${selectedLap?.lapNumber ?? "?"}`,
       ``,
-      `Speed: ${convertSpeed(p.Speed, displaySettings.speedUnit).toFixed(0)} ${speedLabel(displaySettings.speedUnit)}`,
+      `Speed: ${units.speed(p.Speed).toFixed(0)} ${units.speedLabel}`,
       `RPM: ${p.CurrentEngineRpm.toFixed(0)} / ${p.EngineMaxRpm.toFixed(0)}`,
       `Gear: ${p.Gear}`,
       `Throttle: ${((p.Accel / 255) * 100).toFixed(0)}%`,
@@ -989,7 +989,7 @@ export function LapAnalyse() {
       `Fuel: ${(p.Fuel * 100).toFixed(1)}% left, ${((startFuel - p.Fuel) * 100).toFixed(1)}% used`,
       ``,
       `Wheel Speed (rad/s): FL=${p.WheelRotationSpeedFL.toFixed(1)} FR=${p.WheelRotationSpeedFR.toFixed(1)} RL=${p.WheelRotationSpeedRL.toFixed(1)} RR=${p.WheelRotationSpeedRR.toFixed(1)}`,
-      `Tire Temp: FL=${p.TireTempFL.toFixed(0)}° FR=${p.TireTempFR.toFixed(0)}° RL=${p.TireTempRL.toFixed(0)}° RR=${p.TireTempRR.toFixed(0)}°`,
+      `Tire Temp (${units.tempLabel}): FL=${units.temp(p.TireTempFL).toFixed(0)} FR=${units.temp(p.TireTempFR).toFixed(0)} RL=${units.temp(p.TireTempRL).toFixed(0)} RR=${units.temp(p.TireTempRR).toFixed(0)}`,
       `Tire Wear: FL=${(p.TireWearFL*100).toFixed(1)}% FR=${(p.TireWearFR*100).toFixed(1)}% RL=${(p.TireWearRL*100).toFixed(1)}% RR=${(p.TireWearRR*100).toFixed(1)}%`,
       `Slip Combined: FL=${p.TireCombinedSlipFL.toFixed(2)} FR=${p.TireCombinedSlipFR.toFixed(2)} RL=${p.TireCombinedSlipRL.toFixed(2)} RR=${p.TireCombinedSlipRR.toFixed(2)}`,
       `Slip Angle: FL=${(p.TireSlipAngleFL*180/Math.PI).toFixed(1)}° FR=${(p.TireSlipAngleFR*180/Math.PI).toFixed(1)}° RL=${(p.TireSlipAngleRL*180/Math.PI).toFixed(1)}° RR=${(p.TireSlipAngleRR*180/Math.PI).toFixed(1)}°`,
@@ -1169,7 +1169,7 @@ export function LapAnalyse() {
               {currentPacket && (
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-lg font-mono font-bold text-app-accent">{currentPacket.Gear === 0 ? "R" : currentPacket.Gear === 11 ? "N" : currentPacket.Gear}</span>
-                  <span className="text-xl font-mono font-bold tabular-nums text-app-text">{convertSpeed(currentPacket.Speed, displaySettings.speedUnit).toFixed(0)} <span className="text-[10px] text-app-text-muted">{speedLabel(displaySettings.speedUnit)}</span></span>
+                  <span className="text-xl font-mono font-bold tabular-nums text-app-text">{units.speed(currentPacket.Speed).toFixed(0)} <span className="text-[10px] text-app-text-muted">{units.speedLabel}</span></span>
                 </div>
               )}
               {currentPacket && (
@@ -1269,7 +1269,7 @@ export function LapAnalyse() {
             <div className="p-3 space-y-2">
               <TelemetryChart
                 series={[
-                  { data: chartData.speed, color: "#22d3ee", label: `Speed (${speedLabel(displaySettings.speedUnit)})` },
+                  { data: chartData.speed, color: "#22d3ee", label: `Speed (${units.speedLabel})` },
                 ]}
                 cursorIdx={cursorIdx}
                 totalPackets={telemetry.length}
@@ -1314,7 +1314,7 @@ export function LapAnalyse() {
           </div>
 
           {/* Right panel – full height */}
-          <div className="w-80 h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
+          <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
               {/* Tab switcher */}
               <div className="flex border-b border-app-border shrink-0">
                 <button
@@ -1430,7 +1430,7 @@ export function LapAnalyse() {
                   <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 pt-2 border-t border-app-border font-semibold">
                     Wheels
                   </h3>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] font-mono">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-[11px] font-mono">
                     {/* Left column: Speed, Temp, Wear */}
                     <div className="space-y-2">
                       <div>
