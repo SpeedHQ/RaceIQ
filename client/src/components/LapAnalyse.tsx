@@ -638,6 +638,7 @@ export function LapAnalyse() {
   const [trackName, setTrackName] = useState("");
   const [cursorIdx, setCursorIdx] = useState(0);
   const [sidebarTab, setSidebarTab] = useState<"live" | "insights">("live");
+  const [wheelTab, setWheelTab] = useState<"render" | "visual">("render");
   const [playing, setPlaying] = useState(false);
   const [rotateWithCar, setRotateWithCar] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
@@ -1249,37 +1250,71 @@ export function LapAnalyse() {
             </div>
 
             {/* Rev meter + Steering wheel + Tire diagram */}
-            <div className="border-r border-app-border p-2 flex flex-col items-center justify-start gap-2 overflow-y-auto">
-              {currentPacket && (
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-lg font-mono font-bold text-app-accent">{currentPacket.Gear === 0 ? "R" : currentPacket.Gear === 11 ? "N" : currentPacket.Gear}</span>
-                  <span className="text-xl font-mono font-bold tabular-nums text-app-text">{units.speed(currentPacket.Speed).toFixed(0)} <span className="text-[10px] text-app-text-muted">{units.speedLabel}</span></span>
+            <div className="border-r border-app-border flex flex-col items-center justify-start overflow-y-auto">
+              {/* Wheel panel tabs */}
+              <div className="flex w-full border-b border-app-border shrink-0">
+                <button
+                  onClick={() => setWheelTab("render")}
+                  className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
+                    wheelTab === "render"
+                      ? "text-app-text border-b-2 border-app-accent"
+                      : "text-app-text-muted hover:text-app-text"
+                  }`}
+                >
+                  Render
+                </button>
+                <button
+                  onClick={() => setWheelTab("visual")}
+                  className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
+                    wheelTab === "visual"
+                      ? "text-app-text border-b-2 border-app-accent"
+                      : "text-app-text-muted hover:text-app-text"
+                  }`}
+                >
+                  Visual
+                </button>
+              </div>
+
+              <div className="p-2 flex flex-col items-center gap-2 w-full">
+              {wheelTab === "render" ? (
+                <>
+                  {currentPacket && (
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-lg font-mono font-bold text-app-accent">{currentPacket.Gear === 0 ? "R" : currentPacket.Gear === 11 ? "N" : currentPacket.Gear}</span>
+                      <span className="text-xl font-mono font-bold tabular-nums text-app-text">{units.speed(currentPacket.Speed).toFixed(0)} <span className="text-[10px] text-app-text-muted">{units.speedLabel}</span></span>
+                    </div>
+                  )}
+                  {currentPacket && (
+                    <div className="flex items-center gap-2">
+                      {/* Pedal bars */}
+                      <div className="flex gap-1 items-end shrink-0" style={{ height: 80 }}>
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{((currentPacket.Accel / 255) * 100).toFixed(0)}</span>
+                          <div className="w-5 bg-app-surface-alt rounded-sm overflow-hidden relative" style={{ height: 60 }}>
+                            <div className="absolute bottom-0 w-full bg-emerald-400 rounded-sm transition-all" style={{ height: `${(currentPacket.Accel / 255) * 100}%` }} />
+                          </div>
+                          <span className="text-[8px] text-app-text-muted">T</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="text-[9px] font-mono text-red-400 font-bold tabular-nums">{((currentPacket.Brake / 255) * 100).toFixed(0)}</span>
+                          <div className="w-5 bg-app-surface-alt rounded-sm overflow-hidden relative" style={{ height: 60 }}>
+                            <div className="absolute bottom-0 w-full bg-red-500 rounded-sm transition-all" style={{ height: `${(currentPacket.Brake / 255) * 100}%` }} />
+                          </div>
+                          <span className="text-[8px] text-app-text-muted">B</span>
+                        </div>
+                      </div>
+                      <SteeringWheel steer={currentPacket.Steer} rpm={currentPacket.CurrentEngineRpm} maxRpm={currentPacket.EngineMaxRpm} />
+                      <GForceCircle packet={currentPacket} />
+                    </div>
+                  )}
+                  {currentPacket && <TireDiagram packet={currentPacket} />}
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-full text-app-text-muted text-sm">
+                  Visual tab
                 </div>
               )}
-              {currentPacket && (
-                <div className="flex items-center gap-2">
-                  {/* Pedal bars */}
-                  <div className="flex gap-1 items-end shrink-0" style={{ height: 80 }}>
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{((currentPacket.Accel / 255) * 100).toFixed(0)}</span>
-                      <div className="w-5 bg-app-surface-alt rounded-sm overflow-hidden relative" style={{ height: 60 }}>
-                        <div className="absolute bottom-0 w-full bg-emerald-400 rounded-sm transition-all" style={{ height: `${(currentPacket.Accel / 255) * 100}%` }} />
-                      </div>
-                      <span className="text-[8px] text-app-text-muted">T</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className="text-[9px] font-mono text-red-400 font-bold tabular-nums">{((currentPacket.Brake / 255) * 100).toFixed(0)}</span>
-                      <div className="w-5 bg-app-surface-alt rounded-sm overflow-hidden relative" style={{ height: 60 }}>
-                        <div className="absolute bottom-0 w-full bg-red-500 rounded-sm transition-all" style={{ height: `${(currentPacket.Brake / 255) * 100}%` }} />
-                      </div>
-                      <span className="text-[8px] text-app-text-muted">B</span>
-                    </div>
-                  </div>
-                  <SteeringWheel steer={currentPacket.Steer} rpm={currentPacket.CurrentEngineRpm} maxRpm={currentPacket.EngineMaxRpm} />
-                  <GForceCircle packet={currentPacket} />
-                </div>
-              )}
-              {currentPacket && <TireDiagram packet={currentPacket} />}
+              </div>
             </div>
 
           </div>
