@@ -1,6 +1,6 @@
 import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, trackCorners, trackOutlines, lapAnalyses } from "./schema";
+import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, profiles } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 
@@ -44,9 +44,11 @@ export function insertLap(
   lapNumber: number,
   lapTime: number,
   isValid: boolean,
-  telemetryPackets: TelemetryPacket[]
+  telemetryPackets: TelemetryPacket[],
+  profileId: number | null = null
 ): number {
   const compressed = compressTelemetry(telemetryPackets);
+  const pi = telemetryPackets[0]?.CarPerformanceIndex ?? 0;
   const result = db
     .insert(laps)
     .values({
@@ -54,7 +56,9 @@ export function insertLap(
       lapNumber,
       lapTime,
       isValid,
+      pi,
       telemetry: compressed,
+      profileId,
     })
     .returning({ id: laps.id })
     .get();
@@ -63,27 +67,33 @@ export function insertLap(
 
 /**
  * Get all laps with session metadata, newest first.
+ * Optionally filter by profileId.
  */
-export function getLaps(): LapMeta[] {
-  const rows = db
+export function getLaps(profileId?: number | null): LapMeta[] {
+  const query = db
     .select({
       id: laps.id,
       sessionId: laps.sessionId,
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
+      pi: laps.pi,
       createdAt: laps.createdAt,
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
-    .orderBy(desc(laps.id))
-    .all();
+    .orderBy(desc(laps.id));
+
+  const rows = profileId != null
+    ? query.where(eq(laps.profileId, profileId)).all()
+    : query.all();
 
   return rows.map((r) => ({
     ...r,
     isValid: Boolean(r.isValid),
+    pi: r.pi ?? 0,
   }));
 }
 
@@ -454,4 +464,35 @@ export function saveAnalysis(lapId: number, analysis: string, usage: AnalysisUsa
       .values({ lapId, ...values })
       .run();
   }
+}
+
+/**
+ * Get all profiles ordered by creation time.
+ */
+export function getProfiles() {
+  return db.select().from(profiles).orderBy(profiles.createdAt).all();
+}
+
+/**
+ * Insert a new profile, returns the created profile ID.
+ */
+export function insertProfile(name: string): number {
+  const result = db.insert(profiles).values({ name }).returning({ id: profiles.id }).get();
+  return result.id;
+}
+
+/**
+ * Update a profile name by ID. Returns true if a row was updated.
+ */
+export function updateProfile(id: number, name: string): boolean {
+  const result = db.update(profiles).set({ name }).where(eq(profiles.id, id)).returning().all();
+  return result.length > 0;
+}
+
+/**
+ * Delete a profile by ID. Returns true if a row was deleted.
+ */
+export function deleteProfile(id: number): boolean {
+  const result = db.delete(profiles).where(eq(profiles.id, id)).returning().all();
+  return result.length > 0;
 }
