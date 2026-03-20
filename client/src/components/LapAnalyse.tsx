@@ -40,6 +40,7 @@ function AnalyseTrackMap({
   segments,
   rotateWithCar,
   zoom = 1,
+  containerHeight,
 }: {
   telemetry: TelemetryPacket[];
   cursorIdx: number;
@@ -48,6 +49,7 @@ function AnalyseTrackMap({
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   rotateWithCar: boolean;
   zoom?: number;
+  containerHeight?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pulseRef = useRef<HTMLCanvasElement>(null);
@@ -283,7 +285,7 @@ function AnalyseTrackMap({
       const pa = rotateWithCar ? -Math.PI / 2 : angle;
       carPosRef.current = { x: px, y: py, w, h, angle: pa };
     }
-  }, [telemetry, cursorIdx, outline, sectors, segments, rotateWithCar, zoom]);
+  }, [telemetry, cursorIdx, outline, sectors, segments, rotateWithCar, zoom, containerHeight]);
 
   // Pulse ring animation on overlay canvas
   useEffect(() => {
@@ -637,6 +639,8 @@ export function LapAnalyse() {
   const [playing, setPlaying] = useState(false);
   const [rotateWithCar, setRotateWithCar] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
+  const [topHeight, setTopHeight] = useState(500);
+  const dragRef = useRef<{ startY: number; startH: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -1151,9 +1155,9 @@ export function LapAnalyse() {
           {/* Left: main content (map, charts, scrubber) */}
           <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
           {/* Top section: Track Map + Metrics */}
-          <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_320px] border-b border-app-border shrink-0">
+          <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_320px] shrink-0 overflow-hidden" style={{ height: topHeight }}>
             {/* Segment table + legend */}
-            <div className="border-r border-app-border overflow-y-auto p-2" style={{ height: 500 }}>
+            <div className="border-r border-app-border overflow-y-auto p-2" style={{ height: "100%" }}>
               {/* Legend */}
               <div className="flex flex-wrap items-center gap-3 mb-2 pb-2 border-b border-app-border">
                 <div className="flex items-center gap-1">
@@ -1194,7 +1198,7 @@ export function LapAnalyse() {
             </div>
 
             {/* Track map */}
-            <div className="border-r border-app-border bg-app-bg p-2 relative" style={{ height: 500 }}>
+            <div className="border-r border-app-border bg-app-bg p-2 relative" style={{ height: "100%" }}>
               <AnalyseTrackMap
                 telemetry={telemetry}
                 cursorIdx={cursorIdx}
@@ -1203,6 +1207,7 @@ export function LapAnalyse() {
                 segments={segments}
                 rotateWithCar={rotateWithCar}
                 zoom={mapZoom}
+                containerHeight={topHeight}
               />
               {/* Map controls overlay — top right */}
               <div className="absolute top-2 right-2 flex items-start gap-2">
@@ -1242,7 +1247,7 @@ export function LapAnalyse() {
             </div>
 
             {/* Rev meter + Steering wheel + Tire diagram */}
-            <div className="border-r border-app-border p-2 flex flex-col items-center justify-center gap-2">
+            <div className="border-r border-app-border p-2 flex flex-col items-center justify-start gap-2 overflow-y-auto">
               {currentPacket && (
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-lg font-mono font-bold text-app-accent">{currentPacket.Gear === 0 ? "R" : currentPacket.Gear === 11 ? "N" : currentPacket.Gear}</span>
@@ -1275,6 +1280,28 @@ export function LapAnalyse() {
               {currentPacket && <TireDiagram packet={currentPacket} />}
             </div>
 
+          </div>
+
+          {/* Resize handle */}
+          <div
+            className="h-3 cursor-row-resize border-y border-app-border bg-app-surface-alt/80 hover:bg-app-accent/30 transition-colors shrink-0 flex items-center justify-center"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              const startY = e.clientY;
+              const startH = topHeight;
+              const onMove = (ev: MouseEvent) => {
+                const newH = Math.max(250, Math.min(800, startH + ev.clientY - startY));
+                setTopHeight(newH);
+              };
+              const onUp = () => {
+                window.removeEventListener("mousemove", onMove);
+                window.removeEventListener("mouseup", onUp);
+              };
+              window.addEventListener("mousemove", onMove);
+              window.addEventListener("mouseup", onUp);
+            }}
+          >
+            <div className="w-10 h-1 rounded-full bg-app-text-muted/60" />
           </div>
 
           {/* Lap time + Timeline scrubber */}
