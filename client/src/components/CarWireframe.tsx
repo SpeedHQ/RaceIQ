@@ -86,7 +86,7 @@ function SuspensionSpring({
   wheelPos: [number, number, number];
   suspTravel: number;
 }) {
-  const coilRadius = 0.08;
+  const coilRadius = 0.032;  // ~64mm diameter (GT3 spec)
   const coils = 6;
   const segments = coils * 12;
   const topY = bodyPos[1];   // body mount (drops with body)
@@ -138,71 +138,71 @@ function CarBody({ solid }: { solid: boolean }) {
     const v = new Float32Array([
       // ── Floor outline (splitter/diffuser plane) ──
       // Rear diffuser (wide)
-      -2.25, -0.05, -1.10,   // 0  rear-left
-      -2.25, -0.05,  1.10,   // 1  rear-right
-      // Rear wheel arch cutout (wider to cover tires)
-      -1.80, -0.05, -1.22,   // 2  rear-left arch
-      -1.80, -0.05,  1.22,   // 3  rear-right arch
+      -1.97, -0.05, -0.93,   // 0  rear-left
+      -1.97, -0.05,  0.93,   // 1  rear-right
+      // Rear wheel arch cutout (covers tires at z=±0.81)
+      -1.57, -0.05, -1.02,   // 2  rear-left arch
+      -1.57, -0.05,  1.02,   // 3  rear-right arch
       // Door sill
-      -0.40, -0.05, -1.05,   // 4  mid-left
-      -0.40, -0.05,  1.05,   // 5  mid-right
-      // Front wheel arch (wider to cover tires)
-       1.30, -0.05, -1.22,   // 6  front-left arch
-       1.30, -0.05,  1.22,   // 7  front-right arch
+      -0.35, -0.05, -0.90,   // 4  mid-left
+      -0.35, -0.05,  0.90,   // 5  mid-right
+      // Front wheel arch (covers tires)
+       1.14, -0.05, -1.02,   // 6  front-left arch
+       1.14, -0.05,  1.02,   // 7  front-right arch
       // Front splitter
-       2.20, -0.05, -0.85,   // 8  front-left
-       2.20, -0.05,  0.85,   // 9  front-right
+       1.92, -0.05, -0.75,   // 8  front-left
+       1.92, -0.05,  0.75,   // 9  front-right
       // Nose tip
-       2.55, -0.02, -0.40,   // 10 nose-left
-       2.55, -0.02,  0.40,   // 11 nose-right
-       2.70,  0.02,  0.00,   // 12 nose tip
+       2.23, -0.02, -0.35,   // 10 nose-left
+       2.23, -0.02,  0.35,   // 11 nose-right
+       2.36,  0.02,  0.00,   // 12 nose tip
 
       // ── Belt line (shoulder, fender tops) ──
-      -2.20,  0.32, -1.10,   // 13 rear-left shoulder
-      -2.20,  0.32,  1.10,   // 14 rear-right shoulder
-      -1.70,  0.38, -1.22,   // 15 rear fender-left peak
-      -1.70,  0.38,  1.22,   // 16 rear fender-right peak
-      -0.40,  0.30, -1.05,   // 17 door-left top
-      -0.40,  0.30,  1.05,   // 18 door-right top
-       1.30,  0.36, -1.22,   // 19 front fender-left peak
-       1.30,  0.36,  1.22,   // 20 front fender-right peak
-       2.15,  0.22, -0.80,   // 21 hood-left edge
-       2.15,  0.22,  0.80,   // 22 hood-right edge
-       2.50,  0.12, -0.35,   // 23 nose-left top
-       2.50,  0.12,  0.35,   // 24 nose-right top
-       2.65,  0.08,  0.00,   // 25 nose tip top
+      -1.92,  0.32, -0.93,   // 13 rear-left shoulder
+      -1.92,  0.32,  0.93,   // 14 rear-right shoulder
+      -1.49,  0.38, -1.02,   // 15 rear fender-left peak
+      -1.49,  0.38,  1.02,   // 16 rear fender-right peak
+      -0.35,  0.30, -0.90,   // 17 door-left top
+      -0.35,  0.30,  0.90,   // 18 door-right top
+       1.14,  0.36, -1.02,   // 19 front fender-left peak
+       1.14,  0.36,  1.02,   // 20 front fender-right peak
+       1.88,  0.22, -0.70,   // 21 hood-left edge
+       1.88,  0.22,  0.70,   // 22 hood-right edge
+       2.18,  0.12, -0.31,   // 23 nose-left top
+       2.18,  0.12,  0.31,   // 24 nose-right top
+       2.32,  0.08,  0.00,   // 25 nose tip top
 
       // ── Roof / greenhouse ──
-      -0.80,  0.60, -0.52,   // 26 A-pillar left
-      -0.80,  0.60,  0.52,   // 27 A-pillar right
-       0.30,  0.62, -0.50,   // 28 roof peak left
-       0.30,  0.62,  0.50,   // 29 roof peak right
-      -1.50,  0.50, -0.48,   // 30 C-pillar left
-      -1.50,  0.50,  0.48,   // 31 C-pillar right
-      -1.90,  0.36, -0.46,   // 32 rear glass left
-      -1.90,  0.36,  0.46,   // 33 rear glass right
-       0.90,  0.55, -0.48,   // 34 windshield top left
-       0.90,  0.55,  0.48,   // 35 windshield top right
+      -0.70,  0.60, -0.46,   // 26 A-pillar left
+      -0.70,  0.60,  0.46,   // 27 A-pillar right
+       0.26,  0.62, -0.44,   // 28 roof peak left
+       0.26,  0.62,  0.44,   // 29 roof peak right
+      -1.31,  0.50, -0.42,   // 30 C-pillar left
+      -1.31,  0.50,  0.42,   // 31 C-pillar right
+      -1.66,  0.36, -0.40,   // 32 rear glass left
+      -1.66,  0.36,  0.40,   // 33 rear glass right
+       0.79,  0.55, -0.42,   // 34 windshield top left
+       0.79,  0.55,  0.42,   // 35 windshield top right
 
       // ── Rear wing ──
       // Endplates (tall, wide)
-      -2.35,  0.38, -1.00,   // 36 endplate left bottom
-      -2.35,  0.38,  1.00,   // 37 endplate right bottom
-      -2.35,  0.72, -1.00,   // 38 endplate left top
-      -2.35,  0.72,  1.00,   // 39 endplate right top
-      -2.55,  0.72, -1.00,   // 40 endplate left top rear
-      -2.55,  0.72,  1.00,   // 41 endplate right top rear
+      -2.05,  0.38, -0.88,   // 36 endplate left bottom
+      -2.05,  0.38,  0.88,   // 37 endplate right bottom
+      -2.05,  0.72, -0.88,   // 38 endplate left top
+      -2.05,  0.72,  0.88,   // 39 endplate right top
+      -2.23,  0.72, -0.88,   // 40 endplate left top rear
+      -2.23,  0.72,  0.88,   // 41 endplate right top rear
       // Wing plane
-      -2.30,  0.70, -0.98,   // 42 wing front left
-      -2.30,  0.70,  0.98,   // 43 wing front right
-      -2.60,  0.72, -0.98,   // 44 wing rear left
-      -2.60,  0.72,  0.98,   // 45 wing rear right
+      -2.01,  0.70, -0.86,   // 42 wing front left
+      -2.01,  0.70,  0.86,   // 43 wing front right
+      -2.27,  0.72, -0.86,   // 44 wing rear left
+      -2.27,  0.72,  0.86,   // 45 wing rear right
 
       // ── Front splitter detail ──
-       2.25, -0.08, -0.90,   // 46 splitter left
-       2.25, -0.08,  0.90,   // 47 splitter right
-       2.60, -0.06, -0.38,   // 48 splitter nose left
-       2.60, -0.06,  0.38,   // 49 splitter nose right
+       1.97, -0.08, -0.79,   // 46 splitter left
+       1.97, -0.08,  0.79,   // 47 splitter right
+       2.27, -0.06, -0.33,   // 48 splitter nose left
+       2.27, -0.06,  0.33,   // 49 splitter nose right
     ]);
 
     const idx = [
@@ -289,10 +289,10 @@ function CarBody({ solid }: { solid: boolean }) {
 
 // Wheel offsets from car center (local space)
 const WHEEL_OFFSETS: [number, number][] = [
-  [1.6, -1.05],   // FL: x, z
-  [1.6, 1.05],    // FR
-  [-1.6, -1.05],  // RL
-  [-1.6, 1.05],   // RR
+  [1.35, -0.83],   // FL: x, z
+  [1.35, 0.83],    // FR
+  [-1.35, -0.81],  // RL
+  [-1.35, 0.81],   // RR
 ];
 
 // Pre-allocated color objects to avoid GC pressure
@@ -526,10 +526,10 @@ function CarScene({ packet, telemetry, cursorIdx, outline, solid }: { packet: Te
   const steerRad = (packet.Steer / 127) * 0.35;
 
   const wheelData = [
-    { pos: [1.6, 0, -1.05] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFL, slip: Math.abs(packet.TireCombinedSlipFL), temp: packet.TireTempFL },
-    { pos: [1.6, 0, 1.05] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFR, slip: Math.abs(packet.TireCombinedSlipFR), temp: packet.TireTempFR },
-    { pos: [-1.6, 0, -1.05] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRL, slip: Math.abs(packet.TireCombinedSlipRL), temp: packet.TireTempRL },
-    { pos: [-1.6, 0, 1.05] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRR, slip: Math.abs(packet.TireCombinedSlipRR), temp: packet.TireTempRR },
+    { pos: [1.35, 0, -0.83] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFL, slip: Math.abs(packet.TireCombinedSlipFL), temp: packet.TireTempFL },
+    { pos: [1.35, 0, 0.83] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFR, slip: Math.abs(packet.TireCombinedSlipFR), temp: packet.TireTempFR },
+    { pos: [-1.35, 0, -0.81] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRL, slip: Math.abs(packet.TireCombinedSlipRL), temp: packet.TireTempRL },
+    { pos: [-1.35, 0, 0.81] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRR, slip: Math.abs(packet.TireCombinedSlipRR), temp: packet.TireTempRR },
   ];
 
   return (
@@ -576,11 +576,11 @@ function CarScene({ packet, telemetry, cursorIdx, outline, solid }: { packet: Te
 
         {/* Suspension springs — connect dropped body to grounded wheels */}
         {wheelData.map((w, i) => {
-          const inboardZ = w.pos[2] > 0 ? w.pos[2] - 0.45 : w.pos[2] + 0.45;
+          const inboardZ = w.pos[2] > 0 ? w.pos[2] - 0.35 : w.pos[2] + 0.35;
           return (
             <SuspensionSpring
               key={`susp-${i}`}
-              bodyPos={[w.pos[0], 0.15 + bodyDrop, inboardZ]}
+              bodyPos={[w.pos[0], 0.23 + bodyDrop, inboardZ]}
               wheelPos={[w.pos[0], 0, inboardZ]}
               suspTravel={w.susp}
             />
@@ -589,28 +589,28 @@ function CarScene({ packet, telemetry, cursorIdx, outline, solid }: { packet: Te
 
         {/* Front axle — fixed at ground level */}
         <Line
-          points={[[1.6, 0, -1.05], [1.6, 0, 1.05]]}
+          points={[[1.35, 0, -0.83], [1.35, 0, 0.83]]}
           color="#64748b"
           lineWidth={2}
         />
         {/* Rear axle */}
         <Line
-          points={[[-1.6, 0, -1.05], [-1.6, 0, 1.05]]}
+          points={[[-1.35, 0, -0.81], [-1.35, 0, 0.81]]}
           color="#64748b"
           lineWidth={2}
         />
         {/* Driveshaft */}
         <Line
-          points={[[1.6, 0, 0], [-1.6, 0, 0]]}
+          points={[[1.35, 0, 0], [-1.35, 0, 0]]}
           color="#94a3b8"
           lineWidth={1.5}
         />
         {/* Differential housings */}
-        <mesh position={[1.6, 0, 0]}>
+        <mesh position={[1.35, 0, 0]}>
           <boxGeometry args={[0.15, 0.12, 0.2]} />
           <meshBasicMaterial color="#64748b" wireframe />
         </mesh>
-        <mesh position={[-1.6, 0, 0]}>
+        <mesh position={[-1.35, 0, 0]}>
           <boxGeometry args={[0.15, 0.12, 0.2]} />
           <meshBasicMaterial color="#64748b" wireframe />
         </mesh>
