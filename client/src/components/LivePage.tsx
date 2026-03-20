@@ -87,14 +87,16 @@ export function LivePage() {
         <SectorTimes packet={packet} />
         <LapTimeChart packet={packet} />
 
-        <div className="flex-1">
-          <div className="p-2 border-b border-app-border">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">
-              Recorded Laps
-            </h2>
+        {packet && (
+          <div className="flex-1">
+            <div className="p-2 border-b border-app-border">
+              <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">
+                Recorded Laps
+              </h2>
+            </div>
+            <LapList trackOrd={trackOrd} hasTelemetry={!!packet} />
           </div>
-          <LapList trackOrd={trackOrd} />
-        </div>
+        )}
       </div>
     </div>
   );

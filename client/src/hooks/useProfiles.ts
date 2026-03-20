@@ -29,7 +29,7 @@ export function useProfiles() {
 
 export function useActiveProfileId() {
   return useQuery({
-    queryKey: ["settings"],
+    queryKey: ["active-profile"],
     queryFn: fetchSettings,
     select: (s) => s.activeProfileId,
   });
@@ -49,7 +49,7 @@ export function useSwitchProfile() {
     },
     onSuccess: (profileId) => {
       // Immediately update the cache so the UI switches without waiting for a refetch
-      qc.setQueryData(["settings"], (old: any) =>
+      qc.setQueryData(["active-profile"], (old: any) =>
         old ? { ...old, activeProfileId: profileId } : old
       );
       qc.invalidateQueries({ queryKey: ["laps"] });

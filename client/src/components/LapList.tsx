@@ -15,15 +15,20 @@ function formatLapTime(seconds: number): string {
 type SortKey = "lap" | "time";
 type SortDir = "asc" | "desc";
 
-export function LapList({ trackOrd }: { trackOrd?: number }) {
+export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTelemetry?: boolean }) {
   const navigate = useNavigate({ from: "/" });
   const { data: activeProfileId } = useActiveProfileId();
-  const { data: laps = [], isLoading } = useLaps(activeProfileId);
+  const { data: allLaps = [], isLoading } = useLaps(activeProfileId);
   const deleteLap = useDeleteLap();
   const [carNames, setCarNames] = useState<Record<number, string>>({});
   const fetchedOrdinals = useRef(new Set<number>());
   const [sortKey, setSortKey] = useState<SortKey>("lap");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  // Filter laps to current track only
+  const laps = trackOrd != null
+    ? allLaps.filter((l) => l.trackOrdinal === trackOrd)
+    : allLaps;
 
   // Fetch car names for any new ordinals
   useEffect(() => {
@@ -41,6 +46,10 @@ export function LapList({ trackOrd }: { trackOrd?: number }) {
 
   if (isLoading) {
     return <div className="p-4 text-app-text-dim">Loading laps...</div>;
+  }
+
+  if (!hasTelemetry) {
+    return null;
   }
 
   if (!trackOrd) {

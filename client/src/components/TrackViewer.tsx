@@ -156,7 +156,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
         setSelectedCars(new Set(all.map((l) => l.carOrdinal)));
       })
       .catch(() => {});
-  }, [track.ordinal]);
+  }, [track.ordinal, activeProfileId]);
 
   useEffect(() => { fetchTrackLaps(); }, [fetchTrackLaps]);
 
