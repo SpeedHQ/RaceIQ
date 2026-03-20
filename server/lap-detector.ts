@@ -13,6 +13,7 @@
 import type { TelemetryPacket } from "../shared/types";
 import { insertSession, insertLap, saveTrackOutline, hasRecordedOutline } from "./db/queries";
 import { hasTrackOutline, recordLapTrace } from "../shared/track-outlines/index";
+import { loadSettings } from "./settings";
 
 const SESSION_TIMEOUT_MS = 30_000; // 30 seconds of silence = new session
 
@@ -237,12 +238,14 @@ class LapDetector {
     }
 
     try {
+      const { activeProfileId } = loadSettings();
       const lapId = insertLap(
         this.currentSession.sessionId,
         this.currentLapNumber,
         lapTime,
         this.lapIsValid,
-        this.lapBuffer
+        this.lapBuffer,
+        activeProfileId
       );
       console.log(
         `[Lap] Saved lap ${this.currentLapNumber} | Time: ${formatLapTime(lapTime)} | Valid: ${this.lapIsValid} | Packets: ${this.lapBuffer.length} | DB ID: ${lapId}`
@@ -276,12 +279,14 @@ class LapDetector {
       const lapTime = lastPacket.CurrentLap;
       if (lapTime > 0) {
         try {
+          const { activeProfileId } = loadSettings();
           insertLap(
             this.currentSession.sessionId,
             this.currentLapNumber,
             lapTime,
             false, // Mark as invalid since lap wasn't properly completed
-            this.lapBuffer
+            this.lapBuffer,
+            activeProfileId
           );
           console.log(
             `[Lap] Saved incomplete lap ${this.currentLapNumber} (session ended)`
