@@ -372,6 +372,22 @@ export function hasRecordedOutline(trackOrdinal: number): boolean {
   return !!row;
 }
 
+/**
+ * Get track outline metadata (createdAt timestamp) for a track ordinal.
+ * Returns {createdAt} or null if no outline exists.
+ */
+export function getTrackOutlineMetadata(
+  trackOrdinal: number
+): { createdAt: string } | null {
+  const row = db
+    .select({ createdAt: trackOutlines.createdAt })
+    .from(trackOutlines)
+    .where(eq(trackOutlines.trackOrdinal, trackOrdinal))
+    .get();
+
+  return row ?? null;
+}
+
 export interface AnalysisRow {
   analysis: string;
   inputTokens: number;

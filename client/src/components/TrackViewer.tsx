@@ -13,6 +13,7 @@ interface TrackInfo {
   variant: string;
   lengthKm: number;
   hasOutline: boolean;
+  createdAt: string | null;
 }
 
 interface Point {
@@ -117,7 +118,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmSingleDelete, setConfirmSingleDelete] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"tunes" | "laps">("tunes");
+  const [activeTab, setActiveTab] = useState<"tunes" | "laps">("laps");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -446,6 +447,14 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
                 <span className="text-app-text-muted text-xs">Segments</span>
                 <div className="font-mono text-app-text">{displaySectors?.segments.length ?? 0}</div>
               </div>
+              {track.createdAt && (
+                <div className="col-span-2">
+                  <span className="text-app-text-muted text-xs">Created</span>
+                  <div className="font-mono text-app-text text-xs">
+                    {new Date(track.createdAt).toLocaleDateString()} {new Date(track.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -559,16 +568,6 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
       <div className="mt-4">
         <div className="flex items-center gap-1 border-b border-app-border mb-3">
           <button
-            onClick={() => setActiveTab("tunes")}
-            className={`text-xs uppercase tracking-wider px-3 py-1.5 -mb-px border-b-2 transition-colors ${
-              activeTab === "tunes"
-                ? "border-app-accent text-app-accent"
-                : "border-transparent text-app-text-muted hover:text-app-text-secondary"
-            }`}
-          >
-            Tunes
-          </button>
-          <button
             onClick={() => setActiveTab("laps")}
             className={`text-xs uppercase tracking-wider px-3 py-1.5 -mb-px border-b-2 transition-colors ${
               activeTab === "laps"
@@ -577,6 +576,16 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
             }`}
           >
             Laps {trackLaps.length > 0 && `(${trackLaps.length})`}
+          </button>
+          <button
+            onClick={() => setActiveTab("tunes")}
+            className={`text-xs uppercase tracking-wider px-3 py-1.5 -mb-px border-b-2 transition-colors ${
+              activeTab === "tunes"
+                ? "border-app-accent text-app-accent"
+                : "border-transparent text-app-text-muted hover:text-app-text-secondary"
+            }`}
+          >
+            Tunes
           </button>
         </div>
 

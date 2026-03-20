@@ -16,6 +16,7 @@ import {
   getTrackOutlineSectors,
   updateTrackOutlineSectors,
   hasRecordedOutline,
+  getTrackOutlineMetadata,
   getAnalysis,
   saveAnalysis,
 } from "./db/queries";
@@ -497,15 +498,20 @@ app.put("/api/track-sector-boundaries/:ordinal", async (c) => {
 
 // GET /api/tracks — list all tracks with outline availability
 app.get("/api/tracks", (c) => {
-  const tracks = Array.from(trackInfoMap.entries()).map(([ordinal, info]) => ({
-    ordinal,
-    name: info.name,
-    location: info.location,
-    country: info.country,
-    variant: info.variant,
-    lengthKm: info.lengthKm,
-    hasOutline: hasTrackOutline(ordinal) || hasRecordedOutline(ordinal),
-  }));
+  const tracks = Array.from(trackInfoMap.entries()).map(([ordinal, info]) => {
+    const hasOutline = hasTrackOutline(ordinal) || hasRecordedOutline(ordinal);
+    const metadata = hasOutline ? getTrackOutlineMetadata(ordinal) : null;
+    return {
+      ordinal,
+      name: info.name,
+      location: info.location,
+      country: info.country,
+      variant: info.variant,
+      lengthKm: info.lengthKm,
+      hasOutline,
+      createdAt: metadata?.createdAt ?? null,
+    };
+  });
   // Sort: tracks with outlines first, then alphabetically
   tracks.sort((a, b) => {
     if (a.hasOutline !== b.hasOutline) return a.hasOutline ? -1 : 1;
