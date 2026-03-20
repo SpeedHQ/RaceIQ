@@ -8,15 +8,24 @@ import { useTheme, type Theme } from "../context/theme";
 
 // Steering lock stored in localStorage so it persists across refreshes
 const STEER_LOCK_KEY = "forza-steer-lock";
+const WHEEL_STYLE_KEY = "forza-wheel-style";
 
 export function getSteeringLock(): number {
   const val = localStorage.getItem(STEER_LOCK_KEY);
   return val ? parseInt(val, 10) : 900;
 }
 
+export type WheelStyle = "svg" | "fanatec";
+
+export function getWheelStyle(): WheelStyle {
+  const val = localStorage.getItem(WHEEL_STYLE_KEY);
+  return (val as WheelStyle) ?? "svg";
+}
+
 const NAV_ITEMS = [
   { id: "theme", label: "Theme" },
   { id: "connection", label: "Connection" },
+  { id: "wheel", label: "Wheel" },
   { id: "temperature", label: "Temperature" },
   { id: "speed", label: "Speed & Distance" },
 ] as const;
@@ -30,6 +39,7 @@ export function Settings() {
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [steerLock, setSteerLock] = useState(() => String(getSteeringLock()));
+  const [wheelStyle, setWheelStyle] = useState<WheelStyle>(() => getWheelStyle());
 
   const { displaySettings } = useSettings();
   const saveSettings = useSaveSettings();
@@ -273,6 +283,50 @@ export function Settings() {
                 />
                 <span className="text-xs text-app-text-muted mb-2">°</span>
               </div>
+            </div>
+          </section>
+        )}
+
+        {activeSection === "wheel" && (
+          <section>
+            <h2 className="text-lg font-semibold text-app-text mb-1">Steering Wheel</h2>
+            <p className="text-sm text-app-text-muted mb-4">
+              Choose the steering wheel style displayed during live telemetry.
+            </p>
+            <div className="grid grid-cols-2 gap-3 max-w-sm">
+              {([
+                { value: "svg" as WheelStyle, label: "SVG", description: "Minimal vector wheel" },
+                { value: "fanatec" as WheelStyle, label: "Fanatec F1", description: "Fanatec ClubSport F1 wheel" },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => {
+                    setWheelStyle(opt.value);
+                    localStorage.setItem(WHEEL_STYLE_KEY, opt.value);
+                  }}
+                  className={`relative rounded-lg border p-3 text-left transition-all ${
+                    wheelStyle === opt.value
+                      ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30"
+                      : "border-app-border bg-app-surface-alt hover:border-app-border-input"
+                  }`}
+                >
+                  <div className="text-sm font-medium text-app-text">{opt.label}</div>
+                  <div className="text-xs text-app-text-muted mt-0.5">{opt.description}</div>
+                  <div className="mt-2 h-16 flex items-center justify-center rounded-md border border-app-border bg-app-surface overflow-hidden">
+                    {opt.value === "fanatec" ? (
+                      <img src="/fanatec-f1-wheel.webp" alt="Fanatec F1 wheel" className="h-full object-contain" />
+                    ) : (
+                      <svg viewBox="0 0 140 110" className="w-20 h-14">
+                        <path d="M 18 30 Q 6 55 18 80" fill="none" stroke="#475569" strokeWidth="10" strokeLinecap="round" />
+                        <path d="M 122 30 Q 134 55 122 80" fill="none" stroke="#475569" strokeWidth="10" strokeLinecap="round" />
+                        <path d="M 18 30 L 55 22 L 85 22 L 122 30" fill="none" stroke="#475569" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M 30 78 L 55 84 L 85 84 L 110 78" fill="none" stroke="#475569" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+                        <rect x="38" y="32" width="64" height="46" rx="8" fill="#1e293b" stroke="#334155" strokeWidth="1.5" />
+                      </svg>
+                    )}
+                  </div>
+                </button>
+              ))}
             </div>
           </section>
         )}
