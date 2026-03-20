@@ -612,6 +612,20 @@ export function LapAnalyse() {
     return laps.filter((l) => l.trackOrdinal === selectedTrack && l.carOrdinal === selectedCar);
   }, [laps, selectedTrack, selectedCar]);
 
+  // Fetch names for URL-param values immediately (before laps load)
+  useEffect(() => {
+    if (selectedTrack != null) {
+      api.getTrackName(selectedTrack)
+        .then((name) => { if (name) setTrackNames((prev) => ({ ...prev, [selectedTrack]: name })); })
+        .catch(() => {});
+    }
+    if (selectedCar != null) {
+      api.getCarName(selectedCar)
+        .then((name) => { if (name) setCarNames((prev) => ({ ...prev, [selectedCar]: name })); })
+        .catch(() => {});
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Fetch track/car names for display
   useEffect(() => {
     const trackOrdinals = new Set<number>();
@@ -995,6 +1009,7 @@ export function LapAnalyse() {
           options={tracks.map(([ord, count]) => ({ value: String(ord), label: `${trackNames[ord] || `Track ${ord}`} (${count})` }))}
           placeholder="Search tracks..."
           className="min-w-[200px]"
+          fallbackLabel={selectedTrack != null ? (trackNames[selectedTrack] || `Track ${selectedTrack}`) : undefined}
         />
 
         {/* Car selector */}
@@ -1005,6 +1020,7 @@ export function LapAnalyse() {
           placeholder="Search cars..."
           disabled={selectedTrack == null}
           className="min-w-[200px]"
+          fallbackLabel={selectedCar != null ? (carNames[selectedCar] || `Car ${selectedCar}`) : undefined}
         />
 
         {/* Lap selector */}
@@ -1015,6 +1031,7 @@ export function LapAnalyse() {
           placeholder="Search laps..."
           disabled={selectedCar == null}
           className="min-w-[200px]"
+          fallbackLabel={selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
         />
 
         <div className="ml-auto flex items-center gap-2">

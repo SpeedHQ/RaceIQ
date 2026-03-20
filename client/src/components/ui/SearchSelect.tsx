@@ -13,6 +13,7 @@ interface SearchSelectProps {
   disabled?: boolean;
   className?: string;
   focusColor?: string; // e.g. "orange-500", "blue-500"
+  fallbackLabel?: string; // shown when value is set but no option matches
 }
 
 export function SearchSelect({
@@ -23,13 +24,14 @@ export function SearchSelect({
   disabled = false,
   className = "",
   focusColor,
+  fallbackLabel,
 }: SearchSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const selectedLabel = options.find((o) => o.value === value)?.label ?? "";
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? fallbackLabel ?? "";
 
   const filtered = search
     ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))

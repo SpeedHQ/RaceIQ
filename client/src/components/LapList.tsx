@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { LapMeta } from "@shared/types";
-import { ExportButton } from "./ExportButton";
+import { useNavigate } from "@tanstack/react-router";
 import { useLaps, useDeleteLap } from "../hooks/queries";
 import { api } from "../lib/api";
 
@@ -15,6 +15,7 @@ type SortKey = "lap" | "time";
 type SortDir = "asc" | "desc";
 
 export function LapList() {
+  const navigate = useNavigate({ from: "/" });
   const { data: laps = [], isLoading } = useLaps();
   const deleteLap = useDeleteLap();
   const [carNames, setCarNames] = useState<Record<number, string>>({});
@@ -99,7 +100,19 @@ export function LapList() {
               </td>
               <td className="p-2 text-right">
                 <div className="flex items-center justify-end gap-2">
-                  <ExportButton lapId={lap.id} />
+                  <button
+                    onClick={() => navigate({
+                      to: "/analyse",
+                      search: {
+                        track: lap.trackOrdinal ?? undefined,
+                        car: lap.carOrdinal ?? undefined,
+                        lap: lap.id,
+                      }
+                    })}
+                    className="px-2 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white transition-colors"
+                  >
+                    Analyze
+                  </button>
                   <button
                     onClick={() => deleteLap.mutate(lap.id)}
                     className="px-2 py-1 text-xs rounded bg-slate-700 hover:bg-red-600 text-app-text hover:text-app-text transition-colors"
