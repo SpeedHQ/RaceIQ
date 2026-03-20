@@ -642,6 +642,8 @@ export function LapAnalyse() {
   const [cursorIdx, setCursorIdx] = useState(0);
   const [sidebarTab, setSidebarTab] = useState<"live" | "insights">("live");
   const [wheelTab, setWheelTab] = useState<"render" | "visual">("render");
+  const [leftColWidth, setLeftColWidth] = useState(200);
+  const [rightColWidth, setRightColWidth] = useState(320);
   const [playing, setPlaying] = useState(false);
   const [rotateWithCar, setRotateWithCar] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
@@ -1204,9 +1206,9 @@ export function LapAnalyse() {
           {/* Left: main content (map, charts, scrubber) */}
           <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
           {/* Top section: Track Map + Metrics */}
-          <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr_320px] shrink-0 overflow-hidden" style={{ height: topHeight }}>
+          <div className="flex shrink-0 overflow-hidden" style={{ height: topHeight }}>
             {/* Segment table + legend */}
-            <div className="border-r border-app-border overflow-y-auto p-2" style={{ height: "100%" }}>
+            <div className="border-r border-app-border overflow-y-auto p-2 shrink-0" style={{ height: "100%", width: leftColWidth }}>
               {/* Legend */}
               <div className="flex flex-wrap items-center gap-3 mb-2 pb-2 border-b border-app-border">
                 <div className="flex items-center gap-1">
@@ -1246,8 +1248,27 @@ export function LapAnalyse() {
               )}
             </div>
 
+            {/* Left resize handle */}
+            <div
+              className="w-1.5 shrink-0 cursor-col-resize bg-app-border hover:bg-app-accent/40 transition-colors"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const startX = e.clientX;
+                const startW = leftColWidth;
+                const onMove = (ev: MouseEvent) => {
+                  setLeftColWidth(Math.max(120, Math.min(400, startW + ev.clientX - startX)));
+                };
+                const onUp = () => {
+                  window.removeEventListener("mousemove", onMove);
+                  window.removeEventListener("mouseup", onUp);
+                };
+                window.addEventListener("mousemove", onMove);
+                window.addEventListener("mouseup", onUp);
+              }}
+            />
+
             {/* Track map */}
-            <div className="border-r border-app-border bg-app-bg p-2 relative" style={{ height: "100%" }}>
+            <div className="border-r border-app-border bg-app-bg p-2 relative flex-1 min-w-0" style={{ height: "100%" }}>
               <AnalyseTrackMap
                 telemetry={telemetry}
                 cursorIdx={cursorIdx}
@@ -1295,8 +1316,27 @@ export function LapAnalyse() {
               )}
             </div>
 
+            {/* Right resize handle */}
+            <div
+              className="w-1.5 shrink-0 cursor-col-resize bg-app-border hover:bg-app-accent/40 transition-colors"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const startX = e.clientX;
+                const startW = rightColWidth;
+                const onMove = (ev: MouseEvent) => {
+                  setRightColWidth(Math.max(200, Math.min(600, startW - (ev.clientX - startX))));
+                };
+                const onUp = () => {
+                  window.removeEventListener("mousemove", onMove);
+                  window.removeEventListener("mouseup", onUp);
+                };
+                window.addEventListener("mousemove", onMove);
+                window.addEventListener("mouseup", onUp);
+              }}
+            />
+
             {/* Rev meter + Steering wheel + Tire diagram */}
-            <div className="border-r border-app-border flex flex-col items-center justify-start overflow-y-auto">
+            <div className="border-r border-app-border flex flex-col items-center justify-start overflow-y-auto shrink-0" style={{ width: rightColWidth }}>
               {/* Wheel panel tabs */}
               <div className="flex w-full border-b border-app-border shrink-0">
                 <button
@@ -1321,7 +1361,7 @@ export function LapAnalyse() {
                 </button>
               </div>
 
-              <div className="p-2 flex flex-col items-center gap-2 w-full">
+              <div className="p-2 flex flex-col items-center gap-2 w-full flex-1 min-h-0">
               {wheelTab === "render" ? (
                 <>
                   {currentPacket && (
@@ -1356,9 +1396,9 @@ export function LapAnalyse() {
                   {currentPacket && <TireDiagram packet={currentPacket} />}
                 </>
               ) : (
-                <>
-                  {currentPacket && <CarWireframe packet={currentPacket} telemetry={telemetry} cursorIdx={cursorIdx} />}
-                </>
+                <div className="w-full flex-1 min-h-0">
+                  {currentPacket && <CarWireframe packet={currentPacket} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} />}
+                </div>
               )}
               </div>
             </div>

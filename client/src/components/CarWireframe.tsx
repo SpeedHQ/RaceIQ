@@ -6,11 +6,11 @@ import type { TelemetryPacket } from "@shared/types";
 
 // ── Tire temp → color ──────────────────────────────────────────────
 
-function tireTempColor(temp: number): string {
-  if (temp < 80) return "#3b82f6";
-  if (temp < 100) return "#34d399";
-  if (temp < 120) return "#fbbf24";
-  return "#ef4444";
+function tractionColor(slip: number): string {
+  if (slip < 0.15) return "#34d399";   // full grip — green
+  if (slip < 0.4) return "#22d3ee";    // slight slide — cyan
+  if (slip < 0.8) return "#fbbf24";    // sliding — amber
+  return "#ef4444";                     // loss of traction — red
 }
 
 // ── Wheel component ────────────────────────────────────────────────
@@ -33,32 +33,40 @@ function suspY(suspTravel: number): number {
   return (suspTravel - 0.5) * 0.5;
 }
 
+function tireTempColor(temp: number): string {
+  if (temp < 80) return "#3b82f6";
+  if (temp < 100) return "#34d399";
+  if (temp < 120) return "#fbbf24";
+  return "#ef4444";
+}
+
 function Wheel({
   position,
   steerAngle,
   suspTravel,
-  color,
+  gripColor,
+  tempColor,
   spinAngle,
 }: {
   position: [number, number, number];
   steerAngle: number;
   suspTravel: number;
-  color: string;
+  gripColor: string;
+  tempColor: string;
   spinAngle: number;
 }) {
   const wheelY = position[1] + suspY(suspTravel);
   const { tire, rim, hub } = useWheelGeometries();
 
-  // Geometries are pre-rotated so axle = Z. Spin around Z only. No nesting.
   return (
     <group position={[position[0], wheelY, position[2]]}>
       <group rotation={[0, steerAngle, 0]}>
         <group rotation={[0, 0, spinAngle]}>
           <mesh geometry={tire}>
-            <meshBasicMaterial color={color} wireframe />
+            <meshBasicMaterial color={gripColor} wireframe />
           </mesh>
           <mesh geometry={rim}>
-            <meshBasicMaterial color="#64748b" wireframe />
+            <meshBasicMaterial color={tempColor} wireframe />
           </mesh>
           <mesh geometry={hub}>
             <meshBasicMaterial color="#475569" wireframe side={THREE.DoubleSide} />
@@ -126,53 +134,114 @@ function SuspensionSpring({
 // ── Car body wireframe ─────────────────────────────────────────────
 
 function CarBody() {
-  // Race car shaped body using a custom geometry
+  // Aston Martin GT3-style body — low, wide, long hood, fastback roofline
   const shape = useMemo(() => {
     const geo = new THREE.BufferGeometry();
 
-    // Define a low-slung race car shape
-    const hw = 0.95; // half width
-    const fhw = 0.78; // front half width (narrower)
-    const hl = 2.2;  // half length
-    const nl = 2.7;  // nose length
-    const bh = 0.35; // body height
-    const rh = bh * 0.55; // roof at nose
+    // All dimensions in meters, origin at car center
+    const v = new Float32Array([
+      // ── Floor outline (splitter/diffuser plane) ──
+      // Rear diffuser (wide)
+      -2.25, -0.05, -1.02,   // 0  rear-left
+      -2.25, -0.05,  1.02,   // 1  rear-right
+      // Rear wheel arch cutout
+      -1.80, -0.05, -1.05,   // 2  rear-left arch
+      -1.80, -0.05,  1.05,   // 3  rear-right arch
+      // Door sill
+      -0.40, -0.05, -1.00,   // 4  mid-left
+      -0.40, -0.05,  1.00,   // 5  mid-right
+      // Front wheel arch
+       1.30, -0.05, -1.02,   // 6  front-left arch
+       1.30, -0.05,  1.02,   // 7  front-right arch
+      // Front splitter
+       2.20, -0.05, -0.85,   // 8  front-left
+       2.20, -0.05,  0.85,   // 9  front-right
+      // Nose tip
+       2.55, -0.02, -0.40,   // 10 nose-left
+       2.55, -0.02,  0.40,   // 11 nose-right
+       2.70,  0.02,  0.00,   // 12 nose tip
 
-    // Vertices: floor (0-4), roof (5-9)
-    const vertices = new Float32Array([
-      // Floor
-      -hl, 0, -hw,     // 0 - rear left
-      -hl, 0, hw,      // 1 - rear right
-       hl, 0, fhw,     // 2 - front right
-       hl, 0, -fhw,    // 3 - front left
-       nl, 0, 0,       // 4 - nose floor
-      // Roof
-      -hl, bh, -hw,    // 5 - rear left top
-      -hl, bh, hw,     // 6 - rear right top
-       hl, bh, fhw,    // 7 - front right top
-       hl, bh, -fhw,   // 8 - front left top
-       nl, rh, 0,      // 9 - nose top
-      // Rear wing posts
-      -hl - 0.15, bh + 0.45, -hw + 0.15,   // 10
-      -hl - 0.15, bh + 0.45, hw - 0.15,    // 11
-      // Rear wing ends
-      -hl - 0.35, bh + 0.45, -hw + 0.05,   // 12
-      -hl - 0.35, bh + 0.45, hw - 0.05,    // 13
+      // ── Belt line (shoulder, fender tops) ──
+      -2.20,  0.32, -1.00,   // 13 rear-left shoulder
+      -2.20,  0.32,  1.00,   // 14 rear-right shoulder
+      -1.70,  0.34, -1.04,   // 15 rear fender-left peak
+      -1.70,  0.34,  1.04,   // 16 rear fender-right peak
+      -0.40,  0.30, -0.96,   // 17 door-left top
+      -0.40,  0.30,  0.96,   // 18 door-right top
+       1.30,  0.32, -1.00,   // 19 front fender-left peak
+       1.30,  0.32,  1.00,   // 20 front fender-right peak
+       2.15,  0.22, -0.80,   // 21 hood-left edge
+       2.15,  0.22,  0.80,   // 22 hood-right edge
+       2.50,  0.12, -0.35,   // 23 nose-left top
+       2.50,  0.12,  0.35,   // 24 nose-right top
+       2.65,  0.08,  0.00,   // 25 nose tip top
+
+      // ── Roof / greenhouse ──
+      -0.80,  0.60, -0.52,   // 26 A-pillar left
+      -0.80,  0.60,  0.52,   // 27 A-pillar right
+       0.30,  0.62, -0.50,   // 28 roof peak left
+       0.30,  0.62,  0.50,   // 29 roof peak right
+      -1.50,  0.50, -0.48,   // 30 C-pillar left
+      -1.50,  0.50,  0.48,   // 31 C-pillar right
+      -1.90,  0.36, -0.46,   // 32 rear glass left
+      -1.90,  0.36,  0.46,   // 33 rear glass right
+       0.90,  0.55, -0.48,   // 34 windshield top left
+       0.90,  0.55,  0.48,   // 35 windshield top right
+
+      // ── Rear wing ──
+      // Endplates (tall, wide)
+      -2.35,  0.38, -1.00,   // 36 endplate left bottom
+      -2.35,  0.38,  1.00,   // 37 endplate right bottom
+      -2.35,  0.72, -1.00,   // 38 endplate left top
+      -2.35,  0.72,  1.00,   // 39 endplate right top
+      -2.55,  0.72, -1.00,   // 40 endplate left top rear
+      -2.55,  0.72,  1.00,   // 41 endplate right top rear
+      // Wing plane
+      -2.30,  0.70, -0.98,   // 42 wing front left
+      -2.30,  0.70,  0.98,   // 43 wing front right
+      -2.60,  0.72, -0.98,   // 44 wing rear left
+      -2.60,  0.72,  0.98,   // 45 wing rear right
+
+      // ── Front splitter detail ──
+       2.25, -0.08, -0.90,   // 46 splitter left
+       2.25, -0.08,  0.90,   // 47 splitter right
+       2.60, -0.06, -0.38,   // 48 splitter nose left
+       2.60, -0.06,  0.38,   // 49 splitter nose right
     ]);
 
-    const indices = [
-      // Floor
-      0, 1, 1, 2, 2, 3, 3, 0, 2, 4, 3, 4,
-      // Roof
-      5, 6, 6, 7, 7, 8, 8, 5, 7, 9, 8, 9,
-      // Pillars
-      0, 5, 1, 6, 2, 7, 3, 8, 4, 9,
-      // Rear wing
-      5, 10, 6, 11, 10, 11, 10, 12, 11, 13, 12, 13,
+    const idx = [
+      // Floor outline
+      0,1, 0,2, 1,3, 2,4, 3,5, 4,6, 5,7, 6,8, 7,9, 8,10, 9,11, 10,12, 11,12,
+      // Cross members floor
+      2,3, 4,5, 6,7, 8,9, 10,11,
+      // Belt line (shoulder)
+      13,15, 15,17, 17,19, 19,21, 21,23, 23,25,
+      14,16, 16,18, 18,20, 20,22, 22,24, 24,25,
+      13,14, 15,16, 17,18, 19,20, 21,22, 23,24,
+      // Verticals — floor to belt line
+      0,13, 1,14, 2,15, 3,16, 4,17, 5,18, 6,19, 7,20, 8,21, 9,22, 10,23, 11,24, 12,25,
+      // Roof / greenhouse
+      26,27, 28,29, 30,31, 32,33, 34,35,
+      26,28, 27,29, 28,34, 29,35, 30,32, 31,33,
+      26,30, 27,31,
+      // Pillars — belt line to roof
+      17,26, 18,27, 19,34, 20,35, 13,32, 14,33,
+      // Rear wing endplates
+      36,38, 37,39, 38,40, 39,41, 36,37,
+      38,39, 40,41,
+      // Wing plane
+      42,43, 44,45, 42,44, 43,45,
+      // Wing to endplates
+      42,38, 43,39, 44,40, 45,41,
+      // Wing supports from body
+      13,36, 14,37,
+      // Front splitter
+      46,47, 46,48, 47,49, 48,49,
+      8,46, 9,47, 10,48, 11,49,
     ];
 
-    geo.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
-    geo.setIndex(indices);
+    geo.setAttribute("position", new THREE.BufferAttribute(v, 3));
+    geo.setIndex(idx);
     return geo;
   }, []);
 
@@ -304,7 +373,48 @@ function TireTrails({
 
 // ── Main scene (receives packet as prop) ───────────────────────────
 
-function CarScene({ packet, telemetry, cursorIdx }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number }) {
+function TrackOutline({
+  outline,
+  packet,
+}: {
+  outline: { x: number; z: number }[];
+  packet: TelemetryPacket;
+}) {
+  const points = useMemo(() => {
+    const cx = packet.PositionX;
+    const cz = packet.PositionZ;
+    const yaw = packet.Yaw;
+    const curSin = Math.sin(yaw);
+    const curCos = Math.cos(yaw);
+    const scale = 1.0;
+
+    const pts: [number, number, number][] = [];
+    for (let i = 0; i < outline.length; i++) {
+      const dx = outline[i].x - cx;
+      const dz = outline[i].z - cz;
+      const localFwd = (dx * curSin + dz * curCos) * scale;
+      const localRight = (dx * curCos - dz * curSin) * scale;
+      pts.push([localFwd, -0.44, localRight]);
+    }
+    // Close the loop
+    if (pts.length > 2) pts.push(pts[0]);
+    return pts;
+  }, [outline, packet.PositionX, packet.PositionZ, packet.Yaw]);
+
+  if (points.length < 3) return null;
+
+  return (
+    <Line
+      points={points}
+      color="#3b6b9e"
+      lineWidth={3}
+      opacity={0.6}
+      transparent
+    />
+  );
+}
+
+function CarScene({ packet, telemetry, cursorIdx, outline }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null }) {
   const carGroupRef = useRef<THREE.Group>(null);
   const prevTimeRef = useRef(packet.TimestampMS);
   const spinAngles = useRef([0, 0, 0, 0]);
@@ -355,10 +465,10 @@ function CarScene({ packet, telemetry, cursorIdx }: { packet: TelemetryPacket; t
   const steerRad = (packet.Steer / 127) * 0.35;
 
   const wheelData = [
-    { pos: [1.6, 0, -1.05] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFL, temp: packet.TireTempFL },
-    { pos: [1.6, 0, 1.05] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFR, temp: packet.TireTempFR },
-    { pos: [-1.6, 0, -1.05] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRL, temp: packet.TireTempRL },
-    { pos: [-1.6, 0, 1.05] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRR, temp: packet.TireTempRR },
+    { pos: [1.6, 0, -1.05] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFL, slip: Math.abs(packet.TireCombinedSlipFL), temp: packet.TireTempFL },
+    { pos: [1.6, 0, 1.05] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFR, slip: Math.abs(packet.TireCombinedSlipFR), temp: packet.TireTempFR },
+    { pos: [-1.6, 0, -1.05] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRL, slip: Math.abs(packet.TireCombinedSlipRL), temp: packet.TireTempRL },
+    { pos: [-1.6, 0, 1.05] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRR, slip: Math.abs(packet.TireCombinedSlipRR), temp: packet.TireTempRR },
   ];
 
   return (
@@ -366,10 +476,14 @@ function CarScene({ packet, telemetry, cursorIdx }: { packet: TelemetryPacket; t
       {/* Lighting */}
       <ambientLight intensity={0.5} />
 
-      {/* Ground grid */}
+      {/* Ground grid — scrolls with car movement */}
       <Grid
         args={[10, 10]}
-        position={[0, -0.45, 0]}
+        position={[
+          -(packet.PositionX % 2),
+          -0.45,
+          -(packet.PositionZ % 2),
+        ]}
         cellSize={0.5}
         cellThickness={0.5}
         cellColor="#1e293b"
@@ -394,7 +508,8 @@ function CarScene({ packet, telemetry, cursorIdx }: { packet: TelemetryPacket; t
             position={w.pos}
             steerAngle={w.steer}
             suspTravel={w.susp}
-            color={tireTempColor(w.temp)}
+            gripColor={tractionColor(w.slip)}
+            tempColor={tireTempColor(w.temp)}
             spinAngle={spinAngles.current[i]}
           />
         ))}
@@ -450,6 +565,9 @@ function CarScene({ packet, telemetry, cursorIdx }: { packet: TelemetryPacket; t
         </mesh>
       </group>
 
+      {/* Track outline (subtle) */}
+      {outline && <TrackOutline outline={outline} packet={packet} />}
+
       {/* Tire trails (last 2s, colored by slip) */}
       <TireTrails telemetry={telemetry} cursorIdx={cursorIdx} />
 
@@ -458,7 +576,7 @@ function CarScene({ packet, telemetry, cursorIdx }: { packet: TelemetryPacket; t
         enablePan={false}
         enableZoom={true}
         minDistance={3}
-        maxDistance={12}
+        maxDistance={2000}
         minPolarAngle={0.3}
         maxPolarAngle={Math.PI / 2 - 0.1}
       />
@@ -472,20 +590,43 @@ export function CarWireframe({
   packet,
   telemetry,
   cursorIdx,
+  outline,
 }: {
   packet: TelemetryPacket;
   telemetry: TelemetryPacket[];
   cursorIdx: number;
+  outline: { x: number; z: number }[] | null;
 }) {
+  const throttlePct = (packet.Accel / 255) * 100;
+  const brakePct = (packet.Brake / 255) * 100;
+
   return (
-    <div className="w-full" style={{ height: 260 }}>
+    <div className="w-full h-full relative flex-1">
       <Canvas
         camera={{ position: [4, 2.5, 4], fov: 50 }}
         gl={{ antialias: true, alpha: true }}
         style={{ background: "transparent" }}
       >
-        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} />
+        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} />
       </Canvas>
+
+      {/* Throttle / Brake overlay */}
+      <div className="absolute bottom-2 right-2 flex gap-1 items-end" style={{ height: 60 }}>
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{throttlePct.toFixed(0)}</span>
+          <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 44 }}>
+            <div className="absolute bottom-0 w-full bg-emerald-400 rounded-sm transition-all" style={{ height: `${throttlePct}%` }} />
+          </div>
+          <span className="text-[7px] text-app-text-muted">T</span>
+        </div>
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-[9px] font-mono text-red-400 font-bold tabular-nums">{brakePct.toFixed(0)}</span>
+          <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 44 }}>
+            <div className="absolute bottom-0 w-full bg-red-500 rounded-sm transition-all" style={{ height: `${brakePct}%` }} />
+          </div>
+          <span className="text-[7px] text-app-text-muted">B</span>
+        </div>
+      </div>
     </div>
   );
 }
