@@ -1,6 +1,6 @@
 import { useRef, useMemo, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Grid, Edges, Line } from "@react-three/drei";
+import { OrbitControls, Grid, Line, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { TelemetryPacket } from "@shared/types";
 
@@ -19,11 +19,11 @@ function tractionColor(slip: number): string {
 const useWheelGeometries = () =>
   useMemo(() => {
     // rotateX(PI/2) stands geometries upright: axis Y → Z (car lateral axle).
-    const tire = new THREE.CylinderGeometry(0.34, 0.34, 0.18, 16, 1, false);
+    const tire = new THREE.CylinderGeometry(0.34, 0.34, 0.30, 16, 1, false);
     tire.rotateX(Math.PI / 2);
-    const rim = new THREE.CylinderGeometry(0.22, 0.22, 0.19, 8, 1, true);
+    const rim = new THREE.CylinderGeometry(0.23, 0.23, 0.24, 8, 1, true);
     rim.rotateX(Math.PI / 2);
-    const hub = new THREE.CircleGeometry(0.22, 5);
+    const hub = new THREE.CircleGeometry(0.23, 5);
     hub.rotateX(Math.PI / 2);
     return { tire, rim, hub };
   }, []);
@@ -127,163 +127,83 @@ function SuspensionSpring({
   );
 }
 
-// ── Car body wireframe ─────────────────────────────────────────────
+// ── Car body (loaded GLB model) ────────────────────────────────────
+// "Aston Martin Vantage GT3" (https://skfb.ly/p8vWx) by Design Studio Poland
+// Licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/)
+
+const MODEL_PATH = "/models/aston_martin_vantage_gt3.glb";
 
 function CarBody({ solid }: { solid: boolean }) {
-  // Aston Martin GT3-style body — low, wide, long hood, fastback roofline
-  const { wireGeo, solidGeo } = useMemo(() => {
-    const geo = new THREE.BufferGeometry();
+  const { scene } = useGLTF(MODEL_PATH);
 
-    // All dimensions in meters, origin at car center
-    const v = new Float32Array([
-      // ── Floor outline (splitter/diffuser plane) ──
-      // Rear diffuser (wide)
-      -1.97, -0.05, -0.93,   // 0  rear-left
-      -1.97, -0.05,  0.93,   // 1  rear-right
-      // Rear wheel arch cutout (covers tires at z=±0.81)
-      -1.57, -0.05, -1.02,   // 2  rear-left arch
-      -1.57, -0.05,  1.02,   // 3  rear-right arch
-      // Door sill
-      -0.35, -0.05, -0.90,   // 4  mid-left
-      -0.35, -0.05,  0.90,   // 5  mid-right
-      // Front wheel arch (covers tires)
-       1.14, -0.05, -1.02,   // 6  front-left arch
-       1.14, -0.05,  1.02,   // 7  front-right arch
-      // Front splitter
-       1.92, -0.05, -0.75,   // 8  front-left
-       1.92, -0.05,  0.75,   // 9  front-right
-      // Nose tip
-       2.23, -0.02, -0.35,   // 10 nose-left
-       2.23, -0.02,  0.35,   // 11 nose-right
-       2.36,  0.02,  0.00,   // 12 nose tip
+  // Log model structure on first load to find the right nodes
+  useMemo(() => {
+    const names: string[] = [];
+    scene.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (mesh.isMesh) {
+        const box = new THREE.Box3().setFromObject(mesh);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        names.push(`${child.name} [${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}]`);
+      }
+    });
+    console.log("GLB meshes:", names);
+    // Also log overall bounding box
+    const box = new THREE.Box3().setFromObject(scene);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+    console.log("GLB total size:", size.x.toFixed(2), size.y.toFixed(2), size.z.toFixed(2));
+    console.log("GLB center:", center.x.toFixed(2), center.y.toFixed(2), center.z.toFixed(2));
+  }, [scene]);
 
-      // ── Belt line (shoulder, fender tops) ──
-      -1.92,  0.32, -0.93,   // 13 rear-left shoulder
-      -1.92,  0.32,  0.93,   // 14 rear-right shoulder
-      -1.49,  0.38, -1.02,   // 15 rear fender-left peak
-      -1.49,  0.38,  1.02,   // 16 rear fender-right peak
-      -0.35,  0.30, -0.90,   // 17 door-left top
-      -0.35,  0.30,  0.90,   // 18 door-right top
-       1.14,  0.36, -1.02,   // 19 front fender-left peak
-       1.14,  0.36,  1.02,   // 20 front fender-right peak
-       1.88,  0.22, -0.70,   // 21 hood-left edge
-       1.88,  0.22,  0.70,   // 22 hood-right edge
-       2.18,  0.12, -0.31,   // 23 nose-left top
-       2.18,  0.12,  0.31,   // 24 nose-right top
-       2.32,  0.08,  0.00,   // 25 nose tip top
+  const model = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        if (solid) {
+          mesh.material = new THREE.MeshBasicMaterial({
+            color: "#1a2332",
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.9,
+          });
+        } else {
+          mesh.material = new THREE.MeshBasicMaterial({
+            color: "#94a3b8",
+            wireframe: true,
+            transparent: true,
+            opacity: 0.03,
+          });
+        }
+      }
+    });
+    return clone;
+  }, [scene, solid]);
 
-      // ── Roof / greenhouse ──
-      -0.70,  0.60, -0.46,   // 26 A-pillar left
-      -0.70,  0.60,  0.46,   // 27 A-pillar right
-       0.26,  0.62, -0.44,   // 28 roof peak left
-       0.26,  0.62,  0.44,   // 29 roof peak right
-      -1.31,  0.50, -0.42,   // 30 C-pillar left
-      -1.31,  0.50,  0.42,   // 31 C-pillar right
-      -1.66,  0.36, -0.40,   // 32 rear glass left
-      -1.66,  0.36,  0.40,   // 33 rear glass right
-       0.79,  0.55, -0.42,   // 34 windshield top left
-       0.79,  0.55,  0.42,   // 35 windshield top right
-
-      // ── Rear wing ──
-      // Endplates (tall, wide)
-      -2.05,  0.38, -0.88,   // 36 endplate left bottom
-      -2.05,  0.38,  0.88,   // 37 endplate right bottom
-      -2.05,  0.72, -0.88,   // 38 endplate left top
-      -2.05,  0.72,  0.88,   // 39 endplate right top
-      -2.23,  0.72, -0.88,   // 40 endplate left top rear
-      -2.23,  0.72,  0.88,   // 41 endplate right top rear
-      // Wing plane
-      -2.01,  0.70, -0.86,   // 42 wing front left
-      -2.01,  0.70,  0.86,   // 43 wing front right
-      -2.27,  0.72, -0.86,   // 44 wing rear left
-      -2.27,  0.72,  0.86,   // 45 wing rear right
-
-      // ── Front splitter detail ──
-       1.97, -0.08, -0.79,   // 46 splitter left
-       1.97, -0.08,  0.79,   // 47 splitter right
-       2.27, -0.06, -0.33,   // 48 splitter nose left
-       2.27, -0.06,  0.33,   // 49 splitter nose right
-    ]);
-
-    const idx = [
-      // Floor outline
-      0,1, 0,2, 1,3, 2,4, 3,5, 4,6, 5,7, 6,8, 7,9, 8,10, 9,11, 10,12, 11,12,
-      // Cross members floor
-      2,3, 4,5, 6,7, 8,9, 10,11,
-      // Belt line (shoulder)
-      13,15, 15,17, 17,19, 19,21, 21,23, 23,25,
-      14,16, 16,18, 18,20, 20,22, 22,24, 24,25,
-      13,14, 15,16, 17,18, 19,20, 21,22, 23,24,
-      // Verticals — floor to belt line
-      0,13, 1,14, 2,15, 3,16, 4,17, 5,18, 6,19, 7,20, 8,21, 9,22, 10,23, 11,24, 12,25,
-      // Roof / greenhouse
-      26,27, 28,29, 30,31, 32,33, 34,35,
-      26,28, 27,29, 28,34, 29,35, 30,32, 31,33,
-      26,30, 27,31,
-      // Pillars — belt line to roof
-      17,26, 18,27, 19,34, 20,35, 13,32, 14,33,
-      // Rear wing endplates
-      36,38, 37,39, 38,40, 39,41, 36,37,
-      38,39, 40,41,
-      // Wing plane
-      42,43, 44,45, 42,44, 43,45,
-      // Wing to endplates
-      42,38, 43,39, 44,40, 45,41,
-      // Wing supports from body
-      13,36, 14,37,
-      // Front splitter
-      46,47, 46,48, 47,49, 48,49,
-      8,46, 9,47, 10,48, 11,49,
-    ];
-
-    geo.setAttribute("position", new THREE.BufferAttribute(v, 3));
-    geo.setIndex(idx);
-
-    // Solid mesh — triangulated panels for opaque shell
-    const sGeo = new THREE.BufferGeometry();
-    sGeo.setAttribute("position", new THREE.BufferAttribute(v, 3));
-    // Triangles for main body panels (using existing vertex indices)
-    const tris = [
-      // Floor
-      0,1,3, 0,3,2, 2,3,5, 2,5,4, 4,5,7, 4,7,6, 6,7,9, 6,9,8, 8,9,11, 8,11,10, 10,11,12,
-      // Left side (floor to belt)
-      0,2,15, 0,15,13, 2,4,17, 2,17,15, 4,6,19, 4,19,17, 6,8,21, 6,21,19, 8,10,23, 8,23,21, 10,12,25, 10,25,23,
-      // Right side
-      1,14,16, 1,16,3, 3,16,18, 3,18,5, 5,18,20, 5,20,7, 7,20,22, 7,22,9, 9,22,24, 9,24,11, 11,24,25, 11,25,12,
-      // Rear face
-      0,13,14, 0,14,1,
-      // Belt line top (hood/roof area)
-      13,15,16, 13,16,14, 15,17,18, 15,18,16, 17,19,20, 17,20,18, 19,21,22, 19,22,20, 21,23,24, 21,24,22, 23,25,24,
-      // Roof
-      26,28,29, 26,29,27, 28,34,35, 28,35,29, 26,30,32, 26,27,31, 30,31,27, 30,27,26,
-      // Windshield
-      19,34,35, 19,35,20, 17,26,27, 17,27,18,
-      // Rear glass
-      13,32,33, 13,33,14, 30,32,33, 30,33,31,
-      // Wing plane
-      42,43,45, 42,45,44,
-      // Splitter
-      46,47,49, 46,49,48,
-    ];
-    sGeo.setIndex(tris);
-    sGeo.computeVertexNormals();
-
-    return { wireGeo: geo, solidGeo: sGeo };
-  }, []);
+  // Auto-scale based on bounding box to fit our coordinate system (~4.7m long)
+  const { scale: autoScale, offset } = useMemo(() => {
+    const box = new THREE.Box3().setFromObject(scene);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const s = 4.7 / maxDim; // normalize to ~4.7m (GT3 length)
+    return { scale: s, offset: center.multiplyScalar(-s) };
+  }, [scene]);
 
   return (
-    <group>
-      {solid && (
-        <mesh geometry={solidGeo}>
-          <meshBasicMaterial color="#1a2332" side={THREE.DoubleSide} transparent opacity={0.9} />
-        </mesh>
-      )}
-      <lineSegments geometry={wireGeo}>
-        <lineBasicMaterial color="#94a3b8" opacity={0.7} transparent />
-      </lineSegments>
+    <group scale={autoScale} position={[offset.x, offset.y + 0.25, offset.z]} rotation={[0, 0, 0]}>
+      <primitive object={model} />
     </group>
   );
 }
+
+useGLTF.preload(MODEL_PATH);
 
 // ── Tire trail (last 2s, colored by slip) ──────────────────────────
 
@@ -299,6 +219,8 @@ const WHEEL_OFFSETS: [number, number][] = [
 const SLIP_GREEN = new THREE.Color("#34d399");
 const SLIP_AMBER = new THREE.Color("#fbbf24");
 const SLIP_RED = new THREE.Color("#ef4444");
+const BRAKE_RED = new THREE.Color("#cc3300");
+const BRAKE_ORANGE = new THREE.Color("#ff6600");
 
 function slipColor(slip: number): string {
   if (slip < 0.3) return "#34d399";
@@ -306,7 +228,10 @@ function slipColor(slip: number): string {
   return "#ef4444";
 }
 
-function slipColorObj(slip: number): THREE.Color {
+function trailColorObj(slip: number, brake: number): THREE.Color {
+  // Braking overrides slip color with brake trail
+  if (brake > 50) return BRAKE_RED;
+  if (brake > 10) return BRAKE_ORANGE;
   if (slip < 0.3) return SLIP_GREEN;
   if (slip < 0.8) return SLIP_AMBER;
   return SLIP_RED;
@@ -396,7 +321,7 @@ function TireTrails({
 
         // Add unscaled wheel offset in car-local frame
         points.push([centerFwd + wheelOffX, -0.42, centerRight + wheelOffZ]);
-        colors.push(slipColorObj(slips[w](p)));
+        colors.push(trailColorObj(slips[w](p), 0));
       }
 
       wheelTrails.push({ points, colors });
@@ -419,6 +344,76 @@ function TireTrails({
           />
         ) : null
       )}
+    </>
+  );
+}
+
+// ── Brake trail (separate line at tail light height) ───────────────
+
+function BrakeTrail({
+  telemetry,
+  cursorIdx,
+}: {
+  telemetry: TelemetryPacket[];
+  cursorIdx: number;
+}) {
+  const trail = useMemo(() => {
+    const cur = telemetry[cursorIdx];
+    if (!cur) return null;
+
+    const curTime = cur.TimestampMS;
+    let startIdx = cursorIdx;
+    while (startIdx > 0 && curTime - telemetry[startIdx].TimestampMS < 800) {
+      startIdx--;
+    }
+    if (cursorIdx - startIdx < 2) return null;
+
+    const cx = cur.PositionX;
+    const cz = cur.PositionZ;
+    const cyaw = cur.Yaw;
+    const curSin = Math.sin(cyaw);
+    const curCos = Math.cos(cyaw);
+    const scale = 0.06;
+
+    // Two brake light positions (left z=-0.70, right z=0.70)
+    const lights: { points: [number, number, number][]; colors: THREE.Color[] }[] = [];
+
+    for (const lightZ of [-0.70, 0.70]) {
+      const points: [number, number, number][] = [];
+      const colors: THREE.Color[] = [];
+
+      for (let i = startIdx; i <= cursorIdx; i += 5) {
+        const p = telemetry[i];
+        if (p.Brake < 10) continue; // only draw when braking
+
+        const cdx = p.PositionX - cx;
+        const cdz = p.PositionZ - cz;
+        const centerFwd = (cdx * curSin + cdz * curCos) * scale;
+        const centerRight = (cdx * curCos - cdz * curSin) * scale;
+
+        // Position at rear of car + light offset, at tail light height
+        points.push([centerFwd + (-2.01), 0.22, centerRight + lightZ]);
+        colors.push(p.Brake > 50 ? BRAKE_RED : BRAKE_ORANGE);
+      }
+
+      if (points.length > 1) lights.push({ points, colors });
+    }
+
+    return lights;
+  }, [telemetry, cursorIdx]);
+
+  if (!trail || trail.length === 0) return null;
+
+  return (
+    <>
+      {trail.map((t, i) => (
+        <Line
+          key={`brake-${i}`}
+          points={t.points}
+          vertexColors={t.colors}
+          lineWidth={4}
+        />
+      ))}
     </>
   );
 }
@@ -524,7 +519,7 @@ function CarScene({ packet, telemetry, cursorIdx, outline, solid }: { packet: Te
     spinAngles.current[i] += speeds[i] * dt * 0.3;
   }
 
-  const steerRad = (packet.Steer / 127) * 0.35;
+  const steerRad = -(packet.Steer / 127) * 0.35;
 
   const wheelData = [
     { pos: [1.35, 0, -0.83] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFL, slip: Math.abs(packet.TireCombinedSlipFL), temp: packet.TireTempFL },
@@ -559,6 +554,30 @@ function CarScene({ packet, telemetry, cursorIdx, outline, solid }: { packet: Te
       {/* Body — rolls with pitch/roll */}
       <group ref={carGroupRef}>
         <CarBody solid={solid} />
+        {/* Tail lights — glow red when braking */}
+        {(() => {
+          const braking = packet.Brake > 10;
+          const color = braking ? "#ff2020" : "#661111";
+          const intensity = braking ? 2 : 0;
+          return (
+            <>
+              {/* Left tail light */}
+              <mesh position={[-2.01, 0.22, -0.70]}>
+                <boxGeometry args={[0.02, 0.08, 0.18]} />
+                <meshBasicMaterial color={color} />
+              </mesh>
+              {/* Right tail light */}
+              <mesh position={[-2.01, 0.22, 0.70]}>
+                <boxGeometry args={[0.02, 0.08, 0.18]} />
+                <meshBasicMaterial color={color} />
+              </mesh>
+              {/* Brake light glow */}
+              {braking && (
+                <pointLight position={[-2.10, 0.22, 0]} color="#ff2020" intensity={intensity} distance={2} decay={2} />
+              )}
+            </>
+          );
+        })()}
       </group>
 
       {/* Running gear — positioned by suspension */}
@@ -620,8 +639,11 @@ function CarScene({ packet, telemetry, cursorIdx, outline, solid }: { packet: Te
       {/* Track outline (subtle) */}
       {outline && <TrackOutline outline={outline} packet={packet} />}
 
-      {/* Tire trails (last 2s, colored by slip) */}
+      {/* Tire trails (ground, colored by slip) */}
       <TireTrails telemetry={telemetry} cursorIdx={cursorIdx} />
+
+      {/* Brake trail (tail light height, only when braking) */}
+      <BrakeTrail telemetry={telemetry} cursorIdx={cursorIdx} />
 
       {/* Camera controls */}
       <OrbitControls
