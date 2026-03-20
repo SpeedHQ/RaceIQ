@@ -39,14 +39,19 @@ export function useSwitchProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (profileId: number) => {
-      await fetch(`${API}/api/settings`, {
+      const res = await fetch(`${API}/api/settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ activeProfileId: profileId }),
       });
+      if (!res.ok) throw new Error("Failed to switch profile");
+      return profileId;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["settings"] });
+    onSuccess: (profileId) => {
+      // Immediately update the cache so the UI switches without waiting for a refetch
+      qc.setQueryData(["settings"], (old: any) =>
+        old ? { ...old, activeProfileId: profileId } : old
+      );
       qc.invalidateQueries({ queryKey: ["laps"] });
     },
   });
