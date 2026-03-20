@@ -50,6 +50,8 @@ function AnalyseTrackMap({
   zoom?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pulseRef = useRef<HTMLCanvasElement>(null);
+  const carPosRef = useRef<{ x: number; y: number; w: number; h: number; angle?: number } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -94,7 +96,7 @@ function AnalyseTrackMap({
       (w - padding * 2) / rangeX,
       (h - padding * 2) / rangeZ
     );
-    const scale = baseScale * zoom;
+    const scale = baseScale * zoom * (rotateWithCar ? 5 : 1);
     const offsetX = (w - rangeX * scale) / 2;
     const offsetZ = (h - rangeZ * scale) / 2;
 
@@ -159,16 +161,28 @@ function AnalyseTrackMap({
         }
         ctx.stroke();
 
-        // Label at midpoint
+        // Label at midpoint — draw upright regardless of map rotation/tilt
         const displayName = segDisplayNames[si];
         const midIdx = Math.round((startIdx + endIdx) / 2);
         const midPt = displayOutline[Math.min(midIdx, n - 1)];
         if (midPt && displayName) {
           const [lx, ly] = toCanvas(midPt.x, midPt.z);
-          ctx.font = "bold 7px monospace";
-          ctx.fillStyle = seg.type === "corner" ? "#fbbf24" : "#60a5fa";
+          const t = ctx.getTransform();
+          const screenX = t.a * lx + t.c * ly + t.e;
+          const screenY = t.b * lx + t.d * ly + t.f;
+          ctx.save();
+          ctx.resetTransform();
+          ctx.font = "bold 16px monospace";
           ctx.textAlign = "center";
-          ctx.fillText(displayName, lx, ly - 6);
+          const textWidth = ctx.measureText(displayName).width;
+          const padX = 6, padY = 5;
+          ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+          ctx.beginPath();
+          ctx.roundRect(screenX - textWidth / 2 - padX, screenY - 18 - 12 - padY, textWidth + padX * 2, 20 + padY * 2, 4);
+          ctx.fill();
+          ctx.fillStyle = seg.type === "corner" ? "#fbbf24" : "#60a5fa";
+          ctx.fillText(displayName, screenX, screenY - 18);
+          ctx.restore();
         }
       }
     } else {
@@ -239,28 +253,89 @@ function AnalyseTrackMap({
     const pkt = telemetry[cursorIdx];
     if (pkt && (pkt.PositionX !== 0 || pkt.PositionZ !== 0)) {
       const [cx, cy] = toCanvas(pkt.PositionX, pkt.PositionZ);
-      // Glow
+      // Triangle pointing in heading direction
+      const triSize = 8;
+      // Get heading direction in canvas space using toCanvas
+      const fwdX = pkt.PositionX + Math.sin(pkt.Yaw) * 1;
+      const fwdZ = pkt.PositionZ + Math.cos(pkt.Yaw) * 1;
+      const [fx, fy] = toCanvas(fwdX, fwdZ);
+      const angle = Math.atan2(fy - cy, fx - cx);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+      // Triangle
       ctx.beginPath();
-      ctx.arc(cx, cy, 10, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(34, 211, 238, 0.25)";
-      ctx.fill();
-      // Dot
-      ctx.beginPath();
-      ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+      ctx.moveTo(triSize, 0);
+      ctx.lineTo(-triSize * 0.6, -triSize * 0.6);
+      ctx.lineTo(-triSize * 0.6, triSize * 0.6);
+      ctx.closePath();
       ctx.fillStyle = "#22d3ee";
       ctx.fill();
       ctx.strokeStyle = "#0f172a";
       ctx.lineWidth = 1.5;
       ctx.stroke();
+      ctx.restore();
+
+      // Store car screen pos for pulse overlay (in CSS pixels)
+      // In car view car is at center; in fixed view use canvas coords
+      const px = rotateWithCar ? w / 2 : cx;
+      const py = rotateWithCar ? h / 2 : cy;
+      const pa = rotateWithCar ? -Math.PI / 2 : angle;
+      carPosRef.current = { x: px, y: py, w, h, angle: pa };
     }
   }, [telemetry, cursorIdx, outline, sectors, segments, rotateWithCar, zoom]);
 
+  // Pulse ring animation on overlay canvas
+  useEffect(() => {
+    const pulse = pulseRef.current;
+    if (!pulse) return;
+    let animId: number;
+    const draw = () => {
+      const pos = carPosRef.current;
+      const ctx2 = pulse.getContext("2d");
+      if (!ctx2 || !pos) { animId = requestAnimationFrame(draw); return; }
+      const dpr = window.devicePixelRatio || 1;
+      pulse.width = pos.w * dpr;
+      pulse.height = pos.h * dpr;
+      pulse.style.width = `${pos.w}px`;
+      pulse.style.height = `${pos.h}px`;
+      ctx2.scale(dpr, dpr);
+      ctx2.clearRect(0, 0, pos.w, pos.h);
+      const cycle = Date.now() % 2500;
+      if (cycle > 1000) { ctx2.restore(); animId = requestAnimationFrame(draw); return; }
+      const t = cycle / 1000;
+      const eased = 1 - Math.pow(1 - t, 3);
+      const s = 10 + eased * 6;
+      const opacity = 0.8 * (1 - t);
+      ctx2.save();
+      ctx2.translate(pos.x, pos.y);
+      if (pos.angle !== undefined) ctx2.rotate(pos.angle);
+      ctx2.beginPath();
+      ctx2.moveTo(s, 0);
+      ctx2.lineTo(-s * 0.6, -s * 0.6);
+      ctx2.lineTo(-s * 0.6, s * 0.6);
+      ctx2.closePath();
+      ctx2.strokeStyle = `rgba(34, 211, 238, ${opacity})`;
+      ctx2.lineWidth = 2;
+      ctx2.stroke();
+      ctx2.restore();
+      animId = requestAnimationFrame(draw);
+    };
+    animId = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(animId);
+  }, []);
+
   return (
-    <canvas
-      ref={canvasRef}
-      className="w-full h-full"
-      style={{ minHeight: 220 }}
-    />
+    <div className="relative w-full h-full" style={{ minHeight: 220 }}>
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full"
+      />
+      <canvas
+        ref={pulseRef}
+        className="absolute inset-0 w-full h-full pointer-events-none"
+      />
+    </div>
   );
 }
 
@@ -1080,7 +1155,7 @@ export function LapAnalyse() {
             {/* Segment table + legend */}
             <div className="border-r border-app-border overflow-y-auto p-2" style={{ height: 420 }}>
               {/* Legend */}
-              <div className="flex items-center gap-3 mb-2 pb-2 border-b border-app-border">
+              <div className="flex flex-wrap items-center gap-3 mb-2 pb-2 border-b border-app-border">
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-1.5 rounded-sm bg-amber-500" />
                   <span className="text-[9px] text-app-text-muted">Corner</span>
@@ -1131,17 +1206,19 @@ export function LapAnalyse() {
               />
               {/* Map controls overlay — top right */}
               <div className="absolute top-2 right-2 flex items-start gap-2">
-                {/* Zoom controls */}
-                <div className="flex flex-col gap-1">
-                  <button
-                    onClick={() => setMapZoom((z) => Math.min(z + 0.25, 4))}
-                    className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-                  >+</button>
-                  <button
-                    onClick={() => setMapZoom((z) => Math.max(z - 0.25, 0.5))}
-                    className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-                  >-</button>
-                </div>
+                {/* Zoom controls — only in car view */}
+                {rotateWithCar && (
+                  <div className="flex flex-col gap-1">
+                    <button
+                      onClick={() => setMapZoom((z) => Math.min(z + 0.25, 4))}
+                      className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
+                    >+</button>
+                    <button
+                      onClick={() => setMapZoom((z) => Math.max(z - 0.25, 0.5))}
+                      className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
+                    >-</button>
+                  </div>
+                )}
                 {/* View toggle */}
                 <button
                   onClick={() => setRotateWithCar((r) => !r)}

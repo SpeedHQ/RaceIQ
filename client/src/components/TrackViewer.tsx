@@ -104,6 +104,7 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, z: 0 });
   const dragging = useRef<{ startX: number; startY: number; startPanX: number; startPanZ: number } | null>(null);
+  const [mapDisplayMode, setMapDisplayMode] = useState<"segments" | "sectors">("segments");
   const [editing, setEditing] = useState(false);
   const [editSegments, setEditSegments] = useState<TrackSegment[]>([]);
   const [saving, setSaving] = useState(false);
@@ -160,8 +161,13 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
-    drawTrack(canvasRef.current, outline, true, displaySectors, zoom, pan);
-  }, [outline, displaySectors, zoom, pan]);
+    const showSectors = editingSectors || mapDisplayMode === "sectors";
+    const sectorBoundsForDraw = editingSectors
+      ? { s1End: editS1 / 100, s2End: editS2 / 100 }
+      : sectorBounds ?? undefined;
+    const sectorOverride = showSectors ? sectorBoundsForDraw : undefined;
+    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride);
+  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds]);
 
   const startEditing = useCallback(() => {
     if (sectors?.segments) {
@@ -424,6 +430,19 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
                   onClick={() => { setZoom(1); setPan({ x: 0, z: 0 }); }}
                   className="w-7 h-7 text-app-unit bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
                 >1x</button>
+              )}
+              {(sectorBounds || displaySectors) && (
+                <button
+                  onClick={() => setMapDisplayMode((m) => m === "segments" ? "sectors" : "segments")}
+                  className={`px-1.5 py-1 text-[9px] font-mono rounded border transition-colors ${
+                    mapDisplayMode === "sectors"
+                      ? "bg-amber-900/50 border-amber-700 text-amber-400"
+                      : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
+                  }`}
+                  title={mapDisplayMode === "sectors" ? "Show segments" : "Show sectors"}
+                >
+                  {mapDisplayMode === "sectors" ? "S1/2/3" : "Segs"}
+                </button>
               )}
             </div>
           </div>
@@ -895,7 +914,7 @@ function TrackTunes({ trackName, trackVariant }: { trackName: string; trackVaria
  * Segment labels are offset perpendicular to the track direction so they don't overlap the line.
  * The perpendicular offset is computed from neighboring outline points' tangent vector.
  */
-function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, sectors?: TrackSectors | null, zoom: number = 1, pan: { x: number; z: number } = { x: 0, z: 0 }) {
+function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, sectors?: TrackSectors | null, zoom: number = 1, pan: { x: number; z: number } = { x: 0, z: 0 }, sectorOverride?: { s1End: number; s2End: number }) {
   const ctx = canvas.getContext("2d");
   if (!ctx || outline.length < 2) return;
 
@@ -943,12 +962,75 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
   ctx.lineTo(sx, sy);
   ctx.stroke();
 
+  // Sector override mode: draw S1/S2/S3 as colored bands, suppressing segment coloring
+  if (sectorOverride) {
+    const n = outline.length;
+    const sectorDefs = [
+      { label: "S1", color: "#ef4444", start: 0, end: sectorOverride.s1End },
+      { label: "S2", color: "#3b82f6", start: sectorOverride.s1End, end: sectorOverride.s2End },
+      { label: "S3", color: "#eab308", start: sectorOverride.s2End, end: 1 },
+    ];
+    for (const sec of sectorDefs) {
+      const startIdx = Math.round(sec.start * (n - 1));
+      const endIdx = Math.min(Math.round(sec.end * (n - 1)), n - 1);
+      if (startIdx >= endIdx) continue;
+      ctx.beginPath();
+      ctx.strokeStyle = sec.color;
+      ctx.globalAlpha = 0.9;
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      const [fx, fy] = toCanvas(outline[startIdx].x, outline[startIdx].z);
+      ctx.moveTo(fx, fy);
+      for (let i = startIdx + 1; i <= endIdx; i++) {
+        const [px, py] = toCanvas(outline[i].x, outline[i].z);
+        ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // Boundary dot at sector start (except S1 which starts at finish)
+      if (startIdx > 0) {
+        ctx.beginPath();
+        ctx.arc(fx, fy, 5, 0, Math.PI * 2);
+        ctx.fillStyle = sec.color;
+        ctx.fill();
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Label at midpoint
+      const midIdx = Math.round((startIdx + endIdx) / 2);
+      const midPt = outline[Math.min(midIdx, n - 1)];
+      const [mx, my] = toCanvas(midPt.x, midPt.z);
+      const prevIdx = Math.max(0, midIdx - 2);
+      const nextIdx2 = Math.min(n - 1, midIdx + 2);
+      const dx2 = outline[nextIdx2].x - outline[prevIdx].x;
+      const dz2 = outline[nextIdx2].z - outline[prevIdx].z;
+      const len2 = Math.sqrt(dx2 * dx2 + dz2 * dz2) || 1;
+      const offDist = 16;
+      const lx = mx + (-dz2 / len2) * offDist;
+      const ly = my + (dx2 / len2) * offDist;
+      ctx.font = "bold 11px monospace";
+      ctx.textAlign = "center";
+      const textWidth = ctx.measureText(sec.label).width;
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = "#0f172a";
+      ctx.beginPath();
+      ctx.roundRect(lx - textWidth / 2 - 4, ly - 9, textWidth + 8, 13, 3);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = sec.color;
+      ctx.fillText(sec.label, lx, ly + 1);
+    }
+  }
+
   // Inner line — color-coded by segment type. startFrac/endFrac map [0,1] to outline indices.
   // Alternating color palettes for distinct segment visibility
   const cornerColors = ["#ef4444", "#f97316", "#ec4899", "#f59e0b", "#e11d48", "#d946ef"];
   const straightColors = ["#3b82f6", "#06b6d4", "#8b5cf6", "#2dd4bf", "#6366f1", "#0ea5e9"];
 
-  if (sectors && sectors.segments.length > 0) {
+  if (!sectorOverride && sectors && sectors.segments.length > 0) {
     const n = outline.length;
     let cornerIdx = 0, straightIdx = 0;
 
@@ -1027,7 +1109,7 @@ function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, 
         ctx.globalAlpha = 1;
       }
     }
-  } else {
+  } else if (!sectorOverride) {
     ctx.beginPath();
     ctx.strokeStyle = large ? "#94a3b8" : "#64748b";
     ctx.lineWidth = large ? 2 : 1.5;

@@ -493,6 +493,7 @@ app.put("/api/track-sector-boundaries/:ordinal", async (c) => {
   const updated = updateTrackOutlineSectors(ordinal, { s1End, s2End });
   if (!updated) return c.json({ error: "No outline found for track" }, 404);
 
+  saveTrackDataFile(ordinal, { sectors: { s1End, s2End } });
   return c.json({ success: true, s1End, s2End });
 });
 
@@ -551,7 +552,7 @@ function loadTrackDataFile(ordinal: number): { outline?: any[]; segments?: any[]
   } catch { return null; }
 }
 
-function saveTrackDataFile(ordinal: number, updates: { outline?: { x: number; z: number }[]; segments?: any[] }) {
+function saveTrackDataFile(ordinal: number, updates: { outline?: { x: number; z: number }[]; segments?: any[]; sectors?: { s1End: number; s2End: number } }) {
   try {
     if (!existsSync(TRACK_DATA_DIR)) mkdirSync(TRACK_DATA_DIR, { recursive: true });
     const trackInfo = trackInfoMap.get(ordinal);
