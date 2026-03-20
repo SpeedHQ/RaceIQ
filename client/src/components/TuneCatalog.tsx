@@ -1,9 +1,8 @@
-import { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   CATALOG_CARS,
   TUNE_CATALOG,
   getCatalogCar,
-  getTunesByCar,
   type CatalogTune,
   type RaceStrategy,
   type TuneSettings,
@@ -17,7 +16,6 @@ import {
   useDeleteTune,
   useCloneCatalogTune,
   useTuneAssignments,
-  useSetTuneAssignment,
   useDeleteTuneAssignment,
 } from "../hooks/queries";
 
@@ -264,7 +262,7 @@ function StrategyPanel({
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
-const CATEGORY_ICONS: Record<string, JSX.Element> = {
+const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   circuit: (
     <svg
       className="w-3 h-3"
@@ -1234,7 +1232,6 @@ export function TuneCatalog() {
   const updateTune = useUpdateTune();
   const deleteTuneMut = useDeleteTune();
   const cloneTune = useCloneCatalogTune();
-  const setAssignment = useSetTuneAssignment();
   const deleteAssignment = useDeleteTuneAssignment();
 
   // Use local catalog as fallback, API catalog when available
@@ -1329,12 +1326,6 @@ export function TuneCatalog() {
       onSuccess: () => setActiveTab("my"),
     });
   };
-
-  // Tune assignment helpers
-  const userTunesForCar = useMemo(() => {
-    if (selectedCar == null) return userTunes;
-    return userTunes.filter((t) => t.carOrdinal === selectedCar);
-  }, [userTunes, selectedCar]);
 
   return (
     <div className="flex-1 overflow-auto p-4 space-y-4 max-w-xl mx-auto">
