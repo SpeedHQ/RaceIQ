@@ -1,0 +1,77 @@
+<h2>Where should the profile switcher live?</h2>
+<p class="subtitle">Pick the placement that feels most natural for switching who's driving</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Top navigation bar</h3>
+      <div class="mockup" style="margin-top:10px">
+        <div class="mockup-header">App Preview</div>
+        <div class="mockup-body" style="padding:0">
+          <div style="background:#1a1a2e;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #333">
+            <div style="display:flex;gap:20px;align-items:center">
+              <span style="color:#e94560;font-weight:bold;font-size:13px">FORZA TELEMETRY</span>
+              <span style="color:#888;font-size:12px">Live</span>
+              <span style="color:#888;font-size:12px">Analyse</span>
+              <span style="color:#888;font-size:12px">Compare</span>
+            </div>
+            <div style="background:#2a2a3e;border:1px solid #444;border-radius:6px;padding:5px 12px;display:flex;align-items:center;gap:8px;cursor:pointer">
+              <div style="width:20px;height:20px;background:#e94560;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:bold">A</div>
+              <span style="color:#ddd;font-size:12px">Alex</span>
+              <span style="color:#666;font-size:10px">▾</span>
+            </div>
+          </div>
+          <div style="padding:16px;color:#666;font-size:12px;text-align:center">page content...</div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#999;margin-top:8px">Always visible. Click to open a dropdown to switch or manage profiles.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Settings page only</h3>
+      <div class="mockup" style="margin-top:10px">
+        <div class="mockup-header">Settings Preview</div>
+        <div class="mockup-body" style="padding:0">
+          <div style="background:#1a1a2e;padding:10px 16px;border-bottom:1px solid #333">
+            <span style="color:#e94560;font-weight:bold;font-size:13px">FORZA TELEMETRY</span>
+          </div>
+          <div style="padding:16px">
+            <div style="color:#aaa;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Active Driver Profile</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <div style="background:#e94560;border-radius:20px;padding:4px 14px;font-size:12px;color:white">Alex ✓</div>
+              <div style="background:#2a2a3e;border:1px solid #444;border-radius:20px;padding:4px 14px;font-size:12px;color:#aaa">Sarah</div>
+              <div style="background:#2a2a3e;border:1px solid #444;border-radius:20px;padding:4px 14px;font-size:12px;color:#aaa">+ Add</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#999;margin-top:8px">Switching requires going to Settings. Simpler, less prominent.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Floating pill (bottom corner)</h3>
+      <div class="mockup" style="margin-top:10px">
+        <div class="mockup-header">App Preview</div>
+        <div class="mockup-body" style="padding:0;position:relative;min-height:80px">
+          <div style="background:#1a1a2e;padding:10px 16px;border-bottom:1px solid #333">
+            <span style="color:#e94560;font-weight:bold;font-size:13px">FORZA TELEMETRY</span>
+          </div>
+          <div style="padding:16px;color:#666;font-size:12px">page content...</div>
+          <div style="position:absolute;bottom:10px;right:12px;background:#2a2a3e;border:1px solid #444;border-radius:20px;padding:5px 12px;display:flex;align-items:center;gap:8px">
+            <div style="width:18px;height:18px;background:#e94560;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;color:white;font-weight:bold">A</div>
+            <span style="color:#ddd;font-size:11px">Alex</span>
+            <span style="color:#666;font-size:9px">▾</span>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#999;margin-top:8px">Non-intrusive. Always accessible without cluttering the nav.</p>
+    </div>
+  </div>
+</div>
