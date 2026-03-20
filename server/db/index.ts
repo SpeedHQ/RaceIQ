@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "./schema";
 import { mkdirSync, existsSync } from "fs";
 
-const DB_DIR = "./data";
+const DB_DIR = process.env.DATA_DIR ?? "./data";
 const DB_PATH = `${DB_DIR}/forza-telemetry.db`;
 
 // Ensure data directory exists

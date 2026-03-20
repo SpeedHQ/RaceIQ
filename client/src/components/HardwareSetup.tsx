@@ -1,7 +1,6 @@
 import { useState } from "react";
 import fanatec15nm from "@shared/setup/fanatec-15nm.json";
-import { SearchSelect } from "./ui/SearchSelect";
-import { AppInput } from "./ui/AppInput";
+import { Link } from "@tanstack/react-router";
 
 interface Setting {
   name: string;
@@ -90,9 +89,80 @@ function PresetSettingsTable({ preset }: { preset: InGamePreset }) {
   );
 }
 
-export function HardwareSetup() {
-  const [selectedProfile, setSelectedProfile] = useState(PROFILES[0].id);
-  const profile = PROFILES.find((p) => p.id === selectedProfile) ?? PROFILES[0];
+interface WheelCatalogueEntry {
+  profileId: string;
+  name: string;
+  subtitle: string;
+  image: string;
+  specs: string[];
+}
+
+const WHEEL_CATALOGUE: WheelCatalogueEntry[] = [
+  {
+    profileId: "fanatec-15nm",
+    name: "Fanatec DD+ 15Nm",
+    subtitle: "ClubSport F1 McLaren Wheel",
+    image: "/fanatec-f1-wheel.webp",
+    specs: ["Direct Drive", "15 Nm Peak Torque", "Fanalab Compatible"],
+  },
+];
+
+export function WheelCatalogue({ onSelect }: { onSelect: (profileId: string) => void }) {
+  return (
+    <div className="flex-1 overflow-auto p-4 max-w-3xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-app-title font-bold text-app-text">Wheel Catalogue</h1>
+        <p className="text-app-subtext text-app-text-muted mt-1">
+          Select your wheel to view recommended FFB settings
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {WHEEL_CATALOGUE.map((wheel) => (
+          <button
+            key={wheel.profileId}
+            onClick={() => onSelect(wheel.profileId)}
+            className="group rounded-xl bg-app-surface/40 ring-1 ring-app-border hover:ring-app-accent/50 transition-all overflow-hidden text-left"
+          >
+            <div className="aspect-[16/10] bg-app-bg/60 flex items-center justify-center overflow-hidden">
+              <img
+                src={wheel.image}
+                alt={wheel.name}
+                className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+            <div className="p-4">
+              <h3 className="text-app-heading font-semibold text-app-text">{wheel.name}</h3>
+              <p className="text-app-subtext text-app-text-muted mt-0.5">{wheel.subtitle}</p>
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {wheel.specs.map((spec) => (
+                  <span
+                    key={spec}
+                    className="text-app-label font-medium px-2 py-0.5 rounded-full bg-app-accent/10 text-app-accent ring-1 ring-app-accent/20"
+                  >
+                    {spec}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </button>
+        ))}
+
+        <div className="rounded-xl border-2 border-dashed border-app-border/50 flex items-center justify-center min-h-[200px] opacity-50">
+          <div className="text-center p-4">
+            <p className="text-app-body text-app-text-muted font-medium">More wheels coming soon</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type DetailTab = "wheel" | "ingame";
+
+export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; onBack: () => void }) {
+  const profile = PROFILES.find((p) => p.id === profileId) ?? PROFILES[0];
+  const [activeTab, setActiveTab] = useState<DetailTab>("wheel");
   const [activePreset, setActivePreset] = useState(profile.inGamePresets[0].id);
   const preset = profile.inGamePresets.find((p) => p.id === activePreset) ?? profile.inGamePresets[0];
 
@@ -101,6 +171,15 @@ export function HardwareSetup() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2">
+            <Link
+              to="/setup"
+              className="text-app-text-muted hover:text-app-text transition-colors"
+              title="Back to catalogue"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                <path fillRule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clipRule="evenodd" />
+              </svg>
+            </Link>
             <h1 className="text-app-title font-bold text-app-text">Hardware Setup</h1>
             <span className="text-app-unit font-semibold uppercase px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
               {profile.wheelBase.maxTorque}
@@ -108,97 +187,101 @@ export function HardwareSetup() {
           </div>
           <p className="text-app-subtext text-app-text-muted">{profile.description}</p>
         </div>
-
-        {PROFILES.length > 1 && (
-          <SearchSelect
-            value={selectedProfile}
-            onChange={(v) => {
-              setSelectedProfile(v);
-              const p = PROFILES.find((pr) => pr.id === v);
-              if (p) setActivePreset(p.inGamePresets[0].id);
-            }}
-            options={PROFILES.map((p) => ({ value: p.id, label: p.name }))}
-            placeholder="Search profiles..."
-            className="w-56"
-          />
-        )}
       </div>
 
-      <div className="rounded-lg bg-app-bg/60 p-3">
-        <p className="text-app-subtext text-app-text-secondary">{profile.wheelBase.notes}</p>
+      <div className="flex gap-2">
+        {([
+          { id: "wheel" as const, label: "Wheel Base" },
+          { id: "ingame" as const, label: "In-Game FFB" },
+        ]).map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`text-app-label font-semibold uppercase px-3 py-1.5 rounded-lg transition-colors ${
+              activeTab === tab.id
+                ? "bg-app-accent/20 text-app-accent ring-1 ring-app-accent/30"
+                : "bg-app-surface/40 text-app-text-muted hover:text-app-text-secondary ring-1 ring-app-border"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      <SettingsTable group={profile.fanalab} />
-
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="text-app-heading font-semibold text-app-text">In-Game FFB Settings</h3>
-            <p className="text-app-subtext text-app-text-muted mt-0.5">Settings → Controls → Advanced → Wheel FFB</p>
+      {activeTab === "wheel" && (
+        <>
+          <div className="rounded-lg bg-app-bg/60 p-3">
+            <p className="text-app-subtext text-app-text-secondary">{profile.wheelBase.notes}</p>
           </div>
-        </div>
 
-        <div className="flex gap-2 mb-3">
-          {profile.inGamePresets.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setActivePreset(p.id)}
-              className={`text-app-label font-semibold uppercase px-2.5 py-1.5 rounded-lg transition-colors ${
-                activePreset === p.id
-                  ? "bg-app-accent/20 text-app-accent ring-1 ring-app-accent/30"
-                  : "bg-app-surface/40 text-app-text-muted hover:text-app-text-secondary ring-1 ring-app-border"
-              }`}
-            >
-              {p.name}
-            </button>
-          ))}
-        </div>
+          <SettingsTable group={profile.fanalab} />
 
-        <div className="rounded-lg bg-app-bg/60 p-2.5 mb-3">
-          <p className="text-app-subtext text-app-text-secondary">{preset.description}</p>
-        </div>
-
-        <PresetSettingsTable preset={preset} />
-      </div>
-
-      {profile.perCarOverrides.length > 0 && (
-        <div className="rounded-xl bg-app-surface/40 ring-1 ring-app-border overflow-hidden">
-          <div className="px-4 py-3 border-b border-app-border">
-            <h3 className="text-app-heading font-semibold text-app-text">Per-Car Overrides</h3>
-            <p className="text-app-subtext text-app-text-muted mt-0.5">Adjustments for specific cars</p>
+          <div className="rounded-xl bg-app-surface/40 ring-1 ring-app-border overflow-hidden">
+            <div className="px-4 py-3 border-b border-app-border">
+              <h3 className="text-app-heading font-semibold text-app-text">Tips</h3>
+            </div>
+            <ul className="px-4 py-3 space-y-2">
+              {profile.tips.map((tip, i) => (
+                <li key={i} className="text-app-body text-app-text-secondary flex items-start gap-2">
+                  <span className="text-app-accent shrink-0 mt-0.5">{i + 1}.</span>
+                  {tip}
+                </li>
+              ))}
+            </ul>
           </div>
-          <div className="divide-y divide-app-border">
-            {profile.perCarOverrides.map((car) => (
-              <div key={car.carOrdinal} className="px-4 py-3">
-                <div className="text-app-body font-semibold text-app-text">{car.carName}</div>
-                <p className="text-app-subtext text-app-text-muted mt-0.5 mb-2">{car.notes}</p>
-                {car.overrides.map((o) => (
-                  <div key={o.name} className="flex items-center justify-between py-1">
-                    <span className="text-app-body text-app-text-secondary">{o.name}</span>
-                    <span className="text-app-body font-bold font-mono text-app-accent">
-                      {o.value}{o.unit && <span className="text-app-text-muted ml-0.5">{o.unit}</span>}
-                    </span>
+        </>
+      )}
+
+      {activeTab === "ingame" && (
+        <>
+          <div className="flex gap-2">
+            {profile.inGamePresets.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setActivePreset(p.id)}
+                className={`text-app-label font-semibold uppercase px-2.5 py-1.5 rounded-lg transition-colors ${
+                  activePreset === p.id
+                    ? "bg-app-accent/20 text-app-accent ring-1 ring-app-accent/30"
+                    : "bg-app-surface/40 text-app-text-muted hover:text-app-text-secondary ring-1 ring-app-border"
+                }`}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="rounded-lg bg-app-bg/60 p-2.5">
+            <p className="text-app-subtext text-app-text-secondary">{preset.description}</p>
+          </div>
+
+          <PresetSettingsTable preset={preset} />
+
+          {profile.perCarOverrides.length > 0 && (
+            <div className="rounded-xl bg-app-surface/40 ring-1 ring-app-border overflow-hidden">
+              <div className="px-4 py-3 border-b border-app-border">
+                <h3 className="text-app-heading font-semibold text-app-text">Per-Car Overrides</h3>
+                <p className="text-app-subtext text-app-text-muted mt-0.5">Adjustments for specific cars</p>
+              </div>
+              <div className="divide-y divide-app-border">
+                {profile.perCarOverrides.map((car) => (
+                  <div key={car.carOrdinal} className="px-4 py-3">
+                    <div className="text-app-body font-semibold text-app-text">{car.carName}</div>
+                    <p className="text-app-subtext text-app-text-muted mt-0.5 mb-2">{car.notes}</p>
+                    {car.overrides.map((o) => (
+                      <div key={o.name} className="flex items-center justify-between py-1">
+                        <span className="text-app-body text-app-text-secondary">{o.name}</span>
+                        <span className="text-app-body font-bold font-mono text-app-accent">
+                          {o.value}{o.unit && <span className="text-app-text-muted ml-0.5">{o.unit}</span>}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          )}
+        </>
       )}
-
-      <div className="rounded-xl bg-app-surface/40 ring-1 ring-app-border overflow-hidden">
-        <div className="px-4 py-3 border-b border-app-border">
-          <h3 className="text-app-heading font-semibold text-app-text">Tips</h3>
-        </div>
-        <ul className="px-4 py-3 space-y-2">
-          {profile.tips.map((tip, i) => (
-            <li key={i} className="text-app-body text-app-text-secondary flex items-start gap-2">
-              <span className="text-app-accent shrink-0 mt-0.5">{i + 1}.</span>
-              {tip}
-            </li>
-          ))}
-        </ul>
-      </div>
 
       {profile.sources.length > 0 && (
         <div className="text-app-label text-app-text-muted space-y-0.5">

@@ -474,7 +474,7 @@ export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
   ];
 
   return (
-    <div className="relative flex flex-col gap-3 w-full">
+    <div className="relative flex flex-col gap-3 w-full max-w-xs mx-auto">
       {/* Front axle */}
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-1">

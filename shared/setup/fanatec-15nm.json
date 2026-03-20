@@ -94,16 +94,7 @@
       ]
     }
   ],
-  "perCarOverrides": [
-    {
-      "carOrdinal": 2860,
-      "carName": "2017 Aston Martin Vantage GT3 Racing V12",
-      "notes": "GT3 cars generate high downforce and mechanical grip. The wheel can feel heavy in fast corners. If using the Heavy & Realistic preset, consider dropping FFB Scale by 5-10%.",
-      "overrides": [
-        { "name": "Force Feedback Scale", "value": "-5 to -10%", "description": "Reduce if clipping in high-speed corners" }
-      ]
-    }
-  ],
+  "perCarOverrides": [],
   "tips": [
     "Always set Steering to Simulation in Driving Assists before touching FFB settings.",
     "Start with the Detailed & Responsive preset and adjust from there.",

@@ -52,6 +52,7 @@ function RootLayout() {
                   <Link
                     key={tab.to}
                     to={tab.to}
+                    activeOptions={{ exact: tab.to === "/" }}
                     className="px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors"
                     activeProps={{
                       className: "px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors border-app-accent text-app-accent",

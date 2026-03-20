@@ -16,6 +16,8 @@ import { Route as RawRouteImport } from './routes/raw'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as AnalyseRouteImport } from './routes/analyse'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SetupIndexRouteImport } from './routes/setup/index'
+import { Route as SetupProfileIdRouteImport } from './routes/setup/$profileId'
 
 const TunesRoute = TunesRouteImport.update({
   id: '/tunes',
@@ -52,24 +54,37 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SetupIndexRoute = SetupIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SetupRoute,
+} as any)
+const SetupProfileIdRoute = SetupProfileIdRouteImport.update({
+  id: '/$profileId',
+  path: '/$profileId',
+  getParentRoute: () => SetupRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analyse': typeof AnalyseRoute
   '/compare': typeof CompareRoute
   '/raw': typeof RawRoute
-  '/setup': typeof SetupRoute
+  '/setup': typeof SetupRouteWithChildren
   '/tracks': typeof TracksRoute
   '/tunes': typeof TunesRoute
+  '/setup/$profileId': typeof SetupProfileIdRoute
+  '/setup/': typeof SetupIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analyse': typeof AnalyseRoute
   '/compare': typeof CompareRoute
   '/raw': typeof RawRoute
-  '/setup': typeof SetupRoute
   '/tracks': typeof TracksRoute
   '/tunes': typeof TunesRoute
+  '/setup/$profileId': typeof SetupProfileIdRoute
+  '/setup': typeof SetupIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -77,9 +92,11 @@ export interface FileRoutesById {
   '/analyse': typeof AnalyseRoute
   '/compare': typeof CompareRoute
   '/raw': typeof RawRoute
-  '/setup': typeof SetupRoute
+  '/setup': typeof SetupRouteWithChildren
   '/tracks': typeof TracksRoute
   '/tunes': typeof TunesRoute
+  '/setup/$profileId': typeof SetupProfileIdRoute
+  '/setup/': typeof SetupIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,8 +108,18 @@ export interface FileRouteTypes {
     | '/setup'
     | '/tracks'
     | '/tunes'
+    | '/setup/$profileId'
+    | '/setup/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/analyse' | '/compare' | '/raw' | '/setup' | '/tracks' | '/tunes'
+  to:
+    | '/'
+    | '/analyse'
+    | '/compare'
+    | '/raw'
+    | '/tracks'
+    | '/tunes'
+    | '/setup/$profileId'
+    | '/setup'
   id:
     | '__root__'
     | '/'
@@ -102,6 +129,8 @@ export interface FileRouteTypes {
     | '/setup'
     | '/tracks'
     | '/tunes'
+    | '/setup/$profileId'
+    | '/setup/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -109,7 +138,7 @@ export interface RootRouteChildren {
   AnalyseRoute: typeof AnalyseRoute
   CompareRoute: typeof CompareRoute
   RawRoute: typeof RawRoute
-  SetupRoute: typeof SetupRoute
+  SetupRoute: typeof SetupRouteWithChildren
   TracksRoute: typeof TracksRoute
   TunesRoute: typeof TunesRoute
 }
@@ -165,15 +194,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/setup/': {
+      id: '/setup/'
+      path: '/'
+      fullPath: '/setup/'
+      preLoaderRoute: typeof SetupIndexRouteImport
+      parentRoute: typeof SetupRoute
+    }
+    '/setup/$profileId': {
+      id: '/setup/$profileId'
+      path: '/$profileId'
+      fullPath: '/setup/$profileId'
+      preLoaderRoute: typeof SetupProfileIdRouteImport
+      parentRoute: typeof SetupRoute
+    }
   }
 }
+
+interface SetupRouteChildren {
+  SetupProfileIdRoute: typeof SetupProfileIdRoute
+  SetupIndexRoute: typeof SetupIndexRoute
+}
+
+const SetupRouteChildren: SetupRouteChildren = {
+  SetupProfileIdRoute: SetupProfileIdRoute,
+  SetupIndexRoute: SetupIndexRoute,
+}
+
+const SetupRouteWithChildren = SetupRoute._addFileChildren(SetupRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyseRoute: AnalyseRoute,
   CompareRoute: CompareRoute,
   RawRoute: RawRoute,
-  SetupRoute: SetupRoute,
+  SetupRoute: SetupRouteWithChildren,
   TracksRoute: TracksRoute,
   TunesRoute: TunesRoute,
 }
