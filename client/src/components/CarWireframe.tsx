@@ -28,6 +28,11 @@ const useWheelGeometries = () =>
     return { tire, rim, hub };
   }, []);
 
+// 0% = extended (wheel low), 100% = compressed (wheel up near body)
+function suspY(suspTravel: number): number {
+  return (suspTravel - 0.5) * 0.5;
+}
+
 function Wheel({
   position,
   steerAngle,
@@ -41,8 +46,7 @@ function Wheel({
   color: string;
   spinAngle: number;
 }) {
-  const suspOffset = (suspTravel - 0.5) * 0.3;
-  const wheelY = position[1] + suspOffset;
+  const wheelY = position[1] + suspY(suspTravel);
   const { tire, rim, hub } = useWheelGeometries();
 
   // Geometries are pre-rotated so axle = Z. Spin around Z only. No nesting.
@@ -76,14 +80,13 @@ function SuspensionSpring({
   wheelPos: [number, number, number];
   suspTravel: number;
 }) {
-  const suspOffset = (suspTravel - 0.5) * 0.3;
-  const wheelY = wheelPos[1] + suspOffset;
+  const wheelY = wheelPos[1] + suspY(suspTravel);
 
   const coilRadius = 0.08;
   const coils = 6;
-  const segments = coils * 12; // 12 points per coil
+  const segments = coils * 12;
   const topY = bodyPos[1];
-  const botY = wheelY + 0.15; // slightly above wheel center
+  const botY = wheelY;
   const height = topY - botY;
 
   // Generate helix points
@@ -103,6 +106,7 @@ function SuspensionSpring({
   }, [botY, height, bodyPos[0], bodyPos[2]]);
 
   // Color: green when neutral, amber when compressed, red when bottomed out
+  // Red when heavily compressed (high travel), green when normal
   const color = suspTravel > 0.85 ? "#ef4444" : suspTravel > 0.6 ? "#fbbf24" : "#34d399";
 
   return (
@@ -179,20 +183,141 @@ function CarBody() {
   );
 }
 
+// ── Tire trail (last 2s, colored by slip) ──────────────────────────
+
+// Wheel offsets from car center (local space)
+const WHEEL_OFFSETS: [number, number][] = [
+  [1.6, -1.05],   // FL: x, z
+  [1.6, 1.05],    // FR
+  [-1.6, -1.05],  // RL
+  [-1.6, 1.05],   // RR
+];
+
+function slipColor(slip: number): string {
+  if (slip < 0.3) return "#34d399";   // grip - green
+  if (slip < 0.8) return "#fbbf24";   // sliding - amber
+  return "#ef4444";                     // spinning - red
+}
+
+function TireTrails({
+  telemetry,
+  cursorIdx,
+}: {
+  telemetry: TelemetryPacket[];
+  cursorIdx: number;
+}) {
+  const trails = useMemo(() => {
+    const cur = telemetry[cursorIdx];
+    if (!cur) return null;
+
+    const curTime = cur.TimestampMS;
+    const trailMs = 2000;
+
+    // Find start index (~2 seconds back)
+    let startIdx = cursorIdx;
+    while (startIdx > 0 && curTime - telemetry[startIdx].TimestampMS < trailMs) {
+      startIdx--;
+    }
+
+    if (cursorIdx - startIdx < 2) return null;
+
+    // Current car position/yaw for relative transform
+    const cx = cur.PositionX;
+    const cz = cur.PositionZ;
+    const cyaw = cur.Yaw;
+    // Forza: forward = (sin(Yaw), cos(Yaw))
+    const curSin = Math.sin(cyaw);
+    const curCos = Math.cos(cyaw);
+
+    // Scale trail to fit scene (car is ~5m in scene, real trail can be 100m+)
+    const scale = 0.06;
+
+    const slips = [
+      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipFL),
+      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipFR),
+      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipRL),
+      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipRR),
+    ];
+
+    const wheelTrails: { points: [number, number, number][]; colors: string[] }[] = [];
+
+    for (let w = 0; w < 4; w++) {
+      const points: [number, number, number][] = [];
+      const colors: string[] = [];
+
+      for (let i = startIdx; i <= cursorIdx; i += 3) { // sample every 3rd for perf
+        const p = telemetry[i];
+        // Car center world position delta
+        const dx = p.PositionX - cx;
+        const dz = p.PositionZ - cz;
+
+        // Transform world delta to car-local frame
+        // forward = dx*sin(yaw) + dz*cos(yaw), right = dx*cos(yaw) - dz*sin(yaw)
+        const localFwd = (dx * curSin + dz * curCos) * scale;
+        const localRight = (dx * curCos - dz * curSin) * scale;
+
+        // Car-local → scene: forward = +X, right = +Z
+        points.push([localFwd, -0.42, localRight]);
+        colors.push(slipColor(slips[w](p)));
+      }
+
+      wheelTrails.push({ points, colors });
+    }
+
+    return wheelTrails;
+  }, [telemetry, cursorIdx]);
+
+  if (!trails) return null;
+
+  return (
+    <>
+      {trails.map((trail, w) =>
+        trail.points.length > 1 ? (
+          <Line
+            key={`trail-${w}`}
+            points={trail.points}
+            vertexColors={trail.colors.map((c) => new THREE.Color(c))}
+            lineWidth={3}
+          />
+        ) : null
+      )}
+    </>
+  );
+}
+
 // ── Main scene (receives packet as prop) ───────────────────────────
 
-function CarScene({ packet }: { packet: TelemetryPacket }) {
+function CarScene({ packet, telemetry, cursorIdx }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number }) {
   const carGroupRef = useRef<THREE.Group>(null);
   const prevTimeRef = useRef(packet.TimestampMS);
   const spinAngles = useRef([0, 0, 0, 0]);
 
-  // Update car rotation every frame from telemetry
+  // Derive body roll/pitch from suspension deltas (not raw telemetry which includes track gradient)
+  // Higher suspension travel = more compressed on that corner
+  const suspFL = packet.NormSuspensionTravelFL;
+  const suspFR = packet.NormSuspensionTravelFR;
+  const suspRL = packet.NormSuspensionTravelRL;
+  const suspRR = packet.NormSuspensionTravelRR;
+
+  // Roll: left more compressed than right = body leans left (negative X rotation)
+  const leftAvg = (suspFL + suspRL) / 2;
+  const rightAvg = (suspFR + suspRR) / 2;
+  const bodyRoll = (rightAvg - leftAvg) * 0.3; // scale to reasonable visual angle
+
+  // Pitch: front more compressed than rear = nose dives (positive Z rotation)
+  const frontAvg = (suspFL + suspFR) / 2;
+  const rearAvg = (suspRL + suspRR) / 2;
+  const bodyPitch = (frontAvg - rearAvg) * 0.3;
+
+  // Trail is in car-local frame (+X = forward), so car group doesn't need yaw
+  // But body needs roll/pitch from suspension
+
   useFrame(() => {
     if (!carGroupRef.current) return;
     carGroupRef.current.rotation.set(
-      packet.Pitch,
-      0,
-      packet.Roll,
+      bodyRoll,   // X = roll derived from suspension
+      0,          // no yaw on body (trail is in car-local frame)
+      bodyPitch,  // Z = pitch derived from suspension
       "YXZ"
     );
   });
@@ -238,10 +363,13 @@ function CarScene({ packet }: { packet: TelemetryPacket }) {
         infiniteGrid
       />
 
-      {/* Car group — rotated by pitch/roll */}
+      {/* Body — rolls with pitch/roll */}
       <group ref={carGroupRef}>
         <CarBody />
+      </group>
 
+      {/* Running gear — positioned by suspension */}
+      <group>
         {/* Wheels */}
         {wheelData.map((w, i) => (
           <Wheel
@@ -254,45 +382,59 @@ function CarScene({ packet }: { packet: TelemetryPacket }) {
           />
         ))}
 
-        {/* Suspension springs — inboard of each wheel */}
+        {/* Suspension springs — connect rolled body to grounded wheels */}
         {wheelData.map((w, i) => {
           const inboardZ = w.pos[2] > 0 ? w.pos[2] - 0.45 : w.pos[2] + 0.45;
           return (
             <SuspensionSpring
               key={`susp-${i}`}
-              bodyPos={[w.pos[0], 0.1, inboardZ]}
+              bodyPos={[w.pos[0], 0.35, inboardZ]}
               wheelPos={[w.pos[0], w.pos[1], inboardZ]}
               suspTravel={w.susp}
             />
           );
         })}
 
-        {/* Front axle */}
+        {/* Front axle — follows wheel suspension positions */}
         <Line
-          points={[[1.6, 0, -1.05], [1.6, 0, 1.05]]}
+          points={[
+            [1.6, suspY(wheelData[0].susp), -1.05],
+            [1.6, suspY(wheelData[1].susp), 1.05],
+          ]}
           color="#64748b"
           lineWidth={2}
         />
         {/* Rear axle */}
         <Line
-          points={[[-1.6, 0, -1.05], [-1.6, 0, 1.05]]}
+          points={[
+            [-1.6, suspY(wheelData[2].susp), -1.05],
+            [-1.6, suspY(wheelData[3].susp), 1.05],
+          ]}
           color="#64748b"
           lineWidth={2}
         />
-        {/* Driveshaft (center tunnel, front axle to rear axle) */}
+        {/* Driveshaft */}
         <Line
-          points={[[1.6, -0.05, 0], [-1.6, -0.05, 0]]}
+          points={[
+            [1.6, (suspY(wheelData[0].susp) + suspY(wheelData[1].susp)) / 2, 0],
+            [-1.6, (suspY(wheelData[2].susp) + suspY(wheelData[3].susp)) / 2, 0],
+          ]}
           color="#94a3b8"
           lineWidth={1.5}
         />
         {/* Differential housings */}
-        {[1.6, -1.6].map((x) => (
-          <mesh key={`diff-${x}`} position={[x, -0.05, 0]}>
-            <boxGeometry args={[0.15, 0.12, 0.2]} />
-            <meshBasicMaterial color="#64748b" wireframe />
-          </mesh>
-        ))}
+        <mesh position={[1.6, (suspY(wheelData[0].susp) + suspY(wheelData[1].susp)) / 2, 0]}>
+          <boxGeometry args={[0.15, 0.12, 0.2]} />
+          <meshBasicMaterial color="#64748b" wireframe />
+        </mesh>
+        <mesh position={[-1.6, (suspY(wheelData[2].susp) + suspY(wheelData[3].susp)) / 2, 0]}>
+          <boxGeometry args={[0.15, 0.12, 0.2]} />
+          <meshBasicMaterial color="#64748b" wireframe />
+        </mesh>
       </group>
+
+      {/* Tire trails (last 2s, colored by slip) */}
+      <TireTrails telemetry={telemetry} cursorIdx={cursorIdx} />
 
       {/* Camera controls */}
       <OrbitControls
@@ -309,7 +451,15 @@ function CarScene({ packet }: { packet: TelemetryPacket }) {
 
 // ── Exported wrapper ───────────────────────────────────────────────
 
-export function CarWireframe({ packet }: { packet: TelemetryPacket }) {
+export function CarWireframe({
+  packet,
+  telemetry,
+  cursorIdx,
+}: {
+  packet: TelemetryPacket;
+  telemetry: TelemetryPacket[];
+  cursorIdx: number;
+}) {
   return (
     <div className="w-full" style={{ height: 260 }}>
       <Canvas
@@ -317,7 +467,7 @@ export function CarWireframe({ packet }: { packet: TelemetryPacket }) {
         gl={{ antialias: true, alpha: true }}
         style={{ background: "transparent" }}
       >
-        <CarScene packet={packet} />
+        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} />
       </Canvas>
     </div>
   );

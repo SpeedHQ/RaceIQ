@@ -1312,7 +1312,7 @@ export function LapAnalyse() {
                 </>
               ) : (
                 <>
-                  {currentPacket && <CarWireframe packet={currentPacket} />}
+                  {currentPacket && <CarWireframe packet={currentPacket} telemetry={telemetry} cursorIdx={cursorIdx} />}
                 </>
               )}
               </div>
