@@ -403,9 +403,9 @@ function TrackDetail({ track, onBack }: { track: TrackInfo; onBack: () => void }
   }, [sortBy]);
 
   const classTextColors: Record<string, string> = {
-    X: "text-purple-400", P: "text-pink-400", R: "text-red-400",
-    S2: "text-orange-400", S1: "text-amber-400", A: "text-green-400",
-    B: "text-blue-400", C: "text-cyan-400", D: "text-slate-400",
+    X: "text-green-700", P: "text-green-400", R: "text-blue-400",
+    S: "text-purple-400", A: "text-red-400",
+    B: "text-orange-400", C: "text-yellow-400", D: "text-cyan-400", E: "text-pink-400",
   };
 
   return (

@@ -16,6 +16,7 @@ profiles(
   id        INTEGER PRIMARY KEY,
   name      TEXT NOT NULL,
   created_at TEXT NOT NULL
+  -- no UNIQUE constraint on name: local tool, duplicates are acceptable
 )
 ```
 
@@ -44,7 +45,7 @@ Extend the existing settings JSON file with `activeProfileId: number` pointing t
 
 ### Modified endpoints
 
-- `PATCH /api/settings` — extended to accept `activeProfileId`
+- `PATCH /api/settings` — extended to accept `activeProfileId`; this is how profile switching is performed (client calls `PATCH /api/settings { activeProfileId }` on selection)
 - All lap-listing endpoints (`/api/sessions`, `/api/laps`, `/api/tracks/:id/laps`, etc.) gain an optional `?profileId=` query param; the client always passes the active profile ID
 
 ### Lap detection
