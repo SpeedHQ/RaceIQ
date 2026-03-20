@@ -59,10 +59,12 @@ Four stages in a single `Dockerfile` at the repo root:
 
 | Stage | Base | Purpose |
 |---|---|---|
-| `base` | `oven/bun:1` | Install all dependencies |
+| `base` | `oven/bun:1` | Install root deps (`bun install` in `/app`) |
 | `dev` | `base` | Used for dev containers; source mounted at runtime |
-| `builder` | `base` | Copies full source, runs `vite build` to produce `client/dist` |
-| `prod` | `oven/bun:1-alpine` | Lean image: server source + `client/dist`, no dev deps |
+| `builder` | `base` | Runs `bun install` in `/app/client`, then `vite build` to produce `client/dist` |
+| `prod` | `oven/bun:1-alpine` | Lean image: server source + `client/dist` + root `node_modules`, no client deps |
+
+**Dependency split:** The root `package.json` and `client/package.json` are independent (no Bun workspaces). The `base` stage installs root deps; the `builder` stage must also `bun install` inside `client/` before running the build. The `prod` stage only needs root `node_modules` (server deps) — `client/node_modules` is not copied.
 
 The `prod` stage must not include dev dependencies or source files beyond what the server needs to run.
 
@@ -74,11 +76,13 @@ Services and their configuration:
 
 | Service | Profile | Image Stage | Published Ports | Volumes |
 |---|---|---|---|---|
-| `server` | `prod` | `prod` | `${PORT:-3117}:${PORT:-3117}`, `${UDP_PORT:-4321}:${UDP_PORT:-4321}/udp` | `./data:/app/data` |
-| `server` | `dev` | `dev` | `${PORT:-3117}:${PORT:-3117}`, `${UDP_PORT:-4321}:${UDP_PORT:-4321}/udp` | `./data:/app/data`, source bind-mount, node_modules anonymous volume |
-| `client` | `dev` | `dev` | `5173:5173` | source bind-mount, node_modules anonymous volume |
+| `server` | `prod` | `prod` | `${SERVER_PORT:-3117}:${SERVER_PORT:-3117}`, `${UDP_PORT:-4321}:${UDP_PORT:-4321}/udp` | `./data:/app/data` |
+| `server` | `dev` | `dev` | `${SERVER_PORT:-3117}:${SERVER_PORT:-3117}`, `${UDP_PORT:-4321}:${UDP_PORT:-4321}/udp` | `./data:/app/data`, source bind-mount, `/app/node_modules` anonymous volume |
+| `client` | `dev` | `dev` | `5173:5173` | source bind-mount, `/app/node_modules` anonymous volume, `/app/client/node_modules` anonymous volume |
 
-The `client` service depends on `server` and communicates with it via the Docker Compose internal network using the service name `server`. Both dev services use an anonymous volume at `/app/node_modules` to prevent the bind-mounted source from overwriting the container's installed modules.
+The `client` service depends on `server` and communicates with it via the Docker Compose internal network using the service name `server`. Anonymous volumes at `/app/node_modules` and `/app/client/node_modules` prevent the bind-mounted source from overwriting the container's installed modules.
+
+**Port variable naming:** `SERVER_PORT` (not `PORT`) is used for the server's HTTP port to avoid conflicting with Vite, which also reads `process.env.PORT` to set its own listen port. Setting `PORT` in the client container would cause Vite to listen on the wrong port.
 
 ---
 
@@ -86,10 +90,10 @@ The `client` service depends on `server` and communicates with it via the Docker
 
 | Variable | Default | Used By | Purpose |
 |---|---|---|---|
-| `PORT` | `3117` | server | HTTP/WebSocket listen port |
-| `UDP_PORT` | `4321` | server, compose | Forza telemetry UDP port |
-| `DATA_DIR` | `/app/data` | server | Directory for SQLite database file (server process only — does not affect the host-side bind mount path in docker-compose.yml) |
-| `PROXY_TARGET` | `http://server:3117` | client (dev, vite.config.ts) | Vite proxy target read by `vite.config.ts` at Node.js config time — not a browser-injected variable. Override to `http://localhost:3117` for local non-Docker dev. |
+| `SERVER_PORT` | `3117` | server, compose | HTTP/WebSocket listen port — named `SERVER_PORT` to avoid clash with Vite's `PORT` |
+| `UDP_PORT` | `4321` | server, compose | Forza telemetry UDP port — must be read from env in `server/index.ts` (currently driven by persisted settings; requires code change) |
+| `DATA_DIR` | `/app/data` | server | Directory for SQLite DB and settings files — requires code change to read from env (currently hardcoded) |
+| `PROXY_TARGET` | `http://server:3117` | client (dev, vite.config.ts) | Vite proxy target read by `vite.config.ts` at Node.js config time — **not** a browser-injected variable. Override to `http://localhost:3117` for local non-Docker dev. |
 
 A `.env.example` file will document all variables.
 
@@ -97,30 +101,42 @@ A `.env.example` file will document all variables.
 
 ## Required Code Changes
 
-### 1. `server/index.ts` — read PORT from environment
+### 1. `server/index.ts` — read SERVER_PORT from environment
 
-The server must use `process.env.PORT ?? 3117` instead of a hardcoded value. Verify `DATA_DIR` is also read from the environment for the SQLite file path.
+Replace the hardcoded port with `process.env.SERVER_PORT ?? 3117`.
 
-### 2. `client/vite.config.ts` — proxy target from environment
+### 2. `server/index.ts` — read UDP_PORT from environment
 
-Change the proxy target from the hardcoded `http://localhost:3117` to read from `process.env.PROXY_TARGET`, defaulting to `http://localhost:3117`. This is read by Vite's Node.js config process — it is not injected into the browser bundle. The dev client container sets `PROXY_TARGET=http://server:3117` so it can reach the server container via Docker's internal network.
+The UDP listener currently starts with `settings.udpPort` from persisted settings. Add fallback to `process.env.UDP_PORT` so the port can be configured at container startup without requiring saved settings. Suggested: `settings.udpPort ?? Number(process.env.UDP_PORT) ?? 4321`.
 
-### 3. `server/index.ts` — static file serving (verify or add)
+### 3. `server/index.ts` and `server/settings.ts` — read DATA_DIR from environment
 
-Verify whether `server/index.ts` already serves static files via Hono's `serveStatic`. If not, this must be added as a required code change: serve files from `client/dist` (relative to the app root) when `NODE_ENV=production`. This is required for the single-container prod setup.
+The SQLite DB path is currently hardcoded as `./data/forza-telemetry.db`. This must read from `process.env.DATA_DIR` (defaulting to `./data`). The `drizzle.config.ts` file also hardcodes this path — it must be updated to use the same env var for consistency. Any settings JSON file path should also be derived from `DATA_DIR`.
+
+### 4. `client/vite.config.ts` — proxy target from environment
+
+Change the proxy target from the hardcoded `http://localhost:3117` to read from `process.env.PROXY_TARGET`, defaulting to `http://localhost:3117`. This is read by Vite's Node.js config process — it is **not** injected into the browser bundle. The dev client container sets `PROXY_TARGET=http://server:3117`.
+
+### 5. `server/index.ts` — static file serving (verify or add)
+
+Verify whether Hono's `serveStatic` is already configured. If not, add it: serve files from `./client/dist` when `NODE_ENV=production`. Required for the single-container prod setup.
+
+### 6. `server/index.ts` — caffeinate on non-macOS (known behaviour)
+
+The server spawns `caffeinate` (macOS-only) at startup. This will fail silently on Linux containers but may produce noisy log output. Add a platform guard (`process.platform === 'darwin'`) around the `caffeinate` spawn.
 
 ---
 
 ## Data Persistence
 
-SQLite database and any settings files must reside under the `DATA_DIR` path (`/app/data` inside the container), which is bind-mounted to `./data` on the host.
+SQLite database and settings files must reside under the `DATA_DIR` path (`/app/data` inside the container), which is bind-mounted to `./data` on the host.
 
 - Local dev: `./data/` in repo root (gitignored)
 - Coolify prod: bind-mounted to a Coolify persistent volume path configured in the dashboard
 
-**Note:** `DATA_DIR` only tells the server process where to find the database file inside the container. The host-side mount path (`./data`) is defined separately in `docker-compose.yml`. Changing `DATA_DIR` alone without updating the compose volume spec will cause a mismatch.
+**Note:** `DATA_DIR` controls what the server process reads. The host-side mount path (`./data`) is defined separately in `docker-compose.yml`. Changing one without the other causes a mismatch.
 
-**Migrations:** Verify whether `server/index.ts` runs Drizzle migrations automatically on startup. If it does, first-run on a fresh `./data` directory is safe. If not, document a manual step: run `bun run db:push` against the container before first use.
+**Migrations:** The server runs Drizzle schema creation on startup (confirmed via the DB import on boot). First-run on a fresh `./data` directory is safe — no manual migration step is required.
 
 ---
 
@@ -131,8 +147,8 @@ SQLite database and any settings files must reside under the `DATA_DIR` path (`/
 3. Activate the prod profile by setting `COMPOSE_PROFILES=prod` in the Coolify environment variables panel
 4. Configure environment variables in the Coolify dashboard:
    - `UDP_PORT` — must match Forza's configured data-out port
-   - The host-side bind mount path (`./data`) maps to a Coolify persistent volume; configure the volume in Coolify's storage settings rather than via `DATA_DIR`
-5. The UDP port must be exposed on the host; ensure the Coolify host's firewall allows the UDP port inbound
+   - The host-side bind mount path (`./data`) maps to a Coolify persistent volume; configure the volume path in Coolify's storage settings
+5. Ensure the Coolify host's firewall allows the UDP port inbound
 
 **Limitation:** Railway is not a suitable target because it does not support UDP port exposure, which is required for Forza telemetry ingestion. Coolify (self-hosted on a VPS or home server) is the recommended production platform.
 
@@ -145,9 +161,11 @@ SQLite database and any settings files must reside under the `DATA_DIR` path (`/
 | `Dockerfile` | Create |
 | `docker-compose.yml` | Create |
 | `.env.example` | Create |
-| `.dockerignore` | Create — must exclude: `node_modules`, `.git`, `client/dist`, `data/`, `*.log`. Must include `bun.lockb` (needed for reproducible installs inside the image). |
-| `server/index.ts` | Modify — read PORT/DATA_DIR from env |
-| `client/vite.config.ts` | Modify — read proxy target from VITE_SERVER_URL env var |
+| `.dockerignore` | Create — exclude: `node_modules`, `.git`, `client/dist`, `data/`, `*.log`. Include `bun.lock` (text lock file, needed for reproducible installs). |
+| `server/index.ts` | Modify — read `SERVER_PORT`, `UDP_PORT` from env; add platform guard for `caffeinate`; verify/add static file serving |
+| `server/settings.ts` | Modify — derive file paths from `DATA_DIR` env var |
+| `drizzle.config.ts` | Modify — read DB path from `DATA_DIR` env var |
+| `client/vite.config.ts` | Modify — read proxy target from `PROXY_TARGET` env var |
 
 ---
 
@@ -155,5 +173,4 @@ SQLite database and any settings files must reside under the `DATA_DIR` path (`/
 
 - CI/CD pipeline changes
 - Railway support (UDP limitation makes it unsuitable)
-- Database migration automation in the container entrypoint (can be added later)
 - HTTPS/TLS termination (handled by Coolify's reverse proxy)
