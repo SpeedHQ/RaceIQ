@@ -1,4 +1,4 @@
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Grid, Edges, Line } from "@react-three/drei";
 import * as THREE from "three";
@@ -43,19 +43,17 @@ function tireTempColor(temp: number): string {
 function Wheel({
   position,
   steerAngle,
-  suspTravel,
   gripColor,
   tempColor,
   spinAngle,
 }: {
   position: [number, number, number];
   steerAngle: number;
-  suspTravel: number;
   gripColor: string;
   tempColor: string;
   spinAngle: number;
 }) {
-  const wheelY = position[1] + suspY(suspTravel);
+  const wheelY = position[1]; // wheels stay on the ground
   const { tire, rim, hub } = useWheelGeometries();
 
   return (
@@ -88,13 +86,11 @@ function SuspensionSpring({
   wheelPos: [number, number, number];
   suspTravel: number;
 }) {
-  const wheelY = wheelPos[1] + suspY(suspTravel);
-
   const coilRadius = 0.08;
   const coils = 6;
   const segments = coils * 12;
-  const topY = bodyPos[1];
-  const botY = wheelY;
+  const topY = bodyPos[1];   // body mount (drops with body)
+  const botY = wheelPos[1];  // wheel mount (stays on ground)
   const height = topY - botY;
 
   // Generate helix points
@@ -133,26 +129,26 @@ function SuspensionSpring({
 
 // ── Car body wireframe ─────────────────────────────────────────────
 
-function CarBody() {
+function CarBody({ solid }: { solid: boolean }) {
   // Aston Martin GT3-style body — low, wide, long hood, fastback roofline
-  const shape = useMemo(() => {
+  const { wireGeo, solidGeo } = useMemo(() => {
     const geo = new THREE.BufferGeometry();
 
     // All dimensions in meters, origin at car center
     const v = new Float32Array([
       // ── Floor outline (splitter/diffuser plane) ──
       // Rear diffuser (wide)
-      -2.25, -0.05, -1.02,   // 0  rear-left
-      -2.25, -0.05,  1.02,   // 1  rear-right
-      // Rear wheel arch cutout
-      -1.80, -0.05, -1.05,   // 2  rear-left arch
-      -1.80, -0.05,  1.05,   // 3  rear-right arch
+      -2.25, -0.05, -1.10,   // 0  rear-left
+      -2.25, -0.05,  1.10,   // 1  rear-right
+      // Rear wheel arch cutout (wider to cover tires)
+      -1.80, -0.05, -1.22,   // 2  rear-left arch
+      -1.80, -0.05,  1.22,   // 3  rear-right arch
       // Door sill
-      -0.40, -0.05, -1.00,   // 4  mid-left
-      -0.40, -0.05,  1.00,   // 5  mid-right
-      // Front wheel arch
-       1.30, -0.05, -1.02,   // 6  front-left arch
-       1.30, -0.05,  1.02,   // 7  front-right arch
+      -0.40, -0.05, -1.05,   // 4  mid-left
+      -0.40, -0.05,  1.05,   // 5  mid-right
+      // Front wheel arch (wider to cover tires)
+       1.30, -0.05, -1.22,   // 6  front-left arch
+       1.30, -0.05,  1.22,   // 7  front-right arch
       // Front splitter
        2.20, -0.05, -0.85,   // 8  front-left
        2.20, -0.05,  0.85,   // 9  front-right
@@ -162,14 +158,14 @@ function CarBody() {
        2.70,  0.02,  0.00,   // 12 nose tip
 
       // ── Belt line (shoulder, fender tops) ──
-      -2.20,  0.32, -1.00,   // 13 rear-left shoulder
-      -2.20,  0.32,  1.00,   // 14 rear-right shoulder
-      -1.70,  0.34, -1.04,   // 15 rear fender-left peak
-      -1.70,  0.34,  1.04,   // 16 rear fender-right peak
-      -0.40,  0.30, -0.96,   // 17 door-left top
-      -0.40,  0.30,  0.96,   // 18 door-right top
-       1.30,  0.32, -1.00,   // 19 front fender-left peak
-       1.30,  0.32,  1.00,   // 20 front fender-right peak
+      -2.20,  0.32, -1.10,   // 13 rear-left shoulder
+      -2.20,  0.32,  1.10,   // 14 rear-right shoulder
+      -1.70,  0.38, -1.22,   // 15 rear fender-left peak
+      -1.70,  0.38,  1.22,   // 16 rear fender-right peak
+      -0.40,  0.30, -1.05,   // 17 door-left top
+      -0.40,  0.30,  1.05,   // 18 door-right top
+       1.30,  0.36, -1.22,   // 19 front fender-left peak
+       1.30,  0.36,  1.22,   // 20 front fender-right peak
        2.15,  0.22, -0.80,   // 21 hood-left edge
        2.15,  0.22,  0.80,   // 22 hood-right edge
        2.50,  0.12, -0.35,   // 23 nose-left top
@@ -242,13 +238,50 @@ function CarBody() {
 
     geo.setAttribute("position", new THREE.BufferAttribute(v, 3));
     geo.setIndex(idx);
-    return geo;
+
+    // Solid mesh — triangulated panels for opaque shell
+    const sGeo = new THREE.BufferGeometry();
+    sGeo.setAttribute("position", new THREE.BufferAttribute(v, 3));
+    // Triangles for main body panels (using existing vertex indices)
+    const tris = [
+      // Floor
+      0,1,3, 0,3,2, 2,3,5, 2,5,4, 4,5,7, 4,7,6, 6,7,9, 6,9,8, 8,9,11, 8,11,10, 10,11,12,
+      // Left side (floor to belt)
+      0,2,15, 0,15,13, 2,4,17, 2,17,15, 4,6,19, 4,19,17, 6,8,21, 6,21,19, 8,10,23, 8,23,21, 10,12,25, 10,25,23,
+      // Right side
+      1,14,16, 1,16,3, 3,16,18, 3,18,5, 5,18,20, 5,20,7, 7,20,22, 7,22,9, 9,22,24, 9,24,11, 11,24,25, 11,25,12,
+      // Rear face
+      0,13,14, 0,14,1,
+      // Belt line top (hood/roof area)
+      13,15,16, 13,16,14, 15,17,18, 15,18,16, 17,19,20, 17,20,18, 19,21,22, 19,22,20, 21,23,24, 21,24,22, 23,25,24,
+      // Roof
+      26,28,29, 26,29,27, 28,34,35, 28,35,29, 26,30,32, 26,27,31, 30,31,27, 30,27,26,
+      // Windshield
+      19,34,35, 19,35,20, 17,26,27, 17,27,18,
+      // Rear glass
+      13,32,33, 13,33,14, 30,32,33, 30,33,31,
+      // Wing plane
+      42,43,45, 42,45,44,
+      // Splitter
+      46,47,49, 46,49,48,
+    ];
+    sGeo.setIndex(tris);
+    sGeo.computeVertexNormals();
+
+    return { wireGeo: geo, solidGeo: sGeo };
   }, []);
 
   return (
-    <lineSegments geometry={shape}>
-      <lineBasicMaterial color="#94a3b8" opacity={0.7} transparent />
-    </lineSegments>
+    <group>
+      {solid && (
+        <mesh geometry={solidGeo}>
+          <meshBasicMaterial color="#1a2332" side={THREE.DoubleSide} transparent opacity={0.9} />
+        </mesh>
+      )}
+      <lineSegments geometry={wireGeo}>
+        <lineBasicMaterial color="#94a3b8" opacity={0.7} transparent />
+      </lineSegments>
+    </group>
   );
 }
 
@@ -440,7 +473,7 @@ function TrackOutline({
   );
 }
 
-function CarScene({ packet, telemetry, cursorIdx, outline }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null }) {
+function CarScene({ packet, telemetry, cursorIdx, outline, solid }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; solid: boolean }) {
   const carGroupRef = useRef<THREE.Group>(null);
   const prevTimeRef = useRef(packet.TimestampMS);
   const spinAngles = useRef([0, 0, 0, 0]);
@@ -452,25 +485,27 @@ function CarScene({ packet, telemetry, cursorIdx, outline }: { packet: Telemetry
   const suspRL = packet.NormSuspensionTravelRL;
   const suspRR = packet.NormSuspensionTravelRR;
 
-  // Roll: left more compressed than right = body leans left (negative X rotation)
+  // Body drops when suspension compresses (wheels stay on ground)
+  const avgSusp = (suspFL + suspFR + suspRL + suspRR) / 4;
+  const bodyDrop = -(avgSusp - 0.5) * 0.5; // compressed → body drops (negative Y)
+
+  // Roll: left more compressed than right = body leans left
   const leftAvg = (suspFL + suspRL) / 2;
   const rightAvg = (suspFR + suspRR) / 2;
-  const bodyRoll = (rightAvg - leftAvg) * 0.3; // scale to reasonable visual angle
+  const bodyRoll = (rightAvg - leftAvg) * 0.3;
 
-  // Pitch: front more compressed than rear = nose dives (positive Z rotation)
+  // Pitch: front more compressed than rear = nose dives
   const frontAvg = (suspFL + suspFR) / 2;
   const rearAvg = (suspRL + suspRR) / 2;
   const bodyPitch = (frontAvg - rearAvg) * 0.3;
 
-  // Trail is in car-local frame (+X = forward), so car group doesn't need yaw
-  // But body needs roll/pitch from suspension
-
   useFrame(() => {
     if (!carGroupRef.current) return;
+    carGroupRef.current.position.y = bodyDrop;
     carGroupRef.current.rotation.set(
-      bodyRoll,   // X = roll derived from suspension
-      0,          // no yaw on body (trail is in car-local frame)
-      bodyPitch,  // Z = pitch derived from suspension
+      bodyRoll,
+      0,
+      bodyPitch,
       "YXZ"
     );
   });
@@ -522,7 +557,7 @@ function CarScene({ packet, telemetry, cursorIdx, outline }: { packet: Telemetry
 
       {/* Body — rolls with pitch/roll */}
       <group ref={carGroupRef}>
-        <CarBody />
+        <CarBody solid={solid} />
       </group>
 
       {/* Running gear — positioned by suspension */}
@@ -533,59 +568,49 @@ function CarScene({ packet, telemetry, cursorIdx, outline }: { packet: Telemetry
             key={i}
             position={w.pos}
             steerAngle={w.steer}
-            suspTravel={w.susp}
             gripColor={tractionColor(w.slip)}
             tempColor={tireTempColor(w.temp)}
             spinAngle={spinAngles.current[i]}
           />
         ))}
 
-        {/* Suspension springs — connect rolled body to grounded wheels */}
+        {/* Suspension springs — connect dropped body to grounded wheels */}
         {wheelData.map((w, i) => {
           const inboardZ = w.pos[2] > 0 ? w.pos[2] - 0.45 : w.pos[2] + 0.45;
           return (
             <SuspensionSpring
               key={`susp-${i}`}
-              bodyPos={[w.pos[0], 0.35, inboardZ]}
-              wheelPos={[w.pos[0], w.pos[1], inboardZ]}
+              bodyPos={[w.pos[0], 0.15 + bodyDrop, inboardZ]}
+              wheelPos={[w.pos[0], 0, inboardZ]}
               suspTravel={w.susp}
             />
           );
         })}
 
-        {/* Front axle — follows wheel suspension positions */}
+        {/* Front axle — fixed at ground level */}
         <Line
-          points={[
-            [1.6, suspY(wheelData[0].susp), -1.05],
-            [1.6, suspY(wheelData[1].susp), 1.05],
-          ]}
+          points={[[1.6, 0, -1.05], [1.6, 0, 1.05]]}
           color="#64748b"
           lineWidth={2}
         />
         {/* Rear axle */}
         <Line
-          points={[
-            [-1.6, suspY(wheelData[2].susp), -1.05],
-            [-1.6, suspY(wheelData[3].susp), 1.05],
-          ]}
+          points={[[-1.6, 0, -1.05], [-1.6, 0, 1.05]]}
           color="#64748b"
           lineWidth={2}
         />
         {/* Driveshaft */}
         <Line
-          points={[
-            [1.6, (suspY(wheelData[0].susp) + suspY(wheelData[1].susp)) / 2, 0],
-            [-1.6, (suspY(wheelData[2].susp) + suspY(wheelData[3].susp)) / 2, 0],
-          ]}
+          points={[[1.6, 0, 0], [-1.6, 0, 0]]}
           color="#94a3b8"
           lineWidth={1.5}
         />
         {/* Differential housings */}
-        <mesh position={[1.6, (suspY(wheelData[0].susp) + suspY(wheelData[1].susp)) / 2, 0]}>
+        <mesh position={[1.6, 0, 0]}>
           <boxGeometry args={[0.15, 0.12, 0.2]} />
           <meshBasicMaterial color="#64748b" wireframe />
         </mesh>
-        <mesh position={[-1.6, (suspY(wheelData[2].susp) + suspY(wheelData[3].susp)) / 2, 0]}>
+        <mesh position={[-1.6, 0, 0]}>
           <boxGeometry args={[0.15, 0.12, 0.2]} />
           <meshBasicMaterial color="#64748b" wireframe />
         </mesh>
@@ -625,6 +650,7 @@ export function CarWireframe({
 }) {
   const throttlePct = (packet.Accel / 255) * 100;
   const brakePct = (packet.Brake / 255) * 100;
+  const [solid, setSolid] = useState(false);
 
   return (
     <div className="w-full h-full relative flex-1">
@@ -633,8 +659,20 @@ export function CarWireframe({
         gl={{ antialias: true, alpha: true }}
         style={{ background: "transparent" }}
       >
-        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} />
+        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} solid={solid} />
       </Canvas>
+
+      {/* Solid shell toggle */}
+      <button
+        onClick={() => setSolid((s) => !s)}
+        className={`absolute top-2 left-2 px-2 py-1 text-[9px] uppercase tracking-wider font-semibold rounded border transition-colors ${
+          solid
+            ? "bg-cyan-900/50 border-cyan-700 text-app-accent"
+            : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
+        }`}
+      >
+        {solid ? "Solid" : "Wire"}
+      </button>
 
       {/* Throttle / Brake overlay */}
       <div className="absolute bottom-2 right-2 flex gap-1 items-end" style={{ height: 60 }}>
