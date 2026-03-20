@@ -100,14 +100,17 @@ for (const col of [
 }
 
 // Migration: add profiles table support
-try { sqlite.exec("ALTER TABLE laps ADD COLUMN profile_id INTEGER REFERENCES profiles(id)"); } catch {}
+try { sqlite.exec("ALTER TABLE laps ADD COLUMN profile_id INTEGER REFERENCES profiles(id)"); } catch {
+  // Column already exists — ignore
+}
 
-// Seed default profile if none exist, then backfill laps
+// Seed default profile if none exist
 const profileCount = sqlite.query("SELECT COUNT(*) as c FROM profiles").get() as { c: number };
 if (profileCount.c === 0) {
   sqlite.exec("INSERT INTO profiles (name) VALUES ('Driver 1')");
-  sqlite.exec("UPDATE laps SET profile_id = (SELECT id FROM profiles LIMIT 1) WHERE profile_id IS NULL");
 }
+// Always backfill any laps that have no profile assigned (handles partial/interrupted first-run)
+sqlite.exec("UPDATE laps SET profile_id = (SELECT id FROM profiles ORDER BY id LIMIT 1) WHERE profile_id IS NULL");
 
 export const db = drizzle(sqlite, { schema });
 export { sqlite };
