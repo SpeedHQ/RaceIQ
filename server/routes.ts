@@ -28,6 +28,7 @@ import {
   DRIVETRAIN_NAMES,
   type TelemetryPacket,
 } from "../shared/types";
+import type { Tune } from "../shared/types";
 import { generateExport } from "./export";
 import { compareLaps } from "./comparison";
 import { detectCorners, type Corner } from "./corner-detection";
@@ -36,11 +37,16 @@ import { getTrackOutlineByOrdinal, hasTrackOutline, hasRecordedOutline, getTrack
 import { trackMap as trackInfoMap } from "../shared/car-data";
 import { namedSegments } from "../shared/track-outlines/named-segments";
 import { buildAnalystPrompt } from "./ai/analyst-prompt";
+import { tuneRoutes } from "./routes/tune-routes";
+import { getTuneById as getDbTune } from "./db/tune-queries";
 
 const app = new Hono();
 
 // Enable CORS for dev
 app.use("/*", cors());
+
+// Mount tune routes
+app.route("/", tuneRoutes);
 
 // GET /api/status
 app.get("/api/status", (c) => {
@@ -236,8 +242,24 @@ app.post("/api/laps/:id/analyse", async (c) => {
   const settings = loadSettings();
   const units = { speedUnit: settings.speedUnit, temperatureUnit: settings.temperatureUnit };
 
+  // Look up tune for this lap
+  let parsedTune: Tune | undefined;
+  if (lap.tuneId) {
+    const dbTune = getDbTune(lap.tuneId);
+    if (dbTune) {
+      parsedTune = {
+        ...dbTune,
+        strengths: dbTune.strengths ? JSON.parse(dbTune.strengths) : [],
+        weaknesses: dbTune.weaknesses ? JSON.parse(dbTune.weaknesses) : [],
+        bestTracks: dbTune.bestTracks ? JSON.parse(dbTune.bestTracks) : [],
+        strategies: dbTune.strategies ? JSON.parse(dbTune.strategies) : [],
+        settings: JSON.parse(dbTune.settings),
+      } as Tune;
+    }
+  }
+
   // Build prompt
-  const prompt = buildAnalystPrompt(lap, lap.telemetry, corners, units);
+  const prompt = buildAnalystPrompt(lap, lap.telemetry, corners, units, parsedTune);
 
   // Spawn claude CLI, pipe prompt via stdin
   try {
