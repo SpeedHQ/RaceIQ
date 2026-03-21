@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   CATALOG_CARS,
@@ -284,6 +284,25 @@ function TuneFormDialog({
   });
   const [carSearchQuery, setCarSearchQuery] = useState("");
   const [carDropOpen, setCarDropOpen] = useState(false);
+
+  // Reset form when dialog opens or initialData changes
+  useEffect(() => {
+    if (isOpen) {
+      setName(initialData?.name ?? "");
+      setAuthor(initialData?.author ?? "Me");
+      setCarOrdinal(initialData?.carOrdinal ?? 2860);
+      setCategory(initialData?.category ?? "circuit");
+      setDescription(initialData?.description ?? "");
+      setSettings(initialData?.settings ?? defaultTuneSettings());
+      setOpenSections(new Set());
+      setJsonMode(false);
+      setJsonText("");
+      setJsonError("");
+      const u = initialData?.settings?.springs?.unit;
+      const au = initialData?.settings?.aero?.unit;
+      setIsMetric(u !== "lb/in" && au !== "lb");
+    }
+  }, [isOpen, initialData]);
   const { data: allCars = [] } = useAllCars();
 
   const filteredFormCars = carSearchQuery
