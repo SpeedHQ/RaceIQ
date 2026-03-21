@@ -52,51 +52,28 @@ const ALL_CATEGORIES: TuneCategory[] = [
 
 // ── Unit conversion ──────────────────────────────────────────────────────────
 
-type UnitSystem = {
-  tires: "bar" | "psi";
-  springs: "kgf/mm" | "lb/in";
-  height: "cm" | "in";
-  aero: "kgf" | "lb";
-};
-
-const DEFAULT_UNITS: UnitSystem = { tires: "bar", springs: "kgf/mm", height: "cm", aero: "kgf" };
-
-const CONVERSIONS = {
-  tires:   { "bar": 1, "psi": 14.50377 },
-  springs: { "kgf/mm": 1, "lb/in": 56.0 },
-  height:  { "cm": 1, "in": 0.393701 },
-  aero:    { "kgf": 1, "lb": 2.20462 },
+// Metric (stored) → Imperial conversion factors
+const IMPERIAL = {
+  tires:   { factor: 14.50377, metric: "bar",    imperial: "psi" },
+  springs: { factor: 56.0,     metric: "kgf/mm", imperial: "lb/in" },
+  height:  { factor: 0.393701, metric: "cm",     imperial: "in" },
+  aero:    { factor: 2.20462,  metric: "kgf",    imperial: "lb" },
 } as const;
 
-/** Convert from stored (bar/kgf·mm/cm/kgf) to display unit */
-function toDisplay(value: number, category: keyof typeof CONVERSIONS, unit: string): number {
-  const factor = (CONVERSIONS[category] as Record<string, number>)[unit] ?? 1;
-  return Math.round(value * factor * 1000) / 1000;
+type ConvCategory = keyof typeof IMPERIAL;
+
+function toDisplay(value: number, cat: ConvCategory, isMetric: boolean): number {
+  if (isMetric) return value;
+  return Math.round(value * IMPERIAL[cat].factor * 1000) / 1000;
 }
 
-/** Convert from display unit back to stored (bar/kgf·mm/cm/kgf) */
-function fromDisplay(value: number, category: keyof typeof CONVERSIONS, unit: string): number {
-  const factor = (CONVERSIONS[category] as Record<string, number>)[unit] ?? 1;
-  return Math.round((value / factor) * 1000) / 1000;
+function fromDisplay(value: number, cat: ConvCategory, isMetric: boolean): number {
+  if (isMetric) return value;
+  return Math.round((value / IMPERIAL[cat].factor) * 1000) / 1000;
 }
 
-function UnitToggle({ options, value, onChange }: { options: [string, string]; value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="flex gap-0.5 ml-auto">
-      {options.map((opt) => (
-        <button
-          key={opt}
-          type="button"
-          onClick={() => onChange(opt)}
-          className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded transition-colors ${
-            value === opt ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"
-          }`}
-        >
-          {opt}
-        </button>
-      ))}
-    </div>
-  );
+function unitLabel(cat: ConvCategory, isMetric: boolean): string {
+  return isMetric ? IMPERIAL[cat].metric : IMPERIAL[cat].imperial;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -154,37 +131,32 @@ function SettingsSection({
   isOpen,
   onToggle,
   children,
-  extra,
 }: {
   title: string;
   isOpen: boolean;
   onToggle: () => void;
   children: React.ReactNode;
-  extra?: React.ReactNode;
 }) {
   return (
     <div className="rounded-lg ring-1 ring-app-border overflow-hidden">
-      <div className="flex items-center bg-app-surface/85 hover:bg-app-surface transition-colors">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex-1 text-left px-3 py-2 flex items-center justify-between"
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full text-left px-3 py-2 flex items-center justify-between bg-app-surface/85 hover:bg-app-surface transition-colors"
+      >
+        <span className="text-xs font-semibold uppercase tracking-wider text-app-accent">
+          {title}
+        </span>
+        <svg
+          className={`w-3 h-3 text-app-text-muted transition-transform ${isOpen ? "rotate-180" : ""}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
         >
-          <span className="text-xs font-semibold uppercase tracking-wider text-app-accent">
-            {title}
-          </span>
-          <svg
-            className={`w-3 h-3 text-app-text-muted transition-transform ${isOpen ? "rotate-180" : ""}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        {extra && <div className="flex items-center gap-1 pr-2">{extra}</div>}
-      </div>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
       {isOpen && <div className="p-3 space-y-1">{children}</div>}
     </div>
   );
@@ -301,7 +273,7 @@ function TuneFormDialog({
   const [jsonMode, setJsonMode] = useState(false);
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
-  const [units, setUnits] = useState<UnitSystem>({ ...DEFAULT_UNITS });
+  const [isMetric, setIsMetric] = useState(true);
   const [carSearchQuery, setCarSearchQuery] = useState("");
   const [carDropOpen, setCarDropOpen] = useState(false);
   const { data: allCars = [] } = useAllCars();
@@ -412,11 +384,23 @@ function TuneFormDialog({
               </label>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setJsonMode(!jsonMode)} className={`text-[10px] font-semibold uppercase px-2 py-1 rounded transition-colors ${jsonMode ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}>
-                JSON Import
-              </button>
-              {!jsonMode && <span className="text-[10px] text-app-text-muted">Or fill in sections below</span>}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setJsonMode(!jsonMode)} className={`text-[10px] font-semibold uppercase px-2 py-1 rounded transition-colors ${jsonMode ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}>
+                  JSON Import
+                </button>
+                {!jsonMode && <span className="text-[10px] text-app-text-muted">Or fill in sections below</span>}
+              </div>
+              {!jsonMode && (
+                <div className="flex rounded-md ring-1 ring-app-border overflow-hidden">
+                  <button type="button" onClick={() => setIsMetric(true)} className={`text-[10px] font-semibold px-2.5 py-1 transition-colors ${isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}>
+                    Metric
+                  </button>
+                  <button type="button" onClick={() => setIsMetric(false)} className={`text-[10px] font-semibold px-2.5 py-1 transition-colors ${!isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}>
+                    Imperial
+                  </button>
+                </div>
+              )}
             </div>
 
             {jsonMode ? (
@@ -427,11 +411,9 @@ function TuneFormDialog({
               </div>
             ) : (
               <div className="space-y-2">
-                <SettingsSection title="Tires" isOpen={openSections.has("tires")} onToggle={() => toggleSection("tires")}
-                  extra={<UnitToggle options={["bar", "psi"]} value={units.tires} onChange={(v) => setUnits((u) => ({ ...u, tires: v as any }))} />}
-                >
-                  <NumberField label="Front Pressure" value={toDisplay(settings.tires.frontPressure, "tires", units.tires)} onChange={(v) => updateSettings("tires", "frontPressure", fromDisplay(v, "tires", units.tires))} step={units.tires === "psi" ? 0.1 : 0.01} unit={units.tires} />
-                  <NumberField label="Rear Pressure" value={toDisplay(settings.tires.rearPressure, "tires", units.tires)} onChange={(v) => updateSettings("tires", "rearPressure", fromDisplay(v, "tires", units.tires))} step={units.tires === "psi" ? 0.1 : 0.01} unit={units.tires} />
+                <SettingsSection title="Tires" isOpen={openSections.has("tires")} onToggle={() => toggleSection("tires")}>
+                  <NumberField label="Front Pressure" value={toDisplay(settings.tires.frontPressure, "tires", isMetric)} onChange={(v) => updateSettings("tires", "frontPressure", fromDisplay(v, "tires", isMetric))} step={isMetric ? 0.01 : 0.1} unit={unitLabel("tires", isMetric)} />
+                  <NumberField label="Rear Pressure" value={toDisplay(settings.tires.rearPressure, "tires", isMetric)} onChange={(v) => updateSettings("tires", "rearPressure", fromDisplay(v, "tires", isMetric))} step={isMetric ? 0.01 : 0.1} unit={unitLabel("tires", isMetric)} />
                 </SettingsSection>
                 <SettingsSection title="Gearing" isOpen={openSections.has("gearing")} onToggle={() => toggleSection("gearing")}>
                   <NumberField label="Final Drive" value={settings.gearing.finalDrive} onChange={(v) => updateSettings("gearing", "finalDrive", v)} step={0.01} unit=":1" />
@@ -447,16 +429,11 @@ function TuneFormDialog({
                   <NumberField label="Front" value={settings.antiRollBars.front} onChange={(v) => updateSettings("antiRollBars", "front", v)} />
                   <NumberField label="Rear" value={settings.antiRollBars.rear} onChange={(v) => updateSettings("antiRollBars", "rear", v)} />
                 </SettingsSection>
-                <SettingsSection title="Springs" isOpen={openSections.has("springs")} onToggle={() => toggleSection("springs")}
-                  extra={<>
-                    <UnitToggle options={["kgf/mm", "lb/in"]} value={units.springs} onChange={(v) => setUnits((u) => ({ ...u, springs: v as any }))} />
-                    <UnitToggle options={["cm", "in"]} value={units.height} onChange={(v) => setUnits((u) => ({ ...u, height: v as any }))} />
-                  </>}
-                >
-                  <NumberField label="Front Rate" value={toDisplay(settings.springs.frontRate, "springs", units.springs)} onChange={(v) => updateSettings("springs", "frontRate", fromDisplay(v, "springs", units.springs))} step={units.springs === "lb/in" ? 1 : 0.1} unit={units.springs} />
-                  <NumberField label="Rear Rate" value={toDisplay(settings.springs.rearRate, "springs", units.springs)} onChange={(v) => updateSettings("springs", "rearRate", fromDisplay(v, "springs", units.springs))} step={units.springs === "lb/in" ? 1 : 0.1} unit={units.springs} />
-                  <NumberField label="Front Height" value={toDisplay(settings.springs.frontHeight, "height", units.height)} onChange={(v) => updateSettings("springs", "frontHeight", fromDisplay(v, "height", units.height))} step={0.1} unit={units.height} />
-                  <NumberField label="Rear Height" value={toDisplay(settings.springs.rearHeight, "height", units.height)} onChange={(v) => updateSettings("springs", "rearHeight", fromDisplay(v, "height", units.height))} step={0.1} unit={units.height} />
+                <SettingsSection title="Springs" isOpen={openSections.has("springs")} onToggle={() => toggleSection("springs")}>
+                  <NumberField label="Front Rate" value={toDisplay(settings.springs.frontRate, "springs", isMetric)} onChange={(v) => updateSettings("springs", "frontRate", fromDisplay(v, "springs", isMetric))} step={isMetric ? 0.1 : 1} unit={unitLabel("springs", isMetric)} />
+                  <NumberField label="Rear Rate" value={toDisplay(settings.springs.rearRate, "springs", isMetric)} onChange={(v) => updateSettings("springs", "rearRate", fromDisplay(v, "springs", isMetric))} step={isMetric ? 0.1 : 1} unit={unitLabel("springs", isMetric)} />
+                  <NumberField label="Front Height" value={toDisplay(settings.springs.frontHeight, "height", isMetric)} onChange={(v) => updateSettings("springs", "frontHeight", fromDisplay(v, "height", isMetric))} step={0.1} unit={unitLabel("height", isMetric)} />
+                  <NumberField label="Rear Height" value={toDisplay(settings.springs.rearHeight, "height", isMetric)} onChange={(v) => updateSettings("springs", "rearHeight", fromDisplay(v, "height", isMetric))} step={0.1} unit={unitLabel("height", isMetric)} />
                 </SettingsSection>
                 <SettingsSection title="Damping" isOpen={openSections.has("damping")} onToggle={() => toggleSection("damping")}>
                   <NumberField label="Front Rebound" value={settings.damping.frontRebound} onChange={(v) => updateSettings("damping", "frontRebound", v)} />
@@ -464,11 +441,9 @@ function TuneFormDialog({
                   <NumberField label="Front Bump" value={settings.damping.frontBump} onChange={(v) => updateSettings("damping", "frontBump", v)} />
                   <NumberField label="Rear Bump" value={settings.damping.rearBump} onChange={(v) => updateSettings("damping", "rearBump", v)} />
                 </SettingsSection>
-                <SettingsSection title="Aero" isOpen={openSections.has("aero")} onToggle={() => toggleSection("aero")}
-                  extra={<UnitToggle options={["kgf", "lb"]} value={units.aero} onChange={(v) => setUnits((u) => ({ ...u, aero: v as any }))} />}
-                >
-                  <NumberField label="Front Downforce" value={toDisplay(settings.aero.frontDownforce, "aero", units.aero)} onChange={(v) => updateSettings("aero", "frontDownforce", fromDisplay(v, "aero", units.aero))} step={1} unit={units.aero} />
-                  <NumberField label="Rear Downforce" value={toDisplay(settings.aero.rearDownforce, "aero", units.aero)} onChange={(v) => updateSettings("aero", "rearDownforce", fromDisplay(v, "aero", units.aero))} step={1} unit={units.aero} />
+                <SettingsSection title="Aero" isOpen={openSections.has("aero")} onToggle={() => toggleSection("aero")}>
+                  <NumberField label="Front Downforce" value={toDisplay(settings.aero.frontDownforce, "aero", isMetric)} onChange={(v) => updateSettings("aero", "frontDownforce", fromDisplay(v, "aero", isMetric))} step={1} unit={unitLabel("aero", isMetric)} />
+                  <NumberField label="Rear Downforce" value={toDisplay(settings.aero.rearDownforce, "aero", isMetric)} onChange={(v) => updateSettings("aero", "rearDownforce", fromDisplay(v, "aero", isMetric))} step={1} unit={unitLabel("aero", isMetric)} />
                 </SettingsSection>
                 <SettingsSection title="Differential" isOpen={openSections.has("diff")} onToggle={() => toggleSection("diff")}>
                   <NumberField label="Rear Accel" value={settings.differential.rearAccel} onChange={(v) => updateSettings("differential", "rearAccel", v)} step={1} unit="%" />
