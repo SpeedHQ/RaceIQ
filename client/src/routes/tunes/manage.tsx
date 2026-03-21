@@ -187,12 +187,44 @@ function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
       ],
     },
     {
+      title: "Anti-Roll Bars",
+      rows: [
+        ["Front", settings.antiRollBars.front.toFixed(1)],
+        ["Rear", settings.antiRollBars.rear.toFixed(1)],
+      ],
+    },
+    {
       title: "Springs",
       rows: [
         ["Front Rate", `${settings.springs.frontRate.toFixed(1)} ${settings.springs.unit ?? "kgf/mm"}`],
         ["Rear Rate", `${settings.springs.rearRate.toFixed(1)} ${settings.springs.unit ?? "kgf/mm"}`],
+        ["Front Height", `${settings.springs.frontHeight.toFixed(1)} cm`],
+        ["Rear Height", `${settings.springs.rearHeight.toFixed(1)} cm`],
       ],
     },
+    {
+      title: "Damping",
+      rows: [
+        ["Front Rebound", settings.damping.frontRebound.toFixed(1)],
+        ["Rear Rebound", settings.damping.rearRebound.toFixed(1)],
+        ["Front Bump", settings.damping.frontBump.toFixed(1)],
+        ["Rear Bump", settings.damping.rearBump.toFixed(1)],
+      ],
+    },
+    ...(settings.rollCenterHeight ? [{
+      title: "Roll Center Height",
+      rows: [
+        ["Front", `${settings.rollCenterHeight.front.toFixed(1)} cm`],
+        ["Rear", `${settings.rollCenterHeight.rear.toFixed(1)} cm`],
+      ] as [string, string][],
+    }] : []),
+    ...(settings.antiGeometry ? [{
+      title: "Anti-Geometry",
+      rows: [
+        ["Anti-dive (front)", `${settings.antiGeometry.antiDiveFront.toFixed(1)}%`],
+        ["Anti-squat (rear)", `${settings.antiGeometry.antiSquatRear.toFixed(1)}%`],
+      ] as [string, string][],
+    }] : []),
     {
       title: "Aero",
       rows: [
@@ -205,6 +237,8 @@ function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
       rows: [
         ["Rear Accel", `${settings.differential.rearAccel}%`],
         ["Rear Decel", `${settings.differential.rearDecel}%`],
+        ...(settings.differential.frontAccel != null ? [["Front Accel", `${settings.differential.frontAccel}%`] as [string, string]] : []),
+        ...(settings.differential.frontDecel != null ? [["Front Decel", `${settings.differential.frontDecel}%`] as [string, string]] : []),
       ],
     },
     {
