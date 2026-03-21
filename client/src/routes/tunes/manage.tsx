@@ -211,20 +211,20 @@ function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
         ["Rear Bump", settings.damping.rearBump.toFixed(1)],
       ],
     },
-    ...(settings.rollCenterHeight ? [{
+    {
       title: "Roll Center Height",
       rows: [
-        ["Front", `${settings.rollCenterHeight.front.toFixed(1)} cm`],
-        ["Rear", `${settings.rollCenterHeight.rear.toFixed(1)} cm`],
-      ] as [string, string][],
-    }] : []),
-    ...(settings.antiGeometry ? [{
+        ["Front", `${(settings.rollCenterHeight?.front ?? 0).toFixed(1)} cm`],
+        ["Rear", `${(settings.rollCenterHeight?.rear ?? 0).toFixed(1)} cm`],
+      ],
+    },
+    {
       title: "Anti-Geometry",
       rows: [
-        ["Anti-dive (front)", `${settings.antiGeometry.antiDiveFront.toFixed(1)}%`],
-        ["Anti-squat (rear)", `${settings.antiGeometry.antiSquatRear.toFixed(1)}%`],
-      ] as [string, string][],
-    }] : []),
+        ["Anti-dive (front)", `${(settings.antiGeometry?.antiDiveFront ?? 0).toFixed(1)}%`],
+        ["Anti-squat (rear)", `${(settings.antiGeometry?.antiSquatRear ?? 0).toFixed(1)}%`],
+      ],
+    },
     {
       title: "Aero",
       rows: [
