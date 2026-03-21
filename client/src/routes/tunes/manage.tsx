@@ -116,7 +116,7 @@ function NumberField({
           value={value}
           step={step ?? 0.1}
           onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-          className="w-20 bg-app-bg/85 border border-app-border rounded px-1.5 py-0.5 text-xs text-app-text font-mono text-right focus:outline-none focus:ring-1 focus:ring-app-accent"
+          className="w-20 bg-app-bg border border-app-border rounded px-1.5 py-0.5 text-xs text-app-text font-mono text-right focus:outline-none focus:ring-1 focus:ring-app-accent"
         />
         {unit && <span className="text-[10px] text-app-text-muted w-8">{unit}</span>}
       </div>
@@ -142,7 +142,7 @@ function SettingsSection({
       <button
         type="button"
         onClick={onToggle}
-        className="w-full text-left px-3 py-2 flex items-center justify-between bg-app-surface/85 hover:bg-app-surface transition-colors"
+        className="w-full text-left px-3 py-2 flex items-center justify-between bg-app-surface hover:bg-app-surface transition-colors"
       >
         <span className="text-xs font-semibold uppercase tracking-wider text-app-accent">
           {title}
@@ -219,7 +219,7 @@ function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-w-2xl">
       {sections.map((section) => (
-        <div key={section.title} className="rounded-lg bg-app-bg/85 p-3">
+        <div key={section.title} className="rounded-lg bg-app-bg p-3">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">
             {section.title}
           </h4>
@@ -352,11 +352,11 @@ function TuneFormDialog({
             <div className="grid grid-cols-2 gap-3">
               <label className="col-span-2 space-y-1">
                 <span className="text-xs font-medium text-app-text-muted">Name</span>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent" />
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent" />
               </label>
               <label className="space-y-1">
                 <span className="text-xs font-medium text-app-text-muted">Author</span>
-                <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} required className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent" />
+                <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} required className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent" />
               </label>
               <div className="space-y-1 relative">
                 <span className="text-xs font-medium text-app-text-muted">Car</span>
@@ -367,7 +367,7 @@ function TuneFormDialog({
                   onFocus={() => { setCarDropOpen(true); setCarSearchQuery(""); }}
                   onBlur={() => setTimeout(() => setCarDropOpen(false), 150)}
                   placeholder="Search car..."
-                  className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+                  className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
                 />
                 {carDropOpen && (
                   <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto rounded-lg bg-app-surface border border-app-border z-50 shadow-lg">
@@ -388,13 +388,13 @@ function TuneFormDialog({
               </div>
               <label className="space-y-1">
                 <span className="text-xs font-medium text-app-text-muted">Category</span>
-                <select value={category} onChange={(e) => setCategory(e.target.value as TuneCategory)} className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent">
+                <select value={category} onChange={(e) => setCategory(e.target.value as TuneCategory)} className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent">
                   {ALL_CATEGORIES.map((c) => (<option key={c} value={c}>{CATEGORY_LABELS[c]}</option>))}
                 </select>
               </label>
               <label className="space-y-1">
                 <span className="text-xs font-medium text-app-text-muted">Description</span>
-                <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent" />
+                <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent" />
               </label>
             </div>
 
@@ -419,7 +419,7 @@ function TuneFormDialog({
 
             {jsonMode ? (
               <div className="space-y-2">
-                <textarea value={jsonText} onChange={(e) => { setJsonText(e.target.value); setJsonError(""); }} placeholder='Paste tune JSON...' rows={10} className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-xs text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent resize-y" />
+                <textarea value={jsonText} onChange={(e) => { setJsonText(e.target.value); setJsonError(""); }} placeholder='Paste tune JSON...' rows={10} className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent resize-y" />
                 {jsonError && <p className="text-xs text-red-400">{jsonError}</p>}
                 <button type="button" onClick={handleJsonParse} className="text-xs px-3 py-1.5 rounded bg-app-accent/20 text-app-accent hover:bg-app-accent/30 transition-colors">Parse & Populate</button>
               </div>
@@ -514,7 +514,7 @@ function UserTuneCard({
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   return (
-    <div className="rounded-xl bg-app-surface/85 ring-1 ring-app-border overflow-hidden">
+    <div className="rounded-xl bg-app-surface ring-1 ring-app-border overflow-hidden">
       <button
         onClick={onToggle}
         className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface transition-colors"
@@ -709,7 +709,7 @@ function ManageTunesPage() {
           </h3>
           <div className="space-y-1">
             {filteredAssignments.map((a) => (
-              <div key={`${a.carOrdinal}-${a.trackOrdinal}`} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-app-bg/85">
+              <div key={`${a.carOrdinal}-${a.trackOrdinal}`} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-app-bg">
                 <span className="text-app-text-secondary">Car {a.carOrdinal} / Track {a.trackOrdinal}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-app-text font-medium">{a.tuneName ?? `Tune #${a.tuneId}`}</span>
