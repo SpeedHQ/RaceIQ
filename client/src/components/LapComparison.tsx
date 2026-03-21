@@ -38,6 +38,8 @@ function drawTrackCanvas(
   telemetryB: TelemetryPacket[],
   hoveredDistance: number | null,
   zoom: { centerX: number; centerZ: number; range: number } | null,
+  segmentPoints?: Array<{ x: number; z: number; type: "corner" | "straight"; label: string }>,
+  followCar?: boolean,
 ) {
   ctx.clearRect(0, 0, w, h);
 
@@ -73,6 +75,20 @@ function drawTrackCanvas(
     w / 2 + (viewCenterX - x) * sc,
     h / 2 + (z - viewCenterZ) * sc,
   ];
+
+  // Car view: rotate map so car A always points up
+  let needsRestore = false;
+  if (followCar && zoom && hoveredDistance != null && telemetryA.length >= 2) {
+    const pA = telemetryA[findTelemetryAtDistance(telemetryA, hoveredDistance)];
+    if (pA && (pA.PositionX !== 0 || pA.PositionZ !== 0) && pA.Yaw !== undefined) {
+      const [carCx, carCy] = toCanvas(pA.PositionX, pA.PositionZ);
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(Math.PI - pA.Yaw);
+      ctx.translate(-carCx, -carCy);
+      needsRestore = true;
+    }
+  }
 
   // Jump detection for outline
   const worldDists: number[] = [];
@@ -188,6 +204,22 @@ function drawTrackCanvas(
     drawDot(telemetryA, COLOR_A);
     drawDot(telemetryB, COLOR_B);
   }
+
+  // Segment boundary markers (overview only)
+  if (segmentPoints && !zoom) {
+    for (const sp of segmentPoints) {
+      const [px, py] = toCanvas(sp.x, sp.z);
+      ctx.beginPath();
+      ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = sp.type === "corner" ? "#fbbf24" : "#94a3b8";
+      ctx.fill();
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  if (needsRestore) ctx.restore();
 }
 
 /**
@@ -385,6 +417,9 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
   const prevActiveSegRef = useRef<number>(-1);
 
   const trackRange = useRef(1);
+  const [followCar, setFollowCar] = useState(false);
+  const followCarRef = useRef(false);
+  useEffect(() => { followCarRef.current = followCar; }, [followCar]);
 
   // Compute track range once
   useEffect(() => {
@@ -412,7 +447,14 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
       const ctx = oc.getContext("2d");
       if (ctx) {
         ctx.scale(dpr, dpr);
-        drawTrackCanvas(ctx, rect.width, rect.height, outline, telemetryA, telemetryB, hd, null);
+        const segPts = segments.length > 0 && telemetryA.length >= 2
+          ? segments.map(s => {
+              const idx = Math.round(s.startFrac * (telemetryA.length - 1));
+              const p = telemetryA[idx];
+              return { x: p.PositionX, z: p.PositionZ, type: s.type, label: s.name };
+            }).filter(sp => sp.x !== 0 || sp.z !== 0)
+          : undefined;
+        drawTrackCanvas(ctx, rect.width, rect.height, outline, telemetryA, telemetryB, hd, null, segPts);
       }
     }
 
@@ -432,7 +474,7 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
         const zoom = hd != null
           ? computeZoom(telemetryA, telemetryB, hd, trackRange.current)
           : null;
-        drawTrackCanvas(ctx, rect.width, rect.height, outline, telemetryA, telemetryB, hd, zoom);
+        drawTrackCanvas(ctx, rect.width, rect.height, outline, telemetryA, telemetryB, hd, zoom, undefined, followCarRef.current);
 
         // Draw input HUDs when zoomed
         if (hd != null) {
@@ -482,27 +524,41 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
 
   return (
     <div className="bg-app-surface rounded-lg border border-app-border overflow-hidden">
-      <div className="px-3 py-2 border-b border-app-border flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_A }} />
-            <span className="text-xs uppercase tracking-wider" style={{ color: COLOR_A }}>{labelA}</span>
-            <span className="text-xs font-mono text-app-text-muted ml-1">{lapTimeA}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLOR_B }} />
-            <span className="text-xs uppercase tracking-wider" style={{ color: COLOR_B }}>{labelB}</span>
-            <span className="text-xs font-mono text-app-text-muted ml-1">{lapTimeB}</span>
-          </div>
+
+      <div className="flex flex-col">
+        {/* Overview — full track, static */}
+        <div ref={overviewContainerRef} className="relative border-b border-app-border h-[220px]">
+          <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">Overview</span>
+          {outline.length < 2 ? (
+            <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No track outline</div>
+          ) : (
+            <canvas ref={overviewCanvasRef} className="absolute inset-0" />
+          )}
         </div>
-        <span className="text-[10px] text-app-text-dim uppercase tracking-wider">Racing Lines</span>
-      </div>
-      <div className="grid grid-cols-[minmax(280px,1fr)_1fr_1fr] h-[300px]">
+        {/* Zoomed — follows cursor position */}
+        <div ref={zoomContainerRef} className="relative border-b border-app-border h-[320px]">
+          <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">Zoomed</span>
+          <button
+            onClick={() => { const next = !followCarRef.current; followCarRef.current = next; setFollowCar(next); drawBoth(); }}
+            className={`absolute top-2 right-2 z-10 px-2 py-1 text-[10px] rounded border transition-colors ${
+              followCar
+                ? "bg-cyan-900/50 border-cyan-700 text-cyan-400"
+                : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
+            }`}
+          >
+            {followCar ? "Car View" : "Fixed View"}
+          </button>
+          {outline.length < 2 ? (
+            <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No track outline</div>
+          ) : (
+            <canvas ref={zoomCanvasRef} className="absolute inset-0" />
+          )}
+        </div>
         {/* Segment Times Table */}
         {segments.length > 0 ? (
-          <div className="border-r border-app-border overflow-auto">
+          <div className="overflow-auto max-h-[200px]">
             <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-app-surface z-10">
+              <thead className="sticky top-0 z-10 bg-[#0f172a]">
                 <tr className="text-[10px] text-app-text-muted uppercase tracking-wider border-b border-app-border">
                   <th className="text-left px-2 py-1.5">Segment</th>
                   <th className="text-right px-2 py-1.5" style={{ color: COLOR_A }}>A</th>
@@ -536,31 +592,7 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
               </tbody>
             </table>
           </div>
-        ) : (
-          <div className="border-r border-app-border w-[200px] flex items-center justify-center text-app-text-dim text-xs">
-            No segment data
-          </div>
-        )}
-        {/* Overview — full track, static */}
-        <div ref={overviewContainerRef} className="relative border-r border-app-border">
-          <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">Overview</span>
-          {outline.length < 2 ? (
-            <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No track outline</div>
-          ) : (
-            <canvas ref={overviewCanvasRef} className="absolute inset-0" />
-          )}
-        </div>
-        {/* Zoomed — follows cursor position */}
-        <div ref={zoomContainerRef} className="relative">
-          <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">
-Zoomed
-          </span>
-          {outline.length < 2 ? (
-            <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No track outline</div>
-          ) : (
-            <canvas ref={zoomCanvasRef} className="absolute inset-0" />
-          )}
-        </div>
+        ) : null}
       </div>
     </div>
   );
@@ -881,10 +913,9 @@ export function LapComparison() {
           Select two different laps to compare
         </div>
       ) : comparison?.traces?.distance ? (
-        <>
-        <div className="flex flex-col gap-4 shrink-0">
-          {/* Top static content: Track Map and Time Delta */}
-          {/* Track Map — both racing lines overlaid on outline */}
+        <div className="flex gap-4 flex-1 min-h-0 overflow-hidden">
+          {/* Left: track map */}
+          <div className="w-[440px] shrink-0 overflow-y-auto">
           {trackOutline && trackOutline.length >= 2 ? (
             <CompareTrackMap
               outline={trackOutline}
@@ -927,11 +958,10 @@ export function LapComparison() {
           )}
         </div>
 
-        {/* Scrollable charts section */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="flex flex-col gap-4">
-          {/* Time Delta */}
-          <div className="bg-app-surface rounded-lg border border-app-border p-3">
+        {/* Right column: time delta pinned + scrollable charts */}
+        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden">
+          {/* Time Delta — always visible */}
+          <div className="bg-app-surface rounded-lg border border-app-border p-1 shrink-0">
             <TimeDelta
               distances={comparison.traces.distance}
               timeDelta={comparison.timeDelta}
@@ -941,8 +971,11 @@ export function LapComparison() {
             />
           </div>
 
+          {/* Scrollable charts */}
+          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex flex-col gap-4">
           {/* Speed Chart */}
-          <div className="bg-app-surface rounded-lg border border-app-border p-3">
+          <div className="bg-app-surface rounded-lg border border-app-border p-1">
             <TelemetryChart
               data={{
                 distance: comparison.traces.distance,
@@ -958,7 +991,7 @@ export function LapComparison() {
           </div>
 
           {/* Throttle + Brake Chart */}
-          <div className="bg-app-surface rounded-lg border border-app-border p-3">
+          <div className="bg-app-surface rounded-lg border border-app-border p-1">
             <TelemetryChart
               data={{
                 distance: comparison.traces.distance,
@@ -979,7 +1012,7 @@ export function LapComparison() {
           </div>
 
           {/* RPM Chart */}
-          <div className="bg-app-surface rounded-lg border border-app-border p-3">
+          <div className="bg-app-surface rounded-lg border border-app-border p-1">
             <TelemetryChart
               data={{
                 distance: comparison.traces.distance,
@@ -996,7 +1029,7 @@ export function LapComparison() {
 
           {/* Tire Wear Chart */}
           {comparison.traces.tireWearA && (
-            <div className="bg-app-surface rounded-lg border border-app-border p-3">
+            <div className="bg-app-surface rounded-lg border border-app-border p-1">
               <TelemetryChart
                 data={{
                   distance: comparison.traces.distance,
@@ -1024,8 +1057,9 @@ export function LapComparison() {
             </div>
           )}
           </div>
+          </div>
         </div>
-        </>
+        </div>
       ) : null}
     </div>
   );
