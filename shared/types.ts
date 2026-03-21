@@ -311,6 +311,7 @@ export interface Tune {
   bestTracks?: string[];
   strategies?: RaceStrategy[];
   settings: TuneSettings;
+  unitSystem: 'metric' | 'imperial';
   source: 'user' | 'catalog-clone';
   catalogId?: string;
   createdAt: string;

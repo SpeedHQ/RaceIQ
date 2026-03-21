@@ -32,6 +32,7 @@ export const tunes = sqliteTable(
     bestTracks: text("best_tracks"),
     strategies: text("strategies"),
     settings: text("settings").notNull(),
+    unitSystem: text("unit_system").notNull().default("metric"), // 'metric' | 'imperial'
     source: text("source").notNull().default("user"),
     catalogId: text("catalog_id"),
     createdAt: text("created_at")

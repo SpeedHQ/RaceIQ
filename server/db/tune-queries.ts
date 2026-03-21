@@ -14,6 +14,7 @@ interface InsertTuneData {
   bestTracks?: string;
   strategies?: string;
   settings: string;
+  unitSystem?: string;
   source?: string;
   catalogId?: string;
 }
@@ -33,6 +34,7 @@ export function insertTune(data: InsertTuneData): number {
       bestTracks: data.bestTracks ?? null,
       strategies: data.strategies ?? null,
       settings: data.settings,
+      unitSystem: data.unitSystem ?? "metric",
       source: data.source ?? "user",
       catalogId: data.catalogId ?? null,
     })
@@ -66,6 +68,7 @@ export function updateTune(id: number, data: Partial<Omit<InsertTuneData, "carOr
   if (data.bestTracks !== undefined) sets.bestTracks = data.bestTracks;
   if (data.strategies !== undefined) sets.strategies = data.strategies;
   if (data.settings !== undefined) sets.settings = data.settings;
+  if (data.unitSystem !== undefined) sets.unitSystem = data.unitSystem;
   const result = db.update(tunes).set(sets).where(eq(tunes.id, id)).returning().all();
   return result.length > 0;
 }

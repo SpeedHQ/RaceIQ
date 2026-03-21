@@ -145,6 +145,7 @@ tuneRoutes.post("/api/tunes", async (c) => {
     bestTracks: body.bestTracks ? JSON.stringify(body.bestTracks) : undefined,
     strategies: body.strategies ? JSON.stringify(body.strategies) : undefined,
     settings: JSON.stringify(settings),
+    unitSystem: body.unitSystem ?? "metric",
     source: body.source ?? "user",
     catalogId: body.catalogId,
   });
@@ -176,6 +177,7 @@ tuneRoutes.put("/api/tunes/:id", async (c) => {
   if (body.bestTracks !== undefined) data.bestTracks = JSON.stringify(body.bestTracks);
   if (body.strategies !== undefined) data.strategies = JSON.stringify(body.strategies);
   if (body.settings !== undefined) data.settings = JSON.stringify(body.settings);
+  if (body.unitSystem !== undefined) data.unitSystem = body.unitSystem;
 
   const updated = updateTune(id, data);
   if (!updated) return c.json({ error: "Tune not found" }, 404);
@@ -221,6 +223,7 @@ tuneRoutes.post("/api/tunes/import", async (c) => {
     bestTracks: body.bestTracks ? JSON.stringify(body.bestTracks) : undefined,
     strategies: body.strategies ? JSON.stringify(body.strategies) : undefined,
     settings: JSON.stringify(settings),
+    unitSystem: body.unitSystem ?? "metric",
     source: body.source ?? "user",
     catalogId: body.catalogId,
   });
@@ -247,6 +250,7 @@ tuneRoutes.post("/api/tunes/clone/:catalogId", (c) => {
     bestTracks: JSON.stringify(catalogTune.bestTracks ?? []),
     strategies: JSON.stringify(catalogTune.strategies ?? []),
     settings: JSON.stringify(catalogTune.settings),
+    unitSystem: "metric",
     source: "catalog-clone",
     catalogId: catalogTune.id,
   });

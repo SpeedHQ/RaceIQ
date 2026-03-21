@@ -246,6 +246,7 @@ interface TuneFormData {
   category: TuneCategory;
   description: string;
   settings: TuneSettings;
+  unitSystem: "metric" | "imperial";
 }
 
 function TuneFormDialog({
@@ -332,7 +333,7 @@ function TuneFormDialog({
       springs: { ...settings.springs, unit: unitLabel("springs", isMetric) },
       aero: { ...settings.aero, unit: unitLabel("aero", isMetric) },
     };
-    onSubmit({ name, author, carOrdinal, category, description, settings: savedSettings });
+    onSubmit({ name, author, carOrdinal, category, description, settings: savedSettings, unitSystem: isMetric ? "metric" : "imperial" });
   };
 
   if (!isOpen) return null;
