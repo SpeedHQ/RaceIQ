@@ -29,6 +29,7 @@ interface CarSpecs {
   lateralG60: number;
   lateralG120: number;
   imageUrl: string;
+  wikiUrl: string;
   synopsis: string;
 }
 
@@ -106,6 +107,17 @@ function CarDetail({ car }: { car: Car }) {
         {s.synopsis && (
           <p className="text-[11px] text-app-text-muted leading-relaxed line-clamp-4">{s.synopsis}</p>
         )}
+        {s.wikiUrl && (
+          <a
+            href={s.wikiUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] text-app-accent hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Forza Wiki ↗
+          </a>
+        )}
       </div>
 
       {/* Stats grid */}
@@ -170,14 +182,16 @@ function CarsPage() {
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState<string | null>(null);
   const [driveFilter, setDriveFilter] = useState<string | null>(null);
-  const [specsOnly, setSpecsOnly] = useState(false);
+  const [listMode, setListMode] = useState<"all" | "wiki">("wiki");
   const [sort, setSort] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<1 | -1>(1);
   const [expanded, setExpanded] = useState<number | null>(null);
 
+  const wikiCount = useMemo(() => cars.filter((c) => c.specs).length, [cars]);
+
   const filtered = useMemo(() => {
     let list = cars;
-    if (specsOnly) list = list.filter((c) => c.specs);
+    if (listMode === "wiki") list = list.filter((c) => c.specs);
     if (classFilter) list = list.filter((c) => c.specs && piClass(c.specs.pi) === classFilter);
     if (driveFilter) list = list.filter((c) => c.specs?.drivetrain === driveFilter);
     if (search) {
@@ -194,7 +208,7 @@ function CarsPage() {
       const bv = b.specs?.[sort] ?? -Infinity;
       return sortDir * ((av as number) - (bv as number));
     });
-  }, [cars, search, classFilter, driveFilter, specsOnly, sort, sortDir]);
+  }, [cars, search, classFilter, driveFilter, listMode, sort, sortDir]);
 
   function toggleSort(key: SortKey) {
     if (sort === key) setSortDir((d) => (d === 1 ? -1 : 1));
@@ -220,7 +234,21 @@ function CarsPage() {
             <h1 className="text-lg font-bold text-app-text">Cars</h1>
             <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-app-accent/20 text-app-accent">{filtered.length}</span>
           </div>
-          <p className="text-xs text-app-text-muted">Forza Motorsport 2023 car database</p>
+          {/* List toggle */}
+          <div className="flex items-center gap-0.5 mt-1 bg-app-surface rounded-lg p-0.5 border border-app-border w-fit">
+            <button
+              onClick={() => setListMode("wiki")}
+              className={`text-[10px] font-semibold px-2.5 py-1 rounded transition-colors ${listMode === "wiki" ? "bg-app-accent text-white" : "text-app-text-muted hover:text-app-text"}`}
+            >
+              FM2023 Wiki <span className="opacity-70">({wikiCount})</span>
+            </button>
+            <button
+              onClick={() => setListMode("all")}
+              className={`text-[10px] font-semibold px-2.5 py-1 rounded transition-colors ${listMode === "all" ? "bg-app-accent text-white" : "text-app-text-muted hover:text-app-text"}`}
+            >
+              All Known <span className="opacity-70">({cars.length})</span>
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -245,11 +273,6 @@ function CarsPage() {
               </button>
             ))}
           </div>
-
-          <button onClick={() => setSpecsOnly((v) => !v)}
-            className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors border ${specsOnly ? "bg-app-accent text-white border-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text border-app-border"}`}>
-            Has Stats
-          </button>
         </div>
       </div>
 

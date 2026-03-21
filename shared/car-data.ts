@@ -63,6 +63,7 @@ export interface CarSpecs {
   lateralG60: number;
   lateralG120: number;
   imageUrl: string;
+  wikiUrl: string;
   synopsis: string;
 }
 
@@ -120,7 +121,8 @@ try {
       lateralG60:     parseFloat(f[24]) || 0,
       lateralG120:    parseFloat(f[25]) || 0,
       imageUrl:       f[26] ?? "",
-      synopsis:       f[27] ?? "",
+      wikiUrl:        f[27] ?? "",
+      synopsis:       f[28] ?? "",
     });
   }
 } catch {

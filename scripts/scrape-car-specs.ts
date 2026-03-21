@@ -8,7 +8,7 @@
  * Step 5: Join with cars.csv → shared/car-specs.csv
  */
 
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -53,6 +53,7 @@ interface WikiCar {
   aspiration?: string;
   frontWeightPct?: number;
   imageFile?: string;
+  directImageUrl?: string; // fallback from pageimages when imageFile is absent
   // CarStats|fm23 fields
   pi?: number;
   speedRating?: number;
@@ -178,7 +179,7 @@ const BATCH = 50;
 for (let i = 0; i < carPages.length; i += BATCH) {
   const batch = carPages.slice(i, i + BATCH);
   const titlesParam = batch.map(p => encodeURIComponent(p)).join("|");
-  const url = `${API}?action=query&prop=revisions&rvprop=content&rvslots=main&redirects=1&titles=${titlesParam}&format=json&formatversion=2`;
+  const url = `${API}?action=query&prop=revisions|images|pageimages&rvprop=content&rvslots=main&imlimit=50&piprop=original&redirects=1&titles=${titlesParam}&format=json&formatversion=2`;
 
   process.stdout.write(`  Pages ${i + 1}–${Math.min(i + BATCH, carPages.length)} / ${carPages.length}...`);
   const res = await fetch(url);
@@ -189,7 +190,25 @@ for (let i = 0; i < carPages.length; i += BATCH) {
     const content = page.revisions?.[0]?.slots?.main?.content ?? "";
     if (!content) continue;
     const car = parsePage(content, page.title);
-    if (car) { wikiCars.push(car); parsed++; }
+    if (car) {
+      // Clear invalid infobox image values (e.g. "<gallery>")
+      if (car.imageFile?.startsWith("<")) car.imageFile = undefined;
+
+      // Find best image from page images list: prefer FM23, then FH5, then FH4, then other game prefixes
+      const pageImages: string[] = (page.images ?? []).map((img: any) => img.title.replace(/^File:/, ""));
+      const fm23Img = pageImages.find(f => /^FM23[\s_]/i.test(f) && /\.(png|jpg|jpeg|webp)$/i.test(f));
+      const fh5Img  = pageImages.find(f => /^FH5[\s_]/i.test(f)  && /\.(png|jpg|jpeg|webp)$/i.test(f));
+      const fh4Img  = pageImages.find(f => /^FH4[\s_]/i.test(f)  && /\.(png|jpg|jpeg|webp)$/i.test(f));
+      const anyGame = pageImages.find(f => /^F[HM]\d+[\s_]/i.test(f) && /\.(png|jpg|jpeg|webp)$/i.test(f));
+      if (fm23Img) car.imageFile = fm23Img;
+      else if (fh5Img) car.imageFile = fh5Img;
+      else if (fh4Img) car.imageFile = fh4Img;
+      else if (!car.imageFile && anyGame) car.imageFile = anyGame;
+      // Always store pageimages URL as direct fallback (used if imageUrlMap lookup fails)
+      if (page.original?.source) car.directImageUrl = page.original.source;
+      wikiCars.push(car);
+      parsed++;
+    }
   }
   console.log(` ${parsed}/${batch.length} parsed (${wikiCars.length} total)`);
 
@@ -313,8 +332,9 @@ for (const our of ourCars) {
       braking100:      best.braking100 ?? 0,
       lateralG60:      best.lateralG60 ?? 0,
       lateralG120:     best.lateralG120 ?? 0,
-      // Image & synopsis
-      imageUrl:  best.imageFile ? (imageUrlMap.get(best.imageFile) ?? "") : "",
+      // Image & synopsis (imageUrl filled in during download step)
+      cdnImageUrl: best.imageFile ? (imageUrlMap.get(best.imageFile.replace(/ /g, "_")) ?? best.directImageUrl ?? "") : (best.directImageUrl ?? ""),
+      wikiUrl:   best.pageName ? `https://forza.fandom.com/wiki/${best.pageName.replace(/ /g, "_")}` : "",
       synopsis:  (best.synopsis ?? "").replace(/"/g, "'"),
     });
   } else {
@@ -325,8 +345,38 @@ for (const our of ourCars) {
 console.log(`  Matched: ${rows.length} / ${ourCars.length} (unmatched: ${unmatched.length})`);
 for (const u of unmatched) console.log(`    ${u}`);
 
+// ─── Step 6: Download images locally ──────────────────────────────────────────
+console.log("\nStep 6: Downloading car images...");
+const imgDir = resolve(__dirname, "../client/public/car-images");
+mkdirSync(imgDir, { recursive: true });
+
+const CONCURRENCY = 10;
+let downloaded = 0, skipped = 0, failed = 0;
+
+async function downloadImage(row: any) {
+  const cdnUrl: string = row.cdnImageUrl;
+  if (!cdnUrl) { row.imageUrl = ""; return; }
+  const ext = cdnUrl.match(/\.(png|jpg|jpeg|webp)/i)?.[1] ?? "png";
+  const localFile = resolve(imgDir, `${row.ordinal}.${ext}`);
+  row.imageUrl = `/car-images/${row.ordinal}.${ext}`;
+  if (existsSync(localFile)) { skipped++; return; }
+  try {
+    const res = await fetch(cdnUrl);
+    if (!res.ok) { failed++; row.imageUrl = ""; return; }
+    const buf = await res.arrayBuffer();
+    writeFileSync(localFile, Buffer.from(buf));
+    downloaded++;
+  } catch { failed++; row.imageUrl = ""; }
+}
+
+for (let i = 0; i < rows.length; i += CONCURRENCY) {
+  await Promise.all(rows.slice(i, i + CONCURRENCY).map(downloadImage));
+  process.stdout.write(`\r  ${Math.min(i + CONCURRENCY, rows.length)}/${rows.length} (${downloaded} new, ${skipped} cached, ${failed} failed)`);
+}
+console.log(`\n  Done.`);
+
 // ─── Write CSV ────────────────────────────────────────────────────────────────
-const header = "ordinal,hp,torque,weightLbs,weightKg,displacement,engine,drivetrain,gears,aspiration,frontWeightPct,pi,speedRating,brakingRating,handlingRating,accelRating,price,division,topSpeedMph,quarterMile,zeroToSixty,zeroToHundred,braking60,braking100,lateralG60,lateralG120,imageUrl,synopsis";
+const header = "ordinal,hp,torque,weightLbs,weightKg,displacement,engine,drivetrain,gears,aspiration,frontWeightPct,pi,speedRating,brakingRating,handlingRating,accelRating,price,division,topSpeedMph,quarterMile,zeroToSixty,zeroToHundred,braking60,braking100,lateralG60,lateralG120,imageUrl,wikiUrl,synopsis";
 const lines = rows.map(r =>
   [
     r.ordinal, r.hp, r.torque, r.weightLbs, r.weightKg, r.displacement,
@@ -335,7 +385,7 @@ const lines = rows.map(r =>
     r.price, `"${r.division}"`, r.topSpeedMph, r.quarterMile,
     r.zeroToSixty, r.zeroToHundred, r.braking60, r.braking100,
     r.lateralG60, r.lateralG120,
-    `"${r.imageUrl}"`, `"${r.synopsis}"`
+    `"${r.imageUrl}"`, `"${r.wikiUrl}"`, `"${r.synopsis}"`
   ].join(",")
 );
 const outPath = resolve(__dirname, "../shared/car-specs.csv");

@@ -6,7 +6,7 @@ import type { TuneCategory } from "@shared/types";
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAllCars() {
-  return useQuery<{ ordinal: number; name: string }[]>({
+  return useQuery<{ ordinal: number; name: string; specs?: { topSpeedMph: number } }[]>({
     queryKey: ["all-cars"],
     queryFn: () => fetch("/api/cars").then((r) => r.json()),
     staleTime: Infinity,
@@ -322,6 +322,93 @@ export function UserTuneCard({
   );
 }
 
+// ── GearRatioChart ────────────────────────────────────────────────────────────
+
+function GearRatioChart({ ratios, finalDrive, topSpeedMph }: { ratios: number[]; finalDrive: number; topSpeedMph?: number }) {
+  if (!ratios.length) return null;
+
+  const MAX_RPM = 8000;
+  const topGearRatio = ratios[ratios.length - 1];
+  // Back-calculate tire circumference from stock top speed if available, else use typical 2.0m
+  const CIRC = topSpeedMph && topGearRatio
+    ? (topSpeedMph * 1.60934 * topGearRatio * finalDrive) / (MAX_RPM / 60) / 3.6
+    : 2.0;
+  const toKph = (rpm: number, ratio: number) =>
+    (rpm / 60 / (ratio * finalDrive)) * CIRC * 3.6;
+
+  const maxSpeed = Math.ceil(toKph(MAX_RPM, ratios[ratios.length - 1]) / 50) * 50;
+
+  const W = 340, H = 160;
+  const pad = { top: 20, right: 20, bottom: 28, left: 32 };
+  const cW = W - pad.left - pad.right;
+  const cH = H - pad.top - pad.bottom;
+
+  const sx = (v: number) => Math.min((v / maxSpeed) * cW, cW);
+  const sy = (rpm: number) => cH - (rpm / MAX_RPM) * cH;
+
+  const COLORS = ['#f87171','#fb923c','#facc15','#4ade80','#60a5fa','#a78bfa','#f472b6','#34d399','#38bdf8','#f59e0b'];
+  const rpmGrids = [2000, 4000, 6000, 8000];
+  const speedGrids = Array.from({ length: 6 }, (_, i) => Math.round((maxSpeed / 5) * i));
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+      <defs>
+        <clipPath id="gchart">
+          <rect x={pad.left} y={pad.top} width={cW} height={cH} />
+        </clipPath>
+      </defs>
+
+      {/* RPM gridlines */}
+      {rpmGrids.map(rpm => (
+        <g key={rpm}>
+          <line x1={pad.left} y1={pad.top + sy(rpm)} x2={pad.left + cW} y2={pad.top + sy(rpm)}
+            stroke="currentColor" strokeOpacity="0.08" strokeWidth="1" />
+          <text x={pad.left - 3} y={pad.top + sy(rpm) + 3} textAnchor="end" fontSize="7"
+            fill="currentColor" fillOpacity="0.4">{rpm / 1000}k</text>
+        </g>
+      ))}
+
+      {/* Speed gridlines */}
+      {speedGrids.map(spd => (
+        <g key={spd}>
+          <line x1={pad.left + sx(spd)} y1={pad.top} x2={pad.left + sx(spd)} y2={pad.top + cH}
+            stroke="currentColor" strokeOpacity="0.08" strokeWidth="1" />
+          <text x={pad.left + sx(spd)} y={pad.top + cH + 10} textAnchor="middle" fontSize="7"
+            fill="currentColor" fillOpacity="0.4">{spd}</text>
+        </g>
+      ))}
+
+      {/* Axis labels */}
+      <text x={pad.left + cW / 2} y={H - 2} textAnchor="middle" fontSize="7"
+        fill="currentColor" fillOpacity="0.4">km/h</text>
+      <text x={8} y={pad.top + cH / 2} textAnchor="middle" fontSize="7"
+        fill="currentColor" fillOpacity="0.4" transform={`rotate(-90 8 ${pad.top + cH / 2})`}>RPM</text>
+
+      {/* Gear lines */}
+      {ratios.map((ratio, i) => {
+        const pts = Array.from({ length: 60 }, (_, j) => {
+          const rpm = (j / 59) * MAX_RPM;
+          return `${pad.left + sx(toKph(rpm, ratio))},${pad.top + sy(rpm)}`;
+        }).join(' ');
+        const labelX = pad.left + sx(toKph(MAX_RPM, ratio));
+        const color = COLORS[i % COLORS.length];
+        return (
+          <g key={i}>
+            <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5"
+              strokeOpacity="0.85" clipPath="url(#gchart)" />
+            <text x={labelX} y={pad.top - 5} textAnchor="middle" fontSize="8"
+              fill={color} fillOpacity="0.9" fontWeight="600">{i + 1}</text>
+          </g>
+        );
+      })}
+
+      {/* Chart border */}
+      <rect x={pad.left} y={pad.top} width={cW} height={cH}
+        fill="none" stroke="currentColor" strokeOpacity="0.12" strokeWidth="1" />
+    </svg>
+  );
+}
+
 // ── TuneForm (tabbed full-page) ───────────────────────────────────────────────
 
 export function TuneForm({
@@ -562,6 +649,11 @@ export function TuneForm({
                       unit=":1"
                     />
                   ))}
+                  <GearRatioChart
+                    ratios={settings.gearing.ratios ?? []}
+                    finalDrive={settings.gearing.finalDrive}
+                    topSpeedMph={allCars.find((c) => c.ordinal === carOrdinal)?.specs?.topSpeedMph}
+                  />
                 </div>
               </div>
 
