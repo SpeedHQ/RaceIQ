@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
+import { useUnits } from "../hooks/useUnits";
 
 interface CarSpecs {
   hp: number;
@@ -39,7 +40,7 @@ interface Car {
   specs?: CarSpecs;
 }
 
-type SortKey = "name" | "hp" | "weightKg" | "pi" | "topSpeedMph" | "zeroToSixty" | "torque";
+type SortKey = "name" | "pi" | "hp" | "torque" | "weightKg" | "topSpeedMph" | "zeroToSixty" | "zeroToHundred" | "braking60" | "speedRating" | "brakingRating" | "handlingRating" | "accelRating" | "division";
 
 const PI_CLASSES = ["D", "C", "B", "A", "S", "R", "P", "X"];
 const DRIVETRAINS = ["FWD", "RWD", "AWD"];
@@ -86,7 +87,13 @@ function RatingBar({ value, max = 10 }: { value: number; max?: number }) {
   );
 }
 
-function CarDetail({ car }: { car: Car }) {
+function CarDetail({ car, fmtSpeed, fmtBrake, fmtWeight, isMetric }: {
+  car: Car;
+  fmtSpeed: (mph: number) => string;
+  fmtBrake: (ft: number) => string;
+  fmtWeight: (kg: number, lbs: number) => string;
+  isMetric: boolean;
+}) {
   const s = car.specs;
   if (!s) return <div className="px-4 py-3 text-xs text-app-text-muted">No detailed stats available for this car.</div>;
 
@@ -129,17 +136,17 @@ function CarDetail({ car }: { car: Car }) {
           <div className="text-app-text-secondary">{s.hp > 0 ? `${s.hp} hp` : "—"} / {s.torque > 0 ? `${s.torque} lb-ft` : "—"}</div>
           <div className="text-app-text-secondary capitalize">{s.aspiration || "—"} · {s.gears > 0 ? `${s.gears}-speed` : "—"}</div>
           <div className="text-app-text-secondary">{s.drivetrain} · {s.frontWeightPct > 0 ? `${s.frontWeightPct}/${100 - s.frontWeightPct} F/R` : ""}</div>
-          <div className="text-app-text-secondary">{s.weightKg > 0 ? `${s.weightKg} kg / ${s.weightLbs} lbs` : "—"}</div>
+          <div className="text-app-text-secondary">{fmtWeight(s.weightKg, s.weightLbs)}</div>
         </div>
 
         {/* Performance */}
         <div className="space-y-1">
           <div className="text-[10px] uppercase tracking-wider text-app-text-muted font-semibold">Performance</div>
-          <div className="flex justify-between"><span className="text-app-text-muted">Top Speed</span><span className="text-app-text tabular-nums">{s.topSpeedMph > 0 ? `${s.topSpeedMph} mph` : "—"}</span></div>
-          <div className="flex justify-between"><span className="text-app-text-muted">0–60 mph</span><span className="text-app-text tabular-nums">{s.zeroToSixty > 0 ? `${s.zeroToSixty}s` : "—"}</span></div>
-          <div className="flex justify-between"><span className="text-app-text-muted">0–100 mph</span><span className="text-app-text tabular-nums">{s.zeroToHundred > 0 ? `${s.zeroToHundred}s` : "—"}</span></div>
+          <div className="flex justify-between"><span className="text-app-text-muted">Top Speed</span><span className="text-app-text tabular-nums">{fmtSpeed(s.topSpeedMph)}</span></div>
+          <div className="flex justify-between"><span className="text-app-text-muted">{isMetric ? "0–100 km/h" : "0–60 mph"}</span><span className="text-app-text tabular-nums">{s.zeroToSixty > 0 ? `${s.zeroToSixty}s` : "—"}</span></div>
+          <div className="flex justify-between"><span className="text-app-text-muted">{isMetric ? "0–160 km/h" : "0–100 mph"}</span><span className="text-app-text tabular-nums">{s.zeroToHundred > 0 ? `${s.zeroToHundred}s` : "—"}</span></div>
           <div className="flex justify-between"><span className="text-app-text-muted">¼ mile</span><span className="text-app-text tabular-nums">{s.quarterMile > 0 ? `${s.quarterMile}s` : "—"}</span></div>
-          <div className="flex justify-between"><span className="text-app-text-muted">60–0 brake</span><span className="text-app-text tabular-nums">{s.braking60 > 0 ? `${s.braking60} ft` : "—"}</span></div>
+          <div className="flex justify-between"><span className="text-app-text-muted">60–0 brake</span><span className="text-app-text tabular-nums">{fmtBrake(s.braking60)}</span></div>
           <div className="flex justify-between"><span className="text-app-text-muted">Lateral G</span><span className="text-app-text tabular-nums">{s.lateralG60 > 0 ? `${s.lateralG60}g` : "—"}</span></div>
         </div>
 
@@ -172,7 +179,117 @@ function CarDetail({ car }: { car: Car }) {
   );
 }
 
+function CompareModal({ cars, onClose, fmtSpeed, fmtBrake, fmtWeight, isMetric }: {
+  cars: Car[];
+  onClose: () => void;
+  fmtSpeed: (mph: number) => string;
+  fmtBrake: (ft: number) => string;
+  fmtWeight: (kg: number, lbs: number) => string;
+  isMetric: boolean;
+}) {
+  type StatRow = { label: string; getValue: (s: CarSpecs) => string; highlight?: "low" | "high" };
+  const rows: StatRow[] = [
+    { label: "PI", getValue: s => s.pi > 0 ? `${piClass(s.pi)} ${s.pi}` : "—" },
+    { label: "Division", getValue: s => s.division || "—" },
+    { label: "Drivetrain", getValue: s => s.drivetrain || "—" },
+    { label: "Engine", getValue: s => s.engine ? `${s.engine}${s.displacement > 0 ? ` ${s.displacement}L` : ""}` : "—" },
+    { label: "Aspiration", getValue: s => s.aspiration || "—" },
+    { label: "Gears", getValue: s => s.gears > 0 ? `${s.gears}-speed` : "—" },
+    { label: "HP", getValue: s => s.hp > 0 ? `${s.hp}` : "—", highlight: "high" },
+    { label: "Torque (lb-ft)", getValue: s => s.torque > 0 ? `${s.torque}` : "—", highlight: "high" },
+    { label: "Weight", getValue: s => fmtWeight(s.weightKg, s.weightLbs), highlight: "low" },
+    { label: "Front Weight %", getValue: s => s.frontWeightPct > 0 ? `${s.frontWeightPct}%` : "—" },
+    { label: `Top Speed (${isMetric ? "km/h" : "mph"})`, getValue: s => fmtSpeed(s.topSpeedMph), highlight: "high" },
+    { label: isMetric ? "0–100 km/h" : "0–60 mph", getValue: s => s.zeroToSixty > 0 ? `${s.zeroToSixty}s` : "—", highlight: "low" },
+    { label: isMetric ? "0–160 km/h" : "0–100 mph", getValue: s => s.zeroToHundred > 0 ? `${s.zeroToHundred}s` : "—", highlight: "low" },
+    { label: "¼ Mile", getValue: s => s.quarterMile > 0 ? `${s.quarterMile}s` : "—", highlight: "low" },
+    { label: `60–0 Brake (${isMetric ? "m" : "ft"})`, getValue: s => fmtBrake(s.braking60), highlight: "low" },
+    { label: "Lateral G", getValue: s => s.lateralG60 > 0 ? `${s.lateralG60}g` : "—", highlight: "high" },
+    { label: "Speed Rating", getValue: s => s.speedRating > 0 ? s.speedRating.toFixed(1) : "—", highlight: "high" },
+    { label: "Braking Rating", getValue: s => s.brakingRating > 0 ? s.brakingRating.toFixed(1) : "—", highlight: "high" },
+    { label: "Handling Rating", getValue: s => s.handlingRating > 0 ? s.handlingRating.toFixed(1) : "—", highlight: "high" },
+    { label: "Accel Rating", getValue: s => s.accelRating > 0 ? s.accelRating.toFixed(1) : "—", highlight: "high" },
+    { label: "Price (CR)", getValue: s => s.price > 0 ? s.price.toLocaleString() : "—" },
+  ];
+
+  // Determine best values for numeric highlighting
+  function getBestIdx(row: StatRow): number[] {
+    if (!row.highlight) return [];
+    const vals = cars.map(c => {
+      const raw = c.specs ? row.getValue(c.specs) : "—";
+      const n = parseFloat(raw.replace(/[^0-9.-]/g, ""));
+      return isNaN(n) ? null : n;
+    });
+    const valid = vals.filter((v): v is number => v !== null);
+    if (valid.length < 2) return [];
+    const best = row.highlight === "high" ? Math.max(...valid) : Math.min(...valid);
+    return vals.map((v, i) => v === best ? i : -1).filter(i => i >= 0);
+  }
+
+  const colWidth = Math.max(180, Math.floor(560 / cars.length));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 pt-8 pb-4 px-4 overflow-auto" onClick={onClose}>
+      <div
+        className="bg-app-bg border border-app-border rounded-xl shadow-2xl w-full overflow-auto"
+        style={{ maxWidth: 160 + colWidth * cars.length, maxHeight: "90vh" }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-app-border sticky top-0 bg-app-bg z-10">
+          <h2 className="text-sm font-bold text-app-text">Compare Cars</h2>
+          <button onClick={onClose} className="text-app-text-muted hover:text-app-text text-lg leading-none">×</button>
+        </div>
+
+        <div className="overflow-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-app-border">
+                <th className="text-left px-4 py-2 text-app-text-muted font-medium sticky left-0 bg-app-bg" style={{ minWidth: 160 }}>Stat</th>
+                {cars.map(car => (
+                  <th key={car.ordinal} className="px-3 py-2 text-center" style={{ minWidth: colWidth }}>
+                    {car.specs?.imageUrl && (
+                      <img src={car.specs.imageUrl} alt={car.name} className="h-14 w-full object-contain mx-auto mb-1" />
+                    )}
+                    <div className="font-semibold text-app-text leading-tight">{car.name}</div>
+                    {car.specs?.pi && <PiBadge pi={car.specs.pi} />}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, ri) => {
+                const bestIdxs = getBestIdx(row);
+                return (
+                  <tr key={ri} className={ri % 2 === 0 ? "bg-app-surface/30" : ""}>
+                    <td className="px-4 py-1.5 text-app-text-muted sticky left-0 bg-inherit font-medium" style={{ minWidth: 160 }}>{row.label}</td>
+                    {cars.map((car, ci) => {
+                      const val = car.specs ? row.getValue(car.specs) : "—";
+                      const isBest = bestIdxs.includes(ci);
+                      return (
+                        <td key={car.ordinal} className={`px-3 py-1.5 text-center tabular-nums ${isBest ? "text-green-400 font-semibold" : "text-app-text-secondary"}`}>
+                          {val}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CarsPage() {
+  const units = useUnits();
+  const isMetric = units.speedUnit === "kmh";
+  function fmtSpeed(mph: number)          { return mph  ? `${units.fromMph(mph).toFixed(1)} ${units.speedLabel}` : "—"; }
+  function fmtBrake(ft: number)           { return ft   ? `${isMetric ? (ft * 0.3048).toFixed(1) + " m" : ft + " ft"}` : "—"; }
+  function fmtWeight(kg: number, lbs: number) { return kg ? `${isMetric ? kg + " kg" : lbs + " lb"}` : "—"; }
+
   const { data: cars = [], isLoading } = useQuery<Car[]>({
     queryKey: ["cars"],
     queryFn: () => fetch("/api/cars").then((r) => r.json()),
@@ -182,16 +299,16 @@ function CarsPage() {
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState<string | null>(null);
   const [driveFilter, setDriveFilter] = useState<string | null>(null);
-  const [listMode, setListMode] = useState<"all" | "wiki">("wiki");
   const [sort, setSort] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<1 | -1>(1);
-  const [expanded, setExpanded] = useState<number | null>(null);
-
-  const wikiCount = useMemo(() => cars.filter((c) => c.specs).length, [cars]);
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [comparing, setComparing] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  const [detailCar, setDetailCar] = useState<Car | null>(null);
 
   const filtered = useMemo(() => {
-    let list = cars;
-    if (listMode === "wiki") list = list.filter((c) => c.specs);
+    let list = cars.filter((c) => c.specs);
     if (classFilter) list = list.filter((c) => c.specs && piClass(c.specs.pi) === classFilter);
     if (driveFilter) list = list.filter((c) => c.specs?.drivetrain === driveFilter);
     if (search) {
@@ -204,15 +321,24 @@ function CarsPage() {
     }
     return [...list].sort((a, b) => {
       if (sort === "name") return sortDir * a.name.localeCompare(b.name);
+      if (sort === "division") return sortDir * (a.specs?.division ?? "").localeCompare(b.specs?.division ?? "");
       const av = a.specs?.[sort] ?? -Infinity;
       const bv = b.specs?.[sort] ?? -Infinity;
       return sortDir * ((av as number) - (bv as number));
     });
-  }, [cars, search, classFilter, driveFilter, listMode, sort, sortDir]);
+  }, [cars, search, classFilter, driveFilter, sort, sortDir]);
+
+  const carMap = useMemo(() => new Map(cars.map(c => [c.ordinal, c])), [cars]);
+  const selectedCars = useMemo(() => [...selected].map(id => carMap.get(id)).filter((c): c is Car => !!c), [selected, carMap]);
 
   function toggleSort(key: SortKey) {
     if (sort === key) setSortDir((d) => (d === 1 ? -1 : 1));
     else { setSort(key); setSortDir(key === "name" ? 1 : -1); }
+  }
+
+  function toggleSelect(ordinal: number, e: React.MouseEvent) {
+    e.stopPropagation();
+    setSelected(prev => { const s = new Set(prev); s.has(ordinal) ? s.delete(ordinal) : s.add(ordinal); return s; });
   }
 
   function ColHeader({ k, label, className = "" }: { k: SortKey; label: string; className?: string }) {
@@ -225,8 +351,10 @@ function CarsPage() {
     );
   }
 
+  const GRID = "grid-cols-[32px_1fr_72px_64px_72px_72px_52px_68px_52px_52px_60px_44px_44px_44px_44px_120px]";
+
   return (
-    <div className="p-4 space-y-3 max-w-6xl mx-auto">
+    <div className="p-4 space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
@@ -234,24 +362,31 @@ function CarsPage() {
             <h1 className="text-lg font-bold text-app-text">Cars</h1>
             <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-app-accent/20 text-app-accent">{filtered.length}</span>
           </div>
-          {/* List toggle */}
-          <div className="flex items-center gap-0.5 mt-1 bg-app-surface rounded-lg p-0.5 border border-app-border w-fit">
-            <button
-              onClick={() => setListMode("wiki")}
-              className={`text-[10px] font-semibold px-2.5 py-1 rounded transition-colors ${listMode === "wiki" ? "bg-app-accent text-white" : "text-app-text-muted hover:text-app-text"}`}
-            >
-              FM2023 Wiki <span className="opacity-70">({wikiCount})</span>
-            </button>
-            <button
-              onClick={() => setListMode("all")}
-              className={`text-[10px] font-semibold px-2.5 py-1 rounded transition-colors ${listMode === "all" ? "bg-app-accent text-white" : "text-app-text-muted hover:text-app-text"}`}
-            >
-              All Known <span className="opacity-70">({cars.length})</span>
-            </button>
-          </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* View mode toggle */}
+          <div className="flex items-center rounded-lg border border-app-border overflow-hidden">
+            <button
+              onClick={() => setViewMode("table")}
+              title="Table view"
+              className={`px-2.5 py-1.5 transition-colors ${viewMode === "table" ? "bg-app-accent text-white" : "bg-app-surface text-app-text-muted hover:text-app-text"}`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => setViewMode("grid")}
+              title="Grid view"
+              className={`px-2.5 py-1.5 transition-colors ${viewMode === "grid" ? "bg-app-accent text-white" : "bg-app-surface text-app-text-muted hover:text-app-text"}`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+              </svg>
+            </button>
+          </div>
+
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name, division, engine..."
             className="bg-app-surface text-app-text text-xs rounded-lg px-3 py-1.5 border border-app-border focus:outline-none focus:ring-1 focus:ring-app-accent w-52" />
@@ -276,20 +411,117 @@ function CarsPage() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table / Grid */}
       {isLoading ? (
         <div className="text-center py-16 text-app-text-muted text-sm">Loading cars...</div>
+      ) : viewMode === "grid" ? (
+        <>
+          {filtered.length === 0 ? (
+            <div className="text-center py-12 text-app-text-muted text-sm">No cars match filters</div>
+          ) : (
+            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+              {filtered.map(car => {
+                const s = car.specs!;
+                const isSel = selected.has(car.ordinal);
+                return (
+                  <div
+                    key={car.ordinal}
+                    onClick={() => setDetailCar(car)}
+                    className={`relative rounded-xl border cursor-pointer transition-all hover:border-app-accent/50 hover:shadow-md ${isSel ? "border-app-accent bg-app-accent/5" : "border-app-border bg-app-surface"}`}
+                  >
+                    {/* Checkbox */}
+                    <div
+                      onClick={e => toggleSelect(car.ordinal, e)}
+                      className="absolute top-2 left-2 z-10"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSel}
+                        onChange={() => {}}
+                        className="w-3.5 h-3.5 accent-app-accent cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Image */}
+                    <div className="h-32 flex items-center justify-center bg-app-bg rounded-t-xl overflow-hidden px-3 pt-3">
+                      {s.imageUrl ? (
+                        <img src={s.imageUrl} alt={car.name} className="h-full w-full object-contain" />
+                      ) : (
+                        <div className="text-xs text-app-text-muted">No image</div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="p-3 space-y-2">
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {s.pi > 0 && <PiBadge pi={s.pi} />}
+                          <span className={`text-[10px] font-semibold ${PI_COLORS[piClass(s.pi)]?.split(" ")[1] ?? "text-app-text-muted"}`}>{s.pi || ""}</span>
+                        </div>
+                        <div className="text-xs font-semibold text-app-text leading-tight mt-0.5 line-clamp-2">{car.name}</div>
+                        <div className="text-[10px] text-app-text-muted mt-0.5">{s.division || "—"} · {s.drivetrain || "—"}</div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+                        <div className="flex justify-between"><span className="text-app-text-muted">HP</span><span className="tabular-nums text-app-text-secondary">{s.hp || "—"}</span></div>
+                        <div className="flex justify-between"><span className="text-app-text-muted">Torque</span><span className="tabular-nums text-app-text-secondary">{s.torque || "—"}</span></div>
+                        <div className="flex justify-between"><span className="text-app-text-muted">Top Spd</span><span className="tabular-nums text-app-text-secondary">{fmtSpeed(s.topSpeedMph)}</span></div>
+                        <div className="flex justify-between"><span className="text-app-text-muted">0–60</span><span className="tabular-nums text-app-text-secondary">{s.zeroToSixty ? `${s.zeroToSixty}s` : "—"}</span></div>
+                        <div className="flex justify-between"><span className="text-app-text-muted">Weight</span><span className="tabular-nums text-app-text-secondary">{fmtWeight(s.weightKg, s.weightLbs)}</span></div>
+                        <div className="flex justify-between"><span className="text-app-text-muted">Brake 60</span><span className="tabular-nums text-app-text-secondary">{fmtBrake(s.braking60)}</span></div>
+                      </div>
+
+                      {(s.speedRating > 0 || s.handlingRating > 0) && (
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                          {s.speedRating > 0 && <div className="flex items-center gap-1"><span className="text-[9px] text-app-text-muted w-6">Spd</span><RatingBar value={s.speedRating} /></div>}
+                          {s.handlingRating > 0 && <div className="flex items-center gap-1"><span className="text-[9px] text-app-text-muted w-6">Hdl</span><RatingBar value={s.handlingRating} /></div>}
+                          {s.accelRating > 0 && <div className="flex items-center gap-1"><span className="text-[9px] text-app-text-muted w-6">Acc</span><RatingBar value={s.accelRating} /></div>}
+                          {s.brakingRating > 0 && <div className="flex items-center gap-1"><span className="text-[9px] text-app-text-muted w-6">Brk</span><RatingBar value={s.brakingRating} /></div>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Card detail modal */}
+          {detailCar && (
+            <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 pt-12 pb-4 px-4 overflow-auto" onClick={() => setDetailCar(null)}>
+              <div className="bg-app-bg border border-app-border rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
+                  <div className="flex items-center gap-2">
+                    {detailCar.specs?.pi && <PiBadge pi={detailCar.specs.pi} />}
+                    <span className="text-sm font-bold text-app-text">{detailCar.name}</span>
+                  </div>
+                  <button onClick={() => setDetailCar(null)} className="text-app-text-muted hover:text-app-text text-lg leading-none">×</button>
+                </div>
+                <CarDetail car={detailCar} fmtSpeed={fmtSpeed} fmtBrake={fmtBrake} fmtWeight={fmtWeight} isMetric={isMetric} />
+              </div>
+            </div>
+          )}
+        </>
       ) : (
-        <div className="rounded-lg border border-app-border overflow-hidden">
-          <div className="grid grid-cols-[1fr_52px_70px_72px_60px_72px_60px_110px] gap-x-3 px-4 py-2 bg-app-surface border-b border-app-border">
+        <div className="rounded-lg border border-app-border overflow-x-auto">
+          <div className="min-w-max">
+          <div className={`grid ${GRID} gap-x-3 px-4 py-2 bg-app-surface border-b border-app-border`}>
+            <div />
             <ColHeader k="name" label="Car" />
             <ColHeader k="pi" label="PI" />
             <ColHeader k="hp" label="HP" />
-            <ColHeader k="weightKg" label="Weight" />
+            <ColHeader k="torque" label="Torque" />
+            <ColHeader k="weightKg" label={isMetric ? "Weight (kg)" : "Weight (lb)"} />
             <span className="text-[10px] uppercase tracking-wider font-semibold text-app-text-muted">Drive</span>
-            <ColHeader k="topSpeedMph" label="Top Spd" />
+            <ColHeader k="topSpeedMph" label={`Top Spd (${units.speedLabel})`} />
             <ColHeader k="zeroToSixty" label="0–60" />
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-app-text-muted">Division</span>
+            <ColHeader k="zeroToHundred" label="0–100" />
+            <ColHeader k="braking60" label={isMetric ? "Brake 60 (m)" : "Brake 60 (ft)"} />
+            <ColHeader k="speedRating" label="Spd" />
+            <ColHeader k="brakingRating" label="Brk" />
+            <ColHeader k="handlingRating" label="Hdl" />
+            <ColHeader k="accelRating" label="Acc" />
+            <ColHeader k="division" label="Division" />
           </div>
 
           <div className="divide-y divide-app-border/40">
@@ -298,26 +530,78 @@ function CarsPage() {
             ) : filtered.map((car) => (
               <div key={car.ordinal}>
                 <div
-                  onClick={() => setExpanded(expanded === car.ordinal ? null : car.ordinal)}
-                  className="grid grid-cols-[1fr_52px_70px_72px_60px_72px_60px_110px] gap-x-3 px-4 py-2.5 hover:bg-app-surface/50 transition-colors items-center cursor-pointer"
+                  onClick={() => setExpanded(prev => { const s = new Set(prev); s.has(car.ordinal) ? s.delete(car.ordinal) : s.add(car.ordinal); return s; })}
+                  className={`grid ${GRID} gap-x-3 px-4 py-2.5 hover:bg-app-surface/50 transition-colors items-center cursor-pointer ${selected.has(car.ordinal) ? "bg-app-accent/5" : ""}`}
                 >
+                  <div onClick={e => toggleSelect(car.ordinal, e)} className="flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(car.ordinal)}
+                      onChange={() => {}}
+                      className="w-3.5 h-3.5 accent-app-accent cursor-pointer"
+                    />
+                  </div>
                   <div className="flex items-center gap-2 min-w-0">
                     {car.specs?.pi ? <PiBadge pi={car.specs.pi} /> : <span className="w-6" />}
                     <span className="text-xs text-app-text truncate">{car.name}</span>
                   </div>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.pi || "—"}</span>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.hp ? `${car.specs.hp} hp` : "—"}</span>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.weightKg ? `${car.specs.weightKg} kg` : "—"}</span>
+                  <span className="text-xs tabular-nums text-app-text-secondary">
+                    {car.specs?.pi ? <><span className={PI_COLORS[piClass(car.specs.pi)]?.split(" ")[1] ?? "text-app-text-muted"}>{piClass(car.specs.pi)}&nbsp;</span>{car.specs.pi}</> : "—"}
+                  </span>
+                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.hp ? `${car.specs.hp}` : "—"}</span>
+                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.torque ? `${car.specs.torque}` : "—"}</span>
+                  <span className="text-xs tabular-nums text-app-text-secondary">{fmtWeight(car.specs?.weightKg ?? 0, car.specs?.weightLbs ?? 0)}</span>
                   <span className="text-xs text-app-text-secondary">{car.specs?.drivetrain || "—"}</span>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.topSpeedMph ? `${car.specs.topSpeedMph}` : "—"}</span>
+                  <span className="text-xs tabular-nums text-app-text-secondary">{fmtSpeed(car.specs?.topSpeedMph ?? 0)}</span>
                   <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.zeroToSixty ? `${car.specs.zeroToSixty}s` : "—"}</span>
+                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.zeroToHundred ? `${car.specs.zeroToHundred}s` : "—"}</span>
+                  <span className="text-xs tabular-nums text-app-text-secondary">{fmtBrake(car.specs?.braking60 ?? 0)}</span>
+                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.speedRating ? `${car.specs.speedRating}` : "—"}</span>
+                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.brakingRating ? `${car.specs.brakingRating}` : "—"}</span>
+                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.handlingRating ? `${car.specs.handlingRating}` : "—"}</span>
+                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.accelRating ? `${car.specs.accelRating}` : "—"}</span>
                   <span className="text-xs text-app-text-muted truncate">{car.specs?.division || "—"}</span>
                 </div>
-                {expanded === car.ordinal && <CarDetail car={car} />}
+                {expanded.has(car.ordinal) && (
+                  <CarDetail car={car} fmtSpeed={fmtSpeed} fmtBrake={fmtBrake} fmtWeight={fmtWeight} isMetric={isMetric} />
+                )}
               </div>
             ))}
           </div>
+          </div>
         </div>
+      )}
+
+      {/* Floating compare bar */}
+      {selected.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-app-surface border border-app-border rounded-full px-4 py-2 shadow-xl">
+          <span className="text-xs text-app-text-muted">{selected.size} car{selected.size !== 1 ? "s" : ""} selected</span>
+          <button
+            onClick={() => setComparing(true)}
+            disabled={selected.size < 2}
+            className="text-xs font-semibold px-3 py-1 rounded-full bg-app-accent text-white disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+          >
+            Compare ({selected.size})
+          </button>
+          <button
+            onClick={() => setSelected(new Set())}
+            className="text-xs text-app-text-muted hover:text-app-text transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+      {/* Compare modal */}
+      {comparing && selectedCars.length >= 2 && (
+        <CompareModal
+          cars={selectedCars}
+          onClose={() => setComparing(false)}
+          fmtSpeed={fmtSpeed}
+          fmtBrake={fmtBrake}
+          fmtWeight={fmtWeight}
+          isMetric={isMetric}
+        />
       )}
     </div>
   );

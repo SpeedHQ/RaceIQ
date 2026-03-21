@@ -1,6 +1,7 @@
-import { useRef, useMemo, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { useRef, useMemo, useState, useCallback } from "react";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Grid, Line, useGLTF } from "@react-three/drei";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import type { TelemetryPacket } from "@shared/types";
 
@@ -527,7 +528,50 @@ function TrackOutline({
   );
 }
 
-function CarScene({ packet, telemetry, cursorIdx, outline, toggles }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; toggles: ViewToggles }) {
+// ── Camera presets ───────────────────────────────────────────────
+
+type ViewPreset = "3/4" | "front" | "rear" | "left" | "right" | "top";
+
+const VIEW_PRESETS: Record<ViewPreset, { position: [number, number, number]; target: [number, number, number] }> = {
+  "3/4":  { position: [4, 2.5, 4],    target: [0, 0, 0] },
+  front:  { position: [5, 1.5, 0],    target: [0, 0, 0] },
+  rear:   { position: [-5, 1.5, 0],   target: [0, 0, 0] },
+  left:   { position: [0, 1.5, -5],   target: [0, 0, 0] },
+  right:  { position: [0, 1.5, 5],    target: [0, 0, 0] },
+  top:    { position: [0, 7, 0.01],   target: [0, 0, 0] },
+};
+
+function CameraController({ viewPreset }: { viewPreset: ViewPreset }) {
+  const controlsRef = useRef<OrbitControlsImpl>(null);
+  const { camera } = useThree();
+  const lastPreset = useRef<ViewPreset>(viewPreset);
+
+  useFrame(() => {
+    if (viewPreset !== lastPreset.current) {
+      lastPreset.current = viewPreset;
+      const preset = VIEW_PRESETS[viewPreset];
+      camera.position.set(...preset.position);
+      if (controlsRef.current) {
+        controlsRef.current.target.set(...preset.target);
+        controlsRef.current.update();
+      }
+    }
+  });
+
+  return (
+    <OrbitControls
+      ref={controlsRef}
+      enablePan={false}
+      enableZoom={true}
+      minDistance={3}
+      maxDistance={2000}
+      minPolarAngle={0.3}
+      maxPolarAngle={Math.PI / 2 - 0.1}
+    />
+  );
+}
+
+function CarScene({ packet, telemetry, cursorIdx, outline, toggles, viewPreset }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; toggles: ViewToggles; viewPreset: ViewPreset }) {
   const carGroupRef = useRef<THREE.Group>(null);
   const prevTimeRef = useRef(packet.TimestampMS);
   const spinAngles = useRef([0, 0, 0, 0]);
@@ -715,14 +759,7 @@ function CarScene({ packet, telemetry, cursorIdx, outline, toggles }: { packet: 
       {toggles.brakeTrails && <BrakeTrail telemetry={telemetry} cursorIdx={cursorIdx} />}
 
       {/* Camera controls */}
-      <OrbitControls
-        enablePan={false}
-        enableZoom={true}
-        minDistance={3}
-        maxDistance={2000}
-        minPolarAngle={0.3}
-        maxPolarAngle={Math.PI / 2 - 0.1}
-      />
+      <CameraController viewPreset={viewPreset} />
     </>
   );
 }
@@ -786,6 +823,7 @@ export function CarWireframe({
   const throttlePct = (packet.Accel / 255) * 100;
   const brakePct = (packet.Brake / 255) * 100;
   const [toggles, setToggles] = useState<ViewToggles>(DEFAULT_TOGGLES);
+  const [viewPreset, setViewPreset] = useState<ViewPreset>("3/4");
 
   const toggle = (key: keyof ViewToggles) =>
     setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -797,11 +835,11 @@ export function CarWireframe({
         gl={{ antialias: true, alpha: true }}
         style={{ background: "transparent" }}
       >
-        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} toggles={toggles} />
+        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} toggles={toggles} viewPreset={viewPreset} />
       </Canvas>
 
       {/* View toggles */}
-      <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+      <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[65%]">
         <ToggleButton label={toggles.solid ? "Solid" : "Wire"} active={toggles.solid} onClick={() => toggle("solid")} />
         <ToggleButton label="Springs" active={toggles.springs} onClick={() => toggle("springs")} />
         <ToggleButton label="Trails" active={toggles.trails} onClick={() => toggle("trails")} />
@@ -809,6 +847,13 @@ export function CarWireframe({
         <ToggleButton label="Track" active={toggles.track} onClick={() => toggle("track")} />
         <ToggleButton label="Grid" active={toggles.grid} onClick={() => toggle("grid")} />
         <ToggleButton label="Drive" active={toggles.drivetrain} onClick={() => toggle("drivetrain")} />
+      </div>
+
+      {/* Camera presets */}
+      <div className="absolute top-2 right-2 flex flex-col gap-1">
+        {(Object.keys(VIEW_PRESETS) as ViewPreset[]).map((key) => (
+          <ToggleButton key={key} label={key} active={viewPreset === key} onClick={() => setViewPreset(key)} />
+        ))}
       </div>
 
       {/* Throttle / Brake overlay */}

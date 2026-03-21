@@ -652,6 +652,7 @@ export function LapAnalyse() {
   const [loading, setLoading] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [viewingTuneId, setViewingTuneId] = useState<number | null>(null);
   const playRef = useRef(false);
   const speedRef = useRef(1);
   const cursorRef = useRef(0);
@@ -665,9 +666,7 @@ export function LapAnalyse() {
   const { data: allLaps = [] } = useLapsQuery(activeProfileId);
   useEffect(() => {
     const valid = allLaps.filter((l) => l.lapTime > 0);
-    if (valid.length !== laps.length || valid.some((l, i) => l.id !== laps[i]?.id)) {
-      setLaps(valid);
-    }
+    setLaps(valid);
   }, [allLaps]);
 
   // Derive unique tracks from laps
@@ -1063,6 +1062,16 @@ export function LapAnalyse() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tuneId }),
       }).then((r) => r.json()),
+    onMutate: (tuneId) => {
+      // Optimistically update local laps state so dropdown doesn't reset
+      setLaps((prev) =>
+        prev.map((l) =>
+          l.id === selectedLapId
+            ? { ...l, tuneId: tuneId ?? undefined, tuneName: availableTunes?.find((t: { id: number; name: string }) => t.id === tuneId)?.name }
+            : l
+        )
+      );
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["laps", activeProfileId ?? null] });
     },
@@ -1174,6 +1183,14 @@ export function LapAnalyse() {
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
+            {selectedLap?.tuneId && (
+              <button
+                onClick={() => setViewingTuneId(selectedLap.tuneId!)}
+                className="px-2 py-1 text-xs bg-app-surface-alt border border-app-border-input rounded text-app-text-muted hover:text-app-text transition-colors"
+              >
+                View
+              </button>
+            )}
             {updateLapTune.isPending && (
               <span className="text-xs text-app-text-muted animate-pulse">Saving...</span>
             )}
@@ -1768,6 +1785,75 @@ export function LapAnalyse() {
           trackName={trackName}
         />
       )}
+
+      {/* Tune viewer modal */}
+      {viewingTuneId && (
+        <TuneViewModal tuneId={viewingTuneId} onClose={() => setViewingTuneId(null)} />
+      )}
+    </div>
+  );
+}
+
+function TuneViewModal({ tuneId, onClose }: { tuneId: number; onClose: () => void }) {
+  const { data: tune, isLoading } = useQuery({
+    queryKey: ["tune", tuneId],
+    queryFn: () => fetch(`/api/tunes/${tuneId}`).then((r) => r.json()),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div
+        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[600px] max-h-[80vh] overflow-y-auto p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {isLoading ? (
+          <p className="text-app-text-muted text-sm">Loading tune...</p>
+        ) : !tune ? (
+          <p className="text-app-text-muted text-sm">Tune not found</p>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-app-text">{tune.name}</h2>
+                {tune.author && <p className="text-xs text-app-text-muted">by {tune.author}</p>}
+              </div>
+              <button onClick={onClose} className="text-app-text-muted hover:text-app-text text-xl leading-none">&times;</button>
+            </div>
+
+            {tune.category && (
+              <span className="inline-block px-2 py-0.5 text-xs rounded mb-3 bg-cyan-900/30 text-app-accent">
+                {tune.category}
+              </span>
+            )}
+
+            {tune.description && (
+              <p className="text-sm text-app-text-muted mb-4">{tune.description}</p>
+            )}
+
+            {tune.settings && (
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                {Object.entries(tune.settings).map(([section, values]) => (
+                  <div key={section} className="bg-app-surface-alt rounded p-2 border border-app-border">
+                    <h3 className="font-semibold text-app-accent uppercase tracking-wider mb-1">{section}</h3>
+                    {typeof values === "object" && values !== null ? (
+                      <dl className="space-y-0.5">
+                        {Object.entries(values as Record<string, unknown>).map(([k, v]) => (
+                          <div key={k} className="flex justify-between">
+                            <dt className="text-app-text-muted">{k.replace(/([A-Z])/g, " $1").trim()}</dt>
+                            <dd className="text-app-text font-mono">{typeof v === "number" ? v.toFixed(2) : String(v)}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    ) : (
+                      <span className="text-app-text">{String(values)}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

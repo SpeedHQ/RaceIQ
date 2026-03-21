@@ -27,7 +27,7 @@ const NAV_ITEMS = [
   { id: "connection", label: "Connection" },
   { id: "wheel", label: "Wheel" },
   { id: "temperature", label: "Temperature" },
-  { id: "speed", label: "Speed & Distance" },
+  { id: "speed", label: "Units" },
 ] as const;
 
 type SectionId = (typeof NAV_ITEMS)[number]["id"];
@@ -426,9 +426,9 @@ export function Settings() {
 
         {activeSection === "speed" && (
           <section>
-            <h2 className="text-lg font-semibold text-app-text mb-1">Speed & Distance</h2>
+            <h2 className="text-lg font-semibold text-app-text mb-1">Units</h2>
             <p className="text-sm text-app-text-muted mb-4">
-              Set the display units for speed and distance.
+              Choose between Imperial and Metric units for speed, distance, and weight.
             </p>
 
             <div className="flex items-center gap-2">
@@ -438,14 +438,14 @@ export function Settings() {
                 variant={speedUnit === "mph" ? "default" : "outline"}
                 onClick={() => setSpeedUnit("mph")}
               >
-                mph / mi
+                Imperial (mph, ft, lb)
               </Button>
               <Button
                 size="sm"
                 variant={speedUnit === "kmh" ? "default" : "outline"}
                 onClick={() => setSpeedUnit("kmh")}
               >
-                km/h / km
+                Metric (km/h, m, kg)
               </Button>
             </div>
 

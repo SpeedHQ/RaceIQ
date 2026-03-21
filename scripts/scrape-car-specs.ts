@@ -15,6 +15,60 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const API = "https://forza.fandom.com/api.php";
 
+const DIVISION_NAMES: Record<string, string> = {
+  "488":    "488 Challenge Spec",
+  "efr":    "Early Factory Racecars",
+  "egtc":   "Exotic GT Classics",
+  "elmp":   "Early LMP",
+  "esc":    "Early Sport Compact",
+  "f60":    "Formula 60s",
+  "f70":    "Formula 70s",
+  "fau":    "Forza AUS",
+  "faufgt": "Forza AUS",
+  "fd":     "Formula Drift",
+  "fg2fgt": "Forza GT2",
+  "fg3":    "Forza GT3",
+  "fg3fgt": "Forza GT3",
+  "fg4fgt": "Forza GT4",
+  "fms":    "Formula Mazda Spec",
+  "fp1":    "Forza P1",
+  "fp2":    "Forza P2",
+  "fph":    "Forza Proto-H",
+  "fsp":    "Forza Specials",
+  "ftafgt": "Forza T/A",
+  "ftc":    "Forza Touring Cars",
+  "g40":    "Ginetta G40 Junior Spec",
+  "gpr":    "Grand Prix Rivals",
+  "gtp":    "GTP/C",
+  "gtx":    "GTX Sportscars",
+  "hhi":    "Hot Hatch Icons",
+  "megt":   "Modern Exotic GT",
+  "mfr":    "Modern Factory Racecars",
+  "mh":     "Modern Hypercars",
+  "mhh":    "Modern Hot Hatch",
+  "mrs":    "Mission R Spec",
+  "mscm":   "Modern Sport Compact",
+  "mscu":   "Modern Sport Coupe",
+  "msgt":   "Modern Sport GT",
+  "mst":    "Modern Sport Touring",
+  "nas":    "NASCAR",
+  "pgr":    "Prototype Group Racing",
+  "sci":    "Sport Coupe Icons",
+  "sdc":    "Street Drag Racers",
+  "sgti":   "Sport GT Icons",
+  "sl":     "Sport Luxury",
+  "st":     "Super Trofeo",
+  "stc":    "Sport Touring Classics",
+  "tbogp":  "The Birth of Grand Prix",
+  "tt":     "Track Toys",
+  "vegt":   "Vintage Exotic GT",
+  "vlmp":   "Vintage Le Mans Prototypes",
+  "vlms":   "Vintage Le Mans Sportscars",
+  "vm":     "Vintage Muscle",
+  "vsc":    "Vintage Sport Compact",
+  "vta":    "Vintage Trans Am",
+};
+
 // ─── Step 1: Scrape car page links from wikitext ──────────────────────────────
 console.log("Step 1: Fetching car list...");
 const listRes = await fetch(`${API}?action=parse&page=Forza_Motorsport_(2023)/Cars&prop=wikitext&format=json`);
@@ -217,6 +271,46 @@ for (let i = 0; i < carPages.length; i += BATCH) {
 
 console.log(`\nStep 2 complete: ${wikiCars.length} / ${carPages.length} cars parsed`);
 
+// ─── Step 3: HTML fallback for missing performance stats ──────────────────────
+const missingPerf = wikiCars.filter(c => c.pi && c.pi > 0 && !c.topSpeedMph && !c.zeroToSixty);
+console.log(`\nStep 3: Fetching HTML stats for ${missingPerf.length} cars missing performance data...`);
+
+function parseHtmlStats(html: string, car: WikiCar) {
+  const num = (pattern: RegExp) => { const m = html.match(pattern); return m ? parseFloat(m[1]) : undefined; };
+  car.topSpeedMph   = num(/Top Speed:\s*([\d.]+)\s*mph/)           ?? car.topSpeedMph;
+  car.quarterMile   = num(/1\/4 Mile:\s*([\d.]+)\s*secs/)          ?? car.quarterMile;
+  car.zeroToSixty   = num(/0-60 mph[^:]*:\s*([\d.]+)\s*secs/)      ?? car.zeroToSixty;
+  car.zeroToHundred = num(/0-100 mph[^:]*:\s*([\d.]+)\s*secs/)     ?? car.zeroToHundred;
+  car.braking60     = num(/60-0 mph[^:]*:\s*([\d.]+)\s*ft/)        ?? car.braking60;
+  car.braking100    = num(/100-0 mph[^:]*:\s*([\d.]+)\s*ft/)       ?? car.braking100;
+  car.lateralG60    = num(/60 mph[^:]*:\s*([\d.]+)\s*g/)           ?? car.lateralG60;
+  car.lateralG120   = num(/120 mph[^:]*:\s*([\d.]+)\s*g/)          ?? car.lateralG120;
+}
+
+let htmlFetched = 0;
+const HTML_CONCURRENCY = 10;
+
+async function fetchHtmlStats(car: WikiCar) {
+  const url = `${API}?action=parse&page=${encodeURIComponent(car.pageName)}&prop=text&format=json`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json() as any;
+    const html: string = data.parse?.text?.["*"] ?? "";
+    const tableMatch = html.match(/<table[^>]*class="[^"]*fm23[^"]*"[^>]*>([\s\S]*?)<\/table>/);
+    if (tableMatch) {
+      const text = tableMatch[1].replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/g, " ").replace(/\s+/g, " ");
+      parseHtmlStats(text, car);
+      htmlFetched++;
+    }
+  } catch { /* skip */ }
+}
+
+for (let i = 0; i < missingPerf.length; i += HTML_CONCURRENCY) {
+  await Promise.all(missingPerf.slice(i, i + HTML_CONCURRENCY).map(fetchHtmlStats));
+  process.stdout.write(`\r  ${Math.min(i + HTML_CONCURRENCY, missingPerf.length)}/${missingPerf.length}`);
+}
+console.log(`\n  Filled stats for ${htmlFetched} / ${missingPerf.length} cars`);
+
 // ─── Step 4: Resolve image URLs ───────────────────────────────────────────────
 console.log("\nStep 4: Resolving image URLs...");
 const imageFiles = [...new Set(wikiCars.map(c => c.imageFile).filter(Boolean) as string[])];
@@ -274,18 +368,39 @@ for (const wc of wikiCars) {
   wikiByYear.get(wc.year)!.push(wc);
 }
 
+function wordOverlap(rawA: string, rawB: string): number {
+  // Tokenize on word boundaries BEFORE full normalization
+  const tokens = (s: string) => new Set(
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/)
+      .map(w => w.replace(/^#+/, ""))
+      .filter(w => w.length >= 3)
+  );
+  const ta = tokens(rawA), tb = tokens(rawB);
+  const [small, large] = ta.size <= tb.size ? [ta, tb] : [tb, ta];
+  if (small.size === 0) return 0;
+  let hits = 0;
+  for (const t of small) if (large.has(t)) hits++;
+  return hits / small.size;
+}
+
 function score(our: OurCar, wiki: WikiCar): number {
   if (our.year !== wiki.year) return 0;
-  const ourFull = normalize(`${our.make} ${our.model}`);
-  for (const wikiStr of [
-    normalize(`${wiki.wikiMake ?? ""} ${wiki.wikiModel ?? ""}`),
-    normalize(wiki.pageName),
-  ]) {
+  const ourRaw = `${our.make} ${our.model}`;
+  const ourFull = normalize(ourRaw);
+  const wikiRaws = [
+    `${wiki.wikiMake ?? ""} ${wiki.wikiModel ?? ""}`,
+    wiki.pageName,
+  ];
+  for (let i = 0; i < wikiRaws.length; i++) {
+    const wikiStr = normalize(wikiRaws[i]);
     if (!wikiStr) continue;
     if (ourFull === wikiStr) return 4;
     if (ourFull.includes(wikiStr) || wikiStr.includes(ourFull)) return 3;
     const [s, l] = ourFull.length < wikiStr.length ? [ourFull, wikiStr] : [wikiStr, ourFull];
     if (s.length >= 6 && l.includes(s)) return 2;
+    // Word-overlap fallback for racing cars with team names in page title
+    if (wordOverlap(ourRaw, wikiRaws[i]) >= 0.8) return 1;
   }
   return 0;
 }
@@ -323,7 +438,7 @@ for (const our of ourCars) {
       handlingRating:  best.handlingRating ?? 0,
       accelRating:     best.accelRating ?? 0,
       price:           best.price ?? 0,
-      division:        best.division ?? "",
+      division:        DIVISION_NAMES[best.division ?? ""] ?? best.division ?? "",
       topSpeedMph:     best.topSpeedMph ?? 0,
       quarterMile:     best.quarterMile ?? 0,
       zeroToSixty:     best.zeroToSixty ?? 0,
