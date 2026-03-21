@@ -126,26 +126,26 @@
     --app-dropdown: #1e293b;
 }
 
-/* ─── Morph Theme (Glassmorphic Black) ─── */
+/* ─── Morph Theme (Pure Dark) ─── */
 [data-theme="morph"] {
     --app-bg: #000000;
-    --app-surface: rgba(255, 255, 255, 0.04);
-    --app-surface-alt: rgba(255, 255, 255, 0.07);
-    --app-dropdown: #1a1a2e;
-    --app-border: rgba(255, 255, 255, 0.08);
-    --app-border-input: rgba(255, 255, 255, 0.12);
-    --app-text: rgba(255, 255, 255, 0.95);
-    --app-text-secondary: rgba(255, 255, 255, 0.65);
-    --app-text-muted: rgba(255, 255, 255, 0.55);
-    --app-text-dim: rgba(255, 255, 255, 0.38);
+    --app-surface: #0d0d0d;
+    --app-surface-alt: #141414;
+    --app-dropdown: #141414;
+    --app-border: #2a2a2a;
+    --app-border-input: #333333;
+    --app-text: #f5f5f5;
+    --app-text-secondary: #888888;
+    --app-text-muted: #777777;
+    --app-text-dim: #555555;
     --app-accent: #22d3ee;
     --app-accent-hover: #67e8f9;
     --app-highlight: #06b6d4;
-    --app-glass-blur: 16px;
-    --app-glass-surface: rgba(255, 255, 255, 0.03);
-    --app-glass-surface-alt: rgba(255, 255, 255, 0.06);
-    --app-glass-border: rgba(255, 255, 255, 0.10);
-    --app-glass-card: rgba(255, 255, 255, 0.04);
+    --app-glass-blur: 0px;
+    --app-glass-surface: #0d0d0d;
+    --app-glass-surface-alt: #141414;
+    --app-glass-border: #2a2a2a;
+    --app-glass-card: #0d0d0d;
 }
 
 @theme inline {

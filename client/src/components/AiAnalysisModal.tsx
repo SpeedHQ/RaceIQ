@@ -182,7 +182,7 @@ export function AiAnalysisModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
 
       <div className="relative z-10 w-full max-w-2xl max-h-[85vh] flex flex-col bg-app-surface border border-app-border-input rounded-xl shadow-2xl mx-4">
         {/* Header */}

@@ -169,6 +169,8 @@ export function getLaps(profileId?: number | null): LapMeta[] {
   }));
 }
 
+const telemetryCache = new Map<number, TelemetryPacket[]>();
+
 /**
  * Get a single lap by ID with full decompressed telemetry.
  */
@@ -208,7 +210,12 @@ export function getLapById(
     trackOrdinal: row.trackOrdinal,
     tuneId: row.tuneId ?? undefined,
     tuneName: row.tuneName ?? undefined,
-    telemetry: decompressTelemetry(row.telemetry as Buffer),
+    telemetry: (() => {
+      if (telemetryCache.has(id)) return telemetryCache.get(id)!;
+      const parsed = decompressTelemetry(row.telemetry as Buffer);
+      telemetryCache.set(id, parsed);
+      return parsed;
+    })(),
   };
 }
 
@@ -217,6 +224,7 @@ export function getLapById(
  */
 export function deleteLap(id: number): boolean {
   const result = db.delete(laps).where(eq(laps.id, id)).returning().all();
+  if (result.length > 0) telemetryCache.delete(id);
   return result.length > 0;
 }
 

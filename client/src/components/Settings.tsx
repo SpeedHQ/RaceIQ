@@ -196,7 +196,7 @@ export function Settings() {
                   <div className="text-sm font-medium text-app-text">{t.label}</div>
                   <div className="text-xs text-app-text-muted mt-0.5">{t.description}</div>
                   {t.value === "morph" && (
-                    <div className="mt-2 h-8 rounded-md border border-white/10 bg-gradient-to-br from-white/5 to-transparent backdrop-blur-sm" />
+                    <div className="mt-2 h-8 rounded-md border border-[#2a2a2a] bg-gradient-to-br from-[#1e1e1e] to-[#141414]" />
                   )}
                   {t.value === "default" && (
                     <div className="mt-2 h-8 rounded-md border border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900" />
