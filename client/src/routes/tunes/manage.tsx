@@ -86,9 +86,21 @@ function defaultTuneSettings(): TuneSettings {
     antiRollBars: { front: 20, rear: 20 },
     springs: { frontRate: 100, rearRate: 100, frontHeight: 10, rearHeight: 10 },
     damping: { frontRebound: 8, rearRebound: 8, frontBump: 5, rearBump: 5 },
+    rollCenterHeight: { front: 0, rear: 0 },
+    antiGeometry: { antiDiveFront: 0, antiSquatRear: 0 },
     aero: { frontDownforce: 100, rearDownforce: 100 },
     differential: { rearAccel: 60, rearDecel: 30 },
     brakes: { balance: 50, pressure: 100 },
+  };
+}
+
+/** Merge defaults into settings that may be missing newer fields */
+function withDefaults(s?: TuneSettings): TuneSettings {
+  if (!s) return defaultTuneSettings();
+  return {
+    ...s,
+    rollCenterHeight: s.rollCenterHeight ?? { front: 0, rear: 0 },
+    antiGeometry: s.antiGeometry ?? { antiDiveFront: 0, antiSquatRear: 0 },
   };
 }
 
@@ -164,7 +176,13 @@ function SettingsSection({
 
 // ── Settings display (read-only) ────────────────────────────────────────────
 
-function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
+function TuneSettingsPanel({ settings: raw }: { settings: TuneSettings }) {
+  // Ensure defaults for fields that may be missing in older tunes
+  const settings = {
+    ...raw,
+    rollCenterHeight: raw.rollCenterHeight ?? { front: 0, rear: 0 },
+    antiGeometry: raw.antiGeometry ?? { antiDiveFront: 0, antiSquatRear: 0 },
+  };
   const sections: { title: string; rows: [string, string][] }[] = [
     {
       title: "Tires",
@@ -214,15 +232,15 @@ function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
     {
       title: "Roll Center Height",
       rows: [
-        ["Front", `${(settings.rollCenterHeight?.front ?? 0).toFixed(1)} cm`],
-        ["Rear", `${(settings.rollCenterHeight?.rear ?? 0).toFixed(1)} cm`],
+        ["Front", `${settings.rollCenterHeight.front.toFixed(1)} cm`],
+        ["Rear", `${settings.rollCenterHeight.rear.toFixed(1)} cm`],
       ],
     },
     {
       title: "Anti-Geometry",
       rows: [
-        ["Anti-dive (front)", `${(settings.antiGeometry?.antiDiveFront ?? 0).toFixed(1)}%`],
-        ["Anti-squat (rear)", `${(settings.antiGeometry?.antiSquatRear ?? 0).toFixed(1)}%`],
+        ["Anti-dive (front)", `${settings.antiGeometry.antiDiveFront.toFixed(1)}%`],
+        ["Anti-squat (rear)", `${settings.antiGeometry.antiSquatRear.toFixed(1)}%`],
       ],
     },
     {
@@ -303,7 +321,7 @@ function TuneFormDialog({
   const [carOrdinal, setCarOrdinal] = useState(initialData?.carOrdinal ?? 2860);
   const [category, setCategory] = useState<TuneCategory>(initialData?.category ?? "circuit");
   const [description, setDescription] = useState(initialData?.description ?? "");
-  const [settings, setSettings] = useState<TuneSettings>(initialData?.settings ?? defaultTuneSettings());
+  const [settings, setSettings] = useState<TuneSettings>(withDefaults(initialData?.settings));
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
   const [jsonMode, setJsonMode] = useState(false);
   const [jsonText, setJsonText] = useState("");
@@ -327,7 +345,7 @@ function TuneFormDialog({
       setCarOrdinal(initialData?.carOrdinal ?? 2860);
       setCategory(initialData?.category ?? "circuit");
       setDescription(initialData?.description ?? "");
-      setSettings(initialData?.settings ?? defaultTuneSettings());
+      setSettings(withDefaults(initialData?.settings));
       setOpenSections(new Set());
       setJsonMode(false);
       setJsonText("");
@@ -509,12 +527,12 @@ function TuneFormDialog({
                   <NumberField label="Rear Bump" value={settings.damping.rearBump} onChange={(v) => updateSettings("damping", "rearBump", v)} />
                 </SettingsSection>
                 <SettingsSection title="Roll Center Height" isOpen={openSections.has("rollCenter")} onToggle={() => toggleSection("rollCenter")}>
-                  <NumberField label="Front" value={settings.rollCenterHeight?.front ?? 0} onChange={(v) => setSettings((s) => ({ ...s, rollCenterHeight: { front: v, rear: s.rollCenterHeight?.rear ?? 0 } }))} unit="cm" />
-                  <NumberField label="Rear" value={settings.rollCenterHeight?.rear ?? 0} onChange={(v) => setSettings((s) => ({ ...s, rollCenterHeight: { front: s.rollCenterHeight?.front ?? 0, rear: v } }))} unit="cm" />
+                  <NumberField label="Front" value={settings.rollCenterHeight.front} onChange={(v) => setSettings((s) => ({ ...s, rollCenterHeight: { ...s.rollCenterHeight, front: v } }))} unit="cm" />
+                  <NumberField label="Rear" value={settings.rollCenterHeight.rear} onChange={(v) => setSettings((s) => ({ ...s, rollCenterHeight: { ...s.rollCenterHeight, rear: v } }))} unit="cm" />
                 </SettingsSection>
                 <SettingsSection title="Anti-Geometry" isOpen={openSections.has("antiGeom")} onToggle={() => toggleSection("antiGeom")}>
-                  <NumberField label="Anti-dive (front)" value={settings.antiGeometry?.antiDiveFront ?? 0} onChange={(v) => setSettings((s) => ({ ...s, antiGeometry: { antiDiveFront: v, antiSquatRear: s.antiGeometry?.antiSquatRear ?? 0 } }))} unit="%" />
-                  <NumberField label="Anti-squat (rear)" value={settings.antiGeometry?.antiSquatRear ?? 0} onChange={(v) => setSettings((s) => ({ ...s, antiGeometry: { antiDiveFront: s.antiGeometry?.antiDiveFront ?? 0, antiSquatRear: v } }))} unit="%" />
+                  <NumberField label="Anti-dive (front)" value={settings.antiGeometry.antiDiveFront} onChange={(v) => setSettings((s) => ({ ...s, antiGeometry: { ...s.antiGeometry, antiDiveFront: v } }))} unit="%" />
+                  <NumberField label="Anti-squat (rear)" value={settings.antiGeometry.antiSquatRear} onChange={(v) => setSettings((s) => ({ ...s, antiGeometry: { ...s.antiGeometry, antiSquatRear: v } }))} unit="%" />
                 </SettingsSection>
                 <SettingsSection title="Aero" isOpen={openSections.has("aero")} onToggle={() => toggleSection("aero")}>
                   <NumberField label="Front Downforce" value={toDisplay(settings.aero.frontDownforce, "aero", isMetric)} onChange={(v) => updateSettings("aero", "frontDownforce", fromDisplay(v, "aero", isMetric))} step={1} unit={unitLabel("aero", isMetric)} />

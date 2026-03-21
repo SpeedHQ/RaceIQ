@@ -365,6 +365,8 @@ function defaultTuneSettings(): TuneSettings {
     antiRollBars: { front: 20, rear: 20 },
     springs: { frontRate: 100, rearRate: 100, frontHeight: 10, rearHeight: 10 },
     damping: { frontRebound: 8, rearRebound: 8, frontBump: 5, rearBump: 5 },
+    rollCenterHeight: { front: 0, rear: 0 },
+    antiGeometry: { antiDiveFront: 0, antiSquatRear: 0 },
     aero: { frontDownforce: 100, rearDownforce: 100 },
     differential: { rearAccel: 60, rearDecel: 30 },
     brakes: { balance: 50, pressure: 100 },

@@ -270,11 +270,11 @@ export interface TuneSettings {
     frontBump: number;
     rearBump: number;
   };
-  rollCenterHeight?: {
+  rollCenterHeight: {
     front: number;
     rear: number;
   };
-  antiGeometry?: {
+  antiGeometry: {
     antiDiveFront: number;
     antiSquatRear: number;
   };
