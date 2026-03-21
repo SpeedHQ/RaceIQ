@@ -20,6 +20,8 @@ const HTTP_PORT = Number(process.env.SERVER_PORT) || 3117;
 
 // Import DB to ensure schema is created on startup
 import { sqlite } from "./db/index";
+import { migrateTelemetryToCSV } from "./db/queries";
+migrateTelemetryToCSV();
 
 // Load persisted settings
 const settings = loadSettings();

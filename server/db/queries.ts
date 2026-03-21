@@ -4,13 +4,44 @@ import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, profiles, tun
 import type { TelemetryPacket, LapMeta, SessionMeta } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 
+// Fixed column order for CSV telemetry storage
+const TELEMETRY_FIELDS: (keyof TelemetryPacket)[] = [
+  "IsRaceOn","TimestampMS","EngineMaxRpm","EngineIdleRpm","CurrentEngineRpm",
+  "AccelerationX","AccelerationY","AccelerationZ",
+  "VelocityX","VelocityY","VelocityZ",
+  "AngularVelocityX","AngularVelocityY","AngularVelocityZ",
+  "Yaw","Pitch","Roll",
+  "NormSuspensionTravelFL","NormSuspensionTravelFR","NormSuspensionTravelRL","NormSuspensionTravelRR",
+  "TireSlipRatioFL","TireSlipRatioFR","TireSlipRatioRL","TireSlipRatioRR",
+  "WheelRotationSpeedFL","WheelRotationSpeedFR","WheelRotationSpeedRL","WheelRotationSpeedRR",
+  "WheelOnRumbleStripFL","WheelOnRumbleStripFR","WheelOnRumbleStripRL","WheelOnRumbleStripRR",
+  "WheelInPuddleDepthFL","WheelInPuddleDepthFR","WheelInPuddleDepthRL","WheelInPuddleDepthRR",
+  "SurfaceRumbleFL_2","SurfaceRumbleFR_2","SurfaceRumbleRL_2","SurfaceRumbleRR_2",
+  "TireSlipCombinedFL_2",
+  "TireTempFL","TireTempFR","TireTempRL","TireTempRR",
+  "Boost","Fuel","DistanceTraveled","BestLap","LastLap","CurrentLap","CurrentRaceTime",
+  "LapNumber","RacePosition","Accel","Brake","Clutch","HandBrake","Gear","Steer",
+  "NormDrivingLine","NormAIBrakeDiff",
+  "TireWearFL","TireWearFR","TireWearRL","TireWearRR",
+  "SurfaceRumbleFL","SurfaceRumbleFR","SurfaceRumbleRL","SurfaceRumbleRR",
+  "TireSlipAngleFL","TireSlipAngleFR","TireSlipAngleRL","TireSlipAngleRR",
+  "TireCombinedSlipFL","TireCombinedSlipFR","TireCombinedSlipRL","TireCombinedSlipRR",
+  "SuspensionTravelMetersFL","SuspensionTravelMetersFR","SuspensionTravelMetersRL","SuspensionTravelMetersRR",
+  "CarOrdinal","CarClass","CarPerformanceIndex","DrivetrainType","NumCylinders",
+  "PositionX","PositionY","PositionZ","Speed","Power","Torque","TrackOrdinal",
+];
+
 /**
- * Compress telemetry packets to a gzip'd JSON blob for storage.
+ * Compress telemetry packets to a gzip'd CSV blob for storage.
  */
 export function compressTelemetry(packets: TelemetryPacket[]): Buffer {
-  const json = JSON.stringify(packets);
-  const compressed = Bun.gzipSync(Buffer.from(json));
-  return Buffer.from(compressed);
+  const rows = new Array(packets.length + 1);
+  rows[0] = TELEMETRY_FIELDS.join(",");
+  for (let i = 0; i < packets.length; i++) {
+    const p = packets[i];
+    rows[i + 1] = TELEMETRY_FIELDS.map(f => p[f]).join(",");
+  }
+  return Buffer.from(Bun.gzipSync(Buffer.from(rows.join("\n"))));
 }
 
 /**
@@ -18,7 +49,41 @@ export function compressTelemetry(packets: TelemetryPacket[]): Buffer {
  */
 export function decompressTelemetry(blob: Buffer): TelemetryPacket[] {
   const decompressed = Bun.gunzipSync(blob);
-  return JSON.parse(new TextDecoder().decode(decompressed));
+  const text = new TextDecoder().decode(decompressed);
+  const nl = text.indexOf("\n");
+  if (nl === -1) return [];
+  const fields = text.slice(0, nl).split(",") as (keyof TelemetryPacket)[];
+  const body = text.slice(nl + 1);
+  const lines = body.split("\n");
+  const result: TelemetryPacket[] = new Array(lines.length);
+  for (let i = 0; i < lines.length; i++) {
+    const vals = lines[i].split(",");
+    const p = {} as TelemetryPacket;
+    for (let j = 0; j < fields.length; j++) {
+      (p as any)[fields[j]] = Number(vals[j]);
+    }
+    result[i] = p;
+  }
+  return result;
+}
+
+/**
+ * One-time migration: recompress any JSON-format telemetry blobs to CSV.
+ * Safe to call on every startup — skips rows already in CSV format.
+ */
+export function migrateTelemetryToCSV(): void {
+  const rows = db.select({ id: laps.id, telemetry: laps.telemetry }).from(laps).all();
+  let migrated = 0;
+  for (const row of rows) {
+    const blob = row.telemetry as Buffer;
+    const decompressed = Bun.gunzipSync(blob);
+    if (decompressed[0] !== 91) continue; // already CSV, skip
+    const packets = JSON.parse(new TextDecoder().decode(decompressed)) as TelemetryPacket[];
+    const newBlob = compressTelemetry(packets);
+    db.update(laps).set({ telemetry: newBlob }).where(eq(laps.id, row.id)).run();
+    migrated++;
+  }
+  if (migrated > 0) console.log(`[migration] Converted ${migrated} laps from JSON to CSV telemetry format`);
 }
 
 /**
