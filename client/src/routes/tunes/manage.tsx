@@ -50,6 +50,55 @@ const ALL_CATEGORIES: TuneCategory[] = [
   "track-specific",
 ];
 
+// ── Unit conversion ──────────────────────────────────────────────────────────
+
+type UnitSystem = {
+  tires: "bar" | "psi";
+  springs: "kgf/mm" | "lb/in";
+  height: "cm" | "in";
+  aero: "kgf" | "lb";
+};
+
+const DEFAULT_UNITS: UnitSystem = { tires: "bar", springs: "kgf/mm", height: "cm", aero: "kgf" };
+
+const CONVERSIONS = {
+  tires:   { "bar": 1, "psi": 14.50377 },
+  springs: { "kgf/mm": 1, "lb/in": 56.0 },
+  height:  { "cm": 1, "in": 0.393701 },
+  aero:    { "kgf": 1, "lb": 2.20462 },
+} as const;
+
+/** Convert from stored (bar/kgf·mm/cm/kgf) to display unit */
+function toDisplay(value: number, category: keyof typeof CONVERSIONS, unit: string): number {
+  const factor = (CONVERSIONS[category] as Record<string, number>)[unit] ?? 1;
+  return Math.round(value * factor * 1000) / 1000;
+}
+
+/** Convert from display unit back to stored (bar/kgf·mm/cm/kgf) */
+function fromDisplay(value: number, category: keyof typeof CONVERSIONS, unit: string): number {
+  const factor = (CONVERSIONS[category] as Record<string, number>)[unit] ?? 1;
+  return Math.round((value / factor) * 1000) / 1000;
+}
+
+function UnitToggle({ options, value, onChange }: { options: [string, string]; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex gap-0.5 ml-auto">
+      {options.map((opt) => (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => onChange(opt)}
+          className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded transition-colors ${
+            value === opt ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"
+          }`}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function defaultTuneSettings(): TuneSettings {
@@ -105,32 +154,37 @@ function SettingsSection({
   isOpen,
   onToggle,
   children,
+  extra,
 }: {
   title: string;
   isOpen: boolean;
   onToggle: () => void;
   children: React.ReactNode;
+  extra?: React.ReactNode;
 }) {
   return (
     <div className="rounded-lg ring-1 ring-app-border overflow-hidden">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full text-left px-3 py-2 flex items-center justify-between bg-app-surface/85 hover:bg-app-surface transition-colors"
-      >
-        <span className="text-xs font-semibold uppercase tracking-wider text-app-accent">
-          {title}
-        </span>
-        <svg
-          className={`w-3 h-3 text-app-text-muted transition-transform ${isOpen ? "rotate-180" : ""}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
+      <div className="flex items-center bg-app-surface/85 hover:bg-app-surface transition-colors">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex-1 text-left px-3 py-2 flex items-center justify-between"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+          <span className="text-xs font-semibold uppercase tracking-wider text-app-accent">
+            {title}
+          </span>
+          <svg
+            className={`w-3 h-3 text-app-text-muted transition-transform ${isOpen ? "rotate-180" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {extra && <div className="flex items-center gap-1 pr-2">{extra}</div>}
+      </div>
       {isOpen && <div className="p-3 space-y-1">{children}</div>}
     </div>
   );
@@ -247,6 +301,7 @@ function TuneFormDialog({
   const [jsonMode, setJsonMode] = useState(false);
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
+  const [units, setUnits] = useState<UnitSystem>({ ...DEFAULT_UNITS });
   const [carSearchQuery, setCarSearchQuery] = useState("");
   const [carDropOpen, setCarDropOpen] = useState(false);
   const { data: allCars = [] } = useAllCars();
@@ -372,9 +427,11 @@ function TuneFormDialog({
               </div>
             ) : (
               <div className="space-y-2">
-                <SettingsSection title="Tires" isOpen={openSections.has("tires")} onToggle={() => toggleSection("tires")}>
-                  <NumberField label="Front Pressure" value={settings.tires.frontPressure} onChange={(v) => updateSettings("tires", "frontPressure", v)} step={0.01} unit="bar" />
-                  <NumberField label="Rear Pressure" value={settings.tires.rearPressure} onChange={(v) => updateSettings("tires", "rearPressure", v)} step={0.01} unit="bar" />
+                <SettingsSection title="Tires" isOpen={openSections.has("tires")} onToggle={() => toggleSection("tires")}
+                  extra={<UnitToggle options={["bar", "psi"]} value={units.tires} onChange={(v) => setUnits((u) => ({ ...u, tires: v as any }))} />}
+                >
+                  <NumberField label="Front Pressure" value={toDisplay(settings.tires.frontPressure, "tires", units.tires)} onChange={(v) => updateSettings("tires", "frontPressure", fromDisplay(v, "tires", units.tires))} step={units.tires === "psi" ? 0.1 : 0.01} unit={units.tires} />
+                  <NumberField label="Rear Pressure" value={toDisplay(settings.tires.rearPressure, "tires", units.tires)} onChange={(v) => updateSettings("tires", "rearPressure", fromDisplay(v, "tires", units.tires))} step={units.tires === "psi" ? 0.1 : 0.01} unit={units.tires} />
                 </SettingsSection>
                 <SettingsSection title="Gearing" isOpen={openSections.has("gearing")} onToggle={() => toggleSection("gearing")}>
                   <NumberField label="Final Drive" value={settings.gearing.finalDrive} onChange={(v) => updateSettings("gearing", "finalDrive", v)} step={0.01} unit=":1" />
@@ -390,11 +447,16 @@ function TuneFormDialog({
                   <NumberField label="Front" value={settings.antiRollBars.front} onChange={(v) => updateSettings("antiRollBars", "front", v)} />
                   <NumberField label="Rear" value={settings.antiRollBars.rear} onChange={(v) => updateSettings("antiRollBars", "rear", v)} />
                 </SettingsSection>
-                <SettingsSection title="Springs" isOpen={openSections.has("springs")} onToggle={() => toggleSection("springs")}>
-                  <NumberField label="Front Rate" value={settings.springs.frontRate} onChange={(v) => updateSettings("springs", "frontRate", v)} step={1} unit="kgf/mm" />
-                  <NumberField label="Rear Rate" value={settings.springs.rearRate} onChange={(v) => updateSettings("springs", "rearRate", v)} step={1} unit="kgf/mm" />
-                  <NumberField label="Front Height" value={settings.springs.frontHeight} onChange={(v) => updateSettings("springs", "frontHeight", v)} unit="cm" />
-                  <NumberField label="Rear Height" value={settings.springs.rearHeight} onChange={(v) => updateSettings("springs", "rearHeight", v)} unit="cm" />
+                <SettingsSection title="Springs" isOpen={openSections.has("springs")} onToggle={() => toggleSection("springs")}
+                  extra={<>
+                    <UnitToggle options={["kgf/mm", "lb/in"]} value={units.springs} onChange={(v) => setUnits((u) => ({ ...u, springs: v as any }))} />
+                    <UnitToggle options={["cm", "in"]} value={units.height} onChange={(v) => setUnits((u) => ({ ...u, height: v as any }))} />
+                  </>}
+                >
+                  <NumberField label="Front Rate" value={toDisplay(settings.springs.frontRate, "springs", units.springs)} onChange={(v) => updateSettings("springs", "frontRate", fromDisplay(v, "springs", units.springs))} step={units.springs === "lb/in" ? 1 : 0.1} unit={units.springs} />
+                  <NumberField label="Rear Rate" value={toDisplay(settings.springs.rearRate, "springs", units.springs)} onChange={(v) => updateSettings("springs", "rearRate", fromDisplay(v, "springs", units.springs))} step={units.springs === "lb/in" ? 1 : 0.1} unit={units.springs} />
+                  <NumberField label="Front Height" value={toDisplay(settings.springs.frontHeight, "height", units.height)} onChange={(v) => updateSettings("springs", "frontHeight", fromDisplay(v, "height", units.height))} step={0.1} unit={units.height} />
+                  <NumberField label="Rear Height" value={toDisplay(settings.springs.rearHeight, "height", units.height)} onChange={(v) => updateSettings("springs", "rearHeight", fromDisplay(v, "height", units.height))} step={0.1} unit={units.height} />
                 </SettingsSection>
                 <SettingsSection title="Damping" isOpen={openSections.has("damping")} onToggle={() => toggleSection("damping")}>
                   <NumberField label="Front Rebound" value={settings.damping.frontRebound} onChange={(v) => updateSettings("damping", "frontRebound", v)} />
@@ -402,9 +464,11 @@ function TuneFormDialog({
                   <NumberField label="Front Bump" value={settings.damping.frontBump} onChange={(v) => updateSettings("damping", "frontBump", v)} />
                   <NumberField label="Rear Bump" value={settings.damping.rearBump} onChange={(v) => updateSettings("damping", "rearBump", v)} />
                 </SettingsSection>
-                <SettingsSection title="Aero" isOpen={openSections.has("aero")} onToggle={() => toggleSection("aero")}>
-                  <NumberField label="Front Downforce" value={settings.aero.frontDownforce} onChange={(v) => updateSettings("aero", "frontDownforce", v)} step={1} unit="kgf" />
-                  <NumberField label="Rear Downforce" value={settings.aero.rearDownforce} onChange={(v) => updateSettings("aero", "rearDownforce", v)} step={1} unit="kgf" />
+                <SettingsSection title="Aero" isOpen={openSections.has("aero")} onToggle={() => toggleSection("aero")}
+                  extra={<UnitToggle options={["kgf", "lb"]} value={units.aero} onChange={(v) => setUnits((u) => ({ ...u, aero: v as any }))} />}
+                >
+                  <NumberField label="Front Downforce" value={toDisplay(settings.aero.frontDownforce, "aero", units.aero)} onChange={(v) => updateSettings("aero", "frontDownforce", fromDisplay(v, "aero", units.aero))} step={1} unit={units.aero} />
+                  <NumberField label="Rear Downforce" value={toDisplay(settings.aero.rearDownforce, "aero", units.aero)} onChange={(v) => updateSettings("aero", "rearDownforce", fromDisplay(v, "aero", units.aero))} step={1} unit={units.aero} />
                 </SettingsSection>
                 <SettingsSection title="Differential" isOpen={openSections.has("diff")} onToggle={() => toggleSection("diff")}>
                   <NumberField label="Rear Accel" value={settings.differential.rearAccel} onChange={(v) => updateSettings("differential", "rearAccel", v)} step={1} unit="%" />
