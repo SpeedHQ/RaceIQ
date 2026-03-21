@@ -23,6 +23,7 @@ const TABS = [
   { to: "/compare", label: "Compare" },
   { to: "/analyse", label: "Analyse" },
   { to: "/tracks", label: "Tracks" },
+  { to: "/cars", label: "Cars" },
   { to: "/tunes", label: "Tunes" },
   { to: "/setup", label: "Setup" },
   { to: "/raw", label: "Raw" },

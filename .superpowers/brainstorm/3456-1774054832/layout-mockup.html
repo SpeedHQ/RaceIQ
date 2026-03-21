@@ -1,0 +1,128 @@
+<h2>2-tab layout mockup</h2>
+<p class="subtitle">Full-page form with Info and Settings tabs. How does this feel?</p>
+
+<div class="mockup" style="max-width:760px;margin:0 auto">
+  <div class="mockup-header">New Tune — /tunes/new</div>
+  <div class="mockup-body" style="padding:0;font-size:12px">
+
+    <!-- Page header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="color:var(--text-muted);font-size:13px">←</span>
+        <span style="font-weight:700;font-size:15px">Create New Tune</span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="mock-button" style="font-size:11px;padding:5px 12px;background:transparent;border:1px solid var(--border);color:var(--text-muted)">Cancel</button>
+        <button class="mock-button" style="font-size:11px;padding:5px 12px">Save Tune</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;padding:0 20px;border-bottom:1px solid var(--border);margin-top:0">
+      <div style="padding:10px 16px;font-size:12px;font-weight:600;border-bottom:2px solid var(--accent);color:var(--accent);cursor:pointer">Info</div>
+      <div style="padding:10px 16px;font-size:12px;font-weight:600;border-bottom:2px solid transparent;color:var(--text-muted);cursor:pointer">Settings</div>
+    </div>
+
+    <!-- Info tab content -->
+    <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div style="grid-column:1/-1">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px">Tune Name</div>
+        <input class="mock-input" placeholder="e.g. Race Setup v2" style="width:100%;box-sizing:border-box">
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px">Author</div>
+        <input class="mock-input" placeholder="Me" style="width:100%;box-sizing:border-box">
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px">Car</div>
+        <input class="mock-input" placeholder="Search car..." style="width:100%;box-sizing:border-box">
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px">Category</div>
+        <select class="mock-input" style="width:100%;box-sizing:border-box">
+          <option>Circuit</option><option>Wet</option><option>Low Drag</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1">
+        <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px">Description</div>
+        <input class="mock-input" placeholder="Optional notes about this tune..." style="width:100%;box-sizing:border-box">
+      </div>
+
+      <!-- JSON import hint -->
+      <div style="grid-column:1/-1;padding:10px 14px;border:1px dashed var(--border);border-radius:8px;font-size:11px;color:var(--text-muted)">
+        Have a tune JSON? Switch to the <strong style="color:var(--accent)">Settings</strong> tab to paste it in.
+      </div>
+    </div>
+
+    <!-- Settings tab preview (collapsed) -->
+    <div style="padding:0 20px 4px;border-top:1px solid var(--border)">
+      <div style="padding:10px 0;font-size:11px;color:var(--text-muted);font-style:italic">↑ Info tab shown. Settings tab contains all tune parameters in a 2-column grid.</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="mockup" style="max-width:760px;margin:16px auto 0">
+  <div class="mockup-header">Settings tab — always-visible grid (no accordion)</div>
+  <div class="mockup-body" style="padding:0;font-size:12px">
+
+    <!-- Tabs (Settings active) -->
+    <div style="display:flex;gap:0;padding:0 20px;border-bottom:1px solid var(--border)">
+      <div style="padding:10px 16px;font-size:12px;font-weight:600;border-bottom:2px solid transparent;color:var(--text-muted);cursor:pointer">Info</div>
+      <div style="padding:10px 16px;font-size:12px;font-weight:600;border-bottom:2px solid var(--accent);color:var(--accent);cursor:pointer">Settings</div>
+    </div>
+
+    <!-- Unit toggle + JSON import -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px 8px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted)">Tune Parameters</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:10px;color:var(--accent);cursor:pointer;font-weight:600">JSON Import</span>
+        <div style="display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:10px;font-weight:600">
+          <span style="padding:4px 10px;background:var(--accent-dim);color:var(--accent)">Metric</span>
+          <span style="padding:4px 10px;color:var(--text-muted)">Imperial</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings grid -->
+    <div style="padding:0 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+      <!-- Tires -->
+      <div style="background:var(--surface);border-radius:8px;padding:12px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--accent);margin-bottom:8px">Tires</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">Front Pressure</span><span style="font-family:monospace">1.70 bar</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Rear Pressure</span><span style="font-family:monospace">1.70 bar</span></div>
+      </div>
+
+      <!-- Alignment -->
+      <div style="background:var(--surface);border-radius:8px;padding:12px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--accent);margin-bottom:8px">Alignment</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">Front Camber</span><span style="font-family:monospace">-1.0°</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">Rear Camber</span><span style="font-family:monospace">-0.5°</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">Front Toe</span><span style="font-family:monospace">0.0°</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Rear Toe</span><span style="font-family:monospace">0.0°</span></div>
+      </div>
+
+      <!-- Springs -->
+      <div style="background:var(--surface);border-radius:8px;padding:12px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--accent);margin-bottom:8px">Springs</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">Front Rate</span><span style="font-family:monospace">100.0 kgf/mm</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">Rear Rate</span><span style="font-family:monospace">100.0 kgf/mm</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">Front Height</span><span style="font-family:monospace">10.0 cm</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Rear Height</span><span style="font-family:monospace">10.0 cm</span></div>
+      </div>
+
+      <!-- Damping -->
+      <div style="background:var(--surface);border-radius:8px;padding:12px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--accent);margin-bottom:8px">Damping</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">Front Rebound</span><span style="font-family:monospace">8.0</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">Rear Rebound</span><span style="font-family:monospace">8.0</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:var(--text-muted)">Front Bump</span><span style="font-family:monospace">5.0</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Rear Bump</span><span style="font-family:monospace">5.0</span></div>
+      </div>
+
+      <!-- More sections hint -->
+      <div style="grid-column:1/-1;font-size:11px;color:var(--text-muted);font-style:italic">+ ARBs, Gearing, Roll Center, Anti-Geometry, Aero, Differential, Brakes also shown as cards...</div>
+    </div>
+  </div>
+</div>

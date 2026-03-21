@@ -34,6 +34,103 @@ export function getCarName(ordinal: number): string {
   return `${car.year} ${car.make} ${car.model}`;
 }
 
+// --- Car specs ---
+
+export interface CarSpecs {
+  hp: number;
+  torque: number;
+  weightLbs: number;
+  weightKg: number;
+  displacement: number;
+  engine: string;
+  drivetrain: string;
+  gears: number;
+  aspiration: string;
+  frontWeightPct: number;
+  pi: number;
+  speedRating: number;
+  brakingRating: number;
+  handlingRating: number;
+  accelRating: number;
+  price: number;
+  division: string;
+  topSpeedMph: number;
+  quarterMile: number;
+  zeroToSixty: number;
+  zeroToHundred: number;
+  braking60: number;
+  braking100: number;
+  lateralG60: number;
+  lateralG120: number;
+  imageUrl: string;
+  synopsis: string;
+}
+
+export const carSpecsMap = new Map<number, CarSpecs>();
+
+// Parse a CSV line respecting quoted fields
+function parseCsvLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQuotes = !inQuotes; }
+    else if (ch === "," && !inQuotes) { fields.push(current); current = ""; }
+    else { current += ch; }
+  }
+  fields.push(current);
+  return fields;
+}
+
+const specsPath = resolve(__dirname, "car-specs.csv");
+try {
+  const specsRaw = readFileSync(specsPath, "utf-8");
+  let firstLine = true;
+  for (const line of specsRaw.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || firstLine) { firstLine = false; continue; }
+    const f = parseCsvLine(trimmed);
+    const ordinal = parseInt(f[0], 10);
+    if (isNaN(ordinal)) continue;
+    carSpecsMap.set(ordinal, {
+      hp:             parseInt(f[1]) || 0,
+      torque:         parseInt(f[2]) || 0,
+      weightLbs:      parseInt(f[3]) || 0,
+      weightKg:       parseInt(f[4]) || 0,
+      displacement:   parseFloat(f[5]) || 0,
+      engine:         f[6] ?? "",
+      drivetrain:     f[7] ?? "",
+      gears:          parseInt(f[8]) || 0,
+      aspiration:     f[9] ?? "",
+      frontWeightPct: parseInt(f[10]) || 0,
+      pi:             parseInt(f[11]) || 0,
+      speedRating:    parseFloat(f[12]) || 0,
+      brakingRating:  parseFloat(f[13]) || 0,
+      handlingRating: parseFloat(f[14]) || 0,
+      accelRating:    parseFloat(f[15]) || 0,
+      price:          parseInt(f[16]) || 0,
+      division:       f[17] ?? "",
+      topSpeedMph:    parseFloat(f[18]) || 0,
+      quarterMile:    parseFloat(f[19]) || 0,
+      zeroToSixty:    parseFloat(f[20]) || 0,
+      zeroToHundred:  parseFloat(f[21]) || 0,
+      braking60:      parseFloat(f[22]) || 0,
+      braking100:     parseFloat(f[23]) || 0,
+      lateralG60:     parseFloat(f[24]) || 0,
+      lateralG120:    parseFloat(f[25]) || 0,
+      imageUrl:       f[26] ?? "",
+      synopsis:       f[27] ?? "",
+    });
+  }
+} catch {
+  // car-specs.csv not yet generated — run scripts/scrape-car-specs.ts
+}
+
+export function getCarSpecs(ordinal: number): CarSpecs | undefined {
+  return carSpecsMap.get(ordinal);
+}
+
 // --- Track data ---
 
 export interface TrackInfo {

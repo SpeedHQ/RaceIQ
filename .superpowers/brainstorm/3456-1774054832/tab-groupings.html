@@ -1,0 +1,45 @@
+<h2>How should the settings be grouped into tabs?</h2>
+<p class="subtitle">The form has 11 setting sections + basic info. Pick the tab structure that feels right.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>2 tabs — Info + Settings</h3>
+      <p>Keep it simple. Tab 1: name/car/category/description. Tab 2: all tune settings (no more accordion, just always-visible fields laid out in a grid).</p>
+      <div style="margin-top:8px;font-size:11px;color:var(--text-muted)">
+        <strong>Tabs:</strong> Info &nbsp;|&nbsp; Settings
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>4 tabs — grouped by system</h3>
+      <p>Each tab is a logical system group. Info is always shown at the top (not a tab), then tabs for each group below.</p>
+      <div style="margin-top:8px;font-size:11px;color:var(--text-muted)">
+        <strong>Tabs:</strong> Suspension &nbsp;|&nbsp; Alignment &nbsp;|&nbsp; Drivetrain &nbsp;|&nbsp; Aero & Brakes<br>
+        <span style="font-size:10px">Suspension = Springs, Damping, ARBs, Roll Center, Anti-Geometry<br>
+        Alignment = Camber, Toe, Caster<br>
+        Drivetrain = Gearing, Differential<br>
+        Aero & Brakes = Tires, Aero, Brakes</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>5 tabs — one per major system</h3>
+      <p>More granular. Each tab maps to a discrete physical system. Info metadata lives in a sticky header above the tabs.</p>
+      <div style="margin-top:8px;font-size:11px;color:var(--text-muted)">
+        <strong>Tabs:</strong> Info &nbsp;|&nbsp; Chassis &nbsp;|&nbsp; Alignment &nbsp;|&nbsp; Drivetrain &nbsp;|&nbsp; Aero<br>
+        <span style="font-size:10px">Chassis = Springs, Damping, ARBs, Roll Center, Anti-Geometry<br>
+        Alignment = Camber, Toe, Caster, Tires<br>
+        Drivetrain = Gearing, Differential, Brakes<br>
+        Aero = Downforce front/rear</span>
+      </div>
+    </div>
+  </div>
+</div>

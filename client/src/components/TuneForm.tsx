@@ -135,43 +135,6 @@ export function NumberField({
   );
 }
 
-// ── SettingsSection ──────────────────────────────────────────────────────────
-
-export function SettingsSection({
-  title,
-  isOpen,
-  onToggle,
-  children,
-}: {
-  title: string;
-  isOpen: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-lg ring-1 ring-app-border overflow-hidden">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full text-left px-3 py-2 flex items-center justify-between bg-app-surface hover:bg-app-surface transition-colors"
-      >
-        <span className="text-xs font-semibold uppercase tracking-wider text-app-accent">
-          {title}
-        </span>
-        <svg
-          className={`w-3 h-3 text-app-text-muted transition-transform ${isOpen ? "rotate-180" : ""}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {isOpen && <div className="p-3 space-y-1">{children}</div>}
-    </div>
-  );
-}
 
 // ── TuneSettingsPanel (read-only) ────────────────────────────────────────────
 
@@ -359,7 +322,7 @@ export function UserTuneCard({
   );
 }
 
-// ── TuneForm (full page form, previously TuneFormInline) ─────────────────────
+// ── TuneForm (tabbed full-page) ───────────────────────────────────────────────
 
 export function TuneForm({
   initialData,
@@ -380,7 +343,7 @@ export function TuneForm({
   const [category, setCategory] = useState<TuneCategory>(initialData?.category ?? "circuit");
   const [description, setDescription] = useState(initialData?.description ?? "");
   const [settings, setSettings] = useState<TuneSettings>(withDefaults(initialData?.settings));
-  const [openSections, setOpenSections] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<"info" | "settings">("info");
   const [jsonMode, setJsonMode] = useState(false);
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
@@ -406,7 +369,7 @@ export function TuneForm({
     setCategory(initialData?.category ?? "circuit");
     setDescription(initialData?.description ?? "");
     setSettings(withDefaults(initialData?.settings));
-    setOpenSections(new Set());
+    setActiveTab("info");
     setJsonMode(false);
     setJsonText("");
     setJsonError("");
@@ -414,15 +377,6 @@ export function TuneForm({
     const au = initialData?.settings?.aero?.unit;
     setIsMetric(u !== "lb/in" && au !== "lb");
   }, [initialData]);
-
-  const toggleSection = (s: string) => {
-    setOpenSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(s)) next.delete(s);
-      else next.add(s);
-      return next;
-    });
-  };
 
   const updateSettings = <K extends keyof TuneSettings>(group: K, field: string, value: number) => {
     setSettings((prev) => ({ ...prev, [group]: { ...prev[group], [field]: value } }));
@@ -458,70 +412,94 @@ export function TuneForm({
     onSubmit({ name, author, carOrdinal, category, description, settings: savedSettings, unitSystem: isMetric ? "metric" : "imperial" });
   };
 
+  const tabCls = (tab: "info" | "settings") =>
+    `px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+      activeTab === tab
+        ? "border-app-accent text-app-accent"
+        : "border-transparent text-app-text-muted hover:text-app-text"
+    }`;
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <button onClick={onCancel} className="text-app-text-muted hover:text-app-text text-sm">&larr;</button>
-        <h2 className="text-lg font-bold text-app-text">{title}</h2>
+    <form onSubmit={handleSubmit} className="flex flex-col min-h-full">
+      {/* Sticky header */}
+      <div className="sticky top-0 z-10 bg-app-bg border-b border-app-border flex items-center justify-between px-6 py-3">
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={onCancel} className="text-app-text-muted hover:text-app-text text-sm">&larr;</button>
+          <h2 className="text-base font-bold text-app-text">{title}</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={onCancel} className="text-xs px-4 py-1.5 rounded border border-app-border text-app-text-secondary hover:text-app-text transition-colors">
+            Cancel
+          </button>
+          <button type="submit" disabled={!name || isSubmitting} className="text-xs px-4 py-1.5 rounded bg-app-accent text-white hover:bg-app-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            {isSubmitting ? "Saving..." : "Save Tune"}
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Metadata */}
-        <div className="rounded-xl bg-app-surface ring-1 ring-app-border p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <label className="col-span-2 space-y-1">
-              <span className="text-xs font-medium text-app-text-muted">Name</span>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent" />
-            </label>
-            <label className="space-y-1">
-              <span className="text-xs font-medium text-app-text-muted">Author</span>
-              <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} required className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent" />
-            </label>
-            <div className="space-y-1 relative">
-              <span className="text-xs font-medium text-app-text-muted">Car</span>
-              <input
-                type="text"
-                value={carDropOpen ? carSearchQuery : selectedCarName}
-                onChange={(e) => { setCarSearchQuery(e.target.value); setCarDropOpen(true); }}
-                onFocus={() => { setCarDropOpen(true); setCarSearchQuery(""); }}
-                onBlur={() => setTimeout(() => setCarDropOpen(false), 150)}
-                placeholder="Search car..."
-                className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
-              />
-              {carDropOpen && (
-                <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto rounded-lg bg-app-surface border border-app-border z-50 shadow-lg">
-                  {filteredFormCars.map((c) => (
-                    <button
-                      key={c.ordinal}
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => { setCarOrdinal(c.ordinal); setCarSearchQuery(""); setCarDropOpen(false); }}
-                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-app-accent/20 transition-colors ${carOrdinal === c.ordinal ? "text-app-accent" : "text-app-text"}`}
-                    >
-                      {c.name}
-                    </button>
-                  ))}
-                  {filteredFormCars.length === 0 && <div className="px-3 py-2 text-xs text-app-text-muted">No cars found</div>}
-                </div>
-              )}
-            </div>
-            <label className="space-y-1">
-              <span className="text-xs font-medium text-app-text-muted">Category</span>
-              <select value={category} onChange={(e) => setCategory(e.target.value as TuneCategory)} className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent">
-                {ALL_CATEGORIES.map((c) => (<option key={c} value={c}>{CATEGORY_LABELS[c]}</option>))}
-              </select>
-            </label>
-            <label className="col-span-2 space-y-1">
-              <span className="text-xs font-medium text-app-text-muted">Description</span>
-              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent" />
-            </label>
-          </div>
-        </div>
+      {/* Tabs */}
+      <div className="flex border-b border-app-border px-6">
+        <button type="button" className={tabCls("info")} onClick={() => setActiveTab("info")}>Info</button>
+        <button type="button" className={tabCls("settings")} onClick={() => setActiveTab("settings")}>Settings</button>
+      </div>
 
-        {/* Settings */}
-        <div className="rounded-xl bg-app-surface ring-1 ring-app-border p-4 space-y-3">
+      {/* Info tab */}
+      {activeTab === "info" && (
+        <div className="p-6 grid grid-cols-2 gap-4 max-w-2xl">
+          <label className="col-span-2 space-y-1">
+            <span className="text-xs font-medium text-app-text-muted">Name</span>
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} required className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent" />
+          </label>
+          <label className="space-y-1">
+            <span className="text-xs font-medium text-app-text-muted">Author</span>
+            <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} required className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent" />
+          </label>
+          <div className="space-y-1 relative">
+            <span className="text-xs font-medium text-app-text-muted">Car</span>
+            <input
+              type="text"
+              value={carDropOpen ? carSearchQuery : selectedCarName}
+              onChange={(e) => { setCarSearchQuery(e.target.value); setCarDropOpen(true); }}
+              onFocus={() => { setCarDropOpen(true); setCarSearchQuery(""); }}
+              onBlur={() => setTimeout(() => setCarDropOpen(false), 150)}
+              placeholder="Search car..."
+              className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+            />
+            {carDropOpen && (
+              <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto rounded-lg bg-app-surface border border-app-border z-50 shadow-lg">
+                {filteredFormCars.map((c) => (
+                  <button
+                    key={c.ordinal}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => { setCarOrdinal(c.ordinal); setCarSearchQuery(""); setCarDropOpen(false); }}
+                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-app-accent/20 transition-colors ${carOrdinal === c.ordinal ? "text-app-accent" : "text-app-text"}`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+                {filteredFormCars.length === 0 && <div className="px-3 py-2 text-xs text-app-text-muted">No cars found</div>}
+              </div>
+            )}
+          </div>
+          <label className="space-y-1">
+            <span className="text-xs font-medium text-app-text-muted">Category</span>
+            <select value={category} onChange={(e) => setCategory(e.target.value as TuneCategory)} className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent">
+              {ALL_CATEGORIES.map((c) => (<option key={c} value={c}>{CATEGORY_LABELS[c]}</option>))}
+            </select>
+          </label>
+          <label className="col-span-2 space-y-1">
+            <span className="text-xs font-medium text-app-text-muted">Description</span>
+            <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent" />
+          </label>
+        </div>
+      )}
+
+      {/* Settings tab */}
+      {activeTab === "settings" && (
+        <div className="p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted">Tune Settings</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted">Tune Parameters</h3>
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => setJsonMode(!jsonMode)} className={`text-[10px] font-semibold uppercase px-2 py-1 rounded transition-colors ${jsonMode ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}>
                 JSON Import
@@ -542,12 +520,15 @@ export function TuneForm({
               <button type="button" onClick={handleJsonParse} className="text-xs px-3 py-1.5 rounded bg-app-accent/20 text-app-accent hover:bg-app-accent/30 transition-colors">Parse & Populate</button>
             </div>
           ) : (
-            <div className="space-y-2">
-              <SettingsSection title="Tires" isOpen={openSections.has("tires")} onToggle={() => toggleSection("tires")}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Tires</h4>
                 <NumberField label="Front Pressure" value={toDisplay(settings.tires.frontPressure, "tires", isMetric)} onChange={(v) => updateSettings("tires", "frontPressure", fromDisplay(v, "tires", isMetric))} step={isMetric ? 0.01 : 0.1} unit={unitLabel("tires", isMetric)} />
                 <NumberField label="Rear Pressure" value={toDisplay(settings.tires.rearPressure, "tires", isMetric)} onChange={(v) => updateSettings("tires", "rearPressure", fromDisplay(v, "tires", isMetric))} step={isMetric ? 0.01 : 0.1} unit={unitLabel("tires", isMetric)} />
-              </SettingsSection>
-              <SettingsSection title="Gearing" isOpen={openSections.has("gearing")} onToggle={() => toggleSection("gearing")}>
+              </div>
+
+              <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Gearing</h4>
                 <NumberField label="Final Drive" value={settings.gearing.finalDrive} onChange={(v) => updateSettings("gearing", "finalDrive", v)} step={0.01} unit=":1" />
                 <div className="space-y-1 pt-1">
                   <div className="flex items-center justify-between">
@@ -582,66 +563,80 @@ export function TuneForm({
                     />
                   ))}
                 </div>
-              </SettingsSection>
-              <SettingsSection title="Alignment" isOpen={openSections.has("alignment")} onToggle={() => toggleSection("alignment")}>
-                <NumberField label="Front Camber" value={settings.alignment.frontCamber} onChange={(v) => updateSettings("alignment", "frontCamber", v)} unit="\u00B0" />
-                <NumberField label="Rear Camber" value={settings.alignment.rearCamber} onChange={(v) => updateSettings("alignment", "rearCamber", v)} unit="\u00B0" />
-                <NumberField label="Front Toe" value={settings.alignment.frontToe} onChange={(v) => updateSettings("alignment", "frontToe", v)} unit="\u00B0" />
-                <NumberField label="Rear Toe" value={settings.alignment.rearToe} onChange={(v) => updateSettings("alignment", "rearToe", v)} unit="\u00B0" />
-                <NumberField label="Front Caster" value={settings.alignment.frontCaster ?? 5.0} onChange={(v) => updateSettings("alignment", "frontCaster", v)} unit="\u00B0" />
-              </SettingsSection>
-              <SettingsSection title="Anti-Roll Bars" isOpen={openSections.has("arb")} onToggle={() => toggleSection("arb")}>
+              </div>
+
+              <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Alignment</h4>
+                <NumberField label="Front Camber" value={settings.alignment.frontCamber} onChange={(v) => updateSettings("alignment", "frontCamber", v)} unit="°" />
+                <NumberField label="Rear Camber" value={settings.alignment.rearCamber} onChange={(v) => updateSettings("alignment", "rearCamber", v)} unit="°" />
+                <NumberField label="Front Toe" value={settings.alignment.frontToe} onChange={(v) => updateSettings("alignment", "frontToe", v)} unit="°" />
+                <NumberField label="Rear Toe" value={settings.alignment.rearToe} onChange={(v) => updateSettings("alignment", "rearToe", v)} unit="°" />
+                <NumberField label="Front Caster" value={settings.alignment.frontCaster ?? 5.0} onChange={(v) => updateSettings("alignment", "frontCaster", v)} unit="°" />
+              </div>
+
+              <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">Anti-Roll Bars</h4>
+                  <span className="text-[10px] text-app-text-muted">soft → stiff</span>
+                </div>
                 <NumberField label="Front" value={settings.antiRollBars.front} onChange={(v) => updateSettings("antiRollBars", "front", v)} />
                 <NumberField label="Rear" value={settings.antiRollBars.rear} onChange={(v) => updateSettings("antiRollBars", "rear", v)} />
-              </SettingsSection>
-              <SettingsSection title="Springs" isOpen={openSections.has("springs")} onToggle={() => toggleSection("springs")}>
+              </div>
+
+              <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Springs</h4>
                 <NumberField label="Front Rate" value={toDisplay(settings.springs.frontRate, "springs", isMetric)} onChange={(v) => updateSettings("springs", "frontRate", fromDisplay(v, "springs", isMetric))} step={isMetric ? 0.1 : 1} unit={unitLabel("springs", isMetric)} />
                 <NumberField label="Rear Rate" value={toDisplay(settings.springs.rearRate, "springs", isMetric)} onChange={(v) => updateSettings("springs", "rearRate", fromDisplay(v, "springs", isMetric))} step={isMetric ? 0.1 : 1} unit={unitLabel("springs", isMetric)} />
                 <NumberField label="Front Height" value={toDisplay(settings.springs.frontHeight, "height", isMetric)} onChange={(v) => updateSettings("springs", "frontHeight", fromDisplay(v, "height", isMetric))} step={0.1} unit={unitLabel("height", isMetric)} />
                 <NumberField label="Rear Height" value={toDisplay(settings.springs.rearHeight, "height", isMetric)} onChange={(v) => updateSettings("springs", "rearHeight", fromDisplay(v, "height", isMetric))} step={0.1} unit={unitLabel("height", isMetric)} />
-              </SettingsSection>
-              <SettingsSection title="Damping" isOpen={openSections.has("damping")} onToggle={() => toggleSection("damping")}>
+              </div>
+
+              <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">Damping</h4>
+                  <span className="text-[10px] text-app-text-muted">soft → stiff</span>
+                </div>
                 <NumberField label="Front Rebound" value={settings.damping.frontRebound} onChange={(v) => updateSettings("damping", "frontRebound", v)} />
                 <NumberField label="Rear Rebound" value={settings.damping.rearRebound} onChange={(v) => updateSettings("damping", "rearRebound", v)} />
                 <NumberField label="Front Bump" value={settings.damping.frontBump} onChange={(v) => updateSettings("damping", "frontBump", v)} />
                 <NumberField label="Rear Bump" value={settings.damping.rearBump} onChange={(v) => updateSettings("damping", "rearBump", v)} />
-              </SettingsSection>
-              <SettingsSection title="Roll Center Height" isOpen={openSections.has("rollCenter")} onToggle={() => toggleSection("rollCenter")}>
+              </div>
+
+              <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Roll Center Height</h4>
                 <NumberField label="Front" value={settings.rollCenterHeight.front} onChange={(v) => setSettings((s) => ({ ...s, rollCenterHeight: { ...s.rollCenterHeight, front: v } }))} unit="cm" />
                 <NumberField label="Rear" value={settings.rollCenterHeight.rear} onChange={(v) => setSettings((s) => ({ ...s, rollCenterHeight: { ...s.rollCenterHeight, rear: v } }))} unit="cm" />
-              </SettingsSection>
-              <SettingsSection title="Anti-Geometry" isOpen={openSections.has("antiGeom")} onToggle={() => toggleSection("antiGeom")}>
+              </div>
+
+              <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Anti-Geometry</h4>
                 <NumberField label="Anti-dive (front)" value={settings.antiGeometry.antiDiveFront} onChange={(v) => setSettings((s) => ({ ...s, antiGeometry: { ...s.antiGeometry, antiDiveFront: v } }))} unit="%" />
                 <NumberField label="Anti-squat (rear)" value={settings.antiGeometry.antiSquatRear} onChange={(v) => setSettings((s) => ({ ...s, antiGeometry: { ...s.antiGeometry, antiSquatRear: v } }))} unit="%" />
-              </SettingsSection>
-              <SettingsSection title="Aero" isOpen={openSections.has("aero")} onToggle={() => toggleSection("aero")}>
+              </div>
+
+              <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Aero</h4>
                 <NumberField label="Front Downforce" value={toDisplay(settings.aero.frontDownforce, "aero", isMetric)} onChange={(v) => updateSettings("aero", "frontDownforce", fromDisplay(v, "aero", isMetric))} step={1} unit={unitLabel("aero", isMetric)} />
                 <NumberField label="Rear Downforce" value={toDisplay(settings.aero.rearDownforce, "aero", isMetric)} onChange={(v) => updateSettings("aero", "rearDownforce", fromDisplay(v, "aero", isMetric))} step={1} unit={unitLabel("aero", isMetric)} />
-              </SettingsSection>
-              <SettingsSection title="Differential" isOpen={openSections.has("diff")} onToggle={() => toggleSection("diff")}>
+              </div>
+
+              <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Differential</h4>
                 <NumberField label="Rear Accel" value={settings.differential.rearAccel} onChange={(v) => updateSettings("differential", "rearAccel", v)} step={1} unit="%" />
                 <NumberField label="Rear Decel" value={settings.differential.rearDecel} onChange={(v) => updateSettings("differential", "rearDecel", v)} step={1} unit="%" />
                 <NumberField label="Front Accel" value={settings.differential.frontAccel ?? 0} onChange={(v) => updateSettings("differential", "frontAccel", v)} step={1} unit="%" />
                 <NumberField label="Front Decel" value={settings.differential.frontDecel ?? 0} onChange={(v) => updateSettings("differential", "frontDecel", v)} step={1} unit="%" />
-              </SettingsSection>
-              <SettingsSection title="Brakes" isOpen={openSections.has("brakes")} onToggle={() => toggleSection("brakes")}>
+              </div>
+
+              <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Brakes</h4>
                 <NumberField label="Balance" value={settings.brakes.balance} onChange={(v) => updateSettings("brakes", "balance", v)} step={1} unit="%" />
                 <NumberField label="Pressure" value={settings.brakes.pressure} onChange={(v) => updateSettings("brakes", "pressure", v)} step={1} unit="%" />
-              </SettingsSection>
+              </div>
             </div>
           )}
         </div>
-
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-2">
-          <button type="button" onClick={onCancel} className="text-xs px-4 py-2 rounded border border-app-border text-app-text-secondary hover:text-app-text transition-colors">
-            Cancel
-          </button>
-          <button type="submit" disabled={!name || isSubmitting} className="text-xs px-4 py-2 rounded bg-app-accent text-white hover:bg-app-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-            {isSubmitting ? "Saving..." : "Save Tune"}
-          </button>
-        </div>
-      </form>
-    </div>
+      )}
+    </form>
   );
 }

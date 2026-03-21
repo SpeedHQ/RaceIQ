@@ -32,7 +32,7 @@ import type { Tune } from "../shared/types";
 import { generateExport } from "./export";
 import { compareLaps } from "./comparison";
 import { detectCorners, type Corner } from "./corner-detection";
-import { carMap, getCarName, trackMap, getTrackName } from "../shared/car-data";
+import { carMap, getCarName, getCarSpecs, trackMap, getTrackName } from "../shared/car-data";
 import { getTrackOutlineByOrdinal, hasTrackOutline, hasRecordedOutline, getTrackSectorsByOrdinal, getStartYaw, deleteRecordedOutline } from "../shared/track-outlines/index";
 import { trackMap as trackInfoMap } from "../shared/car-data";
 import { namedSegments } from "../shared/track-outlines/named-segments";
@@ -499,6 +499,7 @@ app.get("/api/cars", (c) => {
   const cars = Array.from(carMap.entries()).map(([ordinal, car]) => ({
     ordinal,
     name: `${car.year} ${car.make} ${car.model}`,
+    specs: getCarSpecs(ordinal),
   }));
   cars.sort((a, b) => a.name.localeCompare(b.name));
   return c.json(cars);
@@ -512,7 +513,7 @@ app.get("/api/cars/:ordinal", (c) => {
   const car = carMap.get(ordinal);
   if (!car) return c.json({ error: "Car not found" }, 404);
 
-  return c.json({ ordinal, ...car, name: `${car.year} ${car.make} ${car.model}` });
+  return c.json({ ordinal, ...car, name: `${car.year} ${car.make} ${car.model}`, specs: getCarSpecs(ordinal) });
 });
 
 // GET /api/tracks/:ordinal (info)

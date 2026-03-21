@@ -139,6 +139,8 @@ const SOLID_HIDDEN_MESHES = new Set([
   94, 125, 126, 161, 183, 184, 211, 212, 214, 215, 217, 219,
   // Brake calipers & discs
   119, 120, 122, 123, 174, 175, 177, 178,
+  // Internal panels clipping through body
+  7, 8,
 ]);
 
 function CarBody({ solid }: { solid: boolean }) {
@@ -211,9 +213,43 @@ function CarBody({ solid }: { solid: boolean }) {
     return { scale: s, offset: center.multiplyScalar(-s) };
   }, [scene]);
 
+  // Click to identify mesh — uses pointer down/up to distinguish from drag
+  const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handlePointerDown = (e: any) => {
+    pointerDownPos.current = { x: e.clientX, y: e.clientY };
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handlePointerUp = (e: any) => {
+    if (!pointerDownPos.current) return;
+    const dx = e.clientX - pointerDownPos.current.x;
+    const dy = e.clientY - pointerDownPos.current.y;
+    // Only count as click if pointer moved less than 5px (not a drag)
+    if (Math.abs(dx) < 5 && Math.abs(dy) < 5) {
+      e.stopPropagation();
+      const obj = e.object;
+      if (!obj) return;
+      const box = new THREE.Box3().setFromObject(obj);
+      const size = new THREE.Vector3();
+      const ctr = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(ctr);
+      // Highlight red
+      if (obj.material) {
+        obj.material = new THREE.MeshBasicMaterial({ color: "#ff0000", side: THREE.DoubleSide });
+      }
+      const msg = `${obj.name} [${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}] @ (${ctr.x.toFixed(2)}, ${ctr.y.toFixed(2)}, ${ctr.z.toFixed(2)})`;
+      console.log("CLICKED:", msg);
+      alert(msg);
+    }
+    pointerDownPos.current = null;
+  };
+
   return (
     <group scale={autoScale} position={[offset.x, offset.y + 0.25, offset.z]} rotation={[0, 0, 0]}>
-      <primitive object={model} />
+      <primitive object={model} onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} />
     </group>
   );
 }

@@ -7,7 +7,7 @@ function NewTunePage() {
   const createTune = useCreateTune();
 
   return (
-    <div className="flex-1 overflow-auto p-4 max-w-xl mx-auto">
+    <div className="flex-1 overflow-auto">
       <TuneForm
         title="Create New Tune"
         onCancel={() => navigate({ to: "/tunes" })}

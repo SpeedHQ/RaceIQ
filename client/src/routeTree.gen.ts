@@ -14,6 +14,7 @@ import { Route as TracksRouteImport } from './routes/tracks'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as RawRouteImport } from './routes/raw'
 import { Route as CompareRouteImport } from './routes/compare'
+import { Route as CarsRouteImport } from './routes/cars'
 import { Route as AnalyseRouteImport } from './routes/analyse'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TunesIndexRouteImport } from './routes/tunes/index'
@@ -46,6 +47,11 @@ const RawRoute = RawRouteImport.update({
 const CompareRoute = CompareRouteImport.update({
   id: '/compare',
   path: '/compare',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarsRoute = CarsRouteImport.update({
+  id: '/cars',
+  path: '/cars',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyseRoute = AnalyseRouteImport.update({
@@ -92,6 +98,7 @@ const TunesEditTuneIdRoute = TunesEditTuneIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analyse': typeof AnalyseRoute
+  '/cars': typeof CarsRoute
   '/compare': typeof CompareRoute
   '/raw': typeof RawRoute
   '/setup': typeof SetupRouteWithChildren
@@ -107,6 +114,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analyse': typeof AnalyseRoute
+  '/cars': typeof CarsRoute
   '/compare': typeof CompareRoute
   '/raw': typeof RawRoute
   '/tracks': typeof TracksRoute
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analyse': typeof AnalyseRoute
+  '/cars': typeof CarsRoute
   '/compare': typeof CompareRoute
   '/raw': typeof RawRoute
   '/setup': typeof SetupRouteWithChildren
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/analyse'
+    | '/cars'
     | '/compare'
     | '/raw'
     | '/setup'
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/analyse'
+    | '/cars'
     | '/compare'
     | '/raw'
     | '/tracks'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/analyse'
+    | '/cars'
     | '/compare'
     | '/raw'
     | '/setup'
@@ -182,6 +194,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyseRoute: typeof AnalyseRoute
+  CarsRoute: typeof CarsRoute
   CompareRoute: typeof CompareRoute
   RawRoute: typeof RawRoute
   SetupRoute: typeof SetupRouteWithChildren
@@ -224,6 +237,13 @@ declare module '@tanstack/react-router' {
       path: '/compare'
       fullPath: '/compare'
       preLoaderRoute: typeof CompareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cars': {
+      id: '/cars'
+      path: '/cars'
+      fullPath: '/cars'
+      preLoaderRoute: typeof CarsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analyse': {
@@ -316,6 +336,7 @@ const TunesRouteWithChildren = TunesRoute._addFileChildren(TunesRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyseRoute: AnalyseRoute,
+  CarsRoute: CarsRoute,
   CompareRoute: CompareRoute,
   RawRoute: RawRoute,
   SetupRoute: SetupRouteWithChildren,
