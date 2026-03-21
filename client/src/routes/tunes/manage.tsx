@@ -273,7 +273,14 @@ function TuneFormDialog({
   const [jsonMode, setJsonMode] = useState(false);
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
-  const [isMetric, setIsMetric] = useState(true);
+  const [isMetric, setIsMetric] = useState(() => {
+    // Detect unit system from existing tune data
+    const u = initialData?.settings?.springs?.unit;
+    if (u === "lb/in") return false;
+    const au = initialData?.settings?.aero?.unit;
+    if (au === "lb") return false;
+    return true;
+  });
   const [carSearchQuery, setCarSearchQuery] = useState("");
   const [carDropOpen, setCarDropOpen] = useState(false);
   const { data: allCars = [] } = useAllCars();
@@ -319,7 +326,13 @@ function TuneFormDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ name, author, carOrdinal, category, description, settings });
+    // Stamp unit metadata onto settings so viewers know what unit system was used
+    const savedSettings: TuneSettings = {
+      ...settings,
+      springs: { ...settings.springs, unit: unitLabel("springs", isMetric) },
+      aero: { ...settings.aero, unit: unitLabel("aero", isMetric) },
+    };
+    onSubmit({ name, author, carOrdinal, category, description, settings: savedSettings });
   };
 
   if (!isOpen) return null;
