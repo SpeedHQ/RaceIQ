@@ -18,8 +18,10 @@ import { Route as AnalyseRouteImport } from './routes/analyse'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TunesIndexRouteImport } from './routes/tunes/index'
 import { Route as SetupIndexRouteImport } from './routes/setup/index'
-import { Route as TunesManageRouteImport } from './routes/tunes/manage'
+import { Route as TunesNewRouteImport } from './routes/tunes/new'
+import { Route as TunesCatalogRouteImport } from './routes/tunes/catalog'
 import { Route as SetupProfileIdRouteImport } from './routes/setup/$profileId'
+import { Route as TunesEditTuneIdRouteImport } from './routes/tunes/edit.$tuneId'
 
 const TunesRoute = TunesRouteImport.update({
   id: '/tunes',
@@ -66,15 +68,25 @@ const SetupIndexRoute = SetupIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SetupRoute,
 } as any)
-const TunesManageRoute = TunesManageRouteImport.update({
-  id: '/manage',
-  path: '/manage',
+const TunesNewRoute = TunesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => TunesRoute,
+} as any)
+const TunesCatalogRoute = TunesCatalogRouteImport.update({
+  id: '/catalog',
+  path: '/catalog',
   getParentRoute: () => TunesRoute,
 } as any)
 const SetupProfileIdRoute = SetupProfileIdRouteImport.update({
   id: '/$profileId',
   path: '/$profileId',
   getParentRoute: () => SetupRoute,
+} as any)
+const TunesEditTuneIdRoute = TunesEditTuneIdRouteImport.update({
+  id: '/edit/$tuneId',
+  path: '/edit/$tuneId',
+  getParentRoute: () => TunesRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -86,9 +98,11 @@ export interface FileRoutesByFullPath {
   '/tracks': typeof TracksRoute
   '/tunes': typeof TunesRouteWithChildren
   '/setup/$profileId': typeof SetupProfileIdRoute
-  '/tunes/manage': typeof TunesManageRoute
+  '/tunes/catalog': typeof TunesCatalogRoute
+  '/tunes/new': typeof TunesNewRoute
   '/setup/': typeof SetupIndexRoute
   '/tunes/': typeof TunesIndexRoute
+  '/tunes/edit/$tuneId': typeof TunesEditTuneIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -97,9 +111,11 @@ export interface FileRoutesByTo {
   '/raw': typeof RawRoute
   '/tracks': typeof TracksRoute
   '/setup/$profileId': typeof SetupProfileIdRoute
-  '/tunes/manage': typeof TunesManageRoute
+  '/tunes/catalog': typeof TunesCatalogRoute
+  '/tunes/new': typeof TunesNewRoute
   '/setup': typeof SetupIndexRoute
   '/tunes': typeof TunesIndexRoute
+  '/tunes/edit/$tuneId': typeof TunesEditTuneIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -111,9 +127,11 @@ export interface FileRoutesById {
   '/tracks': typeof TracksRoute
   '/tunes': typeof TunesRouteWithChildren
   '/setup/$profileId': typeof SetupProfileIdRoute
-  '/tunes/manage': typeof TunesManageRoute
+  '/tunes/catalog': typeof TunesCatalogRoute
+  '/tunes/new': typeof TunesNewRoute
   '/setup/': typeof SetupIndexRoute
   '/tunes/': typeof TunesIndexRoute
+  '/tunes/edit/$tuneId': typeof TunesEditTuneIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -126,9 +144,11 @@ export interface FileRouteTypes {
     | '/tracks'
     | '/tunes'
     | '/setup/$profileId'
-    | '/tunes/manage'
+    | '/tunes/catalog'
+    | '/tunes/new'
     | '/setup/'
     | '/tunes/'
+    | '/tunes/edit/$tuneId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -137,9 +157,11 @@ export interface FileRouteTypes {
     | '/raw'
     | '/tracks'
     | '/setup/$profileId'
-    | '/tunes/manage'
+    | '/tunes/catalog'
+    | '/tunes/new'
     | '/setup'
     | '/tunes'
+    | '/tunes/edit/$tuneId'
   id:
     | '__root__'
     | '/'
@@ -150,9 +172,11 @@ export interface FileRouteTypes {
     | '/tracks'
     | '/tunes'
     | '/setup/$profileId'
-    | '/tunes/manage'
+    | '/tunes/catalog'
+    | '/tunes/new'
     | '/setup/'
     | '/tunes/'
+    | '/tunes/edit/$tuneId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -230,11 +254,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetupIndexRouteImport
       parentRoute: typeof SetupRoute
     }
-    '/tunes/manage': {
-      id: '/tunes/manage'
-      path: '/manage'
-      fullPath: '/tunes/manage'
-      preLoaderRoute: typeof TunesManageRouteImport
+    '/tunes/new': {
+      id: '/tunes/new'
+      path: '/new'
+      fullPath: '/tunes/new'
+      preLoaderRoute: typeof TunesNewRouteImport
+      parentRoute: typeof TunesRoute
+    }
+    '/tunes/catalog': {
+      id: '/tunes/catalog'
+      path: '/catalog'
+      fullPath: '/tunes/catalog'
+      preLoaderRoute: typeof TunesCatalogRouteImport
       parentRoute: typeof TunesRoute
     }
     '/setup/$profileId': {
@@ -243,6 +274,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/setup/$profileId'
       preLoaderRoute: typeof SetupProfileIdRouteImport
       parentRoute: typeof SetupRoute
+    }
+    '/tunes/edit/$tuneId': {
+      id: '/tunes/edit/$tuneId'
+      path: '/edit/$tuneId'
+      fullPath: '/tunes/edit/$tuneId'
+      preLoaderRoute: typeof TunesEditTuneIdRouteImport
+      parentRoute: typeof TunesRoute
     }
   }
 }
@@ -260,13 +298,17 @@ const SetupRouteChildren: SetupRouteChildren = {
 const SetupRouteWithChildren = SetupRoute._addFileChildren(SetupRouteChildren)
 
 interface TunesRouteChildren {
-  TunesManageRoute: typeof TunesManageRoute
+  TunesCatalogRoute: typeof TunesCatalogRoute
+  TunesNewRoute: typeof TunesNewRoute
   TunesIndexRoute: typeof TunesIndexRoute
+  TunesEditTuneIdRoute: typeof TunesEditTuneIdRoute
 }
 
 const TunesRouteChildren: TunesRouteChildren = {
-  TunesManageRoute: TunesManageRoute,
+  TunesCatalogRoute: TunesCatalogRoute,
+  TunesNewRoute: TunesNewRoute,
   TunesIndexRoute: TunesIndexRoute,
+  TunesEditTuneIdRoute: TunesEditTuneIdRoute,
 }
 
 const TunesRouteWithChildren = TunesRoute._addFileChildren(TunesRouteChildren)

@@ -1221,7 +1221,7 @@ export function TuneCatalog() {
 
         <div className="flex items-center gap-2">
           <Link
-            to="/tunes/manage"
+            to="/tunes"
             className="text-xs px-3 py-1.5 rounded bg-app-accent text-white hover:bg-app-accent/80 transition-colors flex items-center gap-1.5 no-underline"
           >
             My Tunes
