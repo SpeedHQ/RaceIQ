@@ -116,6 +116,9 @@ sqlite.exec(`
 // Migration: add tune_id column to laps
 try { sqlite.exec("ALTER TABLE laps ADD COLUMN tune_id INTEGER REFERENCES tunes(id) ON DELETE SET NULL"); } catch {}
 
+// Migration: add unit_system column to tunes
+try { sqlite.exec("ALTER TABLE tunes ADD COLUMN unit_system TEXT NOT NULL DEFAULT 'metric'"); } catch {}
+
 // Migration: add sectors column to track_outlines if it doesn't exist (for existing DBs)
 try {
   sqlite.exec("ALTER TABLE track_outlines ADD COLUMN sectors TEXT");
