@@ -455,6 +455,14 @@ function TuneFormDialog({
                   <NumberField label="Front Bump" value={settings.damping.frontBump} onChange={(v) => updateSettings("damping", "frontBump", v)} />
                   <NumberField label="Rear Bump" value={settings.damping.rearBump} onChange={(v) => updateSettings("damping", "rearBump", v)} />
                 </SettingsSection>
+                <SettingsSection title="Roll Center Height" isOpen={openSections.has("rollCenter")} onToggle={() => toggleSection("rollCenter")}>
+                  <NumberField label="Front" value={settings.rollCenterHeight?.front ?? 0} onChange={(v) => setSettings((s) => ({ ...s, rollCenterHeight: { front: v, rear: s.rollCenterHeight?.rear ?? 0 } }))} unit="cm" />
+                  <NumberField label="Rear" value={settings.rollCenterHeight?.rear ?? 0} onChange={(v) => setSettings((s) => ({ ...s, rollCenterHeight: { front: s.rollCenterHeight?.front ?? 0, rear: v } }))} unit="cm" />
+                </SettingsSection>
+                <SettingsSection title="Anti-Geometry" isOpen={openSections.has("antiGeom")} onToggle={() => toggleSection("antiGeom")}>
+                  <NumberField label="Anti-dive (front)" value={settings.antiGeometry?.antiDiveFront ?? 0} onChange={(v) => setSettings((s) => ({ ...s, antiGeometry: { antiDiveFront: v, antiSquatRear: s.antiGeometry?.antiSquatRear ?? 0 } }))} unit="%" />
+                  <NumberField label="Anti-squat (rear)" value={settings.antiGeometry?.antiSquatRear ?? 0} onChange={(v) => setSettings((s) => ({ ...s, antiGeometry: { antiDiveFront: s.antiGeometry?.antiDiveFront ?? 0, antiSquatRear: v } }))} unit="%" />
+                </SettingsSection>
                 <SettingsSection title="Aero" isOpen={openSections.has("aero")} onToggle={() => toggleSection("aero")}>
                   <NumberField label="Front Downforce" value={toDisplay(settings.aero.frontDownforce, "aero", isMetric)} onChange={(v) => updateSettings("aero", "frontDownforce", fromDisplay(v, "aero", isMetric))} step={1} unit={unitLabel("aero", isMetric)} />
                   <NumberField label="Rear Downforce" value={toDisplay(settings.aero.rearDownforce, "aero", isMetric)} onChange={(v) => updateSettings("aero", "rearDownforce", fromDisplay(v, "aero", isMetric))} step={1} unit={unitLabel("aero", isMetric)} />
@@ -489,6 +497,7 @@ function TuneFormDialog({
 
 function UserTuneCard({
   tune,
+  carName,
   isExpanded,
   onToggle,
   onEdit,
@@ -496,6 +505,7 @@ function UserTuneCard({
   isDeleting,
 }: {
   tune: Tune;
+  carName?: string;
   isExpanded: boolean;
   onToggle: () => void;
   onEdit: () => void;
@@ -513,7 +523,7 @@ function UserTuneCard({
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-app-text">{tune.name}</span>
             <span className="text-[10px] font-mono text-app-text-muted">
-              Car {tune.carOrdinal}
+              {carName ?? `Car #${tune.carOrdinal}`}
             </span>
             <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${CATEGORY_COLORS[tune.category] ?? "bg-gray-500/20 text-gray-400"}`}>
               {CATEGORY_LABELS[tune.category] ?? tune.category}
@@ -567,6 +577,12 @@ function ManageTunesPage() {
 
   const { data: userTunes = [], isLoading } = useUserTunes();
   const { data: assignments = [] } = useTuneAssignments();
+  const { data: allCarsForNames = [] } = useAllCars();
+  const carNameMap = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const c of allCarsForNames) map.set(c.ordinal, c.name);
+    return map;
+  }, [allCarsForNames]);
   const createTune = useCreateTune();
   const updateTune = useUpdateTune();
   const deleteTuneMut = useDeleteTune();
@@ -674,6 +690,7 @@ function ManageTunesPage() {
             <UserTuneCard
               key={tune.id}
               tune={tune}
+              carName={carNameMap.get(tune.carOrdinal)}
               isExpanded={expandedTune === `user-${tune.id}`}
               onToggle={() => setExpandedTune(expandedTune === `user-${tune.id}` ? null : `user-${tune.id}`)}
               onEdit={() => { setEditingTune(tune); setFormOpen(true); }}
