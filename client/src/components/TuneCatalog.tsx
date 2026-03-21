@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
   CATALOG_CARS,
   TUNE_CATALOG,
@@ -14,10 +15,7 @@ import {
   useCatalogTunes,
   useCreateTune,
   useUpdateTune,
-  useDeleteTune,
   useCloneCatalogTune,
-  useTuneAssignments,
-  useDeleteTuneAssignment,
 } from "../hooks/queries";
 
 // ── Settings display (read-only) ────────────────────────────────────────────
@@ -476,6 +474,17 @@ function TuneFormDialog({
   const [jsonMode, setJsonMode] = useState(false);
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
+  const [carSearchQuery, setCarSearchQuery] = useState("");
+  const [carDropOpen, setCarDropOpen] = useState(false);
+  const { data: allCars = [] } = useQuery<{ ordinal: number; name: string }[]>({
+    queryKey: ["all-cars"],
+    queryFn: () => fetch("/api/cars").then((r) => r.json()),
+    staleTime: Infinity,
+  });
+  const filteredFormCars = carSearchQuery
+    ? allCars.filter((c) => c.name.toLowerCase().includes(carSearchQuery.toLowerCase())).slice(0, 20)
+    : allCars.slice(0, 20);
+  const selectedCarName = allCars.find((c) => c.ordinal === carOrdinal)?.name ?? (carOrdinal ? `Car #${carOrdinal}` : "Select car...");
 
   // Reset form when dialog opens with new data
   const resetForm = useCallback(() => {
@@ -603,20 +612,34 @@ function TuneFormDialog({
                   className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
                 />
               </label>
-              <label className="space-y-1">
-                <span className="text-xs font-medium text-app-text-muted">
-                  Car Ordinal
-                </span>
+              <div className="space-y-1 relative">
+                <span className="text-xs font-medium text-app-text-muted">Car</span>
                 <input
-                  type="number"
-                  value={carOrdinal}
-                  onChange={(e) =>
-                    setCarOrdinal(parseInt(e.target.value) || 0)
-                  }
-                  required
-                  className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-sm text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent"
+                  type="text"
+                  value={carDropOpen ? carSearchQuery : selectedCarName}
+                  onChange={(e) => { setCarSearchQuery(e.target.value); setCarDropOpen(true); }}
+                  onFocus={() => { setCarDropOpen(true); setCarSearchQuery(""); }}
+                  onBlur={() => setTimeout(() => setCarDropOpen(false), 150)}
+                  placeholder="Search car..."
+                  className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
                 />
-              </label>
+                {carDropOpen && (
+                  <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto rounded-lg bg-app-surface border border-app-border z-50 shadow-lg">
+                    {filteredFormCars.map((c) => (
+                      <button
+                        key={c.ordinal}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => { setCarOrdinal(c.ordinal); setCarSearchQuery(""); setCarDropOpen(false); }}
+                        className={`w-full text-left px-3 py-1.5 text-xs hover:bg-app-accent/20 transition-colors ${carOrdinal === c.ordinal ? "text-app-accent" : "text-app-text"}`}
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                    {filteredFormCars.length === 0 && <div className="px-3 py-2 text-xs text-app-text-muted">No cars found</div>}
+                  </div>
+                )}
+              </div>
               <label className="space-y-1">
                 <span className="text-xs font-medium text-app-text-muted">
                   Category
@@ -1076,134 +1099,6 @@ function CatalogTuneCard({
   );
 }
 
-// ── User Tune Card ──────────────────────────────────────────────────────────
-
-function UserTuneCard({
-  tune,
-  isExpanded,
-  onToggle,
-  showCar,
-  onEdit,
-  onDelete,
-  isDeleting,
-}: {
-  tune: Tune;
-  isExpanded: boolean;
-  onToggle: () => void;
-  showCar?: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-  isDeleting: boolean;
-}) {
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  return (
-    <div className="rounded-xl bg-app-surface/85 ring-1 ring-app-border overflow-hidden">
-      <button
-        onClick={onToggle}
-        className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface transition-colors"
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-app-text">{tune.name}</span>
-              {showCar && (
-                <span className="text-[10px] font-mono text-app-text-muted">
-                  Car {tune.carOrdinal}
-                </span>
-              )}
-              <span
-                className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded inline-flex items-center gap-1 ${CATEGORY_COLORS[tune.category] ?? "bg-gray-500/20 text-gray-400"}`}
-              >
-                {CATEGORY_ICONS[tune.category]}
-                {CATEGORY_LABELS[tune.category] ?? tune.category}
-              </span>
-              {tune.source === "catalog-clone" && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
-                  Cloned
-                </span>
-              )}
-            </div>
-            <p
-              className={`text-xs text-app-text-muted mt-0.5 ${isExpanded ? "" : "line-clamp-1"}`}
-            >
-              {tune.description}
-            </p>
-          </div>
-        </div>
-        <svg
-          className={`w-4 h-4 text-app-text-muted shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
-      </button>
-
-      {isExpanded && (
-        <div className="px-4 pb-4 space-y-4 border-t border-app-border max-w-2xl">
-          <div className="flex items-center gap-2 pt-3">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
-            >
-              Edit
-            </button>
-            {!confirmDelete ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setConfirmDelete(true);
-                }}
-                className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-              >
-                Delete
-              </button>
-            ) : (
-              <span className="flex items-center gap-1">
-                <span className="text-[10px] text-red-400">Are you sure?</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete();
-                  }}
-                  disabled={isDeleting}
-                  className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-red-600/30 text-red-300 hover:bg-red-600/50 disabled:opacity-50 transition-colors"
-                >
-                  {isDeleting ? "..." : "Yes"}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setConfirmDelete(false);
-                  }}
-                  className="text-[10px] font-semibold uppercase px-2 py-1 rounded text-app-text-muted hover:text-app-text transition-colors"
-                >
-                  No
-                </button>
-              </span>
-            )}
-          </div>
-
-          {tune.settings && <TuneSettingsPanel settings={tune.settings} />}
-
-          <div className="text-[10px] text-app-text-muted pt-1">
-            by {tune.author} &middot; {tune.source === "catalog-clone" ? "cloned from catalog" : "user created"}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Main Component ──────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
@@ -1223,16 +1118,13 @@ export function TuneCatalog() {
   const [editingTune, setEditingTune] = useState<Tune | null>(null);
 
   // API queries
-  const { data: userTunes = [], isLoading: loadingUserTunes } = useUserTunes();
+  const { data: userTunes = [] } = useUserTunes();
   const { data: apiCatalogTunes = [] } = useCatalogTunes();
-  const { data: assignments = [] } = useTuneAssignments();
 
   // Mutations
   const createTune = useCreateTune();
   const updateTune = useUpdateTune();
-  const deleteTuneMut = useDeleteTune();
   const cloneTune = useCloneCatalogTune();
-  const deleteAssignment = useDeleteTuneAssignment();
 
   // Use local catalog as fallback, API catalog when available
   const catalogTunes: CatalogTune[] =
@@ -1262,15 +1154,6 @@ export function TuneCatalog() {
       return false;
     return true;
   });
-
-  // Filter user tunes
-  const filteredUserTunes = useMemo(() => {
-    return userTunes.filter((t) => {
-      if (selectedCar != null && t.carOrdinal !== selectedCar) return false;
-      if (categoryFilter && t.category !== categoryFilter) return false;
-      return true;
-    });
-  }, [userTunes, selectedCar, categoryFilter]);
 
   // Paginate catalog tunes
   const totalCatalogPages = Math.ceil(
@@ -1305,15 +1188,6 @@ export function TuneCatalog() {
         },
       },
     );
-  };
-
-  const handleEdit = (tune: Tune) => {
-    setEditingTune(tune);
-    setFormOpen(true);
-  };
-
-  const handleDelete = (id: number) => {
-    deleteTuneMut.mutate(id);
   };
 
   const handleClone = (catalogId: string) => {

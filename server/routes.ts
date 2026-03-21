@@ -494,6 +494,16 @@ app.put("/api/tracks/:trackOrdinal/corners", async (c) => {
   return c.json({ success: true, count: body.length });
 });
 
+// GET /api/cars — list all cars
+app.get("/api/cars", (c) => {
+  const cars = Array.from(carMap.entries()).map(([ordinal, car]) => ({
+    ordinal,
+    name: `${car.year} ${car.make} ${car.model}`,
+  }));
+  cars.sort((a, b) => a.name.localeCompare(b.name));
+  return c.json(cars);
+});
+
 // GET /api/cars/:ordinal
 app.get("/api/cars/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);
