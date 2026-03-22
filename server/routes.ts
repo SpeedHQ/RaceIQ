@@ -1097,15 +1097,27 @@ app.get("/api/track-boundaries/:ordinal", (c) => {
     computeStaticAlignment(ordinal, bundledOutline, recordedOutline);
   }
 
+  // Compute geometric center-line from midpoint of left/right edges
+  const minLen = Math.min(boundaries.leftEdge.length, boundaries.rightEdge.length);
+  const centerLine: { x: number; z: number }[] = [];
+  for (let i = 0; i < minLen; i++) {
+    centerLine.push({
+      x: (boundaries.leftEdge[i].x + boundaries.rightEdge[i].x) / 2,
+      z: (boundaries.leftEdge[i].z + boundaries.rightEdge[i].z) / 2,
+    });
+  }
+
   // Transform TUMFTM coords → Forza coords (uses live calibration or static alignment)
   const leftForza = transformToForzaSpace(ordinal, boundaries.leftEdge);
   const rightForza = transformToForzaSpace(ordinal, boundaries.rightEdge);
+  const centerForza = transformToForzaSpace(ordinal, centerLine);
   const pitForza = boundaries.pitLane ? transformToForzaSpace(ordinal, boundaries.pitLane) : null;
 
-  if (leftForza && rightForza) {
+  if (leftForza && rightForza && centerForza) {
     return c.json({
       leftEdge: leftForza,
       rightEdge: rightForza,
+      centerLine: centerForza,
       pitLane: pitForza,
       coordSystem: "forza",
     });
@@ -1115,6 +1127,7 @@ app.get("/api/track-boundaries/:ordinal", (c) => {
   return c.json({
     leftEdge: boundaries.leftEdge,
     rightEdge: boundaries.rightEdge,
+    centerLine,
     pitLane: boundaries.pitLane,
     coordSystem: "tumftm",
   });

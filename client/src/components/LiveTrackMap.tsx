@@ -30,6 +30,7 @@ interface CurbSegment {
 interface TrackBoundaryData {
   leftEdge: Point[];
   rightEdge: Point[];
+  centerLine: Point[];
   pitLane: Point[] | null;
   coordSystem: string;
 }
@@ -210,8 +211,10 @@ export function LiveTrackMap({ packet }: Props) {
     const h = rect.height;
     ctx.clearRect(0, 0, w, h);
 
-    // Use live trace as fallback when no pre-made outline
-    const displayOutline = outline ?? (liveTraceRef.current.length >= 5 ? liveTraceRef.current : null);
+    // Prefer boundary-derived center-line (geometric track center) over recorded driving line
+    const boundaryCenter = boundaries?.coordSystem === "forza" && boundaries.centerLine?.length > 2
+      ? boundaries.centerLine : null;
+    const displayOutline = boundaryCenter ?? outline ?? (liveTraceRef.current.length >= 5 ? liveTraceRef.current : null);
 
     if (!displayOutline || displayOutline.length < 2) {
       if (noOutline) {
@@ -223,7 +226,7 @@ export function LiveTrackMap({ packet }: Props) {
       return;
     }
 
-    const isLiveTrace = !outline;
+    const isLiveTrace = !outline && !boundaryCenter;
 
     // Fit-to-canvas: compute bounding box, then uniform scale to preserve aspect ratio
     // Include boundary edges in bounding box so they don't clip
@@ -486,8 +489,8 @@ export function LiveTrackMap({ packet }: Props) {
       let cx: number, cy: number;
       let hasPos = false;
 
-      if (isLiveTrace || isRecorded) {
-        // Forza coords: live trace or recorded outline — plot directly
+      if (isLiveTrace || isRecorded || boundaryCenter) {
+        // Forza coords: live trace, recorded outline, or boundary center — plot directly
         if (packet.PositionX !== 0 || packet.PositionZ !== 0) {
           [cx, cy] = toCanvas(packet.PositionX, packet.PositionZ);
           hasPos = true;

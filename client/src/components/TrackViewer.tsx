@@ -1127,20 +1127,38 @@ function TrackDebugPanel({ trackOrdinal, outline }: { trackOrdinal: number; outl
       }
     }
 
-    // Draw center-line
+    // Draw center-line (prefer boundary-derived geometric center over recorded driving line)
+    const centerPts = boundaries?.centerLine?.length ? boundaries.centerLine : outline;
     ctx.beginPath();
-    ctx.strokeStyle = "#94a3b8";
+    ctx.strokeStyle = boundaries?.centerLine?.length ? "#e2e8f0" : "#94a3b8";
     ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    const [sx, sy] = toCanvas(outline[0].x, outline[0].z);
+    const [sx, sy] = toCanvas(centerPts[0].x, centerPts[0].z);
     ctx.moveTo(sx, sy);
-    for (let i = 1; i < outline.length; i++) {
-      const [px, py] = toCanvas(outline[i].x, outline[i].z);
+    for (let i = 1; i < centerPts.length; i++) {
+      const [px, py] = toCanvas(centerPts[i].x, centerPts[i].z);
       ctx.lineTo(px, py);
     }
     ctx.lineTo(sx, sy);
     ctx.stroke();
+
+    // Also draw the recorded outline faintly for comparison when boundary center is used
+    if (boundaries?.centerLine?.length && outline) {
+      ctx.beginPath();
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 1;
+      ctx.globalAlpha = 0.4;
+      const [ox, oy] = toCanvas(outline[0].x, outline[0].z);
+      ctx.moveTo(ox, oy);
+      for (let i = 1; i < outline.length; i++) {
+        const [px, py] = toCanvas(outline[i].x, outline[i].z);
+        ctx.lineTo(px, py);
+      }
+      ctx.lineTo(ox, oy);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
 
     // Draw curbs
     if (curbs && curbs.length > 0) {
