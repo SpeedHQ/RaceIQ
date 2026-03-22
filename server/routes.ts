@@ -33,7 +33,7 @@ import { generateExport } from "./export";
 import { compareLaps } from "./comparison";
 import { detectCorners, type Corner } from "./corner-detection";
 import { carMap, getCarName, getCarSpecs, trackMap, getTrackName } from "../shared/car-data";
-import { getTrackOutlineByOrdinal, getBundledOutlineByOrdinal, hasTrackOutline, hasRecordedOutline, getTrackSectorsByOrdinal, getStartYaw, deleteRecordedOutline, getTrackBoundariesByOrdinal, getTrackCurbs } from "../shared/track-outlines/index";
+import { getTrackOutlineByOrdinal, getBundledOutlineByOrdinal, hasTrackOutline, hasRecordedOutline, getTrackSectorsByOrdinal, getStartYaw, deleteRecordedOutline, getTrackBoundariesByOrdinal, getTrackCurbs, extractCurbSegments, recordCurbData } from "../shared/track-outlines/index";
 import { trackMap as trackInfoMap } from "../shared/car-data";
 import { namedSegments } from "../shared/track-outlines/named-segments";
 import { buildAnalystPrompt } from "./ai/analyst-prompt";
@@ -542,16 +542,28 @@ app.get("/api/track-name/:ordinal", (c) => {
 });
 
 // GET /api/track-sector-boundaries/:ordinal — returns s1End/s2End fractions for timing
+// Also includes trackLength (meters) computed from the outline so the client
+// can show live sector times without needing to complete a full lap first.
 app.get("/api/track-sector-boundaries/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);
   if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
 
   // Try DB first, then bundled sectors
   const dbSectors = getTrackOutlineSectors(ordinal);
-  if (dbSectors) return c.json(dbSectors);
+  const bundled = dbSectors ?? getTrackSectorsByOrdinal(ordinal);
 
-  const bundled = getTrackSectorsByOrdinal(ordinal);
-  return c.json(bundled);
+  // Compute track length from outline
+  let trackLength = 0;
+  const outline = getTrackOutlineByOrdinal(ordinal);
+  if (outline && outline.length > 1) {
+    for (let i = 1; i < outline.length; i++) {
+      const dx = outline[i].x - outline[i - 1].x;
+      const dz = outline[i].z - outline[i - 1].z;
+      trackLength += Math.sqrt(dx * dx + dz * dz);
+    }
+  }
+
+  return c.json({ ...bundled, trackLength });
 });
 
 // PUT /api/track-sector-boundaries/:ordinal — update s1End/s2End fractions
@@ -1005,7 +1017,7 @@ app.get("/api/tracks/:trackOrdinal/leaderboard", (c) => {
 });
 
 // GET /api/track-calibration/:ordinal — calibration status
-import { getCalibrationStatus, getNormalizedPosition, transformToForzaSpace, computeStaticAlignment } from "./track-calibration";
+import { getCalibrationStatus, getNormalizedPosition, transformToForzaSpace, computeStaticAlignment, refineAlignmentWithCurbs, clearCurbRefinement } from "./track-calibration";
 app.get("/api/track-calibration/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);
   if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
@@ -1057,6 +1069,61 @@ app.delete("/api/laps", (c) => {
   return c.json({ deleted: count });
 });
 
+// GET /api/tracks/:ordinal/lap-sectors — compute sector times for all laps on a track.
+// Uses the track's sector boundaries (s1End, s2End fractions) and each lap's telemetry
+// to find where sector crossings happen and compute split times.
+app.get("/api/tracks/:ordinal/lap-sectors", (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  // Get sector boundaries
+  const dbSectors = getTrackOutlineSectors(ordinal);
+  const bundled = getTrackSectorsByOrdinal(ordinal);
+  const sectors = dbSectors ?? bundled;
+  if (!sectors?.s1End || !sectors?.s2End) return c.json({});
+
+  const trackLaps = getLaps().filter((l) => l.trackOrdinal === ordinal && l.lapTime > 0);
+  if (trackLaps.length === 0) return c.json({});
+
+  const result: Record<number, { s1: number; s2: number; s3: number }> = {};
+
+  for (const lapMeta of trackLaps) {
+    const lapData = getLapById(lapMeta.id);
+    if (!lapData?.telemetry || lapData.telemetry.length < 50) continue;
+
+    const packets = lapData.telemetry;
+    const startDist = packets[0].DistanceTraveled;
+    const endDist = packets[packets.length - 1].DistanceTraveled;
+    const totalDist = endDist - startDist;
+    if (totalDist < 100) continue;
+
+    let s1Time = 0;
+    let s2Time = 0;
+    let currentSector = 0;
+    let sectorStartTime = packets[0].CurrentLap;
+
+    for (const p of packets) {
+      const frac = (p.DistanceTraveled - startDist) / totalDist;
+      const expectedSector = frac < sectors.s1End ? 0 : frac < sectors.s2End ? 1 : 2;
+
+      if (expectedSector > currentSector) {
+        const sectorTime = p.CurrentLap - sectorStartTime;
+        if (currentSector === 0) s1Time = sectorTime;
+        else if (currentSector === 1) s2Time = sectorTime;
+        sectorStartTime = p.CurrentLap;
+        currentSector = expectedSector;
+      }
+    }
+
+    if (s1Time > 0 && s2Time > 0) {
+      const s3Time = lapMeta.lapTime - s1Time - s2Time;
+      result[lapMeta.id] = { s1: s1Time, s2: s2Time, s3: Math.max(0, s3Time) };
+    }
+  }
+
+  return c.json(result);
+});
+
 // GET /api/track-outline/:ordinal — track outline coordinates.
 // Returns { points, recorded } so the client knows if coords are Forza-native
 // (recorded=true, direct plotting) or external (recorded=false, distance-based mapping).
@@ -1082,6 +1149,61 @@ app.get("/api/track-outline/:ordinal", (c) => {
   return c.json({ error: "No outline available" }, 404);
 });
 
+/**
+ * Local boundary warping: for each boundary point, find the nearest curb point.
+ * If within range, blend the boundary point toward the curb position.
+ * Uses a Gaussian-like falloff so the warp is smooth.
+ */
+function warpBoundaryToCurbs(
+  boundary: { x: number; z: number }[],
+  curbPoints: { x: number; z: number }[],
+  maxDist = 30, // max influence radius in meters
+  strength = 0.7 // 0=no warp, 1=snap to curb
+): void {
+  if (curbPoints.length === 0) return;
+
+  for (let i = 0; i < boundary.length; i++) {
+    const bp = boundary[i];
+    let nearestDist = Infinity;
+    let nearestCurb: { x: number; z: number } | null = null;
+
+    for (const cp of curbPoints) {
+      const dx = bp.x - cp.x;
+      const dz = bp.z - cp.z;
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d < nearestDist) {
+        nearestDist = d;
+        nearestCurb = cp;
+      }
+    }
+
+    if (nearestCurb && nearestDist < maxDist) {
+      // Gaussian falloff: full strength at 0, fades to 0 at maxDist
+      const t = strength * Math.exp(-(nearestDist * nearestDist) / (2 * (maxDist / 3) ** 2));
+      boundary[i] = {
+        x: bp.x + (nearestCurb.x - bp.x) * t,
+        z: bp.z + (nearestCurb.z - bp.z) * t,
+      };
+    }
+  }
+}
+
+/**
+ * Smooth a boundary using a moving average to remove jaggedness from warping.
+ * Runs `passes` iterations of a 5-point weighted average.
+ */
+function smoothBoundary(boundary: { x: number; z: number }[], passes = 3): void {
+  for (let p = 0; p < passes; p++) {
+    const orig = boundary.map(pt => ({ ...pt }));
+    for (let i = 2; i < boundary.length - 2; i++) {
+      boundary[i] = {
+        x: (orig[i - 2].x + orig[i - 1].x * 2 + orig[i].x * 4 + orig[i + 1].x * 2 + orig[i + 2].x) / 10,
+        z: (orig[i - 2].z + orig[i - 1].z * 2 + orig[i].z * 4 + orig[i + 1].z * 2 + orig[i + 2].z) / 10,
+      };
+    }
+  }
+}
+
 // GET /api/track-boundaries/:ordinal — track boundary edges (left/right + pit lane)
 // Returns boundary data in the same coordinate system as the outline.
 app.get("/api/track-boundaries/:ordinal", (c) => {
@@ -1097,6 +1219,12 @@ app.get("/api/track-boundaries/:ordinal", (c) => {
   const bundledOutline = getBundledOutlineByOrdinal(ordinal);
   if (recordedOutline && bundledOutline) {
     computeStaticAlignment(ordinal, bundledOutline, recordedOutline);
+
+    // Refine alignment using curb data as boundary anchors (if available)
+    const curbs = getTrackCurbs(ordinal);
+    if (curbs && curbs.length > 0) {
+      refineAlignmentWithCurbs(ordinal, bundledOutline, recordedOutline, boundaries, curbs);
+    }
   }
 
   // Compute geometric center-line from midpoint of left/right edges
@@ -1116,6 +1244,49 @@ app.get("/api/track-boundaries/:ordinal", (c) => {
   const pitForza = boundaries.pitLane ? transformToForzaSpace(ordinal, boundaries.pitLane) : null;
 
   if (leftForza && rightForza && centerForza) {
+    // Local warp: nudge boundary points toward nearby curb ground-truth positions
+    // Curbs are not pre-assigned to sides — correlate each curb point with the nearest boundary edge
+    const curbs = getTrackCurbs(ordinal);
+    if (curbs && curbs.length > 0) {
+      const allCurbPts = curbs.flatMap(c => c.points);
+      // For each curb point, assign to whichever boundary edge is closer
+      const leftCurbs: { x: number; z: number }[] = [];
+      const rightCurbs: { x: number; z: number }[] = [];
+      for (const cp of allCurbPts) {
+        let leftDist = Infinity;
+        let rightDist = Infinity;
+        for (const lp of leftForza) {
+          const d = (lp.x - cp.x) ** 2 + (lp.z - cp.z) ** 2;
+          if (d < leftDist) leftDist = d;
+        }
+        for (const rp of rightForza) {
+          const d = (rp.x - cp.x) ** 2 + (rp.z - cp.z) ** 2;
+          if (d < rightDist) rightDist = d;
+        }
+        if (leftDist <= rightDist) {
+          leftCurbs.push(cp);
+        } else {
+          rightCurbs.push(cp);
+        }
+      }
+      warpBoundaryToCurbs(leftForza, leftCurbs);
+      warpBoundaryToCurbs(rightForza, rightCurbs);
+      smoothBoundary(leftForza, 5);
+      smoothBoundary(rightForza, 5);
+      // Recompute center from warped boundaries
+      const warpedCenter = leftForza.map((lp, i) => ({
+        x: (lp.x + (rightForza[i]?.x ?? lp.x)) / 2,
+        z: (lp.z + (rightForza[i]?.z ?? lp.z)) / 2,
+      }));
+      return c.json({
+        leftEdge: leftForza,
+        rightEdge: rightForza,
+        centerLine: warpedCenter,
+        pitLane: pitForza,
+        coordSystem: "forza",
+      });
+    }
+
     return c.json({
       leftEdge: leftForza,
       rightEdge: rightForza,
@@ -1143,6 +1314,57 @@ app.get("/api/track-curbs/:ordinal", (c) => {
   const curbs = getTrackCurbs(ordinal);
   if (!curbs) return c.json({ error: "No curb data" }, 404);
   return c.json(curbs);
+});
+
+// POST /api/track-curbs/:ordinal/extract — extract curbs from all stored laps and recalibrate boundaries
+app.post("/api/track-curbs/:ordinal/extract", (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  // Find all laps for this track
+  const trackLaps = getLaps().filter(l => l.trackOrdinal === ordinal && l.lapTime > 0);
+  if (trackLaps.length === 0) return c.json({ error: "No laps found for this track" }, 404);
+
+  let totalSegments = 0;
+  let lapsWithCurbs = 0;
+
+  for (const lap of trackLaps) {
+    const lapData = getLapById(lap.id);
+    if (!lapData?.telemetry || lapData.telemetry.length < 50) continue;
+
+    const segments = extractCurbSegments(lapData.telemetry);
+    if (segments.length > 0) {
+      recordCurbData(ordinal, segments);
+      totalSegments += segments.length;
+      lapsWithCurbs++;
+    }
+  }
+
+  const curbs = getTrackCurbs(ordinal);
+
+  // Trigger boundary recalibration if we have curb data
+  const boundaries = getTrackBoundariesByOrdinal(ordinal);
+  const recordedOutline = getDbTrackOutline(ordinal) ?? (hasRecordedOutline(ordinal) ? getTrackOutlineByOrdinal(ordinal) : null);
+  const bundledOutline = getBundledOutlineByOrdinal(ordinal);
+
+  let calibrated = false;
+  if (curbs && curbs.length > 0 && boundaries && recordedOutline && bundledOutline) {
+    // Clear caches so alignment re-runs with fresh curb data
+    clearCurbRefinement(ordinal);
+    computeStaticAlignment(ordinal, bundledOutline, recordedOutline);
+    refineAlignmentWithCurbs(ordinal, bundledOutline, recordedOutline, boundaries, curbs);
+    calibrated = true;
+  }
+
+  return c.json({
+    success: true,
+    lapsScanned: trackLaps.length,
+    lapsWithCurbs,
+    totalSegments,
+    curbSegments: curbs?.length ?? 0,
+    calibrated,
+    message: `Extracted curbs from ${lapsWithCurbs}/${trackLaps.length} laps, ${curbs?.length ?? 0} total segments. ${calibrated ? "Boundaries recalibrated." : "No boundary recalibration (missing data)."}`,
+  });
 });
 
 // Car model configs — single source of truth for 3D model alignment + dimensions

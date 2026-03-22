@@ -957,6 +957,100 @@ function TrackTunes({ trackName, trackVariant }: { trackName: string; trackVaria
 }
 
 /**
+ * CurbDebugSection — Curb data display with extract/recalibrate controls.
+ */
+function CurbDebugSection({
+  trackOrdinal,
+  curbs,
+  setCurbs,
+  setBoundaries,
+  setCalibration,
+}: {
+  trackOrdinal: number;
+  curbs: { points: Point[]; side: string }[] | null;
+  setCurbs: (c: { points: Point[]; side: string }[] | null) => void;
+  setBoundaries: (b: any) => void;
+  setCalibration: (c: any) => void;
+}) {
+  const [extracting, setExtracting] = useState(false);
+  const [result, setResult] = useState<{ lapsScanned: number; lapsWithCurbs: number; curbSegments: number; calibrated: boolean } | null>(null);
+
+  const handleExtract = async () => {
+    setExtracting(true);
+    setResult(null);
+    try {
+      const res = await fetch(`/api/track-curbs/${trackOrdinal}/extract`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setResult(data);
+
+        // Refresh curb data, boundaries, and calibration
+        const [newCurbs, newBoundaries, newCal] = await Promise.all([
+          api.getTrackCurbs(trackOrdinal),
+          api.getTrackBoundaries(trackOrdinal),
+          fetch(`/api/track-calibration/${trackOrdinal}`).then(r => r.ok ? r.json() : null).catch(() => null),
+        ]);
+        setCurbs(newCurbs);
+        setBoundaries(newBoundaries);
+        setCalibration(newCal);
+      }
+    } catch (err) {
+      console.error("Curb extraction failed:", err);
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  return (
+    <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
+      <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-2">Curbs</div>
+      <div className="space-y-1 text-app-body">
+        <div className="flex justify-between">
+          <span className="text-app-text-muted">Segments</span>
+          <span className="font-mono text-app-text">{curbs?.length ?? 0}</span>
+        </div>
+        {curbs && curbs.length > 0 && (
+          <>
+            <div className="flex justify-between">
+              <span className="text-app-text-muted">Left</span>
+              <span className="font-mono text-app-text">{curbs.filter(c => c.side === "left").length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-app-text-muted">Right</span>
+              <span className="font-mono text-app-text">{curbs.filter(c => c.side === "right").length}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-app-text-muted">Total pts</span>
+              <span className="font-mono text-app-text">{curbs.reduce((s, c) => s + c.points.length, 0)}</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      <button
+        onClick={handleExtract}
+        disabled={extracting}
+        className="mt-2 w-full px-2 py-1.5 text-app-label uppercase tracking-wider font-semibold rounded border transition-colors bg-orange-900/40 border-orange-700/50 text-orange-400 hover:bg-orange-800/50 disabled:opacity-50"
+      >
+        {extracting ? "Extracting..." : "Extract Curbs from Laps"}
+      </button>
+      <p className="text-[9px] text-app-text-dim mt-1">
+        Scans all stored laps for rumble strip data and recalibrates track boundaries.
+      </p>
+
+      {result && (
+        <div className="mt-2 p-2 rounded bg-app-bg/80 border border-app-border text-[10px] font-mono space-y-0.5">
+          <div>Laps scanned: <span className="text-app-text">{result.lapsScanned}</span></div>
+          <div>Laps with curbs: <span className="text-orange-400">{result.lapsWithCurbs}</span></div>
+          <div>Curb segments: <span className="text-orange-400">{result.curbSegments}</span></div>
+          <div>Calibrated: <span className={result.calibrated ? "text-green-400" : "text-amber-400"}>{result.calibrated ? "Yes" : "No"}</span></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * TrackDebugPanel — Full-page debug visualization for track boundary data.
  * Shows outline + boundaries on a large canvas with drag/zoom and diagnostic info sidebar.
  */
@@ -1160,29 +1254,20 @@ function TrackDebugPanel({ trackOrdinal, outline }: { trackOrdinal: number; outl
       ctx.globalAlpha = 1;
     }
 
-    // Draw curbs
+    // Draw curbs as dots
     if (curbs && curbs.length > 0) {
       for (const seg of curbs) {
-        if (seg.points.length < 2) continue;
-        ctx.beginPath();
-        const [cx0, cy0] = toCanvas(seg.points[0].x, seg.points[0].z);
-        ctx.moveTo(cx0, cy0);
-        for (let i = 1; i < seg.points.length; i++) {
-          const [cx, cy] = toCanvas(seg.points[i].x, seg.points[i].z);
-          ctx.lineTo(cx, cy);
+        const color = seg.side === "left" ? "#ef4444" : seg.side === "right" ? "#f97316" : "#eab308";
+        for (const pt of seg.points) {
+          const [cx, cy] = toCanvas(pt.x, pt.z);
+          ctx.beginPath();
+          ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+          ctx.fillStyle = color;
+          ctx.globalAlpha = 0.8;
+          ctx.fill();
         }
-        ctx.strokeStyle = seg.side === "left" ? "#ef4444" : seg.side === "right" ? "#f97316" : "#eab308";
-        ctx.lineWidth = 4;
-        ctx.globalAlpha = 0.7;
-        ctx.stroke();
-        ctx.setLineDash([4, 4]);
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = 0.5;
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.globalAlpha = 1;
       }
+      ctx.globalAlpha = 1;
     }
 
     // Start/finish marker
@@ -1315,31 +1400,7 @@ function TrackDebugPanel({ trackOrdinal, outline }: { trackOrdinal: number; outl
           </div>
         </div>
 
-        <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
-          <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-2">Curbs</div>
-          <div className="space-y-1 text-app-body">
-            <div className="flex justify-between">
-              <span className="text-app-text-muted">Segments</span>
-              <span className="font-mono text-app-text">{curbs?.length ?? 0}</span>
-            </div>
-            {curbs && curbs.length > 0 && (
-              <>
-                <div className="flex justify-between">
-                  <span className="text-app-text-muted">Left</span>
-                  <span className="font-mono text-app-text">{curbs.filter(c => c.side === "left").length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-app-text-muted">Right</span>
-                  <span className="font-mono text-app-text">{curbs.filter(c => c.side === "right").length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-app-text-muted">Total pts</span>
-                  <span className="font-mono text-app-text">{curbs.reduce((s, c) => s + c.points.length, 0)}</span>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        <CurbDebugSection trackOrdinal={trackOrdinal} curbs={curbs} setCurbs={setCurbs} setBoundaries={setBoundaries} setCalibration={setCalibration} />
       </div>
     </div>
   );

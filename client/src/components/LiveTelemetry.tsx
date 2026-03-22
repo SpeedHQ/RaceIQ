@@ -169,8 +169,194 @@ function GripHistory({ packet }: { packet: TelemetryPacket }) {
   );
 }
 
+/**
+ * PitEstimate — Tracks fuel burn and tire wear per lap to estimate
+ * how many laps remain before needing to pit. Shows whichever
+ * runs out first as the pit window.
+ */
+function PitEstimate({ packet }: { packet: TelemetryPacket }) {
+  const [trackLength, setTrackLength] = useState<number>(0);
+  const trackOrdRef = useRef<number>(0);
+
+  // Fetch track length from sector boundaries
+  useEffect(() => {
+    if (!packet.TrackOrdinal || packet.TrackOrdinal === trackOrdRef.current) return;
+    trackOrdRef.current = packet.TrackOrdinal;
+    api.getTrackSectorBoundaries(packet.TrackOrdinal)
+      .then((data: any) => { if (data?.trackLength) setTrackLength(data.trackLength); })
+      .catch(() => {});
+  }, [packet.TrackOrdinal]);
+
+  const pitRef = useRef<{
+    // Per-second tracking (wall clock)
+    lastWallTime: number;
+    lastFuel: number;
+    lastWorstWear: number;
+    lastDist: number;
+    fuelPerSec: number;
+    wearPerSec: number;
+    avgSpeed: number; // m/s smoothed
+  }>({
+    lastWallTime: Date.now() / 1000,
+    lastFuel: packet.Fuel,
+    lastWorstWear: Math.max(packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR),
+    lastDist: packet.DistanceTraveled,
+    fuelPerSec: 0,
+    wearPerSec: 0,
+    avgSpeed: 0,
+  });
+  const [, pitTick] = useState(0);
+
+  // Per-second rate tracking (wall clock, smoothed over ~3s)
+  useEffect(() => {
+    const s = pitRef.current;
+    const now = Date.now() / 1000;
+    const dt = now - s.lastWallTime;
+    if (dt >= 3) {
+      const fuelDelta = s.lastFuel - packet.Fuel; // fuel decreases
+      const worstWear = Math.max(packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR);
+      const wearDelta = worstWear - s.lastWorstWear; // wear increases
+      const distDelta = packet.DistanceTraveled - s.lastDist;
+
+      if (fuelDelta > 0) s.fuelPerSec = (fuelDelta / dt) * 100;
+      if (wearDelta > 0) s.wearPerSec = (wearDelta / dt) * 100;
+      if (distDelta > 0) s.avgSpeed = distDelta / dt; // m/s
+
+      s.lastWallTime = now;
+      s.lastFuel = packet.Fuel;
+      s.lastWorstWear = worstWear;
+      s.lastDist = packet.DistanceTraveled;
+      pitTick((v) => v + 1);
+    }
+  }, [packet]);
+
+  const s = pitRef.current;
+
+  // Estimate laps from rate-based calculation:
+  // usagePerLap = usagePerSec * (trackLength / avgSpeed)
+  // lapsRemaining = currentLevel / usagePerLap
+  const canEstimate = s.avgSpeed > 1 && trackLength && trackLength > 100;
+  const estLapTime = canEstimate ? trackLength / s.avgSpeed : 0;
+
+  let fuelLaps: number | null = null;
+  if (s.fuelPerSec > 0 && canEstimate) {
+    const fuelPerLap = (s.fuelPerSec / 100) * estLapTime; // fraction per lap
+    if (fuelPerLap > 0) fuelLaps = Math.round((packet.Fuel / fuelPerLap) * 10) / 10;
+  }
+
+  // Per-tire calculations
+  const tireLabels = ["FL", "FR", "RL", "RR"];
+  const wears = [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR];
+  const tireData = tireLabels.map((label, i) => {
+    const health = (1 - wears[i]) * 100;
+    // 5-tier color coding: >80 green, >60 lime, >40 yellow, >20 orange, ≤20 red
+    const healthClr = health > 80 ? "text-emerald-400" : health > 60 ? "text-lime-400" : health > 40 ? "text-yellow-400" : health > 20 ? "text-orange-400" : "text-red-400";
+    const healthBg = health > 80 ? "bg-emerald-400" : health > 60 ? "bg-lime-400" : health > 40 ? "bg-yellow-400" : health > 20 ? "bg-orange-400" : "bg-red-500";
+    let laps: number | null = null;
+    if (s.wearPerSec > 0 && canEstimate) {
+      const wearPerLap = (s.wearPerSec / 100) * estLapTime;
+      const remaining = 1 - wears[i];
+      if (wearPerLap > 0) laps = Math.round((remaining / wearPerLap) * 10) / 10;
+    }
+    return { label, health, healthClr, healthBg, laps };
+  });
+
+  const fuelPct = (packet.Fuel * 100);
+  const fuelColor = fuelPct < 20 ? "text-red-400" : fuelPct < 40 ? "text-amber-400" : "text-emerald-400";
+
+  // Pit in = min of fuel laps and worst tire laps
+  const worstTireLaps = tireData.reduce<number | null>((min, t) => {
+    if (t.laps == null) return min;
+    return min == null ? t.laps : Math.min(min, t.laps);
+  }, null);
+  const hasEstimates = fuelLaps != null || worstTireLaps != null;
+  const pitIn = hasEstimates
+    ? (fuelLaps != null && worstTireLaps != null ? Math.min(fuelLaps, worstTireLaps) : fuelLaps ?? worstTireLaps!)
+    : null;
+  const limitedBy = fuelLaps != null && worstTireLaps != null
+    ? (fuelLaps <= worstTireLaps ? "fuel" : "tires")
+    : fuelLaps != null ? "fuel" : "tires";
+  const urgentColor = pitIn != null
+    ? (pitIn <= 3 ? "text-red-400" : pitIn <= 6 ? "text-amber-400" : "text-emerald-400")
+    : "text-app-text-muted";
+
+  return (
+    <div>
+      {/* Pit in: limited by + lap count */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-lg font-semibold text-app-text-secondary">
+          {hasEstimates ? (
+            <>Limited by <span className={`font-bold ${limitedBy === "fuel" ? fuelColor : (tireData.find(t => t.laps === worstTireLaps)?.healthClr ?? "text-app-text")}`}>{limitedBy}</span></>
+          ) : (
+            <span className="text-app-text-dim">Estimating...</span>
+          )}
+        </div>
+        <span className={`text-3xl font-mono font-black tabular-nums leading-none ${urgentColor}`}>
+          {pitIn != null ? (
+            <>{pitIn.toFixed(1)} <span className="text-base font-bold">laps</span></>
+          ) : (
+            <span className="text-app-text-dim">— <span className="text-base font-bold">laps</span></span>
+          )}
+        </span>
+      </div>
+
+      {/* Column headers */}
+      <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 items-end mb-1 px-1">
+        <div />
+        <div className="text-[9px] text-app-text-dim uppercase tracking-wider text-center w-14">Level</div>
+        <div className="text-[9px] text-app-text-dim uppercase tracking-wider text-center w-16">Est. Laps</div>
+        <div className="text-[9px] text-app-text-dim uppercase tracking-wider text-center w-16">Use /5s</div>
+      </div>
+
+      <div className="space-y-2">
+        {/* Fuel row */}
+        <div className="bg-app-surface/50 rounded-md p-2.5">
+          <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1.5">Fuel</div>
+          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 items-end">
+            <div className="h-2.5 bg-app-surface-alt rounded-full overflow-hidden">
+              <div className={`h-full rounded-full ${fuelPct < 20 ? "bg-red-500" : fuelPct < 40 ? "bg-amber-400" : "bg-emerald-400"}`} style={{ width: `${fuelPct}%` }} />
+            </div>
+            <div className={`text-2xl font-mono font-black tabular-nums leading-none text-right w-14 ${fuelColor}`}>
+              {fuelPct.toFixed(0)}%
+            </div>
+            <div className={`text-2xl font-mono font-black tabular-nums leading-none text-right w-16 ${fuelLaps != null ? fuelColor : "text-app-text-dim"}`}>
+              {fuelLaps != null ? `~${fuelLaps.toFixed(1)}` : "—"}
+            </div>
+            <div className={`text-lg font-mono font-bold tabular-nums leading-none text-right w-16 ${s.fuelPerSec > 0 ? fuelColor : "text-app-text-dim"}`}>
+              {s.fuelPerSec > 0 ? (s.fuelPerSec * 5).toFixed(2) : "—"}
+            </div>
+          </div>
+        </div>
+
+        {/* Per-tire health rows */}
+        {tireData.map((t) => (
+          <div key={t.label} className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-x-3 items-center px-2.5 py-1.5">
+            <div className="text-xs font-bold text-app-text-muted w-5">{t.label}</div>
+            <div className="h-2.5 bg-app-surface-alt rounded-full overflow-hidden">
+              <div className={`h-full rounded-full ${t.healthBg}`} style={{ width: `${t.health}%` }} />
+            </div>
+            <div className={`text-xl font-mono font-black tabular-nums leading-none text-right w-14 ${t.healthClr}`}>
+              {t.health.toFixed(0)}%
+            </div>
+            <div className={`text-xl font-mono font-black tabular-nums leading-none text-right w-16 ${t.laps != null ? t.healthClr : "text-app-text-dim"}`}>
+              {t.laps != null ? `~${t.laps.toFixed(1)}` : "—"}
+            </div>
+            <div className={`text-lg font-mono font-bold tabular-nums leading-none text-right w-16 ${s.wearPerSec > 0 ? t.healthClr : "text-app-text-dim"}`}>
+              {s.wearPerSec > 0 ? (s.wearPerSec * 5).toFixed(2) : "—"}
+            </div>
+          </div>
+        ))}
+      </div>
+
+    </div>
+  );
+}
+
+export type DashboardMode = "driver" | "pitcrew";
+
 interface Props {
   packet: DisplayPacket | null;
+  mode?: DashboardMode;
 }
 
 export function formatLapTime(seconds: number): string {
@@ -260,7 +446,7 @@ function slipLineColor(deg: number): string {
  * the angle between tire heading and actual travel direction.
  * Spin/lockup detection uses animated glow rings and X/arrow overlays.
  */
-function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, wheelState, steerAngle, thresholds, tempFn, tempUnit }: {
+function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, wheelState, steerAngle, thresholds, tempFn, tempUnit, onRumble, puddleDepth }: {
   label: string;
   temp: number;
   wear: number;
@@ -272,6 +458,8 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, wheelSta
   thresholds: { cold: number; warm: number; hot: number };
   tempFn: (f: number) => number;
   tempUnit: string;
+  onRumble: boolean;
+  puddleDepth: number;
 }) {
   const clampedAngle = Math.max(-25, Math.min(25, slipAngle));
   const stroke = tireColor(temp, thresholds);
@@ -292,7 +480,7 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, wheelSta
 
   return (
     <div className="flex flex-col items-center">
-      <svg viewBox="0 0 80 130" width={80} height={130}>
+      <svg viewBox="0 0 80 145" width={80} height={145}>
         {/* Label */}
         <text x={cx} y={8} textAnchor="middle" fill="#94a3b8" fontSize={8} fontWeight="bold" fontFamily="monospace">{label}</text>
 
@@ -418,6 +606,18 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, wheelSta
         <text x={cx} y={117} textAnchor="middle" fill={combined < 0.5 ? "#34d399" : combined < 1.0 ? "#facc15" : combined < 2.0 ? "#fb923c" : "#ef4444"} fontSize={8} fontWeight="bold" fontFamily="monospace">
           {gripLabel(combined)}
         </text>
+
+        {/* Surface indicators: curb (orange) / puddle (blue) */}
+        {onRumble && (
+          <text x={cx} y={127} textAnchor="middle" fill="#ff8800" fontSize={7} fontWeight="bold" fontFamily="monospace">
+            CURB
+          </text>
+        )}
+        {puddleDepth > 0 && (
+          <text x={cx} y={onRumble ? 136 : 127} textAnchor="middle" fill="#3b82f6" fontSize={7} fontWeight="bold" fontFamily="monospace">
+            WET {(puddleDepth * 100).toFixed(0)}%
+          </text>
+        )}
       </svg>
     </div>
   );
@@ -461,10 +661,10 @@ export function TireDiagram({ packet }: { packet: DisplayPacket | TelemetryPacke
   const steerDeg = (packet.Steer / 127) * 20;
 
   const wheels = [
-    { label: "FL", temp: packet.TireTempFL, wear: packet.TireWearFL, combined: Math.abs(packet.TireCombinedSlipFL), slipAngle: packet.TireSlipAngleFL * toDeg, wheelState: ws.fl, steerAngle: steerDeg },
-    { label: "FR", temp: packet.TireTempFR, wear: packet.TireWearFR, combined: Math.abs(packet.TireCombinedSlipFR), slipAngle: packet.TireSlipAngleFR * toDeg, wheelState: ws.fr, steerAngle: steerDeg },
-    { label: "RL", temp: packet.TireTempRL, wear: packet.TireWearRL, combined: Math.abs(packet.TireCombinedSlipRL), slipAngle: packet.TireSlipAngleRL * toDeg, wheelState: ws.rl, steerAngle: 0 },
-    { label: "RR", temp: packet.TireTempRR, wear: packet.TireWearRR, combined: Math.abs(packet.TireCombinedSlipRR), slipAngle: packet.TireSlipAngleRR * toDeg, wheelState: ws.rr, steerAngle: 0 },
+    { label: "FL", temp: packet.TireTempFL, wear: packet.TireWearFL, combined: Math.abs(packet.TireCombinedSlipFL), slipAngle: packet.TireSlipAngleFL * toDeg, wheelState: ws.fl, steerAngle: steerDeg, onRumble: packet.WheelOnRumbleStripFL !== 0, puddleDepth: packet.WheelInPuddleDepthFL },
+    { label: "FR", temp: packet.TireTempFR, wear: packet.TireWearFR, combined: Math.abs(packet.TireCombinedSlipFR), slipAngle: packet.TireSlipAngleFR * toDeg, wheelState: ws.fr, steerAngle: steerDeg, onRumble: packet.WheelOnRumbleStripFR !== 0, puddleDepth: packet.WheelInPuddleDepthFR },
+    { label: "RL", temp: packet.TireTempRL, wear: packet.TireWearRL, combined: Math.abs(packet.TireCombinedSlipRL), slipAngle: packet.TireSlipAngleRL * toDeg, wheelState: ws.rl, steerAngle: 0, onRumble: packet.WheelOnRumbleStripRL !== 0, puddleDepth: packet.WheelInPuddleDepthRL },
+    { label: "RR", temp: packet.TireTempRR, wear: packet.TireWearRR, combined: Math.abs(packet.TireCombinedSlipRR), slipAngle: packet.TireSlipAngleRR * toDeg, wheelState: ws.rr, steerAngle: 0, onRumble: packet.WheelOnRumbleStripRR !== 0, puddleDepth: packet.WheelInPuddleDepthRR },
   ];
 
   const susp = [
@@ -503,6 +703,44 @@ export function TireDiagram({ packet }: { packet: DisplayPacket | TelemetryPacke
       {/* Weight shift radar — absolutely centered between axles */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <WeightShiftRadar packet={packet} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * SurfaceConditions — Shows per-wheel curb and puddle status in a compact 2x2 grid.
+ * Only renders when at least one wheel is on a curb or in a puddle.
+ */
+function SurfaceConditions({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
+  const wheels = [
+    { label: "FL", rumble: packet.WheelOnRumbleStripFL !== 0, puddle: packet.WheelInPuddleDepthFL, surfaceRumble: packet.SurfaceRumbleFL },
+    { label: "FR", rumble: packet.WheelOnRumbleStripFR !== 0, puddle: packet.WheelInPuddleDepthFR, surfaceRumble: packet.SurfaceRumbleFR },
+    { label: "RL", rumble: packet.WheelOnRumbleStripRL !== 0, puddle: packet.WheelInPuddleDepthRL, surfaceRumble: packet.SurfaceRumbleRL },
+    { label: "RR", rumble: packet.WheelOnRumbleStripRR !== 0, puddle: packet.WheelInPuddleDepthRR, surfaceRumble: packet.SurfaceRumbleRR },
+  ];
+
+  return (
+    <div>
+      <div className="text-xs text-app-text-muted uppercase tracking-wider mb-2">Surface</div>
+      <div className="grid grid-cols-2 gap-1.5 max-w-[200px] mx-auto">
+        {wheels.map(w => (
+          <div
+            key={w.label}
+            className={`flex items-center justify-between px-2 py-1 rounded text-[10px] font-mono border ${
+              w.rumble
+                ? "border-orange-500/50 bg-orange-950/30"
+                : w.puddle > 0
+                  ? "border-blue-500/50 bg-blue-950/30"
+                  : "border-app-border bg-app-surface-alt/30"
+            }`}
+          >
+            <span className="text-app-text-muted font-bold">{w.label}</span>
+            <span className={`font-bold ${w.rumble ? "text-orange-400" : w.puddle > 0 ? "text-blue-400" : "text-app-text-dim"}`}>
+              {w.rumble ? "CURB" : w.puddle > 0 ? `WET ${(w.puddle * 100).toFixed(0)}%` : "—"}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1217,7 +1455,145 @@ function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
   );
 }
 
-export function LiveTelemetry({ packet }: Props) {
+/**
+ * TireRaceView — Compact race-focused tire display.
+ * Shows temp, wear %, grip state, and estimates laps remaining based on wear rate.
+ */
+function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
+  const units = useUnits();
+  const wearRef = useRef<{
+    lastLap: number;
+    wearAtLapStart: number[];
+    wearRates: number[][];
+    // Per-second per-tire tracking (wall clock)
+    lastWallTime: number;
+    lastWear: number[];
+    wearPerSec: number[]; // %/s per tire
+  }>({
+    lastLap: 0,
+    wearAtLapStart: [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR],
+    wearRates: [],
+    lastWallTime: Date.now() / 1000,
+    lastWear: [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR],
+    wearPerSec: [0, 0, 0, 0],
+  });
+
+  // Track wear per lap for estimates
+  useEffect(() => {
+    const w = wearRef.current;
+    if (packet.LapNumber > w.lastLap && w.lastLap > 0) {
+      const currentWear = [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR];
+      const deltas = currentWear.map((c, i) => w.wearAtLapStart[i] - c);
+      if (deltas.every((d) => d >= 0 && d < 0.5)) {
+        w.wearRates.push(deltas);
+        if (w.wearRates.length > 10) w.wearRates.shift();
+      }
+      w.wearAtLapStart = currentWear;
+    }
+    w.lastLap = packet.LapNumber;
+  }, [packet.LapNumber]);
+
+  // Per-second wear rate tracking (wall clock, smoothed over ~3s)
+  // TireWear increases as tires degrade (0=new, 1=gone), so delta = current - last
+  useEffect(() => {
+    const w = wearRef.current;
+    const now = Date.now() / 1000;
+    const dt = now - w.lastWallTime;
+    if (dt >= 3) {
+      const currentWear = [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR];
+      w.wearPerSec = currentWear.map((c, i) => {
+        const delta = c - w.lastWear[i]; // wear increases as tire degrades
+        return delta > 0 ? (delta / dt) * 100 : 0;
+      });
+      w.lastWallTime = now;
+      w.lastWear = currentWear;
+    }
+  }, [packet]);
+
+  const tires = [
+    { label: "FL", temp: packet.TireTempFL, wear: packet.TireWearFL, grip: Math.abs(packet.TireCombinedSlipFL), wearPerSec: wearRef.current.wearPerSec[0] },
+    { label: "FR", temp: packet.TireTempFR, wear: packet.TireWearFR, grip: Math.abs(packet.TireCombinedSlipFR), wearPerSec: wearRef.current.wearPerSec[1] },
+    { label: "RL", temp: packet.TireTempRL, wear: packet.TireWearRL, grip: Math.abs(packet.TireCombinedSlipRL), wearPerSec: wearRef.current.wearPerSec[2] },
+    { label: "RR", temp: packet.TireTempRR, wear: packet.TireWearRR, grip: Math.abs(packet.TireCombinedSlipRR), wearPerSec: wearRef.current.wearPerSec[3] },
+  ];
+
+  // Estimate laps remaining from worst tire
+  const w = wearRef.current;
+  let lapsEstimate: number | null = null;
+  if (w.wearRates.length > 0) {
+    const avgRates = [0, 1, 2, 3].map((i) => {
+      const rates = w.wearRates.map((r) => r[i]).filter((r) => r > 0);
+      return rates.length > 0 ? rates.reduce((s, v) => s + v, 0) / rates.length : 0;
+    });
+    const worstIdx = avgRates.indexOf(Math.max(...avgRates));
+    if (avgRates[worstIdx] > 0) {
+      lapsEstimate = Math.floor(tires[worstIdx].wear / avgRates[worstIdx]);
+    }
+  }
+
+  // Avg health across all 4
+  const avgHealth = (1 - tires.reduce((s, t) => s + t.wear, 0) / 4) * 100;
+
+  // Split into front/rear axles
+  const frontTires = tires.slice(0, 2);
+  const rearTires = tires.slice(2, 4);
+
+  return (
+    <div>
+      {/* 4 tires in 2x2 grid, full width */}
+      <div className="grid grid-cols-2 gap-2">
+        {tires.map((t) => {
+          const healthPct = (1 - t.wear) * 100;
+          const healthTextColor = healthPct > 80 ? "text-emerald-400" : healthPct > 60 ? "text-lime-400" : healthPct > 40 ? "text-yellow-400" : healthPct > 20 ? "text-orange-400" : "text-red-400";
+          const healthBg = healthPct > 80 ? "bg-emerald-400" : healthPct > 60 ? "bg-lime-400" : healthPct > 40 ? "bg-yellow-400" : healthPct > 20 ? "bg-orange-400" : "bg-red-500";
+          const tempDisplay = units.temp(t.temp);
+          const tc = tempColor(t.temp, units.thresholds);
+
+          return (
+            <div key={t.label} className="bg-app-surface-alt/30 rounded-md p-2.5 flex items-center gap-2">
+              {/* Vertical health bar */}
+              <div className="flex flex-col items-center gap-1 shrink-0">
+                <span className="text-xs font-bold text-app-text-muted">{t.label}</span>
+                <div className="w-6 bg-app-surface rounded-sm overflow-hidden relative" style={{ height: 50 }}>
+                  <div
+                    className={`absolute bottom-0 w-full rounded-sm ${healthBg}`}
+                    style={{ height: `${healthPct}%` }}
+                  />
+                </div>
+              </div>
+              {/* Health % — large */}
+              <div className="flex-1 min-w-0">
+                <span className={`text-3xl font-mono font-black tabular-nums leading-none ${healthTextColor}`}>
+                  {healthPct.toFixed(0)}%
+                </span>
+              </div>
+              {/* Temp */}
+              <div className="flex flex-col items-end shrink-0">
+                <span className={`text-xl font-mono font-bold tabular-nums leading-none ${tc}`}>
+                  {tempDisplay.toFixed(0)}°
+                </span>
+                <span className="text-[10px] font-mono text-app-text-dim">{units.tempUnit}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Tire summary: lap estimate */}
+      <div className="flex items-center justify-end mt-2 px-1">
+        {lapsEstimate != null && (
+          <span className="text-[10px] font-mono text-app-text-muted">
+            ~<span className={`font-bold ${lapsEstimate > 10 ? "text-emerald-400" : lapsEstimate > 5 ? "text-yellow-400" : "text-red-400"}`}>
+              {lapsEstimate}
+            </span> laps remaining
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function LiveTelemetry({ packet, mode = "driver" }: Props) {
   const [carName, setCarName] = useState<string>("");
   const lastCarOrdRef = useRef<number | null>(null);
 
@@ -1246,123 +1622,154 @@ export function LiveTelemetry({ packet }: Props) {
   const throttlePct = (packet.Accel / 255) * 100;
   const brakePct = (packet.Brake / 255) * 100;
   const rpmPct = packet.EngineMaxRpm > 0 ? (packet.CurrentEngineRpm / packet.EngineMaxRpm) * 100 : 0;
+  const hp = packet.Power / 745.7;
+  const boostVal = packet.Boost;
 
-  return (
-    <div className="grid gap-2 p-3">
-      {/* Row 1: Car + Speed + Gear */}
-      <div className="flex items-center gap-3">
-        {carName && (
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-app-text truncate">{carName}</div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-mono font-semibold px-1 py-px rounded bg-app-surface-alt text-app-accent">
-                {CAR_CLASS_NAMES[packet.CarClass] ?? "?"} {packet.CarPerformanceIndex}
-              </span>
-              <span className="text-[10px] text-app-text-muted">
-                {DRIVETRAIN_NAMES[packet.DrivetrainType] ?? "?"} &middot; {packet.NumCylinders}cyl
-              </span>
-            </div>
-          </div>
-        )}
-        <div className="text-right">
-          <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
-            {speed.toFixed(0)} <span className="text-xs text-app-text-muted">{units.speedLabel}</span>
-          </div>
+  // ── Shared hero: Speed + Gear + RPM ──────────────────────────
+  const heroSection = (
+    <div className="bg-app-surface-alt/20 p-3 pb-2">
+      {carName && (
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs font-semibold text-app-text truncate">{carName}</span>
+          <span className="text-[10px] font-mono font-semibold px-1.5 py-px rounded bg-app-surface-alt text-app-accent shrink-0">
+            {CAR_CLASS_NAMES[packet.CarClass] ?? "?"}{packet.CarPerformanceIndex}
+          </span>
+          <span className="text-[10px] text-app-text-dim shrink-0">
+            {DRIVETRAIN_NAMES[packet.DrivetrainType] ?? "?"}
+          </span>
         </div>
-        <div className="text-3xl font-mono font-bold text-app-accent tabular-nums leading-none">
-          {packet.Gear === 0 ? "R" : packet.Gear === 11 ? "N" : packet.Gear}
+      )}
+      <div className="flex items-end justify-between mb-1">
+        <div className="flex items-baseline gap-1">
+          <span className="text-5xl font-mono font-black text-app-text tabular-nums leading-none tracking-tighter">
+            {speed.toFixed(0)}
+          </span>
+          <span className="text-sm text-app-text-muted font-mono">{units.speedLabel}</span>
+        </div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-[10px] text-app-text-dim font-mono">{hp.toFixed(0)}hp</span>
+          <span className={`text-5xl font-mono font-black tabular-nums leading-none tracking-tighter ${rpmPct > 90 ? "text-red-400" : "text-app-accent"}`}>
+            {packet.Gear === 0 ? "R" : packet.Gear === 11 ? "N" : packet.Gear}
+          </span>
         </div>
       </div>
-
-      {/* Row 2: RPM segments */}
-      <div className="flex justify-between text-[10px] text-app-text-muted font-mono">
-        <span>RPM</span>
-        <span>{packet.CurrentEngineRpm.toFixed(0)} / {packet.EngineMaxRpm.toFixed(0)}</span>
-      </div>
-      <div className="flex gap-[2px] -mt-0.5">
-        {Array.from({ length: 20 }, (_, i) => {
-          const segPct = ((i + 1) / 20) * 100;
+      <div className="flex gap-[2px] mb-1">
+        {Array.from({ length: 30 }, (_, i) => {
+          const segPct = ((i + 1) / 30) * 100;
           const lit = rpmPct >= segPct;
           let color: string;
-          if (segPct <= 60) color = lit ? "bg-cyan-400" : "bg-cyan-400/10";
-          else if (segPct <= 80) color = lit ? "bg-amber-400" : "bg-amber-400/10";
-          else color = lit ? "bg-red-500" : "bg-red-500/10";
+          if (segPct <= 60) color = lit ? "bg-cyan-400" : "bg-cyan-400/8";
+          else if (segPct <= 80) color = lit ? "bg-amber-400" : "bg-amber-400/8";
+          else color = lit ? "bg-red-500" : "bg-red-500/8";
           return (
-            <div
-              key={i}
-              className={`flex-1 h-3 rounded-sm transition-colors ${color} ${lit && segPct > 90 ? "animate-pulse" : ""}`}
-            />
+            <div key={i} className={`flex-1 h-4 rounded-sm ${color} ${lit && segPct > 90 ? "animate-pulse" : ""}`} />
           );
         })}
       </div>
+      <div className="flex justify-between text-[9px] text-app-text-dim font-mono tabular-nums">
+        <span>{packet.EngineIdleRpm.toFixed(0)}</span>
+        <span>{packet.CurrentEngineRpm.toFixed(0)} rpm</span>
+        <span>{packet.EngineMaxRpm.toFixed(0)}</span>
+      </div>
+    </div>
+  );
 
-      {/* Row 3: Throttle/Brake pedals + Fuel + Steering + G-Force */}
-      <div className="flex items-center gap-3">
-        {/* Pedal bars — vertical, fill from bottom */}
-        <div className="flex gap-1.5 items-end shrink-0" style={{ height: 80 }}>
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{throttlePct.toFixed(0)}</span>
-            <div className="w-6 bg-app-surface-alt rounded-sm overflow-hidden relative" style={{ height: 60 }}>
-              <div
-                className="absolute bottom-0 w-full bg-emerald-400 rounded-sm transition-all"
-                style={{ height: `${throttlePct}%` }}
-              />
-            </div>
-            <span className="text-[8px] text-app-text-muted">T</span>
+  // ── DRIVER MODE ──────────────────────────────────────────────
+  if (mode === "driver") {
+    return (
+      <div className="grid gap-0 p-0">
+        {/* Tire Health */}
+        <div className="border-b border-app-border">
+          <div className="p-2 border-b border-app-border">
+            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Tire Health</h2>
           </div>
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="text-[9px] font-mono text-red-400 font-bold tabular-nums">{brakePct.toFixed(0)}</span>
-            <div className="w-6 bg-app-surface-alt rounded-sm overflow-hidden relative" style={{ height: 60 }}>
-              <div
-                className="absolute bottom-0 w-full bg-red-500 rounded-sm transition-all"
-                style={{ height: `${brakePct}%` }}
-              />
-            </div>
-            <span className="text-[8px] text-app-text-muted">B</span>
+          <div className="p-3">
+            <TireRaceView packet={packet} />
           </div>
         </div>
 
-        {/* Fuel */}
-        <div className="flex-1">
-          <FuelGauge packet={packet} />
+        {/* Pit Window */}
+        <div className="border-b border-app-border">
+          <div className="p-2 border-b border-app-border">
+            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Pit Window</h2>
+          </div>
+          <div className="p-3">
+            <PitEstimate packet={packet} />
+          </div>
         </div>
 
-        <SteeringWheel steer={packet.Steer} />
-        <GForceCircle packet={packet} />
+      </div>
+    );
+  }
+
+  // ── PIT CREW MODE ────────────────────────────────────────────
+  return (
+    <div className="grid gap-0 p-0">
+      {heroSection}
+
+      {/* Inputs: Throttle/Brake + Power/Boost */}
+      <div className="px-3 py-2 border-b border-app-border/50">
+        <div className="flex gap-3 items-center">
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-mono text-emerald-400 font-bold w-6 text-right tabular-nums">{throttlePct.toFixed(0)}</span>
+              <div className="flex-1 h-3 bg-app-surface-alt rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${throttlePct}%` }} />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-mono text-red-400 font-bold w-6 text-right tabular-nums">{brakePct.toFixed(0)}</span>
+              <div className="flex-1 h-3 bg-app-surface-alt rounded-full overflow-hidden">
+                <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: `${brakePct}%` }} />
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-1 shrink-0">
+            <PowerTorque packet={packet} />
+            <ArcGauge value={boostVal} max={30} label="Boost" unit="psi" color="#22d3ee" />
+          </div>
+        </div>
       </div>
 
-      {/* Row 4: Power / Torque / Boost arc gauges */}
-      <div className="flex items-center justify-center gap-1">
-        <PowerTorque packet={packet} />
-        <ArcGauge value={packet.Boost} max={30} label="Boost" unit="psi" color="#22d3ee" />
+      {/* G-Force + Steering + Fuel */}
+      <div className="px-3 py-2 border-b border-app-border/50">
+        <div className="flex items-center gap-3">
+          <GForceCircle packet={packet} />
+          <SteeringWheel steer={packet.Steer} />
+          <div className="flex-1">
+            <FuelGauge packet={packet} />
+          </div>
+        </div>
       </div>
 
-      {/* Tires — unified 4-wheel display */}
-      <div>
-        <div className="text-xs text-app-text-muted uppercase tracking-wider mb-2">Tires</div>
+      {/* Full tire diagram with suspension */}
+      <div className="px-3 py-2 border-b border-app-border/50">
+        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">Tires</div>
         <TireDiagram packet={packet} />
       </div>
 
-      {/* Grip history — 60s sparklines */}
-      <div>
-        <div className="text-xs text-app-text-muted uppercase tracking-wider mb-2">Grip History (60s)</div>
+      {/* Surface conditions */}
+      <div className="px-3 py-2 border-b border-app-border/50">
+        <SurfaceConditions packet={packet} />
+      </div>
+
+      {/* Grip history */}
+      <div className="px-3 py-2 border-b border-app-border/50">
+        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">Grip (60s)</div>
         <GripHistory packet={packet} />
       </div>
 
-
-
       {/* Body Attitude */}
-      <div>
-        <div className="text-xs text-app-text-muted uppercase tracking-wider mb-2">Body Attitude</div>
+      <div className="px-3 py-2 border-b border-app-border/50">
+        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">Body Attitude</div>
         <BodyAttitude packet={packet} />
       </div>
 
-      {/* Telemetry History Charts (60s) */}
-      <div>
-        <div className="text-xs text-app-text-muted uppercase tracking-wider mb-2">Telemetry History (60s)</div>
+      {/* Telemetry charts */}
+      <div className="px-3 py-2">
+        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">Telemetry (60s)</div>
         <TelemetryCharts packet={packet} />
       </div>
-
     </div>
   );
 }

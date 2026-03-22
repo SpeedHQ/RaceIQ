@@ -114,6 +114,15 @@ if (existsSync(boundariesDir)) {
   } catch {}
 }
 
+// Tracks where the TUMFTM outline only matches a specific layout variant.
+// Maps track name -> set of ordinals that should NOT get the bundled outline/boundary
+// because the TUMFTM data is for a different layout (e.g., GP circuit vs Nordschleife).
+const LAYOUT_EXCLUSIONS: Record<string, Set<number>> = {
+  // TUMFTM "Nürburgring" = GP Circuit (5.12km). Don't apply to other layouts:
+  // 31 = Full Circuit (25.38km), 32 = Nordschleife (20.83km), 34 = Sprint (3.63km)
+  "Nürburgring": new Set([31, 32, 34]),
+};
+
 // Load track ordinal -> name mapping from tracks.csv
 const tracksPath = resolve(__dirname, "..", "tracks.csv");
 if (existsSync(tracksPath)) {
@@ -125,12 +134,14 @@ if (existsSync(tracksPath)) {
     const ordinal = parseInt(ordStr, 10);
     if (isNaN(ordinal)) continue;
 
+    const excluded = LAYOUT_EXCLUSIONS[name]?.has(ordinal);
+
     const outline = outlinesByName.get(name);
-    if (outline) {
+    if (outline && !excluded) {
       outlinesByOrdinal.set(ordinal, outline);
     }
     const boundary = boundariesByName.get(name);
-    if (boundary) {
+    if (boundary && !excluded) {
       boundariesByOrdinal.set(ordinal, boundary);
     }
   }
@@ -473,13 +484,10 @@ export function extractCurbSegments(packets: { PositionX: number; PositionZ: num
     const anyRumble = fl || fr || rl || rr;
 
     if (anyRumble) {
-      // Determine side: left wheels (FL/RL) vs right wheels (FR/RR)
-      const leftActive = fl || rl;
-      const rightActive = fr || rr;
-      const side: "left" | "right" | "both" = leftActive && rightActive ? "both" : leftActive ? "left" : "right";
-
+      // Don't assign side from wheel position — a left wheel can hit a right curb.
+      // Side is determined later by correlating with track boundaries.
       if (currentPoints.length === 0) {
-        currentSide = side;
+        currentSide = "both";
       }
       currentPoints.push({ x: p.PositionX, z: p.PositionZ });
       gapCount = 0;

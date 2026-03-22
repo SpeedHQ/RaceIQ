@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { convertTemp, celsiusToFahrenheit } from "../lib/temperature";
+import { playBlip, preloadSound } from "./SectorTimes";
 import { useSettings, useSaveSettings } from "../hooks/queries";
 import { useTheme, type Theme } from "../context/theme";
 
@@ -10,6 +11,9 @@ import { useTheme, type Theme } from "../context/theme";
 const STEER_LOCK_KEY = "forza-steer-lock";
 const WHEEL_STYLE_KEY = "forza-wheel-style";
 const SOUND_ENABLED_KEY = "forza-sound-enabled";
+const SOUND_VOLUME_KEY = "forza-sound-volume";
+const SOUND_TYPE_KEY = "forza-sound-type";
+const SOUND_URL_KEY = "forza-sound-url";
 
 export function getSteeringLock(): number {
   const val = localStorage.getItem(STEER_LOCK_KEY);
@@ -32,6 +36,39 @@ export function setSoundEnabled(enabled: boolean): void {
   localStorage.setItem(SOUND_ENABLED_KEY, String(enabled));
 }
 
+export function getSoundVolume(): number {
+  const val = localStorage.getItem(SOUND_VOLUME_KEY);
+  return val ? parseFloat(val) : 0.15; // default 15%
+}
+
+export function setSoundVolume(volume: number): void {
+  localStorage.setItem(SOUND_VOLUME_KEY, String(Math.max(0, Math.min(1, volume))));
+}
+
+export const SOUND_PRESETS = [
+  { id: "beep-2", label: "Beep Short" },
+  { id: "url", label: "Custom URL" },
+] as const;
+
+export type SoundType = string; // preset id or "url"
+
+export function getSoundType(): string {
+  const val = localStorage.getItem(SOUND_TYPE_KEY);
+  return val ?? "beep-2";
+}
+
+export function setSoundType(type: SoundType): void {
+  localStorage.setItem(SOUND_TYPE_KEY, type);
+}
+
+export function getSoundUrl(): string {
+  return localStorage.getItem(SOUND_URL_KEY) ?? "";
+}
+
+export function setSoundUrl(url: string): void {
+  localStorage.setItem(SOUND_URL_KEY, url);
+}
+
 const NAV_ITEMS = [
   { id: "theme", label: "Theme" },
   { id: "connection", label: "Connection" },
@@ -52,6 +89,9 @@ export function Settings() {
   const [steerLock, setSteerLock] = useState(() => String(getSteeringLock()));
   const [wheelStyle, setWheelStyle] = useState<WheelStyle>(() => getWheelStyle());
   const [soundEnabled, setSoundEnabledState] = useState(() => getSoundEnabled());
+  const [soundVolume, setSoundVolumeState] = useState(() => getSoundVolume());
+  const [soundType, setSoundTypeState] = useState(() => getSoundType());
+  const [soundUrl, setSoundUrlState] = useState(() => getSoundUrl());
 
   const { displaySettings } = useSettings();
   const saveSettings = useSaveSettings();
@@ -480,7 +520,7 @@ export function Settings() {
               Audio feedback for sector changes and other events.
             </p>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 mb-4">
               <Label className="text-app-text-secondary">Sector blip sounds</Label>
               <Button
                 size="sm"
@@ -501,6 +541,80 @@ export function Settings() {
                 }}
               >
                 Off
+              </Button>
+            </div>
+
+            <div className="mb-4">
+              <Label className="text-app-text-secondary mb-2 block">Sound preset</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {SOUND_PRESETS.map((p) => (
+                  <Button
+                    key={p.id}
+                    size="sm"
+                    variant={soundType === p.id ? "default" : "outline"}
+                    onClick={() => {
+                      setSoundTypeState(p.id);
+                      setSoundType(p.id);
+                      // Preview on select
+                      if (p.id !== "url" && p.id !== "synth") {
+                        preloadSound(`/sounds/${p.id}.mp3`);
+                      }
+                      playBlip(1);
+                    }}
+                    className="text-xs"
+                  >
+                    {p.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {soundType === "url" && (
+              <div className="mb-4">
+                <Label className="text-app-text-secondary mb-2 block">Sound URL</Label>
+                <p className="text-xs text-app-text-muted mb-2">
+                  Paste a direct link to an .mp3 or .wav file. Short clips (&lt;1s) work best.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    value={soundUrl}
+                    onChange={(e) => setSoundUrlState(e.target.value)}
+                    placeholder="https://example.com/beep.mp3"
+                    className="flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setSoundUrl(soundUrl);
+                      if (soundUrl) preloadSound(soundUrl);
+                    }}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="mb-4">
+              <Label className="text-app-text-secondary mb-2 block">Volume — {Math.round(soundVolume * 100)}%</Label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={Math.round(soundVolume * 100)}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10) / 100;
+                  setSoundVolumeState(v);
+                  setSoundVolume(v);
+                }}
+                className="w-64 accent-cyan-500"
+              />
+            </div>
+
+            <div>
+              <Label className="text-app-text-secondary mb-2 block">Preview</Label>
+              <Button size="sm" variant="outline" onClick={() => playBlip(1.25)}>
+                Play
               </Button>
             </div>
           </section>

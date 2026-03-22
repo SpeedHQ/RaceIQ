@@ -270,6 +270,8 @@ export function transformToForzaSpace(
 
 // Cache for static transforms (TUMFTM center-line → recorded Forza outline)
 const staticTransforms = new Map<number, Transform>();
+// Tracks which ordinals have been curb-refined to avoid re-running
+const curbRefined = new Set<number>();
 
 /**
  * Compute cumulative arc length for a closed polygon, normalized to [0, 1].
@@ -369,4 +371,177 @@ export function computeStaticAlignment(
       `[Calibration] Static alignment for track ${trackOrdinal}: scale=${bestTransform.scale.toFixed(3)} rot=${(bestTransform.rotation * 180 / Math.PI).toFixed(1)}° RMSE=${rmse.toFixed(1)}m`
     );
   }
+}
+
+/**
+ * Refine the static alignment using curb data as boundary anchor points.
+ * Curb positions are ground-truth Forza-space locations of track edges.
+ * We match them to the nearest TUMFTM boundary points and re-run Procrustes
+ * with both center-line and boundary correspondences for a more accurate fit.
+ */
+export function refineAlignmentWithCurbs(
+  trackOrdinal: number,
+  tumftmOutline: Point[],
+  forzaOutline: Point[],
+  tumftmBoundaries: { leftEdge: Point[]; rightEdge: Point[] },
+  curbSegments: { points: Point[]; side: "left" | "right" | "both" }[]
+): void {
+  if (tumftmOutline.length < 20 || forzaOutline.length < 20) return;
+  if (curbSegments.length === 0) return;
+  if (curbRefined.has(trackOrdinal)) return; // already refined
+
+  // Step 1: Get existing static alignment as starting point
+  const existing = staticTransforms.get(trackOrdinal);
+  if (!existing) {
+    // Need baseline alignment first
+    computeStaticAlignment(trackOrdinal, tumftmOutline, forzaOutline);
+  }
+  const baseline = staticTransforms.get(trackOrdinal);
+  if (!baseline) return;
+
+  // Step 2: Collect curb positions in Forza space and find corresponding TUMFTM boundary points
+  // Use inverse baseline to map Forza curb positions to approximate TUMFTM space,
+  // then find closest boundary point for each
+  const inv = invertTransform(baseline);
+  const allBoundaryPts = [...tumftmBoundaries.leftEdge, ...tumftmBoundaries.rightEdge];
+
+  const srcPoints: Point[] = []; // TUMFTM boundary points
+  const tgtPoints: Point[] = []; // Forza curb positions
+
+  for (const seg of curbSegments) {
+    // Downsample each curb segment to avoid over-weighting long curbs
+    const step = Math.max(1, Math.floor(seg.points.length / 5));
+    for (let i = 0; i < seg.points.length; i += step) {
+      const forzaPt = seg.points[i];
+
+      // Map Forza curb position back to approximate TUMFTM space
+      const approxTumftm = applyTransform(forzaPt, inv);
+
+      // Match against whichever boundary edge is closer (don't rely on side field)
+      const nearestIdxLeft = closestPointIdx(tumftmBoundaries.leftEdge, approxTumftm);
+      const nearestIdxRight = closestPointIdx(tumftmBoundaries.rightEdge, approxTumftm);
+      const distLeft = Math.sqrt(
+        (tumftmBoundaries.leftEdge[nearestIdxLeft].x - approxTumftm.x) ** 2 +
+        (tumftmBoundaries.leftEdge[nearestIdxLeft].z - approxTumftm.z) ** 2
+      );
+      const distRight = Math.sqrt(
+        (tumftmBoundaries.rightEdge[nearestIdxRight].x - approxTumftm.x) ** 2 +
+        (tumftmBoundaries.rightEdge[nearestIdxRight].z - approxTumftm.z) ** 2
+      );
+      const boundary = distLeft <= distRight ? tumftmBoundaries.leftEdge : tumftmBoundaries.rightEdge;
+      const nearestIdx = distLeft <= distRight ? nearestIdxLeft : nearestIdxRight;
+      const nearestDist = Math.sqrt(
+        (boundary[nearestIdx].x - approxTumftm.x) ** 2 +
+        (boundary[nearestIdx].z - approxTumftm.z) ** 2
+      );
+
+      // Only use if reasonably close (within ~50m in TUMFTM space) to avoid mismatches
+      if (nearestDist < 50) {
+        srcPoints.push(boundary[nearestIdx]);
+        tgtPoints.push(forzaPt);
+      }
+    }
+  }
+
+  if (srcPoints.length < 5) {
+    console.log(`[Calibration] Not enough curb anchors for track ${trackOrdinal}: ${srcPoints.length} points`);
+    return;
+  }
+
+  // Step 3: Combine center-line correspondences with curb anchor correspondences
+  const srcArc = normalizedArcLengths(tumftmOutline);
+  const tgtArc = normalizedArcLengths(forzaOutline);
+
+  // Use existing alignment's offset to get the right start-point matching
+  const N = Math.min(tumftmOutline.length, 300);
+
+  // Find the best offset from the existing transform by testing which offset
+  // gives the lowest error with the current transform
+  let bestOffset = 0;
+  let bestOffsetError = Infinity;
+  for (let oi = 0; oi < 36; oi++) {
+    const offset = oi / 36;
+    let error = 0;
+    for (let i = 0; i < Math.min(N, 50); i++) {
+      const src = interpolateAtFrac(tumftmOutline, srcArc, i / N);
+      const tgt = interpolateAtFrac(forzaOutline, tgtArc, i / N + offset);
+      const mapped = applyTransform(src, baseline);
+      const dx = mapped.x - tgt.x;
+      const dz = mapped.z - tgt.z;
+      error += dx * dx + dz * dz;
+    }
+    if (error < bestOffsetError) {
+      bestOffsetError = error;
+      bestOffset = offset;
+    }
+  }
+
+  // Sample center-line correspondences
+  const combinedSrc: Point[] = [];
+  const combinedTgt: Point[] = [];
+  for (let i = 0; i < N; i++) {
+    combinedSrc.push(interpolateAtFrac(tumftmOutline, srcArc, i / N));
+    combinedTgt.push(interpolateAtFrac(forzaOutline, tgtArc, i / N + bestOffset));
+  }
+
+  // Add curb anchor points (weighted: add each 3x to give boundary data more influence)
+  const CURB_WEIGHT = 3;
+  for (let w = 0; w < CURB_WEIGHT; w++) {
+    combinedSrc.push(...srcPoints);
+    combinedTgt.push(...tgtPoints);
+  }
+
+  // Step 4: Run refined Procrustes
+  const refinedTransform = procrustes(combinedSrc, combinedTgt);
+
+  // Compute RMSE for the refined transform
+  let error = 0;
+  for (let i = 0; i < N; i++) {
+    const mapped = applyTransform(
+      interpolateAtFrac(tumftmOutline, srcArc, i / N),
+      refinedTransform
+    );
+    const tgt = interpolateAtFrac(forzaOutline, tgtArc, i / N + bestOffset);
+    const dx = mapped.x - tgt.x;
+    const dz = mapped.z - tgt.z;
+    error += dx * dx + dz * dz;
+  }
+  const rmse = Math.sqrt(error / N);
+
+  // Only adopt the refined transform if it's actually better
+  const oldTransform = staticTransforms.get(trackOrdinal);
+  let oldRmse = Infinity;
+  if (oldTransform) {
+    let oldError = 0;
+    for (let i = 0; i < N; i++) {
+      const mapped = applyTransform(
+        interpolateAtFrac(tumftmOutline, srcArc, i / N),
+        oldTransform
+      );
+      const tgt = interpolateAtFrac(forzaOutline, tgtArc, i / N + bestOffset);
+      const dx = mapped.x - tgt.x;
+      const dz = mapped.z - tgt.z;
+      oldError += dx * dx + dz * dz;
+    }
+    oldRmse = Math.sqrt(oldError / N);
+  }
+
+  console.log(
+    `[Calibration] Curb-refined alignment for track ${trackOrdinal}: ` +
+    `${srcPoints.length} curb anchors, ` +
+    `RMSE ${oldRmse.toFixed(1)}m → ${rmse.toFixed(1)}m, ` +
+    `scale=${refinedTransform.scale.toFixed(4)} rot=${(refinedTransform.rotation * 180 / Math.PI).toFixed(2)}°`
+  );
+
+  // Always adopt curb-refined since it accounts for lateral offset
+  staticTransforms.set(trackOrdinal, refinedTransform);
+  curbRefined.add(trackOrdinal);
+}
+
+/**
+ * Clear curb refinement cache for a track so it re-runs on next request.
+ */
+export function clearCurbRefinement(trackOrdinal: number): void {
+  curbRefined.delete(trackOrdinal);
+  staticTransforms.delete(trackOrdinal);
 }

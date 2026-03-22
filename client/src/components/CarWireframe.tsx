@@ -72,7 +72,7 @@ function TempLabel({ displayTemp, rawTemp, side }: { displayTemp: string; rawTem
   }, [displayTemp, color]);
 
   return (
-    <sprite position={[0, 0.5, side === "left" ? -0.3 : 0.3]} scale={[0.6, 0.22, 1]}>
+    <sprite position={[0, 0.5, side === "left" ? -0.55 : 0.55]} scale={[0.6, 0.22, 1]}>
       <spriteMaterial map={texture} transparent depthTest={false} />
     </sprite>
   );
@@ -87,6 +87,8 @@ function Wheel({
   temp,
   displayTemp,
   side,
+  onCurb,
+  puddleDepth,
 }: {
   position: [number, number, number];
   steerAngle: number;
@@ -96,6 +98,8 @@ function Wheel({
   temp: number;
   displayTemp: string;
   side: "left" | "right";
+  onCurb: boolean;
+  puddleDepth: number;
 }) {
   const wheelY = position[1];
   const { tire, rim, hub } = useWheelGeometries();
@@ -117,6 +121,20 @@ function Wheel({
       </group>
       {/* Temp label floating above */}
       <TempLabel displayTemp={displayTemp} rawTemp={temp} side={side} />
+      {/* Curb indicator — orange ring under tire when on rumble strip */}
+      {onCurb && (
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -0.34, 0]}>
+          <ringGeometry args={[0.36, 0.44, 16]} />
+          <meshBasicMaterial color="#ff8800" transparent opacity={0.7} side={THREE.DoubleSide} />
+        </mesh>
+      )}
+      {/* Puddle indicator — blue disc under tire scaled by depth */}
+      {puddleDepth > 0 && (
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -0.34, 0]}>
+          <circleGeometry args={[0.38 + puddleDepth * 0.15, 16]} />
+          <meshBasicMaterial color="#3b82f6" transparent opacity={0.3 + puddleDepth * 0.4} side={THREE.DoubleSide} />
+        </mesh>
+      )}
     </group>
   );
 }
@@ -504,6 +522,205 @@ function BrakeTrail({
   );
 }
 
+// ── Surface trail (curb + puddle marks on ground) ───────────────────
+
+const CURB_ORANGE = new THREE.Color("#ff8800");
+const PUDDLE_BLUE = new THREE.Color("#3b82f6");
+
+function SurfaceTrail({
+  telemetry,
+  cursorIdx,
+  carModel,
+}: {
+  telemetry: TelemetryPacket[];
+  cursorIdx: number;
+  carModel: CarModelEnrichment;
+}) {
+  const WHEEL_OFFSETS = useMemo(() => getWheelOffsets(carModel), [carModel]);
+
+  const marks = useMemo(() => {
+    const cur = telemetry[cursorIdx];
+    if (!cur) return null;
+
+    const curTime = cur.TimestampMS;
+    const trailMs = 800;
+    let startIdx = cursorIdx;
+    while (startIdx > 0 && curTime - telemetry[startIdx].TimestampMS < trailMs) {
+      startIdx--;
+    }
+    if (cursorIdx - startIdx < 2) return null;
+
+    const cx = cur.PositionX;
+    const cz = cur.PositionZ;
+    const cyaw = cur.Yaw;
+    const curSin = Math.sin(cyaw);
+    const curCos = Math.cos(cyaw);
+    const scale = 0.06;
+
+    const rumbles = [
+      (p: TelemetryPacket) => p.WheelOnRumbleStripFL !== 0,
+      (p: TelemetryPacket) => p.WheelOnRumbleStripFR !== 0,
+      (p: TelemetryPacket) => p.WheelOnRumbleStripRL !== 0,
+      (p: TelemetryPacket) => p.WheelOnRumbleStripRR !== 0,
+    ];
+    const puddles = [
+      (p: TelemetryPacket) => p.WheelInPuddleDepthFL,
+      (p: TelemetryPacket) => p.WheelInPuddleDepthFR,
+      (p: TelemetryPacket) => p.WheelInPuddleDepthRL,
+      (p: TelemetryPacket) => p.WheelInPuddleDepthRR,
+    ];
+
+    // Build line segments per wheel, colored by surface type
+    const curbTrails: { points: [number, number, number][]; colors: THREE.Color[] }[] = [];
+    const puddleTrails: { points: [number, number, number][]; colors: THREE.Color[] }[] = [];
+
+    for (let w = 0; w < 4; w++) {
+      const curbPts: [number, number, number][] = [];
+      const curbCols: THREE.Color[] = [];
+      const puddlePts: [number, number, number][] = [];
+      const puddleCols: THREE.Color[] = [];
+      const [wheelOffX, wheelOffZ] = WHEEL_OFFSETS[w];
+
+      for (let i = startIdx; i <= cursorIdx; i += 3) {
+        const p = telemetry[i];
+        const onCurb = rumbles[w](p);
+        const puddleDepth = puddles[w](p);
+
+        if (!onCurb && puddleDepth <= 0) continue;
+
+        const cdx = p.PositionX - cx;
+        const cdz = p.PositionZ - cz;
+        const centerFwd = (cdx * curSin + cdz * curCos) * scale;
+        const centerRight = (cdx * curCos - cdz * curSin) * scale;
+        const pt: [number, number, number] = [centerFwd + wheelOffX, -0.43, centerRight + wheelOffZ];
+
+        if (onCurb) {
+          curbPts.push(pt);
+          curbCols.push(CURB_ORANGE);
+        }
+        if (puddleDepth > 0) {
+          puddlePts.push(pt);
+          puddleCols.push(PUDDLE_BLUE);
+        }
+      }
+
+      if (curbPts.length > 1) curbTrails.push({ points: curbPts, colors: curbCols });
+      if (puddlePts.length > 1) puddleTrails.push({ points: puddlePts, colors: puddleCols });
+    }
+
+    return { curbTrails, puddleTrails };
+  }, [telemetry, cursorIdx, WHEEL_OFFSETS]);
+
+  if (!marks) return null;
+
+  return (
+    <>
+      {marks.curbTrails.map((t, i) => (
+        <Line key={`curb-${i}`} points={t.points} vertexColors={t.colors} lineWidth={5} opacity={0.8} transparent />
+      ))}
+      {marks.puddleTrails.map((t, i) => (
+        <Line key={`puddle-${i}`} points={t.points} vertexColors={t.colors} lineWidth={6} opacity={0.5} transparent />
+      ))}
+    </>
+  );
+}
+
+// ── Curb markers on track (world-space, full lap history) ───────────
+
+function CurbMarkers({
+  telemetry,
+  cursorIdx,
+  packet,
+  carModel,
+}: {
+  telemetry: TelemetryPacket[];
+  cursorIdx: number;
+  packet: TelemetryPacket;
+  carModel: CarModelEnrichment;
+}) {
+  // Wheel offsets in car-local frame: [forward, right] in meters
+  // Forza world: forward = (sin(yaw), cos(yaw)), right = (cos(yaw), -sin(yaw))
+  const wheelOffsets = useMemo(() => ({
+    FL: { fwd: carModel.halfWheelbase, rgt: -carModel.halfFrontTrack },
+    FR: { fwd: carModel.halfWheelbase, rgt: carModel.halfFrontTrack },
+    RL: { fwd: -carModel.halfWheelbase, rgt: -carModel.halfRearTrack },
+    RR: { fwd: -carModel.halfWheelbase, rgt: carModel.halfRearTrack },
+  }), [carModel]);
+
+  // Compute world-space wheel position
+  const wheelWorld = (p: TelemetryPacket, off: { fwd: number; rgt: number }) => {
+    const s = Math.sin(p.Yaw);
+    const c = Math.cos(p.Yaw);
+    return {
+      x: p.PositionX + off.fwd * s + off.rgt * c,
+      z: p.PositionZ + off.fwd * c - off.rgt * s,
+    };
+  };
+
+  // Build world-space curb contact points per wheel from full telemetry
+  const { leftCurb, rightCurb, puddlePoints } = useMemo(() => {
+    const left: { x: number; z: number }[] = [];
+    const right: { x: number; z: number }[] = [];
+    const wet: { x: number; z: number }[] = [];
+
+    // Scan full telemetry so curbs are visible ahead of car too
+    for (let i = 0; i < telemetry.length; i += 3) {
+      const p = telemetry[i];
+
+      // Left-side curbs (FL, RL)
+      if (p.WheelOnRumbleStripFL !== 0) left.push(wheelWorld(p, wheelOffsets.FL));
+      if (p.WheelOnRumbleStripRL !== 0) left.push(wheelWorld(p, wheelOffsets.RL));
+
+      // Right-side curbs (FR, RR)
+      if (p.WheelOnRumbleStripFR !== 0) right.push(wheelWorld(p, wheelOffsets.FR));
+      if (p.WheelOnRumbleStripRR !== 0) right.push(wheelWorld(p, wheelOffsets.RR));
+
+      // Puddles — any wheel
+      if (p.WheelInPuddleDepthFL > 0) wet.push(wheelWorld(p, wheelOffsets.FL));
+      if (p.WheelInPuddleDepthFR > 0) wet.push(wheelWorld(p, wheelOffsets.FR));
+      if (p.WheelInPuddleDepthRL > 0) wet.push(wheelWorld(p, wheelOffsets.RL));
+      if (p.WheelInPuddleDepthRR > 0) wet.push(wheelWorld(p, wheelOffsets.RR));
+    }
+
+    return { leftCurb: left, rightCurb: right, puddlePoints: wet };
+  }, [telemetry, wheelOffsets]);
+
+  const cx = packet.PositionX;
+  const cz = packet.PositionZ;
+  const yaw = packet.Yaw;
+  const GROUND_Y = -0.44;
+
+  // Filter and transform world-space points to car-local scene coordinates
+  const allCurb = useMemo(() => [...leftCurb, ...rightCurb], [leftCurb, rightCurb]);
+
+  // Use filterByDistance (same as track outline) to get line segments, then flatten to individual points
+  const curbSegs = useMemo(() => filterByDistance(allCurb, cx, cz, yaw, GROUND_Y), [allCurb, cx, cz, yaw]);
+  const puddleSegs = useMemo(() => filterByDistance(puddlePoints, cx, cz, yaw, GROUND_Y), [puddlePoints, cx, cz, yaw]);
+
+  // Flatten segments into individual points for rendering as dots
+  const curbPts = useMemo(() => curbSegs.flatMap(seg => seg), [curbSegs]);
+  const puddlePts = useMemo(() => puddleSegs.flatMap(seg => seg), [puddleSegs]);
+
+  if (curbPts.length === 0 && puddlePts.length === 0) return null;
+
+  return (
+    <>
+      {curbPts.map((pt, i) => (
+        <mesh key={`c${i}`} position={pt}>
+          <sphereGeometry args={[0.08, 6, 6]} />
+          <meshBasicMaterial color="#ff8800" transparent opacity={0.9} />
+        </mesh>
+      ))}
+      {puddlePts.map((pt, i) => (
+        <mesh key={`p${i}`} position={pt}>
+          <sphereGeometry args={[0.1, 6, 6]} />
+          <meshBasicMaterial color="#3b82f6" transparent opacity={0.5} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
 // ── Main scene (receives packet as prop) ───────────────────────────
 
 const RENDER_DISTANCE = 200; // meters from car
@@ -801,10 +1018,10 @@ function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, 
   const ft = carModel.halfFrontTrack;
   const rt = carModel.halfRearTrack;
   const wheelData = [
-    { pos: [wb, 0, -ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFL, slip: Math.abs(packet.TireCombinedSlipFL), temp: packet.TireTempFL },
-    { pos: [wb, 0, ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFR, slip: Math.abs(packet.TireCombinedSlipFR), temp: packet.TireTempFR },
-    { pos: [-wb, 0, -rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRL, slip: Math.abs(packet.TireCombinedSlipRL), temp: packet.TireTempRL },
-    { pos: [-wb, 0, rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRR, slip: Math.abs(packet.TireCombinedSlipRR), temp: packet.TireTempRR },
+    { pos: [wb, 0, -ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFL, slip: Math.abs(packet.TireCombinedSlipFL), temp: packet.TireTempFL, onRumble: packet.WheelOnRumbleStripFL !== 0, puddle: packet.WheelInPuddleDepthFL },
+    { pos: [wb, 0, ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFR, slip: Math.abs(packet.TireCombinedSlipFR), temp: packet.TireTempFR, onRumble: packet.WheelOnRumbleStripFR !== 0, puddle: packet.WheelInPuddleDepthFR },
+    { pos: [-wb, 0, -rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRL, slip: Math.abs(packet.TireCombinedSlipRL), temp: packet.TireTempRL, onRumble: packet.WheelOnRumbleStripRL !== 0, puddle: packet.WheelInPuddleDepthRL },
+    { pos: [-wb, 0, rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRR, slip: Math.abs(packet.TireCombinedSlipRR), temp: packet.TireTempRR, onRumble: packet.WheelOnRumbleStripRR !== 0, puddle: packet.WheelInPuddleDepthRR },
   ];
 
   return (
@@ -878,6 +1095,8 @@ function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, 
             temp={w.temp}
             displayTemp={fmtTemp(w.temp)}
             side={i % 2 === 0 ? "left" : "right"}
+            onCurb={w.onRumble}
+            puddleDepth={w.puddle}
           />
         ))}
 
@@ -934,6 +1153,9 @@ function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, 
       {/* Track boundary edges */}
       {toggles.track && boundaries && <TrackBoundaryEdges boundaries={boundaries} packet={packet} />}
 
+      {/* Curb + puddle markers on track surface */}
+      {toggles.track && <CurbMarkers telemetry={telemetry} cursorIdx={cursorIdx} packet={packet} carModel={carModel} />}
+
       {/* Dimension measurement lines */}
       {toggles.dimensions && <DimensionLines carModel={carModel} />}
 
@@ -942,6 +1164,9 @@ function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, 
 
       {/* Brake trail (tail light height, only when braking) */}
       {toggles.brakeTrails && <BrakeTrail telemetry={telemetry} cursorIdx={cursorIdx} />}
+
+      {/* Surface trail (curb + puddle marks on ground) */}
+      {toggles.trails && <SurfaceTrail telemetry={telemetry} cursorIdx={cursorIdx} carModel={carModel} />}
 
       {/* Camera controls */}
       <CameraController viewPreset={viewPreset} />

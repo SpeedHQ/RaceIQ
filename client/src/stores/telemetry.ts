@@ -25,6 +25,7 @@ interface TelemetryState {
   unitSettings: { speedUnit: "mph" | "kmh"; tempUnit: "F" | "C" };
   setConnected: (connected: boolean) => void;
   setPacket: (packet: TelemetryPacket) => void;
+  clearPacket: () => void;
   setPacketsPerSec: (pps: number) => void;
   /** Update unit settings — re-converts current packet */
   setUnitSettings: (speedUnit: "mph" | "kmh", tempUnit: "F" | "C") => void;
@@ -44,6 +45,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
       packet: convertPacket(raw, unitSettings.speedUnit, unitSettings.tempUnit),
     });
   },
+  clearPacket: () => set({ rawPacket: null, packet: null }),
   setPacketsPerSec: (packetsPerSec) => set({ packetsPerSec }),
   setUnitSettings: (speedUnit, tempUnit) => {
     const { rawPacket } = get();

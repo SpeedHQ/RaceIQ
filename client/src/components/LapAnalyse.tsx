@@ -1829,6 +1829,25 @@ export function LapAnalyse() {
                       </div>
                     </div>
                   </div>
+                  {/* Surface conditions */}
+                  <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 mt-3 pt-2 border-t border-app-border font-semibold">
+                    Surface
+                  </h3>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[11px] font-mono">
+                    {[
+                      { label: "FL", rumble: currentPacket.WheelOnRumbleStripFL !== 0, puddle: currentPacket.WheelInPuddleDepthFL },
+                      { label: "FR", rumble: currentPacket.WheelOnRumbleStripFR !== 0, puddle: currentPacket.WheelInPuddleDepthFR },
+                      { label: "RL", rumble: currentPacket.WheelOnRumbleStripRL !== 0, puddle: currentPacket.WheelInPuddleDepthRL },
+                      { label: "RR", rumble: currentPacket.WheelOnRumbleStripRR !== 0, puddle: currentPacket.WheelInPuddleDepthRR },
+                    ].map(w => (
+                      <span key={w.label} className="text-app-text-secondary">
+                        {w.label}:{" "}
+                        {w.rumble && <span className="font-bold text-orange-400">CURB </span>}
+                        {w.puddle > 0 && <span className="font-bold text-blue-400">WET {(w.puddle * 100).toFixed(0)}%</span>}
+                        {!w.rumble && w.puddle <= 0 && <span className="text-app-text-dim">—</span>}
+                      </span>
+                    ))}
+                  </div>
                 </>
               )}
               </>

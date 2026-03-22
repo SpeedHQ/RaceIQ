@@ -16,15 +16,11 @@ interface TrackSectors {
   s2End: number;
 }
 
-interface CurbSegment {
-  points: Point[];
-  side: "left" | "right" | "both";
-}
-
 /**
  * LiveTrackMap — Renders the car's position on a 2D track outline.
  * Two modes: (1) pre-made outline fetched by track ordinal, or (2) live trace
  * built in real-time from position data when no outline exists.
+ * Track is colored by sector (S1=red, S2=blue, S3=yellow).
  * Coordinates use Forza's world-space X/Z (Y is vertical/ignored).
  */
 interface TrackBoundaryData {
@@ -43,7 +39,6 @@ export function LiveTrackMap({ packet }: Props) {
   const [startYaw, setStartYaw] = useState<number | null>(null); // Yaw at start/finish line
   const [sectors, setSectors] = useState<{ s1End: number; s2End: number } | null>(null);
   const [boundaries, setBoundaries] = useState<TrackBoundaryData | null>(null);
-  const [curbs, setCurbs] = useState<CurbSegment[] | null>(null);
   const lastTrackOrdRef = useRef<number | null>(null);
 
   // Distance-based position tracking
@@ -73,21 +68,15 @@ export function LiveTrackMap({ packet }: Props) {
     setNoOutline(false);
     setSectors(null);
     setBoundaries(null);
-    setCurbs(null);
 
-    // Fetch sectors
-    api.getTrackSectors(trackOrd)
+    // Fetch sector boundaries
+    api.getTrackSectorBoundaries(trackOrd)
       .then((data: any) => { if (data?.s1End) setSectors(data); })
       .catch(() => {});
 
     // Fetch track boundaries (edges)
     api.getTrackBoundaries(trackOrd)
       .then((data) => { if (data) setBoundaries(data); })
-      .catch(() => {});
-
-    // Fetch curb data
-    api.getTrackCurbs(trackOrd)
-      .then((data) => { if (data) setCurbs(data); })
       .catch(() => {});
 
     api.getTrackOutline(trackOrd)
@@ -140,11 +129,6 @@ export function LiveTrackMap({ packet }: Props) {
         .then((data) => { if (data) setBoundaries(data); })
         .catch(() => {});
     }
-
-    // Re-fetch curbs — new lap may have added curb data
-    api.getTrackCurbs(trackOrd)
-      .then((data) => { if (data) setCurbs(data); })
-      .catch(() => {});
   }, [packet?.LapNumber]);
 
   // Track distance at lap boundaries for position estimation
@@ -317,64 +301,110 @@ export function LiveTrackMap({ packet }: Props) {
       ctx.stroke();
     }
 
-    // Draw track outline, breaking at jumps
-    ctx.beginPath();
-    ctx.strokeStyle = isLiveTrace ? "#1e3a5f" : "#334155";
-    ctx.lineWidth = isLiveTrace ? 3 : 4;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
     const [sx, sy] = toCanvas(displayOutline[0].x, displayOutline[0].z);
-    ctx.moveTo(sx, sy);
-    for (let i = 1; i < displayOutline.length; i++) {
-      const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
-      if (isJump(i)) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    if (!isLiveTrace) ctx.lineTo(sx, sy);
-    ctx.stroke();
 
-    // Draw thinner colored line on top
-    ctx.beginPath();
-    ctx.strokeStyle = isLiveTrace ? "#22d3ee" : "#64748b";
-    ctx.lineWidth = isLiveTrace ? 1.5 : 2;
-    ctx.globalAlpha = isLiveTrace ? 0.6 : 1;
-    ctx.moveTo(sx, sy);
-    for (let i = 1; i < displayOutline.length; i++) {
-      const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
-      if (isJump(i)) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    if (!isLiveTrace) ctx.lineTo(sx, sy);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-
-    // Draw curb/kerb segments
-    if (curbs && curbs.length > 0 && (isRecorded || isLiveTrace)) {
-      for (const seg of curbs) {
-        if (seg.points.length < 2) continue;
-        ctx.beginPath();
-        const [cx0, cy0] = toCanvas(seg.points[0].x, seg.points[0].z);
-        ctx.moveTo(cx0, cy0);
-        for (let i = 1; i < seg.points.length; i++) {
-          const [cx, cy] = toCanvas(seg.points[i].x, seg.points[i].z);
-          ctx.lineTo(cx, cy);
-        }
-        // Red-white curb color: left = red, right = orange, both = yellow
-        ctx.strokeStyle = seg.side === "left" ? "#ef4444" : seg.side === "right" ? "#f97316" : "#eab308";
-        ctx.lineWidth = 3;
-        ctx.lineCap = "round";
-        ctx.globalAlpha = 0.7;
-        ctx.stroke();
-
-        // Dashed white overlay for curb stripe effect
-        ctx.setLineDash([4, 4]);
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 1.5;
-        ctx.globalAlpha = 0.5;
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.globalAlpha = 1;
+    if (isLiveTrace || !sectors) {
+      // No sectors: draw uniform outline
+      ctx.beginPath();
+      ctx.strokeStyle = isLiveTrace ? "#1e3a5f" : "#334155";
+      ctx.lineWidth = isLiveTrace ? 3 : 4;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.moveTo(sx, sy);
+      for (let i = 1; i < displayOutline.length; i++) {
+        const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
+        if (isJump(i)) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
       }
+      if (!isLiveTrace) ctx.lineTo(sx, sy);
+      ctx.stroke();
+
+      // Thinner highlight
+      ctx.beginPath();
+      ctx.strokeStyle = isLiveTrace ? "#22d3ee" : "#64748b";
+      ctx.lineWidth = isLiveTrace ? 1.5 : 2;
+      ctx.globalAlpha = isLiveTrace ? 0.6 : 1;
+      ctx.moveTo(sx, sy);
+      for (let i = 1; i < displayOutline.length; i++) {
+        const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
+        if (isJump(i)) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      if (!isLiveTrace) ctx.lineTo(sx, sy);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    } else {
+      // Sector-colored track: S1=red, S2=blue, S3=yellow
+      const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
+      const sectorBgColors = ["#7f1d1d", "#1e3a5f", "#713f12"];
+      const n = displayOutline.length;
+      const s1Idx = Math.round(sectors.s1End * (n - 1));
+      const s2Idx = Math.round(sectors.s2End * (n - 1));
+
+      function getSectorForIdx(i: number): number {
+        if (i < s1Idx) return 0;
+        if (i < s2Idx) return 1;
+        return 2;
+      }
+
+      // Draw dark background pass
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 5;
+      let currentSector = getSectorForIdx(0);
+      ctx.beginPath();
+      ctx.strokeStyle = sectorBgColors[currentSector];
+      ctx.moveTo(sx, sy);
+      for (let i = 1; i < n; i++) {
+        const sec = getSectorForIdx(i);
+        const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
+        if (isJump(i)) {
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.strokeStyle = sectorBgColors[sec];
+          ctx.moveTo(px, py);
+        } else if (sec !== currentSector) {
+          ctx.lineTo(px, py);
+          ctx.stroke();
+          currentSector = sec;
+          ctx.beginPath();
+          ctx.strokeStyle = sectorBgColors[currentSector];
+          ctx.moveTo(px, py);
+        } else {
+          ctx.lineTo(px, py);
+        }
+      }
+      // Close back to start
+      ctx.lineTo(sx, sy);
+      ctx.stroke();
+
+      // Draw bright sector line on top
+      ctx.lineWidth = 2.5;
+      currentSector = getSectorForIdx(0);
+      ctx.beginPath();
+      ctx.strokeStyle = sectorColors[currentSector];
+      ctx.moveTo(sx, sy);
+      for (let i = 1; i < n; i++) {
+        const sec = getSectorForIdx(i);
+        const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
+        if (isJump(i)) {
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.strokeStyle = sectorColors[sec];
+          ctx.moveTo(px, py);
+        } else if (sec !== currentSector) {
+          ctx.lineTo(px, py);
+          ctx.stroke();
+          currentSector = sec;
+          ctx.beginPath();
+          ctx.strokeStyle = sectorColors[currentSector];
+          ctx.moveTo(px, py);
+        } else {
+          ctx.lineTo(px, py);
+        }
+      }
+      ctx.lineTo(sx, sy);
+      ctx.stroke();
     }
 
     // Start/finish marker + direction arrow
