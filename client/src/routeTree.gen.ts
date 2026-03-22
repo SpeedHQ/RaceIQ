@@ -22,6 +22,7 @@ import { Route as SetupIndexRouteImport } from './routes/setup/index'
 import { Route as TunesNewRouteImport } from './routes/tunes/new'
 import { Route as TunesCatalogRouteImport } from './routes/tunes/catalog'
 import { Route as SetupProfileIdRouteImport } from './routes/setup/$profileId'
+import { Route as CarsCarOrdinalRouteImport } from './routes/cars_.$carOrdinal'
 import { Route as TunesEditTuneIdRouteImport } from './routes/tunes/edit.$tuneId'
 
 const TunesRoute = TunesRouteImport.update({
@@ -89,6 +90,11 @@ const SetupProfileIdRoute = SetupProfileIdRouteImport.update({
   path: '/$profileId',
   getParentRoute: () => SetupRoute,
 } as any)
+const CarsCarOrdinalRoute = CarsCarOrdinalRouteImport.update({
+  id: '/cars_/$carOrdinal',
+  path: '/cars/$carOrdinal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TunesEditTuneIdRoute = TunesEditTuneIdRouteImport.update({
   id: '/edit/$tuneId',
   path: '/edit/$tuneId',
@@ -104,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRouteWithChildren
   '/tracks': typeof TracksRoute
   '/tunes': typeof TunesRouteWithChildren
+  '/cars/$carOrdinal': typeof CarsCarOrdinalRoute
   '/setup/$profileId': typeof SetupProfileIdRoute
   '/tunes/catalog': typeof TunesCatalogRoute
   '/tunes/new': typeof TunesNewRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/compare': typeof CompareRoute
   '/raw': typeof RawRoute
   '/tracks': typeof TracksRoute
+  '/cars/$carOrdinal': typeof CarsCarOrdinalRoute
   '/setup/$profileId': typeof SetupProfileIdRoute
   '/tunes/catalog': typeof TunesCatalogRoute
   '/tunes/new': typeof TunesNewRoute
@@ -135,6 +143,7 @@ export interface FileRoutesById {
   '/setup': typeof SetupRouteWithChildren
   '/tracks': typeof TracksRoute
   '/tunes': typeof TunesRouteWithChildren
+  '/cars_/$carOrdinal': typeof CarsCarOrdinalRoute
   '/setup/$profileId': typeof SetupProfileIdRoute
   '/tunes/catalog': typeof TunesCatalogRoute
   '/tunes/new': typeof TunesNewRoute
@@ -153,6 +162,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/tracks'
     | '/tunes'
+    | '/cars/$carOrdinal'
     | '/setup/$profileId'
     | '/tunes/catalog'
     | '/tunes/new'
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/compare'
     | '/raw'
     | '/tracks'
+    | '/cars/$carOrdinal'
     | '/setup/$profileId'
     | '/tunes/catalog'
     | '/tunes/new'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/tracks'
     | '/tunes'
+    | '/cars_/$carOrdinal'
     | '/setup/$profileId'
     | '/tunes/catalog'
     | '/tunes/new'
@@ -200,6 +212,7 @@ export interface RootRouteChildren {
   SetupRoute: typeof SetupRouteWithChildren
   TracksRoute: typeof TracksRoute
   TunesRoute: typeof TunesRouteWithChildren
+  CarsCarOrdinalRoute: typeof CarsCarOrdinalRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -295,6 +308,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetupProfileIdRouteImport
       parentRoute: typeof SetupRoute
     }
+    '/cars_/$carOrdinal': {
+      id: '/cars_/$carOrdinal'
+      path: '/cars/$carOrdinal'
+      fullPath: '/cars/$carOrdinal'
+      preLoaderRoute: typeof CarsCarOrdinalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tunes/edit/$tuneId': {
       id: '/tunes/edit/$tuneId'
       path: '/edit/$tuneId'
@@ -342,6 +362,7 @@ const rootRouteChildren: RootRouteChildren = {
   SetupRoute: SetupRouteWithChildren,
   TracksRoute: TracksRoute,
   TunesRoute: TunesRouteWithChildren,
+  CarsCarOrdinalRoute: CarsCarOrdinalRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

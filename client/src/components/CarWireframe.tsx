@@ -1,9 +1,10 @@
-import { useRef, useMemo, useState, useCallback } from "react";
+import { useRef, useMemo, useState, useCallback, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Grid, Line, useGLTF } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import type { TelemetryPacket } from "@shared/types";
+import { getCarModel, loadCarModelConfigs, type CarModelEnrichment } from "../data/car-models";
 
 // ── Tire temp → color ──────────────────────────────────────────────
 
@@ -132,20 +133,15 @@ function SuspensionSpring({
 // "Aston Martin Vantage GT3" (https://skfb.ly/p8vWx) by Design Studio Poland
 // Licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/)
 
-const MODEL_PATH = "/models/aston_martin_vantage_gt3.glb";
-
-// GLB meshes to hide in solid mode (wheels, tires, brake discs/calipers)
-const SOLID_HIDDEN_MESHES = new Set([
-  // Wheels & tires (round: ~0.5-0.72 square cross-section)
+// Default hidden meshes for the bundled Aston Martin model
+const DEFAULT_HIDDEN_MESHES = new Set([
   94, 125, 126, 161, 183, 184, 211, 212, 214, 215, 217, 219,
-  // Brake calipers & discs
   119, 120, 122, 123, 174, 175, 177, 178,
-  // Internal panels clipping through body
   7, 8,
 ]);
 
-function CarBody({ solid }: { solid: boolean }) {
-  const { scene } = useGLTF(MODEL_PATH);
+function CarBody({ solid, carModel, modelOffsetX }: { solid: boolean; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number }) {
+  const { scene } = useGLTF(carModel.modelPath);
 
   // Log model structure on first load to find the right nodes
   useMemo(() => {
@@ -178,7 +174,8 @@ function CarBody({ solid }: { solid: boolean }) {
         if (solid) {
           // Hide wheels, shocks, suspension, brakes from GLB in solid mode
           const num = parseInt(mesh.name.replace(/\D/g, ""), 10);
-          if (SOLID_HIDDEN_MESHES.has(num)) {
+          const hiddenMeshes = carModel.solidHiddenMeshes ? new Set(carModel.solidHiddenMeshes) : DEFAULT_HIDDEN_MESHES;
+          if (hiddenMeshes.has(num)) {
             mesh.visible = false;
           } else {
             mesh.material = new THREE.MeshStandardMaterial({
@@ -202,17 +199,29 @@ function CarBody({ solid }: { solid: boolean }) {
     return clone;
   }, [scene, solid]);
 
-  // Auto-scale based on bounding box to fit our coordinate system (~4.7m long)
+  // Scale GLB to match our coordinate system.
+  // If glbWheelbase is set, scale so it matches our wheelbase exactly.
+  // Otherwise fall back to scaling by body length.
   const { scale: autoScale, offset } = useMemo(() => {
     const box = new THREE.Box3().setFromObject(scene);
     const size = new THREE.Vector3();
     const center = new THREE.Vector3();
     box.getSize(size);
     box.getCenter(center);
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const s = 4.7 / maxDim; // normalize to ~4.7m (GT3 length)
-    return { scale: s, offset: center.multiplyScalar(-s) };
-  }, [scene]);
+
+    let s: number;
+    if (carModel.glbWheelbase) {
+      s = (carModel.halfWheelbase * 2) / carModel.glbWheelbase;
+    } else {
+      const lengthDim = Math.max(size.x, size.y, size.z);
+      s = carModel.bodyLength / lengthDim;
+    }
+
+    console.log(`[CarBody] GLB size: ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}, scale: ${s.toFixed(4)}`);
+    const off = center.multiplyScalar(-s);
+    off.x += modelOffsetX;
+    return { scale: s, offset: off };
+  }, [scene, carModel, modelOffsetX]);
 
   // Click to identify mesh — uses pointer down/up to distinguish from drag
   const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
@@ -255,17 +264,18 @@ function CarBody({ solid }: { solid: boolean }) {
   );
 }
 
-useGLTF.preload(MODEL_PATH);
+useGLTF.preload("/models/aston_martin_vantage_gt3.glb");
 
 // ── Tire trail (last 2s, colored by slip) ──────────────────────────
 
-// Wheel offsets from car center (local space)
-const WHEEL_OFFSETS: [number, number][] = [
-  [1.35, -0.83],   // FL: x, z
-  [1.35, 0.83],    // FR
-  [-1.35, -0.81],  // RL
-  [-1.35, 0.81],   // RR
-];
+function getWheelOffsets(m: CarModelEnrichment): [number, number][] {
+  return [
+    [m.halfWheelbase, -m.halfFrontTrack],   // FL
+    [m.halfWheelbase, m.halfFrontTrack],     // FR
+    [-m.halfWheelbase, -m.halfRearTrack],    // RL
+    [-m.halfWheelbase, m.halfRearTrack],     // RR
+  ];
+}
 
 // Pre-allocated color objects to avoid GC pressure
 const SLIP_GREEN = new THREE.Color("#34d399");
@@ -300,10 +310,13 @@ function trailColorObj(slip: number, brake: number): THREE.Color {
 function TireTrails({
   telemetry,
   cursorIdx,
+  carModel,
 }: {
   telemetry: TelemetryPacket[];
   cursorIdx: number;
+  carModel: CarModelEnrichment;
 }) {
+  const WHEEL_OFFSETS = useMemo(() => getWheelOffsets(carModel), [carModel]);
   const trails = useMemo(() => {
     const cur = telemetry[cursorIdx];
     if (!cur) return null;
@@ -480,6 +493,41 @@ function BrakeTrail({
 
 // ── Main scene (receives packet as prop) ───────────────────────────
 
+const RENDER_DISTANCE = 200; // meters from car
+const RENDER_DIST_SQ = RENDER_DISTANCE * RENDER_DISTANCE;
+
+/**
+ * Filter world-space points by distance from car, returning line segments
+ * (breaks the line where points are culled).
+ */
+function filterByDistance(
+  pts: { x: number; z: number }[],
+  cx: number,
+  cz: number,
+  yaw: number,
+  y: number
+): [number, number, number][][] {
+  const s = Math.sin(yaw);
+  const c = Math.cos(yaw);
+  const segments: [number, number, number][][] = [];
+  let current: [number, number, number][] = [];
+
+  for (const p of pts) {
+    const dx = p.x - cx;
+    const dz = p.z - cz;
+    if (dx * dx + dz * dz <= RENDER_DIST_SQ) {
+      current.push([dx * s + dz * c, y, dx * c - dz * s]);
+    } else if (current.length > 1) {
+      segments.push(current);
+      current = [];
+    } else {
+      current = [];
+    }
+  }
+  if (current.length > 1) segments.push(current);
+  return segments;
+}
+
 function TrackOutline({
   outline,
   packet,
@@ -487,44 +535,156 @@ function TrackOutline({
   outline: { x: number; z: number }[];
   packet: TelemetryPacket;
 }) {
-  // Pre-compute downsampled outline once (max 1500 points)
-  const sampledOutline = useMemo(() => {
-    const step = Math.max(1, Math.floor(outline.length / 1500));
-    const pts: { x: number; z: number }[] = [];
-    for (let i = 0; i < outline.length; i += step) pts.push(outline[i]);
-    return pts;
-  }, [outline]);
+  const segments = useMemo(() =>
+    filterByDistance(outline, packet.PositionX, packet.PositionZ, packet.Yaw, -0.44),
+    [outline, packet.PositionX, packet.PositionZ, packet.Yaw]
+  );
 
-  // Transform to car-local on cursor change
-  const points = useMemo(() => {
-    const cx = packet.PositionX;
-    const cz = packet.PositionZ;
-    const yaw = packet.Yaw;
-    const curSin = Math.sin(yaw);
-    const curCos = Math.cos(yaw);
-
-    const pts: [number, number, number][] = [];
-    for (let i = 0; i < sampledOutline.length; i++) {
-      const dx = sampledOutline[i].x - cx;
-      const dz = sampledOutline[i].z - cz;
-      const localFwd = dx * curSin + dz * curCos;
-      const localRight = dx * curCos - dz * curSin;
-      pts.push([localFwd, -0.44, localRight]);
-    }
-    if (pts.length > 2) pts.push(pts[0]);
-    return pts;
-  }, [sampledOutline, packet.PositionX, packet.PositionZ, packet.Yaw]);
-
-  if (points.length < 3) return null;
+  if (segments.length === 0) return null;
 
   return (
-    <Line
-      points={points}
-      color="#3b6b9e"
-      lineWidth={3}
-      opacity={0.6}
-      transparent
-    />
+    <>
+      {segments.map((seg, i) => (
+        <Line key={i} points={seg} color="#ffffff" lineWidth={3} opacity={0.6} transparent />
+      ))}
+    </>
+  );
+}
+
+// ── Track boundary edges (3D) ────────────────────────────────────
+
+function TrackBoundaryEdges({
+  boundaries,
+  packet,
+}: {
+  boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] };
+  packet: TelemetryPacket;
+}) {
+  const WALL_HEIGHT = 0.12;
+  const GROUND_Y = -0.44;
+  const cx = packet.PositionX;
+  const cz = packet.PositionZ;
+  const yaw = packet.Yaw;
+
+  const leftSegsGround = useMemo(() => filterByDistance(boundaries.leftEdge, cx, cz, yaw, GROUND_Y), [boundaries.leftEdge, cx, cz, yaw]);
+  const leftSegsTop = useMemo(() => filterByDistance(boundaries.leftEdge, cx, cz, yaw, GROUND_Y + WALL_HEIGHT), [boundaries.leftEdge, cx, cz, yaw]);
+  const rightSegsGround = useMemo(() => filterByDistance(boundaries.rightEdge, cx, cz, yaw, GROUND_Y), [boundaries.rightEdge, cx, cz, yaw]);
+  const rightSegsTop = useMemo(() => filterByDistance(boundaries.rightEdge, cx, cz, yaw, GROUND_Y + WALL_HEIGHT), [boundaries.rightEdge, cx, cz, yaw]);
+
+  // Build wall mesh for each segment pair (ground + top at same indices)
+  const buildWallGeometry = useCallback((ground: [number, number, number][], top: [number, number, number][]): THREE.BufferGeometry | null => {
+    const n = Math.min(ground.length, top.length);
+    if (n < 2) return null;
+    const positions: number[] = [];
+    const indices: number[] = [];
+    for (let i = 0; i < n; i++) {
+      positions.push(ground[i][0], ground[i][1], ground[i][2]);
+      positions.push(top[i][0], top[i][1], top[i][2]);
+    }
+    for (let i = 0; i < n - 1; i++) {
+      const b = i * 2;
+      indices.push(b, b + 1, b + 2);
+      indices.push(b + 1, b + 3, b + 2);
+    }
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geom.setIndex(indices);
+    return geom;
+  }, []);
+
+  const leftGeoms = useMemo(() => {
+    const geoms: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < leftSegsGround.length; i++) {
+      const g = buildWallGeometry(leftSegsGround[i], leftSegsTop[i] ?? leftSegsGround[i]);
+      if (g) geoms.push(g);
+    }
+    return geoms;
+  }, [leftSegsGround, leftSegsTop, buildWallGeometry]);
+
+  const rightGeoms = useMemo(() => {
+    const geoms: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < rightSegsGround.length; i++) {
+      const g = buildWallGeometry(rightSegsGround[i], rightSegsTop[i] ?? rightSegsGround[i]);
+      if (g) geoms.push(g);
+    }
+    return geoms;
+  }, [rightSegsGround, rightSegsTop, buildWallGeometry]);
+
+  if (leftGeoms.length === 0 && rightGeoms.length === 0) return null;
+
+  return (
+    <>
+      {leftGeoms.map((geom, i) => (
+        <mesh key={`l${i}`} geometry={geom}>
+          <meshBasicMaterial color="#ef4444" opacity={0.5} transparent side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+      {rightGeoms.map((geom, i) => (
+        <mesh key={`r${i}`} geometry={geom}>
+          <meshBasicMaterial color="#3b82f6" opacity={0.5} transparent side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
+// ── Dimension lines (measurement overlay) ───────────────────────
+
+function DimensionLines({ carModel }: { carModel: CarModelEnrichment }) {
+  const wb = carModel.halfWheelbase;
+  const ft = carModel.halfFrontTrack;
+  const rt = carModel.halfRearTrack;
+  const y = -0.42;
+
+  // Dimension line helper: line with end ticks and a center label
+  return (
+    <group>
+      {/* Front track width */}
+      <Line points={[[wb, y, -ft], [wb, y, ft]]} color="#22d3ee" lineWidth={2} />
+      <Line points={[[wb, y - 0.05, -ft], [wb, y + 0.05, -ft]]} color="#22d3ee" lineWidth={2} />
+      <Line points={[[wb, y - 0.05, ft], [wb, y + 0.05, ft]]} color="#22d3ee" lineWidth={2} />
+
+      {/* Rear track width */}
+      <Line points={[[-wb, y, -rt], [-wb, y, rt]]} color="#22d3ee" lineWidth={2} />
+      <Line points={[[-wb, y - 0.05, -rt], [-wb, y + 0.05, -rt]]} color="#22d3ee" lineWidth={2} />
+      <Line points={[[-wb, y - 0.05, rt], [-wb, y + 0.05, rt]]} color="#22d3ee" lineWidth={2} />
+
+      {/* Wheelbase (left side) */}
+      <Line points={[[wb, y, -ft], [-wb, y, -rt]]} color="#a78bfa" lineWidth={2} />
+      <Line points={[[wb, y - 0.05, -ft], [wb, y + 0.05, -ft]]} color="#a78bfa" lineWidth={2} />
+      <Line points={[[-wb, y - 0.05, -rt], [-wb, y + 0.05, -rt]]} color="#a78bfa" lineWidth={2} />
+
+      {/* Labels using sprite-based text (HTML overlay is complex in R3F, use simple meshes) */}
+      <DimensionLabel position={[wb, y + 0.15, 0]} text={`${(ft * 2 * 1000).toFixed(0)}mm`} color="#22d3ee" />
+      <DimensionLabel position={[-wb, y + 0.15, 0]} text={`${(rt * 2 * 1000).toFixed(0)}mm`} color="#22d3ee" />
+      <DimensionLabel position={[0, y + 0.15, -(ft + rt) / 2]} text={`${(wb * 2 * 1000).toFixed(0)}mm`} color="#a78bfa" />
+    </group>
+  );
+}
+
+function DimensionLabel({ position, text, color }: { position: [number, number, number]; text: string; color: string }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const texture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 64;
+    const ctx = canvas.getContext("2d")!;
+    ctx.clearRect(0, 0, 256, 64);
+    ctx.font = "bold 36px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = color;
+    ctx.fillText(text, 128, 32);
+    canvasRef.current = canvas;
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    return tex;
+  }, [text, color]);
+
+  return (
+    <sprite position={position} scale={[1.2, 0.3, 1]}>
+      <spriteMaterial map={texture} transparent depthTest={false} />
+    </sprite>
   );
 }
 
@@ -565,13 +725,13 @@ function CameraController({ viewPreset }: { viewPreset: ViewPreset }) {
       enableZoom={true}
       minDistance={3}
       maxDistance={2000}
-      minPolarAngle={0.3}
-      maxPolarAngle={Math.PI / 2 - 0.1}
+      minPolarAngle={0}
+      maxPolarAngle={Math.PI}
     />
   );
 }
 
-function CarScene({ packet, telemetry, cursorIdx, outline, toggles, viewPreset }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; toggles: ViewToggles; viewPreset: ViewPreset }) {
+function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, viewPreset, carModel, modelOffsetX }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null; toggles: ViewToggles; viewPreset: ViewPreset; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number }) {
   const carGroupRef = useRef<THREE.Group>(null);
   const prevTimeRef = useRef(packet.TimestampMS);
   const spinAngles = useRef([0, 0, 0, 0]);
@@ -624,11 +784,14 @@ function CarScene({ packet, telemetry, cursorIdx, outline, toggles, viewPreset }
 
   const steerRad = -(packet.Steer / 127) * 0.35;
 
+  const wb = carModel.halfWheelbase;
+  const ft = carModel.halfFrontTrack;
+  const rt = carModel.halfRearTrack;
   const wheelData = [
-    { pos: [1.35, 0, -0.83] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFL, slip: Math.abs(packet.TireCombinedSlipFL), temp: packet.TireTempFL },
-    { pos: [1.35, 0, 0.83] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFR, slip: Math.abs(packet.TireCombinedSlipFR), temp: packet.TireTempFR },
-    { pos: [-1.35, 0, -0.81] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRL, slip: Math.abs(packet.TireCombinedSlipRL), temp: packet.TireTempRL },
-    { pos: [-1.35, 0, 0.81] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRR, slip: Math.abs(packet.TireCombinedSlipRR), temp: packet.TireTempRR },
+    { pos: [wb, 0, -ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFL, slip: Math.abs(packet.TireCombinedSlipFL), temp: packet.TireTempFL },
+    { pos: [wb, 0, ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFR, slip: Math.abs(packet.TireCombinedSlipFR), temp: packet.TireTempFR },
+    { pos: [-wb, 0, -rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRL, slip: Math.abs(packet.TireCombinedSlipRL), temp: packet.TireTempRL },
+    { pos: [-wb, 0, rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRR, slip: Math.abs(packet.TireCombinedSlipRR), temp: packet.TireTempRR },
   ];
 
   return (
@@ -661,7 +824,7 @@ function CarScene({ packet, telemetry, cursorIdx, outline, toggles, viewPreset }
 
       {/* Body — rolls with pitch/roll */}
       <group ref={carGroupRef}>
-        <CarBody solid={toggles.solid} />
+        {carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} />}
         {/* Tail lights — glow red when braking */}
         {(() => {
           const braking = packet.Brake > 10;
@@ -752,8 +915,14 @@ function CarScene({ packet, telemetry, cursorIdx, outline, toggles, viewPreset }
       {/* Track outline (subtle) */}
       {toggles.track && outline && <TrackOutline outline={outline} packet={packet} />}
 
+      {/* Track boundary edges */}
+      {toggles.track && boundaries && <TrackBoundaryEdges boundaries={boundaries} packet={packet} />}
+
+      {/* Dimension measurement lines */}
+      {toggles.dimensions && <DimensionLines carModel={carModel} />}
+
       {/* Tire trails (ground, colored by slip) */}
-      {toggles.trails && <TireTrails telemetry={telemetry} cursorIdx={cursorIdx} />}
+      {toggles.trails && <TireTrails telemetry={telemetry} cursorIdx={cursorIdx} carModel={carModel} />}
 
       {/* Brake trail (tail light height, only when braking) */}
       {toggles.brakeTrails && <BrakeTrail telemetry={telemetry} cursorIdx={cursorIdx} />}
@@ -761,6 +930,32 @@ function CarScene({ packet, telemetry, cursorIdx, outline, toggles, viewPreset }
       {/* Camera controls */}
       <CameraController viewPreset={viewPreset} />
     </>
+  );
+}
+
+// ── Model position controls ──────────────────────────────────────
+
+function ModelPositionControls({ offsetX, setOffsetX }: { offsetX: number; setOffsetX: (v: number) => void }) {
+  return (
+    <div className="absolute bottom-2 left-2 bg-app-bg/90 rounded-lg border border-app-border p-2 text-[10px] font-mono space-y-1" style={{ minWidth: 200 }}>
+      <div className="text-app-text-muted uppercase tracking-wider mb-1">Model Offset</div>
+      <div className="flex items-center gap-2">
+        <span className="text-app-text-muted w-8">X</span>
+        <input
+          type="range"
+          min={-0.5}
+          max={0.5}
+          step={0.01}
+          value={offsetX}
+          onChange={(e) => setOffsetX(parseFloat(e.target.value))}
+          className="flex-1 accent-app-accent"
+        />
+        <span className="text-app-text w-12 text-right">{(offsetX * 1000).toFixed(0)}mm</span>
+      </div>
+      <div className="text-app-text-dim text-[9px]">
+        glbOffsetX: {offsetX.toFixed(3)}
+      </div>
+    </div>
   );
 }
 
@@ -774,6 +969,7 @@ interface ViewToggles {
   track: boolean;
   grid: boolean;
   drivetrain: boolean;
+  dimensions: boolean;
 }
 
 const DEFAULT_TOGGLES: ViewToggles = {
@@ -784,6 +980,7 @@ const DEFAULT_TOGGLES: ViewToggles = {
   track: true,
   grid: true,
   drivetrain: true,
+  dimensions: false,
 };
 
 function ToggleButton({
@@ -814,15 +1011,34 @@ export function CarWireframe({
   telemetry,
   cursorIdx,
   outline,
+  boundaries,
+  carOrdinal,
+  showDimensions,
+  minimal,
+  onModelOffset,
 }: {
   packet: TelemetryPacket;
   telemetry: TelemetryPacket[];
   cursorIdx: number;
   outline: { x: number; z: number }[] | null;
+  boundaries?: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null;
+  carOrdinal?: number;
+  showDimensions?: boolean;
+  minimal?: boolean; // hide most toggles (for standalone car viewer)
+  onModelOffset?: (offset: { x: number; y: number; z: number }) => void; // callback for live offset editing
 }) {
+  const [configsLoaded, setConfigsLoaded] = useState(false);
+  useEffect(() => { loadCarModelConfigs().then(() => setConfigsLoaded(true)); }, []);
+  const carModel = useMemo(() => getCarModel(carOrdinal ?? 0), [carOrdinal, configsLoaded]);
+  const [editMode, setEditMode] = useState(false);
+  const [modelOffsetX, setModelOffsetX] = useState(carModel.glbOffsetX ?? 0);
+  const [saveStatus, setSaveStatus] = useState<"" | "saving" | "saved">("");
   const throttlePct = (packet.Accel / 255) * 100;
   const brakePct = (packet.Brake / 255) * 100;
-  const [toggles, setToggles] = useState<ViewToggles>(DEFAULT_TOGGLES);
+  const [toggles, setToggles] = useState<ViewToggles>(() => ({
+    ...DEFAULT_TOGGLES,
+    dimensions: showDimensions ?? false,
+  }));
   const [viewPreset, setViewPreset] = useState<ViewPreset>("3/4");
 
   const toggle = (key: keyof ViewToggles) =>
@@ -835,28 +1051,131 @@ export function CarWireframe({
         gl={{ antialias: true, alpha: true }}
         style={{ background: "transparent" }}
       >
-        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} toggles={toggles} viewPreset={viewPreset} />
+        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} boundaries={boundaries ?? null} toggles={toggles} viewPreset={viewPreset} carModel={carModel} modelOffsetX={modelOffsetX} />
       </Canvas>
 
       {/* View toggles */}
       <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[65%]">
         <ToggleButton label={toggles.solid ? "Solid" : "Wire"} active={toggles.solid} onClick={() => toggle("solid")} />
-        <ToggleButton label="Springs" active={toggles.springs} onClick={() => toggle("springs")} />
-        <ToggleButton label="Trails" active={toggles.trails} onClick={() => toggle("trails")} />
-        <ToggleButton label="Brake" active={toggles.brakeTrails} onClick={() => toggle("brakeTrails")} />
-        <ToggleButton label="Track" active={toggles.track} onClick={() => toggle("track")} />
-        <ToggleButton label="Grid" active={toggles.grid} onClick={() => toggle("grid")} />
-        <ToggleButton label="Drive" active={toggles.drivetrain} onClick={() => toggle("drivetrain")} />
+        {!minimal && <ToggleButton label="Springs" active={toggles.springs} onClick={() => toggle("springs")} />}
+        {!minimal && <ToggleButton label="Trails" active={toggles.trails} onClick={() => toggle("trails")} />}
+        {!minimal && <ToggleButton label="Brake" active={toggles.brakeTrails} onClick={() => toggle("brakeTrails")} />}
+        {!minimal && <ToggleButton label="Track" active={toggles.track} onClick={() => toggle("track")} />}
+        {!minimal && <ToggleButton label="Grid" active={toggles.grid} onClick={() => toggle("grid")} />}
+        {!minimal && <ToggleButton label="Drive" active={toggles.drivetrain} onClick={() => toggle("drivetrain")} />}
+        <ToggleButton label="Dims" active={toggles.dimensions} onClick={() => toggle("dimensions")} />
       </div>
 
-      {/* Camera presets */}
-      <div className="absolute top-2 right-2 flex flex-col gap-1">
-        {(Object.keys(VIEW_PRESETS) as ViewPreset[]).map((key) => (
-          <ToggleButton key={key} label={key} active={viewPreset === key} onClick={() => setViewPreset(key)} />
-        ))}
+      {/* Camera presets + steering indicator */}
+      <div className="absolute top-2 right-2 flex flex-col gap-2 items-end">
+        <div className="flex flex-col gap-1">
+          {(Object.keys(VIEW_PRESETS) as ViewPreset[]).map((key) => (
+            <ToggleButton key={key} label={key} active={viewPreset === key} onClick={() => setViewPreset(key)} />
+          ))}
+        </div>
+
+        {/* Steering wheel + bar */}
+        {!minimal && (
+          <div className="flex flex-col items-center gap-1">
+            {/* Steering wheel */}
+            <svg
+              width="44" height="44" viewBox="-22 -22 44 44"
+              style={{ transform: `rotate(${(packet.Steer / 127) * 180}deg)` }}
+            >
+              <circle cx="0" cy="0" r="18" fill="none" stroke="#64748b" strokeWidth="3" opacity="0.6" />
+              <line x1="-12" y1="0" x2="-6" y2="0" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+              <line x1="6" y1="0" x2="12" y2="0" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+              <line x1="0" y1="6" x2="0" y2="12" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
+              <circle cx="0" cy="0" r="3" fill="#475569" />
+              {/* Top marker */}
+              <line x1="0" y1="-18" x2="0" y2="-14" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+            <div className="relative bg-app-surface-alt/60 rounded-sm" style={{ width: 80, height: 8 }}>
+              {/* Center mark */}
+              <div className="absolute left-1/2 top-0 w-px h-full bg-app-text-dim/40" />
+              {/* Dot — Steer is -127 (left) to 127 (right) */}
+              <div
+                className="absolute top-1/2 w-2.5 h-2.5 rounded-full bg-cyan-400 border border-cyan-300 shadow-sm shadow-cyan-400/50"
+                style={{
+                  left: `${50 + (packet.Steer / 127) * 50}%`,
+                  transform: "translate(-50%, -50%)",
+                }}
+              />
+            </div>
+            <span className="text-[9px] font-mono text-app-text-secondary tabular-nums">
+              {packet.Steer > 0 ? "R" : packet.Steer < 0 ? "L" : ""} {Math.abs(packet.Steer / 127 * 180).toFixed(0)}&deg;
+            </span>
+          </div>
+        )}
       </div>
+
+      {/* Model edit controls (minimal/car viewer mode) */}
+      {minimal && !editMode && carModel.hasModel && (
+        <button
+          onClick={() => setEditMode(true)}
+          className="absolute bottom-2 left-2 px-2 py-1 text-[10px] rounded bg-app-surface-alt/80 border border-app-border-input text-app-text-muted hover:text-app-text transition-colors"
+        >
+          Edit Model
+        </button>
+      )}
+      {minimal && editMode && (
+        <div className="absolute bottom-2 left-2 bg-app-bg/90 rounded-lg border border-app-border p-2 text-[10px] font-mono space-y-1.5" style={{ minWidth: 220 }}>
+          <div className="flex items-center justify-between">
+            <span className="text-app-text-muted uppercase tracking-wider">Model Offset</span>
+            <div className="flex gap-1">
+              <button
+                onClick={async () => {
+                  setSaveStatus("saving");
+                  try {
+                    const res = await fetch(`/api/car-model-configs/${carOrdinal}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ glbOffsetX: modelOffsetX }),
+                    });
+                    if (res.ok) {
+                      setSaveStatus("saved");
+                      setTimeout(() => { setSaveStatus(""); setEditMode(false); }, 1000);
+                    } else {
+                      setSaveStatus("");
+                    }
+                  } catch {
+                    setSaveStatus("");
+                  }
+                }}
+                className={`px-1.5 py-0.5 rounded border transition-colors ${
+                  saveStatus === "saved"
+                    ? "bg-green-600 text-white border-green-400"
+                    : "bg-green-700/80 hover:bg-green-600 text-white border-green-500/30"
+                }`}
+              >
+                {saveStatus === "saving" ? "..." : saveStatus === "saved" ? "Saved" : "Save"}
+              </button>
+              <button
+                onClick={() => { setEditMode(false); setModelOffsetX(carModel.glbOffsetX ?? 0); }}
+                className="px-1.5 py-0.5 rounded bg-app-surface-alt border border-app-border-input text-app-text-muted hover:text-app-text transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-app-text-muted w-8">X</span>
+            <input
+              type="range"
+              min={-0.5}
+              max={0.5}
+              step={0.01}
+              value={modelOffsetX}
+              onChange={(e) => setModelOffsetX(parseFloat(e.target.value))}
+              className="flex-1 accent-app-accent"
+            />
+            <span className="text-app-text w-14 text-right">{(modelOffsetX * 1000).toFixed(0)}mm</span>
+          </div>
+        </div>
+      )}
 
       {/* Throttle / Brake overlay */}
+      {!minimal && (
       <div className="absolute bottom-2 right-2 flex gap-1 items-end" style={{ height: 60 }}>
         <div className="flex flex-col items-center gap-0.5">
           <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{throttlePct.toFixed(0)}</span>
@@ -873,6 +1192,7 @@ export function CarWireframe({
           <span className="text-[7px] text-app-text-muted">B</span>
         </div>
       </div>
+      )}
     </div>
   );
 }

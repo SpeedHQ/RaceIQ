@@ -38,7 +38,6 @@ export interface LapTireWearData {
   worn: { fl: number; fr: number; rl: number; rr: number };
 }
 
-const OUTLINE_SAMPLE_POINTS = 350;
 const OUTLINE_LAPS_TO_AVERAGE = 10;
 
 class LapDetector {
@@ -385,22 +384,24 @@ class LapDetector {
         if (positions.length > 10) positions.shift();
       }
 
-      // Normalize to fixed number of points via linear interpolation on distance
-      const normalized = normalizeToFixedPoints(raw, OUTLINE_SAMPLE_POINTS);
-      if (normalized.length < OUTLINE_SAMPLE_POINTS) return;
-
-      // Add to accumulator
+      // Store raw points (full resolution) for accumulation
       if (!this.outlineAccumulator.has(trackOrdinal)) {
         this.outlineAccumulator.set(trackOrdinal, []);
       }
       const laps = this.outlineAccumulator.get(trackOrdinal)!;
-      laps.push(normalized);
+      laps.push(raw);
 
       const lapCount = laps.length;
       console.log(`[Track] Accumulated lap ${lapCount}/${OUTLINE_LAPS_TO_AVERAGE} for track ${trackOrdinal}`);
 
+      // Normalize all laps to the same point count (max raw count) for averaging
+      const maxPoints = Math.max(...laps.map(l => l.length));
+      const normalizedLaps = laps.map(l =>
+        l.length === maxPoints ? l : normalizeToFixedPoints(l, maxPoints)
+      );
+
       // Save on first lap (immediate feedback) and on every subsequent lap
-      const averaged = averageOutlines(laps);
+      const averaged = averageOutlines(normalizedLaps);
       let smoothed = smoothOutline(averaged, 5);
 
       // Rotate outline so the averaged start-line position becomes index 0

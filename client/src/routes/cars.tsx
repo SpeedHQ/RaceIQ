@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useUnits } from "../hooks/useUnits";
+import { getCarModel, loadCarModelConfigs } from "../data/car-models";
 
 interface CarSpecs {
   hp: number;
@@ -284,6 +285,9 @@ function CompareModal({ cars, onClose, fmtSpeed, fmtBrake, fmtWeight, isMetric }
 }
 
 function CarsPage() {
+  const navigate = useNavigate();
+  const [configsReady, setConfigsReady] = useState(false);
+  useEffect(() => { loadCarModelConfigs().then(() => setConfigsReady(true)); }, []);
   const units = useUnits();
   const isMetric = units.speedUnit === "kmh";
   function fmtSpeed(mph: number)          { return mph  ? `${units.fromMph(mph).toFixed(1)} ${units.speedLabel}` : "—"; }
@@ -443,11 +447,20 @@ function CarsPage() {
                     </div>
 
                     {/* Image */}
-                    <div className="h-32 flex items-center justify-center bg-app-bg rounded-t-xl overflow-hidden px-3 pt-3">
+                    <div className="h-32 flex items-center justify-center bg-app-bg rounded-t-xl overflow-hidden px-3 pt-3 relative">
                       {s.imageUrl ? (
                         <img src={s.imageUrl} alt={car.name} className="h-full w-full object-contain" />
                       ) : (
                         <div className="text-xs text-app-text-muted">No image</div>
+                      )}
+                      {configsReady && getCarModel(car.ordinal).hasModel && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate({ to: "/cars/$carOrdinal", params: { carOrdinal: String(car.ordinal) } }); }}
+                          className="absolute top-2 right-2 px-1.5 py-0.5 text-[9px] font-bold rounded bg-cyan-600/80 hover:bg-cyan-500 text-white border border-cyan-400/30 transition-colors"
+                          title="View 3D model"
+                        >
+                          3D
+                        </button>
                       )}
                     </div>
 

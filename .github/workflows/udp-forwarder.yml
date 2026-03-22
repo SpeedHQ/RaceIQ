@@ -1,0 +1,86 @@
+name: Build UDP Forwarder
+
+on:
+  push:
+    paths:
+      - "udp-forwarder/**"
+    tags:
+      - "udp-forwarder-v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            artifact: udp-forwarder.exe
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: udp-forwarder
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact: udp-forwarder
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(grep '^version' udp-forwarder/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build
+        working-directory: udp-forwarder
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p staging
+          cp udp-forwarder/target/${{ matrix.target }}/release/${{ matrix.artifact }} staging/
+          cp udp-forwarder/config.ini.example staging/config.ini
+          cd staging
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            7z a ../udp-forwarder-v${{ steps.version.outputs.version }}-${{ matrix.target }}.zip .
+          else
+            zip ../udp-forwarder-v${{ steps.version.outputs.version }}-${{ matrix.target }}.zip *
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: udp-forwarder-v${{ steps.version.outputs.version }}-${{ matrix.target }}
+          path: udp-forwarder-v${{ steps.version.outputs.version }}-${{ matrix.target }}.zip
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/udp-forwarder-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/udp-forwarder-v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: udp-forwarder-v*
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: UDP Forwarder v${{ steps.version.outputs.version }}
+          files: artifacts/**/*.zip
+          generate_release_notes: true

@@ -11,6 +11,14 @@ import { useActiveProfileId } from "../hooks/useProfiles";
 import { api } from "../lib/api";
 import { SearchSelect } from "./ui/SearchSelect";
 
+interface BoundaryData {
+  leftEdge: Point[];
+  rightEdge: Point[];
+  centerLine: Point[];
+  pitLane: Point[] | null;
+  coordSystem: string;
+}
+
 const SYNC_KEY = "lap-compare";
 const COLOR_A = "#f97316"; // orange
 const COLOR_B = "#3b82f6"; // blue
@@ -40,14 +48,21 @@ function drawTrackCanvas(
   zoom: { centerX: number; centerZ: number; range: number } | null,
   segmentPoints?: Array<{ x: number; z: number; type: "corner" | "straight"; label: string }>,
   followCar?: boolean,
+  boundaries?: BoundaryData | null,
 ) {
   ctx.clearRect(0, 0, w, h);
 
-  // Bounding box of outline
+  // Bounding box of outline (include boundary edges if available)
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-  for (const p of outline) {
-    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
-    minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
+  const allBoundSets: OutlinePoint[][] = [outline];
+  if (boundaries && boundaries.coordSystem === "forza") {
+    allBoundSets.push(boundaries.leftEdge, boundaries.rightEdge);
+  }
+  for (const pts of allBoundSets) {
+    for (const p of pts) {
+      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+      minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
+    }
   }
 
   const trackRangeX = (maxX - minX) || 1;
@@ -88,6 +103,47 @@ function drawTrackCanvas(
       ctx.translate(-carCx, -carCy);
       needsRestore = true;
     }
+  }
+
+  // Draw track boundary edges (track limits)
+  if (boundaries && boundaries.coordSystem === "forza") {
+    const left = boundaries.leftEdge;
+    const right = boundaries.rightEdge;
+
+    // Filled track surface
+    if (left.length > 1 && right.length > 1) {
+      ctx.beginPath();
+      const [lx0, ly0] = toCanvas(left[0].x, left[0].z);
+      ctx.moveTo(lx0, ly0);
+      for (let i = 1; i < left.length; i++) {
+        const [lx, ly] = toCanvas(left[i].x, left[i].z);
+        ctx.lineTo(lx, ly);
+      }
+      for (let i = right.length - 1; i >= 0; i--) {
+        const [rx, ry] = toCanvas(right[i].x, right[i].z);
+        ctx.lineTo(rx, ry);
+      }
+      ctx.closePath();
+      ctx.fillStyle = "rgba(51, 65, 85, 0.18)";
+      ctx.fill();
+    }
+
+    // Edge lines
+    const drawEdge = (edge: Point[]) => {
+      if (edge.length < 2) return;
+      ctx.beginPath();
+      const [ex, ey] = toCanvas(edge[0].x, edge[0].z);
+      ctx.moveTo(ex, ey);
+      for (let i = 1; i < edge.length; i++) {
+        const [px, py] = toCanvas(edge[i].x, edge[i].z);
+        ctx.lineTo(px, py);
+      }
+      ctx.strokeStyle = "rgba(100, 116, 139, 0.3)";
+      ctx.lineWidth = zoom ? 1.5 : 1;
+      ctx.stroke();
+    };
+    drawEdge(left);
+    drawEdge(right);
   }
 
   // Jump detection for outline
@@ -397,7 +453,7 @@ function formatSectionTime(seconds: number): string {
 
 
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
-function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapTimeA, lapTimeB, segments, hoveredDistanceRef, redrawRef }: {
+function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapTimeA, lapTimeB, segments, hoveredDistanceRef, redrawRef, trackOrdinal }: {
   outline: OutlinePoint[];
   telemetryA: TelemetryPacket[];
   telemetryB: TelemetryPacket[];
@@ -408,6 +464,7 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
   segments: SegmentTiming[];
   hoveredDistanceRef: React.RefObject<number | null>;
   redrawRef: React.RefObject<(() => void) | null>;
+  trackOrdinal?: number | null;
 }) {
   const overviewCanvasRef = useRef<HTMLCanvasElement>(null);
   const zoomCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -417,9 +474,18 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
   const prevActiveSegRef = useRef<number>(-1);
 
   const trackRange = useRef(1);
+  const [boundaries, setBoundaries] = useState<BoundaryData | null>(null);
   const [followCar, setFollowCar] = useState(false);
   const followCarRef = useRef(false);
   useEffect(() => { followCarRef.current = followCar; }, [followCar]);
+
+  // Fetch track boundaries
+  useEffect(() => {
+    if (!trackOrdinal) { setBoundaries(null); return; }
+    api.getTrackBoundaries(trackOrdinal)
+      .then((data) => setBoundaries(data))
+      .catch(() => setBoundaries(null));
+  }, [trackOrdinal]);
 
   // Compute track range once
   useEffect(() => {
@@ -454,7 +520,7 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
               return { x: p.PositionX, z: p.PositionZ, type: s.type, label: s.name };
             }).filter(sp => sp.x !== 0 || sp.z !== 0)
           : undefined;
-        drawTrackCanvas(ctx, rect.width, rect.height, outline, telemetryA, telemetryB, hd, null, segPts);
+        drawTrackCanvas(ctx, rect.width, rect.height, outline, telemetryA, telemetryB, hd, null, segPts, undefined, boundaries);
       }
     }
 
@@ -474,7 +540,7 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
         const zoom = hd != null
           ? computeZoom(telemetryA, telemetryB, hd, trackRange.current)
           : null;
-        drawTrackCanvas(ctx, rect.width, rect.height, outline, telemetryA, telemetryB, hd, zoom, undefined, followCarRef.current);
+        drawTrackCanvas(ctx, rect.width, rect.height, outline, telemetryA, telemetryB, hd, zoom, undefined, followCarRef.current, boundaries);
 
         // Draw input HUDs when zoomed
         if (hd != null) {
@@ -506,7 +572,7 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapT
         prevActiveSegRef.current = activeIdx;
       }
     }
-  }, [outline, telemetryA, telemetryB, hoveredDistanceRef, segments]);
+  }, [outline, telemetryA, telemetryB, hoveredDistanceRef, segments, boundaries]);
 
   // Register redraw function so parent can trigger canvas updates without React re-render
   useEffect(() => {
@@ -928,6 +994,7 @@ export function LapComparison() {
               segments={segmentTimings}
               hoveredDistanceRef={hoveredDistanceRef}
               redrawRef={mapRedrawRef}
+              trackOrdinal={selectedTrack}
             />
           ) : (
             /* Fallback: velocity-integrated racing lines side-by-side */
@@ -940,7 +1007,7 @@ export function LapComparison() {
                   <span className="text-xs font-mono text-app-text-secondary">{formatLapTime(comparison.lapA.lapTime)}</span>
                 </div>
                 <div className="h-[250px]">
-                  <TrackMap telemetry={comparison.telemetryA} lineColor={COLOR_A} />
+                  <TrackMap telemetry={comparison.telemetryA} lineColor={COLOR_A} trackOrdinal={selectedTrack ?? undefined} />
                 </div>
               </div>
               <div className="bg-app-surface rounded-lg border border-app-border overflow-hidden">
@@ -951,7 +1018,7 @@ export function LapComparison() {
                   <span className="text-xs font-mono text-app-text-secondary">{formatLapTime(comparison.lapB.lapTime)}</span>
                 </div>
                 <div className="h-[250px]">
-                  <TrackMap telemetry={comparison.telemetryB} lineColor={COLOR_B} />
+                  <TrackMap telemetry={comparison.telemetryB} lineColor={COLOR_B} trackOrdinal={selectedTrack ?? undefined} />
                 </div>
               </div>
             </div>

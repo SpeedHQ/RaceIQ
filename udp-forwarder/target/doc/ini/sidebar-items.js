@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["macro_load","macro_read","macro_safe_load","macro_safe_read"],"macro":["ini","inistr"]};

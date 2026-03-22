@@ -1,0 +1,7 @@
+[package]
+name = "udp-forwarder"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rust-ini = "0.21"

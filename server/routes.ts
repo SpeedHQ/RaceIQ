@@ -883,8 +883,7 @@ app.post("/api/tracks/:trackOrdinal/recompute-outline", async (c) => {
   const sorted = [...allLaps].sort((a, b) => a.lapTime - b.lapTime);
   const bestLaps = sorted.slice(0, 10);
 
-  const SAMPLE_POINTS = 1000;
-  const normalized: { x: number; z: number; speed: number }[][] = [];
+  const rawLaps: { x: number; z: number; speed: number }[][] = [];
   const startPositions: { x: number; z: number }[] = [];
 
   for (const lapMeta of bestLaps) {
@@ -899,13 +898,16 @@ app.post("/api/tracks/:trackOrdinal/recompute-outline", async (c) => {
     raw = filterLapOutliers(raw);
     if (raw.length < 50) continue;
 
-    const norm = normalizeToFixedPoints(raw, SAMPLE_POINTS);
-    if (norm.length === SAMPLE_POINTS) {
-      normalized.push(norm);
-      const last = raw[raw.length - 1];
-      startPositions.push({ x: last.x, z: last.z });
-    }
+    rawLaps.push(raw);
+    const last = raw[raw.length - 1];
+    startPositions.push({ x: last.x, z: last.z });
   }
+
+  // Normalize all laps to the same point count (max raw count) for averaging
+  const maxPoints = Math.max(...rawLaps.map(l => l.length));
+  const normalized = rawLaps.map(l =>
+    l.length === maxPoints ? l : normalizeToFixedPoints(l, maxPoints)
+  );
 
   if (normalized.length === 0) {
     return c.json({ error: "No usable telemetry data" }, 400);
@@ -939,7 +941,7 @@ app.post("/api/tracks/:trackOrdinal/recompute-outline", async (c) => {
     success: true,
     lapsUsed: normalized.length,
     points: outline.length,
-    message: `Recomputed outline from ${normalized.length} laps (${SAMPLE_POINTS} points)`,
+    message: `Recomputed outline from ${normalized.length} laps (${outline.length} points)`,
   });
 });
 
@@ -1141,6 +1143,38 @@ app.get("/api/track-curbs/:ordinal", (c) => {
   const curbs = getTrackCurbs(ordinal);
   if (!curbs) return c.json({ error: "No curb data" }, 404);
   return c.json(curbs);
+});
+
+// Car model configs — single source of truth for 3D model alignment + dimensions
+const CAR_MODEL_CONFIGS_PATH = resolve(__dirname, "../data/car-model-configs.json");
+
+function loadCarModelConfigs(): Record<string, any> {
+  if (!existsSync(CAR_MODEL_CONFIGS_PATH)) return {};
+  try { return JSON.parse(readFileSync(CAR_MODEL_CONFIGS_PATH, "utf-8")); }
+  catch { return {}; }
+}
+
+// GET /api/car-model-configs — all car model configs
+app.get("/api/car-model-configs", (c) => c.json(loadCarModelConfigs()));
+
+// GET /api/car-model-configs/:ordinal — single car config
+app.get("/api/car-model-configs/:ordinal", (c) => {
+  const ordinal = c.req.param("ordinal");
+  const configs = loadCarModelConfigs();
+  return configs[ordinal] ? c.json(configs[ordinal]) : c.json({ error: "No config" }, 404);
+});
+
+// PUT /api/car-model-configs/:ordinal — update car model config (merges fields)
+app.put("/api/car-model-configs/:ordinal", async (c) => {
+  const ordinal = c.req.param("ordinal");
+  if (!ordinal || isNaN(parseInt(ordinal))) return c.json({ error: "Invalid ordinal" }, 400);
+  const body = await c.req.json();
+
+  const configs = loadCarModelConfigs();
+  configs[ordinal] = { ...configs[ordinal], ...body };
+  writeFileSync(CAR_MODEL_CONFIGS_PATH, JSON.stringify(configs, null, 2));
+  console.log(`[CarModel] Saved config for car ${ordinal}:`, body);
+  return c.json({ success: true, config: configs[ordinal] });
 });
 
 // DELETE /api/track-outline/:ordinal — delete recorded outline for a track

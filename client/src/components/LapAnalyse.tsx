@@ -39,6 +39,7 @@ function AnalyseTrackMap({
   telemetry,
   cursorIdx,
   outline,
+  boundaries,
   sectors,
   segments,
   rotateWithCar,
@@ -48,6 +49,7 @@ function AnalyseTrackMap({
   telemetry: TelemetryPacket[];
   cursorIdx: number;
   outline: Point[] | null;
+  boundaries: { leftEdge: Point[]; rightEdge: Point[]; centerLine: Point[]; pitLane: Point[] | null; coordSystem: string } | null;
   sectors: { s1End: number; s2End: number } | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   rotateWithCar: boolean;
@@ -83,16 +85,21 @@ function AnalyseTrackMap({
 
     if (displayOutline.length < 2) return;
 
-    // Bounds
+    // Bounds — include boundary edges so they don't clip
+    const hasBounds = boundaries?.coordSystem === "forza" && boundaries.leftEdge?.length > 2;
     let minX = Infinity,
       maxX = -Infinity,
       minZ = Infinity,
       maxZ = -Infinity;
-    for (const p of displayOutline) {
-      minX = Math.min(minX, p.x);
-      maxX = Math.max(maxX, p.x);
-      minZ = Math.min(minZ, p.z);
-      maxZ = Math.max(maxZ, p.z);
+    const allBoundsPts: Point[][] = [displayOutline];
+    if (hasBounds) allBoundsPts.push(boundaries!.leftEdge, boundaries!.rightEdge);
+    for (const pts of allBoundsPts) {
+      for (const p of pts) {
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x);
+        minZ = Math.min(minZ, p.z);
+        maxZ = Math.max(maxZ, p.z);
+      }
     }
     const rangeX = (maxX - minX) || 1;
     const rangeZ = (maxZ - minZ) || 1;
@@ -119,6 +126,40 @@ function AnalyseTrackMap({
         ctx.rotate(Math.PI - pkt.Yaw);
         ctx.translate(-carCx, -carCy);
       }
+    }
+
+    // Draw track boundary surface (behind everything)
+    if (hasBounds) {
+      const left = boundaries!.leftEdge;
+      const right = boundaries!.rightEdge;
+
+      // Filled surface
+      ctx.beginPath();
+      const [lx0, ly0] = toCanvas(left[0].x, left[0].z);
+      ctx.moveTo(lx0, ly0);
+      for (let i = 1; i < left.length; i++) {
+        const [lx, ly] = toCanvas(left[i].x, left[i].z);
+        ctx.lineTo(lx, ly);
+      }
+      for (let i = right.length - 1; i >= 0; i--) {
+        const [rx, ry] = toCanvas(right[i].x, right[i].z);
+        ctx.lineTo(rx, ry);
+      }
+      ctx.closePath();
+      ctx.fillStyle = "rgba(51, 65, 85, 0.25)";
+      ctx.fill();
+
+      // Edge lines
+      ctx.strokeStyle = "rgba(100, 116, 139, 0.35)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(lx0, ly0);
+      for (let i = 1; i < left.length; i++) ctx.lineTo(...toCanvas(left[i].x, left[i].z));
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(...toCanvas(right[0].x, right[0].z));
+      for (let i = 1; i < right.length; i++) ctx.lineTo(...toCanvas(right[i].x, right[i].z));
+      ctx.stroke();
     }
 
     // Draw track outline (thick dark)
@@ -635,6 +676,7 @@ export function LapAnalyse() {
   const [selectedLapId, setSelectedLapId] = useState<number | null>(search.lap ?? null);
   const [telemetry, setTelemetry] = useState<TelemetryPacket[]>([]);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [boundaries, setBoundaries] = useState<{ leftEdge: Point[]; rightEdge: Point[]; centerLine: Point[]; pitLane: Point[] | null; coordSystem: string } | null>(null);
   const [sectors, setSectors] = useState<{ s1End: number; s2End: number } | null>(null);
   const [segments, setSegments] = useState<{ type: string; name: string; startFrac: number; endFrac: number }[] | null>(null);
   const [carName, setCarName] = useState("");
@@ -643,7 +685,7 @@ export function LapAnalyse() {
   const [sidebarTab, setSidebarTab] = useState<"live" | "insights">("live");
   const [wheelTab, setWheelTab] = useState<"render" | "visual">("render");
   const [leftColWidth, setLeftColWidth] = useState(150);
-  const [rightColWidth, setRightColWidth] = useState(250);
+  const [rightColWidth, setRightColWidth] = useState(650);
   const [playing, setPlaying] = useState(false);
   const [rotateWithCar, setRotateWithCar] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
@@ -800,6 +842,9 @@ export function LapAnalyse() {
                 else setOutline(null);
               })
               .catch(() => setOutline(null));
+            api.getTrackBoundaries(trackOrd)
+              .then((b) => setBoundaries(b))
+              .catch(() => setBoundaries(null));
             api.getTrackSectorBoundaries(trackOrd)
               .then((s: any) => { if (s?.s1End) setSectors(s); else setSectors(null); })
               .catch(() => setSectors(null));
@@ -808,6 +853,7 @@ export function LapAnalyse() {
               .catch(() => setSegments(null));
           } else {
             setOutline(null);
+            setBoundaries(null);
             setSectors(null);
           }
         }
@@ -1319,6 +1365,7 @@ export function LapAnalyse() {
                 telemetry={telemetry}
                 cursorIdx={cursorIdx}
                 outline={outline}
+                boundaries={boundaries}
                 sectors={sectors}
                 segments={segments}
                 rotateWithCar={rotateWithCar}
@@ -1393,7 +1440,7 @@ export function LapAnalyse() {
                       : "text-app-text-muted hover:text-app-text"
                   }`}
                 >
-                  Render
+                  2D
                 </button>
                 <button
                   onClick={() => setWheelTab("visual")}
@@ -1403,7 +1450,7 @@ export function LapAnalyse() {
                       : "text-app-text-muted hover:text-app-text"
                   }`}
                 >
-                  Visual
+                  Virtual
                 </button>
               </div>
 
@@ -1443,7 +1490,7 @@ export function LapAnalyse() {
                 </>
               ) : (
                 <div className="w-full flex-1 min-h-0">
-                  {currentPacket && <CarWireframe packet={currentPacket} telemetry={telemetry} cursorIdx={cursorIdx} outline={lapLine} />}
+                  {currentPacket && <CarWireframe packet={currentPacket} telemetry={telemetry} cursorIdx={cursorIdx} outline={lapLine} boundaries={boundaries} carOrdinal={currentPacket.CarOrdinal} />}
                 </div>
               )}
               </div>

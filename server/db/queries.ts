@@ -398,7 +398,7 @@ export function saveTrackOutlineFromPackets(
   packets: TelemetryPacket[]
 ): void {
   const points: { x: number; z: number; speed: number }[] = [];
-  for (let i = 0; i < packets.length; i += 5) {
+  for (let i = 0; i < packets.length; i++) {
     const p = packets[i];
     if (p.PositionX === 0 && p.PositionZ === 0) continue;
     points.push({

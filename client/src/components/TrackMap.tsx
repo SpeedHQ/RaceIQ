@@ -1,5 +1,19 @@
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import type { TelemetryPacket } from "@shared/types";
+import { api } from "../lib/api";
+
+interface Point {
+  x: number;
+  z: number;
+}
+
+interface BoundaryData {
+  leftEdge: Point[];
+  rightEdge: Point[];
+  centerLine: Point[];
+  pitLane: Point[] | null;
+  coordSystem: string;
+}
 
 interface Props {
   telemetry: TelemetryPacket[];
@@ -7,27 +21,11 @@ interface Props {
   highlightDistance?: number;
   lineColor?: string; // optional override color (for overlay mode)
   className?: string;
+  trackOrdinal?: number; // when provided, fetches and draws track boundaries
 }
 
 function getSpeedMph(p: TelemetryPacket): number {
   return Math.sqrt(p.VelocityX ** 2 + p.VelocityY ** 2 + p.VelocityZ ** 2) * 2.23694;
-}
-
-function integratePositions(packets: TelemetryPacket[]): { x: number[]; z: number[] } {
-  const x: number[] = [0];
-  const z: number[] = [0];
-  for (let i = 1; i < packets.length; i++) {
-    const dt = (packets[i].TimestampMS - packets[i - 1].TimestampMS) / 1000;
-    if (dt <= 0 || dt > 1) {
-      // Skip bad deltas (rewind, large gap)
-      x.push(x[x.length - 1]);
-      z.push(z[z.length - 1]);
-      continue;
-    }
-    x.push(x[x.length - 1] + packets[i].VelocityX * dt);
-    z.push(z[z.length - 1] + packets[i].VelocityZ * dt);
-  }
-  return { x, z };
 }
 
 function speedToColor(speed: number, minSpeed: number, maxSpeed: number): string {
@@ -43,9 +41,49 @@ function channelToColor(value: number, min: number, max: number): string {
   return speedToColor(value, min, max);
 }
 
-export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, lineColor, className }: Props) {
+/**
+ * Check if telemetry has valid Forza world positions (not all zeros).
+ */
+function hasWorldPositions(telemetry: TelemetryPacket[]): boolean {
+  // Check a sample of packets for non-zero positions
+  for (let i = 0; i < Math.min(telemetry.length, 20); i++) {
+    const idx = Math.floor(i * telemetry.length / 20);
+    if (telemetry[idx].PositionX !== 0 || telemetry[idx].PositionZ !== 0) return true;
+  }
+  return false;
+}
+
+/**
+ * Integrate positions from velocity when world positions aren't available.
+ */
+function integratePositions(packets: TelemetryPacket[]): { x: number[]; z: number[] } {
+  const x: number[] = [0];
+  const z: number[] = [0];
+  for (let i = 1; i < packets.length; i++) {
+    const dt = (packets[i].TimestampMS - packets[i - 1].TimestampMS) / 1000;
+    if (dt <= 0 || dt > 1) {
+      x.push(x[x.length - 1]);
+      z.push(z[z.length - 1]);
+      continue;
+    }
+    x.push(x[x.length - 1] + packets[i].VelocityX * dt);
+    z.push(z[z.length - 1] + packets[i].VelocityZ * dt);
+  }
+  return { x, z };
+}
+
+export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, lineColor, className, trackOrdinal }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [boundaries, setBoundaries] = useState<BoundaryData | null>(null);
+
+  // Fetch boundaries when trackOrdinal is provided
+  useEffect(() => {
+    if (!trackOrdinal) { setBoundaries(null); return; }
+    api.getTrackBoundaries(trackOrdinal)
+      .then((data) => setBoundaries(data))
+      .catch(() => setBoundaries(null));
+  }, [trackOrdinal]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -65,20 +103,37 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
 
     const w = rect.width;
     const h = rect.height;
-
-    // Clear
     ctx.clearRect(0, 0, w, h);
 
-    // Integrate positions
-    const { x, z } = integratePositions(telemetry);
+    // Use Forza world positions when available, otherwise integrate from velocity
+    const useWorld = hasWorldPositions(telemetry);
+    let x: number[], z: number[];
+    if (useWorld) {
+      x = telemetry.map(p => p.PositionX);
+      z = telemetry.map(p => p.PositionZ);
+    } else {
+      const integrated = integratePositions(telemetry);
+      x = integrated.x;
+      z = integrated.z;
+    }
 
-    // Compute bounds
+    // Compute bounds — include boundary edges if in same coord system
+    const hasBounds = boundaries && boundaries.coordSystem === "forza" && useWorld;
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for (let i = 0; i < x.length; i++) {
-      if (x[i] < minX) minX = x[i];
-      if (x[i] > maxX) maxX = x[i];
-      if (z[i] < minZ) minZ = z[i];
-      if (z[i] > maxZ) maxZ = z[i];
+
+    const allPointSets: { x: number; z: number }[][] = [
+      x.map((xi, i) => ({ x: xi, z: z[i] })),
+    ];
+    if (hasBounds) {
+      allPointSets.push(boundaries!.leftEdge, boundaries!.rightEdge);
+    }
+    for (const pts of allPointSets) {
+      for (const p of pts) {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.z < minZ) minZ = p.z;
+        if (p.z > maxZ) maxZ = p.z;
+      }
     }
 
     const rangeX = maxX - minX || 1;
@@ -91,8 +146,55 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
     const offsetX = (w - rangeX * scale) / 2;
     const offsetZ = (h - rangeZ * scale) / 2;
 
-    const toScreenX = (px: number) => (px - minX) * scale + offsetX;
+    // Match LiveTrackMap's X-flip convention for Forza coords
+    const toScreenX = useWorld
+      ? (px: number) => offsetX + (maxX - px) * scale
+      : (px: number) => (px - minX) * scale + offsetX;
     const toScreenZ = (pz: number) => (pz - minZ) * scale + offsetZ;
+
+    // Draw boundary surface
+    if (hasBounds) {
+      const left = boundaries!.leftEdge;
+      const right = boundaries!.rightEdge;
+
+      // Filled track surface
+      ctx.beginPath();
+      ctx.moveTo(toScreenX(left[0].x), toScreenZ(left[0].z));
+      for (let i = 1; i < left.length; i++) {
+        ctx.lineTo(toScreenX(left[i].x), toScreenZ(left[i].z));
+      }
+      for (let i = right.length - 1; i >= 0; i--) {
+        ctx.lineTo(toScreenX(right[i].x), toScreenZ(right[i].z));
+      }
+      ctx.closePath();
+      ctx.fillStyle = "rgba(51, 65, 85, 0.25)";
+      ctx.fill();
+
+      // Edge lines
+      ctx.strokeStyle = "rgba(100, 116, 139, 0.35)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(toScreenX(left[0].x), toScreenZ(left[0].z));
+      for (let i = 1; i < left.length; i++) ctx.lineTo(toScreenX(left[i].x), toScreenZ(left[i].z));
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(toScreenX(right[0].x), toScreenZ(right[0].z));
+      for (let i = 1; i < right.length; i++) ctx.lineTo(toScreenX(right[i].x), toScreenZ(right[i].z));
+      ctx.stroke();
+
+      // Center-line (faint)
+      if (boundaries!.centerLine?.length > 2) {
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(148, 163, 184, 0.3)";
+        ctx.lineWidth = 1;
+        ctx.moveTo(toScreenX(boundaries!.centerLine[0].x), toScreenZ(boundaries!.centerLine[0].z));
+        for (let i = 1; i < boundaries!.centerLine.length; i++) {
+          ctx.lineTo(toScreenX(boundaries!.centerLine[i].x), toScreenZ(boundaries!.centerLine[i].z));
+        }
+        ctx.lineTo(toScreenX(boundaries!.centerLine[0].x), toScreenZ(boundaries!.centerLine[0].z));
+        ctx.stroke();
+      }
+    }
 
     // Get color channel values
     let values: number[] = [];
@@ -109,7 +211,7 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
     const minVal = values.length ? Math.min(...values) : 0;
     const maxVal = values.length ? Math.max(...values) : 1;
 
-    // Draw track line
+    // Draw lap trace
     ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -150,7 +252,7 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
       ctx.fillStyle = "#22c55e";
       ctx.fill();
     }
-  }, [telemetry, colorBy, highlightDistance, lineColor]);
+  }, [telemetry, colorBy, highlightDistance, lineColor, boundaries]);
 
   useEffect(() => {
     draw();

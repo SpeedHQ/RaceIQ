@@ -1,0 +1,10 @@
+[general]
+listen_port = 5300
+
+[forward.1]
+ip = 127.0.0.1
+port = 5301
+
+[forward.2]
+ip = 192.168.1.100
+port = 5300
