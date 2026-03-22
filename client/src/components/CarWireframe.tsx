@@ -5,6 +5,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import type { TelemetryPacket } from "@shared/types";
 import { getCarModel, loadCarModelConfigs, type CarModelEnrichment } from "../data/car-models";
+import { useUnits } from "../hooks/useUnits";
 
 // ── Tire temp → color ──────────────────────────────────────────────
 
@@ -42,20 +43,59 @@ function tireTempColor(temp: number): string {
   return "#ef4444";
 }
 
+function tempToColor(t: number): string {
+  if (t < 70) return "#3b82f6";
+  if (t < 90) return "#22d3ee";
+  if (t < 105) return "#34d399";
+  if (t < 120) return "#fbbf24";
+  return "#ef4444";
+}
+
+function TempLabel({ displayTemp, rawTemp, side }: { displayTemp: string; rawTemp: number; side: "left" | "right" }) {
+  const color = tempToColor(rawTemp);
+  const texture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 48;
+    const ctx = canvas.getContext("2d")!;
+    ctx.clearRect(0, 0, 128, 48);
+    ctx.font = "bold 30px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = color;
+    ctx.fillText(displayTemp, 64, 24);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    return tex;
+  }, [displayTemp, color]);
+
+  return (
+    <sprite position={[0, 0.5, side === "left" ? -0.3 : 0.3]} scale={[0.6, 0.22, 1]}>
+      <spriteMaterial map={texture} transparent depthTest={false} />
+    </sprite>
+  );
+}
+
 function Wheel({
   position,
   steerAngle,
   gripColor,
   tempColor,
   spinAngle,
+  temp,
+  displayTemp,
+  side,
 }: {
   position: [number, number, number];
   steerAngle: number;
   gripColor: string;
   tempColor: string;
   spinAngle: number;
+  temp: number;
+  displayTemp: string;
+  side: "left" | "right";
 }) {
-  const wheelY = position[1]; // wheels stay on the ground
+  const wheelY = position[1];
   const { tire, rim, hub } = useWheelGeometries();
 
   return (
@@ -73,6 +113,8 @@ function Wheel({
           </mesh>
         </group>
       </group>
+      {/* Temp label floating above */}
+      <TempLabel displayTemp={displayTemp} rawTemp={temp} side={side} />
     </group>
   );
 }
@@ -731,7 +773,7 @@ function CameraController({ viewPreset }: { viewPreset: ViewPreset }) {
   );
 }
 
-function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, viewPreset, carModel, modelOffsetX }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null; toggles: ViewToggles; viewPreset: ViewPreset; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number }) {
+function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, viewPreset, carModel, modelOffsetX, fmtTemp }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null; toggles: ViewToggles; viewPreset: ViewPreset; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; fmtTemp: (f: number) => string }) {
   const carGroupRef = useRef<THREE.Group>(null);
   const prevTimeRef = useRef(packet.TimestampMS);
   const spinAngles = useRef([0, 0, 0, 0]);
@@ -862,6 +904,9 @@ function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, 
             gripColor={tractionColor(w.slip)}
             tempColor={tireTempColor(w.temp)}
             spinAngle={spinAngles.current[i]}
+            temp={w.temp}
+            displayTemp={fmtTemp(w.temp)}
+            side={i % 2 === 0 ? "left" : "right"}
           />
         ))}
 
@@ -1030,6 +1075,8 @@ export function CarWireframe({
   const [configsLoaded, setConfigsLoaded] = useState(false);
   useEffect(() => { loadCarModelConfigs().then(() => setConfigsLoaded(true)); }, []);
   const carModel = useMemo(() => getCarModel(carOrdinal ?? 0), [carOrdinal, configsLoaded]);
+  const units = useUnits();
+  const fmtTemp = useCallback((f: number) => `${units.temp(f).toFixed(0)}°`, [units]);
   const [editMode, setEditMode] = useState(false);
   const [modelOffsetX, setModelOffsetX] = useState(carModel.glbOffsetX ?? 0);
   const [saveStatus, setSaveStatus] = useState<"" | "saving" | "saved">("");
@@ -1051,7 +1098,7 @@ export function CarWireframe({
         gl={{ antialias: true, alpha: true }}
         style={{ background: "transparent" }}
       >
-        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} boundaries={boundaries ?? null} toggles={toggles} viewPreset={viewPreset} carModel={carModel} modelOffsetX={modelOffsetX} />
+        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} boundaries={boundaries ?? null} toggles={toggles} viewPreset={viewPreset} carModel={carModel} modelOffsetX={modelOffsetX} fmtTemp={fmtTemp} />
       </Canvas>
 
       {/* View toggles */}
