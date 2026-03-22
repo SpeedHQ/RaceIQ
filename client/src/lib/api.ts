@@ -12,6 +12,7 @@ export const queryKeys = {
   trackSectors: (ord: number) => ["track-sectors", ord] as const,
   trackSectorBoundaries: (ord: number) => ["track-sector-boundaries", ord] as const,
   trackOutline: (ord: number) => ["track-outline", ord] as const,
+  trackCurbs: (ord: number) => ["track-curbs", ord] as const,
   tracks: ["tracks"] as const,
   carName: (ord: number) => ["car-name", ord] as const,
   gripHistory: ["grip-history"] as const,
@@ -39,6 +40,10 @@ export const api = {
   getTrackSectors: (ord: number) => fetchJson<unknown>(`/api/track-sectors/${ord}`),
   getTrackSectorBoundaries: (ord: number) => fetchJson<unknown>(`/api/track-sector-boundaries/${ord}`),
   getTrackOutline: (ord: number) => fetchJson<unknown>(`/api/track-outline/${ord}`),
+  getTrackBoundaries: (ord: number) =>
+    fetchJson<{ leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[]; pitLane: { x: number; z: number }[] | null; coordSystem: string }>(`/api/track-boundaries/${ord}`).catch(() => null),
+  getTrackCurbs: (ord: number) =>
+    fetchJson<{ points: { x: number; z: number }[]; side: "left" | "right" | "both" }[]>(`/api/track-curbs/${ord}`).catch(() => null),
   getTracks: () => fetchJson<unknown[]>("/api/tracks"),
   getCarName: (ord: number) => fetch(`/api/car-name/${ord}`).then((r) => r.ok ? r.text() : ""),
   getGripHistory: () => fetchJson<unknown>("/api/grip-history"),

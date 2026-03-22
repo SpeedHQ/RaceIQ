@@ -12,7 +12,7 @@
  */
 import type { TelemetryPacket } from "../shared/types";
 import { insertSession, insertLap, saveTrackOutline, hasRecordedOutline } from "./db/queries";
-import { hasTrackOutline, recordLapTrace } from "../shared/track-outlines/index";
+import { hasTrackOutline, recordLapTrace, extractCurbSegments, recordCurbData } from "../shared/track-outlines/index";
 import { loadSettings } from "./settings";
 import { getTuneAssignment } from "./db/tune-queries";
 
@@ -84,10 +84,34 @@ class LapDetector {
       this.startNewSession(packet);
     }
 
-    // Rewind detection: TimestampMS decreased
+    // Race restart detection: CurrentLap resets to 0 mid-lap, or distance
+    // jumps backwards significantly. Forza keeps LapNumber the same during
+    // a restart, so this is the only way to catch it.
+    if (
+      this.currentLapNumber >= 0 &&
+      this.lapBuffer.length > 30
+    ) {
+      const lastPkt = this.lapBuffer[this.lapBuffer.length - 1];
+
+      // CurrentLap reset to 0 while we had meaningful lap time
+      const lapTimeReset = lastPkt.CurrentLap > 5 && packet.CurrentLap === 0;
+
+      // Large distance drop (>500m backwards)
+      const distanceDrop = lastPkt.DistanceTraveled - packet.DistanceTraveled > 500;
+
+      if (lapTimeReset || distanceDrop) {
+        console.log(
+          `[Lap] Race restart detected: ${lapTimeReset ? `CurrentLap ${lastPkt.CurrentLap.toFixed(1)}s -> ${packet.CurrentLap.toFixed(1)}s` : ""}${lapTimeReset && distanceDrop ? ", " : ""}${distanceDrop ? `Distance ${lastPkt.DistanceTraveled.toFixed(0)} -> ${packet.DistanceTraveled.toFixed(0)}` : ""}. Discarding buffer.`
+        );
+        this.resetLapState(packet);
+      }
+    }
+
+    // Rewind detection: TimestampMS decreased (within same lap)
     if (
       this.lastTimestampMS > 0 &&
-      packet.TimestampMS < this.lastTimestampMS
+      packet.TimestampMS < this.lastTimestampMS &&
+      packet.LapNumber === this.currentLapNumber
     ) {
       this.lapIsValid = false;
       console.log(
@@ -95,12 +119,25 @@ class LapDetector {
       );
     }
 
-    // Lap boundary detection: LapNumber incremented
-    if (
-      this.currentLapNumber >= 0 &&
-      packet.LapNumber > this.currentLapNumber
-    ) {
-      this.onLapComplete(packet);
+    // Lap boundary detection
+    if (this.currentLapNumber >= 0 && packet.LapNumber !== this.currentLapNumber) {
+      if (packet.LapNumber < this.currentLapNumber) {
+        // Rewind across lap boundary — buffer has mixed-lap data, discard and reset
+        console.log(
+          `[Lap] Rewind across lap boundary: lap ${this.currentLapNumber} -> ${packet.LapNumber}. Discarding buffer.`
+        );
+        this.resetLapState(packet);
+      } else if (packet.LapNumber > this.currentLapNumber + 1) {
+        // Lap skip — jumped more than 1 lap, buffer spans multiple laps
+        console.log(
+          `[Lap] Lap skip detected: lap ${this.currentLapNumber} -> ${packet.LapNumber} (skipped ${packet.LapNumber - this.currentLapNumber - 1}). Marking invalid.`
+        );
+        this.lapIsValid = false;
+        this.onLapComplete(packet);
+      } else {
+        // Normal lap increment (+1)
+        this.onLapComplete(packet);
+      }
     }
 
     // Initialize lap tracking on first packet
@@ -268,6 +305,14 @@ class LapDetector {
     // Accumulate valid laps for track outline averaging
     if (this.lapIsValid && this.currentSession.trackOrdinal > 0) {
       this.accumulateLapForOutline(this.currentSession.trackOrdinal, this.lapBuffer, newLapFirstPacket);
+    }
+
+    // Extract and record curb data from any valid lap
+    if (this.lapIsValid && this.currentSession.trackOrdinal > 0 && this.lapBuffer.length > 50) {
+      const curbSegments = extractCurbSegments(this.lapBuffer);
+      if (curbSegments.length > 0) {
+        recordCurbData(this.currentSession.trackOrdinal, curbSegments);
+      }
     }
 
     this.resetLapState(newLapFirstPacket);

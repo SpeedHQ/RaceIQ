@@ -653,6 +653,18 @@ export function LapAnalyse() {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [viewingTuneId, setViewingTuneId] = useState<number | null>(null);
+  // Actual driving line from telemetry positions (for 3D visual)
+  const lapLine = useMemo(() => {
+    if (telemetry.length < 2) return null;
+    const pts: Point[] = [];
+    for (const p of telemetry) {
+      if (p.PositionX !== 0 || p.PositionZ !== 0) {
+        pts.push({ x: p.PositionX, z: p.PositionZ });
+      }
+    }
+    return pts.length > 2 ? pts : null;
+  }, [telemetry]);
+
   const playRef = useRef(false);
   const speedRef = useRef(1);
   const cursorRef = useRef(0);
@@ -1431,7 +1443,7 @@ export function LapAnalyse() {
                 </>
               ) : (
                 <div className="w-full flex-1 min-h-0">
-                  {currentPacket && <CarWireframe packet={currentPacket} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} />}
+                  {currentPacket && <CarWireframe packet={currentPacket} telemetry={telemetry} cursorIdx={cursorIdx} outline={lapLine} />}
                 </div>
               )}
               </div>

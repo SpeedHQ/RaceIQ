@@ -33,7 +33,7 @@ import { generateExport } from "./export";
 import { compareLaps } from "./comparison";
 import { detectCorners, type Corner } from "./corner-detection";
 import { carMap, getCarName, getCarSpecs, trackMap, getTrackName } from "../shared/car-data";
-import { getTrackOutlineByOrdinal, hasTrackOutline, hasRecordedOutline, getTrackSectorsByOrdinal, getStartYaw, deleteRecordedOutline } from "../shared/track-outlines/index";
+import { getTrackOutlineByOrdinal, getBundledOutlineByOrdinal, hasTrackOutline, hasRecordedOutline, getTrackSectorsByOrdinal, getStartYaw, deleteRecordedOutline, getTrackBoundariesByOrdinal, getTrackCurbs } from "../shared/track-outlines/index";
 import { trackMap as trackInfoMap } from "../shared/car-data";
 import { namedSegments } from "../shared/track-outlines/named-segments";
 import { buildAnalystPrompt } from "./ai/analyst-prompt";
@@ -1003,7 +1003,7 @@ app.get("/api/tracks/:trackOrdinal/leaderboard", (c) => {
 });
 
 // GET /api/track-calibration/:ordinal — calibration status
-import { getCalibrationStatus, getNormalizedPosition } from "./track-calibration";
+import { getCalibrationStatus, getNormalizedPosition, transformToForzaSpace, computeStaticAlignment } from "./track-calibration";
 app.get("/api/track-calibration/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);
   if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
@@ -1078,6 +1078,56 @@ app.get("/api/track-outline/:ordinal", (c) => {
   if (bundled) return c.json({ points: bundled, recorded: false, startYaw });
 
   return c.json({ error: "No outline available" }, 404);
+});
+
+// GET /api/track-boundaries/:ordinal — track boundary edges (left/right + pit lane)
+// Returns boundary data in the same coordinate system as the outline.
+app.get("/api/track-boundaries/:ordinal", (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  const boundaries = getTrackBoundariesByOrdinal(ordinal);
+  if (!boundaries) return c.json({ error: "No boundary data available" }, 404);
+
+  // If we have a recorded Forza-coords outline AND a bundled TUMFTM outline,
+  // compute static alignment so boundaries match without needing live driving.
+  const recordedOutline = getDbTrackOutline(ordinal) ?? (hasRecordedOutline(ordinal) ? getTrackOutlineByOrdinal(ordinal) : null);
+  const bundledOutline = getBundledOutlineByOrdinal(ordinal);
+  if (recordedOutline && bundledOutline) {
+    computeStaticAlignment(ordinal, bundledOutline, recordedOutline);
+  }
+
+  // Transform TUMFTM coords → Forza coords (uses live calibration or static alignment)
+  const leftForza = transformToForzaSpace(ordinal, boundaries.leftEdge);
+  const rightForza = transformToForzaSpace(ordinal, boundaries.rightEdge);
+  const pitForza = boundaries.pitLane ? transformToForzaSpace(ordinal, boundaries.pitLane) : null;
+
+  if (leftForza && rightForza) {
+    return c.json({
+      leftEdge: leftForza,
+      rightEdge: rightForza,
+      pitLane: pitForza,
+      coordSystem: "forza",
+    });
+  }
+
+  // No transform available — return raw TUMFTM coords
+  return c.json({
+    leftEdge: boundaries.leftEdge,
+    rightEdge: boundaries.rightEdge,
+    pitLane: boundaries.pitLane,
+    coordSystem: "tumftm",
+  });
+});
+
+// GET /api/track-curbs/:ordinal — curb/kerb positions detected from rumble strip data
+app.get("/api/track-curbs/:ordinal", (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  const curbs = getTrackCurbs(ordinal);
+  if (!curbs) return c.json({ error: "No curb data" }, 404);
+  return c.json(curbs);
 });
 
 // DELETE /api/track-outline/:ordinal — delete recorded outline for a track

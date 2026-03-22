@@ -16,12 +16,24 @@ interface TrackSectors {
   s2End: number;
 }
 
+interface CurbSegment {
+  points: Point[];
+  side: "left" | "right" | "both";
+}
+
 /**
  * LiveTrackMap — Renders the car's position on a 2D track outline.
  * Two modes: (1) pre-made outline fetched by track ordinal, or (2) live trace
  * built in real-time from position data when no outline exists.
  * Coordinates use Forza's world-space X/Z (Y is vertical/ignored).
  */
+interface TrackBoundaryData {
+  leftEdge: Point[];
+  rightEdge: Point[];
+  pitLane: Point[] | null;
+  coordSystem: string;
+}
+
 export function LiveTrackMap({ packet }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
@@ -29,6 +41,8 @@ export function LiveTrackMap({ packet }: Props) {
   const [isRecorded, setIsRecorded] = useState(false); // true = Forza coords, can plot directly
   const [startYaw, setStartYaw] = useState<number | null>(null); // Yaw at start/finish line
   const [sectors, setSectors] = useState<{ s1End: number; s2End: number } | null>(null);
+  const [boundaries, setBoundaries] = useState<TrackBoundaryData | null>(null);
+  const [curbs, setCurbs] = useState<CurbSegment[] | null>(null);
   const lastTrackOrdRef = useRef<number | null>(null);
 
   // Distance-based position tracking
@@ -57,10 +71,22 @@ export function LiveTrackMap({ packet }: Props) {
     setOutline(null);
     setNoOutline(false);
     setSectors(null);
+    setBoundaries(null);
+    setCurbs(null);
 
     // Fetch sectors
     api.getTrackSectors(trackOrd)
       .then((data: any) => { if (data?.s1End) setSectors(data); })
+      .catch(() => {});
+
+    // Fetch track boundaries (edges)
+    api.getTrackBoundaries(trackOrd)
+      .then((data) => { if (data) setBoundaries(data); })
+      .catch(() => {});
+
+    // Fetch curb data
+    api.getTrackCurbs(trackOrd)
+      .then((data) => { if (data) setCurbs(data); })
       .catch(() => {});
 
     api.getTrackOutline(trackOrd)
@@ -89,19 +115,34 @@ export function LiveTrackMap({ packet }: Props) {
 
   // Re-fetch outline on lap completion if we don't have a recorded one yet.
   // The server may have just recorded the first lap trace.
+  // Also re-fetch boundaries (calibration may have completed after a lap).
   useEffect(() => {
-    if (!packet || isRecorded) return;
+    if (!packet) return;
     const trackOrd = lastTrackOrdRef.current;
     if (!trackOrd) return;
 
-    api.getTrackOutline(trackOrd)
-      .then((data: any) => {
-        if (data?.points && data.recorded) {
-          setOutline(data.points);
-          setIsRecorded(true);
-          setStartYaw(data.startYaw ?? null);
-        }
-      })
+    if (!isRecorded) {
+      api.getTrackOutline(trackOrd)
+        .then((data: any) => {
+          if (data?.points && data.recorded) {
+            setOutline(data.points);
+            setIsRecorded(true);
+            setStartYaw(data.startYaw ?? null);
+          }
+        })
+        .catch(() => {});
+    }
+
+    // Re-fetch boundaries — calibration may now provide Forza-space coords
+    if (!boundaries || boundaries.coordSystem !== "forza") {
+      api.getTrackBoundaries(trackOrd)
+        .then((data) => { if (data) setBoundaries(data); })
+        .catch(() => {});
+    }
+
+    // Re-fetch curbs — new lap may have added curb data
+    api.getTrackCurbs(trackOrd)
+      .then((data) => { if (data) setCurbs(data); })
       .catch(() => {});
   }, [packet?.LapNumber]);
 
@@ -185,12 +226,19 @@ export function LiveTrackMap({ packet }: Props) {
     const isLiveTrace = !outline;
 
     // Fit-to-canvas: compute bounding box, then uniform scale to preserve aspect ratio
+    // Include boundary edges in bounding box so they don't clip
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for (const p of displayOutline) {
-      minX = Math.min(minX, p.x);
-      maxX = Math.max(maxX, p.x);
-      minZ = Math.min(minZ, p.z);
-      maxZ = Math.max(maxZ, p.z);
+    const allPoints = [displayOutline];
+    if (boundaries) {
+      allPoints.push(boundaries.leftEdge, boundaries.rightEdge);
+    }
+    for (const pts of allPoints) {
+      for (const p of pts) {
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x);
+        minZ = Math.min(minZ, p.z);
+        maxZ = Math.max(maxZ, p.z);
+      }
     }
 
     const rangeX = (maxX - minX) || 1;
@@ -227,6 +275,45 @@ export function LiveTrackMap({ packet }: Props) {
       return i > 0 && i <= worldDists.length && worldDists[i - 1] > jumpThreshold;
     }
 
+    // Draw track boundary surface (filled polygon behind center-line)
+    if (boundaries && boundaries.leftEdge.length > 2 && boundaries.rightEdge.length > 2) {
+      ctx.beginPath();
+      // Left edge forward
+      const [lx0, ly0] = toCanvas(boundaries.leftEdge[0].x, boundaries.leftEdge[0].z);
+      ctx.moveTo(lx0, ly0);
+      for (let i = 1; i < boundaries.leftEdge.length; i++) {
+        const [lx, ly] = toCanvas(boundaries.leftEdge[i].x, boundaries.leftEdge[i].z);
+        ctx.lineTo(lx, ly);
+      }
+      // Right edge reversed (to close the polygon)
+      for (let i = boundaries.rightEdge.length - 1; i >= 0; i--) {
+        const [rx, ry] = toCanvas(boundaries.rightEdge[i].x, boundaries.rightEdge[i].z);
+        ctx.lineTo(rx, ry);
+      }
+      ctx.closePath();
+      ctx.fillStyle = "rgba(51, 65, 85, 0.25)";
+      ctx.fill();
+
+      // Stroke edges
+      ctx.strokeStyle = "rgba(100, 116, 139, 0.35)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(lx0, ly0);
+      for (let i = 1; i < boundaries.leftEdge.length; i++) {
+        const [lx, ly] = toCanvas(boundaries.leftEdge[i].x, boundaries.leftEdge[i].z);
+        ctx.lineTo(lx, ly);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      const [rx0, ry0] = toCanvas(boundaries.rightEdge[0].x, boundaries.rightEdge[0].z);
+      ctx.moveTo(rx0, ry0);
+      for (let i = 1; i < boundaries.rightEdge.length; i++) {
+        const [rx, ry] = toCanvas(boundaries.rightEdge[i].x, boundaries.rightEdge[i].z);
+        ctx.lineTo(rx, ry);
+      }
+      ctx.stroke();
+    }
+
     // Draw track outline, breaking at jumps
     ctx.beginPath();
     ctx.strokeStyle = isLiveTrace ? "#1e3a5f" : "#334155";
@@ -257,6 +344,35 @@ export function LiveTrackMap({ packet }: Props) {
     if (!isLiveTrace) ctx.lineTo(sx, sy);
     ctx.stroke();
     ctx.globalAlpha = 1;
+
+    // Draw curb/kerb segments
+    if (curbs && curbs.length > 0 && (isRecorded || isLiveTrace)) {
+      for (const seg of curbs) {
+        if (seg.points.length < 2) continue;
+        ctx.beginPath();
+        const [cx0, cy0] = toCanvas(seg.points[0].x, seg.points[0].z);
+        ctx.moveTo(cx0, cy0);
+        for (let i = 1; i < seg.points.length; i++) {
+          const [cx, cy] = toCanvas(seg.points[i].x, seg.points[i].z);
+          ctx.lineTo(cx, cy);
+        }
+        // Red-white curb color: left = red, right = orange, both = yellow
+        ctx.strokeStyle = seg.side === "left" ? "#ef4444" : seg.side === "right" ? "#f97316" : "#eab308";
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.globalAlpha = 0.7;
+        ctx.stroke();
+
+        // Dashed white overlay for curb stripe effect
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.5;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+      }
+    }
 
     // Start/finish marker + direction arrow
     if (!isLiveTrace) {
