@@ -36,18 +36,20 @@ function suspY(suspTravel: number): number {
   return (suspTravel - 0.5) * 0.5;
 }
 
+// Forza tire temps are in °F: <150 cold, 150-170 warming, 170-220 optimal, 220-250 hot, >250 overheating
 function tireTempColor(temp: number): string {
-  if (temp < 80) return "#3b82f6";
-  if (temp < 100) return "#34d399";
-  if (temp < 120) return "#fbbf24";
+  if (temp < 150) return "#3b82f6";
+  if (temp < 170) return "#22d3ee";
+  if (temp < 220) return "#34d399";
+  if (temp < 250) return "#fbbf24";
   return "#ef4444";
 }
 
 function tempToColor(t: number): string {
-  if (t < 70) return "#3b82f6";
-  if (t < 90) return "#22d3ee";
-  if (t < 105) return "#34d399";
-  if (t < 120) return "#fbbf24";
+  if (t < 150) return "#3b82f6";
+  if (t < 170) return "#22d3ee";
+  if (t < 220) return "#34d399";
+  if (t < 250) return "#fbbf24";
   return "#ef4444";
 }
 
@@ -182,7 +184,7 @@ const DEFAULT_HIDDEN_MESHES = new Set([
   7, 8,
 ]);
 
-function CarBody({ solid, carModel, modelOffsetX }: { solid: boolean; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number }) {
+function CarBody({ solid, carModel, modelOffsetX }: { solid: "wire" | "solid" | "hidden"; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number }) {
   const { scene } = useGLTF(carModel.modelPath);
 
   // Log model structure on first load to find the right nodes
@@ -213,7 +215,9 @@ function CarBody({ solid, carModel, modelOffsetX }: { solid: boolean; carModel: 
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        if (solid) {
+        if (solid === "hidden") {
+          mesh.visible = false;
+        } else if (solid === "solid") {
           // Hide wheels, shocks, suspension, brakes from GLB in solid mode
           const num = parseInt(mesh.name.replace(/\D/g, ""), 10);
           const hiddenMeshes = carModel.solidHiddenMeshes ? new Set(carModel.solidHiddenMeshes) : DEFAULT_HIDDEN_MESHES;
@@ -974,7 +978,7 @@ function ModelPositionControls({ offsetX, setOffsetX }: { offsetX: number; setOf
 // ── Exported wrapper ───────────────────────────────────────────────
 
 interface ViewToggles {
-  solid: boolean;
+  solid: "wire" | "solid" | "hidden";
   springs: boolean;
   trails: boolean;
   brakeTrails: boolean;
@@ -985,7 +989,7 @@ interface ViewToggles {
 }
 
 const DEFAULT_TOGGLES: ViewToggles = {
-  solid: false,
+  solid: "wire" as const,
   springs: true,
   trails: true,
   brakeTrails: true,
@@ -1043,7 +1047,7 @@ export function CarWireframe({
   useEffect(() => { loadCarModelConfigs().then(() => setConfigsLoaded(true)); }, []);
   const carModel = useMemo(() => getCarModel(carOrdinal ?? 0), [carOrdinal, configsLoaded]);
   const units = useUnits();
-  const fmtTemp = useCallback((f: number) => `${units.temp(f).toFixed(0)}°`, [units]);
+  const fmtTemp = useCallback((f: number) => `${units.temp(f).toFixed(0)}${units.tempLabel}`, [units]);
   const [editMode, setEditMode] = useState(false);
   const [modelOffsetX, setModelOffsetX] = useState(carModel.glbOffsetX ?? 0);
   const [saveStatus, setSaveStatus] = useState<"" | "saving" | "saved">("");
@@ -1070,14 +1074,21 @@ export function CarWireframe({
 
       {/* View toggles */}
       <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[65%]">
-        <ToggleButton label={toggles.solid ? "Solid" : "Wire"} active={toggles.solid} onClick={() => toggle("solid")} />
+        <ToggleButton
+          label={toggles.solid === "solid" ? "Solid" : toggles.solid === "hidden" ? "Hidden" : "Wire"}
+          active={toggles.solid !== "wire"}
+          onClick={() => setToggles((prev) => ({
+            ...prev,
+            solid: prev.solid === "wire" ? "solid" : prev.solid === "solid" ? "hidden" : "wire",
+          }))}
+        />
         {!minimal && <ToggleButton label="Springs" active={toggles.springs} onClick={() => toggle("springs")} />}
         {!minimal && <ToggleButton label="Trails" active={toggles.trails} onClick={() => toggle("trails")} />}
         {!minimal && <ToggleButton label="Brake" active={toggles.brakeTrails} onClick={() => toggle("brakeTrails")} />}
         {!minimal && <ToggleButton label="Track" active={toggles.track} onClick={() => toggle("track")} />}
         {!minimal && <ToggleButton label="Grid" active={toggles.grid} onClick={() => toggle("grid")} />}
         {!minimal && <ToggleButton label="Drive" active={toggles.drivetrain} onClick={() => toggle("drivetrain")} />}
-        <ToggleButton label="Dims" active={toggles.dimensions} onClick={() => toggle("dimensions")} />
+        {minimal && <ToggleButton label="Dims" active={toggles.dimensions} onClick={() => toggle("dimensions")} />}
       </div>
 
       {/* Camera presets + steering indicator */}

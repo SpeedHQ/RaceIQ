@@ -1,16 +1,29 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useSettings } from "./queries";
 import { convertSpeed, convertDistance, speedLabel, distanceLabel } from "../lib/speed";
 import { convertTemp } from "../lib/temperature";
+import { useTelemetryStore } from "../stores/telemetry";
 
 /**
  * Centralised unit-conversion hook.
- * All components should use this instead of manually importing conversion
- * functions + useSettings.  The returned helpers are pre-bound to the
- * user's current unit choices so callers never need to pass the unit arg.
+ *
+ * Provides:
+ * - Labels (speedLabel, tempLabel, distanceLabel)
+ * - Converters for non-telemetry data (static car specs, thresholds)
+ * - Syncs unit preferences to the telemetry store so live packets
+ *   are auto-converted on arrival
+ *
+ * For telemetry data: use DisplayPacket fields (DisplaySpeed, DisplayTireTemp*)
+ * instead of calling these converters manually.
  */
 export function useUnits() {
   const { displaySettings } = useSettings();
+  const setUnitSettings = useTelemetryStore((s) => s.setUnitSettings);
+
+  // Sync unit settings to telemetry store whenever they change
+  useEffect(() => {
+    setUnitSettings(displaySettings.speedUnit, displaySettings.temperatureUnit);
+  }, [displaySettings.speedUnit, displaySettings.temperatureUnit, setUnitSettings]);
 
   return useMemo(() => {
     const su = displaySettings.speedUnit;
@@ -18,7 +31,7 @@ export function useUnits() {
     const thresholds = displaySettings.tireTemperatureThresholds;
 
     return {
-      // ── Speed / distance ──────────────────────────────────────
+      // ── Speed / distance (for non-telemetry data) ──────────────
       /** Convert m/s → user speed unit */
       speed: (ms: number) => convertSpeed(ms, su),
       /** Convert mph → user speed unit (for server data already in mph) */
@@ -30,7 +43,7 @@ export function useUnits() {
       /** Display label for distance, e.g. "mi" or "km" */
       distanceLabel: distanceLabel(su),
 
-      // ── Temperature ───────────────────────────────────────────
+      // ── Temperature (for non-telemetry data) ────────────────────
       /** Convert Fahrenheit → user temp unit */
       temp: (f: number) => convertTemp(f, tu),
       /** Display label for temperature, e.g. "°F" or "°C" */
@@ -38,10 +51,10 @@ export function useUnits() {
       /** Temperature unit raw value */
       tempUnit: tu,
 
-      // ── Tire temperature thresholds (always stored in °F) ─────
+      // ── Tire temperature thresholds (always stored in °F) ───────
       thresholds,
 
-      // ── Raw settings (escape hatch) ───────────────────────────
+      // ── Raw settings (escape hatch) ─────────────────────────────
       speedUnit: su,
       temperatureUnit: tu,
       displaySettings,
