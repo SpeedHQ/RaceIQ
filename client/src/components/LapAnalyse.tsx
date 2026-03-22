@@ -1493,8 +1493,13 @@ export function LapAnalyse() {
                   {currentPacket && <TireDiagram packet={currentPacket} />}
                 </>
               ) : (
-                <div className="w-full flex-1 min-h-0">
+                <div className="w-full flex-1 min-h-0 relative">
                   {currentPacket && <CarWireframe packet={currentPacket} telemetry={telemetry} cursorIdx={cursorIdx} outline={lapLine} boundaries={boundaries} carOrdinal={currentPacket.CarOrdinal} />}
+                  {currentPacket && (
+                    <div className="absolute bottom-1 left-1 opacity-80">
+                      <BodyAttitude packet={currentPacket} />
+                    </div>
+                  )}
                 </div>
               )}
               </div>

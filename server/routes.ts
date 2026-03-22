@@ -164,6 +164,45 @@ app.delete("/api/profiles/:id", (c) => {
   return c.json({ ok: true });
 });
 
+// GET /api/stats — aggregate stats across all laps
+app.get("/api/stats", (c) => {
+  const allLaps = getLaps();
+  const validLaps = allLaps.filter((l) => l.isValid && l.lapTime > 0);
+
+  // Total distance: sum track length * laps per track
+  const lapsByTrack = new Map<number, number>();
+  for (const lap of allLaps) {
+    if (lap.trackOrdinal && lap.lapTime > 0) {
+      lapsByTrack.set(lap.trackOrdinal, (lapsByTrack.get(lap.trackOrdinal) ?? 0) + 1);
+    }
+  }
+  let totalDistanceMeters = 0;
+  for (const [trackOrd, count] of lapsByTrack) {
+    const outline = getTrackOutlineByOrdinal(trackOrd);
+    if (outline && outline.length > 1) {
+      let trackLen = 0;
+      for (let i = 1; i < outline.length; i++) {
+        const dx = outline[i].x - outline[i - 1].x;
+        const dz = outline[i].z - outline[i - 1].z;
+        trackLen += Math.sqrt(dx * dx + dz * dz);
+      }
+      totalDistanceMeters += trackLen * count;
+    }
+  }
+
+  // Total time driven
+  const totalTime = allLaps.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
+
+  return c.json({
+    totalLaps: allLaps.length,
+    validLaps: validLaps.length,
+    totalDistanceMeters,
+    totalTimeSec: totalTime,
+    uniqueTracks: lapsByTrack.size,
+    uniqueCars: new Set(allLaps.map((l) => l.carOrdinal).filter(Boolean)).size,
+  });
+});
+
 // GET /api/laps
 app.get("/api/laps", (c) => {
   const profileIdParam = c.req.query("profileId");

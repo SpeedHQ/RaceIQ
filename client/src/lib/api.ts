@@ -32,6 +32,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 
 // ── Query Functions ─────────────────────────────────────────────────────────
 export const api = {
+  getStats: () => fetchJson<{ totalLaps: number; validLaps: number; totalDistanceMeters: number; totalTimeSec: number; uniqueTracks: number; uniqueCars: number }>("/api/stats"),
   getLaps: () => fetchJson<LapMeta[]>("/api/laps"),
   getLap: (id: number) => fetchJson<{ telemetry: TelemetryPacket[] }>(`/api/laps/${id}`),
   getStatus: () => fetchJson<{ trackOrdinal?: number; carOrdinal?: number }>("/api/status"),

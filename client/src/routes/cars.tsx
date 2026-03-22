@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
 import { useUnits } from "../hooks/useUnits";
 import { getCarModel, loadCarModelConfigs } from "../data/car-models";
+import { piClass, PI_COLORS, PiBadge } from "../components/PiBadge";
 
 interface CarSpecs {
   hp: number;
@@ -46,35 +47,7 @@ type SortKey = "name" | "pi" | "hp" | "torque" | "weightKg" | "topSpeedMph" | "z
 const PI_CLASSES = ["D", "C", "B", "A", "S", "R", "P", "X"];
 const DRIVETRAINS = ["FWD", "RWD", "AWD"];
 
-function piClass(pi: number): string {
-  if (pi <= 0) return "?";
-  if (pi < 500) return "D";
-  if (pi < 600) return "C";
-  if (pi < 700) return "B";
-  if (pi < 800) return "A";
-  if (pi < 900) return "S";
-  return "X";
-}
-
-const PI_COLORS: Record<string, string> = {
-  D: "bg-gray-500/20 text-gray-400",
-  C: "bg-green-500/20 text-green-400",
-  B: "bg-blue-500/20 text-blue-400",
-  A: "bg-purple-500/20 text-purple-400",
-  S: "bg-amber-500/20 text-amber-400",
-  R: "bg-orange-500/20 text-orange-400",
-  P: "bg-red-500/20 text-red-400",
-  X: "bg-pink-500/20 text-pink-400",
-};
-
-function PiBadge({ pi }: { pi: number }) {
-  const cls = piClass(pi);
-  return (
-    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${PI_COLORS[cls] ?? "bg-app-surface text-app-text-muted"}`}>
-      {cls}
-    </span>
-  );
-}
+// piClass, PI_COLORS, PiBadge imported from ../components/PiBadge
 
 function RatingBar({ value, max = 10 }: { value: number; max?: number }) {
   const pct = Math.min((value / max) * 100, 100);
@@ -253,7 +226,7 @@ function CompareModal({ cars, onClose, fmtSpeed, fmtBrake, fmtWeight, isMetric }
                       <img src={car.specs.imageUrl} alt={car.name} className="h-14 w-full object-contain mx-auto mb-1" />
                     )}
                     <div className="font-semibold text-app-text leading-tight">{car.name}</div>
-                    {car.specs?.pi && <PiBadge pi={car.specs.pi} />}
+                    {car.specs?.pi && <PiBadge showNumber={false} pi={car.specs.pi} />}
                   </th>
                 ))}
               </tr>
@@ -468,7 +441,7 @@ function CarsPage() {
                     <div className="p-3 space-y-2">
                       <div>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          {s.pi > 0 && <PiBadge pi={s.pi} />}
+                          {s.pi > 0 && <PiBadge showNumber={false} pi={s.pi} />}
                           <span className={`text-[10px] font-semibold ${PI_COLORS[piClass(s.pi)]?.split(" ")[1] ?? "text-app-text-muted"}`}>{s.pi || ""}</span>
                         </div>
                         <div className="text-xs font-semibold text-app-text leading-tight mt-0.5 line-clamp-2">{car.name}</div>
@@ -505,7 +478,7 @@ function CarsPage() {
               <div className="bg-app-bg border border-app-border rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
                   <div className="flex items-center gap-2">
-                    {detailCar.specs?.pi && <PiBadge pi={detailCar.specs.pi} />}
+                    {detailCar.specs?.pi && <PiBadge showNumber={false} pi={detailCar.specs.pi} />}
                     <span className="text-sm font-bold text-app-text">{detailCar.name}</span>
                   </div>
                   <button onClick={() => setDetailCar(null)} className="text-app-text-muted hover:text-app-text text-lg leading-none">×</button>
@@ -555,7 +528,7 @@ function CarsPage() {
                     />
                   </div>
                   <div className="flex items-center gap-2 min-w-0">
-                    {car.specs?.pi ? <PiBadge pi={car.specs.pi} /> : <span className="w-6" />}
+                    {car.specs?.pi ? <PiBadge showNumber={false} pi={car.specs.pi} /> : <span className="w-6" />}
                     <span className="text-xs text-app-text truncate">{car.name}</span>
                   </div>
                   <span className="text-xs tabular-nums text-app-text-secondary">

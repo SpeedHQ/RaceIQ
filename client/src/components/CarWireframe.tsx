@@ -723,12 +723,13 @@ function CurbMarkers({
 
 // ── Main scene (receives packet as prop) ───────────────────────────
 
-const RENDER_DISTANCE = 200; // meters from car
-const RENDER_DIST_SQ = RENDER_DISTANCE * RENDER_DISTANCE;
+const DIST_AHEAD = 250;  // meters ahead of car
+const DIST_BEHIND = 50;  // meters behind car
+const DIST_LATERAL = 80; // meters to the side
 
 /**
- * Filter world-space points by distance from car, returning line segments
- * (breaks the line where points are culled).
+ * Filter world-space points by directional distance from car — shows more
+ * track ahead than behind, based on car's forward direction.
  */
 function filterByDistance(
   pts: { x: number; z: number }[],
@@ -745,8 +746,13 @@ function filterByDistance(
   for (const p of pts) {
     const dx = p.x - cx;
     const dz = p.z - cz;
-    if (dx * dx + dz * dz <= RENDER_DIST_SQ) {
-      current.push([dx * s + dz * c, y, dx * c - dz * s]);
+    // Transform to car-local: forward/lateral
+    const localFwd = dx * s + dz * c;
+    const localLat = dx * c - dz * s;
+    const inRange = localFwd >= -DIST_BEHIND && localFwd <= DIST_AHEAD &&
+                    Math.abs(localLat) <= DIST_LATERAL;
+    if (inRange) {
+      current.push([localFwd, y, localLat]);
     } else if (current.length > 1) {
       segments.push(current);
       current = [];
@@ -926,8 +932,8 @@ const VIEW_PRESETS: Record<ViewPreset, { position: [number, number, number]; tar
   "3/4":  { position: [4, 2.5, 4],    target: [0, 0, 0] },
   front:  { position: [5, 1.5, 0],    target: [0, 0, 0] },
   rear:   { position: [-5, 1.5, 0],   target: [0, 0, 0] },
-  left:   { position: [0, 1.5, -5],   target: [0, 0, 0] },
-  right:  { position: [0, 1.5, 5],    target: [0, 0, 0] },
+  left:   { position: [0, 0, -5],     target: [0, 0, 0] },
+  right:  { position: [0, 0, 5],      target: [0, 0, 0] },
   top:    { position: [0, 7, 0.01],   target: [0, 0, 0] },
 };
 
