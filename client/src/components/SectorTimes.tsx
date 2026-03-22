@@ -162,6 +162,14 @@ export function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
       s.sectorStartTime = packet.CurrentLap;
     }
 
+    // Handle demo loop: if distance jumps backward, re-initialize
+    if (packet.DistanceTraveled < s.lapDistStart - 100) {
+      s.lapDistStart = packet.DistanceTraveled;
+      s.currentSector = 0;
+      s.sectorStartTime = packet.CurrentLap;
+      s.currentTimes = [0, 0, 0];
+    }
+
     // Lap boundary crossed
     if (packet.LapNumber > s.lastLap && s.lastLap > 0) {
       if (s.currentTimes[0] > 0 && s.currentTimes[1] > 0) {
@@ -194,6 +202,11 @@ export function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
       s.currentSector = 0;
       s.sectorStartTime = 0;
       s.currentTimes = [0, 0, 0];
+
+      // Blip on lap completion (lower pitch than sector)
+      if (getSoundEnabled()) {
+        playBlip(1.0);
+      }
     }
     s.lastLap = packet.LapNumber;
 
@@ -210,8 +223,9 @@ export function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
         s.currentTimes[s.currentSector] = packet.CurrentLap - s.sectorStartTime;
         s.sectorStartTime = packet.CurrentLap;
         s.currentSector = expectedSector;
+        // Blip on sector boundary (higher pitch)
         if (getSoundEnabled()) {
-          playBlip(1.25);
+          playBlip(1.5);
         }
       }
     }
@@ -254,17 +268,17 @@ export function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
     <div className="border-t border-app-border/50 pt-3">
       {/* Estimated lap time */}
       {hasBests && packet && packet.CurrentLap > 0 && (
-        <div className="flex items-baseline gap-3 mb-3 pb-2 border-b border-app-border/50">
+        <div className="flex items-baseline gap-4 mb-3 pb-2 border-b border-app-border/50">
           <div>
             <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Est. Lap</div>
-            <div className="text-lg font-mono font-bold text-app-text tabular-nums">
+            <div className="text-2xl font-mono font-bold text-app-text tabular-nums leading-none">
               {formatLapTime(estimatedLap)}
             </div>
           </div>
           {deltaToBest !== null && (
             <div>
               <div className="text-[10px] text-app-text-muted uppercase tracking-wider">vs Best</div>
-              <div className={`text-lg font-mono font-bold tabular-nums ${deltaToBest <= 0 ? "text-emerald-400" : "text-red-400"}`}>
+              <div className={`text-2xl font-mono font-bold tabular-nums leading-none ${deltaToBest <= 0 ? "text-emerald-400" : "text-red-400"}`}>
                 {deltaToBest <= 0 ? "" : "+"}{deltaToBest.toFixed(3)}
               </div>
             </div>
@@ -272,7 +286,7 @@ export function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
           {s.bestLapTime < Infinity && (
             <div className="ml-auto">
               <div className="text-[10px] text-purple-400 uppercase tracking-wider">Best Lap</div>
-              <div className="text-sm font-mono text-purple-400 tabular-nums">{formatLapTime(s.bestLapTime)}</div>
+              <div className="text-lg font-mono font-bold text-purple-400 tabular-nums leading-none">{formatLapTime(s.bestLapTime)}</div>
             </div>
           )}
         </div>
@@ -286,30 +300,39 @@ export function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
           const isActive = i === s.currentSector;
 
           // Split delta: show for completed sectors this lap
-          const showDelta = i < s.currentSector && s.currentTimes[i] > 0 && best > 0;
+          const isDone = i < s.currentSector && s.currentTimes[i] > 0;
+          const showDelta = isDone && best > 0;
           const delta = showDelta ? s.currentTimes[i] - best : 0;
 
+          // Color code completed sectors by pace: purple=best, green=on pace, orange=off pace
+          let timeColor = "text-app-text"; // default / active
+          if (isDone && best > 0) {
+            if (s.currentTimes[i] <= best * 1.001) timeColor = "text-purple-400"; // best
+            else if (delta <= 0.3) timeColor = "text-emerald-400"; // on pace
+            else timeColor = "text-orange-400"; // off pace
+          }
+
           return (
-            <div key={name} className={`rounded p-2 ${isActive ? "bg-app-surface-alt/80 ring-1" : "bg-app-surface-alt/30"}`} style={isActive ? { ringColor: sectorColors[i] } : {}}>
-              <div className="flex items-center gap-1 mb-1">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: sectorColors[i] }} />
-                <span className="text-[10px] font-semibold text-app-text-secondary">{name}</span>
+            <div key={name} className={`rounded p-2.5 ${isActive ? "bg-app-surface-alt/80 ring-1" : "bg-app-surface-alt/30"}`} style={isActive ? { ringColor: sectorColors[i] } : {}}>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: sectorColors[i] }} />
+                <span className="text-xs font-bold text-app-text-secondary">{name}</span>
                 {showDelta && (
-                  <span className={`text-[9px] font-mono ml-auto font-bold ${delta <= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                  <span className={`text-xs font-mono ml-auto font-bold ${delta <= 0 ? "text-emerald-400" : "text-orange-400"}`}>
                     {delta <= 0 ? "" : "+"}{delta.toFixed(3)}
                   </span>
                 )}
               </div>
-              <div className={`text-sm font-mono font-bold tabular-nums ${isActive ? "text-app-text" : "text-app-text"}`}>
+              <div className={`text-xl font-mono font-bold tabular-nums leading-none mb-1.5 ${timeColor}`}>
                 {current > 0 ? formatLapTime(current) : "--:--.---"}
               </div>
               <div className="flex justify-between mt-1">
-                <span className="text-[8px] text-app-text-muted">Last</span>
-                <span className="text-[8px] font-mono text-app-text-secondary">{last > 0 ? formatLapTime(last) : "-"}</span>
+                <span className="text-[10px] text-app-text-muted">Last</span>
+                <span className="text-sm font-mono font-bold text-app-text-secondary tabular-nums">{last > 0 ? formatLapTime(last) : "-"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[8px] text-purple-400">Best</span>
-                <span className="text-[8px] font-mono text-purple-400">{best > 0 ? formatLapTime(best) : "-"}</span>
+                <span className="text-[10px] text-purple-400">Best</span>
+                <span className="text-sm font-mono font-bold text-purple-400 tabular-nums">{best > 0 ? formatLapTime(best) : "-"}</span>
               </div>
             </div>
           );

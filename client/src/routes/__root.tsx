@@ -19,7 +19,8 @@ const queryClient = new QueryClient({
 });
 
 const TABS = [
-  { to: "/", label: "Live" },
+  { to: "/", label: "Home" },
+  { to: "/live/driver", label: "Live" },
   { to: "/compare", label: "Compare" },
   { to: "/analyse", label: "Analyse" },
   { to: "/tracks", label: "Tracks" },
@@ -53,7 +54,7 @@ function RootLayout() {
                   <Link
                     key={tab.to}
                     to={tab.to}
-                    activeOptions={{ exact: tab.to === "/" }}
+                    activeOptions={{ exact: tab.to === "/" || !tab.to.startsWith("/live") }}
                     className="px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors"
                     activeProps={{
                       className: "px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors border-app-accent text-app-accent",

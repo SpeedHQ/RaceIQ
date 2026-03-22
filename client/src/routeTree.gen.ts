@@ -13,6 +13,7 @@ import { Route as TunesRouteImport } from './routes/tunes'
 import { Route as TracksRouteImport } from './routes/tracks'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as RawRouteImport } from './routes/raw'
+import { Route as LiveRouteImport } from './routes/live'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as CarsRouteImport } from './routes/cars'
 import { Route as AnalyseRouteImport } from './routes/analyse'
@@ -22,6 +23,8 @@ import { Route as SetupIndexRouteImport } from './routes/setup/index'
 import { Route as TunesNewRouteImport } from './routes/tunes/new'
 import { Route as TunesCatalogRouteImport } from './routes/tunes/catalog'
 import { Route as SetupProfileIdRouteImport } from './routes/setup/$profileId'
+import { Route as LivePitRouteImport } from './routes/live/pit'
+import { Route as LiveDriverRouteImport } from './routes/live/driver'
 import { Route as CarsCarOrdinalRouteImport } from './routes/cars_.$carOrdinal'
 import { Route as TunesEditTuneIdRouteImport } from './routes/tunes/edit.$tuneId'
 
@@ -43,6 +46,11 @@ const SetupRoute = SetupRouteImport.update({
 const RawRoute = RawRouteImport.update({
   id: '/raw',
   path: '/raw',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LiveRoute = LiveRouteImport.update({
+  id: '/live',
+  path: '/live',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompareRoute = CompareRouteImport.update({
@@ -90,6 +98,16 @@ const SetupProfileIdRoute = SetupProfileIdRouteImport.update({
   path: '/$profileId',
   getParentRoute: () => SetupRoute,
 } as any)
+const LivePitRoute = LivePitRouteImport.update({
+  id: '/pit',
+  path: '/pit',
+  getParentRoute: () => LiveRoute,
+} as any)
+const LiveDriverRoute = LiveDriverRouteImport.update({
+  id: '/driver',
+  path: '/driver',
+  getParentRoute: () => LiveRoute,
+} as any)
 const CarsCarOrdinalRoute = CarsCarOrdinalRouteImport.update({
   id: '/cars_/$carOrdinal',
   path: '/cars/$carOrdinal',
@@ -106,11 +124,14 @@ export interface FileRoutesByFullPath {
   '/analyse': typeof AnalyseRoute
   '/cars': typeof CarsRoute
   '/compare': typeof CompareRoute
+  '/live': typeof LiveRouteWithChildren
   '/raw': typeof RawRoute
   '/setup': typeof SetupRouteWithChildren
   '/tracks': typeof TracksRoute
   '/tunes': typeof TunesRouteWithChildren
   '/cars/$carOrdinal': typeof CarsCarOrdinalRoute
+  '/live/driver': typeof LiveDriverRoute
+  '/live/pit': typeof LivePitRoute
   '/setup/$profileId': typeof SetupProfileIdRoute
   '/tunes/catalog': typeof TunesCatalogRoute
   '/tunes/new': typeof TunesNewRoute
@@ -123,9 +144,12 @@ export interface FileRoutesByTo {
   '/analyse': typeof AnalyseRoute
   '/cars': typeof CarsRoute
   '/compare': typeof CompareRoute
+  '/live': typeof LiveRouteWithChildren
   '/raw': typeof RawRoute
   '/tracks': typeof TracksRoute
   '/cars/$carOrdinal': typeof CarsCarOrdinalRoute
+  '/live/driver': typeof LiveDriverRoute
+  '/live/pit': typeof LivePitRoute
   '/setup/$profileId': typeof SetupProfileIdRoute
   '/tunes/catalog': typeof TunesCatalogRoute
   '/tunes/new': typeof TunesNewRoute
@@ -139,11 +163,14 @@ export interface FileRoutesById {
   '/analyse': typeof AnalyseRoute
   '/cars': typeof CarsRoute
   '/compare': typeof CompareRoute
+  '/live': typeof LiveRouteWithChildren
   '/raw': typeof RawRoute
   '/setup': typeof SetupRouteWithChildren
   '/tracks': typeof TracksRoute
   '/tunes': typeof TunesRouteWithChildren
   '/cars_/$carOrdinal': typeof CarsCarOrdinalRoute
+  '/live/driver': typeof LiveDriverRoute
+  '/live/pit': typeof LivePitRoute
   '/setup/$profileId': typeof SetupProfileIdRoute
   '/tunes/catalog': typeof TunesCatalogRoute
   '/tunes/new': typeof TunesNewRoute
@@ -158,11 +185,14 @@ export interface FileRouteTypes {
     | '/analyse'
     | '/cars'
     | '/compare'
+    | '/live'
     | '/raw'
     | '/setup'
     | '/tracks'
     | '/tunes'
     | '/cars/$carOrdinal'
+    | '/live/driver'
+    | '/live/pit'
     | '/setup/$profileId'
     | '/tunes/catalog'
     | '/tunes/new'
@@ -175,9 +205,12 @@ export interface FileRouteTypes {
     | '/analyse'
     | '/cars'
     | '/compare'
+    | '/live'
     | '/raw'
     | '/tracks'
     | '/cars/$carOrdinal'
+    | '/live/driver'
+    | '/live/pit'
     | '/setup/$profileId'
     | '/tunes/catalog'
     | '/tunes/new'
@@ -190,11 +223,14 @@ export interface FileRouteTypes {
     | '/analyse'
     | '/cars'
     | '/compare'
+    | '/live'
     | '/raw'
     | '/setup'
     | '/tracks'
     | '/tunes'
     | '/cars_/$carOrdinal'
+    | '/live/driver'
+    | '/live/pit'
     | '/setup/$profileId'
     | '/tunes/catalog'
     | '/tunes/new'
@@ -208,6 +244,7 @@ export interface RootRouteChildren {
   AnalyseRoute: typeof AnalyseRoute
   CarsRoute: typeof CarsRoute
   CompareRoute: typeof CompareRoute
+  LiveRoute: typeof LiveRouteWithChildren
   RawRoute: typeof RawRoute
   SetupRoute: typeof SetupRouteWithChildren
   TracksRoute: typeof TracksRoute
@@ -243,6 +280,13 @@ declare module '@tanstack/react-router' {
       path: '/raw'
       fullPath: '/raw'
       preLoaderRoute: typeof RawRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/live': {
+      id: '/live'
+      path: '/live'
+      fullPath: '/live'
+      preLoaderRoute: typeof LiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/compare': {
@@ -308,6 +352,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetupProfileIdRouteImport
       parentRoute: typeof SetupRoute
     }
+    '/live/pit': {
+      id: '/live/pit'
+      path: '/pit'
+      fullPath: '/live/pit'
+      preLoaderRoute: typeof LivePitRouteImport
+      parentRoute: typeof LiveRoute
+    }
+    '/live/driver': {
+      id: '/live/driver'
+      path: '/driver'
+      fullPath: '/live/driver'
+      preLoaderRoute: typeof LiveDriverRouteImport
+      parentRoute: typeof LiveRoute
+    }
     '/cars_/$carOrdinal': {
       id: '/cars_/$carOrdinal'
       path: '/cars/$carOrdinal'
@@ -324,6 +382,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface LiveRouteChildren {
+  LiveDriverRoute: typeof LiveDriverRoute
+  LivePitRoute: typeof LivePitRoute
+}
+
+const LiveRouteChildren: LiveRouteChildren = {
+  LiveDriverRoute: LiveDriverRoute,
+  LivePitRoute: LivePitRoute,
+}
+
+const LiveRouteWithChildren = LiveRoute._addFileChildren(LiveRouteChildren)
 
 interface SetupRouteChildren {
   SetupProfileIdRoute: typeof SetupProfileIdRoute
@@ -358,6 +428,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyseRoute: AnalyseRoute,
   CarsRoute: CarsRoute,
   CompareRoute: CompareRoute,
+  LiveRoute: LiveRouteWithChildren,
   RawRoute: RawRoute,
   SetupRoute: SetupRouteWithChildren,
   TracksRoute: TracksRoute,
