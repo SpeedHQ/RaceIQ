@@ -6,9 +6,10 @@ import { convertTemp, celsiusToFahrenheit } from "../lib/temperature";
 import { useSettings, useSaveSettings } from "../hooks/queries";
 import { useTheme, type Theme } from "../context/theme";
 
-// Steering lock stored in localStorage so it persists across refreshes
+// Client-side preferences stored in localStorage
 const STEER_LOCK_KEY = "forza-steer-lock";
 const WHEEL_STYLE_KEY = "forza-wheel-style";
+const SOUND_ENABLED_KEY = "forza-sound-enabled";
 
 export function getSteeringLock(): number {
   const val = localStorage.getItem(STEER_LOCK_KEY);
@@ -22,12 +23,22 @@ export function getWheelStyle(): WheelStyle {
   return (val as WheelStyle) ?? "svg";
 }
 
+export function getSoundEnabled(): boolean {
+  const val = localStorage.getItem(SOUND_ENABLED_KEY);
+  return val === null ? true : val === "true"; // default on
+}
+
+export function setSoundEnabled(enabled: boolean): void {
+  localStorage.setItem(SOUND_ENABLED_KEY, String(enabled));
+}
+
 const NAV_ITEMS = [
   { id: "theme", label: "Theme" },
   { id: "connection", label: "Connection" },
   { id: "wheel", label: "Wheel" },
   { id: "temperature", label: "Temperature" },
   { id: "speed", label: "Units" },
+  { id: "sound", label: "Sound" },
 ] as const;
 
 type SectionId = (typeof NAV_ITEMS)[number]["id"];
@@ -40,6 +51,7 @@ export function Settings() {
   const [errorMsg, setErrorMsg] = useState("");
   const [steerLock, setSteerLock] = useState(() => String(getSteeringLock()));
   const [wheelStyle, setWheelStyle] = useState<WheelStyle>(() => getWheelStyle());
+  const [soundEnabled, setSoundEnabledState] = useState(() => getSoundEnabled());
 
   const { displaySettings } = useSettings();
   const saveSettings = useSaveSettings();
@@ -458,6 +470,39 @@ export function Settings() {
             {speedStatus === "error" && (
               <p className="text-red-400 text-sm mt-2">{speedError}</p>
             )}
+          </section>
+        )}
+
+        {activeSection === "sound" && (
+          <section>
+            <h2 className="text-lg font-semibold text-app-text mb-1">Sound</h2>
+            <p className="text-sm text-app-text-muted mb-4">
+              Audio feedback for sector changes and other events.
+            </p>
+
+            <div className="flex items-center gap-3">
+              <Label className="text-app-text-secondary">Sector blip sounds</Label>
+              <Button
+                size="sm"
+                variant={soundEnabled ? "default" : "outline"}
+                onClick={() => {
+                  setSoundEnabledState(true);
+                  setSoundEnabled(true);
+                }}
+              >
+                On
+              </Button>
+              <Button
+                size="sm"
+                variant={!soundEnabled ? "default" : "outline"}
+                onClick={() => {
+                  setSoundEnabledState(false);
+                  setSoundEnabled(false);
+                }}
+              >
+                Off
+              </Button>
+            </div>
           </section>
         )}
       </div>

@@ -18,6 +18,7 @@ import {
 } from "../lib/vehicle-dynamics";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUnits } from "../hooks/useUnits";
+import { useConvertedTelemetry } from "../hooks/useConvertedTelemetry";
 import { useLaps as useLapsQuery } from "../hooks/queries";
 import { useActiveProfileId } from "../hooks/useProfiles";
 import { api } from "../lib/api";
@@ -556,9 +557,9 @@ function TelemetryChart({
 
 // ── Metrics Panel ────────────────────────────────────────────────────
 
-function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket; startFuel?: number }) {
+function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket & { DisplaySpeed?: number }; startFuel?: number }) {
   const units = useUnits();
-  const speed = units.speed(pkt.Speed);
+  const speed = pkt.DisplaySpeed ?? units.speed(pkt.Speed);
   const throttlePct = ((pkt.Accel / 255) * 100).toFixed(0);
   const brakePct = ((pkt.Brake / 255) * 100).toFixed(0);
   const lock = getSteeringLock();
@@ -675,6 +676,7 @@ export function LapAnalyse() {
   const [selectedCar, setSelectedCar] = useState<number | null>(search.car ?? null);
   const [selectedLapId, setSelectedLapId] = useState<number | null>(search.lap ?? null);
   const [telemetry, setTelemetry] = useState<TelemetryPacket[]>([]);
+  const displayTelemetry = useConvertedTelemetry(telemetry);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [boundaries, setBoundaries] = useState<{ leftEdge: Point[]; rightEdge: Point[]; centerLine: Point[]; pitLane: Point[] | null; coordSystem: string } | null>(null);
   const [sectors, setSectors] = useState<{ s1End: number; s2End: number } | null>(null);
@@ -819,6 +821,7 @@ export function LapAnalyse() {
   useEffect(() => {
     if (selectedLapId == null) return;
     setLoading(true);
+    setTelemetry([]);
     setPlaying(false);
     playRef.current = false;
 
@@ -956,17 +959,17 @@ export function LapAnalyse() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [telemetry]);
 
-  // Pre-compute chart data
+  // Pre-compute chart data from display-converted telemetry
   const chartData = useMemo(() => {
-    if (telemetry.length === 0) return null;
+    if (displayTelemetry.length === 0) return null;
     const speed: number[] = [];
     const throttle: number[] = [];
     const brake: number[] = [];
     const rpm: number[] = [];
     const steering: number[] = [];
 
-    for (const p of telemetry) {
-      speed.push(units.speed(p.Speed));
+    for (const p of displayTelemetry) {
+      speed.push(p.DisplaySpeed);
       throttle.push((p.Accel / 255) * 100);
       brake.push((p.Brake / 255) * 100);
       rpm.push(p.CurrentEngineRpm);
@@ -1087,6 +1090,7 @@ export function LapAnalyse() {
   }, []);
 
   const currentPacket = telemetry[cursorIdx] ?? null;
+  const currentDisplayPacket = displayTelemetry[cursorIdx] ?? null;
   const prevPacket = cursorIdx > 0 ? telemetry[cursorIdx - 1] : null;
   const wearRate = useMemo(() => {
     if (!currentPacket || !prevPacket) return null;
@@ -1167,7 +1171,7 @@ export function LapAnalyse() {
       `Packet ${cursorIdx + 1}/${telemetry.length} | ${formatLapTime(p.CurrentLap)} / ${formatLapTime(totalTime)}`,
       `Track: ${trackName} | Car: ${carName} | Lap: ${selectedLap?.lapNumber ?? "?"}`,
       ``,
-      `Speed: ${units.speed(p.Speed).toFixed(0)} ${units.speedLabel}`,
+      `Speed: ${(currentDisplayPacket?.DisplaySpeed ?? units.speed(p.Speed)).toFixed(0)} ${units.speedLabel}`,
       `RPM: ${p.CurrentEngineRpm.toFixed(0)} / ${p.EngineMaxRpm.toFixed(0)}`,
       `Gear: ${p.Gear}`,
       `Throttle: ${((p.Accel / 255) * 100).toFixed(0)}%`,
@@ -1179,7 +1183,7 @@ export function LapAnalyse() {
       `Fuel: ${(p.Fuel * 100).toFixed(1)}% left, ${((startFuel - p.Fuel) * 100).toFixed(1)}% used`,
       ``,
       `Wheel Speed (rad/s): FL=${p.WheelRotationSpeedFL.toFixed(1)} FR=${p.WheelRotationSpeedFR.toFixed(1)} RL=${p.WheelRotationSpeedRL.toFixed(1)} RR=${p.WheelRotationSpeedRR.toFixed(1)}`,
-      `Tire Temp (${units.tempLabel}): FL=${units.temp(p.TireTempFL).toFixed(0)} FR=${units.temp(p.TireTempFR).toFixed(0)} RL=${units.temp(p.TireTempRL).toFixed(0)} RR=${units.temp(p.TireTempRR).toFixed(0)}`,
+      `Tire Temp (${units.tempLabel}): FL=${(currentDisplayPacket?.DisplayTireTempFL ?? units.temp(p.TireTempFL)).toFixed(0)} FR=${(currentDisplayPacket?.DisplayTireTempFR ?? units.temp(p.TireTempFR)).toFixed(0)} RL=${(currentDisplayPacket?.DisplayTireTempRL ?? units.temp(p.TireTempRL)).toFixed(0)} RR=${(currentDisplayPacket?.DisplayTireTempRR ?? units.temp(p.TireTempRR)).toFixed(0)}`,
       `Tire Wear: FL=${(p.TireWearFL*100).toFixed(1)}% FR=${(p.TireWearFR*100).toFixed(1)}% RL=${(p.TireWearRL*100).toFixed(1)}% RR=${(p.TireWearRR*100).toFixed(1)}%`,
       `Slip Combined: FL=${p.TireCombinedSlipFL.toFixed(2)} FR=${p.TireCombinedSlipFR.toFixed(2)} RL=${p.TireCombinedSlipRL.toFixed(2)} RR=${p.TireCombinedSlipRR.toFixed(2)}`,
       `Slip Angle: FL=${(p.TireSlipAngleFL*180/Math.PI).toFixed(1)}° FR=${(p.TireSlipAngleFR*180/Math.PI).toFixed(1)}° RL=${(p.TireSlipAngleRL*180/Math.PI).toFixed(1)}° RR=${(p.TireSlipAngleRR*180/Math.PI).toFixed(1)}°`,
@@ -1291,7 +1295,7 @@ export function LapAnalyse() {
 
       {telemetry.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-app-text-muted text-sm">
-          {selectedLapId ? "No telemetry data for this lap." : "Select a track, car, and lap to analyse."}
+          {loading ? "Loading lap telemetry..." : selectedLapId ? "No telemetry data for this lap." : "Select a track, car, and lap to analyse."}
         </div>
       ) : (
         <div className="flex flex-1 overflow-hidden">
@@ -1460,7 +1464,7 @@ export function LapAnalyse() {
                   {currentPacket && (
                     <div className="flex items-center justify-center gap-2">
                       <span className="text-lg font-mono font-bold text-app-accent">{currentPacket.Gear === 0 ? "R" : currentPacket.Gear === 11 ? "N" : currentPacket.Gear}</span>
-                      <span className="text-xl font-mono font-bold tabular-nums text-app-text">{units.speed(currentPacket.Speed).toFixed(0)} <span className="text-[10px] text-app-text-muted">{units.speedLabel}</span></span>
+                      <span className="text-xl font-mono font-bold tabular-nums text-app-text">{(currentDisplayPacket?.DisplaySpeed ?? units.speed(currentPacket.Speed)).toFixed(0)} <span className="text-[10px] text-app-text-muted">{units.speedLabel}</span></span>
                     </div>
                   )}
                   {currentPacket && (

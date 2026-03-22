@@ -108,7 +108,7 @@ function Wheel({
             <meshBasicMaterial color={gripColor} wireframe />
           </mesh>
           <mesh geometry={rim}>
-            <meshBasicMaterial color={tempColor} wireframe />
+            <meshBasicMaterial color={tempColor} transparent opacity={0.85} side={THREE.DoubleSide} />
           </mesh>
           <mesh geometry={hub}>
             <meshBasicMaterial color="#475569" wireframe side={THREE.DoubleSide} />

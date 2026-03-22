@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import type { TelemetryPacket } from "@shared/types";
 import { CAR_CLASS_NAMES, DRIVETRAIN_NAMES } from "@shared/types";
+import type { DisplayPacket } from "../lib/convert-packet";
 import { SteeringWheel } from "./SteeringWheel";
 import { BodyAttitude } from "./BodyAttitude";
 import { WeightShiftRadar } from "./WeightShiftRadar";
@@ -169,7 +170,7 @@ function GripHistory({ packet }: { packet: TelemetryPacket }) {
 }
 
 interface Props {
-  packet: TelemetryPacket | null;
+  packet: DisplayPacket | null;
 }
 
 export function formatLapTime(seconds: number): string {
@@ -449,7 +450,7 @@ function SuspBar({ norm }: { norm: number }) {
  * spin percentage (how much faster/slower each wheel turns vs ground truth).
  * Falls back to 0.33m radius when stationary to avoid division by zero.
  */
-export function TireDiagram({ packet }: { packet: TelemetryPacket }) {
+export function TireDiagram({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
   const units = useUnits();
   const toDeg = 180 / Math.PI;
 
@@ -1139,7 +1140,7 @@ function DualLineChart({ data1, data2, label1, label2, color1, color2, label, ma
  * Seeds from server on mount so charts populate immediately after page refresh.
  * Converts raw telemetry units (rad->deg, m/s->mph, 0-255->0-100%) for display.
  */
-function TelemetryCharts({ packet }: { packet: TelemetryPacket }) {
+function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
   const units = useUnits();
   const histRef = useRef<{
     grip: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
@@ -1196,7 +1197,7 @@ function TelemetryCharts({ packet }: { packet: TelemetryPacket }) {
     push4(h.suspension, packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR);
     h.throttle.push(packet.Accel / 255 * 100);
     h.brake.push(packet.Brake / 255 * 100);
-    h.speed.push(units.speed(packet.Speed));
+    h.speed.push(packet.DisplaySpeed);
     if (h.throttle.length > GRIP_MAX_SAMPLES) { h.throttle.shift(); h.brake.shift(); h.speed.shift(); }
   }, [packet]);
 
@@ -1241,7 +1242,7 @@ export function LiveTelemetry({ packet }: Props) {
     );
   }
 
-  const speed = getSpeed(packet, units.speed);
+  const speed = packet.DisplaySpeed;
   const throttlePct = (packet.Accel / 255) * 100;
   const brakePct = (packet.Brake / 255) * 100;
   const rpmPct = packet.EngineMaxRpm > 0 ? (packet.CurrentEngineRpm / packet.EngineMaxRpm) * 100 : 0;
