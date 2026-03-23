@@ -6,4 +6,4 @@ dist/
 *.db-wal
 .vite/
 .env
-udp-forwarder/target/
+/udp-forwarder
