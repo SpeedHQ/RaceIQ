@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TelemetryPacket } from "@shared/types";
 import { api } from "../lib/api";
 
@@ -9,11 +9,6 @@ interface Props {
 interface Point {
   x: number;
   z: number;
-}
-
-interface TrackSectors {
-  s1End: number;
-  s2End: number;
 }
 
 /**
@@ -418,7 +413,7 @@ export function LiveTrackMap({ packet }: Props) {
       ctx.stroke();
 
       // Direction arrow: use Yaw from telemetry if available, else fallback to outline geometry
-      let nx: number, ny: number;
+      let nx: number = 0, ny: number = 0;
       let hasDirection = false;
 
       if (startYaw != null) {

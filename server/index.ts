@@ -4,6 +4,18 @@ import { udpListener } from "./udp";
 import { wsManager, type WSData } from "./ws";
 import { loadSettings, saveSettings } from "./settings";
 
+// In production, static assets are embedded in the binary
+let embeddedAssets: Map<string, { data: Uint8Array; type: string }> | null = null;
+if (process.env.NODE_ENV === "production") {
+  try {
+    const { assets } = await import("./client-assets.generated");
+    embeddedAssets = assets;
+    console.log(`[Server] Loaded ${assets.size} embedded static assets`);
+  } catch {
+    console.warn("[Server] No embedded assets found — static serving disabled");
+  }
+}
+
 // Prevent macOS sleep while the server is running
 if (process.platform === "darwin") {
   try {
@@ -60,15 +72,22 @@ const server = Bun.serve<WSData>({
       return app.fetch(req);
     }
 
-    // In production, serve static files from built client
-    if (process.env.NODE_ENV === "production") {
+    // In production, serve embedded static assets
+    if (embeddedAssets) {
       const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
-      const file = Bun.file(`./client/dist${pathname}`);
-      if (await file.exists()) {
-        return new Response(file);
+      const asset = embeddedAssets.get(pathname);
+      if (asset) {
+        return new Response(asset.data, {
+          headers: { "Content-Type": asset.type },
+        });
       }
-      // SPA fallback: serve index.html for client-side routes
-      return new Response(Bun.file("./client/dist/index.html"));
+      // SPA fallback
+      const index = embeddedAssets.get("/index.html");
+      if (index) {
+        return new Response(index.data, {
+          headers: { "Content-Type": index.type },
+        });
+      }
     }
 
     // Handle HTTP via Hono (dev mode)

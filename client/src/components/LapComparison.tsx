@@ -11,6 +11,8 @@ import { useActiveProfileId } from "../hooks/useProfiles";
 import { api } from "../lib/api";
 import { SearchSelect } from "./ui/SearchSelect";
 
+interface Point { x: number; z: number }
+
 interface BoundaryData {
   leftEdge: Point[];
   rightEdge: Point[];
@@ -453,7 +455,7 @@ function formatSectionTime(seconds: number): string {
 
 
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
-function CompareTrackMap({ outline, telemetryA, telemetryB, labelA, labelB, lapTimeA, lapTimeB, segments, hoveredDistanceRef, redrawRef, trackOrdinal }: {
+function CompareTrackMap({ outline, telemetryA, telemetryB, labelA: _labelA, labelB: _labelB, lapTimeA: _lapTimeA, lapTimeB: _lapTimeB, segments, hoveredDistanceRef, redrawRef, trackOrdinal }: {
   outline: OutlinePoint[];
   telemetryA: TelemetryPacket[];
   telemetryB: TelemetryPacket[];
@@ -703,7 +705,7 @@ export function LapComparison() {
     return null;
   }, [outlineData]);
   const { data: sectorsData } = useTrackSectors(selectedTrack ?? undefined);
-  const trackSegments = useMemo(() => {
+  const trackSegments = useMemo((): { type: string; name: string; startFrac: number; endFrac: number }[] | null => {
     const s = sectorsData as any;
     return s?.segments ?? null;
   }, [sectorsData]);
@@ -754,7 +756,7 @@ export function LapComparison() {
       }
       groups.sort((a, b) => a.trackName.localeCompare(b.trackName));
 
-      const carOrds = new Set(laps.map((l) => l.carOrdinal).filter((c): c is number => c != null));
+      const carOrds = new Set<number>(laps.map((l) => l.carOrdinal).filter((c): c is number => c != null));
       const names = new Map<number, string>();
       await Promise.all(
         Array.from(carOrds).map(async (ord) => {
@@ -1095,7 +1097,7 @@ export function LapComparison() {
               <TelemetryChart
                 data={{
                   distance: comparison.traces.distance,
-                  values: [comparison.traces.tireWearA, comparison.traces.tireWearB],
+                  values: [comparison.traces.tireWearA!, comparison.traces.tireWearB!],
                   labels: ["Tire Wear A (%)", "Tire Wear B (%)"],
                   colors: [COLOR_A, COLOR_B],
                 }}

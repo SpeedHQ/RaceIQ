@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { TelemetryPacket } from "@shared/types";
 import { formatLapTime } from "./LiveTelemetry";
 import { useStatus, useTrackSectorBoundaries } from "../hooks/queries";
@@ -66,22 +66,6 @@ function playBuffer(buf: AudioBuffer, pitch = 1) {
   source.connect(gain);
   gain.connect(ctx.destination);
   source.start();
-}
-
-/** Play a synth blip tone. */
-function playSynth(frequency = 880, duration = 0.08) {
-  const volume = getSoundVolume();
-  const ctx = getAudioContext();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = "sine";
-  osc.frequency.value = frequency;
-  gain.gain.setValueAtTime(volume, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start();
-  osc.stop(ctx.currentTime + duration);
 }
 
 /**
@@ -313,7 +297,7 @@ export function SectorTimes({ packet }: { packet: TelemetryPacket | null }) {
           }
 
           return (
-            <div key={name} className={`rounded p-2.5 ${isActive ? "bg-app-surface-alt/80 ring-1" : "bg-app-surface-alt/30"}`} style={isActive ? { ringColor: sectorColors[i] } : {}}>
+            <div key={name} className={`rounded p-2.5 ${isActive ? "bg-app-surface-alt/80 ring-1" : "bg-app-surface-alt/30"}`} style={isActive ? { "--tw-ring-color": sectorColors[i] } as React.CSSProperties : {}}>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: sectorColors[i] }} />
                 <span className="text-xs font-bold text-app-text-secondary">{name}</span>

@@ -6,6 +6,8 @@
     "dev": "bun run dev:server & bun run dev:client",
     "dev:server": "bun --watch run server/index.ts",
     "dev:client": "cd client && portless run --name forza bun vite",
+    "build": "cd client && bun install && bun vite build && cd .. && bun scripts/bundle-client.ts && bun scripts/bundle-shared-data.ts && NODE_ENV=production bun build --compile server/index.ts --outfile dist/forza-telemetry",
+    "start": "NODE_ENV=production ./dist/forza-telemetry",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "test": "bun test"

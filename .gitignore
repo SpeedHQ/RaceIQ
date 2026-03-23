@@ -7,3 +7,4 @@ dist/
 .vite/
 .env
 /udp-forwarder
+server/client-assets.generated.ts

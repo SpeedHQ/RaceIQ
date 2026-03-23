@@ -1,9 +1,8 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { TelemetryPacket } from "@shared/types";
 import { CAR_CLASS_NAMES, DRIVETRAIN_NAMES } from "@shared/types";
 import type { DisplayPacket } from "../lib/convert-packet";
 import { SteeringWheel } from "./SteeringWheel";
-import { BodyAttitude } from "./BodyAttitude";
 import { WeightShiftRadar } from "./WeightShiftRadar";
 import { useUnits } from "../hooks/useUnits";
 import { useSettings } from "../hooks/queries";
@@ -363,24 +362,9 @@ interface Props {
 
 export function formatLapTime(seconds: number): string {
   if (seconds <= 0) return "--:--.---";
-  const mins = Math.floor(seconds);
-  const secs = seconds - mins * 60;
   const m = Math.floor(seconds / 60);
   const s = seconds - m * 60;
   return `${m}:${s.toFixed(3).padStart(6, "0")}`;
-}
-
-function getSpeed(p: TelemetryPacket, speedFn: (ms: number) => number): number {
-  return speedFn(p.Speed);
-}
-
-function GaugeBar({ value, max, color }: { value: number; max: number; color: string }) {
-  const pct = Math.min((value / max) * 100, 100);
-  return (
-    <div className="h-2 bg-app-surface-alt rounded-full overflow-hidden">
-      <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
-    </div>
-  );
 }
 
 // Tire temp thresholds (Fahrenheit): <150 cold, 150-220 optimal, 220-280 hot, >280 overheating
@@ -391,19 +375,6 @@ function tempColor(t: number, thresholds: { cold: number; warm: number; hot: num
   return "text-red-400";
 }
 
-function tempBg(t: number, thresholds: { cold: number; warm: number; hot: number }): string {
-  if (t < thresholds.cold) return "bg-blue-500/20 border-blue-500/40";
-  if (t < thresholds.warm) return "bg-emerald-500/20 border-emerald-500/40";
-  if (t < thresholds.hot) return "bg-amber-500/20 border-amber-500/40";
-  return "bg-red-500/20 border-red-500/40";
-}
-
-function wearBarColor(w: number): string {
-  if (w > 0.75) return "bg-emerald-400";
-  if (w > 0.5) return "bg-yellow-400";
-  if (w > 0.25) return "bg-orange-400";
-  return "bg-red-500";
-}
 
 // Tire health colors driven by configurable thresholds (ascending: [20, 40, 60, 80])
 const HEALTH_TEXT_COLORS = ["text-red-400", "text-orange-400", "text-yellow-400", "text-lime-400", "text-emerald-400"];
@@ -423,24 +394,11 @@ function healthBgColor(health: number, thresholds: number[]): string {
   return HEALTH_BG_COLORS[thresholds.length] ?? HEALTH_BG_COLORS[HEALTH_BG_COLORS.length - 1];
 }
 
-// Combined slip thresholds: <0.5 = grip, 0.5-1.0 = sliding, 1.0-2.0 = slipping, >2.0 = total loss
-function gripColor(combined: number): string {
-  if (combined < 0.5) return "text-emerald-400";
-  if (combined < 1.0) return "text-yellow-400";
-  if (combined < 2.0) return "text-orange-400";
-  return "text-red-400";
-}
-
 function gripLabel(combined: number): string {
   if (combined < 0.5) return "GRIP";
   if (combined < 1.0) return "SLIDE";
   if (combined < 2.0) return "SLIP";
   return "LOSS";
-}
-
-function gripPulse(combined: number): string {
-  if (combined >= 2.0) return "animate-pulse";
-  return "";
 }
 
 function tireColor(t: number, thresholds: { cold: number; warm: number; hot: number }): string {
@@ -967,8 +925,6 @@ function FuelGauge({ packet }: { packet: TelemetryPacket }) {
   const currentLapPct = currentLapUsed * 100;
 
   // Delta vs average: positive = using more than avg, negative = saving
-  const delta = avg ? currentLapUsed - (avg * (packet.CurrentLap > 0 ? 1 : 0)) : null;
-
   return (
     <div className="flex-1">
       <div className="flex justify-between text-[10px] mb-0.5">
@@ -1010,120 +966,7 @@ function PowerTorque({ packet }: { packet: TelemetryPacket }) {
   );
 }
 
-function WheelSpin({ packet }: { packet: TelemetryPacket }) {
-  const groundSpeed = packet.Speed; // m/s
-  const wheelRadius = 0.33; // ~avg tire radius in meters
 
-  const wheels = [
-    { label: "FL", rpm: packet.WheelRotationSpeedFL },
-    { label: "FR", rpm: packet.WheelRotationSpeedFR },
-    { label: "RL", rpm: packet.WheelRotationSpeedRL },
-    { label: "RR", rpm: packet.WheelRotationSpeedRR },
-  ];
-
-  return (
-    <div className="grid grid-cols-4 gap-1.5">
-      {wheels.map((w) => {
-        const wheelSpeed = Math.abs(w.rpm) * wheelRadius;
-        const diff = groundSpeed > 1 ? ((wheelSpeed - groundSpeed) / groundSpeed) * 100 : 0;
-        const isLockup = diff < -10;
-        const isSpin = diff > 10;
-        const color = isLockup ? "text-red-400" : isSpin ? "text-orange-400" : "text-app-text-secondary";
-        const stateLabel = isLockup ? "LOCK" : isSpin ? "SPIN" : "";
-
-        return (
-          <div key={w.label} className="bg-app-surface-alt/50 rounded px-1.5 py-1 text-center">
-            <div className="text-[9px] text-app-text-muted font-semibold">{w.label}</div>
-            <div className={`text-xs font-mono font-bold tabular-nums ${color}`}>
-              {diff.toFixed(0)}%
-            </div>
-            {stateLabel && (
-              <div className={`text-[8px] font-bold ${color} animate-pulse`}>{stateLabel}</div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function angleStrokeColor(deg: number): string {
-  const a = Math.abs(deg);
-  if (a < 4) return "#34d399";
-  if (a < 8) return "#facc15";
-  if (a < 14) return "#fb923c";
-  return "#ef4444";
-}
-
-function angleFillColor(deg: number): string {
-  const a = Math.abs(deg);
-  if (a < 4) return "text-emerald-400";
-  if (a < 8) return "text-yellow-400";
-  if (a < 14) return "text-orange-400";
-  return "text-red-400";
-}
-
-function SlipAngles({ packet }: { packet: TelemetryPacket }) {
-  const toDeg = 180 / Math.PI;
-  const angles = [
-    { label: "FL", value: packet.TireSlipAngleFL * toDeg, x: 22, y: 18 },
-    { label: "FR", value: packet.TireSlipAngleFR * toDeg, x: 78, y: 18 },
-    { label: "RL", value: packet.TireSlipAngleRL * toDeg, x: 22, y: 82 },
-    { label: "RR", value: packet.TireSlipAngleRR * toDeg, x: 78, y: 82 },
-  ];
-
-  // Clamp rotation for visual (max ±20° display)
-  const clampAngle = (d: number) => Math.max(-20, Math.min(20, d));
-
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <svg viewBox="0 0 100 100" width={160} height={160} className="drop-shadow">
-        {/* Car body */}
-        <rect x={34} y={10} width={32} height={80} rx={8} fill="none" stroke="rgba(100,116,139,0.25)" strokeWidth={1} />
-        {/* Axle lines */}
-        <line x1={22} y1={18} x2={78} y2={18} stroke="rgba(100,116,139,0.15)" strokeWidth={0.5} />
-        <line x1={22} y1={82} x2={78} y2={82} stroke="rgba(100,116,139,0.15)" strokeWidth={0.5} />
-
-        {/* Tires as rotated rectangles */}
-        {angles.map((a) => (
-          <g key={a.label} transform={`translate(${a.x}, ${a.y})`}>
-            {/* Direction indicator line */}
-            <line
-              x1={0} y1={0} x2={0} y2={-14}
-              stroke={angleStrokeColor(a.value)}
-              strokeWidth={0.8}
-              opacity={0.5}
-              transform={`rotate(${clampAngle(a.value)})`}
-            />
-            {/* Tire rectangle */}
-            <rect
-              x={-5} y={-9} width={10} height={18} rx={2}
-              fill={angleStrokeColor(a.value)}
-              fillOpacity={0.25}
-              stroke={angleStrokeColor(a.value)}
-              strokeWidth={1}
-              transform={`rotate(${clampAngle(a.value)})`}
-            />
-            {/* Value label */}
-            <text
-              y={a.y < 50 ? -14 : 20}
-              textAnchor="middle"
-              fill={angleStrokeColor(a.value)}
-              fontSize={6}
-              fontFamily="monospace"
-              fontWeight="bold"
-            >
-              {a.value.toFixed(1)}°
-            </text>
-          </g>
-        ))}
-
-        {/* Front arrow (direction of travel) */}
-        <polygon points="50,2 47,7 53,7" fill="rgba(100,116,139,0.3)" />
-      </svg>
-    </div>
-  );
-}
 
 // Consistent color coding across all per-wheel charts: FL=cyan, FR=purple, RL=amber, RR=emerald
 const TIRE_COLORS = ["#22d3ee", "#a855f7", "#fbbf24", "#34d399"];
@@ -1206,7 +1049,7 @@ function FourLineChart({ data, label, maxY, unit, height = 50 }: {
     }
   }, [renderTick, data, maxY, height]);
 
-  const _ = renderTick;
+  void renderTick;
   const arrays = [data.fl, data.fr, data.rl, data.rr];
   const currentVals = arrays.map((a) => a.length > 0 ? a[a.length - 1] : 0);
 
@@ -1237,7 +1080,7 @@ function FourLineChart({ data, label, maxY, unit, height = 50 }: {
 }
 
 /** SingleLineChart — Same sliding-window canvas approach as FourLineChart but for a single metric. */
-function SingleLineChart({ data, label, color, maxY, unit, height = 50 }: {
+function SingleLineChart({ data, label, color, maxY, unit: _sunit, height = 50 }: {
   data: number[];
   label: string;
   color: string;
@@ -1292,7 +1135,7 @@ function SingleLineChart({ data, label, color, maxY, unit, height = 50 }: {
   }, [renderTick, data, maxY, height, color]);
 
   // Force read current value on each tick
-  const _ = renderTick;
+  void renderTick;
   const currentVal = data.length > 0 ? data[data.length - 1] : 0;
 
   return (
@@ -1311,7 +1154,7 @@ function SingleLineChart({ data, label, color, maxY, unit, height = 50 }: {
 }
 
 /** DualLineChart — Two overlaid lines sharing one Y-axis (e.g., throttle vs brake trace). */
-function DualLineChart({ data1, data2, label1, label2, color1, color2, label, maxY, unit, height = 50 }: {
+function DualLineChart({ data1, data2, label1, label2, color1, color2, label, maxY, unit: _unit, height = 50 }: {
   data1: number[];
   data2: number[];
   label1: string;
@@ -1559,13 +1402,6 @@ function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
       lapsEstimate = Math.floor(tires[worstIdx].wear / avgRates[worstIdx]);
     }
   }
-
-  // Avg health across all 4
-  const avgHealth = (1 - tires.reduce((s, t) => s + t.wear, 0) / 4) * 100;
-
-  // Split into front/rear axles
-  const frontTires = tires.slice(0, 2);
-  const rearTires = tires.slice(2, 4);
 
   return (
     <div>

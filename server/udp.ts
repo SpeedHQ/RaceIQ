@@ -81,7 +81,9 @@ class UdpListener {
         this._receiving = false;
       }
 
-      console.log(`[UDP] total=${this._totalPackets} dropped=${this._droppedPackets} pps=${this._packetsPerSec} receiving=${this._receiving}`);
+      if (this._packetsPerSec > 0) {
+        console.log(`${new Date().toISOString()} [UDP] total=${this._totalPackets} dropped=${this._droppedPackets} pps=${this._packetsPerSec}`);
+      }
     }, PACKETS_PER_SEC_WINDOW);
   }
 

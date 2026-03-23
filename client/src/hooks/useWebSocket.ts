@@ -6,7 +6,7 @@ export function useWebSocket() {
   const { setConnected, setPacket, setPacketsPerSec } = useTelemetryStore();
   const wsRef = useRef<WebSocket | null>(null);
   const packetCountRef = useRef(0);
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const connect = useCallback(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";

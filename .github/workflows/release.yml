@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: bun-linux-x64
+            artifact: forza-telemetry-linux-x64
+          - os: macos-latest
+            target: bun-darwin-arm64
+            artifact: forza-telemetry-macos-arm64
+          - os: windows-latest
+            target: bun-windows-x64
+            artifact: forza-telemetry-windows-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build client
+        run: cd client && bun install && bun run build
+
+      - name: Embed client assets
+        run: bun scripts/bundle-client.ts
+
+      - name: Embed shared data
+        run: bun scripts/bundle-shared-data.ts
+
+      - name: Compile server binary
+        run: NODE_ENV=production bun build --compile --target=${{ matrix.target }} server/index.ts --outfile dist/forza-telemetry
+
+      - name: Package (unix)
+        if: runner.os != 'Windows'
+        run: tar -czf ${{ matrix.artifact }}.tar.gz -C dist .
+
+      - name: Package (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist\* -DestinationPath ${{ matrix.artifact }}.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}.tar.gz
+            ${{ matrix.artifact }}.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            *.tar.gz
+            *.zip

@@ -157,7 +157,6 @@ export function HomePage() {
 
   // Session info
   const sessionTrack = (status as any)?.currentSession?.trackOrdinal;
-  const sessionCar = (status as any)?.currentSession?.carOrdinal;
   const isLive = connected && packetsPerSec > 0;
 
   // Fetch names for recent laps + favourite cars

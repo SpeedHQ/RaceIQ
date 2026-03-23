@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from "react";
-import type { LapMeta } from "@shared/types";
+import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useLaps, useDeleteLap } from "../hooks/queries";
@@ -21,8 +20,6 @@ export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTele
   const { data: activeProfileId } = useActiveProfileId();
   const { data: allLaps = [], isLoading } = useLaps(activeProfileId, { refetchInterval: 5_000 });
   const deleteLap = useDeleteLap();
-  const [carNames, setCarNames] = useState<Record<number, string>>({});
-  const fetchedOrdinals = useRef(new Set<number>());
   const [sortKey, setSortKey] = useState<SortKey>("lap");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -37,20 +34,6 @@ export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTele
   const laps = trackOrd != null
     ? allLaps.filter((l) => l.trackOrdinal === trackOrd)
     : allLaps;
-
-  // Fetch car names for any new ordinals
-  useEffect(() => {
-    const ordinals = [...new Set(laps.map((l) => l.carOrdinal).filter((o): o is number => o != null))];
-    const newOrdinals = ordinals.filter((o) => !fetchedOrdinals.current.has(o));
-    if (newOrdinals.length === 0) return;
-
-    for (const ord of newOrdinals) {
-      fetchedOrdinals.current.add(ord);
-      api.getCarName(ord)
-        .then((name) => setCarNames((prev) => ({ ...prev, [ord]: name })))
-        .catch(() => setCarNames((prev) => ({ ...prev, [ord]: `Car #${ord}` })));
-    }
-  }, [laps]);
 
   if (isLoading) {
     return <div className="p-4 text-app-text-dim">Loading laps...</div>;

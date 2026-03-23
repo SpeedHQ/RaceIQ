@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { formatLapTime } from "./LiveTelemetry";
-import { TUNE_CATALOG, getCatalogCar, type CatalogTune } from "../data/tune-catalog";
+import { TUNE_CATALOG, getCatalogCar } from "../data/tune-catalog";
 import { useTracks, useBulkDeleteLaps, useDeleteLap } from "../hooks/queries";
 import { useActiveProfileId } from "../hooks/useProfiles";
 import { api } from "../lib/api";
@@ -134,7 +134,7 @@ function TrackDetail({ track, onBack, initialTab, navigate }: { track: TrackInfo
   );
   const setActiveTab = useCallback((tab: Tab) => {
     setActiveTabState(tab);
-    navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, tab: tab === "laps" ? undefined : tab }), replace: true });
+    navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, tab: tab === "laps" ? undefined : tab }) as never, replace: true });
   }, [navigate]);
   const navTo = useNavigate();
 
@@ -1056,7 +1056,7 @@ function CurbDebugSection({
  */
 function TrackDebugPanel({ trackOrdinal, outline }: { trackOrdinal: number; outline: Point[] | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [boundaries, setBoundaries] = useState<{ leftEdge: Point[]; rightEdge: Point[]; pitLane: Point[] | null; coordSystem: string } | null>(null);
+  const [boundaries, setBoundaries] = useState<{ leftEdge: Point[]; rightEdge: Point[]; centerLine?: Point[]; pitLane: Point[] | null; coordSystem: string } | null>(null);
   const [curbs, setCurbs] = useState<{ points: Point[]; side: string }[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [calibration, setCalibration] = useState<{ calibrated: boolean; pointsCollected: number } | null>(null);

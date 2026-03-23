@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import type { TelemetryPacket, LapMeta } from "@shared/types";
-import { CAR_CLASS_NAMES, DRIVETRAIN_NAMES } from "@shared/types";
 import { formatLapTime, TireDiagram, GForceCircle } from "./LiveTelemetry";
 import { SteeringWheel } from "./SteeringWheel";
 import { getSteeringLock } from "./Settings";
@@ -11,7 +10,6 @@ import {
   allWheelStates,
   allFrictionCircle,
   steerBalance,
-  corneringEfficiency,
   slipRatioColor,
   frictionUtilColor,
   balanceColor,
@@ -629,23 +627,6 @@ function SlipAngleValue({ label, value, speedMph }: { label: string; value: numb
   );
 }
 
-function WheelRow({ label, unit, fl, fr, rl, rr, fmt, colorFn }: {
-  label: string; unit: string; fl: number; fr: number; rl: number; rr: number;
-  fmt: (v: number) => string; colorFn?: (v: number) => string;
-}) {
-  const cell = (v: number) => (
-    <td className="text-right px-1 py-0.5" style={colorFn ? { color: colorFn(v) } : undefined}>
-      {fmt(v)}{unit}
-    </td>
-  );
-  return (
-    <tr className="border-t border-app-border/50">
-      <td className="text-app-text-muted text-[10px] pr-2 py-0.5">{label}</td>
-      {cell(fl)}{cell(fr)}{cell(rl)}{cell(rr)}
-    </tr>
-  );
-}
-
 function WheelSpeedValue({ label, value }: { label: string; value: number }) {
   const abs = Math.abs(value);
   const color = abs < 10 ? "#94a3b8" : abs < 50 ? "#34d399" : abs < 100 ? "#fbbf24" : "#ef4444";
@@ -701,7 +682,6 @@ export function LapAnalyse() {
   const [rotateWithCar, setRotateWithCar] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
   const [topHeight, setTopHeight] = useState(500);
-  const dragRef = useRef<{ startY: number; startH: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -1052,7 +1032,7 @@ export function LapAnalyse() {
       return s.name;
     });
 
-    const result: { name: string; type: string; time: number; active: boolean }[] = [];
+    const result: { name: string; type: string; time: number; active: boolean; completed: boolean }[] = [];
 
     for (let si = 0; si < segments.length; si++) {
       const seg = segments[si];

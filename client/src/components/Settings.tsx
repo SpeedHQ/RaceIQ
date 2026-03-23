@@ -713,7 +713,7 @@ export function Settings() {
                       setSoundTypeState(p.id);
                       setSoundType(p.id);
                       // Preview on select
-                      if (p.id !== "url" && p.id !== "synth") {
+                      if (p.id !== "url") {
                         preloadSound(`/sounds/${p.id}.mp3`);
                       }
                       playBlip(1);

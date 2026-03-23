@@ -3,7 +3,58 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { getTrackSectorsByName, DEFAULT_SECTORS, type TrackSectors } from "./sectors";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const _rawDir = dirname(fileURLToPath(import.meta.url));
+const IS_COMPILED = _rawDir.startsWith("/$bunfs");
+const __dirname = IS_COMPILED
+  ? resolve(dirname(process.execPath), "shared", "track-outlines")
+  : _rawDir;
+
+// In compiled mode, load embedded data
+let embeddedData: Map<string, string> | null = null;
+if (IS_COMPILED) {
+  try {
+    const { sharedData } = await import("../../server/shared-data.generated");
+    embeddedData = sharedData;
+  } catch {}
+}
+
+/** Read a file from embedded data (compiled) or filesystem (dev) */
+function readDataFile(filePath: string): string | null {
+  if (embeddedData) {
+    // Convert absolute path to relative key (relative to shared/)
+    const sharedRoot = resolve(__dirname, "..");
+    const relKey = filePath.startsWith(sharedRoot)
+      ? filePath.slice(sharedRoot.length + 1)
+      : filePath;
+    // Also try with track-outlines/ prefix
+    const altKey = relKey.startsWith("track-outlines/") ? relKey : `track-outlines/${relKey}`;
+    return embeddedData.get(relKey) ?? embeddedData.get(altKey) ?? null;
+  }
+  try {
+    return readFileSync(filePath, "utf-8");
+  } catch {
+    return null;
+  }
+}
+
+/** List files matching a pattern from embedded data or filesystem */
+function listDataFiles(dir: string, filter: (name: string) => boolean): string[] {
+  if (embeddedData) {
+    const sharedRoot = resolve(__dirname, "..");
+    const relDir = dir.startsWith(sharedRoot) ? dir.slice(sharedRoot.length + 1) : dir;
+    const prefix = relDir ? relDir + "/" : "";
+    return Array.from(embeddedData.keys())
+      .filter((k) => k.startsWith(prefix) && !k.slice(prefix.length).includes("/"))
+      .filter((k) => filter(k.split("/").pop()!))
+      .map((k) => resolve(sharedRoot, k));
+  }
+  try {
+    const { readdirSync } = require("fs");
+    return (readdirSync(dir) as string[]).filter(filter).map((f: string) => resolve(dir, f));
+  } catch {
+    return [];
+  }
+}
 
 interface Point {
   x: number;
@@ -73,9 +124,10 @@ const TRACK_FILES: Record<string, TrackOutlineEntry> = {
 // Load all bundled outlines
 for (const [trackName, entry] of Object.entries(TRACK_FILES)) {
   const filePath = resolve(__dirname, entry.filename);
-  if (existsSync(filePath)) {
+  const content = readDataFile(filePath);
+  if (content) {
     try {
-      const lines = readFileSync(filePath, "utf-8").split("\n").filter(Boolean);
+      const lines = content.split("\n").filter(Boolean);
       let data: Point[] = lines.slice(1).map((l) => {
         const [x, z] = l.split(",").map(Number);
         return { x, z };
@@ -92,26 +144,24 @@ const boundariesByName = new Map<string, TrackBoundary>();
 const boundariesByOrdinal = new Map<number, TrackBoundary>();
 
 const boundariesDir = resolve(__dirname, "boundaries");
-if (existsSync(boundariesDir)) {
-  try {
-    const files = readdirSync(boundariesDir).filter((f: string) => f.endsWith(".json"));
-    for (const file of files) {
-      const filePath = resolve(boundariesDir, file);
-      try {
-        const data = JSON.parse(readFileSync(filePath, "utf-8"));
-        if (data.leftEdge && data.rightEdge) {
-          // Find which track name this file belongs to
-          const baseName = file.replace(".json", "");
-          for (const [trackName, entry] of Object.entries(TRACK_FILES)) {
-            if (entry.filename.replace(".csv", "") === baseName) {
-              boundariesByName.set(trackName, data);
-              break;
-            }
+{
+  const boundaryFiles = listDataFiles(boundariesDir, (f) => f.endsWith(".json"));
+  for (const filePath of boundaryFiles) {
+    const content = readDataFile(filePath);
+    if (!content) continue;
+    try {
+      const data = JSON.parse(content);
+      if (data.leftEdge && data.rightEdge) {
+        const baseName = filePath.split("/").pop()!.replace(".json", "");
+        for (const [trackName, entry] of Object.entries(TRACK_FILES)) {
+          if (entry.filename.replace(".csv", "") === baseName) {
+            boundariesByName.set(trackName, data);
+            break;
           }
         }
-      } catch {}
-    }
-  } catch {}
+      }
+    } catch {}
+  }
 }
 
 // Tracks where the TUMFTM outline only matches a specific layout variant.
@@ -125,9 +175,9 @@ const LAYOUT_EXCLUSIONS: Record<string, Set<number>> = {
 
 // Load track ordinal -> name mapping from tracks.csv
 const tracksPath = resolve(__dirname, "..", "tracks.csv");
-if (existsSync(tracksPath)) {
-  const raw = readFileSync(tracksPath, "utf-8");
-  for (const line of raw.split("\n")) {
+{
+  const raw = readDataFile(tracksPath);
+  for (const line of (raw ?? "").split("\n")) {
     const trimmed = line.trim();
     if (!trimmed) continue;
     const [ordStr, name] = trimmed.split(",");
@@ -153,16 +203,17 @@ const recordedOutlines = new Map<number, Point[]>();
 const recordedLapCounts = new Map<number, number>();
 
 // Load previously recorded outlines (from in-game telemetry)
-import { readdirSync } from "fs";
 try {
-  const files = readdirSync(__dirname).filter((f: string) => f.startsWith("recorded-") && f.endsWith(".csv"));
-  for (const file of files) {
-    const match = file.match(/recorded-(\d+)\.csv/);
+  const recordedFiles = listDataFiles(__dirname, (f) => f.startsWith("recorded-") && f.endsWith(".csv"));
+  for (const filePath of recordedFiles) {
+    const fileName = filePath.split("/").pop()!;
+    const match = fileName.match(/recorded-(\d+)\.csv/);
     if (!match) continue;
     const ordinal = parseInt(match[1], 10);
-    const filePath = resolve(__dirname, file);
     try {
-      const lines = readFileSync(filePath, "utf-8").split("\n").filter(Boolean);
+      const content = readDataFile(filePath);
+      if (!content) continue;
+      const lines = content.split("\n").filter(Boolean);
       const data: Point[] = lines.slice(1).map((l) => {
         const [x, z] = l.split(",").map(Number);
         return { x, z };
@@ -415,9 +466,9 @@ export function deleteRecordedOutline(ordinal: number): boolean {
 // Sector support
 const ordinalToName = new Map<number, string>();
 // Re-read tracks.csv to build ordinal -> name mapping for sectors
-if (existsSync(tracksPath)) {
-  const raw2 = readFileSync(tracksPath, "utf-8");
-  for (const line of raw2.split("\n")) {
+{
+  const raw2 = readDataFile(tracksPath);
+  for (const line of (raw2 ?? "").split("\n")) {
     const trimmed = line.trim();
     if (!trimmed) continue;
     const [ordStr, name] = trimmed.split(",");
@@ -443,14 +494,17 @@ const curbsByOrdinal = new Map<number, CurbSegment[]>();
 const curbLapCounts = new Map<number, number>();
 
 // Load previously saved curb data
-try {
-  const curbFiles = readdirSync(__dirname).filter((f: string) => f.startsWith("curbs-") && f.endsWith(".json"));
-  for (const file of curbFiles) {
-    const match = file.match(/curbs-(\d+)\.json/);
+{
+  const curbFiles = listDataFiles(__dirname, (f) => f.startsWith("curbs-") && f.endsWith(".json"));
+  for (const filePath of curbFiles) {
+    const fileName = filePath.split("/").pop()!;
+    const match = fileName.match(/curbs-(\d+)\.json/);
     if (!match) continue;
     const ordinal = parseInt(match[1], 10);
+    const content = readDataFile(filePath);
+    if (!content) continue;
     try {
-      const data = JSON.parse(readFileSync(resolve(__dirname, file), "utf-8"));
+      const data = JSON.parse(content);
       if (Array.isArray(data)) {
         curbsByOrdinal.set(ordinal, data);
       }
@@ -459,7 +513,7 @@ try {
   if (curbFiles.length > 0) {
     console.log(`[Tracks] Loaded curb data for ${curbFiles.length} tracks`);
   }
-} catch {}
+}
 
 /**
  * Extract curb segments from a lap's telemetry packets.

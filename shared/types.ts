@@ -212,6 +212,8 @@ export interface AlignedTrace {
   brakeB: number[];
   rpmA: number[];
   rpmB: number[];
+  tireWearA?: number[];
+  tireWearB?: number[];
 }
 
 export interface CornerDelta {

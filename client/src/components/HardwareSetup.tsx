@@ -160,7 +160,7 @@ export function WheelCatalogue({ onSelect }: { onSelect: (profileId: string) => 
 
 type DetailTab = "wheel" | "ingame";
 
-export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; onBack: () => void }) {
+export function HardwareSetupDetail({ profileId }: { profileId: string; onBack?: () => void }) {
   const profile = PROFILES.find((p) => p.id === profileId) ?? PROFILES[0];
   const [activeTab, setActiveTab] = useState<DetailTab>("wheel");
   const [activePreset, setActivePreset] = useState(profile.inGamePresets[0].id);

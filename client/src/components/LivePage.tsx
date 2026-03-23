@@ -55,7 +55,7 @@ function PageHeader({ dashMode, demo }: {
 }
 
 function RaceInfo({ packet, units, trackName, carName, showTrackMap = true, showSectors = true }: {
-  packet: NonNullable<ReturnType<typeof useTelemetryStore>["packet"]>;
+  packet: NonNullable<ReturnType<typeof useTelemetryStore.getState>["packet"]>;
   units: ReturnType<typeof useUnits>;
   trackName: string | undefined;
   carName: string | undefined;

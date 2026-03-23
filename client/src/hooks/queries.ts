@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { LapMeta } from "@shared/types";
 import { queryKeys, api } from "../lib/api";
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 
@@ -27,7 +28,7 @@ export function useLaps(activeProfileId?: number | null, options?: { refetchInte
       const url = activeProfileId != null
         ? `/api/laps?profileId=${activeProfileId}`
         : `/api/laps`;
-      return fetch(url).then((r) => r.json());
+      return fetch(url).then((r) => r.json()) as Promise<LapMeta[]>;
     },
     ...options,
   });

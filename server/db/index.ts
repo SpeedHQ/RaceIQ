@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import * as schema from "./schema";
+import { migrations } from "./migrations";
 import { mkdirSync, existsSync } from "fs";
 
 const DB_DIR = process.env.DATA_DIR ?? "./data";
@@ -17,139 +18,124 @@ const sqlite = new Database(DB_PATH);
 sqlite.exec("PRAGMA journal_mode = WAL");
 sqlite.exec("PRAGMA foreign_keys = ON");
 
-// Create tables if they don't exist
+// ── Migration system ────────────────────────────────────────────────
 sqlite.exec(`
-  CREATE TABLE IF NOT EXISTS sessions (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    car_ordinal   INTEGER NOT NULL,
-    track_ordinal INTEGER NOT NULL,
-    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS laps (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id  INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-    lap_number  INTEGER NOT NULL,
-    lap_time    REAL NOT NULL,
-    is_valid    INTEGER NOT NULL DEFAULT 1,
-    telemetry   BLOB NOT NULL,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_laps_session ON laps(session_id);
-
-  CREATE TABLE IF NOT EXISTS track_corners (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    track_ordinal   INTEGER NOT NULL,
-    corner_index    INTEGER NOT NULL,
-    label           TEXT NOT NULL,
-    distance_start  REAL NOT NULL,
-    distance_end    REAL NOT NULL,
-    is_auto         INTEGER NOT NULL DEFAULT 1,
-    UNIQUE(track_ordinal, corner_index)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_corners_track ON track_corners(track_ordinal);
-
-  CREATE TABLE IF NOT EXISTS track_outlines (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    track_ordinal   INTEGER NOT NULL UNIQUE,
-    outline         BLOB NOT NULL,
-    sectors         TEXT,
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_outlines_track ON track_outlines(track_ordinal);
-
-  CREATE TABLE IF NOT EXISTS lap_analyses (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    lap_id          INTEGER NOT NULL UNIQUE REFERENCES laps(id) ON DELETE CASCADE,
-    analysis        TEXT NOT NULL,
-    input_tokens    INTEGER NOT NULL DEFAULT 0,
-    output_tokens   INTEGER NOT NULL DEFAULT 0,
-    cost_usd        REAL NOT NULL DEFAULT 0,
-    duration_ms     INTEGER NOT NULL DEFAULT 0,
-    model           TEXT NOT NULL DEFAULT '',
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS profiles (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  CREATE TABLE IF NOT EXISTS schema_migrations (
+    version    INTEGER PRIMARY KEY,
     name       TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
+    applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
 `);
 
-// Migration: add tunes table
-sqlite.exec(`
-  CREATE TABLE IF NOT EXISTS tunes (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    name            TEXT NOT NULL,
-    author          TEXT NOT NULL,
-    car_ordinal     INTEGER NOT NULL,
-    category        TEXT NOT NULL,
-    track_ordinal   INTEGER,
-    description     TEXT NOT NULL DEFAULT '',
-    strengths       TEXT,
-    weaknesses      TEXT,
-    best_tracks     TEXT,
-    strategies      TEXT,
-    settings        TEXT NOT NULL,
-    source          TEXT NOT NULL DEFAULT 'user',
-    catalog_id      TEXT,
-    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+function getAppliedVersions(): Set<number> {
+  const rows = sqlite.query("SELECT version FROM schema_migrations").all() as { version: number }[];
+  return new Set(rows.map((r) => r.version));
+}
+
+function runMigrations() {
+  const applied = getAppliedVersions();
+  const pending = migrations.filter((m) => !applied.has(m.version)).sort((a, b) => a.version - b.version);
+
+  if (pending.length === 0) return;
+
+  console.log(`[DB] Running ${pending.length} migration(s)...`);
+
+  for (const migration of pending) {
+    console.log(`[DB]   v${migration.version}: ${migration.name}`);
+    sqlite.exec("BEGIN");
+    try {
+      for (const sql of migration.sql) {
+        sqlite.exec(sql);
+      }
+      sqlite.prepare("INSERT INTO schema_migrations (version, name) VALUES (?, ?)").run(migration.version, migration.name);
+      sqlite.exec("COMMIT");
+    } catch (err) {
+      sqlite.exec("ROLLBACK");
+      // For ALTER TABLE that may already exist (migrating from legacy inline migrations)
+      const msg = String(err);
+      if (msg.includes("duplicate column") || msg.includes("already exists")) {
+        console.log(`[DB]     (already applied, marking as done)`);
+        sqlite.prepare("INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (?, ?)").run(migration.version, migration.name);
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  console.log(`[DB] Migrations complete. Schema at v${migrations[migrations.length - 1].version}`);
+}
+
+// Detect legacy DB (has tables but no schema_migrations entries)
+// Mark existing migrations as applied so they don't re-run
+function detectLegacyDb() {
+  const applied = getAppliedVersions();
+  if (applied.size > 0) return; // Already using migration system
+
+  // Check if sessions table exists (sign of an existing DB)
+  const table = sqlite.query("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'").get();
+  if (!table) return; // Fresh DB, nothing to detect
+
+  console.log(`[DB] Detected legacy database, marking existing migrations...`);
+
+  // Check which tables/columns exist and mark corresponding migrations
+  const tables = new Set(
+    (sqlite.query("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[]).map((r) => r.name)
   );
-  CREATE INDEX IF NOT EXISTS idx_tunes_car ON tunes(car_ordinal);
 
-  CREATE TABLE IF NOT EXISTS tune_assignments (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    car_ordinal     INTEGER NOT NULL,
-    track_ordinal   INTEGER NOT NULL,
-    tune_id         INTEGER NOT NULL REFERENCES tunes(id) ON DELETE CASCADE,
-    UNIQUE(car_ordinal, track_ordinal)
-  );
-  CREATE INDEX IF NOT EXISTS idx_assignments_tune ON tune_assignments(tune_id);
-`);
+  const getColumns = (table: string): Set<string> => {
+    try {
+      return new Set(
+        (sqlite.query(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((r) => r.name)
+      );
+    } catch {
+      return new Set();
+    }
+  };
 
-// Migration: add tune_id column to laps
-try { sqlite.exec("ALTER TABLE laps ADD COLUMN tune_id INTEGER REFERENCES tunes(id) ON DELETE SET NULL"); } catch {}
-
-// Migration: add unit_system column to tunes
-try { sqlite.exec("ALTER TABLE tunes ADD COLUMN unit_system TEXT NOT NULL DEFAULT 'metric'"); } catch {}
-
-// Migration: add sectors column to track_outlines if it doesn't exist (for existing DBs)
-try {
-  sqlite.exec("ALTER TABLE track_outlines ADD COLUMN sectors TEXT");
-} catch {
-  // Column already exists — ignore
+  // v1: initial schema
+  if (tables.has("sessions")) {
+    sqlite.prepare("INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (?, ?)").run(1, "initial schema");
+  }
+  // v2: tunes
+  if (tables.has("tunes")) {
+    sqlite.prepare("INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (?, ?)").run(2, "tunes and assignments");
+  }
+  // v3: tune_id on laps
+  if (getColumns("laps").has("tune_id")) {
+    sqlite.prepare("INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (?, ?)").run(3, "add tune_id to laps");
+  }
+  // v4: unit_system on tunes
+  if (getColumns("tunes").has("unit_system")) {
+    sqlite.prepare("INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (?, ?)").run(4, "add unit_system to tunes");
+  }
+  // v5: sectors on track_outlines
+  if (getColumns("track_outlines").has("sectors")) {
+    sqlite.prepare("INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (?, ?)").run(5, "add sectors to track_outlines");
+  }
+  // v6: analytics on lap_analyses
+  if (getColumns("lap_analyses").has("input_tokens")) {
+    sqlite.prepare("INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (?, ?)").run(6, "add analytics columns to lap_analyses");
+  }
+  // v7: profile_id on laps
+  if (getColumns("laps").has("profile_id")) {
+    sqlite.prepare("INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (?, ?)").run(7, "add profile_id to laps");
+  }
+  // v8: pi on laps
+  if (getColumns("laps").has("pi")) {
+    sqlite.prepare("INSERT OR IGNORE INTO schema_migrations (version, name) VALUES (?, ?)").run(8, "add pi to laps");
+  }
 }
 
-// Migration: add token tracking columns to lap_analyses (for existing DBs)
-for (const col of [
-  "ALTER TABLE lap_analyses ADD COLUMN input_tokens INTEGER NOT NULL DEFAULT 0",
-  "ALTER TABLE lap_analyses ADD COLUMN output_tokens INTEGER NOT NULL DEFAULT 0",
-  "ALTER TABLE lap_analyses ADD COLUMN cost_usd REAL NOT NULL DEFAULT 0",
-  "ALTER TABLE lap_analyses ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 0",
-  "ALTER TABLE lap_analyses ADD COLUMN model TEXT NOT NULL DEFAULT ''",
-]) {
-  try { sqlite.exec(col); } catch {}
-}
+detectLegacyDb();
+runMigrations();
 
-// Migration: add profiles table support
-try { sqlite.exec("ALTER TABLE laps ADD COLUMN profile_id INTEGER REFERENCES profiles(id)"); } catch {
-  // Column already exists — ignore
-}
-
-// Migration: add pi column to laps for fast class lookups
-try { sqlite.exec("ALTER TABLE laps ADD COLUMN pi INTEGER"); } catch {}
+// ── Post-migration data backfills ───────────────────────────────────
 
 // Backfill pi from telemetry blobs for existing laps missing it
 {
   const rows = sqlite.query("SELECT id, telemetry FROM laps WHERE pi IS NULL").all() as { id: number; telemetry: Buffer }[];
   if (rows.length > 0) {
-    console.log(`[Migration] Backfilling PI for ${rows.length} laps...`);
+    console.log(`[DB] Backfilling PI for ${rows.length} laps...`);
     const update = sqlite.prepare("UPDATE laps SET pi = ? WHERE id = ?");
     for (const row of rows) {
       try {
@@ -161,7 +147,7 @@ try { sqlite.exec("ALTER TABLE laps ADD COLUMN pi INTEGER"); } catch {}
         update.run(0, row.id);
       }
     }
-    console.log(`[Migration] PI backfill complete.`);
+    console.log(`[DB] PI backfill complete.`);
   }
 }
 
@@ -170,7 +156,7 @@ const profileCount = sqlite.query("SELECT COUNT(*) as c FROM profiles").get() as
 if (profileCount.c === 0) {
   sqlite.exec("INSERT INTO profiles (name) VALUES ('Driver 1')");
 }
-// Always backfill any laps that have no profile assigned (handles partial/interrupted first-run)
+// Always backfill any laps that have no profile assigned
 sqlite.exec("UPDATE laps SET profile_id = (SELECT id FROM profiles ORDER BY id LIMIT 1) WHERE profile_id IS NULL");
 
 export const db = drizzle(sqlite, { schema });

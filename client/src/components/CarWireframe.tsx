@@ -32,11 +32,6 @@ const useWheelGeometries = () =>
     return { tire, rim, hub };
   }, []);
 
-// 0% = extended (wheel low), 100% = compressed (wheel up near body)
-function suspY(suspTravel: number): number {
-  return (suspTravel - 0.5) * 0.5;
-}
-
 // Forza tire temps are in °F: <150 cold, 150-170 warming, 170-220 optimal, 220-250 hot, >250 overheating
 function tireTempColor(temp: number): string {
   if (temp < 150) return "#3b82f6";
@@ -386,7 +381,7 @@ function CarBody({ solid, carModel, modelOffsetX, hideModelWheels }: { solid: "w
 
   const [highlightedMesh, setHighlightedMesh] = useState<string | null>(null);
 
-  const handleDoubleClick = useCallback((e: THREE.Event & { object?: THREE.Mesh }) => {
+  const handleDoubleClick = useCallback((e: { stopPropagation?: () => void; object?: THREE.Mesh }) => {
     e.stopPropagation?.();
     const mesh = e.object as THREE.Mesh | undefined;
     if (!mesh?.isMesh) return;
@@ -444,11 +439,6 @@ const BRAKE_MIN = new THREE.Color("#ff9933");
 const BRAKE_MAX = new THREE.Color("#cc0000");
 const _brakeTemp = new THREE.Color();
 
-function slipColor(slip: number): string {
-  if (slip < 0.3) return "#34d399";
-  if (slip < 0.8) return "#fbbf24";
-  return "#ef4444";
-}
 
 function brakeColor(brake: number): THREE.Color {
   // Smooth lerp from light orange (10) to deep red (255)
@@ -495,11 +485,11 @@ function TireTrails({
       (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipRR),
     ];
 
-    const wheelTrails: { points: [number, number, number][]; colors: string[] }[] = [];
+    const wheelTrails: { points: [number, number, number][]; colors: THREE.Color[] }[] = [];
 
     for (let w = 0; w < 4; w++) {
       const points: [number, number, number][] = [];
-      const colors: string[] = [];
+      const colors: THREE.Color[] = [];
       const [wheelOffX, wheelOffZ] = WHEEL_OFFSETS[w];
 
       for (let i = startIdx; i <= cursorIdx; i++) {
@@ -528,7 +518,7 @@ function TireTrails({
           <Line
             key={`trail-${w}`}
             points={trail.points}
-            vertexColors={trail.colors}
+            vertexColors={trail.colors as unknown as Array<[number, number, number]>}
             lineWidth={3}
           />
         ) : null
@@ -609,19 +599,15 @@ function BrakeTrail({
   );
 }
 
-const CURB_ORANGE = new THREE.Color("#ff8800");
-const PUDDLE_BLUE = new THREE.Color("#3b82f6");
-
 // ── Curb markers on track (world-space, full lap history) ───────────
 
 function CurbMarkers({
   telemetry,
-  cursorIdx,
   packet,
   carModel,
 }: {
   telemetry: TelemetryPacket[];
-  cursorIdx: number;
+  cursorIdx?: number;
   packet: TelemetryPacket;
   carModel: CarModelEnrichment;
 }) {
@@ -1223,32 +1209,6 @@ function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, 
   );
 }
 
-// ── Model position controls ──────────────────────────────────────
-
-function ModelPositionControls({ offsetX, setOffsetX }: { offsetX: number; setOffsetX: (v: number) => void }) {
-  return (
-    <div className="absolute bottom-2 left-2 bg-app-bg/90 rounded-lg border border-app-border p-2 text-[10px] font-mono space-y-1" style={{ minWidth: 200 }}>
-      <div className="text-app-text-muted uppercase tracking-wider mb-1">Model Offset</div>
-      <div className="flex items-center gap-2">
-        <span className="text-app-text-muted w-8">X</span>
-        <input
-          type="range"
-          min={-0.5}
-          max={0.5}
-          step={0.01}
-          value={offsetX}
-          onChange={(e) => setOffsetX(parseFloat(e.target.value))}
-          className="flex-1 accent-app-accent"
-        />
-        <span className="text-app-text w-12 text-right">{(offsetX * 1000).toFixed(0)}mm</span>
-      </div>
-      <div className="text-app-text-dim text-[9px]">
-        glbOffsetX: {offsetX.toFixed(3)}
-      </div>
-    </div>
-  );
-}
-
 // ── Exported wrapper ───────────────────────────────────────────────
 
 interface ViewToggles {
@@ -1305,7 +1265,6 @@ export function CarWireframe({
   carOrdinal,
   showDimensions,
   minimal,
-  onModelOffset,
 }: {
   packet: TelemetryPacket;
   telemetry: TelemetryPacket[];
@@ -1314,8 +1273,8 @@ export function CarWireframe({
   boundaries?: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null;
   carOrdinal?: number;
   showDimensions?: boolean;
-  minimal?: boolean; // hide most toggles (for standalone car viewer)
-  onModelOffset?: (offset: { x: number; y: number; z: number }) => void; // callback for live offset editing
+  minimal?: boolean;
+  onModelOffset?: (offset: { x: number; y: number; z: number }) => void;
 }) {
   const [configsLoaded, setConfigsLoaded] = useState(false);
   useEffect(() => { loadCarModelConfigs().then(() => setConfigsLoaded(true)); }, []);
