@@ -180,12 +180,14 @@ function Wheel({
           </mesh>
         </group>
       </group>
-      {/* Temp label floating above */}
-      <TempLabel displayTemp={displayTemp} rawTemp={temp} side={side} />
-      {/* Tire health below temp */}
-      <HealthLabel wear={wear} side={side} />
-      {/* Wear rate label below health */}
-      <WearLabel wearRate={wearRate} side={side} />
+      {/* Temp / health / wear labels — only when there's live data */}
+      {temp > 0 && (
+        <>
+          <TempLabel displayTemp={displayTemp} rawTemp={temp} side={side} />
+          <HealthLabel wear={wear} side={side} />
+          <WearLabel wearRate={wearRate} side={side} />
+        </>
+      )}
       {/* Curb indicator — orange ring under tire when on rumble strip */}
       {onCurb && (
         <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -0.34, 0]}>

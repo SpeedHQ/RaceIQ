@@ -78,9 +78,9 @@ function parseCsvLine(line: string): string[] {
   return fields;
 }
 
+// @ts-ignore — Bun text import
+import specsRaw from "./car-specs.csv" with { type: "text" };
 try {
-  // @ts-ignore — Bun text import
-  const { default: specsRaw } = await import("./car-specs.csv", { with: { type: "text" } });
   let firstLine = true;
   for (const line of specsRaw.split("\n")) {
     const trimmed = line.trim();
@@ -140,7 +140,7 @@ export interface TrackInfo {
 export const trackMap = new Map<number, TrackInfo>();
 
 // @ts-ignore — Bun text import
-const { default: tracksRaw } = await import("./tracks.csv", { with: { type: "text" } });
+import tracksRaw from "./tracks.csv" with { type: "text" };
 for (const line of tracksRaw.split("\n")) {
   const trimmed = line.trim();
   if (!trimmed) continue;

@@ -77,10 +77,10 @@ function makeStaticPacket(carOrdinal: number): TelemetryPacket {
     Speed: 0,
     Power: 0,
     Torque: 0,
-    TireTempFL: 90,
-    TireTempFR: 90,
-    TireTempRL: 90,
-    TireTempRR: 90,
+    TireTempFL: 0,
+    TireTempFR: 0,
+    TireTempRL: 0,
+    TireTempRR: 0,
     Boost: 0,
     Fuel: 1,
     DistanceTraveled: 0,
@@ -90,10 +90,10 @@ function makeStaticPacket(carOrdinal: number): TelemetryPacket {
     CurrentRaceTime: 0,
     LapNumber: 0,
     RacePosition: 0,
-    TireWearFL: 1,
-    TireWearFR: 1,
-    TireWearRL: 1,
-    TireWearRR: 1,
+    TireWearFL: 0,
+    TireWearFR: 0,
+    TireWearRL: 0,
+    TireWearRR: 0,
     TrackOrdinal: 0,
   } as TelemetryPacket;
 }
@@ -161,7 +161,6 @@ function CarModelPage() {
           cursorIdx={0}
           outline={null}
           carOrdinal={ordinal}
-          showDimensions
           minimal
         />
       </div>

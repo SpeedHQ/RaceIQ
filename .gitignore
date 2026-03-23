@@ -8,3 +8,4 @@ dist/
 .env
 /udp-forwarder
 server/client-assets.generated.ts
+.DS_Store

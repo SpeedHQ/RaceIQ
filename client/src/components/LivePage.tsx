@@ -37,19 +37,21 @@ function PageHeader({ dashMode, demo }: {
           Pit Crew
         </Link>
       </div>
-      <button
-        onClick={demo.toggle}
-        disabled={demo.loading}
-        className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border transition-colors ${
-          demo.active
-            ? "bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30"
-            : demo.loading
-              ? "bg-app-surface-alt border-app-border text-app-text-dim cursor-wait"
-              : "bg-app-surface-alt border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover"
-        }`}
-      >
-        {demo.loading ? "Loading..." : demo.active ? "Stop Demo" : "Demo"}
-      </button>
+      {import.meta.env.DEV && (
+        <button
+          onClick={demo.toggle}
+          disabled={demo.loading}
+          className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border transition-colors ${
+            demo.active
+              ? "bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30"
+              : demo.loading
+                ? "bg-app-surface-alt border-app-border text-app-text-dim cursor-wait"
+                : "bg-app-surface-alt border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover"
+          }`}
+        >
+          {demo.loading ? "Loading..." : demo.active ? "Stop Demo" : "Demo"}
+        </button>
+      )}
     </div>
   );
 }
