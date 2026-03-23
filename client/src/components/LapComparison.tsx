@@ -881,7 +881,7 @@ export function LapComparison() {
   return (
     <div className="flex flex-col gap-4 p-4 h-full overflow-hidden">
       {/* Selectors: Track → Car A → Lap A → Car B → Lap B */}
-      <div className="flex items-start gap-4 flex-wrap shrink-0">
+      <div className="flex items-start gap-3 shrink-0">
         {/* Track selector */}
         <div className="flex flex-col gap-1">
           <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Track</label>

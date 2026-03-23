@@ -87,26 +87,9 @@ export function SearchSelect({
     ? `focus:border-${focusColor}`
     : "focus:ring-1 focus:ring-app-border-input";
 
-  // Auto-size: measure the selected label to set min-width
-  const measureRef = useRef<HTMLSpanElement>(null);
-  const [autoWidth, setAutoWidth] = useState<number | undefined>(undefined);
-  useEffect(() => {
-    if (measureRef.current) {
-      // Add padding (px-2 = 8px*2) + chevron space (20px) + border (2px)
-      setAutoWidth(measureRef.current.scrollWidth + 38);
-    }
-  }, [selectedLabel, placeholder]);
 
   return (
-    <div ref={containerRef} className={`relative ${className}`} style={autoWidth ? { minWidth: Math.max(autoWidth, 120) } : undefined}>
-      {/* Hidden measurer */}
-      <span
-        ref={measureRef}
-        className="invisible absolute whitespace-nowrap text-sm pointer-events-none"
-        aria-hidden
-      >
-        {selectedLabel || placeholder}
-      </span>
+    <div ref={containerRef} className={`relative ${className}`}>
       <input
         ref={inputRef}
         type="text"
@@ -122,7 +105,7 @@ export function SearchSelect({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text placeholder:text-app-text-dim focus:outline-none disabled:opacity-50 ${focusBorderClass}`}
+        className={`w-full bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text placeholder:text-app-text-dim focus:outline-none disabled:opacity-50 text-ellipsis ${focusBorderClass}`}
       />
       {/* Chevron indicator */}
       <svg
