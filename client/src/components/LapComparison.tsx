@@ -883,19 +883,18 @@ export function LapComparison() {
       {/* Selectors: Track → Car A → Lap A → Car B → Lap B */}
       <div className="flex items-start gap-3 shrink-0">
         {/* Track selector */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 flex-1 min-w-[140px] max-w-[260px]">
           <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Track</label>
           <SearchSelect
             value={selectedTrack != null ? String(selectedTrack) : ""}
             onChange={(v) => setSelectedTrack(v ? Number(v) : null)}
             options={trackGroups.map((g) => ({ value: String(g.trackOrdinal), label: `${g.trackName} (${g.laps.length} laps)` }))}
             placeholder="Search tracks..."
-            className="min-w-[200px]"
           />
         </div>
 
         {/* Car A */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[220px]">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
             <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Car A</label>
@@ -906,13 +905,12 @@ export function LapComparison() {
             options={trackCars.map((ord) => ({ value: String(ord), label: carNames.get(ord) || `Car ${ord}` }))}
             placeholder="Search cars..."
             disabled={!selectedTrack}
-            className="min-w-[200px]"
             focusColor="orange-500"
           />
         </div>
 
         {/* Lap A */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[200px]">
           <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap A</label>
           <SearchSelect
             value={lapAId != null ? String(lapAId) : ""}
@@ -920,13 +918,12 @@ export function LapComparison() {
             options={carALaps.map((lap) => ({ value: String(lap.id), label: `Lap ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
             placeholder="Search laps..."
             disabled={!carAOrd}
-            className="min-w-[180px]"
             focusColor="orange-500"
           />
         </div>
 
         {/* Car B */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[220px]">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
             <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Car B</label>
@@ -937,13 +934,12 @@ export function LapComparison() {
             options={trackCars.map((ord) => ({ value: String(ord), label: carNames.get(ord) || `Car ${ord}` }))}
             placeholder="Search cars..."
             disabled={!selectedTrack}
-            className="min-w-[200px]"
             focusColor="blue-500"
           />
         </div>
 
         {/* Lap B */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[200px]">
           <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap B</label>
           <SearchSelect
             value={lapBId != null ? String(lapBId) : ""}
@@ -951,7 +947,6 @@ export function LapComparison() {
             options={carBLaps.map((lap) => ({ value: String(lap.id), label: `Lap ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
             placeholder="Search laps..."
             disabled={!carBOrd}
-            className="min-w-[180px]"
             focusColor="blue-500"
           />
         </div>
