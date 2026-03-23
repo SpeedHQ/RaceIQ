@@ -6,12 +6,16 @@ export interface DisplaySettings {
   temperatureUnit: "F" | "C";
   speedUnit: "mph" | "kmh";
   tireTemperatureThresholds: { cold: number; warm: number; hot: number };
+  tireHealthThresholds: { values: number[] };
+  suspensionThresholds: { values: number[] };
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   temperatureUnit: "F",
   speedUnit: "mph",
   tireTemperatureThresholds: { cold: 150, warm: 220, hot: 280 },
+  tireHealthThresholds: { values: [20, 40, 60, 80] },
+  suspensionThresholds: { values: [25, 65, 85] },
 };
 
 interface TelemetryState {

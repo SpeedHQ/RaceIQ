@@ -220,6 +220,57 @@ export function getNormalizedPosition(
 }
 
 /**
+ * Calibrate from an array of Forza positions (e.g. from a stored lap).
+ * Applies the same spatial downsampling and Procrustes alignment as live calibration.
+ * Returns true if calibration succeeded.
+ */
+export function calibrateFromPositions(
+  trackOrdinal: number,
+  positions: Point[],
+  outline: Point[]
+): boolean {
+  // Filter zero positions and spatially downsample (>5m apart)
+  const filtered: Point[] = [];
+  for (const p of positions) {
+    if (p.x === 0 && p.z === 0) continue;
+    const last = filtered[filtered.length - 1];
+    if (!last) {
+      filtered.push(p);
+    } else {
+      const dx = p.x - last.x;
+      const dz = p.z - last.z;
+      if (dx * dx + dz * dz > 25) {
+        filtered.push(p);
+      }
+    }
+  }
+
+  if (filtered.length < 50) return false;
+
+  // Set up calibration state with collected points
+  let state = calibrations.get(trackOrdinal);
+  if (!state) {
+    state = { transform: null, forzaPoints: [], lastLap: 0, collecting: false };
+    calibrations.set(trackOrdinal, state);
+  }
+  state.forzaPoints = filtered;
+
+  // Run Procrustes alignment
+  const n = Math.min(filtered.length, outline.length, 200);
+  const srcSampled = downsample(filtered, n);
+  const tgtSampled = downsample(outline, n);
+
+  const transform = procrustes(srcSampled, tgtSampled);
+  state.transform = transform;
+  state.collecting = false;
+
+  console.log(
+    `[Calibration] Track ${trackOrdinal} calibrated from stored lap: scale=${transform.scale.toFixed(3)} rot=${(transform.rotation * 180 / Math.PI).toFixed(1)}° (${filtered.length} points)`
+  );
+  return true;
+}
+
+/**
  * Check if a track is calibrated.
  */
 export function isCalibrated(trackOrdinal: number): boolean {

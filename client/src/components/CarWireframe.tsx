@@ -5,13 +5,14 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import type { TelemetryPacket } from "@shared/types";
 import { getCarModel, loadCarModelConfigs, type CarModelEnrichment } from "../data/car-models";
+import { allWheelStates } from "../lib/vehicle-dynamics";
 import { useUnits } from "../hooks/useUnits";
+import { useSettings } from "../hooks/queries";
 
 // ── Tire temp → color ──────────────────────────────────────────────
 
 function tractionColor(slip: number): string {
-  if (slip < 0.15) return "#34d399";   // full grip — green
-  if (slip < 0.4) return "#22d3ee";    // slight slide — cyan
+  if (slip < 0.3) return "#34d399";    // full grip — green
   if (slip < 0.8) return "#fbbf24";    // sliding — amber
   return "#ef4444";                     // loss of traction — red
 }
@@ -78,14 +79,68 @@ function TempLabel({ displayTemp, rawTemp, side }: { displayTemp: string; rawTem
   );
 }
 
+function WearLabel({ wearRate, side }: { wearRate: number; side: "left" | "right" }) {
+  const text = wearRate > 0.0001 ? `-${(wearRate * 100).toFixed(2)}%/s` : "";
+  const texture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 48;
+    const ctx = canvas.getContext("2d")!;
+    ctx.clearRect(0, 0, 128, 48);
+    ctx.font = "bold 24px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#f97316";
+    ctx.fillText(text, 64, 24);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    return tex;
+  }, [text]);
+
+  return (
+    <sprite position={[0, 0.22, side === "left" ? -0.55 : 0.55]} scale={[0.6, 0.22, 1]}>
+      <spriteMaterial map={texture} transparent depthTest={false} />
+    </sprite>
+  );
+}
+
+function HealthLabel({ wear, side }: { wear: number; side: "left" | "right" }) {
+  const pct = (wear * 100).toFixed(0);
+  const color = wear > 0.7 ? "#34d399" : wear > 0.4 ? "#fbbf24" : "#ef4444";
+  const text = `${pct}% H`;
+  const texture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 128;
+    canvas.height = 48;
+    const ctx = canvas.getContext("2d")!;
+    ctx.clearRect(0, 0, 128, 48);
+    ctx.font = "bold 26px monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = color;
+    ctx.fillText(text, 64, 24);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    return tex;
+  }, [text, color]);
+
+  return (
+    <sprite position={[0, 0.36, side === "left" ? -0.55 : 0.55]} scale={[0.5, 0.18, 1]}>
+      <spriteMaterial map={texture} transparent depthTest={false} />
+    </sprite>
+  );
+}
+
 function Wheel({
   position,
   steerAngle,
   gripColor,
   tempColor,
-  spinAngle,
+  rotationSpeed,
   temp,
   displayTemp,
+  wearRate,
+  wear,
   side,
   onCurb,
   puddleDepth,
@@ -94,20 +149,31 @@ function Wheel({
   steerAngle: number;
   gripColor: string;
   tempColor: string;
-  spinAngle: number;
+  rotationSpeed: number;
   temp: number;
   displayTemp: string;
+  wearRate: number;
+  wear: number;
   side: "left" | "right";
   onCurb: boolean;
   puddleDepth: number;
 }) {
   const wheelY = position[1];
   const { tire, rim, hub } = useWheelGeometries();
+  const spinRef = useRef<THREE.Group>(null);
+
+  // Accumulate spin every frame using wall-clock delta — works at any playback speed
+  // Dead-band near-zero speeds to prevent reverse-wobble when paused
+  useFrame((_, delta) => {
+    if (!spinRef.current) return;
+    if (Math.abs(rotationSpeed) < 0.5) return;
+    spinRef.current.rotation.z += rotationSpeed * delta * 0.3;
+  });
 
   return (
     <group position={[position[0], wheelY, position[2]]}>
       <group rotation={[0, steerAngle, 0]}>
-        <group rotation={[0, 0, spinAngle]}>
+        <group ref={spinRef}>
           <mesh geometry={tire}>
             <meshBasicMaterial color={gripColor} wireframe />
           </mesh>
@@ -121,6 +187,10 @@ function Wheel({
       </group>
       {/* Temp label floating above */}
       <TempLabel displayTemp={displayTemp} rawTemp={temp} side={side} />
+      {/* Tire health below temp */}
+      <HealthLabel wear={wear} side={side} />
+      {/* Wear rate label below health */}
+      <WearLabel wearRate={wearRate} side={side} />
       {/* Curb indicator — orange ring under tire when on rumble strip */}
       {onCurb && (
         <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -0.34, 0]}>
@@ -141,14 +211,26 @@ function Wheel({
 
 // ── Suspension spring (coil + damper) ──────────────────────────────
 
+const SUSP_HEX_COLORS = ["#3b82f6", "#34d399", "#facc15", "#ef4444"];
+
+function suspHexColor(suspTravel: number, thresholds: number[]): string {
+  const pct = suspTravel * 100;
+  for (let i = 0; i < thresholds.length; i++) {
+    if (pct < thresholds[i]) return SUSP_HEX_COLORS[i] ?? SUSP_HEX_COLORS[0];
+  }
+  return SUSP_HEX_COLORS[thresholds.length] ?? SUSP_HEX_COLORS[SUSP_HEX_COLORS.length - 1];
+}
+
 function SuspensionSpring({
   bodyPos,
   wheelPos,
   suspTravel,
+  suspThresholds,
 }: {
   bodyPos: [number, number, number];
   wheelPos: [number, number, number];
   suspTravel: number;
+  suspThresholds: number[];
 }) {
   const coilRadius = 0.032;  // ~64mm diameter (GT3 spec)
   const coils = 6;
@@ -173,9 +255,7 @@ function SuspensionSpring({
     return pts;
   }, [botY, height, bodyPos[0], bodyPos[2]]);
 
-  // Color: green when neutral, amber when compressed, red when bottomed out
-  // Red when heavily compressed (high travel), green when normal
-  const color = suspTravel > 0.85 ? "#ef4444" : suspTravel > 0.6 ? "#fbbf24" : "#34d399";
+  const color = suspHexColor(suspTravel, suspThresholds);
 
   return (
     <group>
@@ -196,13 +276,33 @@ function SuspensionSpring({
 // Licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/)
 
 // Default hidden meshes for the bundled Aston Martin model
-const DEFAULT_HIDDEN_MESHES = new Set([
+export const DEFAULT_HIDDEN_MESHES = new Set([
   94, 125, 126, 161, 183, 184, 211, 212, 214, 215, 217, 219,
   119, 120, 122, 123, 174, 175, 177, 178,
   7, 8,
 ]);
 
-function CarBody({ solid, carModel, modelOffsetX }: { solid: "wire" | "solid" | "hidden"; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number }) {
+/**
+ * Determine what action to take for a mesh given current display mode.
+ * Returns "remove" | "solid" | "wire" to indicate the mesh treatment.
+ */
+export function classifyMesh(
+  meshName: string,
+  solid: "wire" | "solid" | "hidden",
+  hideModelWheels: boolean,
+  customHiddenMeshes?: number[],
+): "remove" | "solid" | "wire" {
+  const hiddenMeshes = customHiddenMeshes?.length ? new Set(customHiddenMeshes) : DEFAULT_HIDDEN_MESHES;
+  const num = parseInt(meshName.replace(/\D/g, ""), 10);
+  const isWheelMesh = hiddenMeshes.has(num);
+
+  if (solid === "hidden") return "remove";
+  if (isWheelMesh && (solid === "solid" || hideModelWheels)) return "remove";
+  if (solid === "solid") return "solid";
+  return "wire";
+}
+
+function CarBody({ solid, carModel, modelOffsetX, hideModelWheels }: { solid: "wire" | "solid" | "hidden"; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; hideModelWheels?: boolean }) {
   const { scene } = useGLTF(carModel.modelPath);
 
   // Log model structure on first load to find the right nodes
@@ -230,27 +330,22 @@ function CarBody({ solid, carModel, modelOffsetX }: { solid: "wire" | "solid" | 
 
   const model = useMemo(() => {
     const clone = scene.clone(true);
+    const toRemove: THREE.Object3D[] = [];
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
-        if (solid === "hidden") {
-          mesh.visible = false;
-        } else if (solid === "solid") {
-          // Hide wheels, shocks, suspension, brakes from GLB in solid mode
-          const num = parseInt(mesh.name.replace(/\D/g, ""), 10);
-          const hiddenMeshes = carModel.solidHiddenMeshes ? new Set(carModel.solidHiddenMeshes) : DEFAULT_HIDDEN_MESHES;
-          if (hiddenMeshes.has(num)) {
-            mesh.visible = false;
-          } else {
-            mesh.material = new THREE.MeshStandardMaterial({
-              color: "#4a6a8a",
-              metalness: 0.7,
-              roughness: 0.25,
-              side: THREE.DoubleSide,
-            });
-          }
+        const action = classifyMesh(mesh.name, solid, !!hideModelWheels, carModel.solidHiddenMeshes);
+
+        if (action === "remove") {
+          toRemove.push(mesh);
+        } else if (action === "solid") {
+          mesh.material = new THREE.MeshStandardMaterial({
+            color: "#4a6a8a",
+            metalness: 0.7,
+            roughness: 0.25,
+            side: THREE.DoubleSide,
+          });
         } else {
-          mesh.visible = true;
           mesh.material = new THREE.MeshBasicMaterial({
             color: "#94a3b8",
             wireframe: true,
@@ -260,8 +355,9 @@ function CarBody({ solid, carModel, modelOffsetX }: { solid: "wire" | "solid" | 
         }
       }
     });
+    toRemove.forEach((obj) => obj.parent?.remove(obj));
     return clone;
-  }, [scene, solid]);
+  }, [scene, solid, hideModelWheels, carModel]);
 
   // Scale GLB to match our coordinate system.
   // If glbWheelbase is set, scale so it matches our wheelbase exactly.
@@ -288,9 +384,41 @@ function CarBody({ solid, carModel, modelOffsetX }: { solid: "wire" | "solid" | 
   }, [scene, carModel, modelOffsetX]);
 
 
+  const [highlightedMesh, setHighlightedMesh] = useState<string | null>(null);
+
+  const handleDoubleClick = useCallback((e: THREE.Event & { object?: THREE.Mesh }) => {
+    e.stopPropagation?.();
+    const mesh = e.object as THREE.Mesh | undefined;
+    if (!mesh?.isMesh) return;
+    const num = parseInt(mesh.name.replace(/\D/g, ""), 10);
+    const box = new THREE.Box3().setFromObject(mesh);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    console.log(`[CarBody] Clicked: ${mesh.name} (#${num}) [${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}]`);
+
+    if (highlightedMesh === mesh.name) {
+      // Un-highlight: restore original material
+      setHighlightedMesh(null);
+    } else {
+      setHighlightedMesh(mesh.name);
+    }
+  }, [highlightedMesh]);
+
+  // Apply highlight overlay
+  useEffect(() => {
+    model.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        if (mesh.name === highlightedMesh) {
+          mesh.material = new THREE.MeshBasicMaterial({ color: "#ff4444", wireframe: false, transparent: true, opacity: 0.6 });
+        }
+      }
+    });
+  }, [highlightedMesh, model]);
+
   return (
     <group scale={autoScale} position={[offset.x, offset.y + 0.25, offset.z]} rotation={[0, 0, 0]}>
-      <primitive object={model} />
+      <primitive object={model} onDoubleClick={handleDoubleClick} />
     </group>
   );
 }
@@ -312,10 +440,9 @@ function getWheelOffsets(m: CarModelEnrichment): [number, number][] {
 const SLIP_GREEN = new THREE.Color("#34d399");
 const SLIP_AMBER = new THREE.Color("#fbbf24");
 const SLIP_RED = new THREE.Color("#ef4444");
-const BRAKE_FULL = new THREE.Color("#cc0000");
-const BRAKE_HEAVY = new THREE.Color("#ee2200");
-const BRAKE_MED = new THREE.Color("#ff6600");
-const BRAKE_LIGHT = new THREE.Color("#ff9933");
+const BRAKE_MIN = new THREE.Color("#ff9933");
+const BRAKE_MAX = new THREE.Color("#cc0000");
+const _brakeTemp = new THREE.Color();
 
 function slipColor(slip: number): string {
   if (slip < 0.3) return "#34d399";
@@ -324,10 +451,9 @@ function slipColor(slip: number): string {
 }
 
 function brakeColor(brake: number): THREE.Color {
-  if (brake > 200) return BRAKE_FULL;
-  if (brake > 130) return BRAKE_HEAVY;
-  if (brake > 60) return BRAKE_MED;
-  return BRAKE_LIGHT;
+  // Smooth lerp from light orange (10) to deep red (255)
+  const t = Math.min(1, Math.max(0, (brake - 10) / 245));
+  return _brakeTemp.copy(BRAKE_MIN).lerp(BRAKE_MAX, t).clone();
 }
 
 function trailColorObj(slip: number, brake: number): THREE.Color {
@@ -352,27 +478,15 @@ function TireTrails({
     const cur = telemetry[cursorIdx];
     if (!cur) return null;
 
-    const curTime = cur.TimestampMS;
-    const trailMs = 800;
-
-    // Find start index (~2 seconds back)
-    let startIdx = cursorIdx;
-    while (startIdx > 0 && curTime - telemetry[startIdx].TimestampMS < trailMs) {
-      startIdx--;
-    }
-
+    const TRAIL_PACKETS = 60;
+    const startIdx = Math.max(0, cursorIdx - TRAIL_PACKETS);
     if (cursorIdx - startIdx < 2) return null;
 
-    // Current car position/yaw for relative transform
     const cx = cur.PositionX;
     const cz = cur.PositionZ;
     const cyaw = cur.Yaw;
-    // Forza: forward = (sin(Yaw), cos(Yaw))
     const curSin = Math.sin(cyaw);
     const curCos = Math.cos(cyaw);
-
-    // Scale trail to fit scene (car is ~5m in scene, real trail can be 100m+)
-    const scale = 0.06;
 
     const slips = [
       (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipFL),
@@ -388,43 +502,14 @@ function TireTrails({
       const colors: string[] = [];
       const [wheelOffX, wheelOffZ] = WHEEL_OFFSETS[w];
 
-      for (let i = startIdx; i <= cursorIdx; i += 5) {
+      for (let i = startIdx; i <= cursorIdx; i++) {
         const p = telemetry[i];
-        // Compute wheel world position using historical yaw
-        const pSin = Math.sin(p.Yaw);
-        const pCos = Math.cos(p.Yaw);
-        // For front wheels, rotate offset by steer angle to get true contact patch position
-        let fwd = wheelOffX;
-        let rgt = wheelOffZ;
-        if (w < 2) {
-          const steer = (p.Steer / 127) * 0.35;
-          const cs = Math.cos(steer), ss = Math.sin(steer);
-          const rf = fwd * cs - rgt * ss;
-          const rr = fwd * ss + rgt * cs;
-          fwd = rf;
-          rgt = rr;
-        }
-        // Forza forward = (sin(yaw), cos(yaw)), right = (cos(yaw), -sin(yaw))
-        const wx = p.PositionX + fwd * pSin + rgt * pCos;
-        const wz = p.PositionZ + fwd * pCos - rgt * pSin;
-
-        // Delta from current car center
-        const dx = wx - cx;
-        const dz = wz - cz;
-
-        // Transform to current car-local frame
+        const dx = p.PositionX - cx;
+        const dz = p.PositionZ - cz;
         const localFwd = dx * curSin + dz * curCos;
-        const localRight = dx * curCos - dz * curSin;
+        const localLat = dx * curCos - dz * curSin;
 
-        // Scale only the distance from car center, preserve wheel offset at endpoints
-        // Split into car-center path (scaled) + wheel offset (unscaled)
-        const cdx = p.PositionX - cx;
-        const cdz = p.PositionZ - cz;
-        const centerFwd = (cdx * curSin + cdz * curCos) * scale;
-        const centerRight = (cdx * curCos - cdz * curSin) * scale;
-
-        // Add unscaled wheel offset in car-local frame
-        points.push([centerFwd + wheelOffX, -0.42, centerRight + wheelOffZ]);
+        points.push([localFwd + wheelOffX, -0.42, localLat + wheelOffZ]);
         colors.push(trailColorObj(slips[w](p), 0));
       }
 
@@ -465,11 +550,8 @@ function BrakeTrail({
     const cur = telemetry[cursorIdx];
     if (!cur) return null;
 
-    const curTime = cur.TimestampMS;
-    let startIdx = cursorIdx;
-    while (startIdx > 0 && curTime - telemetry[startIdx].TimestampMS < 800) {
-      startIdx--;
-    }
+    const TRAIL_PACKETS = 60;
+    const startIdx = Math.max(0, cursorIdx - TRAIL_PACKETS);
     if (cursorIdx - startIdx < 2) return null;
 
     const cx = cur.PositionX;
@@ -477,7 +559,6 @@ function BrakeTrail({
     const cyaw = cur.Yaw;
     const curSin = Math.sin(cyaw);
     const curCos = Math.cos(cyaw);
-    const scale = 0.06;
 
     // Two brake light positions (left z=-0.70, right z=0.70)
     const lights: { points: [number, number, number][]; colors: THREE.Color[] }[] = [];
@@ -486,17 +567,23 @@ function BrakeTrail({
       const points: [number, number, number][] = [];
       const colors: THREE.Color[] = [];
 
-      for (let i = startIdx; i <= cursorIdx; i += 5) {
+      for (let i = startIdx; i <= cursorIdx; i++) {
         const p = telemetry[i];
         if (p.Brake < 10) continue; // only draw when braking
 
-        const cdx = p.PositionX - cx;
-        const cdz = p.PositionZ - cz;
-        const centerFwd = (cdx * curSin + cdz * curCos) * scale;
-        const centerRight = (cdx * curCos - cdz * curSin) * scale;
+        // World-space offset of brake light: car-local (-2.01, lightZ) rotated by packet yaw
+        const pSin = Math.sin(p.Yaw);
+        const pCos = Math.cos(p.Yaw);
+        const lightWorldX = p.PositionX + (-2.01) * pSin + lightZ * pCos;
+        const lightWorldZ = p.PositionZ + (-2.01) * pCos - lightZ * pSin;
 
-        // Position at rear of car + light offset, at tail light height
-        points.push([centerFwd + (-2.01), 0.22, centerRight + lightZ]);
+        // Transform to current car-local frame
+        const dx = lightWorldX - cx;
+        const dz = lightWorldZ - cz;
+        const localFwd = dx * curSin + dz * curCos;
+        const localLat = dx * curCos - dz * curSin;
+
+        points.push([localFwd, 0.22, localLat]);
         colors.push(brakeColor(p.Brake));
       }
 
@@ -522,108 +609,8 @@ function BrakeTrail({
   );
 }
 
-// ── Surface trail (curb + puddle marks on ground) ───────────────────
-
 const CURB_ORANGE = new THREE.Color("#ff8800");
 const PUDDLE_BLUE = new THREE.Color("#3b82f6");
-
-function SurfaceTrail({
-  telemetry,
-  cursorIdx,
-  carModel,
-}: {
-  telemetry: TelemetryPacket[];
-  cursorIdx: number;
-  carModel: CarModelEnrichment;
-}) {
-  const WHEEL_OFFSETS = useMemo(() => getWheelOffsets(carModel), [carModel]);
-
-  const marks = useMemo(() => {
-    const cur = telemetry[cursorIdx];
-    if (!cur) return null;
-
-    const curTime = cur.TimestampMS;
-    const trailMs = 800;
-    let startIdx = cursorIdx;
-    while (startIdx > 0 && curTime - telemetry[startIdx].TimestampMS < trailMs) {
-      startIdx--;
-    }
-    if (cursorIdx - startIdx < 2) return null;
-
-    const cx = cur.PositionX;
-    const cz = cur.PositionZ;
-    const cyaw = cur.Yaw;
-    const curSin = Math.sin(cyaw);
-    const curCos = Math.cos(cyaw);
-    const scale = 0.06;
-
-    const rumbles = [
-      (p: TelemetryPacket) => p.WheelOnRumbleStripFL !== 0,
-      (p: TelemetryPacket) => p.WheelOnRumbleStripFR !== 0,
-      (p: TelemetryPacket) => p.WheelOnRumbleStripRL !== 0,
-      (p: TelemetryPacket) => p.WheelOnRumbleStripRR !== 0,
-    ];
-    const puddles = [
-      (p: TelemetryPacket) => p.WheelInPuddleDepthFL,
-      (p: TelemetryPacket) => p.WheelInPuddleDepthFR,
-      (p: TelemetryPacket) => p.WheelInPuddleDepthRL,
-      (p: TelemetryPacket) => p.WheelInPuddleDepthRR,
-    ];
-
-    // Build line segments per wheel, colored by surface type
-    const curbTrails: { points: [number, number, number][]; colors: THREE.Color[] }[] = [];
-    const puddleTrails: { points: [number, number, number][]; colors: THREE.Color[] }[] = [];
-
-    for (let w = 0; w < 4; w++) {
-      const curbPts: [number, number, number][] = [];
-      const curbCols: THREE.Color[] = [];
-      const puddlePts: [number, number, number][] = [];
-      const puddleCols: THREE.Color[] = [];
-      const [wheelOffX, wheelOffZ] = WHEEL_OFFSETS[w];
-
-      for (let i = startIdx; i <= cursorIdx; i += 3) {
-        const p = telemetry[i];
-        const onCurb = rumbles[w](p);
-        const puddleDepth = puddles[w](p);
-
-        if (!onCurb && puddleDepth <= 0) continue;
-
-        const cdx = p.PositionX - cx;
-        const cdz = p.PositionZ - cz;
-        const centerFwd = (cdx * curSin + cdz * curCos) * scale;
-        const centerRight = (cdx * curCos - cdz * curSin) * scale;
-        const pt: [number, number, number] = [centerFwd + wheelOffX, -0.43, centerRight + wheelOffZ];
-
-        if (onCurb) {
-          curbPts.push(pt);
-          curbCols.push(CURB_ORANGE);
-        }
-        if (puddleDepth > 0) {
-          puddlePts.push(pt);
-          puddleCols.push(PUDDLE_BLUE);
-        }
-      }
-
-      if (curbPts.length > 1) curbTrails.push({ points: curbPts, colors: curbCols });
-      if (puddlePts.length > 1) puddleTrails.push({ points: puddlePts, colors: puddleCols });
-    }
-
-    return { curbTrails, puddleTrails };
-  }, [telemetry, cursorIdx, WHEEL_OFFSETS]);
-
-  if (!marks) return null;
-
-  return (
-    <>
-      {marks.curbTrails.map((t, i) => (
-        <Line key={`curb-${i}`} points={t.points} vertexColors={t.colors} lineWidth={5} opacity={0.8} transparent />
-      ))}
-      {marks.puddleTrails.map((t, i) => (
-        <Line key={`puddle-${i}`} points={t.points} vertexColors={t.colors} lineWidth={6} opacity={0.5} transparent />
-      ))}
-    </>
-  );
-}
 
 // ── Curb markers on track (world-space, full lap history) ───────────
 
@@ -664,7 +651,7 @@ function CurbMarkers({
     const wet: { x: number; z: number }[] = [];
 
     // Scan full telemetry so curbs are visible ahead of car too
-    for (let i = 0; i < telemetry.length; i += 3) {
+    for (let i = 0; i < telemetry.length; i++) {
       const p = telemetry[i];
 
       // Left-side curbs (FL, RL)
@@ -707,7 +694,7 @@ function CurbMarkers({
     <>
       {curbPts.map((pt, i) => (
         <mesh key={`c${i}`} position={pt}>
-          <sphereGeometry args={[0.08, 6, 6]} />
+          <sphereGeometry args={[0.02, 6, 6]} />
           <meshBasicMaterial color="#ff8800" transparent opacity={0.9} />
         </mesh>
       ))}
@@ -967,10 +954,11 @@ function CameraController({ viewPreset }: { viewPreset: ViewPreset }) {
   );
 }
 
-function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, viewPreset, carModel, modelOffsetX, fmtTemp }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null; toggles: ViewToggles; viewPreset: ViewPreset; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; fmtTemp: (f: number) => string }) {
+function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, viewPreset, carModel, modelOffsetX, fmtTemp, hideModelWheels, suspThresholds }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null; toggles: ViewToggles; viewPreset: ViewPreset; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; fmtTemp: (f: number) => string; hideModelWheels?: boolean; suspThresholds: number[] }) {
   const carGroupRef = useRef<THREE.Group>(null);
   const prevTimeRef = useRef(packet.TimestampMS);
-  const spinAngles = useRef([0, 0, 0, 0]);
+  const prevWear = useRef([packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR]);
+  const wearRates = useRef([0, 0, 0, 0]);
 
   // Derive body roll/pitch from suspension deltas (not raw telemetry which includes track gradient)
   // Higher suspension travel = more compressed on that corner
@@ -1005,29 +993,36 @@ function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, 
     );
   });
 
-  // Accumulate wheel spin based on telemetry time delta (not real time)
+
+  // Compute tire wear rate (/s) — smoothed with EMA
   const dt = (packet.TimestampMS - prevTimeRef.current) / 1000;
   prevTimeRef.current = packet.TimestampMS;
-  const speeds = [
-    packet.WheelRotationSpeedFL,
-    packet.WheelRotationSpeedFR,
-    packet.WheelRotationSpeedRL,
-    packet.WheelRotationSpeedRR,
-  ];
-  for (let i = 0; i < 4; i++) {
-    spinAngles.current[i] += speeds[i] * dt * 0.3;
+  const currentWear = [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR];
+  if (dt > 0 && dt < 1) {
+    for (let i = 0; i < 4; i++) {
+      const rawRate = (prevWear.current[i] - currentWear[i]) / dt;
+      wearRates.current[i] = wearRates.current[i] * 0.9 + rawRate * 0.1;
+    }
   }
+  prevWear.current = currentWear;
 
   const steerRad = -(packet.Steer / 127) * 0.35;
+
+  // Zero out wheel rotation during lockup — locked wheel = no spin
+  const ws = allWheelStates(packet);
+  const rotFL = ws.fl.state === "lockup" ? 0 : packet.WheelRotationSpeedFL;
+  const rotFR = ws.fr.state === "lockup" ? 0 : packet.WheelRotationSpeedFR;
+  const rotRL = ws.rl.state === "lockup" ? 0 : packet.WheelRotationSpeedRL;
+  const rotRR = ws.rr.state === "lockup" ? 0 : packet.WheelRotationSpeedRR;
 
   const wb = carModel.halfWheelbase;
   const ft = carModel.halfFrontTrack;
   const rt = carModel.halfRearTrack;
   const wheelData = [
-    { pos: [wb, 0, -ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFL, slip: Math.abs(packet.TireCombinedSlipFL), temp: packet.TireTempFL, onRumble: packet.WheelOnRumbleStripFL !== 0, puddle: packet.WheelInPuddleDepthFL },
-    { pos: [wb, 0, ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFR, slip: Math.abs(packet.TireCombinedSlipFR), temp: packet.TireTempFR, onRumble: packet.WheelOnRumbleStripFR !== 0, puddle: packet.WheelInPuddleDepthFR },
-    { pos: [-wb, 0, -rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRL, slip: Math.abs(packet.TireCombinedSlipRL), temp: packet.TireTempRL, onRumble: packet.WheelOnRumbleStripRL !== 0, puddle: packet.WheelInPuddleDepthRL },
-    { pos: [-wb, 0, rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRR, slip: Math.abs(packet.TireCombinedSlipRR), temp: packet.TireTempRR, onRumble: packet.WheelOnRumbleStripRR !== 0, puddle: packet.WheelInPuddleDepthRR },
+    { pos: [wb, 0, -ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFL, slip: Math.abs(packet.TireCombinedSlipFL), temp: packet.TireTempFL, onRumble: packet.WheelOnRumbleStripFL !== 0, puddle: packet.WheelInPuddleDepthFL, wearRate: wearRates.current[0], wear: packet.TireWearFL, rotSpeed: rotFL },
+    { pos: [wb, 0, ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFR, slip: Math.abs(packet.TireCombinedSlipFR), temp: packet.TireTempFR, onRumble: packet.WheelOnRumbleStripFR !== 0, puddle: packet.WheelInPuddleDepthFR, wearRate: wearRates.current[1], wear: packet.TireWearFR, rotSpeed: rotFR },
+    { pos: [-wb, 0, -rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRL, slip: Math.abs(packet.TireCombinedSlipRL), temp: packet.TireTempRL, onRumble: packet.WheelOnRumbleStripRL !== 0, puddle: packet.WheelInPuddleDepthRL, wearRate: wearRates.current[2], wear: packet.TireWearRL, rotSpeed: rotRL },
+    { pos: [-wb, 0, rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRR, slip: Math.abs(packet.TireCombinedSlipRR), temp: packet.TireTempRR, onRumble: packet.WheelOnRumbleStripRR !== 0, puddle: packet.WheelInPuddleDepthRR, wearRate: wearRates.current[3], wear: packet.TireWearRR, rotSpeed: rotRR },
   ];
 
   return (
@@ -1060,7 +1055,7 @@ function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, 
 
       {/* Body — rolls with pitch/roll */}
       <group ref={carGroupRef}>
-        {carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} />}
+        {carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} />}
         {/* Tail lights — glow red when braking */}
         {(() => {
           const braking = packet.Brake > 10;
@@ -1097,9 +1092,11 @@ function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, 
             steerAngle={w.steer}
             gripColor={tractionColor(w.slip)}
             tempColor={tireTempColor(w.temp)}
-            spinAngle={spinAngles.current[i]}
+            rotationSpeed={w.rotSpeed}
             temp={w.temp}
             displayTemp={fmtTemp(w.temp)}
+            wearRate={w.wearRate}
+            wear={w.wear}
             side={i % 2 === 0 ? "left" : "right"}
             onCurb={w.onRumble}
             puddleDepth={w.puddle}
@@ -1115,9 +1112,57 @@ function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, 
               bodyPos={[w.pos[0], 0.23 + bodyDrop, inboardZ]}
               wheelPos={[w.pos[0], 0, inboardZ]}
               suspTravel={w.susp}
+              suspThresholds={suspThresholds}
             />
           );
         })}
+
+        {/* Load distribution — weighted centroid dot between springs */}
+        {toggles.springs && (() => {
+          const loads = [wheelData[0].susp, wheelData[1].susp, wheelData[2].susp, wheelData[3].susp];
+          const total = loads[0] + loads[1] + loads[2] + loads[3];
+          if (total < 0.01) return null;
+          // Corner positions match spring inboard offsets (0.35 inboard of wheels)
+          const corners = [
+            { x: wb, z: -ft + 0.35 },
+            { x: wb, z: ft - 0.35 },
+            { x: -wb, z: -rt + 0.35 },
+            { x: -wb, z: rt - 0.35 },
+          ];
+          let cx = 0, cz = 0;
+          for (let i = 0; i < 4; i++) {
+            cx += corners[i].x * loads[i];
+            cz += corners[i].z * loads[i];
+          }
+          cx /= total;
+          cz /= total;
+          // Amplify offset from center for visibility
+          const sensitivity = 3;
+          const dotX = cx * sensitivity;
+          const dotZ = cz * sensitivity;
+          // Clamp within spring bounds
+          const springZMax = Math.max(ft - 0.35, rt - 0.35);
+          const clampX = Math.max(-wb, Math.min(wb, dotX));
+          const clampZ = Math.max(-springZMax, Math.min(springZMax, dotZ));
+          // Color by magnitude
+          const dist = Math.sqrt(clampX * clampX + clampZ * clampZ);
+          const maxDist = Math.sqrt(wb * wb + springZMax * springZMax);
+          const mag = Math.min(1, dist / maxDist * 2);
+          const dotColor = mag > 0.6 ? "#ef4444" : mag > 0.3 ? "#fbbf24" : "#34d399";
+          const y = 0.23 + bodyDrop;
+          return (
+            <group>
+              {/* Crosshairs */}
+              <Line points={[[-wb, y, 0], [wb, y, 0]]} color="#475569" lineWidth={0.5} />
+              <Line points={[[0, y, -springZMax], [0, y, springZMax]]} color="#475569" lineWidth={0.5} />
+              {/* Load dot */}
+              <mesh position={[clampX, y, clampZ]}>
+                <sphereGeometry args={[0.04, 8, 8]} />
+                <meshBasicMaterial color={dotColor} />
+              </mesh>
+            </group>
+          );
+        })()}
 
         {/* Drivetrain: axles, driveshaft, diff housings */}
         {toggles.drivetrain && (
@@ -1171,8 +1216,6 @@ function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, 
       {/* Brake trail (tail light height, only when braking) */}
       {toggles.brakeTrails && <BrakeTrail telemetry={telemetry} cursorIdx={cursorIdx} />}
 
-      {/* Surface trail (curb + puddle marks on ground) */}
-      {toggles.trails && <SurfaceTrail telemetry={telemetry} cursorIdx={cursorIdx} carModel={carModel} />}
 
       {/* Camera controls */}
       <CameraController viewPreset={viewPreset} />
@@ -1278,6 +1321,8 @@ export function CarWireframe({
   useEffect(() => { loadCarModelConfigs().then(() => setConfigsLoaded(true)); }, []);
   const carModel = useMemo(() => getCarModel(carOrdinal ?? 0), [carOrdinal, configsLoaded]);
   const units = useUnits();
+  const { displaySettings } = useSettings();
+  const suspThresholds = displaySettings.suspensionThresholds.values;
   const fmtTemp = useCallback((f: number) => `${units.temp(f).toFixed(0)}${units.tempLabel}`, [units]);
   const [editMode, setEditMode] = useState(false);
   const [modelOffsetX, setModelOffsetX] = useState(carModel.glbOffsetX ?? 0);
@@ -1300,7 +1345,7 @@ export function CarWireframe({
         gl={{ antialias: true, alpha: true }}
         style={{ background: "transparent" }}
       >
-        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} boundaries={boundaries ?? null} toggles={toggles} viewPreset={viewPreset} carModel={carModel} modelOffsetX={modelOffsetX} fmtTemp={fmtTemp} />
+        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} boundaries={boundaries ?? null} toggles={toggles} viewPreset={viewPreset} carModel={carModel} modelOffsetX={modelOffsetX} fmtTemp={fmtTemp} hideModelWheels={!minimal} suspThresholds={suspThresholds} />
       </Canvas>
 
       {/* View toggles */}

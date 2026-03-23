@@ -27,8 +27,11 @@ export function effectiveWheelRadius(pkt: TelemetryPacket): number {
     Math.abs(pkt.WheelRotationSpeedRL),
     Math.abs(pkt.WheelRotationSpeedRR),
   ];
-  const avgRot = (rotSpeeds[0] + rotSpeeds[1] + rotSpeeds[2] + rotSpeeds[3]) / 4;
-  return avgRot > 5 && gs > 3 ? gs / avgRot : 0.33;
+  // Use the two slowest wheels — spinning wheels inflate the average and
+  // skew slip ratios, causing false lockup detection on non-driven axle
+  const sorted = [...rotSpeeds].sort((a, b) => a - b);
+  const baseRot = (sorted[0] + sorted[1]) / 2;
+  return baseRot > 5 && gs > 3 ? gs / baseRot : 0.33;
 }
 
 // ── All four wheel slip ratios ─────────────────────────────────────
@@ -86,7 +89,7 @@ export function steerBalance(pkt: TelemetryPacket): SteerBalance {
 
   // Threshold scales with speed — at low speed, larger deltas are normal
   const speedMph = pkt.Speed * 2.23694;
-  const threshold = speedMph > 60 ? 2 : speedMph > 30 ? 3 : 5;
+  const threshold = speedMph > 60 ? 5 : speedMph > 30 ? 8 : 12;
 
   const state = delta > threshold ? "understeer" : delta < -threshold ? "oversteer" : "neutral";
   const severity = Math.min(1, Math.abs(delta) / (threshold * 3));
@@ -139,17 +142,13 @@ export function wheelState(
 
   const sr = slipRatio(wheelRotSpeed, groundSpeed, wheelRadius);
 
+  // Lockup = wheel has fully stopped while car is moving
+  if (Math.abs(wheelRotSpeed) < 0.5 && groundSpeed > 3) return { state: "lockup", slipRatio: sr };
+
   // In turns, inner wheels naturally rotate slower — widen the threshold
   const steerFactor = Math.abs(steerAngle) / 127; // 0-1
-  const innerBonus = isInnerWheel ? steerFactor * 0.15 : 0;
-
-  // Optimal slip ratio is ~0.06-0.10 for peak grip
-  // Lockup: SR < -0.10 (wheel much slower than ground)
-  // Spin: SR > 0.10 (wheel much faster than ground)
-  const lockThreshold = -(0.10 + innerBonus);
   const spinThreshold = 0.10 + (isInnerWheel ? 0 : steerFactor * 0.05);
 
-  if (sr < lockThreshold) return { state: "lockup", slipRatio: sr };
   if (sr > spinThreshold) return { state: "spin", slipRatio: sr };
   return { state: "grip", slipRatio: sr };
 }

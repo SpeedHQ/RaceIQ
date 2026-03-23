@@ -1060,6 +1060,9 @@ function TrackDebugPanel({ trackOrdinal, outline }: { trackOrdinal: number; outl
   const [curbs, setCurbs] = useState<{ points: Point[]; side: string }[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [calibration, setCalibration] = useState<{ calibrated: boolean; pointsCollected: number } | null>(null);
+  const [trackLaps, setTrackLaps] = useState<{ id: number; lapTime: number; lapNumber: number }[]>([]);
+  const [selectedLapId, setSelectedLapId] = useState<number | null>(null);
+  const [calibrating, setCalibrating] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, z: 0 });
   const zoomRef = useRef(1);
@@ -1074,10 +1077,13 @@ function TrackDebugPanel({ trackOrdinal, outline }: { trackOrdinal: number; outl
       api.getTrackBoundaries(trackOrdinal),
       api.getTrackCurbs(trackOrdinal),
       fetch(`/api/track-calibration/${trackOrdinal}`).then(r => r.ok ? r.json() : null).catch(() => null),
-    ]).then(([b, c, cal]) => {
+      api.getLaps().then(laps => laps.filter(l => l.trackOrdinal === trackOrdinal && l.lapTime > 0)),
+    ]).then(([b, c, cal, laps]) => {
       setBoundaries(b);
       setCurbs(c);
       setCalibration(cal);
+      setTrackLaps(laps);
+      if (laps.length > 0 && !selectedLapId) setSelectedLapId(laps[0].id);
       setLoading(false);
     });
   }, [trackOrdinal]);
@@ -1364,6 +1370,47 @@ function TrackDebugPanel({ trackOrdinal, outline }: { trackOrdinal: number; outl
               <span className="font-mono text-app-text">{calibration?.pointsCollected ?? 0}</span>
             </div>
           </div>
+
+          {trackLaps.length > 0 && (
+            <div className="mt-2 space-y-2">
+              <select
+                value={selectedLapId ?? ""}
+                onChange={e => setSelectedLapId(Number(e.target.value))}
+                className="w-full px-2 py-1 text-xs rounded border border-app-border bg-app-bg text-app-text font-mono"
+              >
+                {trackLaps.map(l => (
+                  <option key={l.id} value={l.id}>
+                    Lap {l.lapNumber} — {formatLapTime(l.lapTime)}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={async () => {
+                  if (!selectedLapId) return;
+                  setCalibrating(true);
+                  try {
+                    const res = await fetch(`/api/track-calibration/${trackOrdinal}/from-lap`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ lapId: selectedLapId }),
+                    });
+                    if (res.ok) {
+                      const cal = await res.json();
+                      setCalibration(cal);
+                    }
+                  } catch (err) {
+                    console.error("Calibration failed:", err);
+                  } finally {
+                    setCalibrating(false);
+                  }
+                }}
+                disabled={calibrating || !selectedLapId}
+                className="w-full px-2 py-1.5 text-app-label uppercase tracking-wider font-semibold rounded border transition-colors bg-blue-900/40 border-blue-700/50 text-blue-400 hover:bg-blue-800/50 disabled:opacity-50"
+              >
+                {calibrating ? "Calibrating..." : "Calibrate from Lap"}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">

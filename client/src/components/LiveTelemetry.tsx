@@ -6,6 +6,7 @@ import { SteeringWheel } from "./SteeringWheel";
 import { BodyAttitude } from "./BodyAttitude";
 import { WeightShiftRadar } from "./WeightShiftRadar";
 import { useUnits } from "../hooks/useUnits";
+import { useSettings } from "../hooks/queries";
 import { api } from "../lib/api";
 import { allWheelStates, type WheelState } from "../lib/vehicle-dynamics";
 
@@ -175,6 +176,8 @@ function GripHistory({ packet }: { packet: TelemetryPacket }) {
  * runs out first as the pit window.
  */
 function PitEstimate({ packet }: { packet: TelemetryPacket }) {
+  const { displaySettings } = useSettings();
+  const healthThresh = displaySettings.tireHealthThresholds.values;
   const [trackLength, setTrackLength] = useState<number>(0);
   const trackOrdRef = useRef<number>(0);
 
@@ -249,9 +252,8 @@ function PitEstimate({ packet }: { packet: TelemetryPacket }) {
   const wears = [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR];
   const tireData = tireLabels.map((label, i) => {
     const health = (1 - wears[i]) * 100;
-    // 5-tier color coding: >80 green, >60 lime, >40 yellow, >20 orange, ≤20 red
-    const healthClr = health > 80 ? "text-emerald-400" : health > 60 ? "text-lime-400" : health > 40 ? "text-yellow-400" : health > 20 ? "text-orange-400" : "text-red-400";
-    const healthBg = health > 80 ? "bg-emerald-400" : health > 60 ? "bg-lime-400" : health > 40 ? "bg-yellow-400" : health > 20 ? "bg-orange-400" : "bg-red-500";
+    const healthClr = healthTextColor(health, healthThresh);
+    const healthBg = healthBgColor(health, healthThresh);
     let laps: number | null = null;
     if (s.wearPerSec > 0 && canEstimate) {
       const wearPerLap = (s.wearPerSec / 100) * estLapTime;
@@ -401,6 +403,24 @@ function wearBarColor(w: number): string {
   if (w > 0.5) return "bg-yellow-400";
   if (w > 0.25) return "bg-orange-400";
   return "bg-red-500";
+}
+
+// Tire health colors driven by configurable thresholds (ascending: [20, 40, 60, 80])
+const HEALTH_TEXT_COLORS = ["text-red-400", "text-orange-400", "text-yellow-400", "text-lime-400", "text-emerald-400"];
+const HEALTH_BG_COLORS = ["bg-red-500", "bg-orange-400", "bg-yellow-400", "bg-lime-400", "bg-emerald-400"];
+
+function healthTextColor(health: number, thresholds: number[]): string {
+  for (let i = 0; i < thresholds.length; i++) {
+    if (health <= thresholds[i]) return HEALTH_TEXT_COLORS[i] ?? HEALTH_TEXT_COLORS[0];
+  }
+  return HEALTH_TEXT_COLORS[thresholds.length] ?? HEALTH_TEXT_COLORS[HEALTH_TEXT_COLORS.length - 1];
+}
+
+function healthBgColor(health: number, thresholds: number[]): string {
+  for (let i = 0; i < thresholds.length; i++) {
+    if (health <= thresholds[i]) return HEALTH_BG_COLORS[i] ?? HEALTH_BG_COLORS[0];
+  }
+  return HEALTH_BG_COLORS[thresholds.length] ?? HEALTH_BG_COLORS[HEALTH_BG_COLORS.length - 1];
 }
 
 // Combined slip thresholds: <0.5 = grip, 0.5-1.0 = sliding, 1.0-2.0 = slipping, >2.0 = total loss
@@ -623,19 +643,23 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, wheelSta
   );
 }
 
-function suspColor(norm: number): string {
-  if (norm < 0.6) return "bg-cyan-400";
-  if (norm < 0.85) return "bg-yellow-400";
-  return "bg-red-500";
+const SUSP_COLORS_BG = ["bg-blue-500", "bg-emerald-400", "bg-yellow-400", "bg-red-500"];
+
+function suspColor(norm: number, thresholds: number[]): string {
+  const pct = norm * 100;
+  for (let i = 0; i < thresholds.length; i++) {
+    if (pct < thresholds[i]) return SUSP_COLORS_BG[i] ?? SUSP_COLORS_BG[0];
+  }
+  return SUSP_COLORS_BG[thresholds.length] ?? SUSP_COLORS_BG[SUSP_COLORS_BG.length - 1];
 }
 
-function SuspBar({ norm }: { norm: number }) {
+function SuspBar({ norm, thresholds }: { norm: number; thresholds: number[] }) {
   const pct = Math.min(norm * 100, 100);
   return (
     <div className="flex flex-col items-center gap-0.5">
       <div className="w-4 h-16 bg-slate-800/80 border border-slate-600/50 rounded-sm overflow-hidden relative">
         <div
-          className={`absolute bottom-0 w-full rounded-sm ${suspColor(norm)}`}
+          className={`absolute top-0 w-full rounded-sm ${suspColor(norm, thresholds)}`}
           style={{ height: `${pct}%` }}
         />
       </div>
@@ -652,6 +676,8 @@ function SuspBar({ norm }: { norm: number }) {
  */
 export function TireDiagram({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
   const units = useUnits();
+  const { displaySettings } = useSettings();
+  const suspThresh = displaySettings.suspensionThresholds.values;
   const toDeg = 180 / Math.PI;
 
   // Use canonical wheel states from vehicle-dynamics (same as LapAnalyse)
@@ -680,10 +706,10 @@ export function TireDiagram({ packet }: { packet: DisplayPacket | TelemetryPacke
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-1">
           <WheelCard {...wheels[0]} outerSide="left" thresholds={units.thresholds} tempFn={units.temp} tempUnit={units.tempUnit} />
-          <SuspBar norm={susp[0]} />
+          <SuspBar norm={susp[0]} thresholds={suspThresh} />
         </div>
         <div className="flex items-center gap-1">
-          <SuspBar norm={susp[1]} />
+          <SuspBar norm={susp[1]} thresholds={suspThresh} />
           <WheelCard {...wheels[1]} outerSide="right" thresholds={units.thresholds} tempFn={units.temp} tempUnit={units.tempUnit} />
         </div>
       </div>
@@ -692,10 +718,10 @@ export function TireDiagram({ packet }: { packet: DisplayPacket | TelemetryPacke
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-1">
           <WheelCard {...wheels[2]} outerSide="left" thresholds={units.thresholds} tempFn={units.temp} tempUnit={units.tempUnit} />
-          <SuspBar norm={susp[2]} />
+          <SuspBar norm={susp[2]} thresholds={suspThresh} />
         </div>
         <div className="flex items-center gap-1">
-          <SuspBar norm={susp[3]} />
+          <SuspBar norm={susp[3]} thresholds={suspThresh} />
           <WheelCard {...wheels[3]} outerSide="right" thresholds={units.thresholds} tempFn={units.temp} tempUnit={units.tempUnit} />
         </div>
       </div>
@@ -810,6 +836,7 @@ export function GForceCircle({ packet }: { packet: TelemetryPacket }) {
 
   return (
     <div className="flex flex-col items-center gap-0.5 shrink-0" style={{ width: size }}>
+      <div className="text-[8px] font-mono text-app-text-muted uppercase tracking-wider font-semibold">G-Force</div>
       <canvas ref={canvasRef} style={{ width: size, height: size }} className="rounded bg-app-surface/40" />
       <div className="flex gap-2 text-[8px] font-mono text-app-text-secondary tabular-nums">
         <span className="w-6 text-right">{latG >= 0 ? " " : ""}{latG.toFixed(1)}</span>
@@ -1461,6 +1488,8 @@ function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
  */
 function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
   const units = useUnits();
+  const { displaySettings } = useSettings();
+  const healthThresh = displaySettings.tireHealthThresholds.values;
   const wearRef = useRef<{
     lastLap: number;
     wearAtLapStart: number[];
@@ -1544,8 +1573,8 @@ function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
       <div className="grid grid-cols-2 gap-2">
         {tires.map((t) => {
           const healthPct = (1 - t.wear) * 100;
-          const healthTextColor = healthPct > 80 ? "text-emerald-400" : healthPct > 60 ? "text-lime-400" : healthPct > 40 ? "text-yellow-400" : healthPct > 20 ? "text-orange-400" : "text-red-400";
-          const healthBg = healthPct > 80 ? "bg-emerald-400" : healthPct > 60 ? "bg-lime-400" : healthPct > 40 ? "bg-yellow-400" : healthPct > 20 ? "bg-orange-400" : "bg-red-500";
+          const healthTxtClr = healthTextColor(healthPct, healthThresh);
+          const healthBg = healthBgColor(healthPct, healthThresh);
           const tempDisplay = units.temp(t.temp);
           const tc = tempColor(t.temp, units.thresholds);
 
@@ -1563,7 +1592,7 @@ function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
               </div>
               {/* Health % — large */}
               <div className="flex-1 min-w-0">
-                <span className={`text-3xl font-mono font-black tabular-nums leading-none ${healthTextColor}`}>
+                <span className={`text-3xl font-mono font-black tabular-nums leading-none ${healthTxtClr}`}>
                   {healthPct.toFixed(0)}%
                 </span>
               </div>
@@ -1757,12 +1786,6 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
       <div className="px-3 py-2 border-b border-app-border/50">
         <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">Grip (60s)</div>
         <GripHistory packet={packet} />
-      </div>
-
-      {/* Body Attitude */}
-      <div className="px-3 py-2 border-b border-app-border/50">
-        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">Body Attitude</div>
-        <BodyAttitude packet={packet} />
       </div>
 
       {/* Telemetry charts */}

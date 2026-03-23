@@ -7,7 +7,7 @@ import { useActiveProfileId } from "../hooks/useProfiles";
 import { formatLapTime } from "./LiveTelemetry";
 import { api } from "../lib/api";
 import type { LapMeta } from "@shared/types";
-import { PiBadge } from "./PiBadge";
+import { PiBadge, PI_COLORS, piClass } from "./PiBadge";
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
@@ -40,7 +40,7 @@ function RecentLapsTable({ laps, carNames, trackNames }: {
         <tr className="text-[10px] text-app-text-muted uppercase tracking-wider border-b border-app-border">
           <th className="text-left px-3 py-2">Track</th>
           <th className="text-left px-3 py-2">Car</th>
-          <th className="text-center px-3 py-2">Class</th>
+          <th className="text-center px-3 py-2">PI</th>
           <th className="text-left px-3 py-2">Lap</th>
           <th className="text-left px-3 py-2">Time</th>
           <th className="text-center px-3 py-2">Valid</th>
@@ -61,7 +61,12 @@ function RecentLapsTable({ laps, carNames, trackNames }: {
             >
               <td className="px-3 py-2 text-app-text-secondary truncate max-w-[160px]" title={track}>{track || "—"}</td>
               <td className="px-3 py-2 text-app-text-secondary truncate max-w-[140px]" title={car}>{car || "—"}</td>
-              <td className="px-3 py-2 text-center">{lap.pi != null && lap.pi > 0 && <PiBadge pi={lap.pi} />}</td>
+              <td className="px-3 py-2 text-center">{lap.pi != null && lap.pi > 0 && (
+                <span className="inline-flex items-center gap-1">
+                  <PiBadge showNumber={false} pi={lap.pi} />
+                  <span className={`text-[10px] font-semibold ${PI_COLORS[piClass(lap.pi)]?.split(" ")[1] ?? "text-app-text-muted"}`}>{lap.pi}</span>
+                </span>
+              )}</td>
               <td className="px-3 py-2 font-mono text-app-text-muted">L{lap.lapNumber}</td>
               <td className="px-3 py-2 font-mono font-bold text-app-text tabular-nums">{formatLapTime(lap.lapTime)}</td>
               <td className="px-3 py-2 text-center">
@@ -108,18 +113,15 @@ export function HomePage() {
   );
 
   const validLaps = allLaps.filter((l) => l.isValid && l.lapTime > 0);
-  const bestLap = validLaps.length > 0 ? validLaps.reduce((best, l) => l.lapTime < best.lapTime ? l : best) : null;
   const totalLaps = allLaps.length;
   const uniqueTracks = new Set(allLaps.map((l) => l.trackOrdinal).filter(Boolean)).size;
   const uniqueCars = new Set(allLaps.map((l) => l.carOrdinal).filter(Boolean)).size;
 
-  // Average lap time (valid laps only)
-  const avgLapTime = validLaps.length > 0
-    ? validLaps.reduce((s, l) => s + l.lapTime, 0) / validLaps.length
-    : 0;
+  // Period metrics
+  const [periodTab, setPeriodTab] = useState<"today" | "week" | "month">("today");
 
-  // Weekly / Monthly metrics
   const now = Date.now();
+  const todayStart = new Date().setHours(0, 0, 0, 0);
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
   const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
 
@@ -130,7 +132,6 @@ export function HomePage() {
       const avgTime = valid.length > 0 ? valid.reduce((s, l) => s + l.lapTime, 0) / valid.length : 0;
       const totalTime = laps.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
       const tracks = new Set(laps.map((l) => l.trackOrdinal).filter(Boolean)).size;
-      // Favourite car = most laps
       const carCounts = new Map<number, number>();
       for (const l of laps) {
         if (l.carOrdinal) carCounts.set(l.carOrdinal, (carCounts.get(l.carOrdinal) ?? 0) + 1);
@@ -143,10 +144,12 @@ export function HomePage() {
       return { laps: laps.length, valid: valid.length, best, avgTime, totalTime, tracks, favCarOrd, favCarCount };
     }
 
+    const todayLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= todayStart);
     const weekLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= weekAgo);
     const monthLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= monthAgo);
 
     return {
+      today: computePeriod(todayLaps),
       week: computePeriod(weekLaps),
       month: computePeriod(monthLaps),
     };
@@ -161,6 +164,7 @@ export function HomePage() {
   useEffect(() => {
     const carOrds = [...new Set([
       ...recentLaps.map((l) => l.carOrdinal),
+      periodStats.today.favCarOrd,
       periodStats.week.favCarOrd,
       periodStats.month.favCarOrd,
     ].filter((o): o is number => o != null))];
@@ -215,13 +219,8 @@ export function HomePage() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <StatCard label="Total Laps" value={`${totalLaps}`} />
-        <StatCard
-          label="Best Lap"
-          value={bestLap ? formatLapTime(bestLap.lapTime) : "—"}
-          color="text-purple-400"
-        />
         <StatCard label="Tracks" value={`${uniqueTracks}`} />
         <StatCard label="Cars" value={`${uniqueCars}`} />
       </div>
@@ -233,11 +232,6 @@ export function HomePage() {
           value={`${validLaps.length}`}
           sub={totalLaps > 0 ? `${((validLaps.length / totalLaps) * 100).toFixed(0)}% clean` : undefined}
           color="text-emerald-400"
-        />
-        <StatCard
-          label="Avg Lap Time"
-          value={avgLapTime > 0 ? formatLapTime(avgLapTime) : "—"}
-          color="text-app-text-secondary"
         />
         <StatCard
           label="Total Distance"
@@ -257,14 +251,22 @@ export function HomePage() {
         />
       </div>
 
-      {/* Weekly + Monthly */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {[
-          { label: "This Week", data: periodStats.week },
-          { label: "This Month", data: periodStats.month },
-        ].map(({ label, data }) => (
-          <div key={label} className="bg-app-surface-alt/20 rounded-lg p-4">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-3">{label}</h2>
+      {/* Period stats with tabs */}
+      {(() => {
+        const data = periodStats[periodTab];
+        return (
+          <div className="bg-app-surface-alt/20 rounded-lg p-4">
+            <div className="flex items-center gap-1 mb-3">
+              {([["today", "Today"], ["week", "This Week"], ["month", "This Month"]] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setPeriodTab(key)}
+                  className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             {data.laps > 0 ? (
               <div className="space-y-2">
                 <div className="flex justify-between">
@@ -303,8 +305,8 @@ export function HomePage() {
               <div className="text-sm text-app-text-dim">No laps recorded</div>
             )}
           </div>
-        ))}
-      </div>
+        );
+      })()}
 
       {/* Recent laps */}
       <div>

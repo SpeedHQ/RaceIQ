@@ -90,6 +90,16 @@ app.put("/api/settings", async (c) => {
       warm: body.tireTemperatureThresholds?.warm ?? current.tireTemperatureThresholds.warm,
       hot: body.tireTemperatureThresholds?.hot ?? current.tireTemperatureThresholds.hot,
     },
+    tireHealthThresholds: {
+      values: Array.isArray(body.tireHealthThresholds?.values)
+        ? body.tireHealthThresholds.values
+        : current.tireHealthThresholds.values,
+    },
+    suspensionThresholds: {
+      values: Array.isArray(body.suspensionThresholds?.values)
+        ? body.suspensionThresholds.values
+        : current.suspensionThresholds.values,
+    },
   };
 
   // Validate port
@@ -112,6 +122,24 @@ app.put("/api/settings", async (c) => {
   const t = merged.tireTemperatureThresholds;
   if (t.cold >= t.warm || t.warm >= t.hot) {
     return c.json({ error: "Thresholds must be in order: cold < warm < hot" }, 400);
+  }
+
+  // Validate tire health thresholds (ascending, 0-100)
+  const th = merged.tireHealthThresholds.values;
+  if (!th.every((v: number) => typeof v === "number" && v >= 0 && v <= 100)) {
+    return c.json({ error: "Tire health thresholds must be numbers between 0-100" }, 400);
+  }
+  for (let i = 1; i < th.length; i++) {
+    if (th[i] <= th[i - 1]) return c.json({ error: "Tire health thresholds must be in ascending order" }, 400);
+  }
+
+  // Validate suspension thresholds (ascending, 0-100)
+  const st = merged.suspensionThresholds.values;
+  if (!st.every((v: number) => typeof v === "number" && v >= 0 && v <= 100)) {
+    return c.json({ error: "Suspension thresholds must be numbers between 0-100" }, 400);
+  }
+  for (let i = 1; i < st.length; i++) {
+    if (st[i] <= st[i - 1]) return c.json({ error: "Suspension thresholds must be in ascending order" }, 400);
   }
 
   try {
@@ -1056,10 +1084,38 @@ app.get("/api/tracks/:trackOrdinal/leaderboard", (c) => {
 });
 
 // GET /api/track-calibration/:ordinal — calibration status
-import { getCalibrationStatus, getNormalizedPosition, transformToForzaSpace, computeStaticAlignment, refineAlignmentWithCurbs, clearCurbRefinement } from "./track-calibration";
+import { getCalibrationStatus, getNormalizedPosition, transformToForzaSpace, computeStaticAlignment, refineAlignmentWithCurbs, clearCurbRefinement, calibrateFromPositions } from "./track-calibration";
 app.get("/api/track-calibration/:ordinal", (c) => {
   const ordinal = parseInt(c.req.param("ordinal"), 10);
   if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+  return c.json(getCalibrationStatus(ordinal));
+});
+
+// POST /api/track-calibration/:ordinal/from-lap — calibrate using a stored lap's positions
+app.post("/api/track-calibration/:ordinal/from-lap", async (c) => {
+  const ordinal = parseInt(c.req.param("ordinal"), 10);
+  if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+
+  const body = await c.req.json<{ lapId: number }>();
+  if (!body?.lapId) return c.json({ error: "lapId required" }, 400);
+
+  const lapData = getLapById(body.lapId);
+  if (!lapData) return c.json({ error: "Lap not found" }, 404);
+  if (lapData.trackOrdinal !== ordinal) return c.json({ error: "Lap is not from this track" }, 400);
+  if (!lapData.telemetry || lapData.telemetry.length < 50) {
+    return c.json({ error: "Lap has insufficient telemetry data" }, 400);
+  }
+
+  // Get the track outline
+  const outline = getTrackOutlineByOrdinal(ordinal);
+  if (!outline || outline.length === 0) return c.json({ error: "No outline available for this track" }, 400);
+
+  // Extract positions from telemetry
+  const positions = lapData.telemetry.map(p => ({ x: p.PositionX, z: p.PositionZ }));
+
+  const success = calibrateFromPositions(ordinal, positions, outline);
+  if (!success) return c.json({ error: "Calibration failed — not enough valid position points" }, 400);
+
   return c.json(getCalibrationStatus(ordinal));
 });
 

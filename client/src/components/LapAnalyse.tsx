@@ -654,9 +654,18 @@ function WheelSpeedValue({ label, value }: { label: string; value: number }) {
   );
 }
 
+function brakeBarColor(brake: number): string {
+  const t = Math.min(1, Math.max(0, brake / 255));
+  // Lerp from #ff9933 to #cc0000
+  const r = Math.round(0xff + (0xcc - 0xff) * t);
+  const g = Math.round(0x99 * (1 - t));
+  const b = Math.round(0x33 * (1 - t));
+  return `rgb(${r},${g},${b})`;
+}
+
 function SuspValue({ label, value }: { label: string; value: number }) {
   const pct = (value * 100).toFixed(0);
-  const color = value < 0.6 ? "#22d3ee" : value < 0.85 ? "#fbbf24" : "#ef4444";
+  const color = value < 0.25 ? "#3b82f6" : value < 0.65 ? "#34d399" : value < 0.85 ? "#fbbf24" : "#ef4444";
   return (
     <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{pct}%</span></span>
   );
@@ -1406,11 +1415,6 @@ export function LapAnalyse() {
                 {/* Compass */}
                 {currentPacket && <Compass yaw={currentPacket.Yaw} />}
               </div>
-              {currentPacket && (
-                <div className="absolute bottom-2 right-2 bg-app-bg/80 rounded p-1">
-                  <BodyAttitude packet={currentPacket} />
-                </div>
-              )}
             </div>
 
             {/* Right resize handle */}
@@ -1479,9 +1483,9 @@ export function LapAnalyse() {
                           <span className="text-[8px] text-app-text-muted">T</span>
                         </div>
                         <div className="flex flex-col items-center gap-0.5">
-                          <span className="text-[9px] font-mono text-red-400 font-bold tabular-nums">{((currentPacket.Brake / 255) * 100).toFixed(0)}</span>
+                          <span className="text-[9px] font-mono font-bold tabular-nums" style={{ color: brakeBarColor(currentPacket.Brake) }}>{((currentPacket.Brake / 255) * 100).toFixed(0)}</span>
                           <div className="w-5 bg-app-surface-alt rounded-sm overflow-hidden relative" style={{ height: 60 }}>
-                            <div className="absolute bottom-0 w-full bg-red-500 rounded-sm transition-all" style={{ height: `${(currentPacket.Brake / 255) * 100}%` }} />
+                            <div className="absolute bottom-0 w-full rounded-sm transition-all" style={{ height: `${(currentPacket.Brake / 255) * 100}%`, background: `linear-gradient(to top, #ff9933, ${brakeBarColor(currentPacket.Brake)})` }} />
                           </div>
                           <span className="text-[8px] text-app-text-muted">B</span>
                         </div>
@@ -1498,6 +1502,11 @@ export function LapAnalyse() {
                   {currentPacket && (
                     <div className="absolute bottom-1 left-1 opacity-80">
                       <BodyAttitude packet={currentPacket} />
+                    </div>
+                  )}
+                  {currentPacket && (
+                    <div className="absolute bottom-1 left-1 opacity-90" style={{ bottom: "9rem" }}>
+                      <GForceCircle packet={currentPacket} />
                     </div>
                   )}
                 </div>
@@ -1567,7 +1576,7 @@ export function LapAnalyse() {
                 {playing ? "\u275A\u275A" : "\u25B6"}
               </button>
               <div className="flex gap-1">
-                {[0.25, 0.5, 1, 1.5, 2, 2.5].map((s) => (
+                {[0.1, 0.25, 0.5, 1, 1.5, 2, 2.5].map((s) => (
                   <button
                     key={s}
                     onClick={() => setPlaybackSpeed(s)}
@@ -1673,12 +1682,16 @@ export function LapAnalyse() {
                 </button>
               </div>
 
+              {sidebarTab === "live" && (
+                <div className="px-3 pt-3 pb-1 shrink-0">
+                  <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-0 font-semibold">
+                    Metrics at Cursor
+                  </h3>
+                </div>
+              )}
               <div className="p-3 flex-1 min-h-0 overflow-y-auto">
               {sidebarTab === "live" ? (
                 <>
-                <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 font-semibold">
-                  Metrics at Cursor
-                </h3>
               {currentPacket && <MetricsPanel pkt={currentPacket} startFuel={telemetry[0]?.Fuel} />}
 
               {currentPacket && (
@@ -1781,7 +1794,7 @@ export function LapAnalyse() {
                         </div>
                       </div>
                       <div className="border-t border-app-border pt-1">
-                        <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Wear /s</div>
+                        <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Health</div>
                         <div className="grid grid-cols-2 gap-x-2">
                           <WearValue label="FL" value={currentPacket.TireWearFL} />
                           <WearValue label="FR" value={currentPacket.TireWearFR} />
@@ -1789,17 +1802,20 @@ export function LapAnalyse() {
                           <WearValue label="RR" value={currentPacket.TireWearRR} />
                         </div>
                         {wearRate && (
-                          <div className="grid grid-cols-2 gap-x-2 mt-1 opacity-70">
-                            {(["FL", "FR", "RL", "RR"] as const).map((w) => {
-                              const rate = wearRate[w] * 100;
-                              const color = rate < 0.01 ? "#94a3b8" : rate < 0.05 ? "#34d399" : rate < 0.1 ? "#fbbf24" : "#ef4444";
-                              return (
-                                <span key={w} className="text-app-text-secondary">
-                                  {w}: <span className="tabular-nums" style={{ color }}>{rate.toFixed(3)}%</span>
-                                </span>
-                              );
-                            })}
-                          </div>
+                          <>
+                            <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1 mt-1">Wear /s</div>
+                            <div className="grid grid-cols-2 gap-x-2 opacity-70">
+                              {(["FL", "FR", "RL", "RR"] as const).map((w) => {
+                                const rate = wearRate[w] * 100;
+                                const color = rate < 0.01 ? "#94a3b8" : rate < 0.05 ? "#34d399" : rate < 0.1 ? "#fbbf24" : "#ef4444";
+                                return (
+                                  <span key={w} className="text-app-text-secondary">
+                                    {w}: <span className="tabular-nums" style={{ color }}>{rate.toFixed(3)}%</span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
