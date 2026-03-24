@@ -745,13 +745,16 @@ function filterByDistance(
 function TrackOutline({
   outline,
   packet,
+  distAhead,
 }: {
   outline: { x: number; z: number }[];
   packet: TelemetryPacket;
+  distAhead?: number;
 }) {
+  const ahead = distAhead ?? DIST_AHEAD;
   const segments = useMemo(() =>
-    filterByDistance(outline, packet.PositionX, packet.PositionZ, packet.Yaw, -0.44),
-    [outline, packet.PositionX, packet.PositionZ, packet.Yaw]
+    filterByDistance(outline, packet.PositionX, packet.PositionZ, packet.Yaw, -0.44, ahead),
+    [outline, packet.PositionX, packet.PositionZ, packet.Yaw, ahead]
   );
 
   if (segments.length === 0) return null;
