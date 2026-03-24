@@ -1,5 +1,11 @@
-// @ts-ignore — Bun text import
-import carsRaw from "./cars.csv" with { type: "text" };
+import { readFileSync } from "fs";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const _rawDir = dirname(fileURLToPath(import.meta.url));
+const IS_COMPILED = _rawDir.startsWith("/$bunfs");
+const carsDir = IS_COMPILED ? resolve(dirname(process.execPath), "data", "cars") : _rawDir;
+const tracksDir = IS_COMPILED ? resolve(dirname(process.execPath), "data", "tracks") : _rawDir;
 
 // --- Car data ---
 
@@ -10,6 +16,8 @@ export interface CarInfo {
 }
 
 export const carMap = new Map<number, CarInfo>();
+
+const carsRaw = readFileSync(resolve(carsDir, "cars.csv"), "utf-8");
 for (const line of carsRaw.split("\n")) {
   const trimmed = line.trim();
   if (!trimmed) continue;
@@ -78,9 +86,8 @@ function parseCsvLine(line: string): string[] {
   return fields;
 }
 
-// @ts-ignore — Bun text import
-import specsRaw from "./car-specs.csv" with { type: "text" };
 try {
+  const specsRaw = readFileSync(resolve(carsDir, "car-specs.csv"), "utf-8");
   let firstLine = true;
   for (const line of specsRaw.split("\n")) {
     const trimmed = line.trim();
@@ -139,8 +146,7 @@ export interface TrackInfo {
 
 export const trackMap = new Map<number, TrackInfo>();
 
-// @ts-ignore — Bun text import
-import tracksRaw from "./tracks.csv" with { type: "text" };
+const tracksRaw = readFileSync(resolve(tracksDir, "tracks.csv"), "utf-8");
 for (const line of tracksRaw.split("\n")) {
   const trimmed = line.trim();
   if (!trimmed) continue;

@@ -1,19 +1,27 @@
+// Prefix all console output with ISO timestamp
+const _log = console.log;
+const _warn = console.warn;
+const _error = console.error;
+console.log = (...args: unknown[]) => _log(new Date().toISOString(), ...args);
+console.warn = (...args: unknown[]) => _warn(new Date().toISOString(), ...args);
+console.error = (...args: unknown[]) => _error(new Date().toISOString(), ...args);
+
 import { spawn } from "child_process";
 import app from "./routes";
 import { udpListener } from "./udp";
 import { wsManager, type WSData } from "./ws";
 import { loadSettings, saveSettings } from "./settings";
 
-// In production, static assets are embedded in the binary
-let embeddedAssets: Map<string, { data: Uint8Array; type: string }> | null = null;
-if (process.env.NODE_ENV === "production") {
-  try {
-    const { assets } = await import("./client-assets.generated");
-    embeddedAssets = assets;
-    console.log(`[Server] Loaded ${assets.size} embedded static assets`);
-  } catch {
-    console.warn("[Server] No embedded assets found — static serving disabled");
-  }
+import { existsSync } from "fs";
+import { resolve, dirname } from "path";
+
+// In production, serve static assets from disk (dist/public/)
+const _execDir = dirname(process.execPath);
+const staticDir = existsSync(resolve(_execDir, "public", "index.html"))
+  ? resolve(_execDir, "public")
+  : null;
+if (staticDir) {
+  console.log(`[Server] Serving static assets from ${staticDir}`);
 }
 
 // Prevent macOS sleep while the server is running
@@ -72,22 +80,19 @@ const server = Bun.serve<WSData>({
       return app.fetch(req);
     }
 
-    // In production, serve embedded static assets
-    if (embeddedAssets) {
+    // In production, serve static assets from disk
+    if (staticDir) {
       const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
-      const asset = embeddedAssets.get(pathname);
-      if (asset) {
-        return new Response(asset.data, {
-          headers: { "Content-Type": asset.type },
-        });
+      const filePath = resolve(staticDir, pathname.slice(1));
+      // Security: ensure path is within staticDir
+      if (filePath.startsWith(staticDir)) {
+        const file = Bun.file(filePath);
+        if (await file.exists()) {
+          return new Response(file);
+        }
       }
       // SPA fallback
-      const index = embeddedAssets.get("/index.html");
-      if (index) {
-        return new Response(index.data, {
-          headers: { "Content-Type": index.type },
-        });
-      }
+      return new Response(Bun.file(resolve(staticDir, "index.html")));
     }
 
     // Handle HTTP via Hono (dev mode)

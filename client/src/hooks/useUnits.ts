@@ -18,17 +18,19 @@ import { useTelemetryStore } from "../stores/telemetry";
  */
 export function useUnits() {
   const { displaySettings } = useSettings();
-  const setUnitSettings = useTelemetryStore((s) => s.setUnitSettings);
+  const setUnitSystem = useTelemetryStore((s) => s.setUnitSystem);
+
+  const unit = displaySettings.unit;
+  const su = unit === "metric" ? "kmh" as const : "mph" as const;
+  const tu = unit === "metric" ? "C" as const : "F" as const;
 
   // Sync unit settings to telemetry store whenever they change
   useEffect(() => {
-    setUnitSettings(displaySettings.speedUnit, displaySettings.temperatureUnit);
-  }, [displaySettings.speedUnit, displaySettings.temperatureUnit, setUnitSettings]);
+    setUnitSystem(unit);
+  }, [unit, setUnitSystem]);
 
   return useMemo(() => {
-    const su = displaySettings.speedUnit;
-    const tu = displaySettings.temperatureUnit;
-    const thresholds = displaySettings.tireTemperatureThresholds;
+    const thresholds = displaySettings.tireTempCelsiusThresholds;
 
     return {
       // ── Speed / distance (for non-telemetry data) ──────────────
@@ -57,7 +59,8 @@ export function useUnits() {
       // ── Raw settings (escape hatch) ─────────────────────────────
       speedUnit: su,
       temperatureUnit: tu,
+      unit,
       displaySettings,
     };
-  }, [displaySettings]);
+  }, [displaySettings, su, tu, unit]);
 }

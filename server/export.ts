@@ -4,12 +4,10 @@ import {
   type TelemetryPacket,
 } from "../shared/types";
 
-export interface ExportUnits {
-  speedUnit: "mph" | "kmh";
-  temperatureUnit: "F" | "C";
-}
+export type UnitSystem = "metric" | "imperial";
 
-const DEFAULT_UNITS: ExportUnits = { speedUnit: "mph", temperatureUnit: "F" };
+function unitToSpeed(unit: UnitSystem) { return unit === "metric" ? "kmh" as const : "mph" as const; }
+function unitToTemp(unit: UnitSystem) { return unit === "metric" ? "C" as const : "F" as const; }
 
 function convertTemp(fahrenheit: number, unit: "F" | "C"): number {
   return unit === "C" ? (fahrenheit - 32) * 5 / 9 : fahrenheit;
@@ -27,16 +25,18 @@ export function generateExport(
     trackOrdinal?: number;
   },
   packets: TelemetryPacket[],
-  units: ExportUnits = DEFAULT_UNITS
+  unit: UnitSystem = "metric"
 ): string {
   const first = packets[0];
   const className = CAR_CLASS_NAMES[first.CarClass] ?? String(first.CarClass);
   const drivetrainName =
     DRIVETRAIN_NAMES[first.DrivetrainType] ?? String(first.DrivetrainType);
 
-  const speedFactor = units.speedUnit === "kmh" ? 3.6 : 2.237; // m/s to kmh or mph
-  const speedLabel = units.speedUnit === "kmh" ? "km/h" : "mph";
-  const tempLabel = units.temperatureUnit === "C" ? "C" : "F";
+  const speedUnit = unitToSpeed(unit);
+  const tempUnit = unitToTemp(unit);
+  const speedFactor = speedUnit === "kmh" ? 3.6 : 2.237;
+  const speedLabel = speedUnit === "kmh" ? "km/h" : "mph";
+  const tempLabel = tempUnit === "C" ? "C" : "F";
 
   // Speed calculations
   const speeds = packets.map(
@@ -66,13 +66,13 @@ export function generateExport(
 
   // Tire temps (Forza sends Fahrenheit)
   const avgTireTempFL = convertTemp(
-    packets.reduce((a, p) => a + p.TireTempFL, 0) / packets.length, units.temperatureUnit);
+    packets.reduce((a, p) => a + p.TireTempFL, 0) / packets.length, tempUnit);
   const avgTireTempFR = convertTemp(
-    packets.reduce((a, p) => a + p.TireTempFR, 0) / packets.length, units.temperatureUnit);
+    packets.reduce((a, p) => a + p.TireTempFR, 0) / packets.length, tempUnit);
   const avgTireTempRL = convertTemp(
-    packets.reduce((a, p) => a + p.TireTempRL, 0) / packets.length, units.temperatureUnit);
+    packets.reduce((a, p) => a + p.TireTempRL, 0) / packets.length, tempUnit);
   const avgTireTempRR = convertTemp(
-    packets.reduce((a, p) => a + p.TireTempRR, 0) / packets.length, units.temperatureUnit);
+    packets.reduce((a, p) => a + p.TireTempRR, 0) / packets.length, tempUnit);
 
   // Gear distribution
   const gearCounts = new Map<number, number>();

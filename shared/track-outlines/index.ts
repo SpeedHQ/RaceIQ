@@ -4,32 +4,12 @@ import { fileURLToPath } from "url";
 import { getTrackSectorsByName, DEFAULT_SECTORS, type TrackSectors } from "./sectors";
 
 const _rawDir = dirname(fileURLToPath(import.meta.url));
-const IS_COMPILED = _rawDir.startsWith("/$bunfs");
-const __dirname = IS_COMPILED
-  ? resolve(dirname(process.execPath), "shared", "track-outlines")
+const __dirname = _rawDir.startsWith("/$bunfs")
+  ? resolve(dirname(process.execPath), "data", "tracks", "outlines")
   : _rawDir;
 
-// In compiled mode, load embedded data
-let embeddedData: Map<string, string> | null = null;
-if (IS_COMPILED) {
-  try {
-    const { sharedData } = await import("../../server/shared-data.generated");
-    embeddedData = sharedData;
-  } catch {}
-}
-
-/** Read a file from embedded data (compiled) or filesystem (dev) */
+/** Read a file, returning null on failure */
 function readDataFile(filePath: string): string | null {
-  if (embeddedData) {
-    // Convert absolute path to relative key (relative to shared/)
-    const sharedRoot = resolve(__dirname, "..");
-    const relKey = filePath.startsWith(sharedRoot)
-      ? filePath.slice(sharedRoot.length + 1)
-      : filePath;
-    // Also try with track-outlines/ prefix
-    const altKey = relKey.startsWith("track-outlines/") ? relKey : `track-outlines/${relKey}`;
-    return embeddedData.get(relKey) ?? embeddedData.get(altKey) ?? null;
-  }
   try {
     return readFileSync(filePath, "utf-8");
   } catch {
@@ -37,17 +17,8 @@ function readDataFile(filePath: string): string | null {
   }
 }
 
-/** List files matching a pattern from embedded data or filesystem */
+/** List files matching a filter in a directory */
 function listDataFiles(dir: string, filter: (name: string) => boolean): string[] {
-  if (embeddedData) {
-    const sharedRoot = resolve(__dirname, "..");
-    const relDir = dir.startsWith(sharedRoot) ? dir.slice(sharedRoot.length + 1) : dir;
-    const prefix = relDir ? relDir + "/" : "";
-    return Array.from(embeddedData.keys())
-      .filter((k) => k.startsWith(prefix) && !k.slice(prefix.length).includes("/"))
-      .filter((k) => filter(k.split("/").pop()!))
-      .map((k) => resolve(sharedRoot, k));
-  }
   try {
     const { readdirSync } = require("fs");
     return (readdirSync(dir) as string[]).filter(filter).map((f: string) => resolve(dir, f));
@@ -75,9 +46,7 @@ interface TrackOutlineEntry {
 }
 
 // Map FM track name -> outline points
-const outlinesByName = new Map<string, Point[]>();
 // Map track ordinal -> outline points
-const outlinesByOrdinal = new Map<number, Point[]>();
 // Source attribution per track name
 const sourceByName = new Map<string, Source>();
 
@@ -121,47 +90,71 @@ const TRACK_FILES: Record<string, TrackOutlineEntry> = {
 // Sebring International, Watkins Glen, Kyalami, Road America,
 // Virginia International Raceway, Homestead-Miami Speedway
 
-// Load all bundled outlines
+// Build lookup tables only — actual data loaded lazily on first access
+// Check which bundled outlines exist on disk
+const availableOutlineNames = new Set<string>();
 for (const [trackName, entry] of Object.entries(TRACK_FILES)) {
   const filePath = resolve(__dirname, entry.filename);
-  const content = readDataFile(filePath);
-  if (content) {
-    try {
-      const lines = content.split("\n").filter(Boolean);
-      let data: Point[] = lines.slice(1).map((l) => {
-        const [x, z] = l.split(",").map(Number);
-        return { x, z };
-      });
-      data = filterOutlierPoints(data);
-      outlinesByName.set(trackName, data);
-      sourceByName.set(trackName, entry.source);
-    } catch {}
+  if (existsSync(filePath)) {
+    availableOutlineNames.add(trackName);
+    sourceByName.set(trackName, entry.source);
   }
 }
 
-// Load boundary data (left/right track edges from TUMFTM width data)
-const boundariesByName = new Map<string, TrackBoundary>();
-const boundariesByOrdinal = new Map<number, TrackBoundary>();
-
+// Check which boundary files exist
 const boundariesDir = resolve(__dirname, "boundaries");
+const availableBoundaryNames = new Set<string>();
 {
   const boundaryFiles = listDataFiles(boundariesDir, (f) => f.endsWith(".json"));
   for (const filePath of boundaryFiles) {
-    const content = readDataFile(filePath);
-    if (!content) continue;
-    try {
-      const data = JSON.parse(content);
-      if (data.leftEdge && data.rightEdge) {
-        const baseName = filePath.split("/").pop()!.replace(".json", "");
-        for (const [trackName, entry] of Object.entries(TRACK_FILES)) {
-          if (entry.filename.replace(".csv", "") === baseName) {
-            boundariesByName.set(trackName, data);
-            break;
-          }
-        }
+    const baseName = filePath.split("/").pop()!.replace(".json", "");
+    for (const [trackName, entry] of Object.entries(TRACK_FILES)) {
+      if (entry.filename.replace(".csv", "") === baseName) {
+        availableBoundaryNames.add(trackName);
+        break;
       }
-    } catch {}
+    }
   }
+}
+
+// Lazy caches
+const outlineCache = new Map<string, Point[]>();
+const boundaryCache = new Map<string, TrackBoundary>();
+
+function loadOutlineByName(trackName: string): Point[] | null {
+  if (outlineCache.has(trackName)) return outlineCache.get(trackName)!;
+  const entry = TRACK_FILES[trackName as keyof typeof TRACK_FILES];
+  if (!entry) return null;
+  const content = readDataFile(resolve(__dirname, entry.filename));
+  if (!content) return null;
+  try {
+    const lines = content.split("\n").filter(Boolean);
+    let data: Point[] = lines.slice(1).map((l) => {
+      const [x, z] = l.split(",").map(Number);
+      return { x, z };
+    });
+    data = filterOutlierPoints(data);
+    outlineCache.set(trackName, data);
+    return data;
+  } catch { return null; }
+}
+
+function loadBoundaryByName(trackName: string): TrackBoundary | null {
+  if (boundaryCache.has(trackName)) return boundaryCache.get(trackName)!;
+  const entry = TRACK_FILES[trackName as keyof typeof TRACK_FILES];
+  if (!entry) return null;
+  const baseName = entry.filename.replace(".csv", "");
+  const filePath = resolve(boundariesDir, `${baseName}.json`);
+  const content = readDataFile(filePath);
+  if (!content) return null;
+  try {
+    const data = JSON.parse(content);
+    if (data.leftEdge && data.rightEdge) {
+      boundaryCache.set(trackName, data);
+      return data;
+    }
+    return null;
+  } catch { return null; }
 }
 
 // Tracks where the TUMFTM outline only matches a specific layout variant.
@@ -173,8 +166,11 @@ const LAYOUT_EXCLUSIONS: Record<string, Set<number>> = {
   "Nürburgring": new Set([31, 32, 34]),
 };
 
-// Load track ordinal -> name mapping from tracks.csv
+// Build ordinal -> name mapping from tracks.csv (lookup table only)
 const tracksPath = resolve(__dirname, "..", "tracks.csv");
+const ordinalToTrackName = new Map<number, string>();
+const outlineOrdinals = new Set<number>();
+const boundaryOrdinals = new Set<number>();
 {
   const raw = readDataFile(tracksPath);
   for (const line of (raw ?? "").split("\n")) {
@@ -184,68 +180,80 @@ const tracksPath = resolve(__dirname, "..", "tracks.csv");
     const ordinal = parseInt(ordStr, 10);
     if (isNaN(ordinal)) continue;
 
+    ordinalToTrackName.set(ordinal, name);
     const excluded = LAYOUT_EXCLUSIONS[name]?.has(ordinal);
 
-    const outline = outlinesByName.get(name);
-    if (outline && !excluded) {
-      outlinesByOrdinal.set(ordinal, outline);
+    if (availableOutlineNames.has(name) && !excluded) {
+      outlineOrdinals.add(ordinal);
     }
-    const boundary = boundariesByName.get(name);
-    if (boundary && !excluded) {
-      boundariesByOrdinal.set(ordinal, boundary);
+    if (availableBoundaryNames.has(name) && !excluded) {
+      boundaryOrdinals.add(ordinal);
     }
   }
 }
 
 // Recorded outlines from in-game telemetry (Forza coords) — preferred over external data
-// because Forza coords allow direct position plotting without calibration.
 const recordedOutlines = new Map<number, Point[]>();
 const recordedLapCounts = new Map<number, number>();
+const recordedOrdinals = new Set<number>();
 
-// Load previously recorded outlines (from in-game telemetry)
-try {
+// Only scan which recorded files exist (don't load data)
+{
   const recordedFiles = listDataFiles(__dirname, (f) => f.startsWith("recorded-") && f.endsWith(".csv"));
   for (const filePath of recordedFiles) {
     const fileName = filePath.split("/").pop()!;
     const match = fileName.match(/recorded-(\d+)\.csv/);
-    if (!match) continue;
-    const ordinal = parseInt(match[1], 10);
-    try {
-      const content = readDataFile(filePath);
-      if (!content) continue;
-      const lines = content.split("\n").filter(Boolean);
-      const data: Point[] = lines.slice(1).map((l) => {
-        const [x, z] = l.split(",").map(Number);
-        return { x, z };
-      });
-      if (data.length > 10) {
-        recordedOutlines.set(ordinal, data);
-      }
-    } catch {}
+    if (match) recordedOrdinals.add(parseInt(match[1], 10));
   }
-} catch {}
+}
 
+function loadRecordedOutline(ordinal: number): Point[] | null {
+  if (recordedOutlines.has(ordinal)) return recordedOutlines.get(ordinal)!;
+  if (!recordedOrdinals.has(ordinal)) return null;
+  const content = readDataFile(resolve(__dirname, `recorded-${ordinal}.csv`));
+  if (!content) return null;
+  try {
+    const lines = content.split("\n").filter(Boolean);
+    const data: Point[] = lines.slice(1).map((l) => {
+      const [x, z] = l.split(",").map(Number);
+      return { x, z };
+    });
+    if (data.length > 10) {
+      recordedOutlines.set(ordinal, data);
+      return data;
+    }
+    return null;
+  } catch { return null; }
+}
+
+const tumftmCount = Array.from(sourceByName.values()).filter(s => s === "tumftm").length;
+const osmCount = Array.from(sourceByName.values()).filter(s => s === "osm").length;
 console.log(
-  `[Tracks] Loaded ${outlinesByName.size} bundled outlines (${Array.from(sourceByName.values()).filter(s => s === "tumftm").length} TUMFTM, ${Array.from(sourceByName.values()).filter(s => s === "osm").length} OSM), ${recordedOutlines.size} recorded, ${boundariesByOrdinal.size} boundaries, mapped to ${outlinesByOrdinal.size} ordinals`
+  `[Tracks] ${availableOutlineNames.size} bundled outlines (${tumftmCount} TUMFTM, ${osmCount} OSM), ${recordedOrdinals.size} recorded, ${availableBoundaryNames.size} boundaries, ${outlineOrdinals.size} ordinals`
 );
 
 export function getTrackOutline(trackName: string): Point[] | null {
-  return outlinesByName.get(trackName) ?? null;
+  return loadOutlineByName(trackName);
 }
 
 /**
  * Get the bundled (external) outline by ordinal, ignoring recorded outlines.
- * Used for coordinate alignment between TUMFTM/OSM and Forza coordinate systems.
  */
 export function getBundledOutlineByOrdinal(ordinal: number): Point[] | null {
-  return outlinesByOrdinal.get(ordinal) ?? null;
+  if (!outlineOrdinals.has(ordinal)) return null;
+  const name = ordinalToTrackName.get(ordinal);
+  if (!name) return null;
+  return loadOutlineByName(name);
 }
 
 /**
  * Get track boundary edges (left/right) by ordinal. Returns null if no boundary data.
  */
 export function getTrackBoundariesByOrdinal(ordinal: number): TrackBoundary | null {
-  return boundariesByOrdinal.get(ordinal) ?? null;
+  if (!boundaryOrdinals.has(ordinal)) return null;
+  const name = ordinalToTrackName.get(ordinal);
+  if (!name) return null;
+  return loadBoundaryByName(name);
 }
 
 const LAPS_BEFORE_SAVE = 1; // Save after first complete lap
@@ -407,18 +415,15 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
  * Get outline for a track. Prefers recorded (Forza coords) over external data.
  */
 export function getTrackOutlineByOrdinal(ordinal: number): Point[] | null {
-  return recordedOutlines.get(ordinal) ?? outlinesByOrdinal.get(ordinal) ?? null;
+  return loadRecordedOutline(ordinal) ?? getBundledOutlineByOrdinal(ordinal);
 }
 
-/**
- * Check if a recorded outline exists (Forza coords, direct plotting).
- */
 export function hasRecordedOutline(ordinal: number): boolean {
-  return recordedOutlines.has(ordinal);
+  return recordedOrdinals.has(ordinal) || recordedOutlines.has(ordinal);
 }
 
 export function hasTrackOutline(ordinal: number): boolean {
-  return recordedOutlines.has(ordinal) || outlinesByOrdinal.has(ordinal);
+  return hasRecordedOutline(ordinal) || outlineOrdinals.has(ordinal);
 }
 
 export function getTrackSource(trackName: string): Source | null {
@@ -463,21 +468,7 @@ export function deleteRecordedOutline(ordinal: number): boolean {
 }
 
 
-// Sector support
-const ordinalToName = new Map<number, string>();
-// Re-read tracks.csv to build ordinal -> name mapping for sectors
-{
-  const raw2 = readDataFile(tracksPath);
-  for (const line of (raw2 ?? "").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const [ordStr, name] = trimmed.split(",");
-    const ordinal = parseInt(ordStr, 10);
-    if (!isNaN(ordinal) && name) {
-      ordinalToName.set(ordinal, name);
-    }
-  }
-}
+// Sector support — reuses ordinalToTrackName from above
 
 // ── Curb/Kerb Detection ─────────────────────────────────────────────────────
 // Curbs are detected from WheelOnRumbleStrip telemetry fields. When any wheel
@@ -492,27 +483,34 @@ export interface CurbSegment {
 
 const curbsByOrdinal = new Map<number, CurbSegment[]>();
 const curbLapCounts = new Map<number, number>();
+const curbOrdinals = new Set<number>();
 
-// Load previously saved curb data
+// Scan which curb files exist (don't load data)
 {
   const curbFiles = listDataFiles(__dirname, (f) => f.startsWith("curbs-") && f.endsWith(".json"));
   for (const filePath of curbFiles) {
     const fileName = filePath.split("/").pop()!;
     const match = fileName.match(/curbs-(\d+)\.json/);
-    if (!match) continue;
-    const ordinal = parseInt(match[1], 10);
-    const content = readDataFile(filePath);
-    if (!content) continue;
-    try {
-      const data = JSON.parse(content);
-      if (Array.isArray(data)) {
-        curbsByOrdinal.set(ordinal, data);
-      }
-    } catch {}
+    if (match) curbOrdinals.add(parseInt(match[1], 10));
   }
-  if (curbFiles.length > 0) {
-    console.log(`[Tracks] Loaded curb data for ${curbFiles.length} tracks`);
+  if (curbOrdinals.size > 0) {
+    console.log(`[Tracks] ${curbOrdinals.size} tracks have curb data`);
   }
+}
+
+function loadCurbs(ordinal: number): CurbSegment[] | null {
+  if (curbsByOrdinal.has(ordinal)) return curbsByOrdinal.get(ordinal)!;
+  if (!curbOrdinals.has(ordinal)) return null;
+  const content = readDataFile(resolve(__dirname, `curbs-${ordinal}.json`));
+  if (!content) return null;
+  try {
+    const data = JSON.parse(content);
+    if (Array.isArray(data)) {
+      curbsByOrdinal.set(ordinal, data);
+      return data;
+    }
+    return null;
+  } catch { return null; }
 }
 
 /**
@@ -653,7 +651,7 @@ function downsamplePoints(points: Point[], minDist: number): Point[] {
  * Get curb segments for a track by ordinal.
  */
 export function getTrackCurbs(ordinal: number): CurbSegment[] | null {
-  return curbsByOrdinal.get(ordinal) ?? null;
+  return loadCurbs(ordinal);
 }
 
 export type { TrackSectors };
@@ -663,7 +661,7 @@ export function getTrackSectors(trackName: string): TrackSectors {
 }
 
 export function getTrackSectorsByOrdinal(ordinal: number): TrackSectors {
-  const name = ordinalToName.get(ordinal);
+  const name = ordinalToTrackName.get(ordinal);
   if (!name) return DEFAULT_SECTORS;
   return getTrackSectorsByName(name);
 }

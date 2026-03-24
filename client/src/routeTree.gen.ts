@@ -13,6 +13,7 @@ import { Route as TunesRouteImport } from './routes/tunes'
 import { Route as TracksRouteImport } from './routes/tracks'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as RawRouteImport } from './routes/raw'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as CarsRouteImport } from './routes/cars'
@@ -20,9 +21,16 @@ import { Route as AnalyseRouteImport } from './routes/analyse'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TunesIndexRouteImport } from './routes/tunes/index'
 import { Route as SetupIndexRouteImport } from './routes/setup/index'
+import { Route as OnboardingIndexRouteImport } from './routes/onboarding/index'
 import { Route as TunesNewRouteImport } from './routes/tunes/new'
 import { Route as TunesCatalogRouteImport } from './routes/tunes/catalog'
 import { Route as SetupProfileIdRouteImport } from './routes/setup/$profileId'
+import { Route as OnboardingWheelRouteImport } from './routes/onboarding/wheel'
+import { Route as OnboardingWelcomeRouteImport } from './routes/onboarding/welcome'
+import { Route as OnboardingUnitsRouteImport } from './routes/onboarding/units'
+import { Route as OnboardingSoundRouteImport } from './routes/onboarding/sound'
+import { Route as OnboardingProfileRouteImport } from './routes/onboarding/profile'
+import { Route as OnboardingConnectionRouteImport } from './routes/onboarding/connection'
 import { Route as LivePitRouteImport } from './routes/live/pit'
 import { Route as LiveDriverRouteImport } from './routes/live/driver'
 import { Route as CarsCarOrdinalRouteImport } from './routes/cars_.$carOrdinal'
@@ -46,6 +54,11 @@ const SetupRoute = SetupRouteImport.update({
 const RawRoute = RawRouteImport.update({
   id: '/raw',
   path: '/raw',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LiveRoute = LiveRouteImport.update({
@@ -83,6 +96,11 @@ const SetupIndexRoute = SetupIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SetupRoute,
 } as any)
+const OnboardingIndexRoute = OnboardingIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OnboardingRoute,
+} as any)
 const TunesNewRoute = TunesNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -97,6 +115,36 @@ const SetupProfileIdRoute = SetupProfileIdRouteImport.update({
   id: '/$profileId',
   path: '/$profileId',
   getParentRoute: () => SetupRoute,
+} as any)
+const OnboardingWheelRoute = OnboardingWheelRouteImport.update({
+  id: '/wheel',
+  path: '/wheel',
+  getParentRoute: () => OnboardingRoute,
+} as any)
+const OnboardingWelcomeRoute = OnboardingWelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => OnboardingRoute,
+} as any)
+const OnboardingUnitsRoute = OnboardingUnitsRouteImport.update({
+  id: '/units',
+  path: '/units',
+  getParentRoute: () => OnboardingRoute,
+} as any)
+const OnboardingSoundRoute = OnboardingSoundRouteImport.update({
+  id: '/sound',
+  path: '/sound',
+  getParentRoute: () => OnboardingRoute,
+} as any)
+const OnboardingProfileRoute = OnboardingProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => OnboardingRoute,
+} as any)
+const OnboardingConnectionRoute = OnboardingConnectionRouteImport.update({
+  id: '/connection',
+  path: '/connection',
+  getParentRoute: () => OnboardingRoute,
 } as any)
 const LivePitRoute = LivePitRouteImport.update({
   id: '/pit',
@@ -125,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/cars': typeof CarsRoute
   '/compare': typeof CompareRoute
   '/live': typeof LiveRouteWithChildren
+  '/onboarding': typeof OnboardingRouteWithChildren
   '/raw': typeof RawRoute
   '/setup': typeof SetupRouteWithChildren
   '/tracks': typeof TracksRoute
@@ -132,9 +181,16 @@ export interface FileRoutesByFullPath {
   '/cars/$carOrdinal': typeof CarsCarOrdinalRoute
   '/live/driver': typeof LiveDriverRoute
   '/live/pit': typeof LivePitRoute
+  '/onboarding/connection': typeof OnboardingConnectionRoute
+  '/onboarding/profile': typeof OnboardingProfileRoute
+  '/onboarding/sound': typeof OnboardingSoundRoute
+  '/onboarding/units': typeof OnboardingUnitsRoute
+  '/onboarding/welcome': typeof OnboardingWelcomeRoute
+  '/onboarding/wheel': typeof OnboardingWheelRoute
   '/setup/$profileId': typeof SetupProfileIdRoute
   '/tunes/catalog': typeof TunesCatalogRoute
   '/tunes/new': typeof TunesNewRoute
+  '/onboarding/': typeof OnboardingIndexRoute
   '/setup/': typeof SetupIndexRoute
   '/tunes/': typeof TunesIndexRoute
   '/tunes/edit/$tuneId': typeof TunesEditTuneIdRoute
@@ -150,9 +206,16 @@ export interface FileRoutesByTo {
   '/cars/$carOrdinal': typeof CarsCarOrdinalRoute
   '/live/driver': typeof LiveDriverRoute
   '/live/pit': typeof LivePitRoute
+  '/onboarding/connection': typeof OnboardingConnectionRoute
+  '/onboarding/profile': typeof OnboardingProfileRoute
+  '/onboarding/sound': typeof OnboardingSoundRoute
+  '/onboarding/units': typeof OnboardingUnitsRoute
+  '/onboarding/welcome': typeof OnboardingWelcomeRoute
+  '/onboarding/wheel': typeof OnboardingWheelRoute
   '/setup/$profileId': typeof SetupProfileIdRoute
   '/tunes/catalog': typeof TunesCatalogRoute
   '/tunes/new': typeof TunesNewRoute
+  '/onboarding': typeof OnboardingIndexRoute
   '/setup': typeof SetupIndexRoute
   '/tunes': typeof TunesIndexRoute
   '/tunes/edit/$tuneId': typeof TunesEditTuneIdRoute
@@ -164,6 +227,7 @@ export interface FileRoutesById {
   '/cars': typeof CarsRoute
   '/compare': typeof CompareRoute
   '/live': typeof LiveRouteWithChildren
+  '/onboarding': typeof OnboardingRouteWithChildren
   '/raw': typeof RawRoute
   '/setup': typeof SetupRouteWithChildren
   '/tracks': typeof TracksRoute
@@ -171,9 +235,16 @@ export interface FileRoutesById {
   '/cars_/$carOrdinal': typeof CarsCarOrdinalRoute
   '/live/driver': typeof LiveDriverRoute
   '/live/pit': typeof LivePitRoute
+  '/onboarding/connection': typeof OnboardingConnectionRoute
+  '/onboarding/profile': typeof OnboardingProfileRoute
+  '/onboarding/sound': typeof OnboardingSoundRoute
+  '/onboarding/units': typeof OnboardingUnitsRoute
+  '/onboarding/welcome': typeof OnboardingWelcomeRoute
+  '/onboarding/wheel': typeof OnboardingWheelRoute
   '/setup/$profileId': typeof SetupProfileIdRoute
   '/tunes/catalog': typeof TunesCatalogRoute
   '/tunes/new': typeof TunesNewRoute
+  '/onboarding/': typeof OnboardingIndexRoute
   '/setup/': typeof SetupIndexRoute
   '/tunes/': typeof TunesIndexRoute
   '/tunes/edit/$tuneId': typeof TunesEditTuneIdRoute
@@ -186,6 +257,7 @@ export interface FileRouteTypes {
     | '/cars'
     | '/compare'
     | '/live'
+    | '/onboarding'
     | '/raw'
     | '/setup'
     | '/tracks'
@@ -193,9 +265,16 @@ export interface FileRouteTypes {
     | '/cars/$carOrdinal'
     | '/live/driver'
     | '/live/pit'
+    | '/onboarding/connection'
+    | '/onboarding/profile'
+    | '/onboarding/sound'
+    | '/onboarding/units'
+    | '/onboarding/welcome'
+    | '/onboarding/wheel'
     | '/setup/$profileId'
     | '/tunes/catalog'
     | '/tunes/new'
+    | '/onboarding/'
     | '/setup/'
     | '/tunes/'
     | '/tunes/edit/$tuneId'
@@ -211,9 +290,16 @@ export interface FileRouteTypes {
     | '/cars/$carOrdinal'
     | '/live/driver'
     | '/live/pit'
+    | '/onboarding/connection'
+    | '/onboarding/profile'
+    | '/onboarding/sound'
+    | '/onboarding/units'
+    | '/onboarding/welcome'
+    | '/onboarding/wheel'
     | '/setup/$profileId'
     | '/tunes/catalog'
     | '/tunes/new'
+    | '/onboarding'
     | '/setup'
     | '/tunes'
     | '/tunes/edit/$tuneId'
@@ -224,6 +310,7 @@ export interface FileRouteTypes {
     | '/cars'
     | '/compare'
     | '/live'
+    | '/onboarding'
     | '/raw'
     | '/setup'
     | '/tracks'
@@ -231,9 +318,16 @@ export interface FileRouteTypes {
     | '/cars_/$carOrdinal'
     | '/live/driver'
     | '/live/pit'
+    | '/onboarding/connection'
+    | '/onboarding/profile'
+    | '/onboarding/sound'
+    | '/onboarding/units'
+    | '/onboarding/welcome'
+    | '/onboarding/wheel'
     | '/setup/$profileId'
     | '/tunes/catalog'
     | '/tunes/new'
+    | '/onboarding/'
     | '/setup/'
     | '/tunes/'
     | '/tunes/edit/$tuneId'
@@ -245,6 +339,7 @@ export interface RootRouteChildren {
   CarsRoute: typeof CarsRoute
   CompareRoute: typeof CompareRoute
   LiveRoute: typeof LiveRouteWithChildren
+  OnboardingRoute: typeof OnboardingRouteWithChildren
   RawRoute: typeof RawRoute
   SetupRoute: typeof SetupRouteWithChildren
   TracksRoute: typeof TracksRoute
@@ -280,6 +375,13 @@ declare module '@tanstack/react-router' {
       path: '/raw'
       fullPath: '/raw'
       preLoaderRoute: typeof RawRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/live': {
@@ -331,6 +433,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetupIndexRouteImport
       parentRoute: typeof SetupRoute
     }
+    '/onboarding/': {
+      id: '/onboarding/'
+      path: '/'
+      fullPath: '/onboarding/'
+      preLoaderRoute: typeof OnboardingIndexRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
     '/tunes/new': {
       id: '/tunes/new'
       path: '/new'
@@ -351,6 +460,48 @@ declare module '@tanstack/react-router' {
       fullPath: '/setup/$profileId'
       preLoaderRoute: typeof SetupProfileIdRouteImport
       parentRoute: typeof SetupRoute
+    }
+    '/onboarding/wheel': {
+      id: '/onboarding/wheel'
+      path: '/wheel'
+      fullPath: '/onboarding/wheel'
+      preLoaderRoute: typeof OnboardingWheelRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/onboarding/welcome': {
+      id: '/onboarding/welcome'
+      path: '/welcome'
+      fullPath: '/onboarding/welcome'
+      preLoaderRoute: typeof OnboardingWelcomeRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/onboarding/units': {
+      id: '/onboarding/units'
+      path: '/units'
+      fullPath: '/onboarding/units'
+      preLoaderRoute: typeof OnboardingUnitsRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/onboarding/sound': {
+      id: '/onboarding/sound'
+      path: '/sound'
+      fullPath: '/onboarding/sound'
+      preLoaderRoute: typeof OnboardingSoundRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/onboarding/profile': {
+      id: '/onboarding/profile'
+      path: '/profile'
+      fullPath: '/onboarding/profile'
+      preLoaderRoute: typeof OnboardingProfileRouteImport
+      parentRoute: typeof OnboardingRoute
+    }
+    '/onboarding/connection': {
+      id: '/onboarding/connection'
+      path: '/connection'
+      fullPath: '/onboarding/connection'
+      preLoaderRoute: typeof OnboardingConnectionRouteImport
+      parentRoute: typeof OnboardingRoute
     }
     '/live/pit': {
       id: '/live/pit'
@@ -395,6 +546,30 @@ const LiveRouteChildren: LiveRouteChildren = {
 
 const LiveRouteWithChildren = LiveRoute._addFileChildren(LiveRouteChildren)
 
+interface OnboardingRouteChildren {
+  OnboardingConnectionRoute: typeof OnboardingConnectionRoute
+  OnboardingProfileRoute: typeof OnboardingProfileRoute
+  OnboardingSoundRoute: typeof OnboardingSoundRoute
+  OnboardingUnitsRoute: typeof OnboardingUnitsRoute
+  OnboardingWelcomeRoute: typeof OnboardingWelcomeRoute
+  OnboardingWheelRoute: typeof OnboardingWheelRoute
+  OnboardingIndexRoute: typeof OnboardingIndexRoute
+}
+
+const OnboardingRouteChildren: OnboardingRouteChildren = {
+  OnboardingConnectionRoute: OnboardingConnectionRoute,
+  OnboardingProfileRoute: OnboardingProfileRoute,
+  OnboardingSoundRoute: OnboardingSoundRoute,
+  OnboardingUnitsRoute: OnboardingUnitsRoute,
+  OnboardingWelcomeRoute: OnboardingWelcomeRoute,
+  OnboardingWheelRoute: OnboardingWheelRoute,
+  OnboardingIndexRoute: OnboardingIndexRoute,
+}
+
+const OnboardingRouteWithChildren = OnboardingRoute._addFileChildren(
+  OnboardingRouteChildren,
+)
+
 interface SetupRouteChildren {
   SetupProfileIdRoute: typeof SetupProfileIdRoute
   SetupIndexRoute: typeof SetupIndexRoute
@@ -429,6 +604,7 @@ const rootRouteChildren: RootRouteChildren = {
   CarsRoute: CarsRoute,
   CompareRoute: CompareRoute,
   LiveRoute: LiveRouteWithChildren,
+  OnboardingRoute: OnboardingRouteWithChildren,
   RawRoute: RawRoute,
   SetupRoute: SetupRouteWithChildren,
   TracksRoute: TracksRoute,

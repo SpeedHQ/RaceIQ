@@ -1,5 +1,5 @@
 import type { TelemetryPacket, Tune } from "../../shared/types";
-import { generateExport, type ExportUnits } from "../export";
+import { generateExport, type UnitSystem } from "../export";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../client/src/lib/lap-insights";
@@ -64,14 +64,14 @@ export function buildAnalystPrompt(
   },
   packets: TelemetryPacket[],
   corners: CornerDef[],
-  units: ExportUnits = { speedUnit: "mph", temperatureUnit: "F" },
+  unit: UnitSystem = "metric",
   tune?: Tune
 ): string {
   const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
   const trackName = getTrackName(lap.trackOrdinal ?? 0);
 
-  const exportText = generateExport(lap, packets, units);
-  const cornerData = buildCornerData(packets, corners, units.speedUnit);
+  const exportText = generateExport(lap, packets, unit);
+  const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
   // Run precomputed insight analysis
   const insights = analyzeLap(packets);

@@ -84,6 +84,7 @@ type SectionId = (typeof NAV_ITEMS)[number]["id"];
 
 export function Settings() {
   const [activeSection, setActiveSection] = useState<SectionId>("theme");
+  const [showSetupGuide, setShowSetupGuide] = useState(false);
   const [udpPort, setUdpPort] = useState("5300");
   const [savedPort, setSavedPort] = useState<number | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -98,28 +99,28 @@ export function Settings() {
   const { displaySettings } = useSettings();
   const saveSettings = useSaveSettings();
   const { theme, setTheme } = useTheme();
-  const [tempUnit, setTempUnit] = useState<"F" | "C">(displaySettings.temperatureUnit);
-  const [thresholds, setThresholds] = useState(displaySettings.tireTemperatureThresholds);
+  const [unitSystem, setUnitSystem] = useState<"metric" | "imperial">(displaySettings.unit);
+  const tempUnit = unitSystem === "metric" ? "C" as const : "F" as const;
+  const [thresholds, setThresholds] = useState(displaySettings.tireTempCelsiusThresholds);
   const [healthThresholds, setHealthThresholds] = useState(displaySettings.tireHealthThresholds.values);
   const [suspThresholds, setSuspThresholds] = useState(displaySettings.suspensionThresholds.values);
-  const [speedUnit, setSpeedUnit] = useState<"mph" | "kmh">(displaySettings.speedUnit);
   const [tempStatus, setTempStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [tempError, setTempError] = useState("");
   const [healthStatus, setHealthStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [healthError, setHealthError] = useState("");
   const [suspStatus, setSuspStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [suspError, setSuspError] = useState("");
-  const [speedStatus, setSpeedStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [speedError, setSpeedError] = useState("");
+  const [unitStatus, setUnitStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [unitError, setUnitError] = useState("");
 
   const tempSettingsJson = JSON.stringify(displaySettings);
   useEffect(() => {
-    const unit = displaySettings.temperatureUnit;
-    const raw = displaySettings.tireTemperatureThresholds;
-    setTempUnit(unit);
-    setSpeedUnit(displaySettings.speedUnit);
+    const u = displaySettings.unit;
+    const tu = u === "metric" ? "C" as const : "F" as const;
+    const raw = displaySettings.tireTempCelsiusThresholds;
+    setUnitSystem(u);
     // Server always stores in °F — convert to display unit
-    setThresholds(unit === "C" ? {
+    setThresholds(tu === "C" ? {
       cold: convertTemp(raw.cold, "C"),
       warm: convertTemp(raw.warm, "C"),
       hot: convertTemp(raw.hot, "C"),
@@ -182,8 +183,8 @@ export function Settings() {
     setTempError("");
     try {
       await saveSettings.mutateAsync({
-        temperatureUnit: tempUnit,
-        tireTemperatureThresholds: thresholdsInF,
+        unit: unitSystem,
+        tireTempCelsiusThresholds: thresholdsInF,
       });
       setTempStatus("saved");
       setTimeout(() => setTempStatus("idle"), 2000);
@@ -193,23 +194,22 @@ export function Settings() {
     }
   }
 
-  async function handleSpeedSave() {
-    setSpeedStatus("saving");
-    setSpeedError("");
+  async function handleUnitSave() {
+    setUnitStatus("saving");
+    setUnitError("");
     try {
-      await saveSettings.mutateAsync({ speedUnit });
-      setSpeedStatus("saved");
-      setTimeout(() => setSpeedStatus("idle"), 2000);
+      await saveSettings.mutateAsync({ unit: unitSystem });
+      setUnitStatus("saved");
+      setTimeout(() => setUnitStatus("idle"), 2000);
     } catch (err) {
-      setSpeedStatus("error");
-      setSpeedError(err instanceof Error ? err.message : "Failed to save");
+      setUnitStatus("error");
+      setUnitError(err instanceof Error ? err.message : "Failed to save");
     }
   }
 
   function handleTempReset() {
     setThresholds({ cold: 150, warm: 220, hot: 280 });
-    setTempUnit("F");
-    setSpeedUnit("mph");
+    setUnitSystem("imperial");
   }
 
   async function handleHealthSave() {
@@ -373,32 +373,81 @@ export function Settings() {
               </p>
             )}
 
-            <div className="mt-6 pt-6 border-t border-app-border max-w-xs">
-              <Label htmlFor="steer-lock" className="text-app-text-secondary">
-                Steering Wheel Rotation (degrees)
-              </Label>
-              <p className="text-xs text-app-text-muted mb-1.5">
-                Full lock-to-lock rotation of your wheel. Common: 900° (default), 540°, 360°, 270°
-              </p>
-              <div className="flex items-end gap-3">
-                <Input
-                  id="steer-lock"
-                  type="number"
-                  min={180}
-                  max={1800}
-                  step={10}
-                  value={steerLock}
-                  onChange={(e) => {
-                    setSteerLock(e.target.value);
-                    const val = parseInt(e.target.value, 10);
-                    if (!isNaN(val) && val >= 180 && val <= 1800) {
-                      localStorage.setItem(STEER_LOCK_KEY, String(val));
-                    }
-                  }}
-                  className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono w-24"
-                />
-                <span className="text-xs text-app-text-muted mb-2">°</span>
-              </div>
+            <div className="mt-6 pt-6 border-t border-app-border">
+              <button
+                onClick={() => setShowSetupGuide(!showSetupGuide)}
+                className="flex items-center gap-2 text-sm text-app-accent hover:text-app-accent/80 transition-colors"
+              >
+                <svg
+                  className={`w-4 h-4 transition-transform ${showSetupGuide ? "rotate-90" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+                How to enable Data Out in Forza Motorsport
+              </button>
+
+              {showSetupGuide && (
+                <div className="mt-4 rounded-lg border border-app-border bg-app-surface-alt p-4 max-w-lg">
+                  <h3 className="text-sm font-semibold text-app-text mb-3">
+                    Forza Motorsport (2023) — Data Out Setup
+                  </h3>
+                  <ol className="space-y-2.5 text-sm text-app-text-muted list-decimal list-inside">
+                    <li>
+                      Open <span className="text-app-text">Forza Motorsport</span> and go to{" "}
+                      <span className="text-app-text">Settings</span>.
+                    </li>
+                    <li>
+                      Navigate to{" "}
+                      <span className="text-app-text">Gameplay &amp; HUD</span>.
+                    </li>
+                    <li>
+                      Scroll down to the{" "}
+                      <span className="text-app-text">UDP Race Telemetry</span> section.
+                    </li>
+                    <li>
+                      Set <span className="text-app-text">Data Out</span> to{" "}
+                      <span className="text-app-accent font-medium">On</span>.
+                    </li>
+                    <li>
+                      Set <span className="text-app-text">Data Out IP Address</span> to your
+                      PC's local IP address (e.g.{" "}
+                      <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 text-xs font-mono">
+                        192.168.1.x
+                      </code>
+                      ).
+                      <p className="mt-1 text-xs text-app-text-muted/70">
+                        If the game is running on the same PC, use{" "}
+                        <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 font-mono">
+                          127.0.0.1
+                        </code>
+                      </p>
+                    </li>
+                    <li>
+                      Set <span className="text-app-text">Data Out IP Port</span> to{" "}
+                      <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 text-xs font-mono">
+                        {udpPort || "5300"}
+                      </code>{" "}
+                      (must match the UDP port above).
+                    </li>
+                    <li>
+                      Set <span className="text-app-text">Data Out Packet Format</span> to{" "}
+                      <span className="text-app-accent font-medium">Car Dash</span>.
+                    </li>
+                  </ol>
+
+                  <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+                    <p className="text-xs text-amber-400">
+                      <span className="font-semibold">Note:</span> Telemetry only sends data
+                      while you're in a race session (Practice, Qualifying, or Race). You
+                      won't receive data from menus, replays, or while spectating.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         )}
@@ -438,6 +487,34 @@ export function Settings() {
                 </button>
               ))}
             </div>
+
+            <div className="mt-6 pt-6 border-t border-app-border max-w-xs">
+              <Label htmlFor="steer-lock" className="text-app-text-secondary">
+                Steering Wheel Rotation (degrees)
+              </Label>
+              <p className="text-xs text-app-text-muted mb-1.5">
+                Full lock-to-lock rotation of your wheel. Common: 900° (default), 540°, 360°, 270°
+              </p>
+              <div className="flex items-end gap-3">
+                <Input
+                  id="steer-lock"
+                  type="number"
+                  min={180}
+                  max={1800}
+                  step={10}
+                  value={steerLock}
+                  onChange={(e) => {
+                    setSteerLock(e.target.value);
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val) && val >= 180 && val <= 1800) {
+                      localStorage.setItem(STEER_LOCK_KEY, String(val));
+                    }
+                  }}
+                  className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono w-24"
+                />
+                <span className="text-xs text-app-text-muted mb-2">°</span>
+              </div>
+            </div>
           </section>
         )}
 
@@ -461,7 +538,7 @@ export function Settings() {
                       hot: celsiusToFahrenheit(thresholds.hot),
                     });
                   }
-                  setTempUnit("F");
+                  setUnitSystem("imperial");
                 }}
                 className="w-12"
               >
@@ -478,7 +555,7 @@ export function Settings() {
                       hot: convertTemp(thresholds.hot, "C"),
                     });
                   }
-                  setTempUnit("C");
+                  setUnitSystem("metric");
                 }}
                 className="w-12"
               >
@@ -644,28 +721,28 @@ export function Settings() {
               <Label className="text-app-text-secondary mr-2">Unit</Label>
               <Button
                 size="sm"
-                variant={speedUnit === "mph" ? "default" : "outline"}
-                onClick={() => setSpeedUnit("mph")}
+                variant={unitSystem === "imperial" ? "default" : "outline"}
+                onClick={() => setUnitSystem("imperial")}
               >
                 Imperial (mph, ft, lb)
               </Button>
               <Button
                 size="sm"
-                variant={speedUnit === "kmh" ? "default" : "outline"}
-                onClick={() => setSpeedUnit("kmh")}
+                variant={unitSystem === "metric" ? "default" : "outline"}
+                onClick={() => setUnitSystem("metric")}
               >
                 Metric (km/h, m, kg)
               </Button>
             </div>
 
             <div className="mt-4">
-              <Button onClick={handleSpeedSave} disabled={speedStatus === "saving"}>
-                {speedStatus === "saving" ? "Saving..." : speedStatus === "saved" ? "Saved" : "Save"}
+              <Button onClick={handleUnitSave} disabled={unitStatus === "saving"}>
+                {unitStatus === "saving" ? "Saving..." : unitStatus === "saved" ? "Saved" : "Save"}
               </Button>
             </div>
 
-            {speedStatus === "error" && (
-              <p className="text-red-400 text-sm mt-2">{speedError}</p>
+            {unitStatus === "error" && (
+              <p className="text-red-400 text-sm mt-2">{unitError}</p>
             )}
           </section>
         )}

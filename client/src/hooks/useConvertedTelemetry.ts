@@ -9,8 +9,10 @@ import { useSettings } from "./queries";
  */
 export function useConvertedTelemetry(packets: TelemetryPacket[]): DisplayPacket[] {
   const { displaySettings } = useSettings();
+  const su = displaySettings.unit === "metric" ? "kmh" as const : "mph" as const;
+  const tu = displaySettings.unit === "metric" ? "C" as const : "F" as const;
   return useMemo(
-    () => convertPackets(packets, displaySettings.speedUnit, displaySettings.temperatureUnit),
-    [packets, displaySettings.speedUnit, displaySettings.temperatureUnit]
+    () => convertPackets(packets, su, tu),
+    [packets, su, tu]
   );
 }

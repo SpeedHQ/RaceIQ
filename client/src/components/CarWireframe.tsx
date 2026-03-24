@@ -912,6 +912,32 @@ const VIEW_PRESETS: Record<ViewPreset, { position: [number, number, number]; tar
   top:    { position: [0, 7, 0.01],   target: [0, 0, 0] },
 };
 
+function AutoChaseCamera({ packet }: { packet: TelemetryPacket }) {
+  const { camera } = useThree();
+  const smoothYaw = useRef(packet.Yaw);
+
+  useFrame(() => {
+    // Smooth the yaw to avoid jerky camera
+    let diff = packet.Yaw - smoothYaw.current;
+    while (diff > Math.PI) diff -= 2 * Math.PI;
+    while (diff < -Math.PI) diff += 2 * Math.PI;
+    smoothYaw.current += diff * 0.04;
+
+    const yaw = smoothYaw.current;
+    const radius = 5;
+    const height = 1.8;
+    // Camera sits behind the car: car faces -Z in Forza coords, yaw=0 is forward
+    camera.position.set(
+      Math.sin(yaw) * radius,
+      height,
+      Math.cos(yaw) * radius,
+    );
+    camera.lookAt(0, 0.3, 0);
+  });
+
+  return null;
+}
+
 function CameraController({ viewPreset }: { viewPreset: ViewPreset }) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
@@ -942,7 +968,7 @@ function CameraController({ viewPreset }: { viewPreset: ViewPreset }) {
   );
 }
 
-function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, viewPreset, carModel, modelOffsetX, fmtTemp, hideModelWheels, suspThresholds }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null; toggles: ViewToggles; viewPreset: ViewPreset; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; fmtTemp: (f: number) => string; hideModelWheels?: boolean; suspThresholds: number[] }) {
+function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, viewPreset, carModel, modelOffsetX, fmtTemp, hideModelWheels, suspThresholds, autoOrbit }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null; toggles: ViewToggles; viewPreset: ViewPreset; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; fmtTemp: (f: number) => string; hideModelWheels?: boolean; suspThresholds: number[]; autoOrbit?: boolean }) {
   const carGroupRef = useRef<THREE.Group>(null);
   const prevTimeRef = useRef(packet.TimestampMS);
   const prevWear = useRef([packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR]);
@@ -1206,7 +1232,7 @@ function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, 
 
 
       {/* Camera controls */}
-      <CameraController viewPreset={viewPreset} />
+      {autoOrbit ? <AutoChaseCamera packet={packet} /> : <CameraController viewPreset={viewPreset} />}
     </>
   );
 }
@@ -1267,6 +1293,8 @@ export function CarWireframe({
   carOrdinal,
   showDimensions,
   minimal,
+  hideControls,
+  autoOrbit,
 }: {
   packet: TelemetryPacket;
   telemetry: TelemetryPacket[];
@@ -1276,6 +1304,8 @@ export function CarWireframe({
   carOrdinal?: number;
   showDimensions?: boolean;
   minimal?: boolean;
+  hideControls?: boolean;
+  autoOrbit?: boolean;
   onModelOffset?: (offset: { x: number; y: number; z: number }) => void;
 }) {
   const [configsLoaded, setConfigsLoaded] = useState(false);
@@ -1306,11 +1336,11 @@ export function CarWireframe({
         gl={{ antialias: true, alpha: true }}
         style={{ background: "transparent" }}
       >
-        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} boundaries={boundaries ?? null} toggles={toggles} viewPreset={viewPreset} carModel={carModel} modelOffsetX={modelOffsetX} fmtTemp={fmtTemp} hideModelWheels={!minimal} suspThresholds={suspThresholds} />
+        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} boundaries={boundaries ?? null} toggles={toggles} viewPreset={viewPreset} carModel={carModel} modelOffsetX={modelOffsetX} fmtTemp={fmtTemp} hideModelWheels={!minimal} suspThresholds={suspThresholds} autoOrbit={autoOrbit} />
       </Canvas>
 
       {/* View toggles */}
-      <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[65%]">
+      {!hideControls && <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[65%]">
         <ToggleButton
           label={toggles.solid === "solid" ? "Solid" : toggles.solid === "hidden" ? "Hidden" : "Wire"}
           active={toggles.solid !== "wire"}
@@ -1326,10 +1356,10 @@ export function CarWireframe({
         {!minimal && <ToggleButton label="Grid" active={toggles.grid} onClick={() => toggle("grid")} />}
         {!minimal && <ToggleButton label="Drive" active={toggles.drivetrain} onClick={() => toggle("drivetrain")} />}
         {minimal && <ToggleButton label="Dims" active={toggles.dimensions} onClick={() => toggle("dimensions")} />}
-      </div>
+      </div>}
 
       {/* Camera presets + steering indicator */}
-      <div className="absolute top-2 right-2 flex flex-col gap-2 items-end">
+      {!hideControls && <div className="absolute top-2 right-2 flex flex-col gap-2 items-end">
         <div className="flex flex-col gap-1">
           {(Object.keys(VIEW_PRESETS) as ViewPreset[]).map((key) => (
             <ToggleButton key={key} label={key} active={viewPreset === key} onClick={() => setViewPreset(key)} />
@@ -1369,10 +1399,10 @@ export function CarWireframe({
             </span>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Model edit controls (minimal/car viewer mode) */}
-      {minimal && !editMode && carModel.hasModel && (
+      {!hideControls && minimal && !editMode && carModel.hasModel && (
         <button
           onClick={() => setEditMode(true)}
           className="absolute bottom-2 left-2 px-2 py-1 text-[10px] rounded bg-app-surface-alt/80 border border-app-border-input text-app-text-muted hover:text-app-text transition-colors"
@@ -1380,7 +1410,7 @@ export function CarWireframe({
           Edit Model
         </button>
       )}
-      {minimal && editMode && (
+      {!hideControls && minimal && editMode && (
         <div className="absolute bottom-2 left-2 bg-app-bg/90 rounded-lg border border-app-border p-2 text-[10px] font-mono space-y-1.5" style={{ minWidth: 220 }}>
           <div className="flex items-center justify-between">
             <span className="text-app-text-muted uppercase tracking-wider">Model Offset</span>

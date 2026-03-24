@@ -34,11 +34,11 @@ jobs:
       - name: Build client
         run: cd client && bun install && bun run build
 
-      - name: Embed client assets
-        run: bun scripts/bundle-client.ts
+      - name: Copy client assets
+        run: cp -r client/dist dist/public
 
-      - name: Embed shared data
-        run: bun scripts/bundle-shared-data.ts
+      - name: Copy shared data
+        run: bun scripts/copy-shared-data.ts
 
       - name: Compile server binary
         run: NODE_ENV=production bun build --compile --target=${{ matrix.target }} server/index.ts --outfile dist/forza-telemetry

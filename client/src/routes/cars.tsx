@@ -79,6 +79,7 @@ function CarDetail({ car, fmtSpeed, fmtBrake, fmtWeight, isMetric }: {
           <img
             src={s.imageUrl}
             alt={car.name}
+            loading="lazy"
             className="w-full rounded object-contain bg-app-surface p-2"
             style={{ maxHeight: 120 }}
           />
@@ -223,7 +224,7 @@ function CompareModal({ cars, onClose, fmtSpeed, fmtBrake, fmtWeight, isMetric }
                 {cars.map(car => (
                   <th key={car.ordinal} className="px-3 py-2 text-center" style={{ minWidth: colWidth }}>
                     {car.specs?.imageUrl && (
-                      <img src={car.specs.imageUrl} alt={car.name} className="h-14 w-full object-contain mx-auto mb-1" />
+                      <img src={car.specs.imageUrl} alt={car.name} loading="lazy" className="h-14 w-full object-contain mx-auto mb-1" />
                     )}
                     <div className="font-semibold text-app-text leading-tight">{car.name}</div>
                     {car.specs?.pi && <PiBadge showNumber={false} pi={car.specs.pi} />}
@@ -262,7 +263,7 @@ function CarsPage() {
   const [configsReady, setConfigsReady] = useState(false);
   useEffect(() => { loadCarModelConfigs().then(() => setConfigsReady(true)); }, []);
   const units = useUnits();
-  const isMetric = units.speedUnit === "kmh";
+  const isMetric = units.unit === "metric";
   function fmtSpeed(mph: number)          { return mph  ? `${units.fromMph(mph).toFixed(1)} ${units.speedLabel}` : "—"; }
   function fmtBrake(ft: number)           { return ft   ? `${isMetric ? (ft * 0.3048).toFixed(1) + " m" : ft + " ft"}` : "—"; }
   function fmtWeight(kg: number, lbs: number) { return kg ? `${isMetric ? kg + " kg" : lbs + " lb"}` : "—"; }
@@ -422,7 +423,7 @@ function CarsPage() {
                     {/* Image */}
                     <div className="h-32 flex items-center justify-center bg-app-bg rounded-t-xl overflow-hidden px-3 pt-3 relative">
                       {s.imageUrl ? (
-                        <img src={s.imageUrl} alt={car.name} className="h-full w-full object-contain" />
+                        <img src={s.imageUrl} alt={car.name} loading="lazy" className="h-full w-full object-contain" />
                       ) : (
                         <div className="text-xs text-app-text-muted">No image</div>
                       )}

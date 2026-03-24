@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import { udpListener } from "./udp";
 import { wsManager } from "./ws";
 import { lapDetector } from "./lap-detector";
-import { loadSettings, saveSettings } from "./settings";
+import { loadSettings, saveSettings, PartialSettingsSchema } from "./settings";
 import {
   getLaps,
   getLapById,
@@ -77,80 +77,43 @@ app.get("/api/settings", (c) => {
 // PUT /api/settings
 app.put("/api/settings", async (c) => {
   const body = await c.req.json();
+
+  // Validate incoming partial settings
+  const parseResult = PartialSettingsSchema.safeParse(body);
+  if (!parseResult.success) {
+    return c.json({ error: parseResult.error.issues.map((i) => i.message).join(", ") }, 400);
+  }
+
   const current = loadSettings();
+  const merged = { ...current, ...parseResult.data };
 
-  // Whitelist fields — only allow known settings to be updated
-  const merged = {
-    udpPort: body.udpPort ?? current.udpPort,
-    temperatureUnit: body.temperatureUnit ?? current.temperatureUnit,
-    speedUnit: body.speedUnit ?? current.speedUnit,
-    activeProfileId: body.activeProfileId !== undefined ? body.activeProfileId : current.activeProfileId,
-    tireTemperatureThresholds: {
-      cold: body.tireTemperatureThresholds?.cold ?? current.tireTemperatureThresholds.cold,
-      warm: body.tireTemperatureThresholds?.warm ?? current.tireTemperatureThresholds.warm,
-      hot: body.tireTemperatureThresholds?.hot ?? current.tireTemperatureThresholds.hot,
-    },
-    tireHealthThresholds: {
-      values: Array.isArray(body.tireHealthThresholds?.values)
-        ? body.tireHealthThresholds.values
-        : current.tireHealthThresholds.values,
-    },
-    suspensionThresholds: {
-      values: Array.isArray(body.suspensionThresholds?.values)
-        ? body.suspensionThresholds.values
-        : current.suspensionThresholds.values,
-    },
-  };
-
-  // Validate port
-  const port = merged.udpPort;
-  if (!Number.isInteger(port) || port < 1024 || port > 65535) {
-    return c.json({ error: "Port must be between 1024-65535" }, 400);
-  }
-
-  // Validate temperature unit
-  if (merged.temperatureUnit !== "F" && merged.temperatureUnit !== "C") {
-    return c.json({ error: "temperatureUnit must be 'F' or 'C'" }, 400);
-  }
-
-  // Validate speed unit
-  if (merged.speedUnit !== "mph" && merged.speedUnit !== "kmh") {
-    return c.json({ error: "speedUnit must be 'mph' or 'kmh'" }, 400);
+  // Deep merge nested objects
+  if (parseResult.data.tireTempCelsiusThresholds) {
+    merged.tireTempCelsiusThresholds = { ...current.tireTempCelsiusThresholds, ...parseResult.data.tireTempCelsiusThresholds };
   }
 
   // Validate threshold ordering
-  const t = merged.tireTemperatureThresholds;
+  const t = merged.tireTempCelsiusThresholds;
   if (t.cold >= t.warm || t.warm >= t.hot) {
     return c.json({ error: "Thresholds must be in order: cold < warm < hot" }, 400);
   }
 
-  // Validate tire health thresholds (ascending, 0-100)
-  const th = merged.tireHealthThresholds.values;
-  if (!th.every((v: number) => typeof v === "number" && v >= 0 && v <= 100)) {
-    return c.json({ error: "Tire health thresholds must be numbers between 0-100" }, 400);
-  }
-  for (let i = 1; i < th.length; i++) {
-    if (th[i] <= th[i - 1]) return c.json({ error: "Tire health thresholds must be in ascending order" }, 400);
-  }
-
-  // Validate suspension thresholds (ascending, 0-100)
-  const st = merged.suspensionThresholds.values;
-  if (!st.every((v: number) => typeof v === "number" && v >= 0 && v <= 100)) {
-    return c.json({ error: "Suspension thresholds must be numbers between 0-100" }, 400);
-  }
-  for (let i = 1; i < st.length; i++) {
-    if (st[i] <= st[i - 1]) return c.json({ error: "Suspension thresholds must be in ascending order" }, 400);
+  // Validate ascending order for array thresholds
+  for (const [name, arr] of [["tireHealthThresholds", merged.tireHealthThresholds.values], ["suspensionThresholds", merged.suspensionThresholds.values]] as const) {
+    for (let i = 1; i < arr.length; i++) {
+      if (arr[i] <= arr[i - 1]) return c.json({ error: `${name} must be in ascending order` }, 400);
+    }
   }
 
   try {
     // Only restart UDP if port actually changed
-    if (port !== udpListener.port) {
-      await udpListener.restart(port);
+    if (merged.udpPort !== udpListener.port) {
+      await udpListener.restart(merged.udpPort);
     }
     saveSettings(merged);
     return c.json(merged);
   } catch {
-    return c.json({ error: `Failed to bind to port ${port}` }, 500);
+    return c.json({ error: `Failed to bind to port ${merged.udpPort}` }, 500);
   }
 });
 
@@ -307,8 +270,6 @@ app.post("/api/laps/:id/analyse", async (c) => {
 
   // Load user settings for unit conversion
   const settings = loadSettings();
-  const units = { speedUnit: settings.speedUnit, temperatureUnit: settings.temperatureUnit };
-
   // Look up tune for this lap
   let parsedTune: Tune | undefined;
   if (lap.tuneId) {
@@ -326,7 +287,7 @@ app.post("/api/laps/:id/analyse", async (c) => {
   }
 
   // Build prompt
-  const prompt = buildAnalystPrompt(lap, lap.telemetry, corners, units, parsedTune);
+  const prompt = buildAnalystPrompt(lap, lap.telemetry, corners, settings.unit, parsedTune);
 
   // Spawn claude CLI, pipe prompt via stdin
   try {
