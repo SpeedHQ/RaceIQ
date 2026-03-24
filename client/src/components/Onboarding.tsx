@@ -527,37 +527,31 @@ export function StepConnection() {
       <div className={`rounded-lg border p-4 transition-colors ${
         receiving
           ? "border-emerald-500/50 bg-emerald-500/5"
-          : connected
-            ? "border-amber-500/30 bg-amber-500/5"
-            : "border-app-border bg-app-surface-alt"
+          : "border-app-border bg-app-surface-alt"
       }`}>
         <div className="flex items-center gap-3">
           <div className={`relative w-3 h-3 rounded-full ${
-            receiving ? "bg-emerald-400" : connected ? "bg-amber-400" : "bg-app-text-muted/30"
+            receiving ? "bg-emerald-400" : "bg-app-text-muted/30"
           }`}>
-            {!receiving && connected && (
-              <span className="absolute inset-0 rounded-full bg-amber-400 animate-ping opacity-40" />
-            )}
             {receiving && (
               <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-40" />
+            )}
+            {!receiving && (
+              <span className="absolute inset-0 rounded-full bg-app-text-muted/30 animate-ping opacity-40" />
             )}
           </div>
           <div>
             <p className={`text-sm font-medium ${
-              receiving ? "text-emerald-400" : connected ? "text-amber-400" : "text-app-text-muted"
+              receiving ? "text-emerald-400" : "text-app-text-muted"
             }`}>
               {receiving
                 ? "Receiving telemetry!"
-                : connected
-                  ? "Connected — waiting for race data..."
-                  : "WebSocket disconnected"}
+                : "Waiting for game data..."}
             </p>
             <p className="text-xs text-app-text-muted mt-0.5">
               {receiving
                 ? `${packetsPerSec} packets/sec`
-                : connected
-                  ? "Start a race in Forza (Practice, Qualifying, or Race). No data during menus, replays, or spectating."
-                  : "Check that the server is running."}
+                : "Start a race in Forza (Practice, Qualifying, or Race). No data during menus, replays, or spectating."}
             </p>
           </div>
         </div>
