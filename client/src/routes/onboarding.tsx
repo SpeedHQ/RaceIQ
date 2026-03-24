@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useNavigate, useLocation } from "@tanstack/rea
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { isOnboardingComplete, markOnboardingComplete } from "../components/Onboarding";
+import { useTelemetryStore } from "../stores/telemetry";
 
 const STEPS = [
   { path: "/onboarding/welcome", label: "Welcome" },
@@ -17,6 +18,9 @@ function OnboardingLayout() {
   const location = useLocation();
   const currentIdx = STEPS.findIndex((s) => s.path === location.pathname);
   const step = currentIdx === -1 ? 0 : currentIdx;
+  const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
+  const receiving = packetsPerSec > 0;
+  const isLastStep = step === STEPS.length - 1;
 
   // Redirect bare /onboarding to /onboarding/welcome
   useEffect(() => {
@@ -115,8 +119,8 @@ function OnboardingLayout() {
                 {step === 0 ? "Get Started" : "Next"}
               </Button>
             ) : (
-              <Button size="sm" onClick={handleFinish}>
-                Finish
+              <Button size="sm" variant={receiving ? "default" : "outline"} onClick={handleFinish}>
+                {receiving ? "Finish" : "Skip"}
               </Button>
             )}
           </div>
