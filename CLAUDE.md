@@ -26,6 +26,12 @@ bun test test/parser.test.ts   # single test file
 bun run db:push       # push schema changes to SQLite
 bun run db:generate   # generate migration files
 
+# Production build (client bundle + compiled server binary → dist/)
+bun run build
+
+# Run production build
+bun run start
+
 # Client-specific
 cd client && bun run build   # production build (tsc + vite)
 cd client && bun run lint    # ESLint
