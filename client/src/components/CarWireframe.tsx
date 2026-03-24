@@ -711,7 +711,10 @@ function filterByDistance(
   cx: number,
   cz: number,
   yaw: number,
-  y: number
+  y: number,
+  ahead = DIST_AHEAD,
+  behind = DIST_BEHIND,
+  lateral = DIST_LATERAL,
 ): [number, number, number][][] {
   const s = Math.sin(yaw);
   const c = Math.cos(yaw);
@@ -724,8 +727,8 @@ function filterByDistance(
     // Transform to car-local: forward/lateral
     const localFwd = dx * s + dz * c;
     const localLat = dx * c - dz * s;
-    const inRange = localFwd >= -DIST_BEHIND && localFwd <= DIST_AHEAD &&
-                    Math.abs(localLat) <= DIST_LATERAL;
+    const inRange = localFwd >= -behind && localFwd <= ahead &&
+                    Math.abs(localLat) <= lateral;
     if (inRange) {
       current.push([localFwd, y, localLat]);
     } else if (current.length > 1) {
