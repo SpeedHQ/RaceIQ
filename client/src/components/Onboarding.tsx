@@ -92,11 +92,12 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
     return () => cancelAnimationFrame(rafId);
   }, [telemetry]);
 
-  // Build driving line from telemetry positions
+  // Build driving line from telemetry positions — downsample for perf
   const lapLine = useMemo(() => {
     if (telemetry.length < 2) return null;
     const pts: { x: number; z: number }[] = [];
-    for (const p of telemetry) {
+    for (let i = 0; i < telemetry.length; i += 10) {
+      const p = telemetry[i];
       if (p.PositionX === 0 && p.PositionZ === 0) continue;
       pts.push({ x: p.PositionX, z: p.PositionZ });
     }
@@ -191,20 +192,17 @@ export function StepWelcome() {
       <h2 className="text-2xl font-bold text-app-text mb-2 tracking-tight">
         RaceIQ
       </h2>
-      <p className="text-sm text-app-text-muted max-w-xs leading-relaxed">
-        Welcome to the most advanced dashboard for real-time data, lap analysis, and performance insights for sim racing.
+      <p className="text-sm text-app-text-muted max-w-sm leading-relaxed">
+        The most advanced sim racing telemetry dashboard.
       </p>
-      <div className="flex items-center gap-3 mt-6 text-xs text-app-text-muted/60">
-        <span className="flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-app-accent/60" />
+      <div className="flex items-center gap-2 mt-5">
+        <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">
           Live telemetry
         </span>
-        <span className="flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-app-accent/60" />
+        <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">
           Lap comparison
         </span>
-        <span className="flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-app-accent/60" />
+        <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">
           AI analysis
         </span>
       </div>
