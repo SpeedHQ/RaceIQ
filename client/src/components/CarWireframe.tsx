@@ -773,20 +773,23 @@ function TrackOutline({
 function TrackBoundaryEdges({
   boundaries,
   packet,
+  distAhead,
 }: {
   boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] };
   packet: TelemetryPacket;
+  distAhead?: number;
 }) {
   const WALL_HEIGHT = 0.12;
   const GROUND_Y = -0.44;
   const cx = packet.PositionX;
   const cz = packet.PositionZ;
   const yaw = packet.Yaw;
+  const ahead = distAhead ?? DIST_AHEAD;
 
-  const leftSegsGround = useMemo(() => filterByDistance(boundaries.leftEdge, cx, cz, yaw, GROUND_Y), [boundaries.leftEdge, cx, cz, yaw]);
-  const leftSegsTop = useMemo(() => filterByDistance(boundaries.leftEdge, cx, cz, yaw, GROUND_Y + WALL_HEIGHT), [boundaries.leftEdge, cx, cz, yaw]);
-  const rightSegsGround = useMemo(() => filterByDistance(boundaries.rightEdge, cx, cz, yaw, GROUND_Y), [boundaries.rightEdge, cx, cz, yaw]);
-  const rightSegsTop = useMemo(() => filterByDistance(boundaries.rightEdge, cx, cz, yaw, GROUND_Y + WALL_HEIGHT), [boundaries.rightEdge, cx, cz, yaw]);
+  const leftSegsGround = useMemo(() => filterByDistance(boundaries.leftEdge, cx, cz, yaw, GROUND_Y, ahead), [boundaries.leftEdge, cx, cz, yaw, ahead]);
+  const leftSegsTop = useMemo(() => filterByDistance(boundaries.leftEdge, cx, cz, yaw, GROUND_Y + WALL_HEIGHT, ahead), [boundaries.leftEdge, cx, cz, yaw, ahead]);
+  const rightSegsGround = useMemo(() => filterByDistance(boundaries.rightEdge, cx, cz, yaw, GROUND_Y, ahead), [boundaries.rightEdge, cx, cz, yaw, ahead]);
+  const rightSegsTop = useMemo(() => filterByDistance(boundaries.rightEdge, cx, cz, yaw, GROUND_Y + WALL_HEIGHT, ahead), [boundaries.rightEdge, cx, cz, yaw, ahead]);
 
   // Build wall mesh for each segment pair (ground + top at same indices)
   const buildWallGeometry = useCallback((ground: [number, number, number][], top: [number, number, number][]): THREE.BufferGeometry | null => {
