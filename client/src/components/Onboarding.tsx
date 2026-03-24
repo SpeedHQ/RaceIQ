@@ -42,7 +42,7 @@ export function markOnboardingComplete() {
 /* ─── Welcome ─── */
 
 function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
-  const [cursorIdx, setCursorIdx] = useState(0);
+  const [cursorIdx, setCursorIdx] = useState(() => Math.floor(telemetry.length * 0.3));
   const trackOrdinal = telemetry[0]?.TrackOrdinal;
 
   // Fetch track outline
