@@ -23,7 +23,7 @@ jobs:
             binary: forza-telemetry
           - os: windows-latest
             target: bun-windows-x64
-            artifact: forza-telemetry-windows-x64
+            artifact: blacksmith-2vcpu-windows-2025
             binary: forza-telemetry.exe
     runs-on: ${{ matrix.os }}
     steps:
@@ -63,7 +63,7 @@ jobs:
 
   release:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - uses: actions/download-artifact@v4
         with:

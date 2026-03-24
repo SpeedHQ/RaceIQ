@@ -16,7 +16,7 @@ jobs:
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             artifact: udp-forwarder.exe
-          - target: x86_64-unknown-linux-gnu
+          - target: blacksmith-2vcpu-ubuntu-2404
             os: ubuntu-latest
             artifact: udp-forwarder
           - target: aarch64-apple-darwin
@@ -64,7 +64,7 @@ jobs:
   release:
     needs: build
     if: startsWith(github.ref, 'refs/tags/udp-forwarder-v')
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     permissions:
       contents: write
 
