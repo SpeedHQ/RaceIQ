@@ -16,12 +16,15 @@ jobs:
           - os: ubuntu-latest
             target: bun-linux-x64
             artifact: forza-telemetry-linux-x64
+            binary: forza-telemetry
           - os: macos-latest
             target: bun-darwin-arm64
             artifact: forza-telemetry-macos-arm64
+            binary: forza-telemetry
           - os: windows-latest
             target: bun-windows-x64
             artifact: forza-telemetry-windows-x64
+            binary: forza-telemetry.exe
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -34,30 +37,29 @@ jobs:
       - name: Build client
         run: cd client && bun install && bun run build
 
+      - name: Prepare dist
+        shell: bash
+        run: mkdir -p dist
+
       - name: Copy client assets
+        shell: bash
         run: cp -r client/dist dist/public
 
       - name: Copy shared data
         run: bun scripts/copy-shared-data.ts
 
       - name: Compile server binary
-        run: NODE_ENV=production bun build --compile --target=${{ matrix.target }} server/index.ts --outfile dist/forza-telemetry
+        shell: bash
+        run: NODE_ENV=production bun build --compile --target=${{ matrix.target }} server/index.ts --outfile dist/${{ matrix.binary }}
 
-      - name: Package (unix)
-        if: runner.os != 'Windows'
-        run: tar -czf ${{ matrix.artifact }}.tar.gz -C dist .
-
-      - name: Package (windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: Compress-Archive -Path dist\* -DestinationPath ${{ matrix.artifact }}.zip
+      - name: Package
+        shell: bash
+        run: cd dist && zip -r ../${{ matrix.artifact }}.zip .
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: |
-            ${{ matrix.artifact }}.tar.gz
-            ${{ matrix.artifact }}.zip
+          path: ${{ matrix.artifact }}.zip
 
   release:
     needs: build
@@ -71,6 +73,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: |
-            *.tar.gz
-            *.zip
+          files: "*.zip"

@@ -1222,10 +1222,10 @@ function CarScene({ packet, telemetry, cursorIdx, outline, boundaries, toggles, 
       </group>
 
       {/* Track outline (subtle) */}
-      {toggles.track && outline && <TrackOutline outline={outline} packet={packet} />}
+      {toggles.track && outline && <TrackOutline outline={outline} packet={packet} distAhead={autoOrbit ? 80 : undefined} />}
 
       {/* Track boundary edges */}
-      {toggles.track && boundaries && <TrackBoundaryEdges boundaries={boundaries} packet={packet} />}
+      {toggles.track && boundaries && <TrackBoundaryEdges boundaries={boundaries} packet={packet} distAhead={autoOrbit ? 80 : undefined} />}
 
       {/* Curb + puddle markers on track surface */}
       {toggles.track && <CurbMarkers telemetry={telemetry} cursorIdx={cursorIdx} packet={packet} carModel={carModel} />}
