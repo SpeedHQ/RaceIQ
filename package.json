@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "bun run dev:server & bun run dev:client",
     "dev:server": "bun --watch run server/index.ts",
-    "dev:client": "cd client && portless run --name forza bun vite",
+    "dev:client": "cd client && portless run --name raceiq bun vite",
     "build": "mkdir -p dist && rm -rf dist/* && cd client && bun install && bun vite build && cd .. && bun scripts/copy-shared-data.ts && cp -r client/dist dist/public && NODE_ENV=production bun build --compile server/index.ts --outfile dist/forza-telemetry",
     "start": "NODE_ENV=production ./dist/forza-telemetry",
     "db:generate": "drizzle-kit generate",
