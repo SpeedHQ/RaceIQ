@@ -148,11 +148,13 @@ class LapDetector {
       packet.TimestampMS < this.lastTimestampMS &&
       packet.LapNumber === this.currentLapNumber
     ) {
+      if (this.lapIsValid) {
+        console.log(
+          `[Lap] Rewind detected: timestamp went from ${this.lastTimestampMS} to ${packet.TimestampMS}. Marking lap invalid.`
+        );
+      }
       this.lapIsValid = false;
       this.invalidReason = "rewind";
-      console.log(
-        `[Lap] Rewind detected: timestamp went from ${this.lastTimestampMS} to ${packet.TimestampMS}. Marking lap invalid.`
-      );
     }
 
     // Lap boundary detection

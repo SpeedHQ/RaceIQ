@@ -10,10 +10,14 @@ const logFile = join(logDir, "raceiq.log");
 // Truncate on startup
 writeFileSync(logFile, `=== RaceIQ started ${new Date().toISOString()} ===\n`);
 
+function formatArg(a: unknown): string {
+  if (typeof a === "string") return a;
+  if (a instanceof Error) return a.stack ?? a.message;
+  return JSON.stringify(a);
+}
+
 function format(level: string, args: unknown[]): string {
-  const msg = args
-    .map((a) => (typeof a === "string" ? a : JSON.stringify(a)))
-    .join(" ");
+  const msg = args.map(formatArg).join(" ");
   return `${new Date().toISOString()} [${level}] ${msg}\n`;
 }
 

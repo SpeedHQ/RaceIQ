@@ -1,6 +1,6 @@
 import { useTelemetryStore } from "../stores/telemetry";
 import { Link } from "@tanstack/react-router";
-import { useStatus, useTrackName, useCarName } from "../hooks/queries";
+import { useTrackName, useCarName } from "../hooks/queries";
 import { useGameRoute } from "../stores/game";
 import { LiveTelemetry, formatLapTime, type DashboardMode } from "./LiveTelemetry";
 import { LiveTrackMap } from "./LiveTrackMap";
@@ -154,8 +154,8 @@ function RaceInfo({ packet, units, trackName, carName, showTrackMap = true, show
 export function LivePage({ mode = "driver" }: { mode?: DashboardMode }) {
   const packet = useTelemetryStore((s) => s.packet);
   const units = useUnits();
-  const { data: status } = useStatus();
-  const trackOrd = packet?.TrackOrdinal ?? (status as any)?.currentSession?.trackOrdinal;
+  const serverStatus = useTelemetryStore((s) => s.serverStatus);
+  const trackOrd = packet?.TrackOrdinal ?? serverStatus?.currentSession?.trackOrdinal;
   const carOrd = packet?.CarOrdinal;
   const { data: trackName } = useTrackName(trackOrd);
   const { data: carName } = useCarName(carOrd);

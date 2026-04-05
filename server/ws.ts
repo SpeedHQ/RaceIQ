@@ -99,12 +99,19 @@ class WebSocketManager {
   }
 
   /**
-   * Broadcast UDP status so the client knows packets are arriving,
-   * even when the game is paused/in menus (IsRaceOn == 0).
+   * Broadcast server status so clients stay in sync without polling.
+   * Fired every 1s from the UDP listener's interval timer.
    */
-  broadcastStatus(udpPps: number, isRaceOn: boolean): void {
+  broadcastStatus(status: {
+    udpPps: number;
+    isRaceOn: boolean;
+    droppedPackets: number;
+    udpPort: number;
+    detectedGame: { id: string; name: string } | null;
+    currentSession: { id: number; carOrdinal: number; trackOrdinal: number } | null;
+  }): void {
     if (this.clients.size === 0) return;
-    const json = JSON.stringify({ type: "status", udpPps, isRaceOn });
+    const json = JSON.stringify({ type: "status", ...status });
     for (const client of this.clients) {
       try { client.send(json); } catch { /* cleaned up on next telemetry broadcast */ }
     }

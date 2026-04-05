@@ -22,6 +22,15 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   wsRefreshRate: "60",
 };
 
+export interface ServerStatus {
+  udpPps: number;
+  isRaceOn: boolean;
+  droppedPackets: number;
+  udpPort: number;
+  detectedGame: { id: string; name: string } | null;
+  currentSession: { id: number; carOrdinal: number; trackOrdinal: number } | null;
+}
+
 interface TelemetryState {
   connected: boolean;
   /** Raw packet from WebSocket (unchanged, for calculations) */
@@ -29,6 +38,8 @@ interface TelemetryState {
   /** Display-converted packet (speed/temp in user units) */
   packet: DisplayPacket | null;
   packetsPerSec: number;
+  /** Full server status pushed via WebSocket */
+  serverStatus: ServerStatus | null;
   /** UDP packets/sec reported by server (includes non-race packets) */
   udpPps: number;
   /** Whether the game is actively in a race session */
@@ -49,7 +60,7 @@ interface TelemetryState {
   setPit: (pit: LivePitData) => void;
   clearPacket: () => void;
   setPacketsPerSec: (pps: number) => void;
-  setUdpStatus: (udpPps: number, isRaceOn: boolean) => void;
+  setServerStatus: (status: ServerStatus | null) => void;
   setUpdateAvailable: (version: string | null) => void;
   /** Update unit system — re-converts current packet */
   setUnitSystem: (unit: "metric" | "imperial") => void;
@@ -65,6 +76,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   sectors: null,
   pit: null,
   packetsPerSec: 0,
+  serverStatus: null,
   udpPps: 0,
   isRaceOn: false,
   lastUdpAt: 0,
@@ -82,10 +94,15 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   },
   clearPacket: () => set({ rawPacket: null, packet: null }),
   setPacketsPerSec: (packetsPerSec) => set({ packetsPerSec }),
-  setUdpStatus: (udpPps, isRaceOn) => set({
-    udpPps,
-    isRaceOn,
-    lastUdpAt: udpPps > 0 ? Date.now() : get().lastUdpAt,
+  setServerStatus: (status: ServerStatus | null) => set(status ? {
+    serverStatus: status,
+    udpPps: status.udpPps,
+    isRaceOn: status.isRaceOn,
+    lastUdpAt: status.udpPps > 0 ? Date.now() : get().lastUdpAt,
+  } : {
+    serverStatus: null,
+    udpPps: 0,
+    isRaceOn: false,
   }),
   setUpdateAvailable: (version) => set({ updateAvailable: version }),
   setUnitSystem: (unit) => {

@@ -29,7 +29,8 @@ export function useWebSocket() {
         try {
           const data = JSON.parse(event.data);
           if (data.type === "status") {
-            useTelemetryStore.getState().setUdpStatus(data.udpPps, data.isRaceOn);
+            const { type: _, ...status } = data;
+            useTelemetryStore.getState().setServerStatus(status);
           } else if (data.type === "update-available") {
             useTelemetryStore.getState().setUpdateAvailable(data.version as string);
           } else {
@@ -46,7 +47,9 @@ export function useWebSocket() {
       };
 
       ws.onclose = () => {
-        useTelemetryStore.getState().setConnected(false);
+        const s = useTelemetryStore.getState();
+        s.setConnected(false);
+        s.setServerStatus(null);
         wsRef.current = null;
         reconnectTimeoutRef.current = setTimeout(connect, 1000);
       };

@@ -130,13 +130,8 @@ export function useBulkDeleteLaps() {
 }
 
 // ── Status ──────────────────────────────────────────────────────────────────
-export function useStatus() {
-  return useQuery({
-    queryKey: queryKeys.status,
-    queryFn: async () => rpcJson(await client.api.status.$get()),
-    refetchInterval: 2_000,
-  });
-}
+// Server status is now pushed via WebSocket → useTelemetryStore().serverStatus
+// The REST endpoint /api/status still exists for one-off checks.
 
 // ── Track info ──────────────────────────────────────────────────────────────
 export function useTrackName(ord: number | undefined) {

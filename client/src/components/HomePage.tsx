@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTelemetryStore } from "../stores/telemetry";
-import { useLaps, useStatus } from "../hooks/queries";
+import { useLaps } from "../hooks/queries";
 import { useActiveProfileId } from "../hooks/useProfiles";
 import { formatLapTime } from "./LiveTelemetry";
 import { client } from "../lib/rpc";
@@ -218,9 +218,9 @@ export function HomePage() {
   const gameAdapter = gameId ? tryGetGame(gameId) : null;
   const { data: activeProfileId } = useActiveProfileId();
   const { data: allLaps = [] } = useLaps(activeProfileId);
-  const { data: status } = useStatus();
   const connected = useTelemetryStore((s) => s.connected);
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
+  const serverStatus = useTelemetryStore((s) => s.serverStatus);
   const { data: stats } = useQuery({
     queryKey: ["stats"],
     queryFn: () => client.api.stats.$get({ query: {} }).then((r) => r.json()),
@@ -291,7 +291,7 @@ export function HomePage() {
   }, [allLaps]);
 
   // Session info
-  const sessionTrack = (status as any)?.currentSession?.trackOrdinal;
+  const sessionTrack = serverStatus?.currentSession?.trackOrdinal;
   const isLive = connected && packetsPerSec > 0;
 
   // Fetch names for recent laps + favourite cars
