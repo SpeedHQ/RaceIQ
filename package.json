@@ -20,6 +20,7 @@
     "laps:export": "bun scripts/export-laps.ts",
     "laps:import": "bun scripts/import-laps.ts",
     "build:installer": "bun scripts/build-installer.ts",
+    "postinstall": "lefthook install",
     "lighthouse": "lighthouse http://raceiq.localhost:1355/ --only-categories=accessibility,performance,best-practices --chrome-flags=\"--headless=new --no-sandbox --disable-gpu\" --output=html --output-path=./lighthouse-report.html && echo 'Report: lighthouse-report.html'"
   },
   "dependencies": {
@@ -36,6 +37,7 @@
     "cheerio": "^1.2.0",
     "concurrently": "^9.2.1",
     "drizzle-kit": "^0.31.10",
+    "lefthook": "^2.1.4",
     "lighthouse": "^13.0.3",
     "portless": "^0.9.4"
   }

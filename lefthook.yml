@@ -1,0 +1,10 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: lint
+      glob: "client/src/**/*.{ts,tsx}"
+      run: cd client && bunx eslint --max-warnings 0 {staged_files}
+
+    - name: typecheck
+      glob: "server/**/*.ts"
+      run: bunx tsc --noEmit --skipLibCheck
