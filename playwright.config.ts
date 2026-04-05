@@ -2,11 +2,13 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   use: {
-    baseURL: "http://localhost:3117",
+    baseURL: "https://raceiq.localhost",
+    ignoreHTTPSErrors: true,
     viewport: { width: 1920, height: 1080 },
     colorScheme: "dark",
   },
-  outputDir: "./screenshots",
+  testDir: "./screenshots",
+  outputDir: "./test-results",
   projects: [
     {
       name: "marketing",

@@ -69,7 +69,14 @@ function SetupVideo({ url }: { url: string }) {
 }
 
 export function F125SetupsWithGuide({ trackOrdinal, trackName, videoEmbedUrl }: { trackOrdinal: number; trackName: string; videoEmbedUrl: string | null }) {
-  const [subTab, setSubTab] = useState<"setups" | "ranges" | "guide">("setups");
+  const search = useSearch({ strict: false }) as { subtab?: string };
+  const navigate = useNavigate();
+  const validSubTabs = ["setups", "ranges", "guide"] as const;
+  type SubTab = typeof validSubTabs[number];
+  const subTab: SubTab = (validSubTabs as readonly string[]).includes(search.subtab ?? "") ? (search.subtab as SubTab) : "setups";
+  const setSubTab = (tab: SubTab) => {
+    navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, subtab: tab === "setups" ? undefined : tab }) as never, replace: true });
+  };
 
   const tabLabels = { setups: "Setups", ranges: "Compare", guide: "Track Guide" } as const;
 

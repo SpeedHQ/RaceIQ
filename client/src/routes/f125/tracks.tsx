@@ -5,6 +5,7 @@ type TracksSearch = {
   track?: number;
   tab?: string;
   setup?: string;
+  subtab?: string;
 };
 
 export const Route = createFileRoute("/f125/tracks")({
@@ -17,5 +18,6 @@ export const Route = createFileRoute("/f125/tracks")({
     track: search.track ? Number(search.track) : undefined,
     tab: typeof search.tab === "string" ? search.tab : undefined,
     setup: typeof search.setup === "string" ? search.setup : undefined,
+    subtab: typeof search.subtab === "string" ? search.subtab : undefined,
   }),
 });
