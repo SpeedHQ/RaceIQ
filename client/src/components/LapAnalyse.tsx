@@ -205,14 +205,15 @@ export function LapAnalyse() {
     }
   }, [resolvedNames]);
 
-  // Sync selections to URL
+  // Sync selections to URL (preserve cursor/viz params)
   useEffect(() => {
     navigate({
-      search: {
+      search: (prev: Record<string, unknown>) => ({
+        ...prev,
         track: selectedTrack ?? undefined,
         car: selectedCar ?? undefined,
         lap: selectedLapId ?? undefined,
-      } as any,
+      }) as never,
       replace: true,
     });
   }, [selectedTrack, selectedCar, selectedLapId, navigate]);
@@ -230,13 +231,15 @@ export function LapAnalyse() {
     setSelectedLapId(null);
   }, []);
 
-  // Reset playback state when lap changes
+  // Reset playback state when lap changes (skip first mount for URL cursor)
+  const lapChangeCount = useRef(0);
   useEffect(() => {
     if (selectedLapId == null) return;
+    lapChangeCount.current++;
+    const isInitialMount = lapChangeCount.current === 1;
     setPlaying(false);
     playRef.current = false;
-    // Don't reset cursor if URL param will set it
-    if (!initialCursor || appliedInitialCursor.current) {
+    if (!isInitialMount || !initialCursor) {
       setCursorIdx(0);
       cursorRef.current = 0;
     }
@@ -248,7 +251,7 @@ export function LapAnalyse() {
   const appliedInitialCursor = useRef(false);
   useEffect(() => {
     if (appliedInitialCursor.current) return;
-    if (initialCursor != null && telemetry.length > 0) {
+    if (initialCursor != null && telemetry.length > 1) {
       const idx = Math.min(initialCursor, telemetry.length - 1);
       setCursorIdx(idx);
       cursorRef.current = idx;
