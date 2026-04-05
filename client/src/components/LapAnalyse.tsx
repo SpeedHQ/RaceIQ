@@ -92,7 +92,17 @@ export function LapAnalyse() {
   // null = use cursorIdx's time fraction, number = override position
   const [visualTimeFrac, setVisualTimeFrac] = useState<number | null>(null);
   const [sidebarTab, setSidebarTab] = useState<"live" | "insights">("live");
-  const [vizMode, setWheelTab] = useCookieState<"render" | "visual">("analyse-vizMode", "render");
+  const vizParam = (search as any).viz as string | undefined;
+  const [vizMode, setWheelTab] = useCookieState<"2d" | "3d">("analyse-vizMode", "2d");
+  // URL ?viz= param overrides cookie on mount
+  const appliedVizParam = useRef(false);
+  useEffect(() => {
+    if (appliedVizParam.current) return;
+    if (vizParam === "3d" || vizParam === "2d") {
+      setWheelTab(vizParam);
+      appliedVizParam.current = true;
+    }
+  }, [vizParam]);
   const [leftColWidth, setLeftColWidth] = useCookieState("analyse-leftCol", 150);
   const [rightColWidth, setRightColWidth] = useCookieState("analyse-rightCol", 650);
   const [playing, setPlaying] = useState(false);
@@ -760,9 +770,9 @@ export function LapAnalyse() {
               {/* Wheel panel tabs */}
               <div className="flex w-full border-b border-app-border shrink-0">
                 <button
-                  onClick={() => setWheelTab("render")}
+                  onClick={() => setWheelTab("2d")}
                   className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
-                    vizMode === "render"
+                    vizMode === "2d"
                       ? "text-app-text border-b-2 border-app-accent"
                       : "text-app-text-muted hover:text-app-text"
                   }`}
@@ -770,9 +780,9 @@ export function LapAnalyse() {
                   2D
                 </button>
                 <button
-                  onClick={() => setWheelTab("visual")}
+                  onClick={() => setWheelTab("3d")}
                   className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
-                    vizMode === "visual"
+                    vizMode === "3d"
                       ? "text-app-text border-b-2 border-app-accent"
                       : "text-app-text-muted hover:text-app-text"
                   }`}
@@ -782,7 +792,7 @@ export function LapAnalyse() {
               </div>
 
               <div className="p-2 flex flex-col items-center gap-2 w-full flex-1 min-h-0">
-              {vizMode === "render" ? (
+              {vizMode === "2d" ? (
                 <>
                   {currentPacket && (
                     <div className="flex items-center justify-center gap-2">
