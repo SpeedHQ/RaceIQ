@@ -3,8 +3,9 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { existsSync, readFileSync, readdirSync, statSync } from "fs";
 import { resolve } from "path";
+import { SHARED_DIR } from "../paths";
 
-const F125_TUNES_DIR = resolve(process.cwd(), "shared", "tunes", "f1-25");
+const F125_TUNES_DIR = resolve(SHARED_DIR, "tunes", "f1-25");
 
 interface F125SourceMeta {
   name: string;

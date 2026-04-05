@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, mkdirSync, copyFileSync } from "fs";
 import { resolve } from "path";
+import { SHARED_DIR } from "../paths";
 import { accRecorder, replayRecording } from "../games/acc/recorder";
 import { getAllAccCars } from "../../shared/acc-car-data";
 import { getAccCarSpecs } from "../../shared/acc-car-specs";
@@ -46,7 +47,7 @@ interface AccSourceMeta {
   url?: string;
 }
 
-const ACC_TUNES_DIR = resolve(process.cwd(), "shared", "tunes", "acc");
+const ACC_TUNES_DIR = resolve(SHARED_DIR, "tunes", "acc");
 const ACC_SETUP_FILES_DIR = resolve(ACC_TUNES_DIR, "files");
 
 const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[-_\s]/g, "").toLowerCase();
