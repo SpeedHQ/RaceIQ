@@ -2,7 +2,7 @@ import { test } from "@playwright/test";
 
 const PAGES = [
   { name: "home", path: "/" },
-  { name: "lap-analytics", path: "/f125/analyse?track=6&car=41&lap=257&cursor=500&viz=3d" },
+  { name: "lap-analytics", path: "/f125/analyse?track=6&car=41&lap=257&cursor=12000&viz=3d" },
   { name: "compare", path: "/f125/compare?track=6&carA=41&lapA=258&carB=41&lapB=260", hover: ".u-over" },
   { name: "tracks", path: "/f125/tracks" },
   { name: "car-catalogue-f125-grid", path: "/f125/cars" },

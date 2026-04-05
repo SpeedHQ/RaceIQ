@@ -235,8 +235,11 @@ export function LapAnalyse() {
     if (selectedLapId == null) return;
     setPlaying(false);
     playRef.current = false;
-    setCursorIdx(0);
-    cursorRef.current = 0;
+    // Don't reset cursor if URL param will set it
+    if (!initialCursor || appliedInitialCursor.current) {
+      setCursorIdx(0);
+      cursorRef.current = 0;
+    }
     setCarName(selectedCar != null ? (carNames[selectedCar] ?? "") : "");
     setTrackName(selectedTrack != null ? (trackNames[selectedTrack] ?? "") : "");
   }, [selectedLapId]);
