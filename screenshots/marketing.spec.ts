@@ -6,7 +6,7 @@ const PAGES = [
   { name: "compare", path: "/f125/compare" },
   { name: "tracks", path: "/f125/tracks" },
   { name: "car-catalogue-f125-grid", path: "/f125/cars" },
-  { name: "car-catalogue-forza-table", path: "/fm23/cars" },
+  { name: "car-catalogue-forza", path: "/fm23/cars" },
   { name: "setups", path: "/f125/tracks?track=3&tab=setups" },
   { name: "setups-compare", path: "/f125/tracks?track=3&tab=setups&subtab=ranges" },
 ];
