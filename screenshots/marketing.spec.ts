@@ -3,7 +3,7 @@ import { test } from "@playwright/test";
 const PAGES = [
   { name: "home", path: "/" },
   { name: "lap-analytics", path: "/f125/analyse?track=6&car=41&lap=257&cursor=500" },
-  { name: "compare", path: "/f125/compare?track=6&carA=41&lapA=258&carB=41&lapB=260&cursor=400" },
+  { name: "compare", path: "/f125/compare?track=6&carA=41&lapA=258&carB=41&lapB=260", hover: ".u-over" },
   { name: "tracks", path: "/f125/tracks" },
   { name: "car-catalogue-f125-grid", path: "/f125/cars" },
   { name: "car-catalogue-forza", path: "/fm23/cars" },
@@ -19,6 +19,16 @@ for (const page of PAGES) {
     );
     await p.goto(page.path, { waitUntil: "networkidle" });
     await p.waitForTimeout(1500);
+    // Hover over a chart element to activate cursor crosshairs
+    if ("hover" in page && page.hover) {
+      const el = p.locator(page.hover).first();
+      await el.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
+      const box = await el.boundingBox();
+      if (box) {
+        await p.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.5);
+        await p.waitForTimeout(300);
+      }
+    }
     await p.screenshot({
       path: `assets/screenshots/${page.name}.png`,
       fullPage: false,
