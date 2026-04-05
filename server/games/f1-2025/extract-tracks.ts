@@ -534,7 +534,7 @@ export async function extractF1Tracks(
       if (pitLane) pitLane = pitLane.map(negX);
       const tmpEdge = [...leftEdge]; leftEdge = [...rightEdge]; rightEdge = tmpEdge;
 
-      writeFileSync(join(outDir, `recorded-${trackId}.csv`),
+      writeFileSync(join(outDir, `centerline-${trackId}.csv`),
         ["x,z", ...centerline.map((p) => `${p.x.toFixed(4)},${p.z.toFixed(4)}`)].join("\n"));
       writeFileSync(join(outDir, `boundaries-${trackId}.json`), JSON.stringify({
         source: "f1-2025-extracted", waypoints: trackGates.length, aligned,

@@ -11,9 +11,6 @@ server/client-assets.generated.ts
 .superpowers/
 docs/superpowers/
 
-# Extracted game data (run `bun run extract:tracks` to generate)
-shared/track-outlines/fm-2023/extracted/
-shared/track-outlines/f1-2025/extracted/
 scripts/track-data/
 /.playwright-mcp
 /.superpowers

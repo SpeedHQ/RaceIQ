@@ -653,7 +653,7 @@ for (const trackDir of trackDirs) {
     // Always save boundaries (internally consistent with centerline).
     // If alignment failed, save unaligned — the outline endpoint will use
     // the telemetry-recorded outline, and boundaries will be served separately.
-    writeFileSync(join(OUT_DIR, `recorded-${trackId}.csv`),
+    writeFileSync(join(OUT_DIR, `centerline-${trackId}.csv`),
       ["x,z", ...centerline.map((p) => `${p.x.toFixed(4)},${p.z.toFixed(4)}`)].join("\n"));
 
     writeFileSync(join(OUT_DIR, `boundaries-${trackId}.json`), JSON.stringify({

@@ -3,15 +3,43 @@ import { resolve } from "path";
 import { getTrackSectorsByName, DEFAULT_SECTORS, type TrackSectors } from "./track-sectors";
 import type { NamedSegment } from "./track-named-segments";
 import { GameIdSchema } from "./types";
+import { getF1TrackInfo } from "./f1-track-data";
 
 import { SHARED_DIR, USER_TRACKS_DIR } from "./resolve-data";
 
 /** Writable user track data (extracted, recorded, curbs). */
 const userDir = USER_TRACKS_DIR;
 
-/** Read a file from user game dir. */
+/** Resolve ordinal to bundled track name (e.g. 5 → "monaco"). */
+function getBundledTrackName(gameId: string, ordinal: number): string | undefined {
+  if (gameId === "f1-2025") return getF1TrackInfo(ordinal)?.sharedOutline || undefined;
+  return undefined;
+}
+
+/** Resolve a bundled file path: strip extracted/ prefix, map ordinal to track name. */
+function toBundledPath(gameId: string, relativePath: string): string | null {
+  let p = relativePath.startsWith("extracted/")
+    ? relativePath.slice("extracted/".length)
+    : relativePath;
+  // Bundled files use track names, not ordinals: boundaries-5.json → monaco-boundaries.json
+  const m = p.match(/^(boundaries|centerline|recorded)-(\d+)\.(json|csv)$/);
+  if (m) {
+    const [, prefix, ordinal, ext] = m;
+    const name = getBundledTrackName(gameId, parseInt(ordinal, 10));
+    if (!name) return null;
+    const kind = prefix === "recorded" ? "centerline" : prefix;
+    return `${name}-${kind}.${ext}`;
+  }
+  return p;
+}
+
+/** Read a file from user game dir first, then fall back to bundled shared dir. */
 function readUserOrBundled(gameId: string, relativePath: string): string | null {
-  return readDataFile(resolve(userDir, gameId, relativePath));
+  const userResult = readDataFile(resolve(userDir, gameId, relativePath));
+  if (userResult !== null) return userResult;
+  const bundledPath = toBundledPath(gameId, relativePath);
+  if (!bundledPath) return null;
+  return readDataFile(resolve(bundledGameDir(gameId), bundledPath));
 }
 
 /** Validate gameId using zod schema. */
@@ -28,6 +56,11 @@ function userGameDir(gameId: string): string {
   return dir;
 }
 
+
+/** Bundled extracted track data per game (boundaries, centerlines). */
+function bundledGameDir(gameId: string): string {
+  return resolve(SHARED_DIR, "tracks", gameId);
+}
 
 /** Shared track data directory (game-agnostic outlines from real-world circuits). */
 const sharedDir = resolve(SHARED_DIR, "tracks");
@@ -578,7 +611,9 @@ function applyAlignment(p: Point, a: { scale: number; cos: number; sin: number; 
 /** Load extracted boundary data, aligned to telemetry coordinate space if possible. */
 function loadExtractedBoundary(ordinal: number, gameId: string): TrackBoundary | null {
   const userExtracted = resolve(userGameDir(gameId), "extracted", `boundaries-${ordinal}.json`);
-  const content = readDataFile(userExtracted);
+  const trackName = getBundledTrackName(gameId, ordinal);
+  const bundledFile = trackName ? resolve(bundledGameDir(gameId), `${trackName}-boundaries.json`) : null;
+  const content = readDataFile(userExtracted) ?? (bundledFile ? readDataFile(bundledFile) : null);
   if (!content) return null;
   try {
     const data = JSON.parse(content);
