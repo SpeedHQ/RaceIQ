@@ -266,6 +266,19 @@ export function LapAnalyse() {
     speedChangeRef.current++;
   }, [playbackSpeed]);
 
+  // Draw initial cursor overlays after URL cursor is applied
+  useEffect(() => {
+    if (!appliedInitialCursor.current) return;
+    if (cursorIdx > 0 && telemetry.length > 1) {
+      // Delay to let charts mount
+      const timer = setTimeout(() => {
+        trackMapRef.current?.updateCursor(cursorIdx);
+        chartsPanelRef.current?.updateCursor(cursorIdx);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [cursorIdx, telemetry.length]);
+
   // Imperatively update all overlay canvases without triggering React re-renders
   const updateOverlays = useCallback((idx: number) => {
     trackMapRef.current?.updateCursor(idx);
@@ -394,7 +407,8 @@ export function LapAnalyse() {
     setCursorIdx(idx);
     cursorRef.current = idx;
     seekRef.current++;
-  }, []);
+    updateOverlays(idx);
+  }, [updateOverlays]);
 
   const handleScrubStart = useCallback(() => {
     setPlaying(false);
