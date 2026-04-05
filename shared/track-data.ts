@@ -32,7 +32,7 @@ function userGameDir(gameId: string): string {
 /** Shared track data directory (game-agnostic outlines from real-world circuits). */
 const sharedDir = resolve(SHARED_DIR, "tracks");
 const sharedBoundaryDir = resolve(sharedDir, "boundaries");
-const sharedTracksDir = resolve(sharedDir, "tracks");
+const sharedTracksDir = resolve(sharedDir, "meta");
 
 interface SharedTrackMeta {
   name: string;

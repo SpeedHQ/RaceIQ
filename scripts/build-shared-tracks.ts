@@ -1,6 +1,6 @@
 /**
  * Build shared track metadata JSON from sectors.ts, named-segments.ts, and outline CSVs.
- * Merges all enrichment data into shared/track-outlines/shared/tracks/{name}.json
+ * Merges all enrichment data into shared/track-outlines/shared/meta/{name}.json
  *
  * Run: bun scripts/build-shared-tracks.ts
  */
@@ -9,7 +9,7 @@ import { existsSync, readFileSync, writeFileSync, readdirSync } from "fs";
 import { resolve, basename } from "path";
 
 const SHARED_DIR = resolve(import.meta.dir, "../shared/track-outlines/shared");
-const TRACKS_DIR = resolve(SHARED_DIR, "tracks");
+const TRACKS_DIR = resolve(SHARED_DIR, "meta");
 
 // Import sector data
 import { TRACK_SECTORS, DEFAULT_SECTORS } from "../shared/track-sectors";

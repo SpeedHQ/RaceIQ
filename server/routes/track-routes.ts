@@ -57,7 +57,7 @@ import { namedSegments } from "../../shared/track-named-segments";
 import { tryGetServerGame } from "../games/registry";
 import { tryGetGame } from "../../shared/games/registry";
 import { GameIdSchema, type GameId } from "../../shared/types";
-import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from "fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, renameSync } from "fs";
 import { resolve } from "path";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
@@ -97,8 +97,19 @@ function getSharedTrackName(ordinal: number, gameId?: string): string | undefine
 // ─── Track data file persistence ────────────────────────────────────────────
 
 import { USER_TRACKS_DIR } from "../paths";
-const TRACK_DATA_DIR = resolve(USER_TRACKS_DIR, "tracks");
+const TRACK_DATA_DIR = resolve(USER_TRACKS_DIR, "track-meta");
 const userSegmentsStore: Map<number, any[]> = new Map();
+
+// Migrate old "tracks" → "track-meta" directory
+const OLD_TRACK_DATA_DIR = resolve(USER_TRACKS_DIR, "tracks");
+if (existsSync(OLD_TRACK_DATA_DIR) && !existsSync(TRACK_DATA_DIR)) {
+  try {
+    renameSync(OLD_TRACK_DATA_DIR, TRACK_DATA_DIR);
+    console.log("[Track] Migrated userdata/tracks → userdata/track-meta");
+  } catch (e) {
+    console.error("[Track] Failed to migrate tracks dir:", e);
+  }
+}
 
 // Load user segments from track data files on startup
 if (existsSync(TRACK_DATA_DIR)) {
