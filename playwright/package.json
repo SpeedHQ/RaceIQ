@@ -1,0 +1,11 @@
+{
+  "name": "raceiq-e2e",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "screenshots": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  }
+}

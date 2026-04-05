@@ -19,3 +19,4 @@ scripts/track-data/
 /.superpowers
 /.claude
 lighthouse-report.html
+test-results/

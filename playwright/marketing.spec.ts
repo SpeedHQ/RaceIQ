@@ -1,5 +1,7 @@
 import { test } from "@playwright/test";
 
+const SCREENSHOT_DIR = "../assets/screenshots";
+
 const PAGES = [
   { name: "home", path: "/" },
   { name: "lap-analytics", path: "/f125/analyse?track=6&car=41&lap=257&cursor=12000&viz=3d" },
@@ -19,7 +21,6 @@ for (const page of PAGES) {
     );
     await p.goto(page.path, { waitUntil: "networkidle" });
     await p.waitForTimeout(1500);
-    // Hover over a chart element to activate cursor crosshairs
     if ("hover" in page && page.hover) {
       const el = p.locator(page.hover).first();
       await el.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
@@ -30,13 +31,12 @@ for (const page of PAGES) {
       }
     }
     await p.screenshot({
-      path: `assets/screenshots/${page.name}.png`,
+      path: `${SCREENSHOT_DIR}/${page.name}.png`,
       fullPage: false,
     });
   });
 }
 
-// Alternate view screenshots (click toggle then capture)
 test("screenshot: car-catalogue-f125-table", async ({ page: p }) => {
   await p.addInitScript(() =>
     localStorage.setItem("forza-onboarding-complete", "true"),
@@ -46,7 +46,7 @@ test("screenshot: car-catalogue-f125-table", async ({ page: p }) => {
   await p.getByRole("button", { name: "Compare" }).click();
   await p.waitForTimeout(1500);
   await p.screenshot({
-    path: "assets/screenshots/car-catalogue-f125-table.png",
+    path: `${SCREENSHOT_DIR}/car-catalogue-f125-table.png`,
     fullPage: false,
   });
 });
@@ -60,7 +60,7 @@ test("screenshot: car-catalogue-forza-grid", async ({ page: p }) => {
   await p.getByTitle("Grid view").click();
   await p.waitForTimeout(1500);
   await p.screenshot({
-    path: "assets/screenshots/car-catalogue-forza-grid.png",
+    path: `${SCREENSHOT_DIR}/car-catalogue-forza-grid.png`,
     fullPage: false,
   });
 });

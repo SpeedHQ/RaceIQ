@@ -7,7 +7,7 @@ export default defineConfig({
     viewport: { width: 1920, height: 1080 },
     colorScheme: "dark",
   },
-  testDir: "./screenshots",
+  testDir: ".",
   outputDir: "./test-results",
   projects: [
     {
