@@ -1,4 +1,4 @@
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
 import { useUnits } from "../hooks/useUnits";
@@ -261,6 +261,7 @@ function CompareModal({ cars, onClose, fmtSpeed, fmtBrake, fmtWeight, isMetric }
 
 export function CarsPage() {
   const navigate = useNavigate();
+  const searchParams = useSearch({ strict: false }) as { compare?: string };
   const [configsReady, setConfigsReady] = useState(false);
   useEffect(() => { loadCarModelConfigs().then(() => setConfigsReady(true)); }, []);
   const units = useUnits();
@@ -275,16 +276,31 @@ export function CarsPage() {
     staleTime: 60_000,
   });
 
+  // Parse ?compare=1,2,3 from URL
+  const compareParam = searchParams.compare;
+  const initialCompareIds = useMemo(() => {
+    if (!compareParam) return null;
+    return new Set(compareParam.split(",").map(Number).filter(n => !isNaN(n)));
+  }, [compareParam]);
+
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState<string | null>(null);
   const [driveFilter, setDriveFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<1 | -1>(1);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<Set<number>>(() => initialCompareIds ?? new Set());
   const [comparing, setComparing] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [detailCar, setDetailCar] = useState<Car | null>(null);
+
+  // Auto-open compare modal when cars load and ?compare param is present
+  useEffect(() => {
+    if (initialCompareIds && initialCompareIds.size >= 2 && cars.length > 0) {
+      setSelected(initialCompareIds);
+      setComparing(true);
+    }
+  }, [initialCompareIds, cars.length]);
 
   const filtered = useMemo(() => {
     let list = cars.filter((c) => c.specs);
