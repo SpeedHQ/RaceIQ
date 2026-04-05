@@ -8,7 +8,7 @@ const PAGES = [
   { name: "car-catalogue-f125-grid", path: "/f125/cars" },
   { name: "car-catalogue-forza", path: "/fm23/cars" },
   { name: "setups", path: "/f125/tracks?track=3&tab=setups" },
-  { name: "setups-range", path: "/f125/tracks?track=3&tab=setups&subtab=ranges" },
+  { name: "setups-ranges", path: "/f125/tracks?track=3&tab=setups&subtab=ranges" },
   { name: "car-compare-forza", path: "/fm23/cars?compare=1023,1020,3062" },
 ];
 
