@@ -10,9 +10,29 @@ import { SHARED_DIR, USER_TRACKS_DIR } from "./resolve-data";
 /** Writable user track data (extracted, recorded, curbs). */
 const userDir = USER_TRACKS_DIR;
 
-/** Resolve ordinal to bundled track name (e.g. 5 → "monaco"). */
+/** FM 2023 ordinal → bundled file prefix, built lazily from tracks.csv. */
+let _fmNamesBuilt = false;
+const fmOrdinalToFileName = new Map<number, string>();
+function ensureFmNames() {
+  if (_fmNamesBuilt) return;
+  _fmNamesBuilt = true;
+  const raw = readDataFile(resolve(SHARED_DIR, "games", "fm-2023", "tracks.csv"));
+  for (const line of (raw ?? "").split("\n")) {
+    const parts = line.trim().split(",");
+    const ordinal = parseInt(parts[0], 10);
+    if (isNaN(ordinal)) continue;
+    const shared = parts[6]?.trim();
+    fmOrdinalToFileName.set(ordinal, shared ? `${shared}-${ordinal}` : `${ordinal}`);
+  }
+}
+
+/** Resolve ordinal to bundled file prefix (e.g. f1: 5 → "monaco", fm: 21 → "silverstone-21"). */
 function getBundledTrackName(gameId: string, ordinal: number): string | undefined {
   if (gameId === "f1-2025") return getF1TrackInfo(ordinal)?.sharedOutline || undefined;
+  if (gameId === "fm-2023") {
+    ensureFmNames();
+    return fmOrdinalToFileName.get(ordinal);
+  }
   return undefined;
 }
 
@@ -22,7 +42,7 @@ function toBundledPath(gameId: string, relativePath: string): string | null {
     ? relativePath.slice("extracted/".length)
     : relativePath;
   // Bundled files use track names, not ordinals: boundaries-5.json → monaco-boundaries.json
-  const m = p.match(/^(boundaries|centerline|recorded)-(\d+)\.(json|csv)$/);
+  const m = p.match(/^(\w+)-(\d+)\.(json|csv)$/);
   if (m) {
     const [, prefix, ordinal, ext] = m;
     const name = getBundledTrackName(gameId, parseInt(ordinal, 10));

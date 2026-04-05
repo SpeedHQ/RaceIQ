@@ -17,11 +17,11 @@
 38,Suzuka Circuit,Suzuka,jpn,East Circuit,2.25,suzuka
 40,Sebring International,Sebring,usa,Full,6.02,sebring
 42,Sebring International,Sebring,usa,Short,3.54,sebring
-67,Maple Valley,Vermont,usa,Full Circuit,4.81,
-68,Maple Valley,Vermont,usa,Short Circuit,1.85,
-70,Maple Valley,Vermont,usa,Short Circuit Reverse,1.85,
-78,Fujimi Kaido,Japan,jp,Full,16.42,
-83,Fujimi Kaido,Japan,jp,Full Reverse,16.42,
+67,Maple Valley,Vermont,usa,Full Circuit,4.81,maple-valley
+68,Maple Valley,Vermont,usa,Short Circuit,1.85,maple-valley
+70,Maple Valley,Vermont,usa,Short Circuit Reverse,1.85,maple-valley
+78,Fujimi Kaido,Japan,jp,Full,16.42,fujimi-kaido
+83,Fujimi Kaido,Japan,jp,Full Reverse,16.42,fujimi-kaido
 100,Le Mans - Circuit International de la Sarthe,Le Mans,fra,Full Circuit,13.63,le-mans
 101,Le Mans - Circuit International de la Sarthe,Le Mans,fra,Old Mulsanne Circuit,13.54,le-mans
 110,Circuit de Barcelona-Catalunya,Barcelona,esp,Grand Prix Circuit,4.66,catalunya
@@ -57,17 +57,17 @@
 1450,Mid-Ohio Sports Car Course,Ohio,usa,Full Circuit,3.62,mid-ohio
 1452,Mid-Ohio Sports Car Course,Ohio,usa,Short Circuit,2.82,mid-ohio
 1590,Kyalami Grand Prix Circuit,Midrand,rsa,Grand Prix Circuit,4.53,kyalami
-1620,Sunset Peninsula Raceway,Florida,usa,Full,4.47,
-1621,Sunset Peninsula Raceway,Florida,usa,Club,3.12,
-1622,Sunset Peninsula Raceway,Florida,usa,Full Reverse,4.47,
-1623,Sunset Peninsula Raceway,Florida,usa,Club Reverse,3.12,
-1624,Sunset Peninsula Raceway,Florida,usa,Speedway,3.93,
-1630,Grand Oak Raceway,New Hampshire,usa,National Circuit,3.73,
-1631,Grand Oak Raceway,New Hampshire,usa,Club Circuit,2.62,
-1632,Grand Oak Raceway,New Hampshire,usa,National Circuit Reverse,3.73,
-1640,Hakone,Hakone,jpn,Grand Prix Circuit,4.28,
-1641,Hakone,Hakone,jpn,Club Circuit,3.32,
-1643,Hakone,Hakone,jpn,Club Circuit Reverse,3.32,
-1660,Eaglerock Speedway,Iowa,usa,Oval Circuit,1.64,
-1661,Eaglerock Speedway,Iowa,usa,Club Circuit,1.72,
-1663,Eaglerock Speedway,Iowa,usa,Club Circuit Reverse,1.72,
+1620,Sunset Peninsula Raceway,Florida,usa,Full,4.47,sunset-peninsula
+1621,Sunset Peninsula Raceway,Florida,usa,Club,3.12,sunset-peninsula
+1622,Sunset Peninsula Raceway,Florida,usa,Full Reverse,4.47,sunset-peninsula
+1623,Sunset Peninsula Raceway,Florida,usa,Club Reverse,3.12,sunset-peninsula
+1624,Sunset Peninsula Raceway,Florida,usa,Speedway,3.93,sunset-peninsula
+1630,Grand Oak Raceway,New Hampshire,usa,National Circuit,3.73,grand-oak
+1631,Grand Oak Raceway,New Hampshire,usa,Club Circuit,2.62,grand-oak
+1632,Grand Oak Raceway,New Hampshire,usa,National Circuit Reverse,3.73,grand-oak
+1640,Hakone,Hakone,jpn,Grand Prix Circuit,4.28,hakone
+1641,Hakone,Hakone,jpn,Club Circuit,3.32,hakone
+1643,Hakone,Hakone,jpn,Club Circuit Reverse,3.32,hakone
+1660,Eaglerock Speedway,Iowa,usa,Oval Circuit,1.64,eaglerock
+1661,Eaglerock Speedway,Iowa,usa,Club Circuit,1.72,eaglerock
+1663,Eaglerock Speedway,Iowa,usa,Club Circuit Reverse,1.72,eaglerock

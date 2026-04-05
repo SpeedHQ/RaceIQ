@@ -15,7 +15,26 @@ import {
   decompressForzaLZX,
 } from "@shared/lib/forza-lzx";
 
-const OUT_DIR = resolve(import.meta.dir, "../shared/track-outlines/fm-2023/extracted");
+const OUT_DIR = resolve(import.meta.dir, "../shared/tracks/fm-2023");
+
+// ── Load track name mapping from tracks.csv ──
+const tracksCSV = resolve(import.meta.dir, "../shared/games/fm-2023/tracks.csv");
+const ordinalToName = new Map<number, string>();
+try {
+  const csv = require("fs").readFileSync(tracksCSV, "utf-8") as string;
+  for (const line of csv.trim().split("\n")) {
+    const parts = line.split(",");
+    const ordinal = parseInt(parts[0], 10);
+    const sharedName = parts[6]?.trim();
+    if (!isNaN(ordinal)) {
+      ordinalToName.set(ordinal, sharedName ? `${sharedName}-${ordinal}` : `${ordinal}`);
+    }
+  }
+} catch {}
+
+function trackFileName(ordinal: number): string {
+  return ordinalToName.get(ordinal) ?? `${ordinal}`;
+}
 
 // ── Find FM2023 ──
 
@@ -346,7 +365,9 @@ for (const trackDir of trackDirs) {
       }
 
       for (const ordinal of ordinals) {
-        const outPath = resolve(OUT_DIR, `recorded-${ordinal}.csv`);
+        const name = trackFileName(ordinal);
+
+        const outPath = resolve(OUT_DIR, `${name}-centerline.csv`);
         const csv =
           "x,z\n" +
           waypoints.x
@@ -355,28 +376,18 @@ for (const trackDir of trackDirs) {
         writeFileSync(outPath, csv);
 
         if (boundaries) {
-          const boundaryPath = resolve(OUT_DIR, `boundaries-${ordinal}.json`);
+          const boundaryPath = resolve(OUT_DIR, `${name}-boundaries.json`);
           writeFileSync(boundaryPath, JSON.stringify({
-            source: "fm2023-extracted",
             waypoints: waypoints.x.length,
             leftEdge: boundaries.leftEdge,
             rightEdge: boundaries.rightEdge,
             ...(boundaries.altitude.length > 0 && { altitude: boundaries.altitude }),
-          }));
-        }
-
-        if (segments) {
-          const segPath = resolve(OUT_DIR, `segments-${ordinal}.json`);
-          writeFileSync(segPath, JSON.stringify({
-            source: "fm2023-track-seg",
-            trackLength: waypoints.x.length,
-            segments,
-          }));
+          }, null, 2));
         }
 
         extracted++;
         console.log(
-          `  ✓ ${trackDir}/${ribbonName} → recorded-${ordinal}.csv (${waypoints.x.length} pts${boundaries ? " + boundaries" : ""}${segments ? " + " + segments.length + " segments" : ""})`,
+          `  ✓ ${trackDir}/${ribbonName} → ${name} (${waypoints.x.length} pts${boundaries ? " + boundaries" : ""})`,
         );
       }
     } catch (e: any) {

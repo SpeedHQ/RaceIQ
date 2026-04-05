@@ -12,7 +12,7 @@ import { join, resolve } from "path";
 import * as fzstd from "fzstd";
 
 const ERP_MAGIC = 0x4b505245;
-const OUT_DIR = resolve(__dirname, "../shared/track-outlines/f1-2025/extracted");
+const OUT_DIR = resolve(__dirname, "../shared/tracks/f1-2025");
 
 /** Detect F1 25 install by reading Steam's libraryfolders.vdf */
 function findF1Install(): string | null {
@@ -44,6 +44,22 @@ const TRACK_DIR_TO_ID: Record<string, number> = {
   brazil: 16, austria: 17, mexico: 19, baku: 20,
   zandvoort: 26, imola: 27, jeddah: 29, miami: 30, las_vegas: 31, losail: 32,
 };
+
+// Track ID → shared file name (from tracks.csv)
+const trackIdToName = new Map<number, string>();
+try {
+  const csv = readFileSync(resolve(__dirname, "../shared/games/f1-2025/tracks.csv"), "utf-8");
+  for (const line of csv.trim().split("\n")) {
+    const parts = line.split(",");
+    const id = parseInt(parts[0], 10);
+    const sharedName = parts[6]?.trim();
+    if (!isNaN(id) && sharedName) trackIdToName.set(id, sharedName);
+  }
+} catch {}
+
+function trackFileName(trackId: number): string {
+  return trackIdToName.get(trackId) ?? `${trackId}`;
+}
 
 // ── ERP reader ──────────────────────────────────────────────────────
 
@@ -650,25 +666,17 @@ for (const trackDir of trackDirs) {
     leftEdge = [...rightEdge];
     rightEdge = tmpEdge;
 
-    // Always save boundaries (internally consistent with centerline).
-    // If alignment failed, save unaligned — the outline endpoint will use
-    // the telemetry-recorded outline, and boundaries will be served separately.
-    writeFileSync(join(OUT_DIR, `centerline-${trackId}.csv`),
+    const name = trackFileName(trackId);
+
+    writeFileSync(join(OUT_DIR, `${name}-centerline.csv`),
       ["x,z", ...centerline.map((p) => `${p.x.toFixed(4)},${p.z.toFixed(4)}`)].join("\n"));
 
-    writeFileSync(join(OUT_DIR, `boundaries-${trackId}.json`), JSON.stringify({
-      source: "f1-2025-extracted",
+    writeFileSync(join(OUT_DIR, `${name}-boundaries.json`), JSON.stringify({
       waypoints: trackGates.length,
-      aligned,
       leftEdge, rightEdge, altitude, pitLane,
-      coordSystem: "f1-2025",
-    }));
+    }, null, 2));
 
-    // Save racing line
-    writeFileSync(join(OUT_DIR, `racingline-${trackId}.csv`),
-      ["x,z", ...racingLine.map((p) => `${p.x.toFixed(4)},${p.z.toFixed(4)}`)].join("\n"));
-
-    console.log(`${trackGates.length} gates, ${pitGates.length} pit${aligned ? " [aligned]" : ""} → OK`);
+    console.log(`${trackGates.length} gates, ${pitGates.length} pit${aligned ? " [aligned]" : ""} → ${name}`);
     extracted++;
   } catch (err) {
     console.log(`error: ${(err as Error).message}`);
