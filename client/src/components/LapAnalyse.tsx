@@ -86,6 +86,7 @@ export function LapAnalyse() {
 
   const [carName, setCarName] = useState("");
   const [trackName, setTrackName] = useState("");
+  const initialCursor = (search as any).cursor as number | undefined;
   const [cursorIdx, setCursorIdx] = useState(0);
   // Visual time fraction override — set during scrubbing through gaps
   // null = use cursorIdx's time fraction, number = override position
@@ -229,6 +230,18 @@ export function LapAnalyse() {
     setCarName(selectedCar != null ? (carNames[selectedCar] ?? "") : "");
     setTrackName(selectedTrack != null ? (trackNames[selectedTrack] ?? "") : "");
   }, [selectedLapId]);
+
+  // Set cursor from URL param once telemetry loads
+  const appliedInitialCursor = useRef(false);
+  useEffect(() => {
+    if (appliedInitialCursor.current) return;
+    if (initialCursor != null && telemetry.length > 0) {
+      const idx = Math.min(initialCursor, telemetry.length - 1);
+      setCursorIdx(idx);
+      cursorRef.current = idx;
+      appliedInitialCursor.current = true;
+    }
+  }, [initialCursor, telemetry.length]);
 
   // Keep speedRef in sync and signal the animation to re-anchor timing
   const speedChangeRef = useRef(0);

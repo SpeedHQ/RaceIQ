@@ -7,6 +7,7 @@ type CompareSearch = {
   carB?: number;
   lapA?: number;
   lapB?: number;
+  cursor?: number;
 };
 
 export const Route = createFileRoute("/f125/compare")({
@@ -21,5 +22,6 @@ export const Route = createFileRoute("/f125/compare")({
     carB: search.carB ? Number(search.carB) : undefined,
     lapA: search.lapA ? Number(search.lapA) : undefined,
     lapB: search.lapB ? Number(search.lapB) : undefined,
+    cursor: search.cursor ? Number(search.cursor) : undefined,
   }),
 });

@@ -626,7 +626,7 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA: _labelA, lab
 
     // Also transform boundaries if available
     let newBoundaries = boundaries;
-    if (boundaries) {
+    if (boundaries?.leftEdge && boundaries?.rightEdge && boundaries?.centerLine) {
       newBoundaries = {
         ...boundaries,
         leftEdge: boundaries.leftEdge.map(applyTransform),
@@ -818,7 +818,7 @@ interface TrackGroup {
 }
 
 export function LapComparison() {
-  const search = useSearch({ strict: false }) as { track?: number; carA?: number; carB?: number; lapA?: number; lapB?: number };
+  const search = useSearch({ strict: false }) as { track?: number; carA?: number; carB?: number; lapA?: number; lapB?: number; cursor?: number };
   const navigate = useNavigate();
   const units = useUnits();
   const gameId = useGameId();
@@ -858,6 +858,19 @@ export function LapComparison() {
     // Directly redraw the map canvas without React re-render
     mapRedrawRef.current?.();
   }, []);
+
+  // Set cursor from URL param once comparison data loads
+  const appliedInitialCursor = useRef(false);
+  useEffect(() => {
+    if (appliedInitialCursor.current) return;
+    if (search.cursor != null && comparison?.traces?.distance) {
+      const distances = comparison.traces.distance;
+      const idx = Math.min(search.cursor, distances.length - 1);
+      hoveredDistanceRef.current = distances[idx];
+      mapRedrawRef.current?.();
+      appliedInitialCursor.current = true;
+    }
+  }, [search.cursor, comparison]);
 
   // Sync selections to URL
   useEffect(() => {
