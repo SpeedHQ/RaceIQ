@@ -6,7 +6,7 @@ import { OrbitControls, Grid, Line, useGLTF } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import type { TelemetryPacket } from "@shared/types";
-import { getCarModel, loadCarModelConfigs, F1_CAR, type CarModelEnrichment } from "../data/car-models";
+import { getCarModel, loadCarModelConfigs, F1_CAR, DEMO_CAR, type CarModelEnrichment } from "../data/car-models";
 import { allWheelStates } from "../lib/vehicle-dynamics";
 import { useUnits } from "../hooks/useUnits";
 import { useSettings } from "../hooks/queries";
@@ -1390,7 +1390,15 @@ export const CarWireframe = React.memo(function CarWireframe({
   const gameId = useGameId();
   const isF1 = gameId === "f1-2025";
 
-  const carModel = useMemo(() => carModelProp ?? (isF1 ? F1_CAR : getCarModel(carOrdinal ?? 0)), [carOrdinal, configsLoaded, isF1, carModelProp]);
+  const isFM = gameId === "fm-2023";
+  const carModel = useMemo(() => {
+    if (carModelProp) return carModelProp;
+    if (isF1) return F1_CAR;
+    const perCar = getCarModel(carOrdinal ?? 0);
+    if (perCar.hasModel) return perCar;
+    if (isFM) return DEMO_CAR;
+    return perCar;
+  }, [carOrdinal, configsLoaded, isF1, isFM, carModelProp]);
   const units = useUnits();
   const { displaySettings } = useSettings();
   const suspThresholds = displaySettings.suspensionThresholds.values;

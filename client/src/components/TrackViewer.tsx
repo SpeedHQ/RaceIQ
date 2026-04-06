@@ -205,7 +205,7 @@ function TrackDetail({ track, onBack, initialTab, navigate }: { track: TrackInfo
       else setExtractedSectors(null);
       if (boundsData?.s1End) setSectorBounds(boundsData);
     }).catch(() => {});
-  }, [track.ordinal, track.hasOutline]);
+  }, [track.ordinal, track.hasOutline, gameId]);
 
   // Fetch all laps for this track
   const fetchTrackLaps = useCallback(() => {
@@ -236,7 +236,7 @@ function TrackDetail({ track, onBack, initialTab, navigate }: { track: TrackInfo
       : sectorBounds ?? undefined;
     const sectorOverride = showSectors ? sectorBoundsForDraw : undefined;
     drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride);
-  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds]);
+  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

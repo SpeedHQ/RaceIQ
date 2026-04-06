@@ -344,7 +344,7 @@ function loadTelemetryOutline(trackId: number): Point[] | null {
 // These are high-quality, satellite-derived outlines with 1000+ points.
 const SHARED_DIR = resolve(__dirname, "../shared/track-outlines/shared");
 
-// F1 track ID → shared track name (from f1-tracks.csv sharedOutline column)
+// F1 track ID → common track name (from tracks.csv commonTrackName column)
 const F1_TO_SHARED: Record<number, string> = {};
 {
   const csvPath = resolve(__dirname, "../shared/games/f1-2025/tracks.csv");

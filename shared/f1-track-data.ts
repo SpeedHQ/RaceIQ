@@ -9,18 +9,18 @@ export interface F1TrackInfo {
   variant: string;
   lengthKm: number;
   /** Name of the shared outline file (without extension), or empty if unavailable */
-  sharedOutline: string;
+  commonTrackName: string;
 }
 
 /** F1 track ID → track info */
 const f1Tracks = new Map<number, F1TrackInfo>();
 
-// Format: id,name,location,country,variant,lengthKm,sharedOutline
+// Format: id,name,location,country,variant,lengthKm,commonTrackName
 const csv = readFileSync(resolve(SHARED_DIR, "games/f1-2025/tracks.csv"), "utf-8");
 for (const line of csv.split("\n")) {
   const trimmed = line.trim();
   if (!trimmed) continue;
-  const [idStr, name, location, country, variant, lengthStr, sharedOutline] = trimmed.split(",");
+  const [idStr, name, location, country, variant, lengthStr, commonTrackName] = trimmed.split(",");
   const id = parseInt(idStr, 10);
   const lengthKm = parseFloat(lengthStr);
   if (!isNaN(id) && name) {
@@ -30,7 +30,7 @@ for (const line of csv.split("\n")) {
       country,
       variant,
       lengthKm: isNaN(lengthKm) ? 0 : lengthKm,
-      sharedOutline: sharedOutline?.trim() ?? "",
+      commonTrackName: commonTrackName?.trim() ?? "",
     });
   }
 }

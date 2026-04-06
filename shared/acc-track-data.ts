@@ -6,7 +6,7 @@ interface AccTrack {
   id: number;
   name: string;
   variant: string;
-  sharedOutline: string;
+  commonTrackName: string;
 }
 
 let trackMap: Map<number, AccTrack> | null = null;
@@ -24,9 +24,9 @@ function ensureLoaded(): Map<number, AccTrack> {
     const id = parseInt(parts[0], 10);
     const name = parts[1];
     const variant = parts[2];
-    const sharedOutline = parts[3]?.trim() ?? "";
+    const commonTrackName = parts[3]?.trim() ?? "";
     if (!isNaN(id) && name) {
-      trackMap.set(id, { id, name: name.trim(), variant: variant.trim(), sharedOutline });
+      trackMap.set(id, { id, name: name.trim(), variant: variant.trim(), commonTrackName });
     }
   }
   return trackMap;
@@ -40,7 +40,7 @@ export function getAccTrackName(ordinal: number): string {
 export function getAccSharedTrackName(ordinal: number): string | undefined {
   const track = ensureLoaded().get(ordinal);
   if (!track) return undefined;
-  return track.sharedOutline || undefined;
+  return track.commonTrackName || undefined;
 }
 
 /** Get all ACC tracks as a Map of id → info */

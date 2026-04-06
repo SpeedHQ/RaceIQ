@@ -102,7 +102,7 @@ export const f1ServerAdapter: ServerGameAdapter = {
   },
 
   getSharedTrackName(ordinal) {
-    return getF1TrackInfo(ordinal)?.sharedOutline || undefined;
+    return getF1TrackInfo(ordinal)?.commonTrackName || undefined;
   },
 
   canHandle(buf) {

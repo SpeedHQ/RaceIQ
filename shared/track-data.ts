@@ -28,7 +28,7 @@ function ensureFmNames() {
 
 /** Resolve ordinal to bundled file prefix (e.g. f1: 5 → "monaco", fm: 21 → "silverstone-21"). */
 function getBundledTrackName(gameId: string, ordinal: number): string | undefined {
-  if (gameId === "f1-2025") return getF1TrackInfo(ordinal)?.sharedOutline || undefined;
+  if (gameId === "f1-2025") return getF1TrackInfo(ordinal)?.commonTrackName || undefined;
   if (gameId === "fm-2023") {
     ensureFmNames();
     return fmOrdinalToFileName.get(ordinal);
@@ -82,10 +82,10 @@ function bundledGameDir(gameId: string): string {
   return resolve(SHARED_DIR, "tracks", gameId);
 }
 
-/** Shared track data directory (game-agnostic outlines from real-world circuits). */
-const sharedDir = resolve(SHARED_DIR, "tracks");
-const sharedBoundaryDir = resolve(sharedDir, "boundaries");
-const sharedTracksDir = resolve(sharedDir, "meta");
+/** TUMFTM real-world track data (centerlines, boundaries). */
+const tumftmDir = resolve(SHARED_DIR, "tracks", "tumftm");
+/** Shared track metadata (sectors, segments — cross-game). */
+const sharedTracksDir = resolve(SHARED_DIR, "tracks", "meta");
 
 interface SharedTrackMeta {
   name: string;
@@ -115,7 +115,7 @@ export function loadSharedTrackMeta(name: string): SharedTrackMeta | null {
 /** Load a shared outline CSV by name (e.g. "silverstone"). */
 export function loadSharedOutline(name: string): Point[] | null {
   if (!name) return null;
-  const filePath = resolve(sharedDir, `${name}.csv`);
+  const filePath = resolve(tumftmDir, `${name}.csv`);
   const content = readDataFile(filePath);
   if (!content) return null;
   try {
@@ -131,7 +131,7 @@ export function loadSharedOutline(name: string): Point[] | null {
 /** Load shared boundary JSON by name (e.g. "silverstone"). */
 export function loadSharedBoundary(name: string): { leftEdge: Point[]; rightEdge: Point[]; centerLine: Point[]; pitLane: Point[] | null; coordSystem: string } | null {
   if (!name) return null;
-  const filePath = resolve(sharedBoundaryDir, `${name}.json`);
+  const filePath = resolve(tumftmDir, `${name}.json`);
   const content = readDataFile(filePath);
   if (!content) return null;
   try { return JSON.parse(content); } catch { return null; }
@@ -186,16 +186,16 @@ const sourceByName = new Map<string, Source>();
 //   recorded = Captured from in-game telemetry
 const TRACK_FILES: Record<string, TrackOutlineEntry> = {
   // TUMFTM racetrack-database (high quality, ~1000 pts with track widths)
-  "Brand Hatch": { filename: "brands-hatch.csv", source: "tumftm" },
-  "Circuit de Barcelona-Catalunya": { filename: "catalunya.csv", source: "tumftm" },
-  "Circuit de Spa-Francorchamps": { filename: "spa.csv", source: "tumftm" },
-  "Hockenheimring": { filename: "hockenheim.csv", source: "tumftm" },
-  "Indianapolis Motor Speedway": { filename: "indianapolis.csv", source: "tumftm" },
-  "Nürburgring": { filename: "nurburgring.csv", source: "tumftm" },
-  "Silverstone Racing Circuit": { filename: "silverstone.csv", source: "tumftm" },
-  "Suzuka Circuit": { filename: "suzuka.csv", source: "tumftm" },
-  "Yas Marina Circuit": { filename: "yas-marina.csv", source: "tumftm" },
-  "Autodromo Hermanos Rodriguez": { filename: "mexico-city.csv", source: "tumftm" },
+  "Brand Hatch": { filename: "brands-hatch-centerline.csv", source: "tumftm" },
+  "Circuit de Barcelona-Catalunya": { filename: "catalunya-centerline.csv", source: "tumftm" },
+  "Circuit de Spa-Francorchamps": { filename: "spa-centerline.csv", source: "tumftm" },
+  "Hockenheimring": { filename: "hockenheim-centerline.csv", source: "tumftm" },
+  "Indianapolis Motor Speedway": { filename: "indianapolis-centerline.csv", source: "tumftm" },
+  "Nürburgring": { filename: "nurburgring-centerline.csv", source: "tumftm" },
+  "Silverstone Racing Circuit": { filename: "silverstone-centerline.csv", source: "tumftm" },
+  "Suzuka Circuit": { filename: "suzuka-centerline.csv", source: "tumftm" },
+  "Yas Marina Circuit": { filename: "yas-marina-centerline.csv", source: "tumftm" },
+  "Autodromo Hermanos Rodriguez": { filename: "mexico-city-centerline.csv", source: "tumftm" },
 
   // OpenStreetMap Overpass API — removed due to low quality (too few points, GPS artifacts)
   // These tracks will get outlines once recorded from in-game telemetry.
@@ -252,7 +252,7 @@ function ensureIndex() {
 
   // Check which bundled outlines exist on disk
   for (const [trackName, entry] of Object.entries(TRACK_FILES)) {
-    const filePath = resolve(sharedDir, entry.filename);
+    const filePath = resolve(tumftmDir, entry.filename);
     if (existsSync(filePath)) {
       availableOutlineNames.add(trackName);
       sourceByName.set(trackName, entry.source);
@@ -261,12 +261,12 @@ function ensureIndex() {
 
   // Check which boundary files exist
   const allBoundaryFiles = [
-    ...listDataFiles(sharedBoundaryDir, (f) => f.endsWith(".json")),
+    ...listDataFiles(tumftmDir, (f) => f.endsWith("-boundaries.json")),
   ];
   for (const filePath of allBoundaryFiles) {
-    const baseName = filePath.split("/").pop()!.replace(".json", "");
+    const baseName = filePath.split("/").pop()!.replace("-boundaries.json", "");
     for (const [trackName, entry] of Object.entries(TRACK_FILES)) {
-      if (entry.filename.replace(".csv", "") === baseName) {
+      if (entry.filename.replace("-centerline.csv", "") === baseName) {
         availableBoundaryNames.add(trackName);
         break;
       }
@@ -335,7 +335,7 @@ function loadOutlineByName(trackName: string): Point[] | null {
   if (outlineCache.has(trackName)) return outlineCache.get(trackName)!;
   const entry = TRACK_FILES[trackName as keyof typeof TRACK_FILES];
   if (!entry) return null;
-  const content = readDataFile(resolve(sharedDir, entry.filename));
+  const content = readDataFile(resolve(tumftmDir, entry.filename));
   if (!content) return null;
   try {
     const lines = content.split("\n").filter(Boolean);
@@ -369,8 +369,8 @@ function loadBoundaryByName(trackName: string): TrackBoundary | null {
   if (boundaryCache.has(trackName)) return boundaryCache.get(trackName)!;
   const entry = TRACK_FILES[trackName as keyof typeof TRACK_FILES];
   if (!entry) return null;
-  const baseName = entry.filename.replace(".csv", "");
-  const sharedPath = resolve(sharedBoundaryDir, `${baseName}.json`);
+  const baseName = entry.filename.replace("-centerline.csv", "");
+  const sharedPath = resolve(tumftmDir, `${baseName}-boundaries.json`);
   const content = readDataFile(sharedPath);
   if (!content) return null;
   try {
@@ -428,8 +428,8 @@ function ensureOrdinals() {
     if (isNaN(ordinal) || !name) continue;
 
     ordinalToTrackName.set(ordinal, name);
-    const sharedOutline = parts[6]?.trim();
-    if (sharedOutline) ordinalToSharedOutline.set(ordinal, sharedOutline);
+    const commonTrackName = parts[6]?.trim();
+    if (commonTrackName) ordinalToSharedOutline.set(ordinal, commonTrackName);
 
     const outlineLen = OUTLINE_LENGTH_KM[name];
     const excluded = outlineLen != null && !isNaN(lengthKm) && lengthKm > 0

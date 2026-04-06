@@ -313,7 +313,7 @@ export const trackRoutes = new Hono()
         const f1Tracks = getF1Tracks();
         const tracks = Array.from(f1Tracks.entries()).map(([id, info]) => {
           const hasExtracted = sharedHasRecordedOutline(id, "f1-2025");
-          const hasShared = !!info.sharedOutline && !!loadSharedOutline(info.sharedOutline);
+          const hasShared = !!info.commonTrackName && !!loadSharedOutline(info.commonTrackName);
           return {
             ordinal: id,
             name: info.name,
@@ -323,7 +323,7 @@ export const trackRoutes = new Hono()
             lengthKm: info.lengthKm,
             hasOutline: hasExtracted || hasShared,
             outlineSource: hasExtracted ? "extracted" : hasShared ? "tumftm" : null,
-            sharedOutline: info.sharedOutline || null,
+            commonTrackName: info.commonTrackName || null,
             createdAt: null,
           };
         });
@@ -335,7 +335,7 @@ export const trackRoutes = new Hono()
         const accTracks = getAccTracks();
         const tracks = Array.from(accTracks.entries()).map(([id, info]) => {
           const hasExtracted = hasTrackOutline(id, "acc") || sharedHasRecordedOutline(id, "acc");
-          const hasShared = !!info.sharedOutline && !!loadSharedOutline(info.sharedOutline);
+          const hasShared = !!info.commonTrackName && !!loadSharedOutline(info.commonTrackName);
           return {
             ordinal: id,
             name: info.name,
