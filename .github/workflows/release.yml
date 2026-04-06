@@ -121,6 +121,19 @@ jobs:
           path: artifacts
           pattern: raceiq-v*
 
+      - name: Delete existing draft for this tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ needs.compute-version.outputs.version }}"
+          RELEASE_ID=$(gh api repos/${{ github.repository }}/releases --jq ".[] | select(.tag_name == \"$TAG\" and .draft) | .id" 2>/dev/null || true)
+          if [ -n "$RELEASE_ID" ]; then
+            echo "Deleting existing draft release $RELEASE_ID for $TAG"
+            gh api -X DELETE repos/${{ github.repository }}/releases/$RELEASE_ID
+            # Also delete the tag so softprops can recreate it
+            git push origin :refs/tags/$TAG 2>/dev/null || true
+          fi
+
       - name: Create draft release
         uses: softprops/action-gh-release@v2
         with:
