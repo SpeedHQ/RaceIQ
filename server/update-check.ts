@@ -1,5 +1,5 @@
 import { writeFileSync, unlinkSync, existsSync } from "fs";
-import { join, dirname } from "path";
+import { join } from "path";
 import { tmpdir } from "os";
 import { spawn } from "child_process";
 import pkg from "../package.json";
@@ -58,8 +58,8 @@ export async function checkForUpdate(): Promise<UpdateState> {
     const latest = data.tag_name.replace(/^v/, "");
     const updateAvailable = isNewer(latest, VERSION);
 
-    const zipAsset = data.assets.find((a) => a.name.match(/raceiq-v.*-windows-x64\.zip$/));
-    const downloadUrl = zipAsset?.browser_download_url ?? null;
+    const installerAsset = data.assets.find((a) => a.name.match(/RaceIQ-Setup-v.*\.exe$/));
+    const downloadUrl = installerAsset?.browser_download_url ?? null;
 
     state = { current: VERSION, latest, updateAvailable, downloadUrl, checked: true };
 
@@ -85,7 +85,7 @@ export function startUpdateCheckSchedule(): void {
   setInterval(() => checkForUpdate(), FOUR_HOURS_MS);
 }
 
-/** Downloads and applies an update. Spawns an elevated PS1 swap script, then exits. */
+/** Downloads the Inno Setup installer and runs it silently. Inno handles process kill, file swap, registry update, and relaunch. */
 export async function applyUpdate(): Promise<void> {
   if (process.platform !== "win32") {
     throw new Error("Auto-update is only supported on Windows");
@@ -96,60 +96,21 @@ export async function applyUpdate(): Promise<void> {
 
   const version = state.latest;
   const downloadUrl = state.downloadUrl;
-  const tmpDir = tmpdir();
-  const zipPath = join(tmpDir, `raceiq-update-v${version}.zip`);
-  const stagingDir = join(tmpDir, `raceiq-update-v${version}`);
-  const installDir = dirname(process.execPath);
-  const pid = process.pid;
+  const installerPath = join(tmpdir(), `RaceIQ-Setup-v${version}.exe`);
 
-  // Download the ZIP
-  console.log(`[Update] Downloading v${version} from ${downloadUrl}`);
+  // Download the installer
+  console.log(`[Update] Downloading installer v${version} from ${downloadUrl}`);
   const res = await fetch(downloadUrl);
   if (!res.ok) throw new Error(`Download failed: ${res.status}`);
   const buffer = await res.arrayBuffer();
-  writeFileSync(zipPath, Buffer.from(buffer));
-  console.log(`[Update] Downloaded to ${zipPath}`);
+  writeFileSync(installerPath, Buffer.from(buffer));
+  console.log(`[Update] Downloaded to ${installerPath}`);
 
-  // Write the elevated swap script
-  const swapScript = `
-$installDir = '${installDir.replace(/\\/g, "\\\\")}'
-$zipPath = '${zipPath.replace(/\\/g, "\\\\")}'
-$stagingDir = '${stagingDir.replace(/\\/g, "\\\\")}'
-$targetPid = ${pid}
-
-# Wait for main process to exit (max 30s)
-$deadline = (Get-Date).AddSeconds(30)
-while ((Get-Date) -lt $deadline) {
-  $proc = Get-Process -Id $targetPid -ErrorAction SilentlyContinue
-  if (-not $proc) { break }
-  Start-Sleep -Milliseconds 500
-}
-
-# Extract ZIP to staging dir
-if (Test-Path $stagingDir) { Remove-Item $stagingDir -Recurse -Force }
-Expand-Archive -Path $zipPath -DestinationPath $stagingDir -Force
-
-# Rename old exe (can rename a running exe on Windows)
-$oldExe = Join-Path $installDir 'raceiq.exe'
-$oldExeBackup = Join-Path $installDir 'raceiq.exe.old'
-if (Test-Path $oldExeBackup) { Remove-Item $oldExeBackup -Force -ErrorAction SilentlyContinue }
-Rename-Item -Path $oldExe -NewName 'raceiq.exe.old' -Force -ErrorAction SilentlyContinue
-
-# Copy new files over install dir
-Copy-Item -Path (Join-Path $stagingDir '*') -Destination $installDir -Recurse -Force
-
-# Launch new exe
-Start-Process (Join-Path $installDir 'raceiq.exe')
-
-# Cleanup
-Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
-Remove-Item $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
-`.trimStart();
-
-  const swapScriptPath = join(tmpDir, `raceiq-swap-v${version}.ps1`);
-  writeFileSync(swapScriptPath, swapScript, "utf8");
-
-  // Spawn the script elevated (triggers UAC prompt)
+  // Run the installer silently — Inno Setup handles:
+  // - Killing the running process (PrepareToInstall in .iss)
+  // - Swapping all files in the install directory
+  // - Updating Windows registry (Apps & Features version)
+  // - Relaunching the app (postinstall Run section)
   spawn(
     "powershell.exe",
     [
@@ -157,23 +118,12 @@ Remove-Item $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
       "-WindowStyle", "Hidden",
       "-ExecutionPolicy", "Bypass",
       "-Command",
-      `Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile -ExecutionPolicy Bypass -File \\"${swapScriptPath.replace(/\\/g, "\\\\")}\\"'`,
+      `Start-Process -FilePath '${installerPath.replace(/'/g, "''")}' -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Verb RunAs`,
     ],
     { stdio: "ignore", detached: true, windowsHide: true },
   ).unref();
 
-  console.log(`[Update] Swap script spawned elevated. Exiting...`);
-  // Small delay so the response can be sent before we exit
+  console.log(`[Update] Installer spawned. Process will be killed by Inno Setup.`);
+  // Small delay so the HTTP response can be sent before Inno kills us
   setTimeout(() => process.exit(0), 500);
-}
-
-/** Delete raceiq.exe.old if left over from a previous update. */
-export function cleanupOldExe(): void {
-  const oldExe = join(dirname(process.execPath), "raceiq.exe.old");
-  if (existsSync(oldExe)) {
-    try {
-      unlinkSync(oldExe);
-      console.log("[Update] Cleaned up raceiq.exe.old");
-    } catch {}
-  }
 }

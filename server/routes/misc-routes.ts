@@ -5,11 +5,10 @@ import { resolve } from "path";
 import { lapDetector } from "../lap-detector";
 import { wsManager } from "../ws";
 import { USER_TRACKS_DIR } from "../paths";
-import { getUpdateState, startUpdateCheckSchedule, checkForUpdate, applyUpdate, cleanupOldExe } from "../update-check";
+import { getUpdateState, startUpdateCheckSchedule, checkForUpdate, applyUpdate } from "../update-check";
 
-// Check for updates on startup and then once per day
+// Check for updates on startup and then every 4 hours
 startUpdateCheckSchedule();
-cleanupOldExe();
 import {
   findForzaInstall,
   parseForzaZip,
