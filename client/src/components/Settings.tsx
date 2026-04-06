@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { isDevelopment } from "@/lib/env";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Input } from "@/components/ui/input";
@@ -118,7 +119,7 @@ const NAV_ITEMS = [
   { id: "speed", label: "Units" },
   { id: "sound", label: "Sound" },
   { id: "ai", label: "AI Analysis" },
-  { id: "extraction", label: "Extraction" },
+  { id: "extraction", label: "Extraction", devOnly: true },
   { id: "updates", label: "Updates" },
   { id: "about", label: "About" },
 ] as const;
@@ -779,7 +780,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
     <div className="flex h-full">
       {/* Left nav */}
       <nav className="w-48 shrink-0 border-r border-app-border bg-app-surface-alt/50 py-2 flex flex-col">
-        {NAV_ITEMS.map((item) => (
+        {NAV_ITEMS.filter((item) => !("devOnly" in item) || isDevelopment).map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveSection(item.id)}
