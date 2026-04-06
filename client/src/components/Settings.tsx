@@ -347,12 +347,7 @@ function ExtractionSection() {
 
   return (
     <section>
-      <h2 className="text-lg font-semibold text-app-text mb-1">Track Extraction</h2>
-      <p className="text-sm text-app-text-muted mb-4">
-        Extract track outlines from your local Forza Motorsport 2023 installation.
-        This reads AI track geometry data to generate precise centerline outlines
-        for every circuit and layout variant.
-      </p>
+      <h2 className="text-lg font-semibold text-app-text mb-4">Forza Motorsport 2023 Extraction</h2>
 
       {!status?.installed && (
         <div className="rounded-md bg-yellow-500/10 border border-yellow-500/30 p-3 mb-4">
@@ -460,12 +455,7 @@ function F1ExtractionSection() {
 
   return (
     <section>
-      <h2 className="text-lg font-semibold text-app-text mb-1">F1 25 Track Extraction</h2>
-      <p className="text-sm text-app-text-muted mb-4">
-        Extract track outlines from your local F1 25 installation.
-        This reads AI spline data to generate centerline outlines,
-        track boundaries, and racing lines for every circuit.
-      </p>
+      <h2 className="text-lg font-semibold text-app-text mb-4">F1 2025 Extraction</h2>
 
       {!status?.installed && (
         <div className="rounded-md bg-yellow-500/10 border border-yellow-500/30 p-3 mb-4">
