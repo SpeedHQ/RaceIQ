@@ -512,9 +512,9 @@ export function LapAnalyse() {
       `Throttle: ${((p.Accel / 255) * 100).toFixed(0)}%`,
       `Brake: ${((p.Brake / 255) * 100).toFixed(0)}%`,
       `Steer: ${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`,
-      ...(p.Boost > 0 ? [`Boost: ${p.Boost.toFixed(1)} psi`] : []),
-      ...(p.Power > 0 ? [`Power: ${(p.Power / 745.7).toFixed(0)} hp`] : []),
-      ...(p.Torque > 0 ? [`Torque: ${p.Torque.toFixed(0)} Nm`] : []),
+      ...(gameId === "fm-2023" || p.Boost > 0 ? [`Boost: ${p.Boost.toFixed(1)} psi`] : []),
+      ...(gameId === "fm-2023" || p.Power > 0 ? [`Power: ${(p.Power / 745.7).toFixed(0)} hp`] : []),
+      ...(gameId === "fm-2023" || p.Torque > 0 ? [`Torque: ${p.Torque.toFixed(0)} Nm`] : []),
       `Fuel: ${(p.Fuel * 100).toFixed(1)}% left, ${((startFuel - p.Fuel) * 100).toFixed(1)}% used`,
       ``,
       `Wheel Speed (rad/s): FL=${p.WheelRotationSpeedFL.toFixed(1)} FR=${p.WheelRotationSpeedFR.toFixed(1)} RL=${p.WheelRotationSpeedRL.toFixed(1)} RR=${p.WheelRotationSpeedRR.toFixed(1)}`,
@@ -965,7 +965,7 @@ export function LapAnalyse() {
               <div className="p-3 flex-1 min-h-0 overflow-y-auto">
               {sidebarTab === "live" ? (
                 <>
-              {currentPacket && <MetricsPanel pkt={currentPacket} startFuel={telemetry[0]?.Fuel} />}
+              {currentPacket && <MetricsPanel pkt={currentPacket} startFuel={telemetry[0]?.Fuel} gameId={gameId ?? undefined} />}
 
               {currentPacket && (
                 <>

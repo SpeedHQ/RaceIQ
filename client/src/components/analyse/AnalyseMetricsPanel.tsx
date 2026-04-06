@@ -1,8 +1,8 @@
-import type { TelemetryPacket } from "@shared/types";
+import type { TelemetryPacket, GameId } from "@shared/types";
 import { useUnits } from "../../hooks/useUnits";
 import { getSteeringLock } from "../Settings";
 
-export function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket & { DisplaySpeed?: number }; startFuel?: number }) {
+export function MetricsPanel({ pkt, startFuel, gameId }: { pkt: TelemetryPacket & { DisplaySpeed?: number }; startFuel?: number; gameId?: GameId }) {
   const units = useUnits();
   const speed = pkt.DisplaySpeed ?? units.speed(pkt.Speed);
   const throttlePct = ((pkt.Accel / 255) * 100).toFixed(0);
@@ -18,9 +18,9 @@ export function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket & { Disp
       <MetricRow label="Throttle" value={`${throttlePct}%`} color={Number(throttlePct) > 50 ? "#34d399" : undefined} />
       <MetricRow label="Brake" value={`${brakePct}%`} color={Number(brakePct) > 10 ? "#ef4444" : undefined} />
       <MetricRow label="Steer" value={`${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`} />
-      {pkt.Boost > 0 && <MetricRow label="Boost" value={`${pkt.Boost.toFixed(1)} psi`} />}
-      {pkt.Power > 0 && <MetricRow label="Power" value={`${(pkt.Power / 745.7).toFixed(0)} hp`} />}
-      {pkt.Torque > 0 && <MetricRow label="Torque" value={`${pkt.Torque.toFixed(0)} Nm`} />}
+      {(gameId === "fm-2023" || pkt.Boost > 0) && <MetricRow label="Boost" value={`${pkt.Boost.toFixed(1)} psi`} />}
+      {(gameId === "fm-2023" || pkt.Power > 0) && <MetricRow label="Power" value={`${(pkt.Power / 745.7).toFixed(0)} hp`} />}
+      {(gameId === "fm-2023" || pkt.Torque > 0) && <MetricRow label="Torque" value={`${pkt.Torque.toFixed(0)} Nm`} />}
       <div className="col-span-2 flex justify-between">
         <span className="text-app-text-muted">Fuel</span>
         <span className="tabular-nums">
