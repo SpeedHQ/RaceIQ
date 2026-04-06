@@ -36,6 +36,12 @@ function getBundledTrackName(gameId: string, ordinal: number): string | undefine
   return undefined;
 }
 
+/** Compute filename for telemetry-averaged centerline (e.g. "silverstone-21-computed-average"). */
+function computedAverageFileName(gameId: string, ordinal: number): string {
+  const name = getBundledTrackName(gameId, ordinal);
+  return name ? `${name}-computed-average` : `${ordinal}-computed-average`;
+}
+
 /** Resolve a bundled file path: strip extracted/ prefix, map ordinal to track name. */
 function toBundledPath(gameId: string, relativePath: string): string | null {
   let p = relativePath.startsWith("extracted/")
@@ -456,23 +462,22 @@ let _recordedScanned = false;
 export function scanRecordedFiles(): void {
   _recordedScanned = true;
   recordedOrdinals.clear();
-  // Scan user data directory for recorded and extracted outlines
-  for (const gid of ["fm-2023", "f1-2025"]) {
-    for (const subdir of ["", "extracted"]) {
-      const dir = resolve(userDir, gid, subdir);
-      if (!existsSync(dir)) continue;
-      for (const filePath of listDataFiles(dir, (f) => f.startsWith("recorded-") && f.endsWith(".csv"))) {
-        const match = filePath.split("/").pop()!.match(/recorded-(\d+)\.csv/);
-        if (match) recordedOrdinals.add(gk(gid, parseInt(match[1], 10)));
-      }
+  for (const gid of ["fm-2023", "f1-2025", "acc"]) {
+    const dir = resolve(userDir, gid);
+    if (!existsSync(dir)) continue;
+    for (const filePath of listDataFiles(dir, (f) => f.endsWith("-computed-average.csv"))) {
+      const m = filePath.split("/").pop()!.match(/-(\d+)-computed-average\.csv$/);
+      if (m) recordedOrdinals.add(gk(gid, parseInt(m[1], 10)));
     }
   }
 }
 function ensureRecordedScanned() { if (!_recordedScanned) scanRecordedFiles(); }
 
-/** Check if an extracted (game-file) outline exists on disk for this track. */
+/** Check if a game-extracted centerline exists (user-extracted or bundled). */
 function hasExtractedOutline(ordinal: number, gameId: string): boolean {
-  return existsSync(resolve(userGameDir(gameId), "extracted", `recorded-${ordinal}.csv`));
+  const name = getBundledTrackName(gameId, ordinal);
+  if (name && existsSync(resolve(bundledGameDir(gameId), `${name}-centerline.csv`))) return true;
+  return false;
 }
 
 function loadRecordedOutline(ordinal: number, gameId: string): Point[] | null {
@@ -480,9 +485,9 @@ function loadRecordedOutline(ordinal: number, gameId: string): Point[] | null {
   const key = gk(gameId, ordinal);
   if (recordedOutlines.has(key)) return recordedOutlines.get(key)!;
   if (!recordedOrdinals.has(key)) return null;
-  const userPath = resolve(userGameDir(gameId), `recorded-${ordinal}.csv`);
-  const userExtracted = resolve(userGameDir(gameId), "extracted", `recorded-${ordinal}.csv`);
-  const content = readDataFile(userPath) ?? readDataFile(userExtracted);
+  const caName = computedAverageFileName(gameId, ordinal);
+  const userPath = resolve(userGameDir(gameId), `${caName}.csv`);
+  const content = readDataFile(userPath);
   if (!content) return null;
   try {
     const lines = content.split("\n").filter(Boolean);
@@ -645,7 +650,8 @@ function loadExtractedBoundary(ordinal: number, gameId: string): TrackBoundary |
     // If alignment was poor, transform boundaries to match telemetry outline
     if (!data.aligned) {
       const extContent = readUserOrBundled(gameId, `extracted/recorded-${ordinal}.csv`);
-      const telContent = readUserOrBundled(gameId, `recorded-${ordinal}.csv`);
+      const caName = computedAverageFileName(gameId, ordinal);
+      const telContent = readDataFile(resolve(userGameDir(gameId), `${caName}.csv`));
       if (extContent && telContent) {
         const parseCSV = (c: string) => c.split("\n").filter(Boolean).slice(1).map(l => { const [x, z] = l.split(",").map(Number); return { x, z }; });
         const extCenter = parseCSV(extContent);
@@ -842,10 +848,11 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
   recordedOutlines.set(key, outline);
 
   if (shouldSave) {
-    const filePath = resolve(userGameDir(gameId), `recorded-${ordinal}.csv`);
+    const caName = computedAverageFileName(gameId, ordinal);
+    const filePath = resolve(userGameDir(gameId), `${caName}.csv`);
     try {
       writeFileSync(filePath, "x,z\n" + outline.map((p) => `${p.x},${p.z}`).join("\n"));
-      console.log(`[Tracks] Saved recorded outline for track ${ordinal} (${outline.length} pts, lap ${count})`);
+      console.log(`[Tracks] Saved ${caName} (${outline.length} pts, lap ${count})`);
     } catch (err) {
       console.error(`[Tracks] Failed to save recorded outline:`, err);
     }
@@ -893,7 +900,7 @@ export function getStartYaw(ordinal: number, gameId: string): number | null {
 }
 
 /**
- * Delete a recorded outline for a track (resets to bundled or no outline).
+ * Delete a computed-average outline for a track (resets to bundled or no outline).
  */
 export function deleteRecordedOutline(ordinal: number, gameId: string): boolean {
   validateGameId(gameId);
@@ -905,17 +912,13 @@ export function deleteRecordedOutline(ordinal: number, gameId: string): boolean 
   startLinePositions.delete(key);
   startLineYaws.delete(key);
 
-  // Delete the file on disk — user data dir
-  const filePath = resolve(userGameDir(gameId), `recorded-${ordinal}.csv`);
+  const { unlinkSync } = require("fs");
+  const caName = computedAverageFileName(gameId, ordinal);
+  const filePath = resolve(userGameDir(gameId), `${caName}.csv`);
   if (existsSync(filePath)) {
-    try {
-      const { unlinkSync } = require("fs");
-      unlinkSync(filePath);
-      console.log(`[Tracks] Deleted recorded outline for track ${ordinal}`);
-    } catch (err) {
-      console.error(`[Tracks] Failed to delete recorded outline file:`, err);
-    }
+    try { unlinkSync(filePath); } catch {}
   }
+  if (had) console.log(`[Tracks] Deleted computed average for track ${ordinal}`);
   return had;
 }
 

@@ -13,7 +13,6 @@ import {
   getTrackOutlineSectors,
   updateTrackOutlineSectors,
   getTrackOutlineMetadata,
-  saveTrackOutline,
 } from "../db/queries";
 import {
   getTrackOutlineByOrdinal,
@@ -30,6 +29,7 @@ import {
   loadSharedOutline,
   loadSharedBoundary,
   loadSharedTrackMeta,
+  recordLapTrace,
   getTrackSource,
   getTrackAltitudeByOrdinal,
 } from "../../shared/track-data";
@@ -40,7 +40,6 @@ import {
   normalizeToFixedPoints,
   averageOutlines,
   smoothOutline,
-  computeSectorsFromGeometry,
 } from "../lap-detector";
 import {
   getCalibrationStatus,
@@ -55,7 +54,7 @@ import { getAccTracks } from "../../shared/acc-track-data";
 import { tryGetServerGame } from "../games/registry";
 import { tryGetGame } from "../../shared/games/registry";
 import { GameIdSchema, type GameId } from "../../shared/types";
-import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from "fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { resolve } from "path";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
@@ -96,6 +95,21 @@ function getSharedTrackName(ordinal: number, gameId?: string): string | undefine
 
 import { USER_TRACKS_DIR } from "../paths";
 import { SHARED_DIR } from "../../shared/resolve-data";
+const TRACK_DATA_DIR = resolve(USER_TRACKS_DIR, "tracks");
+
+/** Dev-only: dump track data as inspectable JSON to data/userdata/tracks/{ordinal}.json.
+ *  Not read by the app — the DB is the source of truth. */
+function dumpTrackDataForDev(ordinal: number, updates: Record<string, any>) {
+  if (!IS_DEV) return;
+  try {
+    if (!existsSync(TRACK_DATA_DIR)) mkdirSync(TRACK_DATA_DIR, { recursive: true });
+    const filePath = resolve(TRACK_DATA_DIR, `${ordinal}.json`);
+    const existing = existsSync(filePath) ? JSON.parse(readFileSync(filePath, "utf-8")) : {};
+    writeFileSync(filePath, JSON.stringify({ ordinal, ...existing, ...updates }, null, 2));
+  } catch (e) {
+    console.error("[Track] Failed to dump track data:", e);
+  }
+}
 
 // ─── Boundary helpers ───────────────────────────────────────────────────────
 
@@ -298,7 +312,7 @@ export const trackRoutes = new Hono()
       const updated = updateTrackOutlineSectors(ordinal, { s1End, s2End }, requireGameId(c));
       if (!updated) return c.json({ error: "No outline found for track" }, 404);
 
-      saveTrackDataFile(ordinal, { sectors: { s1End, s2End } });
+      dumpTrackDataForDev(ordinal, { sectors: { s1End, s2End } });
       return c.json({ success: true, s1End, s2End });
     }
   )
@@ -592,10 +606,9 @@ export const trackRoutes = new Hono()
         // Light smoothing to clean up noise while preserving shape
         let outline = smoothOutline(raw, 5);
 
-        const singleLapGameId = requireGameId(c);
-        const sectors = computeSectorsFromGeometry(outline);
-        saveTrackOutline(trackOrdinal, outline, singleLapGameId, sectors);
-        saveTrackDataFile(trackOrdinal, { outline });
+        const recomputeGameId = requireGameId(c);
+        recordLapTrace(trackOrdinal, outline, null, null, recomputeGameId);
+        dumpTrackDataForDev(trackOrdinal, { outline });
 
         return c.json({
           success: true,
@@ -668,10 +681,9 @@ export const trackRoutes = new Hono()
         }
       }
 
-      const multiLapGameId = requireGameId(c);
-      const sectors = computeSectorsFromGeometry(outline);
-      saveTrackOutline(trackOrdinal, outline, multiLapGameId, sectors);
-      saveTrackDataFile(trackOrdinal, { outline });
+      const recomputeGameId = requireGameId(c);
+      recordLapTrace(trackOrdinal, outline, null, null, recomputeGameId);
+      dumpTrackDataForDev(trackOrdinal, { outline });
 
       return c.json({
         success: true,

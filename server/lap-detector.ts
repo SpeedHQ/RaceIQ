@@ -11,8 +11,8 @@
  * Fuel and tire wear deltas are tracked per-lap for strategy overlays.
  */
 import type { TelemetryPacket, GameId } from "../shared/types";
-import { insertSession, insertLap, saveTrackOutline } from "./db/queries";
-import { hasTrackOutline, recordLapTrace, extractCurbSegments, recordCurbData } from "../shared/track-data";
+import { insertSession, insertLap } from "./db/queries";
+import { extractCurbSegments, recordCurbData } from "../shared/track-data";
 import { loadSettings } from "./settings";
 import { getTuneAssignment } from "./db/tune-queries";
 
@@ -40,16 +40,10 @@ export interface LapTireWearData {
   worn: { fl: number; fr: number; rl: number; rr: number };
 }
 
-const OUTLINE_LAPS_TO_AVERAGE = 10;
-
 class LapDetector {
   onSessionStart?: (session: SessionState) => void;
 
   private currentSession: SessionState | null = null;
-  // Accumulate normalized lap outlines per track for averaging
-  private outlineAccumulator = new Map<number, { x: number; z: number; speed: number }[][]>();
-  // Accumulate start-line positions per track (from lap boundary packets)
-  private startLineAccumulator = new Map<number, { x: number; z: number }[]>();
   private currentLapNumber: number = -1; // -1 = no lap yet (awaiting first packet)
   private lapBuffer: TelemetryPacket[] = []; // all packets for the in-progress lap
   private lapIsValid: boolean = true; // false if rewind detected mid-lap
@@ -335,26 +329,6 @@ class LapDetector {
       if (this._tireWearHistory.length > 50) this._tireWearHistory.shift();
     }
 
-    // Record lap trace for track outline (extract position from every ~6th packet for ~10Hz)
-    // Also capture the start-line position from the first packet of the new lap
-    if (this.currentSession && this.lapBuffer.length > 50) {
-      const trace: { x: number; z: number }[] = [];
-      for (let i = 0; i < this.lapBuffer.length; i += 6) {
-        const p = this.lapBuffer[i];
-        if (p.PositionX !== 0 || p.PositionZ !== 0) {
-          trace.push({ x: p.PositionX, z: p.PositionZ });
-        }
-      }
-      // Start-line position and yaw: where the car is when the new lap begins
-      const startLinePos = (newLapFirstPacket.PositionX !== 0 || newLapFirstPacket.PositionZ !== 0)
-        ? { x: newLapFirstPacket.PositionX, z: newLapFirstPacket.PositionZ }
-        : null;
-      const startYaw = newLapFirstPacket.Yaw;
-      if (trace.length > 50) {
-        recordLapTrace(this.currentSession.trackOrdinal, trace, startLinePos, startYaw, this.currentSession.gameId);
-      }
-    }
-
     // Use LastLap from the first packet of the new lap as authoritative lap time
     const lapTime = newLapFirstPacket.LastLap;
 
@@ -395,10 +369,6 @@ class LapDetector {
       });
     }
 
-    // Accumulate valid laps for track outline averaging
-    if (this.lapIsValid && this.currentSession.trackOrdinal > 0) {
-      this.accumulateLapForOutline(this.currentSession.trackOrdinal, this.lapBuffer, newLapFirstPacket);
-    }
 
     // Extract and record curb data from any valid lap
     if (this.lapIsValid && this.currentSession.trackOrdinal > 0 && this.lapBuffer.length > 50) {
@@ -443,94 +413,6 @@ class LapDetector {
             console.error("[Lap] Failed to save incomplete lap:", err);
           });
       }
-    }
-  }
-
-  /**
-   * Accumulate a valid lap's position data for track outline averaging.
-   * After the first valid lap, saves immediately (so the user gets a map right away).
-   * Continues collecting up to OUTLINE_LAPS_TO_AVERAGE laps, then computes the
-   * averaged outline and overwrites the DB entry with a smoother result.
-   */
-  private accumulateLapForOutline(trackOrdinal: number, buffer: TelemetryPacket[], newLapFirstPacket: TelemetryPacket): void {
-    // Skip if a bundled outline already exists
-    if (hasTrackOutline(trackOrdinal, this.currentSession!.gameId)) return;
-
-    try {
-      // Extract PositionX/Z, skip zero positions, filter outlier jumps
-      let raw: { x: number; z: number; speed: number }[] = [];
-      for (const p of buffer) {
-        if (p.PositionX === 0 && p.PositionZ === 0) continue;
-        raw.push({ x: p.PositionX, z: p.PositionZ, speed: (p.Speed ?? 0) * 2.23694 });
-      }
-      raw = filterLapOutliers(raw);
-      if (raw.length < 50) return;
-
-      // Accumulate start-line position from lap boundary
-      if (newLapFirstPacket.PositionX !== 0 || newLapFirstPacket.PositionZ !== 0) {
-        if (!this.startLineAccumulator.has(trackOrdinal)) {
-          this.startLineAccumulator.set(trackOrdinal, []);
-        }
-        const positions = this.startLineAccumulator.get(trackOrdinal)!;
-        positions.push({ x: newLapFirstPacket.PositionX, z: newLapFirstPacket.PositionZ });
-        if (positions.length > 10) positions.shift();
-      }
-
-      // Store raw points (full resolution) for accumulation
-      if (!this.outlineAccumulator.has(trackOrdinal)) {
-        this.outlineAccumulator.set(trackOrdinal, []);
-      }
-      const laps = this.outlineAccumulator.get(trackOrdinal)!;
-      laps.push(raw);
-
-      const lapCount = laps.length;
-      console.log(`[Track] Accumulated lap ${lapCount}/${OUTLINE_LAPS_TO_AVERAGE} for track ${trackOrdinal}`);
-
-      // Normalize all laps to the same point count (max raw count) for averaging
-      const maxPoints = Math.max(...laps.map(l => l.length));
-      const normalizedLaps = laps.map(l =>
-        l.length === maxPoints ? l : normalizeToFixedPoints(l, maxPoints)
-      );
-
-      // Save on first lap (immediate feedback) and on every subsequent lap
-      const averaged = averageOutlines(normalizedLaps);
-      let smoothed = smoothOutline(averaged, 5);
-
-      // Rotate outline so the averaged start-line position becomes index 0
-      const startPositions = this.startLineAccumulator.get(trackOrdinal);
-      if (startPositions && startPositions.length > 0) {
-        let sx = 0, sz = 0;
-        for (const p of startPositions) { sx += p.x; sz += p.z; }
-        const avgStart = { x: sx / startPositions.length, z: sz / startPositions.length };
-
-        let bestIdx = 0;
-        let bestDist = Infinity;
-        for (let i = 0; i < smoothed.length; i++) {
-          const dx = smoothed[i].x - avgStart.x;
-          const dz = smoothed[i].z - avgStart.z;
-          const d = dx * dx + dz * dz;
-          if (d < bestDist) { bestDist = d; bestIdx = i; }
-        }
-        if (bestIdx > 0) {
-          smoothed = [...smoothed.slice(bestIdx), ...smoothed.slice(0, bestIdx)];
-          console.log(`[Track] Rotated DB outline for track ${trackOrdinal}: start at point ${bestIdx} (avg of ${startPositions.length} lap starts)`);
-        }
-      }
-
-      const sectors = computeSectorsFromGeometry(smoothed);
-      saveTrackOutline(trackOrdinal, smoothed, this.currentSession!.gameId, sectors);
-
-      console.log(
-        `[Track] Saved ${lapCount === 1 ? "initial" : "averaged"} outline for track ${trackOrdinal}: ${smoothed.length} pts from ${lapCount} lap(s)`
-      );
-
-      // Stop accumulating after enough laps
-      if (lapCount >= OUTLINE_LAPS_TO_AVERAGE) {
-        this.outlineAccumulator.delete(trackOrdinal);
-        console.log(`[Track] Finalized outline for track ${trackOrdinal} (${OUTLINE_LAPS_TO_AVERAGE} laps averaged)`);
-      }
-    } catch (err) {
-      console.error(`[Track] Failed to record outline for track ${trackOrdinal}:`, err);
     }
   }
 
