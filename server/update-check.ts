@@ -87,6 +87,9 @@ export function startUpdateCheckSchedule(): void {
 
 /** Downloads and applies an update. Spawns an elevated PS1 swap script, then exits. */
 export async function applyUpdate(): Promise<void> {
+  if (process.platform !== "win32") {
+    throw new Error("Auto-update is only supported on Windows");
+  }
   if (!state.updateAvailable || !state.downloadUrl || !state.latest) {
     throw new Error("No update available");
   }
