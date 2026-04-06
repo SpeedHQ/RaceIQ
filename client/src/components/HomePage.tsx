@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useTelemetryStore } from "../stores/telemetry";
 import { useLaps } from "../hooks/queries";
 import { useActiveProfileId } from "../hooks/useProfiles";
@@ -10,114 +10,7 @@ import type { LapMeta } from "@shared/types";
 import { useGameId, getGameRoute } from "../stores/game";
 import { tryGetGame } from "@shared/games/registry";
 import { PiBadge, PI_COLORS, piClass } from "./forza/PiBadge";
-import { Button } from "./ui/button";
 
-type GameDetectionInfo = {
-  installed: boolean;
-  extracted: boolean;
-  extractionStatus: string;
-  trackCount: number;
-};
-
-type ExtractionStatusInfo = {
-  status: string;
-  installed: boolean;
-  extracted: number;
-  failed: number;
-  total: number;
-  current: string;
-  error?: string;
-};
-
-function ExtractionBanner({ gameId }: { gameId: string }) {
-  const queryClient = useQueryClient();
-  const [pollEnabled, setPollEnabled] = useState(false);
-
-  const { data: detection } = useQuery<Record<string, GameDetectionInfo>>({
-    queryKey: ["games-detection"],
-    queryFn: () => fetch("/api/games/detection").then((r) => r.json()),
-  });
-
-  const gameDetection = detection?.[gameId];
-
-  const { data: extractionStatus } = useQuery<ExtractionStatusInfo>({
-    queryKey: ["extraction-status", gameId],
-    queryFn: () =>
-      fetch(gameId === "f1-2025" ? "/api/extraction/f1/status" : "/api/extraction/status").then((r) => r.json()),
-    enabled: pollEnabled,
-    refetchInterval: pollEnabled ? 500 : false,
-  });
-
-  const isRunning = extractionStatus?.status === "running" || (pollEnabled && extractionStatus?.status === undefined);
-  const isDone = gameDetection?.extracted === true;
-  const isError = extractionStatus?.status === "error";
-  const progress = extractionStatus && extractionStatus.total > 0
-    ? Math.round((extractionStatus.extracted + extractionStatus.failed) / extractionStatus.total * 100)
-    : 0;
-
-  useEffect(() => {
-    if (extractionStatus?.status === "done") {
-      setPollEnabled(false);
-      queryClient.invalidateQueries({ queryKey: ["games-detection"] });
-    }
-  }, [extractionStatus?.status, queryClient]);
-
-  if (!gameDetection || isDone) return null;
-
-  const handleExtract = async () => {
-    setPollEnabled(true);
-    await fetch(gameId === "f1-2025" ? "/api/extraction/f1/run" : "/api/extraction/run", { method: "POST" });
-  };
-
-  const accent = gameId === "f1-2025"
-    ? { border: "border-red-500/30", bg: "bg-red-500/8", text: "text-red-400", bar: "bg-red-500" }
-    : { border: "border-cyan-500/30", bg: "bg-cyan-500/8", text: "text-cyan-400", bar: "bg-cyan-500" };
-
-  const gameName = gameId === "f1-2025" ? "F1 25" : "Forza Motorsport 2023";
-
-  return (
-    <div className={`relative rounded-lg border ${accent.border} ${accent.bg} overflow-hidden`}>
-      <div className="flex items-center justify-between gap-4 px-4 py-3">
-        <div className="flex items-start gap-3 min-w-0">
-          <svg className={`w-4 h-4 mt-0.5 shrink-0 ${accent.text}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-          </svg>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-app-text leading-tight">Track data not extracted</p>
-            {isError ? (
-              <p className="text-xs text-red-400 mt-0.5">{extractionStatus?.error ?? "Extraction failed"}</p>
-            ) : isRunning ? (
-              <p className="text-xs text-app-text-muted mt-0.5">
-                {extractionStatus?.current ? `Extracting ${extractionStatus.current}\u2026` : "Starting extraction\u2026"}
-                {extractionStatus && extractionStatus.total > 0 && (
-                  <span className="ml-1 tabular-nums">({extractionStatus.extracted}/{extractionStatus.total})</span>
-                )}
-              </p>
-            ) : (
-              <p className="text-xs text-app-text-muted mt-0.5">
-                Extract track outlines from your {gameName} installation for accurate track maps.
-                {gameDetection.installed
-                  ? <span className={`ml-1 ${accent.text}`}>Game installation detected.</span>
-                  : <span className="ml-1 text-app-text-dim">Game not found — you can still extract if installed elsewhere.</span>
-                }
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="shrink-0">
-          <Button size="sm" variant={isError ? "destructive" : "default"} disabled={isRunning} onClick={handleExtract} className="text-xs">
-            {isRunning ? "Extracting\u2026" : isError ? "Retry" : "Extract Track Data"}
-          </Button>
-        </div>
-      </div>
-      {isRunning && (
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-app-border">
-          <div className={`h-full transition-all duration-300 ${accent.bar}`} style={{ width: `${progress}%` }} />
-        </div>
-      )}
-    </div>
-  );
-}
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
@@ -318,7 +211,6 @@ export function HomePage() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">
-      {(gameId === "fm-2023" || gameId === "f1-2025") && <ExtractionBanner gameId={gameId} />}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

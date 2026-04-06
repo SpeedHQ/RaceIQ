@@ -49,11 +49,7 @@ Check out the [demo](https://www.youtube.com/watch?v=hWuIItofivA) and [screensho
 Grab the latest installer from the [releases page](https://github.com/SpeedHQ/RaceIQ/releases/latest) and run it. Run RaceIQ and follow the setup wizard. 
 * You can reopen the dashboard at any time by double-clicking the RaceIQ icon in the system tray.
 
-### 2. Extract Track Data
-
-In setup wizard or each game's home page, You may be prompted to extracts track outlines and boundary data from game files (from steam folder). This is required for Forza Motorsport and F1 2025 as it allows us to easily calibrate track outline orientation with your lap record.
-
-### 3. Run and Connect
+### 2. Run and Connect
 
 Configure your game's telemetry settings to send UDP data to `127.0.0.1:5301`, then start a race — telemetry will appear automatically.
 
