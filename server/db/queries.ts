@@ -1,4 +1,4 @@
-import { eq, desc, and, sql, or, isNull } from "drizzle-orm";
+import { eq, desc, and, or, sql, inArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, profiles, tunes } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared/types";
@@ -245,7 +245,7 @@ function doInsertLap(
  * Get all laps with session metadata, newest first.
  * Optionally filter by profileId.
  */
-export function getLaps(profileId?: number | null, gameId?: GameId): LapMeta[] {
+export function getLaps(profileId?: number | null, gameId?: GameId, limit: number = 200): LapMeta[] {
   const query = db
     .select({
       id: laps.id,
@@ -266,7 +266,8 @@ export function getLaps(profileId?: number | null, gameId?: GameId): LapMeta[] {
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
-    .orderBy(desc(laps.id));
+    .orderBy(desc(laps.id))
+    .limit(limit);
 
   const conditions = [];
   if (profileId != null) {
@@ -423,7 +424,7 @@ export function deleteEmptySessions(): number {
     .all();
   if (empties.length === 0) return 0;
   const ids = empties.map(r => r.id);
-  db.delete(sessions).where(or(...ids.map(id => eq(sessions.id, id)))).run();
+  db.delete(sessions).where(inArray(sessions.id, ids)).run();
   return ids.length;
 }
 

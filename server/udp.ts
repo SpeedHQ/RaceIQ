@@ -13,6 +13,8 @@
 import { parsePacket } from "./parser";
 import { wsManager } from "./ws";
 import { processPacket } from "./pipeline";
+import { getRunningGame } from "./games/registry";
+import { lapDetector } from "./lap-detector";
 
 const MIN_PACKET_LENGTH = 29; // Minimum: F1 header size
 const PACKETS_PER_SEC_WINDOW = 1000; // 1-second sliding window for rate display
@@ -90,8 +92,21 @@ class UdpListener {
         this._receiving = false;
       }
 
-      // Broadcast UDP status to clients so UI knows packets are arriving
-      wsManager.broadcastStatus(this._packetsPerSec, this._receiving);
+      // Broadcast full server status to clients (replaces REST polling)
+      const runningGame = getRunningGame();
+      const session = lapDetector.session;
+      wsManager.broadcastStatus({
+        udpPps: this._packetsPerSec,
+        isRaceOn: this._receiving,
+        droppedPackets: this._droppedPackets,
+        udpPort: this._port,
+        detectedGame: runningGame
+          ? { id: runningGame.id, name: runningGame.shortName }
+          : null,
+        currentSession: session
+          ? { id: session.sessionId, carOrdinal: session.carOrdinal, trackOrdinal: session.trackOrdinal }
+          : null,
+      });
 
       if (this._packetsPerSec > 0) {
         console.log(`[UDP] total=${this._totalPackets} dropped=${this._droppedPackets} pps=${this._packetsPerSec}`);

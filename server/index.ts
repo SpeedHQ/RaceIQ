@@ -44,6 +44,10 @@ const HTTP_PORT = Number(process.env.SERVER_PORT) || 3117;
 // Import DB to ensure schema is created on startup
 import { sqlite } from "./db/index";
 import { deleteEmptySessions } from "./db/queries";
+import { initDbWorker } from "./db/worker-client";
+
+// Start background DB worker for read-only queries (non-blocking)
+await initDbWorker();
 
 // Detect first run (settings file doesn't exist yet) before loadSettings creates it
 import { isFirstRun } from "./settings";

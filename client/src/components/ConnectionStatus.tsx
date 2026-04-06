@@ -1,5 +1,5 @@
 import { useTelemetryStore } from "../stores/telemetry";
-import { useStatus, useSettings } from "../hooks/queries";
+import { useSettings } from "../hooks/queries";
 
 interface Props {
   connected: boolean;
@@ -15,9 +15,8 @@ const GAME_LABELS: Record<string, string> = {
 
 export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving }: Props) {
   const packet = useTelemetryStore((s) => s.packet);
-  const { data: status } = useStatus();
+  const detectedGame = useTelemetryStore((s) => s.serverStatus?.detectedGame);
   const { displaySettings } = useSettings();
-  const detectedGame = (status as any)?.detectedGame as { id: string; name: string } | null | undefined;
 
   // Active game label: prefer live packet gameId, fall back to detected running process
   const gameLabel = packet?.gameId

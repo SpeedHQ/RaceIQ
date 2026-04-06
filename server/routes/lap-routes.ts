@@ -14,6 +14,7 @@ import {
   getAnalysis,
   saveAnalysis,
 } from "../db/queries";
+import { getLapsAsync } from "../db/worker-client";
 import { getTuneById as getDbTune } from "../db/tune-queries";
 import { generateExport } from "../export";
 import { compareLaps } from "../comparison";
@@ -47,9 +48,9 @@ const BulkDeleteSchema = z.object({
 
 export const lapRoutes = new Hono()
   // ── List laps ────────────────────────────────────────────────
-  .get("/api/laps", zValidator("query", LapsQuerySchema), (c) => {
+  .get("/api/laps", zValidator("query", LapsQuerySchema), async (c) => {
     const { profileId, gameId } = c.req.valid("query");
-    const lapList = getLaps(profileId, gameId);
+    const lapList = await getLapsAsync(profileId, gameId);
     return c.json(lapList);
   })
 
