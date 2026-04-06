@@ -12,7 +12,6 @@ import {
   getTrackOutline as getDbTrackOutline,
   getTrackOutlineSectors,
   updateTrackOutlineSectors,
-  getTrackOutlineMetadata,
 } from "../db/queries";
 import {
   getTrackOutlineByOrdinal,
@@ -30,7 +29,6 @@ import {
   loadSharedBoundary,
   loadSharedTrackMeta,
   recordLapTrace,
-  getTrackSource,
   getTrackAltitudeByOrdinal,
 } from "../../shared/track-data";
 import { trackMap, getCarName, getTrackName } from "../../shared/car-data";
@@ -309,8 +307,7 @@ export const trackRoutes = new Hono()
         // Return F1 tracks
         const f1Tracks = getF1Tracks();
         const tracks = Array.from(f1Tracks.entries()).map(([id, info]) => {
-          const hasExtracted = sharedHasRecordedOutline(id, "f1-2025");
-          const hasShared = !!info.commonTrackName && !!loadSharedOutline(info.commonTrackName);
+          const hasBundled = !!getTrackOutlineByOrdinal(id, "f1-2025", info.commonTrackName);
           return {
             ordinal: id,
             name: info.name,
@@ -318,8 +315,8 @@ export const trackRoutes = new Hono()
             country: info.country,
             variant: info.variant,
             lengthKm: info.lengthKm,
-            hasOutline: hasExtracted || hasShared,
-            outlineSource: hasExtracted ? "extracted" : hasShared ? "tumftm" : null,
+            hasOutline: hasBundled,
+            outlineSource: hasBundled ? "bundled" : null,
             commonTrackName: info.commonTrackName || null,
             createdAt: null,
           };
@@ -350,11 +347,9 @@ export const trackRoutes = new Hono()
       }
 
       // Default: Forza tracks
+      const forzaGameId = gameId ?? "fm-2023";
       const tracks = Array.from(trackMap.entries()).map(([ordinal, info]) => {
-        const hasOutlineVal = gameId ? (hasTrackOutline(ordinal, gameId) || sharedHasRecordedOutline(ordinal, gameId)) : false;
-        const metadata = hasOutlineVal && gameId ? getTrackOutlineMetadata(ordinal, requireGameId(c)) : null;
-        const recorded = gameId ? sharedHasRecordedOutline(ordinal, gameId) : false;
-        const source = recorded ? "recorded" : getTrackSource(info.name);
+        const hasBundled = !!getTrackOutlineByOrdinal(ordinal, forzaGameId);
         return {
           ordinal,
           name: info.name,
@@ -362,9 +357,9 @@ export const trackRoutes = new Hono()
           country: info.country,
           variant: info.variant,
           lengthKm: info.lengthKm,
-          hasOutline: hasOutlineVal,
-          outlineSource: hasOutlineVal ? source : null,
-          createdAt: metadata?.createdAt ?? null,
+          hasOutline: hasBundled,
+          outlineSource: hasBundled ? "bundled" : null,
+          createdAt: null,
         };
       });
       // Sort: tracks with outlines first, then alphabetically
