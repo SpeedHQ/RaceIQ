@@ -40,12 +40,17 @@ function getGamePrefixes() {
 
 function useUpdateCheck() {
   const [state, setState] = useState<{ updateAvailable: boolean; current: string; latest: string | null } | null>(null);
+  const wsUpdateVersion = useTelemetryStore((s) => s.updateAvailable);
   useEffect(() => {
     client.api.version.$get()
       .then((r) => r.json())
       .then((d) => setState({ updateAvailable: d.updateAvailable, current: d.current, latest: d.latest }))
       .catch(() => {});
   }, []);
+  // If WebSocket notifies an update after initial fetch, merge it in
+  if (wsUpdateVersion && state && !state.updateAvailable) {
+    return { ...state, updateAvailable: true, latest: wsUpdateVersion };
+  }
   return state;
 }
 
@@ -56,7 +61,7 @@ function RootLayout() {
   const updateState = useUpdateCheck();
 
   const [showSettings, setShowSettings] = useState(false);
-  const [settingsSection, setSettingsSection] = useState<"about" | undefined>(undefined);
+  const [settingsSection, setSettingsSection] = useState<"updates" | "about" | undefined>(undefined);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -134,7 +139,7 @@ function RootLayout() {
             <div className="flex items-center gap-2 mr-2">
               {updateState?.updateAvailable && !showSettings && (
                 <button
-                  onClick={() => { setSettingsSection("about"); setShowSettings(true); }}
+                  onClick={() => { setSettingsSection("updates"); setShowSettings(true); }}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-400/15 text-yellow-400 border border-yellow-400/30 hover:bg-yellow-400/25 transition-colors"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />

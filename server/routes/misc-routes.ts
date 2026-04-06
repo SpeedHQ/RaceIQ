@@ -303,7 +303,7 @@ export const miscRoutes = new Hono()
   // POST /api/update/apply — download and apply the pending update, then restart
   .post("/api/update/apply", async (c) => {
     try {
-      applyUpdate(); // starts async; process will exit after download
+      await applyUpdate(); // starts download, spawns swap script, then process exits
       return new Response(null, { status: 204 });
     } catch (e: any) {
       return c.json({ error: e.message }, 400);

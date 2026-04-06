@@ -92,11 +92,21 @@ $timer.add_Tick({
         $tray.BalloonTipText = "RaceIQ v$ver is available. Click to install."
         $tray.BalloonTipIcon = [System.Windows.Forms.ToolTipIcon]::Info
         $tray.ShowBalloonTip(5000)
+        $script:updateVersion = $ver
       }
     } catch {}
   }
 })
 $timer.Start()
+
+$script:updateVersion = $null
+$tray.add_BalloonTipClicked({
+  if ($script:updateVersion) {
+    try {
+      Invoke-WebRequest -Uri "http://localhost:${port}/api/update/apply" -Method POST -UseBasicParsing | Out-Null
+    } catch {}
+  }
+})
 
 [System.Windows.Forms.Application]::Run()
 `.trimStart();
