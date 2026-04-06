@@ -27,7 +27,7 @@ for (let i = 0; i < args.length; i++) {
 console.log(ids ? `Exporting laps: ${ids.join(", ")}` : "Exporting all laps...");
 
 try {
-  const zip = exportLapsZip(ids);
+  const zip = await exportLapsZip(ids);
   writeFileSync(output, zip);
   console.log(`Wrote ${(zip.length / 1024).toFixed(1)} KB → ${output}`);
 } catch (e: any) {

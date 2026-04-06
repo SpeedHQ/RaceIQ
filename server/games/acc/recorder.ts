@@ -218,7 +218,7 @@ export async function replayRecording(
 
         const packet = parseAccBuffers(physics, graphics, staticBuf, overrides);
         if (packet) {
-          processPacket(packet);
+          await processPacket(packet);
         }
       }
     } while (loop && !cancelled);

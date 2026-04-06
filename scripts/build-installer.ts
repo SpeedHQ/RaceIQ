@@ -38,7 +38,15 @@ run(
   { NODE_ENV: "production" },
 );
 
-// 6. Build installer
+// 6. Copy native libsql addon (can't be embedded in compiled binary — oven-sh/bun#18909)
+const addonSrc = "node_modules/@libsql/win32-x64-msvc/index.node";
+const addonDst = "dist/node_modules/@libsql/win32-x64-msvc";
+mkdirSync(addonDst, { recursive: true });
+cpSync(addonSrc, `${addonDst}/index.node`);
+cpSync("node_modules/@libsql/win32-x64-msvc/package.json", `${addonDst}/package.json`);
+console.log("→ Copied libsql native addon");
+
+// 7. Build installer
 run(`iscc /DMyAppVersion=${version} installer\\raceiq.iss`, "Building installer");
 
 console.log(`\n✅ Done! Installer: RaceIQ-Setup-v${version}.exe\n`);

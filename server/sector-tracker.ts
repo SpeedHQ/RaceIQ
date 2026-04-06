@@ -33,7 +33,7 @@ export class SectorTracker {
   private initialized = false;
 
   /** Reset for a new session — loads sector boundaries and track length. */
-  reset(trackOrdinal: number, gameId: GameId): void {
+  async reset(trackOrdinal: number, gameId: GameId): Promise<void> {
     this.bounds = null;
     this.lapDistStart = 0;
     this.lapDistTotal = 0;
@@ -50,7 +50,7 @@ export class SectorTracker {
     // Load sector boundaries: DB → shared meta → bundled fallback
     const adapter = tryGetGame(gameId);
     const sharedName = adapter?.getSharedTrackName?.(trackOrdinal);
-    const dbSectors = getTrackOutlineSectors(trackOrdinal, gameId);
+    const dbSectors = await getTrackOutlineSectors(trackOrdinal, gameId);
     const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
     const sectors = dbSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(trackOrdinal);
 

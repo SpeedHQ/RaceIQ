@@ -114,7 +114,7 @@ class UdpListener {
     }, PACKETS_PER_SEC_WINDOW);
   }
 
-  private handlePacket(buf: Buffer): void {
+  private async handlePacket(buf: Buffer): Promise<void> {
     this._totalPackets++;
     this._packetsInWindow++;
 
@@ -131,7 +131,7 @@ class UdpListener {
     }
 
     this._receiving = true;
-    processPacket(packet);
+    await processPacket(packet);
   }
 
   stop(): void {

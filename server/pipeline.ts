@@ -10,8 +10,8 @@ import { fillNormSuspension } from "./telemetry-utils";
 const sectorTracker = new SectorTracker();
 const pitTracker = new PitTracker();
 
-lapDetector.onSessionStart = (session) => {
-  sectorTracker.reset(session.trackOrdinal, session.gameId);
+lapDetector.onSessionStart = async (session) => {
+  await sectorTracker.reset(session.trackOrdinal, session.gameId);
   pitTracker.reset();
 };
 
@@ -23,7 +23,7 @@ let _totalProcessed = 0;
  *
  * Pipeline: normalize coords → lap detection → track calibration (~10Hz) → WebSocket broadcast (30Hz)
  */
-export function processPacket(packet: TelemetryPacket): void {
+export async function processPacket(packet: TelemetryPacket): Promise<void> {
   _totalProcessed++;
 
   // Normalize coordinates so all games use the same display convention.
@@ -38,7 +38,7 @@ export function processPacket(packet: TelemetryPacket): void {
   // Compute NormSuspensionTravel for games that don't provide it (F1/ACC)
   fillNormSuspension(packet);
 
-  lapDetector.feed(packet);
+  await lapDetector.feed(packet);
 
   const sectors = sectorTracker.feed(packet);
   const pit = pitTracker.feed(packet, sectorTracker.getTrackLength());

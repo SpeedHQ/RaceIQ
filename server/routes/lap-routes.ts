@@ -14,7 +14,6 @@ import {
   getAnalysis,
   saveAnalysis,
 } from "../db/queries";
-import { getLapsAsync } from "../db/worker-client";
 import { getTuneById as getDbTune } from "../db/tune-queries";
 import { generateExport } from "../export";
 import { compareLaps } from "../comparison";
@@ -50,7 +49,7 @@ export const lapRoutes = new Hono()
   // ── List laps ────────────────────────────────────────────────
   .get("/api/laps", zValidator("query", LapsQuerySchema), async (c) => {
     const { profileId, gameId } = c.req.valid("query");
-    const lapList = await getLapsAsync(profileId, gameId);
+    const lapList = await getLaps(profileId, gameId);
     return c.json(lapList);
   })
 
@@ -58,27 +57,27 @@ export const lapRoutes = new Hono()
   .post(
     "/api/laps/bulk-delete",
     zValidator("json", BulkDeleteSchema),
-    (c) => {
+    async (c) => {
       const { ids } = c.req.valid("json");
       let count = 0;
       for (const id of ids) {
-        if (deleteLap(id)) count++;
+        if (await deleteLap(id)) count++;
       }
       return c.json({ deleted: count });
     }
   )
 
   // ── Get single lap ──────────────────────────────────────────
-  .get("/api/laps/:id", zValidator("param", IdParamSchema), (c) => {
+  .get("/api/laps/:id", zValidator("param", IdParamSchema), async (c) => {
     const { id } = c.req.valid("param");
-    const lap = getLapById(id);
+    const lap = await getLapById(id);
     if (!lap) return c.json({ error: "Lap not found" }, 404);
 
     // Compute sector times server-side
     let sectorTimes: { times: [number, number, number]; s1Idx: number; s2Idx: number; firstDist: number; lapDist: number } | null = null;
     const packets = lap.telemetry;
     if (packets.length >= 10 && lap.trackOrdinal != null) {
-      const dbSectors = lap.gameId ? getTrackOutlineSectors(lap.trackOrdinal, lap.gameId as GameId) : null;
+      const dbSectors = lap.gameId ? await getTrackOutlineSectors(lap.trackOrdinal, lap.gameId as GameId) : null;
       const bundled = getTrackSectorsByOrdinal(lap.trackOrdinal);
       const sectors = dbSectors ?? bundled;
       if (sectors?.s1End && sectors?.s2End) {
@@ -113,9 +112,9 @@ export const lapRoutes = new Hono()
   .get(
     "/api/laps/:id/export",
     zValidator("param", IdParamSchema),
-    (c) => {
+    async (c) => {
       const { id } = c.req.valid("param");
-      const lap = getLapById(id);
+      const lap = await getLapById(id);
       if (!lap) return c.json({ error: "Lap not found" }, 404);
       const packets = lap.telemetry;
       if (packets.length === 0)
@@ -135,7 +134,7 @@ export const lapRoutes = new Hono()
       const { regenerate } = c.req.valid("query");
 
       if (!regenerate) {
-        const cached = getAnalysis(id);
+        const cached = await getAnalysis(id);
         if (cached) {
           return c.json({
             analysis: cached.analysis,
@@ -151,18 +150,18 @@ export const lapRoutes = new Hono()
         }
       }
 
-      const lap = getLapById(id);
+      const lap = await getLapById(id);
       if (!lap) return c.json({ error: "Lap not found" }, 404);
       if (lap.telemetry.length === 0)
         return c.json({ error: "No telemetry data" }, 400);
 
       const trackOrdinal = lap.trackOrdinal ?? 0;
-      const corners = trackOrdinal > 0 && lap.gameId ? getCorners(trackOrdinal, lap.gameId) : [];
+      const corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId) : [];
       const settings = loadSettings();
 
       let parsedTune: Tune | undefined;
       if (lap.tuneId) {
-        const dbTune = getDbTune(lap.tuneId);
+        const dbTune = await getDbTune(lap.tuneId);
         if (dbTune) {
           parsedTune = {
             ...dbTune,
@@ -203,7 +202,7 @@ export const lapRoutes = new Hono()
           result = await runClaudeCli(prompt, settings.aiModel || undefined);
         }
 
-        saveAnalysis(id, result.analysis, result.usage);
+        await saveAnalysis(id, result.analysis, result.usage);
         return c.json({ analysis: result.analysis, cached: false, usage: result.usage });
       } catch (err: any) {
         console.error("[AI] Analysis failed:", err.message);
@@ -216,9 +215,9 @@ export const lapRoutes = new Hono()
   .delete(
     "/api/laps/:id",
     zValidator("param", IdParamSchema),
-    (c) => {
+    async (c) => {
       const { id } = c.req.valid("param");
-      const deleted = deleteLap(id);
+      const deleted = await deleteLap(id);
       if (!deleted) return c.json({ error: "Lap not found" }, 404);
       return c.json({ success: true });
     }
@@ -228,15 +227,15 @@ export const lapRoutes = new Hono()
   .get(
     "/api/laps/:id1/compare/:id2",
     zValidator("param", CompareParamsSchema),
-    (c) => {
+    async (c) => {
       const { id1, id2 } = c.req.valid("param");
       if (id1 === id2)
         return c.json({ error: "Cannot compare a lap with itself" }, 400);
 
-      const lapA = getLapById(id1);
+      const lapA = await getLapById(id1);
       if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
 
-      const lapB = getLapById(id2);
+      const lapB = await getLapById(id2);
       if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
 
       if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0)
@@ -246,11 +245,11 @@ export const lapRoutes = new Hono()
         );
 
       const trackOrdinal = lapA.trackOrdinal ?? 0;
-      let corners = lapA.gameId ? getCorners(trackOrdinal, lapA.gameId) : [];
+      let corners = lapA.gameId ? await getCorners(trackOrdinal, lapA.gameId) : [];
 
       if (corners.length === 0 && trackOrdinal > 0) {
         corners = detectCorners(lapA.telemetry);
-        if (corners.length > 0 && lapA.gameId) saveCorners(trackOrdinal, corners, lapA.gameId, true);
+        if (corners.length > 0 && lapA.gameId) await saveCorners(trackOrdinal, corners, lapA.gameId, true);
       }
 
       const result = compareLaps(lapA.telemetry, lapB.telemetry, corners);
@@ -293,11 +292,11 @@ export const lapRoutes = new Hono()
   )
 
   // ── Delete ALL laps ─────────────────────────────────────────
-  .delete("/api/laps", (c) => {
-    const laps = getLaps();
+  .delete("/api/laps", async (c) => {
+    const laps = await getLaps();
     let count = 0;
     for (const lap of laps) {
-      if (deleteLap(lap.id)) count++;
+      if (await deleteLap(lap.id)) count++;
     }
     return c.json({ deleted: count });
   });

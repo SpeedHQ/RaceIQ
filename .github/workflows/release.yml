@@ -74,6 +74,13 @@ jobs:
         shell: bash
         run: NODE_ENV=production bun build --compile --target=bun-windows-x64 --windows-icon=assets/raceiq.ico server/bootstrap.ts --outfile dist/raceiq.exe
 
+      - name: Copy libsql native addon
+        shell: bash
+        run: |
+          mkdir -p dist/node_modules/@libsql/win32-x64-msvc
+          cp node_modules/@libsql/win32-x64-msvc/index.node dist/node_modules/@libsql/win32-x64-msvc/
+          cp node_modules/@libsql/win32-x64-msvc/package.json dist/node_modules/@libsql/win32-x64-msvc/
+
       - name: Package
         shell: bash
         run: |

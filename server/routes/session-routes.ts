@@ -7,9 +7,9 @@ import { getSessions, deleteSession } from "../db/queries";
 
 export const sessionRoutes = new Hono()
   // GET /api/sessions
-  .get("/api/sessions", zValidator("query", GameIdQuerySchema), (c) => {
+  .get("/api/sessions", zValidator("query", GameIdQuerySchema), async (c) => {
     const { gameId } = c.req.valid("query");
-    const sessionList = getSessions(gameId);
+    const sessionList = await getSessions(gameId);
     return c.json(sessionList);
   })
 
@@ -17,11 +17,11 @@ export const sessionRoutes = new Hono()
   .post(
     "/api/sessions/bulk-delete",
     zValidator("json", z.object({ ids: z.array(z.number().int()) })),
-    (c) => {
+    async (c) => {
       const { ids } = c.req.valid("json");
       let lapCount = 0;
       for (const sessionId of ids) {
-        lapCount += deleteSession(sessionId);
+        lapCount += await deleteSession(sessionId);
       }
       return c.json({ deleted: lapCount, sessions: ids.length });
     },

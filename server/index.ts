@@ -42,12 +42,8 @@ if (process.platform === "darwin") {
 const HTTP_PORT = Number(process.env.SERVER_PORT) || 3117;
 
 // Import DB to ensure schema is created on startup
-import { sqlite } from "./db/index";
+import { client } from "./db/index";
 import { deleteEmptySessions } from "./db/queries";
-import { initDbWorker } from "./db/worker-client";
-
-// Start background DB worker for read-only queries (non-blocking)
-await initDbWorker();
 
 // Detect first run (settings file doesn't exist yet) before loadSettings creates it
 import { isFirstRun } from "./settings";
@@ -63,7 +59,8 @@ if (settings.wsRefreshRate) {
 {
   const _settings = loadSettings();
   if (_settings.activeProfileId == null) {
-    const firstProfile = (sqlite as any).query("SELECT id FROM profiles LIMIT 1").get() as { id: number } | null;
+    const result = await client.execute("SELECT id FROM profiles LIMIT 1");
+    const firstProfile = result.rows.length > 0 ? { id: Number(result.rows[0].id) } : null;
     if (firstProfile) {
       saveSettings({ ..._settings, activeProfileId: firstProfile.id });
     }
@@ -71,7 +68,7 @@ if (settings.wsRefreshRate) {
 }
 
 // Clean up empty sessions on startup
-const emptyCleaned = deleteEmptySessions();
+const emptyCleaned = await deleteEmptySessions();
 if (emptyCleaned > 0) console.log(`[DB] Cleaned up ${emptyCleaned} empty session(s)`);
 
 console.log(`[Server] Starting RaceIQ Server...`);

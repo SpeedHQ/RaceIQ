@@ -26,14 +26,14 @@ const TEST_SETTINGS = JSON.stringify({
   brakes: { balance: 54, pressure: 95 },
 });
 
-beforeEach(() => {
-  db.delete(tuneAssignments).run();
-  db.delete(tunes).run();
+beforeEach(async () => {
+  await db.delete(tuneAssignments).run();
+  await db.delete(tunes).run();
 });
 
 describe("tune CRUD", () => {
-  test("insertTune creates and returns tune with id", () => {
-    const id = insertTune({
+  test("insertTune creates and returns tune with id", async () => {
+    const id = await insertTune({
       name: "Test Tune",
       author: "tester",
       carOrdinal: 2860,
@@ -44,8 +44,8 @@ describe("tune CRUD", () => {
     expect(id).toBeGreaterThan(0);
   });
 
-  test("getTuneById returns inserted tune", () => {
-    const id = insertTune({
+  test("getTuneById returns inserted tune", async () => {
+    const id = await insertTune({
       name: "Test Tune",
       author: "tester",
       carOrdinal: 2860,
@@ -53,67 +53,67 @@ describe("tune CRUD", () => {
       description: "A test tune",
       settings: TEST_SETTINGS,
     });
-    const tune = getTuneById(id);
+    const tune = await getTuneById(id);
     expect(tune).not.toBeNull();
     expect(tune!.name).toBe("Test Tune");
     expect(tune!.carOrdinal).toBe(2860);
   });
 
-  test("getTunes filters by carOrdinal", () => {
-    insertTune({ name: "A", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    insertTune({ name: "B", author: "t", carOrdinal: 200, category: "wet", description: "", settings: TEST_SETTINGS });
-    const filtered = getTunes(100);
+  test("getTunes filters by carOrdinal", async () => {
+    await insertTune({ name: "A", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
+    await insertTune({ name: "B", author: "t", carOrdinal: 200, category: "wet", description: "", settings: TEST_SETTINGS });
+    const filtered = await getTunes(100);
     expect(filtered.length).toBe(1);
     expect(filtered[0].name).toBe("A");
   });
 
-  test("updateTune modifies fields", () => {
-    const id = insertTune({ name: "Old", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    const updated = updateTune(id, { name: "New" });
+  test("updateTune modifies fields", async () => {
+    const id = await insertTune({ name: "Old", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
+    const updated = await updateTune(id, { name: "New" });
     expect(updated).toBe(true);
-    expect(getTuneById(id)!.name).toBe("New");
+    expect((await getTuneById(id))!.name).toBe("New");
   });
 
-  test("deleteTune removes tune", () => {
-    const id = insertTune({ name: "X", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    expect(deleteTune(id)).toBe(true);
-    expect(getTuneById(id)).toBeNull();
+  test("deleteTune removes tune", async () => {
+    const id = await insertTune({ name: "X", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
+    expect(await deleteTune(id)).toBe(true);
+    expect(await getTuneById(id)).toBeNull();
   });
 });
 
 describe("tune assignments", () => {
-  test("setTuneAssignment creates assignment", () => {
-    const tuneId = insertTune({ name: "T", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    setTuneAssignment(100, 500, tuneId);
-    const assignment = getTuneAssignment(100, 500);
+  test("setTuneAssignment creates assignment", async () => {
+    const tuneId = await insertTune({ name: "T", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
+    await setTuneAssignment(100, 500, tuneId);
+    const assignment = await getTuneAssignment(100, 500);
     expect(assignment).not.toBeNull();
     expect(assignment!.tuneId).toBe(tuneId);
   });
 
-  test("setTuneAssignment upserts on same car+track", () => {
-    const id1 = insertTune({ name: "T1", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    const id2 = insertTune({ name: "T2", author: "t", carOrdinal: 100, category: "wet", description: "", settings: TEST_SETTINGS });
-    setTuneAssignment(100, 500, id1);
-    setTuneAssignment(100, 500, id2);
-    const assignment = getTuneAssignment(100, 500);
+  test("setTuneAssignment upserts on same car+track", async () => {
+    const id1 = await insertTune({ name: "T1", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
+    const id2 = await insertTune({ name: "T2", author: "t", carOrdinal: 100, category: "wet", description: "", settings: TEST_SETTINGS });
+    await setTuneAssignment(100, 500, id1);
+    await setTuneAssignment(100, 500, id2);
+    const assignment = await getTuneAssignment(100, 500);
     expect(assignment!.tuneId).toBe(id2);
   });
 
-  test("deleteTuneAssignment removes assignment", () => {
-    const tuneId = insertTune({ name: "T", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    setTuneAssignment(100, 500, tuneId);
-    expect(deleteTuneAssignment(100, 500)).toBe(true);
-    expect(getTuneAssignment(100, 500)).toBeNull();
+  test("deleteTuneAssignment removes assignment", async () => {
+    const tuneId = await insertTune({ name: "T", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
+    await setTuneAssignment(100, 500, tuneId);
+    expect(await deleteTuneAssignment(100, 500)).toBe(true);
+    expect(await getTuneAssignment(100, 500)).toBeNull();
   });
 
-  test("getTuneAssignments filters by carOrdinal", () => {
-    const id1 = insertTune({ name: "T1", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    const id2 = insertTune({ name: "T2", author: "t", carOrdinal: 200, category: "circuit", description: "", settings: TEST_SETTINGS });
-    setTuneAssignment(100, 500, id1);
-    setTuneAssignment(200, 600, id2);
-    const all = getTuneAssignments();
+  test("getTuneAssignments filters by carOrdinal", async () => {
+    const id1 = await insertTune({ name: "T1", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
+    const id2 = await insertTune({ name: "T2", author: "t", carOrdinal: 200, category: "circuit", description: "", settings: TEST_SETTINGS });
+    await setTuneAssignment(100, 500, id1);
+    await setTuneAssignment(200, 600, id2);
+    const all = await getTuneAssignments();
     expect(all.length).toBe(2);
-    const filtered = getTuneAssignments(100);
+    const filtered = await getTuneAssignments(100);
     expect(filtered.length).toBe(1);
     expect(filtered[0].tuneName).toBe("T1");
   });

@@ -157,21 +157,21 @@ export const trackRoutes = new Hono()
   // GET /api/tracks/:trackOrdinal/corners — get stored corners or auto-detect
   .get("/api/tracks/:trackOrdinal/corners",
     zValidator("param", TrackOrdinalParamSchema),
-    (c) => {
+    async (c) => {
       const { trackOrdinal } = c.req.valid("param");
       const cornersGameId = requireGameId(c);
 
-      let corners = getCorners(trackOrdinal, cornersGameId);
+      let corners = await getCorners(trackOrdinal, cornersGameId);
 
       // If no stored corners, try to auto-detect from a lap on this track
       if (corners.length === 0) {
-        const lapId = getFirstLapIdForTrack(trackOrdinal);
+        const lapId = await getFirstLapIdForTrack(trackOrdinal);
         if (lapId !== null) {
-          const lap = getLapById(lapId);
+          const lap = await getLapById(lapId);
           if (lap && lap.telemetry.length > 0) {
             corners = detectCorners(lap.telemetry);
             if (corners.length > 0) {
-              saveCorners(trackOrdinal, corners, cornersGameId, true);
+              await saveCorners(trackOrdinal, corners, cornersGameId, true);
             }
           }
         }
@@ -214,7 +214,7 @@ export const trackRoutes = new Hono()
         }
       }
 
-      saveCorners(trackOrdinal, body, requireGameId(c), false);
+      await saveCorners(trackOrdinal, body, requireGameId(c), false);
       return c.json({ success: true, count: body.length });
     }
   )
@@ -248,13 +248,13 @@ export const trackRoutes = new Hono()
   .get("/api/track-sector-boundaries/:ordinal",
     zValidator("param", OrdinalParamSchema),
     zValidator("query", GameIdQuerySchema),
-    (c) => {
+    async (c) => {
       const { ordinal } = c.req.valid("param");
       const gameId = c.req.query("gameId");
       const sharedName = getSharedTrackName(ordinal, gameId);
 
       // Priority: DB -> shared track meta -> bundled code -> default
-      const dbSectors = gameId ? getTrackOutlineSectors(ordinal, requireGameId(c)) : null;
+      const dbSectors = gameId ? await getTrackOutlineSectors(ordinal, requireGameId(c)) : null;
       const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
       const sectors = dbSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(ordinal);
 
@@ -291,7 +291,7 @@ export const trackRoutes = new Hono()
         return c.json({ error: "Invalid sector boundaries: need 0 < s1End < s2End < 1" }, 400);
       }
 
-      const updated = updateTrackOutlineSectors(ordinal, { s1End, s2End }, requireGameId(c));
+      const updated = await updateTrackOutlineSectors(ordinal, { s1End, s2End }, requireGameId(c));
       if (!updated) return c.json({ error: "No outline found for track" }, 404);
 
       return c.json({ success: true, s1End, s2End });
@@ -408,7 +408,7 @@ export const trackRoutes = new Hono()
   .get("/api/track-sectors/:ordinal",
     zValidator("param", OrdinalParamSchema),
     zValidator("query", GameIdQuerySchema),
-    (c) => {
+    async (c) => {
       const { ordinal } = c.req.valid("param");
       const gameId = c.req.query("gameId");
       const sharedName = getSharedTrackName(ordinal, gameId);
@@ -432,7 +432,7 @@ export const trackRoutes = new Hono()
       // Fall back to auto-detection from outline curvature
       let outline = gameId ? getTrackOutlineByOrdinal(ordinal, gameId, sharedName) : null;
       if (!outline) {
-        const recorded = gameId ? getDbTrackOutline(ordinal, gameId as GameId) : null;
+        const recorded = gameId ? await getDbTrackOutline(ordinal, gameId as GameId) : null;
         if (recorded) {
           outline = recorded.map((p: { x: number; z: number }) => ({ x: p.x, z: p.z }));
         }
@@ -567,7 +567,7 @@ export const trackRoutes = new Hono()
       if (lapIdParam) {
         // Single lap mode — use its telemetry directly as the outline
         const lapId = parseInt(lapIdParam, 10);
-        const lapData = getLapById(lapId);
+        const lapData = await getLapById(lapId);
         if (!lapData || !lapData.telemetry) {
           return c.json({ error: `Lap ${lapId} not found` }, 404);
         }
@@ -597,7 +597,7 @@ export const trackRoutes = new Hono()
 
       // Multi-lap mode — average best laps
       const outlineGameId = c.req.query("gameId") as GameId | undefined;
-      const allLaps = getLaps(undefined, outlineGameId).filter(
+      const allLaps = (await getLaps(undefined, outlineGameId)).filter(
         (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0
       );
       if (allLaps.length === 0) {
@@ -611,7 +611,7 @@ export const trackRoutes = new Hono()
       const startPositions: { x: number; z: number }[] = [];
 
       for (const lapMeta of bestLaps) {
-        const lapData = getLapById(lapMeta.id);
+        const lapData = await getLapById(lapMeta.id);
         if (!lapData || !lapData.telemetry || lapData.telemetry.length < 50) continue;
 
         let raw: { x: number; z: number; speed: number }[] = [];
@@ -671,7 +671,7 @@ export const trackRoutes = new Hono()
   // GET /api/tracks/:trackOrdinal/leaderboard — fastest laps grouped by PI class
   .get("/api/tracks/:trackOrdinal/leaderboard",
     zValidator("param", TrackOrdinalParamSchema),
-    (c) => {
+    async (c) => {
       const { trackOrdinal } = c.req.valid("param");
 
       const profileIdParam = c.req.query("profileId");
@@ -679,7 +679,7 @@ export const trackRoutes = new Hono()
       const profileId = profileIdParsed !== undefined && !isNaN(profileIdParsed) ? profileIdParsed : undefined;
 
       const gameId = c.req.query("gameId") as GameId | undefined;
-      const trackLaps = getLaps(profileId, gameId).filter(
+      const trackLaps = (await getLaps(profileId, gameId)).filter(
         (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0
       );
 
@@ -748,7 +748,7 @@ export const trackRoutes = new Hono()
       const body = await c.req.json<{ lapId: number }>();
       if (!body?.lapId) return c.json({ error: "lapId required" }, 400);
 
-      const lapData = getLapById(body.lapId);
+      const lapData = await getLapById(body.lapId);
       if (!lapData) return c.json({ error: "Lap not found" }, 404);
       if (lapData.trackOrdinal !== ordinal) return c.json({ error: "Lap is not from this track" }, 400);
       if (!lapData.telemetry || lapData.telemetry.length < 50) {
@@ -773,22 +773,22 @@ export const trackRoutes = new Hono()
   .get("/api/tracks/:ordinal/lap-sectors",
     zValidator("param", OrdinalParamSchema),
     zValidator("query", GameIdQuerySchema),
-    (c) => {
+    async (c) => {
       const { ordinal } = c.req.valid("param");
 
       // Get sector boundaries
       const gameId = c.req.query("gameId") as GameId | undefined;
-      const dbSectors = gameId ? getTrackOutlineSectors(ordinal, gameId) : null;
+      const dbSectors = gameId ? await getTrackOutlineSectors(ordinal, gameId) : null;
       const bundled = getTrackSectorsByOrdinal(ordinal);
       const sectors = dbSectors ?? bundled;
       if (!sectors?.s1End || !sectors?.s2End) return c.json({});
-      const trackLaps = getLaps(undefined, gameId).filter((l) => l.trackOrdinal === ordinal && l.lapTime > 0);
+      const trackLaps = (await getLaps(undefined, gameId)).filter((l) => l.trackOrdinal === ordinal && l.lapTime > 0);
       if (trackLaps.length === 0) return c.json({});
 
       const result: Record<number, { s1: number; s2: number; s3: number }> = {};
 
       for (const lapMeta of trackLaps) {
-        const lapData = getLapById(lapMeta.id);
+        const lapData = await getLapById(lapMeta.id);
         if (!lapData?.telemetry || lapData.telemetry.length < 50) continue;
 
         const packets = lapData.telemetry;
@@ -829,7 +829,7 @@ export const trackRoutes = new Hono()
   .get("/api/track-outline/:ordinal",
     zValidator("param", OrdinalParamSchema),
     zValidator("query", GameIdQuerySchema),
-    (c) => {
+    async (c) => {
       const { ordinal } = c.req.valid("param");
       const gameId = c.req.query("gameId");
       const sharedName = getSharedTrackName(ordinal, gameId);
@@ -845,7 +845,7 @@ export const trackRoutes = new Hono()
 
       // DB-recorded outlines (legacy/ACC)
       if (gameId) {
-        const dbOutline = getDbTrackOutline(ordinal, gameId as GameId);
+        const dbOutline = await getDbTrackOutline(ordinal, gameId as GameId);
         if (dbOutline) return c.json({ points: dbOutline, recorded: true, source: "recorded", startYaw, ...(altitude && { altitude }) });
       }
 
@@ -874,7 +874,7 @@ export const trackRoutes = new Hono()
   .get("/api/track-boundaries/:ordinal",
     zValidator("param", OrdinalParamSchema),
     zValidator("query", GameIdQuerySchema),
-    (c) => {
+    async (c) => {
       const { ordinal } = c.req.valid("param");
       const gameId = c.req.query("gameId");
       const sharedName = getSharedTrackName(ordinal, gameId);
@@ -911,7 +911,7 @@ export const trackRoutes = new Hono()
 
       // If we have a recorded Forza-coords outline AND a bundled TUMFTM outline,
       // compute static alignment so boundaries match without needing live driving.
-      const recordedOutline = getDbTrackOutline(ordinal, requireGameId(c)) ?? (sharedHasRecordedOutline(ordinal, requireGameId(c)) ? getTrackOutlineByOrdinal(ordinal, requireGameId(c)) : null);
+      const recordedOutline = (await getDbTrackOutline(ordinal, requireGameId(c))) ?? (sharedHasRecordedOutline(ordinal, requireGameId(c)) ? getTrackOutlineByOrdinal(ordinal, requireGameId(c)) : null);
       const bundledOutline = getBundledOutlineByOrdinal(ordinal);
       if (recordedOutline && bundledOutline) {
         computeStaticAlignment(ordinal, bundledOutline, recordedOutline);
@@ -1019,19 +1019,19 @@ export const trackRoutes = new Hono()
   // POST /api/track-curbs/:ordinal/extract — extract curbs from all stored laps and recalibrate boundaries
   .post("/api/track-curbs/:ordinal/extract",
     zValidator("param", OrdinalParamSchema),
-    (c) => {
+    async (c) => {
       const { ordinal } = c.req.valid("param");
 
       // Find all laps for this track
       const curbGameId = c.req.query("gameId") as GameId | undefined;
-      const trackLaps = getLaps(undefined, curbGameId).filter(l => l.trackOrdinal === ordinal && l.lapTime > 0);
+      const trackLaps = (await getLaps(undefined, curbGameId)).filter(l => l.trackOrdinal === ordinal && l.lapTime > 0);
       if (trackLaps.length === 0) return c.json({ error: "No laps found for this track" }, 404);
 
       let totalSegments = 0;
       let lapsWithCurbs = 0;
 
       for (const lap of trackLaps) {
-        const lapData = getLapById(lap.id);
+        const lapData = await getLapById(lap.id);
         if (!lapData?.telemetry || lapData.telemetry.length < 50) continue;
 
         const segments = extractCurbSegments(lapData.telemetry);
@@ -1046,7 +1046,7 @@ export const trackRoutes = new Hono()
 
       // Trigger boundary recalibration if we have curb data
       const boundaries = getTrackBoundariesByOrdinal(ordinal, requireGameId(c));
-      const recordedOutline = getDbTrackOutline(ordinal, requireGameId(c)) ?? (sharedHasRecordedOutline(ordinal, requireGameId(c)) ? getTrackOutlineByOrdinal(ordinal, requireGameId(c)) : null);
+      const recordedOutline = (await getDbTrackOutline(ordinal, requireGameId(c))) ?? (sharedHasRecordedOutline(ordinal, requireGameId(c)) ? getTrackOutlineByOrdinal(ordinal, requireGameId(c)) : null);
       const bundledOutline = getBundledOutlineByOrdinal(ordinal);
 
       let calibrated = false;

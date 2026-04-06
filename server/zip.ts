@@ -32,8 +32,8 @@ interface Manifest {
  * Build a zip containing lap telemetry blobs + manifest.
  * Telemetry is stored as-is (already gzip'd CSV), so we use STORE (level 0).
  */
-export function exportLapsZip(ids?: number[]): Uint8Array {
-  const rows = getLapsRaw(ids);
+export async function exportLapsZip(ids?: number[]): Promise<Uint8Array> {
+  const rows = await getLapsRaw(ids);
   if (rows.length === 0) throw new Error("No laps to export");
 
   const files: Record<string, Uint8Array> = {};
@@ -88,7 +88,7 @@ export function exportLapsZip(ids?: number[]): Uint8Array {
  * Import laps from a zip file. Creates new sessions as needed.
  * Returns the number of laps imported.
  */
-export function importLapsZip(zipData: Uint8Array): { imported: number; skipped: number } {
+export async function importLapsZip(zipData: Uint8Array): Promise<{ imported: number; skipped: number }> {
   const extracted = unzipSync(zipData);
 
   const manifestBytes = extracted["manifest.json"];
@@ -98,7 +98,7 @@ export function importLapsZip(zipData: Uint8Array): { imported: number; skipped:
   if (manifest.version !== 1) throw new Error(`Unsupported manifest version: ${manifest.version}`);
 
   // Build set of existing laps for dedup
-  const existingLaps = getLaps();
+  const existingLaps = await getLaps();
   const existingKeys = new Set(
     existingLaps.map((l) => `${l.carOrdinal}:${l.trackOrdinal}:${l.gameId}:${l.lapNumber}:${l.lapTime}`)
   );
@@ -125,7 +125,7 @@ export function importLapsZip(zipData: Uint8Array): { imported: number; skipped:
     const sessionKey = `${entry.carOrdinal}:${entry.trackOrdinal}:${entry.gameId}`;
     let sessionId = sessionMap.get(sessionKey);
     if (sessionId === undefined) {
-      sessionId = insertSession(
+      sessionId = await insertSession(
         entry.carOrdinal,
         entry.trackOrdinal,
         entry.gameId as GameId
@@ -136,7 +136,7 @@ export function importLapsZip(zipData: Uint8Array): { imported: number; skipped:
     // The blob is already gzip'd CSV — decompress to get packets, then re-compress
     // (roundtrip ensures compatibility with current storage format)
     const packets = decompressTelemetry(Buffer.from(blobData));
-    insertLapSync(sessionId, entry.lapNumber, entry.lapTime, entry.isValid, packets);
+    await insertLapSync(sessionId, entry.lapNumber, entry.lapTime, entry.isValid, packets);
     existingKeys.add(dedupKey);
     imported++;
   }

@@ -20,7 +20,7 @@ console.log(`Importing from ${zipPath}...`);
 
 try {
   const zipData = new Uint8Array(readFileSync(zipPath));
-  const { imported, skipped } = importLapsZip(zipData);
+  const { imported, skipped } = await importLapsZip(zipData);
   console.log(`Done: ${imported} laps imported, ${skipped} skipped`);
 } catch (e: any) {
   console.error(`Error: ${e.message}`);

@@ -138,13 +138,13 @@ export function decompressTelemetry(blob: Buffer): TelemetryPacket[] {
 /**
  * Insert a new session, returns the created session ID.
  */
-export function insertSession(
+export async function insertSession(
   carOrdinal: number,
   trackOrdinal: number,
   gameId: GameId,
   sessionType?: string
-): number {
-  const result = db
+): Promise<number> {
+  const result = await db
     .insert(sessions)
     .values({ carOrdinal, trackOrdinal, gameId, sessionType })
     .returning({ id: sessions.id })
@@ -155,11 +155,11 @@ export function insertSession(
 /**
  * Update session metadata (e.g. session type discovered after session start).
  */
-export function updateSession(
+export async function updateSession(
   id: number,
   updates: { sessionType?: string }
-): void {
-  db.update(sessions).set(updates).where(eq(sessions.id, id)).run();
+): Promise<void> {
+  await db.update(sessions).set(updates).where(eq(sessions.id, id)).run();
 }
 
 /**
@@ -168,7 +168,7 @@ export function updateSession(
 /**
  * Insert a lap synchronously — used by import and when caller needs the ID immediately.
  */
-export function insertLapSync(
+export async function insertLapSync(
   sessionId: number,
   lapNumber: number,
   lapTime: number,
@@ -177,9 +177,9 @@ export function insertLapSync(
   profileId: number | null = null,
   tuneId: number | null = null,
   invalidReason: string | null = null
-): number {
+): Promise<number> {
   const compressed = compressTelemetry(telemetryPackets);
-  return doInsertLap(sessionId, lapNumber, lapTime, isValid, compressed, telemetryPackets[0], profileId, tuneId, invalidReason);
+  return await doInsertLap(sessionId, lapNumber, lapTime, isValid, compressed, telemetryPackets[0], profileId, tuneId, invalidReason);
 }
 
 /**
@@ -200,16 +200,16 @@ export function insertLap(
   const packets = telemetryPackets.slice();
   const first = packets[0];
   return new Promise((resolve) => {
-    setTimeout(() => {
+    setTimeout(async () => {
       const compressed = compressTelemetry(packets);
-      const id = doInsertLap(sessionId, lapNumber, lapTime, isValid, compressed, first, profileId, tuneId, invalidReason);
+      const id = await doInsertLap(sessionId, lapNumber, lapTime, isValid, compressed, first, profileId, tuneId, invalidReason);
       resolve(id);
     }, 0);
   });
 }
 
 
-function doInsertLap(
+async function doInsertLap(
   sessionId: number,
   lapNumber: number,
   lapTime: number,
@@ -219,10 +219,10 @@ function doInsertLap(
   profileId: number | null,
   tuneId: number | null,
   invalidReason: string | null
-): number {
+): Promise<number> {
   const pi = firstPacket?.CarPerformanceIndex ?? 0;
   const f1 = firstPacket?.f1;
-  const result = db
+  const result = await db
     .insert(laps)
     .values({
       sessionId,
@@ -245,7 +245,7 @@ function doInsertLap(
  * Get all laps with session metadata, newest first.
  * Optionally filter by profileId.
  */
-export function getLaps(profileId?: number | null, gameId?: GameId, limit: number = 200): LapMeta[] {
+export async function getLaps(profileId?: number | null, gameId?: GameId, limit: number = 200): Promise<LapMeta[]> {
   const query = db
     .select({
       id: laps.id,
@@ -278,8 +278,8 @@ export function getLaps(profileId?: number | null, gameId?: GameId, limit: numbe
   }
 
   const rows = conditions.length > 0
-    ? query.where(and(...conditions)).all()
-    : query.all();
+    ? await query.where(and(...conditions)).all()
+    : await query.all();
 
   return rows.map((r) => ({
     ...r,
@@ -298,10 +298,10 @@ const telemetryCache = new Map<number, TelemetryPacket[]>();
 /**
  * Get a single lap by ID with full decompressed telemetry.
  */
-export function getLapById(
+export async function getLapById(
   id: number
-): (LapMeta & { telemetry: TelemetryPacket[] }) | null {
-  const row = db
+): Promise<(LapMeta & { telemetry: TelemetryPacket[] }) | null> {
+  const row = await db
     .select({
       id: laps.id,
       sessionId: laps.sessionId,
@@ -324,6 +324,44 @@ export function getLapById(
 
   if (!row) return null;
 
+  const telemetry = (() => {
+    if (telemetryCache.has(id)) return telemetryCache.get(id)!;
+    const parsed = decompressTelemetry(row.telemetry as Buffer);
+    const gid = row.gameId as GameId;
+    for (const p of parsed) {
+      // Stamp gameId from session if CSV meta didn't have it
+      if (!p.gameId) p.gameId = gid;
+      if (gid === "f1-2025") {
+        // Derive wheel rotation from speed if not recorded (Pirelli 18" radius 0.36m)
+        if (p.WheelRotationSpeedFL === 0 && p.Speed > 0) {
+          const wr = p.Speed / 0.36;
+          p.WheelRotationSpeedFL = wr;
+          p.WheelRotationSpeedFR = wr;
+          p.WheelRotationSpeedRL = wr;
+          p.WheelRotationSpeedRR = wr;
+        }
+        // Estimate slip angles if not recorded
+        if (p.TireSlipAngleFL === 0 && p.Speed > 2) {
+          const sy = Math.sin(-p.Yaw), cy = Math.cos(-p.Yaw);
+          const vLat = p.VelocityX * cy + p.VelocityZ * sy;
+          const vFwd = p.VelocityX * sy - p.VelocityZ * cy;
+          const fwd = Math.abs(vFwd) || 0.1;
+          const wb = 3.6;
+          const yawRate = p.AccelerationX / (p.Speed || 1);
+          const vLatF = vLat + yawRate * wb * 0.55;
+          const vLatR = vLat - yawRate * wb * 0.45;
+          const steerRad = (p.Steer / 127) * 0.35;
+          p.TireSlipAngleFL = Math.atan2(vLatF, fwd) - steerRad;
+          p.TireSlipAngleFR = Math.atan2(vLatF, fwd) - steerRad;
+          p.TireSlipAngleRL = Math.atan2(vLatR, fwd);
+          p.TireSlipAngleRR = Math.atan2(vLatR, fwd);
+        }
+      }
+    }
+    telemetryCache.set(id, parsed);
+    return parsed;
+  })();
+
   return {
     id: row.id,
     sessionId: row.sessionId,
@@ -336,43 +374,7 @@ export function getLapById(
     tuneId: row.tuneId ?? undefined,
     tuneName: row.tuneName ?? undefined,
     gameId: row.gameId as GameId,
-    telemetry: (() => {
-      if (telemetryCache.has(id)) return telemetryCache.get(id)!;
-      const parsed = decompressTelemetry(row.telemetry as Buffer);
-      const gid = row.gameId as GameId;
-      for (const p of parsed) {
-        // Stamp gameId from session if CSV meta didn't have it
-        if (!p.gameId) p.gameId = gid;
-        if (gid === "f1-2025") {
-          // Derive wheel rotation from speed if not recorded (Pirelli 18" radius 0.36m)
-          if (p.WheelRotationSpeedFL === 0 && p.Speed > 0) {
-            const wr = p.Speed / 0.36;
-            p.WheelRotationSpeedFL = wr;
-            p.WheelRotationSpeedFR = wr;
-            p.WheelRotationSpeedRL = wr;
-            p.WheelRotationSpeedRR = wr;
-          }
-          // Estimate slip angles if not recorded
-          if (p.TireSlipAngleFL === 0 && p.Speed > 2) {
-            const sy = Math.sin(-p.Yaw), cy = Math.cos(-p.Yaw);
-            const vLat = p.VelocityX * cy + p.VelocityZ * sy;
-            const vFwd = p.VelocityX * sy - p.VelocityZ * cy;
-            const fwd = Math.abs(vFwd) || 0.1;
-            const wb = 3.6;
-            const yawRate = p.AccelerationX / (p.Speed || 1);
-            const vLatF = vLat + yawRate * wb * 0.55;
-            const vLatR = vLat - yawRate * wb * 0.45;
-            const steerRad = (p.Steer / 127) * 0.35;
-            p.TireSlipAngleFL = Math.atan2(vLatF, fwd) - steerRad;
-            p.TireSlipAngleFR = Math.atan2(vLatF, fwd) - steerRad;
-            p.TireSlipAngleRL = Math.atan2(vLatR, fwd);
-            p.TireSlipAngleRR = Math.atan2(vLatR, fwd);
-          }
-        }
-      }
-      telemetryCache.set(id, parsed);
-      return parsed;
-    })(),
+    telemetry,
   };
 }
 
@@ -380,17 +382,17 @@ export function getLapById(
  * Delete a lap by ID. Returns true if a row was deleted.
  * Automatically deletes the parent session if it has no remaining laps.
  */
-export function deleteLap(id: number): boolean {
+export async function deleteLap(id: number): Promise<boolean> {
   // Get session ID before deleting
-  const lap = db.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.id, id)).get();
-  const result = db.delete(laps).where(eq(laps.id, id)).returning().all();
+  const lap = await db.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.id, id)).get();
+  const result = await db.delete(laps).where(eq(laps.id, id)).returning().all();
   if (result.length > 0) {
     telemetryCache.delete(id);
     // Clean up empty parent session
     if (lap) {
-      const remaining = db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, lap.sessionId)).limit(1).all();
+      const remaining = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, lap.sessionId)).limit(1).all();
       if (remaining.length === 0) {
-        db.delete(sessions).where(eq(sessions.id, lap.sessionId)).run();
+        await db.delete(sessions).where(eq(sessions.id, lap.sessionId)).run();
       }
     }
   }
@@ -400,13 +402,13 @@ export function deleteLap(id: number): boolean {
 /**
  * Delete a session and all its laps. Returns number of laps deleted.
  */
-export function deleteSession(sessionId: number): number {
-  const sessionLaps = db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
+export async function deleteSession(sessionId: number): Promise<number> {
+  const sessionLaps = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
   let count = 0;
   for (const lap of sessionLaps) {
-    if (deleteLap(lap.id)) count++;
+    if (await deleteLap(lap.id)) count++;
   }
-  db.delete(sessions).where(eq(sessions.id, sessionId)).run();
+  await db.delete(sessions).where(eq(sessions.id, sessionId)).run();
   return count;
 }
 
@@ -414,8 +416,8 @@ export function deleteSession(sessionId: number): number {
  * Delete all sessions that have zero laps.
  * Returns the number of sessions deleted.
  */
-export function deleteEmptySessions(): number {
-  const empties = db
+export async function deleteEmptySessions(): Promise<number> {
+  const empties = await db
     .select({ id: sessions.id })
     .from(sessions)
     .leftJoin(laps, eq(laps.sessionId, sessions.id))
@@ -424,14 +426,14 @@ export function deleteEmptySessions(): number {
     .all();
   if (empties.length === 0) return 0;
   const ids = empties.map(r => r.id);
-  db.delete(sessions).where(inArray(sessions.id, ids)).run();
+  await db.delete(sessions).where(inArray(sessions.id, ids)).run();
   return ids.length;
 }
 
 /**
  * Get all sessions with lap counts, newest first.
  */
-export function getSessions(gameId?: GameId): SessionMeta[] {
+export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
   let query = db
     .select({
       id: sessions.id,
@@ -445,34 +447,36 @@ export function getSessions(gameId?: GameId): SessionMeta[] {
     .orderBy(desc(sessions.id));
 
   const rows = gameId
-    ? query.where(eq(sessions.gameId, gameId)).all()
-    : query.all();
+    ? await query.where(eq(sessions.gameId, gameId)).all()
+    : await query.all();
 
   // Get lap counts and best lap per session
-  return rows.map((session) => {
-    const lapRows = db
+  const result: SessionMeta[] = [];
+  for (const session of rows) {
+    const lapRows = await db
       .select({ id: laps.id, lapTime: laps.lapTime, isValid: laps.isValid })
       .from(laps)
       .where(eq(laps.sessionId, session.id))
       .all();
     const validLaps = lapRows.filter((l) => l.isValid && l.lapTime > 0);
     const bestLapTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : undefined;
-    return {
+    result.push({
       ...session,
       lapCount: lapRows.length,
       bestLapTime,
       sessionType: session.sessionType ?? undefined,
       gameId: session.gameId as GameId,
-    };
-  });
+    });
+  }
+  return result;
 }
 
 /**
  * Get stored corner definitions for a track.
  * Returns empty array if none stored.
  */
-export function getCorners(trackOrdinal: number, gameId: GameId): Corner[] {
-  const rows = db
+export async function getCorners(trackOrdinal: number, gameId: GameId): Promise<Corner[]> {
+  const rows = await db
     .select({
       cornerIndex: trackCorners.cornerIndex,
       label: trackCorners.label,
@@ -496,20 +500,20 @@ export function getCorners(trackOrdinal: number, gameId: GameId): Corner[] {
  * Save/update corner definitions for a track.
  * Replaces all existing corners for that track.
  */
-export function saveCorners(
+export async function saveCorners(
   trackOrdinal: number,
   corners: Corner[],
   gameId: GameId,
   isAuto: boolean = false
-): void {
+): Promise<void> {
   // Delete existing corners for this track
-  db.delete(trackCorners)
+  await db.delete(trackCorners)
     .where(and(eq(trackCorners.trackOrdinal, trackOrdinal), eq(trackCorners.gameId, gameId)))
     .run();
 
   // Insert new corners
   if (corners.length > 0) {
-    db.insert(trackCorners)
+    await db.insert(trackCorners)
       .values(
         corners.map((c) => ({
           trackOrdinal,
@@ -529,8 +533,8 @@ export function saveCorners(
  * Find the first lap for a given track (to use for auto-detection).
  * Returns the lap ID or null if no laps exist for this track.
  */
-export function getFirstLapIdForTrack(trackOrdinal: number): number | null {
-  const row = db
+export async function getFirstLapIdForTrack(trackOrdinal: number): Promise<number | null> {
+  const row = await db
     .select({ id: laps.id })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -546,11 +550,11 @@ export function getFirstLapIdForTrack(trackOrdinal: number): number | null {
  * Get stored track outline for a track ordinal.
  * Returns array of {x, z, speed} or null if not stored.
  */
-export function getTrackOutline(
+export async function getTrackOutline(
   trackOrdinal: number,
   gameId: GameId
-): { x: number; z: number; speed: number }[] | null {
-  const row = db
+): Promise<{ x: number; z: number; speed: number }[] | null> {
+  const row = await db
     .select({ outline: trackOutlines.outline })
     .from(trackOutlines)
     .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
@@ -567,12 +571,12 @@ export function getTrackOutline(
  * Compresses and stores. Replaces any existing outline.
  * Optionally stores auto-computed sectors.
  */
-export function saveTrackOutline(
+export async function saveTrackOutline(
   trackOrdinal: number,
   points: { x: number; z: number; speed?: number }[],
   gameId: GameId,
   sectors?: { s1End: number; s2End: number }
-): void {
+): Promise<void> {
   if (points.length < 10) return;
 
   const compressed = Buffer.from(
@@ -582,19 +586,19 @@ export function saveTrackOutline(
   const sectorsJson = sectors ? JSON.stringify(sectors) : null;
 
   // Upsert
-  const existing = db
+  const existing = await db
     .select({ id: trackOutlines.id })
     .from(trackOutlines)
     .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
     .get();
 
   if (existing) {
-    db.update(trackOutlines)
+    await db.update(trackOutlines)
       .set({ outline: compressed, sectors: sectorsJson })
       .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
       .run();
   } else {
-    db.insert(trackOutlines)
+    await db.insert(trackOutlines)
       .values({ trackOrdinal, outline: compressed, sectors: sectorsJson, gameId })
       .run();
   }
@@ -608,11 +612,11 @@ export function saveTrackOutline(
  * Save a track outline from raw telemetry packets (legacy API).
  * Extracts position + speed, downsamples, and stores.
  */
-export function saveTrackOutlineFromPackets(
+export async function saveTrackOutlineFromPackets(
   trackOrdinal: number,
   packets: TelemetryPacket[],
   gameId: GameId
-): void {
+): Promise<void> {
   const points: { x: number; z: number; speed: number }[] = [];
   for (let i = 0; i < packets.length; i++) {
     const p = packets[i];
@@ -623,18 +627,18 @@ export function saveTrackOutlineFromPackets(
       speed: (p.Speed ?? 0) * 2.23694,
     });
   }
-  saveTrackOutline(trackOrdinal, points, gameId);
+  await saveTrackOutline(trackOrdinal, points, gameId);
 }
 
 /**
  * Get stored sectors for a track ordinal from the track_outlines table.
  * Returns {s1End, s2End} or null if not stored.
  */
-export function getTrackOutlineSectors(
+export async function getTrackOutlineSectors(
   trackOrdinal: number,
   gameId: GameId
-): { s1End: number; s2End: number } | null {
-  const row = db
+): Promise<{ s1End: number; s2End: number } | null> {
+  const row = await db
     .select({ sectors: trackOutlines.sectors })
     .from(trackOutlines)
     .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
@@ -652,12 +656,12 @@ export function getTrackOutlineSectors(
  * Update just the sector boundaries (s1End, s2End) for a track outline.
  * Returns true if a row was updated.
  */
-export function updateTrackOutlineSectors(
+export async function updateTrackOutlineSectors(
   trackOrdinal: number,
   sectors: { s1End: number; s2End: number },
   gameId: GameId
-): boolean {
-  const existing = db
+): Promise<boolean> {
+  const existing = await db
     .select({ id: trackOutlines.id })
     .from(trackOutlines)
     .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
@@ -665,7 +669,7 @@ export function updateTrackOutlineSectors(
 
   if (!existing) return false;
 
-  db.update(trackOutlines)
+  await db.update(trackOutlines)
     .set({ sectors: JSON.stringify(sectors) })
     .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
     .run();
@@ -676,8 +680,8 @@ export function updateTrackOutlineSectors(
 /**
  * Check if a recorded (DB) outline exists for a track ordinal.
  */
-export function hasRecordedOutline(trackOrdinal: number, gameId: GameId): boolean {
-  const row = db
+export async function hasRecordedOutline(trackOrdinal: number, gameId: GameId): Promise<boolean> {
+  const row = await db
     .select({ id: trackOutlines.id })
     .from(trackOutlines)
     .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
@@ -689,11 +693,11 @@ export function hasRecordedOutline(trackOrdinal: number, gameId: GameId): boolea
  * Get track outline metadata (createdAt timestamp) for a track ordinal.
  * Returns {createdAt} or null if no outline exists.
  */
-export function getTrackOutlineMetadata(
+export async function getTrackOutlineMetadata(
   trackOrdinal: number,
   gameId: GameId
-): { createdAt: string } | null {
-  const row = db
+): Promise<{ createdAt: string } | null> {
+  const row = await db
     .select({ createdAt: trackOutlines.createdAt })
     .from(trackOutlines)
     .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
@@ -714,8 +718,8 @@ export interface AnalysisRow {
 /**
  * Get cached AI analysis for a lap. Returns analysis + usage stats or null.
  */
-export function getAnalysis(lapId: number): AnalysisRow | null {
-  const row = db
+export async function getAnalysis(lapId: number): Promise<AnalysisRow | null> {
+  const row = await db
     .select({
       analysis: lapAnalyses.analysis,
       inputTokens: lapAnalyses.inputTokens,
@@ -741,8 +745,8 @@ export interface AnalysisUsage {
 /**
  * Save or replace AI analysis for a lap.
  */
-export function saveAnalysis(lapId: number, analysis: string, usage: AnalysisUsage): void {
-  const existing = db
+export async function saveAnalysis(lapId: number, analysis: string, usage: AnalysisUsage): Promise<void> {
+  const existing = await db
     .select({ id: lapAnalyses.id })
     .from(lapAnalyses)
     .where(eq(lapAnalyses.lapId, lapId))
@@ -759,12 +763,12 @@ export function saveAnalysis(lapId: number, analysis: string, usage: AnalysisUsa
   };
 
   if (existing) {
-    db.update(lapAnalyses)
+    await db.update(lapAnalyses)
       .set(values)
       .where(eq(lapAnalyses.lapId, lapId))
       .run();
   } else {
-    db.insert(lapAnalyses)
+    await db.insert(lapAnalyses)
       .values({ lapId, ...values })
       .run();
   }
@@ -773,38 +777,38 @@ export function saveAnalysis(lapId: number, analysis: string, usage: AnalysisUsa
 /**
  * Get all profiles ordered by creation time.
  */
-export function getProfiles() {
-  return db.select().from(profiles).orderBy(profiles.createdAt).all();
+export async function getProfiles() {
+  return await db.select().from(profiles).orderBy(profiles.createdAt).all();
 }
 
 /**
  * Insert a new profile, returns the created profile ID.
  */
-export function insertProfile(name: string): number {
-  const result = db.insert(profiles).values({ name }).returning({ id: profiles.id }).get();
+export async function insertProfile(name: string): Promise<number> {
+  const result = await db.insert(profiles).values({ name }).returning({ id: profiles.id }).get();
   return result.id;
 }
 
 /**
  * Update a profile name by ID. Returns true if a row was updated.
  */
-export function updateProfile(id: number, name: string): boolean {
-  const result = db.update(profiles).set({ name }).where(eq(profiles.id, id)).returning().all();
+export async function updateProfile(id: number, name: string): Promise<boolean> {
+  const result = await db.update(profiles).set({ name }).where(eq(profiles.id, id)).returning().all();
   return result.length > 0;
 }
 
 /**
  * Delete a profile by ID. Returns true if a row was deleted.
  */
-export function deleteProfile(id: number): boolean {
-  const result = db.delete(profiles).where(eq(profiles.id, id)).returning().all();
+export async function deleteProfile(id: number): Promise<boolean> {
+  const result = await db.delete(profiles).where(eq(profiles.id, id)).returning().all();
   return result.length > 0;
 }
 
 /**
  * Get raw lap data (with compressed telemetry blob) for zip export.
  */
-export function getLapsRaw(ids?: number[]) {
+export async function getLapsRaw(ids?: number[]) {
   const base = db
     .select({
       id: laps.id,
@@ -823,8 +827,8 @@ export function getLapsRaw(ids?: number[]) {
     .innerJoin(sessions, eq(laps.sessionId, sessions.id));
 
   if (ids && ids.length > 0) {
-    return base.where(or(...ids.map((id) => eq(laps.id, id))) as any).all();
+    return await base.where(or(...ids.map((id) => eq(laps.id, id))) as any).all();
   }
 
-  return base.all();
+  return await base.all();
 }

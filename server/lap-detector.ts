@@ -41,7 +41,7 @@ export interface LapTireWearData {
 }
 
 class LapDetector {
-  onSessionStart?: (session: SessionState) => void;
+  onSessionStart?: (session: SessionState) => void | Promise<void>;
 
   private currentSession: SessionState | null = null;
   private currentLapNumber: number = -1; // -1 = no lap yet (awaiting first packet)
@@ -77,7 +77,7 @@ class LapDetector {
    * Feed a parsed telemetry packet into the detector.
    * Handles session creation, lap boundary detection, and rewind detection.
    */
-  feed(packet: TelemetryPacket): void {
+  async feed(packet: TelemetryPacket): Promise<void> {
     const now = Date.now();
 
     // Track packet rate to distinguish active driving from post-race trickle
@@ -98,8 +98,8 @@ class LapDetector {
     // Check for new session conditions
     if (this.shouldStartNewSession(packet, now)) {
       // If we have a lap in progress, save it before starting new session
-      this.finalizeLapIfNeeded(packet);
-      this.startNewSession(packet);
+      await this.finalizeLapIfNeeded(packet);
+      await this.startNewSession(packet);
     }
 
     // Race restart / final lap detection: CurrentLap resets to 0 mid-lap,
@@ -126,7 +126,7 @@ class LapDetector {
           console.log(
             `[Lap] Final lap completed: LastLap changed ${this.lastLastLap.toFixed(3)} -> ${packet.LastLap.toFixed(3)}`
           );
-          this.onLapComplete(packet);
+          await this.onLapComplete(packet);
         } else {
           console.log(
             `[Lap] Race restart detected: ${lapTimeReset ? `CurrentLap ${lastPkt.CurrentLap.toFixed(1)}s -> ${packet.CurrentLap.toFixed(1)}s` : ""}${lapTimeReset && distanceDrop ? ", " : ""}${distanceDrop ? `Distance ${lastPkt.DistanceTraveled.toFixed(0)} -> ${packet.DistanceTraveled.toFixed(0)}` : ""}. Discarding buffer.`
@@ -166,10 +166,10 @@ class LapDetector {
         );
         this.lapIsValid = false;
         this.invalidReason = "lap skip";
-        this.onLapComplete(packet);
+        await this.onLapComplete(packet);
       } else {
         // Normal lap increment (+1)
-        this.onLapComplete(packet);
+        await this.onLapComplete(packet);
       }
     }
 
@@ -259,13 +259,13 @@ class LapDetector {
     return false;
   }
 
-  private startNewSession(packet: TelemetryPacket): void {
+  private async startNewSession(packet: TelemetryPacket): Promise<void> {
     const trackOrd = packet.TrackOrdinal ?? 0;
     const gameId = packet.gameId;
     const sessionType = packet.f1?.sessionType;
     let sessionId: number;
     try {
-      sessionId = insertSession(packet.CarOrdinal, trackOrd, gameId, sessionType);
+      sessionId = await insertSession(packet.CarOrdinal, trackOrd, gameId, sessionType);
     } catch (err) {
       console.error(`[LapDetector] Failed to insert session:`, (err as Error).message);
       return;
@@ -291,7 +291,7 @@ class LapDetector {
     this.onSessionStart?.(this.currentSession!);
   }
 
-  private onLapComplete(newLapFirstPacket: TelemetryPacket): void {
+  private async onLapComplete(newLapFirstPacket: TelemetryPacket): Promise<void> {
     if (!this.currentSession || this.lapBuffer.length === 0) {
       this.resetLapState(newLapFirstPacket);
       return;
@@ -343,7 +343,7 @@ class LapDetector {
 
     {
       const { activeProfileId } = loadSettings();
-      const tuneAssignment = getTuneAssignment(
+      const tuneAssignment = await getTuneAssignment(
         this.currentSession.carOrdinal,
         this.currentSession.trackOrdinal
       );
@@ -382,7 +382,7 @@ class LapDetector {
   }
 
   /** Best-effort save of an incomplete lap when the session ends mid-lap. */
-  private finalizeLapIfNeeded(_nextPacket: TelemetryPacket): void {
+  private async finalizeLapIfNeeded(_nextPacket: TelemetryPacket): Promise<void> {
     // Try to save current in-progress lap when session changes
     if (
       this.currentSession &&
@@ -394,7 +394,7 @@ class LapDetector {
       const lapTime = lastPacket.CurrentLap;
       if (lapTime >= 10) {
           const { activeProfileId } = loadSettings();
-          const tuneAssignment = getTuneAssignment(
+          const tuneAssignment = await getTuneAssignment(
             this.currentSession.carOrdinal,
             this.currentSession.trackOrdinal
           );
@@ -421,7 +421,7 @@ class LapDetector {
    * Called periodically from a timer — saves the buffered lap if no packets
    * have been received for >10 seconds and there's meaningful data.
    */
-  flushStaleLap(): void {
+  async flushStaleLap(): Promise<void> {
     if (
       !this.currentSession ||
       this.lapBuffer.length < 30 ||
@@ -444,7 +444,7 @@ class LapDetector {
 
     {
       const { activeProfileId } = loadSettings();
-      const tuneAssignment = getTuneAssignment(
+      const tuneAssignment = await getTuneAssignment(
         this.currentSession.carOrdinal,
         this.currentSession.trackOrdinal
       );

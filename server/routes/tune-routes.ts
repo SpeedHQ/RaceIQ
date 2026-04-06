@@ -149,9 +149,9 @@ export const tuneRoutes = new Hono()
   // GET /api/tunes — list user tunes, optional ?carOrdinal= filter
   .get("/api/tunes",
     zValidator("query", CarOrdinalQuerySchema),
-    (c) => {
+    async (c) => {
       const { carOrdinal } = c.req.valid("query");
-      const rows = getTunes(carOrdinal);
+      const rows = await getTunes(carOrdinal);
       return c.json(rows.map(parseTuneRow));
     }
   )
@@ -159,9 +159,9 @@ export const tuneRoutes = new Hono()
   // GET /api/tunes/:id — get single tune
   .get("/api/tunes/:id",
     zValidator("param", IdParamSchema),
-    (c) => {
+    async (c) => {
       const { id } = c.req.valid("param");
-      const row = getTuneById(id);
+      const row = await getTuneById(id);
       if (!row) return c.json({ error: "Tune not found" }, 404);
       return c.json(parseTuneRow(row));
     }
@@ -170,12 +170,12 @@ export const tuneRoutes = new Hono()
   // POST /api/tunes — create tune
   .post("/api/tunes",
     zValidator("json", CreateTuneSchema),
-    (c) => {
+    async (c) => {
       const body = c.req.valid("json");
       if (!validateTuneSettings(body.settings)) {
         return c.json({ error: "Invalid settings structure" }, 400);
       }
-      const id = insertTune({
+      const id = await insertTune({
         name: body.name,
         author: body.author,
         carOrdinal: body.carOrdinal,
@@ -191,7 +191,7 @@ export const tuneRoutes = new Hono()
         source: body.source,
         catalogId: body.catalogId,
       });
-      const created = getTuneById(id);
+      const created = await getTuneById(id);
       return c.json(parseTuneRow(created), 201);
     }
   )
@@ -218,9 +218,9 @@ export const tuneRoutes = new Hono()
       if (body.strategies !== undefined) data.strategies = JSON.stringify(body.strategies);
       if (body.settings !== undefined) data.settings = JSON.stringify(body.settings);
       if (body.unitSystem !== undefined) data.unitSystem = body.unitSystem;
-      const updated = updateTune(id, data);
+      const updated = await updateTune(id, data);
       if (!updated) return c.json({ error: "Tune not found" }, 404);
-      const row = getTuneById(id);
+      const row = await getTuneById(id);
       return c.json(parseTuneRow(row));
     }
   )
@@ -228,9 +228,9 @@ export const tuneRoutes = new Hono()
   // DELETE /api/tunes/:id — delete tune
   .delete("/api/tunes/:id",
     zValidator("param", IdParamSchema),
-    (c) => {
+    async (c) => {
       const { id } = c.req.valid("param");
-      const deleted = deleteTune(id);
+      const deleted = await deleteTune(id);
       if (!deleted) return c.json({ error: "Tune not found" }, 404);
       return c.json({ success: true });
     }
@@ -239,12 +239,12 @@ export const tuneRoutes = new Hono()
   // POST /api/tunes/import — same as POST /api/tunes
   .post("/api/tunes/import",
     zValidator("json", CreateTuneSchema),
-    (c) => {
+    async (c) => {
       const body = c.req.valid("json");
       if (!validateTuneSettings(body.settings)) {
         return c.json({ error: "Invalid settings structure" }, 400);
       }
-      const id = insertTune({
+      const id = await insertTune({
         name: body.name,
         author: body.author,
         carOrdinal: body.carOrdinal,
@@ -260,18 +260,18 @@ export const tuneRoutes = new Hono()
         source: body.source,
         catalogId: body.catalogId,
       });
-      const created = getTuneById(id);
+      const created = await getTuneById(id);
       return c.json(parseTuneRow(created), 201);
     }
   )
 
   // POST /api/tunes/clone/:catalogId — clone a catalog tune into DB
-  .post("/api/tunes/clone/:catalogId", (c) => {
+  .post("/api/tunes/clone/:catalogId", async (c) => {
     const catalogId = c.req.param("catalogId");
     const catalogTune = getCatalogTuneById(catalogId);
     if (!catalogTune) return c.json({ error: "Catalog tune not found" }, 404);
 
-    const id = insertTune({
+    const id = await insertTune({
       name: `${catalogTune.name} (copy)`,
       author: catalogTune.author,
       carOrdinal: catalogTune.carOrdinal,
@@ -288,7 +288,7 @@ export const tuneRoutes = new Hono()
       catalogId: catalogTune.id,
     });
 
-    const created = getTuneById(id);
+    const created = await getTuneById(id);
     return c.json(parseTuneRow(created), 201);
   })
 
@@ -311,18 +311,18 @@ export const tuneRoutes = new Hono()
   // GET /api/tune-assignments — list all, optional ?carOrdinal= filter
   .get("/api/tune-assignments",
     zValidator("query", CarOrdinalQuerySchema),
-    (c) => {
+    async (c) => {
       const { carOrdinal } = c.req.valid("query");
-      return c.json(getTuneAssignments(carOrdinal));
+      return c.json(await getTuneAssignments(carOrdinal));
     }
   )
 
   // GET /api/tune-assignments/:carOrdinal/:trackOrdinal — get specific assignment
   .get("/api/tune-assignments/:carOrdinal/:trackOrdinal",
     zValidator("param", AssignmentParamsSchema),
-    (c) => {
+    async (c) => {
       const { carOrdinal, trackOrdinal } = c.req.valid("param");
-      const assignment = getTuneAssignment(carOrdinal, trackOrdinal);
+      const assignment = await getTuneAssignment(carOrdinal, trackOrdinal);
       if (!assignment) return c.json({ error: "Assignment not found" }, 404);
       return c.json(assignment);
     }
@@ -331,10 +331,10 @@ export const tuneRoutes = new Hono()
   // PUT /api/tune-assignments — set/update assignment
   .put("/api/tune-assignments",
     zValidator("json", SetAssignmentSchema),
-    (c) => {
+    async (c) => {
       const { carOrdinal, trackOrdinal, tuneId } = c.req.valid("json");
-      setTuneAssignment(carOrdinal, trackOrdinal, tuneId);
-      const assignment = getTuneAssignment(carOrdinal, trackOrdinal);
+      await setTuneAssignment(carOrdinal, trackOrdinal, tuneId);
+      const assignment = await getTuneAssignment(carOrdinal, trackOrdinal);
       return c.json(assignment);
     }
   )
@@ -342,9 +342,9 @@ export const tuneRoutes = new Hono()
   // DELETE /api/tune-assignments/:carOrdinal/:trackOrdinal — remove assignment
   .delete("/api/tune-assignments/:carOrdinal/:trackOrdinal",
     zValidator("param", AssignmentParamsSchema),
-    (c) => {
+    async (c) => {
       const { carOrdinal, trackOrdinal } = c.req.valid("param");
-      const deleted = deleteTuneAssignment(carOrdinal, trackOrdinal);
+      const deleted = await deleteTuneAssignment(carOrdinal, trackOrdinal);
       if (!deleted) return c.json({ error: "Assignment not found" }, 404);
       return c.json({ success: true });
     }
@@ -356,10 +356,10 @@ export const tuneRoutes = new Hono()
   .patch("/api/laps/:id/tune",
     zValidator("param", IdParamSchema),
     zValidator("json", LapTuneSchema),
-    (c) => {
+    async (c) => {
       const { id } = c.req.valid("param");
       const { tuneId } = c.req.valid("json");
-      const updated = updateLapTune(id, tuneId);
+      const updated = await updateLapTune(id, tuneId);
       if (!updated) return c.json({ error: "Lap not found" }, 404);
       return c.json({ success: true });
     }

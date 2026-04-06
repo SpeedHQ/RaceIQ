@@ -1,5 +1,5 @@
-import { Database } from "bun:sqlite";
-import { drizzle } from "drizzle-orm/bun-sqlite";
+import { createClient, type Client } from "@libsql/client/sqlite3";
+import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 import { migrations } from "./migrations";
 import { mkdirSync, existsSync } from "fs";
@@ -13,16 +13,16 @@ if (!existsSync(DB_DIR)) {
   mkdirSync(DB_DIR, { recursive: true });
 }
 
-const sqlite = new Database(DB_PATH);
+const client: Client = createClient({ url: `file:${DB_PATH}` });
 
 // Enable WAL mode for better concurrent read/write performance
-sqlite.exec("PRAGMA journal_mode = WAL");
-sqlite.exec("PRAGMA foreign_keys = ON");
+await client.execute("PRAGMA journal_mode = WAL");
+await client.execute("PRAGMA foreign_keys = ON");
 // Wait up to 5s when another process holds the write lock (e.g. during hot-reload)
-sqlite.exec("PRAGMA busy_timeout = 5000");
+await client.execute("PRAGMA busy_timeout = 5000");
 
 // ── Migration system ────────────────────────────────────────────────
-sqlite.exec(`
+await client.execute(`
   CREATE TABLE IF NOT EXISTS schema_migrations (
     version    INTEGER PRIMARY KEY,
     name       TEXT NOT NULL,
@@ -30,10 +30,9 @@ sqlite.exec(`
   )
 `);
 
-function runMigrations() {
-  const applied = new Set(
-    (sqlite.query("SELECT version FROM schema_migrations").all() as { version: number }[]).map((r) => r.version)
-  );
+async function runMigrations() {
+  const appliedRows = await client.execute("SELECT version FROM schema_migrations");
+  const applied = new Set(appliedRows.rows.map((r) => Number(r.version)));
   const pending = migrations.filter((m) => !applied.has(m.version)).sort((a, b) => a.version - b.version);
 
   if (pending.length === 0) return;
@@ -42,15 +41,18 @@ function runMigrations() {
 
   for (const migration of pending) {
     console.log(`[DB]   v${migration.version}: ${migration.name}`);
-    sqlite.exec("BEGIN");
+    await client.execute("BEGIN");
     try {
       for (const sql of migration.sql) {
-        sqlite.exec(sql);
+        await client.execute(sql);
       }
-      sqlite.prepare("INSERT INTO schema_migrations (version, name) VALUES (?, ?)").run(migration.version, migration.name);
-      sqlite.exec("COMMIT");
+      await client.execute({
+        sql: "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
+        args: [migration.version, migration.name],
+      });
+      await client.execute("COMMIT");
     } catch (err) {
-      sqlite.exec("ROLLBACK");
+      await client.execute("ROLLBACK");
       throw err;
     }
   }
@@ -58,19 +60,15 @@ function runMigrations() {
   console.log(`[DB] Migrations complete.`);
 }
 
-runMigrations();
+await runMigrations();
 
 // Seed default profile if none exist
-const profileCount = sqlite.query("SELECT COUNT(*) as c FROM profiles").get() as { c: number };
-if (profileCount.c === 0) {
-  sqlite.exec("INSERT INTO profiles (name) VALUES ('Driver 1')");
+const profileCount = await client.execute("SELECT COUNT(*) as c FROM profiles");
+if (Number(profileCount.rows[0].c) === 0) {
+  await client.execute("INSERT INTO profiles (name) VALUES ('Driver 1')");
 }
 // Backfill any laps that have no profile assigned
-sqlite.exec("UPDATE laps SET profile_id = (SELECT id FROM profiles ORDER BY id LIMIT 1) WHERE profile_id IS NULL");
+await client.execute("UPDATE laps SET profile_id = (SELECT id FROM profiles ORDER BY id LIMIT 1) WHERE profile_id IS NULL");
 
-export const db = drizzle(sqlite, { schema });
-export { sqlite };
-
-
-
-
+export const db = drizzle(client, { schema });
+export { client };

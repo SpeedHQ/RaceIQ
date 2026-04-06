@@ -293,7 +293,7 @@ export class AccSharedMemoryReader {
     }
   }
 
-  private _poll(): void {
+  private async _poll(): Promise<void> {
     if (!this._physics || !this._graphics || !this._static) return;
 
     try {
@@ -342,7 +342,7 @@ export class AccSharedMemoryReader {
         trackOrdinal: this._trackOrdinal,
       });
       if (packet) {
-        processPacket(packet);
+        await processPacket(packet);
       }
     } catch (err) {
       console.error("[ACC] Error reading shared memory:", err);
