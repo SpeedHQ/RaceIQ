@@ -98,13 +98,41 @@ export async function applyUpdate(): Promise<void> {
   const downloadUrl = state.downloadUrl;
   const installerPath = join(tmpdir(), `RaceIQ-Setup-v${version}.exe`);
 
-  // Download the installer
+  // Download the installer with progress
   console.log(`[Update] Downloading installer v${version} from ${downloadUrl}`);
+  wsManager.broadcastNotification({ type: "update-progress", stage: "downloading", percent: 0 });
+
   const res = await fetch(downloadUrl);
   if (!res.ok) throw new Error(`Download failed: ${res.status}`);
-  const buffer = await res.arrayBuffer();
-  writeFileSync(installerPath, Buffer.from(buffer));
+
+  const contentLength = Number(res.headers.get("content-length") || 0);
+  const body = res.body;
+
+  if (!body || !contentLength) {
+    // Fallback: no streaming support, download all at once
+    const buffer = await res.arrayBuffer();
+    writeFileSync(installerPath, Buffer.from(buffer));
+  } else {
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    let lastBroadcast = 0;
+
+    for await (const chunk of body) {
+      chunks.push(chunk);
+      received += chunk.length;
+      const percent = Math.round((received / contentLength) * 100);
+      if (percent >= lastBroadcast + 5 || percent === 100) {
+        lastBroadcast = percent;
+        wsManager.broadcastNotification({ type: "update-progress", stage: "downloading", percent });
+      }
+    }
+
+    const buffer = Buffer.concat(chunks);
+    writeFileSync(installerPath, buffer);
+  }
+
   console.log(`[Update] Downloaded to ${installerPath}`);
+  wsManager.broadcastNotification({ type: "update-progress", stage: "installing", percent: 100 });
 
   // Run the installer silently — Inno Setup handles:
   // - Killing the running process (PrepareToInstall in .iss)

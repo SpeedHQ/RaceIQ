@@ -6,6 +6,7 @@ import { useTelemetryStore } from "../stores/telemetry";
 import { ThemeProvider } from "../context/theme";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { Settings } from "../components/Settings";
+import { UpdateModal } from "../components/UpdateModal";
 import { isOnboardingComplete } from "../components/Onboarding";
 import { ProfileSwitcher } from "../components/ProfileSwitcher";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,7 @@ function RootLayout() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [settingsSection, setSettingsSection] = useState<"updates" | "about" | undefined>(undefined);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -137,9 +139,9 @@ function RootLayout() {
             </div>
 
             <div className="flex items-center gap-2 mr-2">
-              {updateState?.updateAvailable && !showSettings && (
+              {updateState?.updateAvailable && (
                 <button
-                  onClick={() => { setSettingsSection("updates"); setShowSettings(true); }}
+                  onClick={() => setShowUpdateModal(true)}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-400/15 text-yellow-400 border border-yellow-400/30 hover:bg-yellow-400/25 transition-colors"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
@@ -178,6 +180,10 @@ function RootLayout() {
                 </div>
               </div>
             </div>
+          )}
+
+          {showUpdateModal && updateState?.latest && (
+            <UpdateModal version={updateState.latest} onClose={() => setShowUpdateModal(false)} />
           )}
 
           <div className={`min-h-0 overflow-y-auto ${location.pathname === "/onboarding" ? "h-full" : ""}`}>

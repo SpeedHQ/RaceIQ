@@ -33,6 +33,8 @@ export function useWebSocket() {
             useTelemetryStore.getState().setServerStatus(status);
           } else if (data.type === "update-available") {
             useTelemetryStore.getState().setUpdateAvailable(data.version as string);
+          } else if (data.type === "update-progress") {
+            useTelemetryStore.getState().setUpdateProgress({ stage: data.stage, percent: data.percent ?? 0 });
           } else {
             const { _sectors, _pit, ...packet } = data;
             const s = useTelemetryStore.getState();
@@ -50,6 +52,10 @@ export function useWebSocket() {
         const s = useTelemetryStore.getState();
         s.setConnected(false);
         s.setServerStatus(null);
+        // If we were installing an update, transition to reconnecting stage
+        if (s.updateProgress?.stage === "installing") {
+          s.setUpdateProgress({ stage: "reconnecting", percent: 100 });
+        }
         wsRef.current = null;
         reconnectTimeoutRef.current = setTimeout(connect, 1000);
       };

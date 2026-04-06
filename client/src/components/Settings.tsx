@@ -222,41 +222,47 @@ function AiSection() {
 
 function UpdatesSection() {
   const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
+  const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const [checking, setChecking] = useState(false);
-  const [applying, setApplying] = useState(false);
-  const [checkResult, setCheckResult] = useState<{
+  const [versionInfo, setVersionInfo] = useState<{
     current: string;
     latest: string | null;
     updateAvailable: boolean;
     checked: boolean;
   } | null>(null);
 
+  // Fetch version info on mount
+  useEffect(() => {
+    client.api.version.$get()
+      .then((r) => r.json())
+      .then(setVersionInfo)
+      .catch(() => {});
+  }, []);
+
   const handleCheck = async () => {
     setChecking(true);
-    setCheckResult(null);
     try {
       const res = await client.api.update.check.$post();
-      setCheckResult(await res.json() as any);
-    } catch {
-      setCheckResult(null);
-    } finally {
+      setVersionInfo(await res.json() as any);
+    } catch {} finally {
       setChecking(false);
     }
   };
 
   const handleInstall = async () => {
-    setApplying(true);
+    useTelemetryStore.getState().setUpdateProgress({ stage: "downloading", percent: 0 });
     try {
       await client.api.update.apply.$post();
     } catch {
-      setApplying(false);
+      useTelemetryStore.getState().setUpdateProgress(null);
     }
-    // If apply succeeds, the server exits — app will reconnect after restart
   };
 
-  const showUpdate = checkResult?.updateAvailable || !!updateAvailable;
-  const latestVersion = checkResult?.latest ?? updateAvailable;
-  const currentVersion = checkResult?.current;
+  const showUpdate = versionInfo?.updateAvailable || !!updateAvailable;
+  const latestVersion = versionInfo?.latest ?? updateAvailable;
+  const currentVersion = versionInfo?.current;
+  const stage = updateProgress?.stage ?? null;
+  const percent = updateProgress?.percent ?? 0;
 
   return (
     <section>
@@ -267,40 +273,53 @@ function UpdatesSection() {
         </p>
       )}
 
-      {showUpdate && latestVersion && (
+      {/* Update progress */}
+      {stage && (
         <div className="rounded-lg border border-app-accent/30 bg-app-accent/5 p-4 space-y-3 mb-4">
-          <p className="text-sm font-medium text-app-accent">
-            Update available: v{latestVersion}
-          </p>
-          <div className="flex gap-3">
-            <Button
-              onClick={handleInstall}
-              disabled={applying}
-              className="bg-app-accent text-black hover:bg-app-accent/90"
-            >
-              {applying ? "Installing..." : "Install Update"}
-            </Button>
-            <Button variant="outline" onClick={() => setCheckResult(null)}>
-              Later
-            </Button>
-          </div>
-          {applying && (
-            <p className="text-xs text-app-text-muted">
-              RaceIQ will restart after installing. This page may briefly disconnect.
-            </p>
+          {stage === "downloading" && (
+            <>
+              <p className="text-sm font-medium text-app-accent">Downloading installer... {percent}%</p>
+              <div className="h-2 rounded-full bg-app-surface-2 overflow-hidden">
+                <div className="h-full rounded-full bg-app-accent transition-all duration-300" style={{ width: `${percent}%` }} />
+              </div>
+            </>
+          )}
+          {stage === "installing" && (
+            <p className="text-sm font-medium text-app-accent animate-pulse">Running installer...</p>
+          )}
+          {stage === "reconnecting" && (
+            <p className="text-sm font-medium text-app-accent animate-pulse">Waiting for RaceIQ to restart...</p>
+          )}
+          {stage === "complete" && (
+            <p className="text-sm font-medium text-green-400">Update installed successfully!</p>
           )}
         </div>
       )}
 
-      {checkResult && !checkResult.updateAvailable && (
+      {/* Update available (not currently updating) */}
+      {!stage && showUpdate && latestVersion && (
+        <div className="rounded-lg border border-app-accent/30 bg-app-accent/5 p-4 space-y-3 mb-4">
+          <p className="text-sm font-medium text-app-accent">
+            Update available: v{latestVersion}
+          </p>
+          <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
+            Install Update
+          </Button>
+        </div>
+      )}
+
+      {/* Up to date */}
+      {!stage && versionInfo?.checked && !showUpdate && (
         <p className="text-sm text-app-text-muted mb-4">
-          You&apos;re on the latest version ({checkResult.current}).
+          You&apos;re on the latest version.
         </p>
       )}
 
-      <Button onClick={handleCheck} disabled={checking} variant="outline">
-        {checking ? "Checking..." : "Check for Updates"}
-      </Button>
+      {!stage && (
+        <Button onClick={handleCheck} disabled={checking} variant="outline">
+          {checking ? "Checking..." : showUpdate ? "Check Again" : "Check for Updates"}
+        </Button>
+      )}
     </section>
   );
 }
