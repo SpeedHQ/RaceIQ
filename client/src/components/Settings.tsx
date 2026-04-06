@@ -119,7 +119,7 @@ const NAV_ITEMS = [
   { id: "speed", label: "Units" },
   { id: "sound", label: "Sound" },
   { id: "ai", label: "AI Analysis" },
-  { id: "extraction", label: "Extraction", devOnly: true },
+  { id: "developer", label: "Developer", devOnly: true },
   { id: "updates", label: "Updates" },
   { id: "about", label: "About" },
 ] as const;
@@ -1434,7 +1434,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
         {activeSection === "ai" && (
           <AiSection />
         )}
-        {activeSection === "extraction" && (
+        {activeSection === "developer" && (
           <div className="space-y-8">
             <ExtractionSection />
             <F1ExtractionSection />
