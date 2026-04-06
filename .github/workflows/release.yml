@@ -53,6 +53,17 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
+      - name: Set version in package.json
+        shell: bash
+        run: |
+          VERSION=${{ needs.compute-version.outputs.version }}
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '${VERSION}';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
       - name: Install dependencies
         run: bun install
 
