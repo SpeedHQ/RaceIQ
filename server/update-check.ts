@@ -118,7 +118,7 @@ export async function applyUpdate(): Promise<void> {
       "-WindowStyle", "Hidden",
       "-ExecutionPolicy", "Bypass",
       "-Command",
-      `Start-Process -FilePath '${installerPath.replace(/'/g, "''")}' -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Verb RunAs`,
+      `Start-Process -FilePath '${installerPath.replace(/'/g, "''")}' -ArgumentList '/SILENT','/NORESTART' -Verb RunAs`,
     ],
     { stdio: "ignore", detached: true, windowsHide: true },
   ).unref();
