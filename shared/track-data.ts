@@ -859,13 +859,30 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
   }
 }
 
+/** Load bundled game-extracted centerline CSV by ordinal. */
+function loadBundledCenterline(ordinal: number, gameId: string): Point[] | null {
+  const name = getBundledTrackName(gameId, ordinal);
+  if (!name) return null;
+  const filePath = resolve(bundledGameDir(gameId), `${name}-centerline.csv`);
+  const content = readDataFile(filePath);
+  if (!content) return null;
+  try {
+    const lines = content.split("\n").filter(Boolean);
+    const data: Point[] = lines.slice(1).map((l) => {
+      const [x, z] = l.split(",").map(Number);
+      return { x, z };
+    });
+    return data.length > 10 ? data : null;
+  } catch { return null; }
+}
+
 /**
- * Get outline for a track. Prefers recorded data, then shared, then bundled.
+ * Get centerline for a track. Priority: bundled game data → computed average → TUMFTM.
  * sharedName: optional shared outline file name (e.g. "silverstone") for cross-game tracks.
  */
 export function getTrackOutlineByOrdinal(ordinal: number, gameId: string, sharedName?: string): Point[] | null {
   validateGameId(gameId);
-  return loadRecordedOutline(ordinal, gameId) ?? loadSharedOutline(sharedName ?? "") ?? getBundledOutlineByOrdinal(ordinal);
+  return loadBundledCenterline(ordinal, gameId) ?? loadRecordedOutline(ordinal, gameId) ?? loadSharedOutline(sharedName ?? "") ?? getBundledOutlineByOrdinal(ordinal);
 }
 
 export function hasRecordedOutline(ordinal: number, gameId: string): boolean {
