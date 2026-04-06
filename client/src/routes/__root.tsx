@@ -12,48 +12,6 @@ import { Button } from "@/components/ui/button";
 import { getAllGames } from "@shared/games/registry";
 import { client } from "../lib/rpc";
 
-function ExtractionBanner() {
-  const [status, setStatus] = useState<{
-    status: string; installed: boolean; extracted: number; total: number; current: string;
-  } | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    let id: ReturnType<typeof setInterval> | null = null;
-    const poll = async () => {
-      try {
-        const res = await client.api.extraction.status.$get();
-        if (!active) return;
-        const data = await res.json();
-        setStatus(data);
-        // Stop polling once extraction is not running
-        if (data.status !== "running" && id) {
-          clearInterval(id);
-          id = null;
-        }
-      } catch {}
-    };
-    poll();
-    id = setInterval(poll, 2000);
-    return () => { active = false; if (id) clearInterval(id); };
-  }, []);
-
-  if (!status || status.status !== "running") return null;
-
-  const pct = status.total > 0 ? Math.round(status.extracted / status.total * 100) : 0;
-
-  return (
-    <div className="bg-app-accent/10 border-b border-app-accent/30 px-4 py-2 flex items-center gap-3">
-      <div className="h-1.5 flex-1 rounded-full bg-app-surface-alt overflow-hidden max-w-xs">
-        <div className="h-full bg-app-accent transition-all duration-300" style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-xs text-app-text-secondary whitespace-nowrap">
-        Extracting track data from FM2023... {status.extracted}/{status.total}
-      </span>
-    </div>
-  );
-}
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -217,7 +175,6 @@ function RootLayout() {
             </div>
           )}
 
-          <ExtractionBanner />
           <div className={`min-h-0 overflow-y-auto ${location.pathname === "/onboarding" ? "h-full" : ""}`}>
             <Outlet />
           </div>

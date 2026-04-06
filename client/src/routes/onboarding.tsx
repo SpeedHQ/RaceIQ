@@ -10,7 +10,6 @@ const STEPS = [
   { path: "/onboarding/wheel", label: "Wheel" },
   { path: "/onboarding/units", label: "Units" },
   { path: "/onboarding/sound", label: "Sound" },
-  { path: "/onboarding/games", label: "Games" },
   { path: "/onboarding/community", label: "Community" },
 ] as const;
 

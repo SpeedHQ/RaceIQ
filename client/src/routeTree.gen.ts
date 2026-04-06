@@ -23,7 +23,6 @@ import { Route as OnboardingWelcomeRouteImport } from './routes/onboarding/welco
 import { Route as OnboardingUnitsRouteImport } from './routes/onboarding/units'
 import { Route as OnboardingSoundRouteImport } from './routes/onboarding/sound'
 import { Route as OnboardingProfileRouteImport } from './routes/onboarding/profile'
-import { Route as OnboardingGamesRouteImport } from './routes/onboarding/games'
 import { Route as OnboardingConnectionRouteImport } from './routes/onboarding/connection'
 import { Route as OnboardingCommunityRouteImport } from './routes/onboarding/community'
 import { Route as Fm23TunesRouteImport } from './routes/fm23/tunes'
@@ -133,11 +132,6 @@ const OnboardingSoundRoute = OnboardingSoundRouteImport.update({
 const OnboardingProfileRoute = OnboardingProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
-  getParentRoute: () => OnboardingRoute,
-} as any)
-const OnboardingGamesRoute = OnboardingGamesRouteImport.update({
-  id: '/games',
-  path: '/games',
   getParentRoute: () => OnboardingRoute,
 } as any)
 const OnboardingConnectionRoute = OnboardingConnectionRouteImport.update({
@@ -375,7 +369,6 @@ export interface FileRoutesByFullPath {
   '/fm23/tunes': typeof Fm23TunesRouteWithChildren
   '/onboarding/community': typeof OnboardingCommunityRoute
   '/onboarding/connection': typeof OnboardingConnectionRoute
-  '/onboarding/games': typeof OnboardingGamesRoute
   '/onboarding/profile': typeof OnboardingProfileRoute
   '/onboarding/sound': typeof OnboardingSoundRoute
   '/onboarding/units': typeof OnboardingUnitsRoute
@@ -423,7 +416,6 @@ export interface FileRoutesByTo {
   '/fm23/tracks': typeof Fm23TracksRoute
   '/onboarding/community': typeof OnboardingCommunityRoute
   '/onboarding/connection': typeof OnboardingConnectionRoute
-  '/onboarding/games': typeof OnboardingGamesRoute
   '/onboarding/profile': typeof OnboardingProfileRoute
   '/onboarding/sound': typeof OnboardingSoundRoute
   '/onboarding/units': typeof OnboardingUnitsRoute
@@ -481,7 +473,6 @@ export interface FileRoutesById {
   '/fm23/tunes': typeof Fm23TunesRouteWithChildren
   '/onboarding/community': typeof OnboardingCommunityRoute
   '/onboarding/connection': typeof OnboardingConnectionRoute
-  '/onboarding/games': typeof OnboardingGamesRoute
   '/onboarding/profile': typeof OnboardingProfileRoute
   '/onboarding/sound': typeof OnboardingSoundRoute
   '/onboarding/units': typeof OnboardingUnitsRoute
@@ -540,7 +531,6 @@ export interface FileRouteTypes {
     | '/fm23/tunes'
     | '/onboarding/community'
     | '/onboarding/connection'
-    | '/onboarding/games'
     | '/onboarding/profile'
     | '/onboarding/sound'
     | '/onboarding/units'
@@ -588,7 +578,6 @@ export interface FileRouteTypes {
     | '/fm23/tracks'
     | '/onboarding/community'
     | '/onboarding/connection'
-    | '/onboarding/games'
     | '/onboarding/profile'
     | '/onboarding/sound'
     | '/onboarding/units'
@@ -645,7 +634,6 @@ export interface FileRouteTypes {
     | '/fm23/tunes'
     | '/onboarding/community'
     | '/onboarding/connection'
-    | '/onboarding/games'
     | '/onboarding/profile'
     | '/onboarding/sound'
     | '/onboarding/units'
@@ -775,13 +763,6 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/onboarding/profile'
       preLoaderRoute: typeof OnboardingProfileRouteImport
-      parentRoute: typeof OnboardingRoute
-    }
-    '/onboarding/games': {
-      id: '/onboarding/games'
-      path: '/games'
-      fullPath: '/onboarding/games'
-      preLoaderRoute: typeof OnboardingGamesRouteImport
       parentRoute: typeof OnboardingRoute
     }
     '/onboarding/connection': {
@@ -1236,7 +1217,6 @@ const Fm23RouteWithChildren = Fm23Route._addFileChildren(Fm23RouteChildren)
 interface OnboardingRouteChildren {
   OnboardingCommunityRoute: typeof OnboardingCommunityRoute
   OnboardingConnectionRoute: typeof OnboardingConnectionRoute
-  OnboardingGamesRoute: typeof OnboardingGamesRoute
   OnboardingProfileRoute: typeof OnboardingProfileRoute
   OnboardingSoundRoute: typeof OnboardingSoundRoute
   OnboardingUnitsRoute: typeof OnboardingUnitsRoute
@@ -1248,7 +1228,6 @@ interface OnboardingRouteChildren {
 const OnboardingRouteChildren: OnboardingRouteChildren = {
   OnboardingCommunityRoute: OnboardingCommunityRoute,
   OnboardingConnectionRoute: OnboardingConnectionRoute,
-  OnboardingGamesRoute: OnboardingGamesRoute,
   OnboardingProfileRoute: OnboardingProfileRoute,
   OnboardingSoundRoute: OnboardingSoundRoute,
   OnboardingUnitsRoute: OnboardingUnitsRoute,
