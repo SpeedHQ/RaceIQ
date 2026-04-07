@@ -7,24 +7,13 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import type { TelemetryPacket } from "@shared/types";
 import { getCarModel, loadCarModelConfigs, F1_CAR, DEMO_CAR, type CarModelEnrichment } from "../data/car-models";
-import { allWheelStates } from "../lib/vehicle-dynamics";
+import { allWheelStates, frictionCircleUtil, frictionUtilColor } from "../lib/vehicle-dynamics";
 import { getTireColor } from "../lib/tire-color";
 import { useUnits } from "../hooks/useUnits";
 import { useSettings } from "../hooks/queries";
 import { useGameId } from "../stores/game";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 
-// ── Tire temp → color ──────────────────────────────────────────────
-
-function tractionColor(slip: number, gameId?: string): string {
-  // F1/ACC slip values are radians (0.01-0.1), Forza uses unitless (0-2+)
-  const isSmallScale = gameId === "f1-2025" || gameId === "acc";
-  const warn = isSmallScale ? 0.03 : 0.3;
-  const crit = isSmallScale ? 0.08 : 0.8;
-  if (slip < warn) return "#34d399";    // full grip — green
-  if (slip < crit) return "#fbbf24";    // sliding — amber
-  return "#ef4444";                     // loss of traction — red
-}
 
 // ── Wheel component ────────────────────────────────────────────────
 
@@ -1092,10 +1081,10 @@ function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, boundarie
   const fTireW = carModel.frontTireWidth ?? 0.30;
   const rTireW = carModel.rearTireWidth ?? 0.30;
   const wheelData = [
-    { pos: [wb, 0, -ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFL, slip: Math.abs(packet.TireCombinedSlipFL), rimColor: colorFL, brakeTemp: packet.BrakeTempFrontLeft ?? packet.f1?.brakeTempFL ?? 0, onRumble: packet.WheelOnRumbleStripFL !== 0, puddle: packet.WheelInPuddleDepthFL, wearRate: wearRates.current[0], wear: packet.TireWearFL, rotSpeed: rotFL, tireRadius: fTireR, tireWidth: fTireW },
-    { pos: [wb, 0, ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFR, slip: Math.abs(packet.TireCombinedSlipFR), rimColor: colorFR, brakeTemp: packet.BrakeTempFrontRight ?? packet.f1?.brakeTempFR ?? 0, onRumble: packet.WheelOnRumbleStripFR !== 0, puddle: packet.WheelInPuddleDepthFR, wearRate: wearRates.current[1], wear: packet.TireWearFR, rotSpeed: rotFR, tireRadius: fTireR, tireWidth: fTireW },
-    { pos: [-wb, 0, -rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRL, slip: Math.abs(packet.TireCombinedSlipRL), rimColor: colorRL, brakeTemp: packet.BrakeTempRearLeft ?? packet.f1?.brakeTempRL ?? 0, onRumble: packet.WheelOnRumbleStripRL !== 0, puddle: packet.WheelInPuddleDepthRL, wearRate: wearRates.current[2], wear: packet.TireWearRL, rotSpeed: rotRL, tireRadius: rTireR, tireWidth: rTireW },
-    { pos: [-wb, 0, rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRR, slip: Math.abs(packet.TireCombinedSlipRR), rimColor: colorRR, brakeTemp: packet.BrakeTempRearRight ?? packet.f1?.brakeTempRR ?? 0, onRumble: packet.WheelOnRumbleStripRR !== 0, puddle: packet.WheelInPuddleDepthRR, wearRate: wearRates.current[3], wear: packet.TireWearRR, rotSpeed: rotRR, tireRadius: rTireR, tireWidth: rTireW },
+    { pos: [wb, 0, -ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFL, traction: frictionUtilColor(frictionCircleUtil(Math.abs(packet.TireCombinedSlipFL))), rimColor: colorFL, brakeTemp: packet.BrakeTempFrontLeft ?? packet.f1?.brakeTempFL ?? 0, onRumble: packet.WheelOnRumbleStripFL !== 0, puddle: packet.WheelInPuddleDepthFL, wearRate: wearRates.current[0], wear: packet.TireWearFL, rotSpeed: rotFL, tireRadius: fTireR, tireWidth: fTireW },
+    { pos: [wb, 0, ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFR, traction: frictionUtilColor(frictionCircleUtil(Math.abs(packet.TireCombinedSlipFR))), rimColor: colorFR, brakeTemp: packet.BrakeTempFrontRight ?? packet.f1?.brakeTempFR ?? 0, onRumble: packet.WheelOnRumbleStripFR !== 0, puddle: packet.WheelInPuddleDepthFR, wearRate: wearRates.current[1], wear: packet.TireWearFR, rotSpeed: rotFR, tireRadius: fTireR, tireWidth: fTireW },
+    { pos: [-wb, 0, -rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRL, traction: frictionUtilColor(frictionCircleUtil(Math.abs(packet.TireCombinedSlipRL))), rimColor: colorRL, brakeTemp: packet.BrakeTempRearLeft ?? packet.f1?.brakeTempRL ?? 0, onRumble: packet.WheelOnRumbleStripRL !== 0, puddle: packet.WheelInPuddleDepthRL, wearRate: wearRates.current[2], wear: packet.TireWearRL, rotSpeed: rotRL, tireRadius: rTireR, tireWidth: rTireW },
+    { pos: [-wb, 0, rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRR, traction: frictionUtilColor(frictionCircleUtil(Math.abs(packet.TireCombinedSlipRR))), rimColor: colorRR, brakeTemp: packet.BrakeTempRearRight ?? packet.f1?.brakeTempRR ?? 0, onRumble: packet.WheelOnRumbleStripRR !== 0, puddle: packet.WheelInPuddleDepthRR, wearRate: wearRates.current[3], wear: packet.TireWearRR, rotSpeed: rotRR, tireRadius: rTireR, tireWidth: rTireW },
   ];
 
   return (
@@ -1164,7 +1153,7 @@ function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, boundarie
             key={i}
             position={w.pos}
             steerAngle={w.steer}
-            gripColor={tractionColor(w.slip, packet.gameId)}
+            gripColor={w.traction}
             rimColor={w.rimColor}
             rotationSpeed={w.rotSpeed}
             displayTemp={fmtTemp(i === 0 ? packet.TireTempFL : i === 1 ? packet.TireTempFR : i === 2 ? packet.TireTempRL : packet.TireTempRR)}

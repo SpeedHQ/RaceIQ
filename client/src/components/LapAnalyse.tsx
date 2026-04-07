@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import type { TelemetryPacket, LapMeta } from "@shared/types";
 import { convertTemp } from "../lib/temperature";
-import { getTireColor } from "../lib/tire-color";
+import { getTireColor, getTireTempLabel } from "../lib/tire-color";
 import { useCookieState } from "../hooks/useCookieState";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { formatLapTime, TireDiagram, GForceCircle } from "./LiveTelemetry";
@@ -12,6 +12,7 @@ import { BodyAttitude } from "./BodyAttitude";
 import {
   allWheelStates,
   allFrictionCircle,
+  frictionCircleUtil,
   steerBalance,
   slipRatioColor,
   frictionUtilColor,
@@ -1056,8 +1057,8 @@ export function LapAnalyse() {
                     const ws = allWheelStates(currentPacket);
                     const fc = allFrictionCircle(currentPacket);
                     const bal = steerBalance(currentPacket);
-                    const latG = Math.abs(currentPacket.AccelerationX) / 9.81;
-                    const lonG = currentPacket.AccelerationZ / 9.81;
+                    const latG = -currentPacket.AccelerationX / 9.81;
+                    const lonG = -currentPacket.AccelerationZ / 9.81;
                     return (
                       <div className="text-[11px] font-mono space-y-1.5 mb-3">
                         {/* Balance — estimated from slip angles */}
@@ -1074,7 +1075,7 @@ export function LapAnalyse() {
                         <div className="flex justify-between">
                           <span className="text-app-text-muted">G-Force</span>
                           <span className="tabular-nums text-app-text">
-                            Lat {latG.toFixed(2)}g
+                            Lat {latG > 0 ? "+" : ""}{latG.toFixed(2)}g
                             <span className="text-app-text-dim"> </span>
                             Lon {lonG > 0 ? "+" : ""}{lonG.toFixed(2)}g
                           </span>
@@ -1082,83 +1083,124 @@ export function LapAnalyse() {
                         {/* Grip / slip ratios — Forza has real data, F1 skips */}
                         {!isF1 && (
                           <>
-                            <div className="flex justify-between">
-                              <span className="text-app-text-muted">Grip Used</span>
-                              <span className="tabular-nums">
+                            <div className="flex justify-between group relative">
+                              <span className="text-app-text-muted flex items-center gap-1">Grip Demand<Info className="w-3 h-3 text-app-text-dim cursor-help inline" />
+                                <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none">
+                                  % of tire grip capacity used<br/>Target as close to 100% without exceeding<br/>&gt;100% = beyond grip, tire is sliding
+                                </span>
+                              </span>
+                              <span className="tabular-nums inline-grid grid-cols-4 gap-x-1 text-right" style={{ width: "calc(100% - 90px)" }}>
                                 <span style={{ color: frictionUtilColor(fc.fl) }}>FL {(fc.fl * 100).toFixed(0)}</span>
-                                <span className="text-app-text-dim"> </span>
                                 <span style={{ color: frictionUtilColor(fc.fr) }}>FR {(fc.fr * 100).toFixed(0)}</span>
-                                <span className="text-app-text-dim"> </span>
                                 <span style={{ color: frictionUtilColor(fc.rl) }}>RL {(fc.rl * 100).toFixed(0)}</span>
-                                <span className="text-app-text-dim"> </span>
                                 <span style={{ color: frictionUtilColor(fc.rr) }}>RR {(fc.rr * 100).toFixed(0)}%</span>
                               </span>
                             </div>
+                            {/* Tire state — combines wheel dynamics + grip demand */}
+                            {(() => {
+                              const tireState = (wsState: string, combinedSlip: number) => {
+                                const demand = frictionCircleUtil(Math.abs(combinedSlip));
+                                if (wsState === "lockup" && demand > 1.0) return { label: "LOCK", color: "#ef4444" };
+                                if (wsState === "spin" && demand > 1.0) return { label: "SPIN", color: "#ef4444" };
+                                if (wsState === "idle") return { label: "IDLE", color: "#94a3b8" };
+                                if (demand > 1.2) return { label: "SLIDE", color: "#ef4444" };
+                                if (demand > 1.0) return { label: "SLIP", color: "#fbbf24" };
+                                return { label: "GRIP", color: "#34d399" };
+                              };
+                              const temps = [
+                                currentDisplayPacket?.DisplayTireTempFL ?? currentPacket.TireTempFL,
+                                currentDisplayPacket?.DisplayTireTempFR ?? currentPacket.TireTempFR,
+                                currentDisplayPacket?.DisplayTireTempRL ?? currentPacket.TireTempRL,
+                                currentDisplayPacket?.DisplayTireTempRR ?? currentPacket.TireTempRR,
+                              ];
+                              const states = [
+                                { l: "FL", ...tireState(ws.fl.state, currentPacket.TireCombinedSlipFL), temp: getTireTempLabel(temps[0], units.thresholds) },
+                                { l: "FR", ...tireState(ws.fr.state, currentPacket.TireCombinedSlipFR), temp: getTireTempLabel(temps[1], units.thresholds) },
+                                { l: "RL", ...tireState(ws.rl.state, currentPacket.TireCombinedSlipRL), temp: getTireTempLabel(temps[2], units.thresholds) },
+                                { l: "RR", ...tireState(ws.rr.state, currentPacket.TireCombinedSlipRR), temp: getTireTempLabel(temps[3], units.thresholds) },
+                              ];
+                              return (
+                                <table className="w-full tabular-nums text-center table-fixed">
+                                  <colgroup>
+                                    <col className="w-[60px]" />
+                                    <col /><col /><col /><col />
+                                  </colgroup>
+                                  <thead>
+                                    <tr className="text-app-text-muted">
+                                      <th className="font-normal text-left" />
+                                      {states.map(s => <th key={s.l} className="font-normal">{s.l}</th>)}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr>
+                                      <td className="text-app-text-muted text-left">Traction</td>
+                                      {states.map(s => <td key={s.l} style={{ color: s.color }}>{s.label}</td>)}
+                                    </tr>
+                                    <tr>
+                                      <td className="text-app-text-muted text-left">Temp</td>
+                                      {states.map(s => <td key={s.l} style={{ color: s.temp.color }}>{s.temp.label}</td>)}
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              );
+                            })()}
                             <div className="border-t border-app-border pt-1">
-                              <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Slip</div>
-                              <div className="space-y-1">
-                                <div className="flex justify-between">
-                                  <span className="text-app-text-muted">Ratio</span>
-                                  <span className="tabular-nums">
-                                    <span style={{ color: slipRatioColor(ws.fl.slipRatio) }}>FL {(ws.fl.slipRatio * 100).toFixed(0)}</span>
-                                    <span className="text-app-text-dim"> </span>
-                                    <span style={{ color: slipRatioColor(ws.fr.slipRatio) }}>FR {(ws.fr.slipRatio * 100).toFixed(0)}</span>
-                                    <span className="text-app-text-dim"> </span>
-                                    <span style={{ color: slipRatioColor(ws.rl.slipRatio) }}>RL {(ws.rl.slipRatio * 100).toFixed(0)}</span>
-                                    <span className="text-app-text-dim"> </span>
-                                    <span style={{ color: slipRatioColor(ws.rr.slipRatio) }}>RR {(ws.rr.slipRatio * 100).toFixed(0)}%</span>
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-app-text-muted">Angle</span>
-                                  <span className="tabular-nums">
-                                    <SlipAngleValue label="FL" value={currentPacket.TireSlipAngleFL} speedMph={currentPacket.Speed * 2.23694} />
-                                    <span className="text-app-text-dim"> </span>
-                                    <SlipAngleValue label="FR" value={currentPacket.TireSlipAngleFR} speedMph={currentPacket.Speed * 2.23694} />
-                                    <span className="text-app-text-dim"> </span>
-                                    <SlipAngleValue label="RL" value={currentPacket.TireSlipAngleRL} speedMph={currentPacket.Speed * 2.23694} />
-                                    <span className="text-app-text-dim"> </span>
-                                    <SlipAngleValue label="RR" value={currentPacket.TireSlipAngleRR} speedMph={currentPacket.Speed * 2.23694} />
-                                  </span>
-                                </div>
-                              </div>
+                              <table className="w-full tabular-nums text-center table-fixed">
+                                <colgroup>
+                                  <col className="w-[60px]" />
+                                  <col /><col /><col /><col />
+                                </colgroup>
+                                <thead>
+                                  <tr className="text-app-text-muted">
+                                    <th className="font-normal text-left text-[10px] uppercase tracking-wider group relative">
+                                      <span className="flex items-center gap-1">
+                                        Slip
+                                        <Info className="w-3 h-3 text-app-text-dim cursor-help inline" />
+                                        <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">
+                                          Angle: direction vs travel (6-12° = peak grip)<br/>Ratio: wheel speed vs ground speed
+                                        </span>
+                                      </span>
+                                    </th>
+                                    <th className="font-normal">FL</th>
+                                    <th className="font-normal">FR</th>
+                                    <th className="font-normal">RL</th>
+                                    <th className="font-normal">RR</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td className="text-app-text-muted text-left">Ratio</td>
+                                    <td style={{ color: slipRatioColor(ws.fl.slipRatio) }}>{(ws.fl.slipRatio * 100).toFixed(0)}%</td>
+                                    <td style={{ color: slipRatioColor(ws.fr.slipRatio) }}>{(ws.fr.slipRatio * 100).toFixed(0)}%</td>
+                                    <td style={{ color: slipRatioColor(ws.rl.slipRatio) }}>{(ws.rl.slipRatio * 100).toFixed(0)}%</td>
+                                    <td style={{ color: slipRatioColor(ws.rr.slipRatio) }}>{(ws.rr.slipRatio * 100).toFixed(0)}%</td>
+                                  </tr>
+                                  {(() => {
+                                    const speedMph = currentPacket.Speed * 2.23694;
+                                    const angleColor = (rad: number) => {
+                                      const deg = Math.abs(rad * (180 / Math.PI));
+                                      const sf = Math.max(0.3, Math.min(1, speedMph / 80));
+                                      if (deg < 4 / sf) return "#34d399";
+                                      if (deg < 8 / sf) return "#fbbf24";
+                                      if (deg < 14 / sf) return "#fb923c";
+                                      return "#ef4444";
+                                    };
+                                    const fmt = (rad: number) => (rad * (180 / Math.PI)).toFixed(1);
+                                    return (
+                                      <tr>
+                                        <td className="text-app-text-muted text-left">Angle</td>
+                                        <td style={{ color: angleColor(currentPacket.TireSlipAngleFL) }}>{fmt(currentPacket.TireSlipAngleFL)}°</td>
+                                        <td style={{ color: angleColor(currentPacket.TireSlipAngleFR) }}>{fmt(currentPacket.TireSlipAngleFR)}°</td>
+                                        <td style={{ color: angleColor(currentPacket.TireSlipAngleRL) }}>{fmt(currentPacket.TireSlipAngleRL)}°</td>
+                                        <td style={{ color: angleColor(currentPacket.TireSlipAngleRR) }}>{fmt(currentPacket.TireSlipAngleRR)}°</td>
+                                      </tr>
+                                    );
+                                  })()}
+                                </tbody>
+                              </table>
                             </div>
                           </>
                         )}
-                        {/* Tire state — derived from slip angles for all games */}
-                        {(() => {
-                          const RAD2DEG = 180 / Math.PI;
-                          const slipFL = Math.abs(currentPacket.TireSlipAngleFL) * RAD2DEG;
-                          const slipFR = Math.abs(currentPacket.TireSlipAngleFR) * RAD2DEG;
-                          const slipRL = Math.abs(currentPacket.TireSlipAngleRL) * RAD2DEG;
-                          const slipRR = Math.abs(currentPacket.TireSlipAngleRR) * RAD2DEG;
-                          const braking = currentPacket.Brake > 50;
-                          const tireState = (slip: number, isRear: boolean) => {
-                            if (braking && slip > 15) return { label: "LOCK", color: "#ef4444" };
-                            if (!isRear && slip > 12) return { label: "SLIDE", color: "#fb923c" };
-                            if (isRear && slip > 8) return { label: "SLIDE", color: "#fb923c" };
-                            if (slip > 4) return { label: "SLIP", color: "#fbbf24" };
-                            return { label: "GRIP", color: "#34d399" };
-                          };
-                          const states = [
-                            { l: "FL", ...tireState(slipFL, false) },
-                            { l: "FR", ...tireState(slipFR, false) },
-                            { l: "RL", ...tireState(slipRL, true) },
-                            { l: "RR", ...tireState(slipRR, true) },
-                          ];
-                          return (
-                            <div className="flex justify-between">
-                              <span className="text-app-text-muted">Tire State</span>
-                              <span className="tabular-nums">
-                                {states.map(s => (
-                                  <span key={s.l} className="ml-1" style={{ color: s.color }}>
-                                    {s.l} {s.label}
-                                  </span>
-                                ))}
-                              </span>
-                            </div>
-                          );
-                        })()}
                       </div>
                     );
                   })()}
@@ -1233,7 +1275,6 @@ export function LapAnalyse() {
                     Wheels
                   </h3>
                   {(() => {
-                    const isF1 = gameId === "f1-2025";
                     return (
                   <div className="space-y-2 text-[11px] font-mono">
                     {/* Tyres */}

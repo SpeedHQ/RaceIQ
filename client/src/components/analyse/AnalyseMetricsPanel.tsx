@@ -76,10 +76,8 @@ export function SlipAngleValue({ label, value, speedMph }: { label: string; valu
 }
 
 export function WheelSpeedValue({ label, value }: { label: string; value: number }) {
-  const abs = Math.abs(value);
-  const color = abs < 10 ? "#94a3b8" : abs < 50 ? "#34d399" : abs < 100 ? "#fbbf24" : "#ef4444";
   return (
-    <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{value.toFixed(1)}</span></span>
+    <span className="text-app-text-secondary">{label}: <span className="tabular-nums">{value.toFixed(1)}</span></span>
   );
 }
 

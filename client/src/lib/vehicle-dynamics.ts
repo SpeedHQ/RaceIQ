@@ -190,17 +190,15 @@ export function corneringEfficiency(pkt: TelemetryPacket): number {
 
 export function slipRatioColor(sr: number): string {
   const a = Math.abs(sr);
-  if (a < 0.03) return "#94a3b8"; // grey — minimal
-  if (a < 0.08) return "#34d399"; // green — optimal zone
+  if (a < 0.08) return "#34d399"; // green — grip
   if (a < 0.15) return "#fbbf24"; // yellow — sliding
   return "#ef4444";               // red — beyond limit
 }
 
 export function frictionUtilColor(util: number): string {
-  if (util < 0.3) return "#94a3b8"; // grey — low demand
-  if (util < 0.7) return "#34d399"; // green — comfortable
-  if (util < 0.9) return "#fbbf24"; // yellow — near limit
-  return "#ef4444";                  // red — at/beyond limit
+  if (util <= 1.0) return "#34d399"; // green — within grip
+  if (util <= 1.1) return "#fbbf24"; // yellow — just over limit
+  return "#ef4444";                  // red — beyond limit
 }
 
 export function balanceColor(state: "understeer" | "oversteer" | "neutral"): string {
