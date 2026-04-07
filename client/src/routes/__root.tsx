@@ -42,7 +42,8 @@ function getGamePrefixes() {
 function useUpdateCheck() {
   const [state, setState] = useState<{ updateAvailable: boolean; current: string; latest: string | null; newReleases: { version: string; notes: string; date: string }[] } | null>(null);
   const wsUpdateVersion = useTelemetryStore((s) => s.updateAvailable);
-  useEffect(() => {
+
+  const fetchVersion = () => {
     client.api.version.$get()
       .then((r) => r.json())
       .then((d) => {
@@ -50,11 +51,15 @@ function useUpdateCheck() {
         setState({ updateAvailable: d.updateAvailable, current: d.current, latest: d.latest, newReleases: ext.newReleases ?? [] });
       })
       .catch(() => {});
-  }, []);
-  // If WebSocket notifies an update after initial fetch, merge it in
-  if (wsUpdateVersion && state && !state.updateAvailable) {
-    return { ...state, updateAvailable: true, latest: wsUpdateVersion };
-  }
+  };
+
+  useEffect(fetchVersion, []);
+
+  // Refetch when WS notifies an update (server may have new release data)
+  useEffect(() => {
+    if (wsUpdateVersion) fetchVersion();
+  }, [wsUpdateVersion]);
+
   return state;
 }
 
