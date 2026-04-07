@@ -681,7 +681,7 @@ function InputOverlay({
     const s = Math.sin(yaw);
     const c = Math.cos(yaw);
     const Y = -0.33; // ground level
-    const OFFSET = 0.15; // lateral offset from center in meters
+    const OFFSET = 0.05; // lateral offset from center in meters
     const AHEAD = 60;
     const BEHIND = 20;
     const maxDist2 = AHEAD * AHEAD;
