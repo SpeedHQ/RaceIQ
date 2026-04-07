@@ -686,33 +686,42 @@ function InputOverlay({
     const BEHIND = 20;
     const maxDist2 = AHEAD * AHEAD;
 
+    // Collect in-range points with their local coords and input values
+    const pts: { fwd: number; lat: number; throttle: number; brake: number }[] = [];
+    for (const p of telemetry) {
+      const dx = p.PositionX - cx;
+      const dz = p.PositionZ - cz;
+      if (dx * dx + dz * dz > maxDist2) continue;
+      const localFwd = dx * s + dz * c;
+      const localLat = dx * c - dz * s;
+      if (localFwd < -BEHIND || localFwd > AHEAD || Math.abs(localLat) > 30) continue;
+      pts.push({ fwd: localFwd, lat: localLat, throttle: (p.Accel ?? 0) / 255, brake: (p.Brake ?? 0) / 255 });
+    }
+
+    // Compute perpendicular normals and build offset lines
     const throttlePts: [number, number, number][] = [];
     const throttleCols: THREE.Color[] = [];
     const brakePts: [number, number, number][] = [];
     const brakeCols: THREE.Color[] = [];
 
-    for (const p of telemetry) {
-      const dx = p.PositionX - cx;
-      const dz = p.PositionZ - cz;
-      const dist2 = dx * dx + dz * dz;
-      if (dist2 > maxDist2) continue;
-      const localFwd = dx * s + dz * c;
-      const localLat = dx * c - dz * s;
-      if (localFwd < -BEHIND || localFwd > AHEAD) continue;
-      if (Math.abs(localLat) > 30) continue;
+    for (let i = 0; i < pts.length; i++) {
+      const prev = pts[Math.max(0, i - 1)];
+      const next = pts[Math.min(pts.length - 1, i + 1)];
+      const tFwd = next.fwd - prev.fwd;
+      const tLat = next.lat - prev.lat;
+      const len = Math.sqrt(tFwd * tFwd + tLat * tLat) || 1;
+      // Normal perpendicular to tangent (rotated 90°)
+      const nFwd = -tLat / len;
+      const nLat = tFwd / len;
 
-      const throttle = (p.Accel ?? 0) / 255;
-      const brake = (p.Brake ?? 0) / 255;
-
-      if (throttle > 0) {
-        throttlePts.push([localFwd, Y, localLat + OFFSET]);
-        const col = new THREE.Color(0, 0, 0).lerp(THROTTLE_COLOR, throttle);
-        throttleCols.push(col);
+      const p = pts[i];
+      if (p.throttle > 0) {
+        throttlePts.push([p.fwd + nFwd * OFFSET, Y, p.lat + nLat * OFFSET]);
+        throttleCols.push(new THREE.Color(0, 0, 0).lerp(THROTTLE_COLOR, p.throttle));
       }
-      if (brake > 0) {
-        brakePts.push([localFwd, Y, localLat - OFFSET]);
-        const col = new THREE.Color(0, 0, 0).lerp(BRAKE_COLOR, brake);
-        brakeCols.push(col);
+      if (p.brake > 0) {
+        brakePts.push([p.fwd - nFwd * OFFSET, Y, p.lat - nLat * OFFSET]);
+        brakeCols.push(new THREE.Color(0, 0, 0).lerp(BRAKE_COLOR, p.brake));
       }
     }
 
