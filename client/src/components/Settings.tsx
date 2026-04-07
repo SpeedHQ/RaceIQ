@@ -127,15 +127,33 @@ const NAV_ITEMS = [
 
 type SectionId = (typeof NAV_ITEMS)[number]["id"];
 
+type AiProviderType = "claude-cli" | "gemini" | "openai" | "local";
+
+const PROVIDER_KEY_MAP: Record<string, string> = {
+  gemini: "gemini",
+  openai: "openai",
+  "claude-cli": "anthropic",
+};
+
+const PROVIDER_KEY_LABELS: Record<string, { label: string; placeholder: string; helpText: string; helpUrl: string }> = {
+  gemini: { label: "Gemini API Key", placeholder: "AIza...", helpText: "Get a free API key from", helpUrl: "https://aistudio.google.com/apikey" },
+  openai: { label: "OpenAI API Key", placeholder: "sk-...", helpText: "Get an API key from", helpUrl: "https://platform.openai.com/api-keys" },
+};
+
 function AiSection() {
   const { displaySettings } = useSettings();
   const saveSettings = useSaveSettings();
   const qc = useQueryClient();
-  const [provider, setProvider] = useState<"claude-cli" | "gemini">(displaySettings.aiProvider ?? "claude-cli");
+  const [provider, setProvider] = useState<AiProviderType>(displaySettings.aiProvider ?? "claude-cli");
   const [model, setModel] = useState(displaySettings.aiModel ?? "");
   const [apiKey, setApiKey] = useState("");
+  const [localEndpoint, setLocalEndpoint] = useState(displaySettings.localEndpoint ?? "http://localhost:1234/v1");
   const [saved, setSaved] = useState(false);
-  const hasKey = !!displaySettings.geminiApiKeySet;
+
+  const keyStatus: Record<string, boolean> = {
+    gemini: !!displaySettings.geminiApiKeySet,
+    openai: !!displaySettings.openaiApiKeySet,
+  };
 
   const { data: aiModels } = useQuery({
     queryKey: ["ai-models", provider],
@@ -148,38 +166,62 @@ function AiSection() {
   const models = aiModels?.[provider] ?? [];
 
   const handleSave = async () => {
-    if (apiKey) {
+    const providerKeyId = PROVIDER_KEY_MAP[provider];
+    if (apiKey && providerKeyId) {
       await fetch("/api/ai-key", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "gemini", apiKey }),
+        body: JSON.stringify({ provider: providerKeyId, apiKey }),
       });
       setApiKey("");
     }
-    saveSettings.mutate({ aiProvider: provider, aiModel: model });
+    const updates: Record<string, string> = { aiProvider: provider, aiModel: model };
+    if (provider === "local") updates.localEndpoint = localEndpoint;
+    saveSettings.mutate(updates);
     qc.invalidateQueries({ queryKey: ["ai-models"] });
+    qc.invalidateQueries({ queryKey: ["settings"] });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
+
+  const keyInfo = PROVIDER_KEY_LABELS[provider];
+  const hasKey = keyStatus[provider] ?? false;
 
   return (
     <section>
       <h2 className="text-sm font-semibold text-app-text mb-4">AI Analysis Provider</h2>
       <p className="text-xs text-app-text-muted mb-4">
-        Choose which AI provider to use for lap analysis. Claude CLI uses your locally installed Claude Code. Gemini uses Google's API with your own key.
+        Choose which AI provider to use for lap analysis and chat. Claude CLI uses your locally installed Claude Code. Other providers use API keys.
       </p>
       <div className="space-y-4">
         <div>
           <label className="block text-xs text-app-text-muted mb-1">Provider</label>
           <select
             value={provider}
-            onChange={(e) => { setProvider(e.target.value as "claude-cli" | "gemini"); setModel(""); }}
+            onChange={(e) => { setProvider(e.target.value as AiProviderType); setModel(""); }}
             className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
           >
             <option value="claude-cli">Claude CLI (local)</option>
             <option value="gemini">Google Gemini</option>
+            <option value="openai">OpenAI</option>
+            <option value="local">Local (LM Studio / Ollama)</option>
           </select>
         </div>
+        {provider === "local" && (
+          <div>
+            <label className="block text-xs text-app-text-muted mb-1">API Endpoint</label>
+            <input
+              type="text"
+              value={localEndpoint}
+              onChange={(e) => setLocalEndpoint(e.target.value)}
+              placeholder="http://localhost:1234/v1"
+              className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs font-mono"
+            />
+            <p className="text-xs text-app-text-muted mt-1">
+              OpenAI-compatible endpoint URL (e.g. LM Studio, Ollama)
+            </p>
+          </div>
+        )}
         {models.length > 0 && (
           <div>
             <label className="block text-xs text-app-text-muted mb-1">Model</label>
@@ -195,18 +237,21 @@ function AiSection() {
             </select>
           </div>
         )}
-        {provider === "gemini" && (
+        {keyInfo && (
           <div>
-            <label className="block text-xs text-app-text-muted mb-1">Gemini API Key</label>
+            <label className="block text-xs text-app-text-muted mb-1">{keyInfo.label}</label>
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={hasKey ? "••••••••  (key stored)" : "AIza..."}
+              placeholder={hasKey ? "••••••••  (key stored)" : keyInfo.placeholder}
               className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs font-mono"
             />
             <p className="text-xs text-app-text-muted mt-1">
-              Get a free API key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">Google AI Studio</a>
+              {keyInfo.helpText}{" "}
+              <a href={keyInfo.helpUrl} target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">
+                {new URL(keyInfo.helpUrl).hostname}
+              </a>
             </p>
           </div>
         )}

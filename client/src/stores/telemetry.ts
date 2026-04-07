@@ -7,13 +7,18 @@ export interface DisplaySettings {
   tireTempCelsiusThresholds: { cold: number; warm: number; hot: number };
   tireHealthThresholds: { values: number[] };
   suspensionThresholds: { values: number[] };
-  aiProvider: "claude-cli" | "gemini";
+  aiProvider: "claude-cli" | "gemini" | "openai" | "local";
   aiModel: string;
+  localEndpoint: string;
   wsRefreshRate: string;
   /** Server-injected: current UDP port */
   udpPort?: number;
   /** Server-injected: whether a Gemini API key is stored */
   geminiApiKeySet?: boolean;
+  /** Server-injected: whether an OpenAI API key is stored */
+  openaiApiKeySet?: boolean;
+  /** Server-injected: whether an Anthropic API key is stored */
+  anthropicApiKeySet?: boolean;
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
@@ -23,6 +28,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   suspensionThresholds: { values: [25, 65, 85] },
   aiProvider: "claude-cli",
   aiModel: "",
+  localEndpoint: "http://localhost:1234/v1",
   wsRefreshRate: "60",
 };
 

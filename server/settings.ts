@@ -9,13 +9,14 @@ const ColorThresholdsSchema = z.object({
   values: z.array(z.number()),
 });
 
-const AiProviderSchema = z.enum(["claude-cli", "gemini"]).default("claude-cli");
+const AiProviderSchema = z.enum(["claude-cli", "gemini", "openai", "local"]).default("claude-cli");
 
 const AppSettingsSchema = z.object({
   udpPort: z.number().int().min(1024).max(65535).default(5301),
   unit: z.enum(["metric", "imperial"]).default("metric"),
   aiProvider: AiProviderSchema.default("claude-cli"),
   aiModel: z.string().default(""),
+  localEndpoint: z.string().default("http://localhost:1234/v1"),
   wsRefreshRate: z.enum(["60", "50", "40", "30"]).default("60"),
   tireTempCelsiusThresholds: z.object({
     cold: z.number().default(65),

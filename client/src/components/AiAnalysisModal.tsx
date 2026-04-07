@@ -4,6 +4,7 @@ import { toPng } from "html-to-image";
 import {
   Sparkles, X, RefreshCw, Gauge, Sliders, AlertTriangle,
   Lightbulb, Wrench, SlidersHorizontal, Download,
+  MessageCircle, Send, Trash2,
 } from "lucide-react";
 
 interface AiAnalysisModalProps {
@@ -148,8 +149,27 @@ export function AiAnalysisModal({
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
   const [usage, setUsage] = useState<{ inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<Array<{ role: string; content: string }>>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [streamingContent, setStreamingContent] = useState("");
+  const [chatError, setChatError] = useState<string | null>(null);
+
+  // Load persisted chat messages when modal opens
+  const loadChatMessages = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/laps/${lapId}/chat`);
+      if (res.ok) {
+        const data = await res.json();
+        setChatMessages(data.messages ?? []);
+      }
+    } catch { /* ignore load errors */ }
+  }, [lapId]);
 
   const fetchAnalysis = useCallback(
     async (regenerate = false) => {
@@ -161,20 +181,22 @@ export function AiAnalysisModal({
           query: regenerate ? { regenerate: "true" } : {},
         });
         if (!res.ok) {
-          const data = await res.json().catch(() => ({ error: "Unknown error" }));
-          throw new Error((data as any).error || `HTTP ${res.status}`);
+          const data = await res.json().catch(() => ({ error: "Unknown error" })) as { error?: string };
+          throw new Error(data.error || `HTTP ${res.status}`);
         }
         const data = await res.json();
         const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
         setAnalysis(parsed);
         if (data.usage) setUsage(data.usage);
-      } catch (err: any) {
-        setError(err.message || "Failed to fetch analysis");
+        // Load persisted chat after analysis loads
+        loadChatMessages();
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to fetch analysis");
       } finally {
         setLoading(false);
       }
     },
-    [lapId]
+    [lapId, loadChatMessages]
   );
 
   const handleExportImage = useCallback(async () => {
@@ -193,6 +215,7 @@ export function AiAnalysisModal({
       const url = await toPng(el, {
         backgroundColor: "#0f172a",
         pixelRatio: 2,
+        filter: (node) => !(node instanceof HTMLElement && node.dataset.excludeExport !== undefined),
       });
       const link = document.createElement("a");
       link.download = `ai-analysis-${carName}-${trackName}.png`.replace(/\s+/g, "-");
@@ -207,9 +230,72 @@ export function AiAnalysisModal({
     }
   }, [carName, trackName]);
 
+  const sendChat = useCallback(async () => {
+    const msg = chatInput.trim();
+    if (!msg || chatLoading) return;
+
+    setChatMessages((prev) => [...prev, { role: "user", content: msg }]);
+    setChatInput("");
+    setChatLoading(true);
+    setChatError(null);
+    setStreamingContent("");
+
+    try {
+      const res = await fetch(`/api/laps/${lapId}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: "Request failed" })) as { error?: string };
+        throw new Error(errData.error || `HTTP ${res.status}`);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No stream");
+
+      const decoder = new TextDecoder();
+      let fullText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        fullText += chunk;
+        setStreamingContent(fullText);
+      }
+
+      setStreamingContent("");
+      setChatMessages((prev) => [...prev, { role: "assistant", content: fullText }]);
+    } catch (err: unknown) {
+      setChatError(err instanceof Error ? err.message : "Chat failed");
+    } finally {
+      setChatLoading(false);
+    }
+  }, [chatInput, chatLoading, lapId]);
+
+  const clearChat = useCallback(async () => {
+    try {
+      await fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" });
+    } catch { /* ignore */ }
+    setChatMessages([]);
+    setStreamingContent("");
+    setChatError(null);
+  }, [lapId]);
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, streamingContent]);
+
   useEffect(() => {
     if (open && lapId) {
       setAnalysis(null);
+      setChatMessages([]);
+      setChatInput("");
+      setStreamingContent("");
+      setChatError(null);
       fetchAnalysis(false);
     }
   }, [open, lapId, fetchAnalysis]);
@@ -346,8 +432,8 @@ export function AiAnalysisModal({
                   <SectionHeader icon={<SlidersHorizontal className="size-3.5" />} title="Tuning Values" />
                   <div className="grid grid-cols-1 gap-1.5">
                     {analysis.tuning.map((item, i) => {
-                      const currentNum = parseFloat(item.current?.replace(/[^0-9.\-]/g, "") ?? "");
-                      const targetNum = parseFloat(item.target?.replace(/[^0-9.\-]/g, "") ?? "");
+                      const currentNum = parseFloat(item.current?.replace(/[^0-9.-]/g, "") ?? "");
+                      const targetNum = parseFloat(item.target?.replace(/[^0-9.-]/g, "") ?? "");
                       const hasBoth = !isNaN(currentNum) && !isNaN(targetNum) && currentNum !== targetNum;
 
                       return (
@@ -370,6 +456,87 @@ export function AiAnalysisModal({
                   </div>
                 </section>
               )}
+
+              {/* Chat */}
+              <div data-exclude-export>
+                <div className="flex items-center gap-2 pt-2 border-t border-app-border-input/50">
+                  <MessageCircle className="size-3.5 text-app-text-secondary" />
+                  <h3 className="text-xs font-semibold text-app-text uppercase tracking-wider flex-1">Chat</h3>
+                  {chatMessages.length > 0 && (
+                    <button
+                      onClick={clearChat}
+                      className="flex items-center gap-1 text-[10px] text-app-text-muted hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 className="size-3" />
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* Messages */}
+                {chatMessages.length > 0 && (
+                  <div className="space-y-2.5 mt-3">
+                    {chatMessages.map((msg, i) => (
+                      <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                        <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed ${
+                          msg.role === "user"
+                            ? "bg-cyan-600/20 border border-cyan-500/30 text-app-text"
+                            : "bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary"
+                        }`}>
+                          <div className="whitespace-pre-wrap">{msg.content}</div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Streaming response */}
+                    {streamingContent && (
+                      <div className="flex justify-start">
+                        <div className="max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary">
+                          <div className="whitespace-pre-wrap">{streamingContent}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Loading indicator */}
+                    {chatLoading && !streamingContent && (
+                      <div className="flex justify-start">
+                        <div className="rounded-lg px-3 py-2 bg-app-surface-alt/60 border border-app-border-input/40">
+                          <div className="flex items-center gap-1.5">
+                            <div className="size-1.5 rounded-full bg-app-text-dim animate-pulse" />
+                            <div className="size-1.5 rounded-full bg-app-text-dim animate-pulse [animation-delay:150ms]" />
+                            <div className="size-1.5 rounded-full bg-app-text-dim animate-pulse [animation-delay:300ms]" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {chatError && (
+                  <p className="text-[11px] text-red-400 mt-2">{chatError}</p>
+                )}
+
+                {/* Input */}
+                <div className="flex items-center gap-2 mt-3">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+                    placeholder="Ask a follow-up question..."
+                    disabled={chatLoading}
+                    className="flex-1 bg-app-surface border border-app-border-input rounded-lg px-3 py-2 text-xs text-app-text placeholder:text-app-text-muted focus:outline-none focus:border-cyan-500/50 disabled:opacity-50"
+                  />
+                  <button
+                    onClick={sendChat}
+                    disabled={chatLoading || !chatInput.trim()}
+                    className="shrink-0 p-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white transition-colors disabled:opacity-40 disabled:hover:bg-cyan-600"
+                  >
+                    <Send className="size-3.5" />
+                  </button>
+                </div>
+                <div ref={chatEndRef} />
+              </div>
             </>
           )}
         </div>

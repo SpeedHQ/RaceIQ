@@ -13,7 +13,7 @@ export interface AiResult {
   };
 }
 
-export type AiProvider = "claude-cli" | "gemini";
+export type AiProvider = "claude-cli" | "gemini" | "openai" | "local";
 
 const CLAUDE_MODELS = [
   { id: "haiku", name: "Claude Haiku" },
@@ -233,4 +233,31 @@ function extractJson(text: string): string {
   if (fenceMatch) jsonStr = fenceMatch[1].trim();
   JSON.parse(jsonStr); // validate — throws if invalid
   return jsonStr;
+}
+
+const OPENAI_MODELS = [
+  { id: "gpt-4o-mini", name: "GPT-4o Mini" },
+  { id: "gpt-4o", name: "GPT-4o" },
+  { id: "gpt-4.1-mini", name: "GPT-4.1 Mini" },
+  { id: "gpt-4.1-nano", name: "GPT-4.1 Nano" },
+];
+
+export function getOpenAiModels() {
+  return OPENAI_MODELS;
+}
+
+/** Fetch available models from an OpenAI-compatible local endpoint (LM Studio, Ollama, etc.). */
+export async function getLocalModels(endpoint: string): Promise<{ id: string; name: string }[]> {
+  try {
+    const url = endpoint.replace(/\/+$/, "") + "/models";
+    const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return [];
+    const data = await res.json() as any;
+    return (data.data ?? []).map((m: any) => ({
+      id: m.id,
+      name: m.id,
+    }));
+  } catch {
+    return [];
+  }
 }
