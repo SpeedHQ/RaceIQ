@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
+import { ReleaseNotes } from "@/components/ReleaseNotes";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { client } from "@/lib/rpc";
 
@@ -40,9 +39,10 @@ function StepIndicator({ step, current }: { step: typeof STEPS[number]; current:
   );
 }
 
-export function UpdateModal({ version, releaseNotes, onClose }: { version: string; releaseNotes: string | null; onClose: () => void }) {
+export function UpdateModal({ version, newReleases, onClose }: { version: string; newReleases: { version: string; notes: string; date: string }[]; onClose: () => void }) {
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const [error, setError] = useState<string | null>(null);
+  const [showAllReleases, setShowAllReleases] = useState(false);
 
   const stage = updateProgress?.stage ?? null;
   const percent = updateProgress?.percent ?? 0;
@@ -66,7 +66,7 @@ export function UpdateModal({ version, releaseNotes, onClose }: { version: strin
   const [countdown, setCountdown] = useState<number | null>(null);
   useEffect(() => {
     if (stage === "complete") {
-      setCountdown(10);
+      setCountdown(5);
       const interval = setInterval(() => {
         setCountdown((prev) => {
           if (prev === null || prev <= 1) {
@@ -107,28 +107,41 @@ export function UpdateModal({ version, releaseNotes, onClose }: { version: strin
               <p className="text-sm text-app-text-secondary">
                 RaceIQ <span className="font-mono text-app-accent">v{version}</span> is ready to install.
               </p>
-              {releaseNotes && (
-                <div className="max-h-48 overflow-y-auto rounded border border-app-border bg-app-surface p-3 text-xs text-app-text-secondary leading-relaxed prose prose-sm prose-invert prose-headings:text-app-text prose-a:text-app-accent prose-a:underline">
-                  <Markdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      a: ({ href, children }) => {
-                        // Shorten GitHub PR/issue/compare URLs like GitHub does
-                        let label = children;
-                        if (typeof children === "string" && href) {
-                          const prMatch = href.match(/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/);
-                          const compareMatch = href.match(/github\.com\/([^/]+\/[^/]+)\/compare\/(.+)/);
-                          if (prMatch) label = `#${prMatch[2]}`;
-                          else if (compareMatch) label = compareMatch[2];
-                        }
-                        return <a href={href} target="_blank" rel="noreferrer">{label}</a>;
-                      },
-                    }}
-                  >
-                    {releaseNotes}
-                  </Markdown>
-                </div>
-              )}
+              {newReleases.length > 0 && (() => {
+                const [latest, ...older] = newReleases;
+                return (
+                  <div className="max-h-52 overflow-y-auto space-y-3">
+                    <div>
+                      <div className="flex items-baseline justify-between mb-1">
+                        <span className="text-xs font-medium text-app-text">v{latest.version}</span>
+                        {latest.date && (
+                          <span className="text-xs text-app-text-muted">{new Date(latest.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
+                        )}
+                      </div>
+                      <ReleaseNotes notes={latest.notes} />
+                    </div>
+                    {older.length > 0 && !showAllReleases && (
+                      <button
+                        onClick={() => setShowAllReleases(true)}
+                        className="text-xs text-app-accent hover:underline"
+                      >
+                        Show {older.length} earlier release{older.length > 1 ? "s" : ""}
+                      </button>
+                    )}
+                    {showAllReleases && older.map((r) => (
+                      <div key={r.version}>
+                        <div className="flex items-baseline justify-between mb-1">
+                          <span className="text-xs font-medium text-app-text">v{r.version}</span>
+                          {r.date && (
+                            <span className="text-xs text-app-text-muted">{new Date(r.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
+                          )}
+                        </div>
+                        <ReleaseNotes notes={r.notes} />
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
               <div className="flex justify-end gap-3">
                 <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
                   Install Update

@@ -33,12 +33,22 @@ function findLocalInstaller(): string | undefined {
 const LOCAL_INSTALLER = findLocalInstaller();
 const DEV_FORCE_UPDATE = process.env.DEV_FORCE_UPDATE === "1" || !!LOCAL_INSTALLER;
 
+interface ReleaseInfo {
+  version: string;
+  notes: string;
+  date: string;
+}
+
 interface UpdateState {
   current: string;
   latest: string | null;
   updateAvailable: boolean;
   downloadUrl: string | null;
-  releaseNotes: string | null;
+  /** All releases newer than current version */
+  newReleases: ReleaseInfo[];
+  currentReleaseNotes: string | null;
+  currentReleaseDate: string | null;
+  lastChecked: string | null;
   checked: boolean;
 }
 
@@ -47,7 +57,10 @@ let state: UpdateState = {
   latest: null,
   updateAvailable: false,
   downloadUrl: null,
-  releaseNotes: null,
+  newReleases: [],
+  currentReleaseNotes: null,
+  currentReleaseDate: null,
+  lastChecked: null,
   checked: false,
 };
 
@@ -60,6 +73,53 @@ export function setTrayCommandFile(path: string): void {
 
 export function getUpdateState(): UpdateState {
   return state;
+}
+
+const GH_HEADERS = { "User-Agent": `raceiq/${VERSION}` };
+
+interface GitHubRelease {
+  tag_name: string;
+  body?: string;
+  published_at?: string;
+  assets: { name: string; browser_download_url: string }[];
+}
+
+/** Strip GitHub auto-generated boilerplate from release notes. */
+function cleanReleaseNotes(body: string): string {
+  return body
+    .replace(/^#+\s*What's Changed\s*\n*/im, "")
+    .replace(/\n*\*\*Full Changelog\*\*:.*$/im, "")
+    .trim();
+}
+
+/** Fetch all releases from GitHub and split into new/current. */
+async function fetchReleases(currentVersion: string): Promise<{
+  newReleases: ReleaseInfo[];
+  currentReleaseNotes: string | null;
+  currentReleaseDate: string | null;
+}> {
+  const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=50`, { headers: GH_HEADERS });
+  if (!res.ok) return { newReleases: [], currentReleaseNotes: null, currentReleaseDate: null };
+
+  const releases = await res.json() as GitHubRelease[];
+  const newReleases: ReleaseInfo[] = [];
+  let currentReleaseNotes: string | null = null;
+  let currentReleaseDate: string | null = null;
+
+  for (const r of releases) {
+    const ver = r.tag_name.replace(/^v/, "");
+    const notes = r.body?.trim() ? cleanReleaseNotes(r.body.trim()) : null;
+    if (ver === currentVersion) {
+      currentReleaseNotes = notes;
+      currentReleaseDate = r.published_at ?? null;
+    } else if (isNewer(ver, currentVersion)) {
+      if (notes) {
+        newReleases.push({ version: ver, notes, date: r.published_at ?? "" });
+      }
+    }
+  }
+
+  return { newReleases, currentReleaseNotes, currentReleaseDate };
 }
 
 /** Returns true if version string `a` is strictly newer than `b`. */
@@ -76,15 +136,9 @@ export async function checkForUpdate(): Promise<UpdateState> {
   // Dev mode: fake an available update using a local installer, but fetch real release notes
   if (DEV_FORCE_UPDATE) {
     const fakeVersion = "99.0.0";
-    let releaseNotes: string | null = null;
-    try {
-      const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, { headers: { "User-Agent": `raceiq/${VERSION}` } });
-      if (res.ok) {
-        const data = await res.json() as { body?: string };
-        releaseNotes = data.body?.trim() || null;
-      }
-    } catch {}
-    state = { current: VERSION, latest: fakeVersion, updateAvailable: true, downloadUrl: LOCAL_INSTALLER ?? null, releaseNotes, checked: true };
+    const { newReleases, currentReleaseNotes, currentReleaseDate } = await fetchReleases(VERSION).catch(() => ({ newReleases: [] as ReleaseInfo[], currentReleaseNotes: null, currentReleaseDate: null }));
+    const lastChecked = new Date().toISOString();
+    state = { current: VERSION, latest: fakeVersion, updateAvailable: true, downloadUrl: LOCAL_INSTALLER ?? null, newReleases, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
     wsManager.broadcastNotification({ type: "update-available", version: fakeVersion });
     if (trayCommandFile) {
       try { writeFileSync(trayCommandFile, `update-available:${fakeVersion}`); } catch {}
@@ -100,15 +154,17 @@ export async function checkForUpdate(): Promise<UpdateState> {
     );
     if (!res.ok) return { ...state, checked: true };
 
-    const data = await res.json() as { tag_name: string; body?: string; assets: { name: string; browser_download_url: string }[] };
+    const data = await res.json() as GitHubRelease;
     const latest = data.tag_name.replace(/^v/, "");
     const updateAvailable = isNewer(latest, VERSION);
 
     const installerAsset = data.assets.find((a) => a.name.match(/RaceIQ-Setup-v.*\.exe$/));
     const downloadUrl = installerAsset?.browser_download_url ?? null;
-    const releaseNotes = data.body?.trim() || null;
 
-    state = { current: VERSION, latest, updateAvailable, downloadUrl, releaseNotes, checked: true };
+    const { newReleases, currentReleaseNotes, currentReleaseDate } = await fetchReleases(VERSION).catch(() => ({ newReleases: [] as ReleaseInfo[], currentReleaseNotes: null, currentReleaseDate: null }));
+
+    const lastChecked = new Date().toISOString();
+    state = { current: VERSION, latest, updateAvailable, downloadUrl, newReleases, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
 
     if (updateAvailable) {
       // Notify browser clients via WebSocket

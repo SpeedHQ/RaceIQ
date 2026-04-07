@@ -41,12 +41,15 @@ function getGamePrefixes() {
 }
 
 function useUpdateCheck() {
-  const [state, setState] = useState<{ updateAvailable: boolean; current: string; latest: string | null; releaseNotes: string | null } | null>(null);
+  const [state, setState] = useState<{ updateAvailable: boolean; current: string; latest: string | null; newReleases: { version: string; notes: string; date: string }[] } | null>(null);
   const wsUpdateVersion = useTelemetryStore((s) => s.updateAvailable);
   useEffect(() => {
     client.api.version.$get()
       .then((r) => r.json())
-      .then((d) => setState({ updateAvailable: d.updateAvailable, current: d.current, latest: d.latest, releaseNotes: (d as unknown as { releaseNotes?: string }).releaseNotes ?? null }))
+      .then((d) => {
+        const ext = d as unknown as { newReleases?: { version: string; notes: string; date: string }[] };
+        setState({ updateAvailable: d.updateAvailable, current: d.current, latest: d.latest, newReleases: ext.newReleases ?? [] });
+      })
       .catch(() => {});
   }, []);
   // If WebSocket notifies an update after initial fetch, merge it in
@@ -196,7 +199,7 @@ function RootLayout() {
           )}
 
           {(showUpdateModal || updateProgress) && (
-            <UpdateModal version={updateState?.latest ?? "?"} releaseNotes={updateState?.releaseNotes ?? null} onClose={() => setShowUpdateModal(false)} />
+            <UpdateModal version={updateState?.latest ?? "?"} newReleases={updateState?.newReleases ?? []} onClose={() => setShowUpdateModal(false)} />
           )}
 
           <div className={`min-h-0 overflow-y-auto ${location.pathname === "/onboarding" ? "h-full" : ""}`}>
