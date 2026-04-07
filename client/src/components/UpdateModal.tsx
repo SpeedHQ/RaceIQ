@@ -38,7 +38,7 @@ function StepIndicator({ step, current }: { step: typeof STEPS[number]; current:
   );
 }
 
-export function UpdateModal({ version, onClose }: { version: string; onClose: () => void }) {
+export function UpdateModal({ version, releaseNotes, onClose }: { version: string; releaseNotes: string | null; onClose: () => void }) {
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,26 +54,37 @@ export function UpdateModal({ version, onClose }: { version: string; onClose: ()
         const body = await res.json().catch(() => null) as { error?: string } | null;
         throw new Error(body?.error ?? `Failed (${res.status})`);
       }
-    } catch (e: any) {
-      setError(e.message || "Update failed");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Update failed");
       useTelemetryStore.getState().setUpdateProgress(null);
     }
   };
 
-  // Auto-close after complete
+  // Auto-refresh after complete
+  const [countdown, setCountdown] = useState<number | null>(null);
   useEffect(() => {
     if (stage === "complete") {
-      const t = setTimeout(onClose, 3000);
-      return () => clearTimeout(t);
+      setCountdown(10);
+      const interval = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev === null || prev <= 1) {
+            clearInterval(interval);
+            window.location.reload();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
     }
-  }, [stage, onClose]);
+  }, [stage]);
 
   const isUpdating = stage !== null && stage !== "complete";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={isUpdating ? undefined : onClose}>
       <div
-        className="w-full max-w-md rounded-lg border border-app-border bg-app-bg shadow-2xl overflow-hidden"
+        className="w-full max-w-lg rounded-lg border border-app-border bg-app-bg shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -94,6 +105,11 @@ export function UpdateModal({ version, onClose }: { version: string; onClose: ()
               <p className="text-sm text-app-text-secondary">
                 RaceIQ <span className="font-mono text-app-accent">v{version}</span> is ready to install.
               </p>
+              {releaseNotes && (
+                <div className="max-h-48 overflow-y-auto rounded border border-app-border bg-app-surface p-3 text-xs text-app-text-secondary whitespace-pre-wrap leading-relaxed">
+                  {releaseNotes}
+                </div>
+              )}
               <div className="flex gap-3">
                 <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
                   Install Update
@@ -168,7 +184,7 @@ export function UpdateModal({ version, onClose }: { version: string; onClose: ()
               {stage === "complete" && (
                 <div className="text-center space-y-2">
                   <p className="text-sm text-green-400 font-medium">Update installed successfully!</p>
-                  <p className="text-xs text-app-text-muted">This dialog will close automatically.</p>
+                  <p className="text-xs text-app-text-muted">Refreshing in {countdown ?? 0}s...</p>
                 </div>
               )}
             </>

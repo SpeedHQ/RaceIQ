@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createRootRoute, Link, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -40,12 +41,12 @@ function getGamePrefixes() {
 }
 
 function useUpdateCheck() {
-  const [state, setState] = useState<{ updateAvailable: boolean; current: string; latest: string | null } | null>(null);
+  const [state, setState] = useState<{ updateAvailable: boolean; current: string; latest: string | null; releaseNotes: string | null } | null>(null);
   const wsUpdateVersion = useTelemetryStore((s) => s.updateAvailable);
   useEffect(() => {
     client.api.version.$get()
       .then((r) => r.json())
-      .then((d) => setState({ updateAvailable: d.updateAvailable, current: d.current, latest: d.latest }))
+      .then((d) => setState({ updateAvailable: d.updateAvailable, current: d.current, latest: d.latest, releaseNotes: (d as unknown as { releaseNotes?: string }).releaseNotes ?? null }))
       .catch(() => {});
   }, []);
   // If WebSocket notifies an update after initial fetch, merge it in
@@ -64,6 +65,7 @@ function RootLayout() {
   const [showSettings, setShowSettings] = useState(false);
   const [settingsSection, setSettingsSection] = useState<"updates" | "about" | undefined>(undefined);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -71,6 +73,7 @@ function RootLayout() {
     if (!isOnboardingComplete() && !location.pathname.startsWith("/onboarding")) {
       navigate({ to: "/onboarding" });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   // Determine which game-specific tabs to show based on current route
@@ -182,8 +185,8 @@ function RootLayout() {
             </div>
           )}
 
-          {showUpdateModal && updateState?.latest && (
-            <UpdateModal version={updateState.latest} onClose={() => setShowUpdateModal(false)} />
+          {(showUpdateModal || updateProgress) && (
+            <UpdateModal version={updateState?.latest ?? "?"} releaseNotes={updateState?.releaseNotes ?? null} onClose={() => setShowUpdateModal(false)} />
           )}
 
           <div className={`min-h-0 overflow-y-auto ${location.pathname === "/onboarding" ? "h-full" : ""}`}>

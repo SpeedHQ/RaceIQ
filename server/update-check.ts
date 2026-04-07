@@ -1,5 +1,6 @@
-import { writeFileSync, existsSync, statSync } from "fs";
-import { join, resolve } from "path";
+import { writeFileSync, existsSync, readdirSync } from "fs";
+import { join, resolve, dirname } from "path";
+import { fileURLToPath } from "url";
 import { tmpdir } from "os";
 import { spawn } from "child_process";
 import pkg from "../package.json";
@@ -12,14 +13,32 @@ const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
 // Dev/test overrides:
 // LOCAL_INSTALLER=path/to/RaceIQ-Setup.exe — skip download, use local installer
 // DEV_FORCE_UPDATE=1 — pretend an update is available (version 99.0.0)
-const LOCAL_INSTALLER = process.env.LOCAL_INSTALLER;
-const DEV_FORCE_UPDATE = process.env.DEV_FORCE_UPDATE === "1";
+// In dev mode, auto-detect installer in project root (e.g. RaceIQ-Setup-v0.3.2.exe)
+const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+function findLocalInstaller(): string | undefined {
+  if (process.env.LOCAL_INSTALLER) return process.env.LOCAL_INSTALLER;
+  if (process.env.NODE_ENV === "production") return undefined;
+  try {
+    const match = readdirSync(PROJECT_ROOT).find((f) => /^RaceIQ-Setup.*\.exe$/.test(f));
+    if (match) {
+      const fullPath = join(PROJECT_ROOT, match);
+      console.log(`[Update] Dev mode: found local installer ${fullPath}`);
+      return fullPath;
+    }
+  } catch {}
+  return undefined;
+}
+
+const LOCAL_INSTALLER = findLocalInstaller();
+const DEV_FORCE_UPDATE = process.env.DEV_FORCE_UPDATE === "1" || !!LOCAL_INSTALLER;
 
 interface UpdateState {
   current: string;
   latest: string | null;
   updateAvailable: boolean;
   downloadUrl: string | null;
+  releaseNotes: string | null;
   checked: boolean;
 }
 
@@ -28,6 +47,7 @@ let state: UpdateState = {
   latest: null,
   updateAvailable: false,
   downloadUrl: null,
+  releaseNotes: null,
   checked: false,
 };
 
@@ -53,10 +73,18 @@ export function isNewer(a: string, b: string): boolean {
 }
 
 export async function checkForUpdate(): Promise<UpdateState> {
-  // Dev mode: fake an available update using a local installer
+  // Dev mode: fake an available update using a local installer, but fetch real release notes
   if (DEV_FORCE_UPDATE) {
     const fakeVersion = "99.0.0";
-    state = { current: VERSION, latest: fakeVersion, updateAvailable: true, downloadUrl: LOCAL_INSTALLER ?? null, checked: true };
+    let releaseNotes: string | null = null;
+    try {
+      const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, { headers: { "User-Agent": `raceiq/${VERSION}` } });
+      if (res.ok) {
+        const data = await res.json() as { body?: string };
+        releaseNotes = data.body?.trim() || null;
+      }
+    } catch {}
+    state = { current: VERSION, latest: fakeVersion, updateAvailable: true, downloadUrl: LOCAL_INSTALLER ?? null, releaseNotes, checked: true };
     wsManager.broadcastNotification({ type: "update-available", version: fakeVersion });
     if (trayCommandFile) {
       try { writeFileSync(trayCommandFile, `update-available:${fakeVersion}`); } catch {}
@@ -72,14 +100,15 @@ export async function checkForUpdate(): Promise<UpdateState> {
     );
     if (!res.ok) return { ...state, checked: true };
 
-    const data = await res.json() as { tag_name: string; assets: { name: string; browser_download_url: string }[] };
+    const data = await res.json() as { tag_name: string; body?: string; assets: { name: string; browser_download_url: string }[] };
     const latest = data.tag_name.replace(/^v/, "");
     const updateAvailable = isNewer(latest, VERSION);
 
     const installerAsset = data.assets.find((a) => a.name.match(/RaceIQ-Setup-v.*\.exe$/));
     const downloadUrl = installerAsset?.browser_download_url ?? null;
+    const releaseNotes = data.body?.trim() || null;
 
-    state = { current: VERSION, latest, updateAvailable, downloadUrl, checked: true };
+    state = { current: VERSION, latest, updateAvailable, downloadUrl, releaseNotes, checked: true };
 
     if (updateAvailable) {
       // Notify browser clients via WebSocket
@@ -123,8 +152,7 @@ export async function applyUpdate(): Promise<void> {
     }
     console.log(`[Update] Using local installer: ${installerPath}`);
 
-    // Simulate download progress for UI testing
-    const size = statSync(installerPath).size;
+    // Simulate download progress for UI testing (~2s total)
     wsManager.broadcastNotification({ type: "update-progress", stage: "downloading", percent: 0 });
     for (let p = 10; p <= 100; p += 10) {
       await new Promise((r) => setTimeout(r, 200));
@@ -177,17 +205,11 @@ export async function applyUpdate(): Promise<void> {
   // - Swapping all files in the install directory
   // - Updating Windows registry (Apps & Features version)
   // - Relaunching the app (postinstall Run section)
-  spawn(
-    "powershell.exe",
-    [
-      "-NoProfile",
-      "-WindowStyle", "Hidden",
-      "-ExecutionPolicy", "Bypass",
-      "-Command",
-      `Start-Process -FilePath '${installerPath.replace(/'/g, "''")}' -ArgumentList '/SILENT','/NORESTART' -Verb RunAs`,
-    ],
-    { stdio: "ignore", detached: true, windowsHide: true },
-  ).unref();
+  console.log(`[Update] Spawning installer: ${installerPath}`);
+  spawn(installerPath, ["/SILENT", "/NORESTART"], {
+    stdio: "ignore",
+    detached: true,
+  }).unref();
 
   console.log(`[Update] Installer spawned. Process will be killed by Inno Setup.`);
   // Small delay so the HTTP response can be sent before Inno kills us

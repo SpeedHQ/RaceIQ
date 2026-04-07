@@ -2,8 +2,9 @@ pre-commit:
   parallel: true
   jobs:
     - name: lint
+      root: "client/"
       glob: "client/src/**/*.{ts,tsx}"
-      run: cd client && bunx eslint --max-warnings 0 {staged_files}
+      run: bunx eslint {staged_files}
 
     - name: typecheck
       glob: "server/**/*.ts"

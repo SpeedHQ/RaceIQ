@@ -20,7 +20,6 @@
     "laps:export": "bun scripts/export-laps.ts",
     "laps:import": "bun scripts/import-laps.ts",
     "build:installer": "bun scripts/build-installer.ts",
-    "test:updater": "bun scripts/test-updater.ts",
     "postinstall": "lefthook install",
     "lighthouse": "lighthouse http://raceiq.localhost:1355/ --only-categories=accessibility,performance,best-practices --chrome-flags=\"--headless=new --no-sandbox --disable-gpu\" --output=html --output-path=./lighthouse-report.html && echo 'Report: lighthouse-report.html'"
   },

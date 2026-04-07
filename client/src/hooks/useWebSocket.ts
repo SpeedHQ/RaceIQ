@@ -23,13 +23,20 @@ export function useWebSocket() {
       // Read store actions via getState() — stable, no dependency issues
       const store = useTelemetryStore.getState();
 
-      ws.onopen = () => store.setConnected(true);
+      ws.onopen = () => {
+        store.setConnected(true);
+        // If we were waiting for the server to restart after update, mark complete
+        const progress = useTelemetryStore.getState().updateProgress;
+        if (progress?.stage === "reconnecting") {
+          useTelemetryStore.getState().setUpdateProgress({ stage: "complete", percent: 100 });
+        }
+      };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           if (data.type === "status") {
-            const { type: _, ...status } = data;
+            const { type: __ignored, ...status } = data; // eslint-disable-line @typescript-eslint/no-unused-vars
             useTelemetryStore.getState().setServerStatus(status);
           } else if (data.type === "update-available") {
             useTelemetryStore.getState().setUpdateAvailable(data.version as string);
