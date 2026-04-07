@@ -26,6 +26,23 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   wsRefreshRate: "60",
 };
 
+export interface ReleaseInfo {
+  version: string;
+  notes: string;
+  date: string;
+}
+
+export interface VersionInfo {
+  current: string;
+  latest: string | null;
+  updateAvailable: boolean;
+  newReleases: ReleaseInfo[];
+  currentReleaseNotes: string | null;
+  currentReleaseDate: string | null;
+  lastChecked: string | null;
+  checked: boolean;
+}
+
 export interface ServerStatus {
   udpPps: number;
   isRaceOn: boolean;
@@ -60,6 +77,8 @@ interface TelemetryState {
   updateAvailable: string | null;
   /** Update progress tracking */
   updateProgress: { stage: "downloading" | "installing" | "reconnecting" | "complete"; percent: number } | null;
+  /** Cached version info from /api/version */
+  versionInfo: VersionInfo | null;
   setConnected: (connected: boolean) => void;
   setPacket: (packet: TelemetryPacket) => void;
   setSectors: (sectors: LiveSectorData) => void;
@@ -69,6 +88,7 @@ interface TelemetryState {
   setServerStatus: (status: ServerStatus | null) => void;
   setUpdateAvailable: (version: string | null) => void;
   setUpdateProgress: (progress: TelemetryState["updateProgress"]) => void;
+  setVersionInfo: (info: VersionInfo) => void;
   /** Update unit system — re-converts current packet */
   setUnitSystem: (unit: "metric" | "imperial") => void;
 }
@@ -90,6 +110,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   unitSystem: "metric",
   updateAvailable: null,
   updateProgress: null,
+  versionInfo: null,
   setConnected: (connected) => set((prev) => {
     // Detect reconnection after update install
     if (connected && prev.updateProgress?.stage === "reconnecting") {
@@ -120,6 +141,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   }),
   setUpdateAvailable: (version) => set({ updateAvailable: version }),
   setUpdateProgress: (progress) => set({ updateProgress: progress }),
+  setVersionInfo: (info) => set({ versionInfo: info }),
   setUnitSystem: (unit) => {
     const { rawPacket } = get();
     set({

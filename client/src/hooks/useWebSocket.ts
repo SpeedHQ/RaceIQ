@@ -1,6 +1,15 @@
 import { useEffect, useRef } from "react";
 import type { TelemetryPacket } from "@shared/types";
 import { useTelemetryStore } from "../stores/telemetry";
+import type { VersionInfo } from "../stores/telemetry";
+import { client } from "../lib/rpc";
+
+function fetchVersionInfo() {
+  client.api.version.$get()
+    .then((r) => r.json())
+    .then((d) => useTelemetryStore.getState().setVersionInfo(d as unknown as VersionInfo))
+    .catch(() => {});
+}
 
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
@@ -26,6 +35,7 @@ export function useWebSocket() {
       ws.onopen = () => {
         // setConnected handles reconnecting → complete transition internally
         store.setConnected(true);
+        fetchVersionInfo();
       };
 
       ws.onmessage = (event) => {
@@ -36,6 +46,7 @@ export function useWebSocket() {
             useTelemetryStore.getState().setServerStatus(status);
           } else if (data.type === "update-available") {
             useTelemetryStore.getState().setUpdateAvailable(data.version as string);
+            fetchVersionInfo();
           } else if (data.type === "update-progress") {
             useTelemetryStore.getState().setUpdateProgress({ stage: data.stage, percent: data.percent ?? 0 });
           } else {

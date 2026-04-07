@@ -11,7 +11,6 @@ import { isOnboardingComplete } from "../components/Onboarding";
 import { ProfileSwitcher } from "../components/ProfileSwitcher";
 import { Button } from "@/components/ui/button";
 import { getAllGames } from "@shared/games/registry";
-import { client } from "../lib/rpc";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,27 +39,7 @@ function getGamePrefixes() {
 }
 
 function useUpdateCheck() {
-  const [state, setState] = useState<{ updateAvailable: boolean; current: string; latest: string | null; newReleases: { version: string; notes: string; date: string }[] } | null>(null);
-  const wsUpdateVersion = useTelemetryStore((s) => s.updateAvailable);
-
-  const fetchVersion = () => {
-    client.api.version.$get()
-      .then((r) => r.json())
-      .then((d) => {
-        const ext = d as unknown as { newReleases?: { version: string; notes: string; date: string }[] };
-        setState({ updateAvailable: d.updateAvailable, current: d.current, latest: d.latest, newReleases: ext.newReleases ?? [] });
-      })
-      .catch(() => {});
-  };
-
-  useEffect(fetchVersion, []);
-
-  // Refetch when WS notifies an update (server may have new release data)
-  useEffect(() => {
-    if (wsUpdateVersion) fetchVersion();
-  }, [wsUpdateVersion]);
-
-  return state;
+  return useTelemetryStore((s) => s.versionInfo);
 }
 
 function RootLayout() {

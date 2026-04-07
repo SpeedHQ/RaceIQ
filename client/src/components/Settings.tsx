@@ -224,30 +224,17 @@ function AiSection() {
 function UpdatesSection() {
   const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
+  const versionInfo = useTelemetryStore((s) => s.versionInfo);
   const [checking, setChecking] = useState(false);
-  const { data: versionInfo, refetch } = useQuery({
-    queryKey: ["version"],
-    queryFn: async () => {
-      const res = await client.api.version.$get();
-      return await res.json() as {
-        current: string;
-        latest: string | null;
-        updateAvailable: boolean;
-        newReleases: { version: string; notes: string; date: string }[];
-        currentReleaseNotes: string | null;
-        currentReleaseDate: string | null;
-        lastChecked: string | null;
-        checked: boolean;
-      };
-    },
-    staleTime: 60_000,
-  });
 
   const handleCheck = async () => {
     setChecking(true);
     try {
       await client.api.update.check.$post();
-      await refetch();
+      // Refetch version info into Zustand
+      const res = await client.api.version.$get();
+      const data = await res.json();
+      useTelemetryStore.getState().setVersionInfo(data as unknown as import("@/stores/telemetry").VersionInfo);
     } catch {} finally {
       setChecking(false);
     }
