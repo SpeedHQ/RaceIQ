@@ -122,7 +122,6 @@ function TrackCard({
     <div
       className={`${className ?? ""} ${clickable ? "cursor-pointer hover:brightness-110 transition" : ""}`}
       onClick={() => {
-        console.log("[TrackCard] click", { seg, color, clickable });
         if (!seg) return;
         onJumpToFrac?.((seg.startFrac + seg.endFrac) / 2);
         onHighlightsChange?.([{ startFrac: seg.startFrac, endFrac: seg.endFrac, color, label: seg.name }]);
@@ -226,13 +225,46 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         })));
       }
       setHasTune(!!data.hasTune);
+
+      // Compute track highlights from analysis corners
+      const segs: Segment[] = data.cornerFracs
+        ? data.cornerFracs.map((c: { label: string; startFrac: number; endFrac: number }) => ({
+            type: "corner", name: c.label, startFrac: c.startFrac, endFrac: c.endFrac,
+          }))
+        : (segments ?? []);
+      const searchSegs = segs.length ? segs : null;
+      const hl: AnalysisHighlight[] = [];
+      for (const corner of parsed.corners ?? []) {
+        const seg = findSegment(searchSegs, corner.name);
+        if (seg) {
+          hl.push({
+            startFrac: seg.startFrac, endFrac: seg.endFrac,
+            color: corner.severity === "major" ? "critical" : corner.severity === "moderate" ? "warning" : "good",
+            label: corner.name,
+          });
+        }
+      }
+      for (const item of parsed.braking ?? []) {
+        const seg = findSegment(searchSegs, item.corner);
+        if (seg) {
+          hl.push({ startFrac: seg.startFrac, endFrac: seg.endFrac, color: item.assessment, label: item.corner });
+        }
+      }
+      for (const item of parsed.throttle ?? []) {
+        const seg = findSegment(searchSegs, item.corner);
+        if (seg) {
+          hl.push({ startFrac: seg.startFrac, endFrac: seg.endFrac, color: item.assessment, label: item.corner });
+        }
+      }
+      if (hl.length > 0) onHighlightsChange?.(hl);
+
       onAnalysisLoaded?.();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to fetch analysis");
     } finally {
       setLoading(false);
     }
-  }, [lapId, onAnalysisLoaded]);
+  }, [lapId, onAnalysisLoaded, segments, onHighlightsChange]);
 
   // Load chat messages
   const loadChat = useCallback(async () => {
