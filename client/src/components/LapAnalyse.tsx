@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import type { TelemetryPacket, LapMeta } from "@shared/types";
 import { convertTemp } from "../lib/temperature";
+import { getTireColor } from "../lib/tire-color";
 import { useCookieState } from "../hooks/useCookieState";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { formatLapTime, TireDiagram, GForceCircle } from "./LiveTelemetry";
@@ -1246,14 +1247,11 @@ export function LapAnalyse() {
                               const fr = currentDisplayPacket?.DisplayTireTempFR ?? currentPacket.TireTempFR;
                               const rl = currentDisplayPacket?.DisplayTireTempRL ?? currentPacket.TireTempRL;
                               const rr = currentDisplayPacket?.DisplayTireTempRR ?? currentPacket.TireTempRR;
-                              const tireColor = isF1 || gameId === "acc"
-                                ? (t: number) => t < 70 ? "#3b82f6" : t < 80 ? "#94a3b8" : t < 105 ? "#34d399" : t < 115 ? "#fbbf24" : "#ef4444"
-                                : (t: number) => t < 160 ? "#3b82f6" : t < 180 ? "#94a3b8" : t < 220 ? "#34d399" : t < 240 ? "#fbbf24" : "#ef4444";
                               return <>
-                                <span className="text-app-text-secondary">FL: <span className="tabular-nums" style={{ color: tireColor(fl) }}>{fl.toFixed(0)}{units.tempLabel}</span></span>
-                                <span className="text-app-text-secondary">FR: <span className="tabular-nums" style={{ color: tireColor(fr) }}>{fr.toFixed(0)}{units.tempLabel}</span></span>
-                                <span className="text-app-text-secondary">RL: <span className="tabular-nums" style={{ color: tireColor(rl) }}>{rl.toFixed(0)}{units.tempLabel}</span></span>
-                                <span className="text-app-text-secondary">RR: <span className="tabular-nums" style={{ color: tireColor(rr) }}>{rr.toFixed(0)}{units.tempLabel}</span></span>
+                                <span className="text-app-text-secondary">FL: <span className="tabular-nums" style={{ color: getTireColor(fl, units.thresholds) }}>{fl.toFixed(0)}{units.tempLabel}</span></span>
+                                <span className="text-app-text-secondary">FR: <span className="tabular-nums" style={{ color: getTireColor(fr, units.thresholds) }}>{fr.toFixed(0)}{units.tempLabel}</span></span>
+                                <span className="text-app-text-secondary">RL: <span className="tabular-nums" style={{ color: getTireColor(rl, units.thresholds) }}>{rl.toFixed(0)}{units.tempLabel}</span></span>
+                                <span className="text-app-text-secondary">RR: <span className="tabular-nums" style={{ color: getTireColor(rr, units.thresholds) }}>{rr.toFixed(0)}{units.tempLabel}</span></span>
                               </>;
                             })()}
                           </div>
