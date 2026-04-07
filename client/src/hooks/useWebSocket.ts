@@ -24,12 +24,8 @@ export function useWebSocket() {
       const store = useTelemetryStore.getState();
 
       ws.onopen = () => {
+        // setConnected handles reconnecting → complete transition internally
         store.setConnected(true);
-        // If we were waiting for the server to restart after update, mark complete
-        const progress = useTelemetryStore.getState().updateProgress;
-        if (progress?.stage === "reconnecting") {
-          useTelemetryStore.getState().setUpdateProgress({ stage: "complete", percent: 100 });
-        }
       };
 
       ws.onmessage = (event) => {
@@ -59,8 +55,10 @@ export function useWebSocket() {
         const s = useTelemetryStore.getState();
         s.setConnected(false);
         s.setServerStatus(null);
-        // If we were installing an update, transition to reconnecting stage
-        if (s.updateProgress?.stage === "installing") {
+        // If update was in progress, transition to reconnecting stage
+        // Covers both "installing" and "downloading" (race: server may exit before WS "installing" message arrives)
+        const stage = s.updateProgress?.stage;
+        if (stage === "installing" || stage === "downloading") {
           s.setUpdateProgress({ stage: "reconnecting", percent: 100 });
         }
         wsRef.current = null;

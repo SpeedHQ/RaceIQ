@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { client } from "@/lib/rpc";
@@ -107,11 +108,28 @@ export function UpdateModal({ version, releaseNotes, onClose }: { version: strin
                 RaceIQ <span className="font-mono text-app-accent">v{version}</span> is ready to install.
               </p>
               {releaseNotes && (
-                <div className="max-h-48 overflow-y-auto rounded border border-app-border bg-app-surface p-3 text-xs text-app-text-secondary leading-relaxed prose prose-sm prose-invert prose-headings:text-app-text prose-a:text-app-accent">
-                  <Markdown>{releaseNotes}</Markdown>
+                <div className="max-h-48 overflow-y-auto rounded border border-app-border bg-app-surface p-3 text-xs text-app-text-secondary leading-relaxed prose prose-sm prose-invert prose-headings:text-app-text prose-a:text-app-accent prose-a:underline">
+                  <Markdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ href, children }) => {
+                        // Shorten GitHub PR/issue/compare URLs like GitHub does
+                        let label = children;
+                        if (typeof children === "string" && href) {
+                          const prMatch = href.match(/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/);
+                          const compareMatch = href.match(/github\.com\/([^/]+\/[^/]+)\/compare\/(.+)/);
+                          if (prMatch) label = `#${prMatch[2]}`;
+                          else if (compareMatch) label = compareMatch[2];
+                        }
+                        return <a href={href} target="_blank" rel="noreferrer">{label}</a>;
+                      },
+                    }}
+                  >
+                    {releaseNotes}
+                  </Markdown>
                 </div>
               )}
-              <div className="flex gap-3">
+              <div className="flex justify-end gap-3">
                 <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
                   Install Update
                 </Button>
@@ -126,7 +144,7 @@ export function UpdateModal({ version, releaseNotes, onClose }: { version: strin
           {error && (
             <>
               <p className="text-sm text-red-400">{error}</p>
-              <div className="flex gap-3">
+              <div className="flex justify-end gap-3">
                 <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
                   Retry
                 </Button>

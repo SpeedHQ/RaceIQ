@@ -127,8 +127,13 @@ export async function checkForUpdate(): Promise<UpdateState> {
 }
 
 export function startUpdateCheckSchedule(): void {
-  // Delay startup check by 10s to not compete with server init
-  setTimeout(() => checkForUpdate(), 10_000);
+  if (DEV_FORCE_UPDATE) {
+    // Dev mode: check immediately so release notes are available on first load
+    checkForUpdate();
+  } else {
+    // Delay startup check by 10s to not compete with server init
+    setTimeout(() => checkForUpdate(), 10_000);
+  }
   setInterval(() => checkForUpdate(), FOUR_HOURS_MS);
 }
 
