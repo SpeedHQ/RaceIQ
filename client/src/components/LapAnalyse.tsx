@@ -15,6 +15,7 @@ import {
   allFrictionCircle,
   frictionCircleUtil,
   steerBalance,
+  balanceChartData,
   slipRatioColor,
   frictionUtilColor,
   balanceColor,
@@ -38,7 +39,7 @@ import { AnalyseTrackMap, type TrackMapHandle, type Point } from "./analyse/Anal
 import { AnalyseChartsPanel, type ChartsPanelHandle } from "./analyse/AnalyseChartsPanel";
 import { AnalyseSegmentList } from "./analyse/AnalyseSegmentList";
 import { AnalyseTimelineScrubber } from "./analyse/AnalyseTimelineScrubber";
-import { MetricsPanel, WearValue, SlipAngleValue, WheelSpeedValue, SuspValue, brakeBarColor } from "./analyse/AnalyseMetricsPanel";
+import { MetricsPanel, brakeBarColor } from "./analyse/AnalyseMetricsPanel";
 import { TuneViewModal } from "./analyse/TuneViewModal";
 import { WheelTable } from "./analyse/WheelTable";
 
@@ -1070,7 +1071,42 @@ export function LapAnalyse() {
                         {/* Balance — estimated from slip angles */}
                         {(
                           <div className="flex justify-between">
-                            <span className="text-app-text-muted">Balance</span>
+                            <span className="flex items-center gap-1 group relative text-app-text-muted">
+                              Balance
+                              <Info className="w-3 h-3 text-app-text-dim cursor-help" />
+                              <span className="absolute left-0 top-full mt-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2.5 py-2 text-[10px] text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal w-[280px]">
+                                <span className="block mb-1">Front vs rear slip angle delta (Milliken method). EMA-smoothed.</span>
+                                <span className="block mb-1.5 text-app-text-dim">
+                                  +δ = understeer (fronts slide more)<br/>
+                                  −δ = oversteer (rears slide more)
+                                </span>
+                                <span className="block text-[9px] text-app-text-dim mb-1">Slip Angle Threshold (°) vs Speed (mph)</span>
+                                {(() => {
+                                  const chart = balanceChartData(currentPacket.Speed * 2.23694);
+                                  return (
+                                    <svg viewBox="0 0 200 80" className="w-full h-auto">
+                                      <line x1="30" y1="5" x2="30" y2="65" stroke="currentColor" opacity="0.15" />
+                                      <line x1="30" y1="65" x2="195" y2="65" stroke="currentColor" opacity="0.15" />
+                                      <text x="27" y={chart.degToY(0) + 3} textAnchor="end" fill="currentColor" opacity="0.4" fontSize="7">0°</text>
+                                      {chart.yLabels.map((l, i) => (
+                                        <g key={i}>
+                                          <line x1="30" y1={l.y} x2="195" y2={l.y} stroke="currentColor" opacity="0.08" strokeDasharray="2,2" />
+                                          <text x="27" y={l.y + 3} textAnchor="end" fill="currentColor" opacity="0.4" fontSize="7">{l.deg}°</text>
+                                        </g>
+                                      ))}
+                                      {chart.xLabels.map(l => (
+                                        <text key={l.mph} x={l.x} y="75" textAnchor="middle" fill="currentColor" opacity="0.4" fontSize="7">
+                                          {l.mph === 90 ? "90 mph" : String(l.mph)}
+                                        </text>
+                                      ))}
+                                      <polyline points={chart.polylinePoints} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinejoin="round" />
+                                      <circle cx={chart.markerX} cy={chart.markerY} r="3" fill="#3b82f6" />
+                                    </svg>
+                                  );
+                                })()}
+
+                              </span>
+                            </span>
                             <span className="tabular-nums" style={{ color: balanceColor(bal.state) }}>
                               {bal.state === "neutral" ? "Neutral" : bal.state === "understeer" ? "Understeer" : "Oversteer"}
                               <span className="text-app-text-dim ml-1">({bal.deltaDeg > 0 ? "+" : ""}{bal.deltaDeg.toFixed(1)}°)</span>
@@ -1248,7 +1284,6 @@ export function LapAnalyse() {
                   <div className="text-[11px] font-mono">
                     {(() => {
                       const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
-                      const tempRow = [fl, fr, rl, rr];
                       const rows = [
                         { label: "Rotation /s", fl: speeds[0].toFixed(1), fr: speeds[1].toFixed(1), rl: speeds[2].toFixed(1), rr: speeds[3].toFixed(1) },
                         { label: "Temp", fl: C(`${fl.toFixed(0)}${units.tempLabel}`, getTireColor(fl, units.thresholds)), fr: C(`${fr.toFixed(0)}${units.tempLabel}`, getTireColor(fr, units.thresholds)), rl: C(`${rl.toFixed(0)}${units.tempLabel}`, getTireColor(rl, units.thresholds)), rr: C(`${rr.toFixed(0)}${units.tempLabel}`, getTireColor(rr, units.thresholds)) },

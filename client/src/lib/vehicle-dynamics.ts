@@ -82,17 +82,76 @@ export interface SteerBalance {
   severity: number;       // 0-1, how far from neutral
 }
 
+/** Slip angle threshold (°) for under/oversteer detection at a given speed */
+export const BALANCE_THRESHOLDS = [
+  { maxMph: 30, deg: 8 },
+  { maxMph: 60, deg: 5 },
+  { maxMph: Infinity, deg: 3 },
+] as const;
+
+export function balanceThreshold(speedMph: number): number {
+  for (const t of BALANCE_THRESHOLDS) {
+    if (speedMph <= t.maxMph) return t.deg;
+  }
+  return BALANCE_THRESHOLDS[BALANCE_THRESHOLDS.length - 1].deg;
+}
+
+/** SVG chart data for the balance threshold graph */
+export interface BalanceChartData {
+  polylinePoints: string;
+  markerX: number;
+  markerY: number;
+  yLabels: { deg: number; y: number }[];
+  xLabels: { mph: number; x: number }[];
+  degToY: (d: number) => number;
+}
+
+export function balanceChartData(speedMph: number): BalanceChartData {
+  const yScale = 10;
+  const degToY = (d: number) => 65 - (d / yScale) * 60;
+  const mphToX = (mph: number) => 30 + (Math.min(mph, 90) / 90) * 165;
+
+  // Build polyline from thresholds
+  const points: string[] = [];
+  let prevMph = 0;
+  for (const t of BALANCE_THRESHOLDS) {
+    const endMph = Math.min(t.maxMph, 90);
+    const y = degToY(t.deg);
+    if (points.length > 0) points.push(`${mphToX(prevMph)},${y}`);
+    points.push(`${mphToX(endMph)},${y}`);
+    prevMph = endMph;
+  }
+
+  const thr = balanceThreshold(speedMph);
+
+  return {
+    polylinePoints: points.join(" "),
+    markerX: mphToX(speedMph),
+    markerY: degToY(thr),
+    yLabels: BALANCE_THRESHOLDS.map(t => ({ deg: t.deg, y: degToY(t.deg) })),
+    xLabels: [0, 30, 60, 90].map(v => ({ mph: v, x: mphToX(v) })),
+    degToY,
+  };
+}
+
+// EMA state for smoothing — persists across calls
+let _smoothedDelta = 0;
+const EMA_ALPHA = 0.15; // lower = smoother, less flicker
+
 export function steerBalance(pkt: TelemetryPacket): SteerBalance {
   const frontAvg = (Math.abs(pkt.TireSlipAngleFL) + Math.abs(pkt.TireSlipAngleFR)) / 2 * RAD2DEG;
   const rearAvg = (Math.abs(pkt.TireSlipAngleRL) + Math.abs(pkt.TireSlipAngleRR)) / 2 * RAD2DEG;
-  const delta = frontAvg - rearAvg;
+  const rawDelta = frontAvg - rearAvg;
 
-  // Threshold scales with speed — at low speed, larger deltas are normal
+  // EMA smoothing to prevent frame-by-frame flickering
+  _smoothedDelta = EMA_ALPHA * rawDelta + (1 - EMA_ALPHA) * _smoothedDelta;
+  const delta = _smoothedDelta;
+
   const speedMph = pkt.Speed * 2.23694;
-  const threshold = speedMph > 60 ? 5 : speedMph > 30 ? 8 : 12;
+  const threshold = balanceThreshold(speedMph);
 
   const state = delta > threshold ? "understeer" : delta < -threshold ? "oversteer" : "neutral";
-  const severity = Math.min(1, Math.abs(delta) / (threshold * 3));
+  const severity = Math.min(1, Math.abs(delta) / (threshold * 1.5));
 
   return { frontAvgDeg: frontAvg, rearAvgDeg: rearAvg, deltaDeg: delta, state, severity };
 }
