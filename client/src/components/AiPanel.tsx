@@ -620,20 +620,26 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
 
       {/* Chat input — pinned at bottom */}
       {analysis && !loading && (
-        <div className="shrink-0 border-t border-app-border p-2 flex items-center gap-1.5">
-          <input
-            type="text"
+        <div className="shrink-0 border-t border-app-border p-2 flex gap-1.5">
+          <textarea
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
             placeholder="Ask about this lap..."
             disabled={chatLoading}
-            className="flex-1 bg-app-surface border border-app-border-input rounded px-2 py-1.5 text-[11px] text-app-text placeholder:text-app-text-muted focus:outline-none focus:border-cyan-500/50 disabled:opacity-50"
+            rows={1}
+            style={{ height: 'auto', maxHeight: '9.375rem' }}
+            className="flex-1 bg-app-surface border border-app-border-input rounded px-3 py-2.5 text-[12px] text-app-text placeholder:text-app-text-muted focus:outline-none focus:border-cyan-500/50 disabled:opacity-50 resize-none overflow-y-auto"
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = target.scrollHeight + 'px';
+            }}
           />
           <button
             onClick={sendChat}
             disabled={chatLoading || !chatInput.trim()}
-            className="shrink-0 p-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors disabled:opacity-40"
+            className="shrink-0 p-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors disabled:opacity-40 self-end"
           >
             <Send className="size-3" />
           </button>
