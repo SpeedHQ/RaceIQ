@@ -149,6 +149,7 @@ export function LapAnalyse() {
   const [rightColWidth, setRightColWidth] = useCookieState("analyse-rightCol", 650);
   const [playing, setPlaying] = useState(false);
   const [rotateWithCar, setRotateWithCar] = useState(false);
+  const [showInputs, setShowInputs] = useState(false);
   const [mapZoom, setMapZoom] = useState(1);
   const [topHeight, setTopHeight] = useCookieState("analyse-topHeight", 500);
   const loading = lapLoading;
@@ -781,6 +782,7 @@ export function LapAnalyse() {
                 sectors={sectors}
                 segments={segments}
                 highlights={aiPanelOpen ? aiHighlights : null}
+                showInputs={showInputs}
                 rotateWithCar={rotateWithCar}
                 zoom={mapZoom}
                 containerHeight={topHeight}
@@ -788,9 +790,32 @@ export function LapAnalyse() {
               {/* Weather widget — top left (updates at cursor position) */}
               {telemetry[cursorIdx]?.f1 && <WeatherWidget f1={telemetry[cursorIdx].f1!} />}
 
-              {/* Map controls overlay — top right */}
+              {/* View toggles — top left (matches 3D panel style) */}
+              <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+                <button
+                  onClick={() => setRotateWithCar((r) => !r)}
+                  className={`px-2 py-1 text-[9px] uppercase tracking-wider font-semibold rounded border transition-colors ${
+                    rotateWithCar
+                      ? "bg-cyan-900/50 border-cyan-700 text-app-accent"
+                      : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
+                  }`}
+                >
+                  {rotateWithCar ? "Follow" : "Fixed"}
+                </button>
+                <button
+                  onClick={() => setShowInputs((v) => !v)}
+                  className={`px-2 py-1 text-[9px] uppercase tracking-wider font-semibold rounded border transition-colors ${
+                    showInputs
+                      ? "bg-cyan-900/50 border-cyan-700 text-app-accent"
+                      : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
+                  }`}
+                >
+                  Inputs
+                </button>
+              </div>
+
+              {/* Right side controls */}
               <div className="absolute top-2 right-2 flex items-start gap-2">
-                {/* Zoom controls — only in car view */}
                 {rotateWithCar && (
                   <div className="flex flex-col gap-1">
                     <button
@@ -803,21 +828,28 @@ export function LapAnalyse() {
                     >-</button>
                   </div>
                 )}
-                {/* View toggle */}
-                <button
-                  onClick={() => setRotateWithCar((r) => !r)}
-                  className={`px-2 py-1 text-[10px] rounded border transition-colors ${
-                    rotateWithCar
-                      ? "bg-cyan-900/50 border-cyan-700 text-app-accent"
-                      : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
-                  }`}
-                  title="Rotate map to follow car direction"
-                >
-                  {rotateWithCar ? "Follow View" : "Fixed View"}
-                </button>
-                {/* Compass */}
                 {currentPacket && <Compass yaw={currentPacket.Yaw} />}
               </div>
+
+              {/* Pedal bars — bottom right */}
+              {currentPacket && (
+                <div className="absolute bottom-2 right-2 flex gap-1 items-end" style={{ height: 60 }}>
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{((currentPacket.Accel / 255) * 100).toFixed(0)}</span>
+                    <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 40 }}>
+                      <div className="absolute bottom-0 w-full bg-emerald-400 rounded-sm transition-all" style={{ height: `${(currentPacket.Accel / 255) * 100}%` }} />
+                    </div>
+                    <span className="text-[7px] text-app-text-muted">T</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="text-[9px] font-mono font-bold tabular-nums" style={{ color: brakeBarColor(currentPacket.Brake) }}>{((currentPacket.Brake / 255) * 100).toFixed(0)}</span>
+                    <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 40 }}>
+                      <div className="absolute bottom-0 w-full rounded-sm transition-all" style={{ height: `${(currentPacket.Brake / 255) * 100}%`, background: `linear-gradient(to top, #ff9933, ${brakeBarColor(currentPacket.Brake)})` }} />
+                    </div>
+                    <span className="text-[7px] text-app-text-muted">B</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Right resize handle */}
@@ -876,23 +908,6 @@ export function LapAnalyse() {
                   )}
                   {currentPacket && (
                     <div className="flex items-center gap-2">
-                      {/* Pedal bars */}
-                      <div className="flex gap-1 items-end shrink-0" style={{ height: 80 }}>
-                        <div className="flex flex-col items-center gap-0.5">
-                          <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{((currentPacket.Accel / 255) * 100).toFixed(0)}</span>
-                          <div className="w-5 bg-app-surface-alt rounded-sm overflow-hidden relative" style={{ height: 60 }}>
-                            <div className="absolute bottom-0 w-full bg-emerald-400 rounded-sm transition-all" style={{ height: `${(currentPacket.Accel / 255) * 100}%` }} />
-                          </div>
-                          <span className="text-[8px] text-app-text-muted">T</span>
-                        </div>
-                        <div className="flex flex-col items-center gap-0.5">
-                          <span className="text-[9px] font-mono font-bold tabular-nums" style={{ color: brakeBarColor(currentPacket.Brake) }}>{((currentPacket.Brake / 255) * 100).toFixed(0)}</span>
-                          <div className="w-5 bg-app-surface-alt rounded-sm overflow-hidden relative" style={{ height: 60 }}>
-                            <div className="absolute bottom-0 w-full rounded-sm transition-all" style={{ height: `${(currentPacket.Brake / 255) * 100}%`, background: `linear-gradient(to top, #ff9933, ${brakeBarColor(currentPacket.Brake)})` }} />
-                          </div>
-                          <span className="text-[8px] text-app-text-muted">B</span>
-                        </div>
-                      </div>
                       <SteeringWheel steer={currentPacket.Steer} rpm={currentPacket.CurrentEngineRpm} maxRpm={currentPacket.EngineMaxRpm} />
                       <GForceCircle packet={currentPacket} />
                     </div>
