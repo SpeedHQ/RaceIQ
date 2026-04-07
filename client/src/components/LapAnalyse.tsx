@@ -1275,87 +1275,71 @@ export function LapAnalyse() {
                     Wheels
                   </h3>
                   {(() => {
+                    const fl = currentDisplayPacket?.DisplayTireTempFL ?? currentPacket.TireTempFL;
+                    const fr = currentDisplayPacket?.DisplayTireTempFR ?? currentPacket.TireTempFR;
+                    const rl = currentDisplayPacket?.DisplayTireTempRL ?? currentPacket.TireTempRL;
+                    const rr = currentDisplayPacket?.DisplayTireTempRR ?? currentPacket.TireTempRR;
+                    const healths = [currentPacket.TireWearFL, currentPacket.TireWearFR, currentPacket.TireWearRL, currentPacket.TireWearRR];
+                    const speeds = [currentPacket.WheelRotationSpeedFL, currentPacket.WheelRotationSpeedFR, currentPacket.WheelRotationSpeedRL, currentPacket.WheelRotationSpeedRR];
+                    const wearRates = (["FL", "FR", "RL", "RR"] as const).map(w => wearRate ? wearRate[w] * 100 : null);
+                    const wearColor = (r: number | null) => r == null || r < 0.01 ? "#94a3b8" : r < 0.05 ? "#34d399" : r < 0.1 ? "#fbbf24" : "#ef4444";
+                    const healthColor = (v: number) => { const h = 1 - v; return h > 0.7 ? "#34d399" : h > 0.4 ? "#fbbf24" : "#ef4444"; };
+                    const brakeFL = currentPacket.BrakeTempFrontLeft ?? currentPacket.f1?.brakeTempFL ?? 0;
+                    const brakeFR = currentPacket.BrakeTempFrontRight ?? currentPacket.f1?.brakeTempFR ?? 0;
+                    const brakeRL = currentPacket.BrakeTempRearLeft ?? currentPacket.f1?.brakeTempRL ?? 0;
+                    const brakeRR = currentPacket.BrakeTempRearRight ?? currentPacket.f1?.brakeTempRR ?? 0;
+                    const hasBrakes = brakeFL > 0 || brakeFR > 0;
+                    const brakeColor = (t: number) => t > 800 ? "#ef4444" : t > 500 ? "#fb923c" : t > 200 ? "#fbbf24" : "#94a3b8";
                     return (
-                  <div className="space-y-2 text-[11px] font-mono">
-                    {/* Tyres */}
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                      <div className="space-y-2">
-                        <div>
-                          <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Tyre Temp</div>
-                          <div className="grid grid-cols-2 gap-x-2">
-                            {(() => {
-                              const fl = currentDisplayPacket?.DisplayTireTempFL ?? currentPacket.TireTempFL;
-                              const fr = currentDisplayPacket?.DisplayTireTempFR ?? currentPacket.TireTempFR;
-                              const rl = currentDisplayPacket?.DisplayTireTempRL ?? currentPacket.TireTempRL;
-                              const rr = currentDisplayPacket?.DisplayTireTempRR ?? currentPacket.TireTempRR;
-                              return <>
-                                <span className="text-app-text-secondary">FL: <span className="tabular-nums" style={{ color: getTireColor(fl, units.thresholds) }}>{fl.toFixed(0)}{units.tempLabel}</span></span>
-                                <span className="text-app-text-secondary">FR: <span className="tabular-nums" style={{ color: getTireColor(fr, units.thresholds) }}>{fr.toFixed(0)}{units.tempLabel}</span></span>
-                                <span className="text-app-text-secondary">RL: <span className="tabular-nums" style={{ color: getTireColor(rl, units.thresholds) }}>{rl.toFixed(0)}{units.tempLabel}</span></span>
-                                <span className="text-app-text-secondary">RR: <span className="tabular-nums" style={{ color: getTireColor(rr, units.thresholds) }}>{rr.toFixed(0)}{units.tempLabel}</span></span>
-                              </>;
-                            })()}
-                          </div>
-                        </div>
-                        <div className="border-t border-app-border pt-1">
-                          <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Health</div>
-                          <div className="grid grid-cols-2 gap-x-2">
-                            <WearValue label="FL" value={currentPacket.TireWearFL} />
-                            <WearValue label="FR" value={currentPacket.TireWearFR} />
-                            <WearValue label="RL" value={currentPacket.TireWearRL} />
-                            <WearValue label="RR" value={currentPacket.TireWearRR} />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div>
-                          <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Speed (rad/s)</div>
-                          <div className="grid grid-cols-2 gap-x-2">
-                            <WheelSpeedValue label="FL" value={currentPacket.WheelRotationSpeedFL} />
-                            <WheelSpeedValue label="FR" value={currentPacket.WheelRotationSpeedFR} />
-                            <WheelSpeedValue label="RL" value={currentPacket.WheelRotationSpeedRL} />
-                            <WheelSpeedValue label="RR" value={currentPacket.WheelRotationSpeedRR} />
-                          </div>
-                        </div>
-                        <div className="border-t border-app-border pt-1">
-                          <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Wear /s</div>
-                          <div className="grid grid-cols-2 gap-x-2">
-                            {(["FL", "FR", "RL", "RR"] as const).map((w) => {
-                              const rate = wearRate ? wearRate[w] * 100 : null;
-                              const color = rate == null || rate < 0.01 ? "#94a3b8" : rate < 0.05 ? "#34d399" : rate < 0.1 ? "#fbbf24" : "#ef4444";
-                              return (
-                                <span key={w} className="text-app-text-secondary">
-                                  {w}: <span className="tabular-nums" style={{ color }}>{rate != null ? rate.toFixed(3) + "%" : "—"}</span>
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-
-                    {/* Brakes — separate section */}
-                    {(currentPacket.BrakeTempFrontLeft || currentPacket.f1?.brakeTempFL) ? (
-                    <div className="border-t border-app-border pt-2">
-                      <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 font-semibold">Brakes</h3>
-                      <div className="grid grid-cols-2 gap-x-2">
-                        {(() => {
-                          const fl = currentPacket.BrakeTempFrontLeft ?? currentPacket.f1?.brakeTempFL ?? 0;
-                          const fr = currentPacket.BrakeTempFrontRight ?? currentPacket.f1?.brakeTempFR ?? 0;
-                          const rl = currentPacket.BrakeTempRearLeft ?? currentPacket.f1?.brakeTempRL ?? 0;
-                          const rr = currentPacket.BrakeTempRearRight ?? currentPacket.f1?.brakeTempRR ?? 0;
-                          const color = (t: number) => t > 800 ? "#ef4444" : t > 500 ? "#fb923c" : t > 200 ? "#fbbf24" : "#94a3b8";
-                          return <>
-                            <span className="text-app-text-secondary">FL: <span className="tabular-nums" style={{ color: color(fl) }}>{fl.toFixed(0)}°C</span></span>
-                            <span className="text-app-text-secondary">FR: <span className="tabular-nums" style={{ color: color(fr) }}>{fr.toFixed(0)}°C</span></span>
-                            <span className="text-app-text-secondary">RL: <span className="tabular-nums" style={{ color: color(rl) }}>{rl.toFixed(0)}°C</span></span>
-                            <span className="text-app-text-secondary">RR: <span className="tabular-nums" style={{ color: color(rr) }}>{rr.toFixed(0)}°C</span></span>
-                          </>;
-                        })()}
-                      </div>
-                    </div>
-                    ) : null}
+                  <div className="text-[11px] font-mono">
+                    <table className="w-full tabular-nums text-center table-fixed">
+                      <colgroup>
+                        <col className="w-[70px]" />
+                        <col /><col /><col /><col />
+                      </colgroup>
+                      <thead>
+                        <tr className="text-app-text-muted">
+                          <th className="font-normal text-left" />
+                          <th className="font-normal">FL</th>
+                          <th className="font-normal">FR</th>
+                          <th className="font-normal">RL</th>
+                          <th className="font-normal">RR</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="text-app-text-muted text-left">Temp</td>
+                          <td style={{ color: getTireColor(fl, units.thresholds) }}>{fl.toFixed(0)}{units.tempLabel}</td>
+                          <td style={{ color: getTireColor(fr, units.thresholds) }}>{fr.toFixed(0)}{units.tempLabel}</td>
+                          <td style={{ color: getTireColor(rl, units.thresholds) }}>{rl.toFixed(0)}{units.tempLabel}</td>
+                          <td style={{ color: getTireColor(rr, units.thresholds) }}>{rr.toFixed(0)}{units.tempLabel}</td>
+                        </tr>
+                        <tr>
+                          <td className="text-app-text-muted text-left">Health</td>
+                          {healths.map((v, i) => <td key={i} style={{ color: healthColor(v) }}>{((1 - v) * 100).toFixed(1)}%</td>)}
+                        </tr>
+                        <tr>
+                          <td className="text-app-text-muted text-left">Speed</td>
+                          {speeds.map((v, i) => <td key={i}>{v.toFixed(1)}</td>)}
+                        </tr>
+                        <tr>
+                          <td className="text-app-text-muted text-left">Wear /s</td>
+                          {wearRates.map((r, i) => <td key={i} style={{ color: wearColor(r) }}>{r != null ? r.toFixed(3) + "%" : "—"}</td>)}
+                        </tr>
+                        {hasBrakes && (
+                          <tr>
+                            <td className="text-app-text-muted text-left">Brake</td>
+                            <td style={{ color: brakeColor(brakeFL) }}>{brakeFL.toFixed(0)}°C</td>
+                            <td style={{ color: brakeColor(brakeFR) }}>{brakeFR.toFixed(0)}°C</td>
+                            <td style={{ color: brakeColor(brakeRL) }}>{brakeRL.toFixed(0)}°C</td>
+                            <td style={{ color: brakeColor(brakeRR) }}>{brakeRR.toFixed(0)}°C</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                    );
+                  })()}
 
                     {/* Suspension — separate section */}
                     <div className="border-t border-app-border pt-2">
@@ -1383,9 +1367,6 @@ export function LapAnalyse() {
                         <SuspValue label="RR" value={currentPacket.NormSuspensionTravelRR} />
                       </div>
                     </div>
-                  </div>
-                    );
-                  })()}
                   {/* Surface conditions — Forza only */}
                   {gameId !== "f1-2025" && (
                   <>
