@@ -178,11 +178,11 @@ export const ANALYSIS_SCHEMA = {
       items: {
         type: "object",
         properties: {
-          component: { type: "string" },
-          symptom: { type: "string" },
-          fix: { type: "string" },
-          current: { type: "string" },
-          target: { type: "string" },
+          component: { type: "string", description: "Setup component name (e.g. Front Springs, Rear ARB)" },
+          symptom: { type: "string", description: "What the telemetry shows (e.g. rear instability under braking)" },
+          fix: { type: "string", description: "What to change and why" },
+          current: { type: "string", description: "Current numeric value with unit (e.g. '750 lb/in', '2.5 deg', '52%'). MUST include a number." },
+          target: { type: "string", description: "Suggested numeric target with unit (e.g. '650 lb/in', '1.8 deg', '48%'). MUST include a number." },
           direction: { type: "string", enum: ["increase", "decrease", "adjust"] },
         },
         required: ["component", "symptom", "fix", "current", "target", "direction"],

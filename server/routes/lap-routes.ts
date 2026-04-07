@@ -170,6 +170,7 @@ export const lapRoutes = new Hono()
               model: cached.model,
             },
             cornerFracs,
+            hasTune: !!lap.tuneId,
           });
         }
       }
@@ -236,7 +237,7 @@ export const lapRoutes = new Hono()
         }
 
         await saveAnalysis(id, result.analysis, result.usage);
-        return c.json({ analysis: result.analysis, cached: false, usage: result.usage, cornerFracs });
+        return c.json({ analysis: result.analysis, cached: false, usage: result.usage, cornerFracs, hasTune: !!parsedTune });
       } catch (err: any) {
         console.error("[AI] Analysis failed:", err.message);
         return c.json({ error: err.message }, err.message.includes("timed out") ? 504 : 500);

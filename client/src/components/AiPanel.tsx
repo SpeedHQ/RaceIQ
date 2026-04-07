@@ -161,6 +161,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cornerFracs, setCornerFracs] = useState<Segment[]>([]);
+  const [hasTune, setHasTune] = useState(false);
   const analysisRef = useRef<HTMLDivElement>(null);
 
   // Chat state
@@ -201,25 +202,6 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     },
   }), [lapId, onHighlightsChange]);
 
-  // Compute track highlights from analysis corners matched to cornerFracs or segments
-  const allSegs = cornerFracs.length ? cornerFracs : segments;
-  useEffect(() => {
-    if (!analysis || !allSegs || !onHighlightsChange) return;
-    const highlights: AnalysisHighlight[] = [];
-    for (const corner of analysis.corners ?? []) {
-      const seg = findSegment(allSegs, corner.name);
-      if (seg) {
-        highlights.push({
-          startFrac: seg.startFrac,
-          endFrac: seg.endFrac,
-          color: corner.severity === "major" ? "critical" : corner.severity === "moderate" ? "warning" : "good",
-          label: corner.name,
-        });
-      }
-    }
-    onHighlightsChange(highlights);
-    return () => onHighlightsChange([]);
-  }, [analysis, allSegs, onHighlightsChange]);
 
   // Fetch analysis
   const fetchAnalysis = useCallback(async (regenerate = false) => {
@@ -243,6 +225,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           type: "corner", name: c.label, startFrac: c.startFrac, endFrac: c.endFrac,
         })));
       }
+      setHasTune(!!data.hasTune);
       onAnalysisLoaded?.();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to fetch analysis");
@@ -495,11 +478,18 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               {/* Setup */}
               {analysis.setup?.length > 0 && (
                 <div>
-                  <SectionHeader icon={<Wrench className="size-3" />} title="Setup" />
+                  <div className="flex items-center gap-1.5">
+                    <SectionHeader icon={<Wrench className="size-3" />} title="Setup" />
+                    {!hasTune && <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">Estimated</span>}
+                  </div>
+                  {!hasTune && (
+                    <p className="text-[9px] text-amber-400/70 mb-1.5 leading-snug">No tune data linked — values are estimated from telemetry. Link a tune for accurate setup suggestions.</p>
+                  )}
                   <div className="grid grid-cols-1 gap-1.5">
                     {analysis.setup.map((item, i) => {
-                      const currentNum = parseFloat(item.current?.replace(/[^0-9.-]/g, "") ?? "");
-                      const targetNum = parseFloat(item.target?.replace(/[^0-9.-]/g, "") ?? "");
+                      const extractNum = (s?: string) => { const m = s?.match(/-?\d+\.?\d*/); return m ? parseFloat(m[0]) : NaN; };
+                      const currentNum = extractNum(item.current);
+                      const targetNum = extractNum(item.target);
                       const hasBoth = !isNaN(currentNum) && !isNaN(targetNum) && currentNum !== targetNum;
                       return (
                         <TrackCard key={i} seg={findSegment(cornerFracs.length ? cornerFracs : segments, item.symptom, item.fix)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-2.5 py-2">

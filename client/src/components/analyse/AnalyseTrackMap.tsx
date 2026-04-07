@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from "react";
+import { useRef, useCallback, useEffect, useLayoutEffect, useImperativeHandle, forwardRef } from "react";
 import type { TelemetryPacket } from "@shared/types";
 
 export interface Point {
@@ -53,7 +53,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
   // Store transform info so car overlay can draw without redrawing everything
   const transformRef = useRef<{
     w: number; h: number; offsetX: number; offsetZ: number; scale: number; maxX: number; minZ: number;
-    displayOutline: Point[];
+    displayOutline: Point[]; offW: number; offH: number;
   } | null>(null);
   // Offscreen canvas caching the static track drawing (boundaries, segments, sectors, labels)
   const offscreenRef = useRef<OffscreenCanvas | null>(null);
@@ -96,23 +96,31 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     }
     const rangeX = (maxX - minX) || 1;
     const rangeZ = (maxZ - minZ) || 1;
-    const padding = rotateWithCar ? 60 : 24;
+    const padding = 40;
     const baseScale = Math.min(
       (w - padding * 2) / rangeX,
       (h - padding * 2) / rangeZ
     );
-    const scale = baseScale * zoom * (rotateWithCar ? 3 : 1);
-    const offsetX = (w - rangeX * scale) / 2;
-    const offsetZ = (h - rangeZ * scale) / 2;
+    const followZoom = rotateWithCar ? 3 : 1;
+    const scale = baseScale * zoom * followZoom;
 
-    transformRef.current = { w, h, offsetX, offsetZ, scale, maxX, minZ, displayOutline };
+    // For follow view, the zoomed track is larger than the canvas.
+    // Size the offscreen to fit the full track at the zoomed scale.
+    const trackW = rangeX * scale + padding * 2;
+    const trackH = rangeZ * scale + padding * 2;
+    const offW = Math.max(w, trackW);
+    const offH = Math.max(h, trackH);
+    const offsetX = (offW - rangeX * scale) / 2;
+    const offsetZ = (offH - rangeZ * scale) / 2;
+
+    transformRef.current = { w, h, offsetX, offsetZ, scale, maxX, minZ, displayOutline, offW, offH };
 
     function toCanvas(x: number, z: number): [number, number] {
       return [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
     }
 
-    // Create offscreen canvas at full DPR resolution
-    const offscreen = new OffscreenCanvas(canvas.width, canvas.height);
+    // Create offscreen canvas large enough for the full track at zoom scale
+    const offscreen = new OffscreenCanvas(offW * dpr, offH * dpr);
     const ctx = offscreen.getContext("2d")!;
     ctx.scale(dpr, dpr);
 
@@ -180,14 +188,8 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
       return lo;
     }
 
-    // Colored segments
+    // Colored segments (no labels — keeps the map clean)
     if (segments && segments.length > 0) {
-      let sNum = 1;
-      const segDisplayNames = segments.map((s) => {
-        if (s.type === "straight" && (!s.name || /^S[\d?]*$/.test(s.name))) return `S${sNum++}`;
-        if (s.type === "straight") sNum++;
-        return s.name;
-      });
       for (let si = 0; si < segments.length; si++) {
         const seg = segments[si];
         const startIdx = fracToIdx(seg.startFrac);
@@ -204,22 +206,6 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
           ctx.lineTo(px, py);
         }
         ctx.stroke();
-        const displayName = segDisplayNames[si];
-        const midIdx = Math.round((startIdx + endIdx) / 2);
-        const midPt = displayOutline[Math.min(midIdx, n - 1)];
-        if (midPt && displayName) {
-          const [lx, ly] = toCanvas(midPt.x, midPt.z);
-          ctx.font = "bold 16px monospace";
-          ctx.textAlign = "center";
-          const textWidth = ctx.measureText(displayName).width;
-          const padX = 6, padY = 5;
-          ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
-          ctx.beginPath();
-          ctx.roundRect(lx - textWidth / 2 - padX, ly - 18 - 12 - padY, textWidth + padX * 2, 20 + padY * 2, 4);
-          ctx.fill();
-          ctx.fillStyle = seg.type === "corner" ? "#fbbf24" : "#60a5fa";
-          ctx.fillText(displayName, lx, ly - 18);
-        }
       }
     } else {
       ctx.beginPath();
@@ -303,7 +289,35 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     }
 
     offscreenRef.current = offscreen;
-  }, [telemetry, outline, boundaries, sectors, segments, rotateWithCar, zoom, highlights]);
+
+    // Immediately blit to visible canvas (fixed view only — car view uses compositeTrack with rotation)
+    if (!rotateWithCar) {
+      const mainCtx = canvas.getContext("2d");
+      if (mainCtx) {
+        mainCtx.save();
+        mainCtx.setTransform(1, 0, 0, 1, 0, 0);
+        mainCtx.clearRect(0, 0, canvas.width, canvas.height);
+        mainCtx.restore();
+        mainCtx.save();
+        mainCtx.scale(dpr, dpr);
+        mainCtx.drawImage(offscreen, 0, 0, w, h);
+        mainCtx.restore();
+      }
+    }
+
+    // Clear overlay canvas when in car view (car drawn on main canvas instead)
+    if (rotateWithCar) {
+      const carCanvas = carCanvasRef.current;
+      if (carCanvas) {
+        const carCtx = carCanvas.getContext("2d");
+        if (carCtx) {
+          carCtx.clearRect(0, 0, carCanvas.width, carCanvas.height);
+        }
+      }
+    }
+  // containerHeight triggers redraw on resize (not used directly but signals layout change)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [telemetry, outline, boundaries, sectors, segments, rotateWithCar, zoom, highlights, containerHeight]);
 
   // Composite the cached offscreen track onto the main canvas, with optional rotation for car-view mode
   const compositeTrack = useCallback((idx: number) => {
@@ -333,8 +347,8 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
       }
     }
 
-    // Draw the cached static track
-    ctx.drawImage(offscreen, 0, 0, t.w, t.h);
+    // Draw the cached static track (offscreen may be larger than canvas for follow view)
+    ctx.drawImage(offscreen, 0, 0, t.offW, t.offH);
 
     // Draw car on main canvas (in rotated space so it stays aligned)
     const pkt = telemetry[idx];
@@ -420,49 +434,30 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
   // Imperative cursor update — called from animation loop without React re-render
   const updateCursor = useCallback((idx: number) => {
     if (rotateWithCar) {
-      // Car-view: composite cached track with rotation + draw car (no full redraw)
+      // Car-view: composite cached track with rotation + draw car on main canvas
       compositeTrack(idx);
+    } else {
+      // Fixed view: car drawn on separate overlay canvas only
+      drawCarOverlay(idx);
     }
-    drawCarOverlay(idx);
   }, [rotateWithCar, compositeTrack, drawCarOverlay]);
 
   useImperativeHandle(ref, () => ({ updateCursor }), [updateCursor]);
 
-  // Build offscreen cache + initial composite when data changes
-  useEffect(() => {
+  // Build offscreen cache + blit/composite — useLayoutEffect runs before browser paint (no flash)
+  useLayoutEffect(() => {
     drawStaticTrack();
-  }, [drawStaticTrack]);
-
-  // Composite after offscreen is ready (and on data changes)
-  useEffect(() => {
+    // In car view, composite with rotation after offscreen is ready
     if (rotateWithCar) {
       compositeTrack(cursorIdx);
-    } else {
-      // Fixed view: just blit the offscreen directly
-      const canvas = canvasRef.current;
-      const offscreen = offscreenRef.current;
-      const t = transformRef.current;
-      if (canvas && offscreen && t) {
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          const dpr = window.devicePixelRatio || 1;
-          ctx.save();
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.restore();
-          ctx.save();
-          ctx.scale(dpr, dpr);
-          ctx.drawImage(offscreen, 0, 0, t.w, t.h);
-          ctx.restore();
-        }
-      }
     }
-  }, [telemetry, outline, boundaries, sectors, segments, rotateWithCar, zoom, containerHeight]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawStaticTrack]);
 
-  // Update car overlay when cursorIdx changes via React state
-  useEffect(() => {
-    drawCarOverlay(cursorIdx);
-  }, [cursorIdx, drawCarOverlay]);
+  // Update car overlay when cursorIdx changes via React state (fixed view only)
+  useLayoutEffect(() => {
+    if (!rotateWithCar) drawCarOverlay(cursorIdx);
+  }, [cursorIdx, drawCarOverlay, rotateWithCar]);
 
   // Pulse ring animation on overlay canvas
   useEffect(() => {

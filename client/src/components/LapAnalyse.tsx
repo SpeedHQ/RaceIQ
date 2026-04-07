@@ -813,7 +813,7 @@ export function LapAnalyse() {
                   }`}
                   title="Rotate map to follow car direction"
                 >
-                  {rotateWithCar ? "Car View" : "Fixed View"}
+                  {rotateWithCar ? "Follow View" : "Fixed View"}
                 </button>
                 {/* Compass */}
                 {currentPacket && <Compass yaw={currentPacket.Yaw} />}
