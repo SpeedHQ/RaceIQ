@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Markdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { client } from "@/lib/rpc";
@@ -106,8 +107,8 @@ export function UpdateModal({ version, releaseNotes, onClose }: { version: strin
                 RaceIQ <span className="font-mono text-app-accent">v{version}</span> is ready to install.
               </p>
               {releaseNotes && (
-                <div className="max-h-48 overflow-y-auto rounded border border-app-border bg-app-surface p-3 text-xs text-app-text-secondary whitespace-pre-wrap leading-relaxed">
-                  {releaseNotes}
+                <div className="max-h-48 overflow-y-auto rounded border border-app-border bg-app-surface p-3 text-xs text-app-text-secondary leading-relaxed prose prose-invert prose-xs prose-headings:text-app-text prose-a:text-app-accent">
+                  <Markdown>{releaseNotes}</Markdown>
                 </div>
               )}
               <div className="flex gap-3">
