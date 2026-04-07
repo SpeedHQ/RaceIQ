@@ -713,30 +713,6 @@ export function LapAnalyse() {
           <div className="flex shrink-0 overflow-hidden" style={{ height: topHeight }}>
             {/* Segment table + legend */}
             <div className="border-r border-app-border overflow-y-auto p-2 shrink-0" style={{ height: "100%", width: leftColWidth }}>
-              {/* Sector times */}
-              {sectorData && (
-                <div className="mb-2 pb-2 border-b border-app-border">
-                  <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-1.5">Sectors</div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {(["S1", "S2", "S3"] as const).map((name, i) => {
-                      const time = sectorData.times[i];
-                      const isActive = sectorTimes?.cursorSector === i;
-                      const colors = ["#ef4444", "#3b82f6", "#eab308"];
-                      return (
-                        <div key={name} className={`rounded px-1.5 py-1 ${isActive ? "bg-app-surface-alt ring-1 ring-inset" : ""}`} style={isActive ? { "--tw-ring-color": colors[i] } as React.CSSProperties : {}}>
-                          <div className="flex items-center gap-1 mb-0.5">
-                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors[i] }} />
-                            <span className="text-[9px] font-bold text-app-text-muted">{name}</span>
-                          </div>
-                          <div className="text-sm font-mono font-bold tabular-nums text-app-text">
-                            {time > 0 ? formatLapTime(time) : "—"}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
               {/* Legend */}
               <div className="flex flex-wrap items-center gap-3 mb-2 pb-2 border-b border-app-border">
                 <div className="flex items-center gap-1">
