@@ -33,6 +33,9 @@ export interface GameAdapter {
   /** Resolve track ordinal to shared outline file name, if available */
   getSharedTrackName?(ordinal: number): string | undefined;
 
+  /** Tire health thresholds — health is 0 (dead) to 1 (fresh) */
+  tireHealthThresholds: { green: number; yellow: number };
+
   /** Car class names (e.g. Forza: D/C/B/A/S/R/P/X) — undefined if N/A */
   carClassNames?: Record<number, string>;
 

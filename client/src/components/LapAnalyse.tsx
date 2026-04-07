@@ -3,6 +3,7 @@ import { useSearch, useNavigate } from "@tanstack/react-router";
 import type { TelemetryPacket, LapMeta } from "@shared/types";
 import { convertTemp } from "../lib/temperature";
 import { getTireColor, getTireTempLabel } from "../lib/tire-color";
+import { tryGetGame } from "@shared/games/registry";
 import { useCookieState } from "../hooks/useCookieState";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { formatLapTime, TireDiagram, GForceCircle } from "./LiveTelemetry";
@@ -39,6 +40,7 @@ import { AnalyseSegmentList } from "./analyse/AnalyseSegmentList";
 import { AnalyseTimelineScrubber } from "./analyse/AnalyseTimelineScrubber";
 import { MetricsPanel, WearValue, SlipAngleValue, WheelSpeedValue, SuspValue, brakeBarColor } from "./analyse/AnalyseMetricsPanel";
 import { TuneViewModal } from "./analyse/TuneViewModal";
+import { WheelTable } from "./analyse/WheelTable";
 
 // Stable empty array to avoid re-renders when no telemetry loaded
 const emptyTelemetry: TelemetryPacket[] = [];
@@ -1049,9 +1051,13 @@ export function LapAnalyse() {
 
               {currentPacket && (
                 <>
-                  <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 mt-3 pt-2 border-t border-app-border font-semibold">
-                    Dynamics
-                  </h3>
+                  <div className="flex items-center gap-1 mb-2 mt-3 pt-2 border-t border-app-border group relative">
+                    <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold">Dynamics</h3>
+                    <Info className="w-3.5 h-3.5 text-app-text-dim cursor-help" />
+                    <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none">
+                      Grip Ask: % of grip capacity per tire<br/>100% = at limit, &gt;100% = exceeding grip
+                    </div>
+                  </div>
                   {(() => {
                     const isF1 = gameId === "f1-2025";
                     const ws = allWheelStates(currentPacket);
@@ -1083,19 +1089,6 @@ export function LapAnalyse() {
                         {/* Grip / slip ratios — Forza has real data, F1 skips */}
                         {!isF1 && (
                           <>
-                            <div className="flex justify-between group relative">
-                              <span className="text-app-text-muted flex items-center gap-1">Grip Demand<Info className="w-3 h-3 text-app-text-dim cursor-help inline" />
-                                <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none">
-                                  % of tire grip capacity used<br/>Target as close to 100% without exceeding<br/>&gt;100% = beyond grip, tire is sliding
-                                </span>
-                              </span>
-                              <span className="tabular-nums inline-grid grid-cols-4 gap-x-1 text-right" style={{ width: "calc(100% - 90px)" }}>
-                                <span style={{ color: frictionUtilColor(fc.fl) }}>FL {(fc.fl * 100).toFixed(0)}</span>
-                                <span style={{ color: frictionUtilColor(fc.fr) }}>FR {(fc.fr * 100).toFixed(0)}</span>
-                                <span style={{ color: frictionUtilColor(fc.rl) }}>RL {(fc.rl * 100).toFixed(0)}</span>
-                                <span style={{ color: frictionUtilColor(fc.rr) }}>RR {(fc.rr * 100).toFixed(0)}%</span>
-                              </span>
-                            </div>
                             {/* Tire state — combines wheel dynamics + grip demand */}
                             {(() => {
                               const tireState = (wsState: string, combinedSlip: number) => {
@@ -1119,86 +1112,49 @@ export function LapAnalyse() {
                                 { l: "RL", ...tireState(ws.rl.state, currentPacket.TireCombinedSlipRL), temp: getTireTempLabel(temps[2], units.thresholds) },
                                 { l: "RR", ...tireState(ws.rr.state, currentPacket.TireCombinedSlipRR), temp: getTireTempLabel(temps[3], units.thresholds) },
                               ];
+                              const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
+                              const surfaceLabel = (rumble: boolean, puddle: number) => {
+                                if (rumble) return C("CURB", "#fb923c");
+                                if (puddle > 0) return C(`WET ${(puddle * 100).toFixed(0)}%`, "#3b82f6");
+                                return <span className="text-app-text-dim">—</span>;
+                              };
                               return (
-                                <table className="w-full tabular-nums text-center table-fixed">
-                                  <colgroup>
-                                    <col className="w-[60px]" />
-                                    <col /><col /><col /><col />
-                                  </colgroup>
-                                  <thead>
-                                    <tr className="text-app-text-muted">
-                                      <th className="font-normal text-left" />
-                                      {states.map(s => <th key={s.l} className="font-normal">{s.l}</th>)}
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    <tr>
-                                      <td className="text-app-text-muted text-left">Traction</td>
-                                      {states.map(s => <td key={s.l} style={{ color: s.color }}>{s.label}</td>)}
-                                    </tr>
-                                    <tr>
-                                      <td className="text-app-text-muted text-left">Temp</td>
-                                      {states.map(s => <td key={s.l} style={{ color: s.temp.color }}>{s.temp.label}</td>)}
-                                    </tr>
-                                  </tbody>
-                                </table>
+                                <WheelTable rows={[
+                                  { label: "Grip Ask", fl: C(`${(fc.fl * 100).toFixed(0)}%`, frictionUtilColor(fc.fl)), fr: C(`${(fc.fr * 100).toFixed(0)}%`, frictionUtilColor(fc.fr)), rl: C(`${(fc.rl * 100).toFixed(0)}%`, frictionUtilColor(fc.rl)), rr: C(`${(fc.rr * 100).toFixed(0)}%`, frictionUtilColor(fc.rr)) },
+                                  { label: "Traction", fl: C(states[0].label, states[0].color), fr: C(states[1].label, states[1].color), rl: C(states[2].label, states[2].color), rr: C(states[3].label, states[3].color) },
+                                  { label: "Temp", fl: C(states[0].temp.label, states[0].temp.color), fr: C(states[1].temp.label, states[1].temp.color), rl: C(states[2].temp.label, states[2].temp.color), rr: C(states[3].temp.label, states[3].temp.color) },
+                                  { label: "Surface", fl: surfaceLabel(currentPacket.WheelOnRumbleStripFL !== 0, currentPacket.WheelInPuddleDepthFL), fr: surfaceLabel(currentPacket.WheelOnRumbleStripFR !== 0, currentPacket.WheelInPuddleDepthFR), rl: surfaceLabel(currentPacket.WheelOnRumbleStripRL !== 0, currentPacket.WheelInPuddleDepthRL), rr: surfaceLabel(currentPacket.WheelOnRumbleStripRR !== 0, currentPacket.WheelInPuddleDepthRR) },
+                                ]} />
                               );
                             })()}
-                            <div className="border-t border-app-border pt-1">
-                              <table className="w-full tabular-nums text-center table-fixed">
-                                <colgroup>
-                                  <col className="w-[60px]" />
-                                  <col /><col /><col /><col />
-                                </colgroup>
-                                <thead>
-                                  <tr className="text-app-text-muted">
-                                    <th className="font-normal text-left text-[10px] uppercase tracking-wider group relative">
-                                      <span className="flex items-center gap-1">
-                                        Slip
-                                        <Info className="w-3 h-3 text-app-text-dim cursor-help inline" />
-                                        <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">
-                                          Angle: direction vs travel (6-12° = peak grip)<br/>Ratio: wheel speed vs ground speed
-                                        </span>
-                                      </span>
-                                    </th>
-                                    <th className="font-normal">FL</th>
-                                    <th className="font-normal">FR</th>
-                                    <th className="font-normal">RL</th>
-                                    <th className="font-normal">RR</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  <tr>
-                                    <td className="text-app-text-muted text-left">Ratio</td>
-                                    <td style={{ color: slipRatioColor(ws.fl.slipRatio) }}>{(ws.fl.slipRatio * 100).toFixed(0)}%</td>
-                                    <td style={{ color: slipRatioColor(ws.fr.slipRatio) }}>{(ws.fr.slipRatio * 100).toFixed(0)}%</td>
-                                    <td style={{ color: slipRatioColor(ws.rl.slipRatio) }}>{(ws.rl.slipRatio * 100).toFixed(0)}%</td>
-                                    <td style={{ color: slipRatioColor(ws.rr.slipRatio) }}>{(ws.rr.slipRatio * 100).toFixed(0)}%</td>
-                                  </tr>
-                                  {(() => {
-                                    const speedMph = currentPacket.Speed * 2.23694;
-                                    const angleColor = (rad: number) => {
-                                      const deg = Math.abs(rad * (180 / Math.PI));
-                                      const sf = Math.max(0.3, Math.min(1, speedMph / 80));
-                                      if (deg < 4 / sf) return "#34d399";
-                                      if (deg < 8 / sf) return "#fbbf24";
-                                      if (deg < 14 / sf) return "#fb923c";
-                                      return "#ef4444";
-                                    };
-                                    const fmt = (rad: number) => (rad * (180 / Math.PI)).toFixed(1);
-                                    return (
-                                      <tr>
-                                        <td className="text-app-text-muted text-left">Angle</td>
-                                        <td style={{ color: angleColor(currentPacket.TireSlipAngleFL) }}>{fmt(currentPacket.TireSlipAngleFL)}°</td>
-                                        <td style={{ color: angleColor(currentPacket.TireSlipAngleFR) }}>{fmt(currentPacket.TireSlipAngleFR)}°</td>
-                                        <td style={{ color: angleColor(currentPacket.TireSlipAngleRL) }}>{fmt(currentPacket.TireSlipAngleRL)}°</td>
-                                        <td style={{ color: angleColor(currentPacket.TireSlipAngleRR) }}>{fmt(currentPacket.TireSlipAngleRR)}°</td>
-                                      </tr>
-                                    );
-                                  })()}
-                                </tbody>
-                              </table>
-                            </div>
+                            {(() => {
+                              const speedMph = currentPacket.Speed * 2.23694;
+                              const angleColor = (rad: number) => {
+                                const deg = Math.abs(rad * (180 / Math.PI));
+                                const sf = Math.max(0.3, Math.min(1, speedMph / 80));
+                                if (deg < 4 / sf) return "#34d399";
+                                if (deg < 8 / sf) return "#fbbf24";
+                                if (deg < 14 / sf) return "#fb923c";
+                                return "#ef4444";
+                              };
+                              const fmt = (rad: number) => (rad * (180 / Math.PI)).toFixed(1);
+                              const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
+                              const slipTitle = (
+                                <span className="flex items-center gap-1 group relative">
+                                  Slip
+                                  <Info className="w-3 h-3 text-app-text-dim cursor-help inline" />
+                                  <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">
+                                    Ratio: wheel speed vs ground speed<br/>Angle: direction vs travel (6-12° = peak grip)
+                                  </span>
+                                </span>
+                              );
+                              return (
+                                <WheelTable title={slipTitle} borderTop rows={[
+                                  { label: "Ratio", fl: C(`${(ws.fl.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.fl.slipRatio)), fr: C(`${(ws.fr.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.fr.slipRatio)), rl: C(`${(ws.rl.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.rl.slipRatio)), rr: C(`${(ws.rr.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.rr.slipRatio)) },
+                                  { label: "Angle", fl: C(`${fmt(currentPacket.TireSlipAngleFL)}°`, angleColor(currentPacket.TireSlipAngleFL)), fr: C(`${fmt(currentPacket.TireSlipAngleFR)}°`, angleColor(currentPacket.TireSlipAngleFR)), rl: C(`${fmt(currentPacket.TireSlipAngleRL)}°`, angleColor(currentPacket.TireSlipAngleRL)), rr: C(`${fmt(currentPacket.TireSlipAngleRR)}°`, angleColor(currentPacket.TireSlipAngleRR)) },
+                                ]} />
+                              );
+                            })()}
                           </>
                         )}
                       </div>
@@ -1271,9 +1227,6 @@ export function LapAnalyse() {
                     );
                   })()}
 
-                  <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 pt-2 border-t border-app-border font-semibold">
-                    Wheels
-                  </h3>
                   {(() => {
                     const fl = currentDisplayPacket?.DisplayTireTempFL ?? currentPacket.TireTempFL;
                     const fr = currentDisplayPacket?.DisplayTireTempFR ?? currentPacket.TireTempFR;
@@ -1283,7 +1236,8 @@ export function LapAnalyse() {
                     const speeds = [currentPacket.WheelRotationSpeedFL, currentPacket.WheelRotationSpeedFR, currentPacket.WheelRotationSpeedRL, currentPacket.WheelRotationSpeedRR];
                     const wearRates = (["FL", "FR", "RL", "RR"] as const).map(w => wearRate ? wearRate[w] * 100 : null);
                     const wearColor = (r: number | null) => r == null || r < 0.01 ? "#94a3b8" : r < 0.05 ? "#34d399" : r < 0.1 ? "#fbbf24" : "#ef4444";
-                    const healthColor = (v: number) => { const h = 1 - v; return h > 0.7 ? "#34d399" : h > 0.4 ? "#fbbf24" : "#ef4444"; };
+                    const hThresh = tryGetGame(gameId ?? "fm-2023")?.tireHealthThresholds ?? { green: 0.70, yellow: 0.40 };
+                    const healthColor = (v: number) => { const h = 1 - v; return h >= hThresh.green ? "#34d399" : h >= hThresh.yellow ? "#fbbf24" : "#ef4444"; };
                     const brakeFL = currentPacket.BrakeTempFrontLeft ?? currentPacket.f1?.brakeTempFL ?? 0;
                     const brakeFR = currentPacket.BrakeTempFrontRight ?? currentPacket.f1?.brakeTempFR ?? 0;
                     const brakeRL = currentPacket.BrakeTempRearLeft ?? currentPacket.f1?.brakeTempRL ?? 0;
@@ -1292,104 +1246,46 @@ export function LapAnalyse() {
                     const brakeColor = (t: number) => t > 800 ? "#ef4444" : t > 500 ? "#fb923c" : t > 200 ? "#fbbf24" : "#94a3b8";
                     return (
                   <div className="text-[11px] font-mono">
-                    <table className="w-full tabular-nums text-center table-fixed">
-                      <colgroup>
-                        <col className="w-[70px]" />
-                        <col /><col /><col /><col />
-                      </colgroup>
-                      <thead>
-                        <tr className="text-app-text-muted">
-                          <th className="font-normal text-left" />
-                          <th className="font-normal">FL</th>
-                          <th className="font-normal">FR</th>
-                          <th className="font-normal">RL</th>
-                          <th className="font-normal">RR</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td className="text-app-text-muted text-left">Temp</td>
-                          <td style={{ color: getTireColor(fl, units.thresholds) }}>{fl.toFixed(0)}{units.tempLabel}</td>
-                          <td style={{ color: getTireColor(fr, units.thresholds) }}>{fr.toFixed(0)}{units.tempLabel}</td>
-                          <td style={{ color: getTireColor(rl, units.thresholds) }}>{rl.toFixed(0)}{units.tempLabel}</td>
-                          <td style={{ color: getTireColor(rr, units.thresholds) }}>{rr.toFixed(0)}{units.tempLabel}</td>
-                        </tr>
-                        <tr>
-                          <td className="text-app-text-muted text-left">Health</td>
-                          {healths.map((v, i) => <td key={i} style={{ color: healthColor(v) }}>{((1 - v) * 100).toFixed(1)}%</td>)}
-                        </tr>
-                        <tr>
-                          <td className="text-app-text-muted text-left">Speed</td>
-                          {speeds.map((v, i) => <td key={i}>{v.toFixed(1)}</td>)}
-                        </tr>
-                        <tr>
-                          <td className="text-app-text-muted text-left">Wear /s</td>
-                          {wearRates.map((r, i) => <td key={i} style={{ color: wearColor(r) }}>{r != null ? r.toFixed(3) + "%" : "—"}</td>)}
-                        </tr>
-                        {hasBrakes && (
-                          <tr>
-                            <td className="text-app-text-muted text-left">Brake</td>
-                            <td style={{ color: brakeColor(brakeFL) }}>{brakeFL.toFixed(0)}°C</td>
-                            <td style={{ color: brakeColor(brakeFR) }}>{brakeFR.toFixed(0)}°C</td>
-                            <td style={{ color: brakeColor(brakeRL) }}>{brakeRL.toFixed(0)}°C</td>
-                            <td style={{ color: brakeColor(brakeRR) }}>{brakeRR.toFixed(0)}°C</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+                    {(() => {
+                      const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
+                      const tempRow = [fl, fr, rl, rr];
+                      const rows = [
+                        { label: "Rotation /s", fl: speeds[0].toFixed(1), fr: speeds[1].toFixed(1), rl: speeds[2].toFixed(1), rr: speeds[3].toFixed(1) },
+                        { label: "Temp", fl: C(`${fl.toFixed(0)}${units.tempLabel}`, getTireColor(fl, units.thresholds)), fr: C(`${fr.toFixed(0)}${units.tempLabel}`, getTireColor(fr, units.thresholds)), rl: C(`${rl.toFixed(0)}${units.tempLabel}`, getTireColor(rl, units.thresholds)), rr: C(`${rr.toFixed(0)}${units.tempLabel}`, getTireColor(rr, units.thresholds)) },
+                        { label: "Health", fl: C(`${((1 - healths[0]) * 100).toFixed(1)}%`, healthColor(healths[0])), fr: C(`${((1 - healths[1]) * 100).toFixed(1)}%`, healthColor(healths[1])), rl: C(`${((1 - healths[2]) * 100).toFixed(1)}%`, healthColor(healths[2])), rr: C(`${((1 - healths[3]) * 100).toFixed(1)}%`, healthColor(healths[3])) },
+                        { label: "Wear /s", fl: C(wearRates[0] != null ? wearRates[0].toFixed(3) + "%" : "—", wearColor(wearRates[0])), fr: C(wearRates[1] != null ? wearRates[1].toFixed(3) + "%" : "—", wearColor(wearRates[1])), rl: C(wearRates[2] != null ? wearRates[2].toFixed(3) + "%" : "—", wearColor(wearRates[2])), rr: C(wearRates[3] != null ? wearRates[3].toFixed(3) + "%" : "—", wearColor(wearRates[3])) },
+                        ...(hasBrakes ? [{ label: "Brake", fl: C(`${brakeFL.toFixed(0)}°C`, brakeColor(brakeFL)), fr: C(`${brakeFR.toFixed(0)}°C`, brakeColor(brakeFR)), rl: C(`${brakeRL.toFixed(0)}°C`, brakeColor(brakeRL)), rr: C(`${brakeRR.toFixed(0)}°C`, brakeColor(brakeRR)) }] : []),
+                      ];
+                      return <WheelTable title="Wheels" borderTop rows={rows} />;
+                    })()}
                   </div>
                     );
                   })()}
 
-                    {/* Suspension — separate section */}
-                    <div className="border-t border-app-border pt-2">
-                      <div className="flex items-center gap-1 mb-2 group relative">
-                        <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold">Suspension</h3>
-                        <Info className="w-3.5 h-3.5 text-app-text-dim cursor-help" />
-                        <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none">
-                          Load Distribution:<br/>50% = balanced<br/>0% Lon = all front<br/>0% Lat = all left
-                        </div>
-                      </div>
-                      <div className="text-[11px] font-mono mb-2 space-y-1">
-                        <div className="flex justify-between">
-                          <span className="text-app-text-muted">Load Distribution</span>
-                          <span className="tabular-nums text-app-text">
-                            Lon {((currentPacket.NormSuspensionTravelFL + currentPacket.NormSuspensionTravelFR) / 2 * 100).toFixed(0)}%
-                            <span className="text-app-text-dim"> </span>
-                            Lat {((currentPacket.NormSuspensionTravelFL + currentPacket.NormSuspensionTravelRL) / 2 * 100).toFixed(0)}%
+                    {/* Suspension — 5-column table */}
+                    {(() => {
+                      const suspValues = [currentPacket.NormSuspensionTravelFL, currentPacket.NormSuspensionTravelFR, currentPacket.NormSuspensionTravelRL, currentPacket.NormSuspensionTravelRR];
+                      const suspColor = (v: number) => v < 0.25 ? "#3b82f6" : v < 0.65 ? "#34d399" : v < 0.85 ? "#fbbf24" : "#ef4444";
+                      const lonLoad = ((suspValues[0] + suspValues[1]) / 2 * 100).toFixed(0);
+                      const latLoad = ((suspValues[0] + suspValues[2]) / 2 * 100).toFixed(0);
+                      const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
+                      const suspTitle = (
+                        <span className="flex items-center gap-1 group relative">
+                          Susp
+                          <Info className="w-3 h-3 text-app-text-dim cursor-help inline" />
+                          <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">
+                            Load Distribution: 50% = balanced<br/>0% Lon = all front, 0% Lat = all left
                           </span>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-2">
-                        <SuspValue label="FL" value={currentPacket.NormSuspensionTravelFL} />
-                        <SuspValue label="FR" value={currentPacket.NormSuspensionTravelFR} />
-                        <SuspValue label="RL" value={currentPacket.NormSuspensionTravelRL} />
-                        <SuspValue label="RR" value={currentPacket.NormSuspensionTravelRR} />
-                      </div>
-                    </div>
+                        </span>
+                      );
+                      return (
+                        <WheelTable title={suspTitle} borderTop rows={[
+                          { label: "Travel", fl: C(`${(suspValues[0] * 100).toFixed(0)}%`, suspColor(suspValues[0])), fr: C(`${(suspValues[1] * 100).toFixed(0)}%`, suspColor(suspValues[1])), rl: C(`${(suspValues[2] * 100).toFixed(0)}%`, suspColor(suspValues[2])), rr: C(`${(suspValues[3] * 100).toFixed(0)}%`, suspColor(suspValues[3])) },
+                          { label: "Load", fl: `Lon ${lonLoad}%`, rl: `Lat ${latLoad}%`, fr: "", rr: "", span2: true },
+                        ]} />
+                      );
+                    })()}
                   {/* Surface conditions — Forza only */}
-                  {gameId !== "f1-2025" && (
-                  <>
-                  <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 mt-3 pt-2 border-t border-app-border font-semibold">
-                    Surface
-                  </h3>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[11px] font-mono">
-                    {[
-                      { label: "FL", rumble: currentPacket.WheelOnRumbleStripFL !== 0, puddle: currentPacket.WheelInPuddleDepthFL },
-                      { label: "FR", rumble: currentPacket.WheelOnRumbleStripFR !== 0, puddle: currentPacket.WheelInPuddleDepthFR },
-                      { label: "RL", rumble: currentPacket.WheelOnRumbleStripRL !== 0, puddle: currentPacket.WheelInPuddleDepthRL },
-                      { label: "RR", rumble: currentPacket.WheelOnRumbleStripRR !== 0, puddle: currentPacket.WheelInPuddleDepthRR },
-                    ].map(w => (
-                      <span key={w.label} className="text-app-text-secondary">
-                        {w.label}:{" "}
-                        {w.rumble && <span className="font-bold text-orange-400">CURB </span>}
-                        {w.puddle > 0 && <span className="font-bold text-blue-400">WET {(w.puddle * 100).toFixed(0)}%</span>}
-                        {!w.rumble && w.puddle <= 0 && <span className="text-app-text-dim">—</span>}
-                      </span>
-                    ))}
-                  </div>
-                  </>
-                  )}
                 </>
               )}
               </>

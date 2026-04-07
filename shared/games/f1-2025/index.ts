@@ -8,6 +8,7 @@ export const f1Adapter: GameAdapter = {
   coordSystem: "f1-2025",
   steeringCenter: 0,
   steeringRange: 1,
+  tireHealthThresholds: { green: 0.70, yellow: 0.50 },
 
   // Stubs — server adapter overrides with real lookups
   getCarName(ordinal) {
