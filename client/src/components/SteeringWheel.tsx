@@ -4,9 +4,10 @@ interface Props {
   steer: number; // signed int8: -128 to 127, 0 = center
   rpm?: number;
   maxRpm?: number;
+  size?: number; // px, default 160
 }
 
-export function SteeringWheel({ steer, rpm, maxRpm }: Props) {
+export function SteeringWheel({ steer, rpm, maxRpm, size = 160 }: Props) {
   const lock = getSteeringLock();
   const wheelSrc = getWheelStyle();
   const normalized = steer / 127;
@@ -40,13 +41,14 @@ export function SteeringWheel({ steer, rpm, maxRpm }: Props) {
         </div>
       )}
       <div
-        className="relative w-40 h-40 flex items-center justify-center"
-        style={{ transform: `rotate(${degrees}deg)` }}
+        className="relative flex items-center justify-center"
+        style={{ width: size, height: size, transform: `rotate(${degrees}deg)` }}
       >
         <img
           src={imgSrc}
           alt="steering wheel"
           className="w-full h-full object-contain"
+          onError={(e) => { (e.target as HTMLImageElement).src = "/wheels/Simple.svg"; }}
         />
       </div>
     </div>

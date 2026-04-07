@@ -26,6 +26,8 @@ const staticDir = IS_COMPILED && existsSync(resolve(PUBLIC_DIR, "index.html"))
 if (staticDir) {
   console.log(`[Server] Serving static assets from ${staticDir}`);
 }
+// In dev, serve public assets (wheels, etc.) so they work when hitting the server directly
+const devPublicDir = !IS_COMPILED ? PUBLIC_DIR : null;
 
 // Prevent macOS sleep while the server is running
 if (process.platform === "darwin") {
@@ -126,6 +128,18 @@ const server = Bun.serve<WSData>({
       }
       // SPA fallback
       return new Response(Bun.file(resolve(staticDir, "index.html")));
+    }
+
+    // In dev, serve public assets (wheels, sounds, etc.) directly
+    if (devPublicDir) {
+      const pathname = decodeURIComponent(url.pathname);
+      const filePath = resolve(devPublicDir, pathname.slice(1));
+      if (filePath.startsWith(devPublicDir)) {
+        const file = Bun.file(filePath);
+        if (await file.exists()) {
+          return new Response(file);
+        }
+      }
     }
 
     // Handle HTTP via Hono (dev mode)
