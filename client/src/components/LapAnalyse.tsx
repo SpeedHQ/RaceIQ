@@ -26,7 +26,7 @@ import { useGameId } from "../stores/game";
 import { analyzeLap } from "../lib/lap-insights";
 import { InsightPanel } from "./InsightPanel";
 import { AiPanel, type AnalysisHighlight, type AiPanelHandle } from "./AiPanel";
-import { Sparkles, Settings2 } from "lucide-react";
+import { Sparkles, Settings2, Info } from "lucide-react";
 import { SearchSelect } from "./ui/SearchSelect";
 import { WeatherWidget } from "./analyse/WeatherWidget";
 import { F1SetupModal } from "./analyse/F1SetupModal";
@@ -1071,15 +1071,11 @@ export function LapAnalyse() {
                         )}
                         {/* G-Force */}
                         <div className="flex justify-between">
-                          <span className="text-app-text-muted">Lat G</span>
-                          <span className="tabular-nums" style={{ color: latG > 1.5 ? "#ef4444" : latG > 0.8 ? "#fbbf24" : "#34d399" }}>
-                            {latG.toFixed(2)}g
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-app-text-muted">Lon G</span>
-                          <span className="tabular-nums" style={{ color: lonG < -0.5 ? "#ef4444" : lonG > 0.3 ? "#34d399" : "#94a3b8" }}>
-                            {lonG > 0 ? "+" : ""}{lonG.toFixed(2)}g
+                          <span className="text-app-text-muted">G-Force</span>
+                          <span className="tabular-nums text-app-text">
+                            Lat {latG.toFixed(2)}g
+                            <span className="text-app-text-dim"> </span>
+                            Lon {lonG > 0 ? "+" : ""}{lonG.toFixed(2)}g
                           </span>
                         </div>
                         {/* Grip / slip ratios — Forza has real data, F1 skips */}
@@ -1097,17 +1093,34 @@ export function LapAnalyse() {
                                 <span style={{ color: frictionUtilColor(fc.rr) }}>RR {(fc.rr * 100).toFixed(0)}%</span>
                               </span>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-app-text-muted">Slip Ratio</span>
-                              <span className="tabular-nums">
-                                <span style={{ color: slipRatioColor(ws.fl.slipRatio) }}>FL {(ws.fl.slipRatio * 100).toFixed(0)}</span>
-                                <span className="text-app-text-dim"> </span>
-                                <span style={{ color: slipRatioColor(ws.fr.slipRatio) }}>FR {(ws.fr.slipRatio * 100).toFixed(0)}</span>
-                                <span className="text-app-text-dim"> </span>
-                                <span style={{ color: slipRatioColor(ws.rl.slipRatio) }}>RL {(ws.rl.slipRatio * 100).toFixed(0)}</span>
-                                <span className="text-app-text-dim"> </span>
-                                <span style={{ color: slipRatioColor(ws.rr.slipRatio) }}>RR {(ws.rr.slipRatio * 100).toFixed(0)}%</span>
-                              </span>
+                            <div className="border-t border-app-border pt-1">
+                              <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Slip</div>
+                              <div className="space-y-1">
+                                <div className="flex justify-between">
+                                  <span className="text-app-text-muted">Ratio</span>
+                                  <span className="tabular-nums">
+                                    <span style={{ color: slipRatioColor(ws.fl.slipRatio) }}>FL {(ws.fl.slipRatio * 100).toFixed(0)}</span>
+                                    <span className="text-app-text-dim"> </span>
+                                    <span style={{ color: slipRatioColor(ws.fr.slipRatio) }}>FR {(ws.fr.slipRatio * 100).toFixed(0)}</span>
+                                    <span className="text-app-text-dim"> </span>
+                                    <span style={{ color: slipRatioColor(ws.rl.slipRatio) }}>RL {(ws.rl.slipRatio * 100).toFixed(0)}</span>
+                                    <span className="text-app-text-dim"> </span>
+                                    <span style={{ color: slipRatioColor(ws.rr.slipRatio) }}>RR {(ws.rr.slipRatio * 100).toFixed(0)}%</span>
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-app-text-muted">Angle</span>
+                                  <span className="tabular-nums">
+                                    <SlipAngleValue label="FL" value={currentPacket.TireSlipAngleFL} speedMph={currentPacket.Speed * 2.23694} />
+                                    <span className="text-app-text-dim"> </span>
+                                    <SlipAngleValue label="FR" value={currentPacket.TireSlipAngleFR} speedMph={currentPacket.Speed * 2.23694} />
+                                    <span className="text-app-text-dim"> </span>
+                                    <SlipAngleValue label="RL" value={currentPacket.TireSlipAngleRL} speedMph={currentPacket.Speed * 2.23694} />
+                                    <span className="text-app-text-dim"> </span>
+                                    <SlipAngleValue label="RR" value={currentPacket.TireSlipAngleRR} speedMph={currentPacket.Speed * 2.23694} />
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                           </>
                         )}
@@ -1253,18 +1266,6 @@ export function LapAnalyse() {
                             <WearValue label="RL" value={currentPacket.TireWearRL} />
                             <WearValue label="RR" value={currentPacket.TireWearRR} />
                           </div>
-                          <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1 mt-1">Wear /s</div>
-                          <div className="grid grid-cols-2 gap-x-2">
-                            {(["FL", "FR", "RL", "RR"] as const).map((w) => {
-                              const rate = wearRate ? wearRate[w] * 100 : null;
-                              const color = rate == null || rate < 0.01 ? "#94a3b8" : rate < 0.05 ? "#34d399" : rate < 0.1 ? "#fbbf24" : "#ef4444";
-                              return (
-                                <span key={w} className="text-app-text-secondary">
-                                  {w}: <span className="tabular-nums" style={{ color }}>{rate != null ? rate.toFixed(3) + "%" : "—"}</span>
-                                </span>
-                              );
-                            })}
-                          </div>
                         </div>
                       </div>
                       <div className="space-y-2">
@@ -1278,16 +1279,22 @@ export function LapAnalyse() {
                           </div>
                         </div>
                         <div className="border-t border-app-border pt-1">
-                          <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Slip Angle</div>
+                          <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">Wear /s</div>
                           <div className="grid grid-cols-2 gap-x-2">
-                            <SlipAngleValue label="FL" value={currentPacket.TireSlipAngleFL} speedMph={currentPacket.Speed * 2.23694} />
-                            <SlipAngleValue label="FR" value={currentPacket.TireSlipAngleFR} speedMph={currentPacket.Speed * 2.23694} />
-                            <SlipAngleValue label="RL" value={currentPacket.TireSlipAngleRL} speedMph={currentPacket.Speed * 2.23694} />
-                            <SlipAngleValue label="RR" value={currentPacket.TireSlipAngleRR} speedMph={currentPacket.Speed * 2.23694} />
+                            {(["FL", "FR", "RL", "RR"] as const).map((w) => {
+                              const rate = wearRate ? wearRate[w] * 100 : null;
+                              const color = rate == null || rate < 0.01 ? "#94a3b8" : rate < 0.05 ? "#34d399" : rate < 0.1 ? "#fbbf24" : "#ef4444";
+                              return (
+                                <span key={w} className="text-app-text-secondary">
+                                  {w}: <span className="tabular-nums" style={{ color }}>{rate != null ? rate.toFixed(3) + "%" : "—"}</span>
+                                </span>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
                     </div>
+
 
                     {/* Brakes — separate section */}
                     {(currentPacket.BrakeTempFrontLeft || currentPacket.f1?.brakeTempFL) ? (
@@ -1313,7 +1320,23 @@ export function LapAnalyse() {
 
                     {/* Suspension — separate section */}
                     <div className="border-t border-app-border pt-2">
-                      <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 font-semibold">Suspension</h3>
+                      <div className="flex items-center gap-1 mb-2 group relative">
+                        <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold">Suspension</h3>
+                        <Info className="w-3.5 h-3.5 text-app-text-dim cursor-help" />
+                        <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none">
+                          Load Distribution:<br/>50% = balanced<br/>0% Lon = all front<br/>0% Lat = all left
+                        </div>
+                      </div>
+                      <div className="text-[11px] font-mono mb-2 space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-app-text-muted">Load Distribution</span>
+                          <span className="tabular-nums text-app-text">
+                            Lon {((currentPacket.NormSuspensionTravelFL + currentPacket.NormSuspensionTravelFR) / 2 * 100).toFixed(0)}%
+                            <span className="text-app-text-dim"> </span>
+                            Lat {((currentPacket.NormSuspensionTravelFL + currentPacket.NormSuspensionTravelRL) / 2 * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
                       <div className="grid grid-cols-2 gap-x-2">
                         <SuspValue label="FL" value={currentPacket.NormSuspensionTravelFL} />
                         <SuspValue label="FR" value={currentPacket.NormSuspensionTravelFR} />

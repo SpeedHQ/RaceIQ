@@ -1,6 +1,6 @@
 import type { TelemetryPacket, Tune, GameId } from "../../shared/types";
 import { generateExport, type UnitSystem } from "../export";
-import { getCarName, getTrackName } from "../../shared/car-data";
+import { getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../client/src/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";
@@ -125,7 +125,17 @@ export function buildAnalystPrompt(
     segmentsList += "\n";
   }
 
-  const context = `Car: ${carName}
+  // Get car specs for additional context
+  const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
+  const specs = carSpecsMap.get(carOrdinal);
+  let carDetailsText = `Car: ${carName}`;
+  if (specs) {
+    carDetailsText += `\nClass: ${specs.division}`;
+    carDetailsText += `\nPerformance Index (PI): ${specs.pi}`;
+    carDetailsText += `\nDimensions: ${specs.weightKg}kg, ${specs.hp}hp, ${specs.drivetrain}`;
+  }
+
+  const context = `${carDetailsText}
 Track: ${trackName}
 ${tuneText}${segmentsList}
 ${exportText}
