@@ -810,7 +810,7 @@ export function LapAnalyse() {
               {/* Steering wheel + pedal bars — bottom right */}
               {currentPacket && (
                 <div className="absolute bottom-2 right-2 flex flex-col items-center gap-1">
-                  <SteeringWheel steer={currentPacket.Steer} size={70} />
+                  <SteeringWheel steer={currentPacket.Steer} rpm={currentPacket.CurrentEngineRpm} maxRpm={currentPacket.EngineMaxRpm} size={70} />
                 <div className="flex gap-1 items-end" style={{ height: 60 }}>
                   <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[9px] font-mono font-bold tabular-nums" style={{ color: brakeBarColor(currentPacket.Brake) }}>{((currentPacket.Brake / 255) * 100).toFixed(0)}</span>
