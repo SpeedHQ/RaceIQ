@@ -706,14 +706,12 @@ function InputOverlay({
 
       if (throttle > 0) {
         throttlePts.push([localFwd, Y, localLat + OFFSET]);
-        const col = THROTTLE_COLOR.clone();
-        col.multiplyScalar(0.3 + throttle * 0.7);
+        const col = new THREE.Color(0, 0, 0).lerp(THROTTLE_COLOR, throttle);
         throttleCols.push(col);
       }
       if (brake > 0) {
         brakePts.push([localFwd, Y, localLat - OFFSET]);
-        const col = BRAKE_COLOR.clone();
-        col.multiplyScalar(0.3 + brake * 0.7);
+        const col = new THREE.Color(0, 0, 0).lerp(BRAKE_COLOR, brake);
         brakeCols.push(col);
       }
     }
