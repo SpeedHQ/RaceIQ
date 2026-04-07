@@ -8,7 +8,7 @@ import { useUnits } from "../hooks/useUnits";
 import { useSettings } from "../hooks/queries";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
-import { allWheelStates, type WheelState } from "../lib/vehicle-dynamics";
+import { allWheelStates, tireState, tireTempColor, tireTempClass, slipAngleColor, tireHealthTextClass, tireHealthBgClass, type WheelState } from "../lib/vehicle-dynamics";
 
 // Rolling window for grip sparklines — 60s at 10Hz gives a manageable 600-point buffer
 const GRIP_HISTORY_SECONDS = 60;
@@ -116,6 +116,7 @@ function GripHistory({ packet }: { packet: TelemetryPacket }) {
   const historyRef = useRef<{ fl: number[]; fr: number[]; rl: number[]; rr: number[] }>({
     fl: [], fr: [], rl: [], rr: [],
   });
+  const [gripData, setGripData] = useState<{ fl: number[]; fr: number[]; rl: number[]; rr: number[] }>({ fl: [], fr: [], rl: [], rr: [] });
   const [renderKey, setRenderKey] = useState(0);
   const frameRef = useRef(0);
   const fetchedRef = useRef(false);
@@ -125,15 +126,15 @@ function GripHistory({ packet }: { packet: TelemetryPacket }) {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     client.api["grip-history"].$get()
-      .then((r) => r.json() as any)
-      .then((data: any) => data as { fl: number[]; fr: number[]; rl: number[]; rr: number[] })
-      .then((data: { fl: number[]; fr: number[]; rl: number[]; rr: number[] }) => {
+      .then((r) => r.json() as Promise<{ fl: number[]; fr: number[]; rl: number[]; rr: number[] }>)
+      .then((data) => {
         if (data && Array.isArray(data.fl) && data.fl.length > 0) {
           const h = historyRef.current;
           h.fl = data.fl;
           h.fr = data.fr;
           h.rl = data.rl;
           h.rr = data.rr;
+          setGripData({ fl: data.fl, fr: data.fr, rl: data.rl, rr: data.rr });
           setRenderKey((v) => v + 1);
         }
       })
@@ -156,17 +157,16 @@ function GripHistory({ packet }: { packet: TelemetryPacket }) {
       h.fl.shift(); h.fr.shift(); h.rl.shift(); h.rr.shift();
     }
 
+    setGripData({ fl: h.fl, fr: h.fr, rl: h.rl, rr: h.rr });
     setRenderKey((v) => v + 1);
   }, [packet]);
 
-  const h = historyRef.current;
-
   return (
     <div className="grid grid-cols-2 gap-2">
-      <GripSparkline data={h.fl} label="FL" renderKey={renderKey} />
-      <GripSparkline data={h.fr} label="FR" renderKey={renderKey} />
-      <GripSparkline data={h.rl} label="RL" renderKey={renderKey} />
-      <GripSparkline data={h.rr} label="RR" renderKey={renderKey} />
+      <GripSparkline data={gripData.fl} label="FL" renderKey={renderKey} />
+      <GripSparkline data={gripData.fr} label="FR" renderKey={renderKey} />
+      <GripSparkline data={gripData.rl} label="RL" renderKey={renderKey} />
+      <GripSparkline data={gripData.rr} label="RR" renderKey={renderKey} />
     </div>
   );
 }
@@ -189,21 +189,12 @@ function PitEstimate({ packet }: { packet: TelemetryPacket }) {
     trackOrdRef.current = packet.TrackOrdinal;
     if (!gameId) return;
     client.api["track-sector-boundaries"][":ordinal"].$get({ param: { ordinal: String(packet.TrackOrdinal) }, query: { gameId: gameId! } })
-      .then((r) => r.json() as any)
-      .then((data: any) => { if (data?.trackLength) setTrackLength(data.trackLength); })
+      .then((r) => r.json() as Promise<{ trackLength?: number }>)
+      .then((data) => { if (data?.trackLength) setTrackLength(data.trackLength); })
       .catch(() => {});
   }, [packet.TrackOrdinal, gameId]);
 
-  const pitRef = useRef<{
-    // Per-second tracking (wall clock)
-    lastWallTime: number;
-    lastFuel: number;
-    lastWorstWear: number;
-    lastDist: number;
-    fuelPerSec: number;
-    wearPerSec: number;
-    avgSpeed: number; // m/s smoothed
-  }>({
+  const [pitInitial] = useState(() => ({
     lastWallTime: Date.now() / 1000,
     lastFuel: packet.Fuel,
     lastWorstWear: Math.max(packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR),
@@ -211,8 +202,9 @@ function PitEstimate({ packet }: { packet: TelemetryPacket }) {
     fuelPerSec: 0,
     wearPerSec: 0,
     avgSpeed: 0,
-  });
-  const [, pitTick] = useState(0);
+  }));
+  const pitRef = useRef(pitInitial);
+  const [pitRates, setPitRates] = useState({ fuelPerSec: 0, wearPerSec: 0, avgSpeed: 0 });
 
   // Per-second rate tracking (wall clock, smoothed over ~3s)
   useEffect(() => {
@@ -233,21 +225,19 @@ function PitEstimate({ packet }: { packet: TelemetryPacket }) {
       s.lastFuel = packet.Fuel;
       s.lastWorstWear = worstWear;
       s.lastDist = packet.DistanceTraveled;
-      pitTick((v) => v + 1);
+      setPitRates({ fuelPerSec: s.fuelPerSec, wearPerSec: s.wearPerSec, avgSpeed: s.avgSpeed });
     }
   }, [packet]);
-
-  const s = pitRef.current;
 
   // Estimate laps from rate-based calculation:
   // usagePerLap = usagePerSec * (trackLength / avgSpeed)
   // lapsRemaining = currentLevel / usagePerLap
-  const canEstimate = s.avgSpeed > 1 && trackLength && trackLength > 100;
-  const estLapTime = canEstimate ? trackLength / s.avgSpeed : 0;
+  const canEstimate = pitRates.avgSpeed > 1 && trackLength && trackLength > 100;
+  const estLapTime = canEstimate ? trackLength / pitRates.avgSpeed : 0;
 
   let fuelLaps: number | null = null;
-  if (s.fuelPerSec > 0 && canEstimate) {
-    const fuelPerLap = (s.fuelPerSec / 100) * estLapTime; // fraction per lap
+  if (pitRates.fuelPerSec > 0 && canEstimate) {
+    const fuelPerLap = (pitRates.fuelPerSec / 100) * estLapTime; // fraction per lap
     if (fuelPerLap > 0) fuelLaps = Math.round((packet.Fuel / fuelPerLap) * 10) / 10;
   }
 
@@ -256,11 +246,11 @@ function PitEstimate({ packet }: { packet: TelemetryPacket }) {
   const wears = [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR];
   const tireData = tireLabels.map((label, i) => {
     const health = (1 - wears[i]) * 100;
-    const healthClr = healthTextColor(health, healthThresh);
-    const healthBg = healthBgColor(health, healthThresh);
+    const healthClr = tireHealthTextClass(health, healthThresh);
+    const healthBg = tireHealthBgClass(health, healthThresh);
     let laps: number | null = null;
-    if (s.wearPerSec > 0 && canEstimate) {
-      const wearPerLap = (s.wearPerSec / 100) * estLapTime;
+    if (pitRates.wearPerSec > 0 && canEstimate) {
+      const wearPerLap = (pitRates.wearPerSec / 100) * estLapTime;
       const remaining = 1 - wears[i];
       if (wearPerLap > 0) laps = Math.round((remaining / wearPerLap) * 10) / 10;
     }
@@ -333,8 +323,8 @@ function PitEstimate({ packet }: { packet: TelemetryPacket }) {
             <div className={`text-2xl font-mono font-black tabular-nums leading-none text-right w-16 ${fuelLaps != null ? fuelColor : "text-app-text-dim"}`}>
               {fuelLaps != null ? `~${fuelLaps.toFixed(1)}` : "—"}
             </div>
-            <div className={`text-lg font-mono font-bold tabular-nums leading-none text-right w-16 ${s.fuelPerSec > 0 ? fuelColor : "text-app-text-dim"}`}>
-              {s.fuelPerSec > 0 ? (s.fuelPerSec * 5).toFixed(2) : "—"}
+            <div className={`text-lg font-mono font-bold tabular-nums leading-none text-right w-16 ${pitRates.fuelPerSec > 0 ? fuelColor : "text-app-text-dim"}`}>
+              {pitRates.fuelPerSec > 0 ? (pitRates.fuelPerSec * 5).toFixed(2) : "—"}
             </div>
           </div>
         </div>
@@ -352,8 +342,8 @@ function PitEstimate({ packet }: { packet: TelemetryPacket }) {
             <div className={`text-xl font-mono font-black tabular-nums leading-none text-right w-16 ${t.laps != null ? t.healthClr : "text-app-text-dim"}`}>
               {t.laps != null ? `~${t.laps.toFixed(1)}` : "—"}
             </div>
-            <div className={`text-lg font-mono font-bold tabular-nums leading-none text-right w-16 ${s.wearPerSec > 0 ? t.healthClr : "text-app-text-dim"}`}>
-              {s.wearPerSec > 0 ? (s.wearPerSec * 5).toFixed(2) : "—"}
+            <div className={`text-lg font-mono font-bold tabular-nums leading-none text-right w-16 ${pitRates.wearPerSec > 0 ? t.healthClr : "text-app-text-dim"}`}>
+              {pitRates.wearPerSec > 0 ? (pitRates.wearPerSec * 5).toFixed(2) : "—"}
             </div>
           </div>
         ))}
@@ -377,54 +367,9 @@ export function formatLapTime(seconds: number): string {
   return `${m}:${s.toFixed(3).padStart(6, "0")}`;
 }
 
-// Tire temp thresholds (Fahrenheit): <150 cold, 150-220 optimal, 220-280 hot, >280 overheating
-function tempColor(t: number, thresholds: { cold: number; warm: number; hot: number }): string {
-  if (t < thresholds.cold) return "text-blue-400";
-  if (t < thresholds.warm) return "text-emerald-400";
-  if (t < thresholds.hot) return "text-amber-400";
-  return "text-red-400";
-}
 
 
-// Tire health colors driven by configurable thresholds (ascending: [20, 40, 60, 80])
-const HEALTH_TEXT_COLORS = ["text-red-400", "text-orange-400", "text-yellow-400", "text-lime-400", "text-emerald-400"];
-const HEALTH_BG_COLORS = ["bg-red-500", "bg-orange-400", "bg-yellow-400", "bg-lime-400", "bg-emerald-400"];
 
-function healthTextColor(health: number, thresholds: number[]): string {
-  for (let i = 0; i < thresholds.length; i++) {
-    if (health <= thresholds[i]) return HEALTH_TEXT_COLORS[i] ?? HEALTH_TEXT_COLORS[0];
-  }
-  return HEALTH_TEXT_COLORS[thresholds.length] ?? HEALTH_TEXT_COLORS[HEALTH_TEXT_COLORS.length - 1];
-}
-
-function healthBgColor(health: number, thresholds: number[]): string {
-  for (let i = 0; i < thresholds.length; i++) {
-    if (health <= thresholds[i]) return HEALTH_BG_COLORS[i] ?? HEALTH_BG_COLORS[0];
-  }
-  return HEALTH_BG_COLORS[thresholds.length] ?? HEALTH_BG_COLORS[HEALTH_BG_COLORS.length - 1];
-}
-
-function gripLabel(combined: number): string {
-  if (combined < 0.5) return "GRIP";
-  if (combined < 1.0) return "SLIDE";
-  if (combined < 2.0) return "SLIP";
-  return "LOSS";
-}
-
-function tireColor(t: number, thresholds: { cold: number; warm: number; hot: number }): string {
-  if (t < thresholds.cold) return "#3b82f6";
-  if (t < thresholds.warm) return "#34d399";
-  if (t < thresholds.hot) return "#f59e0b";
-  return "#ef4444";
-}
-
-function slipLineColor(deg: number): string {
-  const a = Math.abs(deg);
-  if (a < 4) return "#34d399";
-  if (a < 8) return "#facc15";
-  if (a < 14) return "#fb923c";
-  return "#ef4444";
-}
 
 /**
  * WheelCard — SVG tire visualization for a single wheel.
@@ -451,9 +396,9 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, wheelSta
   brakeTemp?: number;
 }) {
   const clampedAngle = Math.max(-25, Math.min(25, slipAngle));
-  const stroke = tireColor(temp, thresholds);
-  const fill = tireColor(temp, thresholds);
-  const slipCol = slipLineColor(slipAngle);
+  const stroke = tireTempColor(temp, thresholds);
+  const fill = tireTempColor(temp, thresholds);
+  const slipCol = slipAngleColor(slipAngle);
   const wearPct = Math.max(0, Math.min(1, wear));
 
   // Use canonical wheel state from vehicle-dynamics
@@ -592,8 +537,8 @@ function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, wheelSta
         <text x={cx} y={105} textAnchor="middle" fill="#94a3b8" fontSize={9} fontFamily="monospace">
           Health {((1 - wearPct) * 100).toFixed(0)}%
         </text>
-        <text x={cx} y={117} textAnchor="middle" fill={combined < 0.5 ? "#34d399" : combined < 1.0 ? "#facc15" : combined < 2.0 ? "#fb923c" : "#ef4444"} fontSize={8} fontWeight="bold" fontFamily="monospace">
-          {gripLabel(combined)}
+        <text x={cx} y={117} textAnchor="middle" fill={tireState(wheelState.state, combined).color} fontSize={8} fontWeight="bold" fontFamily="monospace">
+          {tireState(wheelState.state, combined).label}
         </text>
 
         {/* Brake temp */}
@@ -895,21 +840,22 @@ function FuelGauge({ packet }: { packet: TelemetryPacket }) {
     avgPerLap: null,
   });
   const fetchedRef = useRef(false);
+  const [fuelStats, setFuelStats] = useState<{ avgPerLap: number | null; lapStart: number }>({ avgPerLap: null, lapStart: packet.Fuel });
 
   // Seed from server fuel history
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     client.api["fuel-history"].$get()
-      .then((r) => r.json() as any)
-      .then((data: any) => data as { fuelUsed: number }[])
-      .then((data: { fuelUsed: number }[]) => {
+      .then((r) => r.json() as Promise<{ fuelUsed: number }[]>)
+      .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           const f = fuelRef.current;
           f.history = data.map((d) => d.fuelUsed).filter((v) => v > 0 && v < 1);
           if (f.history.length > 0) {
             const recent = f.history.slice(-5);
             f.avgPerLap = recent.reduce((s, v) => s + v, 0) / recent.length;
+            setFuelStats({ avgPerLap: f.avgPerLap, lapStart: f.lapStart });
           }
         }
       })
@@ -924,11 +870,11 @@ function FuelGauge({ packet }: { packet: TelemetryPacket }) {
       if (used > 0 && used < 1) {
         f.history.push(used);
         if (f.history.length > 50) f.history.shift();
-        // Recalculate average from last 5 laps
         const recent = f.history.slice(-5);
         f.avgPerLap = recent.reduce((s, v) => s + v, 0) / recent.length;
       }
       f.lapStart = packet.Fuel;
+      setFuelStats({ avgPerLap: f.avgPerLap, lapStart: f.lapStart });
     }
     f.lastLap = packet.LapNumber;
   }, [packet.LapNumber, packet.Fuel]);
@@ -942,11 +888,11 @@ function FuelGauge({ packet }: { packet: TelemetryPacket }) {
   const textColor = fuelIsLitres
     ? (packet.Fuel < 5 ? "text-red-400" : packet.Fuel < 15 ? "text-amber-400" : "text-emerald-400")
     : (pct < 20 ? "text-red-400" : pct < 40 ? "text-amber-400" : "text-emerald-400");
-  const avg = fuelRef.current.avgPerLap;
+  const avg = fuelStats.avgPerLap;
   const lapsRemaining = avg && avg > 0 ? Math.floor(packet.Fuel / avg) : null;
 
   // Current lap fuel used so far
-  const currentLapPct = (fuelRef.current.lapStart - packet.Fuel) * 100;
+  const currentLapPct = (fuelStats.lapStart - packet.Fuel) * 100;
 
   // Delta vs average: positive = using more than avg, negative = saving
   return (
@@ -1105,12 +1051,11 @@ function FourLineChart({ data, label, maxY, unit, height = 50 }: {
 }
 
 /** SingleLineChart — Same sliding-window canvas approach as FourLineChart but for a single metric. */
-function SingleLineChart({ data, label, color, maxY, unit: _sunit, height = 50 }: {
+function SingleLineChart({ data, label, color, maxY, height = 50 }: {
   data: number[];
   label: string;
   color: string;
   maxY?: number;
-  unit?: string;
   height?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1179,7 +1124,7 @@ function SingleLineChart({ data, label, color, maxY, unit: _sunit, height = 50 }
 }
 
 /** DualLineChart — Two overlaid lines sharing one Y-axis (e.g., throttle vs brake trace). */
-function DualLineChart({ data1, data2, label1, label2, color1, color2, label, maxY, unit: _unit, height = 50 }: {
+function DualLineChart({ data1, data2, label1, label2, color1, color2, label, maxY, height = 50 }: {
   data1: number[];
   data2: number[];
   label1: string;
@@ -1188,7 +1133,6 @@ function DualLineChart({ data1, data2, label1, label2, color1, color2, label, ma
   color2: string;
   label: string;
   maxY?: number;
-  unit?: string;
   height?: number;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1274,7 +1218,6 @@ function DualLineChart({ data1, data2, label1, label2, color1, color2, label, ma
  * Converts raw telemetry units (rad->deg, m/s->mph, 0-255->0-100%) for display.
  */
 function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
-  const units = useUnits();
   const histRef = useRef<{
     grip: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
     temp: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
@@ -1304,14 +1247,24 @@ function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     client.api["telemetry-history"].$get()
-      .then((r) => r.json() as any)
-      .then((data: any) => {
+      .then((r) => r.json() as Promise<typeof histRef.current>)
+      .then((data) => {
         if (data && Array.isArray(data.grip?.fl)) {
           histRef.current = data;
         }
       })
       .catch(() => {});
   }, []);
+
+  const [chartData, setChartData] = useState({
+    grip: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
+    temp: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
+    wear: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
+    slipAngle: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
+    slipRatio: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
+    suspension: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
+    throttle: [] as number[], brake: [] as number[], speed: [] as number[],
+  });
 
   // Sample at ~10Hz
   useEffect(() => {
@@ -1333,20 +1286,19 @@ function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
     h.brake.push(packet.Brake / 255 * 100);
     h.speed.push(packet.DisplaySpeed);
     if (h.throttle.length > GRIP_MAX_SAMPLES) { h.throttle.shift(); h.brake.shift(); h.speed.shift(); }
+    setChartData({ ...h });
   }, [packet]);
-
-  const h = histRef.current;
 
   return (
     <div className="grid gap-2">
-      <FourLineChart data={h.grip} label="Combined Slip" maxY={3} />
-      <FourLineChart data={h.temp} label="Tire Temp" unit="°" />
-      <FourLineChart data={h.wear} label="Tire Wear" maxY={1} />
-      <FourLineChart data={h.slipAngle} label="Slip Angle" unit="°" />
-      <FourLineChart data={h.slipRatio} label="Slip Ratio" />
-      <FourLineChart data={h.suspension} label="Suspension" maxY={1} />
-      <SingleLineChart data={h.speed} label="Speed" color="#22d3ee" unit={units.speedLabel} />
-      <DualLineChart data1={h.throttle} data2={h.brake} label1="Throttle" label2="Brake" color1="#34d399" color2="#ef4444" label="Throttle / Brake" maxY={100} unit="%" />
+      <FourLineChart data={chartData.grip} label="Combined Slip" maxY={3} />
+      <FourLineChart data={chartData.temp} label="Tire Temp" unit="°" />
+      <FourLineChart data={chartData.wear} label="Tire Wear" maxY={1} />
+      <FourLineChart data={chartData.slipAngle} label="Slip Angle" unit="°" />
+      <FourLineChart data={chartData.slipRatio} label="Slip Ratio" />
+      <FourLineChart data={chartData.suspension} label="Suspension" maxY={1} />
+      <SingleLineChart data={chartData.speed} label="Speed" color="#22d3ee" />
+      <DualLineChart data1={chartData.throttle} data2={chartData.brake} label1="Throttle" label2="Brake" color1="#34d399" color2="#ef4444" label="Throttle / Brake" maxY={100} />
     </div>
   );
 }
@@ -1359,22 +1311,16 @@ function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
   const units = useUnits();
   const { displaySettings } = useSettings();
   const healthThresh = displaySettings.tireHealthThresholds.values;
-  const wearRef = useRef<{
-    lastLap: number;
-    wearAtLapStart: number[];
-    wearRates: number[][];
-    // Per-second per-tire tracking (wall clock)
-    lastWallTime: number;
-    lastWear: number[];
-    wearPerSec: number[]; // %/s per tire
-  }>({
+  const [wearInit] = useState(() => ({
     lastLap: 0,
     wearAtLapStart: [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR],
-    wearRates: [],
+    wearRates: [] as number[][],
     lastWallTime: Date.now() / 1000,
     lastWear: [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR],
     wearPerSec: [0, 0, 0, 0],
-  });
+  }));
+  const wearRef = useRef(wearInit);
+  const [wearState, setWearState] = useState({ wearPerSec: [0, 0, 0, 0], wearRates: [] as number[][] });
 
   // Track wear per lap for estimates
   useEffect(() => {
@@ -1389,6 +1335,7 @@ function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
       w.wearAtLapStart = currentWear;
     }
     w.lastLap = packet.LapNumber;
+    setWearState({ wearPerSec: w.wearPerSec, wearRates: w.wearRates });
   }, [packet.LapNumber]);
 
   // Per-second wear rate tracking (wall clock, smoothed over ~3s)
@@ -1405,22 +1352,22 @@ function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
       });
       w.lastWallTime = now;
       w.lastWear = currentWear;
+      setWearState({ wearPerSec: [...w.wearPerSec], wearRates: w.wearRates });
     }
   }, [packet]);
 
   const tires = [
-    { label: "FL", temp: packet.TireTempFL, wear: packet.TireWearFL, grip: Math.abs(packet.TireCombinedSlipFL), wearPerSec: wearRef.current.wearPerSec[0] },
-    { label: "FR", temp: packet.TireTempFR, wear: packet.TireWearFR, grip: Math.abs(packet.TireCombinedSlipFR), wearPerSec: wearRef.current.wearPerSec[1] },
-    { label: "RL", temp: packet.TireTempRL, wear: packet.TireWearRL, grip: Math.abs(packet.TireCombinedSlipRL), wearPerSec: wearRef.current.wearPerSec[2] },
-    { label: "RR", temp: packet.TireTempRR, wear: packet.TireWearRR, grip: Math.abs(packet.TireCombinedSlipRR), wearPerSec: wearRef.current.wearPerSec[3] },
+    { label: "FL", temp: packet.TireTempFL, wear: packet.TireWearFL, grip: Math.abs(packet.TireCombinedSlipFL), wearPerSec: wearState.wearPerSec[0] },
+    { label: "FR", temp: packet.TireTempFR, wear: packet.TireWearFR, grip: Math.abs(packet.TireCombinedSlipFR), wearPerSec: wearState.wearPerSec[1] },
+    { label: "RL", temp: packet.TireTempRL, wear: packet.TireWearRL, grip: Math.abs(packet.TireCombinedSlipRL), wearPerSec: wearState.wearPerSec[2] },
+    { label: "RR", temp: packet.TireTempRR, wear: packet.TireWearRR, grip: Math.abs(packet.TireCombinedSlipRR), wearPerSec: wearState.wearPerSec[3] },
   ];
 
   // Estimate laps remaining from worst tire
-  const w = wearRef.current;
   let lapsEstimate: number | null = null;
-  if (w.wearRates.length > 0) {
+  if (wearState.wearRates.length > 0) {
     const avgRates = [0, 1, 2, 3].map((i) => {
-      const rates = w.wearRates.map((r) => r[i]).filter((r) => r > 0);
+      const rates = wearState.wearRates.map((r) => r[i]).filter((r) => r > 0);
       return rates.length > 0 ? rates.reduce((s, v) => s + v, 0) / rates.length : 0;
     });
     const worstIdx = avgRates.indexOf(Math.max(...avgRates));
@@ -1435,10 +1382,10 @@ function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
       <div className="grid grid-cols-2 gap-2">
         {tires.map((t) => {
           const healthPct = (1 - t.wear) * 100;
-          const healthTxtClr = healthTextColor(healthPct, healthThresh);
-          const healthBg = healthBgColor(healthPct, healthThresh);
+          const healthTxtClr = tireHealthTextClass(healthPct, healthThresh);
+          const healthBg = tireHealthBgClass(healthPct, healthThresh);
           const tempDisplay = units.temp(t.temp);
-          const tc = tempColor(t.temp, units.thresholds);
+          const tc = tireTempClass(t.temp, units.thresholds);
 
           return (
             <div key={t.label} className="bg-app-surface-alt/30 rounded-md p-2.5 flex items-center gap-2">

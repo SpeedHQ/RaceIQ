@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import type { TelemetryPacket, LapMeta } from "@shared/types";
 import { convertTemp } from "../lib/temperature";
-import { getTireColor, getTireTempLabel } from "../lib/tire-color";
+import { tireTempColor, tireTempLabel } from "../lib/vehicle-dynamics";
 import { tryGetGame } from "@shared/games/registry";
 import { useCookieState } from "../hooks/useCookieState";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -13,12 +13,15 @@ import { BodyAttitude } from "./BodyAttitude";
 import {
   allWheelStates,
   allFrictionCircle,
-  frictionCircleUtil,
   steerBalance,
   balanceChartData,
+  tireState,
   slipRatioColor,
   frictionUtilColor,
   balanceColor,
+  tireHealthColor,
+  wearRateColor,
+  brakeTempColor,
 } from "../lib/vehicle-dynamics";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUnits } from "../hooks/useUnits";
@@ -1127,15 +1130,6 @@ export function LapAnalyse() {
                           <>
                             {/* Tire state — combines wheel dynamics + grip demand */}
                             {(() => {
-                              const tireState = (wsState: string, combinedSlip: number) => {
-                                const demand = frictionCircleUtil(Math.abs(combinedSlip));
-                                if (wsState === "lockup" && demand > 1.0) return { label: "LOCK", color: "#ef4444" };
-                                if (wsState === "spin" && demand > 1.0) return { label: "SPIN", color: "#ef4444" };
-                                if (wsState === "idle") return { label: "IDLE", color: "#94a3b8" };
-                                if (demand > 1.2) return { label: "SLIDE", color: "#ef4444" };
-                                if (demand > 1.0) return { label: "SLIP", color: "#fbbf24" };
-                                return { label: "GRIP", color: "#34d399" };
-                              };
                               const temps = [
                                 currentDisplayPacket?.DisplayTireTempFL ?? currentPacket.TireTempFL,
                                 currentDisplayPacket?.DisplayTireTempFR ?? currentPacket.TireTempFR,
@@ -1143,10 +1137,10 @@ export function LapAnalyse() {
                                 currentDisplayPacket?.DisplayTireTempRR ?? currentPacket.TireTempRR,
                               ];
                               const states = [
-                                { l: "FL", ...tireState(ws.fl.state, currentPacket.TireCombinedSlipFL), temp: getTireTempLabel(temps[0], units.thresholds) },
-                                { l: "FR", ...tireState(ws.fr.state, currentPacket.TireCombinedSlipFR), temp: getTireTempLabel(temps[1], units.thresholds) },
-                                { l: "RL", ...tireState(ws.rl.state, currentPacket.TireCombinedSlipRL), temp: getTireTempLabel(temps[2], units.thresholds) },
-                                { l: "RR", ...tireState(ws.rr.state, currentPacket.TireCombinedSlipRR), temp: getTireTempLabel(temps[3], units.thresholds) },
+                                { l: "FL", ...tireState(ws.fl.state, currentPacket.TireCombinedSlipFL), temp: tireTempLabel(temps[0], units.thresholds) },
+                                { l: "FR", ...tireState(ws.fr.state, currentPacket.TireCombinedSlipFR), temp: tireTempLabel(temps[1], units.thresholds) },
+                                { l: "RL", ...tireState(ws.rl.state, currentPacket.TireCombinedSlipRL), temp: tireTempLabel(temps[2], units.thresholds) },
+                                { l: "RR", ...tireState(ws.rr.state, currentPacket.TireCombinedSlipRR), temp: tireTempLabel(temps[3], units.thresholds) },
                               ];
                               const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
                               const surfaceLabel = (rumble: boolean, puddle: number) => {
@@ -1271,25 +1265,22 @@ export function LapAnalyse() {
                     const healths = [currentPacket.TireWearFL, currentPacket.TireWearFR, currentPacket.TireWearRL, currentPacket.TireWearRR];
                     const speeds = [currentPacket.WheelRotationSpeedFL, currentPacket.WheelRotationSpeedFR, currentPacket.WheelRotationSpeedRL, currentPacket.WheelRotationSpeedRR];
                     const wearRates = (["FL", "FR", "RL", "RR"] as const).map(w => wearRate ? wearRate[w] * 100 : null);
-                    const wearColor = (r: number | null) => r == null || r < 0.01 ? "#94a3b8" : r < 0.05 ? "#34d399" : r < 0.1 ? "#fbbf24" : "#ef4444";
                     const hThresh = tryGetGame(gameId ?? "fm-2023")?.tireHealthThresholds ?? { green: 0.70, yellow: 0.40 };
-                    const healthColor = (v: number) => { const h = 1 - v; return h >= hThresh.green ? "#34d399" : h >= hThresh.yellow ? "#fbbf24" : "#ef4444"; };
                     const brakeFL = currentPacket.BrakeTempFrontLeft ?? currentPacket.f1?.brakeTempFL ?? 0;
                     const brakeFR = currentPacket.BrakeTempFrontRight ?? currentPacket.f1?.brakeTempFR ?? 0;
                     const brakeRL = currentPacket.BrakeTempRearLeft ?? currentPacket.f1?.brakeTempRL ?? 0;
                     const brakeRR = currentPacket.BrakeTempRearRight ?? currentPacket.f1?.brakeTempRR ?? 0;
                     const hasBrakes = brakeFL > 0 || brakeFR > 0;
-                    const brakeColor = (t: number) => t > 800 ? "#ef4444" : t > 500 ? "#fb923c" : t > 200 ? "#fbbf24" : "#94a3b8";
                     return (
                   <div className="text-[11px] font-mono">
                     {(() => {
                       const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
                       const rows = [
                         { label: "Rotation /s", fl: speeds[0].toFixed(1), fr: speeds[1].toFixed(1), rl: speeds[2].toFixed(1), rr: speeds[3].toFixed(1) },
-                        { label: "Temp", fl: C(`${fl.toFixed(0)}${units.tempLabel}`, getTireColor(fl, units.thresholds)), fr: C(`${fr.toFixed(0)}${units.tempLabel}`, getTireColor(fr, units.thresholds)), rl: C(`${rl.toFixed(0)}${units.tempLabel}`, getTireColor(rl, units.thresholds)), rr: C(`${rr.toFixed(0)}${units.tempLabel}`, getTireColor(rr, units.thresholds)) },
-                        { label: "Health", fl: C(`${((1 - healths[0]) * 100).toFixed(1)}%`, healthColor(healths[0])), fr: C(`${((1 - healths[1]) * 100).toFixed(1)}%`, healthColor(healths[1])), rl: C(`${((1 - healths[2]) * 100).toFixed(1)}%`, healthColor(healths[2])), rr: C(`${((1 - healths[3]) * 100).toFixed(1)}%`, healthColor(healths[3])) },
-                        { label: "Wear /s", fl: C(wearRates[0] != null ? wearRates[0].toFixed(3) + "%" : "—", wearColor(wearRates[0])), fr: C(wearRates[1] != null ? wearRates[1].toFixed(3) + "%" : "—", wearColor(wearRates[1])), rl: C(wearRates[2] != null ? wearRates[2].toFixed(3) + "%" : "—", wearColor(wearRates[2])), rr: C(wearRates[3] != null ? wearRates[3].toFixed(3) + "%" : "—", wearColor(wearRates[3])) },
-                        ...(hasBrakes ? [{ label: "Brake", fl: C(`${brakeFL.toFixed(0)}°C`, brakeColor(brakeFL)), fr: C(`${brakeFR.toFixed(0)}°C`, brakeColor(brakeFR)), rl: C(`${brakeRL.toFixed(0)}°C`, brakeColor(brakeRL)), rr: C(`${brakeRR.toFixed(0)}°C`, brakeColor(brakeRR)) }] : []),
+                        { label: "Temp", fl: C(`${fl.toFixed(0)}${units.tempLabel}`, tireTempColor(fl, units.thresholds)), fr: C(`${fr.toFixed(0)}${units.tempLabel}`, tireTempColor(fr, units.thresholds)), rl: C(`${rl.toFixed(0)}${units.tempLabel}`, tireTempColor(rl, units.thresholds)), rr: C(`${rr.toFixed(0)}${units.tempLabel}`, tireTempColor(rr, units.thresholds)) },
+                        { label: "Health", fl: C(`${((1 - healths[0]) * 100).toFixed(1)}%`, tireHealthColor(healths[0], hThresh)), fr: C(`${((1 - healths[1]) * 100).toFixed(1)}%`, tireHealthColor(healths[1], hThresh)), rl: C(`${((1 - healths[2]) * 100).toFixed(1)}%`, tireHealthColor(healths[2], hThresh)), rr: C(`${((1 - healths[3]) * 100).toFixed(1)}%`, tireHealthColor(healths[3], hThresh)) },
+                        { label: "Wear /s", fl: C(wearRates[0] != null ? wearRates[0].toFixed(3) + "%" : "—", wearRateColor(wearRates[0])), fr: C(wearRates[1] != null ? wearRates[1].toFixed(3) + "%" : "—", wearRateColor(wearRates[1])), rl: C(wearRates[2] != null ? wearRates[2].toFixed(3) + "%" : "—", wearRateColor(wearRates[2])), rr: C(wearRates[3] != null ? wearRates[3].toFixed(3) + "%" : "—", wearRateColor(wearRates[3])) },
+                        ...(hasBrakes ? [{ label: "Brake", fl: C(`${brakeFL.toFixed(0)}°C`, brakeTempColor(brakeFL)), fr: C(`${brakeFR.toFixed(0)}°C`, brakeTempColor(brakeFR)), rl: C(`${brakeRL.toFixed(0)}°C`, brakeTempColor(brakeRL)), rr: C(`${brakeRR.toFixed(0)}°C`, brakeTempColor(brakeRR)) }] : []),
                       ];
                       return <WheelTable title="Wheels" borderTop rows={rows} />;
                     })()}

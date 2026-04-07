@@ -69,6 +69,15 @@
     --app-accent-hover: #67e8f9;
     --app-highlight: #06b6d4;
 
+    /* Dynamics status colors (good → bad spectrum) */
+    --dynamics-green: #34d399;
+    --dynamics-yellow: #fbbf24;
+    --dynamics-amber: #f59e0b;
+    --dynamics-orange: #fb923c;
+    --dynamics-red: #ef4444;
+    --dynamics-blue: #3b82f6;
+    --dynamics-gray: #94a3b8;
+
     /* Glass effects (no-op on default) */
     --app-glass-blur: 0px;
     --app-glass-surface: var(--app-surface);
@@ -201,6 +210,15 @@
     --color-app-glass-border: var(--app-glass-border);
     --color-app-glass-card: var(--app-glass-card);
     --color-app-dropdown: var(--app-dropdown);
+
+    /* Dynamics status colors */
+    --color-dynamics-green: var(--dynamics-green);
+    --color-dynamics-yellow: var(--dynamics-yellow);
+    --color-dynamics-amber: var(--dynamics-amber);
+    --color-dynamics-orange: var(--dynamics-orange);
+    --color-dynamics-red: var(--dynamics-red);
+    --color-dynamics-blue: var(--dynamics-blue);
+    --color-dynamics-gray: var(--dynamics-gray);
 }
 
 /* ─── Always-visible scrollbar (must be outside @layer to override browser defaults) ─── */
