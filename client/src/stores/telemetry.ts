@@ -10,6 +10,10 @@ export interface DisplaySettings {
   aiProvider: "claude-cli" | "gemini";
   aiModel: string;
   wsRefreshRate: string;
+  /** Server-injected: current UDP port */
+  udpPort?: number;
+  /** Server-injected: whether a Gemini API key is stored */
+  geminiApiKeySet?: boolean;
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {

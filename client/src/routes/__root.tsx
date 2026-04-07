@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import { createRootRoute, Link, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

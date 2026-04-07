@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components, @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect, no-empty, react-hooks/exhaustive-deps */
 import { useEffect, useState } from "react";
 import { isDevelopment } from "@/lib/env";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -136,7 +135,7 @@ function AiSection() {
   const [model, setModel] = useState(displaySettings.aiModel ?? "");
   const [apiKey, setApiKey] = useState("");
   const [saved, setSaved] = useState(false);
-  const hasKey = !!(displaySettings as any).geminiApiKeySet;
+  const hasKey = !!displaySettings.geminiApiKeySet;
 
   const { data: aiModels } = useQuery({
     queryKey: ["ai-models", provider],
@@ -687,8 +686,8 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
   // Seed UDP port from settings query
   const settingsQuery = useSettings();
   useEffect(() => {
-    const data = settingsQuery.displaySettings as any;
-    if (data?.udpPort != null && savedPort === null) {
+    const data = settingsQuery.displaySettings;
+    if (data.udpPort != null && savedPort === null) {
       setUdpPort(String(data.udpPort));
       setSavedPort(data.udpPort);
     }
@@ -708,7 +707,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
     setStatus("saving");
     setErrorMsg("");
     try {
-      await saveSettings.mutateAsync({ udpPort: savePort } as any);
+      await saveSettings.mutateAsync({ udpPort: savePort });
       setSavedPort(savePort);
       setStatus("saved");
       setTimeout(() => setStatus("idle"), 2000);
