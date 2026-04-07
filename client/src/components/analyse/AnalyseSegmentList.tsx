@@ -90,7 +90,7 @@ export const AnalyseSegmentList = memo(function AnalyseSegmentList({
             <span className={seg.active ? "text-app-text" : "text-app-text-secondary"}>{seg.name}</span>
           </div>
           <span className={seg.active ? "text-app-text" : "text-app-text-muted"}>
-            {seg.completed && seg.time > 0 ? seg.time.toFixed(3) + "s" : seg.active ? "..." : "-"}
+            {seg.time > 0 ? seg.time.toFixed(3) + "s" : "-"}
           </span>
         </div>
       ))}

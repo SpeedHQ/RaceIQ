@@ -18,16 +18,12 @@ interface CornerDef {
   distanceEnd: number;
 }
 
-const CHAT_SYSTEM_PROMPT = `You are an expert racing engineer and driving coach assistant. The driver has already received a structured lap analysis (shown below). Your job is to answer their follow-up questions about the lap, their driving, setup, or telemetry.
+function chatSystemPrompt(unit: UnitSystem) {
+  const units = unit === "metric" ? "km/h, °C, meters, bar" : "mph, °F, feet, psi";
+  return `You are a racing engineer. Answer the driver's questions about their lap using the telemetry data below.
 
-RULES:
-- Reference specific numbers from the telemetry data — don't be vague
-- Be concise and actionable. Use short paragraphs or bullet points
-- Address the driver as "you"
-- When asked about specific corners, reference the corner data and telemetry
-- When asked about setup, reference actual tune values and telemetry symptoms
-- Reply in plain text or markdown. Do NOT output JSON
-- If asked something not covered by the data, say so honestly`;
+Be brief. Use bullet points. Cite specific numbers in ${units}. Address them as "you". No JSON output.`;
+}
 
 export function buildChatSystemPrompt(
   lap: {
@@ -108,7 +104,7 @@ export function buildChatSystemPrompt(
     ? `\nGame-specific notes: This is ${serverAdapter.aiSystemPrompt.split("\n")[0]}\n`
     : "";
 
-  return `${CHAT_SYSTEM_PROMPT}
+  return `${chatSystemPrompt(unit)}
 ${gameSystemNote}
 --- LAP CONTEXT ---
 Car: ${carName}

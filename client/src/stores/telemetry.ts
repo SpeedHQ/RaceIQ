@@ -9,6 +9,8 @@ export interface DisplaySettings {
   suspensionThresholds: { values: number[] };
   aiProvider: "claude-cli" | "gemini" | "openai" | "local";
   aiModel: string;
+  chatProvider: "gemini" | "openai" | "local";
+  chatModel: string;
   localEndpoint: string;
   wsRefreshRate: string;
   /** Server-injected: current UDP port */
@@ -28,6 +30,8 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   suspensionThresholds: { values: [25, 65, 85] },
   aiProvider: "claude-cli",
   aiModel: "",
+  chatProvider: "gemini",
+  chatModel: "",
   localEndpoint: "http://localhost:1234/v1",
   wsRefreshRate: "60",
 };

@@ -137,6 +137,25 @@ export const lapRoutes = new Hono()
       const { id } = c.req.valid("param");
       const { regenerate } = c.req.valid("query");
 
+      const lap = await getLapById(id);
+      if (!lap) return c.json({ error: "Lap not found" }, 404);
+      if (lap.telemetry.length === 0)
+        return c.json({ error: "No telemetry data" }, 400);
+
+      const trackOrdinal = lap.trackOrdinal ?? 0;
+      const corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId) : [];
+
+      // Compute corner fracs for client-side track highlighting
+      const totalDist = lap.telemetry.length > 1
+        ? lap.telemetry[lap.telemetry.length - 1].DistanceTraveled - lap.telemetry[0].DistanceTraveled
+        : 1;
+      const firstDist = lap.telemetry[0]?.DistanceTraveled ?? 0;
+      const cornerFracs = corners.map((c) => ({
+        label: c.label,
+        startFrac: Math.max(0, (c.distanceStart - firstDist) / totalDist),
+        endFrac: Math.min(1, (c.distanceEnd - firstDist) / totalDist),
+      }));
+
       if (!regenerate) {
         const cached = await getAnalysis(id);
         if (cached) {
@@ -150,17 +169,10 @@ export const lapRoutes = new Hono()
               durationMs: cached.durationMs,
               model: cached.model,
             },
+            cornerFracs,
           });
         }
       }
-
-      const lap = await getLapById(id);
-      if (!lap) return c.json({ error: "Lap not found" }, 404);
-      if (lap.telemetry.length === 0)
-        return c.json({ error: "No telemetry data" }, 400);
-
-      const trackOrdinal = lap.trackOrdinal ?? 0;
-      const corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId) : [];
       const settings = loadSettings();
 
       let parsedTune: Tune | undefined;
@@ -195,19 +207,23 @@ export const lapRoutes = new Hono()
       );
 
       try {
-        const { runClaudeCli, runGemini } = await import("../ai/providers");
+        const { runClaudeCli, runGemini, runOpenAi } = await import("../ai/providers");
         const { getSecret } = await import("../keystore");
         let result;
         if (settings.aiProvider === "gemini") {
           const apiKey = await getSecret("gemini-api-key");
           if (!apiKey) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
           result = await runGemini(prompt, apiKey, settings.aiModel || undefined);
+        } else if (settings.aiProvider === "openai") {
+          const apiKey = await getSecret("openai-api-key");
+          if (!apiKey) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
+          result = await runOpenAi(prompt, apiKey, settings.aiModel || undefined);
         } else {
           result = await runClaudeCli(prompt, settings.aiModel || undefined);
         }
 
         await saveAnalysis(id, result.analysis, result.usage);
-        return c.json({ analysis: result.analysis, cached: false, usage: result.usage });
+        return c.json({ analysis: result.analysis, cached: false, usage: result.usage, cornerFracs });
       } catch (err: any) {
         console.error("[AI] Analysis failed:", err.message);
         return c.json({ error: err.message }, err.message.includes("timed out") ? 504 : 500);
@@ -228,13 +244,20 @@ export const lapRoutes = new Hono()
         const thread = await memory.getThreadById({ threadId });
         if (!thread) return c.json({ messages: [] });
         const result = await memory.recall({ threadId });
-        const messages = (result.messages ?? [])
+        const raw = result.messages ?? [];
+        const messages = raw
           .filter((m) => m.role === "user" || m.role === "assistant")
-          .map((m) => ({
-            role: m.role,
-            content: typeof m.content === "string" ? m.content : Array.isArray(m.content) ? m.content.map((p: { text?: string }) => p.text ?? "").join("") : "",
-            createdAt: "",
-          }));
+          .map((m) => {
+            const c = m.content as any;
+            let content = "";
+            if (typeof c === "string") {
+              content = c;
+            } else if (c && typeof c === "object") {
+              // Mastra format: { format, parts: [{type, text}], content: "plain text" }
+              content = c.content ?? c.parts?.map((p: any) => p.text ?? "").join("") ?? "";
+            }
+            return { role: m.role, content, createdAt: m.createdAt ?? "" };
+          });
         return c.json({ messages });
       } catch (err: any) {
         console.error("[Chat] Failed to load messages:", err.message);
@@ -287,30 +310,25 @@ export const lapRoutes = new Hono()
         lap, lap.telemetry, corners, settings.unit, parsedTune, analysisJson
       );
 
-      // Set up API key env vars for Mastra/AI SDK
+      // Set up API key env vars for Mastra/AI SDK (uses chatProvider setting)
+      const chatProvider = settings.chatProvider;
       const { getSecret } = await import("../keystore");
-      if (settings.aiProvider === "gemini") {
+      if (chatProvider === "gemini") {
         const key = await getSecret("gemini-api-key");
-        if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
+        if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
         process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
-      } else if (settings.aiProvider === "openai") {
+      } else if (chatProvider === "openai") {
         const key = await getSecret("openai-api-key");
-        if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
+        if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
         process.env.OPENAI_API_KEY = key;
-      } else if (settings.aiProvider === "local") {
-        // Local models use OpenAI-compatible API — set base URL and a dummy key
+      } else if (chatProvider === "local") {
         process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
         process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
-      } else {
-        // claude-cli → needs ANTHROPIC_API_KEY
-        const key = await getSecret("anthropic-api-key");
-        if (!key) return c.json({ error: "Anthropic API key not set. Add it in Settings → AI Analysis." }, 400);
-        process.env.ANTHROPIC_API_KEY = key;
       }
 
       try {
         const { createChatAgent, getMastraModelId, chatThreadId, CHAT_RESOURCE_ID } = await import("../ai/chat-agent");
-        const modelId = getMastraModelId(settings.aiProvider, settings.aiModel);
+        const modelId = getMastraModelId(chatProvider, settings.chatModel);
         const agent = createChatAgent(systemPrompt, modelId);
         const threadId = chatThreadId(id);
 
@@ -362,7 +380,14 @@ export const lapRoutes = new Hono()
         const threadId = chatThreadId(id);
         await memory.deleteThread(threadId);
       } catch (err: any) {
-        console.error("[Chat] Failed to clear:", err.message);
+        console.error("[Chat] Failed to clear thread:", err.message);
+      }
+      // Also clear cached analysis
+      try {
+        const { deleteAnalysis } = await import("../db/queries");
+        await deleteAnalysis(id);
+      } catch (err: any) {
+        console.error("[Chat] Failed to clear analysis:", err.message);
       }
       return c.json({ ok: true });
     }

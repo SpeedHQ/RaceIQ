@@ -26,39 +26,45 @@ Your response MUST be valid JSON matching this exact schema. Output ONLY the JSO
     { "label": "short metric name", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
   ],
   "corners": [
-    { "name": "corner/zone name", "issue": "what's wrong in 1 sentence", "fix": "specific actionable fix in 1-2 sentences", "severity": "minor|moderate|major" }
+    { "name": "corner/zone name", "issue": "what's wrong in 1 sentence", "fix": "specific actionable fix", "severity": "minor|moderate|major" }
   ],
-  "technique": [
+  "braking": [
+    { "corner": "corner name matching corner data labels", "assessment": "good|warning|critical", "brakePoint": "e.g. 85m before apex", "detail": "1 sentence with numbers" }
+  ],
+  "throttle": [
+    { "corner": "corner name matching corner data labels", "assessment": "good|warning|critical", "throttlePoint": "e.g. 40% at apex, full at exit", "detail": "1 sentence with numbers" }
+  ],
+  "coaching": [
     { "tip": "short imperative title", "detail": "1-2 sentence explanation referencing specific data" }
   ],
   "setup": [
-    { "change": "short imperative title", "symptom": "what the data shows", "fix": "specific tuning change with values" }
-  ],
-  "tuning": [
-    { "component": "e.g. Front Springs", "current": "what the data suggests (e.g. Too stiff — 0.00m travel)", "direction": "increase|decrease|adjust", "target": "specific value or range to aim for", "reason": "1 sentence why" }
+    { "component": "e.g. Front Springs", "symptom": "what the telemetry shows (e.g. bottoming out, 0.00m travel)", "current": "current value with unit (e.g. 750 lb/in)", "target": "specific target value with unit (e.g. 650 lb/in)", "direction": "increase|decrease|adjust", "reason": "1 sentence why this change helps" }
   ]
 }
 
 CATEGORY GUIDELINES:
-- "pace": 4-6 items covering speed, throttle %, braking efficiency, full-throttle time, gear usage. Each with a concrete value.
-- "handling": 4-6 items covering suspension travel, tire temps, tire wear balance, oversteer/understeer, weight transfer. Each with a concrete value.
+- "pace": 4-6 items covering speed, throttle %, braking efficiency, full-throttle time, gear usage.
+- "handling": 4-6 items covering suspension travel, tire temps, tire wear balance, oversteer/understeer, weight transfer.
 - "corners": Top 3-5 problem corners where time is being lost. Include speed numbers.
-- "technique": 3-5 actionable driving tips. Reference specific telemetry values.
-- "setup": 3-5 high-level tuning changes. Always include the symptom from data and the specific fix.
-- "tuning": 4-8 specific component adjustments with concrete target values. Cover: springs, dampers, anti-roll bars, aero, alignment, differential, tire pressure, gearing, brake bias. Only include components where the data suggests a change is needed.
+- "braking": Per-corner braking analysis for every corner in the corner data. Use corner label names exactly. "good" = no issues. If detail describes a problem, MUST be "warning" or "critical".
+- "throttle": Per-corner throttle analysis for every corner. Use corner label names exactly. "good" = clean application. If detail describes a problem, MUST be "warning" or "critical".
+- "coaching": 3-5 actionable driving tips. Reference specific telemetry values.
+- "setup": 4-8 specific component adjustments. Each MUST include concrete current and target values with units (e.g. "750 lb/in" → "650 lb/in"). Combine the telemetry symptom with the recommended change. Cover: springs, dampers, anti-roll bars, aero, alignment, differential, tire pressure, gearing, brake bias as needed. If tune data is provided, reference actual tune values.
 
 RULES:
 - Reference specific numbers from the data — don't be vague
+- Use the driver's preferred units: {{UNITS}}
 - Be specific and actionable, not generic
 - Address the driver as "you"
 - When tune settings are provided, correlate telemetry symptoms (e.g., understeer, tire temps, suspension bottoming) with specific setup values and recommend concrete adjustments with target numbers
 - Reference the actual tune values when suggesting changes (e.g., "Front springs at 750 lb/in are too stiff for this track — try 650-680 lb/in")
 - Output ONLY valid JSON, nothing else`;
 
-function getSystemPrompt(gameId: GameId): string {
+function getSystemPrompt(gameId: GameId, unit: UnitSystem): string {
+  const units = unit === "metric" ? "km/h, °C, meters, kg, bar" : "mph, °F, feet, lb, psi";
   const adapter = tryGetServerGame(gameId);
-  if (adapter) return adapter.aiSystemPrompt;
-  return FORZA_SYSTEM_PROMPT;
+  const base = adapter ? adapter.aiSystemPrompt : FORZA_SYSTEM_PROMPT;
+  return base.replace("{{UNITS}}", units);
 }
 
 export function buildAnalystPrompt(
@@ -117,7 +123,7 @@ ${cornerData}
 ${insightsText}`;
 
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
-  const systemPrompt = getSystemPrompt(gameId);
+  const systemPrompt = getSystemPrompt(gameId, unit);
 
   // Build game-specific extended context via adapter
   let f1ExtendedContext = "";

@@ -10,6 +10,19 @@ export interface TrackMapHandle {
   updateCursor: (idx: number) => void;
 }
 
+export interface TrackHighlight {
+  startFrac: number;
+  endFrac: number;
+  color: "good" | "warning" | "critical";
+  label: string;
+}
+
+const HIGHLIGHT_COLORS = {
+  good: { stroke: "rgba(52, 211, 153, 0.7)", width: 6 },       // green
+  warning: { stroke: "rgba(251, 191, 36, 0.7)", width: 6 },     // amber
+  critical: { stroke: "rgba(239, 68, 68, 0.7)", width: 6 },     // red
+};
+
 export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
   telemetry: TelemetryPacket[];
   cursorIdx: number;
@@ -17,6 +30,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
   boundaries: { leftEdge: Point[]; rightEdge: Point[]; centerLine: Point[]; pitLane: Point[] | null; coordSystem: string } | null;
   sectors: { s1End: number; s2End: number } | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
+  highlights?: TrackHighlight[] | null;
   rotateWithCar: boolean;
   zoom?: number;
   containerHeight?: number;
@@ -27,6 +41,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
   boundaries,
   sectors,
   segments,
+  highlights,
   rotateWithCar,
   zoom = 1,
   containerHeight,
@@ -219,6 +234,28 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
       ctx.stroke();
     }
 
+    // AI analysis highlights (problem/good zones)
+    if (highlights && highlights.length > 0) {
+      for (const hl of highlights) {
+        const startIdx = fracToIdx(hl.startFrac);
+        const endIdx = fracToIdx(hl.endFrac);
+        if (startIdx >= endIdx) continue;
+        const style = HIGHLIGHT_COLORS[hl.color];
+        ctx.beginPath();
+        ctx.strokeStyle = style.stroke;
+        ctx.lineWidth = style.width;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        const [hx, hy] = toCanvas(displayOutline[startIdx].x, displayOutline[startIdx].z);
+        ctx.moveTo(hx, hy);
+        for (let i = startIdx + 1; i <= endIdx && i < n; i++) {
+          const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
+          ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+    }
+
     // Start/finish
     if (outline) {
       ctx.beginPath();
@@ -266,7 +303,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     }
 
     offscreenRef.current = offscreen;
-  }, [telemetry, outline, boundaries, sectors, segments, rotateWithCar, zoom]);
+  }, [telemetry, outline, boundaries, sectors, segments, rotateWithCar, zoom, highlights]);
 
   // Composite the cached offscreen track onto the main canvas, with optional rotation for car-view mode
   const compositeTrack = useCallback((idx: number) => {

@@ -25,8 +25,8 @@ import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
 import { analyzeLap } from "../lib/lap-insights";
 import { InsightPanel } from "./InsightPanel";
-import { AiAnalysisModal } from "./AiAnalysisModal";
-import { Sparkles } from "lucide-react";
+import { AiPanel, type AnalysisHighlight, type AiPanelHandle } from "./AiPanel";
+import { Sparkles, Settings2 } from "lucide-react";
 import { SearchSelect } from "./ui/SearchSelect";
 import { WeatherWidget } from "./analyse/WeatherWidget";
 import { F1SetupModal } from "./analyse/F1SetupModal";
@@ -40,6 +40,41 @@ import { TuneViewModal } from "./analyse/TuneViewModal";
 
 // Stable empty array to avoid re-renders when no telemetry loaded
 const emptyTelemetry: TelemetryPacket[] = [];
+
+function AiPanelMenu({ onClearChat, onClearAnalysis, onClearAll }: { onClearChat: () => void; onClearAnalysis: () => void; onClearAll: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button onClick={() => setOpen((v) => !v)} className="text-app-text-muted hover:text-app-text transition-colors" title="Manage">
+        <Settings2 className="size-3.5" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-50 bg-app-surface border border-app-border-input rounded-lg shadow-xl py-1 min-w-[160px]">
+          <button onClick={() => { onClearChat(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-[11px] text-app-text-secondary hover:text-app-text hover:bg-app-surface-alt transition-colors">
+            Clear chat only
+          </button>
+          <button onClick={() => { onClearAnalysis(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-[11px] text-app-text-secondary hover:text-app-text hover:bg-app-surface-alt transition-colors">
+            Clear analysis (keep chat)
+          </button>
+          <div className="border-t border-app-border-input my-1" />
+          <button onClick={() => { onClearAll(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-[11px] text-red-400 hover:text-red-300 hover:bg-app-surface-alt transition-colors">
+            Clear all
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Main Component ───────────────────────────────────────────────────
 
@@ -66,32 +101,39 @@ export function LapAnalyse() {
   const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined);
   const outline = useMemo(() => {
     if (!outlineRaw) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d = outlineRaw as any;
     if (d?.points && Array.isArray(d.points)) return d.points as Point[];
     if (Array.isArray(d)) return d as Point[];
     return null;
   }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const boundaries = (boundariesRaw as any) ?? null;
   const { data: sectorsRaw } = useTrackSectorBoundaries(trackOrd ?? undefined);
   const sectors = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = sectorsRaw as any;
     return s?.s1End ? s as { s1End: number; s2End: number } : null;
   }, [sectorsRaw]);
   const { data: segmentsRaw } = useTrackSectors(trackOrd ?? undefined);
   const segments = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = segmentsRaw as any;
-    return s?.segments ? s.segments as { type: string; name: string; startFrac: number; endFrac: number }[] : null;
+    return s?.segments ? (s.segments as { type: string; name: string; startFrac: number; endFrac: number }[]) : null;
   }, [segmentsRaw]);
 
   const [carName, setCarName] = useState("");
   const [trackName, setTrackName] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const initialCursor = (search as any).cursor as number | undefined;
   const [cursorIdx, setCursorIdx] = useState(0);
   // Visual time fraction override — set during scrubbing through gaps
   // null = use cursorIdx's time fraction, number = override position
   const [visualTimeFrac, setVisualTimeFrac] = useState<number | null>(null);
   const [sidebarTab, setSidebarTab] = useState<"live" | "insights">("live");
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const vizParam = (search as any).viz as string | undefined;
   const [vizMode, setWheelTab] = useCookieState<"2d" | "3d">("analyse-vizMode", "2d");
   // URL ?viz= param overrides cookie on mount
@@ -111,7 +153,9 @@ export function LapAnalyse() {
   const [topHeight, setTopHeight] = useCookieState("analyse-topHeight", 500);
   const loading = lapLoading;
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useCookieState("analyse-aiPanel", false);
+  const [aiHighlights, setAiHighlights] = useState<AnalysisHighlight[] | null>(null);
+  const aiPanelRef = useRef<AiPanelHandle>(null);
   const [viewingTuneId, setViewingTuneId] = useState<number | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   // Actual driving line from telemetry positions (for 3D visual)
@@ -130,7 +174,7 @@ export function LapAnalyse() {
   const speedRef = useRef(1);
   const cursorRef = useRef(0);
   const displayTelemetryRef = useRef(displayTelemetry);
-  displayTelemetryRef.current = displayTelemetry;
+  useEffect(() => { displayTelemetryRef.current = displayTelemetry; }, [displayTelemetry]);
   const seekRef = useRef(0);
 
   // Imperative refs for smooth animation without React re-renders
@@ -379,6 +423,9 @@ export function LapAnalyse() {
           return next;
         });
       } else if (e.key === " ") {
+        // Don't capture space when typing in an input/textarea
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
         e.preventDefault();
         setPlaying((p) => !p);
       }
@@ -452,12 +499,14 @@ export function LapAnalyse() {
   // Tune selector
   const { data: availableTunes } = useQuery({
     queryKey: ["tunes", selectedLap?.carOrdinal],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     queryFn: () => client.api.tunes.$get({ query: { carOrdinal: selectedLap?.carOrdinal != null ? String(selectedLap.carOrdinal) : undefined } }).then((r) => r.json() as any),
     enabled: !!selectedLap?.carOrdinal,
   });
 
   const updateLapTune = useMutation({
     mutationFn: (tuneId: number | null) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       client.api.laps[":id"].tune.$patch({ param: { id: String(selectedLapId) }, json: { tuneId } }).then((r) => r.json() as any),
     onMutate: (tuneId) => {
       // Optimistically update local laps state so dropdown doesn't reset
@@ -630,11 +679,15 @@ export function LapAnalyse() {
           )}
           {telemetry.length > 0 && (
             <button
-              onClick={() => setAiModalOpen(true)}
-              className="flex items-center gap-1.5 text-xs text-app-text-secondary hover:text-amber-400 border border-app-border-input rounded px-3 py-1.5 transition-colors"
+              onClick={() => setAiPanelOpen((v) => !v)}
+              className={`flex items-center gap-1.5 text-xs border rounded px-3 py-1.5 transition-colors ${
+                aiPanelOpen
+                  ? "text-amber-400 border-amber-400/40 bg-amber-400/10"
+                  : "text-app-text-secondary hover:text-amber-400 border-app-border-input"
+              }`}
             >
               <Sparkles className="size-3" />
-              AI Analysis
+              AI
             </button>
           )}
           {loading && (
@@ -727,6 +780,7 @@ export function LapAnalyse() {
                 boundaries={boundaries}
                 sectors={sectors}
                 segments={segments}
+                highlights={aiPanelOpen ? aiHighlights : null}
                 rotateWithCar={rotateWithCar}
                 zoom={mapZoom}
                 containerHeight={topHeight}
@@ -1281,18 +1335,43 @@ export function LapAnalyse() {
             )}
             </div>
           </div>
+
+          {/* AI panel — analysis + chat */}
+          {aiPanelOpen && selectedLapId && (
+            <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-app-border shrink-0">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="size-3 text-amber-400" />
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-app-text">AI Analysis</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <AiPanelMenu
+                    onClearChat={() => aiPanelRef.current?.clearChat()}
+                    onClearAnalysis={() => aiPanelRef.current?.clearAnalysis()}
+                    onClearAll={() => aiPanelRef.current?.clearAll()}
+                  />
+                  <button onClick={() => setAiPanelOpen(false)} className="text-app-text-muted hover:text-app-text text-xs">✕</button>
+                </div>
+              </div>
+              <AiPanel
+                ref={aiPanelRef}
+                lapId={selectedLapId}
+                carName={carName}
+                trackName={trackName}
+                segments={segments}
+                onJumpToFrac={(frac) => {
+                  // Convert fractional track distance to telemetry frame index
+                  const idx = Math.round(frac * (telemetry.length - 1));
+                  setCursorIdx(idx);
+                  cursorRef.current = idx;
+                  seekRef.current++;
+                }}
+                onHighlightsChange={setAiHighlights}
+              />
+            </div>
+          )}
         </div>
       )}
-      {selectedLapId && (
-        <AiAnalysisModal
-          lapId={selectedLapId}
-          open={aiModalOpen}
-          onClose={() => setAiModalOpen(false)}
-          carName={carName}
-          trackName={trackName}
-        />
-      )}
-
       {/* Tune viewer modal */}
       {viewingTuneId && (
         <TuneViewModal tuneId={viewingTuneId} onClose={() => setViewingTuneId(null)} />

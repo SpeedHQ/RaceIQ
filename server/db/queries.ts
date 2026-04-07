@@ -775,6 +775,13 @@ export async function saveAnalysis(lapId: number, analysis: string, usage: Analy
 }
 
 /**
+ * Delete cached AI analysis for a lap.
+ */
+export async function deleteAnalysis(lapId: number): Promise<void> {
+  await db.delete(lapAnalyses).where(eq(lapAnalyses.lapId, lapId)).run();
+}
+
+/**
  * Get all profiles ordered by creation time.
  */
 export async function getProfiles() {

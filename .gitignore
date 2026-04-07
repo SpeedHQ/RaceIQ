@@ -17,3 +17,4 @@ scripts/track-data/
 /.claude
 lighthouse-report.html
 test-results/
+.mastra/

@@ -13,9 +13,7 @@ const memory = new Memory({
     id: "chat-memory",
     url: `file:${resolveDataDir()}/chat-memory.db`,
   }),
-  options: {
-    lastMessages: 40,
-  },
+  options: { lastMessages: 50 },
 });
 
 /**

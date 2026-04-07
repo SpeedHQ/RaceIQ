@@ -128,6 +128,7 @@ const NAV_ITEMS = [
 type SectionId = (typeof NAV_ITEMS)[number]["id"];
 
 type AiProviderType = "claude-cli" | "gemini" | "openai" | "local";
+type ChatProviderType = "gemini" | "openai" | "local";
 
 const PROVIDER_KEY_MAP: Record<string, string> = {
   gemini: "gemini",
@@ -149,6 +150,12 @@ function AiSection() {
   const [apiKey, setApiKey] = useState("");
   const [localEndpoint, setLocalEndpoint] = useState(displaySettings.localEndpoint ?? "http://localhost:1234/v1");
   const [saved, setSaved] = useState(false);
+
+  // Chat settings
+  const [chatProvider, setChatProvider] = useState<ChatProviderType>(displaySettings.chatProvider ?? "gemini");
+  const [chatModel, setChatModel] = useState(displaySettings.chatModel ?? "");
+  const [chatApiKey, setChatApiKey] = useState("");
+  const [chatSaved, setChatSaved] = useState(false);
 
   const keyStatus: Record<string, boolean> = {
     gemini: !!displaySettings.geminiApiKeySet,
@@ -222,21 +229,6 @@ function AiSection() {
             </p>
           </div>
         )}
-        {models.length > 0 && (
-          <div>
-            <label className="block text-xs text-app-text-muted mb-1">Model</label>
-            <select
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
-            >
-              <option value="">Default</option>
-              {models.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
         {keyInfo && (
           <div>
             <label className="block text-xs text-app-text-muted mb-1">{keyInfo.label}</label>
@@ -255,11 +247,100 @@ function AiSection() {
             </p>
           </div>
         )}
+        {models.length > 0 && (
+          <div>
+            <label className="block text-xs text-app-text-muted mb-1">Model</label>
+            <select
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
+            >
+              <option value="">Default</option>
+              {models.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <button
           onClick={handleSave}
           className="text-sm px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors"
         >
           {saved ? "Saved" : "Save"}
+        </button>
+      </div>
+
+      {/* Chat provider */}
+      <h2 className="text-sm font-semibold text-app-text mb-4 mt-8">AI Chat Provider</h2>
+      <p className="text-xs text-app-text-muted mb-4">
+        Choose which provider to use for the AI chat panel. Requires an API key.
+      </p>
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs text-app-text-muted mb-1">Provider</label>
+          <select
+            value={chatProvider}
+            onChange={(e) => { setChatProvider(e.target.value as ChatProviderType); setChatModel(""); }}
+            className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
+          >
+            <option value="gemini">Google Gemini</option>
+            <option value="openai">OpenAI</option>
+            <option value="local">Local (LM Studio / Ollama)</option>
+          </select>
+        </div>
+        {PROVIDER_KEY_LABELS[chatProvider] && (
+          <div>
+            <label className="block text-xs text-app-text-muted mb-1">{PROVIDER_KEY_LABELS[chatProvider].label}</label>
+            <input
+              type="password"
+              value={chatApiKey}
+              onChange={(e) => setChatApiKey(e.target.value)}
+              placeholder={(keyStatus[chatProvider] ?? false) ? "••••••••  (key stored)" : PROVIDER_KEY_LABELS[chatProvider].placeholder}
+              className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs font-mono"
+            />
+            <p className="text-xs text-app-text-muted mt-1">
+              {PROVIDER_KEY_LABELS[chatProvider].helpText}{" "}
+              <a href={PROVIDER_KEY_LABELS[chatProvider].helpUrl} target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">
+                {new URL(PROVIDER_KEY_LABELS[chatProvider].helpUrl).hostname}
+              </a>
+            </p>
+          </div>
+        )}
+        {(aiModels?.[chatProvider] ?? []).length > 0 && (
+          <div>
+            <label className="block text-xs text-app-text-muted mb-1">Model</label>
+            <select
+              value={chatModel}
+              onChange={(e) => setChatModel(e.target.value)}
+              className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
+            >
+              <option value="">Default</option>
+              {(aiModels?.[chatProvider] ?? []).map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        <button
+          onClick={async () => {
+            const providerKeyId = PROVIDER_KEY_MAP[chatProvider];
+            if (chatApiKey && providerKeyId) {
+              await fetch("/api/ai-key", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ provider: providerKeyId, apiKey: chatApiKey }),
+              });
+              setChatApiKey("");
+            }
+            saveSettings.mutate({ chatProvider, chatModel } as Record<string, string>);
+            qc.invalidateQueries({ queryKey: ["ai-models"] });
+            qc.invalidateQueries({ queryKey: ["settings"] });
+            setChatSaved(true);
+            setTimeout(() => setChatSaved(false), 2000);
+          }}
+          className="text-sm px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors"
+        >
+          {chatSaved ? "Saved" : "Save"}
         </button>
       </div>
     </section>

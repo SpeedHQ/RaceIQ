@@ -92,8 +92,8 @@ export async function runClaudeCli(prompt: string, model?: string): Promise<AiRe
   };
 }
 
-// JSON schema for structured output — enforced by the API, not just the prompt
-const ANALYSIS_SCHEMA = {
+// JSON schema for structured output — used by Gemini and OpenAI
+export const ANALYSIS_SCHEMA = {
   type: "object",
   properties: {
     verdict: { type: "string", description: "2-3 sentences assessing overall lap quality, pace, and where the biggest time gains are" },
@@ -136,7 +136,33 @@ const ANALYSIS_SCHEMA = {
         required: ["name", "issue", "fix", "severity"],
       },
     },
-    technique: {
+    braking: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          corner: { type: "string" },
+          assessment: { type: "string", enum: ["good", "warning", "critical"] },
+          brakePoint: { type: "string" },
+          detail: { type: "string" },
+        },
+        required: ["corner", "assessment", "brakePoint", "detail"],
+      },
+    },
+    throttle: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          corner: { type: "string" },
+          assessment: { type: "string", enum: ["good", "warning", "critical"] },
+          throttlePoint: { type: "string" },
+          detail: { type: "string" },
+        },
+        required: ["corner", "assessment", "throttlePoint", "detail"],
+      },
+    },
+    coaching: {
       type: "array",
       items: {
         type: "object",
@@ -152,29 +178,18 @@ const ANALYSIS_SCHEMA = {
       items: {
         type: "object",
         properties: {
-          change: { type: "string" },
-          symptom: { type: "string" },
-          fix: { type: "string" },
-        },
-        required: ["change", "symptom", "fix"],
-      },
-    },
-    tuning: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
           component: { type: "string" },
+          symptom: { type: "string" },
           current: { type: "string" },
-          direction: { type: "string", enum: ["increase", "decrease", "adjust"] },
           target: { type: "string" },
+          direction: { type: "string", enum: ["increase", "decrease", "adjust"] },
           reason: { type: "string" },
         },
-        required: ["component", "current", "direction", "target", "reason"],
+        required: ["component", "symptom", "current", "target", "direction", "reason"],
       },
     },
   },
-  required: ["verdict", "pace", "handling", "corners", "technique", "setup", "tuning"],
+  required: ["verdict", "pace", "handling", "corners", "braking", "throttle", "coaching", "setup"],
 };
 
 /** Run analysis via Gemini API. */
@@ -233,6 +248,50 @@ function extractJson(text: string): string {
   if (fenceMatch) jsonStr = fenceMatch[1].trim();
   JSON.parse(jsonStr); // validate — throws if invalid
   return jsonStr;
+}
+
+/** Run analysis via OpenAI API. */
+export async function runOpenAi(prompt: string, apiKey: string, model?: string): Promise<AiResult> {
+  model = model || "gpt-4o-mini";
+  const start = performance.now();
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "user", content: prompt }],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "lap_analysis", strict: true, schema: ANALYSIS_SCHEMA },
+      },
+      temperature: 0.3,
+    }),
+  });
+  const durationMs = Math.round(performance.now() - start);
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    console.error("[AI] OpenAI API error:", res.status, errBody);
+    if (res.status === 401) throw new Error("Invalid OpenAI API key. Check your key in Settings.");
+    throw new Error(`OpenAI API error: ${res.status}`);
+  }
+
+  const data = await res.json() as any;
+  const text = data.choices?.[0]?.message?.content ?? "";
+  if (!text.trim()) throw new Error("OpenAI returned empty response");
+
+  const jsonStr = extractJson(text);
+  const usage = data.usage ?? {};
+  return {
+    analysis: jsonStr,
+    usage: {
+      inputTokens: usage.prompt_tokens ?? 0,
+      outputTokens: usage.completion_tokens ?? 0,
+      costUsd: 0,
+      durationMs,
+      model,
+    },
+  };
 }
 
 const OPENAI_MODELS = [

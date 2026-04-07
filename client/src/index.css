@@ -264,3 +264,22 @@
     border-color: var(--app-glass-border);
   }
 }
+
+/* Compact markdown for AI chat messages */
+.prose-chat {
+  font-size: 11px;
+  line-height: 1.5;
+}
+.prose-chat p { margin: 0.25em 0; }
+.prose-chat p:first-child { margin-top: 0; }
+.prose-chat p:last-child { margin-bottom: 0; }
+.prose-chat strong { color: var(--app-text); font-weight: 600; }
+.prose-chat em { font-style: italic; }
+.prose-chat ul, .prose-chat ol { margin: 0.25em 0; padding-left: 1.25em; }
+.prose-chat li { margin: 0.15em 0; }
+.prose-chat li::marker { color: var(--app-text-dim); }
+.prose-chat code { font-size: 10px; background: var(--app-surface-alt); padding: 0.1em 0.3em; border-radius: 3px; }
+.prose-chat pre { margin: 0.5em 0; padding: 0.5em; background: var(--app-surface-alt); border-radius: 4px; overflow-x: auto; }
+.prose-chat h1, .prose-chat h2, .prose-chat h3, .prose-chat h4 { font-weight: 600; color: var(--app-text); margin: 0.5em 0 0.25em; }
+.prose-chat h3 { font-size: 12px; }
+.prose-chat h4 { font-size: 11px; }
