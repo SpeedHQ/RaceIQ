@@ -7,5 +7,6 @@ pre-commit:
       run: bunx eslint {staged_files}
 
     - name: typecheck
-      glob: "server/**/*.ts"
-      run: bunx tsc --noEmit --skipLibCheck
+      root: "client/"
+      glob: "client/src/**/*.{ts,tsx}"
+      run: bun run build

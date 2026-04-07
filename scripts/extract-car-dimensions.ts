@@ -194,6 +194,6 @@ for (const line of carsRaw) {
   }
 }
 
-const csvPath = resolve(__dirname, "../shared/track-outlines/fm-2023/extracted/car-dimensions.csv");
+const csvPath = resolve(__dirname, "../shared/games/fm-2023/car-dimensions.csv");
 writeFileSync(csvPath, csvLines.join("\n") + "\n");
 console.log(`\nOrdinal mapping: ${matched} cars matched → ${csvPath}`);

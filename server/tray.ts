@@ -55,9 +55,7 @@ $updateItem = New-Object System.Windows.Forms.ToolStripMenuItem
 $updateItem.Text = "Install Update"
 $updateItem.Visible = $false
 $updateItem.add_Click({
-  try {
-    Invoke-WebRequest -Uri "http://localhost:${port}/api/update/apply" -Method POST -UseBasicParsing | Out-Null
-  } catch {}
+  Start-Process "http://localhost:${port}?update=1"
 })
 $menu.Items.Add($updateItem) | Out-Null
 
@@ -102,9 +100,7 @@ $timer.Start()
 $script:updateVersion = $null
 $tray.add_BalloonTipClicked({
   if ($script:updateVersion) {
-    try {
-      Invoke-WebRequest -Uri "http://localhost:${port}/api/update/apply" -Method POST -UseBasicParsing | Out-Null
-    } catch {}
+    Start-Process "http://localhost:${port}?update=1"
   }
 })
 

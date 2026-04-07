@@ -64,7 +64,17 @@ function RootLayout() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [settingsSection, setSettingsSection] = useState<"updates" | "about" | undefined>(undefined);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("update")) {
+      // Clean up the URL
+      params.delete("update");
+      const clean = params.toString();
+      window.history.replaceState({}, "", window.location.pathname + (clean ? `?${clean}` : ""));
+      return true;
+    }
+    return false;
+  });
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const navigate = useNavigate();
   const location = useLocation();
