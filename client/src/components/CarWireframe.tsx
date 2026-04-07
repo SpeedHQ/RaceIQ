@@ -664,8 +664,8 @@ function BrakeTrail({
 
 // ── Throttle/Brake input overlay (two lines beside driving line) ────
 
-const THROTTLE_COLOR = new THREE.Color(0.2, 0.83, 0.6);  // emerald
-const BRAKE_COLOR = new THREE.Color(0.94, 0.27, 0.27);    // red
+const THROTTLE_COLOR = new THREE.Color(52 / 255, 211 / 255, 153 / 255);  // rgb(52, 211, 153) — matches 2D
+const BRAKE_COLOR = new THREE.Color(239 / 255, 68 / 255, 68 / 255);     // rgb(239, 68, 68) — matches 2D
 
 function InputOverlay({
   telemetry,
