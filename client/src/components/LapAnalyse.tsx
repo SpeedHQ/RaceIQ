@@ -831,9 +831,13 @@ export function LapAnalyse() {
                 {currentPacket && <Compass yaw={currentPacket.Yaw} />}
               </div>
 
-              {/* Pedal bars — bottom right (brake left, throttle right) */}
+              {/* Steering wheel + pedal bars — bottom right */}
               {currentPacket && (
-                <div className="absolute bottom-2 right-2 flex gap-1 items-end" style={{ height: 60 }}>
+                <div className="absolute bottom-2 right-2 flex flex-col items-center gap-1">
+                  <div className="scale-50 origin-bottom -mb-4">
+                    <SteeringWheel steer={currentPacket.Steer} />
+                  </div>
+                <div className="flex gap-1 items-end" style={{ height: 60 }}>
                   <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[9px] font-mono font-bold tabular-nums" style={{ color: brakeBarColor(currentPacket.Brake) }}>{((currentPacket.Brake / 255) * 100).toFixed(0)}</span>
                     <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 40 }}>
@@ -848,6 +852,7 @@ export function LapAnalyse() {
                     </div>
                     <span className="text-[7px] text-app-text-muted">T</span>
                   </div>
+                </div>
                 </div>
               )}
             </div>
@@ -908,7 +913,6 @@ export function LapAnalyse() {
                   )}
                   {currentPacket && (
                     <div className="flex items-center gap-2">
-                      <SteeringWheel steer={currentPacket.Steer} rpm={currentPacket.CurrentEngineRpm} maxRpm={currentPacket.EngineMaxRpm} />
                       <GForceCircle packet={currentPacket} />
                     </div>
                   )}

@@ -590,77 +590,6 @@ function TireTrails({
   );
 }
 
-// ── Brake trail (separate line at tail light height) ───────────────
-
-function BrakeTrail({
-  telemetry,
-  cursorIdx,
-}: {
-  telemetry: TelemetryPacket[];
-  cursorIdx: number;
-}) {
-  const trail = useMemo(() => {
-    const cur = telemetry[cursorIdx];
-    if (!cur) return null;
-
-    const TRAIL_PACKETS = 30;
-    const startIdx = Math.max(0, cursorIdx - TRAIL_PACKETS);
-    if (cursorIdx - startIdx < 2) return null;
-
-    const cx = cur.PositionX;
-    const cz = cur.PositionZ;
-    const cyaw = cur.Yaw;
-    const curSin = Math.sin(cyaw);
-    const curCos = Math.cos(cyaw);
-
-    // Two brake light positions (left z=-0.70, right z=0.70)
-    const lights: { points: [number, number, number][]; colors: THREE.Color[] }[] = [];
-
-    for (const lightZ of [-0.70, 0.70]) {
-      const points: [number, number, number][] = [];
-      const colors: THREE.Color[] = [];
-
-      for (let i = startIdx; i <= cursorIdx; i++) {
-        const p = telemetry[i];
-        if (p.Brake < 10) continue; // only draw when braking
-
-        // World-space offset of brake light: car-local (-2.01, lightZ) rotated by packet yaw
-        const pSin = Math.sin(p.Yaw);
-        const pCos = Math.cos(p.Yaw);
-        const lightWorldX = p.PositionX + (-2.01) * pSin + lightZ * pCos;
-        const lightWorldZ = p.PositionZ + (-2.01) * pCos - lightZ * pSin;
-
-        // Transform to current car-local frame
-        const dx = lightWorldX - cx;
-        const dz = lightWorldZ - cz;
-        const localFwd = dx * curSin + dz * curCos;
-        const localLat = dx * curCos - dz * curSin;
-
-        points.push([localFwd, 0.22, localLat]);
-        colors.push(brakeColor(p.Brake));
-      }
-
-      if (points.length > 1) lights.push({ points, colors });
-    }
-
-    return lights;
-  }, [telemetry, cursorIdx]);
-
-  if (!trail || trail.length === 0) return null;
-
-  return (
-    <>
-      {trail.map((t, i) => (
-        <Line
-          key={`brake-${i}`}
-          points={t.points}
-          vertexColors={t.colors}
-          lineWidth={4}
-        />
-      ))}
-    </>
-  );
-}
 
 // ── Throttle/Brake input overlay (two lines beside driving line) ────
 
@@ -1485,8 +1414,6 @@ export const CarWireframe = React.memo(function CarWireframe({
   const [editMode, setEditMode] = useState(false);
   const [modelOffsetX, setModelOffsetX] = useState(carModel.glbOffsetX ?? 0);
   const [saveStatus, setSaveStatus] = useState<"" | "saving" | "saved">("");
-  const throttlePct = (packet.Accel / 255) * 100;
-  const brakePct = (packet.Brake / 255) * 100;
   const [toggles, setToggles] = useState<ViewToggles>(() => ({
     ...DEFAULT_TOGGLES,
     dimensions: showDimensions ?? false,
