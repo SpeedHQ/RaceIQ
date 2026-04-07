@@ -1479,39 +1479,6 @@ export const CarWireframe = React.memo(function CarWireframe({
           ))}
         </div>
 
-        {/* Steering wheel + bar */}
-        {!minimal && (
-          <div className="flex flex-col items-center gap-1">
-            {/* Steering wheel */}
-            <svg
-              width="44" height="44" viewBox="-22 -22 44 44"
-              style={{ transform: `rotate(${(packet.Steer / 127) * 180}deg)` }}
-            >
-              <circle cx="0" cy="0" r="18" fill="none" stroke="#64748b" strokeWidth="3" opacity="0.6" />
-              <line x1="-12" y1="0" x2="-6" y2="0" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
-              <line x1="6" y1="0" x2="12" y2="0" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
-              <line x1="0" y1="6" x2="0" y2="12" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
-              <circle cx="0" cy="0" r="3" fill="#475569" />
-              {/* Top marker */}
-              <line x1="0" y1="-18" x2="0" y2="-14" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <div className="relative bg-app-surface-alt/60 rounded-sm" style={{ width: 80, height: 8 }}>
-              {/* Center mark */}
-              <div className="absolute left-1/2 top-0 w-px h-full bg-app-text-dim/40" />
-              {/* Dot — Steer is -127 (left) to 127 (right) */}
-              <div
-                className="absolute top-1/2 w-2.5 h-2.5 rounded-full bg-cyan-400 border border-cyan-300 shadow-sm shadow-cyan-400/50"
-                style={{
-                  left: `${50 + (packet.Steer / 127) * 50}%`,
-                  transform: "translate(-50%, -50%)",
-                }}
-              />
-            </div>
-            <span className="text-[9px] font-mono text-app-text-secondary tabular-nums">
-              {packet.Steer > 0 ? "R" : packet.Steer < 0 ? "L" : ""} {Math.abs(packet.Steer / 127 * 180).toFixed(0)}&deg;
-            </span>
-          </div>
-        )}
       </div>}
 
       {/* Model edit controls (minimal/car viewer mode) */}
