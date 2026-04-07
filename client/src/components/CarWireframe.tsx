@@ -11,6 +11,7 @@ import { allWheelStates } from "../lib/vehicle-dynamics";
 import { useUnits } from "../hooks/useUnits";
 import { useSettings } from "../hooks/queries";
 import { useGameId } from "../stores/game";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 
 // ── Tire temp → color ──────────────────────────────────────────────
 
@@ -1414,10 +1415,10 @@ export const CarWireframe = React.memo(function CarWireframe({
   const [editMode, setEditMode] = useState(false);
   const [modelOffsetX, setModelOffsetX] = useState(carModel.glbOffsetX ?? 0);
   const [saveStatus, setSaveStatus] = useState<"" | "saving" | "saved">("");
-  const [toggles, setToggles] = useState<ViewToggles>(() => ({
+  const [toggles, setToggles] = useLocalStorage<ViewToggles>("carwireframe-toggles", {
     ...DEFAULT_TOGGLES,
     dimensions: showDimensions ?? false,
-  }));
+  });
   const [viewPreset, setViewPreset] = useState<ViewPreset>("3/4");
 
   const toggle = (key: keyof ViewToggles) =>

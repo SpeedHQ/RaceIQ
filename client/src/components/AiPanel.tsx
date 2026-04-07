@@ -24,6 +24,7 @@ interface AiPanelProps {
   onAnalysisLoaded?: () => void;
   onJumpToFrac?: (frac: number) => void;
   onHighlightsChange?: (highlights: AnalysisHighlight[]) => void;
+  panelOpen?: boolean;
 }
 
 // ── Analysis types ───────────────────────────────────────────
@@ -153,7 +154,7 @@ export interface AiPanelHandle {
 
 // ── Main component ───────────────────────────────────────────
 
-export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel({ lapId, carName, trackName, segments, onAnalysisLoaded, onJumpToFrac, onHighlightsChange }, ref) {
+export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel({ lapId, carName, trackName, segments, onAnalysisLoaded, onJumpToFrac, onHighlightsChange, panelOpen = false }, ref) {
   // Analysis state
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
   const [usage, setUsage] = useState<{ inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string } | null>(null);
@@ -277,15 +278,20 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     } catch { /* ignore */ }
   }, [lapId]);
 
-  // Auto-fetch on mount / lap change
+  // Auto-fetch only when panel is opened (not on initial mount)
+  useEffect(() => {
+    if (!panelOpen) return;
+    fetchAnalysis(false);
+    loadChat();
+  }, [lapId, panelOpen, fetchAnalysis, loadChat]);
+
+  // Reset on lap change
   useEffect(() => {
     setAnalysis(null);
     setMessages([]);
     setChatInput("");
     setStreaming("");
-    fetchAnalysis(false);
-    loadChat();
-  }, [lapId, fetchAnalysis, loadChat]);
+  }, [lapId]);
 
   // Auto-scroll chat
   useEffect(() => {

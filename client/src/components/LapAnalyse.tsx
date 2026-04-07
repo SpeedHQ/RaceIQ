@@ -3,6 +3,7 @@ import { useSearch, useNavigate } from "@tanstack/react-router";
 import type { TelemetryPacket, LapMeta } from "@shared/types";
 import { convertTemp } from "../lib/temperature";
 import { useCookieState } from "../hooks/useCookieState";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 import { formatLapTime, TireDiagram, GForceCircle } from "./LiveTelemetry";
 import { getSteeringLock } from "./Settings";
 import { Compass } from "./Compass";
@@ -147,9 +148,9 @@ export function LapAnalyse() {
   const [leftColWidth, setLeftColWidth] = useCookieState("analyse-leftCol", 150);
   const [rightColWidth, setRightColWidth] = useCookieState("analyse-rightCol", 650);
   const [playing, setPlaying] = useState(false);
-  const [rotateWithCar, setRotateWithCar] = useState(false);
-  const [showInputs, setShowInputs] = useState(false);
-  const [mapZoom, setMapZoom] = useState(1);
+  const [rotateWithCar, setRotateWithCar] = useLocalStorage("analyse-rotateWithCar", false);
+  const [showInputs, setShowInputs] = useLocalStorage("analyse-showInputs", false);
+  const [mapZoom, setMapZoom] = useLocalStorage("analyse-mapZoom", 1);
   const [topHeight, setTopHeight] = useCookieState("analyse-topHeight", 500);
   const loading = lapLoading;
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
@@ -747,7 +748,15 @@ export function LapAnalyse() {
             />
 
             {/* Track map */}
-            <div className="border-r border-app-border bg-app-bg p-2 relative flex-1 min-w-0" style={{ height: "100%" }}>
+            <div
+              className="border-r border-app-border bg-app-bg p-2 relative flex-1 min-w-0"
+              style={{ height: "100%" }}
+              onWheel={(e) => {
+                if (!rotateWithCar) return;
+                e.preventDefault();
+                setMapZoom((z) => Math.max(0.5, Math.min(4, z - e.deltaY * 0.001)));
+              }}
+            >
               <AnalyseTrackMap
                 ref={trackMapRef}
                 telemetry={telemetry}
@@ -1374,6 +1383,7 @@ export function LapAnalyse() {
                 carName={carName}
                 trackName={trackName}
                 segments={segments}
+                panelOpen={aiPanelOpen}
                 onJumpToFrac={(frac) => {
                   // Convert fractional track distance to telemetry frame index
                   const idx = Math.round(frac * (telemetry.length - 1));
