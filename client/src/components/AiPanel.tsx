@@ -34,7 +34,7 @@ interface CornerItem { name: string; issue: string; fix: string; severity: "mino
 interface CornerBrakingItem { corner: string; assessment: "good" | "warning" | "critical"; brakePoint: string; detail: string; }
 interface CornerThrottleItem { corner: string; assessment: "good" | "warning" | "critical"; throttlePoint: string; detail: string; }
 interface CoachingItem { tip: string; detail: string; }
-interface SetupItem { component: string; symptom: string; current: string; target: string; direction: "increase" | "decrease" | "adjust"; reason: string; }
+interface SetupItem { component: string; symptom: string; fix: string; current: string; target: string; direction: "increase" | "decrease" | "adjust"; }
 
 interface AnalysisData {
   verdict: string;
@@ -350,13 +350,21 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       <div className="flex-1 overflow-y-auto min-h-0 px-3 py-3 space-y-2.5">
         {/* Loading state */}
         {loading && (
-          <div className="flex justify-start">
-            <div className="rounded-lg px-2.5 py-1.5 bg-app-surface-alt/60 border border-app-border-input/40">
-              <div className="flex flex-col items-center py-6 gap-2">
-                <div className="size-6 border-2 border-app-text-dim border-t-amber-400 rounded-full animate-spin" />
-                <p className="text-[11px] text-app-text-secondary">Analysing telemetry...</p>
-                <p className="text-[10px] text-app-text-dim">Up to 90 seconds</p>
-              </div>
+          <div className="flex flex-col items-center py-10 gap-4">
+            <div className="relative">
+              <div className="size-10 border-2 border-app-border-input rounded-full" />
+              <div className="absolute inset-0 size-10 border-2 border-transparent border-t-amber-400 rounded-full animate-spin" />
+              <Sparkles className="absolute inset-0 m-auto size-4 text-amber-400/60" />
+            </div>
+            <div className="text-center">
+              <p className="text-[11px] text-app-text-secondary font-medium">Analysing your lap</p>
+              <p className="text-[10px] text-app-text-dim mt-1">Reviewing telemetry, corners, and setup data</p>
+              <p className="text-[9px] text-app-text-dim mt-0.5">May take up to 90 seconds</p>
+            </div>
+            <div className="flex gap-1">
+              <div className="size-1 rounded-full bg-amber-400 animate-pulse" />
+              <div className="size-1 rounded-full bg-amber-400 animate-pulse [animation-delay:200ms]" />
+              <div className="size-1 rounded-full bg-amber-400 animate-pulse [animation-delay:400ms]" />
             </div>
           </div>
         )}
@@ -494,20 +502,16 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                       const targetNum = parseFloat(item.target?.replace(/[^0-9.-]/g, "") ?? "");
                       const hasBoth = !isNaN(currentNum) && !isNaN(targetNum) && currentNum !== targetNum;
                       return (
-                        <TrackCard key={i} seg={findSegment(cornerFracs.length ? cornerFracs : segments, item.symptom, item.reason)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-2.5 py-2">
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <span className="text-[11px] font-semibold text-app-text">{item.component}</span>
-                            <span className={`text-[9px] font-mono px-1 py-0.5 rounded ${
-                              item.direction === "increase" ? "bg-emerald-400/10 text-emerald-400" :
-                              item.direction === "decrease" ? "bg-red-400/10 text-red-400" :
-                              "bg-amber-400/10 text-amber-400"
-                            }`}>{item.current} → {item.target}</span>
-                          </div>
+                        <TrackCard key={i} seg={findSegment(cornerFracs.length ? cornerFracs : segments, item.symptom, item.fix)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-2.5 py-2">
+                          <span className="text-[11px] font-semibold text-app-text block mb-1">{item.component}</span>
+                          <span className={`text-[9px] font-mono px-1 py-0.5 rounded ${
+                            item.direction === "increase" ? "bg-emerald-400/10 text-emerald-400" :
+                            item.direction === "decrease" ? "bg-red-400/10 text-red-400" :
+                            "bg-amber-400/10 text-amber-400"
+                          }`}>{item.current} → {item.target}</span>
                           {hasBoth && <TuneBar current={currentNum} target={targetNum} />}
-                          <p className="text-[10px] text-app-text-secondary mt-0.5">
-                            <span className="text-red-400/70">Symptom:</span> {item.symptom}
-                          </p>
-                          <p className="text-[10px] text-app-text-secondary mt-0.5">{item.reason}</p>
+                          <p className="text-[10px] text-app-text-secondary mt-1"><span className="text-red-400/70">Symptom:</span> {item.symptom}</p>
+                          <p className="text-[10px] text-app-text-secondary mt-0.5"><span className="text-emerald-400/70">Fix:</span> {item.fix}</p>
                         </TrackCard>
                       );
                     })}

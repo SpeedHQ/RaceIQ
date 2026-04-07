@@ -198,28 +198,41 @@ export const lapRoutes = new Hono()
         }
       }
 
+      // Fetch track segments for the AI to use exact names
+      let segments: { type: string; name: string; startFrac: number; endFrac: number }[] | undefined;
+      try {
+        const { tryGetGame } = await import("../../shared/games/registry");
+        const { loadSharedTrackMeta } = await import("../../shared/track-data");
+        const adapter = lap.gameId ? tryGetGame(lap.gameId) : null;
+        const sharedName = adapter?.getSharedTrackName?.(lap.trackOrdinal ?? 0);
+        if (sharedName) {
+          const meta = loadSharedTrackMeta(sharedName);
+          if (meta?.segments?.length) segments = meta.segments;
+        }
+      } catch { /* ignore */ }
+
       const prompt = buildAnalystPrompt(
         lap,
         lap.telemetry,
         corners,
         settings.unit,
-        parsedTune
+        parsedTune,
+        segments,
       );
 
       try {
-        const { runClaudeCli, runGemini, runOpenAi } = await import("../ai/providers");
+        const { runGemini, runOpenAi } = await import("../ai/providers");
         const { getSecret } = await import("../keystore");
         let result;
-        if (settings.aiProvider === "gemini") {
-          const apiKey = await getSecret("gemini-api-key");
-          if (!apiKey) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
-          result = await runGemini(prompt, apiKey, settings.aiModel || undefined);
-        } else if (settings.aiProvider === "openai") {
+        if (settings.aiProvider === "openai") {
           const apiKey = await getSecret("openai-api-key");
           if (!apiKey) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
           result = await runOpenAi(prompt, apiKey, settings.aiModel || undefined);
         } else {
-          result = await runClaudeCli(prompt, settings.aiModel || undefined);
+          // Default: Gemini (also handles "local" fallback)
+          const apiKey = await getSecret("gemini-api-key");
+          if (!apiKey) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
+          result = await runGemini(prompt, apiKey, settings.aiModel || undefined);
         }
 
         await saveAnalysis(id, result.analysis, result.usage);

@@ -38,7 +38,7 @@ Your response MUST be valid JSON matching this exact schema. Output ONLY the JSO
     { "tip": "short imperative title", "detail": "1-2 sentence explanation referencing specific data" }
   ],
   "setup": [
-    { "component": "e.g. Front Springs", "symptom": "what the telemetry shows (e.g. bottoming out, 0.00m travel)", "current": "current value with unit (e.g. 750 lb/in)", "target": "specific target value with unit (e.g. 650 lb/in)", "direction": "increase|decrease|adjust", "reason": "1 sentence why this change helps" }
+    { "component": "e.g. Front Springs", "symptom": "what the telemetry shows", "fix": "what to change and why", "current": "numeric value with unit (e.g. 750 lb/in)", "target": "numeric target value with unit (e.g. 650 lb/in)", "direction": "increase|decrease|adjust" }
   ]
 }
 
@@ -49,7 +49,7 @@ CATEGORY GUIDELINES:
 - "braking": Per-corner braking analysis for every corner in the corner data. Use corner label names exactly. "good" = no issues. If detail describes a problem, MUST be "warning" or "critical".
 - "throttle": Per-corner throttle analysis for every corner. Use corner label names exactly. "good" = clean application. If detail describes a problem, MUST be "warning" or "critical".
 - "coaching": 3-5 actionable driving tips. Reference specific telemetry values.
-- "setup": 4-8 specific component adjustments. Each MUST include concrete current and target values with units (e.g. "750 lb/in" → "650 lb/in"). Combine the telemetry symptom with the recommended change. Cover: springs, dampers, anti-roll bars, aero, alignment, differential, tire pressure, gearing, brake bias as needed. If tune data is provided, reference actual tune values.
+- "setup": 4-8 component adjustments. Each item has the symptom (what telemetry shows), fix (what to do), AND concrete "current"/"target" numeric values with units (e.g. "750 lb/in" → "650 lb/in"). Cover: springs, dampers, anti-roll bars, aero, alignment, differential, tire pressure, gearing, brake bias as needed. If tune data is provided, reference actual tune values.
 
 RULES:
 - Reference specific numbers from the data — don't be vague
@@ -58,7 +58,9 @@ RULES:
 - Address the driver as "you"
 - When tune settings are provided, correlate telemetry symptoms (e.g., understeer, tire temps, suspension bottoming) with specific setup values and recommend concrete adjustments with target numbers
 - Reference the actual tune values when suggesting changes (e.g., "Front springs at 750 lb/in are too stiff for this track — try 650-680 lb/in")
-- Output ONLY valid JSON, nothing else`;
+- Output ONLY valid JSON, nothing else
+- Escape any special characters in string values (quotes, newlines)
+- Do not include trailing commas in arrays or objects`;
 
 function getSystemPrompt(gameId: GameId, unit: UnitSystem): string {
   const units = unit === "metric" ? "km/h, °C, meters, kg, bar" : "mph, °F, feet, lb, psi";
@@ -79,7 +81,8 @@ export function buildAnalystPrompt(
   packets: TelemetryPacket[],
   corners: CornerDef[],
   unit: UnitSystem = "metric",
-  tune?: Tune
+  tune?: Tune,
+  segments?: { type: string; name: string; startFrac: number; endFrac: number }[],
 ): string {
   const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
   const trackName = getTrackName(lap.trackOrdinal ?? 0);
@@ -115,9 +118,16 @@ export function buildAnalystPrompt(
     }) + "\n";
   }
 
+  let segmentsList = "";
+  if (segments && segments.length > 0) {
+    segmentsList = "\n--- Track Segments (use these EXACT names in braking/throttle/corners) ---\n";
+    segmentsList += segments.map((s) => `${s.type === "corner" ? "🔶" : "🔷"} ${s.name} (${(s.startFrac * 100).toFixed(1)}%-${(s.endFrac * 100).toFixed(1)}%)`).join("\n");
+    segmentsList += "\n";
+  }
+
   const context = `Car: ${carName}
 Track: ${trackName}
-${tuneText}
+${tuneText}${segmentsList}
 ${exportText}
 ${cornerData}
 ${insightsText}`;

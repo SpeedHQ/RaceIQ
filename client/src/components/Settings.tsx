@@ -127,13 +127,11 @@ const NAV_ITEMS = [
 
 type SectionId = (typeof NAV_ITEMS)[number]["id"];
 
-type AiProviderType = "claude-cli" | "gemini" | "openai" | "local";
-type ChatProviderType = "gemini" | "openai" | "local";
+// Provider type — dynamic from server
 
 const PROVIDER_KEY_MAP: Record<string, string> = {
   gemini: "gemini",
   openai: "openai",
-  "claude-cli": "anthropic",
 };
 
 const PROVIDER_KEY_LABELS: Record<string, { label: string; placeholder: string; helpText: string; helpUrl: string }> = {
@@ -145,14 +143,14 @@ function AiSection() {
   const { displaySettings } = useSettings();
   const saveSettings = useSaveSettings();
   const qc = useQueryClient();
-  const [provider, setProvider] = useState<AiProviderType>(displaySettings.aiProvider ?? "claude-cli");
+  const [provider, setProvider] = useState<string>(displaySettings.aiProvider ?? "gemini");
   const [model, setModel] = useState(displaySettings.aiModel ?? "");
   const [apiKey, setApiKey] = useState("");
   const [localEndpoint, setLocalEndpoint] = useState(displaySettings.localEndpoint ?? "http://localhost:1234/v1");
   const [saved, setSaved] = useState(false);
 
   // Chat settings
-  const [chatProvider, setChatProvider] = useState<ChatProviderType>(displaySettings.chatProvider ?? "gemini");
+  const [chatProvider, setChatProvider] = useState<string>(displaySettings.chatProvider ?? "gemini");
   const [chatModel, setChatModel] = useState(displaySettings.chatModel ?? "");
   const [chatApiKey, setChatApiKey] = useState("");
   const [chatSaved, setChatSaved] = useState(false);
@@ -162,8 +160,16 @@ function AiSection() {
     openai: !!displaySettings.openaiApiKeySet,
   };
 
+  const { data: aiProviders } = useQuery({
+    queryKey: ["ai-providers"],
+    queryFn: async () => {
+      const res = await fetch("/api/ai-providers");
+      return res.json() as Promise<{ id: string; name: string }[]>;
+    },
+  });
+
   const { data: aiModels } = useQuery({
-    queryKey: ["ai-models", provider],
+    queryKey: ["ai-models"],
     queryFn: async () => {
       const res = await fetch("/api/ai-models");
       return res.json() as Promise<Record<string, { id: string; name: string }[]>>;
@@ -198,20 +204,19 @@ function AiSection() {
     <section>
       <h2 className="text-sm font-semibold text-app-text mb-4">AI Analysis Provider</h2>
       <p className="text-xs text-app-text-muted mb-4">
-        Choose which AI provider to use for lap analysis and chat. Claude CLI uses your locally installed Claude Code. Other providers use API keys.
+        Choose which AI provider to use for lap analysis. Requires an API key.
       </p>
       <div className="space-y-4">
         <div>
           <label className="block text-xs text-app-text-muted mb-1">Provider</label>
           <select
             value={provider}
-            onChange={(e) => { setProvider(e.target.value as AiProviderType); setModel(""); }}
+            onChange={(e) => { setProvider(e.target.value as string); setModel(""); }}
             className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
           >
-            <option value="claude-cli">Claude CLI (local)</option>
-            <option value="gemini">Google Gemini</option>
-            <option value="openai">OpenAI</option>
-            <option value="local">Local (LM Studio / Ollama)</option>
+            {(aiProviders ?? []).map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
           </select>
         </div>
         {provider === "local" && (
@@ -280,12 +285,12 @@ function AiSection() {
           <label className="block text-xs text-app-text-muted mb-1">Provider</label>
           <select
             value={chatProvider}
-            onChange={(e) => { setChatProvider(e.target.value as ChatProviderType); setChatModel(""); }}
+            onChange={(e) => { setChatProvider(e.target.value as string); setChatModel(""); }}
             className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
           >
-            <option value="gemini">Google Gemini</option>
-            <option value="openai">OpenAI</option>
-            <option value="local">Local (LM Studio / Ollama)</option>
+            {(aiProviders ?? []).map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
           </select>
         </div>
         {PROVIDER_KEY_LABELS[chatProvider] && (

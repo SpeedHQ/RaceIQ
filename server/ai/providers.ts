@@ -13,16 +13,16 @@ export interface AiResult {
   };
 }
 
-export type AiProvider = "claude-cli" | "gemini" | "openai" | "local";
+export type AiProvider = "gemini" | "openai" | "local";
 
-const CLAUDE_MODELS = [
-  { id: "haiku", name: "Claude Haiku" },
-  { id: "sonnet", name: "Claude Sonnet" },
-  { id: "opus", name: "Claude Opus" },
+const AI_PROVIDERS = [
+  { id: "gemini", name: "Google Gemini" },
+  { id: "openai", name: "OpenAI" },
+  { id: "local", name: "Local (LM Studio / Ollama)" },
 ];
 
-export function getClaudeModels() {
-  return CLAUDE_MODELS;
+export function getProviders() {
+  return AI_PROVIDERS;
 }
 
 /** Fetch available Gemini models from the API. Filters to generateContent-capable models. */
@@ -180,12 +180,12 @@ export const ANALYSIS_SCHEMA = {
         properties: {
           component: { type: "string" },
           symptom: { type: "string" },
+          fix: { type: "string" },
           current: { type: "string" },
           target: { type: "string" },
           direction: { type: "string", enum: ["increase", "decrease", "adjust"] },
-          reason: { type: "string" },
         },
-        required: ["component", "symptom", "current", "target", "direction", "reason"],
+        required: ["component", "symptom", "fix", "current", "target", "direction"],
       },
     },
   },

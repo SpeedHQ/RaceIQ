@@ -57,18 +57,21 @@ export const settingsRoutes = new Hono()
     });
   })
 
+  // GET /api/ai-providers — available providers
+  .get("/api/ai-providers", async (c) => {
+    const { getProviders } = await import("../ai/providers");
+    return c.json(getProviders());
+  })
+
   // GET /api/ai-models — available models per provider
   .get("/api/ai-models", async (c) => {
-    const { getClaudeModels, getGeminiModels, getOpenAiModels, getLocalModels } = await import("../ai/providers");
+    const { getGeminiModels, getOpenAiModels, getLocalModels } = await import("../ai/providers");
     const { getSecret } = await import("../keystore");
     const geminiKey = await getSecret("gemini-api-key");
     const geminiModels = geminiKey ? await getGeminiModels(geminiKey) : [];
     const settings = loadSettings();
-    const localModels = settings.aiProvider === "local"
-      ? await getLocalModels(settings.localEndpoint || "http://localhost:1234/v1")
-      : [];
+    const localModels = await getLocalModels(settings.localEndpoint || "http://localhost:1234/v1");
     return c.json({
-      "claude-cli": getClaudeModels(),
       "gemini": geminiModels,
       "openai": getOpenAiModels(),
       "local": localModels,
