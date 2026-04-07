@@ -753,7 +753,7 @@ function CompareTrackMap({ outline, telemetryA, telemetryB, labelA: _labelA, lab
                 : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
             }`}
           >
-            {followCar ? "Car View" : "Fixed View"}
+            {followCar ? "Follow View" : "Fixed View"}
           </button>
           {alignedOutline.length < 2 ? (
             <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No track outline</div>
