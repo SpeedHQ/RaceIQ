@@ -1651,25 +1651,7 @@ export const CarWireframe = React.memo(function CarWireframe({
         </div>
       )}
 
-      {/* Throttle / Brake overlay */}
-      {!minimal && (
-      <div className="absolute bottom-2 right-2 flex gap-1 items-end" style={{ height: 60 }}>
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{throttlePct.toFixed(0)}</span>
-          <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 44 }}>
-            <div className="absolute bottom-0 w-full bg-emerald-400 rounded-sm transition-all" style={{ height: `${throttlePct}%` }} />
-          </div>
-          <span className="text-[7px] text-app-text-muted">T</span>
-        </div>
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="text-[9px] font-mono text-red-400 font-bold tabular-nums">{brakePct.toFixed(0)}</span>
-          <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 44 }}>
-            <div className="absolute bottom-0 w-full bg-red-500 rounded-sm transition-all" style={{ height: `${brakePct}%` }} />
-          </div>
-          <span className="text-[7px] text-app-text-muted">B</span>
-        </div>
-      </div>
-      )}
+      {/* Input bars removed — shown on 2D track map panel + 3D input overlay */}
     </div>
   );
 });

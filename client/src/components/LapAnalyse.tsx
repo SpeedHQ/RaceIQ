@@ -831,22 +831,22 @@ export function LapAnalyse() {
                 {currentPacket && <Compass yaw={currentPacket.Yaw} />}
               </div>
 
-              {/* Pedal bars — bottom right */}
+              {/* Pedal bars — bottom right (brake left, throttle right) */}
               {currentPacket && (
                 <div className="absolute bottom-2 right-2 flex gap-1 items-end" style={{ height: 60 }}>
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{((currentPacket.Accel / 255) * 100).toFixed(0)}</span>
-                    <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 40 }}>
-                      <div className="absolute bottom-0 w-full bg-emerald-400 rounded-sm transition-all" style={{ height: `${(currentPacket.Accel / 255) * 100}%` }} />
-                    </div>
-                    <span className="text-[7px] text-app-text-muted">T</span>
-                  </div>
                   <div className="flex flex-col items-center gap-0.5">
                     <span className="text-[9px] font-mono font-bold tabular-nums" style={{ color: brakeBarColor(currentPacket.Brake) }}>{((currentPacket.Brake / 255) * 100).toFixed(0)}</span>
                     <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 40 }}>
                       <div className="absolute bottom-0 w-full rounded-sm transition-all" style={{ height: `${(currentPacket.Brake / 255) * 100}%`, background: `linear-gradient(to top, #ff9933, ${brakeBarColor(currentPacket.Brake)})` }} />
                     </div>
                     <span className="text-[7px] text-app-text-muted">B</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{((currentPacket.Accel / 255) * 100).toFixed(0)}</span>
+                    <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 40 }}>
+                      <div className="absolute bottom-0 w-full bg-emerald-400 rounded-sm transition-all" style={{ height: `${(currentPacket.Accel / 255) * 100}%` }} />
+                    </div>
+                    <span className="text-[7px] text-app-text-muted">T</span>
                   </div>
                 </div>
               )}
