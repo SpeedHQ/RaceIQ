@@ -73,9 +73,10 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     const w = rect.width;
     const h = rect.height;
 
-    const telemetryPoints = telemetry
-      .filter((p) => p.PositionX !== 0 || p.PositionZ !== 0)
-      .map((p) => ({ x: p.PositionX, z: p.PositionZ }));
+    const telemetryPointsWithIdx = telemetry
+      .map((p, idx) => ({ x: p.PositionX, z: p.PositionZ, idx }))
+      .filter((p) => p.x !== 0 || p.z !== 0);
+    const telemetryPoints = telemetryPointsWithIdx as { x: number; z: number }[];
     const displayOutline: Point[] = telemetryPoints.length > 2 ? telemetryPoints : (outline ?? []);
 
     if (displayOutline.length < 2) {
@@ -299,12 +300,12 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
         const dx = x1 - x0;
         const dy = y1 - y0;
         const len = Math.sqrt(dx * dx + dy * dy);
-        if (len < 0.5) continue;
+        if (len < 0.01) continue;
         // Normal perpendicular to track direction
         const nx = -dy / len;
         const ny = dx / len;
 
-        const pkt = telemetry[i];
+        const pkt = telemetry[telemetryPointsWithIdx[i].idx];
         if (!pkt) continue;
         const throttle = (pkt.Accel ?? 0) / 255;
         const brake = (pkt.Brake ?? 0) / 255;
