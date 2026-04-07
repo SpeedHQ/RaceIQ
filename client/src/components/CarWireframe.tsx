@@ -662,6 +662,77 @@ function BrakeTrail({
   );
 }
 
+// ── Throttle/Brake input overlay (two lines beside driving line) ────
+
+const THROTTLE_COLOR = new THREE.Color(0.2, 0.83, 0.6);  // emerald
+const BRAKE_COLOR = new THREE.Color(0.94, 0.27, 0.27);    // red
+
+function InputOverlay({
+  telemetry,
+  packet,
+}: {
+  telemetry: TelemetryPacket[];
+  packet: TelemetryPacket;
+}) {
+  const data = useMemo(() => {
+    const cx = packet.PositionX;
+    const cz = packet.PositionZ;
+    const yaw = packet.Yaw;
+    const s = Math.sin(yaw);
+    const c = Math.cos(yaw);
+    const Y = -0.33; // ground level
+    const OFFSET = 0.3; // lateral offset from center in meters
+    const AHEAD = 60;
+    const BEHIND = 20;
+    const maxDist2 = AHEAD * AHEAD;
+
+    const throttlePts: [number, number, number][] = [];
+    const throttleCols: THREE.Color[] = [];
+    const brakePts: [number, number, number][] = [];
+    const brakeCols: THREE.Color[] = [];
+
+    for (const p of telemetry) {
+      const dx = p.PositionX - cx;
+      const dz = p.PositionZ - cz;
+      const dist2 = dx * dx + dz * dz;
+      if (dist2 > maxDist2) continue;
+      const localFwd = dx * s + dz * c;
+      const localLat = dx * c - dz * s;
+      if (localFwd < -BEHIND || localFwd > AHEAD) continue;
+      if (Math.abs(localLat) > 30) continue;
+
+      const throttle = (p.Accel ?? 0) / 255;
+      const brake = (p.Brake ?? 0) / 255;
+
+      if (throttle > 0) {
+        throttlePts.push([localFwd, Y, localLat + OFFSET]);
+        const col = THROTTLE_COLOR.clone();
+        col.multiplyScalar(0.3 + throttle * 0.7);
+        throttleCols.push(col);
+      }
+      if (brake > 0) {
+        brakePts.push([localFwd, Y, localLat - OFFSET]);
+        const col = BRAKE_COLOR.clone();
+        col.multiplyScalar(0.3 + brake * 0.7);
+        brakeCols.push(col);
+      }
+    }
+
+    return { throttlePts, throttleCols, brakePts, brakeCols };
+  }, [telemetry, packet.PositionX, packet.PositionZ, packet.Yaw]);
+
+  return (
+    <>
+      {data.throttlePts.length > 1 && (
+        <Line points={data.throttlePts} vertexColors={data.throttleCols} lineWidth={3} transparent opacity={0.9} />
+      )}
+      {data.brakePts.length > 1 && (
+        <Line points={data.brakePts} vertexColors={data.brakeCols} lineWidth={3} transparent opacity={0.9} />
+      )}
+    </>
+  );
+}
+
 // ── Curb markers on track (world-space, full lap history) ───────────
 
 function CurbMarkers({
@@ -1296,8 +1367,8 @@ function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, boundarie
       {/* Tire trails (ground, colored by slip) */}
       {toggles.trails && <TireTrails telemetry={telemetry} cursorIdx={cursorIdx} carModel={carModel} />}
 
-      {/* Brake trail (tail light height, only when braking) */}
-      {toggles.brakeTrails && <BrakeTrail telemetry={telemetry} cursorIdx={cursorIdx} />}
+      {/* Throttle/brake input overlay */}
+      {toggles.inputs && <InputOverlay telemetry={telemetry} packet={packet} />}
 
 
       {/* Camera controls */}
@@ -1312,7 +1383,7 @@ interface ViewToggles {
   solid: "wire" | "solid" | "hidden";
   springs: boolean;
   trails: boolean;
-  brakeTrails: boolean;
+  inputs: boolean;
   track: boolean;
   grid: boolean;
   drivetrain: boolean;
@@ -1323,7 +1394,7 @@ const DEFAULT_TOGGLES: ViewToggles = {
   solid: "wire" as const,
   springs: true,
   trails: true,
-  brakeTrails: true,
+  inputs: false,
   track: true,
   grid: true,
   drivetrain: true,
@@ -1459,7 +1530,7 @@ export const CarWireframe = React.memo(function CarWireframe({
         />
         {!minimal && <ToggleButton label="Springs" active={toggles.springs} onClick={() => toggle("springs")} />}
         {!minimal && <ToggleButton label="Trails" active={toggles.trails} onClick={() => toggle("trails")} />}
-        {!minimal && <ToggleButton label="Brake" active={toggles.brakeTrails} onClick={() => toggle("brakeTrails")} />}
+        {!minimal && <ToggleButton label="Inputs" active={toggles.inputs} onClick={() => toggle("inputs")} />}
         {!minimal && <ToggleButton label="Track" active={toggles.track} onClick={() => toggle("track")} />}
         {!minimal && <ToggleButton label="Grid" active={toggles.grid} onClick={() => toggle("grid")} />}
         {!minimal && <ToggleButton label="Drive" active={toggles.drivetrain} onClick={() => toggle("drivetrain")} />}
