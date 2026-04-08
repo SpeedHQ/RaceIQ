@@ -23,6 +23,8 @@ export interface DisplaySettings {
   anthropicApiKeySet?: boolean;
   /** Driver display name */
   driverName?: string;
+  /** Whether the user has completed onboarding */
+  onboardingComplete?: boolean;
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {

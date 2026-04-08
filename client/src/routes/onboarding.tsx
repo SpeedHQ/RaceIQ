@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { markOnboardingComplete } from "../components/Onboarding";
+import { useSaveSettings } from "../hooks/queries";
 import { useTelemetryStore } from "../stores/telemetry";
 
 const STEPS = [
@@ -18,6 +18,7 @@ function OnboardingLayout() {
   const location = useLocation();
   const currentIdx = STEPS.findIndex((s) => s.path === location.pathname);
   const step = currentIdx === -1 ? 0 : currentIdx;
+  const saveSettings = useSaveSettings();
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const udpPps = useTelemetryStore((s) => s.udpPps);
   const lastUdpAt = useTelemetryStore((s) => s.lastUdpAt);
@@ -43,7 +44,7 @@ function OnboardingLayout() {
   }
 
   function handleFinish() {
-    markOnboardingComplete();
+    saveSettings.mutate({ onboardingComplete: true } as never);
     navigate({ to: "/" });
   }
 

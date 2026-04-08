@@ -13,6 +13,7 @@ const AiProviderSchema = z.enum(["gemini", "openai", "local"]).default("gemini")
 const ChatProviderSchema = z.enum(["gemini", "openai", "local"]).default("gemini");
 
 const AppSettingsSchema = z.object({
+  onboardingComplete: z.boolean().default(false),
   driverName: z.string().default(""),
   udpPort: z.number().int().min(1024).max(65535).default(5301),
   unit: z.enum(["metric", "imperial"]).default("metric"),

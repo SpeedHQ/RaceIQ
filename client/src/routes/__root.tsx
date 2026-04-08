@@ -8,7 +8,6 @@ import { ThemeProvider } from "../context/theme";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
-import { isOnboardingComplete } from "../components/Onboarding";
 import { Button } from "@/components/ui/button";
 import { Settings2 } from "lucide-react";
 import { getAllGames } from "@shared/games/registry";
@@ -38,7 +37,7 @@ function useUpdateCheck() {
 
 function AppShell() {
   useWebSocket();
-  const { displaySettings } = useSettings();
+  const { displaySettings, settingsLoaded } = useSettings();
   const driverName = displaySettings.driverName || "";
   const connected = useTelemetryStore((s) => s.connected);
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
@@ -62,11 +61,12 @@ function AppShell() {
   const location = useLocation();
 
   useEffect(() => {
-    if (!isOnboardingComplete() && !location.pathname.startsWith("/onboarding")) {
+    if (!settingsLoaded) return;
+    if (!displaySettings.onboardingComplete && !location.pathname.startsWith("/onboarding")) {
       navigate({ to: "/onboarding" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+  }, [settingsLoaded, displaySettings.onboardingComplete, location.pathname]);
 
   // Determine which game-specific tabs to show based on current route
   const gameTabs = useMemo(() => {

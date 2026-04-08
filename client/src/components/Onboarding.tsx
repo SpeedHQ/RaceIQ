@@ -22,16 +22,7 @@ import { SiDiscord, SiGithub } from "react-icons/si";
 import { CarWireframe } from "./CarWireframe";
 import { DEMO_CAR } from "../data/car-models";
 
-const ONBOARDING_KEY = "forza-onboarding-complete";
 const WHEEL_STYLE_KEY = "forza-wheel-style";
-
-export function isOnboardingComplete(): boolean {
-  return localStorage.getItem(ONBOARDING_KEY) === "true";
-}
-
-export function markOnboardingComplete() {
-  localStorage.setItem(ONBOARDING_KEY, "true");
-}
 
 /* ─── Welcome ─── */
 
@@ -120,6 +111,7 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
 }
 
 export function StepWelcome() {
+  const versionInfo = useTelemetryStore((s) => s.versionInfo);
   const { data: demoTelemetry, isLoading } = useQuery({
     queryKey: ["demo-lap"],
     queryFn: async () => {
@@ -182,9 +174,12 @@ export function StepWelcome() {
         </div>
       )}
 
-      <h2 className="text-2xl font-bold text-app-text mb-2 tracking-tight">
+      <h2 className="text-2xl font-bold text-app-text mb-1 tracking-tight">
         RaceIQ
       </h2>
+      {versionInfo?.current && (
+        <div className="text-xs font-mono text-app-text-muted mb-2">v{versionInfo.current}</div>
+      )}
       <p className="text-sm text-app-text-muted max-w-sm leading-relaxed">
         The most advanced sim racing telemetry dashboard.
       </p>
