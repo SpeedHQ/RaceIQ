@@ -190,7 +190,7 @@ export function AiSection() {
       {/* Chat provider */}
       <h2 className="text-sm font-semibold text-app-text mb-4 mt-8">AI Chat Provider</h2>
       <p className="text-xs text-app-text-muted mb-4">
-        Choose which provider to use for the AI chat panel. Requires an API key.
+        Choose which provider to use for the AI chat. Requires an API key.
       </p>
       <div className="space-y-4">
         <div>
