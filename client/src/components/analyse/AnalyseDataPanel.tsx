@@ -1,3 +1,5 @@
+import { useState, useCallback } from "react";
+import { Copy, Check } from "lucide-react";
 import type { TelemetryPacket, GameId } from "@shared/types";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import type { LapInsight } from "../../lib/lap-insights";
@@ -35,6 +37,14 @@ export function AnalyseDataPanel({
   gameId, units, wearRate,
   lapInsights, onJumpToFrame,
 }: Props) {
+  const [copied, setCopied] = useState(false);
+  const handleCopyPacket = useCallback(() => {
+    if (!currentPacket) return;
+    navigator.clipboard.writeText(JSON.stringify(currentPacket, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }, [currentPacket]);
+
   return (
     <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
       {/* Tab switcher */}
@@ -67,10 +77,19 @@ export function AnalyseDataPanel({
       </div>
 
       {sidebarTab === "live" && (
-        <div className="px-3 pt-3 pb-1 shrink-0">
+        <div className="px-3 pt-3 pb-1 shrink-0 flex items-center justify-between">
           <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-0 font-semibold">
             Metrics at Cursor
           </h3>
+          {currentPacket && (
+            <button
+              onClick={handleCopyPacket}
+              title="Copy raw packet JSON"
+              className="text-app-text-muted hover:text-app-text transition-colors"
+            >
+              {copied ? <Check className="size-3.5 text-green-400" /> : <Copy className="size-3.5" />}
+            </button>
+          )}
         </div>
       )}
 
