@@ -2,6 +2,14 @@
   "name": "Circuit de Barcelona-Catalunya",
   "sectors": {
     "s1End": 0.318,
-    "s2End": 0.670
+    "s2End": 0.67
+  },
+  "games": {
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.359,
+        "s2End": 0.657
+      }
+    }
   }
 }
