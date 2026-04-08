@@ -15,6 +15,7 @@ import { insertSession, insertLap } from "./db/queries";
 import { extractCurbSegments, recordCurbData } from "../shared/track-data";
 import { loadSettings } from "./settings";
 import { getTuneAssignment } from "./db/tune-queries";
+import { assessLapRecording } from "./lap-quality";
 
 const SESSION_TIMEOUT_MS = 5 * 60_000; // 5 minutes of silence = new session
 
@@ -349,8 +350,13 @@ class LapDetector {
       );
       const tuneId = tuneAssignment?.tuneId ?? null;
       const lapNum = this.currentLapNumber;
-      const valid = this.lapIsValid;
       const packetCount = this.lapBuffer.length;
+
+      // Run recording quality check — can override game-valid laps if telemetry is bad
+      const quality = assessLapRecording(this.lapBuffer, lapTime);
+      const valid = this.lapIsValid && quality.valid;
+      const invalidReason = this.invalidReason ?? (!quality.valid ? quality.reason : null);
+
       insertLap(
         this.currentSession.sessionId,
         lapNum,
@@ -359,10 +365,10 @@ class LapDetector {
         this.lapBuffer,
         activeProfileId,
         tuneId,
-        this.invalidReason
+        invalidReason
       ).then((lapId) => {
         console.log(
-          `[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid} | Packets: ${packetCount} | DB ID: ${lapId}`
+          `[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid}${invalidReason ? ` (${invalidReason})` : ""} | Packets: ${packetCount} | DB ID: ${lapId}`
         );
       }).catch((err) => {
         console.error(`[Lap] Failed to save lap ${lapNum}:`, err);
