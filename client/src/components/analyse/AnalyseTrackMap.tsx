@@ -56,9 +56,15 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
   const transformRef = useRef<{
     w: number; h: number; offsetX: number; offsetZ: number; scale: number; maxX: number; minZ: number;
     displayOutline: Point[]; offW: number; offH: number;
+    // Extra zoom applied at composite time (GPU-only, no offscreen cost). >1 when offscreen was capped.
+    displayZoom: number;
   } | null>(null);
   // Offscreen canvas caching the static track drawing (boundaries, segments, sectors, labels)
   const offscreenRef = useRef<OffscreenCanvas | null>(null);
+
+  // Maximum offscreen dimension in CSS pixels. Keeps memory bounded for large tracks like Nordschleife.
+  // Any zoom beyond what fits in this budget is applied as a cheap GPU scale during compositing.
+  const MAX_OFFSCREEN_DIM = 2000;
 
   // Draw the static track (boundaries, outline, segments, sectors, start/finish) to the offscreen canvas.
   // Called once when data changes — NOT per cursor update.
@@ -108,15 +114,22 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     const scale = baseScale * zoom * followZoom;
 
     // For follow view, the zoomed track is larger than the canvas.
-    // Size the offscreen to fit the full track at the zoomed scale.
+    // Size the offscreen to fit the full track at the zoomed scale, but cap it so large tracks
+    // (e.g. Nordschleife) don't create enormous canvases. Any zoom beyond the cap is applied
+    // as a cheap GPU scale transform during compositing (displayZoom).
     const trackW = rangeX * scale + padding * 2;
     const trackH = rangeZ * scale + padding * 2;
-    const offW = Math.max(w, trackW);
-    const offH = Math.max(h, trackH);
-    const offsetX = (offW - rangeX * scale) / 2;
-    const offsetZ = (offH - rangeZ * scale) / 2;
+    const desiredOffW = Math.max(w, trackW);
+    const desiredOffH = Math.max(h, trackH);
+    const capRatio = Math.min(1, MAX_OFFSCREEN_DIM / Math.max(desiredOffW, desiredOffH));
+    const offW = Math.round(desiredOffW * capRatio);
+    const offH = Math.round(desiredOffH * capRatio);
+    const cappedScale = scale * capRatio;
+    const displayZoom = scale / cappedScale; // GPU-only zoom applied during compositing
+    const offsetX = (offW - rangeX * cappedScale) / 2;
+    const offsetZ = (offH - rangeZ * cappedScale) / 2;
 
-    transformRef.current = { w, h, offsetX, offsetZ, scale, maxX, minZ, displayOutline, offW, offH };
+    transformRef.current = { w, h, offsetX, offsetZ, scale: cappedScale, maxX, minZ, displayOutline, offW, offH, displayZoom };
 
     function toCanvas(x: number, z: number): [number, number] {
       return [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
@@ -344,7 +357,16 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
         mainCtx.restore();
         mainCtx.save();
         mainCtx.scale(dpr, dpr);
-        mainCtx.drawImage(offscreen, 0, 0, w, h);
+        if (displayZoom > 1) {
+          // Show the center crop of the offscreen at display zoom.
+          const srcW = offW / displayZoom;
+          const srcH = offH / displayZoom;
+          const srcX = (offW - srcW) / 2;
+          const srcY = (offH - srcH) / 2;
+          mainCtx.drawImage(offscreen, srcX, srcY, srcW, srcH, 0, 0, w, h);
+        } else {
+          mainCtx.drawImage(offscreen, 0, 0, w, h);
+        }
         mainCtx.restore();
       }
     }
@@ -385,38 +407,36 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
       const carCx = t.offsetX + (t.maxX - pkt.PositionX) * t.scale;
       const carCy = t.offsetZ + (pkt.PositionZ - t.minZ) * t.scale;
       ctx.translate(t.w / 2, t.h / 2);
+      // displayZoom is the extra zoom beyond what's baked into the offscreen (always ≥1).
+      // Applying it here is free — just a GPU scale with no memory cost.
+      if (t.displayZoom !== 1) ctx.scale(t.displayZoom, t.displayZoom);
       ctx.rotate(Math.PI - pkt.Yaw);
       ctx.translate(-carCx, -carCy);
     }
 
     ctx.drawImage(offscreen, 0, 0, t.offW, t.offH);
 
-    const pkt2 = telemetry[idx];
-    if (pkt2 && (pkt2.PositionX !== 0 || pkt2.PositionZ !== 0)) {
-      const cx = t.offsetX + (t.maxX - pkt2.PositionX) * t.scale;
-      const cy = t.offsetZ + (pkt2.PositionZ - t.minZ) * t.scale;
-      const fwdX = pkt2.PositionX + Math.sin(pkt2.Yaw);
-      const fwdZ = pkt2.PositionZ + Math.cos(pkt2.Yaw);
-      const fx = t.offsetX + (t.maxX - fwdX) * t.scale;
-      const fy = t.offsetZ + (fwdZ - t.minZ) * t.scale;
-      const angle = Math.atan2(fy - cy, fx - cx);
-      const triSize = 8;
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(angle);
-      ctx.beginPath();
-      ctx.moveTo(triSize, 0);
-      ctx.lineTo(-triSize * 0.6, -triSize * 0.6);
-      ctx.lineTo(-triSize * 0.6, triSize * 0.6);
-      ctx.closePath();
-      ctx.fillStyle = "#22d3ee";
-      ctx.fill();
-      ctx.strokeStyle = "#0f172a";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.restore();
-      carPosRef.current = { x: t.w / 2, y: t.h / 2, w: t.w, h: t.h, angle: -Math.PI / 2 };
-    }
+    // Draw car icon at canvas center. Size scales with zoom so it stays proportional to the track,
+    // but is clamped so it doesn't get absurdly large at very high displayZoom.
+    ctx.restore();
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    const triSize = Math.min(8 * t.displayZoom, 16);
+    ctx.save();
+    ctx.translate(t.w / 2, t.h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.beginPath();
+    ctx.moveTo(triSize, 0);
+    ctx.lineTo(-triSize * 0.6, -triSize * 0.6);
+    ctx.lineTo(-triSize * 0.6, triSize * 0.6);
+    ctx.closePath();
+    ctx.fillStyle = "#22d3ee";
+    ctx.fill();
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+    carPosRef.current = { x: t.w / 2, y: t.h / 2, w: t.w, h: t.h, angle: -Math.PI / 2 };
 
     ctx.restore();
   }, [telemetry, rotateWithCar]);
@@ -439,17 +459,21 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     const pkt = telemetry[idx];
     if (!pkt || (pkt.PositionX === 0 && pkt.PositionZ === 0)) return;
 
-    // The offscreen is blitted to the canvas scaled to fit: drawImage(offscreen, 0, 0, w, h).
-    // When offW > w (e.g. wide tracks where Z dimension is the limiting scale), coordinates
-    // must be scaled to match the displayed track position.
-    const scaleX = t.w / t.offW;
-    const scaleY = t.h / t.offH;
+    // Map offscreen coordinates to canvas coordinates.
+    // When displayZoom > 1 the offscreen is center-cropped during blit, so we must account for
+    // both the offscreen→canvas scale and the crop offset.
+    const dz = t.displayZoom;
+    const srcW = t.offW / dz;
+    const srcH = t.offH / dz;
+    const cropX = (t.offW - srcW) / 2; // left edge of crop in offscreen space
+    const cropY = (t.offH - srcH) / 2;
+    const scaleX = dz > 1 ? t.w / srcW : t.w / t.offW;
+    const scaleY = dz > 1 ? t.h / srcH : t.h / t.offH;
 
     function toCanvas(x: number, z: number): [number, number] {
-      return [
-        (t!.offsetX + (t!.maxX - x) * t!.scale) * scaleX,
-        (t!.offsetZ + (z - t!.minZ) * t!.scale) * scaleY,
-      ];
+      const ox = t!.offsetX + (t!.maxX - x) * t!.scale;
+      const oz = t!.offsetZ + (z - t!.minZ) * t!.scale;
+      return [(ox - (dz > 1 ? cropX : 0)) * scaleX, (oz - (dz > 1 ? cropY : 0)) * scaleY];
     }
 
     const [cx, cy] = toCanvas(pkt.PositionX, pkt.PositionZ);
