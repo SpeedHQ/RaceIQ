@@ -44,8 +44,9 @@ function OnboardingLayout() {
   }
 
   function handleFinish() {
-    saveSettings.mutate({ onboardingComplete: true } as never);
-    navigate({ to: "/" });
+    saveSettings.mutate({ onboardingComplete: true } as never, {
+      onSuccess: () => navigate({ to: "/" }),
+    });
   }
 
   return (
