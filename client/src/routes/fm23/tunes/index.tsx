@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Button } from "../../../components/ui/button";
 import { useState, useMemo } from "react";
 import {
   CATALOG_CARS,
@@ -65,12 +66,9 @@ function MyTunesPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Link
-            to="/fm23/tunes/new"
-            className="text-xs px-3 py-1.5 rounded bg-app-accent text-white hover:bg-app-accent/80 transition-colors no-underline"
-          >
+          <Button variant="app-outline" size="app-sm" className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70" onClick={() => navigate({ to: "/fm23/tunes/new" })}>
             + New Tune
-          </Link>
+          </Button>
           <Link
             to="/fm23/tunes/catalog"
             className="text-xs px-3 py-1.5 rounded border border-app-border text-app-text-secondary hover:text-app-text transition-colors no-underline"
@@ -147,7 +145,7 @@ function MyTunesPage() {
             Active Tune Assignments
           </h3>
           <div className="space-y-1">
-            {filteredAssignments.map((a: any) => (
+            {filteredAssignments.map((a) => (
               <div key={`${a.carOrdinal}-${a.trackOrdinal}`} className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-app-bg">
                 <span className="text-app-text-secondary">Car {a.carOrdinal} / Track {a.trackOrdinal}</span>
                 <div className="flex items-center gap-2">

@@ -324,11 +324,11 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   const sendChat = useCallback(async () => {
     const msg = chatInput.trim();
     if (!msg || chatLoading) return;
-    setMessages((prev) => [...prev, { role: "user", content: msg }]);
-    setChatInput("");
     setChatLoading(true);
     setChatError(null);
     setStreaming("");
+    setMessages((prev) => [...prev, { role: "user", content: msg }]);
+    setChatInput("");
     try {
       const res = await fetch(`/api/laps/${lapId}/chat`, {
         method: "POST",
@@ -611,7 +611,23 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               </div>
             )}
 
-            {chatError && <p className="text-[10px] text-red-400">{chatError}</p>}
+            {chatError && (
+              <div className="flex justify-start">
+                <div className="rounded-lg px-2.5 py-2 bg-red-400/10 border border-red-400/20">
+                  <p className="text-[11px] text-red-400">{chatError}</p>
+                  <Button variant="app-outline" size="app-sm" onClick={() => {
+                    const lastUserMsg = [...messages].reverse().find(m => m.role === "user");
+                    if (lastUserMsg) {
+                      setChatInput(lastUserMsg.content);
+                      setMessages(prev => prev.slice(0, -1));
+                      setChatError(null);
+                    }
+                  }} className="mt-1">
+                    Retry
+                  </Button>
+                </div>
+              </div>
+            )}
           </>
         )}
 

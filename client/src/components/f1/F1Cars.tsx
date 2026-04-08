@@ -334,7 +334,7 @@ export function F1Cars() {
           <button
             onClick={() => setView("table")}
             title="Table view"
-            className={`px-2.5 py-1.5 transition-colors ${view === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text"}`}
+            className={`px-2.5 py-1.5 transition-colors ${view === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90-muted hover:text-app-text/90"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>
@@ -343,7 +343,7 @@ export function F1Cars() {
           <button
             onClick={() => setView("grid")}
             title="Grid view"
-            className={`px-2.5 py-1.5 transition-colors ${view === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text"}`}
+            className={`px-2.5 py-1.5 transition-colors ${view === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90-muted hover:text-app-text/90"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
@@ -356,16 +356,16 @@ export function F1Cars() {
 
       {/* Regulation Specs */}
       <div>
-        <h2 className="text-sm font-semibold text-app-text-secondary uppercase tracking-wider mb-3">
+        <h2 className="text-sm font-semibold text-app-text/90 uppercase tracking-wider mb-3">
           2025 Technical Regulations
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {Object.entries(regulations).map(([key, value]) => (
             <div key={key} className="bg-app-surface-alt/20 rounded-lg p-3">
-              <div className="text-[10px] text-app-text-dim uppercase tracking-wider mb-1">
+              <div className="text-[10px] text-app-text/90-dim uppercase tracking-wider mb-1">
                 {key.replace(/([A-Z])/g, " $1").trim()}
               </div>
-              <div className="text-xs text-app-text font-medium">{value}</div>
+              <div className="text-xs text-app-text/90 font-medium">{value}</div>
             </div>
           ))}
         </div>
@@ -373,7 +373,7 @@ export function F1Cars() {
 
       {/* Power Unit Groups */}
       <div>
-        <h2 className="text-sm font-semibold text-app-text-secondary uppercase tracking-wider mb-3">
+        <h2 className="text-sm font-semibold text-app-text/90 uppercase tracking-wider mb-3">
           Power Unit Suppliers
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -382,7 +382,7 @@ export function F1Cars() {
               key={pu.name}
               className="bg-app-surface-alt/20 rounded-lg p-3"
             >
-              <div className="text-sm font-semibold text-app-text mb-2">
+              <div className="text-sm font-semibold text-app-text/90 mb-2">
                 {pu.name}
               </div>
               <div className="space-y-1">
@@ -394,7 +394,7 @@ export function F1Cars() {
                         className="w-2 h-2 rounded-full shrink-0"
                         style={{ backgroundColor: team.color }}
                       />
-                      <span className="text-app-text-secondary">
+                      <span className="text-app-text/90">
                         {team.name}
                       </span>
                     </div>
@@ -429,7 +429,7 @@ function TeamCard({ team }: { team: F1Team }) {
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <div className="text-base font-semibold text-app-text">
+              <div className="text-base font-semibold text-app-text/90">
                 {team.name}
               </div>
               <span
@@ -438,7 +438,7 @@ function TeamCard({ team }: { team: F1Team }) {
                 {team.stats.overallRating}
               </span>
             </div>
-            <div className="text-xs text-app-text-dim">{team.fullName}</div>
+            <div className="text-xs text-app-text/90-dim">{team.fullName}</div>
           </div>
           <div
             className="text-xs font-mono px-2 py-0.5 rounded"
@@ -476,10 +476,10 @@ function TeamCard({ team }: { team: F1Team }) {
                   {driver.number}
                 </span>
                 <div>
-                  <div className="text-sm font-medium text-app-text leading-tight">
+                  <div className="text-sm font-medium text-app-text/90 leading-tight">
                     {driver.name}
                   </div>
-                  <div className="text-[10px] text-app-text-dim uppercase">
+                  <div className="text-[10px] text-app-text/90-dim uppercase">
                     {driver.nationality}
                   </div>
                 </div>
@@ -497,7 +497,7 @@ function TeamCard({ team }: { team: F1Team }) {
                 <div className={`text-base font-mono font-bold leading-none ${getRatingColor(team.stats[key])}`}>
                   {team.stats[key]}
                 </div>
-                <div className="text-[9px] text-app-text-dim uppercase tracking-wider mt-1">
+                <div className="text-[9px] text-app-text/90-dim uppercase tracking-wider mt-1">
                   {label}
                 </div>
               </div>
@@ -507,16 +507,16 @@ function TeamCard({ team }: { team: F1Team }) {
         {/* Info row */}
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs border-t border-app-border/30 pt-2">
           <div className="flex justify-between">
-            <span className="text-app-text-dim">Power Unit</span>
-            <span className="text-app-text-secondary">{team.powerUnit}</span>
+            <span className="text-app-text/90-dim">Power Unit</span>
+            <span className="text-app-text/90">{team.powerUnit}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-app-text-dim">Base</span>
-            <span className="text-app-text-secondary">{team.base}</span>
+            <span className="text-app-text/90-dim">Base</span>
+            <span className="text-app-text/90">{team.base}</span>
           </div>
           <div className="flex justify-between col-span-2">
-            <span className="text-app-text-dim">Team Principal</span>
-            <span className="text-app-text-secondary">
+            <span className="text-app-text/90-dim">Team Principal</span>
+            <span className="text-app-text/90">
               {team.teamPrincipal}
             </span>
           </div>
@@ -549,7 +549,7 @@ function TableView() {
             <TD>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: team.color }} />
-                <span className="font-medium text-app-text">{team.name}</span>
+                <span className="font-medium text-app-text/90">{team.name}</span>
               </div>
             </TD>
             <TD>
@@ -557,11 +557,11 @@ function TableView() {
                 {team.chassis}
               </span>
             </TD>
-            <TD className="text-app-text-secondary text-xs">{team.powerUnit}</TD>
+            <TD className="text-app-text/90 text-xs">{team.powerUnit}</TD>
             <TD>
               <div className="flex flex-col gap-0.5">
                 {team.drivers.map((d) => (
-                  <span key={d.number} className="text-xs text-app-text">
+                  <span key={d.number} className="text-xs text-app-text/90">
                     {d.name}
                     <span className="ml-1 font-mono" style={{ color: team.color }}>#{d.number}</span>
                   </span>

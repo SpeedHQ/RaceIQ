@@ -32,11 +32,11 @@ function NoteModal({ value, onSave, onClose }: { value?: string; onSave: (v: str
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[480px] max-w-[90vw] flex flex-col gap-3 p-4">
-        <p className="text-xs font-medium text-app-text-secondary uppercase tracking-wider">Note</p>
+        <p className="text-xs font-medium text-app-text/90 uppercase tracking-wider">Note</p>
         <textarea
           ref={ref}
           rows={5}
-          className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs text-app-text outline-none resize-none focus:border-app-accent/60"
+          className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs text-app-text/90 outline-none resize-none focus:border-app-accent/60"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Escape") onClose(); if (e.key === "Enter" && e.metaKey) commit(); }}
@@ -61,10 +61,10 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
         className="relative cursor-pointer group block w-full"
         onClick={(e) => { e.stopPropagation(); setOpen(true); }}
       >
-        <span className={`text-xs break-words whitespace-pre-wrap transition-opacity group-hover:opacity-30 ${value ? "text-app-text-secondary" : "text-app-text-dim italic"}`}>
+        <span className={`text-xs break-words whitespace-pre-wrap transition-opacity group-hover:opacity-30 ${value ? "text-app-text/90" : "text-app-text/90-dim italic"}`}>
           {value || "Add note…"}
         </span>
-        <span className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity text-app-text-secondary text-[10px] font-medium">
+        <span className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity text-app-text/90 text-[10px] font-medium">
           <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -119,9 +119,9 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
   }), [laps, lapSortKey, lapSortDir]);
 
   function sectorColor(time: number, best: number): string {
-    if (best === Infinity || time <= 0) return "text-app-text-secondary";
+    if (best === Infinity || time <= 0) return "text-app-text/90";
     if (time <= best * 1.001) return "text-purple-400 font-bold";
-    return "text-app-text-secondary";
+    return "text-app-text/90";
   }
 
   return (
@@ -130,7 +130,7 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
         <TH className="w-10 px-2" />
         <TH />
         {(["lap", "time", "valid"] as const).map((f) => (
-          <TH key={f} className="cursor-pointer select-none hover:text-app-text" onClick={() => toggleLapSort(f)}>
+          <TH key={f} className="cursor-pointer select-none hover:text-app-text/90" onClick={() => toggleLapSort(f)}>
             {f === "lap" ? "Lap" : f === "time" ? "Time" : "Valid"}
             {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
           </TH>
@@ -150,10 +150,10 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
                 <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-cyan-400 w-4 h-4" />
               </TD>
               <TD />
-              <TD className="font-mono text-app-text-secondary">{lap.lapNumber}</TD>
+              <TD className="font-mono text-app-text/90">{lap.lapNumber}</TD>
               <TD>
                 <div className="flex items-center gap-2">
-                  <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text"}`}>{formatLapTime(lap.lapTime)}</span>
+                  <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
                   <Button variant="app-outline" size="app-sm" className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     onClick={(e) => { e.stopPropagation(); navigate({ to: `${gameRoute}/analyse` as any, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } as any }); }}>
@@ -167,7 +167,7 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
               {(["s1", "s2", "s3"] as const).map((s) => {
                 const st = sectorTimes?.[lap.id];
                 const val = st?.[s] ?? 0;
-                return <TD key={s} className={`font-mono text-xs ${sectorColor(val, bestSectors[s])}`}>{val > 0 ? formatLapTime(val) : "—"}</TD>;
+                return <TD key={s} className={`font-mono ${sectorColor(val, bestSectors[s])}`}>{val > 0 ? formatLapTime(val) : "—"}</TD>;
               })}
               <TD>
                 <NoteCell value={lap.notes ?? undefined} onSave={(notes) => {
@@ -196,7 +196,7 @@ function SortHeader({ label, field, sortKey, sortDir, toggleSort }: {
   sortKey: SortKey; sortDir: SortDir; toggleSort: (f: SortKey) => void;
 }) {
   return (
-    <TH className="cursor-pointer select-none hover:text-app-text" onClick={() => toggleSort(field)}>
+    <TH className="cursor-pointer select-none hover:text-app-text/90" onClick={() => toggleSort(field)}>
       {label} {sortKey === field ? (sortDir === "asc" ? "▲" : "▼") : ""}
     </TH>
   );
@@ -397,10 +397,10 @@ const deleteSelected = useCallback(async () => {
           placeholder="Search track, car, notes…"
           className="w-64"
         />
-        <h1 className="text-sm font-semibold text-app-text shrink-0">
+        <h1 className="text-sm font-semibold text-app-text/90 shrink-0">
           Sessions
           {!isLoading && (
-            <span className="text-app-text-muted font-normal ml-2">
+            <span className="text-app-text/90-muted font-normal ml-2">
               {filtered.length === sessions.length ? `${sessions.length} total` : `${filtered.length} of ${sessions.length}`}
             </span>
           )}
@@ -415,7 +415,7 @@ const deleteSelected = useCallback(async () => {
         )}
       </div>
 
-      <Table className="flex-1 overflow-auto border border-app-border">
+      <Table className="flex-1 overflow-auto">
         <THead className="sticky top-0 z-10">
           <TH className="w-10 px-2">
             <input
@@ -445,9 +445,9 @@ const deleteSelected = useCallback(async () => {
         </THead>
         <TBody>
           {isLoading ? (
-            <tr><td colSpan={colCount} className="px-3 py-8 text-center text-app-text-muted">Loading...</td></tr>
+            <tr><td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90-muted">Loading...</td></tr>
           ) : pageItems.length === 0 ? (
-            <tr><td colSpan={colCount} className="px-3 py-8 text-center text-app-text-muted">No sessions recorded yet</td></tr>
+            <tr><td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90-muted">No sessions recorded yet</td></tr>
           ) : (
             pageItems.map((session) => {
               const isExpanded = expandedSessions.has(session.id);
@@ -475,22 +475,22 @@ const deleteSelected = useCallback(async () => {
                         className="accent-cyan-400 w-4 h-4"
                       />
                     </TD>
-                    <TD className="text-app-text-secondary whitespace-nowrap">
+                    <TD className="text-app-text/90 whitespace-nowrap">
                       {new Date(session.createdAt).toLocaleDateString()}{" "}
-                      <span className="text-app-text-dim">
+                      <span className="text-app-text/90-dim">
                         {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </span>
                     </TD>
-                    <TD className="text-app-text-secondary tabular-nums">{session.lapCount ?? 0}</TD>
-                    <TD className="text-app-text tabular-nums">
+                    <TD className="text-app-text/90 tabular-nums">{session.lapCount ?? 0}</TD>
+                    <TD className="text-app-text/90 tabular-nums">
                       {(() => {
                         const t = session.bestLapTime || (sortedLaps.length > 0 ? Math.min(...sortedLaps.map((l) => l.lapTime)) : 0);
                         return t ? formatLapTime(t) : "—";
                       })()}
                     </TD>
-                    <TD className="text-app-text">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</TD>
-                    <TD className="text-app-text">{carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}</TD>
-                    {isF1 && <TD className="text-app-text-secondary">{formatSessionType(session.sessionType)}</TD>}
+                    <TD className="text-app-text/90">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</TD>
+                    <TD className="text-app-text/90">{carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}</TD>
+                    {isF1 && <TD className="text-app-text/90">{formatSessionType(session.sessionType)}</TD>}
                     <TD>
                       <NoteCell
                         value={session.notes ?? undefined}
@@ -526,7 +526,7 @@ const deleteSelected = useCallback(async () => {
       </Table>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-app-text-muted">
+        <div className="flex items-center justify-between text-xs text-app-text/90-muted">
           <span>
             Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
           </span>

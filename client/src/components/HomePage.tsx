@@ -9,16 +9,17 @@ import type { LapMeta } from "@shared/types";
 import { useGameId, getGameRoute } from "../stores/game";
 import { tryGetGame } from "@shared/games/registry";
 import { PiBadge, PI_COLORS, piClass } from "./forza/PiBadge";
+import { Table, THead, TBody, TRow, TH, TD } from "./ui/AppTable";
 
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
     <div className="bg-app-surface-alt/30 rounded-lg p-4">
-      <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">{label}</div>
-      <div className={`text-3xl font-mono font-black tabular-nums leading-none ${color ?? "text-app-text"}`}>
+      <div className="text-[10px] text-app-text/90-muted uppercase tracking-wider mb-1">{label}</div>
+      <div className={`text-3xl font-mono font-black tabular-nums leading-none ${color ?? "text-app-text/90"}`}>
         {value}
       </div>
-      {sub && <div className="text-xs text-app-text-dim mt-1">{sub}</div>}
+      {sub && <div className="text-xs text-app-text/90-dim mt-1">{sub}</div>}
     </div>
   );
 }
@@ -33,66 +34,57 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
   const showPi = !gameId || gameId === "fm-2023"; // PI is Forza-only
   if (laps.length === 0) {
     return (
-      <div className="p-6 text-center text-app-text-dim">
+      <div className="p-6 text-center text-app-text/90-dim">
         No laps recorded yet. Start driving to see data here.
       </div>
     );
   }
 
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="text-[10px] text-app-text-muted uppercase tracking-wider border-b border-app-border">
-          {showGame && <th className="text-left px-3 py-2">Game</th>}
-          <th className="text-left px-3 py-2">Track</th>
-          <th className="text-left px-3 py-2">Car</th>
-          {showPi && <th className="text-center px-3 py-2">PI</th>}
-          <th className="text-left px-3 py-2">Lap</th>
-          <th className="text-left px-3 py-2">Time</th>
-          <th className="text-center px-3 py-2">Valid</th>
-          <th className="text-right px-3 py-2">When</th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table>
+      <THead>
+        {showGame && <TH>Game</TH>}
+        <TH>Track</TH>
+        <TH>Car</TH>
+        {showPi && <TH className="text-center">PI</TH>}
+        <TH>Lap</TH>
+        <TH>Time</TH>
+        <TH className="text-center">Valid</TH>
+        <TH className="text-right">When</TH>
+      </THead>
+      <TBody>
         {laps.map((lap) => {
           const track = lap.trackOrdinal != null ? trackNames[lap.trackOrdinal] ?? "" : "";
           const car = lap.carOrdinal != null ? carNames[lap.carOrdinal] ?? "" : "";
           const ago = formatTimeAgo(new Date(lap.createdAt));
-
           return (
-            <tr
-              key={lap.id}
-              className="border-b border-app-border/30 hover:bg-app-surface-alt/30 cursor-pointer transition-colors"
-              onClick={() => {
-                window.location.href = `${getGameRoute(lap.gameId ?? "fm-2023")}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`;
-              }}
-            >
-              {showGame && <td className="px-3 py-2">
+            <TRow key={lap.id} onClick={() => { window.location.href = `${getGameRoute(lap.gameId ?? "fm-2023")}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`; }}>
+              {showGame && <TD>
                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${lap.gameId === "f1-2025" ? "bg-red-500/20 text-red-400" : lap.gameId === "acc" ? "bg-orange-500/20 text-orange-400" : "bg-app-accent/20 text-app-accent"}`}>
                   {lap.gameId === "f1-2025" ? "F1" : lap.gameId === "acc" ? "ACC" : "FM"}
                 </span>
-              </td>}
-              <td className="px-3 py-2 text-app-text-secondary truncate max-w-[160px]" title={track}>{track || "—"}</td>
-              <td className="px-3 py-2 text-app-text-secondary truncate max-w-[140px]" title={car}>{car || "—"}</td>
-              {showPi && <td className="px-3 py-2 text-center">{lap.pi != null && lap.pi > 0 && (
+              </TD>}
+              <TD className="text-app-text/90 truncate max-w-[160px]" title={track}>{track || "—"}</TD>
+              <TD className="text-app-text/90 truncate max-w-[140px]" title={car}>{car || "—"}</TD>
+              {showPi && <TD className="text-center">{lap.pi != null && lap.pi > 0 && (
                 <span className="inline-flex items-center gap-1">
                   <PiBadge showNumber={false} pi={lap.pi} />
-                  <span className={`text-[10px] font-semibold ${PI_COLORS[piClass(lap.pi)]?.split(" ")[1] ?? "text-app-text-muted"}`}>{lap.pi}</span>
+                  <span className={`text-[10px] font-semibold ${PI_COLORS[piClass(lap.pi)]?.split(" ")[1] ?? "text-app-text/90-muted"}`}>{lap.pi}</span>
                 </span>
-              )}</td>}
-              <td className="px-3 py-2 font-mono text-app-text-muted">L{lap.lapNumber}</td>
-              <td className="px-3 py-2 font-mono font-bold text-app-text tabular-nums">{formatLapTime(lap.lapTime)}</td>
-              <td className="px-3 py-2 text-center">
+              )}</TD>}
+              <TD className="font-mono text-app-text/90">L{lap.lapNumber}</TD>
+              <TD className="font-mono font-bold text-app-text/90 tabular-nums">{formatLapTime(lap.lapTime)}</TD>
+              <TD className="text-center">
                 <span className={lap.isValid ? "text-emerald-400" : "text-red-400"}>
                   {lap.isValid ? "\u2713" : "\u2717"}
                 </span>
-              </td>
-              <td className="px-3 py-2 text-right text-xs text-app-text-dim">{ago}</td>
-            </tr>
+              </TD>
+              <TD className="text-right text-xs text-app-text/90">{ago}</TD>
+            </TRow>
           );
         })}
-      </tbody>
-    </table>
+      </TBody>
+    </Table>
   );
 }
 
@@ -287,15 +279,15 @@ export function HomePage() {
       })() : (
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-app-text">
+            <h1 className="text-2xl font-bold text-app-text/90">
               {displaySettings.driverName ? `Hello, ${displaySettings.driverName}` : "RaceIQ"}
             </h1>
-            <p className="text-sm text-app-text-muted mt-0.5">Dashboard overview</p>
+            <p className="text-sm text-app-text/90-muted mt-0.5">Dashboard overview</p>
           </div>
           {isLive && (
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-sm text-app-text-secondary">Live — {packetsPerSec} pkt/s</span>
+              <span className="text-sm text-app-text/90">Live — {packetsPerSec} pkt/s</span>
             </div>
           )}
         </div>
@@ -414,7 +406,7 @@ export function HomePage() {
             <button
               key={key}
               onClick={() => setPeriodTab(key)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90-muted hover:text-app-text/90"}`}
             >
               {label}
             </button>
@@ -456,11 +448,9 @@ export function HomePage() {
       {/* Recent laps */}
       <div>
         <div className="mb-2">
-          <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Recent Laps</h2>
+          <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">Recent Laps</h2>
         </div>
-        <div className="bg-app-surface-alt/20 rounded-lg overflow-hidden">
-          <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} />
-        </div>
+        <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} />
       </div>
     </div>
   );
