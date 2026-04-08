@@ -8,6 +8,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
+        // shadcn design-token variants
         default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
@@ -18,6 +19,12 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
+
+        // App design-token variants (use app-* CSS vars)
+        "app-outline": "border-app-border-input text-app-text-secondary hover:text-app-text rounded",
+        "app-primary": "bg-app-accent text-white hover:bg-app-accent/80 rounded",
+        "app-ghost":   "text-app-text-secondary hover:text-app-text rounded",
+        "app-danger":  "bg-red-600 text-white hover:bg-red-500 rounded",
       },
       size: {
         default:
@@ -31,6 +38,10 @@ const buttonVariants = cva(
         "icon-sm":
           "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
+        // App sizes (no fixed height — padding-driven like existing header buttons)
+        "app-sm": "px-2 py-0.5 text-[10px] gap-1 [&_svg:not([class*='size-'])]:size-3",
+        "app-md": "px-3 py-1.5 text-xs gap-1.5",
+        "app-lg": "px-4 py-2 text-sm gap-1.5",
       },
     },
     defaultVariants: {

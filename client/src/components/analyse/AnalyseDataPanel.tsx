@@ -2,7 +2,6 @@ import type { TelemetryPacket, GameId } from "@shared/types";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import type { LapInsight } from "../../lib/lap-insights";
 import type { useUnits } from "../../hooks/useUnits";
-import { Info } from "lucide-react";
 import { MetricsPanel } from "./AnalyseMetricsPanel";
 import { AnalyseDynamicsPanel } from "./AnalyseDynamicsPanel";
 import { AnalyseF1ErsPanel } from "./AnalyseF1ErsPanel";
@@ -82,12 +81,8 @@ export function AnalyseDataPanel({
 
             {currentPacket && (
               <>
-                <div className="flex items-center gap-1 mb-2 mt-3 pt-2 border-t border-app-border group relative">
+                <div className="mb-2 mt-3 pt-2 border-t border-app-border">
                   <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold">Dynamics</h3>
-                  <Info className="w-3.5 h-3.5 text-app-text-dim cursor-help" />
-                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none">
-                    Grip Ask: % of grip capacity per tire<br />100% = at limit, &gt;100% = exceeding grip
-                  </div>
                 </div>
                 <AnalyseDynamicsPanel
                   currentPacket={currentPacket}

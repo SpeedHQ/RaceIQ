@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { LapMeta } from "@shared/types";
 import { Sparkles } from "lucide-react";
 import { SearchSelect } from "../ui/SearchSelect";
+import { Button } from "../ui/button";
 import { formatLapTime } from "../../lib/format";
 import { DataGuideModal } from "./DataGuideModal";
 
@@ -107,64 +108,50 @@ export function AnalyseLapHeader({
             ))}
           </select>
           {selectedLap?.tuneId && (
-            <button
-              onClick={() => onViewTune(selectedLap.tuneId!)}
-              className="px-2 py-1 text-xs bg-app-surface-alt border border-app-border-input rounded text-app-text-muted hover:text-app-text transition-colors"
-            >
+            <Button variant="app-outline" size="app-sm" onClick={() => onViewTune(selectedLap.tuneId!)}>
               View
-            </button>
+            </Button>
           )}
           {tunePending && (
             <span className="text-xs text-app-text-muted animate-pulse">Saving...</span>
           )}
           {hasF1Setup && (
-            <button
-              onClick={onShowSetup}
-              className="px-2 py-1 text-xs bg-app-surface-alt border border-app-border-input rounded text-app-text-muted hover:text-app-text transition-colors"
-            >
+            <Button variant="app-outline" size="app-sm" onClick={onShowSetup}>
               Car Setup
-            </button>
+            </Button>
           )}
         </div>
       )}
 
       <div className="ml-auto flex items-center gap-2">
         {hasTelemetry && (
-          <button
-            onClick={() => setGuideOpen(true)}
-            className="text-xs text-app-text-secondary hover:text-app-text border border-app-border-input rounded px-3 py-1.5 transition-colors"
-          >
+          <Button variant="app-outline" size="app-md" onClick={() => setGuideOpen(true)}>
             Guide
-          </button>
+          </Button>
         )}
         {hasTelemetry && (
-          <button
-            onClick={onCopyMetrics}
-            className="text-xs text-app-text-secondary hover:text-app-text border border-app-border-input rounded px-3 py-1.5 transition-colors"
-          >
+          <Button variant="app-outline" size="app-md" onClick={onCopyMetrics}>
             Copy
-          </button>
+          </Button>
         )}
         {hasTelemetry && (
-          <button
-            onClick={onExport}
-            className="text-xs text-app-text-secondary hover:text-app-text border border-app-border-input rounded px-3 py-1.5 transition-colors"
-          >
+          <Button variant="app-outline" size="app-md" onClick={onExport}>
             Export CSV
-          </button>
+          </Button>
         )}
         {hasTelemetry && (
-          <button
+          <Button
+            variant="app-outline"
+            size="app-md"
             onClick={onToggleAi}
-            className={`flex items-center gap-1.5 text-xs border rounded px-3 py-1.5 transition-colors ${
-              aiPanelOpen
-                ? "text-amber-400 border-amber-400/40 bg-amber-400/10"
-                : "text-app-text-secondary hover:text-amber-400 border-app-border-input"
-            }`}
+            className={aiPanelOpen
+              ? "text-amber-400 border-amber-400/40 bg-amber-400/10"
+              : "hover:text-amber-400"
+            }
           >
             <Sparkles className="size-3" />
             AI
-          </button>
+          </Button>
         )}
         {loading && (
           <span className="text-xs text-app-text-muted animate-pulse">
