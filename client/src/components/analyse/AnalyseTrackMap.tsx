@@ -192,8 +192,28 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     }
 
 
+    // Sector-colored driving line (S1=red, S2=blue, S3=yellow)
+    if (sectors && displayOutline.length > 10 && !showInputs) {
+      const sectorLineColors = ["#ef4444", "#3b82f6", "#eab308"];
+      const boundaries = [0, sectors.s1End, sectors.s2End, 1];
+      for (let si = 0; si < 3; si++) {
+        const startIdx = fracToIdx(boundaries[si]);
+        const endIdx = fracToIdx(boundaries[si + 1]);
+        if (startIdx >= endIdx) continue;
+        ctx.beginPath();
+        ctx.strokeStyle = sectorLineColors[si];
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = "round";
+        const [mx, my] = toCanvas(displayOutline[startIdx].x, displayOutline[startIdx].z);
+        ctx.moveTo(mx, my);
+        for (let i = startIdx + 1; i <= endIdx && i < n; i++) {
+          const [px, py] = toCanvas(displayOutline[i].x, displayOutline[i].z);
+          ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
     // Colored segments (no labels — keeps the map clean; hidden when inputs overlay is active)
-    if (segments && segments.length > 0 && !showInputs) {
+    } else if (segments && segments.length > 0 && !showInputs) {
       for (let si = 0; si < segments.length; si++) {
         const seg = segments[si];
         const startIdx = fracToIdx(seg.startFrac);
@@ -262,8 +282,8 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
       const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
       const sectorFracs = [sectors.s1End, sectors.s2End];
       for (let si = 0; si < sectorFracs.length; si++) {
-        const sIdx = Math.round(sectorFracs[si] * (displayOutline.length - 1));
-        const pt = displayOutline[Math.min(sIdx, displayOutline.length - 1)];
+        const sIdx = fracToIdx(sectorFracs[si]);
+        const pt = displayOutline[sIdx];
         if (!pt) continue;
         const [mx, my] = toCanvas(pt.x, pt.z);
         const prevIdx = Math.max(0, sIdx - 3);

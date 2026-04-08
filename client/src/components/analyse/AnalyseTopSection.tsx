@@ -38,10 +38,10 @@ interface AnalyseTopSectionProps {
 
   // View toggles
   rotateWithCar: boolean;
-  showInputs: boolean;
+  trackOverlay: "none" | "inputs" | "segments" | "sectors";
   mapZoom: number;
   onRotateWithCarToggle: () => void;
-  onShowInputsToggle: () => void;
+  onTrackOverlayCycle: () => void;
   onMapZoomChange: (updater: (z: number) => number) => void;
 
   // Viz
@@ -74,10 +74,10 @@ export function AnalyseTopSection({
   aiPanelOpen,
   aiHighlights,
   rotateWithCar,
-  showInputs,
+  trackOverlay,
   mapZoom,
   onRotateWithCarToggle,
-  onShowInputsToggle,
+  onTrackOverlayCycle,
   onMapZoomChange,
   vizMode,
   onVizModeChange,
@@ -139,10 +139,10 @@ export function AnalyseTopSection({
           cursorIdx={cursorIdx}
           outline={outline}
           boundaries={boundaries}
-          sectors={sectors}
-          segments={segments}
+          sectors={trackOverlay === "sectors" ? sectors : null}
+          segments={trackOverlay === "segments" ? segments : null}
           highlights={aiPanelOpen ? aiHighlights : null}
-          showInputs={showInputs}
+          showInputs={trackOverlay === "inputs"}
           rotateWithCar={rotateWithCar}
           zoom={mapZoom}
           containerHeight={topHeight}
@@ -163,14 +163,14 @@ export function AnalyseTopSection({
             {rotateWithCar ? "Follow" : "Fixed"}
           </button>
           <button
-            onClick={onShowInputsToggle}
+            onClick={onTrackOverlayCycle}
             className={`px-2 py-1 text-[9px] uppercase tracking-wider font-semibold rounded border transition-colors ${
-              showInputs
+              trackOverlay !== "none"
                 ? "bg-cyan-900/50 border-cyan-700 text-app-accent"
                 : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
             }`}
           >
-            Inputs
+            {trackOverlay === "none" ? "Overlay" : trackOverlay === "inputs" ? "Inputs" : trackOverlay === "segments" ? "Segments" : "Sectors"}
           </button>
         </div>
 

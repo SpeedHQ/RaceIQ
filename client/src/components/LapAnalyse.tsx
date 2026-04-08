@@ -101,7 +101,7 @@ export function LapAnalyse() {
   const [rightColWidth, setRightColWidth] = useCookieState("analyse-rightCol", 650);
   const [playing, setPlaying] = useState(false);
   const [rotateWithCar, setRotateWithCar] = useLocalStorage("analyse-rotateWithCar", false);
-  const [showInputs, setShowInputs] = useLocalStorage("analyse-showInputs", false);
+  const [trackOverlay, setTrackOverlay] = useLocalStorage<"none" | "inputs" | "segments" | "sectors">("analyse-trackOverlay", "none");
   const [mapZoom, setMapZoom] = useLocalStorage("analyse-mapZoom", 1);
   const [topHeight, setTopHeight] = useCookieState("analyse-topHeight", 500);
   const loading = lapLoading;
@@ -491,10 +491,10 @@ export function LapAnalyse() {
             aiPanelOpen={aiPanelOpen}
             aiHighlights={aiHighlights}
             rotateWithCar={rotateWithCar}
-            showInputs={showInputs}
+            trackOverlay={trackOverlay}
             mapZoom={mapZoom}
             onRotateWithCarToggle={() => setRotateWithCar((r) => !r)}
-            onShowInputsToggle={() => setShowInputs((v) => !v)}
+            onTrackOverlayCycle={() => setTrackOverlay((v) => v === "none" ? "inputs" : v === "inputs" ? "segments" : v === "segments" ? "sectors" : "none")}
             onMapZoomChange={setMapZoom}
             vizMode={vizMode}
             onVizModeChange={setWheelTab}
