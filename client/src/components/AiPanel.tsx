@@ -279,12 +279,11 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     } catch { /* ignore */ }
   }, [lapId]);
 
-  // Auto-fetch only when panel is opened (not on initial mount)
+  // Load chat on open; analysis is manual-only (user must press button)
   useEffect(() => {
     if (!panelOpen) return;
-    fetchAnalysis(false);
     loadChat();
-  }, [lapId, panelOpen, fetchAnalysis, loadChat]);
+  }, [lapId, panelOpen, loadChat]);
 
   // Reset on lap change
   useEffect(() => {
