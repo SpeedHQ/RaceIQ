@@ -409,35 +409,40 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
       const carCy = t.offsetZ + (pkt.PositionZ - t.minZ) * t.scale;
       ctx.translate(t.w / 2, t.h / 2);
       // displayZoom is the extra zoom beyond what's baked into the offscreen (always ≥1).
-      // Applying it here is free — just a GPU scale with no memory cost.
+      // Applying it here is a cheap GPU scale with no memory cost.
       if (t.displayZoom !== 1) ctx.scale(t.displayZoom, t.displayZoom);
       ctx.rotate(Math.PI - pkt.Yaw);
       ctx.translate(-carCx, -carCy);
+
+      ctx.drawImage(offscreen, 0, 0, t.offW, t.offH);
+
+      // Draw car icon inside the rotated+translated space so it sits exactly on the track.
+      // In this space, (carCx, carCy) = canvas center (after the translate above reversed it).
+      const fwdX = pkt.PositionX + Math.sin(pkt.Yaw);
+      const fwdZ = pkt.PositionZ + Math.cos(pkt.Yaw);
+      const fx = t.offsetX + (t.maxX - fwdX) * t.scale;
+      const fy = t.offsetZ + (fwdZ - t.minZ) * t.scale;
+      const angle = Math.atan2(fy - carCy, fx - carCx);
+      // triSize is in offscreen pixels; divide by displayZoom so it renders at constant screen size.
+      const triSize = 8 / t.displayZoom;
+      ctx.save();
+      ctx.translate(carCx, carCy);
+      ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.moveTo(triSize, 0);
+      ctx.lineTo(-triSize * 0.6, -triSize * 0.6);
+      ctx.lineTo(-triSize * 0.6, triSize * 0.6);
+      ctx.closePath();
+      ctx.fillStyle = "#22d3ee";
+      ctx.fill();
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 1.5 / t.displayZoom;
+      ctx.stroke();
+      ctx.restore();
+      carPosRef.current = { x: t.w / 2, y: t.h / 2, w: t.w, h: t.h, angle: -Math.PI / 2 };
+    } else {
+      ctx.drawImage(offscreen, 0, 0, t.offW, t.offH);
     }
-
-    ctx.drawImage(offscreen, 0, 0, t.offW, t.offH);
-
-    // Draw car icon at canvas center. Size scales with zoom so it stays proportional to the track,
-    // but is clamped so it doesn't get absurdly large at very high displayZoom.
-    ctx.restore();
-    ctx.save();
-    ctx.scale(dpr, dpr);
-    const triSize = Math.min(8 * t.displayZoom, 16);
-    ctx.save();
-    ctx.translate(t.w / 2, t.h / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.beginPath();
-    ctx.moveTo(triSize, 0);
-    ctx.lineTo(-triSize * 0.6, -triSize * 0.6);
-    ctx.lineTo(-triSize * 0.6, triSize * 0.6);
-    ctx.closePath();
-    ctx.fillStyle = "#22d3ee";
-    ctx.fill();
-    ctx.strokeStyle = "#0f172a";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.restore();
-    carPosRef.current = { x: t.w / 2, y: t.h / 2, w: t.w, h: t.h, angle: -Math.PI / 2 };
 
     ctx.restore();
   }, [telemetry, rotateWithCar]);
