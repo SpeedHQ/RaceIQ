@@ -1,0 +1,11 @@
+{
+  "name": "brands-hatch-s",
+  "games": {
+    "fm-2023": {
+      "sectors": {
+        "s1End": 0.369,
+        "s2End": 0.695
+      }
+    }
+  }
+}
