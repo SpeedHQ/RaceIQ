@@ -2,29 +2,11 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import type { TelemetryPacket, LapMeta } from "@shared/types";
 import { convertTemp } from "../lib/temperature";
-import { tireTempColor, tireTempLabel } from "../lib/vehicle-dynamics";
-import { tryGetGame } from "@shared/games/registry";
 import { useCookieState } from "../hooks/useCookieState";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { formatLapTime } from "../lib/format";
-import { TireDiagram } from "./telemetry/TireDiagram";
-import { GForceCircle } from "./telemetry/GForceCircle";
 import { getSteeringLock } from "./Settings";
 import { Compass } from "./Compass";
-import { BodyAttitude } from "./BodyAttitude";
-import {
-  allWheelStates,
-  allFrictionCircle,
-  steerBalance,
-  balanceChartData,
-  tireState,
-  slipRatioColor,
-  frictionUtilColor,
-  balanceColor,
-  tireHealthColor,
-  wearRateColor,
-  brakeTempColor,
-} from "../lib/vehicle-dynamics";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUnits } from "../hooks/useUnits";
 import { useConvertedTelemetry } from "../hooks/useConvertedTelemetry";
@@ -33,21 +15,20 @@ import { useActiveProfileId } from "../hooks/useProfiles";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
 import { analyzeLap } from "../lib/lap-insights";
-import { InsightPanel } from "./InsightPanel";
 import { AiPanel, type AnalysisHighlight, type AiPanelHandle } from "./AiPanel";
-import { Sparkles, Info } from "lucide-react";
-import { SearchSelect } from "./ui/SearchSelect";
+import { Sparkles } from "lucide-react";
 import { WeatherWidget } from "./analyse/WeatherWidget";
 import { F1SetupModal } from "./analyse/F1SetupModal";
 import { AiPanelMenu } from "./analyse/AiPanelMenu";
-import { CarWireframe } from "./CarWireframe";
 import { AnalyseTrackMap, type TrackMapHandle, type Point } from "./analyse/AnalyseTrackMap";
 import { AnalyseChartsPanel, type ChartsPanelHandle } from "./analyse/AnalyseChartsPanel";
 import { AnalyseSegmentList } from "./analyse/AnalyseSegmentList";
 import { AnalyseTimelineScrubber } from "./analyse/AnalyseTimelineScrubber";
-import { MetricsPanel, brakeBarColor } from "./analyse/AnalyseMetricsPanel";
 import { TuneViewModal } from "./analyse/TuneViewModal";
-import { WheelTable } from "./analyse/WheelTable";
+import { AnalyseLapHeader } from "./analyse/AnalyseLapHeader";
+import { AnalyseSteeringOverlay } from "./analyse/AnalyseSteeringOverlay";
+import { AnalyseDataPanel } from "./analyse/AnalyseDataPanel";
+import { AnalyseVizPanel } from "./analyse/AnalyseVizPanel";
 
 // Stable empty array to avoid re-renders when no telemetry loaded
 const emptyTelemetry: TelemetryPacket[] = [];
@@ -84,6 +65,7 @@ export function LapAnalyse() {
     return null;
   }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const boundaries = (boundariesRaw as any) ?? null;
   const { data: sectorsRaw } = useTrackSectorBoundaries(trackOrd ?? undefined);
@@ -556,124 +538,32 @@ export function LapAnalyse() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header: cascading selectors + export */}
-      <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
-        {/* Track selector */}
-        <SearchSelect
-          value={selectedTrack != null ? String(selectedTrack) : ""}
-          onChange={(v) => handleTrackChange(v ? Number(v) : null)}
-          options={tracks.map(([ord, count]) => ({ value: String(ord), label: `${trackNames[ord] || `Track ${ord}`} (${count})` }))}
-          placeholder="Search tracks..."
-          className="min-w-[200px]"
-          fallbackLabel={selectedTrack != null ? (trackNames[selectedTrack] || `Track ${selectedTrack}`) : undefined}
-        />
-
-        {/* Car selector */}
-        <SearchSelect
-          value={selectedCar != null ? String(selectedCar) : ""}
-          onChange={(v) => handleCarChange(v ? Number(v) : null)}
-          options={carsForTrack.map(([ord, count]) => ({ value: String(ord), label: `${carNames[ord] || `Car ${ord}`} (${count})` }))}
-          placeholder="Search cars..."
-          disabled={selectedTrack == null}
-          className="min-w-[200px]"
-          fallbackLabel={selectedCar != null ? (carNames[selectedCar] || `Car ${selectedCar}`) : undefined}
-        />
-
-        {/* Lap selector */}
-        <SearchSelect
-          value={selectedLapId != null ? String(selectedLapId) : ""}
-          onChange={(v) => setSelectedLapId(v ? Number(v) : null)}
-          options={filteredLaps.map((lap) => {
-            const sessionLaps = filteredLaps.filter((l) => l.sessionId === lap.sessionId);
-            const sessionDate = new Date(sessionLaps[sessionLaps.length - 1].createdAt);
-            const sessionLabel = `Session · ${sessionDate.toLocaleDateString()} ${sessionDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${sessionLaps.length} lap${sessionLaps.length !== 1 ? "s" : ""}`;
-            return {
-              value: String(lap.id),
-              label: `Lap ${lap.lapNumber} – ${formatLapTime(lap.lapTime)}`,
-              group: sessionLabel,
-            };
-          })}
-          placeholder="Search laps..."
-          disabled={selectedCar == null}
-          fallbackLabel={selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
-        />
-
-        {/* Tune selector */}
-        {selectedLapId && telemetry.length > 0 && (
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-app-text-muted">Tune:</span>
-            <select
-              value={selectedLap?.tuneId ?? ""}
-              onChange={(e) => {
-                const val = e.target.value;
-                updateLapTune.mutate(val ? parseInt(val, 10) : null);
-              }}
-              disabled={updateLapTune.isPending}
-              className="bg-app-surface border border-app-border-input rounded px-2 py-1 text-sm text-app-text"
-            >
-              <option value="">No tune</option>
-              {availableTunes?.map((t: { id: number; name: string }) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-            {selectedLap?.tuneId && (
-              <button
-                onClick={() => setViewingTuneId(selectedLap.tuneId!)}
-                className="px-2 py-1 text-xs bg-app-surface-alt border border-app-border-input rounded text-app-text-muted hover:text-app-text transition-colors"
-              >
-                View
-              </button>
-            )}
-            {updateLapTune.isPending && (
-              <span className="text-xs text-app-text-muted animate-pulse">Saving...</span>
-            )}
-            {telemetry[0]?.f1?.setup && (
-              <button
-                onClick={() => setShowSetup(true)}
-                className="px-2 py-1 text-xs bg-app-surface-alt border border-app-border-input rounded text-app-text-muted hover:text-app-text transition-colors"
-              >
-                Car Setup
-              </button>
-            )}
-          </div>
-        )}
-
-        <div className="ml-auto flex items-center gap-2">
-          {telemetry.length > 0 && (
-            <button
-              onClick={handleCopyMetrics}
-              className="text-xs text-app-text-secondary hover:text-app-text border border-app-border-input rounded px-3 py-1.5 transition-colors"
-            >
-              Copy
-            </button>
-          )}
-          {telemetry.length > 0 && (
-            <button
-              onClick={handleExport}
-              className="text-xs text-app-text-secondary hover:text-app-text border border-app-border-input rounded px-3 py-1.5 transition-colors"
-            >
-              Export CSV
-            </button>
-          )}
-          {telemetry.length > 0 && (
-            <button
-              onClick={() => setAiPanelOpen((v) => !v)}
-              className={`flex items-center gap-1.5 text-xs border rounded px-3 py-1.5 transition-colors ${
-                aiPanelOpen
-                  ? "text-amber-400 border-amber-400/40 bg-amber-400/10"
-                  : "text-app-text-secondary hover:text-amber-400 border-app-border-input"
-              }`}
-            >
-              <Sparkles className="size-3" />
-              AI
-            </button>
-          )}
-          {loading && (
-            <span className="text-xs text-app-text-muted animate-pulse">
-              Loading...
-            </span>
-          )}
-        </div>
-      </div>
+      <AnalyseLapHeader
+        selectedTrack={selectedTrack}
+        selectedCar={selectedCar}
+        selectedLapId={selectedLapId}
+        selectedLap={selectedLap}
+        trackNames={trackNames}
+        carNames={carNames}
+        tracks={tracks}
+        carsForTrack={carsForTrack}
+        filteredLaps={filteredLaps}
+        hasTelemetry={telemetry.length > 0}
+        hasF1Setup={!!telemetry[0]?.f1?.setup}
+        availableTunes={availableTunes}
+        tunePending={updateLapTune.isPending}
+        loading={loading}
+        aiPanelOpen={aiPanelOpen}
+        onTrackChange={handleTrackChange}
+        onCarChange={handleCarChange}
+        onLapChange={setSelectedLapId}
+        onTuneChange={(tuneId) => updateLapTune.mutate(tuneId)}
+        onViewTune={setViewingTuneId}
+        onShowSetup={() => setShowSetup(true)}
+        onCopyMetrics={handleCopyMetrics}
+        onExport={handleExport}
+        onToggleAi={() => setAiPanelOpen((v) => !v)}
+      />
 
       {telemetry.length === 0 && (
         <div className="flex-1 flex items-center justify-center text-app-text-muted text-sm">
@@ -792,50 +682,7 @@ export function LapAnalyse() {
               </div>
 
               {/* Steering wheel + pedal bars — bottom right */}
-              {currentPacket && (
-                <div className="absolute bottom-2 right-2 flex flex-col items-center gap-1">
-                  <svg
-                    width="44" height="44" viewBox="-22 -22 44 44"
-                    style={{ transform: `rotate(${(currentPacket.Steer / 127) * 180}deg)` }}
-                  >
-                    <circle cx="0" cy="0" r="18" fill="none" stroke="#64748b" strokeWidth="3" opacity="0.6" />
-                    <line x1="-12" y1="0" x2="-6" y2="0" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
-                    <line x1="6" y1="0" x2="12" y2="0" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
-                    <line x1="0" y1="6" x2="0" y2="12" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
-                    <circle cx="0" cy="0" r="3" fill="#475569" />
-                    <line x1="0" y1="-18" x2="0" y2="-14" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                  <div className="relative bg-app-surface-alt/60 rounded-sm" style={{ width: 80, height: 8 }}>
-                    <div className="absolute left-1/2 top-0 w-px h-full bg-app-text-dim/40" />
-                    <div
-                      className="absolute top-1/2 w-2.5 h-2.5 rounded-full bg-cyan-400 border border-cyan-300 shadow-sm shadow-cyan-400/50"
-                      style={{
-                        left: `${50 + (currentPacket.Steer / 127) * 50}%`,
-                        transform: "translate(-50%, -50%)",
-                      }}
-                    />
-                  </div>
-                  <span className="text-[9px] font-mono text-app-text-secondary tabular-nums">
-                    {currentPacket.Steer > 0 ? "R" : currentPacket.Steer < 0 ? "L" : ""} {Math.abs(currentPacket.Steer / 127 * 180).toFixed(0)}&deg;
-                  </span>
-                  <div className="flex gap-1 items-end" style={{ height: 60 }}>
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className="text-[9px] font-mono font-bold tabular-nums" style={{ color: brakeBarColor(currentPacket.Brake) }}>{((currentPacket.Brake / 255) * 100).toFixed(0)}</span>
-                      <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 40 }}>
-                        <div className="absolute bottom-0 w-full rounded-sm transition-all" style={{ height: `${(currentPacket.Brake / 255) * 100}%`, background: `linear-gradient(to top, #ff9933, ${brakeBarColor(currentPacket.Brake)})` }} />
-                      </div>
-                      <span className="text-[7px] text-app-text-muted">B</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className="text-[9px] font-mono text-emerald-400 font-bold tabular-nums">{((currentPacket.Accel / 255) * 100).toFixed(0)}</span>
-                      <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 40 }}>
-                        <div className="absolute bottom-0 w-full bg-emerald-400 rounded-sm transition-all" style={{ height: `${(currentPacket.Accel / 255) * 100}%` }} />
-                      </div>
-                      <span className="text-[7px] text-app-text-muted">T</span>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {currentPacket && <AnalyseSteeringOverlay packet={currentPacket} />}
             </div>
 
             {/* Right resize handle */}
@@ -858,64 +705,20 @@ export function LapAnalyse() {
             />
 
             {/* Rev meter + Steering wheel + Tire diagram */}
-            <div className="border-r border-app-border flex flex-col items-center justify-start overflow-y-auto shrink-0" style={{ width: rightColWidth }}>
-              {/* Wheel panel tabs */}
-              <div className="flex w-full border-b border-app-border shrink-0">
-                <button
-                  onClick={() => setWheelTab("2d")}
-                  className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
-                    vizMode === "2d"
-                      ? "text-app-text border-b-2 border-app-accent"
-                      : "text-app-text-muted hover:text-app-text"
-                  }`}
-                >
-                  2D
-                </button>
-                <button
-                  onClick={() => setWheelTab("3d")}
-                  className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
-                    vizMode === "3d"
-                      ? "text-app-text border-b-2 border-app-accent"
-                      : "text-app-text-muted hover:text-app-text"
-                  }`}
-                >
-                  3D
-                </button>
-              </div>
-
-              <div className="p-2 flex flex-col items-center gap-2 w-full flex-1 min-h-0">
-              {vizMode === "2d" ? (
-                <>
-                  {currentPacket && (
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="text-lg font-mono font-bold text-app-accent">{currentPacket.Gear === 0 ? "R" : currentPacket.Gear === 11 ? "N" : currentPacket.Gear}</span>
-                      <span className="text-xl font-mono font-bold tabular-nums text-app-text">{(currentDisplayPacket?.DisplaySpeed ?? units.speed(currentPacket.Speed)).toFixed(0)} <span className="text-[10px] text-app-text-muted">{units.speedLabel}</span></span>
-                    </div>
-                  )}
-                  {currentPacket && (
-                    <div className="flex items-center gap-2">
-                      <GForceCircle packet={currentPacket} />
-                    </div>
-                  )}
-                  {currentPacket && <TireDiagram packet={currentPacket} />}
-                </>
-              ) : (
-                <div className="w-full flex-1 min-h-0 relative">
-                  {currentDisplayPacket && <CarWireframe packet={currentDisplayPacket} telemetry={displayTelemetry} cursorRef={cursorRef} telemetryRef={displayTelemetryRef} cursorIdx={cursorIdx} outline={lapLine} boundaries={boundaries} carOrdinal={currentDisplayPacket.CarOrdinal} tempLabel={units.tempLabel} />}
-                  {currentPacket && (
-                    <div className="absolute bottom-1 left-1 opacity-80">
-                      <BodyAttitude packet={currentPacket} />
-                    </div>
-                  )}
-                  {currentPacket && (
-                    <div className="absolute bottom-1 left-1 opacity-90" style={{ bottom: "9rem" }}>
-                      <GForceCircle packet={currentPacket} />
-                    </div>
-                  )}
-                </div>
-              )}
-              </div>
-            </div>
+            <AnalyseVizPanel
+              vizMode={vizMode}
+              onVizModeChange={setWheelTab}
+              width={rightColWidth}
+              currentPacket={currentPacket}
+              currentDisplayPacket={currentDisplayPacket}
+              displayTelemetry={displayTelemetry}
+              cursorRef={cursorRef}
+              displayTelemetryRef={displayTelemetryRef}
+              cursorIdx={cursorIdx}
+              lapLine={lapLine}
+              boundaries={boundaries}
+              units={units}
+            />
 
           </div>
 
@@ -979,319 +782,22 @@ export function LapAnalyse() {
           </div>
 
           {/* Right panel – full height */}
-          <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
-              {/* Tab switcher */}
-              <div className="flex border-b border-app-border shrink-0">
-                <button
-                  onClick={() => setSidebarTab("live")}
-                  className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
-                    sidebarTab === "live"
-                      ? "text-app-text border-b-2 border-app-accent"
-                      : "text-app-text-muted hover:text-app-text"
-                  }`}
-                >
-                  Data
-                </button>
-                <button
-                  onClick={() => setSidebarTab("insights")}
-                  className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
-                    sidebarTab === "insights"
-                      ? "text-app-text border-b-2 border-app-accent"
-                      : "text-app-text-muted hover:text-app-text"
-                  }`}
-                >
-                  Insights
-                  {lapInsights.length > 0 && (
-                    <span className="ml-1 text-[9px] bg-app-border-input text-app-text rounded-full px-1.5">
-                      {lapInsights.length}
-                    </span>
-                  )}
-                </button>
-              </div>
-
-              {sidebarTab === "live" && (
-                <div className="px-3 pt-3 pb-1 shrink-0">
-                  <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-0 font-semibold">
-                    Metrics at Cursor
-                  </h3>
-                </div>
-              )}
-              <div className="p-3 flex-1 min-h-0 overflow-y-auto">
-              {sidebarTab === "live" ? (
-                <>
-              {currentPacket && <MetricsPanel pkt={currentPacket} startFuel={telemetry[0]?.Fuel} gameId={gameId ?? undefined} />}
-
-              {currentPacket && (
-                <>
-                  <div className="flex items-center gap-1 mb-2 mt-3 pt-2 border-t border-app-border group relative">
-                    <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold">Dynamics</h3>
-                    <Info className="w-3.5 h-3.5 text-app-text-dim cursor-help" />
-                    <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none">
-                      Grip Ask: % of grip capacity per tire<br/>100% = at limit, &gt;100% = exceeding grip
-                    </div>
-                  </div>
-                  {(() => {
-                    const isF1 = gameId === "f1-2025";
-                    const ws = allWheelStates(currentPacket);
-                    const fc = allFrictionCircle(currentPacket);
-                    const bal = steerBalance(currentPacket);
-                    const latG = -currentPacket.AccelerationX / 9.81;
-                    const lonG = -currentPacket.AccelerationZ / 9.81;
-                    return (
-                      <div className="text-[11px] font-mono space-y-1.5 mb-3">
-                        {/* Balance — estimated from slip angles */}
-                        {(
-                          <div className="flex justify-between">
-                            <span className="flex items-center gap-1 group relative text-app-text-muted">
-                              Balance
-                              <Info className="w-3 h-3 text-app-text-dim cursor-help" />
-                              <span className="absolute left-0 top-full mt-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2.5 py-2 text-[10px] text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal w-[280px]">
-                                <span className="block mb-1">Front vs rear slip angle delta (Milliken method). EMA-smoothed.</span>
-                                <span className="block mb-1.5 text-app-text-dim">
-                                  +δ = understeer (fronts slide more)<br/>
-                                  −δ = oversteer (rears slide more)
-                                </span>
-                                <span className="block text-[9px] text-app-text-dim mb-1">Slip Angle Threshold (°) vs Speed (mph)</span>
-                                {(() => {
-                                  const chart = balanceChartData(currentPacket.Speed * 2.23694);
-                                  return (
-                                    <svg viewBox="0 0 200 80" className="w-full h-auto">
-                                      <line x1="30" y1="5" x2="30" y2="65" stroke="currentColor" opacity="0.15" />
-                                      <line x1="30" y1="65" x2="195" y2="65" stroke="currentColor" opacity="0.15" />
-                                      <text x="27" y={chart.degToY(0) + 3} textAnchor="end" fill="currentColor" opacity="0.4" fontSize="7">0°</text>
-                                      {chart.yLabels.map((l, i) => (
-                                        <g key={i}>
-                                          <line x1="30" y1={l.y} x2="195" y2={l.y} stroke="currentColor" opacity="0.08" strokeDasharray="2,2" />
-                                          <text x="27" y={l.y + 3} textAnchor="end" fill="currentColor" opacity="0.4" fontSize="7">{l.deg}°</text>
-                                        </g>
-                                      ))}
-                                      {chart.xLabels.map(l => (
-                                        <text key={l.mph} x={l.x} y="75" textAnchor="middle" fill="currentColor" opacity="0.4" fontSize="7">
-                                          {l.mph === 90 ? "90 mph" : String(l.mph)}
-                                        </text>
-                                      ))}
-                                      <polyline points={chart.polylinePoints} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinejoin="round" />
-                                      <circle cx={chart.markerX} cy={chart.markerY} r="3" fill="#3b82f6" />
-                                    </svg>
-                                  );
-                                })()}
-
-                              </span>
-                            </span>
-                            <span className="tabular-nums" style={{ color: balanceColor(bal.state) }}>
-                              {bal.state === "neutral" ? "Neutral" : bal.state === "understeer" ? "Understeer" : "Oversteer"}
-                              <span className="text-app-text-dim ml-1">({bal.deltaDeg > 0 ? "+" : ""}{bal.deltaDeg.toFixed(1)}°)</span>
-                            </span>
-                          </div>
-                        )}
-                        {/* G-Force */}
-                        <div className="flex justify-between">
-                          <span className="text-app-text-muted">G-Force</span>
-                          <span className="tabular-nums text-app-text">
-                            Lat {latG > 0 ? "+" : ""}{latG.toFixed(2)}g
-                            <span className="text-app-text-dim"> </span>
-                            Lon {lonG > 0 ? "+" : ""}{lonG.toFixed(2)}g
-                          </span>
-                        </div>
-                        {/* Grip / slip ratios — Forza has real data, F1 skips */}
-                        {!isF1 && (
-                          <>
-                            {/* Tire state — combines wheel dynamics + grip demand */}
-                            {(() => {
-                              const temps = [
-                                currentDisplayPacket?.DisplayTireTempFL ?? currentPacket.TireTempFL,
-                                currentDisplayPacket?.DisplayTireTempFR ?? currentPacket.TireTempFR,
-                                currentDisplayPacket?.DisplayTireTempRL ?? currentPacket.TireTempRL,
-                                currentDisplayPacket?.DisplayTireTempRR ?? currentPacket.TireTempRR,
-                              ];
-                              const states = [
-                                { l: "FL", ...tireState(ws.fl.state, currentPacket.TireCombinedSlipFL), temp: tireTempLabel(temps[0], units.thresholds) },
-                                { l: "FR", ...tireState(ws.fr.state, currentPacket.TireCombinedSlipFR), temp: tireTempLabel(temps[1], units.thresholds) },
-                                { l: "RL", ...tireState(ws.rl.state, currentPacket.TireCombinedSlipRL), temp: tireTempLabel(temps[2], units.thresholds) },
-                                { l: "RR", ...tireState(ws.rr.state, currentPacket.TireCombinedSlipRR), temp: tireTempLabel(temps[3], units.thresholds) },
-                              ];
-                              const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
-                              const surfaceLabel = (rumble: boolean, puddle: number) => {
-                                if (rumble) return C("CURB", "#fb923c");
-                                if (puddle > 0) return C(`WET ${(puddle * 100).toFixed(0)}%`, "#3b82f6");
-                                return <span className="text-app-text-dim">—</span>;
-                              };
-                              return (
-                                <WheelTable rows={[
-                                  { label: "Grip Ask", fl: C(`${(fc.fl * 100).toFixed(0)}%`, frictionUtilColor(fc.fl)), fr: C(`${(fc.fr * 100).toFixed(0)}%`, frictionUtilColor(fc.fr)), rl: C(`${(fc.rl * 100).toFixed(0)}%`, frictionUtilColor(fc.rl)), rr: C(`${(fc.rr * 100).toFixed(0)}%`, frictionUtilColor(fc.rr)) },
-                                  { label: "Traction", fl: C(states[0].label, states[0].color), fr: C(states[1].label, states[1].color), rl: C(states[2].label, states[2].color), rr: C(states[3].label, states[3].color) },
-                                  { label: "Temp", fl: C(states[0].temp.label, states[0].temp.color), fr: C(states[1].temp.label, states[1].temp.color), rl: C(states[2].temp.label, states[2].temp.color), rr: C(states[3].temp.label, states[3].temp.color) },
-                                  { label: "Surface", fl: surfaceLabel(currentPacket.WheelOnRumbleStripFL !== 0, currentPacket.WheelInPuddleDepthFL), fr: surfaceLabel(currentPacket.WheelOnRumbleStripFR !== 0, currentPacket.WheelInPuddleDepthFR), rl: surfaceLabel(currentPacket.WheelOnRumbleStripRL !== 0, currentPacket.WheelInPuddleDepthRL), rr: surfaceLabel(currentPacket.WheelOnRumbleStripRR !== 0, currentPacket.WheelInPuddleDepthRR) },
-                                ]} />
-                              );
-                            })()}
-                            {(() => {
-                              const speedMph = currentPacket.Speed * 2.23694;
-                              const angleColor = (rad: number) => {
-                                const deg = Math.abs(rad * (180 / Math.PI));
-                                const sf = Math.max(0.3, Math.min(1, speedMph / 80));
-                                if (deg < 4 / sf) return "#34d399";
-                                if (deg < 8 / sf) return "#fbbf24";
-                                if (deg < 14 / sf) return "#fb923c";
-                                return "#ef4444";
-                              };
-                              const fmt = (rad: number) => (rad * (180 / Math.PI)).toFixed(1);
-                              const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
-                              const slipTitle = (
-                                <span className="flex items-center gap-1 group relative">
-                                  Slip
-                                  <Info className="w-3 h-3 text-app-text-dim cursor-help inline" />
-                                  <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">
-                                    Ratio: wheel speed vs ground speed<br/>Angle: direction vs travel (6-12° = peak grip)
-                                  </span>
-                                </span>
-                              );
-                              return (
-                                <WheelTable title={slipTitle} borderTop rows={[
-                                  { label: "Ratio", fl: C(`${(ws.fl.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.fl.slipRatio)), fr: C(`${(ws.fr.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.fr.slipRatio)), rl: C(`${(ws.rl.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.rl.slipRatio)), rr: C(`${(ws.rr.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.rr.slipRatio)) },
-                                  { label: "Angle", fl: C(`${fmt(currentPacket.TireSlipAngleFL)}°`, angleColor(currentPacket.TireSlipAngleFL)), fr: C(`${fmt(currentPacket.TireSlipAngleFR)}°`, angleColor(currentPacket.TireSlipAngleFR)), rl: C(`${fmt(currentPacket.TireSlipAngleRL)}°`, angleColor(currentPacket.TireSlipAngleRL)), rr: C(`${fmt(currentPacket.TireSlipAngleRR)}°`, angleColor(currentPacket.TireSlipAngleRR)) },
-                                ]} />
-                              );
-                            })()}
-                          </>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {gameId === "f1-2025" && currentPacket && (() => {
-                    const ersPct = (currentPacket.ErsStoreEnergy ?? 0) / 4_000_000 * 100;
-                    const ersBarColor = ersPct < 20 ? "bg-red-500" : ersPct < 50 ? "bg-yellow-500" : "bg-green-500";
-                    const WEATHER_NAMES = ["Clear", "Light Cloud", "Overcast", "Light Rain", "Heavy Rain", "Storm"];
-                    return (
-                    <>
-                      <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 pt-2 border-t border-app-border font-semibold">
-                        DRS / ERS
-                      </h3>
-                      <div className="text-[11px] font-mono space-y-1.5 mb-3">
-                        <div className="flex justify-between">
-                          <span className="text-app-text-muted">DRS</span>
-                          <span className={`font-bold ${currentPacket.DrsActive ? "text-green-400" : "text-app-text-dim"}`}>
-                            {currentPacket.DrsActive ? "OPEN" : "OFF"}
-                          </span>
-                        </div>
-                        <div>
-                          <div className="flex justify-between mb-0.5">
-                            <span className="text-app-text-muted">ERS Store</span>
-                            <span className="tabular-nums text-blue-400">{ersPct.toFixed(1)}%</span>
-                          </div>
-                          <div className="h-1.5 bg-app-surface-alt rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full transition-all ${ersBarColor}`} style={{ width: `${ersPct}%` }} />
-                          </div>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-app-text-muted">Deployed</span>
-                          <span className="tabular-nums text-amber-400">{((currentPacket.ErsDeployed ?? 0) / 4_000_000 * 100).toFixed(1)}%</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-app-text-muted">Harvested</span>
-                          <span className="tabular-nums text-emerald-400">{((currentPacket.ErsHarvested ?? 0) / 4_000_000 * 100).toFixed(1)}%</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-app-text-muted">Mode</span>
-                          <span className="tabular-nums text-app-text">{["None", "Low", "Medium", "High", "Overtake"][currentPacket.ErsDeployMode ?? 0] ?? "Unknown"}</span>
-                        </div>
-                      </div>
-
-                      <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 pt-2 border-t border-app-border font-semibold">
-                        Conditions
-                      </h3>
-                      <div className="text-[11px] font-mono space-y-1.5 mb-3">
-                        <div className="flex justify-between">
-                          <span className="text-app-text-muted">Weather</span>
-                          <span className="text-app-text">{WEATHER_NAMES[currentPacket.WeatherType ?? 0] ?? "Unknown"}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-app-text-muted">Track</span>
-                          <span className="tabular-nums text-orange-400">{currentPacket.TrackTemp ?? 0}°C</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-app-text-muted">Air</span>
-                          <span className="tabular-nums text-cyan-400">{currentPacket.AirTemp ?? 0}°C</span>
-                        </div>
-                        {(currentPacket.RainPercent ?? 0) > 0 && (
-                          <div className="flex justify-between">
-                            <span className="text-app-text-muted">Rain</span>
-                            <span className="tabular-nums text-blue-400">{currentPacket.RainPercent}%</span>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                    );
-                  })()}
-
-                  {(() => {
-                    const fl = currentDisplayPacket?.DisplayTireTempFL ?? currentPacket.TireTempFL;
-                    const fr = currentDisplayPacket?.DisplayTireTempFR ?? currentPacket.TireTempFR;
-                    const rl = currentDisplayPacket?.DisplayTireTempRL ?? currentPacket.TireTempRL;
-                    const rr = currentDisplayPacket?.DisplayTireTempRR ?? currentPacket.TireTempRR;
-                    const healths = [currentPacket.TireWearFL, currentPacket.TireWearFR, currentPacket.TireWearRL, currentPacket.TireWearRR];
-                    const speeds = [currentPacket.WheelRotationSpeedFL, currentPacket.WheelRotationSpeedFR, currentPacket.WheelRotationSpeedRL, currentPacket.WheelRotationSpeedRR];
-                    const wearRates = (["FL", "FR", "RL", "RR"] as const).map(w => wearRate ? wearRate[w] * 100 : null);
-                    const hThresh = tryGetGame(gameId ?? "fm-2023")?.tireHealthThresholds ?? { green: 0.70, yellow: 0.40 };
-                    const brakeFL = currentPacket.BrakeTempFrontLeft ?? currentPacket.f1?.brakeTempFL ?? 0;
-                    const brakeFR = currentPacket.BrakeTempFrontRight ?? currentPacket.f1?.brakeTempFR ?? 0;
-                    const brakeRL = currentPacket.BrakeTempRearLeft ?? currentPacket.f1?.brakeTempRL ?? 0;
-                    const brakeRR = currentPacket.BrakeTempRearRight ?? currentPacket.f1?.brakeTempRR ?? 0;
-                    const hasBrakes = brakeFL > 0 || brakeFR > 0;
-                    return (
-                  <div className="text-[11px] font-mono">
-                    {(() => {
-                      const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
-                      const rows = [
-                        { label: "Rotation /s", fl: speeds[0].toFixed(1), fr: speeds[1].toFixed(1), rl: speeds[2].toFixed(1), rr: speeds[3].toFixed(1) },
-                        { label: "Temp", fl: C(`${fl.toFixed(0)}${units.tempLabel}`, tireTempColor(fl, units.thresholds)), fr: C(`${fr.toFixed(0)}${units.tempLabel}`, tireTempColor(fr, units.thresholds)), rl: C(`${rl.toFixed(0)}${units.tempLabel}`, tireTempColor(rl, units.thresholds)), rr: C(`${rr.toFixed(0)}${units.tempLabel}`, tireTempColor(rr, units.thresholds)) },
-                        { label: "Health", fl: C(`${((1 - healths[0]) * 100).toFixed(1)}%`, tireHealthColor(healths[0], hThresh)), fr: C(`${((1 - healths[1]) * 100).toFixed(1)}%`, tireHealthColor(healths[1], hThresh)), rl: C(`${((1 - healths[2]) * 100).toFixed(1)}%`, tireHealthColor(healths[2], hThresh)), rr: C(`${((1 - healths[3]) * 100).toFixed(1)}%`, tireHealthColor(healths[3], hThresh)) },
-                        { label: "Wear /s", fl: C(wearRates[0] != null ? wearRates[0].toFixed(3) + "%" : "—", wearRateColor(wearRates[0])), fr: C(wearRates[1] != null ? wearRates[1].toFixed(3) + "%" : "—", wearRateColor(wearRates[1])), rl: C(wearRates[2] != null ? wearRates[2].toFixed(3) + "%" : "—", wearRateColor(wearRates[2])), rr: C(wearRates[3] != null ? wearRates[3].toFixed(3) + "%" : "—", wearRateColor(wearRates[3])) },
-                        ...(hasBrakes ? [{ label: "Brake", fl: C(`${brakeFL.toFixed(0)}°C`, brakeTempColor(brakeFL)), fr: C(`${brakeFR.toFixed(0)}°C`, brakeTempColor(brakeFR)), rl: C(`${brakeRL.toFixed(0)}°C`, brakeTempColor(brakeRL)), rr: C(`${brakeRR.toFixed(0)}°C`, brakeTempColor(brakeRR)) }] : []),
-                      ];
-                      return <WheelTable title="Wheels" borderTop rows={rows} />;
-                    })()}
-                  </div>
-                    );
-                  })()}
-
-                    {/* Suspension — 5-column table */}
-                    {(() => {
-                      const suspValues = [currentPacket.NormSuspensionTravelFL, currentPacket.NormSuspensionTravelFR, currentPacket.NormSuspensionTravelRL, currentPacket.NormSuspensionTravelRR];
-                      const suspColor = (v: number) => v < 0.25 ? "#3b82f6" : v < 0.65 ? "#34d399" : v < 0.85 ? "#fbbf24" : "#ef4444";
-                      const lonLoad = ((suspValues[0] + suspValues[1]) / 2 * 100).toFixed(0);
-                      const latLoad = ((suspValues[0] + suspValues[2]) / 2 * 100).toFixed(0);
-                      const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
-                      const suspTitle = (
-                        <span className="flex items-center gap-1 group relative">
-                          Susp
-                          <Info className="w-3 h-3 text-app-text-dim cursor-help inline" />
-                          <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">
-                            Load Distribution: 50% = balanced<br/>0% Lon = all front, 0% Lat = all left
-                          </span>
-                        </span>
-                      );
-                      return (
-                        <WheelTable title={suspTitle} borderTop rows={[
-                          { label: "Travel", fl: C(`${(suspValues[0] * 100).toFixed(0)}%`, suspColor(suspValues[0])), fr: C(`${(suspValues[1] * 100).toFixed(0)}%`, suspColor(suspValues[1])), rl: C(`${(suspValues[2] * 100).toFixed(0)}%`, suspColor(suspValues[2])), rr: C(`${(suspValues[3] * 100).toFixed(0)}%`, suspColor(suspValues[3])) },
-                          { label: "Load", fl: `Lon ${lonLoad}%`, rl: `Lat ${latLoad}%`, fr: "", rr: "", span2: true },
-                        ]} />
-                      );
-                    })()}
-                  {/* Surface conditions — Forza only */}
-                </>
-              )}
-              </>
-            ) : (
-              <InsightPanel insights={lapInsights} onJumpToFrame={(idx) => {
-                setCursorIdx(idx);
-                cursorRef.current = idx;
-                seekRef.current++;
-              }} />
-            )}
-            </div>
-          </div>
+          <AnalyseDataPanel
+            sidebarTab={sidebarTab}
+            onSidebarTabChange={setSidebarTab}
+            currentPacket={currentPacket}
+            currentDisplayPacket={currentDisplayPacket}
+            startFuel={telemetry[0]?.Fuel}
+            gameId={gameId ?? undefined}
+            units={units}
+            wearRate={wearRate}
+            lapInsights={lapInsights}
+            onJumpToFrame={(idx) => {
+              setCursorIdx(idx);
+              cursorRef.current = idx;
+              seekRef.current++;
+            }}
+          />
 
           {/* AI panel — analysis + chat */}
           {aiPanelOpen && selectedLapId && (
