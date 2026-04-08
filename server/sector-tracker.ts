@@ -212,12 +212,15 @@ export class SectorTracker {
     // Current sector running time
     const currentSectorTime = packet.CurrentLap - this.sectorStartTime;
 
-    // Estimated lap time from distance fraction: currentTime / fractionComplete
+    // Estimated lap time from distance fraction: currentTime / fractionComplete.
+    // Only compute once 10% of the lap is covered to avoid noisy early estimates.
     let estimatedLap = 0;
     if (this.lapDistTotal > 0 && packet.CurrentLap > 0) {
       const lapDist = packet.DistanceTraveled - this.lapDistStart;
-      const frac = Math.max(0.001, Math.min(lapDist / this.lapDistTotal, 1));
-      estimatedLap = packet.CurrentLap / frac;
+      const frac = lapDist / this.lapDistTotal;
+      if (frac >= 0.1 && frac <= 1) {
+        estimatedLap = packet.CurrentLap / frac;
+      }
     }
 
     const deltaToBest = estimatedLap > 0 && this.bestLapTime < Infinity
