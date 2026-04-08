@@ -798,8 +798,8 @@ export const trackRoutes = new Hono()
         let s1Time = 0;
         let s2Time = 0;
         for (const p of packets) {
-          if (p.sector1Time > 0) s1Time = p.sector1Time;
-          if (p.sector2Time > 0) s2Time = p.sector2Time;
+          if ((p.f1?.sector1Time ?? 0) > 0) s1Time = p.f1!.sector1Time;
+          if ((p.f1?.sector2Time ?? 0) > 0) s2Time = p.f1!.sector2Time;
         }
 
         // Fall back to distance-fraction computation when game didn't provide sector times

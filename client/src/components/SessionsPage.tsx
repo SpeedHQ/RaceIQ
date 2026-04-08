@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import type { LapMeta } from "@shared/types";
+import type { LapMeta, SessionMeta } from "@shared/types";
 import { queryKeys, useSessions, useLaps, useDeleteLap } from "../hooks/queries";
 import { useActiveProfileId } from "../hooks/useProfiles";
 import { useGameId, useGameRoute } from "../stores/game";
@@ -75,6 +75,126 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
   );
 }
 
+type LapSortKey = "lap" | "time" | "valid";
+
+function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort, selectedLaps, toggleLapSelection }: {
+  session: SessionMeta;
+  laps: LapMeta[];
+  lapSortKey: LapSortKey;
+  lapSortDir: SortDir;
+  toggleLapSort: (k: LapSortKey) => void;
+  selectedLaps: Set<number>;
+  toggleLapSelection: (id: number) => void;
+}) {
+  const gameId = useGameId();
+  const gameRoute = useGameRoute();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const { data: sectorTimes } = useQuery({
+    queryKey: ["track-lap-sectors", session.trackOrdinal, gameId],
+    queryFn: () => client.api.tracks[":ordinal"]["lap-sectors"].$get({ param: { ordinal: String(session.trackOrdinal) }, query: { gameId: gameId ?? undefined } }).then((r) => r.json() as unknown as Record<number, { s1: number; s2: number; s3: number }>),
+    enabled: session.trackOrdinal != null,
+  });
+
+  const bestSectors = useMemo(() => {
+    const best = { s1: Infinity, s2: Infinity, s3: Infinity };
+    if (!sectorTimes) return best;
+    for (const lap of laps) {
+      const st = sectorTimes[lap.id];
+      if (!st) continue;
+      if (st.s1 > 0 && st.s1 < best.s1) best.s1 = st.s1;
+      if (st.s2 > 0 && st.s2 < best.s2) best.s2 = st.s2;
+      if (st.s3 > 0 && st.s3 < best.s3) best.s3 = st.s3;
+    }
+    return best;
+  }, [sectorTimes, laps]);
+
+  const sortedLaps = useMemo(() => [...laps].sort((a, b) => {
+    if (lapSortKey === "lap") return lapSortDir === "asc" ? a.lapNumber - b.lapNumber : b.lapNumber - a.lapNumber;
+    if (lapSortKey === "time") return lapSortDir === "asc" ? a.lapTime - b.lapTime : b.lapTime - a.lapTime;
+    const av = a.isValid ? 1 : 0; const bv = b.isValid ? 1 : 0;
+    return lapSortDir === "asc" ? bv - av : av - bv;
+  }), [laps, lapSortKey, lapSortDir]);
+
+  function sectorColor(time: number, best: number): string {
+    if (best === Infinity || time <= 0) return "text-app-text-secondary";
+    if (time <= best * 1.001) return "text-purple-400 font-bold";
+    return "text-app-text-secondary";
+  }
+
+  return (
+    <table className="w-full text-sm">
+      <colgroup>
+        <col className="w-10" />
+        <col className="w-32" />
+        <col className="w-16" />
+        <col className="w-36" />
+        <col className="w-8" />
+        <col className="w-20" />
+        <col className="w-20" />
+        <col className="w-20" />
+        <col className="w-[30%]" />
+      </colgroup>
+      <thead>
+        <tr className="text-app-text-dim text-[10px] uppercase tracking-wider border-b border-app-border/30">
+          <th className="w-10 px-2 py-1" />
+          <th className="px-3 py-1 text-left" />
+          {(["lap", "time", "valid"] as const).map((f) => (
+            <th key={f} className="px-3 py-1 text-left cursor-pointer select-none hover:text-app-text" onClick={() => toggleLapSort(f)}>
+              {f === "lap" ? "Lap" : f === "time" ? "Time" : "Valid"}
+              {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
+            </th>
+          ))}
+          <th className="px-3 py-1 text-left text-red-400">S1</th>
+          <th className="px-3 py-1 text-left text-blue-400">S2</th>
+          <th className="px-3 py-1 text-left text-yellow-400">S3</th>
+          <th className="px-3 py-1 text-left">Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sortedLaps.map((lap) => {
+          const best = session.bestLapTime ?? 0;
+          const isBest = best > 0 && Math.abs(lap.lapTime - best) < 0.001;
+          return (
+            <tr key={lap.id} className="border-t border-app-border/20 hover:bg-app-surface-alt/30">
+              <td className="px-2 py-1 text-center">
+                <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-cyan-400 w-4 h-4" />
+              </td>
+              <td />
+              <td className="px-3 py-1 font-mono text-app-text-secondary">{lap.lapNumber}</td>
+              <td className="px-3 py-1">
+                <div className="flex items-center gap-2">
+                  <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text"}`}>{formatLapTime(lap.lapTime)}</span>
+                  <Button variant="app-outline" size="app-sm" className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    onClick={(e) => { e.stopPropagation(); navigate({ to: `${gameRoute}/analyse` as any, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } as any }); }}>
+                    Analyse
+                  </Button>
+                </div>
+              </td>
+              <td className="px-3 py-1">
+                {lap.isValid ? <span className="text-emerald-400">&#10003;</span> : <span className="text-red-400" title={lap.invalidReason}>&#10007;</span>}
+              </td>
+              {(["s1", "s2", "s3"] as const).map((s) => {
+                const st = sectorTimes?.[lap.id];
+                const val = st?.[s] ?? 0;
+                return <td key={s} className={`px-3 py-1 font-mono text-xs ${sectorColor(val, bestSectors[s])}`}>{val > 0 ? formatLapTime(val) : "—"}</td>;
+              })}
+              <td className="px-3 py-1">
+                <NoteCell value={lap.notes ?? undefined} onSave={(notes) => {
+                  client.api.laps[":id"].notes.$patch({ param: { id: String(lap.id) }, json: { notes: notes || null } });
+                  qc.invalidateQueries({ queryKey: queryKeys.laps });
+                }} />
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
 type SortKey = "date" | "track" | "car" | "laps" | "best" | "type";
 type SortDir = "asc" | "desc";
 
@@ -99,11 +219,9 @@ function SortHeader({ label, field, sortKey, sortDir, toggleSort }: {
 
 export function SessionsPage() {
   const gameId = useGameId();
-  const gameRoute = useGameRoute();
   const { data: sessions = [], isLoading } = useSessions();
   const { data: activeProfileId } = useActiveProfileId();
   const { data: allLaps = [] } = useLaps(activeProfileId);
-  const navigate = useNavigate();
   const qc = useQueryClient();
   useDeleteLap();
 
@@ -118,7 +236,7 @@ export function SessionsPage() {
   };
   const [trackNames, setTrackNames] = useState<Record<number, string>>({});
   const [carNames, setCarNames] = useState<Record<number, string>>({});
-  const [expandedSession, setExpandedSession] = useState<number | null>(null);
+  const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set());
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
   const [selectedSessions, setSelectedSessions] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState("");
@@ -230,31 +348,6 @@ export function SessionsPage() {
 
   useEffect(() => { setPage(0); }, [sessions.length, search]);
 
-  const expandedTrackOrdinal = sessions.find((s) => s.id === expandedSession)?.trackOrdinal ?? null;
-  const { data: expandedSectorTimes } = useQuery({
-    queryKey: ["track-lap-sectors", expandedTrackOrdinal, gameId],
-    queryFn: () => client.api.tracks[":ordinal"]["lap-sectors"].$get({ param: { ordinal: String(expandedTrackOrdinal!) }, query: { gameId: gameId ?? undefined } }).then((r) => r.json() as unknown as Record<number, { s1: number; s2: number; s3: number }>),
-    enabled: expandedTrackOrdinal != null,
-  });
-
-  // Best sector across all laps in the expanded session
-  const expandedLaps = expandedSession != null ? (lapsBySession.get(expandedSession) ?? []) : [];
-  const bestExpandedSectors = { s1: Infinity, s2: Infinity, s3: Infinity };
-  if (expandedSectorTimes) {
-    for (const lap of expandedLaps) {
-      const st = expandedSectorTimes[lap.id];
-      if (!st) continue;
-      if (st.s1 > 0 && st.s1 < bestExpandedSectors.s1) bestExpandedSectors.s1 = st.s1;
-      if (st.s2 > 0 && st.s2 < bestExpandedSectors.s2) bestExpandedSectors.s2 = st.s2;
-      if (st.s3 > 0 && st.s3 < bestExpandedSectors.s3) bestExpandedSectors.s3 = st.s3;
-    }
-  }
-  function sectorColor(time: number, best: number): string {
-    if (best === Infinity || time <= 0) return "text-app-text-secondary";
-    if (time <= best * 1.001) return "text-purple-400 font-bold";
-    return "text-app-text-secondary";
-  }
-
   const toggleSessionSelection = useCallback((sessionId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedSessions((prev) => {
@@ -277,8 +370,12 @@ export function SessionsPage() {
   }, [lapsBySession]);
 
   const toggleExpand = useCallback((sessionId: number) => {
-    setExpandedSession((prev) => prev === sessionId ? null : sessionId);
-    setSelectedLaps(new Set());
+    setExpandedSessions((prev) => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) next.delete(sessionId);
+      else next.add(sessionId);
+      return next;
+    });
   }, []);
 
   const toggleLapSelection = useCallback((lapId: number) => {
@@ -390,7 +487,7 @@ const deleteSelected = useCallback(async () => {
               </tr>
             ) : (
               pageItems.map((session) => {
-                const isExpanded = expandedSession === session.id;
+                const isExpanded = expandedSessions.has(session.id);
                 const sessionLaps = lapsBySession.get(session.id) ?? [];
                 const sortedLaps = [...sessionLaps].sort((a, b) => {
                   let cmp = 0;
@@ -451,107 +548,19 @@ const deleteSelected = useCallback(async () => {
                         />
                       </td>
                     </tr>
-                    {isExpanded && sortedLaps.length > 0 && (
+                    {isExpanded && sessionLaps.length > 0 && (
                       <tr key={`${session.id}-laps`}>
                         <td colSpan={colCount} className="p-0">
                           <div className="bg-app-surface-alt/20 border-b border-app-border pl-8">
-                            <table className="w-full text-sm">
-                              <colgroup>
-                                <col className="w-10" />   {/* checkbox — same as session */}
-                                <col className="w-32" />   {/* blank — Date(w-40=160px) minus pl-8(32px) = 128px */}
-                                <col className="w-16" />   {/* Lap# — same width as Laps */}
-                                <col className="w-36" />   {/* Time — same width as Best Lap */}
-                                <col className="w-8" />    {/* Valid */}
-                                <col className="w-20" />   {/* S1 */}
-                                <col className="w-20" />   {/* S2 */}
-                                <col className="w-20" />   {/* S3 */}
-                                <col className="w-[30%]" />   {/* Notes */}
-                              </colgroup>
-                              <thead>
-                                <tr className="text-app-text-dim text-[10px] uppercase tracking-wider border-b border-app-border/30">
-                                  <th className="w-10 px-2 py-1" />
-                                  <th className="px-3 py-1 text-left" />
-                                  {(["lap", "time", "valid"] as const).map((f) => (
-                                    <th key={f} className="px-3 py-1 text-left cursor-pointer select-none hover:text-app-text" onClick={() => toggleLapSort(f)}>
-                                      {f === "lap" ? "Lap" : f === "time" ? "Time" : "Valid"}
-                                      {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
-                                    </th>
-                                  ))}
-                                  <th className="px-3 py-1 text-left text-red-400">S1</th>
-                                  <th className="px-3 py-1 text-left text-blue-400">S2</th>
-                                  <th className="px-3 py-1 text-left text-yellow-400">S3</th>
-                                  <th className="px-3 py-1 text-left">Notes</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {sortedLaps.map((lap) => {
-                                  const best = session.bestLapTime ?? 0;
-                                  const isBest = best > 0 && Math.abs(lap.lapTime - best) < 0.001;
-                                  return (
-                                    <tr key={lap.id} className="border-t border-app-border/20 hover:bg-app-surface-alt/30">
-                                      <td className="px-2 py-1 text-center">
-                                        <input
-                                          type="checkbox"
-                                          checked={selectedLaps.has(lap.id)}
-                                          onChange={() => toggleLapSelection(lap.id)}
-                                          className="accent-cyan-400 w-4 h-4"
-                                        />
-                                      </td>
-                                      <td />
-                                      <td className="px-3 py-1 font-mono text-app-text-secondary">{lap.lapNumber}</td>
-                                      <td className="px-3 py-1">
-                                        <div className="flex items-center gap-2">
-                                          <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text"}`}>
-                                            {formatLapTime(lap.lapTime)}
-                                          </span>
-                                          <Button
-                                            variant="app-outline"
-                                            size="app-sm"
-                                            className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              navigate({
-                                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                to: `${gameRoute}/analyse` as any,
-                                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } as any,
-                                              });
-                                            }}
-                                          >
-                                            Analyse
-                                          </Button>
-                                        </div>
-                                      </td>
-                                      <td className="px-3 py-1">
-                                        {lap.isValid ? (
-                                          <span className="text-emerald-400">&#10003;</span>
-                                        ) : (
-                                          <span className="text-red-400" title={lap.invalidReason}>&#10007;</span>
-                                        )}
-                                      </td>
-                                      {(["s1", "s2", "s3"] as const).map((s) => {
-                                        const st = expandedSectorTimes?.[lap.id];
-                                        const val = st?.[s] ?? 0;
-                                        return (
-                                          <td key={s} className={`px-3 py-1 font-mono text-xs ${sectorColor(val, bestExpandedSectors[s])}`}>
-                                            {val > 0 ? formatLapTime(val) : "—"}
-                                          </td>
-                                        );
-                                      })}
-                                      <td className="px-3 py-1">
-                                        <NoteCell
-                                          value={lap.notes ?? undefined}
-                                          onSave={(notes) => {
-                                            client.api.laps[":id"].notes.$patch({ param: { id: String(lap.id) }, json: { notes: notes || null } });
-                                            qc.invalidateQueries({ queryKey: queryKeys.laps });
-                                          }}
-                                        />
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
+                            <SessionLapTable
+                              session={session}
+                              laps={sessionLaps}
+                              lapSortKey={lapSortKey}
+                              lapSortDir={lapSortDir}
+                              toggleLapSort={toggleLapSort}
+                              selectedLaps={selectedLaps}
+                              toggleLapSelection={toggleLapSelection}
+                            />
                           </div>
                         </td>
                       </tr>
