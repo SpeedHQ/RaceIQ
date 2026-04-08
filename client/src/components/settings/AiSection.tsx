@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSettings, useSaveSettings } from "@/hooks/queries";
 
@@ -22,8 +22,12 @@ export function AiSection() {
   const [localEndpoint, setLocalEndpoint] = useState(displaySettings.localEndpoint ?? "http://localhost:1234/v1");
   const [saved, setSaved] = useState(false);
 
-  // Sync local state when server settings load
+  // Sync local state once when server settings first load (not on every refetch)
+  const synced = useRef(false);
   useEffect(() => {
+    if (synced.current) return;
+    if (!displaySettings.aiProvider) return;
+    synced.current = true;
     setProvider(displaySettings.aiProvider ?? "gemini");
     setModel(displaySettings.aiModel ?? "");
     setLocalEndpoint(displaySettings.localEndpoint ?? "http://localhost:1234/v1");
@@ -35,7 +39,11 @@ export function AiSection() {
   const [chatApiKey, setChatApiKey] = useState("");
   const [chatSaved, setChatSaved] = useState(false);
 
+  const chatSynced = useRef(false);
   useEffect(() => {
+    if (chatSynced.current) return;
+    if (!displaySettings.chatProvider) return;
+    chatSynced.current = true;
     setChatProvider(displaySettings.chatProvider ?? "gemini");
     setChatModel(displaySettings.chatModel ?? "");
   }, [displaySettings.chatProvider, displaySettings.chatModel]);
