@@ -212,7 +212,9 @@ export class SectorTracker {
     // Current sector running time
     const currentSectorTime = packet.CurrentLap - this.sectorStartTime;
 
-    // Estimated lap time
+    // Estimated lap time: for completed sectors use actual time, for the
+    // current sector use the greater of elapsed time or best (so the estimate
+    // doesn't dip below best early in a sector), for future sectors use best.
     const hasBests = this.bestTimes[0] < Infinity && this.bestTimes[1] < Infinity && this.bestTimes[2] < Infinity;
     let estimatedLap = 0;
     if (hasBests) {
@@ -220,7 +222,7 @@ export class SectorTracker {
         if (i < this.currentSector) {
           estimatedLap += this.currentTimes[i];
         } else if (i === this.currentSector) {
-          estimatedLap += currentSectorTime;
+          estimatedLap += Math.max(currentSectorTime, this.bestTimes[i]);
         } else {
           estimatedLap += this.bestTimes[i];
         }

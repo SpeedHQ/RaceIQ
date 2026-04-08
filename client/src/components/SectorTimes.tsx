@@ -128,7 +128,7 @@ export function SectorTimes() {
           </div>
         </div>
         <div>
-          <div className="text-[10px] text-app-text-muted uppercase tracking-wider">vs Best</div>
+          <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Delta</div>
           <div className={`text-2xl font-mono font-bold tabular-nums leading-none ${sectors.deltaToBest <= 0 ? "text-emerald-400" : "text-red-400"}`}>
             {sectors.deltaToBest !== 0
               ? `${sectors.deltaToBest <= 0 ? "" : "+"}${sectors.deltaToBest.toFixed(3)}`
