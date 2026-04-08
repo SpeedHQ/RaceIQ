@@ -420,6 +420,7 @@ export interface LiveSectorData {
   bestLapTime: number;
   estimatedLap: number;
   deltaToBest: number;
+  deltaToLast: number;
 }
 
 /** Server-computed pit strategy data, broadcast via WebSocket. */

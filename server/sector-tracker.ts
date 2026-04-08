@@ -6,7 +6,7 @@
  * client just renders numbers.
  */
 import type { TelemetryPacket, GameId, LiveSectorData, LivePitData } from "../shared/types";
-import { getTrackOutlineSectors } from "./db/queries";
+import { getTrackOutlineSectors, getLaps, getLapById } from "./db/queries";
 import { getTrackSectorsByOrdinal, getTrackOutlineByOrdinal, loadSharedTrackMeta } from "../shared/track-data";
 import { tryGetGame } from "../shared/games/registry";
 
@@ -72,7 +72,65 @@ export class SectorTracker {
     this.bounds = { s1End: sectors.s1End, s2End: sectors.s2End, trackLength };
     if (trackLength > 0) this.lapDistTotal = trackLength;
 
-    console.log(`[Sectors] Loaded for track ${trackOrdinal} (${gameId}): s1=${sectors.s1End}, s2=${sectors.s2End}, length=${trackLength.toFixed(0)}m`);
+    // Seed best times from recorded laps on this track
+    await this.seedFromRecordedLaps(trackOrdinal, gameId, sectors.s1End, sectors.s2End);
+
+    console.log(`[Sectors] Loaded for track ${trackOrdinal} (${gameId}): s1=${sectors.s1End}, s2=${sectors.s2End}, length=${trackLength.toFixed(0)}m, seeded best=${this.bestLapTime === Infinity ? "none" : this.bestLapTime.toFixed(3)}`);
+  }
+
+  /** Seed bestTimes and bestLapTime from previously recorded laps on this track. */
+  private async seedFromRecordedLaps(
+    trackOrdinal: number,
+    gameId: GameId,
+    s1End: number,
+    s2End: number
+  ): Promise<void> {
+    try {
+      const allLaps = await getLaps(gameId, 200);
+      const trackLaps = allLaps
+        .filter((l) => l.trackOrdinal === trackOrdinal && l.isValid && l.lapTime > 10)
+        .sort((a, b) => a.lapTime - b.lapTime)
+        .slice(0, 10); // only check top 10 by lap time
+
+      for (const lapMeta of trackLaps) {
+        const lap = await getLapById(lapMeta.id);
+        if (!lap?.telemetry || lap.telemetry.length < 50) continue;
+
+        const packets = lap.telemetry;
+        const startDist = packets[0].DistanceTraveled;
+        const lapDistance = packets[packets.length - 1].DistanceTraveled - startDist;
+        if (lapDistance < 100) continue;
+
+        let currentSector = 0;
+        let sectorStartTime = packets[0].CurrentLap;
+        let s1Time = 0;
+        let s2Time = 0;
+
+        for (const p of packets) {
+          const frac = (p.DistanceTraveled - startDist) / lapDistance;
+          const expected = frac < s1End ? 0 : frac < s2End ? 1 : 2;
+          if (expected > currentSector) {
+            const t = p.CurrentLap - sectorStartTime;
+            if (currentSector === 0) s1Time = t;
+            else if (currentSector === 1) s2Time = t;
+            sectorStartTime = p.CurrentLap;
+            currentSector = expected;
+          }
+        }
+
+        if (s1Time > 0 && s2Time > 0) {
+          const s3Time = lapMeta.lapTime - s1Time - s2Time;
+          if (s3Time <= 0) continue;
+
+          if (s1Time < this.bestTimes[0]) this.bestTimes[0] = s1Time;
+          if (s2Time < this.bestTimes[1]) this.bestTimes[1] = s2Time;
+          if (s3Time < this.bestTimes[2]) this.bestTimes[2] = s3Time;
+          if (lapMeta.lapTime < this.bestLapTime) this.bestLapTime = lapMeta.lapTime;
+        }
+      }
+    } catch (err) {
+      console.warn("[Sectors] Failed to seed from recorded laps:", err);
+    }
   }
 
   /** Process a packet. Returns sector data or null if no sector bounds loaded. */
@@ -173,6 +231,11 @@ export class SectorTracker {
       ? estimatedLap - this.bestLapTime
       : 0;
 
+    const hasLasts = this.lastTimes[0] > 0 && this.lastTimes[1] > 0 && this.lastTimes[2] > 0;
+    const deltaToLast = hasLasts && packet.CurrentLap > 0 && this.lastLapTime > 0
+      ? estimatedLap - this.lastLapTime
+      : 0;
+
     return {
       currentSector: this.currentSector,
       currentSectorTime,
@@ -183,6 +246,7 @@ export class SectorTracker {
       bestLapTime: this.bestLapTime === Infinity ? 0 : this.bestLapTime,
       estimatedLap,
       deltaToBest,
+      deltaToLast,
     };
   }
 
