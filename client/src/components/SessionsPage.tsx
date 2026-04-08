@@ -9,6 +9,7 @@ import { client } from "../lib/rpc";
 import { formatLapTime } from "./LiveTelemetry";
 import { Button } from "./ui/button";
 import { AppInput } from "./ui/AppInput";
+import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 
 const PAGE_SIZE = 25;
 
@@ -124,46 +125,33 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
   }
 
   return (
-    <table className="w-full text-sm">
-      <colgroup>
-        <col className="w-10" />
-        <col className="w-32" />
-        <col className="w-16" />
-        <col className="w-36" />
-        <col className="w-8" />
-        <col className="w-20" />
-        <col className="w-20" />
-        <col className="w-20" />
-        <col className="w-[30%]" />
-      </colgroup>
-      <thead>
-        <tr className="text-app-text-dim text-[10px] uppercase tracking-wider border-b border-app-border/30">
-          <th className="w-10 px-2 py-1" />
-          <th className="px-3 py-1 text-left" />
-          {(["lap", "time", "valid"] as const).map((f) => (
-            <th key={f} className="px-3 py-1 text-left cursor-pointer select-none hover:text-app-text" onClick={() => toggleLapSort(f)}>
-              {f === "lap" ? "Lap" : f === "time" ? "Time" : "Valid"}
-              {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
-            </th>
-          ))}
-          <th className="px-3 py-1 text-left text-red-400">S1</th>
-          <th className="px-3 py-1 text-left text-blue-400">S2</th>
-          <th className="px-3 py-1 text-left text-yellow-400">S3</th>
-          <th className="px-3 py-1 text-left">Notes</th>
-        </tr>
-      </thead>
-      <tbody>
+    <Table>
+      <THead>
+        <TH className="w-10 px-2" />
+        <TH />
+        {(["lap", "time", "valid"] as const).map((f) => (
+          <TH key={f} className="cursor-pointer select-none hover:text-app-text" onClick={() => toggleLapSort(f)}>
+            {f === "lap" ? "Lap" : f === "time" ? "Time" : "Valid"}
+            {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
+          </TH>
+        ))}
+        <TH className="text-red-400">S1</TH>
+        <TH className="text-blue-400">S2</TH>
+        <TH className="text-yellow-400">S3</TH>
+        <TH className="w-[40%]">Notes</TH>
+      </THead>
+      <TBody>
         {sortedLaps.map((lap) => {
           const best = session.bestLapTime ?? 0;
           const isBest = best > 0 && Math.abs(lap.lapTime - best) < 0.001;
           return (
-            <tr key={lap.id} className="border-t border-app-border/20 hover:bg-app-surface-alt/30">
-              <td className="px-2 py-1 text-center">
+            <TRow key={lap.id}>
+              <TD className="px-2 text-center">
                 <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-cyan-400 w-4 h-4" />
-              </td>
-              <td />
-              <td className="px-3 py-1 font-mono text-app-text-secondary">{lap.lapNumber}</td>
-              <td className="px-3 py-1">
+              </TD>
+              <TD />
+              <TD className="font-mono text-app-text-secondary">{lap.lapNumber}</TD>
+              <TD>
                 <div className="flex items-center gap-2">
                   <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text"}`}>{formatLapTime(lap.lapTime)}</span>
                   <Button variant="app-outline" size="app-sm" className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
@@ -172,26 +160,26 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
                     Analyse
                   </Button>
                 </div>
-              </td>
-              <td className="px-3 py-1">
+              </TD>
+              <TD>
                 {lap.isValid ? <span className="text-emerald-400">&#10003;</span> : <span className="text-red-400" title={lap.invalidReason}>&#10007;</span>}
-              </td>
+              </TD>
               {(["s1", "s2", "s3"] as const).map((s) => {
                 const st = sectorTimes?.[lap.id];
                 const val = st?.[s] ?? 0;
-                return <td key={s} className={`px-3 py-1 font-mono text-xs ${sectorColor(val, bestSectors[s])}`}>{val > 0 ? formatLapTime(val) : "—"}</td>;
+                return <TD key={s} className={`font-mono text-xs ${sectorColor(val, bestSectors[s])}`}>{val > 0 ? formatLapTime(val) : "—"}</TD>;
               })}
-              <td className="px-3 py-1">
+              <TD>
                 <NoteCell value={lap.notes ?? undefined} onSave={(notes) => {
                   client.api.laps[":id"].notes.$patch({ param: { id: String(lap.id) }, json: { notes: notes || null } });
                   qc.invalidateQueries({ queryKey: queryKeys.laps });
                 }} />
-              </td>
-            </tr>
+              </TD>
+            </TRow>
           );
         })}
-      </tbody>
-    </table>
+      </TBody>
+    </Table>
   );
 }
 
@@ -208,12 +196,9 @@ function SortHeader({ label, field, sortKey, sortDir, toggleSort }: {
   sortKey: SortKey; sortDir: SortDir; toggleSort: (f: SortKey) => void;
 }) {
   return (
-    <th
-      className="px-3 py-2 text-left text-xs font-medium text-app-text-muted uppercase tracking-wider cursor-pointer select-none hover:text-app-text"
-      onClick={() => toggleSort(field)}
-    >
+    <TH className="cursor-pointer select-none hover:text-app-text" onClick={() => toggleSort(field)}>
       {label} {sortKey === field ? (sortDir === "asc" ? "▲" : "▼") : ""}
-    </th>
+    </TH>
   );
 }
 
@@ -430,147 +415,115 @@ const deleteSelected = useCallback(async () => {
         )}
       </div>
 
-      <div className="flex-1 overflow-auto rounded-lg border border-app-border">
-        <table className="w-full text-sm">
-          <colgroup>
-            <col className="w-10" />  {/* checkbox */}
-            <col className="w-40" />  {/* Date */}
-            <col className="w-16" />  {/* Laps */}
-            <col className="w-36" />  {/* Best Lap */}
-            <col />                   {/* Track */}
-            <col />                   {/* Car */}
-            {isF1 && <col />}         {/* Type (F1) */}
-            <col className="w-[30%]" />  {/* Notes */}
-          </colgroup>
-          <thead className="bg-app-surface sticky top-0 z-10">
-            <tr className="border-b border-app-border">
-              <th className="w-10 px-2">
-                <input
-                  type="checkbox"
-                  checked={pageItems.length > 0 && pageItems.every((s) => selectedSessions.has(s.id))}
-                  onChange={() => {
-                    const allSelected = pageItems.every((s) => selectedSessions.has(s.id));
-                    setSelectedSessions((prev) => {
-                      const next = new Set(prev);
-                      for (const s of pageItems) {
-                        if (allSelected) next.delete(s.id);
-                        else next.add(s.id);
-                      }
-                      return next;
-                    });
-                  }}
-                  className="accent-cyan-400 w-4 h-4"
-                />
-              </th>
-              <SortHeader label="Date" field="date" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-              <SortHeader label="Laps" field="laps" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-              <SortHeader label="Best Lap" field="best" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-              <SortHeader label="Track" field="track" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-              <SortHeader label="Car" field="car" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-              {isF1 && <SortHeader label="Type" field="type" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />}
-              <th className="px-3 py-2 text-left text-xs font-medium text-app-text-muted uppercase tracking-wider">Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={colCount} className="px-3 py-8 text-center text-app-text-muted">
-                  Loading...
-                </td>
-              </tr>
-            ) : pageItems.length === 0 ? (
-              <tr>
-                <td colSpan={colCount} className="px-3 py-8 text-center text-app-text-muted">
-                  No sessions recorded yet
-                </td>
-              </tr>
-            ) : (
-              pageItems.map((session) => {
-                const isExpanded = expandedSessions.has(session.id);
-                const sessionLaps = lapsBySession.get(session.id) ?? [];
-                const sortedLaps = [...sessionLaps].sort((a, b) => {
-                  let cmp = 0;
-                  if (lapSortKey === "lap") cmp = a.lapNumber - b.lapNumber;
-                  else if (lapSortKey === "time") cmp = a.lapTime - b.lapTime;
-                  else if (lapSortKey === "valid") cmp = (b.isValid ? 1 : 0) - (a.isValid ? 1 : 0);
-                  return lapSortDir === "asc" ? cmp : -cmp;
+      <Table className="flex-1 overflow-auto border border-app-border">
+        <THead className="sticky top-0 z-10">
+          <TH className="w-10 px-2">
+            <input
+              type="checkbox"
+              checked={pageItems.length > 0 && pageItems.every((s) => selectedSessions.has(s.id))}
+              onChange={() => {
+                const allSelected = pageItems.every((s) => selectedSessions.has(s.id));
+                setSelectedSessions((prev) => {
+                  const next = new Set(prev);
+                  for (const s of pageItems) {
+                    if (allSelected) next.delete(s.id);
+                    else next.add(s.id);
+                  }
+                  return next;
                 });
-                return (
-                  <>
-                    <tr
-                      key={session.id}
-                      className={`border-b border-app-border/50 hover:bg-app-accent/5 cursor-pointer transition-colors ${isExpanded ? "bg-app-surface-alt/30" : ""}`}
-                      onClick={() => toggleExpand(session.id)}
-                    >
-                      <td className="px-2 py-2 text-center" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selectedSessions.has(session.id)}
-                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                          onChange={(e) => toggleSessionSelection(session.id, e as any)}
-                          className="accent-cyan-400 w-4 h-4"
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-app-text-secondary whitespace-nowrap">
-                        {new Date(session.createdAt).toLocaleDateString()}{" "}
-                        <span className="text-app-text-dim">
-                          {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-app-text-secondary tabular-nums">
-                        {session.lapCount ?? 0}
-                      </td>
-                      <td className="px-3 py-2 text-app-text tabular-nums">
-                        {(() => {
-                          const t = session.bestLapTime || (sortedLaps.length > 0 ? Math.min(...sortedLaps.map((l) => l.lapTime)) : 0);
-                          return t ? formatLapTime(t) : "—";
-                        })()}
-                      </td>
-                      <td className="px-3 py-2 text-app-text">
-                        {trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}
-                      </td>
-                      <td className="px-3 py-2 text-app-text">
-                        {carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}
-                      </td>
-                      {isF1 && (
-                        <td className="px-3 py-2 text-app-text-secondary">
-                          {formatSessionType(session.sessionType)}
-                        </td>
-                      )}
-                      <td className="px-3 py-2">
-                        <NoteCell
-                          value={session.notes ?? undefined}
-                          onSave={(notes) => {
-                            client.api.sessions[":id"].notes.$patch({ param: { id: String(session.id) }, json: { notes: notes || null } });
-                            qc.invalidateQueries({ queryKey: queryKeys.sessions });
-                          }}
-                        />
+              }}
+              className="accent-cyan-400 w-4 h-4"
+            />
+          </TH>
+          <SortHeader label="Date" field="date" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+          <SortHeader label="Laps" field="laps" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+          <SortHeader label="Best Lap" field="best" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+          <SortHeader label="Track" field="track" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+          <SortHeader label="Car" field="car" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+          {isF1 && <SortHeader label="Type" field="type" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />}
+          <TH className="w-[40%]">Notes</TH>
+        </THead>
+        <TBody>
+          {isLoading ? (
+            <tr><td colSpan={colCount} className="px-3 py-8 text-center text-app-text-muted">Loading...</td></tr>
+          ) : pageItems.length === 0 ? (
+            <tr><td colSpan={colCount} className="px-3 py-8 text-center text-app-text-muted">No sessions recorded yet</td></tr>
+          ) : (
+            pageItems.map((session) => {
+              const isExpanded = expandedSessions.has(session.id);
+              const sessionLaps = lapsBySession.get(session.id) ?? [];
+              const sortedLaps = [...sessionLaps].sort((a, b) => {
+                let cmp = 0;
+                if (lapSortKey === "lap") cmp = a.lapNumber - b.lapNumber;
+                else if (lapSortKey === "time") cmp = a.lapTime - b.lapTime;
+                else if (lapSortKey === "valid") cmp = (b.isValid ? 1 : 0) - (a.isValid ? 1 : 0);
+                return lapSortDir === "asc" ? cmp : -cmp;
+              });
+              return (
+                <>
+                  <TRow
+                    key={session.id}
+                    onClick={() => toggleExpand(session.id)}
+                    className={isExpanded ? "bg-app-surface-alt/30" : ""}
+                  >
+                    <TD className="px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedSessions.has(session.id)}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        onChange={(e) => toggleSessionSelection(session.id, e as any)}
+                        className="accent-cyan-400 w-4 h-4"
+                      />
+                    </TD>
+                    <TD className="text-app-text-secondary whitespace-nowrap">
+                      {new Date(session.createdAt).toLocaleDateString()}{" "}
+                      <span className="text-app-text-dim">
+                        {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </TD>
+                    <TD className="text-app-text-secondary tabular-nums">{session.lapCount ?? 0}</TD>
+                    <TD className="text-app-text tabular-nums">
+                      {(() => {
+                        const t = session.bestLapTime || (sortedLaps.length > 0 ? Math.min(...sortedLaps.map((l) => l.lapTime)) : 0);
+                        return t ? formatLapTime(t) : "—";
+                      })()}
+                    </TD>
+                    <TD className="text-app-text">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</TD>
+                    <TD className="text-app-text">{carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}</TD>
+                    {isF1 && <TD className="text-app-text-secondary">{formatSessionType(session.sessionType)}</TD>}
+                    <TD>
+                      <NoteCell
+                        value={session.notes ?? undefined}
+                        onSave={(notes) => {
+                          client.api.sessions[":id"].notes.$patch({ param: { id: String(session.id) }, json: { notes: notes || null } });
+                          qc.invalidateQueries({ queryKey: queryKeys.sessions });
+                        }}
+                      />
+                    </TD>
+                  </TRow>
+                  {isExpanded && sessionLaps.length > 0 && (
+                    <tr key={`${session.id}-laps`}>
+                      <td colSpan={colCount} className="p-0">
+                        <div className="bg-app-surface-alt/20 border-b border-app-border pl-8">
+                          <SessionLapTable
+                            session={session}
+                            laps={sessionLaps}
+                            lapSortKey={lapSortKey}
+                            lapSortDir={lapSortDir}
+                            toggleLapSort={toggleLapSort}
+                            selectedLaps={selectedLaps}
+                            toggleLapSelection={toggleLapSelection}
+                          />
+                        </div>
                       </td>
                     </tr>
-                    {isExpanded && sessionLaps.length > 0 && (
-                      <tr key={`${session.id}-laps`}>
-                        <td colSpan={colCount} className="p-0">
-                          <div className="bg-app-surface-alt/20 border-b border-app-border pl-8">
-                            <SessionLapTable
-                              session={session}
-                              laps={sessionLaps}
-                              lapSortKey={lapSortKey}
-                              lapSortDir={lapSortDir}
-                              toggleLapSort={toggleLapSort}
-                              selectedLaps={selectedLaps}
-                              toggleLapSelection={toggleLapSelection}
-                            />
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                  )}
+                </>
+              );
+            })
+          )}
+        </TBody>
+      </Table>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs text-app-text-muted">

@@ -132,10 +132,17 @@ export function HomePage() {
     const fm = allLaps.filter((l) => l.gameId === "fm-2023");
     const f1 = allLaps.filter((l) => l.gameId === "f1-2025");
     const acc = allLaps.filter((l) => l.gameId === "acc");
+    const totalTime = (laps: typeof fm) => laps.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
+    const fmtTime = (sec: number) => {
+      if (sec <= 0) return "—";
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    };
     return {
-      fm: { laps: fm.length, tracks: new Set(fm.map((l) => l.trackOrdinal).filter(Boolean)).size },
-      f1: { laps: f1.length, tracks: new Set(f1.map((l) => l.trackOrdinal).filter(Boolean)).size },
-      acc: { laps: acc.length, tracks: new Set(acc.map((l) => l.trackOrdinal).filter(Boolean)).size },
+      fm: { laps: fm.length, time: fmtTime(totalTime(fm)) },
+      f1: { laps: f1.length, time: fmtTime(totalTime(f1)) },
+      acc: { laps: acc.length, time: fmtTime(totalTime(acc)) },
     };
   }, [allLaps]);
 
@@ -321,12 +328,12 @@ export function HomePage() {
           {/* Stats */}
           <div className="relative flex gap-5">
             <div>
-              <div className="text-[9px] uppercase tracking-[1.5px] text-white/22 mb-0.5">Laps</div>
+              <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">Laps</div>
               <div className="text-lg font-extrabold font-mono leading-none text-cyan-400">{gameStats.fm.laps}</div>
             </div>
             <div>
-              <div className="text-[9px] uppercase tracking-[1.5px] text-white/22 mb-0.5">Tracks</div>
-              <div className="text-lg font-extrabold font-mono leading-none text-white/50">{gameStats.fm.tracks}</div>
+              <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">Time</div>
+              <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.fm.time}</div>
             </div>
           </div>
         </Link>
@@ -355,12 +362,12 @@ export function HomePage() {
           {/* Stats */}
           <div className="relative flex gap-5">
             <div>
-              <div className="text-[9px] uppercase tracking-[1.5px] text-white/22 mb-0.5">Laps</div>
+              <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">Laps</div>
               <div className="text-lg font-extrabold font-mono leading-none text-red-500">{gameStats.f1.laps}</div>
             </div>
             <div>
-              <div className="text-[9px] uppercase tracking-[1.5px] text-white/22 mb-0.5">Tracks</div>
-              <div className="text-lg font-extrabold font-mono leading-none text-white/50">{gameStats.f1.tracks}</div>
+              <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">Time</div>
+              <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.f1.time}</div>
             </div>
           </div>
         </Link>
@@ -389,12 +396,12 @@ export function HomePage() {
           {/* Stats */}
           <div className="relative flex gap-5">
             <div>
-              <div className="text-[9px] uppercase tracking-[1.5px] text-white/22 mb-0.5">Laps</div>
+              <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">Laps</div>
               <div className="text-lg font-extrabold font-mono leading-none text-orange-400">{gameStats.acc.laps}</div>
             </div>
             <div>
-              <div className="text-[9px] uppercase tracking-[1.5px] text-white/22 mb-0.5">Tracks</div>
-              <div className="text-lg font-extrabold font-mono leading-none text-white/50">{gameStats.acc.tracks}</div>
+              <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">Time</div>
+              <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.acc.time}</div>
             </div>
           </div>
         </Link>

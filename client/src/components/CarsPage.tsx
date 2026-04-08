@@ -1,11 +1,12 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import { useUnits } from "../hooks/useUnits";
 import { getCarModel, loadCarModelConfigs } from "../data/car-models";
 import { piClass, PI_COLORS, PiBadge } from "./forza/PiBadge";
 import { client } from "../lib/rpc";
 import { AppInput } from "./ui/AppInput";
+import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 
 interface CarSpecs {
   hp: number;
@@ -347,17 +348,11 @@ export function CarsPage() {
     setSelected(prev => { const s = new Set(prev); if (s.has(ordinal)) s.delete(ordinal); else s.add(ordinal); return s; });
   }
 
-  const GRID = "grid-cols-[32px_1fr_72px_64px_72px_72px_52px_68px_52px_52px_60px_44px_44px_44px_44px_120px]";
 
   return (
     <div className="p-4 space-y-3">
       {/* Header */}
       <div className="flex items-center flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-bold text-app-text">Cars</h1>
-          <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-app-accent/20 text-app-accent">{filtered.length}</span>
-        </div>
-
         {/* View mode toggle */}
         <div className="flex items-center rounded-lg border border-app-border overflow-hidden">
           <button
@@ -507,73 +502,68 @@ export function CarsPage() {
           )}
         </>
       ) : (
-        <div className="rounded-lg border border-app-border overflow-x-auto">
-          <div className="min-w-max">
-          <div className={`grid ${GRID} gap-x-3 px-4 py-2 bg-app-surface border-b border-app-border`}>
-            <div />
-            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="name" label="Car" />
-            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="pi" label="PI" />
-            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="hp" label="HP" />
-            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="torque" label="Torque" />
-            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="weightKg" label={isMetric ? "Weight (kg)" : "Weight (lb)"} />
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-app-text-muted">Drive</span>
-            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="topSpeedMph" label={`Top Spd (${units.speedLabel})`} />
-            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="zeroToSixty" label="0–60" />
-            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="zeroToHundred" label="0–100" />
-            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="braking60" label={isMetric ? "Brake 60 (m)" : "Brake 60 (ft)"} />
-            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="speedRating" label="Spd" />
-            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="brakingRating" label="Brk" />
-            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="handlingRating" label="Hdl" />
-            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="accelRating" label="Acc" />
-            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="division" label="Division" />
-          </div>
-
-          <div className="divide-y divide-app-border/40">
+        <Table>
+          <THead>
+            <TH className="w-8 px-4" />
+            <TH><ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="name" label="Car" /></TH>
+            <TH><ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="pi" label="PI" /></TH>
+            <TH><ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="hp" label="HP" /></TH>
+            <TH><ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="torque" label="Torque" /></TH>
+            <TH><ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="weightKg" label={isMetric ? "Wt (kg)" : "Wt (lb)"} /></TH>
+            <TH>Drive</TH>
+            <TH><ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="topSpeedMph" label={`Top Spd (${units.speedLabel})`} /></TH>
+            <TH><ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="zeroToSixty" label="0–60" /></TH>
+            <TH><ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="zeroToHundred" label="0–100" /></TH>
+            <TH><ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="braking60" label={isMetric ? "Brk 60 (m)" : "Brk 60 (ft)"} /></TH>
+            <TH><ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="speedRating" label="Spd" /></TH>
+            <TH><ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="brakingRating" label="Brk" /></TH>
+            <TH><ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="handlingRating" label="Hdl" /></TH>
+            <TH><ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="accelRating" label="Acc" /></TH>
+            <TH><ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="division" label="Division" /></TH>
+          </THead>
+          <TBody>
             {filtered.length === 0 ? (
-              <div className="text-center py-12 text-app-text-muted text-sm">No cars match filters</div>
+              <tr><td colSpan={16} className="text-center py-12 text-app-text-muted text-sm">No cars match filters</td></tr>
             ) : filtered.map((car) => (
-              <div key={car.ordinal}>
-                <div
+              <Fragment key={car.ordinal}>
+                <TRow
                   onClick={() => setExpanded(prev => { const s = new Set(prev); if (s.has(car.ordinal)) s.delete(car.ordinal); else s.add(car.ordinal); return s; })}
-                  className={`grid ${GRID} gap-x-3 px-4 py-2.5 hover:bg-app-surface/50 transition-colors items-center cursor-pointer ${selected.has(car.ordinal) ? "bg-app-accent/5" : ""}`}
+                  className={selected.has(car.ordinal) ? "bg-app-accent/5" : ""}
                 >
-                  <div onClick={e => toggleSelect(car.ordinal, e)} className="flex items-center justify-center">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(car.ordinal)}
-                      onChange={() => {}}
-                      className="w-3.5 h-3.5 accent-app-accent cursor-pointer"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2 min-w-0">
-                    {car.specs?.pi ? <PiBadge showNumber={false} pi={car.specs.pi} /> : <span className="w-6" />}
+                  <TD className="px-4 w-8">
+                    <div onClick={e => toggleSelect(car.ordinal, e)} className="flex items-center justify-center">
+                      <input type="checkbox" checked={selected.has(car.ordinal)} onChange={() => {}} className="w-3.5 h-3.5 accent-app-accent cursor-pointer" />
+                    </div>
+                  </TD>
+                  <TD>
                     <span className="text-xs text-app-text truncate">{car.name}</span>
-                  </div>
-                  <span className="text-xs tabular-nums text-app-text-secondary">
+                  </TD>
+                  <TD className="tabular-nums text-xs text-app-text-secondary">
                     {car.specs?.pi ? <><span className={PI_COLORS[piClass(car.specs.pi)]?.split(" ")[1] ?? "text-app-text-muted"}>{piClass(car.specs.pi)}&nbsp;</span>{car.specs.pi}</> : "—"}
-                  </span>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.hp ? `${car.specs.hp}` : "—"}</span>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.torque ? `${car.specs.torque}` : "—"}</span>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{fmtWeight(car.specs?.weightKg ?? 0, car.specs?.weightLbs ?? 0)}</span>
-                  <span className="text-xs text-app-text-secondary">{car.specs?.drivetrain || "—"}</span>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{fmtSpeed(car.specs?.topSpeedMph ?? 0)}</span>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.zeroToSixty ? `${car.specs.zeroToSixty}s` : "—"}</span>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.zeroToHundred ? `${car.specs.zeroToHundred}s` : "—"}</span>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{fmtBrake(car.specs?.braking60 ?? 0)}</span>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.speedRating ? `${car.specs.speedRating}` : "—"}</span>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.brakingRating ? `${car.specs.brakingRating}` : "—"}</span>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.handlingRating ? `${car.specs.handlingRating}` : "—"}</span>
-                  <span className="text-xs tabular-nums text-app-text-secondary">{car.specs?.accelRating ? `${car.specs.accelRating}` : "—"}</span>
-                  <span className="text-xs text-app-text-muted truncate">{car.specs?.division || "—"}</span>
-                </div>
+                  </TD>
+                  <TD className="tabular-nums text-xs text-app-text-secondary">{car.specs?.hp || "—"}</TD>
+                  <TD className="tabular-nums text-xs text-app-text-secondary">{car.specs?.torque || "—"}</TD>
+                  <TD className="tabular-nums text-xs text-app-text-secondary">{fmtWeight(car.specs?.weightKg ?? 0, car.specs?.weightLbs ?? 0)}</TD>
+                  <TD className="text-xs text-app-text-secondary">{car.specs?.drivetrain || "—"}</TD>
+                  <TD className="tabular-nums text-xs text-app-text-secondary">{fmtSpeed(car.specs?.topSpeedMph ?? 0)}</TD>
+                  <TD className="tabular-nums text-xs text-app-text-secondary">{car.specs?.zeroToSixty ? `${car.specs.zeroToSixty}s` : "—"}</TD>
+                  <TD className="tabular-nums text-xs text-app-text-secondary">{car.specs?.zeroToHundred ? `${car.specs.zeroToHundred}s` : "—"}</TD>
+                  <TD className="tabular-nums text-xs text-app-text-secondary">{fmtBrake(car.specs?.braking60 ?? 0)}</TD>
+                  <TD className="tabular-nums text-xs text-app-text-secondary">{car.specs?.speedRating || "—"}</TD>
+                  <TD className="tabular-nums text-xs text-app-text-secondary">{car.specs?.brakingRating || "—"}</TD>
+                  <TD className="tabular-nums text-xs text-app-text-secondary">{car.specs?.handlingRating || "—"}</TD>
+                  <TD className="tabular-nums text-xs text-app-text-secondary">{car.specs?.accelRating || "—"}</TD>
+                  <TD className="text-xs text-app-text-muted truncate">{car.specs?.division || "—"}</TD>
+                </TRow>
                 {expanded.has(car.ordinal) && (
-                  <CarDetail car={car} fmtSpeed={fmtSpeed} fmtBrake={fmtBrake} fmtWeight={fmtWeight} isMetric={isMetric} />
+                  <tr><td colSpan={16} className="p-0 border-b border-app-border/40">
+                    <CarDetail car={car} fmtSpeed={fmtSpeed} fmtBrake={fmtBrake} fmtWeight={fmtWeight} isMetric={isMetric} />
+                  </td></tr>
                 )}
-              </div>
+              </Fragment>
             ))}
-          </div>
-          </div>
-        </div>
+          </TBody>
+        </Table>
       )}
 
       {/* Floating compare bar */}
