@@ -217,7 +217,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         const data = await res.json().catch(() => ({ error: "Unknown error" })) as { error?: string };
         throw new Error(data.error || `HTTP ${res.status}`);
       }
-      const data = await res.json();
+      const data = await res.json() as { analysis: string | object | null; usage?: { inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string }; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean };
       const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
       setAnalysis(parsed);
       if (data.usage) setUsage(data.usage);
@@ -279,11 +279,34 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     } catch { /* ignore */ }
   }, [lapId]);
 
-  // Load chat on open; analysis is manual-only (user must press button)
+  // Load cached analysis (no AI call — returns null if not cached)
+  const loadCachedAnalysis = useCallback(async () => {
+    try {
+      const res = await client.api.laps[":id"].analyse.$post({
+        param: { id: String(lapId) },
+        query: { cacheOnly: "true" },
+      });
+      if (!res.ok) return;
+      const data = await res.json() as { analysis: string | object | null; cached: boolean; usage?: { inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string }; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean };
+      if (!data.cached) return;
+      const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
+      setAnalysis(parsed);
+      if (data.usage) setUsage(data.usage);
+      if (data.cornerFracs) {
+        setCornerFracs(data.cornerFracs.map((c) => ({
+          type: "corner" as const, name: c.label, startFrac: c.startFrac, endFrac: c.endFrac,
+        })));
+      }
+      setHasTune(!!data.hasTune);
+    } catch { /* ignore */ }
+  }, [lapId]);
+
+  // Load chat and cached analysis on open
   useEffect(() => {
     if (!panelOpen) return;
     loadChat();
-  }, [lapId, panelOpen, loadChat]);
+    loadCachedAnalysis();
+  }, [lapId, panelOpen, loadChat, loadCachedAnalysis]);
 
   // Reset on lap change
   useEffect(() => {
@@ -391,7 +414,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         )}
 
         {/* Empty state — after clear */}
-        {!analysis && !loading && !error && (
+        {!analysis && !loading && !error && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Sparkles className="size-5 text-amber-400" />
             <p className="text-[11px] text-app-text-muted">No analysis yet</p>
@@ -569,7 +592,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         )}
 
         {/* Chat messages continue the conversation */}
-        {analysis && !loading && (
+        {!loading && (analysis || messages.length > 0) && (
           <>
             {messages.length > 0 && (
               <div className="flex justify-end">
@@ -635,13 +658,13 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       </div>
 
       {/* Chat input — pinned at bottom */}
-      {analysis && !loading && (
+      {!loading && (analysis || messages.length > 0) && (
         <div className="shrink-0 border-t border-app-border p-2 flex gap-1.5">
           <textarea
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
-            placeholder="Ask about this lap..."
+            placeholder="Chat about this lap..."
             disabled={chatLoading}
             rows={1}
             style={{ height: 'auto', maxHeight: '9.375rem' }}

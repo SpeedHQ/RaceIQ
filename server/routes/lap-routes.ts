@@ -39,6 +39,10 @@ const AnalyseQuerySchema = z.object({
     .enum(["true", "false"])
     .transform((v) => v === "true")
     .optional(),
+  cacheOnly: z
+    .enum(["true", "false"])
+    .transform((v) => v === "true")
+    .optional(),
 });
 
 const BulkDeleteSchema = z.object({
@@ -144,7 +148,7 @@ export const lapRoutes = new Hono()
     zValidator("query", AnalyseQuerySchema),
     async (c) => {
       const { id } = c.req.valid("param");
-      const { regenerate } = c.req.valid("query");
+      const { regenerate, cacheOnly } = c.req.valid("query");
 
       const lap = await getLapById(id);
       if (!lap) return c.json({ error: "Lap not found" }, 404);
@@ -181,6 +185,9 @@ export const lapRoutes = new Hono()
             cornerFracs,
             hasTune: !!lap.tuneId,
           });
+        }
+        if (cacheOnly) {
+          return c.json({ analysis: null, cached: false, cornerFracs, hasTune: !!lap.tuneId });
         }
       }
       const settings = loadSettings();
