@@ -328,7 +328,7 @@ export function F1Cars() {
 
   return (
     <div className="flex-1 overflow-auto p-4 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
         <h1 className="text-lg font-semibold text-app-text">
           F1 2025 Teams & Cars
         </h1>

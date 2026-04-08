@@ -5,6 +5,7 @@ import { useUnits } from "../hooks/useUnits";
 import { getCarModel, loadCarModelConfigs } from "../data/car-models";
 import { piClass, PI_COLORS, PiBadge } from "./forza/PiBadge";
 import { client } from "../lib/rpc";
+import { AppInput } from "./ui/AppInput";
 
 interface CarSpecs {
   hp: number;
@@ -259,6 +260,16 @@ function CompareModal({ cars, onClose, fmtSpeed, fmtBrake, fmtWeight, isMetric }
   );
 }
 
+function ColHeader({ k, label, className = "", sort, sortDir, onSort }: { k: SortKey; label: string; className?: string; sort: SortKey; sortDir: 1 | -1; onSort: (k: SortKey) => void }) {
+  const active = sort === k;
+  return (
+    <button onClick={() => onSort(k)}
+      className={`text-left text-[10px] uppercase tracking-wider font-semibold transition-colors ${active ? "text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"} ${className}`}>
+      {label}{active ? (sortDir === 1 ? " ↑" : " ↓") : ""}
+    </button>
+  );
+}
+
 export function CarsPage() {
   const navigate = useNavigate();
   const searchParams = useSearch({ strict: false }) as { compare?: string };
@@ -333,17 +344,7 @@ export function CarsPage() {
 
   function toggleSelect(ordinal: number, e: React.MouseEvent) {
     e.stopPropagation();
-    setSelected(prev => { const s = new Set(prev); s.has(ordinal) ? s.delete(ordinal) : s.add(ordinal); return s; });
-  }
-
-  function ColHeader({ k, label, className = "" }: { k: SortKey; label: string; className?: string }) {
-    const active = sort === k;
-    return (
-      <button onClick={() => toggleSort(k)}
-        className={`text-left text-[10px] uppercase tracking-wider font-semibold transition-colors ${active ? "text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"} ${className}`}>
-        {label}{active ? (sortDir === 1 ? " ↑" : " ↓") : ""}
-      </button>
-    );
+    setSelected(prev => { const s = new Set(prev); if (s.has(ordinal)) s.delete(ordinal); else s.add(ordinal); return s; });
   }
 
   const GRID = "grid-cols-[32px_1fr_72px_64px_72px_72px_52px_68px_52px_52px_60px_44px_44px_44px_44px_120px]";
@@ -351,58 +352,57 @@ export function CarsPage() {
   return (
     <div className="p-4 space-y-3">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold text-app-text">Cars</h1>
-            <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-app-accent/20 text-app-accent">{filtered.length}</span>
-          </div>
+      <div className="flex items-center flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-bold text-app-text">Cars</h1>
+          <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-app-accent/20 text-app-accent">{filtered.length}</span>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* View mode toggle */}
-          <div className="flex items-center rounded-lg border border-app-border overflow-hidden">
-            <button
-              onClick={() => setViewMode("table")}
-              title="Table view"
-              className={`px-2.5 py-1.5 transition-colors ${viewMode === "table" ? "bg-app-accent text-white" : "bg-app-surface text-app-text-muted hover:text-app-text"}`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>
-              </svg>
+        {/* View mode toggle */}
+        <div className="flex items-center rounded-lg border border-app-border overflow-hidden">
+          <button
+            onClick={() => setViewMode("table")}
+            title="Table view"
+            className={`px-2.5 py-1.5 transition-colors ${viewMode === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text"}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>
+            </svg>
+          </button>
+          <button
+            onClick={() => setViewMode("grid")}
+            title="Grid view"
+            className={`px-2.5 py-1.5 transition-colors ${viewMode === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text"}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+            </svg>
+          </button>
+        </div>
+
+        <AppInput
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search name, division, engine..."
+          className="w-52"
+        />
+
+        <div className="flex items-center gap-1">
+          {PI_CLASSES.map((cls) => (
+            <button key={cls} onClick={() => setClassFilter(classFilter === cls ? null : cls)}
+              className={`text-xs font-bold px-3 py-1.5 rounded transition-colors ${classFilter === cls ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text border border-app-border"}`}>
+              {cls}
             </button>
-            <button
-              onClick={() => setViewMode("grid")}
-              title="Grid view"
-              className={`px-2.5 py-1.5 transition-colors ${viewMode === "grid" ? "bg-app-accent text-white" : "bg-app-surface text-app-text-muted hover:text-app-text"}`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-              </svg>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-1">
+          {DRIVETRAINS.map((d) => (
+            <button key={d} onClick={() => setDriveFilter(driveFilter === d ? null : d)}
+              className={`text-xs font-semibold px-3 py-1.5 rounded transition-colors ${driveFilter === d ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text border border-app-border"}`}>
+              {d}
             </button>
-          </div>
-
-          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name, division, engine..."
-            className="bg-app-surface text-app-text text-xs rounded-lg px-3 py-1.5 border border-app-border focus:outline-none focus:ring-1 focus:ring-app-accent w-52" />
-
-          <div className="flex items-center gap-1">
-            {PI_CLASSES.map((cls) => (
-              <button key={cls} onClick={() => setClassFilter(classFilter === cls ? null : cls)}
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors ${classFilter === cls ? "bg-app-accent text-white" : "bg-app-surface text-app-text-muted hover:text-app-text border border-app-border"}`}>
-                {cls}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-1">
-            {DRIVETRAINS.map((d) => (
-              <button key={d} onClick={() => setDriveFilter(driveFilter === d ? null : d)}
-                className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors ${driveFilter === d ? "bg-app-accent text-white" : "bg-app-surface text-app-text-muted hover:text-app-text border border-app-border"}`}>
-                {d}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
 
@@ -511,21 +511,21 @@ export function CarsPage() {
           <div className="min-w-max">
           <div className={`grid ${GRID} gap-x-3 px-4 py-2 bg-app-surface border-b border-app-border`}>
             <div />
-            <ColHeader k="name" label="Car" />
-            <ColHeader k="pi" label="PI" />
-            <ColHeader k="hp" label="HP" />
-            <ColHeader k="torque" label="Torque" />
-            <ColHeader k="weightKg" label={isMetric ? "Weight (kg)" : "Weight (lb)"} />
+            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="name" label="Car" />
+            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="pi" label="PI" />
+            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="hp" label="HP" />
+            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="torque" label="Torque" />
+            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="weightKg" label={isMetric ? "Weight (kg)" : "Weight (lb)"} />
             <span className="text-[10px] uppercase tracking-wider font-semibold text-app-text-muted">Drive</span>
-            <ColHeader k="topSpeedMph" label={`Top Spd (${units.speedLabel})`} />
-            <ColHeader k="zeroToSixty" label="0–60" />
-            <ColHeader k="zeroToHundred" label="0–100" />
-            <ColHeader k="braking60" label={isMetric ? "Brake 60 (m)" : "Brake 60 (ft)"} />
-            <ColHeader k="speedRating" label="Spd" />
-            <ColHeader k="brakingRating" label="Brk" />
-            <ColHeader k="handlingRating" label="Hdl" />
-            <ColHeader k="accelRating" label="Acc" />
-            <ColHeader k="division" label="Division" />
+            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="topSpeedMph" label={`Top Spd (${units.speedLabel})`} />
+            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="zeroToSixty" label="0–60" />
+            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="zeroToHundred" label="0–100" />
+            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="braking60" label={isMetric ? "Brake 60 (m)" : "Brake 60 (ft)"} />
+            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="speedRating" label="Spd" />
+            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="brakingRating" label="Brk" />
+            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="handlingRating" label="Hdl" />
+            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="accelRating" label="Acc" />
+            <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="division" label="Division" />
           </div>
 
           <div className="divide-y divide-app-border/40">
@@ -534,7 +534,7 @@ export function CarsPage() {
             ) : filtered.map((car) => (
               <div key={car.ordinal}>
                 <div
-                  onClick={() => setExpanded(prev => { const s = new Set(prev); s.has(car.ordinal) ? s.delete(car.ordinal) : s.add(car.ordinal); return s; })}
+                  onClick={() => setExpanded(prev => { const s = new Set(prev); if (s.has(car.ordinal)) s.delete(car.ordinal); else s.add(car.ordinal); return s; })}
                   className={`grid ${GRID} gap-x-3 px-4 py-2.5 hover:bg-app-surface/50 transition-colors items-center cursor-pointer ${selected.has(car.ordinal) ? "bg-app-accent/5" : ""}`}
                 >
                   <div onClick={e => toggleSelect(car.ordinal, e)} className="flex items-center justify-center">
@@ -583,7 +583,7 @@ export function CarsPage() {
           <button
             onClick={() => setComparing(true)}
             disabled={selected.size < 2}
-            className="text-xs font-semibold px-3 py-1 rounded-full bg-app-accent text-white disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+            className="text-xs font-semibold px-3 py-1 rounded-full bg-app-accent/20 text-app-accent border border-app-accent/30 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-app-accent/30 transition-colors"
           >
             Compare ({selected.size})
           </button>
