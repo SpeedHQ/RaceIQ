@@ -780,10 +780,11 @@ export const trackRoutes = new Hono()
       const trackLaps = (await getLaps(undefined, gameId)).filter((l) => l.trackOrdinal === ordinal && l.lapTime > 0);
       if (trackLaps.length === 0) return c.json({});
 
-      // Get sector boundaries for boundary-based fallback
+      // Get sector boundaries; fall back to equal thirds if none defined
       const dbSectors = gameId ? await getTrackOutlineSectors(ordinal, gameId) : null;
       const bundled = getTrackSectorsByOrdinal(ordinal);
-      const sectors = dbSectors ?? bundled;
+      const rawSectors = dbSectors ?? bundled;
+      const sectors = { s1End: rawSectors?.s1End ?? 1 / 3, s2End: rawSectors?.s2End ?? 2 / 3 };
 
       const result: Record<number, { s1: number; s2: number; s3: number }> = {};
 
@@ -801,8 +802,8 @@ export const trackRoutes = new Hono()
           if (p.sector2Time > 0) s2Time = p.sector2Time;
         }
 
-        // Fall back to boundary-based computation if game didn't provide sector times
-        if ((s1Time === 0 || s2Time === 0) && sectors?.s1End && sectors?.s2End) {
+        // Fall back to distance-fraction computation when game didn't provide sector times
+        if (s1Time === 0 || s2Time === 0) {
           const startDist = packets[0].DistanceTraveled;
           const endDist = packets[packets.length - 1].DistanceTraveled;
           const totalDist = endDist - startDist;
