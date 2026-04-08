@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 import { Sparkles } from "lucide-react";
 import { AiPanel, type AnalysisHighlight, type AiPanelHandle } from "../AiPanel";
 import { AiPanelMenu } from "./AiPanelMenu";
+import { Button } from "../ui/button";
 
 interface AnalyseAiSidebarProps {
   lapId: number;
@@ -38,7 +39,7 @@ export function AnalyseAiSidebar({
             onClearAnalysis={() => aiPanelRef.current?.clearAnalysis()}
             onClearAll={() => aiPanelRef.current?.clearAll()}
           />
-          <button onClick={onClose} className="text-app-text-muted hover:text-app-text text-xs">✕</button>
+          <Button variant="app-ghost" size="app-sm" onClick={onClose}>✕</Button>
         </div>
       </div>
       <AiPanel

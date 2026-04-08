@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { Button } from "../ui/button";
 
 interface SectionProps {
   title: string;
@@ -39,9 +40,9 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-app-border shrink-0">
           <h2 className="text-sm font-semibold text-app-text">Data Panel Guide</h2>
-          <button onClick={onClose} className="text-app-text-muted hover:text-app-text transition-colors">
+          <Button variant="app-ghost" size="app-sm" onClick={onClose}>
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         {/* Scrollable content */}

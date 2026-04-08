@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { client } from "../../lib/rpc";
+import { Button } from "../ui/button";
 
 export function TuneViewModal({ tuneId, onClose }: { tuneId: number; onClose: () => void }) {
   const { data: tune, isLoading } = useQuery({
     queryKey: ["tune", tuneId],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     queryFn: () => client.api.tunes[":id"].$get({ param: { id: String(tuneId) } }).then((r) => r.json() as any),
   });
 
@@ -24,7 +26,7 @@ export function TuneViewModal({ tuneId, onClose }: { tuneId: number; onClose: ()
                 <h2 className="text-lg font-semibold text-app-text">{tune.name}</h2>
                 {tune.author && <p className="text-xs text-app-text-muted">by {tune.author}</p>}
               </div>
-              <button onClick={onClose} className="text-app-text-muted hover:text-app-text text-xl leading-none">&times;</button>
+              <Button variant="app-ghost" size="app-sm" onClick={onClose}>&times;</Button>
             </div>
 
             {tune.category && (

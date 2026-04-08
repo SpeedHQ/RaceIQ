@@ -8,6 +8,7 @@ import { useGameId, useGameRoute } from "../stores/game";
 import { client } from "../lib/rpc";
 import { formatLapTime } from "./LiveTelemetry";
 import { SearchSelect } from "./ui/SearchSelect";
+import { Button } from "./ui/button";
 
 const PAGE_SIZE = 25;
 
@@ -17,6 +18,20 @@ type SortDir = "asc" | "desc";
 function formatSessionType(type?: string): string {
   if (!type || type === "unknown") return "";
   return type.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function SortHeader({ label, field, sortKey, sortDir, toggleSort }: {
+  label: string; field: SortKey;
+  sortKey: SortKey; sortDir: SortDir; toggleSort: (f: SortKey) => void;
+}) {
+  return (
+    <th
+      className="px-3 py-2 text-left text-xs font-medium text-app-text-muted uppercase tracking-wider cursor-pointer select-none hover:text-app-text"
+      onClick={() => toggleSort(field)}
+    >
+      {label} {sortKey === field ? (sortDir === "asc" ? "▲" : "▼") : ""}
+    </th>
+  );
 }
 
 export function SessionsPage() {
@@ -209,15 +224,6 @@ export function SessionsPage() {
     qc.invalidateQueries({ queryKey: queryKeys.laps });
   }, [selectedLaps, selectedSessions, qc]);
 
-  const SortHeader = ({ label, field }: { label: string; field: SortKey }) => (
-    <th
-      className="px-3 py-2 text-left text-xs font-medium text-app-text-muted uppercase tracking-wider cursor-pointer select-none hover:text-app-text"
-      onClick={() => toggleSort(field)}
-    >
-      {label} {sortKey === field ? (sortDir === "asc" ? "▲" : "▼") : ""}
-    </th>
-  );
-
   const isF1 = gameId === "f1-2025";
   const colCount = isF1 ? 7 : 6;
 
@@ -280,12 +286,12 @@ export function SessionsPage() {
                   className="accent-cyan-400 w-4 h-4"
                 />
               </th>
-              <SortHeader label="Date" field="date" />
-              <SortHeader label="Track" field="track" />
-              <SortHeader label="Car" field="car" />
-              {isF1 && <SortHeader label="Type" field="type" />}
-              <SortHeader label="Laps" field="laps" />
-              <SortHeader label="Best Lap" field="best" />
+              <SortHeader label="Date" field="date" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+              <SortHeader label="Track" field="track" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+              <SortHeader label="Car" field="car" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+              {isF1 && <SortHeader label="Type" field="type" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />}
+              <SortHeader label="Laps" field="laps" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+              <SortHeader label="Best Lap" field="best" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
             </tr>
           </thead>
           <tbody>
@@ -317,6 +323,7 @@ export function SessionsPage() {
                         <input
                           type="checkbox"
                           checked={selectedSessions.has(session.id)}
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           onChange={(e) => toggleSessionSelection(session.id, e as any)}
                           className="accent-cyan-400 w-4 h-4"
                         />
@@ -407,24 +414,28 @@ export function SessionsPage() {
                                       </td>
                                       <td className="px-3 py-1 text-right">
                                         <div className="flex items-center justify-end gap-1">
-                                          <button
+                                          <Button
+                                            variant="app-outline"
+                                            size="app-sm"
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               navigate({
+                                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                 to: `${gameRoute}/analyse` as any,
+                                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                 search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } as any,
                                               });
                                             }}
-                                            className="px-1.5 py-0.5 text-[10px] rounded bg-purple-600 hover:bg-purple-500 text-white"
                                           >
                                             Analyse
-                                          </button>
-                                          <button
+                                          </Button>
+                                          <Button
+                                            variant="app-danger"
+                                            size="app-sm"
                                             onClick={(e) => { e.stopPropagation(); deleteLap.mutate(lap.id); }}
-                                            className="px-1 py-0.5 text-[10px] rounded bg-slate-700 hover:bg-red-600 text-app-text"
                                           >
-                                            ×
-                                          </button>
+                                            Delete
+                                          </Button>
                                         </div>
                                       </td>
                                     </tr>

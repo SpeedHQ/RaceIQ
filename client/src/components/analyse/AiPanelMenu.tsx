@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Settings2 } from "lucide-react";
+import { Button } from "../ui/button";
 
 interface AiPanelMenuProps {
   onClearChat: () => void;
@@ -21,9 +22,9 @@ export function AiPanelMenu({ onClearChat, onClearAnalysis, onClearAll }: AiPane
 
   return (
     <div ref={ref} className="relative">
-      <button onClick={() => setOpen((v) => !v)} className="text-app-text-muted hover:text-app-text transition-colors" title="Manage">
+      <Button variant="app-ghost" size="app-sm" onClick={() => setOpen((v) => !v)} title="Manage">
         <Settings2 className="size-3.5" />
-      </button>
+      </Button>
       {open && (
         <div className="absolute right-0 top-full mt-1 z-50 bg-app-surface border border-app-border-input rounded-lg shadow-xl py-1 min-w-[160px]">
           <button onClick={() => { onClearChat(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-[11px] text-app-text-secondary hover:text-app-text hover:bg-app-surface-alt transition-colors">

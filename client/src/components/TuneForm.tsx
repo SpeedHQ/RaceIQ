@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Button } from "./ui/button";
 import { useQuery } from "@tanstack/react-query";
 import type { TuneSettings } from "../data/tune-catalog";
 import type { TuneCategory } from "@shared/types";
@@ -485,8 +486,8 @@ export function TuneForm({
       if (parsed.description) setDescription(parsed.description);
       setJsonError("");
       setJsonMode(false);
-    } catch (err: any) {
-      setJsonError(err.message ?? "Invalid JSON");
+    } catch (err: unknown) {
+      setJsonError(err instanceof Error ? err.message : "Invalid JSON");
     }
   };
 
@@ -512,16 +513,16 @@ export function TuneForm({
       {/* Sticky header */}
       <div className="sticky top-0 z-10 bg-app-bg border-b border-app-border flex items-center justify-between px-6 py-3">
         <div className="flex items-center gap-2">
-          <button type="button" onClick={onCancel} className="text-app-text-muted hover:text-app-text text-sm">&larr;</button>
+          <Button type="button" variant="app-ghost" size="app-sm" onClick={onCancel}>&larr;</Button>
           <h2 className="text-base font-bold text-app-text">{title}</h2>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={onCancel} className="text-xs px-4 py-1.5 rounded border border-app-border text-app-text-secondary hover:text-app-text transition-colors">
+          <Button type="button" variant="app-outline" size="app-md" onClick={onCancel}>
             Cancel
-          </button>
-          <button type="submit" disabled={!name || isSubmitting} className="text-xs px-4 py-1.5 rounded bg-app-accent text-white hover:bg-app-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+          </Button>
+          <Button type="submit" variant="app-primary" size="app-md" disabled={!name || isSubmitting}>
             {isSubmitting ? "Saving..." : "Save Tune"}
-          </button>
+          </Button>
         </div>
       </div>
 

@@ -95,7 +95,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
             {stage === "complete" ? "Update Complete" : stage ? "Updating RaceIQ" : "Update Available"}
           </h2>
           {!isUpdating && (
-            <button onClick={onClose} className="text-app-text-muted hover:text-app-text text-lg leading-none">&times;</button>
+            <Button variant="app-ghost" size="app-sm" onClick={onClose}>&times;</Button>
           )}
         </div>
 
