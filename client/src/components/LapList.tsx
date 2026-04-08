@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useLaps, useDeleteLap } from "../hooks/queries";
-import { useActiveProfileId } from "../hooks/useProfiles";
 import { useGameRoute, useGameId } from "../stores/game";
 import { client } from "../lib/rpc";
 import { Button } from "./ui/button";
@@ -19,10 +18,9 @@ type SortDir = "asc" | "desc";
 
 export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTelemetry?: boolean }) {
   const navigate = useNavigate({ from: "/" });
-  const { data: activeProfileId } = useActiveProfileId();
   const gameRoute = useGameRoute();
   const gameId = useGameId();
-  const { data: allLaps = [], isLoading } = useLaps(activeProfileId, { refetchInterval: 5_000 });
+  const { data: allLaps = [], isLoading } = useLaps({ refetchInterval: 5_000 });
   const deleteLap = useDeleteLap();
   const [sortKey, setSortKey] = useState<SortKey>("lap");
   const [sortDir, setSortDir] = useState<SortDir>("desc");

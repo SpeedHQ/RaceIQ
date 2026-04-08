@@ -44,7 +44,7 @@ if (process.platform === "darwin") {
 const HTTP_PORT = Number(process.env.SERVER_PORT) || 3117;
 
 // Import DB to ensure schema is created on startup
-import { client } from "./db/index";
+import "./db/index";
 import { deleteEmptySessions } from "./db/queries";
 
 // Detect first run (settings file doesn't exist yet) before loadSettings creates it
@@ -55,18 +55,6 @@ const firstRun = isFirstRun();
 const settings = loadSettings();
 if (settings.wsRefreshRate) {
   wsManager.setRefreshRate(settings.wsRefreshRate);
-}
-
-// Auto-activate the first profile if no activeProfileId is set yet
-{
-  const _settings = loadSettings();
-  if (_settings.activeProfileId == null) {
-    const result = await client.execute("SELECT id FROM profiles LIMIT 1");
-    const firstProfile = result.rows.length > 0 ? { id: Number(result.rows[0].id) } : null;
-    if (firstProfile) {
-      saveSettings({ ..._settings, activeProfileId: firstProfile.id });
-    }
-  }
 }
 
 // Clean up empty sessions on startup

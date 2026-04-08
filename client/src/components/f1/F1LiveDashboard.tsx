@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { useUnits } from "../../hooks/useUnits";
 import { useLaps, useDeleteLap } from "../../hooks/queries";
-import { useActiveProfileId } from "../../hooks/useProfiles";
 import { useGameRoute } from "../../stores/game";
 import { client } from "../../lib/rpc";
 import type { TelemetryPacket, F1ExtendedData } from "@shared/types";
@@ -405,55 +404,55 @@ function CarDamageSection({ f1 }: { f1: F1ExtendedData }) {
 function PitEstimateSection({ packet }: { packet: TelemetryPacket }) {
   const positions = ["FL", "FR", "RL", "RR"] as const;
 
-  // Track rates over time for lap estimates
-  const rateRef = useRef({
-    lastTime: Date.now() / 1000,
+  // Mutable tracking state (not for rendering) — last-seen values for delta calculation
+  const trackingRef = useRef({
+    lastTime: 0,
     lastFuel: packet.Fuel,
     lastWears: [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR],
     lastDist: packet.DistanceTraveled,
-    fuelPerSec: 0,
-    wearPerSec: [0, 0, 0, 0],
-    avgSpeed: 0,
-    lastLapDist: 0, // distance at last lap boundary
-    estLapLength: 0, // estimated lap length from distance
+    lastLapDist: 0,
+    estLapLength: 0,
   });
-  const [, tick] = useState(0);
+  // Derived rate values used for rendering — stored in state so renders update correctly
+  const [rates, setRates] = useState({ fuelPerSec: 0, wearPerSec: [0, 0, 0, 0], avgSpeed: 0 });
 
   useEffect(() => {
-    const r = rateRef.current;
+    const t = trackingRef.current;
     const now = Date.now() / 1000;
-    const dt = now - r.lastTime;
+    const dt = now - t.lastTime;
     if (dt < 3) return;
 
-    const fuelDelta = r.lastFuel - packet.Fuel;
-    const distDelta = packet.DistanceTraveled - r.lastDist;
+    const fuelDelta = t.lastFuel - packet.Fuel;
+    const distDelta = packet.DistanceTraveled - t.lastDist;
     const wears = [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR];
 
-    if (fuelDelta > 0) r.fuelPerSec = fuelDelta / dt;
-    for (let i = 0; i < 4; i++) {
-      const d = wears[i] - r.lastWears[i];
-      if (d > 0) r.wearPerSec[i] = d / dt;
-    }
-    if (distDelta > 0) r.avgSpeed = distDelta / dt;
+    setRates((prev) => {
+      const next = { ...prev, wearPerSec: [...prev.wearPerSec] };
+      if (fuelDelta > 0) next.fuelPerSec = fuelDelta / dt;
+      for (let i = 0; i < 4; i++) {
+        const d = wears[i] - t.lastWears[i];
+        if (d > 0) next.wearPerSec[i] = d / dt;
+      }
+      if (distDelta > 0) next.avgSpeed = distDelta / dt;
+      return next;
+    });
 
-    r.lastTime = now;
-    r.lastFuel = packet.Fuel;
-    r.lastWears = wears;
-    r.lastDist = packet.DistanceTraveled;
-    tick(v => v + 1);
+    t.lastTime = now;
+    t.lastFuel = packet.Fuel;
+    t.lastWears = wears;
+    t.lastDist = packet.DistanceTraveled;
   }, [packet]);
 
   // Estimate lap length from f1.totalLaps and total distance if possible
   // Or from a heuristic: ~5km per lap average F1 track
-  const r = rateRef.current;
-  const estLapTime = r.avgSpeed > 1 ? 5000 / r.avgSpeed : 0; // rough 5km estimate
-  const canEstimate = r.avgSpeed > 1;
+  const estLapTime = rates.avgSpeed > 1 ? 5000 / rates.avgSpeed : 0; // rough 5km estimate
+  const canEstimate = rates.avgSpeed > 1;
 
   // Fuel estimate
   const fuelPct = packet.Fuel * 100;
   let fuelLaps: number | null = null;
-  if (r.fuelPerSec > 0 && canEstimate) {
-    const fuelPerLap = r.fuelPerSec * estLapTime;
+  if (rates.fuelPerSec > 0 && canEstimate) {
+    const fuelPerLap = rates.fuelPerSec * estLapTime;
     if (fuelPerLap > 0) fuelLaps = Math.round((packet.Fuel / fuelPerLap) * 10) / 10;
   }
   const fuelColor = fuelPct < 20 ? "text-red-400" : fuelPct < 40 ? "text-amber-400" : "text-emerald-400";
@@ -467,17 +466,13 @@ function PitEstimateSection({ packet }: { packet: TelemetryPacket }) {
     const tempC = Math.round(fToC(packet[tempKey] as number));
 
     let laps: number | null = null;
-    if (r.wearPerSec[i] > 0 && canEstimate) {
-      const wearPerLap = r.wearPerSec[i] * estLapTime;
+    if (rates.wearPerSec[i] > 0 && canEstimate) {
+      const wearPerLap = rates.wearPerSec[i] * estLapTime;
       const remaining = 1 - wear;
       if (wearPerLap > 0) laps = Math.round((remaining / wearPerLap) * 10) / 10;
     }
 
-    let tempColor = "text-app-text";
-    if (tempC > 105) tempColor = "text-red-400";
-    else if (tempC > 90) tempColor = "text-orange-400";
-    else if (tempC < 70) tempColor = "text-blue-400";
-    else tempColor = "text-emerald-400";
+    const tempColor = tempC > 105 ? "text-red-400" : tempC > 90 ? "text-orange-400" : tempC < 70 ? "text-blue-400" : "text-emerald-400";
 
     const healthColor = health > 60 ? "text-emerald-400" : health > 30 ? "text-yellow-400" : "text-red-400";
     const healthBg = health > 60 ? "bg-emerald-400" : health > 30 ? "bg-yellow-400" : "bg-red-500";
@@ -658,16 +653,20 @@ function SectorTimesSection({ packet, f1 }: { packet: TelemetryPacket; f1: F1Ext
   // S3 can be inferred: if we have last lap time and s1+s2 from previous lap, but
   // for current lap, S3 = lastLapTime - s1_prev - s2_prev (not available here).
   // We can track best sectors over time
-  const bestSectorsRef = useRef({ s1: 0, s2: 0, s3: 0 });
+  const [bestSectors, setBestSectors] = useState({ s1: 0, s2: 0, s3: 0 });
 
   // Track best sectors
   useEffect(() => {
-    const b = bestSectorsRef.current;
-    if (s1 > 0 && (b.s1 === 0 || s1 < b.s1)) b.s1 = s1;
-    if (s2 > 0 && (b.s2 === 0 || s2 < b.s2)) b.s2 = s2;
+    setBestSectors((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      if (s1 > 0 && (prev.s1 === 0 || s1 < prev.s1)) { next.s1 = s1; changed = true; }
+      if (s2 > 0 && (prev.s2 === 0 || s2 < prev.s2)) { next.s2 = s2; changed = true; }
+      return changed ? next : prev;
+    });
   }, [s1, s2]);
 
-  const best = bestSectorsRef.current;
+  const best = bestSectors;
 
   const sectorColor = (time: number, bestTime: number) => {
     if (time <= 0) return "text-app-text-muted";
@@ -735,10 +734,10 @@ function SectorTimesSection({ packet, f1 }: { packet: TelemetryPacket; f1: F1Ext
 // ── Shared hook: fetch laps + sectors from server ────────────────────────────
 
 function useSessionLaps(trackOrdinal?: number) {
-  const { data: activeProfileId } = useActiveProfileId();
-  const { data: allLaps = [] } = useLaps(activeProfileId, { refetchInterval: 3_000 });
+  const { data: allLaps = [] } = useLaps({ refetchInterval: 3_000 });
   const { data: sectorTimes } = useQuery({
     queryKey: ["track-lap-sectors", trackOrdinal],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     queryFn: () => client.api.tracks[":ordinal"]["lap-sectors"].$get({ param: { ordinal: String(trackOrdinal!) }, query: {} }).then((r) => r.json() as any),
     enabled: trackOrdinal != null && trackOrdinal > 0,
     refetchInterval: 5_000,
@@ -847,6 +846,7 @@ function RecentLaps() {
                   </span>
                   <div className="flex items-center gap-1 w-16 justify-end">
                     <button
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       onClick={() => navigate({ to: `${gameRoute}/analyse` as any, search: { track: l.trackOrdinal, car: l.carOrdinal, lap: l.id } as any })}
                       className="px-1.5 py-0.5 text-[10px] rounded bg-purple-600 hover:bg-purple-500 text-white"
                     >

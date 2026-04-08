@@ -13,6 +13,7 @@ const AiProviderSchema = z.enum(["gemini", "openai", "local"]).default("gemini")
 const ChatProviderSchema = z.enum(["gemini", "openai", "local"]).default("gemini");
 
 const AppSettingsSchema = z.object({
+  driverName: z.string().default(""),
   udpPort: z.number().int().min(1024).max(65535).default(5301),
   unit: z.enum(["metric", "imperial"]).default("metric"),
   aiProvider: AiProviderSchema.default("gemini"),
@@ -28,7 +29,6 @@ const AppSettingsSchema = z.object({
   }).default({ cold: 65, warm: 105, hot: 138 }),
   tireHealthThresholds: ColorThresholdsSchema.default({ values: [20, 40, 60, 80] }),
   suspensionThresholds: ColorThresholdsSchema.default({ values: [25, 65, 85] }),
-  activeProfileId: z.number().int().nullable().default(null),
 });
 
 export type AppSettings = z.infer<typeof AppSettingsSchema>;

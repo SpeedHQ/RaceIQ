@@ -1,25 +1,19 @@
 import { createRootRoute, Link, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useTelemetryStore } from "../stores/telemetry";
+import { useSettings } from "../hooks/queries";
 import { ThemeProvider } from "../context/theme";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
 import { isOnboardingComplete } from "../components/Onboarding";
-import { ProfileSwitcher } from "../components/ProfileSwitcher";
 import { Button } from "@/components/ui/button";
+import { Settings2 } from "lucide-react";
 import { getAllGames } from "@shared/games/registry";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5_000,
-      retry: 1,
-    },
-  },
-});
+import { queryClient } from "../lib/queryClient";
 
 const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Tracks", "Cars", "Tunes", "Setup", "Raw"] as const;
 
@@ -42,8 +36,10 @@ function useUpdateCheck() {
   return useTelemetryStore((s) => s.versionInfo);
 }
 
-function RootLayout() {
+function AppShell() {
   useWebSocket();
+  const { displaySettings } = useSettings();
+  const driverName = displaySettings.driverName || "";
   const connected = useTelemetryStore((s) => s.connected);
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const updateState = useUpdateCheck();
@@ -83,7 +79,6 @@ function RootLayout() {
   }, [location.pathname]);
 
   return (
-    <QueryClientProvider client={queryClient}>
     <ThemeProvider>
         <div className="h-screen grid grid-rows-[auto_1fr] bg-app-bg text-app-text">
           {!location.pathname.startsWith("/onboarding") && (
@@ -95,7 +90,19 @@ function RootLayout() {
                 forzaReceiving={packetsPerSec > 0}
               />
 
-              <div className="flex items-center gap-0 ml-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setSettingsSection(undefined); setShowSettings(!showSettings); }}
+                className="text-app-text-secondary hover:text-app-text flex items-center gap-1.5 ml-2"
+              >
+                {driverName || "Settings"}
+                <Settings2 className="size-3.5 text-app-text-muted" />
+              </Button>
+
+              <div className="w-px h-4 bg-app-border mx-2" />
+
+              <div className="flex items-center gap-0">
                 {getGlobalTabs().map((tab) => (
                   <Link
                     key={tab.to}
@@ -147,15 +154,6 @@ function RootLayout() {
                   {updateState.current} → {updateState.latest}
                 </button>
               )}
-              <ProfileSwitcher />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => { setSettingsSection(undefined); setShowSettings(!showSettings); }}
-                className="text-app-text-secondary hover:text-app-text"
-              >
-                {showSettings ? "Close" : "Settings"}
-              </Button>
             </div>
           </div>
           )}
@@ -190,6 +188,13 @@ function RootLayout() {
           </div>
         </div>
     </ThemeProvider>
+  );
+}
+
+function RootLayout() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppShell />
     </QueryClientProvider>
   );
 }

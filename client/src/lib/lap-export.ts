@@ -11,11 +11,13 @@ export function buildExportCsv(
   trackName: string,
   selectedLap: LapMeta | undefined,
   selectedLapId: number | null,
+  driverName?: string,
 ): string {
   const header = [
-    `# Car: ${carName || `Ordinal ${telemetry[0].CarOrdinal}`}`,
-    `# Track: ${trackName || `Ordinal ${telemetry[0].TrackOrdinal}`}`,
-    `# Lap: ${selectedLap?.lapNumber ?? "?"} | Time: ${selectedLap ? formatLapTime(selectedLap.lapTime) : "?"}`,
+    `# Driver: ${driverName || "Unknown"}`,
+    `# Car: ${carName || `Ordinal ${telemetry[0].CarOrdinal}`} | CarOrdinal: ${selectedLap?.carOrdinal ?? telemetry[0].CarOrdinal}`,
+    `# Track: ${trackName || `Ordinal ${telemetry[0].TrackOrdinal}`} | TrackOrdinal: ${selectedLap?.trackOrdinal ?? telemetry[0].TrackOrdinal}`,
+    `# Lap: ${selectedLap?.lapNumber ?? "?"} | LapId: ${selectedLapId} | Time: ${selectedLap ? formatLapTime(selectedLap.lapTime) : "?"} | Session: ${selectedLap?.sessionId ?? "?"} | Game: ${selectedLap?.gameId ?? "?"} | PI: ${selectedLap?.pi ?? "?"} | Valid: ${selectedLap?.isValid ?? "?"}`,
   ].join("\n");
   const csv = [
     header,
@@ -30,6 +32,91 @@ export function buildExportCsv(
   a.click();
   URL.revokeObjectURL(url);
   return csv;
+}
+
+export interface ParsedLapCsv {
+  telemetry: TelemetryPacket[];
+  meta: {
+    driverName?: string;
+    carName?: string;
+    carOrdinal?: number;
+    trackName?: string;
+    trackOrdinal?: number;
+    lapNumber?: number;
+    lapId?: number;
+    lapTime?: number;
+    sessionId?: number;
+    gameId?: string;
+    pi?: number;
+    isValid?: boolean;
+  };
+}
+
+/** Parse a previously exported CSV, including metadata from # comment lines. */
+export function parseLapCsv(csv: string): ParsedLapCsv {
+  const allLines = csv.split("\n").filter((l) => l.trim());
+  const meta: ParsedLapCsv["meta"] = {};
+
+  // Helper: extract "Key: value" from a pipe-delimited comment line
+  const extract = (line: string, key: string): string | undefined => {
+    const match = line.match(new RegExp(`${key}:\\s*([^|\\n]+)`));
+    return match?.[1]?.trim();
+  };
+
+  for (const line of allLines) {
+    if (!line.startsWith("#")) continue;
+    if (line.startsWith("# Driver:")) {
+      const name = extract(line, "Driver");
+      if (name && name !== "Unknown") meta.driverName = name;
+    } else if (line.includes("CarOrdinal:")) {
+      const name = extract(line, "Car");
+      const ord = extract(line, "CarOrdinal");
+      if (name) meta.carName = name.split("|")[0].trim();
+      if (ord) meta.carOrdinal = Number(ord);
+    } else if (line.includes("TrackOrdinal:")) {
+      const name = extract(line, "Track");
+      const ord = extract(line, "TrackOrdinal");
+      if (name) meta.trackName = name.split("|")[0].trim();
+      if (ord) meta.trackOrdinal = Number(ord);
+    } else if (line.includes("LapId:")) {
+      const lapNum = extract(line, "Lap");
+      const lapId = extract(line, "LapId");
+      const time = extract(line, "Time");
+      const session = extract(line, "Session");
+      const game = extract(line, "Game");
+      const pi = extract(line, "PI");
+      const valid = extract(line, "Valid");
+      if (lapNum) meta.lapNumber = Number(lapNum.split("|")[0].trim());
+      if (lapId) meta.lapId = Number(lapId);
+      if (time) {
+        // Parse "m:ss.mmm" back to seconds
+        const parts = time.split(":");
+        if (parts.length === 2) meta.lapTime = Number(parts[0]) * 60 + Number(parts[1]);
+      }
+      if (session) meta.sessionId = Number(session);
+      if (game && game !== "?") meta.gameId = game;
+      if (pi && pi !== "?") meta.pi = Number(pi);
+      if (valid && valid !== "?") meta.isValid = valid === "true";
+    }
+  }
+
+  const dataLines = allLines.filter((l) => !l.startsWith("#"));
+  const packets: TelemetryPacket[] = [];
+  if (dataLines.length >= 2) {
+    const keys = dataLines[0].split(",");
+    for (let i = 1; i < dataLines.length; i++) {
+      const vals = dataLines[i].split(",");
+      if (vals.length !== keys.length) continue;
+      const packet: Record<string, unknown> = {};
+      for (let k = 0; k < keys.length; k++) {
+        const raw = vals[k];
+        packet[keys[k]] = raw === "" ? 0 : isNaN(Number(raw)) ? raw : Number(raw);
+      }
+      packets.push(packet as unknown as TelemetryPacket);
+    }
+  }
+
+  return { telemetry: packets, meta };
 }
 
 /** Build a text summary of metrics at the current cursor for clipboard copy. */

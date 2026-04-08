@@ -1,10 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { LapMeta, SessionMeta, TelemetryPacket } from "@shared/types";
 import type { CatalogTune } from "../data/tune-catalog";
 import { client } from "../lib/rpc";
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 import { useGameId } from "../stores/game";
-
 // ── Query Keys ──────────────────────────────────────────────────────────────
 export const queryKeys = {
   laps: ["laps"] as const,
@@ -58,16 +58,13 @@ export function useSaveSettings() {
 }
 
 // ── Laps ────────────────────────────────────────────────────────────────────
-export function useLaps(activeProfileId?: number | null, options?: { refetchInterval?: number | false }) {
+export function useLaps(options?: { refetchInterval?: number | false }) {
   const gameId = useGameId();
   return useQuery({
-    queryKey: ["laps", activeProfileId ?? null, gameId ?? null],
+    queryKey: ["laps", gameId ?? null],
     queryFn: async () => {
       const res = await client.api.laps.$get({
-        query: {
-          profileId: activeProfileId != null ? String(activeProfileId) : undefined,
-          gameId: gameId ?? undefined,
-        },
+        query: { gameId: gameId ?? undefined },
       });
       return rpcJson<LapMeta[]>(res);
     },

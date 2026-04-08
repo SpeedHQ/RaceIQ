@@ -4,7 +4,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { formatLapTime } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { useBulkDeleteLaps, useDeleteLap } from "@/hooks/queries";
-import { useActiveProfileId } from "@/hooks/useProfiles";
 import { useGameId } from "@/stores/game";
 import { client } from "@/lib/rpc";
 import { drawTrack } from "@/lib/canvas/draw-track";
@@ -35,7 +34,6 @@ interface TrackLap {
 export function TrackDetail({ track, onBack, initialTab, navigate }: { track: TrackInfo; onBack: () => void; initialTab?: string; navigate: ReturnType<typeof useNavigate> }) {
   const gameId = useGameId();
   const gid = gameId ?? undefined;
-  const { data: activeProfileId } = useActiveProfileId();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [sectors, setSectors] = useState<TrackSectors | null>(null);
@@ -122,7 +120,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
 
   // Fetch all laps for this track
   const fetchTrackLaps = useCallback(() => {
-    client.api.tracks[":trackOrdinal"].leaderboard.$get({ param: { trackOrdinal: String(track.ordinal) }, query: { profileId: activeProfileId != null ? String(activeProfileId) : undefined, gameId: gameId ?? undefined } } as never)
+    client.api.tracks[":trackOrdinal"].leaderboard.$get({ param: { trackOrdinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } } as never)
       .then((r) => r.json() as unknown as Record<string, TrackLap[]> | null)
       .then((data) => {
         if (!data) { setTrackLaps([]); return; }
@@ -132,7 +130,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
         setSelectedCars(new Set(all.map((l) => l.carOrdinal)));
       })
       .catch(() => {});
-  }, [track.ordinal, activeProfileId]);
+  }, [track.ordinal, gameId]);
 
   useEffect(() => { fetchTrackLaps(); }, [fetchTrackLaps]);
 

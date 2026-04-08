@@ -13,7 +13,6 @@
 import type { TelemetryPacket, GameId } from "../shared/types";
 import { insertSession, insertLap } from "./db/queries";
 import { extractCurbSegments, recordCurbData } from "../shared/track-data";
-import { loadSettings } from "./settings";
 import { getTuneAssignment } from "./db/tune-queries";
 import { assessLapRecording } from "./lap-quality";
 
@@ -343,7 +342,6 @@ class LapDetector {
     }
 
     {
-      const { activeProfileId } = loadSettings();
       const tuneAssignment = await getTuneAssignment(
         this.currentSession.carOrdinal,
         this.currentSession.trackOrdinal
@@ -363,7 +361,7 @@ class LapDetector {
         lapTime,
         valid,
         this.lapBuffer,
-        activeProfileId,
+        null,
         tuneId,
         invalidReason
       ).then((lapId) => {
@@ -399,7 +397,6 @@ class LapDetector {
       const lastPacket = this.lapBuffer[this.lapBuffer.length - 1];
       const lapTime = lastPacket.CurrentLap;
       if (lapTime >= 10) {
-          const { activeProfileId } = loadSettings();
           const tuneAssignment = await getTuneAssignment(
             this.currentSession.carOrdinal,
             this.currentSession.trackOrdinal
@@ -410,7 +407,7 @@ class LapDetector {
             lapTime,
             false,
             this.lapBuffer,
-            activeProfileId,
+            null,
             tuneAssignment?.tuneId ?? null,
             "incomplete"
           ).then(() => {
@@ -449,7 +446,6 @@ class LapDetector {
     const isComplete = lastPacket.LastLap > 0 && lastPacket.LastLap !== this.lastLastLap;
 
     {
-      const { activeProfileId } = loadSettings();
       const tuneAssignment = await getTuneAssignment(
         this.currentSession.carOrdinal,
         this.currentSession.trackOrdinal
@@ -462,7 +458,7 @@ class LapDetector {
         lapTime,
         isComplete && this.lapIsValid,
         this.lapBuffer,
-        activeProfileId,
+        null,
         tuneAssignment?.tuneId ?? null,
         isComplete ? this.invalidReason : "incomplete"
       ).then((lapId) => {

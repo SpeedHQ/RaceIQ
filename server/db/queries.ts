@@ -1,4 +1,4 @@
-import { eq, desc, and, or, sql, inArray, isNull } from "drizzle-orm";
+import { eq, desc, and, or, sql, inArray } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, profiles, tunes } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared/types";
@@ -249,7 +249,7 @@ async function doInsertLap(
  * Get all laps with session metadata, newest first.
  * Optionally filter by profileId.
  */
-export async function getLaps(profileId?: number | null, gameId?: GameId, limit: number = 200): Promise<LapMeta[]> {
+export async function getLaps(gameId?: GameId, limit: number = 200): Promise<LapMeta[]> {
   const query = db
     .select({
       id: laps.id,
@@ -274,16 +274,8 @@ export async function getLaps(profileId?: number | null, gameId?: GameId, limit:
     .orderBy(desc(laps.id))
     .limit(limit);
 
-  const conditions = [];
-  if (profileId != null) {
-    conditions.push(or(eq(laps.profileId, profileId), isNull(laps.profileId)));
-  }
-  if (gameId) {
-    conditions.push(eq(sessions.gameId, gameId));
-  }
-
-  const rows = conditions.length > 0
-    ? await query.where(and(...conditions)).all()
+  const rows = gameId
+    ? await query.where(eq(sessions.gameId, gameId)).all()
     : await query.all();
 
   return rows.map((r) => ({
@@ -465,6 +457,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       .from(laps)
       .where(eq(laps.sessionId, session.id))
       .all();
+
     const validLaps = lapRows.filter((l) => l.isValid && l.lapTime > 0);
     const bestLapTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : undefined;
     result.push({

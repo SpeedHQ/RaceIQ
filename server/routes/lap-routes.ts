@@ -31,7 +31,6 @@ const CompareParamsSchema = z.object({
 });
 
 const LapsQuerySchema = z.object({
-  profileId: z.coerce.number().optional(),
   gameId: GameIdSchema.optional(),
 });
 
@@ -53,8 +52,8 @@ const ChatBodySchema = z.object({
 export const lapRoutes = new Hono()
   // ── List laps ────────────────────────────────────────────────
   .get("/api/laps", zValidator("query", LapsQuerySchema), async (c) => {
-    const { profileId, gameId } = c.req.valid("query");
-    const lapList = await getLaps(profileId, gameId);
+    const { gameId } = c.req.valid("query");
+    const lapList = await getLaps(gameId);
     return c.json(lapList);
   })
 
@@ -90,19 +89,28 @@ export const lapRoutes = new Hono()
         const lastDist = packets[packets.length - 1].DistanceTraveled;
         const lapDist = lastDist - firstDist;
         if (lapDist > 0) {
+          // Determine the best time source: CurrentLap if it progresses, else TimestampMS
+          const lapProgression = packets[packets.length - 1].CurrentLap - packets[0].CurrentLap;
+          const useTimestamp = lapProgression < 1; // CurrentLap unreliable (e.g. ACC with invalid iCurrentTime)
+          const getTime = (i: number) => useTimestamp
+            ? (packets[i].TimestampMS - packets[0].TimestampMS) / 1000
+            : packets[i].CurrentLap - packets[0].CurrentLap;
+
           let s1Time = 0, s2Time = 0, s1Idx = -1, s2Idx = -1;
           for (let i = 0; i < packets.length; i++) {
             const frac = (packets[i].DistanceTraveled - firstDist) / lapDist;
             if (s1Idx < 0 && frac >= sectors.s1End) {
               s1Idx = i;
-              s1Time = packets[i].CurrentLap - packets[0].CurrentLap;
+              s1Time = getTime(i);
             }
             if (s2Idx < 0 && frac >= sectors.s2End) {
               s2Idx = i;
-              s2Time = packets[i].CurrentLap - (s1Idx >= 0 ? packets[s1Idx].CurrentLap : packets[0].CurrentLap);
+              s2Time = getTime(i) - (s1Idx >= 0 ? getTime(s1Idx) : 0);
             }
           }
-          const totalLapTime = lap.lapTime || (packets[packets.length - 1].CurrentLap - packets[0].CurrentLap);
+          const totalLapTime = lap.lapTime || (useTimestamp
+            ? (packets[packets.length - 1].TimestampMS - packets[0].TimestampMS) / 1000
+            : packets[packets.length - 1].CurrentLap - packets[0].CurrentLap);
           let s3Time = totalLapTime - s1Time - s2Time;
           if (s3Time < 0) s3Time = 0;
           sectorTimes = { times: [s1Time, s2Time, s3Time], s1Idx, s2Idx, firstDist, lapDist };

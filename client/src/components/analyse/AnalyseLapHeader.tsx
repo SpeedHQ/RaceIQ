@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { LapMeta } from "@shared/types";
 import { Sparkles, Trash2 } from "lucide-react";
 import { SearchSelect } from "../ui/SearchSelect";
@@ -32,10 +32,11 @@ interface Props {
   onTuneChange: (tuneId: number | null) => void;
   onViewTune: (tuneId: number) => void;
   onShowSetup: () => void;
-  onCopyMetrics: () => void;
   onExport: () => void;
   onToggleAi: () => void;
   onDeleteLap: () => void;
+  onImport?: (csv: string) => void;
+  triggerImportRef?: React.MutableRefObject<(() => void) | undefined>;
 }
 
 export function AnalyseLapHeader({
@@ -44,9 +45,13 @@ export function AnalyseLapHeader({
   hasTelemetry, hasF1Setup, availableTunes, tunePending,
   loading, aiPanelOpen,
   onTrackChange, onCarChange, onLapChange, onTuneChange, onViewTune, onShowSetup,
-  onCopyMetrics, onExport, onToggleAi, onDeleteLap,
+  onExport, onToggleAi, onDeleteLap, onImport, triggerImportRef,
 }: Props) {
   const [guideOpen, setGuideOpen] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (triggerImportRef) triggerImportRef.current = () => importInputRef.current?.click();
+  }, [triggerImportRef]);
   return (
     <>
     <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
@@ -124,7 +129,26 @@ export function AnalyseLapHeader({
         </div>
       )}
 
+      {import.meta.env.DEV && onImport && (
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".csv"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            file.text().then((csv) => { onImport(csv); e.target.value = ""; });
+          }}
+        />
+      )}
+
       <div className="ml-auto flex items-center gap-2">
+        {import.meta.env.DEV && onImport && (
+          <Button variant="app-outline" size="app-md" onClick={() => importInputRef.current?.click()} title="Dev only: import exported CSV to override telemetry" className="text-app-text-muted/60 border-dashed">
+            [dev] Import CSV
+          </Button>
+        )}
         {selectedLapId != null && (
           <Button variant="app-outline" size="app-md" onClick={onDeleteLap} className="text-red-400 border-red-400/30 hover:bg-red-400/10">
             <Trash2 className="size-3.5" />
@@ -136,12 +160,7 @@ export function AnalyseLapHeader({
             Guide
           </Button>
         )}
-        {hasTelemetry && (
-          <Button variant="app-outline" size="app-md" onClick={onCopyMetrics}>
-            Copy
-          </Button>
-        )}
-        {hasTelemetry && (
+{hasTelemetry && (
           <Button variant="app-outline" size="app-md" onClick={onExport}>
             Export CSV
           </Button>

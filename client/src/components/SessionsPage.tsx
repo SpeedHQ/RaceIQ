@@ -4,7 +4,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import type { LapMeta, SessionMeta } from "@shared/types";
 import { queryKeys, useSessions, useLaps, useDeleteLap } from "../hooks/queries";
-import { useActiveProfileId } from "../hooks/useProfiles";
 import { useGameId, useGameRoute } from "../stores/game";
 import { client } from "../lib/rpc";
 import { formatLapTime } from "./LiveTelemetry";
@@ -220,8 +219,7 @@ function SortHeader({ label, field, sortKey, sortDir, toggleSort }: {
 export function SessionsPage() {
   const gameId = useGameId();
   const { data: sessions = [], isLoading } = useSessions();
-  const { data: activeProfileId } = useActiveProfileId();
-  const { data: allLaps = [] } = useLaps(activeProfileId);
+  const { data: allLaps = [] } = useLaps();
   const qc = useQueryClient();
   useDeleteLap();
 

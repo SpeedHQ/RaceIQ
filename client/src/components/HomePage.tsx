@@ -2,8 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTelemetryStore } from "../stores/telemetry";
-import { useLaps } from "../hooks/queries";
-import { useActiveProfileId } from "../hooks/useProfiles";
+import { useLaps, useSettings } from "../hooks/queries";
 import { formatLapTime } from "./LiveTelemetry";
 import { client } from "../lib/rpc";
 import type { LapMeta } from "@shared/types";
@@ -109,8 +108,8 @@ function formatTimeAgo(date: Date): string {
 export function HomePage() {
   const gameId = useGameId();
   const gameAdapter = gameId ? tryGetGame(gameId) : null;
-  const { data: activeProfileId } = useActiveProfileId();
-  const { data: allLaps = [] } = useLaps(activeProfileId);
+  const { data: allLaps = [] } = useLaps();
+  const { displaySettings } = useSettings();
   const connected = useTelemetryStore((s) => s.connected);
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const serverStatus = useTelemetryStore((s) => s.serverStatus);
@@ -218,13 +217,17 @@ export function HomePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-app-text">{gameAdapter ? gameAdapter.displayName : "RaceIQ"}</h1>
+          <h1 className="text-2xl font-bold text-app-text">
+            {displaySettings.driverName ? `Hello, ${displaySettings.driverName}` : (gameAdapter ? gameAdapter.displayName : "RaceIQ")}
+          </h1>
           <p className="text-sm text-app-text-muted mt-0.5">Dashboard overview</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className={`w-2.5 h-2.5 rounded-full ${isLive ? "bg-emerald-400 animate-pulse" : "bg-app-text-dim"}`} />
-          <span className="text-sm text-app-text-secondary">{isLive ? `Live — ${packetsPerSec} pkt/s` : "Not connected"}</span>
-        </div>
+        {isLive && (
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-sm text-app-text-secondary">Live — {packetsPerSec} pkt/s</span>
+          </div>
+        )}
       </div>
 
       {/* Game cards — only on global homepage */}

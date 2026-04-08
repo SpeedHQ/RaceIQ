@@ -1,20 +1,17 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
 import { existsSync, readdirSync } from "fs";
 import { resolve } from "path";
 import { PUBLIC_DIR } from "../paths";
 
-import { IdParamSchema, GameIdQuerySchema } from "../../shared/schemas";
+import { GameIdQuerySchema } from "../../shared/schemas";
 import { udpListener } from "../udp";
 import { wsManager } from "../ws";
 import { lapDetector } from "../lap-detector";
 import { loadSettings, saveSettings, PartialSettingsSchema } from "../settings";
-import { getProfiles, insertProfile, updateProfile, deleteProfile, getLaps } from "../db/queries";
+import { getLaps } from "../db/queries";
 import { getRunningGame } from "../games/registry";
 import { getTrackOutlineByOrdinal } from "../../shared/track-data";
-
-const ProfileBodySchema = z.object({ name: z.string().min(1) });
 
 export const settingsRoutes = new Hono()
   // GET /api/status
@@ -128,49 +125,6 @@ export const settingsRoutes = new Hono()
     }
   })
 
-  // GET /api/profiles
-  .get("/api/profiles", async (c) => {
-    return c.json(await getProfiles());
-  })
-
-  // POST /api/profiles
-  .post("/api/profiles", zValidator("json", ProfileBodySchema), async (c) => {
-    const { name } = c.req.valid("json");
-    const trimmed = name.trim();
-    const id = await insertProfile(trimmed);
-    return c.json({ id, name: trimmed }, 201);
-  })
-
-  // PATCH /api/profiles/:id
-  .patch(
-    "/api/profiles/:id",
-    zValidator("param", IdParamSchema),
-    zValidator("json", ProfileBodySchema),
-    async (c) => {
-      const { id } = c.req.valid("param");
-      const { name } = c.req.valid("json");
-      const trimmed = name.trim();
-      const ok = await updateProfile(id, trimmed);
-      if (!ok) return c.json({ error: "Profile not found" }, 404);
-      return c.json({ id, name: trimmed });
-    },
-  )
-
-  // DELETE /api/profiles/:id
-  .delete(
-    "/api/profiles/:id",
-    zValidator("param", IdParamSchema),
-    async (c) => {
-      const { id } = c.req.valid("param");
-      const all = await getProfiles();
-      if (all.length <= 1)
-        return c.json({ error: "Cannot delete the last profile" }, 400);
-      const ok = await deleteProfile(id);
-      if (!ok) return c.json({ error: "Profile not found" }, 404);
-      return c.json({ ok: true });
-    },
-  )
-
   // GET /api/wheels
   .get("/api/wheels", (c) => {
     const wheelsDir = resolve(PUBLIC_DIR, "wheels");
@@ -196,7 +150,7 @@ export const settingsRoutes = new Hono()
   // GET /api/stats
   .get("/api/stats", zValidator("query", GameIdQuerySchema), async (c) => {
     const { gameId } = c.req.valid("query");
-    const allLaps = await getLaps(undefined, gameId);
+    const allLaps = await getLaps(gameId);
     const validLaps = allLaps.filter((l) => l.isValid && l.lapTime > 0);
 
     const lapsByTrack = new Map<number, number>();

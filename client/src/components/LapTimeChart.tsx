@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import type { TelemetryPacket } from "@shared/types";
 import { formatLapTime } from "./LiveTelemetry";
 import { useLaps } from "../hooks/queries";
-import { useActiveProfileId } from "../hooks/useProfiles";
 /**
  * LapTimeChart — Canvas-drawn lap time trend with pace reference lines.
  * "Optimum" = median of top 5 laps (robust to single-flier best laps).
@@ -11,8 +10,7 @@ import { useActiveProfileId } from "../hooks/useProfiles";
  * Seeds from /api/laps on mount, then appends live laps on LapNumber boundary.
  */
 export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
-  const { data: activeProfileId } = useActiveProfileId();
-  const { data: allLaps = [] } = useLaps(activeProfileId);
+  const { data: allLaps = [] } = useLaps();
   const [liveLaps, setLiveLaps] = useState<{ lap: number; time: number }[]>([]);
   const [hiddenSessionIds, setHiddenSessionIds] = useState<Set<number>>(new Set());
   const lastLapRef = useRef<number>(0);
@@ -26,7 +24,7 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
       .filter((l) => l.sessionId === latestSessionId)
       .map((l) => ({ lap: l.lapNumber, time: l.lapTime }))
       .slice(-10);
-  }, [allLaps, packet?.TrackOrdinal, hiddenSessionIds]);
+  }, [allLaps, packet, hiddenSessionIds]);
 
   // Merge recorded + live laps
   const laps = useMemo(() => {

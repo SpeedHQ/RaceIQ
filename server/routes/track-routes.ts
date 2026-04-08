@@ -597,7 +597,7 @@ export const trackRoutes = new Hono()
 
       // Multi-lap mode — average best laps
       const outlineGameId = c.req.query("gameId") as GameId | undefined;
-      const allLaps = (await getLaps(undefined, outlineGameId)).filter(
+      const allLaps = (await getLaps(outlineGameId)).filter(
         (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0
       );
       if (allLaps.length === 0) {
@@ -674,25 +674,21 @@ export const trackRoutes = new Hono()
     async (c) => {
       const { trackOrdinal } = c.req.valid("param");
 
-      const profileIdParam = c.req.query("profileId");
-      const profileIdParsed = profileIdParam ? parseInt(profileIdParam, 10) : undefined;
-      const profileId = profileIdParsed !== undefined && !isNaN(profileIdParsed) ? profileIdParsed : undefined;
-
       const gameId = c.req.query("gameId") as GameId | undefined;
-      const trackLaps = (await getLaps(profileId, gameId)).filter(
+      const trackLaps = (await getLaps(gameId)).filter(
         (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0
       );
 
       // Derive class letter from PI value
       const piClass = (pi: number): string => {
         if (pi >= 999) return "X";
-        if (pi >= 900) return "P";
-        if (pi >= 700) return "R";
-        if (pi >= 600) return "S";
-        if (pi >= 500) return "A";
-        if (pi >= 400) return "B";
-        if (pi >= 300) return "C";
-        if (pi >= 200) return "D";
+        if (pi >= 901) return "P";
+        if (pi >= 801) return "R";
+        if (pi >= 701) return "S";
+        if (pi >= 601) return "A";
+        if (pi >= 501) return "B";
+        if (pi >= 401) return "C";
+        if (pi >= 301) return "D";
         return "E";
       };
 
@@ -777,7 +773,7 @@ export const trackRoutes = new Hono()
       const { ordinal } = c.req.valid("param");
 
       const gameId = c.req.query("gameId") as GameId | undefined;
-      const trackLaps = (await getLaps(undefined, gameId)).filter((l) => l.trackOrdinal === ordinal && l.lapTime > 0);
+      const trackLaps = (await getLaps(gameId)).filter((l) => l.trackOrdinal === ordinal && l.lapTime > 0);
       if (trackLaps.length === 0) return c.json({});
 
       // Get sector boundaries; fall back to equal thirds if none defined
@@ -1037,7 +1033,7 @@ export const trackRoutes = new Hono()
 
       // Find all laps for this track
       const curbGameId = c.req.query("gameId") as GameId | undefined;
-      const trackLaps = (await getLaps(undefined, curbGameId)).filter(l => l.trackOrdinal === ordinal && l.lapTime > 0);
+      const trackLaps = (await getLaps(curbGameId)).filter(l => l.trackOrdinal === ordinal && l.lapTime > 0);
       if (trackLaps.length === 0) return c.json({ error: "No laps found for this track" }, 404);
 
       let totalSegments = 0;

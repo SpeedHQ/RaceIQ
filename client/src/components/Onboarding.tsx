@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { client } from "../lib/rpc";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -18,12 +18,6 @@ import {
   SOUND_PRESETS,
 } from "./Settings";
 import { playBlip, preloadSound } from "./SectorTimes";
-import {
-  useProfiles,
-  useActiveProfileId,
-  useRenameProfile,
-} from "../hooks/useProfiles";
-
 import { SiDiscord, SiGithub } from "react-icons/si";
 import { CarWireframe } from "./CarWireframe";
 import { DEMO_CAR } from "../data/car-models";
@@ -51,7 +45,7 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
     queryFn: async () => {
       const res = await client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) }, query: {} });
       if (!res.ok) return null;
-      const d: any = await res.json();
+      const d = await res.json() as Record<string, unknown>;
       if (d?.points && Array.isArray(d.points)) return d.points as { x: number; z: number }[];
       if (Array.isArray(d)) return d as { x: number; z: number }[];
       return null;
@@ -138,11 +132,11 @@ export function StepWelcome() {
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i]) continue;
         const vals = lines[i].split(",");
-        const obj: any = {};
+        const obj: Record<string, unknown> = {};
         for (let j = 0; j < headers.length; j++) {
           obj[headers[j]] = Number(vals[j]);
         }
-        packets.push(obj as TelemetryPacket);
+        packets.push(obj as unknown as TelemetryPacket);
       }
       return packets;
     },
@@ -212,47 +206,63 @@ export function StepWelcome() {
 /* ─── Profile ─── */
 
 export function StepProfile() {
-  const { data: profiles = [] } = useProfiles();
-  const { data: activeProfileId } = useActiveProfileId();
-  const renameProfile = useRenameProfile();
-  const activeProfile = profiles.find((p) => p.id === activeProfileId);
-  const [name, setName] = useState(activeProfile?.name ?? "");
-  const [saved, setSaved] = useState(false);
+  const { displaySettings } = useSettings();
+  const saveSettings = useSaveSettings();
+  // Use server value as initial state; fall back to "" while loading
+  const serverName = displaySettings.driverName ?? "";
+  const [name, setName] = useState(serverName);
+  const latestName = useRef(name);
+  const committedName = useRef(serverName);
 
+  // Keep latestName ref in sync via effect (not during render)
+  useEffect(() => { latestName.current = name; }, [name]);
+
+  // Populate from server once loaded (if still empty)
   useEffect(() => {
-    if (activeProfile?.name && !name) setName(activeProfile.name);
-  }, [activeProfile?.name]);
+    if (serverName && !latestName.current) {
+      setName(serverName);
+      committedName.current = serverName;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverName]);
 
-  async function handleSave() {
-    if (!activeProfileId || !name.trim()) return;
-    await renameProfile.mutateAsync({ id: activeProfileId, name: name.trim() });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }
+  // Save on unmount so clicking Next without blurring still saves
+  useEffect(() => {
+    return () => {
+      const trimmed = latestName.current.trim();
+      if (trimmed !== committedName.current) {
+        saveSettings.mutate({ driverName: trimmed });
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleBlur = () => {
+    const trimmed = name.trim();
+    if (trimmed !== committedName.current) {
+      committedName.current = trimmed;
+      saveSettings.mutate({ driverName: trimmed });
+    }
+  };
 
   return (
     <div>
-      <h2 className="text-sm font-semibold text-app-text mb-1">Profile Name</h2>
+      <h2 className="text-sm font-semibold text-app-text mb-1">What's your name?</h2>
       <p className="text-sm text-app-text-muted mb-4">
-        Give your profile a name. You can create additional profiles later.
+        Used to identify your laps when sharing exports with other drivers.
       </p>
-      <div className="flex items-end gap-2 max-w-xs">
-        <div className="flex-1">
-          <Label htmlFor="profile-name" className="text-app-text-secondary text-xs">
-            Name
-          </Label>
-          <Input
-            id="profile-name"
-            value={name}
-            onChange={(e) => { setName(e.target.value); setSaved(false); }}
-            onKeyDown={(e) => e.key === "Enter" && handleSave()}
-            className="glass-input border bg-app-surface-alt border-app-border-input text-app-text mt-1"
-            placeholder="Driver 1"
-          />
-        </div>
-        <Button size="sm" onClick={handleSave} disabled={!name.trim()}>
-          {saved ? "Saved" : "Save"}
-        </Button>
+      <div className="flex flex-col gap-1">
+        <Label htmlFor="driver-name" className="text-xs text-app-text-muted">Driver name</Label>
+        <Input
+          id="driver-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={handleBlur}
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          placeholder="e.g. Max Verstappen"
+          className="max-w-xs"
+          autoFocus
+        />
       </div>
     </div>
   );
@@ -485,6 +495,7 @@ export function StepCommunity() {
 export function StepConnection() {
   const { displaySettings } = useSettings();
   const saveSettings = useSaveSettings();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [udpPort, setUdpPort] = useState(() => String((displaySettings as any).udpPort ?? 5301));
   const [portSaved, setPortSaved] = useState(false);
   const [portError, setPortError] = useState("");
@@ -501,6 +512,7 @@ export function StepConnection() {
     }
     setPortError("");
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await saveSettings.mutateAsync({ udpPort: port } as any);
       setPortSaved(true);
       setTimeout(() => setPortSaved(false), 2000);
