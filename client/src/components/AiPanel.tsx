@@ -539,9 +539,10 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               {/* Setup */}
               {analysis.setup?.length > 0 && (
                 <div>
-                  <div className="flex items-center gap-1.5">
-                    <SectionHeader icon={<Wrench className="size-3" />} title="Setup" />
-                    {!hasTune && <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">Estimated</span>}
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-app-text-secondary"><Wrench className="size-3" /></span>
+                    <h3 className="text-[10px] font-semibold text-app-text uppercase tracking-wider">Setup</h3>
+                    {!hasTune && <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">Best Guess</span>}
                   </div>
                   {!hasTune && (
                     <p className="text-[9px] text-amber-400/70 mb-1.5 leading-snug">No tune data linked — values are estimated from telemetry. Link a tune for accurate setup suggestions.</p>
