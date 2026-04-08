@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { isDevelopment } from "@/lib/env";
 import { useNavigate } from "@tanstack/react-router";
-import { formatLapTime } from "@/components/LiveTelemetry";
+import { formatLapTime } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { useBulkDeleteLaps, useDeleteLap } from "@/hooks/queries";
 import { useActiveProfileId } from "@/hooks/useProfiles";

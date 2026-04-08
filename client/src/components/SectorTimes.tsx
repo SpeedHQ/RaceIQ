@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { formatLapTime } from "./LiveTelemetry";
+import { formatLapTime } from "@/lib/format";
 import { getSoundEnabled, getSoundVolume, getSoundType, getSoundUrl } from "./Settings";
 import { useTelemetryStore } from "../stores/telemetry";
 
@@ -18,7 +18,7 @@ function getAudioContext(): AudioContext {
 
 /** Cache fetched audio buffers by URL to avoid re-downloading. */
 const audioBufferCache = new Map<string, AudioBuffer>();
-let loadingUrls = new Set<string>();
+const loadingUrls = new Set<string>();
 
 async function loadAudioBuffer(url: string): Promise<AudioBuffer | null> {
   if (audioBufferCache.has(url)) return audioBufferCache.get(url)!;

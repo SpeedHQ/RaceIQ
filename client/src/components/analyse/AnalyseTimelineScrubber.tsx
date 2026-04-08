@@ -1,6 +1,6 @@
 import { memo, useMemo, type RefObject } from "react";
 import type { TelemetryPacket } from "@shared/types";
-import { formatLapTime } from "../LiveTelemetry";
+import { formatLapTime } from "@/lib/format";
 
 interface SectorTimesData {
   times: [number, number, number];

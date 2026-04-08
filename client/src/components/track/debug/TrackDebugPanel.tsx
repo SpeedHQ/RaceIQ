@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useGameId } from "@/stores/game";
 import { client } from "@/lib/rpc";
-import { formatLapTime } from "@/components/LiveTelemetry";
+import { formatLapTime } from "@/lib/format";
 import { CurbDebugSection } from "./CurbDebugSection";
 import type { Point, TrackBoundaries, TrackCalibration, TrackCurb } from "../types";
 

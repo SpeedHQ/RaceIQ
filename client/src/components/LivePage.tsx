@@ -2,7 +2,8 @@ import { useTelemetryStore } from "../stores/telemetry";
 import { Link } from "@tanstack/react-router";
 import { useTrackName, useCarName } from "../hooks/queries";
 import { useGameRoute } from "../stores/game";
-import { LiveTelemetry, formatLapTime, type DashboardMode } from "./LiveTelemetry";
+import { LiveTelemetry, type DashboardMode } from "./LiveTelemetry";
+import { formatLapTime } from "@/lib/format";
 import { LiveTrackMap } from "./LiveTrackMap";
 import { LapList } from "./LapList";
 import { LapTimeChart } from "./LapTimeChart";
@@ -20,7 +21,10 @@ function PageHeader({ dashMode, demo }: {
     <div className="p-2 border-b border-app-border flex items-center justify-between">
       <div className="flex items-center gap-1 bg-app-surface-alt rounded p-0.5">
         <Link
-          to={`${prefix}/live/driver` as any}
+          to={
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            `${prefix}/live/driver` as any
+          }
           className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors ${
             dashMode === "driver"
               ? "bg-app-accent/20 text-app-accent"
@@ -30,7 +34,10 @@ function PageHeader({ dashMode, demo }: {
           Driver
         </Link>
         <Link
-          to={`${prefix}/live/pit` as any}
+          to={
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            `${prefix}/live/pit` as any
+          }
           className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors ${
             dashMode === "pitcrew"
               ? "bg-app-accent/20 text-app-accent"
