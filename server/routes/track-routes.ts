@@ -311,7 +311,9 @@ export const trackRoutes = new Hono()
       }
 
       // Also attempt DB save (best-effort, may fail if no outline recorded)
-      await updateTrackOutlineSectors(ordinal, { s1End, s2End }, requireGameId(c)).catch(() => null);
+      if (gameId) {
+        await updateTrackOutlineSectors(ordinal, { s1End, s2End }, gameId as GameId).catch(() => null);
+      }
 
       return c.json({ success: true, s1End, s2End });
     }

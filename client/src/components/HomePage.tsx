@@ -361,12 +361,14 @@ export function HomePage() {
             : undefined}
           color="text-cyan-400"
         />
-        <StatCard
-          label="Session"
-          value={isLive ? "Active" : "Idle"}
-          sub={isLive && sessionTrack ? `Track #${sessionTrack}` : undefined}
-          color={isLive ? "text-emerald-400" : "text-app-text-dim"}
-        />
+        {isLive && (
+          <StatCard
+            label="Session"
+            value="Active"
+            sub={sessionTrack ? `Track #${sessionTrack}` : undefined}
+            color="text-emerald-400"
+          />
+        )}
       </div>
 
       {/* Period stats with tabs */}
