@@ -9,17 +9,17 @@ const ColorThresholdsSchema = z.object({
   values: z.array(z.number()),
 });
 
-const AiProviderSchema = z.enum(["gemini", "openai", "local"]).default("gemini");
-const ChatProviderSchema = z.enum(["gemini", "openai", "local"]).default("gemini");
+const AiProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("");
+const ChatProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("");
 
 const AppSettingsSchema = z.object({
   onboardingComplete: z.boolean().default(false),
   driverName: z.string().default(""),
   udpPort: z.number().int().min(1024).max(65535).default(5301),
   unit: z.enum(["metric", "imperial"]).default("metric"),
-  aiProvider: AiProviderSchema.default("gemini"),
+  aiProvider: AiProviderSchema.default(""),
   aiModel: z.string().default(""),
-  chatProvider: ChatProviderSchema.default("gemini"),
+  chatProvider: ChatProviderSchema.default(""),
   chatModel: z.string().default(""),
   localEndpoint: z.string().default("http://localhost:1234/v1"),
   wsRefreshRate: z.enum(["60", "50", "40", "30"]).default("60"),

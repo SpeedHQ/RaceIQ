@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from "react";
 import { client } from "../lib/rpc";
+import { useSettings } from "../hooks/queries";
+import { useUiStore } from "../stores/ui";
 import { Button } from "./ui/button";
 import { toPng } from "html-to-image";
 import Markdown from "react-markdown";
@@ -156,6 +158,10 @@ export interface AiPanelHandle {
 // ── Main component ───────────────────────────────────────────
 
 export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel({ lapId, carName, trackName, segments, onAnalysisLoaded, onJumpToFrac, onHighlightsChange, panelOpen = false }, ref) {
+  const { displaySettings } = useSettings();
+  const openSettings = useUiStore((s) => s.openSettings);
+  const aiConfigured = !!(displaySettings.geminiApiKeySet || displaySettings.openaiApiKeySet);
+
   // Analysis state
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
   const [usage, setUsage] = useState<{ inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string } | null>(null);
@@ -392,6 +398,23 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     <div className="flex flex-col flex-1 min-h-0">
       {/* Unified conversation */}
       <div className="flex-1 overflow-y-auto min-h-0 px-3 py-3 space-y-2.5">
+        {/* No AI provider configured */}
+        {!aiConfigured && (
+          <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+            <Sparkles className="size-5 text-app-text-dim" />
+            <div>
+              <p className="text-[11px] text-app-text-secondary font-medium">AI not set up</p>
+              <p className="text-[10px] text-app-text-muted mt-0.5">Add an API key to start analysing laps</p>
+            </div>
+            <button
+              onClick={() => openSettings("ai")}
+              className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors"
+            >
+              Set up AI
+            </button>
+          </div>
+        )}
+
         {/* Loading state */}
         {loading && (
           <div className="flex flex-col items-center py-10 gap-4">
@@ -414,7 +437,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         )}
 
         {/* Empty state — after clear */}
-        {!analysis && !loading && !error && messages.length === 0 && (
+        {aiConfigured && !analysis && !loading && !error && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Sparkles className="size-5 text-amber-400" />
             <p className="text-[11px] text-app-text-muted">No analysis yet</p>

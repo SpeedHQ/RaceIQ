@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSettings, useSaveSettings } from "@/hooks/queries";
+import { X } from "lucide-react";
 
 const PROVIDER_KEY_MAP: Record<string, string> = {
   gemini: "gemini",
@@ -16,7 +17,7 @@ export function AiSection() {
   const { displaySettings, settingsLoaded } = useSettings();
   const saveSettings = useSaveSettings();
   const qc = useQueryClient();
-  const [provider, setProvider] = useState<string>(displaySettings.aiProvider ?? "gemini");
+  const [provider, setProvider] = useState<string>(displaySettings.aiProvider ?? "");
   const [model, setModel] = useState(displaySettings.aiModel ?? "");
   const [apiKey, setApiKey] = useState("");
   const [localEndpoint, setLocalEndpoint] = useState(displaySettings.localEndpoint ?? "http://localhost:1234/v1");
@@ -27,7 +28,7 @@ export function AiSection() {
   useEffect(() => {
     if (synced.current || !settingsLoaded) return;
     synced.current = true;
-    setProvider(displaySettings.aiProvider ?? "gemini");
+    setProvider(displaySettings.aiProvider ?? "");
     setModel(displaySettings.aiModel ?? "");
     setLocalEndpoint(displaySettings.localEndpoint ?? "http://localhost:1234/v1");
   }, [settingsLoaded, displaySettings.aiProvider, displaySettings.aiModel, displaySettings.localEndpoint]);
@@ -90,7 +91,14 @@ export function AiSection() {
 
   const keyInfo = PROVIDER_KEY_LABELS[provider];
 
-  const hasKey = keyStatus[provider] ?? false;
+  const clearKey = async (providerKeyId: string) => {
+    await fetch("/api/ai-key", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: providerKeyId, apiKey: "" }),
+    });
+    qc.invalidateQueries({ queryKey: ["settings"] });
+  };
 
   return (
     <section>
@@ -106,6 +114,7 @@ export function AiSection() {
             onChange={(e) => { setProvider(e.target.value as string); setModel(""); }}
             className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
           >
+            <option value="">— None —</option>
             {(aiProviders ?? []).map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
@@ -129,13 +138,24 @@ export function AiSection() {
         {keyInfo && (
           <div>
             <label className="block text-xs text-app-text-muted mb-1">{keyInfo.label}</label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={hasKey ? "••••••••  (key stored)" : keyInfo.placeholder}
-              className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs font-mono"
-            />
+            <div className="flex items-center gap-1.5 max-w-xs">
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={(keyStatus[provider] ?? false) ? "••••••••  (key stored)" : keyInfo.placeholder}
+                className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
+              />
+              {(keyStatus[provider] ?? false) && (
+                <button
+                  onClick={() => clearKey(PROVIDER_KEY_MAP[provider])}
+                  title="Clear stored key"
+                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
             <p className="text-xs text-app-text-muted mt-1">
               {keyInfo.helpText}{" "}
               <a href={keyInfo.helpUrl} target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">
@@ -180,6 +200,7 @@ export function AiSection() {
             onChange={(e) => { setChatProvider(e.target.value as string); setChatModel(""); }}
             className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
           >
+            <option value="">— None —</option>
             {(aiProviders ?? []).map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
@@ -188,13 +209,24 @@ export function AiSection() {
         {PROVIDER_KEY_LABELS[chatProvider] && (
           <div>
             <label className="block text-xs text-app-text-muted mb-1">{PROVIDER_KEY_LABELS[chatProvider].label}</label>
-            <input
-              type="password"
-              value={chatApiKey}
-              onChange={(e) => setChatApiKey(e.target.value)}
-              placeholder={(keyStatus[chatProvider] ?? false) ? "••••••••  (key stored)" : PROVIDER_KEY_LABELS[chatProvider].placeholder}
-              className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs font-mono"
-            />
+            <div className="flex items-center gap-1.5 max-w-xs">
+              <input
+                type="password"
+                value={chatApiKey}
+                onChange={(e) => setChatApiKey(e.target.value)}
+                placeholder={(keyStatus[chatProvider] ?? false) ? "••••••••  (key stored)" : PROVIDER_KEY_LABELS[chatProvider].placeholder}
+                className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
+              />
+              {(keyStatus[chatProvider] ?? false) && (
+                <button
+                  onClick={() => clearKey(PROVIDER_KEY_MAP[chatProvider])}
+                  title="Clear stored key"
+                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
             <p className="text-xs text-app-text-muted mt-1">
               {PROVIDER_KEY_LABELS[chatProvider].helpText}{" "}
               <a href={PROVIDER_KEY_LABELS[chatProvider].helpUrl} target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">

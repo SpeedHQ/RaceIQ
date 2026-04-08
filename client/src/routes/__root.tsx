@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useTelemetryStore } from "../stores/telemetry";
+import { useUiStore } from "../stores/ui";
 import { useSettings } from "../hooks/queries";
 import { ThemeProvider } from "../context/theme";
 import { ConnectionStatus } from "../components/ConnectionStatus";
@@ -43,8 +44,7 @@ function AppShell() {
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const updateState = useUpdateCheck();
 
-  const [showSettings, setShowSettings] = useState(false);
-  const [settingsSection, setSettingsSection] = useState<"updates" | "about" | undefined>(undefined);
+  const { settingsOpen: showSettings, settingsSection, openSettings, closeSettings } = useUiStore();
   const [showUpdateModal, setShowUpdateModal] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has("update")) {
@@ -147,7 +147,7 @@ function AppShell() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => { setSettingsSection(undefined); setShowSettings(!showSettings); }}
+                onClick={() => showSettings ? closeSettings() : openSettings()}
                 className="text-app-text-secondary hover:text-app-text flex items-center gap-1.5"
               >
                 {driverName || "Settings"}
@@ -159,20 +159,20 @@ function AppShell() {
 
           {showSettings && (
             <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 pb-12 bg-black/60"
-                 onClick={() => { setShowSettings(false); setSettingsSection(undefined); }}>
+                 onClick={() => { closeSettings(); }}>
               <div className="w-full max-w-2xl h-full rounded-lg border border-app-border bg-app-bg overflow-hidden shadow-2xl"
                    onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3 border-b border-app-border bg-app-surface">
                   <h1 className="text-sm font-semibold text-app-text">Settings</h1>
                   <button
-                    onClick={() => { setShowSettings(false); setSettingsSection(undefined); }}
+                    onClick={() => { closeSettings(); }}
                     className="text-app-text-muted hover:text-app-text text-lg leading-none"
                   >
                     &times;
                   </button>
                 </div>
                 <div className="h-[calc(100%-3rem)]">
-                  <Settings initialSection={settingsSection} onClose={() => { setShowSettings(false); setSettingsSection(undefined); }} />
+                  <Settings initialSection={settingsSection as "ai" | "updates" | "about" | undefined} onClose={() => { closeSettings(); }} />
                 </div>
               </div>
             </div>
