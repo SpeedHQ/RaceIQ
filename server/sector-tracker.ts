@@ -219,7 +219,10 @@ export class SectorTracker {
       const lapDist = packet.DistanceTraveled - this.lapDistStart;
       const frac = lapDist / this.lapDistTotal;
       if (frac >= 0.1 && frac <= 1) {
-        estimatedLap = packet.CurrentLap / frac;
+        const est = packet.CurrentLap / frac;
+        // Sanity: discard if estimate is wildly off (>3x best or >10 min)
+        const maxReasonable = this.bestLapTime < Infinity ? this.bestLapTime * 3 : 600;
+        if (est <= maxReasonable) estimatedLap = est;
       }
     }
 
