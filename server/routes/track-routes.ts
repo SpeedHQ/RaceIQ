@@ -776,14 +776,14 @@ export const trackRoutes = new Hono()
     async (c) => {
       const { ordinal } = c.req.valid("param");
 
-      // Get sector boundaries
       const gameId = c.req.query("gameId") as GameId | undefined;
+      const trackLaps = (await getLaps(undefined, gameId)).filter((l) => l.trackOrdinal === ordinal && l.lapTime > 0);
+      if (trackLaps.length === 0) return c.json({});
+
+      // Get sector boundaries for boundary-based fallback
       const dbSectors = gameId ? await getTrackOutlineSectors(ordinal, gameId) : null;
       const bundled = getTrackSectorsByOrdinal(ordinal);
       const sectors = dbSectors ?? bundled;
-      if (!sectors?.s1End || !sectors?.s2End) return c.json({});
-      const trackLaps = (await getLaps(undefined, gameId)).filter((l) => l.trackOrdinal === ordinal && l.lapTime > 0);
-      if (trackLaps.length === 0) return c.json({});
 
       const result: Record<number, { s1: number; s2: number; s3: number }> = {};
 
@@ -792,26 +792,37 @@ export const trackRoutes = new Hono()
         if (!lapData?.telemetry || lapData.telemetry.length < 50) continue;
 
         const packets = lapData.telemetry;
-        const startDist = packets[0].DistanceTraveled;
-        const endDist = packets[packets.length - 1].DistanceTraveled;
-        const totalDist = endDist - startDist;
-        if (totalDist < 100) continue;
 
+        // Prefer game-broadcast sector times (non-zero values in packets)
         let s1Time = 0;
         let s2Time = 0;
-        let currentSector = 0;
-        let sectorStartTime = packets[0].CurrentLap;
-
         for (const p of packets) {
-          const frac = (p.DistanceTraveled - startDist) / totalDist;
-          const expectedSector = frac < sectors.s1End ? 0 : frac < sectors.s2End ? 1 : 2;
+          if (p.sector1Time > 0) s1Time = p.sector1Time;
+          if (p.sector2Time > 0) s2Time = p.sector2Time;
+        }
 
-          if (expectedSector > currentSector) {
-            const sectorTime = p.CurrentLap - sectorStartTime;
-            if (currentSector === 0) s1Time = sectorTime;
-            else if (currentSector === 1) s2Time = sectorTime;
-            sectorStartTime = p.CurrentLap;
-            currentSector = expectedSector;
+        // Fall back to boundary-based computation if game didn't provide sector times
+        if ((s1Time === 0 || s2Time === 0) && sectors?.s1End && sectors?.s2End) {
+          const startDist = packets[0].DistanceTraveled;
+          const endDist = packets[packets.length - 1].DistanceTraveled;
+          const totalDist = endDist - startDist;
+          if (totalDist < 100) continue;
+
+          let currentSector = 0;
+          let sectorStartTime = packets[0].CurrentLap;
+          s1Time = 0;
+          s2Time = 0;
+
+          for (const p of packets) {
+            const frac = (p.DistanceTraveled - startDist) / totalDist;
+            const expectedSector = frac < sectors.s1End ? 0 : frac < sectors.s2End ? 1 : 2;
+            if (expectedSector > currentSector) {
+              const sectorTime = p.CurrentLap - sectorStartTime;
+              if (currentSector === 0) s1Time = sectorTime;
+              else if (currentSector === 1) s2Time = sectorTime;
+              sectorStartTime = p.CurrentLap;
+              currentSector = expectedSector;
+            }
           }
         }
 
