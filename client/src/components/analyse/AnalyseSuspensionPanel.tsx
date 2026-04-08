@@ -1,7 +1,6 @@
 import type { TelemetryPacket } from "@shared/types";
 import { Info } from "lucide-react";
 import { WheelTable } from "./WheelTable";
-import { InfoTooltip } from "../ui/InfoTooltip";
 
 interface Props {
   currentPacket: TelemetryPacket;
@@ -31,7 +30,7 @@ export function AnalyseSuspensionPanel({ currentPacket }: Props) {
 
   return (
     <WheelTable title={suspTitle} borderTop rows={[
-      { label: <span className="flex items-center gap-1">Travel <InfoTooltip>Normalised suspension travel:<br />Blue = compressed · Green = mid<br />Amber = extended · Red = near limit</InfoTooltip></span>, fl: C(`${(suspValues[0] * 100).toFixed(0)}%`, suspColor(suspValues[0])), fr: C(`${(suspValues[1] * 100).toFixed(0)}%`, suspColor(suspValues[1])), rl: C(`${(suspValues[2] * 100).toFixed(0)}%`, suspColor(suspValues[2])), rr: C(`${(suspValues[3] * 100).toFixed(0)}%`, suspColor(suspValues[3])) },
+      { label: "Travel", fl: C(`${(suspValues[0] * 100).toFixed(0)}%`, suspColor(suspValues[0])), fr: C(`${(suspValues[1] * 100).toFixed(0)}%`, suspColor(suspValues[1])), rl: C(`${(suspValues[2] * 100).toFixed(0)}%`, suspColor(suspValues[2])), rr: C(`${(suspValues[3] * 100).toFixed(0)}%`, suspColor(suspValues[3])) },
       { label: "Load", fl: `Lon ${lonLoad}%`, rl: `Lat ${latLoad}%`, fr: "", rr: "", span2: true },
     ]} />
   );

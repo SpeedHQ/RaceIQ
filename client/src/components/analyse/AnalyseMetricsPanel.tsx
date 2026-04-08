@@ -1,7 +1,6 @@
 import type { TelemetryPacket, GameId } from "@shared/types";
 import { useUnits } from "../../hooks/useUnits";
 import { getSteeringLock } from "../Settings";
-import { InfoTooltip } from "../ui/InfoTooltip";
 
 export function MetricsPanel({ pkt, startFuel, gameId }: { pkt: TelemetryPacket & { DisplaySpeed?: number }; startFuel?: number; gameId?: GameId }) {
   const units = useUnits();
@@ -18,7 +17,7 @@ export function MetricsPanel({ pkt, startFuel, gameId }: { pkt: TelemetryPacket 
       <MetricRow label="Gear" value={`${pkt.Gear}`} />
       <MetricRow label="Throttle" value={`${throttlePct}%`} color={Number(throttlePct) > 50 ? "#34d399" : undefined} />
       <MetricRow label="Brake" value={`${brakePct}%`} color={Number(brakePct) > 10 ? "#ef4444" : undefined} />
-      <MetricRow label="Steer" value={`${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`} tooltip={`Degrees of steering input based on ${lock}° steering lock setting`} />
+      <MetricRow label="Steer" value={`${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`} />
       {(gameId === "fm-2023" || pkt.Boost > 0) && <MetricRow label="Boost" value={`${pkt.Boost.toFixed(1)} psi`} />}
       {(gameId === "fm-2023" || pkt.Power > 0) && <MetricRow label="Power" value={`${(pkt.Power / 745.7).toFixed(0)} hp`} />}
       {(gameId === "fm-2023" || pkt.Torque > 0) && <MetricRow label="Torque" value={`${pkt.Torque.toFixed(0)} Nm`} />}
@@ -35,13 +34,10 @@ export function MetricsPanel({ pkt, startFuel, gameId }: { pkt: TelemetryPacket 
   );
 }
 
-export function MetricRow({ label, value, color, tooltip }: { label: string; value: string; color?: string; tooltip?: string }) {
+export function MetricRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div className="flex justify-between">
-      <span className="flex items-center gap-1 text-app-text-muted">
-        {label}
-        {tooltip && <InfoTooltip position="bottom">{tooltip}</InfoTooltip>}
-      </span>
+      <span className="text-app-text-muted">{label}</span>
       <span className={color ? "" : "text-app-text"} style={color ? { color } : undefined}>
         {value}
       </span>

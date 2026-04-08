@@ -1,7 +1,9 @@
+import { useState } from "react";
 import type { LapMeta } from "@shared/types";
 import { Sparkles } from "lucide-react";
 import { SearchSelect } from "../ui/SearchSelect";
 import { formatLapTime } from "../../lib/format";
+import { DataGuideModal } from "./DataGuideModal";
 
 interface Props {
   // Selection state
@@ -42,7 +44,9 @@ export function AnalyseLapHeader({
   onTrackChange, onCarChange, onLapChange, onTuneChange, onViewTune, onShowSetup,
   onCopyMetrics, onExport, onToggleAi,
 }: Props) {
+  const [guideOpen, setGuideOpen] = useState(false);
   return (
+    <>
     <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
       {/* Track selector */}
       <SearchSelect
@@ -127,6 +131,14 @@ export function AnalyseLapHeader({
       <div className="ml-auto flex items-center gap-2">
         {hasTelemetry && (
           <button
+            onClick={() => setGuideOpen(true)}
+            className="text-xs text-app-text-secondary hover:text-app-text border border-app-border-input rounded px-3 py-1.5 transition-colors"
+          >
+            Guide
+          </button>
+        )}
+        {hasTelemetry && (
+          <button
             onClick={onCopyMetrics}
             className="text-xs text-app-text-secondary hover:text-app-text border border-app-border-input rounded px-3 py-1.5 transition-colors"
           >
@@ -161,5 +173,7 @@ export function AnalyseLapHeader({
         )}
       </div>
     </div>
+    {guideOpen && <DataGuideModal onClose={() => setGuideOpen(false)} />}
+    </>
   );
 }
