@@ -805,9 +805,10 @@ export const trackRoutes = new Hono()
         // Fall back to distance-fraction computation when game didn't provide sector times
         if (s1Time === 0 || s2Time === 0) {
           const startDist = packets[0].DistanceTraveled;
-          const endDist = packets[packets.length - 1].DistanceTraveled;
-          const totalDist = endDist - startDist;
-          if (totalDist < 100) continue;
+          const trackLength = packets[packets.length - 1].DistanceTraveled;
+          if (trackLength < 100) continue;
+          // Skip laps where recording started more than 5% into the lap — fractions would be wrong
+          if (startDist / trackLength > 0.05) continue;
 
           let currentSector = 0;
           let sectorStartTime = packets[0].CurrentLap;
@@ -815,7 +816,7 @@ export const trackRoutes = new Hono()
           s2Time = 0;
 
           for (const p of packets) {
-            const frac = (p.DistanceTraveled - startDist) / totalDist;
+            const frac = p.DistanceTraveled / trackLength;
             const expectedSector = frac < sectors.s1End ? 0 : frac < sectors.s2End ? 1 : 2;
             if (expectedSector > currentSector) {
               const sectorTime = p.CurrentLap - sectorStartTime;
