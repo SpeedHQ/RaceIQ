@@ -9,4 +9,5 @@ export default defineConfig({
   dbCredentials: {
     url: `${DATA_DIR}/forza-telemetry.db`,
   },
+  tablesFilter: ["!schema_migrations"],
 });

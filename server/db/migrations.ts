@@ -1,7 +1,18 @@
 /**
  * Database migrations for RaceIQ.
- * Consolidated to a single v1 migration representing the current schema.
- * Add new migrations at the end with incrementing version numbers.
+ *
+ * WHY hand-rolled instead of Drizzle's migrate():
+ *   The app ships as a self-contained binary (raceiq.exe). Drizzle's migrate()
+ *   reads SQL files from disk at runtime, which breaks single-binary distribution.
+ *   This system embeds all migration SQL directly in the compiled output.
+ *
+ * Drizzle is used only as a query builder and type-safe schema reference.
+ * server/db/schema.ts must be kept in sync with migrations here, but schema
+ *   changes must always go through this file — never via `bun run db:push`.
+ *
+ * To add a schema change:
+ *   1. Edit server/db/schema.ts
+ *   2. Add a new { version, name, sql } entry below with the next version number
  */
 export const migrations: { version: number; name: string; sql: string[] }[] = [
   {
@@ -110,6 +121,14 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     name: "add car setup to laps",
     sql: [
       `ALTER TABLE laps ADD COLUMN car_setup TEXT`,
+    ],
+  },
+  {
+    version: 14,
+    name: "add notes to sessions and laps",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN notes TEXT`,
+      `ALTER TABLE laps ADD COLUMN notes TEXT`,
     ],
   },
 ];

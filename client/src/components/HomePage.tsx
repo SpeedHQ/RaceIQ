@@ -148,10 +148,14 @@ export function HomePage() {
   // Period metrics
   const [periodTab, setPeriodTab] = useState<"today" | "week" | "month">("today");
 
-  const now = Date.now();
-  const todayStart = new Date().setHours(0, 0, 0, 0);
-  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
-  const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
+  const [{ todayStart, weekAgo, monthAgo }] = useState(() => {
+    const now = Date.now();
+    return {
+      todayStart: new Date().setHours(0, 0, 0, 0),
+      weekAgo: now - 7 * 24 * 60 * 60 * 1000,
+      monthAgo: now - 30 * 24 * 60 * 60 * 1000,
+    };
+  });
 
   const periodStats = useMemo(() => {
     function computePeriod(laps: LapMeta[]) {
@@ -181,7 +185,7 @@ export function HomePage() {
       week: computePeriod(weekLaps),
       month: computePeriod(monthLaps),
     };
-  }, [allLaps]);
+  }, [allLaps, todayStart, weekAgo, monthAgo]);
 
   // Session info
   const sessionTrack = serverStatus?.currentSession?.trackOrdinal;
@@ -413,11 +417,8 @@ export function HomePage() {
 
       {/* Recent laps */}
       <div>
-        <div className="flex items-center justify-between mb-2">
+        <div className="mb-2">
           <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Recent Laps</h2>
-          <Link to={`${getGameRoute(gameId ?? "fm-2023")}/tracks` as any} className="text-xs text-app-accent hover:text-app-accent/80">
-            View all tracks
-          </Link>
         </div>
         <div className="bg-app-surface-alt/20 rounded-lg overflow-hidden">
           <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} />

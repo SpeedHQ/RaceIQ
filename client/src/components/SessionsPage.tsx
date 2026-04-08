@@ -7,10 +7,47 @@ import { useActiveProfileId } from "../hooks/useProfiles";
 import { useGameId, useGameRoute } from "../stores/game";
 import { client } from "../lib/rpc";
 import { formatLapTime } from "./LiveTelemetry";
-import { SearchSelect } from "./ui/SearchSelect";
 import { Button } from "./ui/button";
 
 const PAGE_SIZE = 25;
+
+function normalize(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function fuzzyToken(token: string, field: string): boolean {
+  return normalize(field).includes(normalize(token));
+}
+
+function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? "");
+  const commit = () => {
+    setEditing(false);
+    if (draft !== (value ?? "")) onSave(draft);
+  };
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        className="w-full bg-app-surface border border-app-accent/40 rounded px-1.5 py-0.5 text-xs text-app-text outline-none"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
+        onClick={(e) => e.stopPropagation()}
+      />
+    );
+  }
+  return (
+    <span
+      className={`cursor-text text-xs ${value ? "text-app-text-secondary" : "text-app-text-dim italic"}`}
+      onClick={(e) => { e.stopPropagation(); setDraft(value ?? ""); setEditing(true); }}
+    >
+      {value || "Add note…"}
+    </span>
+  );
+}
 
 type SortKey = "date" | "track" | "car" | "laps" | "best" | "type";
 type SortDir = "asc" | "desc";
@@ -42,18 +79,23 @@ export function SessionsPage() {
   const { data: allLaps = [] } = useLaps(activeProfileId);
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const deleteLap = useDeleteLap();
+  useDeleteLap();
 
   const [page, setPage] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [lapSortKey, setLapSortKey] = useState<"lap" | "time" | "valid">("lap");
+  const [lapSortDir, setLapSortDir] = useState<SortDir>("asc");
+  const toggleLapSort = (key: "lap" | "time" | "valid") => {
+    if (lapSortKey === key) setLapSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setLapSortKey(key); setLapSortDir("asc"); }
+  };
   const [trackNames, setTrackNames] = useState<Record<number, string>>({});
   const [carNames, setCarNames] = useState<Record<number, string>>({});
   const [expandedSession, setExpandedSession] = useState<number | null>(null);
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
   const [selectedSessions, setSelectedSessions] = useState<Set<number>>(new Set());
-  const [trackFilter, setTrackFilter] = useState("");
-  const [carFilter, setCarFilter] = useState("");
+  const [search, setSearch] = useState("");
 
   // Group laps by session
   const lapsBySession = useMemo(() => {
@@ -141,52 +183,47 @@ export function SessionsPage() {
     });
   }, [sessions, sortKey, sortDir, trackNames, carNames]);
 
-  const trackOptions = useMemo(() => {
-    const seen = new Map<number, string>();
-    for (const s of sessions) {
-      if (!seen.has(s.trackOrdinal)) {
-        seen.set(s.trackOrdinal, trackNames[s.trackOrdinal] ?? `Track ${s.trackOrdinal}`);
-      }
-    }
-    return [...seen.entries()]
-      .map(([ord, label]) => ({ value: String(ord), label }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [sessions, trackNames]);
-
-  const carOptions = useMemo(() => {
-    const seen = new Map<number, string>();
-    for (const s of sessions) {
-      if (s.carOrdinal !== 0 && !seen.has(s.carOrdinal)) {
-        seen.set(s.carOrdinal, carNames[s.carOrdinal] ?? `Car ${s.carOrdinal}`);
-      }
-    }
-    return [...seen.entries()]
-      .map(([ord, label]) => ({ value: String(ord), label }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [sessions, carNames]);
-
   const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
     return sorted.filter((s) => {
-      if (trackFilter && String(s.trackOrdinal) !== trackFilter) return false;
-      if (carFilter && String(s.carOrdinal) !== carFilter) return false;
+      if (q) {
+        const track = (trackNames[s.trackOrdinal] ?? "").toLowerCase();
+        const car = (carNames[s.carOrdinal] ?? "").toLowerCase();
+        const notes = (s.notes ?? "").toLowerCase();
+        const tokens = q.split(/\s+/).filter(Boolean);
+        const anyFieldMatches = (token: string) =>
+          fuzzyToken(token, track) || fuzzyToken(token, car) || fuzzyToken(token, notes);
+        if (!tokens.every(anyFieldMatches)) return false;
+      }
       return true;
     });
-  }, [sorted, trackFilter, carFilter]);
+  }, [sorted, search, trackNames, carNames]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  useEffect(() => { setPage(0); }, [sessions.length, trackFilter, carFilter]);
+  useEffect(() => { setPage(0); }, [sessions.length, search]);
 
   const toggleSessionSelection = useCallback((sessionId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedSessions((prev) => {
       const next = new Set(prev);
-      if (next.has(sessionId)) next.delete(sessionId);
-      else next.add(sessionId);
+      const adding = !next.has(sessionId);
+      if (adding) next.add(sessionId);
+      else next.delete(sessionId);
+      // Also select/deselect all laps in this session
+      const laps = lapsBySession.get(sessionId) ?? [];
+      setSelectedLaps((prevLaps) => {
+        const nextLaps = new Set(prevLaps);
+        for (const lap of laps) {
+          if (adding) nextLaps.add(lap.id);
+          else nextLaps.delete(lap.id);
+        }
+        return nextLaps;
+      });
       return next;
     });
-  }, []);
+  }, [lapsBySession]);
 
   const toggleExpand = useCallback((sessionId: number) => {
     setExpandedSession((prev) => prev === sessionId ? null : sessionId);
@@ -202,16 +239,7 @@ export function SessionsPage() {
     });
   }, []);
 
-  const selectAllLaps = useCallback((sessionId: number) => {
-    const laps = lapsBySession.get(sessionId) ?? [];
-    setSelectedLaps((prev) => {
-      const allSelected = laps.every((l) => prev.has(l.id));
-      if (allSelected) return new Set();
-      return new Set(laps.map((l) => l.id));
-    });
-  }, [lapsBySession]);
-
-  const deleteSelected = useCallback(async () => {
+const deleteSelected = useCallback(async () => {
     if (selectedSessions.size > 0) {
       await client.api.sessions["bulk-delete"].$post({ json: { ids: [...selectedSessions] } });
     }
@@ -225,11 +253,26 @@ export function SessionsPage() {
   }, [selectedLaps, selectedSessions, qc]);
 
   const isF1 = gameId === "f1-2025";
-  const colCount = isF1 ? 7 : 6;
+  const colCount = isF1 ? 8 : 7;
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
       <div className="flex items-center gap-3">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search track, car, notes…"
+          className="w-64 bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text placeholder:text-app-text-dim focus:outline-none focus:ring-1 focus:ring-app-border-input"
+        />
+        <h1 className="text-sm font-semibold text-app-text shrink-0">
+          Sessions
+          {!isLoading && (
+            <span className="text-app-text-muted font-normal ml-2">
+              {filtered.length === sessions.length ? `${sessions.length} total` : `${filtered.length} of ${sessions.length}`}
+            </span>
+          )}
+        </h1>
         {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
           <button
             onClick={deleteSelected}
@@ -238,37 +281,23 @@ export function SessionsPage() {
             Delete {selectedSessions.size > 0 ? `${selectedSessions.size} session${selectedSessions.size > 1 ? "s" : ""}` : ""}{selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}{selectedLaps.size > 0 ? `${selectedLaps.size} lap${selectedLaps.size > 1 ? "s" : ""}` : ""}
           </button>
         )}
-        <h1 className="text-sm font-semibold text-app-text">
-          Sessions
-          {!isLoading && (
-            <span className="text-app-text-muted font-normal ml-2">
-              {filtered.length === sessions.length ? `${sessions.length} total` : `${filtered.length} of ${sessions.length}`}
-            </span>
-          )}
-        </h1>
-        <div className="flex items-center gap-2 ml-auto">
-          <SearchSelect
-            value={trackFilter}
-            onChange={setTrackFilter}
-            options={[{ value: "", label: "All tracks" }, ...trackOptions]}
-            placeholder="Filter track..."
-            className="w-48"
-          />
-          <SearchSelect
-            value={carFilter}
-            onChange={setCarFilter}
-            options={[{ value: "", label: "All cars" }, ...carOptions]}
-            placeholder="Filter car..."
-            className="w-48"
-          />
-        </div>
       </div>
 
       <div className="flex-1 overflow-auto rounded-lg border border-app-border">
-        <table className="w-full text-base">
+        <table className="w-full text-sm">
+          <colgroup>
+            <col className="w-10" />  {/* checkbox */}
+            <col className="w-40" />  {/* Date */}
+            <col className="w-16" />  {/* Laps */}
+            <col className="w-36" />  {/* Best Lap */}
+            <col />                   {/* Track */}
+            <col />                   {/* Car */}
+            {isF1 && <col />}         {/* Type (F1) */}
+            <col className="w-48" />  {/* Notes */}
+          </colgroup>
           <thead className="bg-app-surface sticky top-0 z-10">
             <tr className="border-b border-app-border">
-              <th className="w-8 px-2">
+              <th className="w-10 px-2">
                 <input
                   type="checkbox"
                   checked={pageItems.length > 0 && pageItems.every((s) => selectedSessions.has(s.id))}
@@ -287,11 +316,12 @@ export function SessionsPage() {
                 />
               </th>
               <SortHeader label="Date" field="date" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+              <SortHeader label="Laps" field="laps" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+              <SortHeader label="Best Lap" field="best" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
               <SortHeader label="Track" field="track" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
               <SortHeader label="Car" field="car" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
               {isF1 && <SortHeader label="Type" field="type" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />}
-              <SortHeader label="Laps" field="laps" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-              <SortHeader label="Best Lap" field="best" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+              <th className="px-3 py-2 text-left text-xs font-medium text-app-text-muted uppercase tracking-wider">Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -311,7 +341,13 @@ export function SessionsPage() {
               pageItems.map((session) => {
                 const isExpanded = expandedSession === session.id;
                 const sessionLaps = lapsBySession.get(session.id) ?? [];
-                const sortedLaps = [...sessionLaps].sort((a, b) => a.lapNumber - b.lapNumber);
+                const sortedLaps = [...sessionLaps].sort((a, b) => {
+                  let cmp = 0;
+                  if (lapSortKey === "lap") cmp = a.lapNumber - b.lapNumber;
+                  else if (lapSortKey === "time") cmp = a.lapTime - b.lapTime;
+                  else if (lapSortKey === "valid") cmp = (b.isValid ? 1 : 0) - (a.isValid ? 1 : 0);
+                  return lapSortDir === "asc" ? cmp : -cmp;
+                });
                 return (
                   <>
                     <tr
@@ -334,6 +370,15 @@ export function SessionsPage() {
                           {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </td>
+                      <td className="px-3 py-2 text-app-text-secondary tabular-nums">
+                        {session.lapCount ?? 0}
+                      </td>
+                      <td className="px-3 py-2 text-app-text tabular-nums">
+                        {(() => {
+                          const t = session.bestLapTime || (sortedLaps.length > 0 ? Math.min(...sortedLaps.map((l) => l.lapTime)) : 0);
+                          return t ? formatLapTime(t) : "—";
+                        })()}
+                      </td>
                       <td className="px-3 py-2 text-app-text">
                         {trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}
                       </td>
@@ -345,46 +390,40 @@ export function SessionsPage() {
                           {formatSessionType(session.sessionType)}
                         </td>
                       )}
-                      <td className="px-3 py-2 text-app-text-secondary tabular-nums">
-                        {session.lapCount ?? 0}
-                      </td>
-                      <td className="px-3 py-2 text-app-text tabular-nums">
-                        {session.bestLapTime ? formatLapTime(session.bestLapTime) : "—"}
+                      <td className="px-3 py-2">
+                        <NoteCell
+                          value={session.notes ?? undefined}
+                          onSave={(notes) => {
+                            client.api.sessions[":id"].notes.$patch({ param: { id: String(session.id) }, json: { notes: notes || null } });
+                            qc.invalidateQueries({ queryKey: queryKeys.sessions });
+                          }}
+                        />
                       </td>
                     </tr>
                     {isExpanded && sortedLaps.length > 0 && (
                       <tr key={`${session.id}-laps`}>
                         <td colSpan={colCount} className="p-0">
-                          <div className="bg-app-surface-alt/20 border-b border-app-border">
-                            <div className="px-4 py-1.5 flex items-center justify-between border-b border-app-border/30">
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
-                                  checked={sortedLaps.length > 0 && sortedLaps.every((l) => selectedLaps.has(l.id))}
-                                  onChange={() => selectAllLaps(session.id)}
-                                  className="accent-cyan-400 w-4 h-4"
-                                />
-                                <span className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold">
-                                  {sortedLaps.length} laps
-                                </span>
-                              </div>
-                              {selectedLaps.size > 0 && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); deleteSelected(); }}
-                                  className="px-2 py-0.5 text-[10px] rounded bg-red-600 hover:bg-red-500 text-white"
-                                >
-                                  Delete selected
-                                </button>
-                              )}
-                            </div>
+                          <div className="bg-app-surface-alt/20 border-b border-app-border pl-8">
                             <table className="w-full text-sm">
+                              <colgroup>
+                                <col className="w-10" />   {/* checkbox — same as session */}
+                                <col className="w-32" />   {/* blank — Date(w-40=160px) minus pl-8(32px) = 128px */}
+                                <col className="w-16" />   {/* Lap# — same width as Laps */}
+                                <col className="w-36" />   {/* Time — same width as Best Lap */}
+                                <col />                    {/* Valid */}
+                                <col className="w-48" />   {/* Notes */}
+                              </colgroup>
                               <thead>
-                                <tr className="text-app-text-dim uppercase tracking-wider">
-                                  <th className="w-8 px-2 py-1" />
-                                  <th className="px-3 py-1 text-left">Lap</th>
-                                  <th className="px-3 py-1 text-left">Time</th>
-                                  <th className="px-3 py-1 text-left">Valid</th>
-                                  <th className="px-3 py-1 text-right">Actions</th>
+                                <tr className="text-app-text-dim text-[10px] uppercase tracking-wider border-b border-app-border/30">
+                                  <th className="w-10 px-2 py-1" />
+                                  <th className="px-3 py-1 text-left" />
+                                  {(["lap", "time", "valid"] as const).map((f) => (
+                                    <th key={f} className="px-3 py-1 text-left cursor-pointer select-none hover:text-app-text" onClick={() => toggleLapSort(f)}>
+                                      {f === "lap" ? "Lap" : f === "time" ? "Time" : "Valid"}
+                                      {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
+                                    </th>
+                                  ))}
+                                  <th className="px-3 py-1 text-left">Notes</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -401,22 +440,17 @@ export function SessionsPage() {
                                           className="accent-cyan-400 w-4 h-4"
                                         />
                                       </td>
+                                      <td />
                                       <td className="px-3 py-1 font-mono text-app-text-secondary">{lap.lapNumber}</td>
-                                      <td className={`px-3 py-1 font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text"}`}>
-                                        {formatLapTime(lap.lapTime)}
-                                      </td>
                                       <td className="px-3 py-1">
-                                        {lap.isValid ? (
-                                          <span className="text-emerald-400">&#10003;</span>
-                                        ) : (
-                                          <span className="text-red-400" title={lap.invalidReason}>&#10007;</span>
-                                        )}
-                                      </td>
-                                      <td className="px-3 py-1 text-right">
-                                        <div className="flex items-center justify-end gap-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text"}`}>
+                                            {formatLapTime(lap.lapTime)}
+                                          </span>
                                           <Button
                                             variant="app-outline"
                                             size="app-sm"
+                                            className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               navigate({
@@ -429,14 +463,23 @@ export function SessionsPage() {
                                           >
                                             Analyse
                                           </Button>
-                                          <Button
-                                            variant="app-danger"
-                                            size="app-sm"
-                                            onClick={(e) => { e.stopPropagation(); deleteLap.mutate(lap.id); }}
-                                          >
-                                            Delete
-                                          </Button>
                                         </div>
+                                      </td>
+                                      <td className="px-3 py-1">
+                                        {lap.isValid ? (
+                                          <span className="text-emerald-400">&#10003;</span>
+                                        ) : (
+                                          <span className="text-red-400" title={lap.invalidReason}>&#10007;</span>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-1">
+                                        <NoteCell
+                                          value={lap.notes ?? undefined}
+                                          onSave={(notes) => {
+                                            client.api.laps[":id"].notes.$patch({ param: { id: String(lap.id) }, json: { notes: notes || null } });
+                                            qc.invalidateQueries({ queryKey: queryKeys.laps });
+                                          }}
+                                        />
                                       </td>
                                     </tr>
                                   );

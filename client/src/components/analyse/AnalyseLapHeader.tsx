@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { LapMeta } from "@shared/types";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Trash2 } from "lucide-react";
 import { SearchSelect } from "../ui/SearchSelect";
 import { Button } from "../ui/button";
 import { formatLapTime } from "../../lib/format";
@@ -35,6 +35,7 @@ interface Props {
   onCopyMetrics: () => void;
   onExport: () => void;
   onToggleAi: () => void;
+  onDeleteLap: () => void;
 }
 
 export function AnalyseLapHeader({
@@ -43,7 +44,7 @@ export function AnalyseLapHeader({
   hasTelemetry, hasF1Setup, availableTunes, tunePending,
   loading, aiPanelOpen,
   onTrackChange, onCarChange, onLapChange, onTuneChange, onViewTune, onShowSetup,
-  onCopyMetrics, onExport, onToggleAi,
+  onCopyMetrics, onExport, onToggleAi, onDeleteLap,
 }: Props) {
   const [guideOpen, setGuideOpen] = useState(false);
   return (
@@ -124,6 +125,12 @@ export function AnalyseLapHeader({
       )}
 
       <div className="ml-auto flex items-center gap-2">
+        {selectedLapId != null && (
+          <Button variant="app-outline" size="app-md" onClick={onDeleteLap} className="text-red-400 border-red-400/30 hover:bg-red-400/10">
+            <Trash2 className="size-3.5" />
+            Delete
+          </Button>
+        )}
         {hasTelemetry && (
           <Button variant="app-outline" size="app-md" onClick={() => setGuideOpen(true)}>
             Guide
@@ -142,15 +149,15 @@ export function AnalyseLapHeader({
         {hasTelemetry && (
           <Button
             variant="app-outline"
-            size="app-md"
+            size="app-lg"
             onClick={onToggleAi}
             className={aiPanelOpen
               ? "text-amber-400 border-amber-400/40 bg-amber-400/10"
               : "hover:text-amber-400"
             }
           >
-            <Sparkles className="size-3" />
-            AI
+            <Sparkles className="size-3.5" />
+            AI Analysis
           </Button>
         )}
         {loading && (

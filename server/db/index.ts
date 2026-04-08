@@ -44,7 +44,13 @@ async function runMigrations() {
     await client.execute("BEGIN");
     try {
       for (const sql of migration.sql) {
-        await client.execute(sql);
+        try {
+          await client.execute(sql);
+        } catch (stmtErr: unknown) {
+          // ALTER TABLE ADD COLUMN is idempotent — ignore "duplicate column name" errors
+          const msg = stmtErr instanceof Error ? stmtErr.message : String(stmtErr);
+          if (!msg.includes("duplicate column name")) throw stmtErr;
+        }
       }
       await client.execute({
         sql: "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",

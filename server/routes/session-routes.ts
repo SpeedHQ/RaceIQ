@@ -3,7 +3,8 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
 import { GameIdQuerySchema } from "../../shared/schemas";
-import { getSessions, deleteSession } from "../db/queries";
+import { IdParamSchema } from "../../shared/schemas";
+import { getSessions, deleteSession, updateSession } from "../db/queries";
 
 export const sessionRoutes = new Hono()
   // GET /api/sessions
@@ -12,6 +13,18 @@ export const sessionRoutes = new Hono()
     const sessionList = await getSessions(gameId);
     return c.json(sessionList);
   })
+
+  // PATCH /api/sessions/:id/notes
+  .patch(
+    "/api/sessions/:id/notes",
+    zValidator("param", IdParamSchema),
+    zValidator("json", z.object({ notes: z.string().nullable() })),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      await updateSession(id, { notes: c.req.valid("json").notes });
+      return c.json({ ok: true });
+    },
+  )
 
   // POST /api/sessions/bulk-delete
   .post(

@@ -440,6 +440,7 @@ export interface LapMeta {
   lapTime: number;
   isValid: boolean;
   invalidReason?: string;
+  notes?: string;
   createdAt: string;
   pi?: number;
   gameId?: GameId;
@@ -461,6 +462,7 @@ export interface SessionMeta {
   lapCount?: number;
   bestLapTime?: number;
   sessionType?: string;
+  notes?: string;
   gameId?: GameId;
 }
 

@@ -23,8 +23,8 @@ bun test
 bun test test/parser.test.ts   # single test file
 
 # Database
-bun run db:push       # push schema changes to SQLite
-bun run db:generate   # generate migration files
+bun run db:push       # sync Drizzle schema to SQLite (dev introspection only — see note below)
+bun run db:generate   # generate Drizzle migration files (not used at runtime — see note below)
 
 # Production build (client bundle + compiled server binary → dist/)
 bun run build
@@ -67,6 +67,17 @@ bun run lighthouse           # run Lighthouse audit on local dev server
 - `server/ai/analyst-prompt.ts` — Builds prompts for Claude API lap analysis
 - `server/db/schema.ts` — Drizzle ORM schema (profiles, sessions, laps, corners, lapAnalyses, trackOutlines)
 - `server/db/queries.ts` — Database query helpers
+- `server/db/migrations.ts` — Hand-rolled migration list (SQL array, version-tracked)
+- `server/db/index.ts` — Runs migrations on startup via custom runner
+
+### Database migration approach
+
+Drizzle is used **only as a query builder and type-safe schema reference** — NOT for runtime migrations. Schema changes are managed via a hand-rolled migration system in `server/db/migrations.ts`. The app compiles to a self-contained Windows binary (`raceiq.exe`); Drizzle's `migrate()` reads SQL files from disk at runtime, which would break single-binary distribution. The custom system embeds all migration SQL directly in the compiled binary.
+
+**To add a schema change:**
+1. Edit `server/db/schema.ts` (keeps Drizzle types in sync)
+2. Add a new entry at the bottom of `server/db/migrations.ts` with the next version number and the raw SQL
+3. Do NOT use `bun run db:push` to apply schema changes — it is for dev introspection only and must never drop `schema_migrations` (protected via `tablesFilter` in `drizzle.config.ts`)
 - `server/pipeline.ts` — Telemetry processing pipeline (parse → broadcast → lap detect)
 - `server/sector-tracker.ts` — Server-side sector timing tracker
 - `server/tray.ts` — System tray integration (Windows)

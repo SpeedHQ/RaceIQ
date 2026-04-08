@@ -9,6 +9,7 @@ import {
   getLaps,
   getLapById,
   deleteLap,
+  updateLapNotes,
   getCorners,
   saveCorners,
   getAnalysis,
@@ -403,6 +404,18 @@ export const lapRoutes = new Hono()
       } catch (err: any) {
         console.error("[Chat] Failed to clear analysis:", err.message);
       }
+      return c.json({ ok: true });
+    }
+  )
+
+  // ── Update lap notes ───────────────────────────────────────
+  .patch(
+    "/api/laps/:id/notes",
+    zValidator("param", IdParamSchema),
+    zValidator("json", z.object({ notes: z.string().nullable() })),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      await updateLapNotes(id, c.req.valid("json").notes);
       return c.json({ ok: true });
     }
   )

@@ -53,6 +53,7 @@ export const sessions = sqliteTable("sessions", {
   trackOrdinal: integer("track_ordinal").notNull(),
   gameId: text("game_id").notNull().default("fm-2023"),
   sessionType: text("session_type"),
+  notes: text("notes"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
@@ -69,6 +70,7 @@ export const laps = sqliteTable(
     lapTime: real("lap_time").notNull(),
     isValid: integer("is_valid", { mode: "boolean" }).notNull().default(true),
     invalidReason: text("invalid_reason"),
+    notes: text("notes"),
     profileId: integer("profile_id").references(() => profiles.id),
     pi: integer("pi"),
     carSetup: text("car_setup"),  // JSON snapshot of F1CarSetup

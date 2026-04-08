@@ -384,6 +384,24 @@ export function LapAnalyse() {
     },
   });
 
+  const deleteLapMutation = useMutation({
+    mutationFn: (lapId: number) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      client.api.laps[":id"].$delete({ param: { id: String(lapId) } }).then((r) => r.json() as any),
+    onSuccess: () => {
+      setSelectedLapId(null);
+      queryClient.invalidateQueries({ queryKey: ["laps", activeProfileId ?? null] });
+    },
+  });
+
+  const handleDeleteLap = useCallback(() => {
+    if (!selectedLapId) return;
+    const lap = filteredLaps.find((l) => l.id === selectedLapId);
+    const label = lap ? `Lap ${lap.lapNumber}` : `Lap ${selectedLapId}`;
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+    deleteLapMutation.mutate(selectedLapId);
+  }, [selectedLapId, filteredLaps, deleteLapMutation]);
+
   // Export handler
   const handleExport = useCallback(() => {
     if (telemetry.length === 0) return;
@@ -435,6 +453,7 @@ export function LapAnalyse() {
         onCopyMetrics={handleCopyMetrics}
         onExport={handleExport}
         onToggleAi={() => setAiPanelOpen((v) => !v)}
+        onDeleteLap={handleDeleteLap}
       />
 
       {telemetry.length === 0 && (
