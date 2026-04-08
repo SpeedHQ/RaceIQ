@@ -212,31 +212,19 @@ export class SectorTracker {
     // Current sector running time
     const currentSectorTime = packet.CurrentLap - this.sectorStartTime;
 
-    // Estimated lap time: for completed sectors use actual time, for the
-    // current sector use the greater of elapsed time or best (so the estimate
-    // doesn't dip below best early in a sector), for future sectors use best.
-    const hasBests = this.bestTimes[0] < Infinity && this.bestTimes[1] < Infinity && this.bestTimes[2] < Infinity;
+    // Estimated lap time from distance fraction: currentTime / fractionComplete
     let estimatedLap = 0;
-    if (hasBests) {
-      for (let i = 0; i < 3; i++) {
-        if (i < this.currentSector) {
-          estimatedLap += this.currentTimes[i];
-        } else if (i === this.currentSector) {
-          estimatedLap += Math.max(currentSectorTime, this.bestTimes[i]);
-        } else {
-          estimatedLap += this.bestTimes[i];
-        }
-      }
-      // Estimated lap can never be less than current elapsed time
-      if (estimatedLap < packet.CurrentLap) estimatedLap = packet.CurrentLap;
+    if (this.lapDistTotal > 0 && packet.CurrentLap > 0) {
+      const lapDist = packet.DistanceTraveled - this.lapDistStart;
+      const frac = Math.max(0.001, Math.min(lapDist / this.lapDistTotal, 1));
+      estimatedLap = packet.CurrentLap / frac;
     }
 
-    const deltaToBest = hasBests && packet.CurrentLap > 0 && this.bestLapTime < Infinity
+    const deltaToBest = estimatedLap > 0 && this.bestLapTime < Infinity
       ? estimatedLap - this.bestLapTime
       : 0;
 
-    const hasLasts = this.lastTimes[0] > 0 && this.lastTimes[1] > 0 && this.lastTimes[2] > 0;
-    const deltaToLast = hasLasts && packet.CurrentLap > 0 && this.lastLapTime > 0
+    const deltaToLast = estimatedLap > 0 && this.lastLapTime > 0
       ? estimatedLap - this.lastLapTime
       : 0;
 

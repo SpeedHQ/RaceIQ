@@ -115,8 +115,6 @@ export function SectorTimes() {
   const sectorNames = ["S1", "S2", "S3"];
   const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
 
-  const hasBests = sectors.bestTimes[0] > 0 && sectors.bestTimes[1] > 0 && sectors.bestTimes[2] > 0;
-
   return (
     <div className="border-t border-app-border/50 pt-3">
       {/* Estimated lap time, delta, and best */}
@@ -124,7 +122,7 @@ export function SectorTimes() {
         <div>
           <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Est. Lap</div>
           <div className="text-2xl font-mono font-bold text-app-text tabular-nums leading-none">
-            {hasBests && sectors.estimatedLap > 0 ? formatLapTime(sectors.estimatedLap) : "--:--.---"}
+            {sectors.estimatedLap > 0 ? formatLapTime(sectors.estimatedLap) : "--:--.---"}
           </div>
         </div>
         <div>
