@@ -227,6 +227,8 @@ export class SectorTracker {
           estimatedLap += this.bestTimes[i];
         }
       }
+      // Estimated lap can never be less than current elapsed time
+      if (estimatedLap < packet.CurrentLap) estimatedLap = packet.CurrentLap;
     }
 
     const deltaToBest = hasBests && packet.CurrentLap > 0 && this.bestLapTime < Infinity
