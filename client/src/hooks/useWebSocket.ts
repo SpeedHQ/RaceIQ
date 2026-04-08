@@ -3,6 +3,7 @@ import type { TelemetryPacket } from "@shared/types";
 import { useTelemetryStore } from "../stores/telemetry";
 import type { VersionInfo } from "../stores/telemetry";
 import { client } from "../lib/rpc";
+import { queryClient } from "../lib/queryClient";
 
 function fetchVersionInfo() {
   client.api.version.$get()
@@ -49,6 +50,10 @@ export function useWebSocket() {
             fetchVersionInfo();
           } else if (data.type === "update-progress") {
             useTelemetryStore.getState().setUpdateProgress({ stage: data.stage, percent: data.percent ?? 0 });
+          } else if (data.type === "lap-saved") {
+            // Invalidate laps + sector queries so UI updates immediately
+            queryClient.invalidateQueries({ queryKey: ["laps"] });
+            queryClient.invalidateQueries({ queryKey: ["track-lap-sectors"] });
           } else {
             const { _sectors, _pit, ...packet } = data;
             const s = useTelemetryStore.getState();

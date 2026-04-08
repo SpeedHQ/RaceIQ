@@ -15,6 +15,10 @@ lapDetector.onSessionStart = async (session) => {
   pitTracker.reset();
 };
 
+lapDetector.onLapSaved = (event) => {
+  wsManager.broadcastNotification({ type: "lap-saved", ...event });
+};
+
 let _totalProcessed = 0;
 
 /**

@@ -11,10 +11,11 @@
  * Fuel and tire wear deltas are tracked per-lap for strategy overlays.
  */
 import type { TelemetryPacket, GameId } from "../shared/types";
-import { insertSession, insertLap } from "./db/queries";
-import { extractCurbSegments, recordCurbData } from "../shared/track-data";
+import { insertSession, insertLap, getTrackOutlineSectors } from "./db/queries";
+import { extractCurbSegments, recordCurbData, getTrackSectorsByOrdinal, loadSharedTrackMeta } from "../shared/track-data";
 import { getTuneAssignment } from "./db/tune-queries";
 import { assessLapRecording } from "./lap-quality";
+import { tryGetGame } from "../shared/games/registry";
 
 const SESSION_TIMEOUT_MS = 5 * 60_000; // 5 minutes of silence = new session
 
@@ -40,8 +41,17 @@ export interface LapTireWearData {
   worn: { fl: number; fr: number; rl: number; rr: number };
 }
 
+export interface LapSavedEvent {
+  lapId: number;
+  lapNumber: number;
+  lapTime: number;
+  isValid: boolean;
+  sectors: { s1: number; s2: number; s3: number } | null;
+}
+
 class LapDetector {
   onSessionStart?: (session: SessionState) => void | Promise<void>;
+  onLapSaved?: (event: LapSavedEvent) => void;
 
   private currentSession: SessionState | null = null;
   private currentLapNumber: number = -1; // -1 = no lap yet (awaiting first packet)
@@ -358,6 +368,8 @@ class LapDetector {
       const valid = this.lapIsValid && quality.valid;
       const invalidReason = this.invalidReason ?? (!quality.valid ? quality.reason : null);
 
+      const sectors = await this.computeLapSectors(this.lapBuffer, lapTime);
+
       insertLap(
         this.currentSession.sessionId,
         lapNum,
@@ -371,6 +383,7 @@ class LapDetector {
         console.log(
           `[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid}${invalidReason ? ` (${invalidReason})` : ""} | Packets: ${packetCount} | DB ID: ${lapId}`
         );
+        this.onLapSaved?.({ lapId, lapNumber: lapNum, lapTime, isValid: valid, sectors });
       }).catch((err) => {
         console.error(`[Lap] Failed to save lap ${lapNum}:`, err);
       });
@@ -502,6 +515,61 @@ class LapDetector {
       );
       this.lapBuffer = this.lapBuffer.slice(resetIdx);
     }
+  }
+
+  /** Compute s1/s2/s3 sector times from a lap's telemetry buffer. */
+  private async computeLapSectors(
+    packets: TelemetryPacket[],
+    lapTime: number
+  ): Promise<{ s1: number; s2: number; s3: number } | null> {
+    if (!this.currentSession || packets.length < 50) return null;
+    const { trackOrdinal, gameId } = this.currentSession;
+
+    // Resolve sector boundaries
+    const adapter = tryGetGame(gameId);
+    const sharedName = adapter?.getSharedTrackName?.(trackOrdinal);
+    const dbSectors = await getTrackOutlineSectors(trackOrdinal, gameId);
+    const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
+    const gameSectors = gameId ? (sharedMeta as any)?.games?.[gameId]?.sectors : null;
+    const raw = dbSectors ?? gameSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(trackOrdinal);
+    const s1End = raw?.s1End ?? 1 / 3;
+    const s2End = raw?.s2End ?? 2 / 3;
+
+    // F1: prefer game-broadcast sector times
+    let s1 = 0, s2 = 0;
+    for (const p of packets) {
+      if ((p.f1?.sector1Time ?? 0) > 0) s1 = p.f1!.sector1Time;
+      if ((p.f1?.sector2Time ?? 0) > 0) s2 = p.f1!.sector2Time;
+    }
+
+    // Fall back to distance-fraction computation
+    if (s1 === 0 || s2 === 0) {
+      const startDist = packets[0].DistanceTraveled;
+      const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
+      if (lapDist < 100) return null;
+
+      let sector = 0;
+      let sectorStart = packets[0].CurrentLap;
+      s1 = 0;
+      s2 = 0;
+      for (const p of packets) {
+        const frac = (p.DistanceTraveled - startDist) / lapDist;
+        const expected = frac < s1End ? 0 : frac < s2End ? 1 : 2;
+        if (expected > sector) {
+          const t = p.CurrentLap - sectorStart;
+          if (sector === 0) s1 = t;
+          else if (sector === 1) s2 = t;
+          sectorStart = p.CurrentLap;
+          sector = expected;
+        }
+      }
+    }
+
+    if (s1 > 0 && s2 > 0) {
+      const s3 = lapTime - s1 - s2;
+      return s3 > 0 ? { s1, s2, s3 } : null;
+    }
+    return null;
   }
 
   private resetLapState(newLapFirstPacket: TelemetryPacket): void {
