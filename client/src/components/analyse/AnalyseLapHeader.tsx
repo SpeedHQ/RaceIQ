@@ -171,8 +171,8 @@ export function AnalyseLapHeader({
             size="app-lg"
             onClick={onToggleAi}
             className={aiPanelOpen
-              ? "text-amber-400 border-amber-400/40 bg-amber-400/10"
-              : "hover:text-amber-400"
+              ? "text-app-accent border-app-accent/40 bg-app-accent/10"
+              : "hover:text-app-accent"
             }
           >
             <Sparkles className="size-3.5" />

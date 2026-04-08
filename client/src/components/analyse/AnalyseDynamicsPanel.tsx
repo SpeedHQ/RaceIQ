@@ -72,6 +72,7 @@ export function AnalyseDynamicsPanel({ currentPacket, currentDisplayPacket, game
     </span>
   );
 
+  const isMetric = units.unit === "metric";
   const chart = balanceChartData(currentPacket.Speed * 2.23694);
 
   return (
@@ -87,7 +88,7 @@ export function AnalyseDynamicsPanel({ currentPacket, currentDisplayPacket, game
               +δ = understeer (fronts slide more)<br />
               −δ = oversteer (rears slide more)
             </span>
-            <span className="block text-[9px] text-app-text-dim mb-1">Slip Angle Threshold (°) vs Speed (mph)</span>
+            <span className="block text-[9px] text-app-text-dim mb-1">Slip Angle Threshold (°) vs Speed ({isMetric ? "km/h" : "mph"})</span>
             <svg viewBox="0 0 200 80" className="w-full h-auto">
               <line x1="30" y1="5" x2="30" y2="65" stroke="currentColor" opacity="0.15" />
               <line x1="30" y1="65" x2="195" y2="65" stroke="currentColor" opacity="0.15" />
@@ -98,11 +99,15 @@ export function AnalyseDynamicsPanel({ currentPacket, currentDisplayPacket, game
                   <text x="27" y={l.y + 3} textAnchor="end" fill="currentColor" opacity="0.4" fontSize="7">{l.deg}°</text>
                 </g>
               ))}
-              {chart.xLabels.map(l => (
-                <text key={l.mph} x={l.x} y="75" textAnchor="middle" fill="currentColor" opacity="0.4" fontSize="7">
-                  {l.mph === 90 ? "90 mph" : String(l.mph)}
-                </text>
-              ))}
+              {chart.xLabels.map(l => {
+                const label = isMetric ? Math.round(l.mph * 1.60934) : l.mph;
+                const isLast = l.mph === 90;
+                return (
+                  <text key={l.mph} x={l.x} y="75" textAnchor="middle" fill="currentColor" opacity="0.4" fontSize="7">
+                    {isLast ? `${label} ${isMetric ? "km/h" : "mph"}` : String(label)}
+                  </text>
+                );
+              })}
               <polyline points={chart.polylinePoints} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinejoin="round" />
               <circle cx={chart.markerX} cy={chart.markerY} r="3" fill="#3b82f6" />
             </svg>
