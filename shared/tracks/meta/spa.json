@@ -231,6 +231,456 @@
       "sectors": {
         "s1End": 0.32,
         "s2End": 0.72
+      },
+      "segments": [
+        {
+          "type": "corner",
+          "name": "La Source",
+          "direction": "right",
+          "startFrac": 0,
+          "endFrac": 0.077,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.077,
+          "endFrac": 0.133,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Eau Rouge",
+          "direction": "left",
+          "startFrac": 0.133,
+          "endFrac": 0.242,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "Kemmel",
+          "startFrac": 0.242,
+          "endFrac": 0.32,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Les Combes",
+          "direction": "right",
+          "startFrac": 0.32,
+          "endFrac": 0.36,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Malmedy",
+          "direction": "right",
+          "startFrac": 0.36,
+          "endFrac": 0.382,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.382,
+          "endFrac": 0.41200000000000003,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Rivage",
+          "direction": "right",
+          "startFrac": 0.41200000000000003,
+          "endFrac": 0.44799999999999995,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "No Name",
+          "startFrac": 0.44799999999999995,
+          "endFrac": 0.48100000000000004,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.48100000000000004,
+          "endFrac": 0.528,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Pouhon",
+          "direction": "left",
+          "startFrac": 0.528,
+          "endFrac": 0.59,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.59,
+          "endFrac": 0.625,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Les Fagnes",
+          "direction": "left",
+          "startFrac": 0.625,
+          "endFrac": 0.654,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Piff Paff",
+          "startFrac": 0.654,
+          "endFrac": 0.6859999999999999,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Campus",
+          "startFrac": 0.6859999999999999,
+          "endFrac": 0.7170000000000001,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Stavelot",
+          "direction": "right",
+          "startFrac": 0.7170000000000001,
+          "endFrac": 0.7559999999999999,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "Paul Fiere Curve",
+          "startFrac": 0.7559999999999999,
+          "endFrac": 0.8590000000000001,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Blanchimont",
+          "direction": "left",
+          "startFrac": 0.8590000000000001,
+          "endFrac": 0.9,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9,
+          "endFrac": 0.953,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Bus Stop",
+          "direction": "right",
+          "startFrac": 0.953,
+          "endFrac": 0.991,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.991,
+          "endFrac": 1,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        }
+      ]
+    },
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "corner",
+          "name": "La Source",
+          "direction": "right",
+          "startFrac": 0,
+          "endFrac": 0.065,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.065,
+          "endFrac": 0.133,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Eau Rouge",
+          "direction": "left",
+          "startFrac": 0.133,
+          "endFrac": 0.223,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "Kemmel",
+          "startFrac": 0.223,
+          "endFrac": 0.314,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Les Combes",
+          "direction": "right",
+          "startFrac": 0.314,
+          "endFrac": 0.35200000000000004,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Malmedy",
+          "direction": "right",
+          "startFrac": 0.35200000000000004,
+          "endFrac": 0.377,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.377,
+          "endFrac": 0.40299999999999997,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Rivage",
+          "direction": "right",
+          "startFrac": 0.40299999999999997,
+          "endFrac": 0.438,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "No Name",
+          "startFrac": 0.438,
+          "endFrac": 0.473,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.473,
+          "endFrac": 0.52,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Pouhon",
+          "direction": "left",
+          "startFrac": 0.52,
+          "endFrac": 0.58,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.58,
+          "endFrac": 0.608,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Les Fagnes",
+          "direction": "left",
+          "startFrac": 0.608,
+          "endFrac": 0.633,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Piff Paff",
+          "startFrac": 0.633,
+          "endFrac": 0.672,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Campus",
+          "startFrac": 0.672,
+          "endFrac": 0.706,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Stavelot",
+          "direction": "right",
+          "startFrac": 0.706,
+          "endFrac": 0.742,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "Paul Fiere Curve",
+          "startFrac": 0.742,
+          "endFrac": 0.845,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Blanchimont",
+          "direction": "left",
+          "startFrac": 0.845,
+          "endFrac": 0.899,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.899,
+          "endFrac": 0.9329999999999999,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Bus Stop",
+          "direction": "right",
+          "startFrac": 0.9329999999999999,
+          "endFrac": 0.9670000000000001,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9670000000000001,
+          "endFrac": 1,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        }
+      ],
+      "sectors": {
+        "s1End": 0.305,
+        "s2End": 0.703
       }
     }
   }
