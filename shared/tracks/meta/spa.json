@@ -225,5 +225,13 @@
       "distStart": 0,
       "distEnd": 0
     }
-  ]
+  ],
+  "games": {
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.32,
+        "s2End": 0.723
+      }
+    }
+  }
 }
