@@ -1,12 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import type { TelemetryPacket, LapMeta } from "@shared/types";
-import { convertTemp } from "../lib/temperature";
 import { useCookieState } from "../hooks/useCookieState";
 import { useLocalStorage } from "../hooks/useLocalStorage";
-import { formatLapTime } from "../lib/format";
-import { getSteeringLock } from "./Settings";
-import { Compass } from "./Compass";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUnits } from "../hooks/useUnits";
 import { useConvertedTelemetry } from "../hooks/useConvertedTelemetry";
@@ -15,20 +11,18 @@ import { useActiveProfileId } from "../hooks/useProfiles";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
 import { analyzeLap } from "../lib/lap-insights";
-import { AiPanel, type AnalysisHighlight, type AiPanelHandle } from "./AiPanel";
-import { Sparkles } from "lucide-react";
-import { WeatherWidget } from "./analyse/WeatherWidget";
+import { useLapPlayback } from "../hooks/useLapPlayback";
+import { type AnalysisHighlight, type AiPanelHandle } from "./AiPanel";
 import { F1SetupModal } from "./analyse/F1SetupModal";
-import { AiPanelMenu } from "./analyse/AiPanelMenu";
-import { AnalyseTrackMap, type TrackMapHandle, type Point } from "./analyse/AnalyseTrackMap";
+import { type TrackMapHandle, type Point } from "./analyse/AnalyseTrackMap";
 import { AnalyseChartsPanel, type ChartsPanelHandle } from "./analyse/AnalyseChartsPanel";
-import { AnalyseSegmentList } from "./analyse/AnalyseSegmentList";
 import { AnalyseTimelineScrubber } from "./analyse/AnalyseTimelineScrubber";
 import { TuneViewModal } from "./analyse/TuneViewModal";
 import { AnalyseLapHeader } from "./analyse/AnalyseLapHeader";
-import { AnalyseSteeringOverlay } from "./analyse/AnalyseSteeringOverlay";
 import { AnalyseDataPanel } from "./analyse/AnalyseDataPanel";
-import { AnalyseVizPanel } from "./analyse/AnalyseVizPanel";
+import { AnalyseTopSection } from "./analyse/AnalyseTopSection";
+import { AnalyseAiSidebar } from "./analyse/AnalyseAiSidebar";
+import { buildExportCsv, buildCopyMetricsText } from "../lib/lap-export";
 
 // Stable empty array to avoid re-renders when no telemetry loaded
 const emptyTelemetry: TelemetryPacket[] = [];
@@ -282,116 +276,24 @@ export function LapAnalyse() {
     }
   }, [cursorIdx, telemetry.length]);
 
-  // Imperatively update all overlay canvases without triggering React re-renders
-  const updateOverlays = useCallback((idx: number) => {
-    trackMapRef.current?.updateCursor(idx);
-    chartsPanelRef.current?.updateCursor(idx);
-    // Imperatively update timeline thumb/progress at 60fps
-    const tf = chartsPanelRef.current?.timeFracs;
-    const pct = tf ? `${(tf[idx] ?? 0) * 100}%` : `${(idx / Math.max(1, (telemetry.length - 1))) * 100}%`;
-    if (thumbRef.current) thumbRef.current.style.left = pct;
-    if (progressRef.current) progressRef.current.style.width = pct;
-  }, [telemetry.length]);
-
-  // Play/pause animation — uses CurrentLap timer for accurate real-time playback
-  // Updates overlays imperatively at 60fps, throttles React state to ~15fps
-  useEffect(() => {
-    playRef.current = playing;
-    if (!playing || telemetry.length < 2) return;
-
-    let rafId: number;
-    // Track wall-clock time elapsed since playback started at current index
-    let wallStart = performance.now();
-    let gameStart = telemetry[cursorRef.current].CurrentLap;
-    let lastSpeedChange = speedChangeRef.current;
-    let lastSeek = seekRef.current;
-
-    function step(now: number) {
-      if (!playRef.current) return;
-      const idx = cursorRef.current;
-      if (idx >= telemetry.length - 1) {
-        // Loop back to start
-        cursorRef.current = 0;
-        updateOverlays(0);
-        setCursorIdx(0);
-        lastStateUpdateRef.current = now;
-        wallStart = now;
-        gameStart = telemetry[0].CurrentLap;
-        lastSeek = seekRef.current;
-        rafId = requestAnimationFrame(step);
-        return;
-      }
-
-      // Re-anchor timing when user seeks or speed changes mid-playback
-      if (seekRef.current !== lastSeek) {
-        lastSeek = seekRef.current;
-        wallStart = now;
-        gameStart = telemetry[idx].CurrentLap;
-      }
-      if (speedChangeRef.current !== lastSpeedChange) {
-        lastSpeedChange = speedChangeRef.current;
-        wallStart = now;
-        gameStart = telemetry[idx].CurrentLap;
-      }
-
-      // How much game-time should have elapsed based on wall-clock and speed
-      const wallElapsed = (now - wallStart) / 1000; // seconds
-      const gameTarget = gameStart + wallElapsed * speedRef.current;
-      interpolatedTimeRef.current = gameTarget;
-
-      // Advance cursor to the packet matching the target game time
-      let nextIdx = idx;
-      while (nextIdx < telemetry.length - 1 && telemetry[nextIdx + 1].CurrentLap <= gameTarget) {
-        nextIdx++;
-      }
-
-      if (nextIdx !== idx) {
-        cursorRef.current = nextIdx;
-        // Imperative canvas updates at full 60fps — no React re-render
-        updateOverlays(nextIdx);
-        // Throttle React state updates to ~30fps — 3D uses useFrame at native fps
-        if (now - lastStateUpdateRef.current > 33) {
-          lastStateUpdateRef.current = now;
-          setCursorIdx(nextIdx);
-        }
-      }
-
-      rafId = requestAnimationFrame(step);
-    }
-    rafId = requestAnimationFrame(step);
-
-    return () => cancelAnimationFrame(rafId);
-  }, [playing, telemetry, updateOverlays]);
-
-  // Keyboard controls
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (telemetry.length === 0) return;
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        setCursorIdx((prev) => {
-          const next = Math.max(0, prev - 1);
-          cursorRef.current = next;
-          return next;
-        });
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        setCursorIdx((prev) => {
-          const next = Math.min(telemetry.length - 1, prev + 1);
-          cursorRef.current = next;
-          return next;
-        });
-      } else if (e.key === " ") {
-        // Don't capture space when typing in an input/textarea
-        const tag = (e.target as HTMLElement)?.tagName;
-        if (tag === "INPUT" || tag === "TEXTAREA") return;
-        e.preventDefault();
-        setPlaying((p) => !p);
-      }
-    }
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [telemetry]);
+  // Playback animation + keyboard controls
+  const { updateOverlays } = useLapPlayback({
+    playing,
+    telemetry,
+    playRef,
+    speedRef,
+    cursorRef,
+    seekRef,
+    speedChangeRef,
+    lastStateUpdateRef,
+    interpolatedTimeRef,
+    trackMapRef,
+    chartsPanelRef,
+    thumbRef,
+    progressRef,
+    setCursorIdx,
+    setPlaying,
+  });
 
 
 
@@ -485,55 +387,25 @@ export function LapAnalyse() {
   // Export handler
   const handleExport = useCallback(() => {
     if (telemetry.length === 0) return;
-    const header = [
-      `# Car: ${carName || `Ordinal ${telemetry[0].CarOrdinal}`}`,
-      `# Track: ${trackName || `Ordinal ${telemetry[0].TrackOrdinal}`}`,
-      `# Lap: ${selectedLap?.lapNumber ?? "?"} | Time: ${selectedLap ? formatLapTime(selectedLap.lapTime) : "?"}`,
-    ].join("\n");
-    const csv = [
-      header,
-      Object.keys(telemetry[0]).join(","),
-      ...telemetry.map((p) => Object.values(p).join(",")),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `lap-${selectedLapId}-telemetry.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    buildExportCsv(telemetry, carName, trackName, selectedLap, selectedLapId);
   }, [telemetry, selectedLapId, selectedLap, carName, trackName]);
 
   const handleCopyMetrics = useCallback(() => {
     if (!currentPacket) return;
-    const p = currentPacket;
-    const lock = getSteeringLock();
-    const steerDeg = (p.Steer / 127) * (lock / 2);
-    const startFuel = telemetry[0]?.Fuel ?? 0;
-    const lines = [
-      `Packet ${cursorIdx + 1}/${telemetry.length} | ${formatLapTime(p.CurrentLap)} / ${formatLapTime(totalTime)}`,
-      `Track: ${trackName} | Car: ${carName} | Lap: ${selectedLap?.lapNumber ?? "?"}`,
-      ``,
-      `Speed: ${(currentDisplayPacket?.DisplaySpeed ?? units.speed(p.Speed)).toFixed(0)} ${units.speedLabel}`,
-      `RPM: ${p.CurrentEngineRpm.toFixed(0)} / ${p.EngineMaxRpm.toFixed(0)}`,
-      `Gear: ${p.Gear}`,
-      `Throttle: ${((p.Accel / 255) * 100).toFixed(0)}%`,
-      `Brake: ${((p.Brake / 255) * 100).toFixed(0)}%`,
-      `Steer: ${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`,
-      ...(gameId === "fm-2023" || p.Boost > 0 ? [`Boost: ${p.Boost.toFixed(1)} psi`] : []),
-      ...(gameId === "fm-2023" || p.Power > 0 ? [`Power: ${(p.Power / 745.7).toFixed(0)} hp`] : []),
-      ...(gameId === "fm-2023" || p.Torque > 0 ? [`Torque: ${p.Torque.toFixed(0)} Nm`] : []),
-      `Fuel: ${(p.Fuel * 100).toFixed(1)}% left, ${((startFuel - p.Fuel) * 100).toFixed(1)}% used`,
-      ``,
-      `Wheel Speed (rad/s): FL=${p.WheelRotationSpeedFL.toFixed(1)} FR=${p.WheelRotationSpeedFR.toFixed(1)} RL=${p.WheelRotationSpeedRL.toFixed(1)} RR=${p.WheelRotationSpeedRR.toFixed(1)}`,
-      `Tire Temp (${units.tempLabel}): FL=${(currentDisplayPacket?.DisplayTireTempFL ?? convertTemp(p.TireTempFL, units.tempUnit, gameId === "fm-2023" ? "F" : "C")).toFixed(0)} FR=${(currentDisplayPacket?.DisplayTireTempFR ?? convertTemp(p.TireTempFR, units.tempUnit, gameId === "fm-2023" ? "F" : "C")).toFixed(0)} RL=${(currentDisplayPacket?.DisplayTireTempRL ?? convertTemp(p.TireTempRL, units.tempUnit, gameId === "fm-2023" ? "F" : "C")).toFixed(0)} RR=${(currentDisplayPacket?.DisplayTireTempRR ?? convertTemp(p.TireTempRR, units.tempUnit, gameId === "fm-2023" ? "F" : "C")).toFixed(0)}`,
-      `Tire Wear: FL=${(p.TireWearFL*100).toFixed(1)}% FR=${(p.TireWearFR*100).toFixed(1)}% RL=${(p.TireWearRL*100).toFixed(1)}% RR=${(p.TireWearRR*100).toFixed(1)}%`,
-      `Slip Combined: FL=${p.TireCombinedSlipFL.toFixed(2)} FR=${p.TireCombinedSlipFR.toFixed(2)} RL=${p.TireCombinedSlipRL.toFixed(2)} RR=${p.TireCombinedSlipRR.toFixed(2)}`,
-      `Slip Angle: FL=${(p.TireSlipAngleFL*180/Math.PI).toFixed(1)}° FR=${(p.TireSlipAngleFR*180/Math.PI).toFixed(1)}° RL=${(p.TireSlipAngleRL*180/Math.PI).toFixed(1)}° RR=${(p.TireSlipAngleRR*180/Math.PI).toFixed(1)}°`,
-      `Suspension: FL=${(p.NormSuspensionTravelFL*100).toFixed(0)}% FR=${(p.NormSuspensionTravelFR*100).toFixed(0)}% RL=${(p.NormSuspensionTravelRL*100).toFixed(0)}% RR=${(p.NormSuspensionTravelRR*100).toFixed(0)}%`,
-    ];
-    navigator.clipboard.writeText(lines.join("\n"));
-  }, [currentPacket, cursorIdx, telemetry, totalTime, trackName, carName, selectedLap]);
+    const text = buildCopyMetricsText({
+      currentPacket,
+      currentDisplayPacket,
+      cursorIdx,
+      telemetry,
+      totalTime,
+      trackName,
+      carName,
+      selectedLap,
+      units,
+      gameId,
+    });
+    navigator.clipboard.writeText(text);
+  }, [currentPacket, currentDisplayPacket, cursorIdx, telemetry, totalTime, trackName, carName, selectedLap, units, gameId]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -576,151 +448,37 @@ export function LapAnalyse() {
           {/* Left: main content (map, charts, scrubber) */}
           <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
           {/* Top section: Track Map + Metrics */}
-          <div className="flex shrink-0 overflow-hidden" style={{ height: topHeight }}>
-            {/* Segment table + legend */}
-            <div className="border-r border-app-border overflow-y-auto p-2 shrink-0" style={{ height: "100%", width: leftColWidth }}>
-              {/* Legend */}
-              <div className="flex flex-wrap items-center gap-3 mb-2 pb-2 border-b border-app-border">
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-1.5 rounded-sm bg-amber-500" />
-                  <span className="text-[9px] text-app-text-muted">Corner</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-1.5 rounded-sm bg-blue-500" />
-                  <span className="text-[9px] text-app-text-muted">Straight</span>
-                </div>
-              </div>
-              {/* Segment list */}
-              <AnalyseSegmentList telemetry={telemetry} segments={segments} cursorIdx={cursorIdx} />
-            </div>
-
-            {/* Left resize handle */}
-            <div
-              className="w-1.5 shrink-0 cursor-col-resize bg-app-border hover:bg-app-accent/40 transition-colors"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                const startX = e.clientX;
-                const startW = leftColWidth;
-                const onMove = (ev: MouseEvent) => {
-                  setLeftColWidth(Math.max(60, Math.min(800, startW + ev.clientX - startX)));
-                };
-                const onUp = () => {
-                  window.removeEventListener("mousemove", onMove);
-                  window.removeEventListener("mouseup", onUp);
-                };
-                window.addEventListener("mousemove", onMove);
-                window.addEventListener("mouseup", onUp);
-              }}
-            />
-
-            {/* Track map */}
-            <div
-              className="border-r border-app-border bg-app-bg p-2 relative flex-1 min-w-0"
-              style={{ height: "100%" }}
-              onWheel={(e) => {
-                if (!rotateWithCar) return;
-                e.preventDefault();
-                setMapZoom((z) => Math.max(0.5, Math.min(4, z - e.deltaY * 0.001)));
-              }}
-            >
-              <AnalyseTrackMap
-                ref={trackMapRef}
-                telemetry={telemetry}
-                cursorIdx={cursorIdx}
-                outline={outline}
-                boundaries={boundaries}
-                sectors={sectors}
-                segments={segments}
-                highlights={aiPanelOpen ? aiHighlights : null}
-                showInputs={showInputs}
-                rotateWithCar={rotateWithCar}
-                zoom={mapZoom}
-                containerHeight={topHeight}
-              />
-              {/* Weather widget — top left (updates at cursor position) */}
-              {telemetry[cursorIdx]?.f1 && <WeatherWidget f1={telemetry[cursorIdx].f1!} />}
-
-              {/* View toggles — top left (matches 3D panel style) */}
-              <div className="absolute top-2 left-2 flex flex-wrap gap-1">
-                <button
-                  onClick={() => setRotateWithCar((r) => !r)}
-                  className={`px-2 py-1 text-[9px] uppercase tracking-wider font-semibold rounded border transition-colors ${
-                    rotateWithCar
-                      ? "bg-cyan-900/50 border-cyan-700 text-app-accent"
-                      : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
-                  }`}
-                >
-                  {rotateWithCar ? "Follow" : "Fixed"}
-                </button>
-                <button
-                  onClick={() => setShowInputs((v) => !v)}
-                  className={`px-2 py-1 text-[9px] uppercase tracking-wider font-semibold rounded border transition-colors ${
-                    showInputs
-                      ? "bg-cyan-900/50 border-cyan-700 text-app-accent"
-                      : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
-                  }`}
-                >
-                  Inputs
-                </button>
-              </div>
-
-              {/* Right side controls */}
-              <div className="absolute top-2 right-2 flex items-start gap-2">
-                {rotateWithCar && (
-                  <div className="flex flex-col gap-1">
-                    <button
-                      onClick={() => setMapZoom((z) => Math.min(z + 0.25, 4))}
-                      className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-                    >+</button>
-                    <button
-                      onClick={() => setMapZoom((z) => Math.max(z - 0.25, 0.5))}
-                      className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-                    >-</button>
-                  </div>
-                )}
-                {currentPacket && <Compass yaw={currentPacket.Yaw} />}
-              </div>
-
-              {/* Steering wheel + pedal bars — bottom right */}
-              {currentPacket && <AnalyseSteeringOverlay packet={currentPacket} />}
-            </div>
-
-            {/* Right resize handle */}
-            <div
-              className="w-1.5 shrink-0 cursor-col-resize bg-app-border hover:bg-app-accent/40 transition-colors"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                const startX = e.clientX;
-                const startW = rightColWidth;
-                const onMove = (ev: MouseEvent) => {
-                  setRightColWidth(Math.max(200, startW - (ev.clientX - startX)));
-                };
-                const onUp = () => {
-                  window.removeEventListener("mousemove", onMove);
-                  window.removeEventListener("mouseup", onUp);
-                };
-                window.addEventListener("mousemove", onMove);
-                window.addEventListener("mouseup", onUp);
-              }}
-            />
-
-            {/* Rev meter + Steering wheel + Tire diagram */}
-            <AnalyseVizPanel
-              vizMode={vizMode}
-              onVizModeChange={setWheelTab}
-              width={rightColWidth}
-              currentPacket={currentPacket}
-              currentDisplayPacket={currentDisplayPacket}
-              displayTelemetry={displayTelemetry}
-              cursorRef={cursorRef}
-              displayTelemetryRef={displayTelemetryRef}
-              cursorIdx={cursorIdx}
-              lapLine={lapLine}
-              boundaries={boundaries}
-              units={units}
-            />
-
-          </div>
+          <AnalyseTopSection
+            topHeight={topHeight}
+            leftColWidth={leftColWidth}
+            rightColWidth={rightColWidth}
+            onLeftResize={setLeftColWidth}
+            onRightResize={setRightColWidth}
+            telemetry={telemetry}
+            cursorIdx={cursorIdx}
+            outline={outline}
+            boundaries={boundaries}
+            sectors={sectors}
+            segments={segments}
+            currentPacket={currentPacket}
+            currentDisplayPacket={currentDisplayPacket}
+            displayTelemetry={displayTelemetry}
+            lapLine={lapLine}
+            units={units}
+            aiPanelOpen={aiPanelOpen}
+            aiHighlights={aiHighlights}
+            rotateWithCar={rotateWithCar}
+            showInputs={showInputs}
+            mapZoom={mapZoom}
+            onRotateWithCarToggle={() => setRotateWithCar((r) => !r)}
+            onShowInputsToggle={() => setShowInputs((v) => !v)}
+            onMapZoomChange={setMapZoom}
+            vizMode={vizMode}
+            onVizModeChange={setWheelTab}
+            trackMapRef={trackMapRef}
+            cursorRef={cursorRef}
+            displayTelemetryRef={displayTelemetryRef}
+          />
 
           {/* Resize handle */}
           <div
@@ -801,38 +559,22 @@ export function LapAnalyse() {
 
           {/* AI panel — analysis + chat */}
           {aiPanelOpen && selectedLapId && (
-            <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-app-border shrink-0">
-                <div className="flex items-center gap-1.5">
-                  <Sparkles className="size-3 text-amber-400" />
-                  <span className="text-[10px] uppercase tracking-wider font-semibold text-app-text">AI Analysis</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <AiPanelMenu
-                    onClearChat={() => aiPanelRef.current?.clearChat()}
-                    onClearAnalysis={() => aiPanelRef.current?.clearAnalysis()}
-                    onClearAll={() => aiPanelRef.current?.clearAll()}
-                  />
-                  <button onClick={() => setAiPanelOpen(false)} className="text-app-text-muted hover:text-app-text text-xs">✕</button>
-                </div>
-              </div>
-              <AiPanel
-                ref={aiPanelRef}
-                lapId={selectedLapId}
-                carName={carName}
-                trackName={trackName}
-                segments={segments}
-                panelOpen={aiPanelOpen}
-                onJumpToFrac={(frac) => {
-                  // Convert fractional track distance to telemetry frame index
-                  const idx = Math.round(frac * (telemetry.length - 1));
-                  setCursorIdx(idx);
-                  cursorRef.current = idx;
-                  seekRef.current++;
-                }}
-                onHighlightsChange={setAiHighlights}
-              />
-            </div>
+            <AnalyseAiSidebar
+              lapId={selectedLapId}
+              carName={carName}
+              trackName={trackName}
+              segments={segments}
+              aiPanelRef={aiPanelRef}
+              telemetryLength={telemetry.length}
+              onClose={() => setAiPanelOpen(false)}
+              onJumpToFrac={(frac) => {
+                const idx = Math.round(frac * (telemetry.length - 1));
+                setCursorIdx(idx);
+                cursorRef.current = idx;
+                seekRef.current++;
+              }}
+              onHighlightsChange={setAiHighlights}
+            />
           )}
         </div>
       )}
