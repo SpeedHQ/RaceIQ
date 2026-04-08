@@ -1,6 +1,7 @@
 import type { TelemetryPacket, GameId } from "@shared/types";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { Info } from "lucide-react";
+import { InfoTooltip } from "../ui/InfoTooltip";
 import {
   allWheelStates,
   allFrictionCircle,
@@ -116,7 +117,13 @@ export function AnalyseDynamicsPanel({ currentPacket, currentDisplayPacket, game
 
       {/* G-Force */}
       <div className="flex justify-between">
-        <span className="text-app-text-muted">G-Force</span>
+        <span className="flex items-center gap-1 text-app-text-muted">
+          G-Force
+          <InfoTooltip position="bottom">
+            Lat: cornering force (+ = right)<br />
+            Lon: braking/acceleration (+ = forward)
+          </InfoTooltip>
+        </span>
         <span className="tabular-nums text-app-text">
           Lat {latG > 0 ? "+" : ""}{latG.toFixed(2)}g
           <span className="text-app-text-dim"> </span>
@@ -129,10 +136,10 @@ export function AnalyseDynamicsPanel({ currentPacket, currentDisplayPacket, game
         <>
           {/* Tire state */}
           <WheelTable rows={[
-            { label: "Grip Ask", fl: C(`${(fc.fl * 100).toFixed(0)}%`, frictionUtilColor(fc.fl)), fr: C(`${(fc.fr * 100).toFixed(0)}%`, frictionUtilColor(fc.fr)), rl: C(`${(fc.rl * 100).toFixed(0)}%`, frictionUtilColor(fc.rl)), rr: C(`${(fc.rr * 100).toFixed(0)}%`, frictionUtilColor(fc.rr)) },
-            { label: "Traction", fl: C(states[0].label, states[0].color), fr: C(states[1].label, states[1].color), rl: C(states[2].label, states[2].color), rr: C(states[3].label, states[3].color) },
+            { label: <span className="flex items-center gap-1">Grip Ask <InfoTooltip width="sm">% of friction circle used — 100% = at grip limit, &gt;100% = exceeding it</InfoTooltip></span>, fl: C(`${(fc.fl * 100).toFixed(0)}%`, frictionUtilColor(fc.fl)), fr: C(`${(fc.fr * 100).toFixed(0)}%`, frictionUtilColor(fc.fr)), rl: C(`${(fc.rl * 100).toFixed(0)}%`, frictionUtilColor(fc.rl)), rr: C(`${(fc.rr * 100).toFixed(0)}%`, frictionUtilColor(fc.rr)) },
+            { label: <span className="flex items-center gap-1">Traction <InfoTooltip width="md">GRIP = normal<br />SLIP = mild sliding (&gt;0.5)<br />SLIDE = significant slip (&gt;1.0)<br />LOSS = over limit (&gt;2.0)<br />SPIN = wheelspin<br />LOCK = brake lockup<br />IDLE = wheel stopped</InfoTooltip></span>, fl: C(states[0].label, states[0].color), fr: C(states[1].label, states[1].color), rl: C(states[2].label, states[2].color), rr: C(states[3].label, states[3].color) },
             { label: "Temp", fl: C(states[0].temp.label, states[0].temp.color), fr: C(states[1].temp.label, states[1].temp.color), rl: C(states[2].temp.label, states[2].temp.color), rr: C(states[3].temp.label, states[3].temp.color) },
-            { label: "Surface", fl: surfaceLabel(currentPacket.WheelOnRumbleStripFL !== 0, currentPacket.WheelInPuddleDepthFL), fr: surfaceLabel(currentPacket.WheelOnRumbleStripFR !== 0, currentPacket.WheelInPuddleDepthFR), rl: surfaceLabel(currentPacket.WheelOnRumbleStripRL !== 0, currentPacket.WheelInPuddleDepthRL), rr: surfaceLabel(currentPacket.WheelOnRumbleStripRR !== 0, currentPacket.WheelInPuddleDepthRR) },
+            { label: <span className="flex items-center gap-1">Surface <InfoTooltip>CURB = rumble strip<br />WET = puddle (% depth)</InfoTooltip></span>, fl: surfaceLabel(currentPacket.WheelOnRumbleStripFL !== 0, currentPacket.WheelInPuddleDepthFL), fr: surfaceLabel(currentPacket.WheelOnRumbleStripFR !== 0, currentPacket.WheelInPuddleDepthFR), rl: surfaceLabel(currentPacket.WheelOnRumbleStripRL !== 0, currentPacket.WheelInPuddleDepthRL), rr: surfaceLabel(currentPacket.WheelOnRumbleStripRR !== 0, currentPacket.WheelInPuddleDepthRR) },
           ]} />
 
           {/* Slip */}

@@ -1,6 +1,7 @@
 import type { TelemetryPacket } from "@shared/types";
 import { Info } from "lucide-react";
 import { WheelTable } from "./WheelTable";
+import { InfoTooltip } from "../ui/InfoTooltip";
 
 interface Props {
   currentPacket: TelemetryPacket;
@@ -20,7 +21,7 @@ export function AnalyseSuspensionPanel({ currentPacket }: Props) {
 
   const suspTitle = (
     <span className="flex items-center gap-1 group relative">
-      Susp
+      Suspension
       <Info className="w-3 h-3 text-app-text-dim cursor-help inline" />
       <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">
         Load Distribution: 50% = balanced<br />0% Lon = all front, 0% Lat = all left
@@ -30,7 +31,7 @@ export function AnalyseSuspensionPanel({ currentPacket }: Props) {
 
   return (
     <WheelTable title={suspTitle} borderTop rows={[
-      { label: "Travel", fl: C(`${(suspValues[0] * 100).toFixed(0)}%`, suspColor(suspValues[0])), fr: C(`${(suspValues[1] * 100).toFixed(0)}%`, suspColor(suspValues[1])), rl: C(`${(suspValues[2] * 100).toFixed(0)}%`, suspColor(suspValues[2])), rr: C(`${(suspValues[3] * 100).toFixed(0)}%`, suspColor(suspValues[3])) },
+      { label: <span className="flex items-center gap-1">Travel <InfoTooltip>Normalised suspension travel:<br />Blue = compressed · Green = mid<br />Amber = extended · Red = near limit</InfoTooltip></span>, fl: C(`${(suspValues[0] * 100).toFixed(0)}%`, suspColor(suspValues[0])), fr: C(`${(suspValues[1] * 100).toFixed(0)}%`, suspColor(suspValues[1])), rl: C(`${(suspValues[2] * 100).toFixed(0)}%`, suspColor(suspValues[2])), rr: C(`${(suspValues[3] * 100).toFixed(0)}%`, suspColor(suspValues[3])) },
       { label: "Load", fl: `Lon ${lonLoad}%`, rl: `Lat ${latLoad}%`, fr: "", rr: "", span2: true },
     ]} />
   );
