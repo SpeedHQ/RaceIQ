@@ -51,9 +51,8 @@ export function useWebSocket() {
           } else if (data.type === "update-progress") {
             useTelemetryStore.getState().setUpdateProgress({ stage: data.stage, percent: data.percent ?? 0 });
           } else if (data.type === "lap-saved") {
-            // Invalidate laps + sector queries so UI updates immediately
+            // Invalidate laps query so UI updates immediately
             queryClient.invalidateQueries({ queryKey: ["laps"] });
-            queryClient.invalidateQueries({ queryKey: ["track-lap-sectors"] });
           } else {
             const { _sectors, _pit, ...packet } = data;
             const s = useTelemetryStore.getState();

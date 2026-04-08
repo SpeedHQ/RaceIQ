@@ -453,6 +453,10 @@ export interface LapMeta {
   // Tune assignment
   tuneId?: number;
   tuneName?: string;
+  // Sector times (stored at save time)
+  s1Time?: number;
+  s2Time?: number;
+  s3Time?: number;
 }
 
 export interface SessionMeta {

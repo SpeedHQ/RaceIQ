@@ -198,7 +198,8 @@ export function insertLap(
   telemetryPackets: TelemetryPacket[],
   profileId: number | null = null,
   tuneId: number | null = null,
-  invalidReason: string | null = null
+  invalidReason: string | null = null,
+  sectors: { s1: number; s2: number; s3: number } | null = null
 ): Promise<number> {
   // Take ownership of the packet array immediately (caller will clear their buffer)
   const packets = telemetryPackets.slice();
@@ -206,7 +207,7 @@ export function insertLap(
   return new Promise((resolve) => {
     setTimeout(async () => {
       const compressed = compressTelemetry(packets);
-      const id = await doInsertLap(sessionId, lapNumber, lapTime, isValid, compressed, first, profileId, tuneId, invalidReason);
+      const id = await doInsertLap(sessionId, lapNumber, lapTime, isValid, compressed, first, profileId, tuneId, invalidReason, sectors);
       resolve(id);
     }, 0);
   });
@@ -222,7 +223,8 @@ async function doInsertLap(
   firstPacket: TelemetryPacket | undefined,
   profileId: number | null,
   tuneId: number | null,
-  invalidReason: string | null
+  invalidReason: string | null,
+  sectors: { s1: number; s2: number; s3: number } | null = null
 ): Promise<number> {
   const pi = firstPacket?.CarPerformanceIndex ?? 0;
   const f1 = firstPacket?.f1;
@@ -235,6 +237,9 @@ async function doInsertLap(
       isValid,
       pi,
       carSetup: f1?.setup ? JSON.stringify(f1.setup) : null,
+      s1Time: sectors?.s1 ?? null,
+      s2Time: sectors?.s2 ?? null,
+      s3Time: sectors?.s3 ?? null,
       telemetry: compressed,
       profileId,
       tuneId,
@@ -267,6 +272,9 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
+      s1Time: laps.s1Time,
+      s2Time: laps.s2Time,
+      s3Time: laps.s3Time,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -288,6 +296,9 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     tuneName: r.tuneName ?? undefined,
     notes: r.notes ?? undefined,
     gameId: r.gameId as GameId,
+    s1Time: r.s1Time ?? undefined,
+    s2Time: r.s2Time ?? undefined,
+    s3Time: r.s3Time ?? undefined,
   }));
 }
 

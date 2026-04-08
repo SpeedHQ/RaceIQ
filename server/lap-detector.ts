@@ -378,7 +378,8 @@ class LapDetector {
         this.lapBuffer,
         null,
         tuneId,
-        invalidReason
+        invalidReason,
+        sectors
       ).then((lapId) => {
         console.log(
           `[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid}${invalidReason ? ` (${invalidReason})` : ""} | Packets: ${packetCount} | DB ID: ${lapId}`

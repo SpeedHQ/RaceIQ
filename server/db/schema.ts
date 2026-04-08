@@ -75,6 +75,9 @@ export const laps = sqliteTable(
     pi: integer("pi"),
     carSetup: text("car_setup"),  // JSON snapshot of F1CarSetup
     tuneId: integer("tune_id").references(() => tunes.id, { onDelete: "set null" }),
+    s1Time: real("s1_time"),
+    s2Time: real("s2_time"),
+    s3Time: real("s3_time"),
     telemetry: blob("telemetry", { mode: "buffer" }).notNull(),
     createdAt: text("created_at")
       .notNull()
