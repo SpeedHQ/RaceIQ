@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import type { LapMeta } from "@shared/types";
-import { Sparkles, Trash2 } from "lucide-react";
+import { Sparkles, Trash2, NotebookPen } from "lucide-react";
 import { SearchSelect } from "../ui/SearchSelect";
 import { Button } from "../ui/button";
 import { formatLapTime } from "../../lib/format";
 import { DataGuideModal } from "./DataGuideModal";
+import { NoteModal } from "../ui/NoteModal";
 
 interface Props {
   // Selection state
@@ -35,6 +36,7 @@ interface Props {
   onExport: () => void;
   onToggleAi: () => void;
   onDeleteLap: () => void;
+  onNotesChange: (notes: string) => void;
   onImport?: (csv: string) => void;
   triggerImportRef?: React.MutableRefObject<(() => void) | undefined>;
 }
@@ -45,9 +47,10 @@ export function AnalyseLapHeader({
   hasTelemetry, hasF1Setup, availableTunes, tunePending,
   loading, aiPanelOpen,
   onTrackChange, onCarChange, onLapChange, onTuneChange, onViewTune, onShowSetup,
-  onExport, onToggleAi, onDeleteLap, onImport, triggerImportRef,
+  onExport, onToggleAi, onDeleteLap, onNotesChange, onImport, triggerImportRef,
 }: Props) {
   const [guideOpen, setGuideOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (triggerImportRef) triggerImportRef.current = () => importInputRef.current?.click();
@@ -143,10 +146,29 @@ export function AnalyseLapHeader({
         />
       )}
 
+      {noteOpen && (
+        <NoteModal
+          value={selectedLap?.notes}
+          onSave={(v) => { onNotesChange(v); setNoteOpen(false); }}
+          onClose={() => setNoteOpen(false)}
+        />
+      )}
       <div className="ml-auto flex items-center gap-2">
         {import.meta.env.DEV && onImport && (
           <Button variant="app-outline" size="app-md" onClick={() => importInputRef.current?.click()} title="Dev only: import exported CSV to override telemetry" className="text-app-text-muted/60 border-dashed">
             [dev] Import CSV
+          </Button>
+        )}
+        {selectedLapId != null && (
+          <Button
+            variant="app-outline"
+            size="app-md"
+            onClick={() => setNoteOpen(true)}
+            className={selectedLap?.notes ? "text-app-accent border-app-accent/40" : ""}
+            title={selectedLap?.notes || "Add note"}
+          >
+            <NotebookPen className="size-3.5" />
+            {selectedLap?.notes ? "Notes" : "Add Notes"}
           </Button>
         )}
         {selectedLapId != null && (

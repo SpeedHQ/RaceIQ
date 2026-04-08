@@ -386,6 +386,20 @@ export function LapAnalyse() {
     },
   });
 
+  const updateLapNotesMutation = useMutation({
+    mutationFn: (notes: string) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      client.api.laps[":id"].notes.$patch({ param: { id: String(selectedLapId) }, json: { notes: notes || null } }).then((r) => r.json() as any),
+    onMutate: (notes) => {
+      setLaps((prev) =>
+        prev.map((l) => l.id === selectedLapId ? { ...l, notes: notes || undefined } : l)
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["laps"] });
+    },
+  });
+
   const deleteLapMutation = useMutation({
     mutationFn: (lapId: number) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -438,6 +452,7 @@ export function LapAnalyse() {
         onExport={handleExport}
         onToggleAi={() => setAiPanelOpen((v) => !v)}
         onDeleteLap={handleDeleteLap}
+        onNotesChange={(notes) => updateLapNotesMutation.mutate(notes)}
         {...(import.meta.env.DEV && {
           onImport: (csv: string) => {
             const { telemetry: packets, meta } = parseLapCsv(csv);
