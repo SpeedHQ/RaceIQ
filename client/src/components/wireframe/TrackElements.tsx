@@ -2,7 +2,7 @@ import { useMemo, useCallback } from "react";
 import { Line } from "@react-three/drei";
 import * as THREE from "three";
 import type { TelemetryPacket } from "@shared/types";
-import { filterByDistance, DIST_AHEAD } from "@/lib/wireframe-utils";
+import { filterByDistance, DIST_AHEAD } from "../../lib/wireframe-utils";
 
 export function TrackOutline({
   outline,

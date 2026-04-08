@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Line } from "@react-three/drei";
 import * as THREE from "three";
-import type { CarModelEnrichment } from "@/data/car-models";
+import type { CarModelEnrichment } from "../../data/car-models";
 
 function DimensionLabel({ position, text, color }: { position: [number, number, number]; text: string; color: string }) {
   const texture = useMemo(() => {

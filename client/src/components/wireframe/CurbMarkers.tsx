@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { TelemetryPacket } from "@shared/types";
-import type { CarModelEnrichment } from "@/data/car-models";
-import { filterByDistance } from "@/lib/wireframe-utils";
+import type { CarModelEnrichment } from "../../data/car-models";
+import { filterByDistance } from "../../lib/wireframe-utils";
 
 export function CurbMarkers({
   telemetry,

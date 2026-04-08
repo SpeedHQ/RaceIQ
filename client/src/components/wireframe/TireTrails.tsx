@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 import { Line } from "@react-three/drei";
 import type { TelemetryPacket } from "@shared/types";
-import type { CarModelEnrichment } from "@/data/car-models";
-import { getWheelOffsets, trailColorFromState } from "@/lib/wireframe-utils";
-import { allWheelStates } from "@/lib/vehicle-dynamics";
+import type { CarModelEnrichment } from "../../data/car-models";
+import { getWheelOffsets, trailColorFromState } from "../../lib/wireframe-utils";
+import { allWheelStates } from "../../lib/vehicle-dynamics";
 import * as THREE from "three";
 
 export function TireTrails({

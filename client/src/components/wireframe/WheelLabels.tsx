@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import * as THREE from "three";
-import { brakeTempColor } from "@/lib/wireframe-utils";
+import { brakeTempColor } from "../../lib/wireframe-utils";
 
 export function TempLabel({ displayTemp, color, side }: { displayTemp: string; color: string; side: "left" | "right" }) {
   const texture = useMemo(() => {

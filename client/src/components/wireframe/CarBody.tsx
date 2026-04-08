@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
-import type { CarModelEnrichment } from "@/data/car-models";
+import type { CarModelEnrichment } from "../../data/car-models";
 
 // Default hidden meshes for the bundled Aston Martin model
 export const DEFAULT_HIDDEN_MESHES = new Set([

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Line } from "@react-three/drei";
 import * as THREE from "three";
 import type { TelemetryPacket } from "@shared/types";
-import { THROTTLE_COLOR, BRAKE_COLOR } from "@/lib/wireframe-utils";
+import { THROTTLE_COLOR, BRAKE_COLOR } from "../../lib/wireframe-utils";
 
 export function InputOverlay({
   telemetry,

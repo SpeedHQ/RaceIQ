@@ -1,7 +1,7 @@
 import { useRef, useMemo } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { makeWheelGeometries, brakeTempColor } from "@/lib/wireframe-utils";
+import { makeWheelGeometries, brakeTempColor } from "../../lib/wireframe-utils";
 import { TempLabel, WearLabel, BrakeTempLabel, HealthLabel } from "./WheelLabels";
 
 const useWheelGeometries = (radius = 0.34, width = 0.30) =>

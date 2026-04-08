@@ -4,7 +4,7 @@ import { OrbitControls } from "@react-three/drei";
 // @ts-expect-error — three-stdlib types not always resolved
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type { TelemetryPacket } from "@shared/types";
-import { VIEW_PRESETS, type ViewPreset } from "@/lib/wireframe-data";
+import { VIEW_PRESETS, type ViewPreset } from "../../lib/wireframe-data";
 
 export function AutoChaseCamera({ packet }: { packet: TelemetryPacket }) {
   const { camera } = useThree();
