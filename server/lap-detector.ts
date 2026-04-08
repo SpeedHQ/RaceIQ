@@ -49,8 +49,16 @@ export interface LapSavedEvent {
   sectors: { s1: number; s2: number; s3: number } | null;
 }
 
+export interface LapCompleteEvent {
+  packets: TelemetryPacket[];
+  lapDistStart: number;
+  lapTime: number;
+  isValid: boolean;
+}
+
 class LapDetector {
   onSessionStart?: (session: SessionState) => void | Promise<void>;
+  onLapComplete_?: (event: LapCompleteEvent) => void;
   onLapSaved?: (event: LapSavedEvent) => void;
 
   private currentSession: SessionState | null = null;
@@ -369,6 +377,16 @@ class LapDetector {
       const invalidReason = this.invalidReason ?? (!quality.valid ? quality.reason : null);
 
       const sectors = await this.computeLapSectors(this.lapBuffer, lapTime);
+
+      // Notify pipeline so sector tracker can update reference lap for delta
+      if (valid) {
+        this.onLapComplete_?.({
+          packets: this.lapBuffer,
+          lapDistStart: this.lapBuffer[0].DistanceTraveled,
+          lapTime,
+          isValid: valid,
+        });
+      }
 
       insertLap(
         this.currentSession.sessionId,

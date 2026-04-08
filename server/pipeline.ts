@@ -15,6 +15,12 @@ lapDetector.onSessionStart = async (session) => {
   pitTracker.reset();
 };
 
+lapDetector.onLapComplete_ = (event) => {
+  if (event.isValid) {
+    sectorTracker.updateRefLap(event.packets, event.lapDistStart, event.lapTime);
+  }
+};
+
 lapDetector.onLapSaved = (event) => {
   wsManager.broadcastNotification({ type: "lap-saved", ...event });
 };

@@ -16,6 +16,13 @@ interface SectorBounds {
   trackLength: number;
 }
 
+/** Reference lap distance-time curve for interpolation-based delta. */
+interface ReferenceLap {
+  distances: Float64Array; // per-lap distance (meters from lap start)
+  times: Float64Array;     // elapsed time at each distance point
+  lapTime: number;
+}
+
 export class SectorTracker {
   private bounds: SectorBounds | null = null;
 
@@ -32,6 +39,7 @@ export class SectorTracker {
   private lastLapTime = 0;
   private initialized = false;
   private prevCurrentLap = 0;
+  private refLap: ReferenceLap | null = null;
 
   /** Reset for a new session — loads sector boundaries and track length. */
   async reset(trackOrdinal: number, gameId: GameId): Promise<void> {
@@ -72,7 +80,8 @@ export class SectorTracker {
     this.bounds = { s1End: sectors.s1End, s2End: sectors.s2End, trackLength };
     if (trackLength > 0) this.lapDistTotal = trackLength;
 
-    // Seed best times from recorded laps on this track
+    // Seed best times and reference lap from recorded laps on this track
+    this.refLap = null;
     await this.seedFromRecordedLaps(trackOrdinal, gameId, sectors.s1End, sectors.s2End);
 
     console.log(`[Sectors] Loaded for track ${trackOrdinal} (${gameId}): s1=${sectors.s1End}, s2=${sectors.s2End}, length=${trackLength.toFixed(0)}m, seeded best=${this.bestLapTime === Infinity ? "none" : this.bestLapTime.toFixed(3)}`);
@@ -125,7 +134,10 @@ export class SectorTracker {
           if (s1Time < this.bestTimes[0]) this.bestTimes[0] = s1Time;
           if (s2Time < this.bestTimes[1]) this.bestTimes[1] = s2Time;
           if (s3Time < this.bestTimes[2]) this.bestTimes[2] = s3Time;
+
           if (lapMeta.lapTime < this.bestLapTime) this.bestLapTime = lapMeta.lapTime;
+          // Reference lap is only built from live session laps (via updateRefLap),
+          // not seeded from historical data — keeps delta relative to this session.
         }
       }
     } catch (err) {
@@ -212,23 +224,20 @@ export class SectorTracker {
     // Current sector running time
     const currentSectorTime = packet.CurrentLap - this.sectorStartTime;
 
-    // Estimated lap time from distance fraction: currentTime / fractionComplete.
-    // Only compute once 10% of the lap is covered to avoid noisy early estimates.
+    // Estimated lap time via interpolation against best lap's distance-time curve.
+    // delta = liveTime - refTimeAtSameDistance; estimated = bestLapTime + delta
     let estimatedLap = 0;
-    if (this.lapDistTotal > 0 && packet.CurrentLap > 0) {
+    let deltaToBest = 0;
+    if (this.refLap && packet.CurrentLap > 0) {
       const lapDist = packet.DistanceTraveled - this.lapDistStart;
-      const frac = lapDist / this.lapDistTotal;
-      if (frac >= 0.1 && frac <= 1) {
-        const est = packet.CurrentLap / frac;
-        // Sanity: discard if estimate is wildly off (>3x best or >10 min)
-        const maxReasonable = this.bestLapTime < Infinity ? this.bestLapTime * 3 : 600;
-        if (est <= maxReasonable) estimatedLap = est;
+      if (lapDist > 0) {
+        const refTime = this.interpolateRefTime(lapDist);
+        if (refTime >= 0) {
+          deltaToBest = packet.CurrentLap - refTime;
+          estimatedLap = this.refLap.lapTime + deltaToBest;
+        }
       }
     }
-
-    const deltaToBest = estimatedLap > 0 && this.bestLapTime < Infinity
-      ? estimatedLap - this.bestLapTime
-      : 0;
 
     const deltaToLast = estimatedLap > 0 && this.lastLapTime > 0
       ? estimatedLap - this.lastLapTime
@@ -246,6 +255,38 @@ export class SectorTracker {
       deltaToBest,
       deltaToLast,
     };
+  }
+
+  /** Binary search + linear interpolation to find reference time at a given lap distance. */
+  private interpolateRefTime(lapDist: number): number {
+    const ref = this.refLap;
+    if (!ref || ref.distances.length < 2) return -1;
+    const d = ref.distances;
+    const t = ref.times;
+    // Beyond reference lap range
+    if (lapDist >= d[d.length - 1]) return -1;
+    if (lapDist <= d[0]) return t[0];
+    // Binary search for bracket
+    let lo = 0, hi = d.length - 1;
+    while (lo < hi - 1) {
+      const mid = (lo + hi) >> 1;
+      if (d[mid] <= lapDist) lo = mid; else hi = mid;
+    }
+    // Linear interpolation
+    const frac = (lapDist - d[lo]) / (d[hi] - d[lo]);
+    return t[lo] + frac * (t[hi] - t[lo]);
+  }
+
+  /** Update reference lap from a just-completed live lap (if it's the new best). */
+  updateRefLap(packets: TelemetryPacket[], lapDistStart: number, lapTime: number): void {
+    if (this.refLap && lapTime >= this.refLap.lapTime) return;
+    const distances = new Float64Array(packets.length);
+    const times = new Float64Array(packets.length);
+    for (let i = 0; i < packets.length; i++) {
+      distances[i] = packets[i].DistanceTraveled - lapDistStart;
+      times[i] = packets[i].CurrentLap;
+    }
+    this.refLap = { distances, times, lapTime };
   }
 
   /** Expose track length so PitTracker can use it */
