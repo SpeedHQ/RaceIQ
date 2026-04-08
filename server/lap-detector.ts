@@ -288,7 +288,7 @@ class LapDetector {
       `[Session] New session #${sessionId} | Car: ${packet.CarOrdinal} | Class: ${packet.CarClass} | PI: ${packet.CarPerformanceIndex}${sessionType ? ` | Type: ${sessionType}` : ""}`
     );
 
-    this.onSessionStart?.(this.currentSession!);
+    await this.onSessionStart?.(this.currentSession!);
   }
 
   private async onLapComplete(newLapFirstPacket: TelemetryPacket): Promise<void> {
@@ -331,6 +331,9 @@ class LapDetector {
 
     // Use LastLap from the first packet of the new lap as authoritative lap time
     const lapTime = newLapFirstPacket.LastLap;
+
+    // Running-start trim: strip pre-start-line packets
+    this.trimRunningStartPackets();
 
     // Skip saving if lap time is too short (first lap, warmup, ghost fragments)
     if (lapTime < 10) {
@@ -393,6 +396,7 @@ class LapDetector {
       this.lapBuffer.length > 0 &&
       this.currentLapNumber >= 0
     ) {
+      this.trimRunningStartPackets();
       // Use the last known CurrentLap as time estimate (not ideal but best we have)
       const lastPacket = this.lapBuffer[this.lapBuffer.length - 1];
       const lapTime = lastPacket.CurrentLap;
@@ -435,6 +439,9 @@ class LapDetector {
     const silenceMs = Date.now() - this.lastPacketTime;
     if (silenceMs < 10_000) return;
 
+    this.trimRunningStartPackets();
+    if (this.lapBuffer.length < 30) return;
+
     const lastPacket = this.lapBuffer[this.lapBuffer.length - 1];
     const lapTime = lastPacket.LastLap > 0 && lastPacket.LastLap !== this.lastLastLap
       ? lastPacket.LastLap   // game reported a final lap time
@@ -474,6 +481,27 @@ class LapDetector {
     this.lapBuffer = [];
     this.currentLapNumber = -1;
     this.lastPacketTime = 0;
+  }
+
+  /**
+   * Strip leading packets from before a CurrentLap reset (running start).
+   * In practice/meetup sessions the buffer may start mid-previous-lap;
+   * find the last large CurrentLap drop and discard everything before it.
+   */
+  private trimRunningStartPackets(): void {
+    if (this.lapBuffer.length <= 1) return;
+    let resetIdx = 0;
+    for (let i = 1; i < this.lapBuffer.length; i++) {
+      if (this.lapBuffer[i - 1].CurrentLap > 5 && this.lapBuffer[i].CurrentLap < 1) {
+        resetIdx = i;
+      }
+    }
+    if (resetIdx > 0) {
+      console.log(
+        `[Lap] Trimmed ${resetIdx} pre-start packets (running start), ${this.lapBuffer.length - resetIdx} remain`
+      );
+      this.lapBuffer = this.lapBuffer.slice(resetIdx);
+    }
   }
 
   private resetLapState(newLapFirstPacket: TelemetryPacket): void {

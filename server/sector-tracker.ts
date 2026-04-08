@@ -31,6 +31,7 @@ export class SectorTracker {
   private bestLapTime = Infinity;
   private lastLapTime = 0;
   private initialized = false;
+  private prevCurrentLap = 0;
 
   /** Reset for a new session — loads sector boundaries and track length. */
   async reset(trackOrdinal: number, gameId: GameId): Promise<void> {
@@ -46,6 +47,7 @@ export class SectorTracker {
     this.bestLapTime = Infinity;
     this.lastLapTime = 0;
     this.initialized = false;
+    this.prevCurrentLap = 0;
 
     // Load sector boundaries: DB → shared meta → bundled fallback
     const adapter = tryGetGame(gameId);
@@ -85,6 +87,7 @@ export class SectorTracker {
       this.lapDistStart = packet.DistanceTraveled;
       this.lastLap = packet.LapNumber;
       this.sectorStartTime = packet.CurrentLap;
+      this.prevCurrentLap = packet.CurrentLap;
     }
 
     // Handle backward distance jump (demo loop / teleport)
@@ -95,8 +98,13 @@ export class SectorTracker {
       this.currentTimes = [0, 0, 0];
     }
 
-    // Lap boundary crossed
-    if (packet.LapNumber > this.lastLap && this.lastLap > 0) {
+    // Detect lap boundary via CurrentLap timer reset (covers Forza time-trial,
+    // final lap, and LapNumber 0→1 where the LapNumber check alone is skipped).
+    const currentLapReset = this.prevCurrentLap > 5 && packet.CurrentLap < 1;
+    this.prevCurrentLap = packet.CurrentLap;
+
+    // Lap boundary: LapNumber increment (any, including 0→1) OR CurrentLap reset
+    if (packet.LapNumber > this.lastLap || currentLapReset) {
       if (this.currentTimes[0] > 0 && this.currentTimes[1] > 0) {
         this.lastTimes = [...this.currentTimes] as [number, number, number];
         this.lastTimes[2] = packet.LastLap - this.currentTimes[0] - this.currentTimes[1];
