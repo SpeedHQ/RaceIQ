@@ -74,6 +74,7 @@ function RaceInfo({ packet, units, trackName, carName, showTrackMap = true, show
   showTrackMap?: boolean;
   showSectors?: boolean;
 }) {
+  const sectors = useTelemetryStore((s) => s.sectors);
   return (
     <div className="border-b border-app-border">
       <div className={showTrackMap ? "grid grid-cols-1 xl:grid-cols-[1fr_220px]" : ""}>
@@ -107,18 +108,20 @@ function RaceInfo({ packet, units, trackName, carName, showTrackMap = true, show
                   {formatLapTime(packet.CurrentLap)}
                 </div>
               </div>
-              {packet.LastLap > 0 && packet.BestLap > 0 && (() => {
-                const delta = packet.LastLap - packet.BestLap;
-                const color = delta <= 0 ? "text-emerald-400" : delta < 1 ? "text-orange-400" : "text-red-400";
-                return (
-                  <div className="text-right">
-                    <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Delta</div>
-                    <div className={`text-3xl font-mono font-bold tabular-nums leading-none ${color}`}>
-                      {delta <= 0 ? "" : "+"}{delta.toFixed(3)}
-                    </div>
-                  </div>
-                );
-              })()}
+              <div>
+                <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Est. Lap</div>
+                <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
+                  {sectors?.estimatedLap ? formatLapTime(sectors.estimatedLap) : "--:--.---"}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Delta</div>
+                <div className={`text-3xl font-mono font-bold tabular-nums leading-none ${sectors?.deltaToBest && sectors.deltaToBest !== 0 ? (sectors.deltaToBest <= 0 ? "text-emerald-400" : "text-red-400") : "text-app-text-dim"}`}>
+                  {sectors?.deltaToBest && sectors.deltaToBest !== 0
+                    ? `${sectors.deltaToBest <= 0 ? "" : "+"}${sectors.deltaToBest.toFixed(3)}`
+                    : "--:--.---"}
+                </div>
+              </div>
             </div>
             <div className="flex gap-4 mb-3 items-end">
               <div>
@@ -127,7 +130,7 @@ function RaceInfo({ packet, units, trackName, carName, showTrackMap = true, show
               </div>
               <div>
                 <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Best</div>
-                <div className="text-xl font-mono font-bold text-purple-400 tabular-nums leading-none">{formatLapTime(packet.BestLap)}</div>
+                <div className="text-xl font-mono font-bold text-purple-400 tabular-nums leading-none">{formatLapTime(sectors?.bestLapTime && sectors.bestLapTime > 0 ? sectors.bestLapTime : packet.BestLap)}</div>
               </div>
               <div>
                 <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Dist</div>

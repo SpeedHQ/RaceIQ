@@ -209,9 +209,7 @@ export class SectorTracker {
 
       if (packet.LastLap > 0) {
         this.lastLapTime = packet.LastLap;
-        if (packet.LastLap < this.bestLapTime) {
-          this.bestLapTime = packet.LastLap;
-        }
+        // bestLapTime is only updated from valid laps (via updateRefLap / seeding)
       }
 
       // Refine track length from actual completed distance
@@ -298,7 +296,9 @@ export class SectorTracker {
   }
 
   /** Update reference lap from a just-completed live lap (if it's the new best). */
+  /** Update reference lap from a just-completed valid live lap (if it's the new best). */
   updateRefLap(packets: TelemetryPacket[], lapDistStart: number, lapTime: number): void {
+    if (lapTime < this.bestLapTime) this.bestLapTime = lapTime;
     if (this.refLap && lapTime >= this.refLap.lapTime) return;
     const distances = new Float64Array(packets.length);
     const times = new Float64Array(packets.length);

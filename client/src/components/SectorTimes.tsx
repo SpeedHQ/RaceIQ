@@ -117,30 +117,6 @@ export function SectorTimes() {
 
   return (
     <div className="border-t border-app-border/50 pt-3">
-      {/* Estimated lap time, delta, and best */}
-      <div className="flex items-baseline gap-4 mb-3 pb-2 border-b border-app-border/50">
-        <div>
-          <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Est. Lap</div>
-          <div className="text-2xl font-mono font-bold text-app-text tabular-nums leading-none">
-            {sectors.estimatedLap > 0 ? formatLapTime(sectors.estimatedLap) : "--:--.---"}
-          </div>
-        </div>
-        <div>
-          <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Delta</div>
-          <div className={`text-2xl font-mono font-bold tabular-nums leading-none ${sectors.deltaToBest <= 0 ? "text-emerald-400" : "text-red-400"}`}>
-            {sectors.deltaToBest !== 0
-              ? `${sectors.deltaToBest <= 0 ? "" : "+"}${sectors.deltaToBest.toFixed(3)}`
-              : "--:--.---"}
-          </div>
-        </div>
-        <div className="ml-auto">
-          <div className="text-[10px] text-purple-400 uppercase tracking-wider">Best Lap</div>
-          <div className="text-lg font-mono font-bold text-purple-400 tabular-nums leading-none">
-            {sectors.bestLapTime > 0 ? formatLapTime(sectors.bestLapTime) : "--:--.---"}
-          </div>
-        </div>
-      </div>
-
       <div className="grid grid-cols-3 gap-2">
         {sectorNames.map((name, i) => {
           const current = i === sectors.currentSector ? sectors.currentSectorTime : sectors.currentTimes[i];
