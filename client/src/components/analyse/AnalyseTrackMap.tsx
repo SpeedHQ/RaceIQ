@@ -359,10 +359,11 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
         mainCtx.scale(dpr, dpr);
         if (displayZoom > 1) {
           // Show the center crop of the offscreen at display zoom.
-          const srcW = offW / displayZoom;
-          const srcH = offH / displayZoom;
-          const srcX = (offW - srcW) / 2;
-          const srcY = (offH - srcH) / 2;
+          // Source coords are in physical pixels of the OffscreenCanvas.
+          const srcW = (offW * dpr) / displayZoom;
+          const srcH = (offH * dpr) / displayZoom;
+          const srcX = (offW * dpr - srcW) / 2;
+          const srcY = (offH * dpr - srcH) / 2;
           mainCtx.drawImage(offscreen, srcX, srcY, srcW, srcH, 0, 0, w, h);
         } else {
           mainCtx.drawImage(offscreen, 0, 0, w, h);
@@ -459,21 +460,17 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     const pkt = telemetry[idx];
     if (!pkt || (pkt.PositionX === 0 && pkt.PositionZ === 0)) return;
 
-    // Map offscreen coordinates to canvas coordinates.
-    // When displayZoom > 1 the offscreen is center-cropped during blit, so we must account for
-    // both the offscreen→canvas scale and the crop offset.
-    const dz = t.displayZoom;
-    const srcW = t.offW / dz;
-    const srcH = t.offH / dz;
-    const cropX = (t.offW - srcW) / 2; // left edge of crop in offscreen space
-    const cropY = (t.offH - srcH) / 2;
-    const scaleX = dz > 1 ? t.w / srcW : t.w / t.offW;
-    const scaleY = dz > 1 ? t.h / srcH : t.h / t.offH;
+    // The offscreen is blitted to the canvas scaled to fit: drawImage(offscreen, 0, 0, w, h).
+    // When offW > w (e.g. wide tracks where Z dimension is the limiting scale), coordinates
+    // must be scaled to match the displayed track position.
+    const scaleX = t.w / t.offW;
+    const scaleY = t.h / t.offH;
 
     function toCanvas(x: number, z: number): [number, number] {
-      const ox = t!.offsetX + (t!.maxX - x) * t!.scale;
-      const oz = t!.offsetZ + (z - t!.minZ) * t!.scale;
-      return [(ox - (dz > 1 ? cropX : 0)) * scaleX, (oz - (dz > 1 ? cropY : 0)) * scaleY];
+      return [
+        (t!.offsetX + (t!.maxX - x) * t!.scale) * scaleX,
+        (t!.offsetZ + (z - t!.minZ) * t!.scale) * scaleY,
+      ];
     }
 
     const [cx, cy] = toCanvas(pkt.PositionX, pkt.PositionZ);
