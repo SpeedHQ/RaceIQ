@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import type { LapMeta } from "@shared/types";
 import { queryKeys, useSessions, useLaps, useDeleteLap } from "../hooks/queries";
 import { useActiveProfileId } from "../hooks/useProfiles";
@@ -230,6 +230,31 @@ export function SessionsPage() {
 
   useEffect(() => { setPage(0); }, [sessions.length, search]);
 
+  const expandedTrackOrdinal = sessions.find((s) => s.id === expandedSession)?.trackOrdinal ?? null;
+  const { data: expandedSectorTimes } = useQuery({
+    queryKey: ["track-lap-sectors", expandedTrackOrdinal, gameId],
+    queryFn: () => client.api.tracks[":ordinal"]["lap-sectors"].$get({ param: { ordinal: String(expandedTrackOrdinal!) }, query: { gameId: gameId ?? undefined } }).then((r) => r.json() as unknown as Record<number, { s1: number; s2: number; s3: number }>),
+    enabled: expandedTrackOrdinal != null,
+  });
+
+  // Best sector across all laps in the expanded session
+  const expandedLaps = expandedSession != null ? (lapsBySession.get(expandedSession) ?? []) : [];
+  const bestExpandedSectors = { s1: Infinity, s2: Infinity, s3: Infinity };
+  if (expandedSectorTimes) {
+    for (const lap of expandedLaps) {
+      const st = expandedSectorTimes[lap.id];
+      if (!st) continue;
+      if (st.s1 > 0 && st.s1 < bestExpandedSectors.s1) bestExpandedSectors.s1 = st.s1;
+      if (st.s2 > 0 && st.s2 < bestExpandedSectors.s2) bestExpandedSectors.s2 = st.s2;
+      if (st.s3 > 0 && st.s3 < bestExpandedSectors.s3) bestExpandedSectors.s3 = st.s3;
+    }
+  }
+  function sectorColor(time: number, best: number): string {
+    if (best === Infinity || time <= 0) return "text-app-text-secondary";
+    if (time <= best * 1.001) return "text-purple-400 font-bold";
+    return "text-app-text-secondary";
+  }
+
   const toggleSessionSelection = useCallback((sessionId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedSessions((prev) => {
@@ -436,7 +461,10 @@ const deleteSelected = useCallback(async () => {
                                 <col className="w-32" />   {/* blank — Date(w-40=160px) minus pl-8(32px) = 128px */}
                                 <col className="w-16" />   {/* Lap# — same width as Laps */}
                                 <col className="w-36" />   {/* Time — same width as Best Lap */}
-                                <col />                    {/* Valid */}
+                                <col className="w-8" />    {/* Valid */}
+                                <col className="w-20" />   {/* S1 */}
+                                <col className="w-20" />   {/* S2 */}
+                                <col className="w-20" />   {/* S3 */}
                                 <col className="w-[30%]" />   {/* Notes */}
                               </colgroup>
                               <thead>
@@ -449,6 +477,9 @@ const deleteSelected = useCallback(async () => {
                                       {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
                                     </th>
                                   ))}
+                                  <th className="px-3 py-1 text-left text-red-400">S1</th>
+                                  <th className="px-3 py-1 text-left text-blue-400">S2</th>
+                                  <th className="px-3 py-1 text-left text-yellow-400">S3</th>
                                   <th className="px-3 py-1 text-left">Notes</th>
                                 </tr>
                               </thead>
@@ -498,6 +529,15 @@ const deleteSelected = useCallback(async () => {
                                           <span className="text-red-400" title={lap.invalidReason}>&#10007;</span>
                                         )}
                                       </td>
+                                      {(["s1", "s2", "s3"] as const).map((s) => {
+                                        const st = expandedSectorTimes?.[lap.id];
+                                        const val = st?.[s] ?? 0;
+                                        return (
+                                          <td key={s} className={`px-3 py-1 font-mono text-xs ${sectorColor(val, bestExpandedSectors[s])}`}>
+                                            {val > 0 ? formatLapTime(val) : "—"}
+                                          </td>
+                                        );
+                                      })}
                                       <td className="px-3 py-1">
                                         <NoteCell
                                           value={lap.notes ?? undefined}
