@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { Line } from "@react-three/drei";
 import type { TelemetryPacket } from "@shared/types";
 import type { CarModelEnrichment } from "@/data/car-models";
-import { getWheelOffsets, trailColorObj } from "@/lib/wireframe-utils";
+import { getWheelOffsets, trailColorFromState } from "@/lib/wireframe-utils";
+import { allWheelStates } from "@/lib/vehicle-dynamics";
 import * as THREE from "three";
 
 export function TireTrails({
@@ -17,14 +18,14 @@ export function TireTrails({
   const TRAIL_DURATION_MS = 80;
   const WHEEL_OFFSETS = useMemo(() => getWheelOffsets(carModel), [carModel]);
 
-  // Compute slip colors on-demand (not pre-computed for all packets)
-  const smallScale = telemetry[0]?.gameId === "f1-2025" || telemetry[0]?.gameId === "acc";
+  // Compute traction state colors per-packet using the same logic as the data panel labels
   const slipFns = [
     (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipFL),
     (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipFR),
     (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipRL),
     (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipRR),
   ];
+  const wheelKeys = ["fl", "fr", "rl", "rr"] as const;
 
   // Only recompute trail geometry on cursor change — use pre-computed colors
   const trails = useMemo(() => {
@@ -48,7 +49,8 @@ export function TireTrails({
         pts[j * 3] = dx * s + dz * c + off[0];
         pts[j * 3 + 1] = -0.42;
         pts[j * 3 + 2] = dx * c - dz * s + off[1];
-        cols.push(trailColorObj(slipFns[w](p), 0, smallScale));
+        const ws = allWheelStates(p);
+        cols.push(trailColorFromState(ws[wheelKeys[w]].state, slipFns[w](p)));
       }
       return { pts, cols };
     });

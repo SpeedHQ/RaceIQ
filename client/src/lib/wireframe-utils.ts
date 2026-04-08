@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { COLORS_HEX, tireState } from "./vehicle-dynamics";
 
 // ── Geometry ──────────────────────────────────────────────────────────
 
@@ -49,6 +50,21 @@ export function trailColorObj(slip: number, brake: number, isSmallScale?: boolea
   if (slip < warn) return SLIP_GREEN;
   if (slip < crit) return SLIP_AMBER;
   return SLIP_RED;
+}
+
+// Pre-allocated THREE.Color objects keyed by hex — sourced from vehicle-dynamics COLORS_HEX.
+// No threshold logic here: that lives solely in tireState() in vehicle-dynamics.ts.
+const TRACTION_COLORS = new Map<string, THREE.Color>([
+  [COLORS_HEX.green,  new THREE.Color(COLORS_HEX.green)],
+  [COLORS_HEX.yellow, new THREE.Color(COLORS_HEX.yellow)],
+  [COLORS_HEX.orange, new THREE.Color(COLORS_HEX.orange)],
+  [COLORS_HEX.red,    new THREE.Color(COLORS_HEX.red)],
+  [COLORS_HEX.gray,   new THREE.Color(COLORS_HEX.gray)],
+]);
+
+/** Returns a pre-allocated THREE.Color driven by tireState() — single source of truth. */
+export function trailColorFromState(wheelStateLabel: string, combinedSlip: number): THREE.Color {
+  return TRACTION_COLORS.get(tireState(wheelStateLabel, combinedSlip).hex) ?? TRACTION_COLORS.get(COLORS_HEX.green)!;
 }
 
 // ── Input overlay colors ─────────────────────────────────────────────

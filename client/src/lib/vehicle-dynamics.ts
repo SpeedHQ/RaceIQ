@@ -108,24 +108,26 @@ export function allFrictionCircle(pkt: TelemetryPacket): { fl: number; fr: numbe
 }
 
 // ── Tire Traction State ───────────────────────────────────────────
-// Single source of truth for tire grip state labels used in both
-// the 2D wheel cards and the data panel traction row.
+// Single source of truth for tire grip state labels and colors.
+// All other color derivations (hex, Three.js) must delegate to this.
 
 export interface TireState {
   label: "LOCK" | "SPIN" | "IDLE" | "SLIDE" | "SLIP" | "GRIP" | "LOSS";
-  color: string;
+  color: string;   // CSS var — use in React inline styles / SVG
+  hex: string;     // Raw hex — use in canvas, WebGL, Three.js
 }
 
 export function tireState(wheelStateLabel: string, combinedSlip: number): TireState {
   const combined = Math.abs(combinedSlip);
-  if (wheelStateLabel === "lockup") return { label: "LOCK", color: COLORS.red };
-  if (wheelStateLabel === "spin") return { label: "SPIN", color: COLORS.orange };
-  if (wheelStateLabel === "idle") return { label: "IDLE", color: COLORS.gray };
-  if (combined >= 2.0) return { label: "LOSS", color: COLORS.red };
-  if (combined >= 1.0) return { label: "SLIDE", color: COLORS.red };
-  if (combined >= 0.5) return { label: "SLIP", color: COLORS.yellow };
-  return { label: "GRIP", color: COLORS.green };
+  if (wheelStateLabel === "lockup") return { label: "LOCK",  color: COLORS.red,    hex: COLORS_HEX.red };
+  if (wheelStateLabel === "spin")   return { label: "SPIN",  color: COLORS.orange, hex: COLORS_HEX.orange };
+  if (wheelStateLabel === "idle")   return { label: "IDLE",  color: COLORS.gray,   hex: COLORS_HEX.gray };
+  if (combined >= 2.0)              return { label: "LOSS",  color: COLORS.red,    hex: COLORS_HEX.red };
+  if (combined >= 1.0)              return { label: "SLIDE", color: COLORS.red,    hex: COLORS_HEX.red };
+  if (combined >= 0.5)              return { label: "SLIP",  color: COLORS.yellow, hex: COLORS_HEX.yellow };
+  return                                   { label: "GRIP",  color: COLORS.green,  hex: COLORS_HEX.green };
 }
+
 
 // ── Understeer / Oversteer Detection ───────────────────────────────
 // Based on front-vs-rear slip angle difference (Milliken method).
