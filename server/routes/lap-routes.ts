@@ -10,11 +10,13 @@ import {
   getLapById,
   deleteLap,
   updateLapNotes,
+  updateLapValidity,
   getCorners,
   saveCorners,
   getAnalysis,
   saveAnalysis,
 } from "../db/queries";
+import { assessLapRecording } from "../lap-quality";
 import { getTuneById as getDbTune } from "../db/tune-queries";
 import { generateExport } from "../export";
 import { compareLaps } from "../comparison";
@@ -432,6 +434,53 @@ export const lapRoutes = new Hono()
       const { id } = c.req.valid("param");
       await updateLapNotes(id, c.req.valid("json").notes);
       return c.json({ ok: true });
+    }
+  )
+
+  // ── Recheck lap validity (dev tool) ─────────────────────────
+  .post(
+    "/api/laps/:id/recheck",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const lap = await getLapById(id);
+      if (!lap) return c.json({ error: "Lap not found" }, 404);
+
+      const quality = assessLapRecording(lap.telemetry, lap.lapTime);
+
+      // Recompute sector times
+      const packets = lap.telemetry;
+      let sectors: { s1: number; s2: number; s3: number } | null = null;
+      if (packets.length >= 50) {
+        const startDist = packets[0].DistanceTraveled;
+        const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
+        if (lapDist >= 100) {
+          const gameId = lap.gameId as GameId | undefined;
+          const dbSectors = gameId ? await getTrackOutlineSectors(lap.trackOrdinal!, gameId) : null;
+          const raw = dbSectors ?? getTrackSectorsByOrdinal(lap.trackOrdinal!);
+          const s1End = raw?.s1End ?? 1 / 3;
+          const s2End = raw?.s2End ?? 2 / 3;
+
+          let sector = 0, sectorStart = packets[0].CurrentLap, s1 = 0, s2 = 0;
+          for (const p of packets) {
+            const frac = (p.DistanceTraveled - startDist) / lapDist;
+            const expected = frac < s1End ? 0 : frac < s2End ? 1 : 2;
+            if (expected > sector) {
+              const t = p.CurrentLap - sectorStart;
+              if (sector === 0) s1 = t; else if (sector === 1) s2 = t;
+              sectorStart = p.CurrentLap;
+              sector = expected;
+            }
+          }
+          if (s1 > 0 && s2 > 0) {
+            const s3 = lap.lapTime - s1 - s2;
+            if (s3 > 0) sectors = { s1, s2, s3 };
+          }
+        }
+      }
+
+      await updateLapValidity(id, quality.valid, quality.valid ? null : quality.reason, sectors);
+      return c.json({ id, valid: quality.valid, reason: quality.reason, sectors });
     }
   )
 

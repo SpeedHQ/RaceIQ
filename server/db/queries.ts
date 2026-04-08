@@ -166,6 +166,16 @@ export async function updateLapNotes(id: number, notes: string | null): Promise<
   await db.update(laps).set({ notes }).where(eq(laps.id, id)).run();
 }
 
+export async function updateLapValidity(id: number, isValid: boolean, invalidReason: string | null, sectors?: { s1: number; s2: number; s3: number } | null): Promise<void> {
+  const values: Record<string, unknown> = { isValid, invalidReason };
+  if (sectors) {
+    values.s1Time = sectors.s1;
+    values.s2Time = sectors.s2;
+    values.s3Time = sectors.s3;
+  }
+  await db.update(laps).set(values).where(eq(laps.id, id)).run();
+}
+
 /**
  * Insert a completed lap with compressed telemetry.
  */

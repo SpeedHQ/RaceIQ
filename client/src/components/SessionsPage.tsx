@@ -60,6 +60,7 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lapId: number } | null>(null);
 
   const bestSectors = useMemo(() => {
     const best = { s1: Infinity, s2: Infinity, s3: Infinity };
@@ -86,7 +87,7 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
   }
 
   return (
-    <Table>
+    <><Table>
       <THead>
         <TH className="w-10 px-2" />
         <TH />
@@ -106,7 +107,7 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
           const best = session.bestLapTime ?? 0;
           const isBest = best > 0 && Math.abs(lap.lapTime - best) < 0.001;
           return (
-            <TRow key={lap.id}>
+            <TRow key={lap.id} onContextMenu={(e: React.MouseEvent) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, lapId: lap.id }); }}>
               <TD className="px-2 text-center">
                 <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-cyan-400 w-4 h-4" />
               </TD>
@@ -140,6 +141,28 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
         })}
       </TBody>
     </Table>
+
+    {/* Dev context menu */}
+    {contextMenu && (
+      <>
+        <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }} />
+        <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
+          <button
+            className="w-full px-3 py-1.5 text-left hover:bg-app-surface-alt text-app-text"
+            onClick={async () => {
+              const res = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
+              const data = await res.json();
+              console.log("[Recheck]", data);
+              qc.invalidateQueries({ queryKey: queryKeys.laps });
+              setContextMenu(null);
+            }}
+          >
+            Recheck validity
+          </button>
+        </div>
+      </>
+    )}
+    </>
   );
 }
 
