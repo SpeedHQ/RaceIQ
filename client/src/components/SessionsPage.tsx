@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import type { LapMeta } from "@shared/types";
@@ -19,33 +20,58 @@ function fuzzyToken(token: string, field: string): boolean {
   return normalize(field).includes(normalize(token));
 }
 
-function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => void }) {
-  const [editing, setEditing] = useState(false);
+function NoteModal({ value, onSave, onClose }: { value?: string; onSave: (v: string) => void; onClose: () => void }) {
   const [draft, setDraft] = useState(value ?? "");
-  const commit = () => {
-    setEditing(false);
-    if (draft !== (value ?? "")) onSave(draft);
-  };
-  if (editing) {
-    return (
-      <input
-        autoFocus
-        className="w-full bg-app-surface border border-app-accent/40 rounded px-1.5 py-0.5 text-xs text-app-text outline-none"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
-        onClick={(e) => e.stopPropagation()}
-      />
-    );
-  }
-  return (
-    <span
-      className={`cursor-text text-xs ${value ? "text-app-text-secondary" : "text-app-text-dim italic"}`}
-      onClick={(e) => { e.stopPropagation(); setDraft(value ?? ""); setEditing(true); }}
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+  const commit = () => { onSave(draft); onClose(); };
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {value || "Add note…"}
-    </span>
+      <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[480px] max-w-[90vw] flex flex-col gap-3 p-4">
+        <p className="text-xs font-medium text-app-text-secondary uppercase tracking-wider">Note</p>
+        <textarea
+          ref={ref}
+          rows={5}
+          className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs text-app-text outline-none resize-none focus:border-app-accent/60"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Escape") onClose(); if (e.key === "Enter" && e.metaKey) commit(); }}
+          placeholder="Add a note…"
+        />
+        <div className="flex justify-end gap-2">
+          <Button variant="app-ghost" size="app-sm" onClick={onClose}>Cancel</Button>
+          <Button variant="app-outline" size="app-sm" className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70" onClick={commit}>Save</Button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      {open && <NoteModal value={value} onSave={onSave} onClose={() => setOpen(false)} />}
+      <span
+        className="relative cursor-pointer group block w-full"
+        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+      >
+        <span className={`text-xs break-words whitespace-pre-wrap transition-opacity group-hover:opacity-30 ${value ? "text-app-text-secondary" : "text-app-text-dim italic"}`}>
+          {value || "Add note…"}
+        </span>
+        <span className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity text-app-text-secondary text-[10px] font-medium">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </span>
+      </span>
+    </>
   );
 }
 
@@ -293,7 +319,7 @@ const deleteSelected = useCallback(async () => {
             <col />                   {/* Track */}
             <col />                   {/* Car */}
             {isF1 && <col />}         {/* Type (F1) */}
-            <col className="w-48" />  {/* Notes */}
+            <col className="w-[30%]" />  {/* Notes */}
           </colgroup>
           <thead className="bg-app-surface sticky top-0 z-10">
             <tr className="border-b border-app-border">
@@ -411,7 +437,7 @@ const deleteSelected = useCallback(async () => {
                                 <col className="w-16" />   {/* Lap# — same width as Laps */}
                                 <col className="w-36" />   {/* Time — same width as Best Lap */}
                                 <col />                    {/* Valid */}
-                                <col className="w-48" />   {/* Notes */}
+                                <col className="w-[30%]" />   {/* Notes */}
                               </colgroup>
                               <thead>
                                 <tr className="text-app-text-dim text-[10px] uppercase tracking-wider border-b border-app-border/30">

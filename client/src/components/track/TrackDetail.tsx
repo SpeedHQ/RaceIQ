@@ -13,6 +13,7 @@ import { F125SetupsWithGuide } from "@/components/f1/F125TrackSetups";
 import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
 import { AccTrackSetups, AccTrackGuide } from "@/components/acc/AccTrackSetups";
 import { TrackTunes } from "./TrackTunes";
+import { Button } from "@/components/ui/button";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";
 import type { TrackInfo, Point, TrackSegment, TrackSectors } from "./types";
 
@@ -607,12 +608,14 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                 </td>
                                 <td className="px-2 py-1.5 text-right">
                                   <div className="flex items-center justify-end gap-1">
-                                    <button
+                                    <Button
+                                      variant="app-outline"
+                                      size="app-sm"
+                                      className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
                                       onClick={() => navTo({ to: "/fm23/analyse", search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } })}
-                                      className="text-app-unit px-1.5 py-0.5 rounded text-cyan-400 hover:text-cyan-300 bg-cyan-900/20 hover:bg-cyan-900/40"
                                     >
                                       Analyse
-                                    </button>
+                                    </Button>
                                     {confirmSingleDelete === lap.lapId ? (
                                       <>
                                         <button onClick={() => { handleSingleDelete(lap.lapId); setConfirmSingleDelete(null); }} className="text-app-unit px-1.5 py-0.5 rounded text-white bg-red-600 hover:bg-red-500">Confirm</button>
