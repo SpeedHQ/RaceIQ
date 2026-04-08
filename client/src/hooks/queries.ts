@@ -35,7 +35,7 @@ async function rpcJson<T>(res: Response): Promise<T> {
 
 // ── Settings ────────────────────────────────────────────────────────────────
 export function useSettings() {
-  const { data: displaySettings = DEFAULT_DISPLAY_SETTINGS } = useQuery({
+  const { data: displaySettings = DEFAULT_DISPLAY_SETTINGS, isSuccess } = useQuery({
     queryKey: queryKeys.settings,
     queryFn: async () => {
       const res = await client.api.settings.$get();
@@ -43,7 +43,7 @@ export function useSettings() {
       return res.json();
     },
   });
-  return { displaySettings };
+  return { displaySettings, settingsLoaded: isSuccess };
 }
 
 export function useSaveSettings() {

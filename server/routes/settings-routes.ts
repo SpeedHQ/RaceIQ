@@ -84,15 +84,21 @@ export const settingsRoutes = new Hono()
   })
 
   // PUT /api/settings
-  .put("/api/settings", zValidator("json", PartialSettingsSchema), async (c) => {
-    const parseResult = c.req.valid("json");
+  .put("/api/settings", async (c) => {
+    const body = await c.req.json();
+    const parseResult = PartialSettingsSchema.parse(body);
     const current = loadSettings();
-    const merged = { ...current, ...parseResult };
+    // Only merge keys explicitly sent in the request body (Zod partial applies defaults for missing fields)
+    const provided: Record<string, unknown> = {};
+    for (const key of Object.keys(body)) {
+      if (key in parseResult) provided[key] = (parseResult as Record<string, unknown>)[key];
+    }
+    const merged = { ...current, ...provided };
 
-    if (parseResult.tireTempCelsiusThresholds) {
+    if (provided.tireTempCelsiusThresholds) {
       merged.tireTempCelsiusThresholds = {
         ...current.tireTempCelsiusThresholds,
-        ...parseResult.tireTempCelsiusThresholds,
+        ...(provided.tireTempCelsiusThresholds as Record<string, unknown>),
       };
     }
 

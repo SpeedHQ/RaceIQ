@@ -90,16 +90,6 @@ function AppShell() {
                 forzaReceiving={packetsPerSec > 0}
               />
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => { setSettingsSection(undefined); setShowSettings(!showSettings); }}
-                className="text-app-text-secondary hover:text-app-text flex items-center gap-1.5 ml-2"
-              >
-                {driverName || "Settings"}
-                <Settings2 className="size-3.5 text-app-text-muted" />
-              </Button>
-
               <div className="w-px h-4 bg-app-border mx-2" />
 
               <div className="flex items-center gap-0">
@@ -145,6 +135,15 @@ function AppShell() {
             </div>
 
             <div className="flex items-center gap-2 mr-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setSettingsSection(undefined); setShowSettings(!showSettings); }}
+                className="text-app-text-secondary hover:text-app-text flex items-center gap-1.5"
+              >
+                {driverName || "Settings"}
+                <Settings2 className="size-3.5 text-app-text-muted" />
+              </Button>
               {updateState?.updateAvailable && (
                 <button
                   onClick={() => setShowUpdateModal(true)}

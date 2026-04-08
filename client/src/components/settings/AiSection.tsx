@@ -13,7 +13,7 @@ const PROVIDER_KEY_LABELS: Record<string, { label: string; placeholder: string; 
 };
 
 export function AiSection() {
-  const { displaySettings } = useSettings();
+  const { displaySettings, settingsLoaded } = useSettings();
   const saveSettings = useSaveSettings();
   const qc = useQueryClient();
   const [provider, setProvider] = useState<string>(displaySettings.aiProvider ?? "gemini");
@@ -25,13 +25,12 @@ export function AiSection() {
   // Sync local state once when server settings first load (not on every refetch)
   const synced = useRef(false);
   useEffect(() => {
-    if (synced.current) return;
-    if (!displaySettings.aiProvider) return;
+    if (synced.current || !settingsLoaded) return;
     synced.current = true;
     setProvider(displaySettings.aiProvider ?? "gemini");
     setModel(displaySettings.aiModel ?? "");
     setLocalEndpoint(displaySettings.localEndpoint ?? "http://localhost:1234/v1");
-  }, [displaySettings.aiProvider, displaySettings.aiModel, displaySettings.localEndpoint]);
+  }, [settingsLoaded, displaySettings.aiProvider, displaySettings.aiModel, displaySettings.localEndpoint]);
 
   // Chat settings
   const [chatProvider, setChatProvider] = useState<string>(displaySettings.chatProvider ?? "gemini");
@@ -41,12 +40,11 @@ export function AiSection() {
 
   const chatSynced = useRef(false);
   useEffect(() => {
-    if (chatSynced.current) return;
-    if (!displaySettings.chatProvider) return;
+    if (chatSynced.current || !settingsLoaded) return;
     chatSynced.current = true;
     setChatProvider(displaySettings.chatProvider ?? "gemini");
     setChatModel(displaySettings.chatModel ?? "");
-  }, [displaySettings.chatProvider, displaySettings.chatModel]);
+  }, [settingsLoaded, displaySettings.chatProvider, displaySettings.chatModel]);
 
   const keyStatus: Record<string, boolean> = {
     gemini: !!displaySettings.geminiApiKeySet,
