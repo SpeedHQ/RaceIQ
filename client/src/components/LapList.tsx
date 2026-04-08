@@ -5,6 +5,7 @@ import { useLaps, useDeleteLap } from "../hooks/queries";
 import { useActiveProfileId } from "../hooks/useProfiles";
 import { useGameRoute, useGameId } from "../stores/game";
 import { client } from "../lib/rpc";
+import { Button } from "./ui/button";
 
 function formatLapTime(seconds: number): string {
   if (seconds <= 0) return "--:--.---";
@@ -29,7 +30,7 @@ export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTele
   // Fetch sector times for all laps on this track
   const { data: sectorTimes } = useQuery({
     queryKey: ["track-lap-sectors", trackOrd, gameId],
-    queryFn: () => client.api.tracks[":ordinal"]["lap-sectors"].$get({ param: { ordinal: String(trackOrd!) }, query: { gameId: gameId ?? undefined } }).then((r) => r.json() as any),
+    queryFn: () => client.api.tracks[":ordinal"]["lap-sectors"].$get({ param: { ordinal: String(trackOrd!) }, query: { gameId: gameId ?? undefined } }).then((r) => r.json() as unknown as Record<number, { s1: number; s2: number; s3: number }>),
     enabled: trackOrd != null && trackOrd > 0,
   });
 
@@ -79,6 +80,8 @@ export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTele
 
   const arrow = (key: SortKey) =>
     sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
+
+  const bestLapTime = laps.reduce((best, l) => (l.isValid && l.lapTime < best ? l.lapTime : best), Infinity);
 
   // Compute best sector times across all laps
   const bestSectors = { s1: Infinity, s2: Infinity, s3: Infinity };
@@ -134,7 +137,7 @@ export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTele
             return (
             <tr key={lap.id} className="border-b border-app-border/50 hover:bg-app-surface-alt/30">
               <td className="p-2 font-mono text-app-text">{lap.lapNumber}</td>
-              <td className="p-2 font-mono text-app-text">{formatLapTime(lap.lapTime)}</td>
+              <td className={`p-2 font-mono font-bold ${lap.isValid && lap.lapTime === bestLapTime ? "text-purple-400" : "text-app-text"}`}>{formatLapTime(lap.lapTime)}</td>
               <td className={`p-2 font-mono text-xs font-bold ${st ? sectorColor(st.s1, bestSectors.s1, avgSectors.s1) : "text-app-text-secondary"}`}>{st ? formatLapTime(st.s1) : "-"}</td>
               <td className={`p-2 font-mono text-xs font-bold ${st ? sectorColor(st.s2, bestSectors.s2, avgSectors.s2) : "text-app-text-secondary"}`}>{st ? formatLapTime(st.s2) : "-"}</td>
               <td className={`p-2 font-mono text-xs font-bold ${st ? sectorColor(st.s3, bestSectors.s3, avgSectors.s3) : "text-app-text-secondary"}`}>{st ? formatLapTime(st.s3) : "-"}</td>
@@ -147,7 +150,10 @@ export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTele
               </td>
               <td className="p-2 text-right">
                 <div className="flex items-center justify-end gap-2">
-                  <button
+                  <Button
+                    variant="app-outline"
+                    size="app-sm"
+                    className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
                     onClick={() => {
                       const prefix = gameRoute;
                       navigate({
@@ -159,16 +165,17 @@ export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTele
                         }
                       });
                     }}
-                    className="px-2 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white transition-colors"
                   >
-                    Analyze
-                  </button>
-                  <button
+                    Analyse
+                  </Button>
+                  <Button
+                    variant="app-ghost"
+                    size="app-sm"
+                    className="hover:text-red-400"
                     onClick={() => deleteLap.mutate(lap.id)}
-                    className="px-2 py-1 text-xs rounded bg-slate-700 hover:bg-red-600 text-app-text hover:text-app-text transition-colors"
                   >
                     Delete
-                  </button>
+                  </Button>
                 </div>
               </td>
             </tr>
