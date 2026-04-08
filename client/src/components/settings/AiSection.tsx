@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSettings, useSaveSettings } from "@/hooks/queries";
 
@@ -22,11 +22,23 @@ export function AiSection() {
   const [localEndpoint, setLocalEndpoint] = useState(displaySettings.localEndpoint ?? "http://localhost:1234/v1");
   const [saved, setSaved] = useState(false);
 
+  // Sync local state when server settings load
+  useEffect(() => {
+    setProvider(displaySettings.aiProvider ?? "gemini");
+    setModel(displaySettings.aiModel ?? "");
+    setLocalEndpoint(displaySettings.localEndpoint ?? "http://localhost:1234/v1");
+  }, [displaySettings.aiProvider, displaySettings.aiModel, displaySettings.localEndpoint]);
+
   // Chat settings
   const [chatProvider, setChatProvider] = useState<string>(displaySettings.chatProvider ?? "gemini");
   const [chatModel, setChatModel] = useState(displaySettings.chatModel ?? "");
   const [chatApiKey, setChatApiKey] = useState("");
   const [chatSaved, setChatSaved] = useState(false);
+
+  useEffect(() => {
+    setChatProvider(displaySettings.chatProvider ?? "gemini");
+    setChatModel(displaySettings.chatModel ?? "");
+  }, [displaySettings.chatProvider, displaySettings.chatModel]);
 
   const keyStatus: Record<string, boolean> = {
     gemini: !!displaySettings.geminiApiKeySet,

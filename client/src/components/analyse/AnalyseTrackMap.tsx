@@ -447,8 +447,17 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     const pkt = telemetry[idx];
     if (!pkt || (pkt.PositionX === 0 && pkt.PositionZ === 0)) return;
 
+    // The offscreen is blitted to the canvas scaled to fit: drawImage(offscreen, 0, 0, w, h).
+    // When offW > w (e.g. wide tracks where Z dimension is the limiting scale), coordinates
+    // must be scaled to match the displayed track position.
+    const scaleX = t.w / t.offW;
+    const scaleY = t.h / t.offH;
+
     function toCanvas(x: number, z: number): [number, number] {
-      return [t!.offsetX + (t!.maxX - x) * t!.scale, t!.offsetZ + (z - t!.minZ) * t!.scale];
+      return [
+        (t!.offsetX + (t!.maxX - x) * t!.scale) * scaleX,
+        (t!.offsetZ + (z - t!.minZ) * t!.scale) * scaleY,
+      ];
     }
 
     const [cx, cy] = toCanvas(pkt.PositionX, pkt.PositionZ);
