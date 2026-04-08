@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReleaseNotes } from "@/components/ReleaseNotes";
 import { useTelemetryStore } from "@/stores/telemetry";
@@ -95,7 +96,9 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
             {stage === "complete" ? "Update Complete" : stage ? "Updating RaceIQ" : "Update Available"}
           </h2>
           {!isUpdating && (
-            <Button variant="app-ghost" size="app-sm" onClick={onClose}>&times;</Button>
+            <button onClick={onClose} className="p-1.5 rounded hover:bg-app-surface-alt transition-colors text-app-text-muted hover:text-app-text">
+              <X className="size-4" />
+            </button>
           )}
         </div>
 

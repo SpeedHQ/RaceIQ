@@ -135,6 +135,15 @@ function AppShell() {
             </div>
 
             <div className="flex items-center gap-2 mr-2">
+              {updateState?.updateAvailable && (
+                <button
+                  onClick={() => setShowUpdateModal(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-400/15 text-yellow-400 border border-yellow-400/30 hover:bg-yellow-400/25 transition-colors"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+                  Update available
+                </button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -144,15 +153,6 @@ function AppShell() {
                 {driverName || "Settings"}
                 <Settings2 className="size-3.5 text-app-text-muted" />
               </Button>
-              {updateState?.updateAvailable && (
-                <button
-                  onClick={() => setShowUpdateModal(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-400/15 text-yellow-400 border border-yellow-400/30 hover:bg-yellow-400/25 transition-colors"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-                  {updateState.current} → {updateState.latest}
-                </button>
-              )}
             </div>
           </div>
           )}
