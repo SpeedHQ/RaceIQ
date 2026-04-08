@@ -253,10 +253,11 @@ export const trackRoutes = new Hono()
       const gameId = c.req.query("gameId");
       const sharedName = getSharedTrackName(ordinal, gameId);
 
-      // Priority: DB -> shared track meta -> bundled code -> default
+      // Priority: DB -> game-specific meta -> shared meta -> bundled code -> default
       const dbSectors = gameId ? await getTrackOutlineSectors(ordinal, requireGameId(c)) : null;
       const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-      const sectors = dbSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(ordinal);
+      const gameSectors = gameId ? (sharedMeta as any)?.games?.[gameId]?.sectors : null;
+      const sectors = dbSectors ?? gameSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(ordinal);
 
       // Compute track length from outline
       let trackLength = 0;
@@ -291,8 +292,26 @@ export const trackRoutes = new Hono()
         return c.json({ error: "Invalid sector boundaries: need 0 < s1End < s2End < 1" }, 400);
       }
 
-      const updated = await updateTrackOutlineSectors(ordinal, { s1End, s2End }, requireGameId(c));
-      if (!updated) return c.json({ error: "No outline found for track" }, 404);
+      const gameId = c.req.query("gameId");
+      const sharedName = getSharedTrackName(ordinal, gameId);
+
+      // Save to meta file (game-specific if gameId provided)
+      if (sharedName) {
+        const meta = loadSharedTrackMeta(sharedName) ?? { name: sharedName };
+        if (gameId) {
+          (meta as any).games = (meta as any).games ?? {};
+          (meta as any).games[gameId] = (meta as any).games[gameId] ?? {};
+          (meta as any).games[gameId].sectors = { s1End, s2End };
+        } else {
+          (meta as any).sectors = { s1End, s2End };
+        }
+        const metaDir = resolve(SHARED_DIR, "tracks", "meta");
+        if (!existsSync(metaDir)) mkdirSync(metaDir, { recursive: true });
+        writeFileSync(resolve(metaDir, `${sharedName}.json`), JSON.stringify(meta, null, 2));
+      }
+
+      // Also attempt DB save (best-effort, may fail if no outline recorded)
+      await updateTrackOutlineSectors(ordinal, { s1End, s2End }, requireGameId(c)).catch(() => null);
 
       return c.json({ success: true, s1End, s2End });
     }
@@ -391,13 +410,19 @@ export const trackRoutes = new Hono()
         return c.json({ error: "No shared track name for this ordinal" }, 400);
       }
 
-      // Update shared meta file with segments
+      // Update shared meta file — game-specific if gameId provided, else top-level fallback
       const meta = loadSharedTrackMeta(sharedName) ?? { name: sharedName };
-      (meta as any).segments = body.segments;
+      if (gameId) {
+        (meta as any).games = (meta as any).games ?? {};
+        (meta as any).games[gameId] = (meta as any).games[gameId] ?? {};
+        (meta as any).games[gameId].segments = body.segments;
+      } else {
+        (meta as any).segments = body.segments;
+      }
       const metaDir = resolve(SHARED_DIR, "tracks", "meta");
       if (!existsSync(metaDir)) mkdirSync(metaDir, { recursive: true });
       writeFileSync(resolve(metaDir, `${sharedName}.json`), JSON.stringify(meta, null, 2));
-      console.log(`[Track] Saved segments for ${sharedName} (${body.segments.length} segments)`);
+      console.log(`[Track] Saved segments for ${sharedName}${gameId ? ` (${gameId})` : ""} (${body.segments.length} segments)`);
 
       return c.json({ success: true, count: body.segments.length });
     }
@@ -413,11 +438,14 @@ export const trackRoutes = new Hono()
       const gameId = c.req.query("gameId");
       const sharedName = getSharedTrackName(ordinal, gameId);
 
-      // 1. Shared track meta segments (curated, cross-game)
+      // 1. Shared track meta segments — game-specific only (no cross-game fallback)
       const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-      if (sharedMeta?.segments && sharedMeta.segments.length > 0) {
+      const metaSegments = gameId
+        ? (sharedMeta as any)?.games?.[gameId]?.segments ?? null
+        : sharedMeta?.segments ?? null;
+      if (metaSegments && metaSegments.length > 0) {
         return c.json({
-          segments: sharedMeta.segments.map((s) => ({
+          segments: metaSegments.map((s: any) => ({
             ...s,
             startIdx: 0,
             endIdx: 0,
