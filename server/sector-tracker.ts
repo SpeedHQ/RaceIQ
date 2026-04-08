@@ -40,9 +40,18 @@ export class SectorTracker {
   private initialized = false;
   private prevCurrentLap = 0;
   private refLap: ReferenceLap | null = null;
+  private currentTrackOrdinal = -1;
+  private currentCarOrdinal = -1;
 
   /** Reset for a new session — loads sector boundaries and track length. */
-  async reset(trackOrdinal: number, gameId: GameId): Promise<void> {
+  async reset(trackOrdinal: number, gameId: GameId, carOrdinal: number = -1): Promise<void> {
+    // Preserve reference lap and best times when staying on the same track+car
+    // (e.g. user restarted the race, rewind to start, new practice session)
+    const sameSetup = trackOrdinal === this.currentTrackOrdinal && carOrdinal === this.currentCarOrdinal;
+    const prevRefLap = sameSetup ? this.refLap : null;
+    const prevBestTimes = sameSetup ? [...this.bestTimes] as [number, number, number] : null;
+    const prevBestLapTime = sameSetup ? this.bestLapTime : Infinity;
+
     this.bounds = null;
     this.lapDistStart = 0;
     this.lapDistTotal = 0;
@@ -56,6 +65,9 @@ export class SectorTracker {
     this.lastLapTime = 0;
     this.initialized = false;
     this.prevCurrentLap = 0;
+    this.refLap = null;
+    this.currentTrackOrdinal = trackOrdinal;
+    this.currentCarOrdinal = carOrdinal;
 
     // Load sector boundaries: DB → shared meta → bundled fallback
     const adapter = tryGetGame(gameId);
@@ -80,9 +92,17 @@ export class SectorTracker {
     this.bounds = { s1End: sectors.s1End, s2End: sectors.s2End, trackLength };
     if (trackLength > 0) this.lapDistTotal = trackLength;
 
-    // Seed best times and reference lap from recorded laps on this track
-    this.refLap = null;
+    // Seed best times from recorded laps on this track
     await this.seedFromRecordedLaps(trackOrdinal, gameId, sectors.s1End, sectors.s2End);
+
+    // Restore reference lap and best times from same-track session
+    if (prevRefLap) this.refLap = prevRefLap;
+    if (prevBestTimes) {
+      for (let i = 0; i < 3; i++) {
+        if (prevBestTimes[i] < this.bestTimes[i]) this.bestTimes[i] = prevBestTimes[i];
+      }
+    }
+    if (prevBestLapTime < this.bestLapTime) this.bestLapTime = prevBestLapTime;
 
     console.log(`[Sectors] Loaded for track ${trackOrdinal} (${gameId}): s1=${sectors.s1End}, s2=${sectors.s2End}, length=${trackLength.toFixed(0)}m, seeded best=${this.bestLapTime === Infinity ? "none" : this.bestLapTime.toFixed(3)}`);
   }

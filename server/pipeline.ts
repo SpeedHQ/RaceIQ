@@ -11,7 +11,7 @@ const sectorTracker = new SectorTracker();
 const pitTracker = new PitTracker();
 
 lapDetector.onSessionStart = async (session) => {
-  await sectorTracker.reset(session.trackOrdinal, session.gameId);
+  await sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
   pitTracker.reset();
 };
 
