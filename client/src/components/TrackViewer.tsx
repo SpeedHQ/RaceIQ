@@ -62,15 +62,15 @@ export function TrackViewer() {
   return (
     <div className="p-4 overflow-auto h-full">
       <div className="flex items-center gap-3 mb-3">
-        <div className="text-app-label text-app-text-muted uppercase tracking-wider whitespace-nowrap">
-          Available Tracks ({withOutline.length} with outlines, {withoutOutline.length} without)
-        </div>
         <AppInput
           placeholder="Search tracks..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full max-w-xs"
         />
+        <div className="text-app-label text-app-text-muted uppercase tracking-wider whitespace-nowrap">
+          {withOutline.length} with outlines, {withoutOutline.length} without
+        </div>
       </div>
 
       {filtered.length === 0 && (

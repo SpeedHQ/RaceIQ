@@ -9,9 +9,9 @@ function AppInput({ className, ...props }: AppInputProps) {
   return (
     <input
       className={cn(
-        "h-7 rounded-md border border-app-border-input bg-app-surface-alt px-2.5",
-        "text-app-body text-app-text placeholder:text-app-text-muted",
-        "outline-none focus:border-app-text-secondary transition-colors",
+        "rounded border border-app-border-input bg-app-surface-alt px-2 py-1.5",
+        "text-sm text-app-text placeholder:text-app-text-dim",
+        "outline-none focus:ring-1 focus:ring-app-border-input",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         className
       )}

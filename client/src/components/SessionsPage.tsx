@@ -8,6 +8,7 @@ import { useGameId, useGameRoute } from "../stores/game";
 import { client } from "../lib/rpc";
 import { formatLapTime } from "./LiveTelemetry";
 import { Button } from "./ui/button";
+import { AppInput } from "./ui/AppInput";
 
 const PAGE_SIZE = 25;
 
@@ -404,12 +405,12 @@ const deleteSelected = useCallback(async () => {
   return (
     <div className="h-full flex flex-col p-4 gap-3">
       <div className="flex items-center gap-3">
-        <input
+        <AppInput
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search track, car, notes…"
-          className="w-64 bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text placeholder:text-app-text-dim focus:outline-none focus:ring-1 focus:ring-app-border-input"
+          className="w-64"
         />
         <h1 className="text-sm font-semibold text-app-text shrink-0">
           Sessions
