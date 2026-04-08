@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTelemetryStore } from "../stores/telemetry";
@@ -127,11 +127,6 @@ export function HomePage() {
     [allLaps]
   );
 
-  const validLaps = allLaps.filter((l) => l.isValid && l.lapTime > 0);
-  const totalLaps = allLaps.length;
-  const uniqueTracks = new Set(allLaps.map((l) => l.trackOrdinal).filter(Boolean)).size;
-  const uniqueCars = new Set(allLaps.map((l) => l.carOrdinal).filter(Boolean)).size;
-
   // Per-game stats
   const gameStats = useMemo(() => {
     const fm = allLaps.filter((l) => l.gameId === "fm-2023");
@@ -145,14 +140,15 @@ export function HomePage() {
   }, [allLaps]);
 
   // Period metrics
-  const [periodTab, setPeriodTab] = useState<"today" | "week" | "month">("today");
+  const [periodTab, setPeriodTab] = useState<"today" | "week" | "month" | "year" | "allTime">("allTime");
 
-  const [{ todayStart, weekAgo, monthAgo }] = useState(() => {
+  const [{ todayStart, weekAgo, monthAgo, yearAgo }] = useState(() => {
     const now = Date.now();
     return {
       todayStart: new Date().setHours(0, 0, 0, 0),
       weekAgo: now - 7 * 24 * 60 * 60 * 1000,
       monthAgo: now - 30 * 24 * 60 * 60 * 1000,
+      yearAgo: now - 365 * 24 * 60 * 60 * 1000,
     };
   });
 
@@ -163,6 +159,7 @@ export function HomePage() {
       const avgTime = valid.length > 0 ? valid.reduce((s, l) => s + l.lapTime, 0) / valid.length : 0;
       const totalTime = laps.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
       const tracks = new Set(laps.map((l) => l.trackOrdinal).filter(Boolean)).size;
+      const cars = new Set(laps.map((l) => l.carOrdinal).filter(Boolean)).size;
       const carCounts = new Map<number, number>();
       for (const l of laps) {
         if (l.carOrdinal) carCounts.set(l.carOrdinal, (carCounts.get(l.carOrdinal) ?? 0) + 1);
@@ -172,19 +169,22 @@ export function HomePage() {
       for (const [ord, count] of carCounts) {
         if (count > favCarCount) { favCarOrd = ord; favCarCount = count; }
       }
-      return { laps: laps.length, valid: valid.length, best, avgTime, totalTime, tracks, favCarOrd, favCarCount };
+      return { laps: laps.length, valid: valid.length, best, avgTime, totalTime, tracks, cars, favCarOrd, favCarCount };
     }
 
     const todayLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= todayStart);
     const weekLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= weekAgo);
     const monthLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= monthAgo);
+    const yearLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= yearAgo);
 
     return {
       today: computePeriod(todayLaps),
       week: computePeriod(weekLaps),
       month: computePeriod(monthLaps),
+      year: computePeriod(yearLaps),
+      allTime: computePeriod(allLaps),
     };
-  }, [allLaps, todayStart, weekAgo, monthAgo]);
+  }, [allLaps, todayStart, weekAgo, monthAgo, yearAgo]);
 
   // Session info
   const sessionTrack = serverStatus?.currentSession?.trackOrdinal;
@@ -215,20 +215,84 @@ export function HomePage() {
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-app-text">
-            {displaySettings.driverName ? `Hello, ${displaySettings.driverName}` : (gameAdapter ? gameAdapter.displayName : "RaceIQ")}
-          </h1>
-          <p className="text-sm text-app-text-muted mt-0.5">Dashboard overview</p>
-        </div>
-        {isLive && (
-          <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-sm text-app-text-secondary">Live — {packetsPerSec} pkt/s</span>
+      {gameId ? (() => {
+        const themes: Record<string, { bg: string; border: string; glow: string; bar: string; line: string; accent: string; logo: ReactNode }> = {
+          "fm-2023": {
+            bg: "linear-gradient(135deg, #060a14 0%, #0a1628 40%, #0d2040 100%)",
+            border: "border-cyan-500/20",
+            glow: "rgba(0,212,255,0.15)",
+            bar: "#00d4ff",
+            line: "#00d4ff",
+            accent: "text-cyan-400",
+            logo: <img src="/forza-logo.svg" alt="" className="w-6 h-6" style={{ filter: "brightness(0) saturate(100%) invert(72%) sepia(98%) saturate(1234%) hue-rotate(152deg) brightness(101%) contrast(101%)" }} />,
+          },
+          "f1-2025": {
+            bg: "linear-gradient(135deg, #0e0606 0%, #1a0808 40%, #2d0a0a 100%)",
+            border: "border-red-500/20",
+            glow: "rgba(255,26,26,0.15)",
+            bar: "#ff1a1a",
+            line: "#ff1a1a",
+            accent: "text-red-400",
+            logo: <img src="/f1-logo.svg" alt="" className="w-6 h-6" style={{ filter: "brightness(0) saturate(100%) invert(28%) sepia(67%) saturate(5839%) hue-rotate(350deg) brightness(100%) contrast(107%)" }} />,
+          },
+          acc: {
+            bg: "linear-gradient(135deg, #0e0a04 0%, #1a1008 40%, #2d1a0a 100%)",
+            border: "border-orange-500/20",
+            glow: "rgba(255,140,0,0.15)",
+            bar: "#ff8c00",
+            line: "#ff8c00",
+            accent: "text-orange-400",
+            logo: <img src="/acc-logo.png" alt="" className="w-6 h-6 object-contain" />,
+          },
+        };
+        const t = themes[gameId] ?? themes["fm-2023"];
+        return (
+          <div
+            className={`relative overflow-hidden rounded-lg border ${t.border} p-5`}
+            style={{ background: t.bg }}
+          >
+            {/* Glow */}
+            <div className="absolute -top-10 -right-10 w-[160px] h-[160px] rounded-full opacity-15 pointer-events-none" style={{ background: `radial-gradient(circle, ${t.glow} 0%, transparent 70%)` }} />
+            {/* Bottom bar */}
+            <div className="absolute bottom-0 left-0 right-0 h-[1.5px] opacity-60" style={{ background: `linear-gradient(90deg, ${t.bar} 0%, transparent 70%)` }} />
+            {/* Speed lines */}
+            <div className="absolute inset-0 overflow-hidden opacity-[0.05] pointer-events-none">
+              <div className="absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: `linear-gradient(90deg, transparent 0%, ${t.line} 30%, transparent 100%)` }} />
+              <div className="absolute top-[55%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: `linear-gradient(90deg, transparent 0%, ${t.line} 50%, transparent 100%)` }} />
+              <div className="absolute top-[80%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" style={{ background: `linear-gradient(90deg, transparent 10%, ${t.line} 60%, transparent 100%)` }} />
+            </div>
+            <div className="relative flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0 bg-white/5 border border-white/10">
+                  {t.logo}
+                </div>
+                <div className="text-base font-bold text-white/90">{gameAdapter?.displayName ?? gameId}</div>
+              </div>
+              {isLive && (
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className={`text-sm font-semibold ${t.accent}`}>{packetsPerSec} pkt/s</span>
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
+        );
+      })() : (
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-app-text">
+              {displaySettings.driverName ? `Hello, ${displaySettings.driverName}` : "RaceIQ"}
+            </h1>
+            <p className="text-sm text-app-text-muted mt-0.5">Dashboard overview</p>
+          </div>
+          {isLive && (
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-sm text-app-text-secondary">Live — {packetsPerSec} pkt/s</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Game cards — only on global homepage */}
       {!gameId && <div className="flex gap-3">
@@ -336,89 +400,51 @@ export function HomePage() {
         </Link>
       </div>}
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Total Laps" value={`${totalLaps}`} />
-        <StatCard label="Tracks" value={`${uniqueTracks}`} />
-        <StatCard label="Cars" value={`${uniqueCars}`} />
+      {/* Period tabs + stats */}
+      <div>
+        <div className="flex items-center gap-1 mb-3">
+          {([["today", "Today"], ["week", "This Week"], ["month", "This Month"], ["year", "This Year"], ["allTime", "All Time"]] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setPeriodTab(key)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {(() => {
+          const data = periodStats[periodTab];
+          const timeSec = periodTab === "allTime" ? (stats?.totalTimeSec ?? data.totalTime) : data.totalTime;
+          const fmtTime = (s: number) => {
+            const h = Math.floor(s / 3600);
+            const m = Math.floor((s % 3600) / 60);
+            return h > 0 ? `${h}h ${m}m` : `${m}m`;
+          };
+          return (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard label="Laps" value={`${data.laps}`} />
+              <StatCard label="Tracks" value={`${data.tracks}`} />
+              <StatCard label="Cars" value={`${data.cars}`} />
+              {timeSec > 0 && (
+                <StatCard label="Time Driven" value={fmtTime(timeSec)} color="text-violet-400" />
+              )}
+            </div>
+          );
+        })()}
       </div>
 
-      {/* Additional stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard
-          label="Valid Laps"
-          value={`${validLaps.length}`}
-          sub={totalLaps > 0 ? `${((validLaps.length / totalLaps) * 100).toFixed(0)}% clean` : undefined}
-          color="text-emerald-400"
-        />
-        <StatCard
-          label="Total Distance"
-          value={stats?.totalDistanceMeters
-            ? `${(stats.totalDistanceMeters / 1000).toFixed(0)} km`
-            : "—"}
-          sub={stats?.totalDistanceMeters
-            ? `${(stats.totalDistanceMeters / 1609.34).toFixed(0)} mi`
-            : undefined}
-          color="text-cyan-400"
-        />
-        {isLive && (
+      {/* Live session card */}
+      {isLive && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard
             label="Session"
             value="Active"
             sub={sessionTrack ? `Track #${sessionTrack}` : undefined}
             color="text-emerald-400"
           />
-        )}
-      </div>
-
-      {/* Period stats with tabs */}
-      {(() => {
-        const data = periodStats[periodTab];
-        return (
-          <div className="bg-app-surface-alt/20 rounded-lg p-4">
-            <div className="flex items-center gap-1 mb-3">
-              {([["today", "Today"], ["week", "This Week"], ["month", "This Month"]] as const).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setPeriodTab(key)}
-                  className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            {data.laps > 0 ? (
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-app-text-muted">Laps</span>
-                  <span className="text-sm font-mono font-bold text-app-text">{data.laps} <span className="text-app-text-dim">({data.valid} valid)</span></span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-app-text-muted">Time Driven</span>
-                  <span className="text-sm font-mono font-bold text-app-text">
-                    {Math.floor(data.totalTime / 3600)}h {Math.floor((data.totalTime % 3600) / 60)}m
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-app-text-muted">Tracks</span>
-                  <span className="text-sm font-mono font-bold text-app-text">{data.tracks}</span>
-                </div>
-                {data.favCarOrd && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-app-text-muted">Favourite Car</span>
-                    <span className="text-sm font-bold text-app-text truncate ml-2">
-                      {carNames[data.favCarOrd] ?? `#${data.favCarOrd}`}
-                      <span className="text-app-text-dim font-normal ml-1">({data.favCarCount} laps)</span>
-                    </span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-sm text-app-text-dim">No laps recorded</div>
-            )}
-          </div>
-        );
-      })()}
+        </div>
+      )}
 
       {/* Recent laps */}
       <div>

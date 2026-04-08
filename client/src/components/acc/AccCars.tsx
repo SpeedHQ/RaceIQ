@@ -82,7 +82,7 @@ function BrandBadge({ brand }: { brand: string }) {
   );
 }
 
-type SortKey = "name" | "maxRpm" | "hp" | "weightKg";
+type SortKey = "name";
 
 export function AccCars() {
   const { data: cars = [], isLoading } = useQuery<AccCar[]>({
@@ -91,9 +91,8 @@ export function AccCars() {
   });
 
   const [filterClass, setFilterClass] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("name");
-  const [sortAsc, setSortAsc] = useState(true);
+  const [sortKey] = useState<SortKey>("name");
+  const [sortAsc] = useState(true);
 
   const classes = useMemo(() => {
     const set = new Set(cars.map((c) => c.class));
@@ -103,24 +102,13 @@ export function AccCars() {
   const filtered = useMemo(() => {
     let result = cars;
     if (filterClass) result = result.filter((c) => c.class === filterClass);
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter((c) => c.name.toLowerCase().includes(q));
-    }
     // Sort
     result = [...result].sort((a, b) => {
-      let cmp = 0;
-      if (sortKey === "name") {
-        cmp = a.name.localeCompare(b.name);
-      } else {
-        const av = a.specs?.[sortKey] ?? 0;
-        const bv = b.specs?.[sortKey] ?? 0;
-        cmp = av - bv;
-      }
+      const cmp = a.name.localeCompare(b.name);
       return sortAsc ? cmp : -cmp;
     });
     return result;
-  }, [cars, filterClass, search, sortKey, sortAsc]);
+  }, [cars, filterClass, sortKey, sortAsc]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, AccCar[]>();
@@ -132,10 +120,6 @@ export function AccCars() {
     return map;
   }, [filtered]);
 
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) setSortAsc(!sortAsc);
-    else { setSortKey(key); setSortAsc(key === "name"); }
-  }
 
   if (isLoading) {
     return (
@@ -181,26 +165,6 @@ export function AccCars() {
             );
           })}
         </div>
-        <input
-          type="text"
-          placeholder="Search cars..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="bg-app-surface-alt/30 text-app-text text-xs rounded px-3 py-1.5 border border-app-border/30 focus:border-app-accent/50 focus:outline-none w-48"
-        />
-        <div className="flex gap-1 ml-auto">
-          {([["name", "Name"], ["maxRpm", "RPM"]] as const).map(([key, label]) => (
-            <button
-              key={key}
-              className={`px-2 py-1 text-[10px] rounded transition-colors ${
-                sortKey === key ? "bg-app-surface-alt text-app-text" : "text-app-text-dim hover:text-app-text-secondary"
-              }`}
-              onClick={() => toggleSort(key)}
-            >
-              {label} {sortKey === key ? (sortAsc ? "\u2191" : "\u2193") : ""}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Car grid by class */}
@@ -223,17 +187,25 @@ export function AccCars() {
                     className="group relative bg-app-surface-alt/20 rounded-lg border border-app-border/10 overflow-hidden hover:border-app-border/30 transition-all"
                   >
                     <div className="h-0.5" style={{ backgroundColor: brandColor }} />
+                    {/* Car image */}
+                    <div className="relative w-full h-48 overflow-hidden bg-app-surface-alt/10">
+                      <img
+                        src={`/car-images/acc-${car.id}.jpg`}
+                        alt={car.name}
+                        className="w-full h-full object-cover object-center"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                      <span className={`absolute bottom-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded ${c.bg} ${c.text}`}>
+                        {car.class}
+                      </span>
+                    </div>
                     <div className="p-3">
                       <div className="flex items-center gap-3 mb-2">
                         <BrandBadge brand={brand} />
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-medium text-app-text leading-tight">{car.name}</div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] text-app-text-dim">{brand}</span>
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${c.bg} ${c.text}`}>
-                              {car.class}
-                            </span>
-                          </div>
+                          <div className="text-[10px] text-app-text-dim mt-0.5">{brand}</div>
                         </div>
                       </div>
 
