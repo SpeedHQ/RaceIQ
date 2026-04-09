@@ -320,33 +320,53 @@ export class SectorTracker {
   getTrackLength(): number {
     return this.bounds?.trackLength ?? 0;
   }
+
+  /** Expose lap distance start for PitTracker curve interpolation. */
+  getLapDistStart(): number {
+    return this.lapDistStart;
+  }
 }
 
 /**
  * Server-side pit strategy tracker.
  *
- * Fuel: rolling average of last 5 valid laps with outlier rejection
- *   (skips laps where fuel increased = refuel, or usage is >2x average = formation lap).
+ * Fuel: rolling average of last 5 valid laps with outlier rejection.
  *
- * Tires: per-tire rolling average of last 3 laps, worst tire governs.
- *   Outlier rejection same as fuel. Computes laps until two thresholds:
- *   - "bad": game-specific yellow threshold (performance cliff)
- *   - "critical": 20% health remaining (near-dead)
+ * Tires: distance-based interpolation against reference wear curves
+ *   (averaged from last 3 laps), with per-lap rolling average as fallback.
+ *   Same approach as estimated lap time but for wear — knows which parts
+ *   of the track cause more wear and adjusts estimates dynamically mid-lap.
  */
+
+/** Resampled wear curve on a 1-meter grid for point-wise averaging. */
+interface ResampledWearCurve {
+  /** Per-tire cumulative wear delta at each meter. [FL, FR, RL, RR] */
+  wears: [Float64Array, Float64Array, Float64Array, Float64Array];
+  /** Total wear for the full lap per tire. */
+  totalWear: [number, number, number, number];
+  /** Track length in meters (array length). */
+  length: number;
+}
+
 export class PitTracker {
   // Fuel
   private fuelHistory: number[] = [];
   private fuelAtLapStart = -1;
   private lastLap = -1;
 
-  // Per-tire wear history (each entry = wear delta for one lap)
+  // Per-tire wear history (each entry = wear delta for one lap) — fallback
   private tireWearHistory: { fl: number; fr: number; rl: number; rr: number }[] = [];
   private wearAtLapStart = { fl: -1, fr: -1, rl: -1, rr: -1 };
+
+  // Distance-based wear curves (last 3 laps, averaged)
+  private recentWearCurves: ResampledWearCurve[] = [];
+  private refWearCurve: ResampledWearCurve | null = null;
+  private liveWearAtLapStart = { fl: 0, fr: 0, rl: 0, rr: 0 }; // for computing live delta
 
   // Lap time tracking for outlier detection
   private lapTimeHistory: number[] = [];
   private lastCurrentLap = 0;
-  private sessionLapCount = 0; // valid laps completed this session
+  private sessionLapCount = 0;
 
   // Game-specific thresholds (health = 1 - wear)
   private badHealthThreshold = 0.40;
@@ -358,6 +378,9 @@ export class PitTracker {
     this.lastLap = -1;
     this.tireWearHistory = [];
     this.wearAtLapStart = { fl: -1, fr: -1, rl: -1, rr: -1 };
+    this.recentWearCurves = [];
+    this.refWearCurve = null;
+    this.liveWearAtLapStart = { fl: 0, fr: 0, rl: 0, rr: 0 };
     this.lapTimeHistory = [];
     this.lastCurrentLap = 0;
     this.sessionLapCount = 0;
@@ -449,7 +472,7 @@ export class PitTracker {
     return slice.reduce((s, v) => s + v, 0) / slice.length;
   }
 
-  feed(packet: TelemetryPacket, trackLength: number): LivePitData {
+  feed(packet: TelemetryPacket, trackLength: number, lapDistStart: number = 0): LivePitData {
     // Detect lap boundary
     if (this.lastLap >= 0 && packet.LapNumber > this.lastLap) {
       const lapTime = this.lastCurrentLap; // CurrentLap at end of previous lap
@@ -483,6 +506,8 @@ export class PitTracker {
         fl: packet.TireWearFL, fr: packet.TireWearFR,
         rl: packet.TireWearRL, rr: packet.TireWearRR,
       };
+      // Snapshot for live curve-based delta
+      this.liveWearAtLapStart = { ...this.wearAtLapStart };
 
       // Track lap times for outlier detection
       if (lapTime > 10) {
@@ -498,6 +523,7 @@ export class PitTracker {
           fl: packet.TireWearFL, fr: packet.TireWearFR,
           rl: packet.TireWearRL, rr: packet.TireWearRR,
         };
+        this.liveWearAtLapStart = { ...this.wearAtLapStart };
       }
       this.lastLap = packet.LapNumber;
     }
@@ -508,31 +534,52 @@ export class PitTracker {
     const fuelLapsRemaining = fuelPerLap > 0 ? Math.floor((packet.Fuel / fuelPerLap) * 10) / 10 : null;
     const currentLapFuelUsed = this.fuelAtLapStart >= 0 ? this.fuelAtLapStart - packet.Fuel : 0;
 
-    // Tire estimate: per-tire rolling average of last 3 valid laps, worst tire governs
-    const n = 3;
-    const recent = this.tireWearHistory.slice(-n);
-    let avgWearPerTire = [0, 0, 0, 0]; // FL, FR, RL, RR
-    if (recent.length > 0) {
-      avgWearPerTire = [
-        recent.reduce((s, w) => s + w.fl, 0) / recent.length,
-        recent.reduce((s, w) => s + w.fr, 0) / recent.length,
-        recent.reduce((s, w) => s + w.rl, 0) / recent.length,
-        recent.reduce((s, w) => s + w.rr, 0) / recent.length,
-      ];
-    }
-    const worstWearPerLap = Math.max(...avgWearPerTire);
-
-    // Per-tire estimates
+    // Tire estimates: curve-based when available, rolling average fallback
     const wears = [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR];
     const toCliff: [number | null, number | null, number | null, number | null] = [null, null, null, null];
     const toDead: [number | null, number | null, number | null, number | null] = [null, null, null, null];
+    let projectedWearPerLap = [0, 0, 0, 0]; // per-tire projected full-lap wear
+
+    const lapDist = packet.DistanceTraveled - lapDistStart;
+
+    if (this.refWearCurve && lapDist > 0) {
+      // Curve-based: interpolate expected wear at this distance, compute delta, project
+      const liveStart = this.liveWearAtLapStart;
+      const liveStartArr = [liveStart.fl, liveStart.fr, liveStart.rl, liveStart.rr];
+      for (let i = 0; i < 4; i++) {
+        const refWear = this.interpolateRefWear(lapDist, i);
+        if (refWear >= 0) {
+          const actualWearDelta = wears[i] - liveStartArr[i]; // actual wear so far this lap
+          const wearDeviation = actualWearDelta - refWear;     // ahead/behind reference
+          projectedWearPerLap[i] = Math.max(0, this.refWearCurve.totalWear[i] + wearDeviation);
+        }
+      }
+    }
+
+    // Fallback: rolling average when no curves yet
+    if (Math.max(...projectedWearPerLap) === 0) {
+      const n = 3;
+      const recent = this.tireWearHistory.slice(-n);
+      if (recent.length > 0) {
+        projectedWearPerLap = [
+          recent.reduce((s, w) => s + w.fl, 0) / recent.length,
+          recent.reduce((s, w) => s + w.fr, 0) / recent.length,
+          recent.reduce((s, w) => s + w.rl, 0) / recent.length,
+          recent.reduce((s, w) => s + w.rr, 0) / recent.length,
+        ];
+      }
+    }
+
+    const worstWearPerLap = Math.max(...projectedWearPerLap);
+
+    // Per-tire estimates
     for (let i = 0; i < 4; i++) {
-      if (avgWearPerTire[i] > 0) {
+      if (projectedWearPerLap[i] > 0) {
         const h = 1 - wears[i];
         const untilCliff = h - this.badHealthThreshold;
         const untilDead = h - this.criticalHealth;
-        toCliff[i] = untilCliff > 0 ? Math.floor((untilCliff / avgWearPerTire[i]) * 10) / 10 : 0;
-        toDead[i] = untilDead > 0 ? Math.floor((untilDead / avgWearPerTire[i]) * 10) / 10 : 0;
+        toCliff[i] = untilCliff > 0 ? Math.floor((untilCliff / projectedWearPerLap[i]) * 10) / 10 : 0;
+        toDead[i] = untilDead > 0 ? Math.floor((untilDead / projectedWearPerLap[i]) * 10) / 10 : 0;
       }
     }
 
@@ -579,7 +626,7 @@ export class PitTracker {
       tireEstimates: {
         toCliff,
         toDead,
-        wearPerLap: avgWearPerTire as [number, number, number, number],
+        wearPerLap: projectedWearPerLap as [number, number, number, number],
       },
       tireWearPerLap: worstWearPerLap,
       tireLapsRemaining,
@@ -606,5 +653,104 @@ export class PitTracker {
   _seedForTest(fuel: number[], tires: { fl: number; fr: number; rl: number; rr: number }[]): void {
     this.fuelHistory.push(...fuel);
     this.tireWearHistory.push(...tires);
+  }
+
+  /**
+   * Build a wear curve from a completed lap and update the averaged reference.
+   * Called from the pipeline on valid lap completion.
+   */
+  updateWearCurves(packets: TelemetryPacket[], lapDistStart: number): void {
+    if (packets.length < 50) return;
+    const startDist = lapDistStart;
+    const endDist = packets[packets.length - 1].DistanceTraveled;
+    const trackLen = Math.round(endDist - startDist);
+    if (trackLen < 100) return;
+
+    // Extract raw per-tire wear deltas relative to lap start
+    const startWear = [packets[0].TireWearFL, packets[0].TireWearFR, packets[0].TireWearRL, packets[0].TireWearRR];
+
+    // Resample onto 1-meter grid via linear interpolation
+    const wears: [Float64Array, Float64Array, Float64Array, Float64Array] = [
+      new Float64Array(trackLen), new Float64Array(trackLen),
+      new Float64Array(trackLen), new Float64Array(trackLen),
+    ];
+
+    let pi = 0; // packet index cursor
+    for (let m = 0; m < trackLen; m++) {
+      const targetDist = startDist + m;
+      // Advance cursor to bracket targetDist
+      while (pi < packets.length - 2 && packets[pi + 1].DistanceTraveled <= targetDist) pi++;
+      const p0 = packets[pi];
+      const p1 = packets[Math.min(pi + 1, packets.length - 1)];
+      const dRange = p1.DistanceTraveled - p0.DistanceTraveled;
+      const frac = dRange > 0 ? (targetDist - p0.DistanceTraveled) / dRange : 0;
+      const pktWears = [
+        [p0.TireWearFL, p1.TireWearFL],
+        [p0.TireWearFR, p1.TireWearFR],
+        [p0.TireWearRL, p1.TireWearRL],
+        [p0.TireWearRR, p1.TireWearRR],
+      ];
+      for (let t = 0; t < 4; t++) {
+        const interpolated = pktWears[t][0] + frac * (pktWears[t][1] - pktWears[t][0]);
+        wears[t][m] = interpolated - startWear[t]; // delta from lap start
+      }
+    }
+
+    const totalWear: [number, number, number, number] = [
+      wears[0][trackLen - 1], wears[1][trackLen - 1],
+      wears[2][trackLen - 1], wears[3][trackLen - 1],
+    ];
+
+    const curve: ResampledWearCurve = { wears, totalWear, length: trackLen };
+    this.recentWearCurves.push(curve);
+    if (this.recentWearCurves.length > 3) this.recentWearCurves.shift();
+
+    // Average the recent curves into the reference
+    this.refWearCurve = this.averageWearCurves();
+  }
+
+  /** Point-wise average of recent wear curves. Uses the shortest track length. */
+  private averageWearCurves(): ResampledWearCurve | null {
+    const curves = this.recentWearCurves;
+    if (curves.length === 0) return null;
+    const len = Math.min(...curves.map(c => c.length));
+    if (len < 100) return null;
+
+    const wears: [Float64Array, Float64Array, Float64Array, Float64Array] = [
+      new Float64Array(len), new Float64Array(len),
+      new Float64Array(len), new Float64Array(len),
+    ];
+    const totalWear: [number, number, number, number] = [0, 0, 0, 0];
+    const n = curves.length;
+
+    for (let m = 0; m < len; m++) {
+      for (let t = 0; t < 4; t++) {
+        let sum = 0;
+        for (const c of curves) sum += c.wears[t][m];
+        wears[t][m] = sum / n;
+      }
+    }
+    for (let t = 0; t < 4; t++) {
+      for (const c of curves) totalWear[t] += c.totalWear[t];
+      totalWear[t] /= n;
+    }
+
+    return { wears, totalWear, length: len };
+  }
+
+  /** Interpolate reference wear for a tire at a given lap distance. */
+  private interpolateRefWear(lapDist: number, tireIndex: number): number {
+    const ref = this.refWearCurve;
+    if (!ref || ref.length < 2) return -1;
+    const m = Math.floor(lapDist);
+    if (m < 0) return 0;
+    if (m >= ref.length - 1) return -1;
+    const frac = lapDist - m;
+    return ref.wears[tireIndex][m] + frac * (ref.wears[tireIndex][m + 1] - ref.wears[tireIndex][m]);
+  }
+
+  /** Expose reference wear curve for testing. */
+  _getRefWearCurve(): ResampledWearCurve | null {
+    return this.refWearCurve;
   }
 }

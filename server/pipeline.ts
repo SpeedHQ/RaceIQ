@@ -34,6 +34,7 @@ lapDetector.onSessionStart = async (session) => {
 lapDetector.onLapComplete_ = (event) => {
   if (event.isValid) {
     sectorTracker.updateRefLap(event.packets, event.lapDistStart, event.lapTime, event.sectors);
+    pitTracker.updateWearCurves(event.packets, event.lapDistStart);
   }
 };
 
@@ -70,7 +71,7 @@ export async function processPacket(packet: TelemetryPacket): Promise<void> {
   await lapDetector.feed(packet);
 
   const sectors = sectorTracker.feed(packet);
-  const pit = pitTracker.feed(packet, sectorTracker.getTrackLength());
+  const pit = pitTracker.feed(packet, sectorTracker.getTrackLength(), sectorTracker.getLapDistStart());
 
   // Track calibration only needs sparse position data (~10Hz)
   if (_totalProcessed % 6 === 0) {

@@ -234,3 +234,148 @@ describe("PitTracker history seeding per game", () => {
     expect(r.fuelPerLap).toBeCloseTo(0.08, 2);
   });
 });
+
+describe("PitTracker wear curve interpolation", () => {
+  /** Build packets simulating a lap with non-uniform wear profile. */
+  function makeLapPackets(opts: {
+    trackLen: number;
+    distStart: number;
+    count: number;
+    /** Per-tire wear at each fraction [0,1] of the lap. Returns delta from start. */
+    wearProfile: (frac: number) => [number, number, number, number];
+  }): TelemetryPacket[] {
+    const packets: TelemetryPacket[] = [];
+    for (let i = 0; i < opts.count; i++) {
+      const frac = i / (opts.count - 1);
+      const [fl, fr, rl, rr] = opts.wearProfile(frac);
+      packets.push(pkt({
+        DistanceTraveled: opts.distStart + frac * opts.trackLen,
+        CurrentLap: frac * 90,
+        LapNumber: 1,
+        TireWearFL: fl,
+        TireWearFR: fr,
+        TireWearRL: rl,
+        TireWearRR: rr,
+      }));
+    }
+    return packets;
+  }
+
+  test("updateWearCurves builds reference from completed lap", () => {
+    const tracker = new PitTracker();
+    const packets = makeLapPackets({
+      trackLen: 1000,
+      distStart: 0,
+      count: 200,
+      wearProfile: (f) => [f * 0.10, f * 0.08, f * 0.06, f * 0.06],
+    });
+    tracker.updateWearCurves(packets, 0);
+    const ref = tracker._getRefWearCurve();
+    expect(ref).not.toBeNull();
+    expect(ref!.length).toBe(1000);
+    // Total wear should match profile endpoint
+    expect(ref!.totalWear[0]).toBeCloseTo(0.10, 2); // FL
+    expect(ref!.totalWear[1]).toBeCloseTo(0.08, 2); // FR
+  });
+
+  test("averaged reference from 3 laps", () => {
+    const tracker = new PitTracker();
+    // 3 laps with varying FL wear: 0.08, 0.10, 0.12 → avg 0.10
+    for (const total of [0.08, 0.10, 0.12]) {
+      const packets = makeLapPackets({
+        trackLen: 1000,
+        distStart: 0,
+        count: 200,
+        wearProfile: (f) => [f * total, f * 0.05, f * 0.04, f * 0.04],
+      });
+      tracker.updateWearCurves(packets, 0);
+    }
+    const ref = tracker._getRefWearCurve();
+    expect(ref).not.toBeNull();
+    expect(ref!.totalWear[0]).toBeCloseTo(0.10, 2); // FL averaged
+  });
+
+  test("curve-based estimate adjusts mid-lap based on wear deviation", () => {
+    const tracker = new PitTracker();
+    // Build reference: uniform 0.10 FL wear over 1000m
+    const packets = makeLapPackets({
+      trackLen: 1000,
+      distStart: 0,
+      count: 200,
+      wearProfile: (f) => [f * 0.10, f * 0.05, f * 0.04, f * 0.04],
+    });
+    tracker.updateWearCurves(packets, 0);
+
+    // Init tracker state
+    tracker.feed(pkt({ LapNumber: 1, Fuel: 1.0, TireWearFL: 0.20, TireWearFR: 0.10, TireWearRL: 0.08, TireWearRR: 0.08, CurrentLap: 0 }), 1000);
+    // Simulate next lap boundary to set liveWearAtLapStart
+    tracker.feed(pkt({ LapNumber: 1, Fuel: 1.0, TireWearFL: 0.20, TireWearFR: 0.10, TireWearRL: 0.08, TireWearRR: 0.08, CurrentLap: 85 }), 1000);
+    tracker.feed(pkt({ LapNumber: 2, Fuel: 0.9, TireWearFL: 0.20, TireWearFR: 0.10, TireWearRL: 0.08, TireWearRR: 0.08, CurrentLap: 0 }), 1000);
+
+    // At 500m (50%), ref says FL should have worn 0.05.
+    // If actual FL is 0.06 (wore 0.01 more than expected), projected = 0.10 + 0.01 = 0.11
+    const r = tracker.feed(pkt({
+      LapNumber: 2,
+      DistanceTraveled: 500,
+      TireWearFL: 0.26, // 0.20 + 0.06 delta
+      TireWearFR: 0.12,
+      TireWearRL: 0.10,
+      TireWearRR: 0.10,
+      CurrentLap: 45,
+      Fuel: 0.89,
+    }), 1000, 0);
+
+    // FL projected wear per lap should be ~0.11 (ref 0.10 + deviation 0.01)
+    expect(r.tireEstimates.wearPerLap[0]).toBeCloseTo(0.11, 1);
+  });
+
+  test("falls back to rolling average when no curves", () => {
+    const tracker = new PitTracker();
+    // No curves built — just per-lap history
+    tracker._seedForTest([], [
+      { fl: 0.10, fr: 0.08, rl: 0.06, rr: 0.06 },
+    ]);
+    tracker.feed(pkt({ LapNumber: 1, TireWearFL: 0.10, TireWearFR: 0.08, TireWearRL: 0.06, TireWearRR: 0.06, CurrentLap: 0, Fuel: 1 }), 5000);
+    const r = tracker.feed(pkt({ LapNumber: 1, TireWearFL: 0.10, TireWearFR: 0.08, TireWearRL: 0.06, TireWearRR: 0.06, CurrentLap: 10, Fuel: 1 }), 5000);
+    // Should use rolling average fallback
+    expect(r.tireWearPerLap).toBeCloseTo(0.10, 2); // worst = FL
+    expect(r.tireLapsToBad).not.toBeNull();
+  });
+
+  test("non-uniform wear profile gives better mid-lap estimates", () => {
+    const tracker = new PitTracker();
+    // Reference: first half of track causes 80% of wear (heavy braking zone)
+    const packets = makeLapPackets({
+      trackLen: 1000,
+      distStart: 0,
+      count: 200,
+      wearProfile: (f) => {
+        // 80% of wear in first 50% of distance
+        const w = f < 0.5 ? f * 2 * 0.08 : 0.08 + (f - 0.5) * 2 * 0.02;
+        return [w, w * 0.8, w * 0.6, w * 0.6];
+      },
+    });
+    tracker.updateWearCurves(packets, 0);
+
+    tracker.feed(pkt({ LapNumber: 1, TireWearFL: 0, TireWearFR: 0, TireWearRL: 0, TireWearRR: 0, CurrentLap: 0, Fuel: 1 }), 1000);
+    tracker.feed(pkt({ LapNumber: 1, CurrentLap: 85, Fuel: 0.95 }), 1000);
+    tracker.feed(pkt({ LapNumber: 2, TireWearFL: 0, TireWearFR: 0, TireWearRL: 0, TireWearRR: 0, CurrentLap: 0, Fuel: 0.9 }), 1000);
+
+    // At 750m (75% through), past the heavy zone — reference says most wear already happened
+    // On pace: FL ref at 750m ≈ 0.08 + 0.5*0.02 = 0.09
+    // Actual FL = 0.09 (on pace) → deviation = 0, projected = totalWear (0.10)
+    const r = tracker.feed(pkt({
+      LapNumber: 2,
+      DistanceTraveled: 750,
+      TireWearFL: 0.09,
+      TireWearFR: 0.072,
+      TireWearRL: 0.054,
+      TireWearRR: 0.054,
+      CurrentLap: 67,
+      Fuel: 0.88,
+    }), 1000, 0);
+
+    // Projected FL ≈ 0.10 (reference total + ~0 deviation)
+    expect(r.tireEstimates.wearPerLap[0]).toBeCloseTo(0.10, 1);
+  });
+});
