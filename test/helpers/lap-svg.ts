@@ -9,8 +9,14 @@ import { resolve } from "path";
  * @param packets Telemetry packets for the lap
  * @param lapNumber Lap number for filename
  * @param outputDir Directory to save SVG file
+ * @param recordingName Recording filename (without path or extension) to include in output
  */
-export function generateLapSvg(packets: TelemetryPacket[], lapNumber: number, outputDir: string): void {
+export function generateLapSvg(
+  packets: TelemetryPacket[],
+  lapNumber: number,
+  outputDir: string,
+  recordingName?: string
+): void {
   if (packets.length === 0) return;
 
   // Find bounds of coordinates
@@ -85,6 +91,7 @@ export function generateLapSvg(packets: TelemetryPacket[], lapNumber: number, ou
   <text class="label" x="10" y="75" font-size="10">Z: ${minZ.toFixed(0)}-${maxZ.toFixed(0)}</text>
 </svg>`;
 
-  const filename = resolve(outputDir, `lap-${lapNumber}.svg`);
+  const filePrefix = recordingName ? `${recordingName}-lap-${lapNumber}` : `lap-${lapNumber}`;
+  const filename = resolve(outputDir, `${filePrefix}.svg`);
   writeFileSync(filename, svg);
 }

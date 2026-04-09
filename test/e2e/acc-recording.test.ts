@@ -112,9 +112,11 @@ describe("ACC recording", () => {
 
       // Generate SVG visualizations for each lap
       console.log(`[SVG] Generating lap visualizations in ${OUTPUT_DIR}`);
+      // Extract recording filename without path and extension
+      const recordingBaseName = recordingFile.replace(/\.bin$/, "");
       for (const lap of laps) {
-        generateLapSvg(lap.packets, lap.lapNumber, OUTPUT_DIR);
-        console.log(`[SVG] Generated lap-${lap.lapNumber}.svg`);
+        generateLapSvg(lap.packets, lap.lapNumber, OUTPUT_DIR, recordingBaseName);
+        console.log(`[SVG] Generated ${recordingBaseName}-lap-${lap.lapNumber}.svg`);
       }
     });
   });
