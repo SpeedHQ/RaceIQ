@@ -16,7 +16,7 @@
  * Replay reads frames back at original timing and feeds them through
  * parseAccBuffers → processPacket, simulating a live ACC session.
  */
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { PHYSICS, GRAPHICS, STATIC } from "./structs";
 import { parseAccBuffers } from "./parser";
@@ -135,7 +135,7 @@ function readHeader(buf: Buffer): {
 export function readAccFrames(
   filePath: string
 ): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
-  const data = Buffer.from(require("fs").readFileSync(filePath));
+  const data = Buffer.from(readFileSync(filePath));
   const header = readHeader(data);
   if (!header) return [];
 
