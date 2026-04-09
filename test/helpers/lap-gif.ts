@@ -49,8 +49,8 @@ export async function generateLapGif(
   const scaleX = svgWidth / viewWidth;
   const scaleZ = svgHeight / viewHeight;
 
-  // Create frames (every 10% of packets)
-  const numFrames = 10;
+  // Create frames (every 5% of packets for smooth line growth)
+  const numFrames = 20;
   const frameIntervals = Array.from({ length: numFrames }, (_, i) => Math.ceil(((i + 1) / numFrames) * packets.length));
 
   const gifPath = resolve(outputDir, `${recordingName ? recordingName + "-" : ""}lap-${lapNumber}.gif`);
@@ -162,8 +162,8 @@ export async function generateRawGif(
   const scaleX = svgWidth / viewWidth;
   const scaleZ = svgHeight / viewHeight;
 
-  // Create frames (every 10% of packets)
-  const numFrames = 10;
+  // Create frames (every 5% of packets for smooth line growth)
+  const numFrames = 20;
   const frameIntervals = Array.from({ length: numFrames }, (_, i) => Math.ceil(((i + 1) / numFrames) * packets.length));
 
   const gifPath = resolve(outputDir, `raw.gif`);
@@ -175,7 +175,7 @@ export async function generateRawGif(
       const output = createWriteStream(gifPath);
 
       gif.pipe(output);
-      gif.setDelay(450); // 450ms per frame (3x slower than lap GIFs)
+      gif.setDelay(225); // 225ms per frame (20 frames total = ~4.5s, 3x slower)
       gif.setDispose(2);
       gif.writeHeader();
 
