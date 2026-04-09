@@ -65,19 +65,6 @@ export function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPack
     { label: "RR", temp: packet.TireTempRR, wear: packet.TireWearRR, grip: Math.abs(packet.TireCombinedSlipRR), wearPerSec: wearState.wearPerSec[3] },
   ];
 
-  // Estimate laps remaining from worst tire
-  let lapsEstimate: number | null = null;
-  if (wearState.wearRates.length > 0) {
-    const avgRates = [0, 1, 2, 3].map((i) => {
-      const rates = wearState.wearRates.map((r) => r[i]).filter((r) => r > 0);
-      return rates.length > 0 ? rates.reduce((s, v) => s + v, 0) / rates.length : 0;
-    });
-    const worstIdx = avgRates.indexOf(Math.max(...avgRates));
-    if (avgRates[worstIdx] > 0) {
-      lapsEstimate = Math.floor(tires[worstIdx].wear / avgRates[worstIdx]);
-    }
-  }
-
   return (
     <div>
       {/* 4 tires in 2x2 grid, full width */}
@@ -119,16 +106,6 @@ export function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPack
         })}
       </div>
 
-      {/* Tire summary: lap estimate */}
-      <div className="flex items-center justify-end mt-2 px-1">
-        {lapsEstimate != null && (
-          <span className="text-[10px] font-mono text-app-text-muted">
-            ~<span className={`font-bold ${lapsEstimate > 10 ? "text-emerald-400" : lapsEstimate > 5 ? "text-yellow-400" : "text-red-400"}`}>
-              {lapsEstimate}
-            </span> laps remaining
-          </span>
-        )}
-      </div>
     </div>
   );
 }

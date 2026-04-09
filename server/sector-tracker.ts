@@ -556,17 +556,20 @@ export class PitTracker {
       }
     }
 
-    // Fallback: rolling average when no curves yet
-    if (Math.max(...projectedWearPerLap) === 0) {
-      const n = 3;
-      const recent = this.tireWearHistory.slice(-n);
-      if (recent.length > 0) {
-        projectedWearPerLap = [
-          recent.reduce((s, w) => s + w.fl, 0) / recent.length,
-          recent.reduce((s, w) => s + w.fr, 0) / recent.length,
-          recent.reduce((s, w) => s + w.rl, 0) / recent.length,
-          recent.reduce((s, w) => s + w.rr, 0) / recent.length,
-        ];
+    // Fallback / floor: use rolling average from per-lap history.
+    // Also serves as a minimum — curve projection at lap start can be too low.
+    const n = 3;
+    const recent = this.tireWearHistory.slice(-n);
+    if (recent.length > 0) {
+      const avgFromHistory = [
+        recent.reduce((s, w) => s + w.fl, 0) / recent.length,
+        recent.reduce((s, w) => s + w.fr, 0) / recent.length,
+        recent.reduce((s, w) => s + w.rl, 0) / recent.length,
+        recent.reduce((s, w) => s + w.rr, 0) / recent.length,
+      ];
+      for (let i = 0; i < 4; i++) {
+        // Use whichever is higher: curve projection or historical average
+        projectedWearPerLap[i] = Math.max(projectedWearPerLap[i], avgFromHistory[i]);
       }
     }
 
