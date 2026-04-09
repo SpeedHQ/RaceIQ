@@ -3,6 +3,7 @@ import type { LapSavedNotification } from "../../server/lap-detector";
 import { parseDump } from "../helpers/parse-dump";
 import { assertSectorTimesMatchLapTime, assertLapTimesProper } from "../helpers/lap-assertions";
 import { generateLapSvg } from "../helpers/lap-svg";
+import { generateLapGif } from "../helpers/lap-gif";
 import { existsSync, readdirSync } from "fs";
 import { join } from "path";
 
@@ -150,6 +151,9 @@ describe("ACC recording", () => {
 
         generateLapSvg(lap.packets, lap.lapNumber, OUTPUT_DIR, recordingBaseName);
         console.log(`[SVG] Generated ${recordingBaseName}-lap-${lap.lapNumber}.svg`);
+
+        await generateLapGif(lap.packets, lap.lapNumber, OUTPUT_DIR, recordingBaseName);
+        console.log(`[GIF] Generated ${recordingBaseName}-lap-${lap.lapNumber}.gif`);
       }
     });
   });

@@ -38,8 +38,10 @@
     "drizzle-orm": "^0.45.2",
     "fflate": "^0.8.2",
     "fzstd": "^0.1.1",
+    "gif-encoder": "^0.7.2",
     "hono": "^4.12.10",
     "libsql": "^0.5.29",
+    "sharp": "^0.34.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {
