@@ -205,7 +205,7 @@ export function LivePage({ mode = "driver" }: { mode?: DashboardMode }) {
             <div className="p-2 border-b border-app-border">
               <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Recorded Laps</h2>
             </div>
-            <LapList trackOrd={trackOrd} carOrd={carOrd} hasTelemetry={!!packet} />
+            <LapList hasTelemetry={!!packet} />
           </div>
         </div>
       </div>
@@ -229,7 +229,7 @@ export function LivePage({ mode = "driver" }: { mode?: DashboardMode }) {
           <div className="p-2 border-b border-app-border">
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Recorded Laps</h2>
           </div>
-          <LapList trackOrd={trackOrd} carOrd={carOrd} hasTelemetry={!!packet} />
+          <LapList hasTelemetry={!!packet} />
         </div>
       </div>
     </div>

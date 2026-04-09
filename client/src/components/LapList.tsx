@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useLaps, useDeleteLap } from "../hooks/queries";
+import { useDeleteLap } from "../hooks/queries";
 import { useGameRoute } from "../stores/game";
+import { useTelemetryStore } from "../stores/telemetry";
 import { Button } from "./ui/button";
 
 function formatLapTime(seconds: number): string {
@@ -14,22 +15,14 @@ function formatLapTime(seconds: number): string {
 type SortKey = "lap" | "time";
 type SortDir = "asc" | "desc";
 
-export function LapList({ trackOrd, carOrd, hasTelemetry }: { trackOrd?: number; carOrd?: number; hasTelemetry?: boolean }) {
+export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
   const navigate = useNavigate({ from: "/" });
   const gameRoute = useGameRoute();
-  const { data: allLaps = [], isLoading } = useLaps({ refetchInterval: 5_000 });
+  const laps = useTelemetryStore((s) => s.sessionLaps);
   const deleteLap = useDeleteLap();
   const [sortKey, setSortKey] = useState<SortKey>("lap");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-
-  // Filter laps to current track+car
-  const laps = trackOrd != null
-    ? allLaps.filter((l) => l.trackOrdinal === trackOrd && (carOrd == null || l.carOrdinal === carOrd))
-    : allLaps;
-
-  if (isLoading) {
-    return <div className="p-4 text-app-text-dim">Loading laps...</div>;
-  }
+  const trackOrd = useTelemetryStore((s) => s.serverStatus?.currentSession?.trackOrdinal);
 
   if (!hasTelemetry) {
     return null;

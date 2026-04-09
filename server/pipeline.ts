@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket, GameId } from "../shared/types";
 import { wsManager } from "./ws";
 import { lapDetector } from "./lap-detector";
 import { SectorTracker, PitTracker } from "./sector-tracker";
@@ -6,15 +6,26 @@ import { feedPosition } from "./track-calibration";
 import { getTrackOutlineByOrdinal } from "../shared/track-data";
 import { tryGetGame } from "../shared/games/registry";
 import { fillNormSuspension } from "./telemetry-utils";
+import { getLaps } from "./db/queries";
 
 const sectorTracker = new SectorTracker();
 const pitTracker = new PitTracker();
+
+/** Push the current session's recorded laps (filtered by track+car) to all WS clients. */
+async function broadcastSessionLaps(trackOrdinal: number, carOrdinal: number, gameId: GameId): Promise<void> {
+  try {
+    const allLaps = await getLaps(gameId, 200);
+    const laps = allLaps.filter((l) => l.trackOrdinal === trackOrdinal && l.carOrdinal === carOrdinal);
+    wsManager.broadcastNotification({ type: "session-laps", laps });
+  } catch {}
+}
 
 lapDetector.onSessionStart = async (session) => {
   await sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
   pitTracker.reset();
   const adapter = tryGetGame(session.gameId);
   if (adapter) pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
+  await broadcastSessionLaps(session.trackOrdinal, session.carOrdinal, session.gameId);
 };
 
 lapDetector.onLapComplete_ = (event) => {
@@ -25,6 +36,9 @@ lapDetector.onLapComplete_ = (event) => {
 
 lapDetector.onLapSaved = (event) => {
   wsManager.broadcastNotification({ type: "lap-saved", ...event });
+  // Re-push updated lap list after save completes
+  const session = lapDetector.session;
+  if (session) broadcastSessionLaps(session.trackOrdinal, session.carOrdinal, session.gameId);
 };
 
 let _totalProcessed = 0;
