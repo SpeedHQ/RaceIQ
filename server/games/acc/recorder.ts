@@ -128,6 +128,39 @@ function readHeader(buf: Buffer): {
 }
 
 /**
+ * Read all frames from an ACC recording file.
+ * Returns an array of {physics, graphics, staticData} buffer tuples.
+ * A truncated final frame is silently skipped (safe after hard kill).
+ */
+export function readAccFrames(
+  filePath: string
+): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
+  const data = Buffer.from(require("fs").readFileSync(filePath));
+  const header = readHeader(data);
+  if (!header) return [];
+
+  const { physicsSize, graphicsSize, staticSize } = header;
+  const frameSize = FRAME_HEADER + physicsSize + graphicsSize + staticSize;
+  const frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[] = [];
+
+  let offset = HEADER_SIZE;
+  while (offset + frameSize <= data.length) {
+    const physicsStart = offset + FRAME_HEADER;
+    const graphicsStart = physicsStart + physicsSize;
+    const staticStart = graphicsStart + graphicsSize;
+
+    frames.push({
+      physics: Buffer.from(data.subarray(physicsStart, graphicsStart)),
+      graphics: Buffer.from(data.subarray(graphicsStart, staticStart)),
+      staticData: Buffer.from(data.subarray(staticStart, staticStart + staticSize)),
+    });
+    offset += frameSize;
+  }
+
+  return frames;
+}
+
+/**
  * Replay a recorded ACC telemetry file.
  *
  * Reads frames from the file and feeds them through the parser → pipeline
