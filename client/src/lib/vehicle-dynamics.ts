@@ -363,6 +363,14 @@ export function tireTempClass(temp: number, thresholds: TireTempThresholds): str
   return "text-dynamics-red";
 }
 
+/** Tailwind bg class for tire temp (used for bar fills) */
+export function tireTempBgClass(temp: number, thresholds: TireTempThresholds): string {
+  if (temp < thresholds.cold) return "bg-dynamics-blue";
+  if (temp < thresholds.warm) return "bg-dynamics-green";
+  if (temp < thresholds.hot) return "bg-dynamics-amber";
+  return "bg-dynamics-red";
+}
+
 /** Human-readable temp label + hex color */
 export function tireTempLabel(temp: number, thresholds: TireTempThresholds): { label: string; color: string } {
   if (temp < thresholds.cold) return { label: "COLD", color: COLORS.blue };

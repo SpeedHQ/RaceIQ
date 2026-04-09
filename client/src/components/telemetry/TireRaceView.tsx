@@ -3,7 +3,7 @@ import type { TelemetryPacket } from "@shared/types";
 import type { DisplayPacket } from "@/lib/convert-packet";
 import { useUnits } from "@/hooks/useUnits";
 import { useSettings } from "@/hooks/queries";
-import { tireHealthTextClass, tireHealthBgClass, tireTempClass } from "@/lib/vehicle-dynamics";
+import { tireHealthTextClass, tireTempClass, tireTempBgClass } from "@/lib/vehicle-dynamics";
 
 /**
  * TireRaceView — Compact race-focused tire display.
@@ -72,34 +72,30 @@ export function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPack
         {tires.map((t) => {
           const healthPct = (1 - t.wear) * 100;
           const healthTxtClr = tireHealthTextClass(healthPct, healthThresh);
-          const healthBg = tireHealthBgClass(healthPct, healthThresh);
           const tempDisplay = units.temp(t.temp);
           const tc = tireTempClass(t.temp, units.thresholds);
+          const tempBg = tireTempBgClass(t.temp, units.thresholds);
 
           return (
             <div key={t.label} className="bg-app-surface-alt/30 rounded-md p-2.5 flex items-center gap-2">
-              {/* Vertical health bar */}
+              {/* Vertical health bar — colored by tire temp */}
               <div className="flex flex-col items-center gap-1 shrink-0">
                 <span className="text-xs font-bold text-app-text-muted">{t.label}</span>
                 <div className="w-6 bg-app-surface rounded-sm overflow-hidden relative" style={{ height: 50 }}>
                   <div
-                    className={`absolute bottom-0 w-full rounded-sm ${healthBg}`}
+                    className={`absolute bottom-0 w-full rounded-sm ${tempBg}`}
                     style={{ height: `${healthPct}%` }}
                   />
                 </div>
               </div>
-              {/* Health % — large */}
+              {/* Health % + Temp stacked */}
               <div className="flex-1 min-w-0">
                 <span className={`text-3xl font-mono font-black tabular-nums leading-none ${healthTxtClr}`}>
                   {healthPct.toFixed(0)}%
                 </span>
-              </div>
-              {/* Temp */}
-              <div className="flex flex-col items-end shrink-0">
-                <span className={`text-xl font-mono font-bold tabular-nums leading-none ${tc}`}>
-                  {tempDisplay.toFixed(0)}°
-                </span>
-                <span className="text-[10px] font-mono text-app-text-dim">{units.tempUnit}</span>
+                <div className={`text-lg font-mono font-bold tabular-nums leading-none mt-0.5 ${tc}`}>
+                  {tempDisplay.toFixed(0)}°<span className="text-[10px] text-app-text-dim ml-0.5">{units.tempUnit}</span>
+                </div>
               </div>
             </div>
           );
