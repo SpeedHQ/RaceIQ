@@ -93,6 +93,12 @@ describe("ACC recording", () => {
       // Lap 3: recording cut off mid-lap — incomplete
       expect(laps[3].isValid).toBe(false);
       expect(laps[3].invalidReason).toBe("incomplete");
+
+      // Session state: verify all laps for the first session are captured
+      const firstSessionId = laps[0].sessionId;
+      const sessionLaps = laps.filter((lap) => lap.sessionId === firstSessionId);
+      expect(sessionLaps.length).toBe(4); // All 4 laps belong to the first session
+      expect(sessionLaps.map((l) => l.lapNumber)).toEqual([0, 1, 2, 3]); // Laps are in order
     });
   });
 });
