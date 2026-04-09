@@ -62,7 +62,7 @@ export async function generateLapGif(
       const output = createWriteStream(gifPath);
 
       gif.pipe(output);
-      gif.setDelay(100); // 100ms per frame
+      gif.setDelay(150); // 150ms per frame (50% slower)
       gif.setDispose(2);
       gif.writeHeader();
 
