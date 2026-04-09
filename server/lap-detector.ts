@@ -11,7 +11,7 @@
  * Fuel and tire wear deltas are tracked per-lap for strategy overlays.
  */
 import type { TelemetryPacket, GameId } from "../shared/types";
-import type { DbAdapter } from "./pipeline-adapters";
+import { type DbAdapter, RealDbAdapter } from "./pipeline-adapters";
 import { extractCurbSegments, recordCurbData, getTrackSectorsByOrdinal, loadSharedTrackMeta } from "../shared/track-data";
 import { assessLapRecording } from "./lap-quality";
 import { tryGetGame } from "../shared/games/registry";
@@ -898,7 +898,6 @@ function formatLapTime(seconds: number): string {
   return `${mins}:${secs.toFixed(3).padStart(6, "0")}`;
 }
 
-import { RealDbAdapter } from "./pipeline-adapters";
 export const lapDetector = new LapDetector(new RealDbAdapter());
 
 // Periodic check: flush stale laps when packets stop (e.g. race ended, game closed)
