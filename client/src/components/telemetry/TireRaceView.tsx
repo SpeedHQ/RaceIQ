@@ -4,6 +4,8 @@ import type { DisplayPacket } from "@/lib/convert-packet";
 import { useUnits } from "@/hooks/useUnits";
 import { useSettings } from "@/hooks/queries";
 import { tireHealthTextClass, tireTempClass, tireTempBgClass } from "@/lib/vehicle-dynamics";
+import { useGameId } from "@/stores/game";
+import { fahrenheitToCelsius } from "@/lib/temperature";
 
 /**
  * TireRaceView — Compact race-focused tire display.
@@ -11,6 +13,7 @@ import { tireHealthTextClass, tireTempClass, tireTempBgClass } from "@/lib/vehic
  */
 export function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
   const units = useUnits();
+  const gameId = useGameId();
   const { displaySettings } = useSettings();
   const healthThresh = displaySettings.tireHealthThresholds.values;
   const [wearInit] = useState(() => ({
@@ -72,9 +75,11 @@ export function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPack
         {tires.map((t) => {
           const healthPct = (1 - t.wear) * 100;
           const healthTxtClr = tireHealthTextClass(healthPct, healthThresh);
+          // Thresholds are °C; Forza sends °F, F1/ACC send °C
+          const tempC = gameId === "fm-2023" ? fahrenheitToCelsius(t.temp) : t.temp;
           const tempDisplay = units.temp(t.temp);
-          const tc = tireTempClass(t.temp, units.thresholds);
-          const tempBg = tireTempBgClass(t.temp, units.thresholds);
+          const tc = tireTempClass(tempC, units.thresholds);
+          const tempBg = tireTempBgClass(tempC, units.thresholds);
 
           return (
             <div key={t.label} className="bg-app-surface-alt/30 rounded-md p-2.5 flex items-center gap-2">

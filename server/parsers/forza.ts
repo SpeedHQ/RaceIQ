@@ -133,7 +133,7 @@ export function parseForzaPacket(buf: Buffer): TelemetryPacket | null {
     Power: buf.readFloatLE(248),
     Torque: buf.readFloatLE(252),
 
-    // Tire temps
+    // Tire temps (Forza sends °F — kept as-is, UI handles conversion)
     TireTempFL: buf.readFloatLE(256),
     TireTempFR: buf.readFloatLE(260),
     TireTempRL: buf.readFloatLE(264),
