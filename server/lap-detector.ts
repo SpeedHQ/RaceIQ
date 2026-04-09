@@ -51,6 +51,10 @@ export interface LapSavedEvent {
   estimatedBestLapTime: number; // best lap time in session (0 if none yet)
 }
 
+export interface LapSavedNotification extends LapSavedEvent {
+  type: "lap-saved";
+}
+
 export interface LapCompleteEvent {
   packets: TelemetryPacket[];
   lapDistStart: number;

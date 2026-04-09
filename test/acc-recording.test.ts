@@ -1,4 +1,5 @@
 import { describe, test, expect } from "bun:test";
+import type { LapSavedNotification } from "../server/lap-detector";
 import { parseDump } from "./helpers/parse-dump";
 import { assertSectorTimesMatchLapTime, assertLapTimesProper } from "./helpers/lap-assertions";
 import { existsSync, readdirSync } from "fs";
@@ -43,29 +44,28 @@ describe("ACC recording", () => {
       expect(trackName).toBe("brands_hatch");
 
       // WebSocket events: should have lap-saved notifications for each completed lap (lap 3 is incomplete, no notification)
-      const lapSavedNotifications = wsNotifications.filter((n) => n.type === "lap-saved");
+      const lapSavedNotifications = wsNotifications.filter(
+        (n): n is LapSavedNotification => n.type === "lap-saved"
+      );
       expect(lapSavedNotifications.length).toBe(3); // One notification per completed lap
 
       // First notification should be for lap 0 (invalid)
-      expect(lapSavedNotifications[0].type).toBe("lap-saved");
-      expect((lapSavedNotifications[0] as any).lapNumber).toBe(0);
-      expect((lapSavedNotifications[0] as any).isValid).toBe(false);
+      expect(lapSavedNotifications[0].lapNumber).toBe(0);
+      expect(lapSavedNotifications[0].isValid).toBe(false);
 
       // Second notification should be for lap 1 (valid)
-      expect(lapSavedNotifications[1].type).toBe("lap-saved");
-      expect((lapSavedNotifications[1] as any).lapNumber).toBe(1);
-      expect((lapSavedNotifications[1] as any).isValid).toBe(true);
-      expect((lapSavedNotifications[1] as any).lapTime).toBeGreaterThan(0);
+      expect(lapSavedNotifications[1].lapNumber).toBe(1);
+      expect(lapSavedNotifications[1].isValid).toBe(true);
+      expect(lapSavedNotifications[1].lapTime).toBeGreaterThan(0);
 
       // Third notification should be for lap 2 (valid)
-      expect(lapSavedNotifications[2].type).toBe("lap-saved");
-      expect((lapSavedNotifications[2] as any).lapNumber).toBe(2);
-      expect((lapSavedNotifications[2] as any).isValid).toBe(true);
+      expect(lapSavedNotifications[2].lapNumber).toBe(2);
+      expect(lapSavedNotifications[2].isValid).toBe(true);
 
       // Lap 2 should have estimated best lap time available (from lap 1, which was faster)
-      expect((lapSavedNotifications[2] as any).estimatedBestLapTime).toBeGreaterThan(0);
+      expect(lapSavedNotifications[2].estimatedBestLapTime).toBeGreaterThan(0);
       // Best lap time should be from lap 1 (100.34s is better than lap 2's 101.767s)
-      expect((lapSavedNotifications[2] as any).estimatedBestLapTime).toBeLessThan((lapSavedNotifications[2] as any).lapTime);
+      expect(lapSavedNotifications[2].estimatedBestLapTime).toBeLessThan(lapSavedNotifications[2].lapTime);
 
       // Lap 0: joining lap — invalid
       expect(laps[0].isValid).toBe(false);
