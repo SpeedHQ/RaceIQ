@@ -14,7 +14,7 @@ function formatLapTime(seconds: number): string {
 type SortKey = "lap" | "time";
 type SortDir = "asc" | "desc";
 
-export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTelemetry?: boolean }) {
+export function LapList({ trackOrd, carOrd, hasTelemetry }: { trackOrd?: number; carOrd?: number; hasTelemetry?: boolean }) {
   const navigate = useNavigate({ from: "/" });
   const gameRoute = useGameRoute();
   const { data: allLaps = [], isLoading } = useLaps({ refetchInterval: 5_000 });
@@ -22,9 +22,9 @@ export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTele
   const [sortKey, setSortKey] = useState<SortKey>("lap");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  // Filter laps to current track only
+  // Filter laps to current track+car
   const laps = trackOrd != null
-    ? allLaps.filter((l) => l.trackOrdinal === trackOrd)
+    ? allLaps.filter((l) => l.trackOrdinal === trackOrd && (carOrd == null || l.carOrdinal === carOrd))
     : allLaps;
 
   if (isLoading) {

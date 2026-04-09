@@ -92,8 +92,8 @@ export class SectorTracker {
     this.bounds = { s1End: sectors.s1End, s2End: sectors.s2End, trackLength };
     if (trackLength > 0) this.lapDistTotal = trackLength;
 
-    // Seed best times from recorded laps on this track
-    await this.seedFromRecordedLaps(trackOrdinal, gameId, sectors.s1End, sectors.s2End);
+    // Seed best times from recorded laps on this track+car
+    await this.seedFromRecordedLaps(trackOrdinal, gameId, carOrdinal, sectors.s1End, sectors.s2End);
 
     // Restore reference lap and best times from same-track session
     if (prevRefLap) this.refLap = prevRefLap;
@@ -107,17 +107,18 @@ export class SectorTracker {
     console.log(`[Sectors] Loaded for track ${trackOrdinal} (${gameId}): s1=${sectors.s1End}, s2=${sectors.s2End}, length=${trackLength.toFixed(0)}m, seeded best=${this.bestLapTime === Infinity ? "none" : this.bestLapTime.toFixed(3)}`);
   }
 
-  /** Seed bestTimes and bestLapTime from previously recorded laps on this track. */
+  /** Seed bestTimes and bestLapTime from previously recorded laps on this track+car. */
   private async seedFromRecordedLaps(
     trackOrdinal: number,
     gameId: GameId,
+    carOrdinal: number,
     s1End: number,
     s2End: number
   ): Promise<void> {
     try {
       const allLaps = await getLaps(gameId, 200);
       const trackLaps = allLaps
-        .filter((l) => l.trackOrdinal === trackOrdinal && l.isValid && l.lapTime > 10)
+        .filter((l) => l.trackOrdinal === trackOrdinal && (carOrdinal < 0 || l.carOrdinal === carOrdinal) && l.isValid && l.lapTime > 10)
         .sort((a, b) => a.lapTime - b.lapTime)
         .slice(0, 10); // only check top 10 by lap time
 
