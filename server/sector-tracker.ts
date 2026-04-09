@@ -374,6 +374,7 @@ export class PitTracker {
    * Forza bakes compound into the car build so historical wear is unreliable.
    */
   async seedFromHistory(trackOrdinal: number, carOrdinal: number, pi: number, gameId: GameId): Promise<void> {
+    const seedFuel = PitTracker.shouldSeedFuel(gameId);
     const seedTires = PitTracker.shouldSeedTires(gameId);
     try {
       const allLaps = await getLaps(gameId, 200);
@@ -386,7 +387,7 @@ export class PitTracker {
       const wearRates: { fl: number; fr: number; rl: number; rr: number }[] = [];
 
       for (const lapMeta of matching) {
-        if (fuelRates.length >= 2 && (!seedTires || wearRates.length >= 1)) break;
+        if ((!seedFuel || fuelRates.length >= 2) && (!seedTires || wearRates.length >= 1)) break;
         const lap = await getLapById(lapMeta.id);
         if (!lap?.telemetry || lap.telemetry.length < 50) continue;
 
@@ -413,7 +414,7 @@ export class PitTracker {
         }
       }
 
-      this.fuelHistory.push(...fuelRates);
+      if (seedFuel) this.fuelHistory.push(...fuelRates);
       if (seedTires) this.tireWearHistory.push(...wearRates);
 
       if (fuelRates.length > 0 || wearRates.length > 0) {
@@ -594,6 +595,11 @@ export class PitTracker {
   /** Whether tire wear should be seeded from history for this game. */
   static shouldSeedTires(gameId: string): boolean {
     return gameId !== "fm-2023";
+  }
+
+  /** Whether fuel should be seeded from history. F1 has no refueling so fuel isn't relevant. */
+  static shouldSeedFuel(gameId: string): boolean {
+    return gameId !== "f1-2025";
   }
 
   /** Inject fuel/tire history for testing. */

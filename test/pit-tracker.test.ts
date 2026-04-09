@@ -175,15 +175,18 @@ describe("PitTracker", () => {
 });
 
 describe("PitTracker history seeding per game", () => {
-  test("shouldSeedTires returns false for fm-2023", () => {
+  test("fm-2023: seeds fuel only (compound unknown)", () => {
+    expect(PitTracker.shouldSeedFuel("fm-2023")).toBe(true);
     expect(PitTracker.shouldSeedTires("fm-2023")).toBe(false);
   });
 
-  test("shouldSeedTires returns true for f1-2025", () => {
+  test("f1-2025: seeds tires only (no refueling)", () => {
+    expect(PitTracker.shouldSeedFuel("f1-2025")).toBe(false);
     expect(PitTracker.shouldSeedTires("f1-2025")).toBe(true);
   });
 
-  test("shouldSeedTires returns true for acc", () => {
+  test("acc: seeds both fuel and tires", () => {
+    expect(PitTracker.shouldSeedFuel("acc")).toBe(true);
     expect(PitTracker.shouldSeedTires("acc")).toBe(true);
   });
 
