@@ -4,9 +4,6 @@ import type { DisplayPacket } from "@/lib/convert-packet";
 import { useUnits } from "@/hooks/useUnits";
 import { useSettings } from "@/hooks/queries";
 import { tireHealthTextClass, tireTempClass, tireTempBgClass } from "@/lib/vehicle-dynamics";
-import { useGameId } from "@/stores/game";
-import { fahrenheitToCelsius } from "@/lib/temperature";
-import { tryGetGame } from "@shared/games/registry";
 
 /**
  * TireRaceView — Compact race-focused tire display.
@@ -14,11 +11,8 @@ import { tryGetGame } from "@shared/games/registry";
  */
 export function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
   const units = useUnits();
-  const gameId = useGameId();
   const { displaySettings } = useSettings();
   const healthThresh = displaySettings.tireHealthThresholds.values;
-  const adapter = gameId ? tryGetGame(gameId) : null;
-  const tempThresholds = adapter?.tireTempThresholds ?? { cold: 75, warm: 115, hot: 150 };
   const [wearInit] = useState(() => ({
     lastLap: 0,
     wearAtLapStart: [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR],
@@ -78,11 +72,10 @@ export function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPack
         {tires.map((t) => {
           const healthPct = (1 - t.wear) * 100;
           const healthTxtClr = tireHealthTextClass(healthPct, healthThresh);
-          // Game adapter thresholds are °C; Forza sends °F so convert first
-          const tempC = gameId === "fm-2023" ? fahrenheitToCelsius(t.temp) : t.temp;
+          const tempC = units.toTempC(t.temp);
           const tempDisplay = units.temp(t.temp);
-          const tc = tireTempClass(tempC, tempThresholds);
-          const tempBg = tireTempBgClass(tempC, tempThresholds);
+          const tc = tireTempClass(tempC, units.thresholds);
+          const tempBg = tireTempBgClass(tempC, units.thresholds);
 
           return (
             <div key={t.label} className="bg-app-surface-alt/30 rounded-md p-2.5 flex items-center gap-2">

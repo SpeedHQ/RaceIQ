@@ -39,10 +39,10 @@ export function AnalyseDynamicsPanel({ currentPacket, currentDisplayPacket, game
     currentDisplayPacket?.DisplayTireTempRR ?? currentPacket.TireTempRR,
   ];
   const states = [
-    { l: "FL", ...tireState(ws.fl.state, currentPacket.TireCombinedSlipFL), temp: tireTempLabel(temps[0], units.thresholds) },
-    { l: "FR", ...tireState(ws.fr.state, currentPacket.TireCombinedSlipFR), temp: tireTempLabel(temps[1], units.thresholds) },
-    { l: "RL", ...tireState(ws.rl.state, currentPacket.TireCombinedSlipRL), temp: tireTempLabel(temps[2], units.thresholds) },
-    { l: "RR", ...tireState(ws.rr.state, currentPacket.TireCombinedSlipRR), temp: tireTempLabel(temps[3], units.thresholds) },
+    { l: "FL", ...tireState(ws.fl.state, currentPacket.TireCombinedSlipFL), temp: tireTempLabel(units.toTempC(currentPacket.TireTempFL), units.thresholds) },
+    { l: "FR", ...tireState(ws.fr.state, currentPacket.TireCombinedSlipFR), temp: tireTempLabel(units.toTempC(currentPacket.TireTempFR), units.thresholds) },
+    { l: "RL", ...tireState(ws.rl.state, currentPacket.TireCombinedSlipRL), temp: tireTempLabel(units.toTempC(currentPacket.TireTempRL), units.thresholds) },
+    { l: "RR", ...tireState(ws.rr.state, currentPacket.TireCombinedSlipRR), temp: tireTempLabel(units.toTempC(currentPacket.TireTempRR), units.thresholds) },
   ];
 
   const surfaceLabel = (rumble: boolean, puddle: number) => {

@@ -1,6 +1,7 @@
 import type { TelemetryPacket } from "@shared/types";
 import type { DisplayPacket } from "@/lib/convert-packet";
 import { useUnits } from "@/hooks/useUnits";
+import { convertTemp } from "@/lib/temperature";
 import { useSettings } from "@/hooks/queries";
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
 import { allWheelStates } from "@/lib/vehicle-dynamics";
@@ -26,10 +27,10 @@ export function TireDiagram({ packet }: { packet: DisplayPacket | TelemetryPacke
   const steerDeg = (packet.Steer / 127) * 20;
 
   const wheels = [
-    { label: "FL", temp: packet.TireTempFL, wear: packet.TireWearFL, combined: Math.abs(packet.TireCombinedSlipFL), slipAngle: packet.TireSlipAngleFL * toDeg, wheelState: ws.fl, steerAngle: steerDeg, onRumble: packet.WheelOnRumbleStripFL !== 0, puddleDepth: packet.WheelInPuddleDepthFL, brakeTemp: packet.BrakeTempFrontLeft },
-    { label: "FR", temp: packet.TireTempFR, wear: packet.TireWearFR, combined: Math.abs(packet.TireCombinedSlipFR), slipAngle: packet.TireSlipAngleFR * toDeg, wheelState: ws.fr, steerAngle: steerDeg, onRumble: packet.WheelOnRumbleStripFR !== 0, puddleDepth: packet.WheelInPuddleDepthFR, brakeTemp: packet.BrakeTempFrontRight },
-    { label: "RL", temp: packet.TireTempRL, wear: packet.TireWearRL, combined: Math.abs(packet.TireCombinedSlipRL), slipAngle: packet.TireSlipAngleRL * toDeg, wheelState: ws.rl, steerAngle: 0, onRumble: packet.WheelOnRumbleStripRL !== 0, puddleDepth: packet.WheelInPuddleDepthRL, brakeTemp: packet.BrakeTempRearLeft },
-    { label: "RR", temp: packet.TireTempRR, wear: packet.TireWearRR, combined: Math.abs(packet.TireCombinedSlipRR), slipAngle: packet.TireSlipAngleRR * toDeg, wheelState: ws.rr, steerAngle: 0, onRumble: packet.WheelOnRumbleStripRR !== 0, puddleDepth: packet.WheelInPuddleDepthRR, brakeTemp: packet.BrakeTempRearRight },
+    { label: "FL", temp: units.toTempC(packet.TireTempFL), wear: packet.TireWearFL, combined: Math.abs(packet.TireCombinedSlipFL), slipAngle: packet.TireSlipAngleFL * toDeg, wheelState: ws.fl, steerAngle: steerDeg, onRumble: packet.WheelOnRumbleStripFL !== 0, puddleDepth: packet.WheelInPuddleDepthFL, brakeTemp: packet.BrakeTempFrontLeft },
+    { label: "FR", temp: units.toTempC(packet.TireTempFR), wear: packet.TireWearFR, combined: Math.abs(packet.TireCombinedSlipFR), slipAngle: packet.TireSlipAngleFR * toDeg, wheelState: ws.fr, steerAngle: steerDeg, onRumble: packet.WheelOnRumbleStripFR !== 0, puddleDepth: packet.WheelInPuddleDepthFR, brakeTemp: packet.BrakeTempFrontRight },
+    { label: "RL", temp: units.toTempC(packet.TireTempRL), wear: packet.TireWearRL, combined: Math.abs(packet.TireCombinedSlipRL), slipAngle: packet.TireSlipAngleRL * toDeg, wheelState: ws.rl, steerAngle: 0, onRumble: packet.WheelOnRumbleStripRL !== 0, puddleDepth: packet.WheelInPuddleDepthRL, brakeTemp: packet.BrakeTempRearLeft },
+    { label: "RR", temp: units.toTempC(packet.TireTempRR), wear: packet.TireWearRR, combined: Math.abs(packet.TireCombinedSlipRR), slipAngle: packet.TireSlipAngleRR * toDeg, wheelState: ws.rr, steerAngle: 0, onRumble: packet.WheelOnRumbleStripRR !== 0, puddleDepth: packet.WheelInPuddleDepthRR, brakeTemp: packet.BrakeTempRearRight },
   ];
 
   const susp = [
@@ -44,24 +45,24 @@ export function TireDiagram({ packet }: { packet: DisplayPacket | TelemetryPacke
       {/* Front axle */}
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-1">
-          <WheelCard {...wheels[0]} outerSide="left" thresholds={units.thresholds} tempFn={units.temp} tempUnit={units.tempUnit} />
+          <WheelCard {...wheels[0]} outerSide="left" thresholds={units.thresholds} tempFn={(c) => convertTemp(c, units.tempUnit, "C")} tempUnit={units.tempUnit} />
           <SuspBar norm={susp[0]} thresholds={suspThresh} />
         </div>
         <div className="flex items-center gap-1">
           <SuspBar norm={susp[1]} thresholds={suspThresh} />
-          <WheelCard {...wheels[1]} outerSide="right" thresholds={units.thresholds} tempFn={units.temp} tempUnit={units.tempUnit} />
+          <WheelCard {...wheels[1]} outerSide="right" thresholds={units.thresholds} tempFn={(c) => convertTemp(c, units.tempUnit, "C")} tempUnit={units.tempUnit} />
         </div>
       </div>
 
       {/* Rear axle */}
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-1">
-          <WheelCard {...wheels[2]} outerSide="left" thresholds={units.thresholds} tempFn={units.temp} tempUnit={units.tempUnit} />
+          <WheelCard {...wheels[2]} outerSide="left" thresholds={units.thresholds} tempFn={(c) => convertTemp(c, units.tempUnit, "C")} tempUnit={units.tempUnit} />
           <SuspBar norm={susp[2]} thresholds={suspThresh} />
         </div>
         <div className="flex items-center gap-1">
           <SuspBar norm={susp[3]} thresholds={suspThresh} />
-          <WheelCard {...wheels[3]} outerSide="right" thresholds={units.thresholds} tempFn={units.temp} tempUnit={units.tempUnit} />
+          <WheelCard {...wheels[3]} outerSide="right" thresholds={units.thresholds} tempFn={(c) => convertTemp(c, units.tempUnit, "C")} tempUnit={units.tempUnit} />
         </div>
       </div>
 
