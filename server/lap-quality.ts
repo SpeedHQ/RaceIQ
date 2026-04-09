@@ -34,5 +34,16 @@ export function assessLapRecording(
     return { valid: false, reason: "telemetry lap time mismatch" };
   }
 
+  // Start and end positions must be close (circuit lap should return to start/finish)
+  const first = packets[0];
+  const last = packets[packets.length - 1];
+  const dx = last.PositionX - first.PositionX;
+  const dz = last.PositionZ - first.PositionZ;
+  const gap = Math.sqrt(dx * dx + dz * dz);
+  // Allow up to 15% of lap distance as tolerance (covers pit entry, wide S/F zones)
+  if (gap > lapDistance * 0.15 && gap > 100) {
+    return { valid: false, reason: "start/end positions too far apart" };
+  }
+
   return { valid: true, reason: null };
 }
