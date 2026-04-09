@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { parseDump } from "./helpers/parse-dump";
+import { assertSectorTimesMatchLapTime } from "./helpers/lap-assertions";
 import { existsSync, readdirSync } from "fs";
 import { join } from "path";
 
@@ -51,9 +52,7 @@ describe("ACC recording", () => {
       expect(laps[1].sectors?.s1).toBeGreaterThan(0);
       expect(laps[1].sectors?.s2).toBeGreaterThan(0);
       expect(laps[1].sectors?.s3).toBeGreaterThan(0);
-      // Sector times should add up to lap time (within 0.01s tolerance for rounding)
-      const sectorSum = (laps[1].sectors?.s1 ?? 0) + (laps[1].sectors?.s2 ?? 0) + (laps[1].sectors?.s3 ?? 0);
-      expect(Math.abs(sectorSum - laps[1].lapTime)).toBeLessThan(0.01);
+      assertSectorTimesMatchLapTime(laps[1]);
 
       // Lap 2: second full lap — valid (sectors may be null in some cases)
       expect(laps[2].isValid).toBe(true);
@@ -61,9 +60,7 @@ describe("ACC recording", () => {
         expect(laps[2].sectors.s1).toBeGreaterThan(0);
         expect(laps[2].sectors.s2).toBeGreaterThan(0);
         expect(laps[2].sectors.s3).toBeGreaterThan(0);
-        // Sector times should add up to lap time (within 0.01s tolerance for rounding)
-        const sectorSum2 = laps[2].sectors.s1 + laps[2].sectors.s2 + laps[2].sectors.s3;
-        expect(Math.abs(sectorSum2 - laps[2].lapTime)).toBeLessThan(0.01);
+        assertSectorTimesMatchLapTime(laps[2]);
       }
 
       // Lap 3: recording cut off mid-lap — incomplete
