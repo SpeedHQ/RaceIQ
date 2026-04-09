@@ -62,6 +62,11 @@ describe("ACC recording", () => {
       expect((lapSavedNotifications[2] as any).lapNumber).toBe(2);
       expect((lapSavedNotifications[2] as any).isValid).toBe(true);
 
+      // Lap 2 should have estimated best lap time available (from lap 1, which was faster)
+      expect((lapSavedNotifications[2] as any).estimatedBestLapTime).toBeGreaterThan(0);
+      // Best lap time should be from lap 1 (100.34s is better than lap 2's 101.767s)
+      expect((lapSavedNotifications[2] as any).estimatedBestLapTime).toBeLessThan((lapSavedNotifications[2] as any).lapTime);
+
       // Lap 0: joining lap — invalid
       expect(laps[0].isValid).toBe(false);
       expect(laps[0].invalidReason).toBe("telemetry distance too short");

@@ -48,6 +48,7 @@ export interface LapSavedEvent {
   lapTime: number;
   isValid: boolean;
   sectors: { s1: number; s2: number; s3: number } | null;
+  estimatedBestLapTime: number; // best lap time in session (0 if none yet)
 }
 
 export interface LapCompleteEvent {
@@ -375,7 +376,14 @@ export class LapDetector {
         console.log(
           `[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid}${invalidReason ? ` (${invalidReason})` : ""} | Packets: ${packetCount} | DB ID: ${lapId}`
         );
-        this.onLapSaved?.({ lapId, lapNumber: lapNum, lapTime, isValid: valid, sectors });
+        this.onLapSaved?.({
+          lapId,
+          lapNumber: lapNum,
+          lapTime,
+          isValid: valid,
+          sectors,
+          estimatedBestLapTime: this.currentSession!.bestLapTime,
+        });
       }).catch((err) => {
         console.error(`[Lap] Failed to save lap ${lapNum}:`, err);
       });
