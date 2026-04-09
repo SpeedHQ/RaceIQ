@@ -15,7 +15,7 @@ describe("UdpRecorder + readUdpDump", () => {
   test("round-trips packets through dump file", async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
     const recorder = new UdpRecorder();
-    recorder.start(tmpDir);
+    recorder.start(join(tmpDir, "dump.bin"));
 
     const pkt1 = Buffer.from([0x01, 0x02, 0x03]);
     const pkt2 = Buffer.from([0xAA, 0xBB, 0xCC, 0xDD]);
