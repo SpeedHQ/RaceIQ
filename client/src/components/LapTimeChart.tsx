@@ -117,14 +117,14 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
     }
 
     ctx.setLineDash([4, 3]);
-    ctx.strokeStyle = "rgba(168,85,247,0.5)";
+    ctx.strokeStyle = "#a855f7";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(leftPad, optimumY);
     ctx.lineTo(width - rightPad, optimumY);
     ctx.stroke();
 
-    ctx.strokeStyle = "rgba(251,191,36,0.4)";
+    ctx.strokeStyle = "#fbbf24";
     ctx.beginPath();
     ctx.moveTo(leftPad, avgY);
     ctx.lineTo(width - rightPad, avgY);
@@ -133,9 +133,9 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
 
     ctx.font = "12px monospace";
     ctx.textAlign = "right";
-    ctx.fillStyle = "rgba(168,85,247,0.7)";
+    ctx.fillStyle = "#a855f7";
     ctx.fillText(`optimum`, width - rightPad - 2, optimumY - 5);
-    ctx.fillStyle = "rgba(251,191,36,0.6)";
+    ctx.fillStyle = "#fbbf24";
     ctx.fillText(`avg`, width - rightPad - 2, avgY - 5);
 
     const step = laps.length > 1 ? chartW / (laps.length - 1) : chartW / 2;
@@ -166,8 +166,6 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
     }
   }, [laps]);
 
-  if (laps.length === 0) return null;
-
   return (
     <div className="border-b border-app-border">
       <div className="p-2 border-b border-app-border flex items-center justify-between">
@@ -180,9 +178,14 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
         </button>
       </div>
       <div className="p-2" ref={containerRef}>
+        {laps.length === 0 && (
+          <div className="flex items-center justify-center rounded bg-app-surface/40 text-app-text-dim text-sm" style={{ height }}>
+            Complete a lap to see lap times
+          </div>
+        )}
         <canvas
           ref={canvasRef}
-          style={{ width: "100%", height }}
+          style={{ width: "100%", height, display: laps.length > 0 ? "block" : "none" }}
           className="rounded bg-app-surface/40"
         />
         <div className="flex gap-3 mt-1.5 flex-wrap">
