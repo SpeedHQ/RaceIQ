@@ -9,7 +9,8 @@ import { wsManager } from "../ws";
 import { USER_TRACKS_DIR, IS_COMPILED, USER_DATA_DIR, ROOT_DIR } from "../paths";
 import { getUpdateState, startUpdateCheckSchedule, checkForUpdate, applyUpdate } from "../update-check";
 import { udpListener } from "../udp";
-import { getRunningGame, getServerGame } from "../games/registry";
+import { getRunningGame } from "../games/registry";
+import { getCurrentDetectedGame } from "../parsers";
 import { loadSettings } from "../settings";
 import { client as dbClient } from "../db";
 import { getChatMemory } from "../ai/chat-agent";
@@ -423,16 +424,10 @@ export const miscRoutes = new Hono()
     } catch {}
 
     const session = lapDetector.session;
-    // If we're receiving packets, assume a game is running even if process check fails
-    let runningGame = getRunningGame();
-    if (!runningGame && udpListener.receiving && udpListener.packetsPerSec > 0) {
-      // A game is definitely running if we're receiving telemetry packets.
-      // Use session game data if available, otherwise mark as "unknown" (game will be detected)
-      if (session?.gameId) {
-        try {
-          runningGame = getServerGame(session.gameId);
-        } catch {}
-      }
+    // Detect game from actual UDP packets being parsed, then fall back to process list
+    let runningGame = getCurrentDetectedGame();
+    if (!runningGame) {
+      runningGame = getRunningGame();
     }
     const settings = loadSettings();
 
