@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
-import type { LapSavedNotification } from "../server/lap-detector";
-import { parseDump } from "./helpers/parse-dump";
-import { assertSectorTimesMatchLapTime, assertLapTimesProper } from "./helpers/lap-assertions";
+import type { LapSavedNotification } from "../../server/lap-detector";
+import { parseDump } from "../helpers/parse-dump";
+import { assertSectorTimesMatchLapTime, assertLapTimesProper } from "../helpers/lap-assertions";
 import { existsSync, readdirSync } from "fs";
 import { join } from "path";
 
