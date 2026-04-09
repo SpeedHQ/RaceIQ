@@ -580,8 +580,47 @@ export class LapDetector {
 
     if (s1 > 0 && s2 > 0) {
       const s3 = lapTime - s1 - s2;
-      return s3 > 0 ? { s1, s2, s3 } : null;
+      if (s3 <= 0) {
+        // Native sectors invalid — fall through to distance-fraction fallback
+        s1 = 0;
+        s2 = 0;
+      } else {
+        return { s1, s2, s3 };
+      }
     }
+
+    // If we get here, native sectors didn't work, try distance-fraction one more time
+    if (s1 === 0 || s2 === 0) {
+      const startDist = packets[0].DistanceTraveled;
+      const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
+      if (lapDist >= 100) {
+        const s1End = raw?.s1End ?? 1 / 3;
+        const s2End = raw?.s2End ?? 2 / 3;
+
+        let sector = 0;
+        let sectorStart = packets[0].CurrentLap;
+        let s1Retry = 0, s2Retry = 0;
+        for (const p of packets) {
+          const frac = (p.DistanceTraveled - startDist) / lapDist;
+          const expected = frac < s1End ? 0 : frac < s2End ? 1 : 2;
+          if (expected > sector) {
+            const t = p.CurrentLap - sectorStart;
+            if (sector === 0) s1Retry = t;
+            else if (sector === 1) s2Retry = t;
+            sectorStart = p.CurrentLap;
+            sector = expected;
+          }
+        }
+
+        if (s1Retry > 0 && s2Retry > 0) {
+          const s3 = lapTime - s1Retry - s2Retry;
+          if (s3 > 0) {
+            return { s1: s1Retry, s2: s2Retry, s3 };
+          }
+        }
+      }
+    }
+
     return null;
   }
 
