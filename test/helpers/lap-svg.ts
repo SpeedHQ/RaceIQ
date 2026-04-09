@@ -78,10 +78,10 @@ export function generateLapSvg(
   <!-- Lap path -->
   <polyline class="track-path" points="${pathPoints.join(" ")}" />
 
-  <!-- Start point (green) -->
+  <!-- Start point (green) - first packet position -->
   <circle class="start-point" cx="${pathPoints[0].split(",")[0]}" cy="${pathPoints[0].split(",")[1]}" />
 
-  <!-- End point (red) -->
+  <!-- End point (red) - last packet position -->
   <circle class="end-point" cx="${pathPoints[pathPoints.length - 1].split(",")[0]}" cy="${pathPoints[pathPoints.length - 1].split(",")[1]}" />
 
   <!-- Labels -->
