@@ -59,7 +59,11 @@ export interface LapCompleteEvent {
 }
 
 export class LapDetector {
-  constructor(private db: DbAdapter) {}
+  private readonly bypassPacketRateFilter: boolean;
+
+  constructor(private db: DbAdapter, options?: { bypassPacketRateFilter?: boolean }) {
+    this.bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
+  }
 
   onSessionStart?: (session: SessionState) => void | Promise<void>;
   onLapComplete_?: (event: LapCompleteEvent) => void;
@@ -116,7 +120,7 @@ export class LapDetector {
 
     // Ignore trickle packets (< 30 pps) — post-race/menu screens send
     // sporadic packets that cause ghost sessions and bad data
-    if (this.currentSession && this.packetRate > 0 && this.packetRate < 30) {
+    if (!this.bypassPacketRateFilter && this.currentSession && this.packetRate > 0 && this.packetRate < 30) {
       this.lastPacketTime = now;
       return;
     }

@@ -238,8 +238,8 @@ async function recordAcc(sessionDir: string, meta: RecordingMeta): Promise<void>
   writeRecordingMeta(sessionDir, meta);
   console.log(`[Record] Resolved: track=${meta.trackName ?? "unknown"} car=${meta.carName ?? "unknown"}`);
 
-  // Start recording using existing AccRecorder (writes to data/acc-recordings/)
-  const accDir = resolve(process.cwd(), "data", "acc-recordings");
+  // Start recording using existing AccRecorder (writes to test/artifacts/laps/)
+  const accDir = resolve(process.cwd(), "test", "artifacts", "laps");
   accRecorder.start(accDir);
   console.log(`[Record] ACC recording started`);
   console.log(`[Record] Meta written to ${sessionDir}`);

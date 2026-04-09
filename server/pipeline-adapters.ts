@@ -4,6 +4,13 @@ import { getTuneAssignment } from "./db/tune-queries";
 import { wsManager } from "./ws";
 
 /** Shape captured per insertLap call in CapturingDbAdapter. Packet array is not stored. */
+export interface CapturedSession {
+  carOrdinal: number;
+  trackOrdinal: number;
+  gameId: GameId;
+  sessionType?: string;
+}
+
 export interface CapturedLap {
   sessionId: number;
   lapNumber: number;
@@ -88,7 +95,7 @@ export class RealWsAdapter implements WsAdapter {
 
 /** Captures insertSession/insertLap calls in-memory. Used in tests via parseDump. */
 export class CapturingDbAdapter implements DbAdapter {
-  readonly sessions: { carOrdinal: number; trackOrdinal: number; gameId: GameId; sessionType?: string }[] = [];
+  readonly sessions: CapturedSession[] = [];
   readonly laps: CapturedLap[] = [];
   private _sessionId = 0;
   private _lapId = 0;

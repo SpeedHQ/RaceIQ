@@ -1,5 +1,5 @@
 import type { GameId } from "../../shared/types";
-import type { CapturedLap } from "../../server/pipeline-adapters";
+import type { CapturedLap, CapturedSession } from "../../server/pipeline-adapters";
 import { CapturingDbAdapter, NullWsAdapter } from "../../server/pipeline-adapters";
 import { Pipeline } from "../../server/pipeline";
 import { initGameAdapters } from "../../shared/games/init";
@@ -8,6 +8,10 @@ import { getAllServerGames } from "../../server/games/registry";
 import { readUdpDump } from "./recording";
 import { readAccFrames } from "../../server/games/acc/recorder";
 import { parseAccBuffers } from "../../server/games/acc/parser";
+import { readWString } from "../../server/games/acc/utils";
+import { STATIC } from "../../server/games/acc/structs";
+import { getAccCarByModel } from "../../shared/acc-car-data";
+import { getAccTrackByName } from "../../shared/acc-track-data";
 
 let _initialized = false;
 function ensureInit(): void {
@@ -17,8 +21,15 @@ function ensureInit(): void {
   _initialized = true;
 }
 
+export interface DumpResult {
+  laps: CapturedLap[];
+  sessions: CapturedSession[];
+  carModel: string | null;
+  trackName: string | null;
+}
+
 /**
- * Feed a recorded dump through the full server pipeline and return all captured laps.
+ * Feed a recorded dump through the full server pipeline and return all captured laps and sessions.
  * Uses CapturingDbAdapter (no real DB writes) and NullWsAdapter (no WebSocket).
  *
  * @param gameId   The game the dump was recorded for
@@ -27,22 +38,33 @@ function ensureInit(): void {
 export async function parseDump(
   gameId: GameId,
   dumpPath: string
-): Promise<CapturedLap[]> {
+): Promise<DumpResult> {
   ensureInit();
 
   const db = new CapturingDbAdapter();
   const ws = new NullWsAdapter();
-  const pipeline = new Pipeline(db, ws);
+  const pipeline = new Pipeline(db, ws, { bypassPacketRateFilter: true });
+
+  let carModel: string | null = null;
+  let trackName: string | null = null;
 
   if (gameId === "acc") {
     let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
     try {
       frames = readAccFrames(dumpPath);
     } catch {
-      return [];
+      return { laps: [], sessions: [], carModel: null, trackName: null };
     }
+    let carOrdinal = 0;
+    let trackOrdinal = 0;
     for (const frame of frames) {
-      const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, {});
+      if (carOrdinal === 0 || trackOrdinal === 0) {
+        const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
+        const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
+        if (cm) { carModel = cm; carOrdinal = getAccCarByModel(cm)?.id ?? 0; }
+        if (tn) { trackName = tn; trackOrdinal = getAccTrackByName(tn)?.id ?? 0; }
+      }
+      const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal });
       if (packet) await pipeline.processPacket(packet);
     }
   } else {
@@ -50,13 +72,13 @@ export async function parseDump(
     try {
       buffers = readUdpDump(dumpPath);
     } catch {
-      return [];
+      return { laps: [], sessions: [], carModel: null, trackName: null };
     }
 
-    if (buffers.length === 0) return [];
+    if (buffers.length === 0) return { laps: [], sessions: [], carModel: null, trackName: null };
 
     const serverAdapter = getAllServerGames().find((a) => a.canHandle(buffers[0]));
-    if (!serverAdapter) return [];
+    if (!serverAdapter) return { laps: [], sessions: [], carModel: null, trackName: null };
 
     const parserState = serverAdapter.createParserState?.() ?? null;
     for (const buf of buffers) {
@@ -68,5 +90,5 @@ export async function parseDump(
   // Flush deferred insertLap calls (lap-detector uses setTimeout(..., 0))
   await new Promise<void>((r) => setTimeout(r, 0));
 
-  return db.laps;
+  return { laps: db.laps, sessions: db.sessions, carModel, trackName };
 }

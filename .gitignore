@@ -20,3 +20,4 @@ test-results/
 .mastra/
 /client/.tanstack/tmp
 .worktrees/
+laps.json

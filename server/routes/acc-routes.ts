@@ -395,7 +395,7 @@ export const accRoutes = new Hono()
   })
 
   .get("/api/acc/recordings", (c) => {
-    const dir = resolve(process.cwd(), "data", "acc-recordings");
+    const dir = resolve(process.cwd(), "test", "artifacts", "laps");
     if (!existsSync(dir)) return c.json([]);
     const files = readdirSync(dir)
       .filter((f) => f.endsWith(".bin"))

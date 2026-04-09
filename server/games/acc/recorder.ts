@@ -31,7 +31,7 @@ const HEADER_SIZE = 8 + 4 + 4 + 4 + 4; // magic + version + 3 sizes
 const FRAME_HEADER = 8; // f64le timestamp
 
 function defaultRecordingDir(): string {
-  return resolve(process.cwd(), "data", "acc-recordings");
+  return resolve(process.cwd(), "test", "artifacts", "laps");
 }
 
 export class AccRecorder {

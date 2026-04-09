@@ -13,8 +13,8 @@ export class Pipeline {
   readonly lapDetector: LapDetector;
   private _totalProcessed = 0;
 
-  constructor(private db: DbAdapter, private ws: WsAdapter) {
-    this.lapDetector = new LapDetector(db);
+  constructor(private db: DbAdapter, private ws: WsAdapter, options?: { bypassPacketRateFilter?: boolean }) {
+    this.lapDetector = new LapDetector(db, options);
 
     this.lapDetector.onSessionStart = async (session) => {
       await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
