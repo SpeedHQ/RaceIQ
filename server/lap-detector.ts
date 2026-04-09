@@ -11,9 +11,8 @@
  * Fuel and tire wear deltas are tracked per-lap for strategy overlays.
  */
 import type { TelemetryPacket, GameId } from "../shared/types";
-import { insertSession, insertLap, getTrackOutlineSectors } from "./db/queries";
+import type { DbAdapter } from "./pipeline-adapters";
 import { extractCurbSegments, recordCurbData, getTrackSectorsByOrdinal, loadSharedTrackMeta } from "../shared/track-data";
-import { getTuneAssignment } from "./db/tune-queries";
 import { assessLapRecording } from "./lap-quality";
 import { tryGetGame } from "../shared/games/registry";
 import { detectSessionBoundary, detectLapBoundary, detectLapReset } from "./lap-detection";
@@ -59,7 +58,9 @@ export interface LapCompleteEvent {
   sectors: { s1: number; s2: number; s3: number } | null;
 }
 
-class LapDetector {
+export class LapDetector {
+  constructor(private db: DbAdapter) {}
+
   onSessionStart?: (session: SessionState) => void | Promise<void>;
   onLapComplete_?: (event: LapCompleteEvent) => void;
   onLapSaved?: (event: LapSavedEvent) => void;
@@ -228,7 +229,7 @@ class LapDetector {
     const sessionType = packet.f1?.sessionType;
     let sessionId: number;
     try {
-      sessionId = await insertSession(packet.CarOrdinal, trackOrd, gameId, sessionType);
+      sessionId = await this.db.insertSession(packet.CarOrdinal, trackOrd, gameId, sessionType);
     } catch (err) {
       console.error(`[LapDetector] Failed to insert session:`, (err as Error).message);
       return;
@@ -325,7 +326,7 @@ class LapDetector {
     }
 
     {
-      const tuneAssignment = await getTuneAssignment(
+      const tuneAssignment = await this.db.getTuneAssignment(
         this.currentSession.carOrdinal,
         this.currentSession.trackOrdinal
       );
@@ -356,7 +357,7 @@ class LapDetector {
         });
       }
 
-      insertLap(
+      this.db.insertLap(
         this.currentSession.sessionId,
         lapNum,
         lapTime,
@@ -401,11 +402,11 @@ class LapDetector {
       const lastPacket = this.lapBuffer[this.lapBuffer.length - 1];
       const lapTime = lastPacket.CurrentLap;
       if (lapTime >= 10) {
-          const tuneAssignment = await getTuneAssignment(
+          const tuneAssignment = await this.db.getTuneAssignment(
             this.currentSession.carOrdinal,
             this.currentSession.trackOrdinal
           );
-          insertLap(
+          this.db.insertLap(
             this.currentSession.sessionId,
             this.currentLapNumber,
             lapTime,
@@ -453,13 +454,13 @@ class LapDetector {
     const isComplete = lastPacket.LastLap > 0 && lastPacket.LastLap !== this.lastLastLap;
 
     {
-      const tuneAssignment = await getTuneAssignment(
+      const tuneAssignment = await this.db.getTuneAssignment(
         this.currentSession.carOrdinal,
         this.currentSession.trackOrdinal
       );
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
-      insertLap(
+      this.db.insertLap(
         this.currentSession.sessionId,
         lapNum,
         lapTime,
@@ -518,7 +519,7 @@ class LapDetector {
     // Resolve sector boundaries
     const adapter = tryGetGame(gameId);
     const sharedName = adapter?.getSharedTrackName?.(trackOrdinal);
-    const dbSectors = await getTrackOutlineSectors(trackOrdinal, gameId);
+    const dbSectors = await this.db.getTrackOutlineSectors(trackOrdinal, gameId);
     const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
     const gameSectors = gameId ? (sharedMeta as any)?.games?.[gameId]?.sectors : null;
     const raw = dbSectors ?? gameSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(trackOrdinal);
@@ -897,7 +898,8 @@ function formatLapTime(seconds: number): string {
   return `${mins}:${secs.toFixed(3).padStart(6, "0")}`;
 }
 
-export const lapDetector = new LapDetector();
+import { RealDbAdapter } from "./pipeline-adapters";
+export const lapDetector = new LapDetector(new RealDbAdapter());
 
 // Periodic check: flush stale laps when packets stop (e.g. race ended, game closed)
 setInterval(() => lapDetector.flushStaleLap(), 5_000);
