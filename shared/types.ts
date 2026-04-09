@@ -432,6 +432,12 @@ export interface LivePitData {
   tireLapsToBad: number | null;
   /** Laps until worst tire hits 20% health (critical / near-dead). */
   tireLapsToCritical: number | null;
+  /** Per-tire laps to cliff and to dead, and wear rate per lap. */
+  tireEstimates: {
+    toCliff: [number | null, number | null, number | null, number | null]; // FL, FR, RL, RR
+    toDead: [number | null, number | null, number | null, number | null];
+    wearPerLap: [number, number, number, number];
+  };
   /** Wear per lap from last completed lap (worst tire). */
   tireWearPerLap: number;
   pitInLaps: number | null;

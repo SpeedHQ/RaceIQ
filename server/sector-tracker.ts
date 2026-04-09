@@ -508,18 +508,34 @@ export class PitTracker {
     // Tire estimate: per-tire rolling average of last 3 valid laps, worst tire governs
     const n = 3;
     const recent = this.tireWearHistory.slice(-n);
-    let worstWearPerLap = 0;
+    let avgWearPerTire = [0, 0, 0, 0]; // FL, FR, RL, RR
     if (recent.length > 0) {
-      const avgFL = recent.reduce((s, w) => s + w.fl, 0) / recent.length;
-      const avgFR = recent.reduce((s, w) => s + w.fr, 0) / recent.length;
-      const avgRL = recent.reduce((s, w) => s + w.rl, 0) / recent.length;
-      const avgRR = recent.reduce((s, w) => s + w.rr, 0) / recent.length;
-      worstWearPerLap = Math.max(avgFL, avgFR, avgRL, avgRR);
+      avgWearPerTire = [
+        recent.reduce((s, w) => s + w.fl, 0) / recent.length,
+        recent.reduce((s, w) => s + w.fr, 0) / recent.length,
+        recent.reduce((s, w) => s + w.rl, 0) / recent.length,
+        recent.reduce((s, w) => s + w.rr, 0) / recent.length,
+      ];
+    }
+    const worstWearPerLap = Math.max(...avgWearPerTire);
+
+    // Per-tire estimates
+    const wears = [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR];
+    const toCliff: [number | null, number | null, number | null, number | null] = [null, null, null, null];
+    const toDead: [number | null, number | null, number | null, number | null] = [null, null, null, null];
+    for (let i = 0; i < 4; i++) {
+      if (avgWearPerTire[i] > 0) {
+        const h = 1 - wears[i];
+        const untilCliff = h - this.badHealthThreshold;
+        const untilDead = h - this.criticalHealth;
+        toCliff[i] = untilCliff > 0 ? Math.floor((untilCliff / avgWearPerTire[i]) * 10) / 10 : 0;
+        toDead[i] = untilDead > 0 ? Math.floor((untilDead / avgWearPerTire[i]) * 10) / 10 : 0;
+      }
     }
 
-    const worstWear = Math.max(packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR);
+    // Worst-tire summary
+    const worstWear = Math.max(...wears);
     const health = 1 - worstWear;
-
     let tireLapsToBad: number | null = null;
     let tireLapsToCritical: number | null = null;
     if (worstWearPerLap > 0) {
@@ -557,6 +573,11 @@ export class PitTracker {
       currentLapFuelUsed,
       tireLapsToBad,
       tireLapsToCritical,
+      tireEstimates: {
+        toCliff,
+        toDead,
+        wearPerLap: avgWearPerTire as [number, number, number, number],
+      },
       tireWearPerLap: worstWearPerLap,
       tireLapsRemaining,
       pitInLaps,
