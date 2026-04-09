@@ -173,3 +173,61 @@ describe("PitTracker", () => {
     expect(r.fuelPerLap).toBeCloseTo(0.10, 2);
   });
 });
+
+describe("PitTracker history seeding per game", () => {
+  test("shouldSeedTires returns false for fm-2023", () => {
+    expect(PitTracker.shouldSeedTires("fm-2023")).toBe(false);
+  });
+
+  test("shouldSeedTires returns true for f1-2025", () => {
+    expect(PitTracker.shouldSeedTires("f1-2025")).toBe(true);
+  });
+
+  test("shouldSeedTires returns true for acc", () => {
+    expect(PitTracker.shouldSeedTires("acc")).toBe(true);
+  });
+
+  test("seeded fuel data produces immediate estimate", () => {
+    const tracker = new PitTracker();
+    tracker._seedForTest([0.08, 0.09], []);
+
+    // No laps completed yet, but fuel history is seeded
+    tracker.feed(pkt({ LapNumber: 1, Fuel: 0.50, CurrentLap: 0 }), 5000);
+    const r = tracker.feed(pkt({ LapNumber: 1, Fuel: 0.50, CurrentLap: 10 }), 5000);
+
+    expect(r.fuelPerLap).toBeCloseTo(0.085, 2);
+    expect(r.fuelLapsRemaining).not.toBeNull();
+    // Tires not seeded — no tire estimate
+    expect(r.tireWearPerLap).toBe(0);
+    expect(r.tireLapsToBad).toBeNull();
+  });
+
+  test("seeded tire data produces immediate tire estimate (F1/ACC)", () => {
+    const tracker = new PitTracker();
+    tracker._seedForTest([], [{ fl: 0.03, fr: 0.03, rl: 0.02, rr: 0.02 }]);
+
+    tracker.feed(pkt({ LapNumber: 1, Fuel: 1.0, TireWearFL: 0.10, TireWearFR: 0.10, TireWearRL: 0.08, TireWearRR: 0.08, CurrentLap: 0 }), 5000);
+    const r = tracker.feed(pkt({ LapNumber: 1, Fuel: 1.0, TireWearFL: 0.10, TireWearFR: 0.10, TireWearRL: 0.08, TireWearRR: 0.08, CurrentLap: 10 }), 5000);
+
+    // Worst tire wear rate = FL 0.03/lap
+    expect(r.tireWearPerLap).toBeCloseTo(0.03, 2);
+    expect(r.tireLapsToBad).not.toBeNull();
+    expect(r.tireLapsToCritical).not.toBeNull();
+  });
+
+  test("fresh session laps replace seeded data via rolling average", () => {
+    const tracker = new PitTracker();
+    // Seed with 0.05 fuel/lap
+    tracker._seedForTest([0.05, 0.05], []);
+
+    tracker.feed(pkt({ LapNumber: 1, Fuel: 1.0, CurrentLap: 0 }), 5000);
+    // Complete 3 laps using 0.10 fuel each
+    completeLap(tracker, 1, { fuel: 0.90, wearFL: 0, wearFR: 0, wearRL: 0, wearRR: 0 });
+    completeLap(tracker, 2, { fuel: 0.80, wearFL: 0, wearFR: 0, wearRL: 0, wearRR: 0 });
+    completeLap(tracker, 3, { fuel: 0.70, wearFL: 0, wearFR: 0, wearRL: 0, wearRR: 0 });
+
+    const r = tracker.feed(pkt({ LapNumber: 4, Fuel: 0.70, CurrentLap: 5 }), 5000);
+    // Rolling 5: [0.05, 0.05, 0.10, 0.10, 0.10] → avg = 0.08
+    expect(r.fuelPerLap).toBeCloseTo(0.08, 2);
+  });
+});

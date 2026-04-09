@@ -374,7 +374,7 @@ export class PitTracker {
    * Forza bakes compound into the car build so historical wear is unreliable.
    */
   async seedFromHistory(trackOrdinal: number, carOrdinal: number, pi: number, gameId: GameId): Promise<void> {
-    const seedTires = gameId !== "fm-2023";
+    const seedTires = PitTracker.shouldSeedTires(gameId);
     try {
       const allLaps = await getLaps(gameId, 200);
       const matching = allLaps
@@ -589,5 +589,16 @@ export class PitTracker {
       cliffPct: Math.round(this.badHealthThreshold * 100),
       deadPct: Math.round(this.criticalHealth * 100),
     };
+  }
+
+  /** Whether tire wear should be seeded from history for this game. */
+  static shouldSeedTires(gameId: string): boolean {
+    return gameId !== "fm-2023";
+  }
+
+  /** Inject fuel/tire history for testing. */
+  _seedForTest(fuel: number[], tires: { fl: number; fr: number; rl: number; rr: number }[]): void {
+    this.fuelHistory.push(...fuel);
+    this.tireWearHistory.push(...tires);
   }
 }
