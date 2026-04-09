@@ -1,5 +1,6 @@
 import type { GameId } from "../../shared/types";
 import type { CapturedLap, CapturedSession } from "../../server/pipeline-adapters";
+import type { LapSavedNotification } from "../../server/lap-detector";
 import { CapturingDbAdapter, CapturingWsAdapter } from "../../server/pipeline-adapters";
 import { Pipeline } from "../../server/pipeline";
 import { initGameAdapters } from "../../shared/games/init";
@@ -26,7 +27,7 @@ export interface DumpResult {
   sessions: CapturedSession[];
   carModel: string | null;
   trackName: string | null;
-  wsNotifications: Record<string, unknown>[];
+  wsNotifications: (LapSavedNotification | Record<string, unknown>)[];
   wsDevStates: Record<string, unknown>[];
 }
 
