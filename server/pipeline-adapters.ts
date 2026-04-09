@@ -3,7 +3,6 @@ import { insertSession, insertLap, getLaps, getTrackOutlineSectors } from "./db/
 import { getTuneAssignment } from "./db/tune-queries";
 import { wsManager } from "./ws";
 
-/** Shape captured per insertLap call in CapturingDbAdapter. Packet array is not stored. */
 export interface CapturedSession {
   carOrdinal: number;
   trackOrdinal: number;
@@ -20,6 +19,7 @@ export interface CapturedLap {
   tuneId: number | null;
   invalidReason: string | null;
   sectors: { s1: number; s2: number; s3: number } | null;
+  packets: TelemetryPacket[];
 }
 
 export interface DbAdapter {
@@ -105,8 +105,8 @@ export class CapturingDbAdapter implements DbAdapter {
     return Promise.resolve(++this._sessionId);
   }
 
-  insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, _packets: TelemetryPacket[], profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: { s1: number; s2: number; s3: number } | null): Promise<number> {
-    this.laps.push({ sessionId, lapNumber, lapTime, isValid, profileId, tuneId, invalidReason, sectors });
+  insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, packets: TelemetryPacket[], profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: { s1: number; s2: number; s3: number } | null): Promise<number> {
+    this.laps.push({ sessionId, lapNumber, lapTime, isValid, profileId, tuneId, invalidReason, sectors, packets });
     return Promise.resolve(++this._lapId);
   }
 

@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { parseDump } from "./helpers/parse-dump";
-import { assertSectorTimesMatchLapTime } from "./helpers/lap-assertions";
+import { assertSectorTimesMatchLapTime, assertLapTimesProper } from "./helpers/lap-assertions";
 import { existsSync, readdirSync } from "fs";
 import { join } from "path";
 
@@ -53,9 +53,11 @@ describe("ACC recording", () => {
       expect(laps[1].sectors?.s2).toBeGreaterThan(0);
       expect(laps[1].sectors?.s3).toBeGreaterThan(0);
       assertSectorTimesMatchLapTime(laps[1]);
+      assertLapTimesProper(laps[1].packets, laps[1].lapTime);
 
       // Lap 2: second full lap — valid (sectors may be null in some cases)
       expect(laps[2].isValid).toBe(true);
+      assertLapTimesProper(laps[2].packets, laps[2].lapTime);
       if (laps[2].sectors) {
         expect(laps[2].sectors.s1).toBeGreaterThan(0);
         expect(laps[2].sectors.s2).toBeGreaterThan(0);
