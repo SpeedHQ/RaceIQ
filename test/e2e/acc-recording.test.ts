@@ -94,11 +94,18 @@ describe("ACC recording", () => {
       expect(laps[3].isValid).toBe(false);
       expect(laps[3].invalidReason).toBe("incomplete");
 
-      // Session state: verify all laps for the first session are captured
+      // Session state: verify all laps belong to same session
+      // Note: sessions array may have multiple entries due to internal state boundaries (e.g., distance-reset),
+      // but all persisted laps should belong to the first session
       const firstSessionId = laps[0].sessionId;
-      const sessionLaps = laps.filter((lap) => lap.sessionId === firstSessionId);
-      expect(sessionLaps.length).toBe(4); // All 4 laps belong to the first session
-      expect(sessionLaps.map((l) => l.lapNumber)).toEqual([0, 1, 2, 3]); // Laps are in order
+      const uniqueSessionIds = new Set(laps.map((l) => l.sessionId));
+      expect(uniqueSessionIds.size).toBe(1); // All laps in same session
+      expect(Array.from(uniqueSessionIds)[0]).toBe(firstSessionId);
+
+      // Verify all 4 laps are in that one session
+      const sessionLaps = laps.filter((l) => l.sessionId === firstSessionId);
+      expect(sessionLaps.length).toBe(4);
+      expect(sessionLaps.map((l) => l.lapNumber)).toEqual([0, 1, 2, 3]);
     });
   });
 });
