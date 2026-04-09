@@ -25,9 +25,9 @@ lapDetector.onSessionStart = async (session) => {
   pitTracker.reset();
   const adapter = tryGetGame(session.gameId);
   if (adapter) pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
-  // pitTracker.seedFromHistory() is available but disabled — established tools
-  // (CrewChief, SimHub, iRacing) start fresh each session and let the rolling
-  // average build naturally from completed laps with outlier rejection.
+  // Seed fuel from history (same engine regardless of compound).
+  // Tire wear is NOT seeded — compound-dependent, starts fresh each session.
+  await pitTracker.seedFromHistory(session.trackOrdinal, session.carOrdinal, session.carPI, session.gameId);
   await broadcastSessionLaps(session.trackOrdinal, session.carOrdinal, session.gameId);
 };
 
