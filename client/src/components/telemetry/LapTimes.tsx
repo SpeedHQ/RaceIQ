@@ -22,16 +22,16 @@ export function LapTimes({ packet, sectors }: LapTimesProps) {
   const deltaColor = deltaToBest <= 0 ? "text-emerald-400" : deltaToBest < 1 ? "text-orange-400" : "text-red-400";
 
   return (
-    <div>
-      <div className="flex items-baseline gap-4 mb-2">
-        <div className="flex-1">
+    <div className="space-y-1">
+      <div className="flex gap-3">
+        <div className="w-fit">
           <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Current</div>
           <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
             {formatLapTime(packet.CurrentLap)}
           </div>
         </div>
         {sectors?.estimatedLap ? (
-          <div>
+          <div className="w-fit">
             <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Est. Lap</div>
             <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
               {formatLapTime(sectors.estimatedLap)}
@@ -39,7 +39,7 @@ export function LapTimes({ packet, sectors }: LapTimesProps) {
           </div>
         ) : null}
         {deltaToBest !== 0 || (packet.LastLap > 0 && packet.BestLap > 0) ? (
-          <div className="text-right">
+          <div className="w-fit">
             <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Delta</div>
             <div className={`text-3xl font-mono font-bold tabular-nums leading-none ${deltaColor}`}>
               {deltaToBest <= 0 ? "" : "+"}{deltaToBest.toFixed(3)}
@@ -47,14 +47,14 @@ export function LapTimes({ packet, sectors }: LapTimesProps) {
           </div>
         ) : null}
       </div>
-      <div className="flex gap-4 items-end">
-        <div>
+      <div className="flex gap-3">
+        <div className="w-fit">
           <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Last</div>
           <div className="text-xl font-mono font-bold text-app-text tabular-nums leading-none">
             {formatLapTime(packet.LastLap)}
           </div>
         </div>
-        <div>
+        <div className="w-fit">
           <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Best</div>
           <div className="text-xl font-mono font-bold text-purple-400 tabular-nums leading-none">
             {formatLapTime(packet.BestLap)}

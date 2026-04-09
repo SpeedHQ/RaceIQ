@@ -88,44 +88,58 @@ export function F1LiveDashboard() {
     <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
       {/* Left column: Core telemetry + pit info */}
       <div className="border-r border-app-border overflow-auto">
-        <div className="border-b border-app-border">
-          <div className="p-2 border-b border-app-border flex items-center justify-between">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Race</h2>
-            <div className="flex items-center gap-2 truncate ml-2">
-              {carName && <span className="text-xs text-app-text-secondary truncate">{carName}</span>}
-              {carName && trackName && <span className="text-xs text-app-text-dim">/</span>}
-              {trackName && <span className="text-xs text-app-text-secondary truncate">{trackName}</span>}
+        {/* Race + Weather side by side */}
+        <div className="border-b border-app-border grid grid-cols-2">
+          <div className="border-r border-app-border">
+            <div className="p-2 border-b border-app-border">
+              <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Race</h2>
+            </div>
+            <div className="p-2">
+              <div className="flex gap-4 mb-2">
+                <div className="w-fit">
+                  <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Position</div>
+                  <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
+                    P{rawPacket!.RacePosition}
+                  </div>
+                </div>
+                <div className="w-fit">
+                  <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap</div>
+                  <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
+                    {rawPacket!.LapNumber}{f1.totalLaps > 0 ? `/${f1.totalLaps}` : ""}
+                  </div>
+                </div>
+              </div>
+              <LapTimes packet={rawPacket!} sectors={sectors} />
             </div>
           </div>
-          <div className="p-3">
-            <div className="flex items-baseline gap-4 mb-2">
-              <div>
-                <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Position</div>
-                <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
-                  P{rawPacket!.RacePosition}
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap</div>
-                <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
-                  {rawPacket!.LapNumber}{f1.totalLaps > 0 ? `/${f1.totalLaps}` : ""}
-                </div>
-              </div>
+          <div>
+            <div className="p-2 border-b border-app-border">
+              <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Weather</h2>
             </div>
-            <LapTimes packet={rawPacket!} sectors={sectors} />
+            <WeatherWidget f1={f1} />
           </div>
         </div>
-        <div className="border-b border-app-border">
-          <div className="p-3">
+        {/* Damage | DRS+ERS stacked */}
+        <div className="border-b border-app-border grid grid-cols-2">
+          <div className="border-r border-app-border">
+            <CarDamageSection f1={f1} />
+          </div>
+          <div>
+            <DrsSection f1={f1} />
+            <ErsSection f1={f1} />
+          </div>
+        </div>
+        <div className="border-b border-app-border grid grid-cols-2">
+          <div className="border-r border-app-border p-3">
             <TireTempDiagram packet={rawPacket!} />
           </div>
-        </div>
-        <div className="border-b border-app-border">
-          <div className="p-2 border-b border-app-border">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Pit Window</h2>
-          </div>
-          <div className="p-3">
-            <PitEstimate packet={rawPacket!} />
+          <div>
+            <div className="p-2 border-b border-app-border">
+              <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Pit Window</h2>
+            </div>
+            <div className="p-3">
+              <PitEstimate packet={rawPacket!} />
+            </div>
           </div>
         </div>
         <GridSection f1={f1} playerPosition={rawPacket!.RacePosition} />
@@ -216,12 +230,12 @@ function DrsSection({ f1 }: { f1: F1ExtendedData }) {
   }
 
   return (
-    <div className="border-r border-app-border">
-      <div className="p-2 border-b border-app-border">
-        <h2 className="text-sm font-semibold text-app-text-muted uppercase tracking-wider">DRS</h2>
+    <div>
+      <div className="p-2 border-b border-app-border/50">
+        <h2 className="text-[10px] font-semibold text-app-text-muted uppercase tracking-wider">DRS</h2>
       </div>
       <div className="p-3 flex items-center justify-center">
-        <span className={`text-sm font-bold px-4 py-2 rounded ${bgColor} ${textColor}`}>{label}</span>
+        <span className={`text-xs font-bold px-3 py-1 rounded ${bgColor} ${textColor}`}>{label}</span>
       </div>
     </div>
   );
@@ -383,9 +397,9 @@ function ErsSection({ f1 }: { f1: F1ExtendedData }) {
 
   return (
     <div>
-      <div className="p-2 border-b border-app-border flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-app-text-muted uppercase tracking-wider">ERS</h2>
-        <span className={`text-xs font-bold ${mode.color}`}>{mode.label}</span>
+      <div className="p-2 border-b border-app-border/50 flex items-center justify-between">
+        <h2 className="text-[10px] font-semibold text-app-text-muted uppercase tracking-wider">ERS</h2>
+        <span className={`text-[10px] font-bold ${mode.color}`}>{mode.label}</span>
       </div>
       <div className="p-3">
         <div className="h-3 rounded-full overflow-hidden mb-2">
@@ -413,27 +427,27 @@ function WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
   const hasRain = f1.rainPercentage > 0;
 
   return (
-    <div className="flex items-center gap-3 p-3">
-      <div className="text-3xl leading-none">{icon}</div>
+    <div className="flex items-center gap-3 px-3 py-2">
+      <div className="text-2xl leading-none">{icon}</div>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-bold text-app-text">{label}</div>
+        <div className="text-xs font-bold text-app-text">{label}</div>
         {hasRain && (
           <div className="flex items-center gap-1 mt-0.5">
-            <div className="h-1.5 flex-1 rounded-full overflow-hidden">
+            <div className="h-1 flex-1 rounded-full overflow-hidden">
               <div className="h-full rounded-full bg-blue-400" style={{ width: `${f1.rainPercentage}%` }} />
             </div>
-            <span className="text-xl font-mono font-bold text-blue-400 tabular-nums leading-none">{f1.rainPercentage}%</span>
+            <span className="text-xs font-mono font-bold text-blue-400 tabular-nums leading-none">{f1.rainPercentage}%</span>
           </div>
         )}
       </div>
-      <div className="flex gap-3">
+      <div className="flex gap-2">
         <div className="text-center">
-          <div className="text-[10px] text-app-text-muted uppercase">Track</div>
-          <div className="text-xl font-mono font-bold text-orange-400 tabular-nums leading-none">{f1.trackTemperature}&deg;</div>
+          <div className="text-[9px] text-app-text-muted uppercase">Track</div>
+          <div className="text-sm font-mono font-bold text-orange-400 tabular-nums leading-none">{f1.trackTemperature}&deg;</div>
         </div>
         <div className="text-center">
-          <div className="text-[10px] text-app-text-muted uppercase">Air</div>
-          <div className="text-xl font-mono font-bold text-cyan-400 tabular-nums leading-none">{f1.airTemperature}&deg;</div>
+          <div className="text-[9px] text-app-text-muted uppercase">Air</div>
+          <div className="text-sm font-mono font-bold text-cyan-400 tabular-nums leading-none">{f1.airTemperature}&deg;</div>
         </div>
       </div>
     </div>
