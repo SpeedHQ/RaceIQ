@@ -9,7 +9,6 @@ import { LapList } from "./LapList";
 import { LapTimeChart } from "./LapTimeChart";
 import { SectorTimes } from "./SectorTimes";
 import { useDemoMode } from "../hooks/useDemoMode";
-import { useUnits } from "../hooks/useUnits";
 import { NoDataView } from "./NoDataView";
 
 function PageHeader({ dashMode, demo }: {
@@ -66,9 +65,8 @@ function PageHeader({ dashMode, demo }: {
   );
 }
 
-function RaceInfo({ packet, units, trackName, carName, showTrackMap = true, showSectors = true }: {
+function RaceInfo({ packet, trackName, carName, showTrackMap = true, showSectors = true }: {
   packet: NonNullable<ReturnType<typeof useTelemetryStore.getState>["packet"]>;
-  units: ReturnType<typeof useUnits>;
   trackName: string | undefined;
   carName: string | undefined;
   showTrackMap?: boolean;
@@ -126,19 +124,11 @@ function RaceInfo({ packet, units, trackName, carName, showTrackMap = true, show
             <div className="flex gap-4 mb-3 items-end">
               <div>
                 <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Last</div>
-                <div className="text-xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(packet.LastLap)}</div>
+                <div className="text-xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(sectors?.lastLapTime ?? 0)}</div>
               </div>
               <div>
                 <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Best</div>
-                <div className="text-xl font-mono font-bold text-purple-400 tabular-nums leading-none">{formatLapTime(sectors?.bestLapTime && sectors.bestLapTime > 0 ? sectors.bestLapTime : packet.BestLap)}</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Dist</div>
-                <div className="text-xl font-mono font-bold text-app-text tabular-nums leading-none">
-                  {units.speedLabel === "km/h"
-                    ? `${(packet.DistanceTraveled / 1000).toFixed(2)} km`
-                    : `${(packet.DistanceTraveled / 1609.34).toFixed(2)} mi`}
-                </div>
+                <div className="text-xl font-mono font-bold text-purple-400 tabular-nums leading-none">{formatLapTime(sectors?.bestLapTime ?? 0)}</div>
               </div>
             </div>
             {showSectors && <SectorTimes />}
@@ -163,7 +153,6 @@ function RaceInfo({ packet, units, trackName, carName, showTrackMap = true, show
 
 export function LivePage({ mode = "driver" }: { mode?: DashboardMode }) {
   const packet = useTelemetryStore((s) => s.packet);
-  const units = useUnits();
   const serverStatus = useTelemetryStore((s) => s.serverStatus);
   const trackOrd = packet?.TrackOrdinal ?? serverStatus?.currentSession?.trackOrdinal;
   const carOrd = packet?.CarOrdinal;
@@ -186,7 +175,7 @@ export function LivePage({ mode = "driver" }: { mode?: DashboardMode }) {
         {/* Left column: Race + Tire Health + Pit Window */}
         <div className="border-r border-app-border overflow-auto">
           <PageHeader dashMode={mode} demo={demo} />
-          <RaceInfo packet={packet} units={units} trackName={trackName} carName={carName} showTrackMap={false} showSectors={false} />
+          <RaceInfo packet={packet} trackName={trackName} carName={carName} showTrackMap={false} showSectors={false} />
           <LiveTelemetry packet={packet} mode={mode} />
         </div>
 
@@ -223,7 +212,7 @@ export function LivePage({ mode = "driver" }: { mode?: DashboardMode }) {
 
       {/* Right column: Race HUD + laps */}
       <div className="overflow-auto flex flex-col">
-        <RaceInfo packet={packet} units={units} trackName={trackName} carName={carName} showTrackMap={true} showSectors={true} />
+        <RaceInfo packet={packet} trackName={trackName} carName={carName} showTrackMap={true} showSectors={true} />
         <LapTimeChart packet={packet} />
         <div className="flex-1">
           <div className="p-2 border-b border-app-border">
