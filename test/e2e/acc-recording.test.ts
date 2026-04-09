@@ -2,10 +2,12 @@ import { describe, test, expect } from "bun:test";
 import type { LapSavedNotification } from "../../server/lap-detector";
 import { parseDump } from "../helpers/parse-dump";
 import { assertSectorTimesMatchLapTime, assertLapTimesProper } from "../helpers/lap-assertions";
+import { generateLapSvg } from "../helpers/lap-svg";
 import { existsSync, readdirSync } from "fs";
 import { join } from "path";
 
 const RECORDINGS_DIR = "test/artifacts/laps";
+const OUTPUT_DIR = "test/e2e/output";
 
 function getRecording(filename: string): string | null {
   const recordingPath = join(RECORDINGS_DIR, filename);
@@ -107,6 +109,13 @@ describe("ACC recording", () => {
       const sessionLaps = laps.filter((l) => l.sessionId === firstSessionId);
       expect(sessionLaps.length).toBe(4);
       expect(sessionLaps.map((l) => l.lapNumber)).toEqual([0, 1, 2, 3]);
+
+      // Generate SVG visualizations for each lap
+      console.log(`[SVG] Generating lap visualizations in ${OUTPUT_DIR}`);
+      for (const lap of laps) {
+        generateLapSvg(lap.packets, lap.lapNumber, OUTPUT_DIR);
+        console.log(`[SVG] Generated lap-${lap.lapNumber}.svg`);
+      }
     });
   });
 });
