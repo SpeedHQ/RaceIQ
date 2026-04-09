@@ -6,8 +6,7 @@
  *        bun run server/record.ts fm-2023
  *        bun run server/record.ts acc
  *
- * Records raw packets/frames to data/recordings/<timestamp>/ (UDP)
- * or data/acc-recordings/ (ACC, using existing AccRecorder format).
+ * Records raw packets/frames to test/artifacts/laps/<gameId>-<timestamp>/ (UDP and ACC).
  * Does NOT start HTTP, WebSocket, lap detector, or pipeline.
  */
 import { initGameAdapters } from "../shared/games/init";
@@ -45,7 +44,7 @@ if (!serverAdapter || !sharedAdapter) {
 
 // --- Session directory ---
 const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-const sessionDir = resolve(process.cwd(), "data", "recordings", timestamp);
+const sessionDir = resolve(process.cwd(), "test", "artifacts", "laps", `${gameId}-${timestamp}`);
 
 const meta: RecordingMeta = {
   gameId: gameId as import("../shared/types").GameId,
@@ -239,7 +238,7 @@ async function recordAcc(sessionDir: string, meta: RecordingMeta): Promise<void>
   console.log(`[Record] Resolved: track=${meta.trackName ?? "unknown"} car=${meta.carName ?? "unknown"}`);
 
   // Start recording using existing AccRecorder (writes to test/artifacts/laps/)
-  const accDir = resolve(process.cwd(), "test", "artifacts", "laps");
+  const accDir = resolve(sessionDir);
   accRecorder.start(accDir);
   console.log(`[Record] ACC recording started`);
   console.log(`[Record] Meta written to ${sessionDir}`);
