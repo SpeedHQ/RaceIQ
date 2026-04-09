@@ -324,70 +324,112 @@ export class SectorTracker {
 
 /**
  * Server-side pit strategy tracker.
- * Computes fuel/tire laps remaining from per-lap consumption history.
  *
- * Tire estimates use the LAST completed lap's wear rate (not cumulative average)
- * and compute laps until two thresholds:
+ * Fuel: rolling average of last 5 valid laps with outlier rejection
+ *   (skips laps where fuel increased = refuel, or usage is >2x average = formation lap).
+ *
+ * Tires: per-tire rolling average of last 3 laps, worst tire governs.
+ *   Outlier rejection same as fuel. Computes laps until two thresholds:
  *   - "bad": game-specific yellow threshold (performance cliff)
  *   - "critical": 20% health remaining (near-dead)
  */
 export class PitTracker {
+  // Fuel
   private fuelHistory: number[] = [];
   private fuelAtLapStart = -1;
   private lastLap = -1;
-  private avgFuelPerLap: number | null = null;
 
-  // Per-tire wear at last lap boundary
+  // Per-tire wear history (each entry = wear delta for one lap)
+  private tireWearHistory: { fl: number; fr: number; rl: number; rr: number }[] = [];
   private wearAtLapStart = { fl: -1, fr: -1, rl: -1, rr: -1 };
-  private lastLapWearRate = 0; // worst-tire wear per lap from last completed lap
+
+  // Lap time tracking for outlier detection
+  private lapTimeHistory: number[] = [];
+  private lastCurrentLap = 0;
 
   // Game-specific thresholds (health = 1 - wear)
-  private badHealthThreshold = 0.40;   // default Forza yellow
-  private criticalHealth = 0.20;       // universal critical
+  private badHealthThreshold = 0.40;
+  private criticalHealth = 0.20;
 
   reset(): void {
     this.fuelHistory = [];
     this.fuelAtLapStart = -1;
     this.lastLap = -1;
-    this.avgFuelPerLap = null;
+    this.tireWearHistory = [];
     this.wearAtLapStart = { fl: -1, fr: -1, rl: -1, rr: -1 };
-    this.lastLapWearRate = 0;
+    this.lapTimeHistory = [];
+    this.lastCurrentLap = 0;
   }
 
-  /** Set game-specific tire health thresholds. Call after reset. */
   setTireThresholds(yellow: number): void {
     this.badHealthThreshold = yellow;
   }
 
+  /** Check if a lap's data should be excluded (formation lap, pit lap, etc.) */
+  private isOutlier(fuelUsed: number, lapTime: number): boolean {
+    // Fuel increased (refueled during pit stop)
+    if (fuelUsed <= 0) return true;
+    // Abnormally long lap (>2x rolling average = formation/safety car/pit lap)
+    if (this.lapTimeHistory.length >= 2) {
+      const avg = this.lapTimeHistory.slice(-5).reduce((s, v) => s + v, 0) / Math.min(5, this.lapTimeHistory.length);
+      if (lapTime > avg * 2) return true;
+    }
+    // Abnormally short lap (<30% of average = cut track / rewind artifact)
+    if (this.lapTimeHistory.length >= 2) {
+      const avg = this.lapTimeHistory.slice(-5).reduce((s, v) => s + v, 0) / Math.min(5, this.lapTimeHistory.length);
+      if (lapTime < avg * 0.3) return true;
+    }
+    return false;
+  }
+
+  /** Rolling average of the last N entries from an array. */
+  private static rollingAvg(arr: number[], n: number): number {
+    if (arr.length === 0) return 0;
+    const slice = arr.slice(-n);
+    return slice.reduce((s, v) => s + v, 0) / slice.length;
+  }
+
   feed(packet: TelemetryPacket, trackLength: number): LivePitData {
-    // Detect lap boundary → record fuel and tire wear
+    // Detect lap boundary
     if (this.lastLap >= 0 && packet.LapNumber > this.lastLap) {
+      const lapTime = this.lastCurrentLap; // CurrentLap at end of previous lap
+
       // Fuel
-      if (this.fuelAtLapStart >= 0) {
-        const used = this.fuelAtLapStart - packet.Fuel;
-        if (used > 0 && used < packet.Fuel + used) {
-          this.fuelHistory.push(used);
-          if (this.fuelHistory.length > 50) this.fuelHistory.shift();
-          const recent = this.fuelHistory.slice(-5);
-          this.avgFuelPerLap = recent.reduce((s, v) => s + v, 0) / recent.length;
-        }
+      const fuelUsed = this.fuelAtLapStart >= 0 ? this.fuelAtLapStart - packet.Fuel : 0;
+      const outlier = this.isOutlier(fuelUsed, lapTime);
+
+      if (!outlier && fuelUsed > 0) {
+        this.fuelHistory.push(fuelUsed);
+        if (this.fuelHistory.length > 50) this.fuelHistory.shift();
       }
       this.fuelAtLapStart = packet.Fuel;
 
-      // Tire wear: compute per-lap wear from last lap (worst tire)
-      if (this.wearAtLapStart.fl >= 0) {
-        const wornFL = packet.TireWearFL - this.wearAtLapStart.fl;
-        const wornFR = packet.TireWearFR - this.wearAtLapStart.fr;
-        const wornRL = packet.TireWearRL - this.wearAtLapStart.rl;
-        const wornRR = packet.TireWearRR - this.wearAtLapStart.rr;
-        const worstWorn = Math.max(wornFL, wornFR, wornRL, wornRR);
-        if (worstWorn > 0) this.lastLapWearRate = worstWorn;
+      // Per-tire wear
+      if (!outlier && this.wearAtLapStart.fl >= 0) {
+        const worn = {
+          fl: packet.TireWearFL - this.wearAtLapStart.fl,
+          fr: packet.TireWearFR - this.wearAtLapStart.fr,
+          rl: packet.TireWearRL - this.wearAtLapStart.rl,
+          rr: packet.TireWearRR - this.wearAtLapStart.rr,
+        };
+        // Only record if at least one tire showed positive wear
+        if (Math.max(worn.fl, worn.fr, worn.rl, worn.rr) > 0) {
+          this.tireWearHistory.push(worn);
+          if (this.tireWearHistory.length > 50) this.tireWearHistory.shift();
+        }
       }
       this.wearAtLapStart = {
         fl: packet.TireWearFL, fr: packet.TireWearFR,
         rl: packet.TireWearRL, rr: packet.TireWearRR,
       };
+
+      // Track lap times for outlier detection
+      if (lapTime > 10) {
+        this.lapTimeHistory.push(lapTime);
+        if (this.lapTimeHistory.length > 20) this.lapTimeHistory.shift();
+      }
     }
+
     if (this.lastLap < 0 || packet.LapNumber !== this.lastLap) {
       if (this.fuelAtLapStart < 0) this.fuelAtLapStart = packet.Fuel;
       if (this.wearAtLapStart.fl < 0) {
@@ -398,26 +440,37 @@ export class PitTracker {
       }
       this.lastLap = packet.LapNumber;
     }
+    this.lastCurrentLap = packet.CurrentLap;
 
-    const fuelPerLap = this.avgFuelPerLap ?? 0;
+    // Fuel estimate: rolling average of last 5 valid laps
+    const fuelPerLap = PitTracker.rollingAvg(this.fuelHistory, 5);
     const fuelLapsRemaining = fuelPerLap > 0 ? Math.floor((packet.Fuel / fuelPerLap) * 10) / 10 : null;
     const currentLapFuelUsed = this.fuelAtLapStart >= 0 ? this.fuelAtLapStart - packet.Fuel : 0;
 
-    // Tire estimates using last lap's wear rate
+    // Tire estimate: per-tire rolling average of last 3 valid laps, worst tire governs
+    const n = 3;
+    const recent = this.tireWearHistory.slice(-n);
+    let worstWearPerLap = 0;
+    if (recent.length > 0) {
+      const avgFL = recent.reduce((s, w) => s + w.fl, 0) / recent.length;
+      const avgFR = recent.reduce((s, w) => s + w.fr, 0) / recent.length;
+      const avgRL = recent.reduce((s, w) => s + w.rl, 0) / recent.length;
+      const avgRR = recent.reduce((s, w) => s + w.rr, 0) / recent.length;
+      worstWearPerLap = Math.max(avgFL, avgFR, avgRL, avgRR);
+    }
+
     const worstWear = Math.max(packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR);
     const health = 1 - worstWear;
-    const wpl = this.lastLapWearRate;
 
     let tireLapsToBad: number | null = null;
     let tireLapsToCritical: number | null = null;
-    if (wpl > 0) {
+    if (worstWearPerLap > 0) {
       const wearUntilBad = health - this.badHealthThreshold;
       const wearUntilCritical = health - this.criticalHealth;
-      tireLapsToBad = wearUntilBad > 0 ? Math.floor((wearUntilBad / wpl) * 10) / 10 : 0;
-      tireLapsToCritical = wearUntilCritical > 0 ? Math.floor((wearUntilCritical / wpl) * 10) / 10 : 0;
+      tireLapsToBad = wearUntilBad > 0 ? Math.floor((wearUntilBad / worstWearPerLap) * 10) / 10 : 0;
+      tireLapsToCritical = wearUntilCritical > 0 ? Math.floor((wearUntilCritical / worstWearPerLap) * 10) / 10 : 0;
     }
 
-    // Pit window uses the "bad" threshold (performance cliff)
     const tireLapsRemaining = tireLapsToBad;
 
     let pitInLaps: number | null = null;
@@ -441,7 +494,7 @@ export class PitTracker {
       currentLapFuelUsed,
       tireLapsToBad,
       tireLapsToCritical,
-      tireWearPerLap: wpl,
+      tireWearPerLap: worstWearPerLap,
       tireLapsRemaining,
       pitInLaps,
       limitedBy,
