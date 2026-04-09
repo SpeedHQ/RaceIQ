@@ -380,10 +380,9 @@ export class PitTracker {
         .slice(0, 5);
 
       const fuelRates: number[] = [];
-      const wearRates: { fl: number; fr: number; rl: number; rr: number }[] = [];
 
       for (const lapMeta of matching) {
-        if (fuelRates.length >= 2 && wearRates.length >= 1) break;
+        if (fuelRates.length >= 2) break;
         const lap = await getLapById(lapMeta.id);
         if (!lap?.telemetry || lap.telemetry.length < 50) continue;
 
@@ -396,26 +395,14 @@ export class PitTracker {
           fuelRates.push(fuelUsed);
         }
 
-        // Tire wear from this lap
-        if (wearRates.length < 1) {
-          const worn = {
-            fl: Math.max(0, last.TireWearFL - first.TireWearFL),
-            fr: Math.max(0, last.TireWearFR - first.TireWearFR),
-            rl: Math.max(0, last.TireWearRL - first.TireWearRL),
-            rr: Math.max(0, last.TireWearRR - first.TireWearRR),
-          };
-          if (Math.max(worn.fl, worn.fr, worn.rl, worn.rr) > 0) {
-            wearRates.push(worn);
-          }
-        }
+        // Tire wear NOT seeded from history — compound may differ between sessions
       }
 
-      // Seed histories (these will be naturally rolled out by fresh data)
+      // Seed fuel only (tire wear is compound-dependent, unsafe to carry over)
       this.fuelHistory.push(...fuelRates);
-      this.tireWearHistory.push(...wearRates);
 
-      if (fuelRates.length > 0 || wearRates.length > 0) {
-        console.log(`[Pit] Seeded from history: ${fuelRates.length} fuel entries, ${wearRates.length} tire entries (PI=${pi})`);
+      if (fuelRates.length > 0) {
+        console.log(`[Pit] Seeded from history: ${fuelRates.length} fuel entries (PI=${pi})`);
       }
     } catch (err) {
       console.warn("[Pit] Failed to seed from history:", err);
@@ -584,6 +571,8 @@ export class PitTracker {
       limitedBy,
       trackLength,
       estimateSource,
+      cliffPct: Math.round(this.badHealthThreshold * 100),
+      deadPct: Math.round(this.criticalHealth * 100),
     };
   }
 }

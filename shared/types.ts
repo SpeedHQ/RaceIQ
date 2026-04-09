@@ -445,6 +445,9 @@ export interface LivePitData {
   trackLength: number;
   /** Whether estimates are from historical data or current session laps. */
   estimateSource: "history" | "session" | null;
+  /** Health threshold percentages used for cliff and dead. */
+  cliffPct: number;
+  deadPct: number;
   // Deprecated — use tireLapsToBad
   tireLapsRemaining: number | null;
 }

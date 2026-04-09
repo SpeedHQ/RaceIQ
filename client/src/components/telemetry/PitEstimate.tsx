@@ -98,8 +98,8 @@ export function PitEstimate({ packet }: { packet: TelemetryPacket }) {
             <div />
             <div className="text-[10px] text-app-text-dim uppercase tracking-wider text-right w-12">Health</div>
             <div className="text-[10px] text-app-text-dim uppercase tracking-wider text-right w-14">Wear/lap</div>
-            <div className="text-[10px] text-amber-400/70 uppercase tracking-wider text-right w-12">Cliff</div>
-            <div className="text-[10px] text-red-400/70 uppercase tracking-wider text-right w-12">Dead</div>
+            <div className="text-[10px] text-amber-400/70 uppercase tracking-wider text-right w-12">Cliff{pit?.cliffPct ? ` ${pit.cliffPct}%` : ""}</div>
+            <div className="text-[10px] text-red-400/70 uppercase tracking-wider text-right w-12">Dead{pit?.deadPct ? ` ${pit.deadPct}%` : ""}</div>
           </div>
 
           {tireData.map((t) => (
