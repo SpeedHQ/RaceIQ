@@ -38,8 +38,9 @@ export function assessLapRecording(
   }
 
   // Start and end positions must be close (circuit lap should return to start/finish).
-  // ACC lap 0 is always the starting/formation lap — mark invalid regardless of data.
-  if (packets[0].gameId === "acc" && packets[0].LapNumber === 0) {
+  // ACC lap counter can reset to 0 after session changes, so only reject if it looks
+  // like an actual formation lap (very short, < 30 seconds).
+  if (packets[0].gameId === "acc" && packets[0].LapNumber === 0 && lapTime < 30) {
     return { valid: false, reason: "starting lap" };
   }
 
