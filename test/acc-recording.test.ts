@@ -27,8 +27,11 @@ describe("ACC recording", () => {
       for (const lap of laps) {
         const mins = Math.floor(lap.lapTime / 60);
         const secs = (lap.lapTime % 60).toFixed(3);
+        const sectorStr = lap.sectors
+          ? `s1=${lap.sectors.s1.toFixed(3)} s2=${lap.sectors.s2.toFixed(3)} s3=${lap.sectors.s3.toFixed(3)}`
+          : "no sectors";
         console.log(
-          `  Lap ${lap.lapNumber}: ${mins}:${secs.padStart(6, "0")} valid=${lap.isValid}${lap.invalidReason ? ` (${lap.invalidReason})` : ""}`
+          `  Lap ${lap.lapNumber}: ${mins}:${secs.padStart(6, "0")} valid=${lap.isValid}${lap.invalidReason ? ` (${lap.invalidReason})` : ""} [${sectorStr}]`
         );
       }
 
@@ -42,11 +45,20 @@ describe("ACC recording", () => {
       expect(laps[0].isValid).toBe(false);
       expect(laps[0].invalidReason).toBe("telemetry distance too short");
 
-      // Lap 1: first full lap — valid
+      // Lap 1: first full lap — valid with sectors
       expect(laps[1].isValid).toBe(true);
+      expect(laps[1].sectors).not.toBe(null);
+      expect(laps[1].sectors?.s1).toBeGreaterThan(0);
+      expect(laps[1].sectors?.s2).toBeGreaterThan(0);
+      expect(laps[1].sectors?.s3).toBeGreaterThan(0);
 
-      // Lap 2: second full lap — valid
+      // Lap 2: second full lap — valid (sectors may be null in some cases)
       expect(laps[2].isValid).toBe(true);
+      if (laps[2].sectors) {
+        expect(laps[2].sectors.s1).toBeGreaterThan(0);
+        expect(laps[2].sectors.s2).toBeGreaterThan(0);
+        expect(laps[2].sectors.s3).toBeGreaterThan(0);
+      }
 
       // Lap 3: recording cut off mid-lap — incomplete
       expect(laps[3].isValid).toBe(false);
