@@ -1,11 +1,16 @@
 import { Hono } from "hono";
 import { existsSync, readdirSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "fs";
-import { resolve } from "path";
+import { resolve, join } from "path";
+import { arch, platform, release, totalmem, freemem, uptime as osUptime } from "os";
 
 import { lapDetector } from "../lap-detector";
 import { wsManager } from "../ws";
-import { USER_TRACKS_DIR } from "../paths";
+import { USER_TRACKS_DIR, IS_COMPILED, USER_DATA_DIR } from "../paths";
 import { getUpdateState, startUpdateCheckSchedule, checkForUpdate, applyUpdate } from "../update-check";
+import { udpListener } from "../udp";
+import { getRunningGame } from "../games/registry";
+import { loadSettings } from "../settings";
+import pkg from "../../package.json";
 
 // Check for updates on startup and then every 4 hours
 startUpdateCheckSchedule();
@@ -404,4 +409,68 @@ export const miscRoutes = new Hono()
     f1ExtractionState.failed = 0;
     scanRecordedFiles();
     return c.json({ deleted: true });
+  })
+
+  // GET /api/diagnostics — collect all diagnostic data as a downloadable JSON bundle
+  .get("/api/diagnostics", (c) => {
+    const logFile = join(USER_DATA_DIR, "raceiq.log");
+    let logs = "";
+    try {
+      logs = readFileSync(logFile, "utf8");
+    } catch {}
+
+    const session = lapDetector.session;
+    const runningGame = getRunningGame();
+    const settings = loadSettings();
+
+    return c.json({
+      app: {
+        version: pkg.version,
+        compiled: IS_COMPILED,
+        dataDir: USER_DATA_DIR,
+        bunVersion: typeof Bun !== "undefined" ? Bun.version : null,
+      },
+      system: {
+        platform: platform(),
+        arch: arch(),
+        osRelease: release(),
+        totalMemoryMB: Math.round(totalmem() / 1024 / 1024),
+        freeMemoryMB: Math.round(freemem() / 1024 / 1024),
+        uptimeSec: Math.round(osUptime()),
+      },
+      server: {
+        udpPort: udpListener.port,
+        udpReceiving: udpListener.receiving,
+        packetsPerSec: udpListener.packetsPerSec,
+        droppedPackets: udpListener.droppedPackets,
+        connectedClients: wsManager.connectedClients,
+        detectedGame: runningGame
+          ? { id: runningGame.id, name: runningGame.shortName }
+          : null,
+        currentSession: session
+          ? { id: session.sessionId, car: session.carOrdinal, track: session.trackOrdinal }
+          : null,
+      },
+      settings: {
+        udpPort: settings.udpPort,
+        unit: settings.unit,
+        wsRefreshRate: settings.wsRefreshRate,
+        aiProvider: settings.aiProvider,
+        aiModel: settings.aiModel,
+      },
+      extraction: {
+        "fm-2023": {
+          installed: extractionState.installed,
+          status: extractionState.status,
+          extracted: extractionState.extracted,
+        },
+        "f1-2025": {
+          installed: f1ExtractionState.installed,
+          status: f1ExtractionState.status,
+          extracted: f1ExtractionState.extracted,
+        },
+      },
+      logs,
+      generatedAt: new Date().toISOString(),
+    });
   });
