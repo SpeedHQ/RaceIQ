@@ -4,7 +4,6 @@ import { Link } from "@tanstack/react-router";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { convertTemp, celsiusToFahrenheit } from "../lib/temperature";
 import { playBlip, preloadSound } from "./SectorTimes";
 import { useSettings, useSaveSettings } from "../hooks/queries";
 import { useTheme, type Theme } from "../context/theme";

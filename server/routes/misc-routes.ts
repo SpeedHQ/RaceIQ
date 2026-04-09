@@ -454,32 +454,27 @@ export const miscRoutes = new Hono()
     const memUsage = process.memoryUsage();
     const serverMemoryMB = Math.round(memUsage.heapUsed / 1024 / 1024);
 
-    // Fetch all profiles from database
-    let profiles: Array<{ id: number; name: string }> = [];
-    try {
-      const profilesResult = await dbClient.execute("SELECT id, name FROM profiles ORDER BY id");
-      profiles = (profilesResult.rows || []).map((r) => ({
-        id: Number(r.id),
-        name: String(r.name),
-      }));
-    } catch {}
-
     // Fetch recent chat messages from Mastra memory
     let chatMessages: Array<{ role: string; content: string; timestamp?: string }> = [];
     try {
+      // Note: Mastra Memory API varies by version. Attempt to fetch threads if available.
       const memory = getChatMemory();
-      const threads = await memory.getThreads();
-      if (threads && threads.length > 0) {
-        for (const thread of threads.slice(0, 5)) {
-          const messages = await memory.getMessages(thread.id);
-          if (messages) {
-            chatMessages.push(
-              ...messages.map((m: any) => ({
-                role: m.role || "unknown",
-                content: m.content || "",
-                timestamp: m.createdAt || m.timestamp,
-              }))
-            );
+      if (memory && typeof (memory as any).getThreads === "function") {
+        const threads = await (memory as any).getThreads();
+        if (threads && threads.length > 0) {
+          for (const thread of threads.slice(0, 5)) {
+            if (typeof (memory as any).getMessages === "function") {
+              const messages = await (memory as any).getMessages(thread.id);
+              if (messages) {
+                chatMessages.push(
+                  ...messages.map((m: any) => ({
+                    role: m.role || "unknown",
+                    content: m.content || "",
+                    timestamp: m.createdAt || m.timestamp,
+                  }))
+                );
+              }
+            }
           }
         }
       }
@@ -680,7 +675,7 @@ export const miscRoutes = new Hono()
       "logs.txt": strToU8(logs),
     });
 
-    return new Response(zip, {
+    return new Response(Buffer.from(zip), {
       headers: {
         "Content-Type": "application/zip",
         "Content-Disposition": `attachment; filename="raceiq-diagnostics.zip"`,
