@@ -140,14 +140,14 @@ export function SectorTimes() {
               <div className="flex items-center gap-1.5 mb-1.5">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: sectorColors[i] }} />
                 <span className="text-xs font-bold text-app-text-secondary">{name}</span>
+                <span className={`text-xl font-mono font-bold tabular-nums leading-none ml-auto ${timeColor}`}>
+                  {current > 0 ? formatLapTime(current) : "--:--.---"}
+                </span>
                 {showDelta && (
-                  <span className={`text-xs font-mono ml-auto font-bold ${delta <= 0 ? "text-emerald-400" : "text-orange-400"}`}>
+                  <span className={`text-xs font-mono font-bold ${delta <= 0 ? "text-emerald-400" : "text-orange-400"}`}>
                     {delta <= 0 ? "" : "+"}{delta.toFixed(3)}
                   </span>
                 )}
-              </div>
-              <div className={`text-xl font-mono font-bold tabular-nums leading-none mb-1.5 ${timeColor}`}>
-                {current > 0 ? formatLapTime(current) : "--:--.---"}
               </div>
               <div className="flex justify-between mt-1">
                 <span className="text-[10px] text-app-text-muted">Last</span>
