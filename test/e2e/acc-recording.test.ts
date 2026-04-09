@@ -4,7 +4,7 @@ import { parseDump } from "../helpers/parse-dump";
 import { assertSectorTimesMatchLapTime, assertLapTimesProper } from "../helpers/lap-assertions";
 import { generateLapSvg } from "../helpers/lap-svg";
 import { generateLapGif } from "../helpers/lap-gif";
-import { existsSync, readdirSync } from "fs";
+import { existsSync, readdirSync, mkdirSync } from "fs";
 import { join } from "path";
 
 const RECORDINGS_DIR = "test/artifacts/laps";
@@ -112,9 +112,11 @@ describe("ACC recording", () => {
       expect(sessionLaps.map((l) => l.lapNumber)).toEqual([0, 1, 2, 3]);
 
       // Generate SVG visualizations for each lap
-      console.log(`[SVG] Generating lap visualizations in ${OUTPUT_DIR}`);
       // Extract recording filename without path and extension
       const recordingBaseName = recordingFile.replace(/\.bin$/, "");
+      const recordingOutputDir = join(OUTPUT_DIR, recordingBaseName);
+      mkdirSync(recordingOutputDir, { recursive: true });
+      console.log(`[SVG] Generating lap visualizations in ${recordingOutputDir}`);
       for (const lap of laps) {
         // Debug: show coordinate ranges
         let minX = lap.packets[0].PositionX;
@@ -149,11 +151,11 @@ describe("ACC recording", () => {
           console.log(`  → Largest jump: ${maxJump.toFixed(1)} units at packet ${maxJumpIdx}`);
         }
 
-        generateLapSvg(lap.packets, lap.lapNumber, OUTPUT_DIR, recordingBaseName);
-        console.log(`[SVG] Generated ${recordingBaseName}-lap-${lap.lapNumber}.svg`);
+        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir);
+        console.log(`[SVG] Generated lap-${lap.lapNumber}.svg`);
 
-        await generateLapGif(lap.packets, lap.lapNumber, OUTPUT_DIR, recordingBaseName);
-        console.log(`[GIF] Generated ${recordingBaseName}-lap-${lap.lapNumber}.gif`);
+        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir);
+        console.log(`[GIF] Generated lap-${lap.lapNumber}.gif`);
       }
     });
   });
