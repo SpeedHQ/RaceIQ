@@ -36,6 +36,9 @@ export interface GameAdapter {
   /** Tire health thresholds — health is 0 (dead) to 1 (fresh) */
   tireHealthThresholds: { green: number; yellow: number };
 
+  /** Tire temp thresholds in °C — blue < cold < green < warm < amber < hot < red */
+  tireTempThresholds: { cold: number; warm: number; hot: number };
+
   /** Car class names (e.g. Forza: D/C/B/A/S/R/P/X) — undefined if N/A */
   carClassNames?: Record<number, string>;
 

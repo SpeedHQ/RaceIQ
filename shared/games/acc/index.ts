@@ -9,6 +9,7 @@ export const accAdapter: GameAdapter = {
   steeringCenter: 0,
   steeringRange: 1,
   tireHealthThresholds: { green: 0.85, yellow: 0.70 },
+  tireTempThresholds: { cold: 70, warm: 100, hot: 120 },
 
   // Stubs — server adapter overrides with real CSV-backed lookups
   getCarName(ordinal: number): string {

@@ -29,7 +29,7 @@ export interface DisplaySettings {
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   unit: "metric",
-  tireTempCelsiusThresholds: { cold: 65, warm: 105, hot: 138 },
+  tireTempCelsiusThresholds: { cold: 75, warm: 115, hot: 150 },
   tireHealthThresholds: { values: [20, 40, 60, 80] },
   suspensionThresholds: { values: [25, 65, 85] },
   aiProvider: "gemini",
