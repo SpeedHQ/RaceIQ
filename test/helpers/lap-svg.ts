@@ -43,10 +43,10 @@ export function generateLapSvg(packets: TelemetryPacket[], lapNumber: number, ou
   const scaleX = svgWidth / viewWidth;
   const scaleZ = svgHeight / viewHeight;
 
-  // Create path points
+  // Create path points (invert Z to account for coordinate system difference)
   const pathPoints = packets.map((p) => {
     const x = (p.PositionX - viewMinX) * scaleX;
-    const z = (p.PositionZ - viewMinZ) * scaleZ;
+    const z = (viewMaxZ - p.PositionZ) * scaleZ; // Inverted to match track orientation
     return `${x.toFixed(2)},${z.toFixed(2)}`;
   });
 
