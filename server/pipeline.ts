@@ -130,3 +130,6 @@ export class Pipeline {
 const _default = new Pipeline(new RealDbAdapter(), new RealWsAdapter());
 export const processPacket = (p: TelemetryPacket) => _default.processPacket(p);
 export const lapDetector = _default.lapDetector;
+
+// Periodic check: flush stale laps when packets stop (e.g. race ended, game closed)
+setInterval(() => _default.lapDetector.flushStaleLap(), 5_000);

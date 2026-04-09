@@ -7,7 +7,7 @@ import { PUBLIC_DIR } from "../paths";
 import { GameIdQuerySchema } from "../../shared/schemas";
 import { udpListener } from "../udp";
 import { wsManager } from "../ws";
-import { lapDetector } from "../lap-detector";
+import { lapDetector } from "../pipeline";
 import { loadSettings, saveSettings, PartialSettingsSchema } from "../settings";
 import { getLaps } from "../db/queries";
 import { getRunningGame } from "../games/registry";

@@ -4,7 +4,7 @@ import { resolve, join } from "path";
 import { arch, platform, release, type as osType, cpus, networkInterfaces, totalmem, freemem, uptime as osUptime } from "os";
 import { zipSync, strToU8 } from "fflate";
 
-import { lapDetector } from "../lap-detector";
+import { lapDetector } from "../pipeline";
 import { wsManager } from "../ws";
 import { USER_TRACKS_DIR, IS_COMPILED, USER_DATA_DIR, ROOT_DIR } from "../paths";
 import { getUpdateState, startUpdateCheckSchedule, checkForUpdate, applyUpdate } from "../update-check";
