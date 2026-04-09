@@ -1,6 +1,6 @@
 import type { GameId } from "../../shared/types";
 import type { CapturedLap, CapturedSession } from "../../server/pipeline-adapters";
-import { CapturingDbAdapter, NullWsAdapter } from "../../server/pipeline-adapters";
+import { CapturingDbAdapter, CapturingWsAdapter } from "../../server/pipeline-adapters";
 import { Pipeline } from "../../server/pipeline";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
@@ -26,11 +26,13 @@ export interface DumpResult {
   sessions: CapturedSession[];
   carModel: string | null;
   trackName: string | null;
+  wsNotifications: Record<string, unknown>[];
+  wsDevStates: Record<string, unknown>[];
 }
 
 /**
- * Feed a recorded dump through the full server pipeline and return all captured laps and sessions.
- * Uses CapturingDbAdapter (no real DB writes) and NullWsAdapter (no WebSocket).
+ * Feed a recorded dump through the full server pipeline and return all captured laps, sessions, and WebSocket events.
+ * Uses CapturingDbAdapter (no real DB writes) and CapturingWsAdapter (captures all WS events).
  *
  * @param gameId   The game the dump was recorded for
  * @param dumpPath Path to the dump.bin file
@@ -42,7 +44,7 @@ export async function parseDump(
   ensureInit();
 
   const db = new CapturingDbAdapter();
-  const ws = new NullWsAdapter();
+  const ws = new CapturingWsAdapter();
   const pipeline = new Pipeline(db, ws, { bypassPacketRateFilter: true });
 
   let carModel: string | null = null;
@@ -53,7 +55,7 @@ export async function parseDump(
     try {
       frames = readAccFrames(dumpPath);
     } catch {
-      return { laps: [], sessions: [], carModel: null, trackName: null };
+      return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [] };
     }
     let carOrdinal = 0;
     let trackOrdinal = 0;
@@ -72,7 +74,7 @@ export async function parseDump(
     try {
       buffers = readUdpDump(dumpPath);
     } catch {
-      return { laps: [], sessions: [], carModel: null, trackName: null };
+      return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [] };
     }
 
     if (buffers.length === 0) return { laps: [], sessions: [], carModel: null, trackName: null };
@@ -90,5 +92,12 @@ export async function parseDump(
   // Flush deferred insertLap calls (lap-detector uses setTimeout(..., 0))
   await new Promise<void>((r) => setTimeout(r, 0));
 
-  return { laps: db.laps, sessions: db.sessions, carModel, trackName };
+  return {
+    laps: db.laps,
+    sessions: db.sessions,
+    carModel,
+    trackName,
+    wsNotifications: ws.broadcastedNotifications,
+    wsDevStates: ws.broadcastedDevStates,
+  };
 }

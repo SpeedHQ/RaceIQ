@@ -23,7 +23,7 @@ describe("ACC recording", () => {
       }
 
       console.log(`Using: ${recording}`);
-      const { laps, sessions, carModel, trackName } = await parseDump("acc", recording);
+      const { laps, sessions, carModel, trackName, wsNotifications } = await parseDump("acc", recording);
       console.log(`Detected ${laps.length} lap(s)`);
       for (const lap of laps) {
         const mins = Math.floor(lap.lapTime / 60);
@@ -41,6 +41,26 @@ describe("ACC recording", () => {
       // Session metadata
       expect(carModel).toBe("mclaren_720s_gt3_evo");
       expect(trackName).toBe("brands_hatch");
+
+      // WebSocket events: should have lap-saved notifications for each completed lap (lap 3 is incomplete, no notification)
+      const lapSavedNotifications = wsNotifications.filter((n) => n.type === "lap-saved");
+      expect(lapSavedNotifications.length).toBe(3); // One notification per completed lap
+
+      // First notification should be for lap 0 (invalid)
+      expect(lapSavedNotifications[0].type).toBe("lap-saved");
+      expect((lapSavedNotifications[0] as any).lapNumber).toBe(0);
+      expect((lapSavedNotifications[0] as any).isValid).toBe(false);
+
+      // Second notification should be for lap 1 (valid)
+      expect(lapSavedNotifications[1].type).toBe("lap-saved");
+      expect((lapSavedNotifications[1] as any).lapNumber).toBe(1);
+      expect((lapSavedNotifications[1] as any).isValid).toBe(true);
+      expect((lapSavedNotifications[1] as any).lapTime).toBeGreaterThan(0);
+
+      // Third notification should be for lap 2 (valid)
+      expect(lapSavedNotifications[2].type).toBe("lap-saved");
+      expect((lapSavedNotifications[2] as any).lapNumber).toBe(2);
+      expect((lapSavedNotifications[2] as any).isValid).toBe(true);
 
       // Lap 0: joining lap — invalid
       expect(laps[0].isValid).toBe(false);

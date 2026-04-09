@@ -129,3 +129,22 @@ export class NullWsAdapter implements WsAdapter {
   broadcastNotification(_event: Record<string, unknown>): void {}
   broadcastDevState(_state: Record<string, unknown>): void {}
 }
+
+/** Capturing WebSocket adapter that records all events. Used in tests. */
+export class CapturingWsAdapter implements WsAdapter {
+  readonly broadcastedPackets: Array<{ packet: TelemetryPacket; sectors?: LiveSectorData | null; pit?: LivePitData | null }> = [];
+  readonly broadcastedNotifications: Record<string, unknown>[] = [];
+  readonly broadcastedDevStates: Record<string, unknown>[] = [];
+
+  broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null): void {
+    this.broadcastedPackets.push({ packet, sectors, pit });
+  }
+
+  broadcastNotification(event: Record<string, unknown>): void {
+    this.broadcastedNotifications.push(event);
+  }
+
+  broadcastDevState(state: Record<string, unknown>): void {
+    this.broadcastedDevStates.push(state);
+  }
+}
