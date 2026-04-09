@@ -199,12 +199,7 @@ export class SectorTracker {
         this.lastTimes = [...this.currentTimes] as [number, number, number];
         this.lastTimes[2] = packet.LastLap - this.currentTimes[0] - this.currentTimes[1];
         if (this.lastTimes[2] < 0) this.lastTimes[2] = 0;
-
-        for (let i = 0; i < 3; i++) {
-          if (this.lastTimes[i] > 0 && this.lastTimes[i] < this.bestTimes[i]) {
-            this.bestTimes[i] = this.lastTimes[i];
-          }
-        }
+        // bestTimes only updated from valid laps (via updateRefLap / seeding)
       }
 
       if (packet.LastLap > 0) {
@@ -295,10 +290,14 @@ export class SectorTracker {
     return t[lo] + frac * (t[hi] - t[lo]);
   }
 
-  /** Update reference lap from a just-completed live lap (if it's the new best). */
-  /** Update reference lap from a just-completed valid live lap (if it's the new best). */
-  updateRefLap(packets: TelemetryPacket[], lapDistStart: number, lapTime: number): void {
+  /** Update reference lap and bests from a just-completed valid live lap. */
+  updateRefLap(packets: TelemetryPacket[], lapDistStart: number, lapTime: number, sectors?: { s1: number; s2: number; s3: number } | null): void {
     if (lapTime < this.bestLapTime) this.bestLapTime = lapTime;
+    if (sectors) {
+      if (sectors.s1 > 0 && sectors.s1 < this.bestTimes[0]) this.bestTimes[0] = sectors.s1;
+      if (sectors.s2 > 0 && sectors.s2 < this.bestTimes[1]) this.bestTimes[1] = sectors.s2;
+      if (sectors.s3 > 0 && sectors.s3 < this.bestTimes[2]) this.bestTimes[2] = sectors.s3;
+    }
     if (this.refLap && lapTime >= this.refLap.lapTime) return;
     const distances = new Float64Array(packets.length);
     const times = new Float64Array(packets.length);

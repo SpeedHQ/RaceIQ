@@ -19,7 +19,7 @@ lapDetector.onSessionStart = async (session) => {
 
 lapDetector.onLapComplete_ = (event) => {
   if (event.isValid) {
-    sectorTracker.updateRefLap(event.packets, event.lapDistStart, event.lapTime);
+    sectorTracker.updateRefLap(event.packets, event.lapDistStart, event.lapTime, event.sectors);
   }
 };
 

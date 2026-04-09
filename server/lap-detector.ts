@@ -54,6 +54,7 @@ export interface LapCompleteEvent {
   lapDistStart: number;
   lapTime: number;
   isValid: boolean;
+  sectors: { s1: number; s2: number; s3: number } | null;
 }
 
 class LapDetector {
@@ -385,6 +386,7 @@ class LapDetector {
           lapDistStart: this.lapBuffer[0].DistanceTraveled,
           lapTime,
           isValid: valid,
+          sectors,
         });
       }
 
