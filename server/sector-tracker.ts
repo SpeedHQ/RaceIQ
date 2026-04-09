@@ -309,6 +309,13 @@ export class SectorTracker {
     this.refLap = { distances, times, lapTime };
   }
 
+  /** Initialize tracker state for testing (bypasses async reset/DB). */
+  _initForTest(opts: { s1End: number; s2End: number; trackLength: number }): void {
+    this.bounds = { s1End: opts.s1End, s2End: opts.s2End, trackLength: opts.trackLength };
+    this.lapDistTotal = opts.trackLength;
+    this.initialized = false;
+  }
+
   /** Expose track length so PitTracker can use it */
   getTrackLength(): number {
     return this.bounds?.trackLength ?? 0;
