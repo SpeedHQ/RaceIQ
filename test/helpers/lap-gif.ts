@@ -175,7 +175,7 @@ export async function generateRawGif(
       const output = createWriteStream(gifPath);
 
       gif.pipe(output);
-      gif.setDelay(150); // 150ms per frame (50% slower)
+      gif.setDelay(450); // 450ms per frame (3x slower than lap GIFs)
       gif.setDispose(2);
       gif.writeHeader();
 
