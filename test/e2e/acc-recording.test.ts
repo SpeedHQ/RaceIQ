@@ -106,6 +106,14 @@ describe("ACC recording", () => {
       const sessionLaps = laps.filter((l) => l.sessionId === firstSessionId);
       expect(sessionLaps.length).toBe(4);
       expect(sessionLaps.map((l) => l.lapNumber)).toEqual([0, 1, 2, 3]);
+
+      // Lap validity summary: 2 valid, 2 invalid
+      const validLaps = laps.filter((l) => l.isValid);
+      const invalidLaps = laps.filter((l) => !l.isValid);
+      expect(validLaps.length).toBe(2); // Laps 1 and 2
+      expect(invalidLaps.length).toBe(2); // Laps 0 and 3
+      expect(validLaps.map((l) => l.lapNumber)).toEqual([1, 2]);
+      expect(invalidLaps.map((l) => l.lapNumber)).toEqual([0, 3]);
     });
   });
 });
