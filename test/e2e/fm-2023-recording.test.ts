@@ -2,8 +2,8 @@ import { describe, test, expect } from "bun:test";
 import type { LapSavedNotification } from "../../server/lap-detector";
 import { parseDump } from "../helpers/parse-dump";
 import { assertSectorTimesMatchLapTime, assertLapTimesProper } from "../helpers/lap-assertions";
-import { generateLapSvg } from "../helpers/lap-svg";
-import { generateLapGif } from "../helpers/lap-gif";
+import { generateLapSvg, generateRawSvg } from "../helpers/lap-svg";
+import { generateLapGif, generateRawGif } from "../helpers/lap-gif";
 import { existsSync, readdirSync, mkdirSync } from "fs";
 import { join } from "path";
 
@@ -74,6 +74,16 @@ describe("FM-2023 recording", () => {
       const recordingOutputDir = join(OUTPUT_DIR, recordingBaseName);
       mkdirSync(recordingOutputDir, { recursive: true });
       console.log(`[SVG] Generating lap visualizations in ${recordingOutputDir}`);
+
+      // Generate raw telemetry SVG and GIF (all packets without lap detection)
+      if (wsNotifications.length > 0) {
+        const { rawPackets } = await parseDump("fm-2023", recording);
+        generateRawSvg(rawPackets, recordingOutputDir);
+        console.log(`[SVG] Generated raw telemetry visualization`);
+        await generateRawGif(rawPackets, recordingOutputDir);
+        console.log(`[GIF] Generated raw telemetry visualization`);
+      }
+
       for (const lap of laps) {
         // Debug: show coordinate ranges
         let minX = lap.packets[0].PositionX;
@@ -175,6 +185,16 @@ describe("FM-2023 recording", () => {
       const recordingOutputDir = join(OUTPUT_DIR, recordingBaseName);
       mkdirSync(recordingOutputDir, { recursive: true });
       console.log(`[SVG] Generating lap visualizations in ${recordingOutputDir}`);
+
+      // Generate raw telemetry SVG and GIF (all packets without lap detection)
+      if (wsNotifications.length > 0) {
+        const { rawPackets } = await parseDump("fm-2023", recording);
+        generateRawSvg(rawPackets, recordingOutputDir);
+        console.log(`[SVG] Generated raw telemetry visualization`);
+        await generateRawGif(rawPackets, recordingOutputDir);
+        console.log(`[GIF] Generated raw telemetry visualization`);
+      }
+
       for (const lap of laps) {
         // Debug: show coordinate ranges
         let minX = lap.packets[0].PositionX;

@@ -29,6 +29,7 @@ export interface DumpResult {
   trackName: string | null;
   wsNotifications: (LapSavedNotification | Record<string, unknown>)[];
   wsDevStates: Record<string, unknown>[];
+  rawPackets: TelemetryPacket[];
 }
 
 /**
@@ -93,6 +94,9 @@ export async function parseDump(
   // Flush deferred insertLap calls (lap-detector uses setTimeout(..., 0))
   await new Promise<void>((r) => setTimeout(r, 0));
 
+  // Extract raw packets from broadcast events (all packets that went through the pipeline)
+  const rawPackets = ws.broadcastedPackets.map((e) => e.packet);
+
   return {
     laps: db.laps,
     sessions: db.sessions,
@@ -100,5 +104,6 @@ export async function parseDump(
     trackName,
     wsNotifications: ws.broadcastedNotifications,
     wsDevStates: ws.broadcastedDevStates,
+    rawPackets,
   };
 }
