@@ -25,6 +25,7 @@ lapDetector.onSessionStart = async (session) => {
   pitTracker.reset();
   const adapter = tryGetGame(session.gameId);
   if (adapter) pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
+  await pitTracker.seedFromHistory(session.trackOrdinal, session.carOrdinal, session.carPI, session.gameId);
   await broadcastSessionLaps(session.trackOrdinal, session.carOrdinal, session.gameId);
 };
 

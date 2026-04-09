@@ -23,6 +23,7 @@ export interface SessionState {
   sessionId: number;
   carOrdinal: number;
   trackOrdinal: number;
+  carPI: number;
   gameId: GameId;
   sessionUID?: string; // F1 session UID for reliable session boundary detection
 }
@@ -293,6 +294,7 @@ class LapDetector {
       sessionId,
       carOrdinal: packet.CarOrdinal,
       trackOrdinal: trackOrd,
+      carPI: packet.CarPerformanceIndex,
       gameId,
       sessionUID: packet.sessionUID,
     };

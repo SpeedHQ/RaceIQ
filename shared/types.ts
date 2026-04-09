@@ -437,6 +437,8 @@ export interface LivePitData {
   pitInLaps: number | null;
   limitedBy: "fuel" | "tires" | null;
   trackLength: number;
+  /** Whether estimates are from historical data or current session laps. */
+  estimateSource: "history" | "session" | null;
   // Deprecated — use tireLapsToBad
   tireLapsRemaining: number | null;
 }

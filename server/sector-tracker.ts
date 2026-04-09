@@ -5,7 +5,7 @@
  * distance-fraction sector boundaries. Broadcast via WebSocket so the
  * client just renders numbers.
  */
-import type { TelemetryPacket, GameId, LiveSectorData, LivePitData } from "../shared/types";
+import type { TelemetryPacket, GameId, LiveSectorData, LivePitData, LapMeta } from "../shared/types";
 import { getTrackOutlineSectors, getLaps, getLapById } from "./db/queries";
 import { getTrackSectorsByOrdinal, getTrackOutlineByOrdinal, loadSharedTrackMeta } from "../shared/track-data";
 import { tryGetGame } from "../shared/games/registry";
@@ -346,6 +346,7 @@ export class PitTracker {
   // Lap time tracking for outlier detection
   private lapTimeHistory: number[] = [];
   private lastCurrentLap = 0;
+  private sessionLapCount = 0; // valid laps completed this session
 
   // Game-specific thresholds (health = 1 - wear)
   private badHealthThreshold = 0.40;
@@ -359,10 +360,66 @@ export class PitTracker {
     this.wearAtLapStart = { fl: -1, fr: -1, rl: -1, rr: -1 };
     this.lapTimeHistory = [];
     this.lastCurrentLap = 0;
+    this.sessionLapCount = 0;
   }
 
   setTireThresholds(yellow: number): void {
     this.badHealthThreshold = yellow;
+  }
+
+  /**
+   * Seed fuel and tire histories from previous sessions with the same car+track+PI.
+   * Seeds 2 fuel entries and 1 tire entry so fresh data takes over quickly.
+   */
+  async seedFromHistory(trackOrdinal: number, carOrdinal: number, pi: number, gameId: GameId): Promise<void> {
+    try {
+      const allLaps = await getLaps(gameId, 200);
+      const matching = allLaps
+        .filter((l: LapMeta) => l.trackOrdinal === trackOrdinal && l.carOrdinal === carOrdinal && l.pi === pi && l.isValid && l.lapTime > 10)
+        .sort((a: LapMeta, b: LapMeta) => b.id - a.id) // newest first
+        .slice(0, 5);
+
+      const fuelRates: number[] = [];
+      const wearRates: { fl: number; fr: number; rl: number; rr: number }[] = [];
+
+      for (const lapMeta of matching) {
+        if (fuelRates.length >= 2 && wearRates.length >= 1) break;
+        const lap = await getLapById(lapMeta.id);
+        if (!lap?.telemetry || lap.telemetry.length < 50) continue;
+
+        const first = lap.telemetry[0];
+        const last = lap.telemetry[lap.telemetry.length - 1];
+
+        // Fuel rate from this lap
+        const fuelUsed = first.Fuel - last.Fuel;
+        if (fuelUsed > 0 && fuelRates.length < 2) {
+          fuelRates.push(fuelUsed);
+        }
+
+        // Tire wear from this lap
+        if (wearRates.length < 1) {
+          const worn = {
+            fl: Math.max(0, last.TireWearFL - first.TireWearFL),
+            fr: Math.max(0, last.TireWearFR - first.TireWearFR),
+            rl: Math.max(0, last.TireWearRL - first.TireWearRL),
+            rr: Math.max(0, last.TireWearRR - first.TireWearRR),
+          };
+          if (Math.max(worn.fl, worn.fr, worn.rl, worn.rr) > 0) {
+            wearRates.push(worn);
+          }
+        }
+      }
+
+      // Seed histories (these will be naturally rolled out by fresh data)
+      this.fuelHistory.push(...fuelRates);
+      this.tireWearHistory.push(...wearRates);
+
+      if (fuelRates.length > 0 || wearRates.length > 0) {
+        console.log(`[Pit] Seeded from history: ${fuelRates.length} fuel entries, ${wearRates.length} tire entries (PI=${pi})`);
+      }
+    } catch (err) {
+      console.warn("[Pit] Failed to seed from history:", err);
+    }
   }
 
   /** Check if a lap's data should be excluded (formation lap, pit lap, etc.) */
@@ -401,6 +458,7 @@ export class PitTracker {
       if (!outlier && fuelUsed > 0) {
         this.fuelHistory.push(fuelUsed);
         if (this.fuelHistory.length > 50) this.fuelHistory.shift();
+        this.sessionLapCount++;
       }
       this.fuelAtLapStart = packet.Fuel;
 
@@ -488,6 +546,11 @@ export class PitTracker {
       }
     }
 
+    const hasEstimates = fuelPerLap > 0 || worstWearPerLap > 0;
+    const estimateSource: "history" | "session" | null = !hasEstimates
+      ? null
+      : this.sessionLapCount > 0 ? "session" : "history";
+
     return {
       fuelPerLap,
       fuelLapsRemaining,
@@ -499,6 +562,7 @@ export class PitTracker {
       pitInLaps,
       limitedBy,
       trackLength,
+      estimateSource,
     };
   }
 }
