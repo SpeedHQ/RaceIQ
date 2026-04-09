@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync } from "fs";
-import { resolve } from "path";
+import { resolve, dirname } from "path";
 
 /**
  * Appends raw UDP packets to a binary dump file.
@@ -27,13 +27,14 @@ export class UdpRecorder {
     return this._path;
   }
 
-  /** Open dump.bin inside the given session directory. Returns the file path. */
-  start(sessionDir: string): string {
+  /** Open the given file path. Creates parent directories as needed. Returns the file path. */
+  start(filePath: string): string {
     if (this._file) this.stop();
-    if (!existsSync(sessionDir)) {
-      mkdirSync(sessionDir, { recursive: true });
+    const dir = dirname(filePath);
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
     }
-    this._path = resolve(sessionDir, "dump.bin");
+    this._path = filePath;
     this._file = Bun.file(this._path).writer();
     this._packetCount = 0;
     console.log(`[UdpRecorder] Recording to ${this._path}`);

@@ -6,7 +6,7 @@
  *        bun run server/record.ts fm-2023
  *        bun run server/record.ts acc
  *
- * Records raw packets/frames to test/artifacts/laps/<gameId>-<timestamp>/ (UDP and ACC).
+ * Records raw packets/frames to test/artifacts/laps/<gameId>-<timestamp>.bin (UDP and ACC).
  * Does NOT start HTTP, WebSocket, lap detector, or pipeline.
  */
 import { initGameAdapters } from "../shared/games/init";
@@ -15,13 +15,10 @@ import { getAllServerGames, tryGetServerGame } from "./games/registry";
 import { tryGetGame } from "../shared/games/registry";
 import { loadSettings } from "./settings";
 import { UdpRecorder } from "./udp-recorder";
-import { writeRecordingMeta, type RecordingMeta } from "./record-meta";
 import { resolve } from "path";
 import { accRecorder } from "./games/acc/recorder";
 import { PHYSICS, GRAPHICS, STATIC, AC_STATUS } from "./games/acc/structs";
 import { readWString, toWideString } from "./games/acc/utils";
-import { getAccCarByModel } from "../shared/acc-car-data";
-import { getAccTrackByName } from "../shared/acc-track-data";
 
 // Register all game adapters (needed for canHandle + parsing)
 initGameAdapters();
@@ -42,26 +39,15 @@ if (!serverAdapter || !sharedAdapter) {
   process.exit(1);
 }
 
-// --- Session directory ---
-const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-const sessionDir = resolve(process.cwd(), "test", "artifacts", "laps", `${gameId}-${timestamp}`);
-
-const meta: RecordingMeta = {
-  gameId: gameId as import("../shared/types").GameId,
-  trackOrdinal: null,
-  trackName: null,
-  carOrdinal: null,
-  carName: null,
-  startedAt: new Date().toISOString(),
-};
-
-// Write initial meta immediately
-writeRecordingMeta(sessionDir, meta);
+// --- Output file ---
+const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+const outDir = resolve(process.cwd(), "test", "artifacts", "laps");
+const filePath = resolve(outDir, `${gameId}-${timestamp}.bin`);
 
 if (gameId === "acc") {
-  await recordAcc(sessionDir, meta);
+  await recordAcc(filePath);
 } else {
-  await recordUdp(serverAdapter, sharedAdapter, sessionDir, meta);
+  await recordUdp(serverAdapter, sharedAdapter, filePath);
 }
 
 // ─── UDP recording ────────────────────────────────────────────────────────────
@@ -69,48 +55,19 @@ if (gameId === "acc") {
 async function recordUdp(
   serverAdapter: NonNullable<ReturnType<typeof tryGetServerGame>>,
   sharedAdapter: NonNullable<ReturnType<typeof tryGetGame>>,
-  sessionDir: string,
-  meta: RecordingMeta
+  filePath: string
 ): Promise<void> {
   const settings = loadSettings();
   const udpPort = settings.udpPort ?? (Number(process.env.UDP_PORT) || 5301);
 
   const recorder = new UdpRecorder();
-  recorder.start(sessionDir);
-
-  // Parser state for metadata extraction (first ~100 packets only)
-  const parserState = serverAdapter.createParserState();
-  let metaResolved = false;
-  let parsedCount = 0;
-  const META_RESOLVE_LIMIT = 100;
+  recorder.start(filePath);
 
   const dgram = require("dgram");
   const sock = dgram.createSocket("udp4");
 
   sock.on("message", (buf: Buffer) => {
     recorder.writePacket(buf);
-
-    // Resolve track/car from first few packets
-    if (!metaResolved && parsedCount < META_RESOLVE_LIMIT) {
-      parsedCount++;
-      try {
-        const packet = serverAdapter.tryParse(buf, parserState);
-        if (packet && packet.TrackOrdinal && packet.CarOrdinal) {
-          meta.trackOrdinal = packet.TrackOrdinal;
-          meta.carOrdinal = packet.CarOrdinal;
-          meta.trackName = sharedAdapter.getTrackName(packet.TrackOrdinal) ?? null;
-          meta.carName = sharedAdapter.getCarName(packet.CarOrdinal) ?? null;
-          metaResolved = true;
-          writeRecordingMeta(sessionDir, meta);
-          console.log(`[Record] Resolved: track=${meta.trackName} car=${meta.carName}`);
-        }
-      } catch {
-        // Ignore parse errors during metadata resolution
-      }
-    }
-    if (!metaResolved && parsedCount === META_RESOLVE_LIMIT) {
-      console.log(`[Record] Metadata not resolved after ${META_RESOLVE_LIMIT} packets — proceeding without track/car info`);
-    }
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -124,7 +81,6 @@ async function recordUdp(
   });
 
   console.log(`[Record] Listening on UDP :${udpPort} — game=${gameId}`);
-  console.log(`[Record] Writing to ${sessionDir}`);
   console.log(`[Record] Press Ctrl+C to stop`);
 
   // Graceful shutdown
@@ -132,8 +88,6 @@ async function recordUdp(
     console.log("\n[Record] Stopping...");
     sock.close();
     await recorder.stop();
-    // Write final meta (in case meta was never resolved, null fields stay null)
-    writeRecordingMeta(sessionDir, meta);
     console.log(`[Record] Done. ${recorder.packetCount} packets recorded.`);
     process.exit(0);
   };
@@ -149,7 +103,7 @@ async function recordUdp(
 
 // ─── ACC recording ────────────────────────────────────────────────────────────
 
-async function recordAcc(sessionDir: string, meta: RecordingMeta): Promise<void> {
+async function recordAcc(filePath: string): Promise<void> {
   const FILE_MAP_READ = 0x0004;
 
   // Load kernel32.dll FFI — same calls as AccSharedMemoryReader._loadFfi()
@@ -226,22 +180,10 @@ async function recordAcc(sessionDir: string, meta: RecordingMeta): Promise<void>
 
   console.log("[Record] ACC shared memory connected");
 
-  // Resolve track/car from static buffer
-  const staticBuf = readMem(staticMem!);
-  const carModel = readWString(staticBuf, STATIC.carModel.offset, (STATIC.carModel as { offset: number; size: number }).size);
-  const trackStr = readWString(staticBuf, STATIC.track.offset, (STATIC.track as { offset: number; size: number }).size);
-  const car = getAccCarByModel(carModel);
-  const track = getAccTrackByName(trackStr);
-  if (car) { meta.carOrdinal = car.id; meta.carName = carModel; }
-  if (track) { meta.trackOrdinal = track.id; meta.trackName = trackStr; }
-  writeRecordingMeta(sessionDir, meta);
-  console.log(`[Record] Resolved: track=${meta.trackName ?? "unknown"} car=${meta.carName ?? "unknown"}`);
-
-  // Start recording using existing AccRecorder (writes to test/artifacts/laps/)
-  const accDir = resolve(sessionDir);
-  accRecorder.start(accDir);
+  // Start recording — AccRecorder generates its own filename, but we'll override to use the provided path
+  // For now, use the default directory since accRecorder.start() generates its own timestamp
+  accRecorder.start(resolve(process.cwd(), "test", "artifacts", "laps"));
   console.log(`[Record] ACC recording started`);
-  console.log(`[Record] Meta written to ${sessionDir}`);
   console.log(`[Record] Press Ctrl+C to stop`);
 
   // Poll at 60Hz — write raw frames, no pipeline
@@ -267,7 +209,6 @@ async function recordAcc(sessionDir: string, meta: RecordingMeta): Promise<void>
     if (graphics) { closeMem(graphics); graphics = null; }
     if (staticMem) { closeMem(staticMem); staticMem = null; }
     await accRecorder.stop();
-    writeRecordingMeta(sessionDir, meta);
     console.log(`[Record] Done. ${accRecorder.frameCount} frames recorded.`);
     process.exit(0);
   };
