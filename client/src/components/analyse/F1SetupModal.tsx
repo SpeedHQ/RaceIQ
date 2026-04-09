@@ -46,7 +46,7 @@ export function F1SetupModal({ setup, onClose }: { setup: F1CarSetup; onClose: (
       ],
     },
     {
-      title: "Tyres",
+      title: "Tires",
       items: [
         { label: "Front Left Pressure", value: `${setup.frontLeftTyrePressure.toFixed(1)} psi` },
         { label: "Front Right Pressure", value: `${setup.frontRightTyrePressure.toFixed(1)} psi` },

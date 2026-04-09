@@ -78,7 +78,7 @@ export function TireRaceView({ packet }: { packet: DisplayPacket | TelemetryPack
           const tempBg = tireTempBgClass(tempC, units.thresholds);
 
           return (
-            <div key={t.label} className="bg-app-surface-alt/30 rounded-md p-2.5 flex items-center gap-2">
+            <div key={t.label} className="rounded-md p-2.5 flex items-center gap-2">
               {/* Vertical health bar — colored by tire temp */}
               <div className="flex flex-col items-center gap-1 shrink-0">
                 <span className="text-xs font-bold text-app-text-muted">{t.label}</span>

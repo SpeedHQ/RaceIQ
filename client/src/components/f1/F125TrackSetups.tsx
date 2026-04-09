@@ -45,7 +45,7 @@ const SETUP_GROUPS: { title: string; fields: [string, string, string?][] }[] = [
   { title: "Geometry", fields: [["frontCamber", "F Camber", "°"], ["rearCamber", "R Camber", "°"], ["frontToe", "F Toe", "°"], ["rearToe", "R Toe", "°"]] },
   { title: "Suspension", fields: [["frontSuspension", "F Susp"], ["rearSuspension", "R Susp"], ["frontAntiRollBar", "F ARB"], ["rearAntiRollBar", "R ARB"], ["frontRideHeight", "F Height"], ["rearRideHeight", "R Height"]] },
   { title: "Brakes", fields: [["brakePressure", "Pressure"], ["frontBrakeBias", "Bias"]] },
-  { title: "Tyres", fields: [["frontLeftTyrePressure", "FL", " psi"], ["frontRightTyrePressure", "FR", " psi"], ["rearLeftTyrePressure", "RL", " psi"], ["rearRightTyrePressure", "RR", " psi"]] },
+  { title: "Tires", fields: [["frontLeftTyrePressure", "FL", " psi"], ["frontRightTyrePressure", "FR", " psi"], ["rearLeftTyrePressure", "RL", " psi"], ["rearRightTyrePressure", "RR", " psi"]] },
 ];
 
 function ProviderBadge({ provider }: { provider: string }) {

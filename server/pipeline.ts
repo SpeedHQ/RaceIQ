@@ -34,7 +34,11 @@ lapDetector.onSessionStart = async (session) => {
 lapDetector.onLapComplete_ = (event) => {
   if (event.isValid) {
     sectorTracker.updateRefLap(event.packets, event.lapDistStart, event.lapTime, event.sectors);
-    pitTracker.updateWearCurves(event.packets, event.lapDistStart);
+    // Only ACC uses distance-based wear curves; F1/Forza use simple rolling average
+    const session = lapDetector.session;
+    if (session && PitTracker.shouldUseCurves(session.gameId)) {
+      pitTracker.updateWearCurves(event.packets, event.lapDistStart);
+    }
   }
 };
 

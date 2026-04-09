@@ -25,7 +25,7 @@ export function SurfaceConditions({ packet }: { packet: DisplayPacket | Telemetr
                 ? "border-orange-500/50 bg-orange-950/30"
                 : w.puddle > 0
                   ? "border-blue-500/50 bg-blue-950/30"
-                  : "border-app-border bg-app-surface-alt/30"
+                  : "border-app-border"
             }`}
           >
             <span className="text-app-text-muted font-bold">{w.label}</span>

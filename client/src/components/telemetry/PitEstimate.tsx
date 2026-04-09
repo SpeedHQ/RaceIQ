@@ -3,6 +3,7 @@ import { useSettings } from "@/hooks/queries";
 import { useGameId } from "@/stores/game";
 import { useTelemetryStore } from "@/stores/telemetry";
 import { tireHealthTextClass, tireHealthBgClass } from "@/lib/vehicle-dynamics";
+import { PitWindow } from "./PitWindow";
 
 /**
  * PitEstimate — Displays server-computed fuel and tire estimates.
@@ -41,37 +42,14 @@ export function PitEstimate({ packet }: { packet: TelemetryPacket }) {
     };
   });
 
-  // Server-computed pit window
-  const hasEstimates = pit != null && (pit.fuelLapsRemaining != null || pit.tireLapsToBad != null);
-  const pitIn = pit?.pitInLaps ?? null;
-  const limitedBy = pit?.limitedBy ?? null;
-  const urgentColor = pitIn != null
-    ? (pitIn <= 3 ? "text-red-400" : pitIn <= 6 ? "text-amber-400" : "text-emerald-400")
-    : "text-app-text-muted";
-
   return (
     <div>
-      {/* Pit in: limited by + lap count */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-lg font-semibold text-app-text-secondary">
-          {hasEstimates && limitedBy ? (
-            <>Limited by <span className={`font-bold ${limitedBy === "fuel" ? fuelColor : "text-app-text"}`}>{limitedBy}</span></>
-          ) : (
-            <span className="text-app-text-dim">Estimating...</span>
-          )}
-        </div>
-        <span className={`text-3xl font-mono font-black tabular-nums leading-none ${urgentColor}`}>
-          {pitIn != null ? (
-            <>{pitIn.toFixed(1)} <span className="text-base font-bold">laps</span></>
-          ) : (
-            <span className="text-app-text-dim">— <span className="text-base font-bold">laps</span></span>
-          )}
-        </span>
+      <div className="flex justify-end mb-3">
+        <PitWindow />
       </div>
-
       <div className="space-y-3">
         {/* Fuel row */}
-        <div className="bg-app-surface/50 rounded-md p-3">
+        <div className="py-1">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs text-app-text-muted uppercase tracking-wider font-semibold">Fuel</div>
             <div className={`text-lg font-mono font-bold tabular-nums ${fuelLaps != null ? fuelColor : "text-app-text-dim"}`}>
@@ -79,7 +57,7 @@ export function PitEstimate({ packet }: { packet: TelemetryPacket }) {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex-1 h-3 bg-app-surface-alt rounded-full overflow-hidden">
+            <div className="flex-1 h-3 rounded-full overflow-hidden">
               <div className={`h-full rounded-full ${fuelPct < 20 ? "bg-red-500" : fuelPct < 40 ? "bg-amber-400" : "bg-emerald-400"}`} style={{ width: `${fuelPct}%` }} />
             </div>
             <div className={`text-2xl font-mono font-black tabular-nums leading-none ${fuelIsLitres ? "w-20" : "w-14"} text-right ${fuelColor}`}>
@@ -89,7 +67,7 @@ export function PitEstimate({ packet }: { packet: TelemetryPacket }) {
         </div>
 
         {/* Tire section */}
-        <div className="bg-app-surface/50 rounded-md p-3">
+        <div className="py-1">
           <div className="text-xs text-app-text-muted uppercase tracking-wider font-semibold mb-2">Tires</div>
 
           {/* Column headers */}
@@ -105,7 +83,7 @@ export function PitEstimate({ packet }: { packet: TelemetryPacket }) {
           {tireData.map((t) => (
             <div key={t.label} className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-x-2 items-center py-1.5 px-0.5">
               <div className="text-sm font-bold text-app-text-muted w-6">{t.label}</div>
-              <div className="h-3 bg-app-surface-alt rounded-full overflow-hidden">
+              <div className="h-3 rounded-full overflow-hidden">
                 <div className={`h-full rounded-full ${t.healthBg}`} style={{ width: `${t.health}%` }} />
               </div>
               <div className={`text-lg font-mono font-black tabular-nums leading-none text-right w-12 ${t.healthClr}`}>
@@ -124,7 +102,6 @@ export function PitEstimate({ packet }: { packet: TelemetryPacket }) {
           ))}
         </div>
       </div>
-
     </div>
   );
 }

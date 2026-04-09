@@ -3,11 +3,11 @@ import { Link } from "@tanstack/react-router";
 import { useTrackName, useCarName } from "../hooks/queries";
 import { useGameRoute } from "../stores/game";
 import { LiveTelemetry, type DashboardMode } from "./LiveTelemetry";
-import { formatLapTime } from "@/lib/format";
 import { LiveTrackMap } from "./LiveTrackMap";
-import { LapList } from "./LapList";
+import { RecordedLaps } from "./RecordedLaps";
 import { LapTimeChart } from "./LapTimeChart";
 import { SectorTimes } from "./SectorTimes";
+import { LapTimes } from "./telemetry/LapTimes";
 import { useDemoMode } from "../hooks/useDemoMode";
 import { NoDataView } from "./NoDataView";
 
@@ -18,7 +18,7 @@ function PageHeader({ dashMode, demo }: {
   const prefix = useGameRoute();
   return (
     <div className="p-2 border-b border-app-border flex items-center justify-between">
-      <div className="flex items-center gap-1 bg-app-surface-alt rounded p-0.5">
+      <div className="flex items-center gap-1 rounded p-0.5">
         <Link
           to={
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,8 +54,8 @@ function PageHeader({ dashMode, demo }: {
             demo.active
               ? "bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30"
               : demo.loading
-                ? "bg-app-surface-alt border-app-border text-app-text-dim cursor-wait"
-                : "bg-app-surface-alt border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover"
+                ? "border-app-border text-app-text-dim cursor-wait"
+                : "border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover"
           }`}
         >
           {demo.loading ? "Loading..." : demo.active ? "Stop Demo" : "Demo"}
@@ -100,44 +100,16 @@ function RaceInfo({ packet, trackName, carName, showTrackMap = true, showSectors
                   {packet.LapNumber}
                 </div>
               </div>
-              <div className="flex-1">
-                <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Current</div>
-                <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
-                  {formatLapTime(packet.CurrentLap)}
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Est. Lap</div>
-                <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
-                  {sectors?.estimatedLap ? formatLapTime(sectors.estimatedLap) : "--:--.---"}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Delta</div>
-                <div className={`text-3xl font-mono font-bold tabular-nums leading-none ${sectors?.deltaToBest && sectors.deltaToBest !== 0 ? (sectors.deltaToBest <= 0 ? "text-emerald-400" : "text-red-400") : "text-app-text-dim"}`}>
-                  {sectors?.deltaToBest && sectors.deltaToBest !== 0
-                    ? `${sectors.deltaToBest <= 0 ? "" : "+"}${sectors.deltaToBest.toFixed(3)}`
-                    : "--:--.---"}
-                </div>
-              </div>
             </div>
-            <div className="flex gap-4 mb-3 items-end">
-              <div>
-                <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Last</div>
-                <div className="text-xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(sectors?.lastLapTime ?? 0)}</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Best</div>
-                <div className="text-xl font-mono font-bold text-purple-400 tabular-nums leading-none">{formatLapTime(sectors?.bestLapTime ?? 0)}</div>
-              </div>
-            </div>
+            <LapTimes packet={packet} sectors={sectors} />
+            <div className="mt-3" />
             {showSectors && <SectorTimes />}
           </div>
         </div>
 
         {/* Track Map sidebar — only in pit crew mode */}
         {showTrackMap && (
-          <div className="bg-app-bg" style={{ minHeight: 280 }}>
+          <div style={{ minHeight: 280 }}>
             <div className="p-2 border-b border-app-border">
               <div className="text-xs font-semibold text-app-text-muted uppercase tracking-wider truncate">
                 {trackName || "Track Map"}
@@ -191,10 +163,7 @@ export function LivePage({ mode = "driver" }: { mode?: DashboardMode }) {
           </div>
           <LapTimeChart packet={packet} />
           <div className="flex-1">
-            <div className="p-2 border-b border-app-border">
-              <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Recorded Laps</h2>
-            </div>
-            <LapList hasTelemetry={!!packet} />
+            <RecordedLaps />
           </div>
         </div>
       </div>
@@ -218,7 +187,7 @@ export function LivePage({ mode = "driver" }: { mode?: DashboardMode }) {
           <div className="p-2 border-b border-app-border">
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Recorded Laps</h2>
           </div>
-          <LapList hasTelemetry={!!packet} />
+          <RecordedLaps />
         </div>
       </div>
     </div>

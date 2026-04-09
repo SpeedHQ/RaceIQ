@@ -136,7 +136,7 @@ export function SectorTimes() {
           }
 
           return (
-            <div key={name} className={`rounded p-2.5 ${isActive ? "bg-app-surface-alt/80 ring-1" : "bg-app-surface-alt/30"}`} style={isActive ? { "--tw-ring-color": sectorColors[i] } as React.CSSProperties : {}}>
+            <div key={name} className={`rounded p-2.5 ${isActive ? "ring-1" : ""}`} style={isActive ? { "--tw-ring-color": sectorColors[i] } as React.CSSProperties : {}}>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: sectorColors[i] }} />
                 <span className="text-xs font-bold text-app-text-secondary">{name}</span>

@@ -40,7 +40,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
       .then((r) => r.ok ? r.text() : `Car #${ord}`)
       .then((name) => setCarName(name))
       .catch(() => setCarName(`Car #${ord}`));
-  }, [packet?.CarOrdinal, gameId]);
+  }, [packet, gameId]);
 
   const units = useUnits();
 
@@ -61,11 +61,11 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
 
   // ── Shared hero: Speed + Gear + RPM ──────────────────────────
   const heroSection = (
-    <div className="bg-app-surface-alt/20 p-3 pb-2">
+    <div className="p-3 pb-2">
       {carName && (
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs font-semibold text-app-text truncate">{carName}</span>
-          <span className="text-[10px] font-mono font-semibold px-1.5 py-px rounded bg-app-surface-alt text-app-accent shrink-0">
+          <span className="text-[10px] font-mono font-semibold px-1.5 py-px rounded text-app-accent shrink-0">
             {(gameId && tryGetGame(gameId)?.carClassNames?.[packet.CarClass]) ?? "?"}{packet.CarPerformanceIndex}
           </span>
           <span className="text-[10px] text-app-text-dim shrink-0">
@@ -147,13 +147,13 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
           <div className="flex-1 space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-[9px] font-mono text-emerald-400 font-bold w-6 text-right tabular-nums">{throttlePct.toFixed(0)}</span>
-              <div className="flex-1 h-3 bg-app-surface-alt rounded-full overflow-hidden">
+              <div className="flex-1 h-3 rounded-full overflow-hidden">
                 <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${throttlePct}%` }} />
               </div>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[9px] font-mono text-red-400 font-bold w-6 text-right tabular-nums">{brakePct.toFixed(0)}</span>
-              <div className="flex-1 h-3 bg-app-surface-alt rounded-full overflow-hidden">
+              <div className="flex-1 h-3 rounded-full overflow-hidden">
                 <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: `${brakePct}%` }} />
               </div>
             </div>

@@ -1,0 +1,66 @@
+import type { TelemetryPacket, LiveSectorData } from "@shared/types";
+import { formatLapTime } from "@/lib/format";
+
+interface LapTimesProps {
+  packet: TelemetryPacket;
+  sectors?: LiveSectorData | null;
+}
+
+/**
+ * LapTimes — Reusable lap timing display showing current, last, best, and delta.
+ * Works with any game - uses packet telemetry data.
+ */
+export function LapTimes({ packet, sectors }: LapTimesProps) {
+  // Use sectors delta if available (estimated lap), fallback to packet delta
+  let delta = 0;
+  let deltaToBest = sectors?.deltaToBest ?? 0;
+  if (packet.LastLap > 0 && packet.BestLap > 0 && deltaToBest === 0) {
+    delta = packet.LastLap - packet.BestLap;
+    deltaToBest = delta;
+  }
+
+  const deltaColor = deltaToBest <= 0 ? "text-emerald-400" : deltaToBest < 1 ? "text-orange-400" : "text-red-400";
+
+  return (
+    <div>
+      <div className="flex items-baseline gap-4 mb-2">
+        <div className="flex-1">
+          <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Current</div>
+          <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
+            {formatLapTime(packet.CurrentLap)}
+          </div>
+        </div>
+        {sectors?.estimatedLap ? (
+          <div>
+            <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Est. Lap</div>
+            <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
+              {formatLapTime(sectors.estimatedLap)}
+            </div>
+          </div>
+        ) : null}
+        {deltaToBest !== 0 || (packet.LastLap > 0 && packet.BestLap > 0) ? (
+          <div className="text-right">
+            <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Delta</div>
+            <div className={`text-3xl font-mono font-bold tabular-nums leading-none ${deltaColor}`}>
+              {deltaToBest <= 0 ? "" : "+"}{deltaToBest.toFixed(3)}
+            </div>
+          </div>
+        ) : null}
+      </div>
+      <div className="flex gap-4 items-end">
+        <div>
+          <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Last</div>
+          <div className="text-xl font-mono font-bold text-app-text tabular-nums leading-none">
+            {formatLapTime(packet.LastLap)}
+          </div>
+        </div>
+        <div>
+          <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Best</div>
+          <div className="text-xl font-mono font-bold text-purple-400 tabular-nums leading-none">
+            {formatLapTime(packet.BestLap)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -647,6 +647,11 @@ export class PitTracker {
     return gameId !== "fm-2023";
   }
 
+  /** Whether tire wear should use distance-based curve estimation. F1 uses simple rolling avg like fm-2023. */
+  static shouldUseCurves(gameId: string): boolean {
+    return gameId === "acc";
+  }
+
   /** Whether fuel should be seeded from history. F1 has no refueling so fuel isn't relevant. */
   static shouldSeedFuel(gameId: string): boolean {
     return gameId !== "f1-2025";
