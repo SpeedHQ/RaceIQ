@@ -167,19 +167,21 @@ export function HomePage() {
       return { laps: laps.length, valid: valid.length, best, avgTime, totalTime, tracks, cars, favCarOrd, favCarCount };
     }
 
-    const todayLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= todayStart);
-    const weekLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= weekAgo);
-    const monthLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= monthAgo);
-    const yearLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= yearAgo);
+    const gameLaps = gameId ? allLaps.filter((l) => l.gameId === gameId) : allLaps;
+
+    const todayLaps = gameLaps.filter((l) => new Date(l.createdAt).getTime() >= todayStart);
+    const weekLaps = gameLaps.filter((l) => new Date(l.createdAt).getTime() >= weekAgo);
+    const monthLaps = gameLaps.filter((l) => new Date(l.createdAt).getTime() >= monthAgo);
+    const yearLaps = gameLaps.filter((l) => new Date(l.createdAt).getTime() >= yearAgo);
 
     return {
       today: computePeriod(todayLaps),
       week: computePeriod(weekLaps),
       month: computePeriod(monthLaps),
       year: computePeriod(yearLaps),
-      allTime: computePeriod(allLaps),
+      allTime: computePeriod(gameLaps),
     };
-  }, [allLaps, todayStart, weekAgo, monthAgo, yearAgo]);
+  }, [allLaps, gameId, todayStart, weekAgo, monthAgo, yearAgo]);
 
   // Fetch names for recent laps + favourite cars
   useEffect(() => {
@@ -394,7 +396,7 @@ export function HomePage() {
         </div>
         {(() => {
           const data = periodStats[periodTab];
-          const timeSec = periodTab === "allTime" ? (stats?.totalTimeSec ?? data.totalTime) : data.totalTime;
+          const timeSec = data.totalTime;
           const fmtTime = (s: number) => {
             const h = Math.floor(s / 3600);
             const m = Math.floor((s % 3600) / 60);
