@@ -126,7 +126,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
                 {lap.isValid ? (
                   <span className="text-emerald-400">&#10003;</span>
                 ) : (
-                  <span className="text-red-400">&#10007;</span>
+                  <span className="text-red-400 cursor-help" title={lap.invalidReason || "invalid"}>&#10007;</span>
                 )}
               </td>
               <td className="p-2 text-right">
