@@ -13,6 +13,8 @@ const pitTracker = new PitTracker();
 lapDetector.onSessionStart = async (session) => {
   await sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
   pitTracker.reset();
+  const adapter = tryGetGame(session.gameId);
+  if (adapter) pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
 };
 
 lapDetector.onLapComplete_ = (event) => {

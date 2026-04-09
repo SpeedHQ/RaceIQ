@@ -428,10 +428,17 @@ export interface LivePitData {
   fuelPerLap: number;
   fuelLapsRemaining: number | null;
   currentLapFuelUsed: number;
-  tireLapsRemaining: number | null;
+  /** Laps until worst tire hits the game's "bad health" threshold (yellow). */
+  tireLapsToBad: number | null;
+  /** Laps until worst tire hits 20% health (critical / near-dead). */
+  tireLapsToCritical: number | null;
+  /** Wear per lap from last completed lap (worst tire). */
+  tireWearPerLap: number;
   pitInLaps: number | null;
   limitedBy: "fuel" | "tires" | null;
   trackLength: number;
+  // Deprecated — use tireLapsToBad
+  tireLapsRemaining: number | null;
 }
 
 export interface LapMeta {
