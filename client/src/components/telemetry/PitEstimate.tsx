@@ -126,11 +126,9 @@ export function PitEstimate({ packet }: { packet: TelemetryPacket }) {
       </div>
 
       {/* Estimate source — right-aligned */}
-      {pit?.estimateSource && (
+      {pit?.estimateSource === "session" && (
         <div className="mt-2 text-xs text-app-text-dim italic text-right">
-          {pit.estimateSource === "history"
-            ? "* based on previous session laps"
-            : "* based on current session laps"}
+          * based on current session laps
         </div>
       )}
     </div>
