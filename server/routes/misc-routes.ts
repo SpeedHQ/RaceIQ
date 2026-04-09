@@ -1,15 +1,18 @@
 import { Hono } from "hono";
-import { existsSync, readdirSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "fs";
+import { existsSync, readdirSync, mkdirSync, readFileSync, writeFileSync, rmSync, statSync } from "fs";
 import { resolve, join } from "path";
-import { arch, platform, release, totalmem, freemem, uptime as osUptime } from "os";
+import { arch, platform, release, type as osType, cpus, networkInterfaces, totalmem, freemem, uptime as osUptime } from "os";
+import { zipSync, strToU8 } from "fflate";
 
 import { lapDetector } from "../lap-detector";
 import { wsManager } from "../ws";
-import { USER_TRACKS_DIR, IS_COMPILED, USER_DATA_DIR } from "../paths";
+import { USER_TRACKS_DIR, IS_COMPILED, USER_DATA_DIR, ROOT_DIR } from "../paths";
 import { getUpdateState, startUpdateCheckSchedule, checkForUpdate, applyUpdate } from "../update-check";
 import { udpListener } from "../udp";
-import { getRunningGame } from "../games/registry";
+import { getRunningGame, getServerGame } from "../games/registry";
 import { loadSettings } from "../settings";
+import { client as dbClient } from "../db";
+import { getChatMemory } from "../ai/chat-agent";
 import pkg from "../../package.json";
 
 // Check for updates on startup and then every 4 hours
@@ -411,8 +414,8 @@ export const miscRoutes = new Hono()
     return c.json({ deleted: true });
   })
 
-  // GET /api/diagnostics — collect all diagnostic data as a downloadable JSON bundle
-  .get("/api/diagnostics", (c) => {
+  // GET /api/diagnostics — download a zip with diagnostics.json + logs.txt
+  .get("/api/diagnostics", async (c) => {
     const logFile = join(USER_DATA_DIR, "raceiq.log");
     let logs = "";
     try {
@@ -420,20 +423,215 @@ export const miscRoutes = new Hono()
     } catch {}
 
     const session = lapDetector.session;
-    const runningGame = getRunningGame();
+    // If we're receiving packets, assume a game is running even if process check fails
+    let runningGame = getRunningGame();
+    if (!runningGame && udpListener.receiving && udpListener.packetsPerSec > 0) {
+      // A game is definitely running if we're receiving telemetry packets.
+      // Use session game data if available, otherwise mark as "unknown" (game will be detected)
+      if (session?.gameId) {
+        try {
+          runningGame = getServerGame(session.gameId);
+        } catch {}
+      }
+    }
     const settings = loadSettings();
 
-    return c.json({
+    // Browser details from query parameters
+    const browserName = c.req.query("browserName") || "Unknown";
+    const browserVersion = c.req.query("browserVersion") || "Unknown";
+    const browserEngine = c.req.query("browserEngine") || "Unknown";
+    const browserUA = c.req.query("browserUA") || "";
+
+    // Browser memory usage (if available)
+    let browserMemoryMB: number | null = null;
+    const browserMemoryStr = c.req.query("browserMemory");
+    if (browserMemoryStr) {
+      const parsed = parseFloat(browserMemoryStr);
+      if (!isNaN(parsed)) browserMemoryMB = parsed;
+    }
+
+    // Server process memory usage
+    const memUsage = process.memoryUsage();
+    const serverMemoryMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+
+    // Fetch all profiles from database
+    let profiles: Array<{ id: number; name: string }> = [];
+    try {
+      const profilesResult = await dbClient.execute("SELECT id, name FROM profiles ORDER BY id");
+      profiles = (profilesResult.rows || []).map((r) => ({
+        id: Number(r.id),
+        name: String(r.name),
+      }));
+    } catch {}
+
+    // Fetch recent chat messages from Mastra memory
+    let chatMessages: Array<{ role: string; content: string; timestamp?: string }> = [];
+    try {
+      const memory = getChatMemory();
+      const threads = await memory.getThreads();
+      if (threads && threads.length > 0) {
+        for (const thread of threads.slice(0, 5)) {
+          const messages = await memory.getMessages(thread.id);
+          if (messages) {
+            chatMessages.push(
+              ...messages.map((m: any) => ({
+                role: m.role || "unknown",
+                content: m.content || "",
+                timestamp: m.createdAt || m.timestamp,
+              }))
+            );
+          }
+        }
+      }
+    } catch {}
+
+    // Database size and stats
+    let dbSizeMB: number | null = null;
+    let sessionCount: number | null = null;
+    let lapCount: number | null = null;
+    try {
+      const dbPath = join(USER_DATA_DIR, "forza-telemetry.db");
+      if (existsSync(dbPath)) {
+        const stats = statSync(dbPath);
+        dbSizeMB = Math.round(stats.size / 1024 / 1024 * 100) / 100;
+      }
+      // Query session and lap counts
+      const sessionResult = await dbClient.execute("SELECT COUNT(*) as count FROM sessions");
+      sessionCount = Number(sessionResult.rows[0]?.count) || 0;
+      const lapResult = await dbClient.execute("SELECT COUNT(*) as count FROM laps");
+      lapCount = Number(lapResult.rows[0]?.count) || 0;
+    } catch {}
+
+
+    // Hardware & network diagnostics (Windows — all via PowerShell)
+    let cpuUsagePercent: number | null = null;
+    let gpuName: string | null = null;
+    let gpuUsagePercent: number | null = null;
+    let networkType: string | null = null;
+    let linkSpeedMbps: number | null = null;
+
+    // Detect network type from OS network interfaces as fallback
+    const nets = networkInterfaces();
+    for (const [name, addrs] of Object.entries(nets)) {
+      const active = addrs?.find((a) => !a.internal && a.family === "IPv4");
+      if (active) {
+        const lower = name.toLowerCase();
+        networkType = lower.includes("wi-fi") || lower.includes("wifi") || lower.includes("wlan")
+          ? "WiFi" : "Ethernet";
+        break;
+      }
+    }
+
+    if (platform() === "win32") {
+      const ps = (cmd: string) => {
+        try {
+          const proc = Bun.spawnSync(["powershell", "-NoProfile", "-Command", cmd]);
+          return proc.stdout.toString().trim();
+        } catch { return ""; }
+      };
+
+      // CPU usage
+      const cpuOut = ps("(Get-CimInstance Win32_Processor).LoadPercentage");
+      const cpuPct = parseInt(cpuOut, 10);
+      if (!isNaN(cpuPct)) cpuUsagePercent = cpuPct;
+
+      // GPU name (first discrete GPU, skip integrated)
+      const gpuOut = ps("Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name");
+      if (gpuOut) {
+        const gpus = gpuOut.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+        gpuName = gpus.find((g) => !(/integrated|radeon.*graphics$/i.test(g))) ?? gpus[0] ?? null;
+      }
+
+      // GPU usage — try nvidia-smi, fall back to perf counter
+      const nvOut = ps("nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits");
+      const nvPct = parseInt(nvOut, 10);
+      if (!isNaN(nvPct)) {
+        gpuUsagePercent = nvPct;
+      } else {
+        const counterOut = ps("(Get-Counter '\\GPU Engine(*engtype_3D)\\Utilization Percentage').CounterSamples | Measure-Object -Property CookedValue -Sum | Select-Object -ExpandProperty Sum");
+        const cPct = Math.round(parseFloat(counterOut));
+        if (!isNaN(cPct)) gpuUsagePercent = cPct;
+      }
+
+      // Network adapter name + link speed
+      const netOut = ps("Get-NetAdapter | Where-Object {$_.Status -eq 'Up'} | Select-Object -First 1 Name,LinkSpeed | Format-List");
+      const netNameMatch = netOut.match(/Name\s*:\s*(.+)/);
+      if (netNameMatch) {
+        const n = netNameMatch[1].trim().toLowerCase();
+        networkType = n.includes("wi-fi") || n.includes("wifi") || n.includes("wireless")
+          ? "WiFi" : "Ethernet";
+      }
+      const linkMatch = netOut.match(/LinkSpeed\s*:\s*(.+)/);
+      if (linkMatch) {
+        const raw = linkMatch[1].trim();
+        const m = raw.match(/([\d.]+)\s*(Gbps|Mbps)/i);
+        if (m) linkSpeedMbps = m[2].toLowerCase() === "gbps" ? Math.round(parseFloat(m[1]) * 1000) : Math.round(parseFloat(m[1]));
+      }
+    }
+
+    // Power mode
+    let powerMode: string | null = null;
+    if (platform() === "win32") {
+      const ps = (cmd: string) => {
+        try {
+          const proc = Bun.spawnSync(["powershell", "-NoProfile", "-Command", cmd]);
+          return proc.stdout.toString().trim();
+        } catch { return ""; }
+      };
+
+      const powerOut = ps("powercfg /getactivescheme");
+      // Output format: "GUID: {guid}  (Scheme Name)"
+      const schemeMatch = powerOut.match(/\(([^)]+)\)\s*$/);
+      if (schemeMatch) {
+        powerMode = schemeMatch[1].trim();
+      }
+    }
+
+    // Drive types for install and data directories
+    let installDriveType: string | null = null;
+    let dataDriveType: string | null = null;
+    if (platform() === "win32") {
+      const driveType = (dir: string) => {
+        try {
+          const proc = Bun.spawnSync(["powershell", "-NoProfile", "-Command",
+            `try{$dl=([System.IO.Path]::GetPathRoot('${dir.replace(/'/g, "''")}'))[0];$p=Get-Partition -DriveLetter $dl -ErrorAction Stop;$d=Get-PhysicalDisk -DeviceNumber $p.DiskNumber -ErrorAction Stop;$d.MediaType}catch{'Unknown'}`]);
+          return proc.stdout.toString().trim() || null;
+        } catch { return null; }
+      };
+      installDriveType = driveType(ROOT_DIR);
+      dataDriveType = driveType(USER_DATA_DIR);
+    }
+
+    const diagnostics = {
       app: {
         version: pkg.version,
         compiled: IS_COMPILED,
+        installDir: ROOT_DIR,
+        installDriveType,
         dataDir: USER_DATA_DIR,
+        dataDriveType,
         bunVersion: typeof Bun !== "undefined" ? Bun.version : null,
       },
+      browser: {
+        name: browserName,
+        version: browserVersion,
+        engine: browserEngine,
+        userAgent: browserUA,
+        memoryUsedMB: browserMemoryMB,
+      },
       system: {
+        os: osType(),
         platform: platform(),
         arch: arch(),
         osRelease: release(),
+        powerMode,
+        cpu: cpus()[0]?.model ?? null,
+        cpuCores: cpus().length,
+        cpuUsagePercent,
+        gpu: gpuName,
+        gpuUsagePercent,
+        network: networkType,
+        linkSpeedMbps,
         totalMemoryMB: Math.round(totalmem() / 1024 / 1024),
         freeMemoryMB: Math.round(freemem() / 1024 / 1024),
         uptimeSec: Math.round(osUptime()),
@@ -444,6 +642,12 @@ export const miscRoutes = new Hono()
         packetsPerSec: udpListener.packetsPerSec,
         droppedPackets: udpListener.droppedPackets,
         connectedClients: wsManager.connectedClients,
+        memoryHeapUsedMB: serverMemoryMB,
+        database: {
+          sizeMB: dbSizeMB,
+          sessionCount,
+          lapCount,
+        },
         detectedGame: runningGame
           ? { id: runningGame.id, name: runningGame.shortName }
           : null,
@@ -455,22 +659,31 @@ export const miscRoutes = new Hono()
         udpPort: settings.udpPort,
         unit: settings.unit,
         wsRefreshRate: settings.wsRefreshRate,
-        aiProvider: settings.aiProvider,
-        aiModel: settings.aiModel,
-      },
-      extraction: {
-        "fm-2023": {
-          installed: extractionState.installed,
-          status: extractionState.status,
-          extracted: extractionState.extracted,
+        aiAnalysis: {
+          provider: settings.aiProvider,
+          model: settings.aiModel,
         },
-        "f1-2025": {
-          installed: f1ExtractionState.installed,
-          status: f1ExtractionState.status,
-          extracted: f1ExtractionState.extracted,
+        aiChat: {
+          provider: settings.chatProvider,
+          model: settings.chatModel,
         },
       },
-      logs,
+      chat: {
+        messageCount: chatMessages.length,
+        recentMessages: chatMessages.slice(0, 20),
+      },
       generatedAt: new Date().toISOString(),
+    };
+
+    const zip = zipSync({
+      "diagnostics.json": strToU8(JSON.stringify(diagnostics, null, 2)),
+      "logs.txt": strToU8(logs),
+    });
+
+    return new Response(zip, {
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="raceiq-diagnostics.zip"`,
+      },
     });
   });
