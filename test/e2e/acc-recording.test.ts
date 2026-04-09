@@ -115,6 +115,39 @@ describe("ACC recording", () => {
       // Extract recording filename without path and extension
       const recordingBaseName = recordingFile.replace(/\.bin$/, "");
       for (const lap of laps) {
+        // Debug: show coordinate ranges
+        let minX = lap.packets[0].PositionX;
+        let maxX = lap.packets[0].PositionX;
+        let minZ = lap.packets[0].PositionZ;
+        let maxZ = lap.packets[0].PositionZ;
+        for (const p of lap.packets) {
+          minX = Math.min(minX, p.PositionX);
+          maxX = Math.max(maxX, p.PositionX);
+          minZ = Math.min(minZ, p.PositionZ);
+          maxZ = Math.max(maxZ, p.PositionZ);
+        }
+        console.log(
+          `[SVG] Lap ${lap.lapNumber}: X(${minX.toFixed(1)}-${maxX.toFixed(1)}) Z(${minZ.toFixed(1)}-${maxZ.toFixed(1)})`
+        );
+
+        // Find large jumps between packets (potential pit exit or glitches)
+        let maxJump = 0;
+        let maxJumpIdx = -1;
+        for (let i = 1; i < lap.packets.length; i++) {
+          const prev = lap.packets[i - 1];
+          const curr = lap.packets[i];
+          const dx = curr.PositionX - prev.PositionX;
+          const dz = curr.PositionZ - prev.PositionZ;
+          const distance = Math.sqrt(dx * dx + dz * dz);
+          if (distance > maxJump) {
+            maxJump = distance;
+            maxJumpIdx = i;
+          }
+        }
+        if (maxJump > 10) {
+          console.log(`  → Largest jump: ${maxJump.toFixed(1)} units at packet ${maxJumpIdx}`);
+        }
+
         generateLapSvg(lap.packets, lap.lapNumber, OUTPUT_DIR, recordingBaseName);
         console.log(`[SVG] Generated ${recordingBaseName}-lap-${lap.lapNumber}.svg`);
       }
