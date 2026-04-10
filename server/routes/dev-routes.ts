@@ -207,18 +207,18 @@ devRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
           if (packet && packet.LapNumber !== undefined) {
             if (packet.LapNumber !== currentLap) {
               if (!lapRanges.has(packet.LapNumber)) {
-                lapRanges.set(packet.LapNumber, { start: packetIndex, end: packetIndex, lapTime: packet.currentLapTime ?? 0 });
+                lapRanges.set(packet.LapNumber, { start: packetIndex, end: packetIndex, lapTime: packet.CurrentLap ?? 0 });
               } else {
                 const range = lapRanges.get(packet.LapNumber)!;
                 range.end = packetIndex;
-                range.lapTime = packet.currentLapTime ?? 0;
+                range.lapTime = packet.CurrentLap ?? 0;
               }
               currentLap = packet.LapNumber;
             } else {
               const range = lapRanges.get(packet.LapNumber);
               if (range) {
                 range.end = packetIndex;
-                range.lapTime = packet.currentLapTime ?? 0;
+                range.lapTime = packet.CurrentLap ?? 0;
               }
             }
           }
@@ -239,19 +239,24 @@ devRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
 
           if (packet && packet.LapNumber !== undefined) {
             if (packet.LapNumber !== currentLap) {
+              // Transitioning to a new lap — capture the completed lap's time from lastLapTime
+              if (currentLap !== -1) {
+                const prevLapRange = lapRanges.get(currentLap);
+                if (prevLapRange && (packet.lastLapTime ?? 0) > 0) {
+                  prevLapRange.lapTime = packet.lastLapTime ?? 0;
+                }
+              }
               if (!lapRanges.has(packet.LapNumber)) {
-                lapRanges.set(packet.LapNumber, { start: packetIndex, end: packetIndex, lapTime: packet.currentLapTime ?? 0 });
+                lapRanges.set(packet.LapNumber, { start: packetIndex, end: packetIndex, lapTime: 0 });
               } else {
                 const range = lapRanges.get(packet.LapNumber)!;
                 range.end = packetIndex;
-                range.lapTime = packet.currentLapTime ?? 0;
               }
               currentLap = packet.LapNumber;
             } else {
               const range = lapRanges.get(packet.LapNumber);
               if (range) {
                 range.end = packetIndex;
-                range.lapTime = packet.currentLapTime ?? 0;
               }
             }
           }
