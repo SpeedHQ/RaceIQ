@@ -99,16 +99,12 @@ export class LapDetectorV2 implements ILapDetector {
     const isReset = prev && prev.CurrentLap >= 30 && packet.CurrentLap <= 2;
 
     if (isReset) {
-      let forcedInvalidReason: string | null = null;
-
       if (this.firstLapIsPartial) {
-        // Recording started mid-lap. Look at the buffer distance:
-        //   < 100m: trivial timer-glitch fragment — skip entirely, don't save.
-        //           Keep firstLapIsPartial=true so the NEXT reset (the real joining lap)
-        //           is the one we save as invalid.
-        //   >= 100m: this is the actual joining lap. Save it as invalid with reason
-        //           "joining lap" so downstream consumers know the driver started
-        //           recording mid-lap rather than the data being broken.
+        // Recording started mid-lap. If the buffer is a trivial timer-glitch
+        // fragment (< 100m of distance), skip it entirely and keep the flag
+        // set so the NEXT reset (the real lap) is the one we emit. Otherwise
+        // clear the flag and let normal emission run — the pit-lane rule in
+        // emitLap will mark it as "outlap" if the lap started in the pit.
         const bufStart = this.lapBuffer[0]?.DistanceTraveled ?? 0;
         const bufEnd = this.lapBuffer[this.lapBuffer.length - 1]?.DistanceTraveled ?? 0;
         const bufDist = bufEnd - bufStart;
@@ -120,10 +116,9 @@ export class LapDetectorV2 implements ILapDetector {
           return;
         }
         this.firstLapIsPartial = false;
-        forcedInvalidReason = "joining lap";
       }
 
-      await this.emitLap(forcedInvalidReason);
+      await this.emitLap(null);
     }
 
     this.lapBuffer.push(packet);
@@ -158,15 +153,26 @@ export class LapDetectorV2 implements ILapDetector {
     let isValid = forcedInvalidReason ? false : quality.valid;
     let invalidReason = forcedInvalidReason ?? quality.reason;
 
-    // ACC: invalidate laps that start or end in the pit lane / pit box.
-    // Out-laps and in-laps include pit lane time and aren't representative of
-    // true lap pace. pitStatus values: "out" (on track), "pit_lane", "in_pit".
+    // ACC: invalidate laps based on where pit lane / pit box touches the lap.
+    // Distinguishes:
+    //   - outlap: first packet in pit (driver is exiting pit)
+    //   - inlap: last packet in pit (driver is entering pit)
+    //   - pit lap: both (entirely within pit, or in-then-out-then-in)
+    // pitStatus values: "out" (on track), "pit_lane", "in_pit".
     if (isValid && this.currentSession!.gameId === "acc" && packets.length > 0) {
       const firstPit = packets[0].acc?.pitStatus ?? "out";
       const lastPit = packets[packets.length - 1].acc?.pitStatus ?? "out";
-      if (firstPit !== "out" || lastPit !== "out") {
+      const startInPit = firstPit !== "out";
+      const endInPit = lastPit !== "out";
+      if (startInPit && endInPit) {
         isValid = false;
         invalidReason = "pit lap";
+      } else if (startInPit) {
+        isValid = false;
+        invalidReason = "outlap";
+      } else if (endInPit) {
+        isValid = false;
+        invalidReason = "inlap";
       }
     }
 

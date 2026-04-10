@@ -71,35 +71,70 @@ describe("LapDetectorV2 — reset detection", () => {
     expect(saved[0].lapTime).toBeCloseTo(90, 0);
   });
 
-  test("saves partial initial lap as invalid when recording starts mid-lap", async () => {
+  test("saves partial initial lap as invalid outlap when recording starts in pit mid-lap", async () => {
     const db = makeFakeDb();
-    const saved: Array<{ lapNumber: number; lapTime: number; isValid: boolean; invalidReason: string | null }> = [];
-    const d = new LapDetectorV2({
-      db,
-      onLapSaved: (n) =>
-        saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime, isValid: n.isValid, invalidReason: (n as any).invalidReason ?? null }),
-    });
+    const d = new LapDetectorV2({ db });
 
-    // Recording starts with the car already 50s into a lap
-    for (let t = 50; t <= 90; t += 1) {
-      await d.feed(packet({ CurrentLap: t, DistanceTraveled: t * 50, TimestampMS: t * 1000 }));
+    // Recording starts with the car in the pit lane, ~50s into some pre-recording lap
+    for (let t = 50; t <= 70; t += 1) {
+      await d.feed(
+        packet({
+          CurrentLap: t,
+          DistanceTraveled: t * 50,
+          TimestampMS: t * 1000,
+          acc: { pitStatus: "pit_lane" } as any,
+        })
+      );
     }
-    // First reset — this partial "lap" should be saved as invalid
-    await d.feed(packet({ CurrentLap: 0.3, DistanceTraveled: 90 * 50 + 30, TimestampMS: 91 * 1000 }));
+    // Driver exits the pit lane partway through and spends the rest of the pre-recording lap on track
+    for (let t = 71; t <= 90; t += 1) {
+      await d.feed(
+        packet({
+          CurrentLap: t,
+          DistanceTraveled: t * 50,
+          TimestampMS: t * 1000,
+          acc: { pitStatus: "out" } as any,
+        })
+      );
+    }
+    // First reset (end of that pre-recording lap) — on track now
+    await d.feed(
+      packet({
+        CurrentLap: 0.3,
+        DistanceTraveled: 90 * 50 + 30,
+        TimestampMS: 91 * 1000,
+        acc: { pitStatus: "out" } as any,
+      })
+    );
 
-    // Full clean lap
+    // Full clean lap on track
     for (let t = 1; t <= 85; t += 1) {
-      await d.feed(packet({ CurrentLap: t, DistanceTraveled: 90 * 50 + 30 + t * 50, TimestampMS: (91 + t) * 1000 }));
+      await d.feed(
+        packet({
+          CurrentLap: t,
+          DistanceTraveled: 90 * 50 + 30 + t * 50,
+          TimestampMS: (91 + t) * 1000,
+          acc: { pitStatus: "out" } as any,
+        })
+      );
     }
-    await d.feed(packet({ CurrentLap: 0.2, DistanceTraveled: 999999, TimestampMS: 999999 }));
+    await d.feed(
+      packet({
+        CurrentLap: 0.2,
+        DistanceTraveled: 999999,
+        TimestampMS: 999999,
+        acc: { pitStatus: "out" } as any,
+      })
+    );
 
-    // Two laps: the partial joining lap (invalid) and the full clean lap (valid)
-    expect(saved.length).toBe(2);
-    expect(saved[0].lapNumber).toBe(0);
-    expect(saved[0].isValid).toBe(false);
-    expect(saved[1].lapNumber).toBe(1);
-    expect(saved[1].isValid).toBe(true);
-    expect(saved[1].lapTime).toBeCloseTo(85, 0);
+    // Two laps: the partial initial lap (invalid outlap, first packet was in pit) and the full clean lap (valid)
+    expect(db.inserted.length).toBe(2);
+    expect(db.inserted[0].lapNumber).toBe(0);
+    expect(db.inserted[0].valid).toBe(false);
+    expect(db.inserted[0].invalidReason).toBe("outlap");
+    expect(db.inserted[1].lapNumber).toBe(1);
+    expect(db.inserted[1].valid).toBe(true);
+    expect(db.inserted[1].lapTime).toBeCloseTo(85, 0);
   });
 
   test("session restart (distance reset) discards in-progress lap and keeps new packet", async () => {
@@ -151,7 +186,7 @@ describe("LapDetectorV2 — reset detection", () => {
     expect(saved[0].isValid).toBe(false);
   });
 
-  test("marks ACC lap invalid with reason 'pit lap' when it starts in the pit lane", async () => {
+  test("marks ACC lap invalid with reason 'outlap' when it starts in the pit lane", async () => {
     const db = makeFakeDb();
     const d = new LapDetectorV2({ db });
 
@@ -199,10 +234,10 @@ describe("LapDetectorV2 — reset detection", () => {
 
     expect(db.inserted.length).toBe(1);
     expect(db.inserted[0].valid).toBe(false);
-    expect(db.inserted[0].invalidReason).toBe("pit lap");
+    expect(db.inserted[0].invalidReason).toBe("outlap");
   });
 
-  test("marks ACC lap invalid with reason 'pit lap' when it ends in the pit lane", async () => {
+  test("marks ACC lap invalid with reason 'inlap' when it ends in the pit lane", async () => {
     const db = makeFakeDb();
     const d = new LapDetectorV2({ db });
 
@@ -240,7 +275,7 @@ describe("LapDetectorV2 — reset detection", () => {
 
     expect(db.inserted.length).toBe(1);
     expect(db.inserted[0].valid).toBe(false);
-    expect(db.inserted[0].invalidReason).toBe("pit lap");
+    expect(db.inserted[0].invalidReason).toBe("inlap");
   });
 });
 

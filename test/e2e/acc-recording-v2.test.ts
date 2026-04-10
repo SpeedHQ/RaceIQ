@@ -40,7 +40,7 @@ describe("ACC recording v2", () => {
 
       // Lap 0: the joining lap (recording started mid-lap, also from pit)
       expect(laps[0].isValid).toBe(false);
-      expect(laps[0].invalidReason).toBe("joining lap");
+      expect(laps[0].invalidReason).toBe("outlap");
       // Confirms the recording data itself has pit status on lap 0 start —
       // the joining-lap check wins over the pit-lap check here because it
       // fires first, but the underlying packet state should still show pit.
@@ -98,7 +98,7 @@ describe("ACC recording v2", () => {
 
       // Lap 0: the joining lap (recording started mid-lap, also from pit)
       expect(laps[0].isValid).toBe(false);
-      expect(laps[0].invalidReason).toBe("joining lap");
+      expect(laps[0].invalidReason).toBe("outlap");
       // Confirms the recording data has pit status on lap 0 start
       expect(laps[0].packets[0].acc?.pitStatus).not.toBe("out");
 
