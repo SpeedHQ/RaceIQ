@@ -330,9 +330,11 @@ export class AccSharedMemoryReader {
 
       const staticBuf = this._readMapped(this._static);
 
-      // Record raw buffers if recording is active
+      // Record raw buffers if recording is active (individual writes for realistic async timing)
       if (accRecorder.recording) {
-        accRecorder.writeFrame(physicsBuf, graphicsBuf, staticBuf);
+        accRecorder.writePhysics(physicsBuf);
+        accRecorder.writeGraphics(graphicsBuf);
+        if (staticBuf) accRecorder.writeStatic(staticBuf);
       }
 
       // Dynamically import parser to avoid hard dependency at module load time

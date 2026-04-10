@@ -1,20 +1,18 @@
 /**
  * ACC telemetry recorder and replayer.
  *
- * Records raw shared memory frames (physics + graphics + static buffers)
+ * Records raw shared memory frames individually with type information
  * to a binary file for offline development and debugging.
  *
- * File format:
- *   Header: "ACCREC\0\0" (8 bytes magic)
- *           u32le version (4 bytes, currently 1)
- *           u32le physicsSize (4 bytes)
- *           u32le graphicsSize (4 bytes)
- *           u32le staticSize (4 bytes)
- *   Frames: [f64le timestamp (ms)] [physics buf] [graphics buf] [static buf]
- *           Each frame is 8 + physicsSize + graphicsSize + staticSize bytes.
+ * New format (v2):
+ *   Header: "ACCTEST\0" (8 bytes magic) — NOTE: changed from ACCREC for new format
+ *           u32le version (4 bytes, currently 2)
+ *           u32le frameCount (4 bytes)
+ *   Frames: [type(1 byte)] [timestamp(8 bytes f64)] [size(4 bytes)] [data(N bytes)]
+ *           type: 0=physics, 1=graphics, 2=static
  *
- * Replay reads frames back at original timing and feeds them through
- * parseAccBuffers → processPacket, simulating a live ACC session.
+ * Replay reads frames individually, preserving the realistic async timing
+ * between physics (~300Hz), graphics (~60Hz), and static (once) updates.
  */
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
@@ -38,8 +36,7 @@ export class AccRecorder {
   private _file: Bun.FileSink | null = null;
   private _path: string | null = null;
   private _frameCount = 0;
-  // @ts-ignore — written but not yet read (state tracking for future use)
-  private _headerWritten = false;
+  private _headerPos = 0;
 
   get recording(): boolean {
     return this._file !== null;
@@ -66,42 +63,72 @@ export class AccRecorder {
     this._path = resolve(outDir, `acc-${timestamp}.bin`);
     this._file = Bun.file(this._path).writer();
     this._frameCount = 0;
-    this._headerWritten = false;
 
-    // Write header
+    // Write header with placeholder frameCount (will update on close)
     const header = Buffer.alloc(HEADER_SIZE);
-    MAGIC.copy(header, 0);
-    header.writeUInt32LE(VERSION, 8);
-    header.writeUInt32LE(PHYSICS.SIZE, 12);
-    header.writeUInt32LE(GRAPHICS.SIZE, 16);
-    header.writeUInt32LE(STATIC.SIZE, 20);
+    Buffer.from("ACCTEST\0", "ascii").copy(header, 0);
+    header.writeUInt32LE(2, 8); // version 2
+    header.writeUInt32LE(0, 12); // frameCount (placeholder)
     this._file.write(header);
-    this._headerWritten = true;
+    this._headerPos = 12;
 
     console.log(`[ACC Recorder] Recording to ${this._path}`);
     return this._path;
   }
 
-  /** Record a single frame of raw buffers */
+  /** Record physics buffer from shared memory */
+  writePhysics(buffer: Buffer): void {
+    this._writeBufferFrame(0, buffer);
+  }
+
+  /** Record graphics buffer from shared memory */
+  writeGraphics(buffer: Buffer): void {
+    this._writeBufferFrame(1, buffer);
+  }
+
+  /** Record static buffer from shared memory (typically once per session) */
+  writeStatic(buffer: Buffer): void {
+    this._writeBufferFrame(2, buffer);
+  }
+
+  /** Deprecated: old API that wrote triplets. Use writePhysics/writeGraphics/writeStatic instead. */
   writeFrame(physics: Buffer, graphics: Buffer, staticData: Buffer): void {
     if (!this._file) return;
-
-    const ts = Buffer.alloc(FRAME_HEADER);
-    ts.writeDoubleLE(Date.now(), 0);
-
-    this._file.write(ts);
-    this._file.write(physics);
-    this._file.write(graphics);
-    this._file.write(staticData);
-    this._frameCount++;
+    this.writePhysics(physics);
+    this.writeGraphics(graphics);
+    this.writeStatic(staticData);
   }
 
   /** Stop recording and flush to disk */
   async stop(): Promise<void> {
     if (!this._file) return;
+
     await this._file.end();
     console.log(`[ACC Recorder] Stopped. ${this._frameCount} frames written to ${this._path}`);
+
+    // Update frameCount in header
+    if (this._path) {
+      const file = Bun.file(this._path);
+      const data = await file.arrayBuffer();
+      const buf = Buffer.from(data);
+      buf.writeUInt32LE(this._frameCount, 12);
+      await Bun.write(this._path, buf);
+    }
+
     this._file = null;
+  }
+
+  private _writeBufferFrame(type: number, buffer: Buffer): void {
+    if (!this._file) return;
+
+    const frameHeader = Buffer.alloc(13);
+    frameHeader.writeUInt8(type, 0);
+    frameHeader.writeDoubleLE(Date.now(), 1);
+    frameHeader.writeUInt32LE(buffer.length, 9);
+
+    this._file.write(frameHeader);
+    this._file.write(buffer);
+    this._frameCount++;
   }
 }
 
@@ -129,13 +156,28 @@ function readHeader(buf: Buffer): {
 
 /**
  * Read all frames from an ACC recording file.
- * Returns an array of {physics, graphics, staticData} buffer tuples.
- * A truncated final frame is silently skipped (safe after hard kill).
+ * Supports both old format (v1, triplets) and new format (v2, individual frames).
+ * Returns an array of {physics, graphics, staticData} buffer tuples for old format,
+ * or individual frames for new format (caller must assemble triplets).
  */
 export function readAccFrames(
   filePath: string
 ): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
   const data = Buffer.from(readFileSync(filePath));
+
+  // Check format by magic bytes
+  if (data.length >= 8 && data.slice(0, 8).equals(Buffer.from("ACCTEST\0", "ascii"))) {
+    // New format (v2) — return assembled triplets from individual frames
+    return _readAccFramesV2(data);
+  } else if (data.length >= 8 && data.slice(0, 8).equals(MAGIC)) {
+    // Old format (v1) — legacy triplet format
+    return _readAccFramesV1(data);
+  }
+
+  return [];
+}
+
+function _readAccFramesV1(data: Buffer): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
   const header = readHeader(data);
   if (!header) return [];
 
@@ -158,6 +200,61 @@ export function readAccFrames(
   }
 
   return frames;
+}
+
+function _readAccFramesV2(data: Buffer): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
+  if (data.length < HEADER_SIZE) return [];
+
+  const frameCount = data.readUInt32LE(12);
+  const frames: { physics: Buffer | null; graphics: Buffer | null; staticData: Buffer | null }[] = [];
+  let lastPhysics: Buffer | null = null;
+  let lastGraphics: Buffer | null = null;
+  let lastStatic: Buffer | null = null;
+
+  let offset = HEADER_SIZE;
+  let frameIdx = 0;
+
+  while (frameIdx < frameCount && offset + 13 <= data.length) {
+    const frameType = data.readUInt8(offset);
+    const timestamp = data.readDoubleLE(offset + 1);
+    const bufferSize = data.readUInt32LE(offset + 9);
+
+    offset += 13;
+
+    if (offset + bufferSize > data.length) break;
+
+    const bufferData = Buffer.from(data.subarray(offset, offset + bufferSize));
+    offset += bufferSize;
+
+    switch (frameType) {
+      case 0: // physics
+        lastPhysics = bufferData;
+        break;
+      case 1: // graphics
+        lastGraphics = bufferData;
+        break;
+      case 2: // static
+        lastStatic = bufferData;
+        break;
+    }
+
+    // Once we have all three, emit a triplet
+    if (lastPhysics && lastGraphics && lastStatic) {
+      frames.push({
+        physics: lastPhysics,
+        graphics: lastGraphics,
+        staticData: lastStatic,
+      });
+      // Don't reset — keep reusing the last of each type for subsequent frames
+    }
+
+    frameIdx++;
+  }
+
+  // Return only complete triplets
+  return frames.filter(
+    (f) => f.physics !== null && f.graphics !== null && f.staticData !== null
+  ) as { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
 }
 
 /**
