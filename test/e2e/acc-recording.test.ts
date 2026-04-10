@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import type { LapSavedNotification } from "../../server/lap-detector";
 import { parseDump } from "../helpers/parse-dump";
-import { assertSectorTimesMatchLapTime, assertLapTimesProper } from "../helpers/lap-assertions";
+import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertLapSavedNotificationsExist, assertCommonLapValidations } from "../helpers/lap-assertions";
 import { generateLapSvg, generateRawSvg } from "../helpers/lap-svg";
 import { generateLapGif, generateRawGif } from "../helpers/lap-gif";
 import { existsSync, readdirSync, mkdirSync } from "fs";
@@ -40,17 +40,18 @@ describe("ACC recording", () => {
         );
       }
 
-      expect(laps.length).toBe(4);
-
       // Session metadata
       expect(carModel).toBe("mclaren_720s_gt3_evo");
       expect(trackName).toBe("brands_hatch");
 
-      // WebSocket events: should have lap-saved notifications for each completed lap (lap 3 is incomplete, no notification)
+      // Common lap validations: lap count, metadata, packets, timing, sectors, notifications
+      assertCommonLapValidations(laps, wsNotifications, { expectedLapCount: 4 });
+
+      // Detailed notification checks (ACC-specific)
       const lapSavedNotifications = wsNotifications.filter(
         (n): n is LapSavedNotification => n.type === "lap-saved"
       );
-      expect(lapSavedNotifications.length).toBe(3); // One notification per completed lap
+      // assertCommonLapValidations already asserts lapSavedNotifications.length matches completed laps
 
       // First notification should be for lap 0 (invalid)
       expect(lapSavedNotifications[0].lapNumber).toBe(0);
@@ -111,60 +112,20 @@ describe("ACC recording", () => {
       expect(sessionLaps.length).toBe(4);
       expect(sessionLaps.map((l) => l.lapNumber)).toEqual([0, 1, 2, 3]);
 
-      // Generate SVG visualizations for each lap
-      // Extract recording filename without path and extension
+      // Generate SVG and GIF visualizations for recording
       const recordingBaseName = recordingFile.replace(/\.bin$/, "");
       const recordingOutputDir = join(OUTPUT_DIR, recordingBaseName);
       mkdirSync(recordingOutputDir, { recursive: true });
-      console.log(`[SVG] Generating lap visualizations in ${recordingOutputDir}`);
 
-      // Generate raw telemetry SVG and GIF (all packets without lap detection)
       const { rawPackets } = await parseDump("acc", recording);
       generateRawSvg(rawPackets, recordingOutputDir);
-      console.log(`[SVG] Generated raw telemetry visualization`);
       await generateRawGif(rawPackets, recordingOutputDir);
-      console.log(`[GIF] Generated raw telemetry visualization`);
 
       for (const lap of laps) {
-        // Debug: show coordinate ranges
-        let minX = lap.packets[0].PositionX;
-        let maxX = lap.packets[0].PositionX;
-        let minZ = lap.packets[0].PositionZ;
-        let maxZ = lap.packets[0].PositionZ;
-        for (const p of lap.packets) {
-          minX = Math.min(minX, p.PositionX);
-          maxX = Math.max(maxX, p.PositionX);
-          minZ = Math.min(minZ, p.PositionZ);
-          maxZ = Math.max(maxZ, p.PositionZ);
-        }
-        console.log(
-          `[SVG] Lap ${lap.lapNumber}: X(${minX.toFixed(1)}-${maxX.toFixed(1)}) Z(${minZ.toFixed(1)}-${maxZ.toFixed(1)})`
-        );
-
-        // Find large jumps between packets (potential pit exit or glitches)
-        let maxJump = 0;
-        let maxJumpIdx = -1;
-        for (let i = 1; i < lap.packets.length; i++) {
-          const prev = lap.packets[i - 1];
-          const curr = lap.packets[i];
-          const dx = curr.PositionX - prev.PositionX;
-          const dz = curr.PositionZ - prev.PositionZ;
-          const distance = Math.sqrt(dx * dx + dz * dz);
-          if (distance > maxJump) {
-            maxJump = distance;
-            maxJumpIdx = i;
-          }
-        }
-        if (maxJump > 10) {
-          console.log(`  → Largest jump: ${maxJump.toFixed(1)} units at packet ${maxJumpIdx}`);
-        }
-
         generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir);
-        console.log(`[SVG] Generated lap-${lap.lapNumber}.svg`);
-
         await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir);
-        console.log(`[GIF] Generated lap-${lap.lapNumber}.gif`);
       }
+      console.log(`[Visualizations] Generated for ${laps.length} laps in ${recordingOutputDir}`);
     });
   });
 });

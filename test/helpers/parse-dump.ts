@@ -1,4 +1,4 @@
-import type { GameId } from "../../shared/types";
+import type { GameId, TelemetryPacket } from "../../shared/types";
 import type { CapturedLap, CapturedSession } from "../../server/pipeline-adapters";
 import type { LapSavedNotification } from "../../server/lap-detector";
 import { CapturingDbAdapter, CapturingWsAdapter } from "../../server/pipeline-adapters";
@@ -57,7 +57,7 @@ export async function parseDump(
     try {
       frames = readAccFrames(dumpPath);
     } catch {
-      return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [] };
+      return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
     }
     let carOrdinal = 0;
     let trackOrdinal = 0;
@@ -79,10 +79,10 @@ export async function parseDump(
       return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [] };
     }
 
-    if (buffers.length === 0) return { laps: [], sessions: [], carModel: null, trackName: null };
+    if (buffers.length === 0) return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
 
     const serverAdapter = getAllServerGames().find((a) => a.canHandle(buffers[0]));
-    if (!serverAdapter) return { laps: [], sessions: [], carModel: null, trackName: null };
+    if (!serverAdapter) return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
 
     const parserState = serverAdapter.createParserState?.() ?? null;
     for (const buf of buffers) {
