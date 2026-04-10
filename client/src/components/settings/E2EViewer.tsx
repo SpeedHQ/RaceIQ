@@ -279,7 +279,7 @@ export function E2EViewer() {
                 <>
                   {selectedLap && (
                     <div className="text-xs text-app-text-muted mb-2 pb-2 border-b border-app-border shrink-0">
-                      Lap {selectedLap.lapNumber} • {(selectedLap.lapTime / 1000).toFixed(2)}s
+                      Lap {selectedLap.lapNumber} • {selectedLap.lapTime.toFixed(2)}s
                     </div>
                   )}
                   {!selectedLap && laps.length > 0 && (
@@ -318,9 +318,16 @@ export function E2EViewer() {
                   onChange={(e) => setPacketIndex(Number(e.target.value))}
                   className="w-full"
                 />
-                <div className="flex gap-4 text-xs text-app-text-muted">
+                <div className="flex gap-4 text-xs text-app-text-muted flex-wrap">
                   <span>Speed: <span className="text-app-text">{speed.toFixed(1)}</span></span>
                   <span>Position: <span className="text-app-text">({position.x.toFixed(0)}, {position.y.toFixed(0)})</span></span>
+                  {selectedLap && (
+                    <>
+                      <span>Lap: <span className="text-app-text">{selectedLap.lapNumber}</span></span>
+                      <span>Elapsed: <span className="text-app-text">{selectedLap.lapTime > 0 ? ((packetIndex / (selectedLap.endPacketIndex - selectedLap.startPacketIndex + 1)) * selectedLap.lapTime).toFixed(2) : "0.00"}s</span></span>
+                      <span>Total: <span className="text-app-text">{selectedLap.lapTime.toFixed(2)}s</span></span>
+                    </>
+                  )}
                   {!selectedLap && getCurrentLapInRawView() && (
                     <>
                       <span>Lap: <span className="text-app-text">{getCurrentLapInRawView()?.lapNumber}</span></span>
@@ -354,9 +361,9 @@ export function E2EViewer() {
                             ? "bg-app-accent text-app-surface"
                             : "bg-app-surface text-app-text hover:bg-app-surface-alt border border-app-border"
                         } ${!lap.isValid ? "opacity-60" : ""}`}
-                        title={`Lap ${lap.lapNumber}: ${(lap.lapTime / 1000).toFixed(2)}s`}
+                        title={`Lap ${lap.lapNumber}: ${lap.lapTime.toFixed(2)}s`}
                       >
-                        L{lap.lapNumber} {lap.lapTime > 0 && `${(lap.lapTime / 1000).toFixed(1)}s`}
+                        L{lap.lapNumber} {lap.lapTime > 0 && `${lap.lapTime.toFixed(1)}s`}
                       </button>
                     ))}
                   </div>

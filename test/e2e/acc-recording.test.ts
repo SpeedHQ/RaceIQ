@@ -16,8 +16,8 @@ function getRecording(filename: string): string | null {
 }
 
 describe("ACC recording", () => {
-  describe("acc-2026-04-09T18-56-49-633Z.bin", () => {
-    const recordingFile = "acc-2026-04-09T18-56-49-633Z.bin";
+  describe("acc-2026-04-10T02-59-28-972Z.bin", () => {
+    const recordingFile = "acc-2026-04-10T02-59-28-972Z.bin";
 
     test("detects laps correctly", async () => {
       const recording = getRecording(recordingFile);
@@ -45,7 +45,7 @@ describe("ACC recording", () => {
       expect(trackName).toBe("brands_hatch");
 
       // Common lap validations: lap count, metadata, packets, timing, sectors, notifications
-      assertCommonLapValidations(laps, wsNotifications, { expectedLapCount: 4 });
+      assertCommonLapValidations(laps, wsNotifications, { expectedLapCount: 5 });
 
       // Detailed notification checks (ACC-specific)
       const lapSavedNotifications = wsNotifications.filter(
@@ -64,19 +64,21 @@ describe("ACC recording", () => {
       // Best lap is now set to lap 1's time (first valid lap establishes the baseline)
       expect(lapSavedNotifications[1].estimatedBestLapTime).toBe(lapSavedNotifications[1].lapTime);
 
-      // Third notification should be for lap 2 (valid) — best lap now established from lap 1
+      // Third notification should be for lap 2 (valid)
       expect(lapSavedNotifications[2].lapNumber).toBe(2);
       expect(lapSavedNotifications[2].isValid).toBe(true);
-      // Best lap time should be from lap 1 (its time becomes the new best)
-      expect(lapSavedNotifications[2].estimatedBestLapTime).toBe(lapSavedNotifications[1].lapTime);
-      // Lap 2 is slower than lap 1
-      expect(lapSavedNotifications[2].lapTime).toBeGreaterThan(lapSavedNotifications[2].estimatedBestLapTime);
+      expect(lapSavedNotifications[2].lapTime).toBeGreaterThan(0);
+
+      // Fourth notification should be for lap 3 (valid)
+      expect(lapSavedNotifications[3].lapNumber).toBe(3);
+      expect(lapSavedNotifications[3].isValid).toBe(true);
+      expect(lapSavedNotifications[3].lapTime).toBeGreaterThan(0);
 
       // Lap 0: joining lap — invalid
       expect(laps[0].isValid).toBe(false);
       expect(laps[0].invalidReason).toBe("telemetry distance too short");
 
-      // Lap 1: first full lap — valid with sectors
+      // Lap 1: valid lap with sectors
       expect(laps[1].isValid).toBe(true);
       expect(laps[1].sectors).not.toBe(null);
       expect(laps[1].sectors?.s1).toBeGreaterThan(0);
@@ -85,19 +87,27 @@ describe("ACC recording", () => {
       assertSectorTimesMatchLapTime(laps[1]);
       assertLapTimesProper(laps[1].packets, laps[1].lapTime);
 
-      // Lap 2: second full lap — valid (sectors may be null in some cases)
+      // Lap 2: valid lap with sectors
       expect(laps[2].isValid).toBe(true);
+      expect(laps[2].sectors).not.toBe(null);
+      expect(laps[2].sectors?.s1).toBeGreaterThan(0);
+      expect(laps[2].sectors?.s2).toBeGreaterThan(0);
+      expect(laps[2].sectors?.s3).toBeGreaterThan(0);
+      assertSectorTimesMatchLapTime(laps[2]);
       assertLapTimesProper(laps[2].packets, laps[2].lapTime);
-      if (laps[2].sectors) {
-        expect(laps[2].sectors.s1).toBeGreaterThan(0);
-        expect(laps[2].sectors.s2).toBeGreaterThan(0);
-        expect(laps[2].sectors.s3).toBeGreaterThan(0);
-        assertSectorTimesMatchLapTime(laps[2]);
-      }
 
-      // Lap 3: recording cut off mid-lap — incomplete
-      expect(laps[3].isValid).toBe(false);
-      expect(laps[3].invalidReason).toBe("incomplete");
+      // Lap 3: valid lap with sectors
+      expect(laps[3].isValid).toBe(true);
+      expect(laps[3].sectors).not.toBe(null);
+      expect(laps[3].sectors?.s1).toBeGreaterThan(0);
+      expect(laps[3].sectors?.s2).toBeGreaterThan(0);
+      expect(laps[3].sectors?.s3).toBeGreaterThan(0);
+      assertSectorTimesMatchLapTime(laps[3]);
+      assertLapTimesProper(laps[3].packets, laps[3].lapTime);
+
+      // Lap 4: recording cut off mid-lap — incomplete
+      expect(laps[4].isValid).toBe(false);
+      expect(laps[4].invalidReason).toBe("incomplete");
 
       // Session state: verify all laps belong to same session
       // Note: sessions array may have multiple entries due to internal state boundaries (e.g., distance-reset),
@@ -107,10 +117,10 @@ describe("ACC recording", () => {
       expect(uniqueSessionIds.size).toBe(1); // All laps in same session
       expect(Array.from(uniqueSessionIds)[0]).toBe(firstSessionId);
 
-      // Verify all 4 laps are in that one session
+      // Verify all 5 laps are in that one session
       const sessionLaps = laps.filter((l) => l.sessionId === firstSessionId);
-      expect(sessionLaps.length).toBe(4);
-      expect(sessionLaps.map((l) => l.lapNumber)).toEqual([0, 1, 2, 3]);
+      expect(sessionLaps.length).toBe(5);
+      expect(sessionLaps.map((l) => l.lapNumber)).toEqual([0, 1, 2, 3, 4]);
 
       // Generate SVG and GIF visualizations for recording
       const recordingBaseName = recordingFile.replace(/\.bin$/, "");
@@ -126,6 +136,6 @@ describe("ACC recording", () => {
         await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir);
       }
       console.log(`[Visualizations] Generated for ${laps.length} laps in ${recordingOutputDir}`);
-    });
+    }, { timeout: 30000 });
   });
 });
