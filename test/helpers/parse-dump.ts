@@ -15,7 +15,7 @@ import { getAccCarByModel } from "../../shared/acc-car-data";
 import { getAccTrackByName } from "../../shared/acc-track-data";
 
 let _initialized = false;
-function ensureInit(): void {
+export function ensureInit(): void {
   if (_initialized) return;
   initGameAdapters();
   initServerGameAdapters();
@@ -30,6 +30,62 @@ export interface DumpResult {
   wsNotifications: (LapSavedNotification | Record<string, unknown>)[];
   wsDevStates: Record<string, unknown>[];
   rawPackets: TelemetryPacket[];
+}
+
+export interface ParsedFrames {
+  packets: TelemetryPacket[];
+  carModel: string | null;
+  trackName: string | null;
+}
+
+/**
+ * Read all packets from an ACC recording. Exported for reuse by parseDumpV2.
+ */
+export function readAccPackets(dumpPath: string): ParsedFrames {
+  let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
+  try {
+    frames = readAccFrames(dumpPath);
+  } catch {
+    return { packets: [], carModel: null, trackName: null };
+  }
+  let carModel: string | null = null;
+  let trackName: string | null = null;
+  let carOrdinal = 0;
+  let trackOrdinal = 0;
+  const packets: TelemetryPacket[] = [];
+  for (const frame of frames) {
+    if (carOrdinal === 0 || trackOrdinal === 0) {
+      const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
+      const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
+      if (cm) { carModel = cm; carOrdinal = getAccCarByModel(cm)?.id ?? 0; }
+      if (tn) { trackName = tn; trackOrdinal = getAccTrackByName(tn)?.id ?? 0; }
+    }
+    const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal });
+    if (packet) packets.push(packet);
+  }
+  return { packets, carModel, trackName };
+}
+
+/**
+ * Read all packets from a UDP dump. Exported for reuse by parseDumpV2.
+ */
+export function readUdpPackets(dumpPath: string): ParsedFrames {
+  let buffers: Buffer[];
+  try {
+    buffers = readUdpDump(dumpPath);
+  } catch {
+    return { packets: [], carModel: null, trackName: null };
+  }
+  if (buffers.length === 0) return { packets: [], carModel: null, trackName: null };
+  const serverAdapter = getAllServerGames().find((a) => a.canHandle(buffers[0]));
+  if (!serverAdapter) return { packets: [], carModel: null, trackName: null };
+  const parserState = serverAdapter.createParserState?.() ?? null;
+  const packets: TelemetryPacket[] = [];
+  for (const buf of buffers) {
+    const packet = serverAdapter.tryParse(buf, parserState);
+    if (packet) packets.push(packet);
+  }
+  return { packets, carModel: null, trackName: null };
 }
 
 /**
@@ -53,41 +109,17 @@ export async function parseDump(
   let trackName: string | null = null;
 
   if (gameId === "acc") {
-    let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
-    try {
-      frames = readAccFrames(dumpPath);
-    } catch {
-      return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
-    }
-    let carOrdinal = 0;
-    let trackOrdinal = 0;
-    for (const frame of frames) {
-      if (carOrdinal === 0 || trackOrdinal === 0) {
-        const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-        const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
-        if (cm) { carModel = cm; carOrdinal = getAccCarByModel(cm)?.id ?? 0; }
-        if (tn) { trackName = tn; trackOrdinal = getAccTrackByName(tn)?.id ?? 0; }
-      }
-      const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal });
-      if (packet) await pipeline.processPacket(packet);
+    const parsed = readAccPackets(dumpPath);
+    carModel = parsed.carModel;
+    trackName = parsed.trackName;
+    for (const packet of parsed.packets) {
+      await pipeline.processPacket(packet);
     }
   } else {
-    let buffers: Buffer[];
-    try {
-      buffers = readUdpDump(dumpPath);
-    } catch {
-      return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [] };
-    }
-
-    if (buffers.length === 0) return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
-
-    const serverAdapter = getAllServerGames().find((a) => a.canHandle(buffers[0]));
-    if (!serverAdapter) return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
-
-    const parserState = serverAdapter.createParserState?.() ?? null;
-    for (const buf of buffers) {
-      const packet = serverAdapter.tryParse(buf, parserState);
-      if (packet) await pipeline.processPacket(packet);
+    const parsed = readUdpPackets(dumpPath);
+    if (parsed.packets.length === 0) return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
+    for (const packet of parsed.packets) {
+      await pipeline.processPacket(packet);
     }
   }
 

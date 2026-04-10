@@ -1,4 +1,5 @@
 import { describe, test, expect } from "bun:test";
+import { parseDumpV2 } from "./helpers/parse-dump-v2";
 import { LapDetectorV2 } from "../server/lap-detector-v2";
 import type { TelemetryPacket } from "../shared/types";
 
@@ -135,3 +136,8 @@ describe("LapDetectorV2 — reset detection", () => {
     expect(saved[0].isValid).toBe(false);
   });
 });
+
+test("parseDumpV2 runs against the problem recording without throwing", async () => {
+  const result = await parseDumpV2("acc", "test/artifacts/laps/acc-2026-04-10T02-59-28-972Z.bin");
+  expect(result.laps.length).toBeGreaterThan(0);
+}, { timeout: 30000 });
