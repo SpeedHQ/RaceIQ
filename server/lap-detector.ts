@@ -65,8 +65,10 @@ export interface LapCompleteEvent {
 
 export class LapDetector {
   private readonly bypassPacketRateFilter: boolean;
+  private db: DbAdapter;
 
-  constructor(private db: DbAdapter, options?: { bypassPacketRateFilter?: boolean }) {
+  constructor(db: DbAdapter, options?: { bypassPacketRateFilter?: boolean }) {
+    this.db = db;
     this.bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
   }
 
@@ -430,7 +432,8 @@ export class LapDetector {
             this.lapBuffer,
             null,
             tuneAssignment?.tuneId ?? null,
-            "incomplete"
+            "incomplete",
+            null
           ).then(() => {
             console.log(`[Lap] Saved incomplete lap (session ended)`);
           }).catch((err) => {
@@ -484,7 +487,8 @@ export class LapDetector {
         this.lapBuffer,
         null,
         tuneAssignment?.tuneId ?? null,
-        isComplete ? this.invalidReason : "incomplete"
+        isComplete ? this.invalidReason : "incomplete",
+        null
       ).then((lapId) => {
         console.log(
           `[Lap] Flushed stale lap ${lapNum} | Time: ${formatLapTime(lapTime)} | ${isComplete ? "Complete" : "Incomplete"} | Packets: ${packetCount} | DB ID: ${lapId} (${(silenceMs / 1000).toFixed(0)}s silence)`

@@ -12,8 +12,12 @@ export class Pipeline {
   private pitTracker = new PitTracker();
   readonly lapDetector: LapDetector;
   private _totalProcessed = 0;
+  private db: DbAdapter;
+  private ws: WsAdapter;
 
-  constructor(private db: DbAdapter, private ws: WsAdapter, options?: { bypassPacketRateFilter?: boolean }) {
+  constructor(db: DbAdapter, ws: WsAdapter, options?: { bypassPacketRateFilter?: boolean }) {
+    this.db = db;
+    this.ws = ws;
     this.lapDetector = new LapDetector(db, options);
 
     this.lapDetector.onSessionStart = async (session) => {
