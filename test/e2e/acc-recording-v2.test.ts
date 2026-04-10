@@ -38,14 +38,21 @@ describe("ACC recording v2", () => {
       const validLaps = laps.filter((l) => l.isValid);
       expect(validLaps.length).toBe(3);
 
-      // Lap 0: the joining lap (recording started mid-lap)
+      // Lap 0: the joining lap (recording started mid-lap, also from pit)
       expect(laps[0].isValid).toBe(false);
       expect(laps[0].invalidReason).toBe("joining lap");
+      // Confirms the recording data itself has pit status on lap 0 start —
+      // the joining-lap check wins over the pit-lap check here because it
+      // fires first, but the underlying packet state should still show pit.
+      expect(laps[0].packets[0].acc?.pitStatus).not.toBe("out");
 
-      // Laps 1-3: the three real laps (valid)
+      // Laps 1-3: the three real laps (valid, all on track)
       expect(laps[1].isValid).toBe(true);
+      expect(laps[1].packets[0].acc?.pitStatus).toBe("out");
       expect(laps[2].isValid).toBe(true);
+      expect(laps[2].packets[0].acc?.pitStatus).toBe("out");
       expect(laps[3].isValid).toBe(true);
+      expect(laps[3].packets[0].acc?.pitStatus).toBe("out");
 
       // Lap times match peak CurrentLap from raw frame analysis (±1s tolerance)
       expect(laps[1].lapTime).toBeCloseTo(90.375, 0);
@@ -89,9 +96,11 @@ describe("ACC recording v2", () => {
       const validLaps = laps.filter((l) => l.isValid);
       expect(validLaps.length).toBe(2);
 
-      // Lap 0: the joining lap (recording started mid-lap)
+      // Lap 0: the joining lap (recording started mid-lap, also from pit)
       expect(laps[0].isValid).toBe(false);
       expect(laps[0].invalidReason).toBe("joining lap");
+      // Confirms the recording data has pit status on lap 0 start
+      expect(laps[0].packets[0].acc?.pitStatus).not.toBe("out");
 
       // Laps 1-2: the two real laps (valid with sectors)
       expect(laps[1].isValid).toBe(true);

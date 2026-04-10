@@ -5,12 +5,22 @@ import type { TelemetryPacket } from "../shared/types";
 
 // Fake DB stub — v2 should only call insertLap / getTuneAssignment / insertSession
 function makeFakeDb() {
-  const inserted: Array<{ lapNumber: number; lapTime: number; valid: boolean }> = [];
+  const inserted: Array<{ lapNumber: number; lapTime: number; valid: boolean; invalidReason: string | null }> = [];
   return {
     inserted,
     insertSession: async () => 1,
-    insertLap: async (_s: number, lapNumber: number, lapTime: number, valid: boolean, ...args: any[]) => {
-      inserted.push({ lapNumber, lapTime, valid });
+    insertLap: async (
+      _sessionId: number,
+      lapNumber: number,
+      lapTime: number,
+      valid: boolean,
+      _packets: unknown,
+      _a: unknown,
+      _b: unknown,
+      invalidReason: string | null,
+      _sectors: unknown
+    ) => {
+      inserted.push({ lapNumber, lapTime, valid, invalidReason });
       return inserted.length;
     },
     getTuneAssignment: async () => null,
@@ -139,6 +149,98 @@ describe("LapDetectorV2 — reset detection", () => {
 
     expect(saved.length).toBe(1);
     expect(saved[0].isValid).toBe(false);
+  });
+
+  test("marks ACC lap invalid with reason 'pit lap' when it starts in the pit lane", async () => {
+    const db = makeFakeDb();
+    const d = new LapDetectorV2({ db });
+
+    // Out-lap: starts in pit lane, exits to track, drives a full clean lap
+    // First packet: CurrentLap=0, pitStatus=pit_lane (car in pit exit)
+    await d.feed(
+      packet({
+        CurrentLap: 0,
+        DistanceTraveled: 0,
+        TimestampMS: 0,
+        acc: { pitStatus: "pit_lane" } as any,
+      })
+    );
+    // Next 40 packets: still in pit lane, creeping towards track
+    for (let t = 1; t <= 40; t += 1) {
+      await d.feed(
+        packet({
+          CurrentLap: t,
+          DistanceTraveled: t * 50,
+          TimestampMS: t * 1000,
+          acc: { pitStatus: "pit_lane" } as any,
+        })
+      );
+    }
+    // Car exits pit, on track for the rest of the lap
+    for (let t = 41; t <= 90; t += 1) {
+      await d.feed(
+        packet({
+          CurrentLap: t,
+          DistanceTraveled: t * 50,
+          TimestampMS: t * 1000,
+          acc: { pitStatus: "out" } as any,
+        })
+      );
+    }
+    // Lap boundary — reset
+    await d.feed(
+      packet({
+        CurrentLap: 0.2,
+        DistanceTraveled: 91 * 50,
+        TimestampMS: 91 * 1000,
+        acc: { pitStatus: "out" } as any,
+      })
+    );
+
+    expect(db.inserted.length).toBe(1);
+    expect(db.inserted[0].valid).toBe(false);
+    expect(db.inserted[0].invalidReason).toBe("pit lap");
+  });
+
+  test("marks ACC lap invalid with reason 'pit lap' when it ends in the pit lane", async () => {
+    const db = makeFakeDb();
+    const d = new LapDetectorV2({ db });
+
+    // In-lap: drives most of the lap on track, enters pit lane near the finish
+    for (let t = 0; t <= 60; t += 1) {
+      await d.feed(
+        packet({
+          CurrentLap: t,
+          DistanceTraveled: t * 50,
+          TimestampMS: t * 1000,
+          acc: { pitStatus: "out" } as any,
+        })
+      );
+    }
+    // Enters pit lane for the last ~30s of the lap
+    for (let t = 61; t <= 90; t += 1) {
+      await d.feed(
+        packet({
+          CurrentLap: t,
+          DistanceTraveled: t * 50,
+          TimestampMS: t * 1000,
+          acc: { pitStatus: "pit_lane" } as any,
+        })
+      );
+    }
+    // Lap boundary — reset, still in pit
+    await d.feed(
+      packet({
+        CurrentLap: 0.2,
+        DistanceTraveled: 91 * 50,
+        TimestampMS: 91 * 1000,
+        acc: { pitStatus: "pit_lane" } as any,
+      })
+    );
+
+    expect(db.inserted.length).toBe(1);
+    expect(db.inserted[0].valid).toBe(false);
+    expect(db.inserted[0].invalidReason).toBe("pit lap");
   });
 });
 
