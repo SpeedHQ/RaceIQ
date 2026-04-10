@@ -4,6 +4,19 @@ import { resolve } from "path";
 import GifEncoder from "gif-encoder";
 import sharp from "sharp";
 
+/** Format a lap time in seconds as "m:ss.sss". */
+function formatLapTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = (seconds % 60).toFixed(3).padStart(6, "0");
+  return `${mins}:${secs}`;
+}
+
+export interface LapGifMeta {
+  lapTime?: number;
+  isValid?: boolean;
+  invalidReason?: string | null;
+}
+
 /**
  * Generate an animated GIF showing a lap line being drawn progressively.
  *
@@ -11,12 +24,14 @@ import sharp from "sharp";
  * @param lapNumber Lap number for filename
  * @param outputDir Directory to save GIF file
  * @param recordingName Recording filename (without extension) to include in output
+ * @param meta Optional lap metadata (time, validity) rendered in the top-left label
  */
 export async function generateLapGif(
   packets: TelemetryPacket[],
   lapNumber: number,
   outputDir: string,
-  recordingName?: string
+  recordingName?: string,
+  meta?: LapGifMeta
 ): Promise<void> {
   if (packets.length < 10) return; // Need enough packets for animation
 
@@ -100,7 +115,9 @@ export async function generateLapGif(
 
   <!-- Labels -->
   <text class="label" x="10" y="20">Lap ${lapNumber}</text>
-  <text class="label" x="10" y="40">Progress: ${numPackets}/${packets.length} packets</text>
+  ${meta?.lapTime !== undefined ? `<text class="label" x="10" y="35">Time: ${formatLapTime(meta.lapTime)}</text>` : ""}
+  ${meta?.isValid !== undefined ? `<text class="label" x="10" y="50" fill="${meta.isValid ? "#10b981" : "#ef4444"}">${meta.isValid ? "valid" : `invalid${meta.invalidReason ? ` (${meta.invalidReason})` : ""}`}</text>` : ""}
+  <text class="label" x="10" y="70">Progress: ${numPackets}/${packets.length} packets</text>
 </svg>`;
 
         // Convert SVG to raw RGBA buffer via sharp

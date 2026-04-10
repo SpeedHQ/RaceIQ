@@ -132,8 +132,9 @@ describe("ACC recording", () => {
       await generateRawGif(rawPackets, recordingOutputDir);
 
       for (const lap of laps) {
-        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir);
-        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir);
+        const meta = { lapTime: lap.lapTime, isValid: lap.isValid, invalidReason: lap.invalidReason };
+        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
+        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
       }
       console.log(`[Visualizations] Generated for ${laps.length} laps in ${recordingOutputDir}`);
     }, { timeout: 30000 });

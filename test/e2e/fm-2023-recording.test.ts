@@ -118,13 +118,14 @@ describe("FM-2023 recording", () => {
           console.log(`  → Largest jump: ${maxJump.toFixed(1)} units at packet ${maxJumpIdx}`);
         }
 
-        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir);
+        const meta = { lapTime: lap.lapTime, isValid: lap.isValid, invalidReason: lap.invalidReason };
+        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
         console.log(`[SVG] Generated lap-${lap.lapNumber}.svg`);
 
-        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir);
+        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
         console.log(`[GIF] Generated lap-${lap.lapNumber}.gif`);
       }
-    });
+    }, { timeout: 30000 });
   });
 
   describe("fm-2023-2026-04-09T21-55-03-186Z.bin", () => {
@@ -229,12 +230,13 @@ describe("FM-2023 recording", () => {
           console.log(`  → Largest jump: ${maxJump.toFixed(1)} units at packet ${maxJumpIdx}`);
         }
 
-        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir);
+        const meta = { lapTime: lap.lapTime, isValid: lap.isValid, invalidReason: lap.invalidReason };
+        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
         console.log(`[SVG] Generated lap-${lap.lapNumber}.svg`);
 
-        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir);
+        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
         console.log(`[GIF] Generated lap-${lap.lapNumber}.gif`);
       }
-    });
+    }, { timeout: 30000 });
   });
 });

@@ -118,10 +118,11 @@ describe("F1-2025 recording", () => {
           console.log(`  → Largest jump: ${maxJump.toFixed(1)} units at packet ${maxJumpIdx}`);
         }
 
-        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir);
+        const meta = { lapTime: lap.lapTime, isValid: lap.isValid, invalidReason: lap.invalidReason };
+        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
         console.log(`[SVG] Generated lap-${lap.lapNumber}.svg`);
 
-        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir);
+        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
         console.log(`[GIF] Generated lap-${lap.lapNumber}.gif`);
       }
     });

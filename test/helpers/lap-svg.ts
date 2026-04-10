@@ -2,6 +2,19 @@ import type { TelemetryPacket } from "../../shared/types";
 import { writeFileSync } from "fs";
 import { resolve } from "path";
 
+/** Format a lap time in seconds as "m:ss.sss". */
+function formatLapTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = (seconds % 60).toFixed(3).padStart(6, "0");
+  return `${mins}:${secs}`;
+}
+
+export interface LapSvgMeta {
+  lapTime?: number;
+  isValid?: boolean;
+  invalidReason?: string | null;
+}
+
 /**
  * Generate an SVG visualization of a lap's telemetry data.
  * Plots the car's X,Z coordinates as a path on the track.
@@ -10,12 +23,14 @@ import { resolve } from "path";
  * @param lapNumber Lap number for filename
  * @param outputDir Directory to save SVG file
  * @param recordingName Recording filename (without path or extension) to include in output
+ * @param meta Optional lap metadata (time, validity) rendered in the top-left label
  */
 export function generateLapSvg(
   packets: TelemetryPacket[],
   lapNumber: number,
   outputDir: string,
-  recordingName?: string
+  recordingName?: string,
+  meta?: LapSvgMeta
 ): void {
   if (packets.length === 0) return;
 
@@ -86,9 +101,11 @@ export function generateLapSvg(
 
   <!-- Labels -->
   <text class="label" x="10" y="20">Lap ${lapNumber}</text>
-  <text class="label" x="10" y="40">Packets: ${packets.length}</text>
-  <text class="label" x="10" y="60" font-size="10">X: ${minX.toFixed(0)}-${maxX.toFixed(0)}</text>
-  <text class="label" x="10" y="75" font-size="10">Z: ${minZ.toFixed(0)}-${maxZ.toFixed(0)}</text>
+  ${meta?.lapTime !== undefined ? `<text class="label" x="10" y="35">Time: ${formatLapTime(meta.lapTime)}</text>` : ""}
+  ${meta?.isValid !== undefined ? `<text class="label" x="10" y="50" fill="${meta.isValid ? "#10b981" : "#ef4444"}">${meta.isValid ? "valid" : `invalid${meta.invalidReason ? ` (${meta.invalidReason})` : ""}`}</text>` : ""}
+  <text class="label" x="10" y="70">Packets: ${packets.length}</text>
+  <text class="label" x="10" y="85" font-size="10">X: ${minX.toFixed(0)}-${maxX.toFixed(0)}</text>
+  <text class="label" x="10" y="100" font-size="10">Z: ${minZ.toFixed(0)}-${maxZ.toFixed(0)}</text>
 </svg>`;
 
   const filePrefix = recordingName ? `${recordingName}-lap-${lapNumber}` : `lap-${lapNumber}`;
