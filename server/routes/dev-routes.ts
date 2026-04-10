@@ -206,15 +206,13 @@ devRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
           const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal });
           if (packet && packet.LapNumber !== undefined) {
             if (packet.LapNumber !== currentLap) {
+              // Transitioning to a new lap — only create if we haven't seen it before
               if (!lapRanges.has(packet.LapNumber)) {
                 lapRanges.set(packet.LapNumber, { start: packetIndex, end: packetIndex, lapTime: packet.LapTime ?? 0 });
-              } else {
-                const range = lapRanges.get(packet.LapNumber)!;
-                range.end = packetIndex;
-                range.lapTime = packet.LapTime ?? 0;
               }
               currentLap = packet.LapNumber;
             } else {
+              // Continuing current lap — extend the end boundary
               const range = lapRanges.get(packet.LapNumber);
               if (range) {
                 range.end = packetIndex;
@@ -239,15 +237,13 @@ devRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
 
           if (packet && packet.LapNumber !== undefined) {
             if (packet.LapNumber !== currentLap) {
+              // Transitioning to a new lap — only create if we haven't seen it before
               if (!lapRanges.has(packet.LapNumber)) {
                 lapRanges.set(packet.LapNumber, { start: packetIndex, end: packetIndex, lapTime: packet.LapTime ?? 0 });
-              } else {
-                const range = lapRanges.get(packet.LapNumber)!;
-                range.end = packetIndex;
-                range.lapTime = packet.LapTime ?? 0;
               }
               currentLap = packet.LapNumber;
             } else {
+              // Continuing current lap — extend the end boundary
               const range = lapRanges.get(packet.LapNumber);
               if (range) {
                 range.end = packetIndex;
