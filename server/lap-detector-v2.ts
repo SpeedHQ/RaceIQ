@@ -76,7 +76,10 @@ export class LapDetectorV2 implements ILapDetector {
         bestLapTime: 0,
       };
       this.currentLapNumber = 0;
-      this.firstLapIsPartial = packet.CurrentLap > 5;
+      // Joining-lap discard only applies to ACC — ACC's iCurrentTime persists
+      // across session boundaries so recordings often start mid-lap. Other games
+      // start CurrentLap at 0 on each new session so this heuristic would misfire.
+      this.firstLapIsPartial = packet.gameId === "acc" && packet.CurrentLap > 5;
       await this.onSessionStart?.(this.currentSession);
     }
 
@@ -104,8 +107,8 @@ export class LapDetectorV2 implements ILapDetector {
         //           Keep firstLapIsPartial=true so the NEXT reset (the real joining lap)
         //           is the one we save as invalid.
         //   >= 100m: this is the actual joining lap. Save it as invalid with reason
-        //           "telemetry distance too short" (matching v1's wording for the same
-        //           scenario) so downstream tests/consumers treat it the same.
+        //           "joining lap" so downstream consumers know the driver started
+        //           recording mid-lap rather than the data being broken.
         const bufStart = this.lapBuffer[0]?.DistanceTraveled ?? 0;
         const bufEnd = this.lapBuffer[this.lapBuffer.length - 1]?.DistanceTraveled ?? 0;
         const bufDist = bufEnd - bufStart;
@@ -117,7 +120,7 @@ export class LapDetectorV2 implements ILapDetector {
           return;
         }
         this.firstLapIsPartial = false;
-        forcedInvalidReason = "telemetry distance too short";
+        forcedInvalidReason = "joining lap";
       }
 
       await this.emitLap(forcedInvalidReason);

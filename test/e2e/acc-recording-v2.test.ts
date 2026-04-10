@@ -40,7 +40,7 @@ describe("ACC recording v2", () => {
 
       // Lap 0: the joining lap (recording started mid-lap)
       expect(laps[0].isValid).toBe(false);
-      expect(laps[0].invalidReason).toBe("telemetry distance too short");
+      expect(laps[0].invalidReason).toBe("joining lap");
 
       // Laps 1-3: the three real laps (valid)
       expect(laps[1].isValid).toBe(true);
@@ -91,7 +91,7 @@ describe("ACC recording v2", () => {
 
       // Lap 0: the joining lap (recording started mid-lap)
       expect(laps[0].isValid).toBe(false);
-      expect(laps[0].invalidReason).toBe("telemetry distance too short");
+      expect(laps[0].invalidReason).toBe("joining lap");
 
       // Laps 1-2: the two real laps (valid with sectors)
       expect(laps[1].isValid).toBe(true);

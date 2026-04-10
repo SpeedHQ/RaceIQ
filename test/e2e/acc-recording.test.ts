@@ -74,7 +74,7 @@ describe("ACC recording", () => {
 
       // Lap 0: joining lap — invalid
       expect(laps[0].isValid).toBe(false);
-      expect(laps[0].invalidReason).toBe("telemetry distance too short");
+      expect(laps[0].invalidReason).toBe("joining lap");
 
       // Lap 1: valid lap with sectors
       expect(laps[1].isValid).toBe(true);
