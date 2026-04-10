@@ -4,6 +4,7 @@ import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface"
 import type { LapSavedNotification, SessionState } from "./lap-detector";
 import { assessLapRecording } from "./lap-quality";
 import { computeLapSectors } from "./compute-lap-sectors";
+import { isAccMidLapStart, classifyAccPitLap } from "./acc-lap-rules";
 
 /** @deprecated Use LapDetectorOptions from lap-detector-interface instead. */
 export interface LapDetectorV2Options {
@@ -76,10 +77,7 @@ export class LapDetectorV2 implements ILapDetector {
         bestLapTime: 0,
       };
       this.currentLapNumber = 0;
-      // Joining-lap discard only applies to ACC — ACC's iCurrentTime persists
-      // across session boundaries so recordings often start mid-lap. Other games
-      // start CurrentLap at 0 on each new session so this heuristic would misfire.
-      this.firstLapIsPartial = packet.gameId === "acc" && packet.CurrentLap > 5;
+      this.firstLapIsPartial = isAccMidLapStart(packet);
       await this.onSessionStart?.(this.currentSession);
     }
 
@@ -153,26 +151,11 @@ export class LapDetectorV2 implements ILapDetector {
     let isValid = forcedInvalidReason ? false : quality.valid;
     let invalidReason = forcedInvalidReason ?? quality.reason;
 
-    // ACC: invalidate laps based on where pit lane / pit box touches the lap.
-    // Distinguishes:
-    //   - outlap: first packet in pit (driver is exiting pit)
-    //   - inlap: last packet in pit (driver is entering pit)
-    //   - pit lap: both (entirely within pit, or in-then-out-then-in)
-    // pitStatus values: "out" (on track), "pit_lane", "in_pit".
-    if (isValid && this.currentSession!.gameId === "acc" && packets.length > 0) {
-      const firstPit = packets[0].acc?.pitStatus ?? "out";
-      const lastPit = packets[packets.length - 1].acc?.pitStatus ?? "out";
-      const startInPit = firstPit !== "out";
-      const endInPit = lastPit !== "out";
-      if (startInPit && endInPit) {
+    if (isValid) {
+      const pitReason = classifyAccPitLap(packets);
+      if (pitReason) {
         isValid = false;
-        invalidReason = "pit lap";
-      } else if (startInPit) {
-        isValid = false;
-        invalidReason = "outlap";
-      } else if (endInPit) {
-        isValid = false;
-        invalidReason = "inlap";
+        invalidReason = pitReason;
       }
     }
 
