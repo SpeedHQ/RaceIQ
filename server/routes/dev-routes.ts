@@ -177,7 +177,7 @@ devRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
 
     try {
       const gameId = recordingName.split("-").slice(0, 1).join("-") as GameId;
-      const lapRanges = new Map<number, { start: number; end: number; lapTime: number }>();
+      const lapRanges = new Map<number, { start: number; end: number; lapTime: number; maxCurrentLap: number }>();
       let packetIndex = 0;
       let currentLap = -1;
 
@@ -206,26 +206,28 @@ devRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
           const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal });
           if (packet && packet.LapNumber !== undefined) {
             if (packet.LapNumber !== currentLap) {
-              // Transitioning to a new lap — capture the completed lap's time in the PREVIOUS lap
-              if (currentLap !== -1 && (packet.LastLap ?? 0) > 0) {
+              // Transitioning to a new lap — finalize the previous lap's time
+              if (currentLap !== -1) {
                 const prevLapRange = lapRanges.get(currentLap);
                 if (prevLapRange) {
-                  prevLapRange.lapTime = packet.LastLap ?? 0;
+                  // Use max CurrentLap (elapsed time) as lap duration, or fall back to LastLap if valid
+                  prevLapRange.lapTime = prevLapRange.maxCurrentLap > 0 ? prevLapRange.maxCurrentLap : (packet.LastLap ?? 0);
                 }
               }
-              // Create or extend range for the new lap
+              // Create range for the new lap
               if (!lapRanges.has(packet.LapNumber)) {
-                lapRanges.set(packet.LapNumber, { start: packetIndex, end: packetIndex, lapTime: 0 });
+                lapRanges.set(packet.LapNumber, { start: packetIndex, end: packetIndex, lapTime: 0, maxCurrentLap: 0 });
               } else {
                 const range = lapRanges.get(packet.LapNumber)!;
                 range.end = packetIndex;
               }
               currentLap = packet.LapNumber;
             } else {
-              // Continue current lap
+              // Continue current lap — track max CurrentLap
               const range = lapRanges.get(packet.LapNumber);
               if (range) {
                 range.end = packetIndex;
+                range.maxCurrentLap = Math.max(range.maxCurrentLap, packet.CurrentLap ?? 0);
               }
             }
           }
@@ -246,26 +248,28 @@ devRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
 
           if (packet && packet.LapNumber !== undefined) {
             if (packet.LapNumber !== currentLap) {
-              // Transitioning to a new lap — capture the completed lap's time in the PREVIOUS lap
-              if (currentLap !== -1 && (packet.LastLap ?? 0) > 0) {
+              // Transitioning to a new lap — finalize the previous lap's time
+              if (currentLap !== -1) {
                 const prevLapRange = lapRanges.get(currentLap);
                 if (prevLapRange) {
-                  prevLapRange.lapTime = packet.LastLap ?? 0;
+                  // Use max CurrentLap (elapsed time) as lap duration, or fall back to LastLap if valid
+                  prevLapRange.lapTime = prevLapRange.maxCurrentLap > 0 ? prevLapRange.maxCurrentLap : (packet.LastLap ?? 0);
                 }
               }
-              // Create or extend range for the new lap
+              // Create range for the new lap
               if (!lapRanges.has(packet.LapNumber)) {
-                lapRanges.set(packet.LapNumber, { start: packetIndex, end: packetIndex, lapTime: 0 });
+                lapRanges.set(packet.LapNumber, { start: packetIndex, end: packetIndex, lapTime: 0, maxCurrentLap: 0 });
               } else {
                 const range = lapRanges.get(packet.LapNumber)!;
                 range.end = packetIndex;
               }
               currentLap = packet.LapNumber;
             } else {
-              // Continue current lap
+              // Continue current lap — track max CurrentLap
               const range = lapRanges.get(packet.LapNumber);
               if (range) {
                 range.end = packetIndex;
+                range.maxCurrentLap = Math.max(range.maxCurrentLap, packet.CurrentLap ?? 0);
               }
             }
           }
