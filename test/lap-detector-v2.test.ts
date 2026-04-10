@@ -61,19 +61,20 @@ describe("LapDetectorV2 — reset detection", () => {
     expect(saved[0].lapTime).toBeCloseTo(90, 0);
   });
 
-  test("discards partial initial lap when recording starts mid-lap", async () => {
+  test("saves partial initial lap as invalid when recording starts mid-lap", async () => {
     const db = makeFakeDb();
-    const saved: Array<{ lapNumber: number; lapTime: number }> = [];
+    const saved: Array<{ lapNumber: number; lapTime: number; isValid: boolean; invalidReason: string | null }> = [];
     const d = new LapDetectorV2({
       db,
-      onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
+      onLapSaved: (n) =>
+        saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime, isValid: n.isValid, invalidReason: (n as any).invalidReason ?? null }),
     });
 
     // Recording starts with the car already 50s into a lap
     for (let t = 50; t <= 90; t += 1) {
       await d.feed(packet({ CurrentLap: t, DistanceTraveled: t * 50, TimestampMS: t * 1000 }));
     }
-    // First reset — this partial "lap" must be discarded
+    // First reset — this partial "lap" should be saved as invalid
     await d.feed(packet({ CurrentLap: 0.3, DistanceTraveled: 90 * 50 + 30, TimestampMS: 91 * 1000 }));
 
     // Full clean lap
@@ -82,9 +83,13 @@ describe("LapDetectorV2 — reset detection", () => {
     }
     await d.feed(packet({ CurrentLap: 0.2, DistanceTraveled: 999999, TimestampMS: 999999 }));
 
-    expect(saved.length).toBe(1);
-    expect(saved[0].lapNumber).toBe(0); // first *real* lap is numbered 0
-    expect(saved[0].lapTime).toBeCloseTo(85, 0);
+    // Two laps: the partial joining lap (invalid) and the full clean lap (valid)
+    expect(saved.length).toBe(2);
+    expect(saved[0].lapNumber).toBe(0);
+    expect(saved[0].isValid).toBe(false);
+    expect(saved[1].lapNumber).toBe(1);
+    expect(saved[1].isValid).toBe(true);
+    expect(saved[1].lapTime).toBeCloseTo(85, 0);
   });
 
   test("session restart (distance reset) discards in-progress lap and keeps new packet", async () => {

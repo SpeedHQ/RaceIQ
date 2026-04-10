@@ -42,6 +42,8 @@ export interface ILapDetector {
   readonly tireWearHistory?: import("./lap-detector").LapTireWearData[];
   /** Flush a stale in-progress lap when packets stop arriving. v1 only. */
   flushStaleLap?(): Promise<void>;
+  /** Flush any in-progress lap at end-of-stream as an invalid incomplete lap. */
+  flushIncompleteLap?(): Promise<void>;
   /** Return internal debug state for the dev panel. v1 only. */
   getDebugState?(): Record<string, unknown>;
 }

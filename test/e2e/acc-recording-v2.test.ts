@@ -10,7 +10,7 @@ describe("ACC recording v2", () => {
     const recordingFile = "acc-2026-04-10T02-59-28-972Z.bin";
     const recording = join(RECORDINGS_DIR, recordingFile);
 
-    test("discards phantom partial lap and keeps 3 full valid laps", async () => {
+    test("saves 5 laps with 3 valid (joining + 3 real + incomplete)", async () => {
       if (!existsSync(recording)) {
         console.log(`Recording not found: ${recordingFile}`);
         return;
@@ -30,23 +30,28 @@ describe("ACC recording v2", () => {
       expect(carModel).toBe("mclaren_720s_gt3_evo");
       expect(trackName).toBe("brands_hatch");
 
-      // v2 should discard the phantom partial lap and persist exactly 3 full valid laps
+      // v2 emits 5 laps: joining (invalid) + 3 real (valid) + incomplete (invalid)
+      expect(laps.length).toBe(5);
       const validLaps = laps.filter((l) => l.isValid);
       expect(validLaps.length).toBe(3);
 
-      // Lap numbering should start at 0
-      expect(validLaps[0].lapNumber).toBe(0);
-      expect(validLaps[1].lapNumber).toBe(1);
-      expect(validLaps[2].lapNumber).toBe(2);
+      // Lap 0: the joining lap (recording started mid-lap)
+      expect(laps[0].isValid).toBe(false);
+      expect(laps[0].invalidReason).toBe("telemetry distance too short");
 
-      // Lap times should match peak CurrentLap from raw frame analysis (±1 second tolerance
-      // to absorb frame-level jitter between the sampled peak and the true crossing moment)
-      expect(validLaps[0].lapTime).toBeCloseTo(90.375, 0);
-      expect(validLaps[1].lapTime).toBeCloseTo(88.120, 0);
-      expect(validLaps[2].lapTime).toBeCloseTo(89.277, 0);
+      // Laps 1-3: the three real laps (valid)
+      expect(laps[1].isValid).toBe(true);
+      expect(laps[2].isValid).toBe(true);
+      expect(laps[3].isValid).toBe(true);
 
-      // Sector times are OK to be null for ACC in v2 right now (see Task 5 concerns)
-      // — we don't assert on them here.
+      // Lap times match peak CurrentLap from raw frame analysis (±1s tolerance)
+      expect(laps[1].lapTime).toBeCloseTo(90.375, 0);
+      expect(laps[2].lapTime).toBeCloseTo(88.120, 0);
+      expect(laps[3].lapTime).toBeCloseTo(89.277, 0);
+
+      // Lap 4: the incomplete tail (recording ended mid-lap)
+      expect(laps[4].isValid).toBe(false);
+      expect(laps[4].invalidReason).toBe("incomplete");
     }, { timeout: 30000 });
   });
 });

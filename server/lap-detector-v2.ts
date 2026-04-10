@@ -96,58 +96,91 @@ export class LapDetectorV2 implements ILapDetector {
     const isReset = prev && prev.CurrentLap >= 30 && packet.CurrentLap <= 2;
 
     if (isReset) {
+      let forcedInvalidReason: string | null = null;
+
       if (this.firstLapIsPartial) {
-        // Discard this partial lap — don't persist, don't emit, don't advance lapNumber.
-        // If the discarded buffer had < 100m distance it was a trivial fragment (e.g. the
-        // timer restarted briefly at session start); keep firstLapIsPartial=true so the
-        // next real lap boundary is also discarded (it's the true joining lap).
+        // Recording started mid-lap. Look at the buffer distance:
+        //   < 100m: trivial timer-glitch fragment — skip entirely, don't save.
+        //           Keep firstLapIsPartial=true so the NEXT reset (the real joining lap)
+        //           is the one we save as invalid.
+        //   >= 100m: this is the actual joining lap. Save it as invalid with reason
+        //           "telemetry distance too short" (matching v1's wording for the same
+        //           scenario) so downstream tests/consumers treat it the same.
         const bufStart = this.lapBuffer[0]?.DistanceTraveled ?? 0;
         const bufEnd = this.lapBuffer[this.lapBuffer.length - 1]?.DistanceTraveled ?? 0;
         const bufDist = bufEnd - bufStart;
-        if (bufDist >= 100) {
-          this.firstLapIsPartial = false;
+        if (bufDist < 100) {
+          this.lapBuffer = [];
+          this.peakCurrentLap = 0;
+          this.lapBuffer.push(packet);
+          if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
+          return;
         }
-        // else: keep firstLapIsPartial=true to also discard the next lap boundary
-        this.lapBuffer = [];
-        this.peakCurrentLap = 0;
-        this.lapBuffer.push(packet);
-        if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
-        return;
+        this.firstLapIsPartial = false;
+        forcedInvalidReason = "telemetry distance too short";
       }
 
-      const lapTime = this.peakCurrentLap;
-      const lapNum = this.currentLapNumber;
-      const packets = this.lapBuffer;
+      await this.emitLap(forcedInvalidReason);
+    }
 
-      const quality = assessLapRecording(packets, lapTime);
-      const isValid = quality.valid;
-      const invalidReason = quality.reason;
+    this.lapBuffer.push(packet);
+    if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
+  }
 
-      const sectors = await computeLapSectors(
-        this.db,
-        this.currentSession!.trackOrdinal,
-        this.currentSession!.gameId,
-        packets,
-        lapTime,
-        // ACC live sectors not yet tracked in v2 — falls back to distance-fraction
-        undefined
-      );
+  /**
+   * Flush any in-progress lap at end-of-stream as an incomplete (invalid) lap.
+   * Called by the pipeline/test harness when packets stop arriving (e.g. recording ends).
+   *
+   * Matches v1 behavior: writes to the DB but does NOT fire onLapSaved. Consumers
+   * (test assertions, live UI) treat incomplete laps as "finalized after the fact"
+   * rather than a real lap-completion event.
+   */
+  async flushIncompleteLap(): Promise<void> {
+    if (!this.currentSession || this.lapBuffer.length < 10) return;
+    await this.emitLap("incomplete", { silent: true });
+    this.lapBuffer = [];
+    this.peakCurrentLap = 0;
+  }
 
-      if (isValid && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
-        this.currentSession!.bestLapTime = lapTime;
-      }
+  /** Emit the current lapBuffer as a saved lap. Callers clear state afterwards. */
+  private async emitLap(
+    forcedInvalidReason: string | null,
+    opts?: { silent?: boolean }
+  ): Promise<void> {
+    const lapTime = this.peakCurrentLap;
+    const lapNum = this.currentLapNumber;
+    const packets = this.lapBuffer;
 
-      const lapId = await this.db.insertLap(
-        this.currentSession!.sessionId,
-        lapNum,
-        lapTime,
-        isValid,
-        packets,
-        null,
-        null,
-        invalidReason,
-        sectors
-      );
+    const quality = assessLapRecording(packets, lapTime);
+    const isValid = forcedInvalidReason ? false : quality.valid;
+    const invalidReason = forcedInvalidReason ?? quality.reason;
+
+    const sectors = await computeLapSectors(
+      this.db,
+      this.currentSession!.trackOrdinal,
+      this.currentSession!.gameId,
+      packets,
+      lapTime,
+      // ACC live sectors not yet tracked in v2 — falls back to distance-fraction
+      undefined
+    );
+
+    if (isValid && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
+      this.currentSession!.bestLapTime = lapTime;
+    }
+
+    const lapId = await this.db.insertLap(
+      this.currentSession!.sessionId,
+      lapNum,
+      lapTime,
+      isValid,
+      packets,
+      null,
+      null,
+      invalidReason,
+      sectors
+    );
+    if (!opts?.silent) {
       this.onLapSaved?.({
         type: "lap-saved",
         lapId,
@@ -157,13 +190,10 @@ export class LapDetectorV2 implements ILapDetector {
         sectors,
         estimatedBestLapTime: this.currentSession!.bestLapTime,
       });
-
-      this.currentLapNumber = lapNum + 1;
-      this.lapBuffer = [];
-      this.peakCurrentLap = 0;
     }
 
-    this.lapBuffer.push(packet);
-    if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
+    this.currentLapNumber = lapNum + 1;
+    this.lapBuffer = [];
+    this.peakCurrentLap = 0;
   }
 }

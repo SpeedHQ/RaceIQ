@@ -76,6 +76,14 @@ export class Pipeline {
     return this._lapDetector;
   }
 
+  /**
+   * Flush any in-progress lap at end-of-stream as an invalid incomplete lap.
+   * Called when the recording ends or a session terminates.
+   */
+  async flushIncompleteLap(): Promise<void> {
+    await this._lapDetector?.flushIncompleteLap?.();
+  }
+
   /** Push the current session's recorded laps (filtered by session) to all WS clients. */
   private async _broadcastSessionLaps(
     sessionId: number,

@@ -123,6 +123,9 @@ export async function parseDump(
     }
   }
 
+  // End of recording — flush any in-progress lap as incomplete (v2 only; v1 no-op)
+  await pipeline.flushIncompleteLap();
+
   // Flush deferred insertLap calls (lap-detector uses setTimeout(..., 0))
   await new Promise<void>((r) => setTimeout(r, 0));
 

@@ -34,6 +34,9 @@ export async function parseDumpV2(
     await detector.feed(packet);
   }
 
+  // End of recording — flush any in-progress lap as incomplete
+  await detector.flushIncompleteLap();
+
   // Flush deferred insertLap calls
   await new Promise<void>((r) => setTimeout(r, 0));
 
