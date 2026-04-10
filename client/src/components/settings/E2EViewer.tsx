@@ -160,6 +160,20 @@ export function E2EViewer() {
     setPacketIndex(0); // Show all packets in the lap
   };
 
+  // Find which lap the current packet belongs to (for raw view)
+  const getCurrentLapInRawView = (): Lap | null => {
+    if (selectedLap || !metadata) return null;
+
+    let displayIndex: number;
+    if (packetIndex === 0) {
+      displayIndex = metadata.packets.length - 1;
+    } else {
+      displayIndex = packetIndex - 1;
+    }
+
+    return laps.find(lap => displayIndex >= lap.startPacketIndex && displayIndex <= lap.endPacketIndex) || null;
+  };
+
   // Update speed/position and regenerate SVG when packet index changes
   useEffect(() => {
     if (!metadata || metadata.packets.length === 0) {
@@ -307,6 +321,12 @@ export function E2EViewer() {
                 <div className="flex gap-4 text-xs text-app-text-muted">
                   <span>Speed: <span className="text-app-text">{speed.toFixed(1)}</span></span>
                   <span>Position: <span className="text-app-text">({position.x.toFixed(0)}, {position.y.toFixed(0)})</span></span>
+                  {!selectedLap && getCurrentLapInRawView() && (
+                    <>
+                      <span>Lap: <span className="text-app-text">{getCurrentLapInRawView()?.lapNumber}</span></span>
+                      <span>Lap Time: <span className="text-app-text">{((getCurrentLapInRawView()?.lapTime ?? 0) / 1000).toFixed(2)}s</span></span>
+                    </>
+                  )}
                 </div>
               </div>
 
