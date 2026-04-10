@@ -66,6 +66,18 @@ export class LapDetectorV2 {
     }
 
     const prev = this.lapBuffer[this.lapBuffer.length - 1];
+
+    // Session restart detection: distance went backward by >100m
+    if (prev && packet.DistanceTraveled < prev.DistanceTraveled - 100) {
+      // Abandon in-progress lap, keep the new packet as lap start
+      this.lapBuffer = [];
+      this.peakCurrentLap = 0;
+      this.firstLapIsPartial = false;
+      this.lapBuffer.push(packet);
+      if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
+      return;
+    }
+
     const isReset = prev && prev.CurrentLap >= 30 && packet.CurrentLap <= 2;
 
     if (isReset) {

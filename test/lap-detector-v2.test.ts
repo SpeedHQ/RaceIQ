@@ -85,4 +85,34 @@ describe("LapDetectorV2 — reset detection", () => {
     expect(saved[0].lapNumber).toBe(0); // first *real* lap is numbered 0
     expect(saved[0].lapTime).toBeCloseTo(85, 0);
   });
+
+  test("session restart (distance reset) discards in-progress lap and keeps new packet", async () => {
+    const db = makeFakeDb();
+    const saved: Array<{ lapNumber: number; lapTime: number }> = [];
+    const d = new LapDetectorV2({
+      db,
+      onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
+    });
+
+    // Drive 20 seconds into lap 0 (distance accumulating)
+    for (let t = 0; t <= 20; t += 1) {
+      await d.feed(packet({ CurrentLap: t, DistanceTraveled: t * 50, TimestampMS: t * 1000 }));
+    }
+    // Restart: distance drops back to ~0, CurrentLap also near 0
+    await d.feed(packet({ CurrentLap: 0.1, DistanceTraveled: 0, TimestampMS: 100000 }));
+
+    // No lap should have been emitted
+    expect(saved.length).toBe(0);
+
+    // The new packet IS the start of the post-restart lap; drive a full lap from here
+    for (let t = 1; t <= 80; t += 1) {
+      await d.feed(packet({ CurrentLap: t, DistanceTraveled: t * 50, TimestampMS: (100 + t) * 1000 }));
+    }
+    // Complete that lap
+    await d.feed(packet({ CurrentLap: 0.2, DistanceTraveled: 80 * 50 + 30, TimestampMS: 200000 }));
+
+    expect(saved.length).toBe(1);
+    expect(saved[0].lapNumber).toBe(0);
+    expect(saved[0].lapTime).toBeCloseTo(80, 0);
+  });
 });
