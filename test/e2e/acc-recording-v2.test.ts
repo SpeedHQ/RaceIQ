@@ -1,12 +1,10 @@
 import { describe, test, expect } from "bun:test";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync } from "fs";
 import { join } from "path";
 import { parseDumpV2 } from "../helpers/parse-dump-v2";
-import { generateLapSvg, generateRawSvg } from "../helpers/lap-svg";
-import { generateLapGif, generateRawGif } from "../helpers/lap-gif";
+import { generateRecordingVisualizations } from "../helpers/lap-viz";
 
 const RECORDINGS_DIR = "test/artifacts/laps";
-const OUTPUT_DIR = "test/e2e/output";
 
 describe("ACC recording v2", () => {
   describe("acc-2026-04-10T02-59-28-972Z.bin", () => {
@@ -29,16 +27,7 @@ describe("ACC recording v2", () => {
         console.log(`  Lap ${l.lapNumber}: ${mins}:${secs.padStart(6, "0")} ${valid}`);
       }
 
-      // Regenerate SVG + GIF visualizations for this recording
-      const recordingOutputDir = join(OUTPUT_DIR, recordingFile.replace(/\.bin$/, ""));
-      mkdirSync(recordingOutputDir, { recursive: true });
-      generateRawSvg(rawPackets, recordingOutputDir);
-      await generateRawGif(rawPackets, recordingOutputDir);
-      for (const lap of laps) {
-        const meta = { lapTime: lap.lapTime, isValid: lap.isValid, invalidReason: lap.invalidReason };
-        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
-        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
-      }
+      await generateRecordingVisualizations(recordingFile, laps, rawPackets);
 
       // Session metadata
       expect(carModel).toBe("mclaren_720s_gt3_evo");
@@ -89,16 +78,7 @@ describe("ACC recording v2", () => {
         console.log(`  Lap ${l.lapNumber}: ${mins}:${secs.padStart(6, "0")} ${valid}`);
       }
 
-      // Regenerate SVG + GIF visualizations for this recording
-      const recordingOutputDir = join(OUTPUT_DIR, recordingFile.replace(/\.bin$/, ""));
-      mkdirSync(recordingOutputDir, { recursive: true });
-      generateRawSvg(rawPackets, recordingOutputDir);
-      await generateRawGif(rawPackets, recordingOutputDir);
-      for (const lap of laps) {
-        const meta = { lapTime: lap.lapTime, isValid: lap.isValid, invalidReason: lap.invalidReason };
-        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
-        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
-      }
+      await generateRecordingVisualizations(recordingFile, laps, rawPackets);
 
       // Session metadata
       expect(carModel).toBe("mclaren_720s_gt3_evo");

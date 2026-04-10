@@ -2,13 +2,11 @@ import { describe, test, expect } from "bun:test";
 import type { LapSavedNotification } from "../../server/lap-detector";
 import { parseDump } from "../helpers/parse-dump";
 import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertLapSavedNotificationsExist, assertCommonLapValidations } from "../helpers/lap-assertions";
-import { generateLapSvg, generateRawSvg } from "../helpers/lap-svg";
-import { generateLapGif, generateRawGif } from "../helpers/lap-gif";
-import { existsSync, readdirSync, mkdirSync } from "fs";
+import { generateRecordingVisualizations } from "../helpers/lap-viz";
+import { existsSync } from "fs";
 import { join } from "path";
 
 const RECORDINGS_DIR = "test/artifacts/laps";
-const OUTPUT_DIR = "test/e2e/output";
 
 function getRecording(filename: string): string | null {
   const recordingPath = join(RECORDINGS_DIR, filename);
@@ -27,7 +25,7 @@ describe("ACC recording", () => {
       }
 
       console.log(`Using: ${recording}`);
-      const { laps, sessions, carModel, trackName, wsNotifications } = await parseDump("acc", recording);
+      const { laps, sessions, carModel, trackName, wsNotifications, rawPackets } = await parseDump("acc", recording);
       console.log(`Detected ${laps.length} lap(s)`);
       for (const lap of laps) {
         const mins = Math.floor(lap.lapTime / 60);
@@ -122,21 +120,8 @@ describe("ACC recording", () => {
       expect(sessionLaps.length).toBe(5);
       expect(sessionLaps.map((l) => l.lapNumber)).toEqual([0, 1, 2, 3, 4]);
 
-      // Generate SVG and GIF visualizations for recording
-      const recordingBaseName = recordingFile.replace(/\.bin$/, "");
-      const recordingOutputDir = join(OUTPUT_DIR, recordingBaseName);
-      mkdirSync(recordingOutputDir, { recursive: true });
-
-      const { rawPackets } = await parseDump("acc", recording);
-      generateRawSvg(rawPackets, recordingOutputDir);
-      await generateRawGif(rawPackets, recordingOutputDir);
-
-      for (const lap of laps) {
-        const meta = { lapTime: lap.lapTime, isValid: lap.isValid, invalidReason: lap.invalidReason };
-        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
-        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
-      }
-      console.log(`[Visualizations] Generated for ${laps.length} laps in ${recordingOutputDir}`);
+      await generateRecordingVisualizations(recordingFile, laps, rawPackets);
+      console.log(`[Visualizations] Generated for ${laps.length} laps`);
     }, { timeout: 30000 });
   });
 });

@@ -2,13 +2,11 @@ import { describe, test, expect } from "bun:test";
 import type { LapSavedNotification } from "../../server/lap-detector";
 import { parseDump } from "../helpers/parse-dump";
 import { assertSectorTimesMatchLapTime, assertLapTimesProper } from "../helpers/lap-assertions";
-import { generateLapSvg, generateRawSvg } from "../helpers/lap-svg";
-import { generateLapGif, generateRawGif } from "../helpers/lap-gif";
-import { existsSync, readdirSync, mkdirSync } from "fs";
+import { generateRecordingVisualizations } from "../helpers/lap-viz";
+import { existsSync } from "fs";
 import { join } from "path";
 
 const RECORDINGS_DIR = "test/artifacts/laps";
-const OUTPUT_DIR = "test/e2e/output";
 
 function getRecording(filename: string): string | null {
   const recordingPath = join(RECORDINGS_DIR, filename);
@@ -69,23 +67,8 @@ describe("FM-2023 recording", () => {
         }
       }
 
-      // Generate SVG visualizations for each lap
-      const recordingBaseName = recordingFile.replace(/\.bin$/, "");
-      const recordingOutputDir = join(OUTPUT_DIR, recordingBaseName);
-      mkdirSync(recordingOutputDir, { recursive: true });
-      console.log(`[SVG] Generating lap visualizations in ${recordingOutputDir}`);
-
-      // Generate raw telemetry SVG and GIF (all packets without lap detection)
-      if (wsNotifications.length > 0) {
-        const { rawPackets } = await parseDump("fm-2023", recording);
-        generateRawSvg(rawPackets, recordingOutputDir);
-        console.log(`[SVG] Generated raw telemetry visualization`);
-        await generateRawGif(rawPackets, recordingOutputDir);
-        console.log(`[GIF] Generated raw telemetry visualization`);
-      }
-
+      // Debug: show coordinate ranges and large jumps for each lap
       for (const lap of laps) {
-        // Debug: show coordinate ranges
         let minX = lap.packets[0].PositionX;
         let maxX = lap.packets[0].PositionX;
         let minZ = lap.packets[0].PositionZ;
@@ -100,7 +83,6 @@ describe("FM-2023 recording", () => {
           `[SVG] Lap ${lap.lapNumber}: X(${minX.toFixed(1)}-${maxX.toFixed(1)}) Z(${minZ.toFixed(1)}-${maxZ.toFixed(1)})`
         );
 
-        // Find large jumps between packets (potential pit exit or glitches)
         let maxJump = 0;
         let maxJumpIdx = -1;
         for (let i = 1; i < lap.packets.length; i++) {
@@ -117,13 +99,13 @@ describe("FM-2023 recording", () => {
         if (maxJump > 10) {
           console.log(`  → Largest jump: ${maxJump.toFixed(1)} units at packet ${maxJumpIdx}`);
         }
+      }
 
-        const meta = { lapTime: lap.lapTime, isValid: lap.isValid, invalidReason: lap.invalidReason };
-        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
-        console.log(`[SVG] Generated lap-${lap.lapNumber}.svg`);
-
-        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
-        console.log(`[GIF] Generated lap-${lap.lapNumber}.gif`);
+      // Regenerate SVG + GIF visualizations for this recording
+      if (wsNotifications.length > 0) {
+        const { rawPackets } = await parseDump("fm-2023", recording);
+        await generateRecordingVisualizations(recordingFile, laps, rawPackets);
+        console.log(`[Visualizations] Generated for ${laps.length} laps`);
       }
     }, { timeout: 30000 });
   });
@@ -181,23 +163,8 @@ describe("FM-2023 recording", () => {
         }
       }
 
-      // Generate SVG visualizations for each lap
-      const recordingBaseName = recordingFile.replace(/\.bin$/, "");
-      const recordingOutputDir = join(OUTPUT_DIR, recordingBaseName);
-      mkdirSync(recordingOutputDir, { recursive: true });
-      console.log(`[SVG] Generating lap visualizations in ${recordingOutputDir}`);
-
-      // Generate raw telemetry SVG and GIF (all packets without lap detection)
-      if (wsNotifications.length > 0) {
-        const { rawPackets } = await parseDump("fm-2023", recording);
-        generateRawSvg(rawPackets, recordingOutputDir);
-        console.log(`[SVG] Generated raw telemetry visualization`);
-        await generateRawGif(rawPackets, recordingOutputDir);
-        console.log(`[GIF] Generated raw telemetry visualization`);
-      }
-
+      // Debug: show coordinate ranges and large jumps for each lap
       for (const lap of laps) {
-        // Debug: show coordinate ranges
         let minX = lap.packets[0].PositionX;
         let maxX = lap.packets[0].PositionX;
         let minZ = lap.packets[0].PositionZ;
@@ -212,7 +179,6 @@ describe("FM-2023 recording", () => {
           `[SVG] Lap ${lap.lapNumber}: X(${minX.toFixed(1)}-${maxX.toFixed(1)}) Z(${minZ.toFixed(1)}-${maxZ.toFixed(1)})`
         );
 
-        // Find large jumps between packets (potential pit exit or glitches)
         let maxJump = 0;
         let maxJumpIdx = -1;
         for (let i = 1; i < lap.packets.length; i++) {
@@ -229,13 +195,13 @@ describe("FM-2023 recording", () => {
         if (maxJump > 10) {
           console.log(`  → Largest jump: ${maxJump.toFixed(1)} units at packet ${maxJumpIdx}`);
         }
+      }
 
-        const meta = { lapTime: lap.lapTime, isValid: lap.isValid, invalidReason: lap.invalidReason };
-        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
-        console.log(`[SVG] Generated lap-${lap.lapNumber}.svg`);
-
-        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
-        console.log(`[GIF] Generated lap-${lap.lapNumber}.gif`);
+      // Regenerate SVG + GIF visualizations for this recording
+      if (wsNotifications.length > 0) {
+        const { rawPackets } = await parseDump("fm-2023", recording);
+        await generateRecordingVisualizations(recordingFile, laps, rawPackets);
+        console.log(`[Visualizations] Generated for ${laps.length} laps`);
       }
     }, { timeout: 30000 });
   });
