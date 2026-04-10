@@ -40,7 +40,62 @@ export class LapDetectorV2 {
     return this.currentSession;
   }
 
-  async feed(_packet: TelemetryPacket): Promise<void> {
-    // Implemented in subsequent tasks
+  async feed(packet: TelemetryPacket): Promise<void> {
+    if (!this.currentSession) {
+      const sessionId = await this.db.insertSession(
+        packet.CarOrdinal,
+        packet.TrackOrdinal ?? 0,
+        packet.gameId,
+        packet.f1?.sessionType
+      );
+      this.currentSession = {
+        sessionId,
+        carOrdinal: packet.CarOrdinal,
+        trackOrdinal: packet.TrackOrdinal ?? 0,
+        carPI: packet.CarPerformanceIndex,
+        gameId: packet.gameId,
+        sessionUID: packet.sessionUID,
+        bestLapTime: 0,
+      };
+      this.currentLapNumber = 0;
+      await this.onSessionStart?.(this.currentSession);
+    }
+
+    const prev = this.lapBuffer[this.lapBuffer.length - 1];
+    const isReset = prev && prev.CurrentLap >= 30 && packet.CurrentLap <= 2;
+
+    if (isReset) {
+      const lapTime = this.peakCurrentLap;
+      const lapNum = this.currentLapNumber;
+      const packets = this.lapBuffer;
+
+      const lapId = await this.db.insertLap(
+        this.currentSession!.sessionId,
+        lapNum,
+        lapTime,
+        true,
+        packets,
+        null,
+        null,
+        null,
+        null
+      );
+      this.onLapSaved?.({
+        type: "lap-saved",
+        lapId,
+        lapNumber: lapNum,
+        lapTime,
+        isValid: true,
+        sectors: null,
+        estimatedBestLapTime: this.currentSession!.bestLapTime,
+      });
+
+      this.currentLapNumber = lapNum + 1;
+      this.lapBuffer = [];
+      this.peakCurrentLap = 0;
+    }
+
+    this.lapBuffer.push(packet);
+    if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
   }
 }
