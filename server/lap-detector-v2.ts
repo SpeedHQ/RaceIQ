@@ -2,6 +2,8 @@
 import type { TelemetryPacket } from "@shared/types";
 import type { DbAdapter } from "./pipeline-adapters";
 import type { LapSavedNotification, SessionState } from "./lap-detector";
+import { assessLapRecording } from "./lap-quality";
+import { computeLapSectors } from "./compute-lap-sectors";
 
 export interface LapDetectorV2Options {
   db: DbAdapter;
@@ -95,24 +97,42 @@ export class LapDetectorV2 {
       const lapNum = this.currentLapNumber;
       const packets = this.lapBuffer;
 
+      const quality = assessLapRecording(packets, lapTime);
+      const isValid = quality.valid;
+      const invalidReason = quality.reason;
+
+      const sectors = await computeLapSectors(
+        this.db,
+        this.currentSession!.trackOrdinal,
+        this.currentSession!.gameId,
+        packets,
+        lapTime,
+        // ACC live sectors not yet tracked in v2 — falls back to distance-fraction
+        undefined
+      );
+
+      if (isValid && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
+        this.currentSession!.bestLapTime = lapTime;
+      }
+
       const lapId = await this.db.insertLap(
         this.currentSession!.sessionId,
         lapNum,
         lapTime,
-        true,
+        isValid,
         packets,
         null,
         null,
-        null,
-        null
+        invalidReason,
+        sectors
       );
       this.onLapSaved?.({
         type: "lap-saved",
         lapId,
         lapNumber: lapNum,
         lapTime,
-        isValid: true,
-        sectors: null,
+        isValid,
+        sectors,
         estimatedBestLapTime: this.currentSession!.bestLapTime,
       });
 

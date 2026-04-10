@@ -8,7 +8,7 @@ function makeFakeDb() {
   return {
     inserted,
     insertSession: async () => 1,
-    insertLap: async (_s: number, lapNumber: number, lapTime: number, valid: boolean) => {
+    insertLap: async (_s: number, lapNumber: number, lapTime: number, valid: boolean, ...args: any[]) => {
       inserted.push({ lapNumber, lapTime, valid });
       return inserted.length;
     },
@@ -114,5 +114,24 @@ describe("LapDetectorV2 — reset detection", () => {
     expect(saved.length).toBe(1);
     expect(saved[0].lapNumber).toBe(0);
     expect(saved[0].lapTime).toBeCloseTo(80, 0);
+  });
+
+  test("calls assessLapRecording and marks short-distance laps invalid", async () => {
+    const db = makeFakeDb();
+    const saved: Array<{ lapNumber: number; lapTime: number; isValid: boolean }> = [];
+    const d = new LapDetectorV2({
+      db,
+      onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime, isValid: n.isValid }),
+    });
+
+    // 50 packets with DistanceTraveled increasing only ~50m total — fails the "lapDistance < 100" rule
+    for (let t = 0; t <= 50; t += 1) {
+      await d.feed(packet({ CurrentLap: t * 2, DistanceTraveled: t * 1, TimestampMS: t * 100 }));
+    }
+    // Reset
+    await d.feed(packet({ CurrentLap: 0.1, DistanceTraveled: 52, TimestampMS: 51000 }));
+
+    expect(saved.length).toBe(1);
+    expect(saved[0].isValid).toBe(false);
   });
 });
