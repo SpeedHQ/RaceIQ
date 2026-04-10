@@ -59,4 +59,30 @@ describe("LapDetectorV2 — reset detection", () => {
     expect(saved[0].lapNumber).toBe(0);
     expect(saved[0].lapTime).toBeCloseTo(90, 0);
   });
+
+  test("discards partial initial lap when recording starts mid-lap", async () => {
+    const db = makeFakeDb();
+    const saved: Array<{ lapNumber: number; lapTime: number }> = [];
+    const d = new LapDetectorV2({
+      db,
+      onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
+    });
+
+    // Recording starts with the car already 50s into a lap
+    for (let t = 50; t <= 90; t += 1) {
+      await d.feed(packet({ CurrentLap: t, DistanceTraveled: t * 50, TimestampMS: t * 1000 }));
+    }
+    // First reset — this partial "lap" must be discarded
+    await d.feed(packet({ CurrentLap: 0.3, DistanceTraveled: 90 * 50 + 30, TimestampMS: 91 * 1000 }));
+
+    // Full clean lap
+    for (let t = 1; t <= 85; t += 1) {
+      await d.feed(packet({ CurrentLap: t, DistanceTraveled: 90 * 50 + 30 + t * 50, TimestampMS: (91 + t) * 1000 }));
+    }
+    await d.feed(packet({ CurrentLap: 0.2, DistanceTraveled: 999999, TimestampMS: 999999 }));
+
+    expect(saved.length).toBe(1);
+    expect(saved[0].lapNumber).toBe(0); // first *real* lap is numbered 0
+    expect(saved[0].lapTime).toBeCloseTo(85, 0);
+  });
 });

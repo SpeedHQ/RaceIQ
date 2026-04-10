@@ -29,6 +29,9 @@ export class LapDetectorV2 {
   // Running peak of CurrentLap within the current lap — the thing we actually trust
   private peakCurrentLap = 0;
 
+  // Flag: if true, discard the next reset (recording started mid-lap)
+  private firstLapIsPartial = false;
+
   constructor(opts: LapDetectorV2Options) {
     this.db = opts.db;
     this.onLapSaved = opts.onLapSaved;
@@ -58,6 +61,7 @@ export class LapDetectorV2 {
         bestLapTime: 0,
       };
       this.currentLapNumber = 0;
+      this.firstLapIsPartial = packet.CurrentLap > 5;
       await this.onSessionStart?.(this.currentSession);
     }
 
@@ -65,6 +69,16 @@ export class LapDetectorV2 {
     const isReset = prev && prev.CurrentLap >= 30 && packet.CurrentLap <= 2;
 
     if (isReset) {
+      if (this.firstLapIsPartial) {
+        // Discard this partial lap — don't persist, don't emit, don't advance lapNumber
+        this.firstLapIsPartial = false;
+        this.lapBuffer = [];
+        this.peakCurrentLap = 0;
+        this.lapBuffer.push(packet);
+        if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
+        return;
+      }
+
       const lapTime = this.peakCurrentLap;
       const lapNum = this.currentLapNumber;
       const packets = this.lapBuffer;
