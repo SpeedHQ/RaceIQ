@@ -206,17 +206,18 @@ function _readAccFramesV2(data: Buffer): { physics: Buffer; graphics: Buffer; st
   if (data.length < HEADER_SIZE) return [];
 
   const frameCount = data.readUInt32LE(12);
-  const frames: { physics: Buffer | null; graphics: Buffer | null; staticData: Buffer | null }[] = [];
-  let lastPhysics: Buffer | null = null;
-  let lastGraphics: Buffer | null = null;
-  let lastStatic: Buffer | null = null;
+  const frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[] = [];
+
+  // Use empty buffers as placeholders until real data arrives
+  let lastPhysics = Buffer.alloc(0);
+  let lastGraphics = Buffer.alloc(0);
+  let lastStatic = Buffer.alloc(0);
 
   let offset = HEADER_SIZE;
   let frameIdx = 0;
 
   while (frameIdx < frameCount && offset + 13 <= data.length) {
     const frameType = data.readUInt8(offset);
-    const timestamp = data.readDoubleLE(offset + 1);
     const bufferSize = data.readUInt32LE(offset + 9);
 
     offset += 13;
@@ -226,6 +227,7 @@ function _readAccFramesV2(data: Buffer): { physics: Buffer; graphics: Buffer; st
     const bufferData = Buffer.from(data.subarray(offset, offset + bufferSize));
     offset += bufferSize;
 
+    // Update the appropriate buffer type
     switch (frameType) {
       case 0: // physics
         lastPhysics = bufferData;
@@ -236,25 +238,23 @@ function _readAccFramesV2(data: Buffer): { physics: Buffer; graphics: Buffer; st
       case 2: // static
         lastStatic = bufferData;
         break;
+      default:
+        frameIdx++;
+        continue;
     }
 
-    // Once we have all three, emit a triplet
-    if (lastPhysics && lastGraphics && lastStatic) {
-      frames.push({
-        physics: lastPhysics,
-        graphics: lastGraphics,
-        staticData: lastStatic,
-      });
-      // Don't reset — keep reusing the last of each type for subsequent frames
-    }
+    // Emit a triplet for every frame (using latest of each type)
+    // This is deterministic: same sequence every replay
+    frames.push({
+      physics: lastPhysics,
+      graphics: lastGraphics,
+      staticData: lastStatic,
+    });
 
     frameIdx++;
   }
 
-  // Return only complete triplets
-  return frames.filter(
-    (f) => f.physics !== null && f.graphics !== null && f.staticData !== null
-  ) as { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
+  return frames;
 }
 
 /**
