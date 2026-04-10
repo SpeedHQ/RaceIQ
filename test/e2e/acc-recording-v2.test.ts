@@ -1,9 +1,12 @@
 import { describe, test, expect } from "bun:test";
-import { existsSync } from "fs";
+import { existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { parseDumpV2 } from "../helpers/parse-dump-v2";
+import { generateLapSvg, generateRawSvg } from "../helpers/lap-svg";
+import { generateLapGif, generateRawGif } from "../helpers/lap-gif";
 
 const RECORDINGS_DIR = "test/artifacts/laps";
+const OUTPUT_DIR = "test/e2e/output";
 
 describe("ACC recording v2", () => {
   describe("acc-2026-04-10T02-59-28-972Z.bin", () => {
@@ -16,7 +19,7 @@ describe("ACC recording v2", () => {
         return;
       }
 
-      const { laps, carModel, trackName } = await parseDumpV2("acc", recording);
+      const { laps, carModel, trackName, rawPackets } = await parseDumpV2("acc", recording);
 
       console.log(`v2 detected ${laps.length} lap(s)`);
       for (const l of laps) {
@@ -24,6 +27,17 @@ describe("ACC recording v2", () => {
         const secs = (l.lapTime % 60).toFixed(3);
         const valid = l.isValid ? "valid" : `invalid (${l.invalidReason ?? "unknown"})`;
         console.log(`  Lap ${l.lapNumber}: ${mins}:${secs.padStart(6, "0")} ${valid}`);
+      }
+
+      // Regenerate SVG + GIF visualizations for this recording
+      const recordingOutputDir = join(OUTPUT_DIR, recordingFile.replace(/\.bin$/, ""));
+      mkdirSync(recordingOutputDir, { recursive: true });
+      generateRawSvg(rawPackets, recordingOutputDir);
+      await generateRawGif(rawPackets, recordingOutputDir);
+      for (const lap of laps) {
+        const meta = { lapTime: lap.lapTime, isValid: lap.isValid, invalidReason: lap.invalidReason };
+        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
+        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
       }
 
       // Session metadata
@@ -65,7 +79,7 @@ describe("ACC recording v2", () => {
         return;
       }
 
-      const { laps, carModel, trackName } = await parseDumpV2("acc", recording);
+      const { laps, carModel, trackName, rawPackets } = await parseDumpV2("acc", recording);
 
       console.log(`v2 detected ${laps.length} lap(s)`);
       for (const l of laps) {
@@ -73,6 +87,17 @@ describe("ACC recording v2", () => {
         const secs = (l.lapTime % 60).toFixed(3);
         const valid = l.isValid ? "valid" : `invalid (${l.invalidReason ?? "unknown"})`;
         console.log(`  Lap ${l.lapNumber}: ${mins}:${secs.padStart(6, "0")} ${valid}`);
+      }
+
+      // Regenerate SVG + GIF visualizations for this recording
+      const recordingOutputDir = join(OUTPUT_DIR, recordingFile.replace(/\.bin$/, ""));
+      mkdirSync(recordingOutputDir, { recursive: true });
+      generateRawSvg(rawPackets, recordingOutputDir);
+      await generateRawGif(rawPackets, recordingOutputDir);
+      for (const lap of laps) {
+        const meta = { lapTime: lap.lapTime, isValid: lap.isValid, invalidReason: lap.invalidReason };
+        generateLapSvg(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
+        await generateLapGif(lap.packets, lap.lapNumber, recordingOutputDir, undefined, meta);
       }
 
       // Session metadata
