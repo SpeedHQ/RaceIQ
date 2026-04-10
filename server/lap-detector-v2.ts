@@ -84,8 +84,17 @@ export class LapDetectorV2 {
 
     if (isReset) {
       if (this.firstLapIsPartial) {
-        // Discard this partial lap — don't persist, don't emit, don't advance lapNumber
-        this.firstLapIsPartial = false;
+        // Discard this partial lap — don't persist, don't emit, don't advance lapNumber.
+        // If the discarded buffer had < 100m distance it was a trivial fragment (e.g. the
+        // timer restarted briefly at session start); keep firstLapIsPartial=true so the
+        // next real lap boundary is also discarded (it's the true joining lap).
+        const bufStart = this.lapBuffer[0]?.DistanceTraveled ?? 0;
+        const bufEnd = this.lapBuffer[this.lapBuffer.length - 1]?.DistanceTraveled ?? 0;
+        const bufDist = bufEnd - bufStart;
+        if (bufDist >= 100) {
+          this.firstLapIsPartial = false;
+        }
+        // else: keep firstLapIsPartial=true to also discard the next lap boundary
         this.lapBuffer = [];
         this.peakCurrentLap = 0;
         this.lapBuffer.push(packet);
