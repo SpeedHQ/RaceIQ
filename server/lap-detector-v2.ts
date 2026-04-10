@@ -4,7 +4,7 @@ import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface"
 import type { LapSavedNotification, SessionState } from "./lap-detector";
 import { assessLapRecording } from "./lap-quality";
 import { computeLapSectors } from "./compute-lap-sectors";
-import { isAccMidLapStart, classifyAccPitLap } from "./acc-lap-rules";
+import { accFirstPacketIsMidLap, classifyAccPitLap } from "./acc-lap-rules";
 
 /** @deprecated Use LapDetectorOptions from lap-detector-interface instead. */
 export interface LapDetectorV2Options {
@@ -77,7 +77,7 @@ export class LapDetectorV2 implements ILapDetector {
         bestLapTime: 0,
       };
       this.currentLapNumber = 0;
-      this.firstLapIsPartial = isAccMidLapStart(packet);
+      this.firstLapIsPartial = accFirstPacketIsMidLap(packet);
       await this.onSessionStart?.(this.currentSession);
     }
 

@@ -7,15 +7,15 @@
 import type { TelemetryPacket } from "../shared/types";
 
 /**
- * Returns true if the very first packet of an ACC recording suggests the
- * session was already in progress (driver mid-lap).
+ * Returns true if the very first packet of an ACC recording was captured while
+ * the driver was already several seconds into a lap.
  *
- * ACC's `iCurrentTime` persists across session boundaries, so a CurrentLap
- * value > 5s on the very first packet means we joined partway through a lap.
- * Other games start CurrentLap at 0 on each new session, so this heuristic
- * only applies to ACC.
+ * This is a recording-side artifact, not an ACC feature: ACC's shared memory
+ * continuously exposes `iCurrentTime`, so if the recorder attaches mid-lap the
+ * first packet we see will have `CurrentLap > 0`. Other games start CurrentLap
+ * at 0 on each new session, so this heuristic only applies to ACC.
  */
-export function isAccMidLapStart(packet: TelemetryPacket): boolean {
+export function accFirstPacketIsMidLap(packet: TelemetryPacket): boolean {
   return packet.gameId === "acc" && packet.CurrentLap > 5;
 }
 
