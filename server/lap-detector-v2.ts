@@ -155,8 +155,20 @@ export class LapDetectorV2 implements ILapDetector {
     const packets = this.lapBuffer;
 
     const quality = assessLapRecording(packets, lapTime);
-    const isValid = forcedInvalidReason ? false : quality.valid;
-    const invalidReason = forcedInvalidReason ?? quality.reason;
+    let isValid = forcedInvalidReason ? false : quality.valid;
+    let invalidReason = forcedInvalidReason ?? quality.reason;
+
+    // ACC: invalidate laps that start or end in the pit lane / pit box.
+    // Out-laps and in-laps include pit lane time and aren't representative of
+    // true lap pace. pitStatus values: "out" (on track), "pit_lane", "in_pit".
+    if (isValid && this.currentSession!.gameId === "acc" && packets.length > 0) {
+      const firstPit = packets[0].acc?.pitStatus ?? "out";
+      const lastPit = packets[packets.length - 1].acc?.pitStatus ?? "out";
+      if (firstPit !== "out" || lastPit !== "out") {
+        isValid = false;
+        invalidReason = "pit lap";
+      }
+    }
 
     const sectors = await computeLapSectors(
       this.db,
