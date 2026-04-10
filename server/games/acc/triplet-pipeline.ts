@@ -8,11 +8,12 @@
 import { GRAPHICS, AC_STATUS } from "./structs";
 
 export interface TripletProcessor {
+  /** Return false to halt the pipeline for this triplet (e.g. invalid status). */
   process(triplet: {
     physics: Buffer;
     graphics: Buffer;
     staticData: Buffer;
-  }): Promise<void>;
+  }): Promise<boolean | void>;
 }
 
 /**
@@ -20,17 +21,28 @@ export interface TripletProcessor {
  * Filters out invalid status and disconnects on AC_OFF.
  */
 export class StatusCheckProcessor implements TripletProcessor {
-  constructor(private onDisconnect: () => Promise<void>) {}
+  private onDisconnect: () => Promise<void>;
+  private loggedInvalidStatus = false;
+  constructor(onDisconnect: () => Promise<void>) {
+    this.onDisconnect = onDisconnect;
+  }
 
-  async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<void> {
+  async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<boolean> {
     const status = triplet.graphics.readInt32LE(GRAPHICS.status.offset);
     if (status !== AC_STATUS.AC_LIVE) {
+      if (!this.loggedInvalidStatus) {
+        console.log(`[ACC StatusCheck] Invalid status: ${status} (AC_LIVE=${AC_STATUS.AC_LIVE}, AC_OFF=${AC_STATUS.AC_OFF})`);
+        this.loggedInvalidStatus = true;
+      }
       if (status === AC_STATUS.AC_OFF) {
+        console.log("[ACC StatusCheck] AC_OFF detected, disconnecting");
         await this.onDisconnect();
       }
-      return;
+      return false; // halt pipeline
     }
     // Status is valid, pipeline continues
+    this.loggedInvalidStatus = false;
+    return true;
   }
 }
 
@@ -38,7 +50,10 @@ export class StatusCheckProcessor implements TripletProcessor {
  * DumpToBinProcessor: writes raw buffers to .bin file (recording mode).
  */
 export class DumpToBinProcessor implements TripletProcessor {
-  constructor(private accRecorder: any) {}
+  private accRecorder: any;
+  constructor(accRecorder: any) {
+    this.accRecorder = accRecorder;
+  }
 
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<void> {
     this.accRecorder.writePhysics(triplet.physics);
@@ -51,30 +66,28 @@ export class DumpToBinProcessor implements TripletProcessor {
  * ParsingProcessor: parses buffers and feeds to pipeline (normal mode).
  */
 export class ParsingProcessor implements TripletProcessor {
-  constructor(
-    private carOrdinal: number,
-    private trackOrdinal: number,
-    private accRecorder: any
-  ) {}
+  private carOrdinal: number;
+  private trackOrdinal: number;
+  constructor(carOrdinal: number, trackOrdinal: number, _accRecorder?: any) {
+    this.carOrdinal = carOrdinal;
+    this.trackOrdinal = trackOrdinal;
+  }
 
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<void> {
-    // Record raw buffers if recording is enabled
-    if (this.accRecorder.recording) {
-      this.accRecorder.writePhysics(triplet.physics);
-      this.accRecorder.writeGraphics(triplet.graphics);
-      this.accRecorder.writeStatic(triplet.staticData);
-    }
+    try {
+      const { parseAccBuffers } = require("./parser") as typeof import("./parser");
+      const { processPacket } = require("../../pipeline");
 
-    // Parse and process
-    const { parseAccBuffers } = require("./parser") as typeof import("./parser");
-    const { processPacket } = require("../../pipeline");
-
-    const packet = parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData, {
-      carOrdinal: this.carOrdinal,
-      trackOrdinal: this.trackOrdinal,
-    });
-    if (packet) {
-      await processPacket(packet);
+      const packet = parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData, {
+        carOrdinal: this.carOrdinal,
+        trackOrdinal: this.trackOrdinal,
+      });
+      if (packet) {
+        await processPacket(packet);
+      }
+    } catch (err) {
+      console.error("[ACC ParsingProcessor] Error:", err instanceof Error ? err.message : err);
+      throw err;
     }
   }
 }
@@ -95,7 +108,8 @@ export class TripletPipeline {
     staticData: Buffer;
   }): Promise<void> {
     for (const processor of this.processors) {
-      await processor.process(triplet);
+      const result = await processor.process(triplet);
+      if (result === false) break;
     }
   }
 }

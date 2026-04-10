@@ -210,8 +210,8 @@ devRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
               if (currentLap !== -1) {
                 const prevLapRange = lapRanges.get(currentLap);
                 if (prevLapRange) {
-                  // Use max CurrentLap (elapsed time) as lap duration, or fall back to LastLap if valid
-                  prevLapRange.lapTime = prevLapRange.maxCurrentLap > 0 ? prevLapRange.maxCurrentLap : (packet.LastLap ?? 0);
+                  // Use LastLap (authoritative from game at transition) first, fall back to maxCurrentLap
+                  prevLapRange.lapTime = (packet.LastLap ?? 0) > 0 ? (packet.LastLap ?? 0) : prevLapRange.maxCurrentLap;
                 }
               }
               // Create range for the new lap
@@ -252,8 +252,8 @@ devRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
               if (currentLap !== -1) {
                 const prevLapRange = lapRanges.get(currentLap);
                 if (prevLapRange) {
-                  // Use max CurrentLap (elapsed time) as lap duration, or fall back to LastLap if valid
-                  prevLapRange.lapTime = prevLapRange.maxCurrentLap > 0 ? prevLapRange.maxCurrentLap : (packet.LastLap ?? 0);
+                  // Use LastLap (authoritative from game at transition) first, fall back to maxCurrentLap
+                  prevLapRange.lapTime = (packet.LastLap ?? 0) > 0 ? (packet.LastLap ?? 0) : prevLapRange.maxCurrentLap;
                 }
               }
               // Create range for the new lap
@@ -390,6 +390,7 @@ devRoutes.get("/api/dev/e2e-packets/:recordingName", (c) => {
         let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
         try {
           frames = readAccFrames(binPath);
+          console.log(`[E2E] Loaded ${frames.length} frames from ${binPath}`);
         } catch (e) {
           console.error("Failed to read ACC frames:", e);
           return c.json({

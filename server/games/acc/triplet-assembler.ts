@@ -8,12 +8,13 @@
  * Includes observability for latency and jitter monitoring.
  */
 
-import { IRealtimeAccMemoryReader } from "./memory-reader";
+import type { IRealtimeAccMemoryReader } from "./memory-reader";
 
 interface PollingMetrics {
   callbackDurationMs: number[];
   pollIntervalMs: number[];
-  missedPolls: number;
+  missedTriplets: number;
+  successfulTriplets: number;
   totalPolls: number;
 }
 
@@ -31,7 +32,8 @@ export class TripletAssembler {
   private _metrics: PollingMetrics = {
     callbackDurationMs: [],
     pollIntervalMs: [],
-    missedPolls: 0,
+    missedTriplets: 0,
+    successfulTriplets: 0,
     totalPolls: 0,
   };
   private _lastPollTime = 0;
@@ -56,11 +58,6 @@ export class TripletAssembler {
       if (this._enableMetrics) {
         const intervalMs = pollStartTime - this._lastPollTime;
         this._metrics.pollIntervalMs.push(intervalMs);
-
-        // 100Hz = 10ms interval. If we're >12ms late, it's a missed or delayed poll
-        if (intervalMs > 12) {
-          this._metrics.missedPolls++;
-        }
       }
 
       const buffers = this._memoryReader.getLatestBuffers();
@@ -73,6 +70,7 @@ export class TripletAssembler {
           });
 
           if (this._enableMetrics) {
+            this._metrics.successfulTriplets++;
             const callbackDurationMs = Date.now() - pollStartTime;
             this._metrics.callbackDurationMs.push(callbackDurationMs);
 
@@ -84,6 +82,10 @@ export class TripletAssembler {
           }
         } catch (err) {
           console.error("[TripletAssembler] Error in callback:", err);
+        }
+      } else {
+        if (this._enableMetrics) {
+          this._metrics.missedTriplets++;
         }
       }
 
@@ -137,9 +139,9 @@ export class TripletAssembler {
 
     console.log(
       `[TripletAssembler] Metrics (${this._metrics.totalPolls} polls): ` +
+        `triplets ${this._metrics.successfulTriplets} ok / ${this._metrics.missedTriplets} incomplete, ` +
         `callback avg ${avgDurationMs.toFixed(2)}ms / max ${maxDurationMs}ms, ` +
-        `interval avg ${avgIntervalMs.toFixed(2)}ms / p95 ${p95IntervalMs}ms / max ${maxIntervalMs}ms, ` +
-        `missed ${this._metrics.missedPolls}`
+        `interval avg ${avgIntervalMs.toFixed(2)}ms / p95 ${p95IntervalMs}ms / max ${maxIntervalMs}ms`
     );
   }
 }

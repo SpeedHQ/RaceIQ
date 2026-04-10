@@ -29,6 +29,8 @@ export interface IAccMemoryReader {
 export interface IRealtimeAccMemoryReader extends IAccMemoryReader {
   /** Get current debug buffers (for diagnostics). */
   getDebugBuffers(): { physics: Buffer; graphics: Buffer; staticData: Buffer } | null;
+  /** Get latest buffered readings (called by TripletAssembler at 100Hz). */
+  getLatestBuffers(): { physics: Buffer | null; graphics: Buffer | null; staticData: Buffer | null };
 }
 
 /**

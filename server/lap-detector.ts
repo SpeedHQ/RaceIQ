@@ -81,6 +81,7 @@ export class LapDetector {
   private lapBuffer: TelemetryPacket[] = []; // all packets for the in-progress lap
   private lapIsValid: boolean = true; // false if rewind detected mid-lap
   private invalidReason: string | null = null;
+  private _loggedFeedOnce: boolean = false; // debug flag to log feed start once
   private lastLastLap: number = 0; // track LastLap changes for final-lap detection
   private lastTimestampMS: number = 0; // in-game timestamp for rewind detection
   private lastPacketTime: number = 0; // wall clock for silence timeout detection
@@ -115,6 +116,12 @@ export class LapDetector {
    * Handles session creation, lap boundary detection, and rewind detection.
    */
   async feed(packet: TelemetryPacket): Promise<void> {
+    // Debug: log if lap detector receives any packets
+    if (!this._loggedFeedOnce) {
+      console.log("[Lap Detector] Started receiving packets from pipeline");
+      this._loggedFeedOnce = true;
+    }
+
     const now = Date.now();
 
     // Track packet rate to distinguish active driving from post-race trickle

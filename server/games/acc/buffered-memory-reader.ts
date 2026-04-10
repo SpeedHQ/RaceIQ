@@ -10,7 +10,7 @@
  * to create deterministic triplets for processing.
  */
 
-import { IRealtimeAccMemoryReader } from "./memory-reader";
+import type { IRealtimeAccMemoryReader } from "./memory-reader";
 
 interface MappedFile {
   handle: number;
@@ -37,8 +37,8 @@ export class BufferedAccMemoryReader implements IRealtimeAccMemoryReader {
   private _connected = false;
   private _kernel32: any = null;
   private _ffiPtr: ((buf: Buffer) => unknown) | null = null;
-  private _carOrdinal = 0;
-  private _trackOrdinal = 0;
+  // Session detection for smart static re-reading
+  private _lastSessionId: number | null = null;
 
   connected(): boolean {
     return this._connected;
@@ -200,10 +200,14 @@ export class BufferedAccMemoryReader implements IRealtimeAccMemoryReader {
     this._graphicsTimer = setInterval(() => {
       if (this._graphics) {
         this._graphicsBuffer = this._readMapped(this._graphics);
-      }
-      // Read static along with graphics (both are slower)
-      if (this._static && !this._staticBuffer) {
-        this._staticBuffer = this._readMapped(this._static);
+
+        // Check if session changed (offset 8 in graphics buffer)
+        // Only re-read expensive static buffer on session change
+        const currentSessionId = this._graphicsBuffer.readInt32LE(8);
+        if (this._lastSessionId !== currentSessionId && this._static) {
+          this._staticBuffer = this._readMapped(this._static);
+          this._lastSessionId = currentSessionId;
+        }
       }
     }, 1000 / 60);
   }
@@ -214,8 +218,8 @@ export class BufferedAccMemoryReader implements IRealtimeAccMemoryReader {
     this._kernel32.symbols.RtlCopyMemory(this._ffiPtr!(dest), mapped.view, mapped.size);
     const duration = Date.now() - start;
 
-    // Log if read takes >1ms (unusual, indicates blocking)
-    if (duration > 1) {
+    // Log if read takes >5ms (indicates real contention, normal reads are 1-2ms)
+    if (duration > 5) {
       console.warn(`[ACC Buffered Reader] Slow read: ${duration}ms for ${mapped.size} bytes`);
     }
 

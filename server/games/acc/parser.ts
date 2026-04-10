@@ -136,10 +136,20 @@ export function parseAccBuffers(
   const lastSectorTime = graphicsBuf.readInt32LE(GRAPHICS.lastSectorTime.offset);
   const flag = graphicsBuf.readInt32LE(GRAPHICS.flag.offset);
 
-  // Car world position from graphics (player = first car in carCoordinates array)
-  const carX = graphicsBuf.readFloatLE(GRAPHICS.gCarX.offset);
-  const carY = graphicsBuf.readFloatLE(GRAPHICS.gCarY.offset);
-  const carZ = graphicsBuf.readFloatLE(GRAPHICS.gCarZ.offset);
+  // Car world position from graphics: find player slot via playerCarID
+  const playerCarID = graphicsBuf.readInt32LE(GRAPHICS.playerCarID.offset);
+  let playerSlot = 0;
+  if (playerCarID > 0) {
+    for (let i = 0; i < 60; i++) {
+      if (graphicsBuf.readInt32LE(GRAPHICS.carIDBase.offset + i * 4) === playerCarID) {
+        playerSlot = i;
+        break;
+      }
+    }
+  }
+  const carX = graphicsBuf.readFloatLE(GRAPHICS.carCoordinatesBase.offset + playerSlot * 12);
+  const carY = graphicsBuf.readFloatLE(GRAPHICS.carCoordinatesBase.offset + playerSlot * 12 + 4);
+  const carZ = graphicsBuf.readFloatLE(GRAPHICS.carCoordinatesBase.offset + playerSlot * 12 + 8);
 
   // Electronics from graphics (integers, the "setting level" values)
   const tc = graphicsBuf.readInt32LE(GRAPHICS.tcGraphics.offset);

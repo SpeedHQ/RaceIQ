@@ -16,7 +16,7 @@
  */
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
-import { PHYSICS, GRAPHICS, STATIC } from "./structs";
+import { STATIC } from "./structs";
 import { parseAccBuffers } from "./parser";
 import { readWString } from "./utils";
 import { processPacket } from "../../pipeline";
@@ -25,7 +25,10 @@ import { getAccTrackByName } from "../../../shared/acc-track-data";
 
 const MAGIC = Buffer.from("ACCREC\0\0", "ascii");
 const VERSION = 1;
-const HEADER_SIZE = 8 + 4 + 4 + 4 + 4; // magic + version + 3 sizes
+// V1 format: magic(8) + version(4) + physicsSize(4) + graphicsSize(4) + staticSize(4) = 24 bytes
+const HEADER_SIZE_V1 = 8 + 4 + 4 + 4 + 4;
+// V2 format: magic(8) + version(4) + frameCount(4) = 16 bytes
+const HEADER_SIZE_V2 = 16;
 const FRAME_HEADER = 8; // f64le timestamp
 
 function defaultRecordingDir(): string {
@@ -36,7 +39,6 @@ export class AccRecorder {
   private _file: Bun.FileSink | null = null;
   private _path: string | null = null;
   private _frameCount = 0;
-  private _headerPos = 0;
 
   get recording(): boolean {
     return this._file !== null;
@@ -60,19 +62,20 @@ export class AccRecorder {
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    this._path = resolve(outDir, `acc-${timestamp}.bin`);
-    this._file = Bun.file(this._path).writer();
+    const filename = `acc-${timestamp}.bin`;
+    this._path = resolve(outDir, filename);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this._file = (Bun.file(this._path) as any).writer({ append: true });
     this._frameCount = 0;
 
     // Write header with placeholder frameCount (will update on close)
-    const header = Buffer.alloc(HEADER_SIZE);
+    const header = Buffer.alloc(HEADER_SIZE_V2);
     Buffer.from("ACCTEST\0", "ascii").copy(header, 0);
     header.writeUInt32LE(2, 8); // version 2
     header.writeUInt32LE(0, 12); // frameCount (placeholder)
-    this._file.write(header);
-    this._headerPos = 12;
+    this._file!.write(header);
 
-    console.log(`[ACC Recorder] Recording to ${this._path}`);
+    console.log(`[ACC Recorder] Dump file created: ${filename}`);
     return this._path;
   }
 
@@ -104,27 +107,39 @@ export class AccRecorder {
     if (!this._file) return;
 
     await this._file.end();
-    console.log(`[ACC Recorder] Stopped. ${this._frameCount} frames written to ${this._path}`);
 
-    // Update frameCount in header
+    // Update frameCount in header and get final file size
     if (this._path) {
       const file = Bun.file(this._path);
       const data = await file.arrayBuffer();
       const buf = Buffer.from(data);
       buf.writeUInt32LE(this._frameCount, 12);
       await Bun.write(this._path, buf);
+
+      const fileSizeKb = (buf.length / 1024).toFixed(2);
+      const filename = this._path.split(/[\\\/]/).pop();
+      console.log(`[ACC Recorder] Stopped. ${this._frameCount} frames (${fileSizeKb}KB) written to ${filename}`);
     }
 
     this._file = null;
   }
 
   private _writeBufferFrame(type: number, buffer: Buffer): void {
-    if (!this._file) return;
+    if (!this._file) {
+      console.warn("[ACC Recorder] _file is null, cannot write");
+      return;
+    }
 
-    const frameHeader = Buffer.alloc(13);
+    const typeNames = ["physics", "graphics", "static"];
+    const frameHeader = Buffer.alloc(5);
     frameHeader.writeUInt8(type, 0);
-    frameHeader.writeDoubleLE(Date.now(), 1);
-    frameHeader.writeUInt32LE(buffer.length, 9);
+    frameHeader.writeUInt32LE(buffer.length, 1);
+
+    if (this._frameCount % 100 === 0) {
+      console.log(
+        `[ACC Recorder] Writing frame ${this._frameCount}: type=${typeNames[type]} size=${buffer.length}`
+      );
+    }
 
     this._file.write(frameHeader);
     this._file.write(buffer);
@@ -138,7 +153,7 @@ function readHeader(buf: Buffer): {
   graphicsSize: number;
   staticSize: number;
 } | null {
-  if (buf.length < HEADER_SIZE) return null;
+  if (buf.length < HEADER_SIZE_V1) return null;
   if (!buf.slice(0, 8).equals(MAGIC)) return null;
 
   const version = buf.readUInt32LE(8);
@@ -185,7 +200,7 @@ function _readAccFramesV1(data: Buffer): { physics: Buffer; graphics: Buffer; st
   const frameSize = FRAME_HEADER + physicsSize + graphicsSize + staticSize;
   const frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[] = [];
 
-  let offset = HEADER_SIZE;
+  let offset = HEADER_SIZE_V1;
   while (offset + frameSize <= data.length) {
     const physicsStart = offset + FRAME_HEADER;
     const graphicsStart = physicsStart + physicsSize;
@@ -203,9 +218,11 @@ function _readAccFramesV1(data: Buffer): { physics: Buffer; graphics: Buffer; st
 }
 
 function _readAccFramesV2(data: Buffer): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
-  if (data.length < HEADER_SIZE) return [];
+  const V2_HEADER_SIZE = 16; // magic (8) + version (4) + frameCount (4)
+  const V2_FRAME_HEADER = 5; // type (1) + size (4)
+  if (data.length < V2_HEADER_SIZE) return [];
 
-  const frameCount = data.readUInt32LE(12);
+  let frameCount = data.readUInt32LE(12);
   const frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[] = [];
 
   // Use empty buffers as placeholders until real data arrives
@@ -213,14 +230,31 @@ function _readAccFramesV2(data: Buffer): { physics: Buffer; graphics: Buffer; st
   let lastGraphics = Buffer.alloc(0);
   let lastStatic = Buffer.alloc(0);
 
-  let offset = HEADER_SIZE;
+  let offset = V2_HEADER_SIZE;
   let frameIdx = 0;
 
-  while (frameIdx < frameCount && offset + 13 <= data.length) {
-    const frameType = data.readUInt8(offset);
-    const bufferSize = data.readUInt32LE(offset + 9);
+  // If frameCount is 0 but file is huge, scan to count actual frames
+  // (handles killed process that didn't update header)
+  if (frameCount === 0 && data.length > V2_HEADER_SIZE + 100) {
+    console.log("[ACC Replay] frameCount=0 but file is large, scanning for actual frames...");
+    let scanOffset = V2_HEADER_SIZE;
+    while (scanOffset + V2_FRAME_HEADER <= data.length) {
+      const frameType = data.readUInt8(scanOffset);
+      if (frameType > 2) break; // Invalid frame type
+      const bufferSize = data.readUInt32LE(scanOffset + 1);
+      if (bufferSize > 500000) break; // Unreasonably large
+      if (scanOffset + V2_FRAME_HEADER + bufferSize > data.length) break;
+      frameCount++;
+      scanOffset += V2_FRAME_HEADER + bufferSize;
+    }
+    console.log(`[ACC Replay] Found ${frameCount} frames by scanning`);
+  }
 
-    offset += 13;
+  while (frameIdx < frameCount && offset + V2_FRAME_HEADER <= data.length) {
+    const frameType = data.readUInt8(offset);
+    const bufferSize = data.readUInt32LE(offset + 1);
+
+    offset += V2_FRAME_HEADER;
 
     if (offset + bufferSize > data.length) break;
 
@@ -288,14 +322,14 @@ export async function replayRecording(
 
   const { physicsSize, graphicsSize, staticSize } = header;
   const frameSize = FRAME_HEADER + physicsSize + graphicsSize + staticSize;
-  const frameCount = Math.floor((data.length - HEADER_SIZE) / frameSize);
+  const frameCount = Math.floor((data.length - HEADER_SIZE_V1) / frameSize);
 
   if (frameCount === 0) {
     throw new Error(`Recording file has no frames: ${filePath}`);
   }
 
   // Resolve car/track ordinals from first frame's static buffer
-  const firstStaticOffset = HEADER_SIZE + FRAME_HEADER + physicsSize + graphicsSize;
+  const firstStaticOffset = HEADER_SIZE_V1 + FRAME_HEADER + physicsSize + graphicsSize;
   const firstStatic = data.slice(firstStaticOffset, firstStaticOffset + staticSize);
   const carModel = readWString(firstStatic, STATIC.carModel.offset, STATIC.carModel.size);
   const trackName = readWString(firstStatic, STATIC.track.offset, STATIC.track.size);
@@ -318,7 +352,7 @@ export async function replayRecording(
       for (let i = 0; i < frameCount; i++) {
         if (cancelled) return;
 
-        const frameOffset = HEADER_SIZE + i * frameSize;
+        const frameOffset = HEADER_SIZE_V1 + i * frameSize;
         const timestamp = data.readDoubleLE(frameOffset);
 
         if (firstTimestamp === null) {

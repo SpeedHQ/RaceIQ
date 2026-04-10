@@ -157,12 +157,11 @@ export const GRAPHICS = {
   normalizedCarPosition: { offset: 248, type: "f32" },
   activeCars:       { offset: 252, type: "i32" },
   // carCoordinates[60][3] at 256 (720 bytes → 976)
-  // Player car coords at start of array
-  gCarX:            { offset: 256, type: "f32" },
-  gCarY:            { offset: 260, type: "f32" },
-  gCarZ:            { offset: 264, type: "f32" },
+  carCoordinatesBase: { offset: 256, type: "f32" }, // stride: 12 bytes per car (3 floats)
   // carID[60] at 976 (240 bytes → 1216)
-  // playerCarID (1216), penaltyTime (1220)
+  carIDBase:        { offset: 976, type: "i32" },   // stride: 4 bytes per car
+  playerCarID:      { offset: 1216, type: "i32" },
+  // penaltyTime (1220)
   flag:             { offset: 1224, type: "i32" },
   // penalty (1228), idealLineOn (1232)
   isInPitLane:      { offset: 1236, type: "i32" },

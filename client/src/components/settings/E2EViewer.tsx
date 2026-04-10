@@ -324,7 +324,7 @@ export function E2EViewer() {
                   {!selectedLap && getCurrentLapInRawView() && (
                     <>
                       <span>Lap: <span className="text-app-text">{getCurrentLapInRawView()?.lapNumber}</span></span>
-                      <span>Lap Time: <span className="text-app-text">{((getCurrentLapInRawView()?.lapTime ?? 0) / 1000).toFixed(2)}s</span></span>
+                      <span>Lap Time: <span className="text-app-text">{(getCurrentLapInRawView()?.lapTime ?? 0).toFixed(2)}s</span></span>
                     </>
                   )}
                 </div>

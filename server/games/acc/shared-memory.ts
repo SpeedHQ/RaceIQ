@@ -12,9 +12,7 @@
  *
  * Uses kernel32.dll via Bun FFI to open and map shared memory.
  */
-import { GRAPHICS, STATIC, AC_STATUS } from "./structs";
 import { accRecorder } from "./recorder";
-import { readWString } from "./utils";
 import { BufferedAccMemoryReader } from "./buffered-memory-reader";
 import { TripletAssembler } from "./triplet-assembler";
 import { TripletPipeline, StatusCheckProcessor, DumpToBinProcessor, ParsingProcessor } from "./triplet-pipeline";
@@ -32,7 +30,6 @@ export class AccSharedMemoryReader {
   private _carOrdinal = 0;
   private _trackOrdinal = 0;
   private _retryTimer: ReturnType<typeof setInterval> | null = null;
-  private _loggedWaiting = false;
   private _recordingOnly = false;
 
   constructor(recordingOnly = false) {

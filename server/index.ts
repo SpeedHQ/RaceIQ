@@ -3,11 +3,11 @@ process.title = "RaceIQ";
 import { captureConsole } from "./logger";
 captureConsole();
 
-import { spawn, execSync } from "child_process";
+import { spawn } from "child_process";
 import app from "./routes";
 import { udpListener } from "./udp";
 import { wsManager, type WSData } from "./ws";
-import { loadSettings, saveSettings } from "./settings";
+import { loadSettings } from "./settings";
 import { initServerGameAdapters } from "./games/init";
 import { initGameAdapters } from "../shared/games/init";
 
@@ -77,6 +77,7 @@ console.log(`[Server] Starting RaceIQ Server...`);
 // Kill any process already listening on the port (e.g. previous hot-reload instance)
 function killPort(port: number): void {
   try {
+    const { execSync } = require("child_process");
     if (process.platform === "win32") {
       execSync(
         `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort ${port} -State Listen -EA 0 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -EA 0 }"`,
@@ -94,7 +95,7 @@ killPort(HTTP_PORT);
 console.log("[Boot] Port cleared");
 
 // Start the HTTP/WebSocket server
-const server = Bun.serve<WSData>({
+Bun.serve<WSData>({
   port: HTTP_PORT,
   idleTimeout: 120, // seconds — AI analysis via Claude CLI can take up to 90s
   async fetch(req, server) {
