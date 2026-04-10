@@ -1,53 +1,79 @@
 import type { TelemetryPacket, GameId } from "../shared/types";
 import { type DbAdapter, type WsAdapter, RealDbAdapter, RealWsAdapter } from "./pipeline-adapters";
-import { LapDetector } from "./lap-detector";
+import type { ILapDetector, LapDetectorCallbacks } from "./lap-detector-interface";
 import { SectorTracker, PitTracker } from "./sector-tracker";
 import { feedPosition } from "./track-calibration";
 import { getTrackOutlineByOrdinal } from "../shared/track-data";
 import { tryGetGame } from "../shared/games/registry";
+import { getServerGame } from "./games/registry";
 import { fillNormSuspension } from "./telemetry-utils";
 
 export class Pipeline {
   private sectorTracker = new SectorTracker();
   private pitTracker = new PitTracker();
-  readonly lapDetector: LapDetector;
+  private _lapDetector: ILapDetector | null = null;
+  private _lapDetectorGameId: GameId | null = null;
   private _totalProcessed = 0;
   private db: DbAdapter;
   private ws: WsAdapter;
+  private _bypassPacketRateFilter: boolean;
+
+  /** Expose the current lap detector for external readers (routes, UDP handler). */
+  get lapDetector(): ILapDetector | null {
+    return this._lapDetector;
+  }
 
   constructor(db: DbAdapter, ws: WsAdapter, options?: { bypassPacketRateFilter?: boolean }) {
     this.db = db;
     this.ws = ws;
-    this.lapDetector = new LapDetector(db, options);
+    this._bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
+  }
 
-    this.lapDetector.onSessionStart = async (session) => {
-      await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
-      this.pitTracker.reset();
-      const adapter = tryGetGame(session.gameId);
-      if (adapter) this.pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
-      // Seed fuel from history (same engine regardless of compound).
-      // Tire wear is NOT seeded — compound-dependent, starts fresh each session.
-      await this.pitTracker.seedFromHistory(session.trackOrdinal, session.carOrdinal, session.carPI, session.gameId);
-      await this._broadcastSessionLaps(session.sessionId, session.trackOrdinal, session.carOrdinal, session.gameId);
-    };
+  private _buildCallbacks(): LapDetectorCallbacks {
+    return {
+      onSessionStart: async (session) => {
+        await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
+        this.pitTracker.reset();
+        const adapter = tryGetGame(session.gameId);
+        if (adapter) this.pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
+        // Seed fuel from history (same engine regardless of compound).
+        // Tire wear is NOT seeded — compound-dependent, starts fresh each session.
+        await this.pitTracker.seedFromHistory(session.trackOrdinal, session.carOrdinal, session.carPI, session.gameId);
+        await this._broadcastSessionLaps(session.sessionId, session.trackOrdinal, session.carOrdinal, session.gameId);
+      },
 
-    this.lapDetector.onLapComplete_ = (event) => {
-      if (event.isValid) {
-        this.sectorTracker.updateRefLap(event.packets, event.lapTime, event.sectors);
-        // Only ACC uses distance-based wear curves; F1/Forza use simple rolling average
-        const session = this.lapDetector.session;
-        if (session && PitTracker.shouldUseCurves(session.gameId)) {
-          this.pitTracker.updateWearCurves(event.packets, event.lapDistStart);
+      onLapComplete: (event) => {
+        if (event.isValid) {
+          this.sectorTracker.updateRefLap(event.packets, event.lapTime, event.sectors);
+          // Only ACC uses distance-based wear curves; F1/Forza use simple rolling average
+          const session = this._lapDetector?.session ?? null;
+          if (session && PitTracker.shouldUseCurves(session.gameId)) {
+            this.pitTracker.updateWearCurves(event.packets, event.lapDistStart);
+          }
         }
-      }
-    };
+      },
 
-    this.lapDetector.onLapSaved = (event) => {
-      ws.broadcastNotification({ type: "lap-saved", ...event });
-      // Re-push updated lap list after save completes
-      const session = this.lapDetector.session;
-      if (session) this._broadcastSessionLaps(session.sessionId, session.trackOrdinal, session.carOrdinal, session.gameId);
+      onLapSaved: (event) => {
+        this.ws.broadcastNotification({ type: "lap-saved", ...event });
+        // Re-push updated lap list after save completes
+        const session = this._lapDetector?.session ?? null;
+        if (session) this._broadcastSessionLaps(session.sessionId, session.trackOrdinal, session.carOrdinal, session.gameId);
+      },
     };
+  }
+
+  private _getOrCreateDetector(gameId: GameId): ILapDetector {
+    // Create a fresh detector if none exists, or if the game changed
+    if (this._lapDetector === null || this._lapDetectorGameId !== gameId) {
+      const serverAdapter = getServerGame(gameId);
+      this._lapDetector = serverAdapter.createLapDetector({
+        db: this.db,
+        bypassPacketRateFilter: this._bypassPacketRateFilter,
+        callbacks: this._buildCallbacks(),
+      });
+      this._lapDetectorGameId = gameId;
+    }
+    return this._lapDetector;
   }
 
   /** Push the current session's recorded laps (filtered by session) to all WS clients. */
@@ -87,12 +113,13 @@ export class Pipeline {
     // Compute NormSuspensionTravel for games that don't provide it (F1/ACC)
     fillNormSuspension(packet);
 
-    await this.lapDetector.feed(packet);
+    const detector = this._getOrCreateDetector(packet.gameId);
+    await detector.feed(packet);
 
     const sectors = this.sectorTracker.feed(packet);
 
     // ACC doesn't reliably broadcast BestLap via shared memory — override from session best
-    const sessionBest = this.lapDetector.session?.bestLapTime ?? 0;
+    const sessionBest = detector.session?.bestLapTime ?? 0;
     if (packet.gameId === "acc" && sessionBest > 0) {
       packet.BestLap = sessionBest;
     }
@@ -105,7 +132,7 @@ export class Pipeline {
 
     // Track calibration only needs sparse position data (~10Hz)
     if (this._totalProcessed % 6 === 0) {
-      const session = this.lapDetector.session;
+      const session = detector.session;
       if (session && session.trackOrdinal) {
         const outline = getTrackOutlineByOrdinal(session.trackOrdinal, session.gameId);
         if (outline) {
@@ -123,7 +150,7 @@ export class Pipeline {
     this.ws.broadcast(packet, sectors, pit);
 
     this.ws.broadcastDevState({
-      lapDetector: this.lapDetector.getDebugState(),
+      lapDetector: detector.getDebugState?.() ?? {},
       sectorTracker: this.sectorTracker.getDebugState(),
       pitTracker: this.pitTracker.getDebugState(),
     });
@@ -133,7 +160,13 @@ export class Pipeline {
 // Backward-compatible singleton exports — unchanged for all callers
 const _default = new Pipeline(new RealDbAdapter(), new RealWsAdapter());
 export const processPacket = (p: TelemetryPacket) => _default.processPacket(p);
-export const lapDetector = _default.lapDetector;
+
+/** Returns the current lap detector (may be null before the first packet is processed). */
+export const lapDetector = {
+  get session() { return _default.lapDetector?.session ?? null; },
+  get fuelHistory() { return _default.lapDetector?.fuelHistory ?? []; },
+  get tireWearHistory() { return _default.lapDetector?.tireWearHistory ?? []; },
+};
 
 // Periodic check: flush stale laps when packets stop (e.g. race ended, game closed)
-setInterval(() => _default.lapDetector.flushStaleLap(), 5_000);
+setInterval(() => _default.lapDetector?.flushStaleLap?.(), 5_000);

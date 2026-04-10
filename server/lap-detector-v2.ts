@@ -1,12 +1,13 @@
 // server/lap-detector-v2.ts
 import type { TelemetryPacket } from "@shared/types";
-import type { DbAdapter } from "./pipeline-adapters";
+import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface";
 import type { LapSavedNotification, SessionState } from "./lap-detector";
 import { assessLapRecording } from "./lap-quality";
 import { computeLapSectors } from "./compute-lap-sectors";
 
+/** @deprecated Use LapDetectorOptions from lap-detector-interface instead. */
 export interface LapDetectorV2Options {
-  db: DbAdapter;
+  db: import("./pipeline-adapters").DbAdapter;
   onLapSaved?: (n: LapSavedNotification) => void;
   onSessionStart?: (s: SessionState) => void;
   onLapComplete?: (args: {
@@ -18,8 +19,8 @@ export interface LapDetectorV2Options {
   }) => void;
 }
 
-export class LapDetectorV2 {
-  private readonly db: DbAdapter;
+export class LapDetectorV2 implements ILapDetector {
+  private readonly db: import("./pipeline-adapters").DbAdapter;
   private readonly onLapSaved?: LapDetectorV2Options["onLapSaved"];
   private readonly onSessionStart?: LapDetectorV2Options["onSessionStart"];
   private readonly onLapComplete_?: LapDetectorV2Options["onLapComplete"];
@@ -34,11 +35,23 @@ export class LapDetectorV2 {
   // Flag: if true, discard the next reset (recording started mid-lap)
   private firstLapIsPartial = false;
 
-  constructor(opts: LapDetectorV2Options) {
-    this.db = opts.db;
-    this.onLapSaved = opts.onLapSaved;
-    this.onSessionStart = opts.onSessionStart;
-    this.onLapComplete_ = opts.onLapComplete;
+  constructor(opts: LapDetectorOptions | LapDetectorV2Options) {
+    // Support both unified LapDetectorOptions and legacy LapDetectorV2Options
+    if ("callbacks" in opts || !("onLapSaved" in opts && "db" in opts && !("callbacks" in opts))) {
+      // New-style: LapDetectorOptions (has .callbacks sub-object, or is a plain {db} object)
+      const o = opts as LapDetectorOptions;
+      this.db = o.db;
+      this.onLapSaved = o.callbacks?.onLapSaved as LapDetectorV2Options["onLapSaved"] | undefined;
+      this.onSessionStart = o.callbacks?.onSessionStart as LapDetectorV2Options["onSessionStart"] | undefined;
+      this.onLapComplete_ = o.callbacks?.onLapComplete as LapDetectorV2Options["onLapComplete"] | undefined;
+    } else {
+      // Legacy style: LapDetectorV2Options with top-level callbacks
+      const o = opts as LapDetectorV2Options;
+      this.db = o.db;
+      this.onLapSaved = o.onLapSaved;
+      this.onSessionStart = o.onSessionStart;
+      this.onLapComplete_ = o.onLapComplete;
+    }
   }
 
   get session(): SessionState | null {

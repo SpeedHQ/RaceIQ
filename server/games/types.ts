@@ -1,5 +1,6 @@
 import type { GameAdapter } from "../../shared/games/types";
 import type { TelemetryPacket } from "../../shared/types";
+import type { LapDetectorFactory } from "../lap-detector-interface";
 
 /** Server-only extensions for game adapters — parsing, AI prompts. */
 export interface ServerGameAdapter extends GameAdapter {
@@ -24,4 +25,7 @@ export interface ServerGameAdapter extends GameAdapter {
 
   /** Process names to check if this game is running (e.g. ["acc.exe"]) */
   processNames?: string[];
+
+  /** Factory that creates the lap detector implementation for this game. */
+  createLapDetector: LapDetectorFactory;
 }

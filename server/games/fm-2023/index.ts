@@ -3,6 +3,7 @@ import { forzaAdapter } from "../../../shared/games/fm-2023";
 import { parseForzaPacket } from "../../parsers/forza";
 import { carMap, trackMap } from "../../../shared/car-data";
 import { getForzaSharedOutline } from "../../../shared/track-data";
+import { LapDetector } from "../../lap-detector";
 
 const FORZA_SYSTEM_PROMPT = `You are an expert Forza Motorsport racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
 
@@ -78,6 +79,8 @@ export const forzaServerAdapter: ServerGameAdapter = {
   createParserState() {
     return null;
   },
+
+  createLapDetector: (opts) => new LapDetector(opts),
 
   aiSystemPrompt: FORZA_SYSTEM_PROMPT,
 };

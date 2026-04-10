@@ -12,6 +12,7 @@
  */
 import type { TelemetryPacket, GameId } from "../shared/types";
 import type { DbAdapter } from "./pipeline-adapters";
+import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface";
 import { extractCurbSegments, recordCurbData } from "../shared/track-data";
 import { assessLapRecording } from "./lap-quality";
 import { computeLapSectors as computeLapSectorsHelper } from "./compute-lap-sectors";
@@ -63,13 +64,26 @@ export interface LapCompleteEvent {
   sectors: { s1: number; s2: number; s3: number } | null;
 }
 
-export class LapDetector {
+export class LapDetector implements ILapDetector {
   private readonly bypassPacketRateFilter: boolean;
   private db: DbAdapter;
 
-  constructor(db: DbAdapter, options?: { bypassPacketRateFilter?: boolean }) {
-    this.db = db;
-    this.bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
+  constructor(dbOrOpts: DbAdapter | LapDetectorOptions, options?: { bypassPacketRateFilter?: boolean }) {
+    if (dbOrOpts && typeof (dbOrOpts as LapDetectorOptions).db !== "undefined") {
+      // New-style: LapDetectorOptions object
+      const opts = dbOrOpts as LapDetectorOptions;
+      this.db = opts.db;
+      this.bypassPacketRateFilter = opts.bypassPacketRateFilter ?? false;
+      if (opts.callbacks) {
+        if (opts.callbacks.onSessionStart) this.onSessionStart = opts.callbacks.onSessionStart;
+        if (opts.callbacks.onLapComplete) this.onLapComplete_ = opts.callbacks.onLapComplete;
+        if (opts.callbacks.onLapSaved) this.onLapSaved = opts.callbacks.onLapSaved;
+      }
+    } else {
+      // Legacy positional style: new LapDetector(db, options?)
+      this.db = dbOrOpts as DbAdapter;
+      this.bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
+    }
   }
 
   onSessionStart?: (session: SessionState) => void | Promise<void>;
