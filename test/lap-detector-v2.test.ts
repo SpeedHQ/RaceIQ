@@ -71,6 +71,58 @@ describe("LapDetectorV2 — reset detection", () => {
     expect(saved[0].lapTime).toBeCloseTo(90, 0);
   });
 
+  test("fires onLapComplete with lap event when a lap is emitted", async () => {
+    const db = makeFakeDb();
+    const completeEvents: Array<{
+      packetCount: number;
+      lapDistStart: number;
+      lapTime: number;
+      isValid: boolean;
+    }> = [];
+    const d = new LapDetectorV2({
+      db,
+      callbacks: {
+        onLapComplete: (e) =>
+          completeEvents.push({
+            packetCount: e.packets.length,
+            lapDistStart: e.lapDistStart,
+            lapTime: e.lapTime,
+            isValid: e.isValid,
+          }),
+      },
+    });
+
+    // Drive one fake lap, then reset to trigger emission
+    for (let t = 0; t <= 90; t += 1) {
+      await d.feed(packet({ CurrentLap: t, DistanceTraveled: 1000 + t * 50, TimestampMS: t * 1000 }));
+    }
+    await d.feed(packet({ CurrentLap: 0.3, DistanceTraveled: 1000 + 90 * 50 + 30, TimestampMS: 91 * 1000 }));
+
+    expect(completeEvents.length).toBe(1);
+    expect(completeEvents[0].packetCount).toBeGreaterThan(0);
+    expect(completeEvents[0].lapDistStart).toBe(1000);
+    expect(completeEvents[0].lapTime).toBeCloseTo(90, 0);
+  });
+
+  test("does not fire onLapComplete for silent incomplete-flush events", async () => {
+    const db = makeFakeDb();
+    let completeCount = 0;
+    const d = new LapDetectorV2({
+      db,
+      callbacks: {
+        onLapComplete: () => completeCount++,
+      },
+    });
+
+    // Drive a partial in-progress lap, then flush
+    for (let t = 0; t <= 30; t += 1) {
+      await d.feed(packet({ CurrentLap: t, DistanceTraveled: t * 50, TimestampMS: t * 1000 }));
+    }
+    await d.flushIncompleteLap();
+
+    expect(completeCount).toBe(0);
+  });
+
   test("saves partial initial lap as invalid outlap when recording starts in pit mid-lap", async () => {
     const db = makeFakeDb();
     const d = new LapDetectorV2({ db });
