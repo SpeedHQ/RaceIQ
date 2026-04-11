@@ -25,6 +25,7 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
   useEffect(() => { packetRef.current = packetProp; });
   const packet = packetProp; // still use prop for JSX (re-renders at 10fps)
   const carGroupRef = useRef<THREE.Group>(null);
+  const [loadTrail, setLoadTrail] = useState<Array<{ x: number; z: number; t: number }>>([]);
   const prevTimeRef = useRef(packet.TimestampMS);
   const prevWear = useRef([packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR]);
   const [wearRatesVal, setWearRatesVal] = useState([0, 0, 0, 0]);
@@ -36,10 +37,16 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
   const suspRL = packet.NormSuspensionTravelRL;
   const suspRR = packet.NormSuspensionTravelRR;
 
-  // Body drops when suspension compresses (wheels stay on ground)
-  // GT3 total travel ~80mm (±40mm from neutral)
+  // Body drops when suspension compresses (wheels stay on ground).
+  // Per-car stroke from CarModelEnrichment.suspStroke (metres, total travel);
+  // ACC and F1 don't populate this and fall back to the 80mm GT3 default.
+  const stroke = carModel.suspStroke ?? 0.08;
+  const dropFL = -(suspFL - 0.5) * stroke;
+  const dropFR = -(suspFR - 0.5) * stroke;
+  const dropRL = -(suspRL - 0.5) * stroke;
+  const dropRR = -(suspRR - 0.5) * stroke;
   const avgSusp = (suspFL + suspFR + suspRL + suspRR) / 4;
-  const bodyDrop = -(avgSusp - 0.5) * 0.08;
+  const bodyDrop = -(avgSusp - 0.5) * stroke;
 
   // Roll: ~5° max at full differential compression
   const leftAvg = (suspFL + suspRL) / 2;
@@ -54,14 +61,15 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
   // Forza PositionX/Z is ~0.065m ahead of geometric center, shift model back
   const posOffset = -0.065;
   useFrame(() => {
-    if (!carGroupRef.current) return;
-    carGroupRef.current.position.set(posOffset, bodyDrop, 0);
-    carGroupRef.current.rotation.set(
-      bodyRoll,
-      0,
-      bodyPitch,
-      "YXZ"
-    );
+    if (carGroupRef.current) {
+      carGroupRef.current.position.set(posOffset, bodyDrop, 0);
+      carGroupRef.current.rotation.set(
+        bodyRoll,
+        0,
+        bodyPitch,
+        "YXZ"
+      );
+    }
   });
 
   // Compute tire wear rate (/s) — smoothed with EMA
@@ -120,11 +128,57 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
   const fTireW = carModel.frontTireWidth ?? 0.30;
   const rTireW = carModel.rearTireWidth ?? 0.30;
   const wheelData = [
-    { pos: [wb, 0, -ft] as [number, number, number], steer: steerFL, camber: cambFL, susp: packet.NormSuspensionTravelFL, traction: tireState(ws.fl.state, ws.fl.slipRatio, packet.TireSlipAngleFL).hex, rimColor: colorFL, brakeTemp: packet.BrakeTempFrontLeft ?? packet.f1?.brakeTempFL ?? 0, onRumble: packet.WheelOnRumbleStripFL !== 0, puddle: packet.WheelInPuddleDepthFL, wearRate: wearRatesVal[0], wear: packet.TireWearFL, rotSpeed: rotFL, tireRadius: fTireR, tireWidth: fTireW },
-    { pos: [wb, 0, ft] as [number, number, number], steer: steerFR, camber: cambFR, susp: packet.NormSuspensionTravelFR, traction: tireState(ws.fr.state, ws.fr.slipRatio, packet.TireSlipAngleFR).hex, rimColor: colorFR, brakeTemp: packet.BrakeTempFrontRight ?? packet.f1?.brakeTempFR ?? 0, onRumble: packet.WheelOnRumbleStripFR !== 0, puddle: packet.WheelInPuddleDepthFR, wearRate: wearRatesVal[1], wear: packet.TireWearFR, rotSpeed: rotFR, tireRadius: fTireR, tireWidth: fTireW },
-    { pos: [-wb, 0, -rt] as [number, number, number], steer: steerRL, camber: cambRL, susp: packet.NormSuspensionTravelRL, traction: tireState(ws.rl.state, ws.rl.slipRatio, packet.TireSlipAngleRL).hex, rimColor: colorRL, brakeTemp: packet.BrakeTempRearLeft ?? packet.f1?.brakeTempRL ?? 0, onRumble: packet.WheelOnRumbleStripRL !== 0, puddle: packet.WheelInPuddleDepthRL, wearRate: wearRatesVal[2], wear: packet.TireWearRL, rotSpeed: rotRL, tireRadius: rTireR, tireWidth: rTireW },
-    { pos: [-wb, 0, rt] as [number, number, number], steer: steerRR, camber: cambRR, susp: packet.NormSuspensionTravelRR, traction: tireState(ws.rr.state, ws.rr.slipRatio, packet.TireSlipAngleRR).hex, rimColor: colorRR, brakeTemp: packet.BrakeTempRearRight ?? packet.f1?.brakeTempRR ?? 0, onRumble: packet.WheelOnRumbleStripRR !== 0, puddle: packet.WheelInPuddleDepthRR, wearRate: wearRatesVal[3], wear: packet.TireWearRR, rotSpeed: rotRR, tireRadius: rTireR, tireWidth: rTireW },
+    { pos: [wb, 0, -ft] as [number, number, number], steer: steerFL, camber: cambFL, susp: packet.NormSuspensionTravelFL, drop: dropFL, traction: tireState(ws.fl.state, ws.fl.slipRatio, packet.TireSlipAngleFL).hex, rimColor: colorFL, brakeTemp: packet.BrakeTempFrontLeft ?? packet.f1?.brakeTempFL ?? 0, onRumble: packet.WheelOnRumbleStripFL !== 0, puddle: packet.WheelInPuddleDepthFL, wearRate: wearRatesVal[0], wear: packet.TireWearFL, rotSpeed: rotFL, tireRadius: fTireR, tireWidth: fTireW },
+    { pos: [wb, 0, ft] as [number, number, number], steer: steerFR, camber: cambFR, susp: packet.NormSuspensionTravelFR, drop: dropFR, traction: tireState(ws.fr.state, ws.fr.slipRatio, packet.TireSlipAngleFR).hex, rimColor: colorFR, brakeTemp: packet.BrakeTempFrontRight ?? packet.f1?.brakeTempFR ?? 0, onRumble: packet.WheelOnRumbleStripFR !== 0, puddle: packet.WheelInPuddleDepthFR, wearRate: wearRatesVal[1], wear: packet.TireWearFR, rotSpeed: rotFR, tireRadius: fTireR, tireWidth: fTireW },
+    { pos: [-wb, 0, -rt] as [number, number, number], steer: steerRL, camber: cambRL, susp: packet.NormSuspensionTravelRL, drop: dropRL, traction: tireState(ws.rl.state, ws.rl.slipRatio, packet.TireSlipAngleRL).hex, rimColor: colorRL, brakeTemp: packet.BrakeTempRearLeft ?? packet.f1?.brakeTempRL ?? 0, onRumble: packet.WheelOnRumbleStripRL !== 0, puddle: packet.WheelInPuddleDepthRL, wearRate: wearRatesVal[2], wear: packet.TireWearRL, rotSpeed: rotRL, tireRadius: rTireR, tireWidth: rTireW },
+    { pos: [-wb, 0, rt] as [number, number, number], steer: steerRR, camber: cambRR, susp: packet.NormSuspensionTravelRR, drop: dropRR, traction: tireState(ws.rr.state, ws.rr.slipRatio, packet.TireSlipAngleRR).hex, rimColor: colorRR, brakeTemp: packet.BrakeTempRearRight ?? packet.f1?.brakeTempRR ?? 0, onRumble: packet.WheelOnRumbleStripRR !== 0, puddle: packet.WheelInPuddleDepthRR, wearRate: wearRatesVal[3], wear: packet.TireWearRR, rotSpeed: rotRR, tireRadius: rTireR, tireWidth: rTireW },
   ];
+
+  // Load distribution — weighted centroid of spring loads (null when no load data).
+  const loadDot = (() => {
+    const total = wheelData[0].susp + wheelData[1].susp + wheelData[2].susp + wheelData[3].susp;
+    if (total < 0.01) return null;
+    const springZMax = Math.max(ft - 0.35, rt - 0.35);
+    const corners = [
+      { x: wb, z: -ft + 0.35 },
+      { x: wb, z: ft - 0.35 },
+      { x: -wb, z: -rt + 0.35 },
+      { x: -wb, z: rt - 0.35 },
+    ];
+    let cx = 0, cz = 0;
+    for (let i = 0; i < 4; i++) {
+      cx += corners[i].x * wheelData[i].susp;
+      cz += corners[i].z * wheelData[i].susp;
+    }
+    cx /= total;
+    cz /= total;
+    const sensitivity = 3;
+    const x = Math.max(-wb, Math.min(wb, cx * sensitivity));
+    const z = Math.max(-springZMax, Math.min(springZMax, cz * sensitivity));
+    const dist = Math.sqrt(x * x + z * z);
+    const maxDist = Math.sqrt(wb * wb + springZMax * springZMax);
+    const mag = Math.min(1, (dist / maxDist) * 2);
+    const color = mag > 0.6 ? "#ef4444" : mag > 0.3 ? "#fbbf24" : "#34d399";
+    return { x, z, y: 0.23 + bodyDrop, color, springZMax };
+  })();
+
+  // Append current load dot position to 1s trail buffer (packet timestamps, ms)
+  const dotX = loadDot?.x ?? 0;
+  const dotZ = loadDot?.z ?? 0;
+  const hasDot = loadDot !== null;
+  const ts = packet.TimestampMS;
+  useEffect(() => {
+    if (!hasDot) return;
+    setLoadTrail((prev) => {
+      // Reset on backward time jump (scrubbing in analyse mode)
+      if (prev.length && ts < prev[prev.length - 1].t) {
+        return [{ x: dotX, z: dotZ, t: ts }];
+      }
+      const next = [...prev, { x: dotX, z: dotZ, t: ts }];
+      while (next.length && ts - next[0].t > 1000) next.shift();
+      return next;
+    });
+  }, [ts, dotX, dotZ, hasDot]);
 
   return (
     <>
@@ -224,7 +278,7 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
           return (
             <SuspensionSpring
               key={`susp-${i}`}
-              bodyPos={[w.pos[0], 0.23 + bodyDrop, inboardZ]}
+              bodyPos={[w.pos[0], 0.23 + w.drop, inboardZ]}
               wheelPos={[w.pos[0], 0, inboardZ]}
               suspTravel={w.susp}
               suspThresholds={suspThresholds}
@@ -232,52 +286,29 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
           );
         })}
 
-        {/* Load distribution — weighted centroid dot between springs */}
-        {toggles.springs && (() => {
-          const loads = [wheelData[0].susp, wheelData[1].susp, wheelData[2].susp, wheelData[3].susp];
-          const total = loads[0] + loads[1] + loads[2] + loads[3];
-          if (total < 0.01) return null;
-          // Corner positions match spring inboard offsets (0.35 inboard of wheels)
-          const corners = [
-            { x: wb, z: -ft + 0.35 },
-            { x: wb, z: ft - 0.35 },
-            { x: -wb, z: -rt + 0.35 },
-            { x: -wb, z: rt - 0.35 },
-          ];
-          let cx = 0, cz = 0;
-          for (let i = 0; i < 4; i++) {
-            cx += corners[i].x * loads[i];
-            cz += corners[i].z * loads[i];
-          }
-          cx /= total;
-          cz /= total;
-          // Amplify offset from center for visibility
-          const sensitivity = 3;
-          const dotX = cx * sensitivity;
-          const dotZ = cz * sensitivity;
-          // Clamp within spring bounds
-          const springZMax = Math.max(ft - 0.35, rt - 0.35);
-          const clampX = Math.max(-wb, Math.min(wb, dotX));
-          const clampZ = Math.max(-springZMax, Math.min(springZMax, dotZ));
-          // Color by magnitude
-          const dist = Math.sqrt(clampX * clampX + clampZ * clampZ);
-          const maxDist = Math.sqrt(wb * wb + springZMax * springZMax);
-          const mag = Math.min(1, dist / maxDist * 2);
-          const dotColor = mag > 0.6 ? "#ef4444" : mag > 0.3 ? "#fbbf24" : "#34d399";
-          const y = 0.23 + bodyDrop;
-          return (
-            <group>
-              {/* Crosshairs */}
-              <Line points={[[-wb, y, 0], [wb, y, 0]]} color="#475569" lineWidth={0.5} />
-              <Line points={[[0, y, -springZMax], [0, y, springZMax]]} color="#475569" lineWidth={0.5} />
-              {/* Load dot */}
-              <mesh position={[clampX, y, clampZ]}>
-                <sphereGeometry args={[0.04, 8, 8]} />
-                <meshBasicMaterial color={dotColor} />
-              </mesh>
-            </group>
-          );
-        })()}
+        {/* Load distribution — weighted centroid dot between springs with 1s trail */}
+        {toggles.springs && loadDot && (
+          <group>
+            {/* Crosshairs */}
+            <Line points={[[-wb, loadDot.y, 0], [wb, loadDot.y, 0]]} color="#475569" lineWidth={0.5} />
+            <Line points={[[0, loadDot.y, -loadDot.springZMax], [0, loadDot.y, loadDot.springZMax]]} color="#475569" lineWidth={0.5} />
+            {/* 1 second trail */}
+            {loadTrail.length > 1 && (
+              <Line
+                points={loadTrail.map((p) => [p.x, loadDot.y, p.z] as [number, number, number])}
+                color={loadDot.color}
+                lineWidth={1.2}
+                transparent
+                opacity={0.55}
+              />
+            )}
+            {/* Load dot */}
+            <mesh position={[loadDot.x, loadDot.y, loadDot.z]}>
+              <sphereGeometry args={[0.04, 8, 8]} />
+              <meshBasicMaterial color={loadDot.color} />
+            </mesh>
+          </group>
+        )}
 
         {/* Drivetrain: axles, driveshaft, diff housings */}
         {toggles.drivetrain && (
