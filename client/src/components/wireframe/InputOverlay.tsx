@@ -54,22 +54,14 @@ export function InputOverlay({
 
     for (const pts of runs) {
       if (pts.length < 2) continue;
-      // Active sub-runs — accumulate while throttle/brake > 0, flush on drop.
-      // Prevents Line from bridging points where input was momentarily off.
-      let tPts: [number, number, number][] = [];
-      let tCols: THREE.Color[] = [];
-      let bPts: [number, number, number][] = [];
-      let bCols: THREE.Color[] = [];
-      const flushT = () => {
-        if (tPts.length > 1) throttleRuns.push({ pts: tPts, cols: tCols });
-        tPts = [];
-        tCols = [];
-      };
-      const flushB = () => {
-        if (bPts.length > 1) brakeRuns.push({ pts: bPts, cols: bCols });
-        bPts = [];
-        bCols = [];
-      };
+      // Single continuous offset line per range-run. Color is modulated
+      // by input value — black when off, full color at max. Keeping the
+      // line unbroken avoids the visual "dots" caused by flushing every
+      // time the driver briefly lifted on/off a pedal.
+      const tPts: [number, number, number][] = [];
+      const tCols: THREE.Color[] = [];
+      const bPts: [number, number, number][] = [];
+      const bCols: THREE.Color[] = [];
       for (let i = 0; i < pts.length; i++) {
         const prev = pts[Math.max(0, i - 1)];
         const next = pts[Math.min(pts.length - 1, i + 1)];
@@ -79,21 +71,15 @@ export function InputOverlay({
         const nFwd = -tLat / len;
         const nLat = tFwd / len;
         const p = pts[i];
-        if (p.throttle > 0) {
-          tPts.push([p.fwd + nFwd * OFFSET, Y, p.lat + nLat * OFFSET]);
-          tCols.push(new THREE.Color(0, 0, 0).lerp(THROTTLE_COLOR, p.throttle));
-        } else {
-          flushT();
-        }
-        if (p.brake > 0) {
-          bPts.push([p.fwd - nFwd * OFFSET, Y, p.lat - nLat * OFFSET]);
-          bCols.push(new THREE.Color(0, 0, 0).lerp(BRAKE_COLOR, p.brake));
-        } else {
-          flushB();
-        }
+        tPts.push([p.fwd + nFwd * OFFSET, Y, p.lat + nLat * OFFSET]);
+        tCols.push(new THREE.Color(0, 0, 0).lerp(THROTTLE_COLOR, p.throttle));
+        bPts.push([p.fwd - nFwd * OFFSET, Y, p.lat - nLat * OFFSET]);
+        bCols.push(new THREE.Color(0, 0, 0).lerp(BRAKE_COLOR, p.brake));
       }
-      flushT();
-      flushB();
+      // Drop very short runs — drei Line2 renders thick round end-caps
+      // that look like isolated dots on 2–4 point segments.
+      if (tPts.length >= 5) throttleRuns.push({ pts: tPts, cols: tCols });
+      if (bPts.length >= 5) brakeRuns.push({ pts: bPts, cols: bCols });
     }
 
     return { throttleRuns, brakeRuns };

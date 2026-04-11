@@ -68,8 +68,11 @@ export function Wheel({
         </group>
         {/* Brake disc — vertical, inboard of wheel (between wheel and spring) */}
         {brakeTemp > 0 && (
-          <mesh position={[0, 0, side === "left" ? tireWidth * 0.6 : -tireWidth * 0.6]} rotation={[0, 0, 0]}>
-            <torusGeometry args={[tireRadius * 0.48, 0.016, 4, 24]} />
+          <mesh
+            position={[0, 0, side === "left" ? tireWidth * 0.6 : -tireWidth * 0.6]}
+            rotation={[Math.PI / 2, 0, 0]}
+          >
+            <cylinderGeometry args={[tireRadius * 0.5, tireRadius * 0.5, 0.02, 24]} />
             <meshBasicMaterial color={brakeTempColor(brakeTemp)} transparent opacity={0.7} side={THREE.DoubleSide} />
           </mesh>
         )}
