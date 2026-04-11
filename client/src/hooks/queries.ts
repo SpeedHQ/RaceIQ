@@ -8,7 +8,6 @@ import { useGameId } from "../stores/game";
 // ── Query Keys ──────────────────────────────────────────────────────────────
 export const queryKeys = {
   laps: ["laps"] as const,
-  lap: (id: number) => ["laps", id] as const,
   status: ["status"] as const,
   settings: ["settings"] as const,
   trackName: (ord: number) => ["track-name", ord] as const,
@@ -72,17 +71,6 @@ export function useLaps(options?: { refetchInterval?: number | false }) {
   });
 }
 
-export function useLap(id: number | null) {
-  return useQuery({
-    queryKey: queryKeys.lap(id!),
-    queryFn: async () => {
-      const res = await client.api.laps[":id"].$get({ param: { id: String(id!) } });
-      return rpcJson(res);
-    },
-    enabled: id != null,
-  });
-}
-
 export function useLapTelemetry(lapId: number | null) {
   return useQuery({
     queryKey: ["lap-telemetry", lapId],
@@ -96,6 +84,11 @@ export function useLapTelemetry(lapId: number | null) {
       }>;
     },
     enabled: lapId != null,
+    // A single lap carries 15k–80k packets (~5–50 MB). TanStack Query's
+    // default gcTime is 5 minutes — enough to hold a dozen laps in memory
+    // and OOM the tab. Release as soon as no component subscribes.
+    gcTime: 0,
+    staleTime: 0,
   });
 }
 
