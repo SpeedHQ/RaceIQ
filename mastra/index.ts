@@ -13,10 +13,21 @@ import { LibSQLStore } from "@mastra/libsql";
 import { DuckDBStore } from "@mastra/duckdb";
 import { PinoLogger } from "@mastra/loggers";
 import { Observability, DefaultExporter } from "@mastra/observability";
+import { resolve } from "path";
 import { lapAnalystAgent } from "./agents/lap-analyst";
 import { lapChatAgent } from "./agents/lap-chat";
 import { compareEngineerAgent } from "./agents/compare-engineer";
 import { compareChatAgent } from "./agents/compare-chat";
+
+/**
+ * DuckDB observability store — anchored on an absolute path (DATA_DIR or
+ * <cwd>/data) so the running RaceIQ server and the `mastra dev` Studio
+ * process write to the SAME file. Without this, each process creates its
+ * own mastra.duckdb in whatever cwd it happens to have, so Studio never
+ * sees the traces from the app's real API calls.
+ */
+const observabilityDuckDbPath =
+  `${process.env.DATA_DIR ?? resolve(process.cwd(), "data")}/mastra-observability.duckdb`;
 
 /**
  * LibSQL handles the default Mastra metadata (agents, evals, workflows) and
@@ -37,7 +48,7 @@ export const mastra = new Mastra({
       url: ":memory:",
     }),
     domains: {
-      observability: await new DuckDBStore().getStore("observability"),
+      observability: await new DuckDBStore({ path: observabilityDuckDbPath }).getStore("observability"),
     },
   }),
   observability: new Observability({

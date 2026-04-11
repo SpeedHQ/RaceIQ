@@ -216,21 +216,53 @@ export function LapComparison() {
     fetchComparison();
   }, [fetchComparison]);
 
-  // Synthetic outline fallback: use telemetryA world positions when no track outline exists.
-  // Keeps the OVERVIEW / ZOOMED layout boxes rendering with the same dimensions for games
-  // that don't (yet) have track edge data, e.g. ACC.
-  const syntheticOutline = useMemo<Point[]>(() => {
-    if (!comparison) return [];
-    const tel = comparison.telemetryA;
-    if (!tel || tel.length < 2) return [];
-    // Sample every Nth packet to keep outline lightweight
-    const step = Math.max(1, Math.floor(tel.length / 400));
-    const out: Point[] = [];
-    for (let i = 0; i < tel.length; i += step) {
-      out.push({ x: tel[i].PositionX, z: tel[i].PositionZ });
+  // No-outline fallback (e.g. ACC): rebuild both laps' positions via velocity
+  // integration so they share an origin at (0,0). Raw ACC `PositionX/Z` can
+  // drift between laps if the shared-memory origin shifts or the player slot
+  // is read incorrectly — integrated positions are invariant to those issues
+  // and let both racing lines overlay cleanly. The synthetic outline is built
+  // from the integrated lapA trace so CompareTrackMap keeps its layout boxes.
+  const { normalizedTelemetryA, normalizedTelemetryB, syntheticOutline } = useMemo(() => {
+    if (!comparison) {
+      return { normalizedTelemetryA: null, normalizedTelemetryB: null, syntheticOutline: [] as Point[] };
     }
-    return out;
-  }, [comparison]);
+    const hasRealOutline = trackOutline && trackOutline.length >= 2;
+    if (hasRealOutline) {
+      // Real outline present — keep raw telemetry, no synthetic outline needed.
+      return {
+        normalizedTelemetryA: comparison.telemetryA,
+        normalizedTelemetryB: comparison.telemetryB,
+        syntheticOutline: [] as Point[],
+      };
+    }
+
+    const integrate = (packets: typeof comparison.telemetryA) => {
+      if (packets.length === 0) return packets;
+      let x = 0, z = 0;
+      const out = new Array(packets.length);
+      out[0] = { ...packets[0], PositionX: 0, PositionZ: 0 };
+      for (let i = 1; i < packets.length; i++) {
+        const dt = (packets[i].TimestampMS - packets[i - 1].TimestampMS) / 1000;
+        if (dt > 0 && dt <= 1) {
+          x += packets[i].VelocityX * dt;
+          z += packets[i].VelocityZ * dt;
+        }
+        out[i] = { ...packets[i], PositionX: x, PositionZ: z };
+      }
+      return out as typeof packets;
+    };
+
+    const normA = integrate(comparison.telemetryA);
+    const normB = integrate(comparison.telemetryB);
+
+    // Sample every Nth packet of lapA to build a lightweight synthetic outline
+    const step = Math.max(1, Math.floor(normA.length / 400));
+    const outline: Point[] = [];
+    for (let i = 0; i < normA.length; i += step) {
+      outline.push({ x: normA[i].PositionX, z: normA[i].PositionZ });
+    }
+    return { normalizedTelemetryA: normA, normalizedTelemetryB: normB, syntheticOutline: outline };
+  }, [comparison, trackOutline]);
 
   // Compute per-segment times for both laps
   const segmentTimings = useMemo((): SegmentTiming[] => {
@@ -384,8 +416,8 @@ export function LapComparison() {
           <div className="w-[440px] shrink-0 min-h-0">
           <CompareTrackMap
             outline={trackOutline ?? syntheticOutline}
-            telemetryA={comparison.telemetryA}
-            telemetryB={comparison.telemetryB}
+            telemetryA={normalizedTelemetryA ?? comparison.telemetryA}
+            telemetryB={normalizedTelemetryB ?? comparison.telemetryB}
             labelA={`${carNames.get(comparison.lapA.carOrdinal!) || "Car A"} — Lap ${comparison.lapA.lapNumber}`}
             labelB={`${carNames.get(comparison.lapB.carOrdinal!) || "Car B"} — Lap ${comparison.lapB.lapNumber}`}
             lapTimeA={formatLapTime(comparison.lapA.lapTime)}

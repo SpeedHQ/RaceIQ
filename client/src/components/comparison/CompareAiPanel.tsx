@@ -30,6 +30,7 @@ interface InputsSegment {
   throttle: string;
   brake: string;
   steering: string;
+  action?: string;
   severity: "minor" | "moderate" | "major";
 }
 
@@ -389,6 +390,12 @@ function InputsModal({
                     <div><span className="text-red-400/70 font-medium">Brake:</span> {seg.brake}</div>
                     <div><span className="text-cyan-400/70 font-medium">Steering:</span> {seg.steering}</div>
                   </div>
+                  {seg.action && (
+                    <div className="mt-1.5 flex items-start gap-1.5 rounded bg-amber-500/10 border border-amber-500/30 px-2 py-1.5">
+                      <Sparkles className="size-3 text-amber-400 shrink-0 mt-0.5" />
+                      <span className="text-[11px] text-amber-200 leading-snug">{seg.action}</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

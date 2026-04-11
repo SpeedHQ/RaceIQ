@@ -49,11 +49,13 @@ import {
   buildInputsComparePrompt,
   InputsCompareSchema,
 } from "../ai/inputs-compare-prompt";
+// Dev uses the full Mastra instance (so Studio sees traces); prod tree-shakes
+// the Mastra wrapper out. See `server/ai/agents.ts` for the switch.
 import {
-  getLapChatAgent,
-  getCompareEngineerAgent,
-  getCompareChatAgent,
-} from "../../mastra";
+  lapChatAgent,
+  compareEngineerAgent,
+  compareChatAgent,
+} from "../ai/agents";
 
 const CompareParamsSchema = z.object({
   id1: z.string().transform(val => parseInt(val, 10)),
@@ -380,10 +382,9 @@ export const lapRoutes = new Hono()
       }
 
       try {
-        const agent = getLapChatAgent();
         const threadId = chatThreadId(id);
 
-        const stream = await agent.stream(message, {
+        const stream = await lapChatAgent.stream(message, {
           instructions: systemPrompt,
           memory: {
             thread: threadId,
@@ -718,14 +719,24 @@ export const lapRoutes = new Hono()
 
       try {
         const start = performance.now();
-        const agent = getCompareEngineerAgent();
-        const result = await agent.generate(prompt, {
+        const result = await compareEngineerAgent.generate(prompt, {
           structuredOutput: { schema: InputsCompareSchema },
         });
         const durationMs = Math.round(performance.now() - start);
 
         const object = (result as any).object;
         if (!object) throw new Error("Compare engineer returned no structured object");
+
+        // Merge server-authoritative segment types into the model response so
+        // named corners never appear as "straight". Match by name first; fall
+        // back to positional order (both lists are emitted in the same order).
+        if (Array.isArray(object.segments) && segments) {
+          const byName = new Map(segments.map((s) => [s.name, s.type]));
+          object.segments = object.segments.map((seg: any, i: number) => ({
+            ...seg,
+            type: byName.get(seg.name) ?? segments[i]?.type ?? "straight",
+          }));
+        }
         const analysisJson = JSON.stringify(object);
         const totalUsage = (result as any).totalUsage ?? (result as any).usage ?? {};
         const usage = {
@@ -868,10 +879,9 @@ export const lapRoutes = new Hono()
       }
 
       try {
-        const agent = getCompareChatAgent();
         const threadId = compareChatThreadId(id1, id2);
 
-        const stream = await agent.stream(message, {
+        const stream = await compareChatAgent.stream(message, {
           instructions: systemPrompt,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
         });
