@@ -43,7 +43,7 @@ export function Wheel({
   tireWidth?: number;
 }) {
   const wheelY = position[1];
-  const { tire, rim, hub } = useWheelGeometries(tireRadius, tireWidth);
+  const { tire, rim } = useWheelGeometries(tireRadius, tireWidth);
   const spinRef = useRef<THREE.Group>(null);
 
   // Accumulate spin every frame using wall-clock delta — works at any playback speed
@@ -64,9 +64,6 @@ export function Wheel({
             </mesh>
             <mesh geometry={rim}>
               <meshBasicMaterial color={rimColor} transparent opacity={0.85} side={THREE.DoubleSide} />
-            </mesh>
-            <mesh geometry={hub}>
-              <meshBasicMaterial color="#475569" wireframe side={THREE.DoubleSide} />
             </mesh>
           </group>
         </group>
