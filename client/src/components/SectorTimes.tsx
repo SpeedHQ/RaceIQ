@@ -115,36 +115,8 @@ export function SectorTimes() {
   const sectorNames = ["S1", "S2", "S3"];
   const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
 
-  const hasBests = sectors.bestTimes[0] > 0 && sectors.bestTimes[1] > 0 && sectors.bestTimes[2] > 0;
-
   return (
     <div className="border-t border-app-border/50 pt-3">
-      {/* Estimated lap time */}
-      {hasBests && sectors.estimatedLap > 0 && (
-        <div className="flex items-baseline gap-4 mb-3 pb-2 border-b border-app-border/50">
-          <div>
-            <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Est. Lap</div>
-            <div className="text-2xl font-mono font-bold text-app-text tabular-nums leading-none">
-              {formatLapTime(sectors.estimatedLap)}
-            </div>
-          </div>
-          {sectors.deltaToBest !== 0 && (
-            <div>
-              <div className="text-[10px] text-app-text-muted uppercase tracking-wider">vs Best</div>
-              <div className={`text-2xl font-mono font-bold tabular-nums leading-none ${sectors.deltaToBest <= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                {sectors.deltaToBest <= 0 ? "" : "+"}{sectors.deltaToBest.toFixed(3)}
-              </div>
-            </div>
-          )}
-          {sectors.bestLapTime > 0 && (
-            <div className="ml-auto">
-              <div className="text-[10px] text-purple-400 uppercase tracking-wider">Best Lap</div>
-              <div className="text-lg font-mono font-bold text-purple-400 tabular-nums leading-none">{formatLapTime(sectors.bestLapTime)}</div>
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="grid grid-cols-3 gap-2">
         {sectorNames.map((name, i) => {
           const current = i === sectors.currentSector ? sectors.currentSectorTime : sectors.currentTimes[i];
@@ -164,18 +136,18 @@ export function SectorTimes() {
           }
 
           return (
-            <div key={name} className={`rounded p-2.5 ${isActive ? "bg-app-surface-alt/80 ring-1" : "bg-app-surface-alt/30"}`} style={isActive ? { "--tw-ring-color": sectorColors[i] } as React.CSSProperties : {}}>
+            <div key={name} className={`rounded p-2.5 ${isActive ? "ring-1" : ""}`} style={isActive ? { "--tw-ring-color": sectorColors[i] } as React.CSSProperties : {}}>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: sectorColors[i] }} />
                 <span className="text-xs font-bold text-app-text-secondary">{name}</span>
+                <span className={`text-xl font-mono font-bold tabular-nums leading-none ml-auto ${timeColor}`}>
+                  {current > 0 ? formatLapTime(current) : "--:--.---"}
+                </span>
                 {showDelta && (
-                  <span className={`text-xs font-mono ml-auto font-bold ${delta <= 0 ? "text-emerald-400" : "text-orange-400"}`}>
+                  <span className={`text-xs font-mono font-bold ${delta <= 0 ? "text-emerald-400" : "text-orange-400"}`}>
                     {delta <= 0 ? "" : "+"}{delta.toFixed(3)}
                   </span>
                 )}
-              </div>
-              <div className={`text-xl font-mono font-bold tabular-nums leading-none mb-1.5 ${timeColor}`}>
-                {current > 0 ? formatLapTime(current) : "--:--.---"}
               </div>
               <div className="flex justify-between mt-1">
                 <span className="text-[10px] text-app-text-muted">Last</span>

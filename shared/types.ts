@@ -211,6 +211,10 @@ export interface AccExtendedData {
   // Fuel
   fuelPerLap: number;
 
+  // Sector timing (native from game)
+  currentSectorIndex: number;  // 0=S1, 1=S2, 2=S3
+  lastSectorTime: number;       // ms, time of last completed sector
+
   // Damage
   carDamage: {
     front: number;
@@ -420,6 +424,7 @@ export interface LiveSectorData {
   bestLapTime: number;
   estimatedLap: number;
   deltaToBest: number;
+  deltaToLast: number;
 }
 
 /** Server-computed pit strategy data, broadcast via WebSocket. */
@@ -427,10 +432,28 @@ export interface LivePitData {
   fuelPerLap: number;
   fuelLapsRemaining: number | null;
   currentLapFuelUsed: number;
-  tireLapsRemaining: number | null;
+  /** Laps until worst tire hits the game's "bad health" threshold (yellow). */
+  tireLapsToBad: number | null;
+  /** Laps until worst tire hits 20% health (critical / near-dead). */
+  tireLapsToCritical: number | null;
+  /** Per-tire laps to cliff and to dead, and wear rate per lap. */
+  tireEstimates: {
+    toCliff: [number | null, number | null, number | null, number | null]; // FL, FR, RL, RR
+    toDead: [number | null, number | null, number | null, number | null];
+    wearPerLap: [number, number, number, number];
+  };
+  /** Wear per lap from last completed lap (worst tire). */
+  tireWearPerLap: number;
   pitInLaps: number | null;
   limitedBy: "fuel" | "tires" | null;
   trackLength: number;
+  /** Whether estimates are from historical data or current session laps. */
+  estimateSource: "history" | "session" | null;
+  /** Health threshold percentages used for cliff and dead. */
+  cliffPct: number;
+  deadPct: number;
+  // Deprecated — use tireLapsToBad
+  tireLapsRemaining: number | null;
 }
 
 export interface LapMeta {
@@ -452,6 +475,10 @@ export interface LapMeta {
   // Tune assignment
   tuneId?: number;
   tuneName?: string;
+  // Sector times (stored at save time)
+  s1Time?: number;
+  s2Time?: number;
+  s3Time?: number;
 }
 
 export interface SessionMeta {

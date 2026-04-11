@@ -64,5 +64,10 @@ export function parsePacket(buf: Buffer): TelemetryPacket | null {
   return null;
 }
 
+/** Get the game currently being detected from UDP packets. Returns null if no game detected yet. */
+export function getCurrentDetectedGame(): ReturnType<typeof getRunningGame> {
+  return _cachedGame;
+}
+
 export { parseForzaPacket } from "./forza";
 export { F1StateAccumulator, parseF1Header } from "./f1-state";

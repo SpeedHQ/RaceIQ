@@ -1,6 +1,5 @@
 import type { TelemetryPacket } from "@shared/types";
 
-const WEATHER_NAMES = ["Clear", "Light Cloud", "Overcast", "Light Rain", "Heavy Rain", "Storm"];
 const ERS_MODES = ["None", "Low", "Medium", "High", "Overtake"];
 
 interface Props {
@@ -46,29 +45,6 @@ export function AnalyseF1ErsPanel({ currentPacket }: Props) {
         </div>
       </div>
 
-      <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 pt-2 border-t border-app-border font-semibold">
-        Conditions
-      </h3>
-      <div className="text-[11px] font-mono space-y-1.5 mb-3">
-        <div className="flex justify-between">
-          <span className="text-app-text-muted">Weather</span>
-          <span className="text-app-text">{WEATHER_NAMES[currentPacket.WeatherType ?? 0] ?? "Unknown"}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-app-text-muted">Track</span>
-          <span className="tabular-nums text-orange-400">{currentPacket.TrackTemp ?? 0}°C</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-app-text-muted">Air</span>
-          <span className="tabular-nums text-cyan-400">{currentPacket.AirTemp ?? 0}°C</span>
-        </div>
-        {(currentPacket.RainPercent ?? 0) > 0 && (
-          <div className="flex justify-between">
-            <span className="text-app-text-muted">Rain</span>
-            <span className="tabular-nums text-blue-400">{currentPacket.RainPercent}%</span>
-          </div>
-        )}
-      </div>
     </>
   );
 }

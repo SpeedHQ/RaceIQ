@@ -5,6 +5,9 @@ interface UiStore {
   settingsSection: string | undefined;
   openSettings: (section?: string) => void;
   closeSettings: () => void;
+  onboardingOpen: boolean;
+  openOnboarding: () => void;
+  closeOnboarding: () => void;
 }
 
 export const useUiStore = create<UiStore>((set) => ({
@@ -12,4 +15,7 @@ export const useUiStore = create<UiStore>((set) => ({
   settingsSection: undefined,
   openSettings: (section) => set({ settingsOpen: true, settingsSection: section }),
   closeSettings: () => set({ settingsOpen: false, settingsSection: undefined }),
+  onboardingOpen: false,
+  openOnboarding: () => set({ onboardingOpen: true }),
+  closeOnboarding: () => set({ onboardingOpen: false }),
 }));

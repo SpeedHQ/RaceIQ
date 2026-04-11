@@ -140,7 +140,7 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
           </span>
         )}
       </div>
-      <div className="h-2 bg-app-surface-alt rounded-full overflow-hidden">
+      <div className="h-2 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${fuelColor} ${pct < 20 ? "animate-pulse" : ""}`} style={{ width: `${pct}%` }} />
       </div>
       {avg != null && (

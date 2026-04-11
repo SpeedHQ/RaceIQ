@@ -218,7 +218,6 @@ export function StepProfile() {
       setName(serverName);
       committedName.current = serverName;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverName]);
 
   // Save on unmount so clicking Next without blurring still saves
@@ -444,6 +443,110 @@ export function StepSound() {
           </Button>
         </>
       )}
+    </div>
+  );
+}
+
+/* ─── Onboarding Modal (state-managed, no routing) ─── */
+
+const MODAL_STEPS = [
+  { label: "Welcome", Component: StepWelcome },
+  { label: "Profile", Component: StepProfile },
+  { label: "Wheel", Component: StepWheel },
+  { label: "Units", Component: StepUnits },
+  { label: "Sound", Component: StepSound },
+  { label: "Community", Component: StepCommunity },
+] as const;
+
+export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
+  const [step, setStep] = useState(0);
+  const saveSettings = useSaveSettings();
+  const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
+  const udpPps = useTelemetryStore((s) => s.udpPps);
+  const lastUdpAt = useTelemetryStore((s) => s.lastUdpAt);
+  const receiving = udpPps > 0 || packetsPerSec > 0 || lastUdpAt > 0;
+  const { Component: StepComponent } = MODAL_STEPS[step];
+
+  function handleFinish() {
+    if (onClose) {
+      onClose();
+    } else {
+      saveSettings.mutate({ onboardingComplete: true } as never);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-app-bg p-4 z-50">
+      <div className="w-full max-w-3xl rounded-xl border border-app-border bg-app-surface shadow-2xl overflow-hidden">
+        {/* Header — hidden on welcome */}
+        {step > 0 && (
+          <div className="px-6 pt-6 pb-4">
+            <h1 className="text-lg font-semibold text-app-text">
+              Configure your telemetry dashboard
+            </h1>
+            <div className="flex items-center gap-2 mt-4">
+              {MODAL_STEPS.slice(1).map((s, idx) => {
+                const i = idx + 1;
+                return (
+                  <div key={s.label} className="flex items-center gap-2">
+                    <button
+                      onClick={() => setStep(i)}
+                      className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${
+                        i === step ? "text-app-accent" : i < step ? "text-app-text-secondary" : "text-app-text-muted/50"
+                      }`}
+                    >
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold border transition-colors ${
+                        i === step
+                          ? "border-app-accent bg-app-accent/15 text-app-accent"
+                          : i < step
+                            ? "border-emerald-500 bg-emerald-500/15 text-emerald-400"
+                            : "border-app-border bg-app-surface-alt text-app-text-muted/50"
+                      }`}>
+                        {i < step ? (
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          idx + 1
+                        )}
+                      </span>
+                      {s.label}
+                    </button>
+                    {idx < MODAL_STEPS.length - 2 && (
+                      <div className={`w-8 h-px ${i < step ? "bg-emerald-500/50" : "bg-app-border"}`} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="px-6 py-5 min-h-[280px] border-t border-app-border">
+          <StepComponent />
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end px-6 py-4 border-t border-app-border bg-app-surface-alt/30">
+          <div className="flex items-center gap-2">
+            {step > 0 && (
+              <Button variant="outline" size="sm" onClick={() => setStep((s) => s - 1)}>
+                Back
+              </Button>
+            )}
+            {step < MODAL_STEPS.length - 1 ? (
+              <Button size="sm" onClick={() => setStep((s) => s + 1)}>
+                {step === 0 ? "Get Started" : "Next"}
+              </Button>
+            ) : (
+              <Button size="sm" variant={receiving ? "default" : "outline"} onClick={handleFinish} disabled={saveSettings.isPending}>
+                {receiving ? "Finish" : "Next"}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

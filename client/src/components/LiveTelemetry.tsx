@@ -13,7 +13,7 @@ import { SurfaceConditions } from "./telemetry/SurfaceConditions";
 import { GForceCircle } from "./telemetry/GForceCircle";
 import { ArcGauge, FuelGauge, PowerTorque } from "./telemetry/Gauges";
 import { TelemetryCharts } from "./telemetry/TelemetryCharts";
-import { TireRaceView } from "./telemetry/TireRaceView";
+import { TireGrid } from "./telemetry/TireGrid";
 
 // Re-export for backward compatibility
 export { formatLapTime } from "../lib/format";
@@ -40,7 +40,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
       .then((r) => r.ok ? r.text() : `Car #${ord}`)
       .then((name) => setCarName(name))
       .catch(() => setCarName(`Car #${ord}`));
-  }, [packet?.CarOrdinal, gameId]);
+  }, [packet, gameId]);
 
   const units = useUnits();
 
@@ -61,11 +61,11 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
 
   // ── Shared hero: Speed + Gear + RPM ──────────────────────────
   const heroSection = (
-    <div className="bg-app-surface-alt/20 p-3 pb-2">
+    <div className="p-3 pb-2">
       {carName && (
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs font-semibold text-app-text truncate">{carName}</span>
-          <span className="text-[10px] font-mono font-semibold px-1.5 py-px rounded bg-app-surface-alt text-app-accent shrink-0">
+          <span className="text-[10px] font-mono font-semibold px-1.5 py-px rounded text-app-accent shrink-0">
             {(gameId && tryGetGame(gameId)?.carClassNames?.[packet.CarClass]) ?? "?"}{packet.CarPerformanceIndex}
           </span>
           <span className="text-[10px] text-app-text-dim shrink-0">
@@ -114,12 +114,14 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
       <div className="grid gap-0 p-0">
         {/* Tire Health */}
         <div className="border-b border-app-border">
-          <div className="p-2 border-b border-app-border">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Tire Health</h2>
-          </div>
-          <div className="p-3">
-            <TireRaceView packet={packet} />
-          </div>
+          <TireGrid
+            fl={{ tempC: units.toTempC(packet.TireTempFL), wear: packet.TireWearFL }}
+            fr={{ tempC: units.toTempC(packet.TireTempFR), wear: packet.TireWearFR }}
+            rl={{ tempC: units.toTempC(packet.TireTempRL), wear: packet.TireWearRL }}
+            rr={{ tempC: units.toTempC(packet.TireTempRR), wear: packet.TireWearRR }}
+            healthThresholds={(gameId ? tryGetGame(gameId) : null)?.tireHealthThresholds ?? { green: 0.70, yellow: 0.40 }}
+            tempThresholds={{ blue: 60, orange: 85, red: 100 }}
+          />
         </div>
 
         {/* Pit Window */}
@@ -147,13 +149,13 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
           <div className="flex-1 space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-[9px] font-mono text-emerald-400 font-bold w-6 text-right tabular-nums">{throttlePct.toFixed(0)}</span>
-              <div className="flex-1 h-3 bg-app-surface-alt rounded-full overflow-hidden">
+              <div className="flex-1 h-3 rounded-full overflow-hidden">
                 <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${throttlePct}%` }} />
               </div>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[9px] font-mono text-red-400 font-bold w-6 text-right tabular-nums">{brakePct.toFixed(0)}</span>
-              <div className="flex-1 h-3 bg-app-surface-alt rounded-full overflow-hidden">
+              <div className="flex-1 h-3 rounded-full overflow-hidden">
                 <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: `${brakePct}%` }} />
               </div>
             </div>

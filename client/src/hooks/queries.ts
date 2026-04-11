@@ -53,7 +53,7 @@ export function useSaveSettings() {
       const res = await client.api.settings.$put({ json: settings });
       if (!res.ok) throw new Error(res.statusText);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.settings }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.settings }); },
   });
 }
 

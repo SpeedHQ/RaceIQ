@@ -132,9 +132,9 @@ export function parseAccBuffers(
   const distanceTraveled = graphicsBuf.readFloatLE(GRAPHICS.distanceTraveled.offset);
   const isInPit = graphicsBuf.readInt32LE(GRAPHICS.isInPit.offset);
   const isInPitLane = graphicsBuf.readInt32LE(GRAPHICS.isInPitLane.offset);
+  const currentSectorIndex = graphicsBuf.readInt32LE(GRAPHICS.currentSectorIndex.offset);
+  const lastSectorTime = graphicsBuf.readInt32LE(GRAPHICS.lastSectorTime.offset);
   const flag = graphicsBuf.readInt32LE(GRAPHICS.flag.offset);
-  // @ts-ignore
-  const _normalizedPos = graphicsBuf.readFloatLE(GRAPHICS.normalizedCarPosition.offset);
 
   // Car world position from graphics (player = first car in carCoordinates array)
   const carX = graphicsBuf.readFloatLE(GRAPHICS.gCarX.offset);
@@ -199,6 +199,8 @@ export function parseAccBuffers(
     drsEnabled: false,
     pitStatus,
     fuelPerLap,
+    currentSectorIndex,
+    lastSectorTime,
     carDamage: {
       front: damFront,
       rear: damRear,

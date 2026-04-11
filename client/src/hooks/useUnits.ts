@@ -1,8 +1,12 @@
 import { useMemo, useEffect } from "react";
 import { useSettings } from "./queries";
 import { convertSpeed, convertDistance, speedLabel, distanceLabel } from "../lib/speed";
-import { convertTemp } from "../lib/temperature";
+import { convertTemp, fahrenheitToCelsius } from "../lib/temperature";
 import { useTelemetryStore } from "../stores/telemetry";
+import { useGameId } from "../stores/game";
+import { tryGetGame } from "../../../shared/games/registry";
+
+const DEFAULT_TIRE_TEMP = { cold: 75, warm: 115, hot: 150 };
 
 /**
  * Centralised unit-conversion hook.
@@ -19,6 +23,7 @@ import { useTelemetryStore } from "../stores/telemetry";
 export function useUnits() {
   const { displaySettings } = useSettings();
   const setUnitSystem = useTelemetryStore((s) => s.setUnitSystem);
+  const gameId = useGameId();
 
   const unit = displaySettings.unit;
   const su = unit === "metric" ? "kmh" as const : "mph" as const;
@@ -30,7 +35,13 @@ export function useUnits() {
   }, [unit, setUnitSystem]);
 
   return useMemo(() => {
-    const thresholds = displaySettings.tireTempCelsiusThresholds;
+    // Game-specific tire temp thresholds (°C) from adapter
+    const adapter = gameId ? tryGetGame(gameId) : null;
+    const thresholds = adapter?.tireTempThresholds ?? DEFAULT_TIRE_TEMP;
+    // Forza sends °F, F1/ACC send °C — convert raw packet temp to °C for threshold comparison
+    const isForza = gameId === "fm-2023";
+    /** Convert raw packet temp to °C for threshold comparisons */
+    const toTempC = (rawTemp: number) => isForza ? fahrenheitToCelsius(rawTemp) : rawTemp;
 
     return {
       // ── Speed / distance (for non-telemetry data) ──────────────
@@ -45,16 +56,19 @@ export function useUnits() {
       /** Display label for distance, e.g. "mi" or "km" */
       distanceLabel: distanceLabel(su),
 
-      // ── Temperature (for non-telemetry data) ────────────────────
-      /** Convert Fahrenheit → user temp unit */
-      temp: (f: number) => convertTemp(f, tu),
+      // ── Temperature ─────────────────────────────────────────────
+      /** Convert raw packet temp → user display unit (handles Forza °F) */
+      temp: (rawTemp: number) => convertTemp(rawTemp, tu, isForza ? "F" : "C"),
       /** Display label for temperature, e.g. "°F" or "°C" */
       tempLabel: `°${tu}`,
       /** Temperature unit raw value */
       tempUnit: tu,
 
-      // ── Tire temperature thresholds (always stored in °F) ───────
+      // ── Tire temperature thresholds (°C, game-specific) ─────────
+      /** Game-specific tire temp thresholds in °C */
       thresholds,
+      /** Convert raw packet temp to °C for threshold comparisons */
+      toTempC,
 
       // ── Raw settings (escape hatch) ─────────────────────────────
       speedUnit: su,
@@ -62,5 +76,5 @@ export function useUnits() {
       unit,
       displaySettings,
     };
-  }, [displaySettings, su, tu, unit]);
+  }, [displaySettings, su, tu, unit, gameId]);
 }

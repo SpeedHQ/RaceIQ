@@ -1,7 +1,5 @@
 import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useTelemetryStore } from "../stores/telemetry";
 import { useLaps, useSettings } from "../hooks/queries";
 import { formatLapTime } from "./LiveTelemetry";
 import { client } from "../lib/rpc";
@@ -102,13 +100,6 @@ export function HomePage() {
   const gameAdapter = gameId ? tryGetGame(gameId) : null;
   const { data: allLaps = [] } = useLaps();
   const { displaySettings } = useSettings();
-  const connected = useTelemetryStore((s) => s.connected);
-  const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
-  const serverStatus = useTelemetryStore((s) => s.serverStatus);
-  const { data: stats } = useQuery({
-    queryKey: ["stats"],
-    queryFn: () => client.api.stats.$get({ query: {} }).then((r) => r.json()),
-  });
 
   // Resolve car/track names for recent laps
   const [carNames, setCarNames] = useState<Record<number, string>>({});
@@ -171,23 +162,21 @@ export function HomePage() {
       return { laps: laps.length, valid: valid.length, best, avgTime, totalTime, tracks, cars, favCarOrd, favCarCount };
     }
 
-    const todayLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= todayStart);
-    const weekLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= weekAgo);
-    const monthLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= monthAgo);
-    const yearLaps = allLaps.filter((l) => new Date(l.createdAt).getTime() >= yearAgo);
+    const gameLaps = gameId ? allLaps.filter((l) => l.gameId === gameId) : allLaps;
+
+    const todayLaps = gameLaps.filter((l) => new Date(l.createdAt).getTime() >= todayStart);
+    const weekLaps = gameLaps.filter((l) => new Date(l.createdAt).getTime() >= weekAgo);
+    const monthLaps = gameLaps.filter((l) => new Date(l.createdAt).getTime() >= monthAgo);
+    const yearLaps = gameLaps.filter((l) => new Date(l.createdAt).getTime() >= yearAgo);
 
     return {
       today: computePeriod(todayLaps),
       week: computePeriod(weekLaps),
       month: computePeriod(monthLaps),
       year: computePeriod(yearLaps),
-      allTime: computePeriod(allLaps),
+      allTime: computePeriod(gameLaps),
     };
-  }, [allLaps, todayStart, weekAgo, monthAgo, yearAgo]);
-
-  // Session info
-  const sessionTrack = serverStatus?.currentSession?.trackOrdinal;
-  const isLive = connected && packetsPerSec > 0;
+  }, [allLaps, gameId, todayStart, weekAgo, monthAgo, yearAgo]);
 
   // Fetch names for recent laps + favourite cars
   useEffect(() => {
@@ -267,12 +256,6 @@ export function HomePage() {
                 </div>
                 <div className="text-base font-bold text-white/90">{gameAdapter?.displayName ?? gameId}</div>
               </div>
-              {isLive && (
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className={`text-sm font-semibold ${t.accent}`}>{packetsPerSec} pkt/s</span>
-                </div>
-              )}
             </div>
           </div>
         );
@@ -284,12 +267,6 @@ export function HomePage() {
             </h1>
             <p className="text-sm text-app-text/90-muted mt-0.5">Dashboard overview</p>
           </div>
-          {isLive && (
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-sm text-app-text/90">Live — {packetsPerSec} pkt/s</span>
-            </div>
-          )}
         </div>
       )}
 
@@ -414,7 +391,7 @@ export function HomePage() {
         </div>
         {(() => {
           const data = periodStats[periodTab];
-          const timeSec = periodTab === "allTime" ? (stats?.totalTimeSec ?? data.totalTime) : data.totalTime;
+          const timeSec = data.totalTime;
           const fmtTime = (s: number) => {
             const h = Math.floor(s / 3600);
             const m = Math.floor((s % 3600) / 60);
@@ -432,18 +409,6 @@ export function HomePage() {
           );
         })()}
       </div>
-
-      {/* Live session card */}
-      {isLive && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatCard
-            label="Session"
-            value="Active"
-            sub={sessionTrack ? `Track #${sessionTrack}` : undefined}
-            color="text-emerald-400"
-          />
-        </div>
-      )}
 
       {/* Recent laps */}
       <div>

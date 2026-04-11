@@ -107,10 +107,10 @@ export const CarWireframe = React.memo(function CarWireframe({
         }}
       >
         <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} boundaries={boundaries ?? null} toggles={toggles} viewPreset={viewPreset} carModel={carModel} modelOffsetX={modelOffsetX} fmtTemp={fmtTemp} hideModelWheels={!minimal} suspThresholds={suspThresholds} autoOrbit={autoOrbit} tireColors={[
-          tireTempColorHex(units.temp(packet.TireTempFL), units.thresholds),
-          tireTempColorHex(units.temp(packet.TireTempFR), units.thresholds),
-          tireTempColorHex(units.temp(packet.TireTempRL), units.thresholds),
-          tireTempColorHex(units.temp(packet.TireTempRR), units.thresholds),
+          tireTempColorHex(units.toTempC(packet.TireTempFL), units.thresholds),
+          tireTempColorHex(units.toTempC(packet.TireTempFR), units.thresholds),
+          tireTempColorHex(units.toTempC(packet.TireTempRL), units.thresholds),
+          tireTempColorHex(units.toTempC(packet.TireTempRR), units.thresholds),
         ]} />
       </Canvas>
       <span ref={fpsRef} className="absolute bottom-1 right-24 text-sm font-mono text-app-text-dim/50 px-1 py-0.5" />

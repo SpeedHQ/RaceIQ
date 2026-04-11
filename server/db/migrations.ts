@@ -131,4 +131,13 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE laps ADD COLUMN notes TEXT`,
     ],
   },
+  {
+    version: 15,
+    name: "add sector times to laps",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN s1_time REAL`,
+      `ALTER TABLE laps ADD COLUMN s2_time REAL`,
+      `ALTER TABLE laps ADD COLUMN s3_time REAL`,
+    ],
+  },
 ];

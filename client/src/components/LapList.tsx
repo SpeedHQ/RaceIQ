@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useLaps, useDeleteLap } from "../hooks/queries";
-import { useGameRoute, useGameId } from "../stores/game";
-import { client } from "../lib/rpc";
+import { useDeleteLap } from "../hooks/queries";
+import { useGameRoute } from "../stores/game";
+import { useTelemetryStore } from "../stores/telemetry";
 import { Button } from "./ui/button";
 
 function formatLapTime(seconds: number): string {
@@ -16,30 +15,14 @@ function formatLapTime(seconds: number): string {
 type SortKey = "lap" | "time";
 type SortDir = "asc" | "desc";
 
-export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTelemetry?: boolean }) {
+export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
   const navigate = useNavigate({ from: "/" });
   const gameRoute = useGameRoute();
-  const gameId = useGameId();
-  const { data: allLaps = [], isLoading } = useLaps({ refetchInterval: 5_000 });
+  const laps = useTelemetryStore((s) => s.sessionLaps);
   const deleteLap = useDeleteLap();
   const [sortKey, setSortKey] = useState<SortKey>("lap");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-
-  // Fetch sector times for all laps on this track
-  const { data: sectorTimes } = useQuery({
-    queryKey: ["track-lap-sectors", trackOrd, gameId],
-    queryFn: () => client.api.tracks[":ordinal"]["lap-sectors"].$get({ param: { ordinal: String(trackOrd!) }, query: { gameId: gameId ?? undefined } }).then((r) => r.json() as unknown as Record<number, { s1: number; s2: number; s3: number }>),
-    enabled: trackOrd != null && trackOrd > 0,
-  });
-
-  // Filter laps to current track only
-  const laps = trackOrd != null
-    ? allLaps.filter((l) => l.trackOrdinal === trackOrd)
-    : allLaps;
-
-  if (isLoading) {
-    return <div className="p-4 text-app-text-dim">Loading laps...</div>;
-  }
+  const trackOrd = useTelemetryStore((s) => s.serverStatus?.currentSession?.trackOrdinal);
 
   if (!hasTelemetry) {
     return null;
@@ -81,26 +64,25 @@ export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTele
 
   const bestLapTime = laps.reduce((best, l) => (l.isValid && l.lapTime < best ? l.lapTime : best), Infinity);
 
-  // Compute best sector times across all laps
+  // Compute best sector times across all laps (from stored s1/s2/s3)
   const bestSectors = { s1: Infinity, s2: Infinity, s3: Infinity };
   const avgSectors = { s1: 0, s2: 0, s3: 0, count: 0 };
-  if (sectorTimes) {
-    for (const st of Object.values(sectorTimes as Record<string, { s1: number; s2: number; s3: number }>)) {
-      if (st.s1 > 0 && st.s1 < bestSectors.s1) bestSectors.s1 = st.s1;
-      if (st.s2 > 0 && st.s2 < bestSectors.s2) bestSectors.s2 = st.s2;
-      if (st.s3 > 0 && st.s3 < bestSectors.s3) bestSectors.s3 = st.s3;
-      if (st.s1 > 0 && st.s2 > 0 && st.s3 > 0) {
-        avgSectors.s1 += st.s1;
-        avgSectors.s2 += st.s2;
-        avgSectors.s3 += st.s3;
-        avgSectors.count++;
-      }
+  for (const l of laps) {
+    const s1 = l.s1Time ?? 0, s2 = l.s2Time ?? 0, s3 = l.s3Time ?? 0;
+    if (s1 > 0 && s1 < bestSectors.s1) bestSectors.s1 = s1;
+    if (s2 > 0 && s2 < bestSectors.s2) bestSectors.s2 = s2;
+    if (s3 > 0 && s3 < bestSectors.s3) bestSectors.s3 = s3;
+    if (s1 > 0 && s2 > 0 && s3 > 0) {
+      avgSectors.s1 += s1;
+      avgSectors.s2 += s2;
+      avgSectors.s3 += s3;
+      avgSectors.count++;
     }
-    if (avgSectors.count > 0) {
-      avgSectors.s1 /= avgSectors.count;
-      avgSectors.s2 /= avgSectors.count;
-      avgSectors.s3 /= avgSectors.count;
-    }
+  }
+  if (avgSectors.count > 0) {
+    avgSectors.s1 /= avgSectors.count;
+    avgSectors.s2 /= avgSectors.count;
+    avgSectors.s3 /= avgSectors.count;
   }
 
   // Color: purple = best, green = on/above pace, yellow = off pace
@@ -131,19 +113,20 @@ export function LapList({ trackOrd, hasTelemetry }: { trackOrd?: number; hasTele
         </thead>
         <tbody>
           {sortedLaps.map((lap) => {
-            const st = sectorTimes?.[lap.id];
+            const s1 = lap.s1Time ?? 0, s2 = lap.s2Time ?? 0, s3 = lap.s3Time ?? 0;
+            const hasSectors = s1 > 0 && s2 > 0 && s3 > 0;
             return (
             <tr key={lap.id} className="border-b border-app-border/50 hover:bg-app-surface-alt/30">
               <td className="p-2 font-mono text-app-text">{lap.lapNumber}</td>
               <td className={`p-2 font-mono font-bold ${lap.isValid && lap.lapTime === bestLapTime ? "text-purple-400" : "text-app-text"}`}>{formatLapTime(lap.lapTime)}</td>
-              <td className={`p-2 font-mono text-xs font-bold ${st ? sectorColor(st.s1, bestSectors.s1, avgSectors.s1) : "text-app-text-secondary"}`}>{st ? formatLapTime(st.s1) : "-"}</td>
-              <td className={`p-2 font-mono text-xs font-bold ${st ? sectorColor(st.s2, bestSectors.s2, avgSectors.s2) : "text-app-text-secondary"}`}>{st ? formatLapTime(st.s2) : "-"}</td>
-              <td className={`p-2 font-mono text-xs font-bold ${st ? sectorColor(st.s3, bestSectors.s3, avgSectors.s3) : "text-app-text-secondary"}`}>{st ? formatLapTime(st.s3) : "-"}</td>
+              <td className={`p-2 font-mono text-xs font-bold ${hasSectors ? sectorColor(s1, bestSectors.s1, avgSectors.s1) : "text-app-text-secondary"}`}>{hasSectors ? formatLapTime(s1) : "-"}</td>
+              <td className={`p-2 font-mono text-xs font-bold ${hasSectors ? sectorColor(s2, bestSectors.s2, avgSectors.s2) : "text-app-text-secondary"}`}>{hasSectors ? formatLapTime(s2) : "-"}</td>
+              <td className={`p-2 font-mono text-xs font-bold ${hasSectors ? sectorColor(s3, bestSectors.s3, avgSectors.s3) : "text-app-text-secondary"}`}>{hasSectors ? formatLapTime(s3) : "-"}</td>
               <td className="p-2 text-center">
                 {lap.isValid ? (
                   <span className="text-emerald-400">&#10003;</span>
                 ) : (
-                  <span className="text-red-400">&#10007;</span>
+                  <span className="text-red-400 cursor-help" title={lap.invalidReason || "invalid"}>&#10007;</span>
                 )}
               </td>
               <td className="p-2 text-right">

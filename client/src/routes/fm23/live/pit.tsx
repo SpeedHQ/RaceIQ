@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LivePage } from "../../../components/LivePage";
+import { ForzaLiveDashboard } from "../../../components/ForzaLiveDashboard";
 
 export const Route = createFileRoute("/fm23/live/pit")({
-  component: () => <LivePage mode="pitcrew" />,
+  component: () => <ForzaLiveDashboard mode="pitcrew" />,
 });

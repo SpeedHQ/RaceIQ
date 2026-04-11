@@ -7,7 +7,7 @@ import { PUBLIC_DIR } from "../paths";
 import { GameIdQuerySchema } from "../../shared/schemas";
 import { udpListener } from "../udp";
 import { wsManager } from "../ws";
-import { lapDetector } from "../lap-detector";
+import { lapDetector } from "../pipeline";
 import { loadSettings, saveSettings, PartialSettingsSchema } from "../settings";
 import { getLaps } from "../db/queries";
 import { getRunningGame } from "../games/registry";
@@ -125,6 +125,9 @@ export const settingsRoutes = new Hono()
         wsManager.setRefreshRate(merged.wsRefreshRate);
       }
       saveSettings(merged);
+      if (provided.onboardingComplete) {
+        wsManager.broadcastNotification({ type: "onboarding_complete" });
+      }
       return c.json(merged);
     } catch {
       return c.json({ error: `Failed to bind to port ${merged.udpPort}` }, 500);

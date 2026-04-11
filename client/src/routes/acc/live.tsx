@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LivePage } from "../../components/LivePage";
+import { AccLiveDashboard } from "../../components/acc/AccLiveDashboard";
 
 export const Route = createFileRoute("/acc/live")({
-  component: LivePage,
+  component: AccLiveDashboard,
 });

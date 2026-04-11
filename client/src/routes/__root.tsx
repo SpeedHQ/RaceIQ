@@ -1,5 +1,5 @@
-import { createRootRoute, Link, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
-import { useState, useEffect, useMemo } from "react";
+import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
+import { useState, useMemo } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useTelemetryStore } from "../stores/telemetry";
@@ -9,6 +9,7 @@ import { ThemeProvider } from "../context/theme";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
+import { OnboardingModal } from "../components/Onboarding";
 import { Button } from "@/components/ui/button";
 import { Settings2 } from "lucide-react";
 import { getAllGames } from "@shared/games/registry";
@@ -24,6 +25,7 @@ function getGlobalTabs() {
   return _globalTabs ??= [
     { to: "/", label: "Home" },
     ...getAllGames().map((g) => ({ to: `/${g.routePrefix}`, label: g.shortName })),
+    ...(import.meta.env.DEV ? [{ to: "/dev", label: "Dev" }] : []),
   ];
 }
 
@@ -44,7 +46,7 @@ function AppShell() {
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const updateState = useUpdateCheck();
 
-  const { settingsOpen: showSettings, settingsSection, openSettings, closeSettings } = useUiStore();
+  const { settingsOpen: showSettings, settingsSection, openSettings, closeSettings, onboardingOpen, closeOnboarding } = useUiStore();
   const [showUpdateModal, setShowUpdateModal] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has("update")) {
@@ -57,16 +59,7 @@ function AppShell() {
     return false;
   });
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
-  const navigate = useNavigate();
   const location = useLocation();
-
-  useEffect(() => {
-    if (!settingsLoaded) return;
-    if (!displaySettings.onboardingComplete && !location.pathname.startsWith("/onboarding")) {
-      navigate({ to: "/onboarding" });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settingsLoaded, displaySettings.onboardingComplete, location.pathname]);
 
   // Determine which game-specific tabs to show based on current route
   const gameTabs = useMemo(() => {
@@ -78,10 +71,18 @@ function AppShell() {
       .map((label) => ({ to: `${prefix}/${label.toLowerCase()}`, label }));
   }, [location.pathname]);
 
+  // Block rendering until settings load, then show onboarding if needed
+  if (!settingsLoaded) {
+    return <ThemeProvider><div className="h-screen bg-app-bg" /></ThemeProvider>;
+  }
+
+  if (!displaySettings.onboardingComplete) {
+    return <ThemeProvider><OnboardingModal /></ThemeProvider>;
+  }
+
   return (
     <ThemeProvider>
         <div className="h-screen grid grid-rows-[auto_1fr] bg-app-bg text-app-text">
-          {!location.pathname.startsWith("/onboarding") && (
           <div className="flex items-center justify-between border-b border-app-border">
             <div className="flex items-center">
               <ConnectionStatus
@@ -155,7 +156,6 @@ function AppShell() {
               </Button>
             </div>
           </div>
-          )}
 
           {showSettings && (
             <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 pb-12 bg-black/60"
@@ -182,7 +182,9 @@ function AppShell() {
             <UpdateModal version={updateState?.latest ?? "?"} newReleases={updateState?.newReleases ?? []} onClose={() => setShowUpdateModal(false)} />
           )}
 
-          <div className={`min-h-0 overflow-y-auto ${location.pathname === "/onboarding" ? "h-full" : ""}`}>
+          {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
+
+          <div className="min-h-0 overflow-y-auto">
             <Outlet />
           </div>
         </div>

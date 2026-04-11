@@ -18,3 +18,5 @@ scripts/track-data/
 lighthouse-report.html
 test-results/
 .mastra/
+/client/.tanstack/tmp
+.worktrees/

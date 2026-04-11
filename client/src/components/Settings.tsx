@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { isDevelopment } from "@/lib/env";
-import { Link } from "@tanstack/react-router";
+import { useUiStore } from "../stores/ui";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { convertTemp, celsiusToFahrenheit } from "../lib/temperature";
 import { playBlip, preloadSound } from "./SectorTimes";
 import { useSettings, useSaveSettings } from "../hooks/queries";
 import { useTheme, type Theme } from "../context/theme";
@@ -15,6 +14,7 @@ import { UpdatesSection } from "./settings/UpdatesSection";
 import { ExtractionSection } from "./settings/ExtractionSection";
 import { F1ExtractionSection } from "./settings/F1ExtractionSection";
 import { AboutSection } from "./settings/AboutSection";
+import { DiagnosticsSection } from "./settings/DiagnosticsSection";
 
 // Re-export localStorage utilities so existing importers don't break
 export {
@@ -59,6 +59,7 @@ const NAV_ITEMS = [
   { id: "sound", label: "Sound" },
   { id: "ai", label: "AI Analysis" },
   { id: "developer", label: "Developer", devOnly: true },
+  { id: "diagnostics", label: "Diagnostics" },
   { id: "updates", label: "Updates" },
   { id: "about", label: "About" },
 ] as const;
@@ -66,6 +67,7 @@ const NAV_ITEMS = [
 type SectionId = (typeof NAV_ITEMS)[number]["id"];
 
 export function Settings({ initialSection, onClose }: { initialSection?: SectionId; onClose?: () => void } = {}) {
+  const { openOnboarding } = useUiStore();
   const [activeSection, setActiveSection] = useState<SectionId>(initialSection ?? "theme");
   const [showSetupGuide, setShowSetupGuide] = useState(false);
   const [udpPort, setUdpPort] = useState("5301");
@@ -85,11 +87,8 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
   const { theme, setTheme } = useTheme();
   const [unitSystem, setUnitSystem] = useState<"metric" | "imperial">(displaySettings.unit);
   const tempUnit = unitSystem === "metric" ? "C" as const : "F" as const;
-  const [thresholds, setThresholds] = useState(displaySettings.tireTempCelsiusThresholds);
   const [healthThresholds, setHealthThresholds] = useState(displaySettings.tireHealthThresholds.values);
   const [suspThresholds, setSuspThresholds] = useState(displaySettings.suspensionThresholds.values);
-  const [tempStatus, setTempStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [tempError, setTempError] = useState("");
   const [healthStatus, setHealthStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [healthError, setHealthError] = useState("");
   const [suspStatus, setSuspStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -99,16 +98,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
   const tempSettingsJson = JSON.stringify(displaySettings);
   useEffect(() => {
-    const u = displaySettings.unit;
-    const tu = u === "metric" ? "C" as const : "F" as const;
-    const raw = displaySettings.tireTempCelsiusThresholds;
-    setUnitSystem(u);
-    // Server always stores in °F — convert to display unit
-    setThresholds(tu === "C" ? {
-      cold: convertTemp(raw.cold, "C"),
-      warm: convertTemp(raw.warm, "C"),
-      hot: convertTemp(raw.hot, "C"),
-    } : raw);
+    setUnitSystem(displaySettings.unit);
     setHealthThresholds(displaySettings.tireHealthThresholds.values);
     setSuspThresholds(displaySettings.suspensionThresholds.values);
   }, [tempSettingsJson]);
@@ -147,37 +137,6 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
     }
   }
 
-  async function handleTempSave() {
-    // Convert display values back to °F if user is in °C mode
-    const thresholdsInF = tempUnit === "C"
-      ? {
-          cold: celsiusToFahrenheit(thresholds.cold),
-          warm: celsiusToFahrenheit(thresholds.warm),
-          hot: celsiusToFahrenheit(thresholds.hot),
-        }
-      : thresholds;
-
-    if (thresholdsInF.cold >= thresholdsInF.warm || thresholdsInF.warm >= thresholdsInF.hot) {
-      setTempStatus("error");
-      setTempError("Thresholds must be in order: cold < warm < hot");
-      return;
-    }
-
-    setTempStatus("saving");
-    setTempError("");
-    try {
-      await saveSettings.mutateAsync({
-        unit: unitSystem,
-        tireTempCelsiusThresholds: thresholdsInF,
-      });
-      setTempStatus("saved");
-      setTimeout(() => setTempStatus("idle"), 2000);
-    } catch (err) {
-      setTempStatus("error");
-      setTempError(err instanceof Error ? err.message : "Failed to save");
-    }
-  }
-
   async function handleUnitSave() {
     setUnitStatus("saving");
     setUnitError("");
@@ -189,11 +148,6 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       setUnitStatus("error");
       setUnitError(err instanceof Error ? err.message : "Failed to save");
     }
-  }
-
-  function handleTempReset() {
-    setThresholds({ cold: 150, warm: 220, hot: 280 });
-    setUnitSystem("imperial");
   }
 
   async function handleHealthSave() {
@@ -272,11 +226,12 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
           </button>
         ))}
         <div className="mt-auto pt-2 border-t border-app-border mx-2">
-          <Link to="/onboarding" onClick={onClose}>
-            <button className="w-full text-left px-4 py-2 text-sm text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors">
-              Setup Wizard
-            </button>
-          </Link>
+          <button
+            className="w-full text-left px-4 py-2 text-sm text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors"
+            onClick={() => { onClose?.(); openOnboarding(); }}
+          >
+            Setup Wizard
+          </button>
         </div>
       </nav>
 
@@ -578,7 +533,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
           <section>
             <h2 className="text-lg font-semibold text-app-text mb-1">Temperature</h2>
             <p className="text-sm text-app-text-muted mb-4">
-              Set the display unit and tire temperature color thresholds.
+              Set the display unit. Tire temperature color thresholds are set per game automatically.
             </p>
 
             <div className="flex items-center gap-2 mb-4">
@@ -586,16 +541,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
               <Button
                 size="sm"
                 variant={tempUnit === "F" ? "default" : "outline"}
-                onClick={() => {
-                  if (tempUnit === "C") {
-                    setThresholds({
-                      cold: celsiusToFahrenheit(thresholds.cold),
-                      warm: celsiusToFahrenheit(thresholds.warm),
-                      hot: celsiusToFahrenheit(thresholds.hot),
-                    });
-                  }
-                  setUnitSystem("imperial");
-                }}
+                onClick={() => setUnitSystem("imperial")}
                 className="w-12"
               >
                 °F
@@ -603,73 +549,12 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
               <Button
                 size="sm"
                 variant={tempUnit === "C" ? "default" : "outline"}
-                onClick={() => {
-                  if (tempUnit === "F") {
-                    setThresholds({
-                      cold: convertTemp(thresholds.cold, "C"),
-                      warm: convertTemp(thresholds.warm, "C"),
-                      hot: convertTemp(thresholds.hot, "C"),
-                    });
-                  }
-                  setUnitSystem("metric");
-                }}
+                onClick={() => setUnitSystem("metric")}
                 className="w-12"
               >
                 °C
               </Button>
             </div>
-
-            <div className="space-y-3 max-w-xs">
-              <div>
-                <Label htmlFor="threshold-cold" className="text-blue-400 text-xs">
-                  Cold (below = blue)
-                </Label>
-                <Input
-                  id="threshold-cold"
-                  type="number"
-                  value={parseFloat(thresholds.cold.toFixed(1))}
-                  onChange={(e) => setThresholds({ ...thresholds, cold: parseFloat(e.target.value) || 0 })}
-                  className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono mt-1 w-24"
-                />
-              </div>
-              <div>
-                <Label htmlFor="threshold-warm" className="text-amber-400 text-xs">
-                  Warm (above = amber)
-                </Label>
-                <Input
-                  id="threshold-warm"
-                  type="number"
-                  value={parseFloat(thresholds.warm.toFixed(1))}
-                  onChange={(e) => setThresholds({ ...thresholds, warm: parseFloat(e.target.value) || 0 })}
-                  className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono mt-1 w-24"
-                />
-              </div>
-              <div>
-                <Label htmlFor="threshold-hot" className="text-red-400 text-xs">
-                  Hot (above = red)
-                </Label>
-                <Input
-                  id="threshold-hot"
-                  type="number"
-                  value={parseFloat(thresholds.hot.toFixed(1))}
-                  onChange={(e) => setThresholds({ ...thresholds, hot: parseFloat(e.target.value) || 0 })}
-                  className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono mt-1 w-24"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 mt-4">
-              <Button onClick={handleTempSave} disabled={tempStatus === "saving"}>
-                {tempStatus === "saving" ? "Saving..." : tempStatus === "saved" ? "Saved" : "Save"}
-              </Button>
-              <Button variant="outline" onClick={handleTempReset}>
-                Reset
-              </Button>
-            </div>
-
-            {tempStatus === "error" && (
-              <p className="text-red-400 text-sm mt-2">{tempError}</p>
-            )}
           </section>
         )}
 
@@ -917,6 +802,9 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             <ExtractionSection />
             <F1ExtractionSection />
           </div>
+        )}
+        {activeSection === "diagnostics" && (
+          <DiagnosticsSection />
         )}
         {activeSection === "updates" && (
           <UpdatesSection />

@@ -14,7 +14,7 @@ import { parsePacket } from "./parser";
 import { wsManager } from "./ws";
 import { processPacket } from "./pipeline";
 import { getRunningGame } from "./games/registry";
-import { lapDetector } from "./lap-detector";
+import { lapDetector } from "./pipeline";
 
 const MIN_PACKET_LENGTH = 29; // Minimum: F1 header size
 const PACKETS_PER_SEC_WINDOW = 1000; // 1-second sliding window for rate display

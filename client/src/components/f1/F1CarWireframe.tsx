@@ -68,7 +68,7 @@ export function F1CarWireframeSection({ packet }: { packet: TelemetryPacket }) {
   return (
     <div className="border-b border-app-border">
       <div className="p-2 border-b border-app-border">
-        <h2 className="text-sm font-semibold text-app-text-muted uppercase tracking-wider">Car Attitude</h2>
+        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Car Attitude</h2>
       </div>
       <div className="h-56">
         <Canvas

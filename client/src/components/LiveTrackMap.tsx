@@ -20,8 +20,8 @@ interface Point {
  * Coordinates use Forza's world-space X/Z (Y is vertical/ignored).
  */
 interface TrackBoundaryData {
-  leftEdge: Point[];
-  rightEdge: Point[];
+  leftEdge: Point[] | null;
+  rightEdge: Point[] | null;
   centerLine: Point[];
   pitLane: Point[] | null;
   coordSystem: string;
@@ -70,19 +70,19 @@ export function LiveTrackMap({ packet }: Props) {
 
     // Fetch sector boundaries
     client.api["track-sector-boundaries"][":ordinal"].$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId! } })
-      .then((r) => r.json() as any)
-      .then((data: any) => { if (data?.s1End) setSectors(data); })
+      .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+      .then((data: any) => { if (data?.s1End) setSectors(data); }) // eslint-disable-line @typescript-eslint/no-explicit-any
       .catch(() => {});
 
     // Fetch track boundaries (edges)
     client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
-      .then((r) => r.json() as any)
-      .then((data: any) => { if (data) setBoundaries(data); })
+      .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+      .then((data: any) => { if (data) setBoundaries(data); }) // eslint-disable-line @typescript-eslint/no-explicit-any
       .catch(() => {});
 
     client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
-      .then((r) => r.json() as any)
-      .then((data: any) => {
+      .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+      .then((data: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         // New format: { points, recorded, startYaw } or legacy array format
         if (data.points && Array.isArray(data.points)) {
           setOutline(data.points);
@@ -116,8 +116,8 @@ export function LiveTrackMap({ packet }: Props) {
     if (!gameId) return;
     if (!isRecorded) {
       client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
-        .then((r) => r.json() as any)
-        .then((data: any) => {
+        .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+        .then((data: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
           if (data?.points && data.recorded) {
             setOutline(data.points);
             setIsRecorded(true);
@@ -130,8 +130,8 @@ export function LiveTrackMap({ packet }: Props) {
     // Re-fetch boundaries — calibration may now provide game-space coords
     if (!boundaries || (boundaries.coordSystem !== "forza" && boundaries.coordSystem !== "f1-2025")) {
       client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
-        .then((r) => r.json() as any)
-        .then((data: any) => { if (data) setBoundaries(data); })
+        .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+        .then((data: any) => { if (data) setBoundaries(data); }) // eslint-disable-line @typescript-eslint/no-explicit-any
         .catch(() => {});
     }
   }, [packet?.LapNumber, gameId]);
@@ -181,7 +181,7 @@ export function LiveTrackMap({ packet }: Props) {
 
   // Redraw
   useEffect(() => {
-    draw();
+    draw(); // eslint-disable-line react-hooks/immutability
   });
 
   function draw() {
@@ -223,7 +223,8 @@ export function LiveTrackMap({ packet }: Props) {
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     const allPoints = [displayOutline];
     if (boundaries) {
-      allPoints.push(boundaries.leftEdge, boundaries.rightEdge);
+      if (boundaries.leftEdge) allPoints.push(boundaries.leftEdge);
+      if (boundaries.rightEdge) allPoints.push(boundaries.rightEdge);
     }
     for (const pts of allPoints) {
       for (const p of pts) {
@@ -269,7 +270,7 @@ export function LiveTrackMap({ packet }: Props) {
     }
 
     // Draw track boundary surface (filled polygon behind center-line)
-    if (boundaries && boundaries.leftEdge.length > 2 && boundaries.rightEdge.length > 2) {
+    if (boundaries && boundaries.leftEdge && boundaries.leftEdge.length > 2 && boundaries.rightEdge && boundaries.rightEdge.length > 2) {
       ctx.beginPath();
       // Left edge forward
       const [lx0, ly0] = toCanvas(boundaries.leftEdge[0].x, boundaries.leftEdge[0].z);
@@ -598,7 +599,7 @@ export function LiveTrackMap({ packet }: Props) {
       {isRecorded && (
         <button
           onClick={handleDeleteMap}
-          className="absolute top-2 right-2 px-2 py-1 text-xs bg-app-surface-alt/80 hover:bg-red-900/80 text-app-text-secondary hover:text-red-300 rounded border border-app-border-input hover:border-red-700 transition-colors"
+          className="absolute top-2 right-2 px-2 py-1 text-xs hover:bg-red-900/80 text-app-text-secondary hover:text-red-300 rounded border border-app-border-input hover:border-red-700 transition-colors"
           title="Delete recorded track map and re-record from driving"
         >
           Reset Map

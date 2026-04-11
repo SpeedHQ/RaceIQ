@@ -147,7 +147,7 @@ export function AnalyseTopSection({
           zoom={mapZoom}
           containerHeight={topHeight}
         />
-        {/* Weather widget — top left (updates at cursor position) */}
+        {/* Weather widget — bottom left (updates at cursor position) */}
         {telemetry[cursorIdx]?.f1 && <WeatherWidget f1={telemetry[cursorIdx].f1!} />}
 
         {/* View toggles — top left */}

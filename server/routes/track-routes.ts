@@ -798,10 +798,12 @@ export const trackRoutes = new Hono()
       const trackLaps = (await getLaps(gameId)).filter((l) => l.trackOrdinal === ordinal && l.lapTime > 0);
       if (trackLaps.length === 0) return c.json({});
 
-      // Get sector boundaries; fall back to equal thirds if none defined
+      // Get sector boundaries (same priority as /api/track-sector-boundaries)
+      const sharedName = getSharedTrackName(ordinal, gameId);
       const dbSectors = gameId ? await getTrackOutlineSectors(ordinal, gameId) : null;
-      const bundled = getTrackSectorsByOrdinal(ordinal);
-      const rawSectors = dbSectors ?? bundled;
+      const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
+      const gameSectors = gameId ? (sharedMeta as any)?.games?.[gameId]?.sectors : null;
+      const rawSectors = dbSectors ?? gameSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(ordinal);
       const sectors = { s1End: rawSectors?.s1End ?? 1 / 3, s2End: rawSectors?.s2End ?? 2 / 3 };
 
       const result: Record<number, { s1: number; s2: number; s3: number }> = {};
@@ -823,10 +825,8 @@ export const trackRoutes = new Hono()
         // Fall back to distance-fraction computation when game didn't provide sector times
         if (s1Time === 0 || s2Time === 0) {
           const startDist = packets[0].DistanceTraveled;
-          const trackLength = packets[packets.length - 1].DistanceTraveled;
-          if (trackLength < 100) continue;
-          // Skip laps where recording started more than 5% into the lap — fractions would be wrong
-          if (startDist / trackLength > 0.05) continue;
+          const lapDistance = packets[packets.length - 1].DistanceTraveled - startDist;
+          if (lapDistance < 100) continue;
 
           let currentSector = 0;
           let sectorStartTime = packets[0].CurrentLap;
@@ -834,7 +834,7 @@ export const trackRoutes = new Hono()
           s2Time = 0;
 
           for (const p of packets) {
-            const frac = p.DistanceTraveled / trackLength;
+            const frac = (p.DistanceTraveled - startDist) / lapDistance;
             const expectedSector = frac < sectors.s1End ? 0 : frac < sectors.s2End ? 1 : 2;
             if (expectedSector > currentSector) {
               const sectorTime = p.CurrentLap - sectorStartTime;

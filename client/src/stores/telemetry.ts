@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { TelemetryPacket, LiveSectorData, LivePitData } from "@shared/types";
+import type { TelemetryPacket, LiveSectorData, LivePitData, LapMeta } from "@shared/types";
 import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
 
 export interface DisplaySettings {
@@ -29,7 +29,7 @@ export interface DisplaySettings {
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   unit: "metric",
-  tireTempCelsiusThresholds: { cold: 65, warm: 105, hot: 138 },
+  tireTempCelsiusThresholds: { cold: 75, warm: 115, hot: 150 },
   tireHealthThresholds: { values: [20, 40, 60, 80] },
   suspensionThresholds: { values: [25, 65, 85] },
   aiProvider: "gemini",
@@ -93,6 +93,8 @@ interface TelemetryState {
   updateProgress: { stage: "downloading" | "installing" | "reconnecting" | "complete"; percent: number } | null;
   /** Cached version info from /api/version */
   versionInfo: VersionInfo | null;
+  /** Server-pushed recorded laps for the current session's track+car */
+  sessionLaps: LapMeta[];
   setConnected: (connected: boolean) => void;
   setPacket: (packet: TelemetryPacket) => void;
   setSectors: (sectors: LiveSectorData) => void;
@@ -100,9 +102,14 @@ interface TelemetryState {
   clearPacket: () => void;
   setPacketsPerSec: (pps: number) => void;
   setServerStatus: (status: ServerStatus | null) => void;
+  setSessionLaps: (laps: LapMeta[]) => void;
   setUpdateAvailable: (version: string | null) => void;
   setUpdateProgress: (progress: TelemetryState["updateProgress"]) => void;
   setVersionInfo: (info: VersionInfo) => void;
+  devState: unknown | null;
+  devStatePaused: boolean;
+  setDevState: (state: unknown) => void;
+  toggleDevStatePause: () => void;
   /** Update unit system — re-converts current packet */
   setUnitSystem: (unit: "metric" | "imperial") => void;
 }
@@ -125,6 +132,9 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   updateAvailable: null,
   updateProgress: null,
   versionInfo: null,
+  sessionLaps: [],
+  devState: null,
+  devStatePaused: false,
   setConnected: (connected) => set((prev) => {
     // Detect reconnection after update install
     if (connected && prev.updateProgress?.stage === "reconnecting") {
@@ -134,6 +144,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   }),
   setSectors: (sectors) => set({ sectors }),
   setPit: (pit) => set({ pit }),
+  setSessionLaps: (sessionLaps) => set({ sessionLaps }),
   setPacket: (raw) => {
     const { unitSystem } = get();
     set({
@@ -156,6 +167,11 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   setUpdateAvailable: (version) => set({ updateAvailable: version }),
   setUpdateProgress: (progress) => set({ updateProgress: progress }),
   setVersionInfo: (info) => set({ versionInfo: info }),
+  setDevState: (state) => {
+    if (get().devStatePaused) return;
+    set({ devState: state });
+  },
+  toggleDevStatePause: () => set((prev) => ({ devStatePaused: !prev.devStatePaused })),
   setUnitSystem: (unit) => {
     const { rawPacket } = get();
     set({

@@ -9,6 +9,7 @@ export const forzaAdapter: GameAdapter = {
   steeringCenter: 127,
   steeringRange: 127,
   tireHealthThresholds: { green: 0.70, yellow: 0.40 },
+  tireTempThresholds: { cold: 75, warm: 115, hot: 150 },
 
   // Stubs — server adapter overrides with real CSV-backed lookups
   getCarName(ordinal) {
@@ -39,4 +40,7 @@ export const forzaAdapter: GameAdapter = {
     1: "RWD",
     2: "AWD",
   },
+
+  carForwardOffset(yaw) { return [Math.sin(yaw), Math.cos(yaw)]; },
+  followViewRotation(yaw) { return Math.PI - yaw; },
 };

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import type { LapMeta, SessionMeta } from "@shared/types";
 import { queryKeys, useSessions, useLaps, useDeleteLap } from "../hooks/queries";
 import { useGameId, useGameRoute } from "../stores/game";
@@ -57,29 +57,21 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
   selectedLaps: Set<number>;
   toggleLapSelection: (id: number) => void;
 }) {
-  const gameId = useGameId();
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
   const qc = useQueryClient();
-
-  const { data: sectorTimes } = useQuery({
-    queryKey: ["track-lap-sectors", session.trackOrdinal, gameId],
-    queryFn: () => client.api.tracks[":ordinal"]["lap-sectors"].$get({ param: { ordinal: String(session.trackOrdinal) }, query: { gameId: gameId ?? undefined } }).then((r) => r.json() as unknown as Record<number, { s1: number; s2: number; s3: number }>),
-    enabled: session.trackOrdinal != null,
-  });
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lapId: number } | null>(null);
 
   const bestSectors = useMemo(() => {
     const best = { s1: Infinity, s2: Infinity, s3: Infinity };
-    if (!sectorTimes) return best;
     for (const lap of laps) {
-      const st = sectorTimes[lap.id];
-      if (!st) continue;
-      if (st.s1 > 0 && st.s1 < best.s1) best.s1 = st.s1;
-      if (st.s2 > 0 && st.s2 < best.s2) best.s2 = st.s2;
-      if (st.s3 > 0 && st.s3 < best.s3) best.s3 = st.s3;
+      const s1 = lap.s1Time ?? 0, s2 = lap.s2Time ?? 0, s3 = lap.s3Time ?? 0;
+      if (s1 > 0 && s1 < best.s1) best.s1 = s1;
+      if (s2 > 0 && s2 < best.s2) best.s2 = s2;
+      if (s3 > 0 && s3 < best.s3) best.s3 = s3;
     }
     return best;
-  }, [sectorTimes, laps]);
+  }, [laps]);
 
   const sortedLaps = useMemo(() => [...laps].sort((a, b) => {
     if (lapSortKey === "lap") return lapSortDir === "asc" ? a.lapNumber - b.lapNumber : b.lapNumber - a.lapNumber;
@@ -95,7 +87,7 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
   }
 
   return (
-    <Table>
+    <><Table>
       <THead>
         <TH className="w-10 px-2" />
         <TH />
@@ -115,7 +107,7 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
           const best = session.bestLapTime ?? 0;
           const isBest = best > 0 && Math.abs(lap.lapTime - best) < 0.001;
           return (
-            <TRow key={lap.id}>
+            <TRow key={lap.id} onContextMenu={(e: React.MouseEvent) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, lapId: lap.id }); }}>
               <TD className="px-2 text-center">
                 <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-cyan-400 w-4 h-4" />
               </TD>
@@ -135,8 +127,7 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
                 {lap.isValid ? <span className="text-emerald-400">&#10003;</span> : <span className="text-red-400" title={lap.invalidReason}>&#10007;</span>}
               </TD>
               {(["s1", "s2", "s3"] as const).map((s) => {
-                const st = sectorTimes?.[lap.id];
-                const val = st?.[s] ?? 0;
+                const val = s === "s1" ? (lap.s1Time ?? 0) : s === "s2" ? (lap.s2Time ?? 0) : (lap.s3Time ?? 0);
                 return <TD key={s} className={`font-mono ${sectorColor(val, bestSectors[s])}`}>{val > 0 ? formatLapTime(val) : "—"}</TD>;
               })}
               <TD>
@@ -150,6 +141,28 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
         })}
       </TBody>
     </Table>
+
+    {/* Dev context menu */}
+    {contextMenu && (
+      <>
+        <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }} />
+        <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
+          <button
+            className="w-full px-3 py-1.5 text-left hover:bg-app-surface-alt text-app-text"
+            onClick={async () => {
+              const res = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
+              const data = await res.json();
+              console.log("[Recheck]", data);
+              qc.invalidateQueries({ queryKey: queryKeys.laps });
+              setContextMenu(null);
+            }}
+          >
+            Recheck validity
+          </button>
+        </div>
+      </>
+    )}
+    </>
   );
 }
 

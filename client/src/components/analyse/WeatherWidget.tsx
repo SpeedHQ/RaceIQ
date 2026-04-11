@@ -17,7 +17,7 @@ const WEATHER_LABELS: Record<number, string> = {
 export function WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
   const weather = f1.weather ?? 0;
   return (
-    <div className="absolute top-2 left-2 bg-app-surface-alt/80 backdrop-blur border border-app-border-input/50 rounded-lg px-2.5 py-1.5 text-[10px] space-y-0.5">
+    <div className="absolute bottom-2 left-2 bg-app-surface-alt/80 backdrop-blur border border-app-border-input/50 rounded-lg px-2.5 py-1.5 text-[10px] space-y-0.5">
       <div className="flex items-center gap-1.5">
         <span className="text-sm leading-none">{WEATHER_ICONS[weather] ?? "\u2600\uFE0F"}</span>
         <span className="text-app-text font-medium">{WEATHER_LABELS[weather] ?? "Unknown"}</span>

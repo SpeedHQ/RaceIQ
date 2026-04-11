@@ -129,6 +129,14 @@ class WebSocketManager {
     }
   }
 
+  broadcastDevState(payload: Record<string, unknown>): void {
+    if (this.clients.size === 0) return;
+    const json = JSON.stringify({ type: "dev-state", ...payload });
+    for (const client of this.clients) {
+      try { client.send(json); } catch {}
+    }
+  }
+
   // Latest state — written by packet handler, read by broadcast timer
   private _latestPacket: TelemetryPacket | null = null;
   private _latestSectors: LiveSectorData | null = null;
