@@ -18,6 +18,9 @@ scripts/track-data/
 lighthouse-report.html
 test-results/
 .mastra/
+/mastra/public/
+*.duckdb
+*.duckdb.wal
 /client/.tanstack/tmp
 .worktrees/
 laps.json

@@ -157,3 +157,27 @@ export const lapAnalyses = sqliteTable("lap_analyses", {
 }, (table) => [
   unique().on(table.lapId),
 ]);
+
+/**
+ * Cached AI comparison analyses keyed on a lap pair.
+ * lapAId/lapBId are stored in canonical order (min, max).
+ * `kind` discriminates the analysis type — currently only "inputs" but kept
+ * generic so additional comparison analyses can share the table.
+ */
+export const compareAnalyses = sqliteTable("compare_analyses", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  lapAId: integer("lap_a_id").notNull(),
+  lapBId: integer("lap_b_id").notNull(),
+  kind: text("kind").notNull().default("inputs"),
+  analysis: text("analysis").notNull(),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  costUsd: real("cost_usd").notNull().default(0),
+  durationMs: integer("duration_ms").notNull().default(0),
+  model: text("model").notNull().default(""),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+}, (table) => [
+  unique().on(table.lapAId, table.lapBId, table.kind),
+]);
