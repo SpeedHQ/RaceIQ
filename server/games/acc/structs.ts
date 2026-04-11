@@ -79,7 +79,11 @@ export const PHYSICS = {
   // rideHeight[2] (268-272), turboBoost (276), ballast (280), airDensity (284)
   airTemp:        { offset: 288, type: "f32" },
   roadTemp:       { offset: 292, type: "f32" },
-  // localAngularVel[3] (296-304), finalFF (308), performanceMeter (312)
+  // localAngularVel[3] (296-304) — car-local rates: [0]=pitch (X), [1]=yaw (Y), [2]=roll (Z)
+  localAngularVelX: { offset: 296, type: "f32" },
+  localAngularVelY: { offset: 300, type: "f32" },
+  localAngularVelZ: { offset: 304, type: "f32" },
+  // finalFF (308), performanceMeter (312)
   // engineBrake (316), ersRecoveryLevel (320), ersPowerLevel (324)
   // ersHeatCharging (328), ersIsCharging (332), kersCurrentKJ (336)
   // drsAvailable (340), drsEnabled (344)
@@ -108,10 +112,21 @@ export const PHYSICS = {
   // tyreContactPoint[4][3] (420-468), tyreContactNormal[4][3] (468-516)
   // tyreContactHeading[4][3] (516-564)
   brakeBias:      { offset: 564, type: "f32" },
-  // localVelocity[3] (568-576), P2PActivations (580), P2PStatus (584)
+  // localVelocity[3] (568-576) — car-local linear velocity: [0]=X (lateral), [1]=Y (vertical), [2]=Z (longitudinal)
+  localVelocityX: { offset: 568, type: "f32" },
+  localVelocityY: { offset: 572, type: "f32" },
+  localVelocityZ: { offset: 576, type: "f32" },
+  // P2PActivations (580), P2PStatus (584)
   currentMaxRpm:  { offset: 588, type: "i32" },
   // mz[4] (592-604), fx[4] (608-620), fy[4] (624-636)
-  // slipRatio[4] (640-652), slipAngle[4] (656-668)
+  slipRatioFL:    { offset: 640, type: "f32" },
+  slipRatioFR:    { offset: 644, type: "f32" },
+  slipRatioRL:    { offset: 648, type: "f32" },
+  slipRatioRR:    { offset: 652, type: "f32" },
+  slipAngleFL:    { offset: 656, type: "f32" },
+  slipAngleFR:    { offset: 660, type: "f32" },
+  slipAngleRL:    { offset: 664, type: "f32" },
+  slipAngleRR:    { offset: 668, type: "f32" },
   // tcinAction (672), absInAction (676), suspensionDamage[4] (680-692)
   // tyreTemp[4] — per-tyre average display temp, °C
   tyreTempFL:     { offset: 696, type: "f32" },
@@ -157,12 +172,11 @@ export const GRAPHICS = {
   normalizedCarPosition: { offset: 248, type: "f32" },
   activeCars:       { offset: 252, type: "i32" },
   // carCoordinates[60][3] at 256 (720 bytes → 976)
-  // Player car coords at start of array
-  gCarX:            { offset: 256, type: "f32" },
-  gCarY:            { offset: 260, type: "f32" },
-  gCarZ:            { offset: 264, type: "f32" },
+  carCoordinatesBase: { offset: 256, type: "f32" }, // stride: 12 bytes per car (3 floats)
   // carID[60] at 976 (240 bytes → 1216)
-  // playerCarID (1216), penaltyTime (1220)
+  carIDBase:        { offset: 976, type: "i32" },   // stride: 4 bytes per car
+  playerCarID:      { offset: 1216, type: "i32" },
+  // penaltyTime (1220)
   flag:             { offset: 1224, type: "i32" },
   // penalty (1228), idealLineOn (1232)
   isInPitLane:      { offset: 1236, type: "i32" },

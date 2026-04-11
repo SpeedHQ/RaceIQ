@@ -13,6 +13,8 @@ export interface DisplaySettings {
   chatModel: string;
   localEndpoint: string;
   wsRefreshRate: string;
+  /** Max 3D Canvas render rate for the analyse wireframe (15–120 fps). */
+  renderFpsCap: number;
   /** Server-injected: current UDP port */
   udpPort?: number;
   /** Server-injected: whether a Gemini API key is stored */
@@ -38,6 +40,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   chatModel: "",
   localEndpoint: "http://localhost:1234/v1",
   wsRefreshRate: "60",
+  renderFpsCap: 60,
 };
 
 export interface ReleaseInfo {

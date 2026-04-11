@@ -1,10 +1,14 @@
-import { useMemo } from "react";
-import { Line } from "@react-three/drei";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import * as THREE from "three";
 import type { TelemetryPacket } from "@shared/types";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { getWheelOffsets, trailColorFromState } from "../../lib/wireframe-utils";
 import { allWheelStates } from "../../lib/vehicle-dynamics";
-import * as THREE from "three";
+
+// Upper bound on trail segments across all 4 wheels. At ACC's ~300 Hz
+// physics with the 80 ms trail duration, a single wheel keeps ~24 points
+// (23 segments), so 4 × 23 = 92 worst case. Round up generously.
+const MAX_TRAIL_INSTANCES = 256;
 
 export function TireTrails({
   telemetry,
@@ -18,20 +22,24 @@ export function TireTrails({
   const TRAIL_DURATION_MS = 80;
   const WHEEL_OFFSETS = useMemo(() => getWheelOffsets(carModel), [carModel]);
 
-  // Compute traction state colors per-packet using the same logic as the data panel labels
-  const slipFns = [
-    (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipFL),
-    (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipFR),
-    (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipRL),
-    (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipRR),
-  ];
-  const wheelKeys = ["fl", "fr", "rl", "rr"] as const;
+  // Per-wheel slip-state callbacks (unchanged — drives per-segment color).
+  const slipFns = useMemo(
+    () => [
+      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipFL),
+      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipFR),
+      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipRL),
+      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipRR),
+    ],
+    [],
+  );
+  const wheelKeys = useMemo(() => ["fl", "fr", "rl", "rr"] as const, []);
 
-  // Only recompute trail geometry on cursor change — use pre-computed colors
+  // Compute trail points + colors for all 4 wheels on cursor change.
+  // Shape matches the previous implementation so downstream layout-effect
+  // can just walk it segment by segment.
   const trails = useMemo(() => {
     const cur = telemetry[cursorIdx];
     if (!cur) return null;
-    // Find start index by time (consistent trail length regardless of packet rate)
     const curTime = cur.TimestampMS;
     let startIdx = cursorIdx;
     while (startIdx > 0 && curTime - telemetry[startIdx - 1].TimestampMS < TRAIL_DURATION_MS) startIdx--;
@@ -54,21 +62,80 @@ export function TireTrails({
       }
       return { pts, cols };
     });
-  }, [telemetry, cursorIdx, WHEEL_OFFSETS]);
+  }, [telemetry, cursorIdx, WHEEL_OFFSETS, slipFns, wheelKeys]);
 
-  if (!trails) return null;
+  // Single instancedMesh across all 4 wheels — one draw call for everything.
+  // Each instance is a thin box stretched to a segment length and rotated
+  // to align with the segment direction. Per-segment color via setColorAt.
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+
+  useLayoutEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+
+    if (!trails) {
+      mesh.count = 0;
+      mesh.instanceMatrix.needsUpdate = true;
+      return;
+    }
+
+    let instance = 0;
+    for (const trail of trails) {
+      const n = trail.cols.length;
+      for (let i = 0; i < n - 1; i++) {
+        if (instance >= MAX_TRAIL_INSTANCES) break;
+        const x0 = trail.pts[i * 3];
+        const y0 = trail.pts[i * 3 + 1];
+        const z0 = trail.pts[i * 3 + 2];
+        const x1 = trail.pts[(i + 1) * 3];
+        const y1 = trail.pts[(i + 1) * 3 + 1];
+        const z1 = trail.pts[(i + 1) * 3 + 2];
+
+        const dx = x1 - x0;
+        const dz = z1 - z0;
+        const len = Math.hypot(dx, dz);
+        if (len < 0.001) continue;
+
+        // Midpoint of segment
+        dummy.position.set((x0 + x1) * 0.5, (y0 + y1) * 0.5, (z0 + z1) * 0.5);
+        // Rotate around Y so local +Z points along the segment direction
+        dummy.rotation.set(0, Math.atan2(dx, dz), 0);
+        // Thin on X (cross-track width) and Y (height), stretched to segment length on Z
+        dummy.scale.set(0.025, 0.01, len);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(instance, dummy.matrix);
+        mesh.setColorAt(instance, trail.cols[i]);
+        instance++;
+      }
+      if (instance >= MAX_TRAIL_INSTANCES) break;
+    }
+
+    mesh.count = instance;
+    mesh.instanceMatrix.needsUpdate = true;
+    // instanceColor is lazily created by setColorAt on first call.
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    // Instances move around the car every frame; skip frustum culling so
+    // they don't disappear at window edges.
+    mesh.frustumCulled = false;
+  }, [trails, dummy]);
+
+  // Release GPU instance buffer on unmount (R3F handles geometry + material
+  // from JSX children, but not the InstancedMesh's own instance attributes).
+  // Capture the ref inside the effect body so the cleanup disposes the
+  // same instance we installed, not whatever the ref points to at
+  // teardown time.
+  useEffect(() => {
+    const mesh = meshRef.current;
+    return () => {
+      mesh?.dispose();
+    };
+  }, []);
 
   return (
-    <>
-      {trails.map((trail, w) => {
-        const n = trail.cols.length;
-        if (n < 2) return null;
-        const points: [number, number, number][] = [];
-        for (let i = 0; i < n; i++) points.push([trail.pts[i * 3], trail.pts[i * 3 + 1], trail.pts[i * 3 + 2]]);
-        return (
-          <Line key={`trail-${w}`} points={points} vertexColors={trail.cols as unknown as Array<[number, number, number]>} lineWidth={3} />
-        );
-      })}
-    </>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, MAX_TRAIL_INSTANCES]}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshBasicMaterial />
+    </instancedMesh>
   );
 }

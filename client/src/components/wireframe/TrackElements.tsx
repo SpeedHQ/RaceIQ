@@ -1,8 +1,14 @@
-import { useMemo, useCallback } from "react";
+import { useEffect, useLayoutEffect, useMemo } from "react";
 import { Line } from "@react-three/drei";
 import * as THREE from "three";
 import type { TelemetryPacket } from "@shared/types";
-import { filterByDistance, DIST_AHEAD } from "../../lib/wireframe-utils";
+import {
+  buildTrackIndex,
+  filterByDistanceIndexed,
+  createWallGeometry,
+  updateWallGeometry,
+  DIST_AHEAD,
+} from "../../lib/wireframe-utils";
 
 export function TrackOutline({
   outline,
@@ -14,9 +20,12 @@ export function TrackOutline({
   distAhead?: number;
 }) {
   const ahead = distAhead ?? DIST_AHEAD;
+  // One-time index build per outline — stable while the reference is stable
+  // (React Query returns the same object until refetch).
+  const index = useMemo(() => buildTrackIndex(outline), [outline]);
   const segments = useMemo(() =>
-    filterByDistance(outline, packet.PositionX, packet.PositionZ, packet.Yaw, -0.44, ahead),
-    [outline, packet.PositionX, packet.PositionZ, packet.Yaw, ahead]
+    filterByDistanceIndexed(index, packet.PositionX, packet.PositionZ, packet.Yaw, -0.44, ahead),
+    [index, packet.PositionX, packet.PositionZ, packet.Yaw, ahead]
   );
 
   if (segments.length === 0) return null;
@@ -45,43 +54,45 @@ export function TrackBoundaryEdges({
   const GROUND_Y = -(tireRadius ?? 0.33);
   const ahead = distAhead ?? DIST_AHEAD;
 
-  // Pre-compute full wall geometry once — filter by distance on cursor change
-  const leftSegsGround = useMemo(() => filterByDistance(boundaries.leftEdge, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead), [boundaries.leftEdge, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead]);
-  const rightSegsGround = useMemo(() => filterByDistance(boundaries.rightEdge, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead), [boundaries.rightEdge, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead]);
+  // One-time index per edge; rebuilds only when the underlying array
+  // reference changes.
+  const leftIndex = useMemo(() => buildTrackIndex(boundaries.leftEdge), [boundaries.leftEdge]);
+  const rightIndex = useMemo(() => buildTrackIndex(boundaries.rightEdge), [boundaries.rightEdge]);
 
-  // Build wall geometry from ground segments (extrude upward) — single pass
-  const buildWalls = useCallback((segs: [number, number, number][][]): THREE.BufferGeometry | null => {
-    const allPositions: number[] = [];
-    const allIndices: number[] = [];
-    let vertexOffset = 0;
-    for (const seg of segs) {
-      if (seg.length < 2) continue;
-      for (const pt of seg) {
-        allPositions.push(pt[0], pt[1], pt[2]); // ground
-        allPositions.push(pt[0], pt[1] + WALL_HEIGHT, pt[2]); // top
-      }
-      for (let i = 0; i < seg.length - 1; i++) {
-        const b = vertexOffset + i * 2;
-        allIndices.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
-      }
-      vertexOffset += seg.length * 2;
-    }
-    if (allPositions.length < 6) return null;
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute("position", new THREE.Float32BufferAttribute(allPositions, 3));
-    geom.setIndex(allIndices);
-    return geom;
-  }, []);
+  // Pre-allocate wall geometries once per mount — buffers are mutated
+  // in place by updateWallGeometry on each cursor change, avoiding the
+  // per-frame BufferGeometry + Float32Array churn that GCs otherwise.
+  const leftGeom = useMemo(() => createWallGeometry(), []);
+  const rightGeom = useMemo(() => createWallGeometry(), []);
 
-  const leftGeom = useMemo(() => buildWalls(leftSegsGround), [leftSegsGround, buildWalls]);
-  const rightGeom = useMemo(() => buildWalls(rightSegsGround), [rightSegsGround, buildWalls]);
+  // Free GPU buffers when the component unmounts.
+  useEffect(() => {
+    return () => {
+      leftGeom.dispose();
+      rightGeom.dispose();
+    };
+  }, [leftGeom, rightGeom]);
 
-  if (!leftGeom && !rightGeom) return null;
+  // Filter by distance, then fill the pre-allocated buffers in place.
+  // useLayoutEffect so geometry updates land before the next paint.
+  const leftSegsGround = useMemo(() => filterByDistanceIndexed(leftIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead), [leftIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead]);
+  const rightSegsGround = useMemo(() => filterByDistanceIndexed(rightIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead), [rightIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead]);
+
+  useLayoutEffect(() => {
+    updateWallGeometry(leftGeom, leftSegsGround, WALL_HEIGHT);
+  }, [leftGeom, leftSegsGround]);
+  useLayoutEffect(() => {
+    updateWallGeometry(rightGeom, rightSegsGround, WALL_HEIGHT);
+  }, [rightGeom, rightSegsGround]);
 
   return (
     <>
-      {leftGeom && <mesh geometry={leftGeom}><meshBasicMaterial color="#ef4444" opacity={0.5} transparent side={THREE.DoubleSide} /></mesh>}
-      {rightGeom && <mesh geometry={rightGeom}><meshBasicMaterial color="#3b82f6" opacity={0.5} transparent side={THREE.DoubleSide} /></mesh>}
+      <mesh geometry={leftGeom}>
+        <meshBasicMaterial color="#ef4444" opacity={0.5} transparent side={THREE.DoubleSide} />
+      </mesh>
+      <mesh geometry={rightGeom}>
+        <meshBasicMaterial color="#3b82f6" opacity={0.5} transparent side={THREE.DoubleSide} />
+      </mesh>
     </>
   );
 }

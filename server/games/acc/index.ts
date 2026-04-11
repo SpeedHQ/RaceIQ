@@ -3,6 +3,7 @@ import type { TelemetryPacket } from "../../../shared/types";
 import { accAdapter } from "../../../shared/games/acc";
 import { getAccCarName } from "../../../shared/acc-car-data";
 import { getAccTrackName, getAccSharedTrackName } from "../../../shared/acc-track-data";
+import { LapDetectorV2 } from "../../lap-detector-v2";
 
 const ACC_SYSTEM_PROMPT = `You are an expert GT racing engineer and data analyst specializing in Assetto Corsa Competizione.
 
@@ -57,6 +58,8 @@ export const accServerAdapter: ServerGameAdapter = {
   createParserState(): null {
     return null;
   },
+
+  createLapDetector: (opts) => new LapDetectorV2(opts),
 
   aiSystemPrompt: ACC_SYSTEM_PROMPT,
 

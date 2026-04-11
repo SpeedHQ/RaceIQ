@@ -9,6 +9,7 @@ import { useUnits } from "../hooks/useUnits";
 import { useSettings } from "../hooks/queries";
 import { useGameId } from "../stores/game";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import { recordGpuSnapshot } from "../lib/crash-diagnostics";
 import { type ViewPreset, VIEW_PRESETS, type ViewToggles, DEFAULT_TOGGLES } from "../lib/wireframe-data";
 import { CarScene } from "./wireframe/CarScene";
 import { ToggleButton } from "./wireframe/ToggleButton";
@@ -54,15 +55,21 @@ export const CarWireframe = React.memo(function CarWireframe({
   const gameId = useGameId();
   const isF1 = gameId === "f1-2025";
 
-  const isFM = gameId === "fm-2023";
   const carModel = useMemo(() => {
     if (carModelProp) return carModelProp;
     if (isF1) return F1_CAR;
+    // Note: getCarModel reads from module-level state populated by
+    // loadCarModelConfigs(). configsLoaded is in the dep list so the
+    // memo re-runs once configs finish loading — eslint can't see the
+    // dependency because it's hidden behind an impure read.
     const perCar = getCarModel(carOrdinal ?? 0);
     if (perCar.hasModel) return perCar;
-    if (isFM) return DEMO_CAR;
-    return perCar;
-  }, [carOrdinal, configsLoaded, isF1, isFM, carModelProp]);
+    // Fallback: any non-F1 game with no per-car GLB uses the Aston
+    // Martin GT3 demo model. Previously this was FM-only, which left
+    // ACC (and any future game) without a visible car in the scene.
+    return DEMO_CAR;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carOrdinal, configsLoaded, isF1, carModelProp]);
   const units = useUnits();
   const { displaySettings } = useSettings();
   const suspThresholds = displaySettings.suspensionThresholds.values;
@@ -85,23 +92,57 @@ export const CarWireframe = React.memo(function CarWireframe({
   const [fpsInitTime] = useState(() => performance.now());
   const fpsLastTime = useRef(fpsInitTime);
 
+  // Keep the current cap in a ref so the gl.render override (installed
+  // once in onCreated) picks up live changes from settings without
+  // re-creating the Canvas.
+  const fpsCapRef = useRef(displaySettings.renderFpsCap);
+  useEffect(() => {
+    fpsCapRef.current = displaySettings.renderFpsCap;
+  }, [displaySettings.renderFpsCap]);
+
   return (
     <div className="w-full h-full relative flex-1">
       <Canvas
         camera={{ position: [4, 2.5, 4], fov: 50 }}
         gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
         dpr={[1, 1.5]}
+        frameloop="always"
         style={{ background: "transparent" }}
         onCreated={({ gl }) => {
           const origRender = gl.render.bind(gl);
+          let lastRender = 0;
+          let lastGpuLog = 0;
           gl.render = (...args: Parameters<typeof gl.render>) => {
-            fpsFrames.current++;
+            // Gate gl.render to the user's fps cap. R3F's "always"
+            // frameloop calls this every rAF tick — we drop ticks that
+            // would exceed the cap. 0.5 ms fudge avoids consistently
+            // landing one frame under the target.
             const now = performance.now();
+            const cap = fpsCapRef.current;
+            const minInterval = 1000 / Math.max(15, Math.min(120, cap)) - 0.5;
+            if (now - lastRender < minInterval) return;
+            lastRender = now;
+
+            fpsFrames.current++;
             if (now - fpsLastTime.current >= 1000) {
               if (fpsRef.current) fpsRef.current.textContent = `${fpsFrames.current} fps`;
               fpsFrames.current = 0;
               fpsLastTime.current = now;
             }
+
+            // Feed Three.js renderer counters into the crash-diagnostics
+            // breadcrumb once per second. gl.info.render is reset every
+            // frame by Three.js, so we need to sample it here (inside the
+            // render function) to catch the live numbers.
+            if (now - lastGpuLog >= 1000) {
+              lastGpuLog = now;
+              recordGpuSnapshot({
+                memory: gl.info.memory,
+                programs: gl.info.programs,
+                render: gl.info.render,
+              });
+            }
+
             return origRender(...args);
           };
         }}

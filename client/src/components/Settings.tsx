@@ -330,6 +330,27 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
               </p>
             </div>
 
+            <div className="mt-4 max-w-xs">
+              <Label className="text-app-text-secondary">3D Render Frame Cap</Label>
+              <select
+                value={String(displaySettings.renderFpsCap ?? 60)}
+                onChange={(e) => saveSettings.mutate({ renderFpsCap: Number(e.target.value) })}
+                className="mt-1.5 w-full bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text"
+              >
+                <option value="120">120 fps</option>
+                <option value="90">90 fps</option>
+                <option value="60">60 fps</option>
+                <option value="45">45 fps</option>
+                <option value="30">30 fps</option>
+                <option value="15">15 fps</option>
+              </select>
+              <p className="text-app-text-muted text-xs mt-1">
+                Maximum frame rate for the 3D wireframe scene in analyse.
+                Lower values reduce GPU/CPU load; higher is smoother. Does
+                not affect playback speed.
+              </p>
+            </div>
+
             <div className="mt-6 pt-6 border-t border-app-border">
               <button
                 onClick={() => setShowSetupGuide(!showSetupGuide)}

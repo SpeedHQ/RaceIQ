@@ -38,6 +38,10 @@ export function parseAccBuffers(
   const velX = physicsBuf.readFloatLE(PHYSICS.velocityX.offset);
   const velY = physicsBuf.readFloatLE(PHYSICS.velocityY.offset);
   const velZ = physicsBuf.readFloatLE(PHYSICS.velocityZ.offset);
+  // Car-local angular velocity — yaw rate is the Y component (rad/s)
+  const angVelX = physicsBuf.readFloatLE(PHYSICS.localAngularVelX.offset);
+  const angVelY = physicsBuf.readFloatLE(PHYSICS.localAngularVelY.offset);
+  const angVelZ = physicsBuf.readFloatLE(PHYSICS.localAngularVelZ.offset);
   const gX = physicsBuf.readFloatLE(PHYSICS.accGX.offset);
   const gY = physicsBuf.readFloatLE(PHYSICS.accGY.offset);
   const gZ = physicsBuf.readFloatLE(PHYSICS.accGZ.offset);
@@ -99,10 +103,21 @@ export function parseAccBuffers(
   const suspRR = physicsBuf.readFloatLE(PHYSICS.suspTravelRR.offset);
 
   // Wheel slip & rotation
-  const slipFL = physicsBuf.readFloatLE(PHYSICS.wheelSlipFL.offset);
-  const slipFR = physicsBuf.readFloatLE(PHYSICS.wheelSlipFR.offset);
-  const slipRL = physicsBuf.readFloatLE(PHYSICS.wheelSlipRL.offset);
-  const slipRR = physicsBuf.readFloatLE(PHYSICS.wheelSlipRR.offset);
+  // wheelSlip[4] at 56 is ACC's combined slip magnitude; slipRatio[4] at 640
+  // is longitudinal and slipAngle[4] at 656 is lateral — all three are
+  // exposed separately by ACC shared memory.
+  const combinedSlipFL = physicsBuf.readFloatLE(PHYSICS.wheelSlipFL.offset);
+  const combinedSlipFR = physicsBuf.readFloatLE(PHYSICS.wheelSlipFR.offset);
+  const combinedSlipRL = physicsBuf.readFloatLE(PHYSICS.wheelSlipRL.offset);
+  const combinedSlipRR = physicsBuf.readFloatLE(PHYSICS.wheelSlipRR.offset);
+  const slipRatioFL = physicsBuf.readFloatLE(PHYSICS.slipRatioFL.offset);
+  const slipRatioFR = physicsBuf.readFloatLE(PHYSICS.slipRatioFR.offset);
+  const slipRatioRL = physicsBuf.readFloatLE(PHYSICS.slipRatioRL.offset);
+  const slipRatioRR = physicsBuf.readFloatLE(PHYSICS.slipRatioRR.offset);
+  const slipAngleFL = physicsBuf.readFloatLE(PHYSICS.slipAngleFL.offset);
+  const slipAngleFR = physicsBuf.readFloatLE(PHYSICS.slipAngleFR.offset);
+  const slipAngleRL = physicsBuf.readFloatLE(PHYSICS.slipAngleRL.offset);
+  const slipAngleRR = physicsBuf.readFloatLE(PHYSICS.slipAngleRR.offset);
   const rotFL = physicsBuf.readFloatLE(PHYSICS.wheelRotFL.offset);
   const rotFR = physicsBuf.readFloatLE(PHYSICS.wheelRotFR.offset);
   const rotRL = physicsBuf.readFloatLE(PHYSICS.wheelRotRL.offset);
@@ -136,10 +151,20 @@ export function parseAccBuffers(
   const lastSectorTime = graphicsBuf.readInt32LE(GRAPHICS.lastSectorTime.offset);
   const flag = graphicsBuf.readInt32LE(GRAPHICS.flag.offset);
 
-  // Car world position from graphics (player = first car in carCoordinates array)
-  const carX = graphicsBuf.readFloatLE(GRAPHICS.gCarX.offset);
-  const carY = graphicsBuf.readFloatLE(GRAPHICS.gCarY.offset);
-  const carZ = graphicsBuf.readFloatLE(GRAPHICS.gCarZ.offset);
+  // Car world position from graphics: find player slot via playerCarID
+  const playerCarID = graphicsBuf.readInt32LE(GRAPHICS.playerCarID.offset);
+  let playerSlot = 0;
+  if (playerCarID > 0) {
+    for (let i = 0; i < 60; i++) {
+      if (graphicsBuf.readInt32LE(GRAPHICS.carIDBase.offset + i * 4) === playerCarID) {
+        playerSlot = i;
+        break;
+      }
+    }
+  }
+  const carX = graphicsBuf.readFloatLE(GRAPHICS.carCoordinatesBase.offset + playerSlot * 12);
+  const carY = graphicsBuf.readFloatLE(GRAPHICS.carCoordinatesBase.offset + playerSlot * 12 + 4);
+  const carZ = graphicsBuf.readFloatLE(GRAPHICS.carCoordinatesBase.offset + playerSlot * 12 + 8);
 
   // Electronics from graphics (integers, the "setting level" values)
   const tc = graphicsBuf.readInt32LE(GRAPHICS.tcGraphics.offset);
@@ -226,9 +251,9 @@ export function parseAccBuffers(
     VelocityX: velX,
     VelocityY: velY,
     VelocityZ: velZ,
-    AngularVelocityX: 0,
-    AngularVelocityY: 0,
-    AngularVelocityZ: 0,
+    AngularVelocityX: angVelX,
+    AngularVelocityY: angVelY,
+    AngularVelocityZ: angVelZ,
 
     Yaw: heading,
     Pitch: pitch,
@@ -240,10 +265,10 @@ export function parseAccBuffers(
     NormSuspensionTravelRL: 0,
     NormSuspensionTravelRR: 0,
 
-    TireSlipRatioFL: slipFL,
-    TireSlipRatioFR: slipFR,
-    TireSlipRatioRL: slipRL,
-    TireSlipRatioRR: slipRR,
+    TireSlipRatioFL: slipRatioFL,
+    TireSlipRatioFR: slipRatioFR,
+    TireSlipRatioRL: slipRatioRL,
+    TireSlipRatioRR: slipRatioRR,
 
     WheelRotationSpeedFL: rotFL,
     WheelRotationSpeedFR: rotFR,
@@ -300,14 +325,14 @@ export function parseAccBuffers(
     SurfaceRumbleFR: 0,
     SurfaceRumbleRL: 0,
     SurfaceRumbleRR: 0,
-    TireSlipAngleFL: slipFL,
-    TireSlipAngleFR: slipFR,
-    TireSlipAngleRL: slipRL,
-    TireSlipAngleRR: slipRR,
-    TireCombinedSlipFL: slipFL,
-    TireCombinedSlipFR: slipFR,
-    TireCombinedSlipRL: slipRL,
-    TireCombinedSlipRR: slipRR,
+    TireSlipAngleFL: slipAngleFL,
+    TireSlipAngleFR: slipAngleFR,
+    TireSlipAngleRL: slipAngleRL,
+    TireSlipAngleRR: slipAngleRR,
+    TireCombinedSlipFL: combinedSlipFL,
+    TireCombinedSlipFR: combinedSlipFR,
+    TireCombinedSlipRL: combinedSlipRL,
+    TireCombinedSlipRR: combinedSlipRR,
 
     // Suspension travel (meters)
     SuspensionTravelMFL: suspFL,

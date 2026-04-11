@@ -1,24 +1,22 @@
 /**
  * ACC telemetry recorder and replayer.
  *
- * Records raw shared memory frames (physics + graphics + static buffers)
+ * Records raw shared memory frames individually with type information
  * to a binary file for offline development and debugging.
  *
- * File format:
- *   Header: "ACCREC\0\0" (8 bytes magic)
- *           u32le version (4 bytes, currently 1)
- *           u32le physicsSize (4 bytes)
- *           u32le graphicsSize (4 bytes)
- *           u32le staticSize (4 bytes)
- *   Frames: [f64le timestamp (ms)] [physics buf] [graphics buf] [static buf]
- *           Each frame is 8 + physicsSize + graphicsSize + staticSize bytes.
+ * New format (v2):
+ *   Header: "ACCTEST\0" (8 bytes magic) — NOTE: changed from ACCREC for new format
+ *           u32le version (4 bytes, currently 2)
+ *           u32le frameCount (4 bytes)
+ *   Frames: [type(1 byte)] [timestamp(8 bytes f64)] [size(4 bytes)] [data(N bytes)]
+ *           type: 0=physics, 1=graphics, 2=static
  *
- * Replay reads frames back at original timing and feeds them through
- * parseAccBuffers → processPacket, simulating a live ACC session.
+ * Replay reads frames individually, preserving the realistic async timing
+ * between physics (~300Hz), graphics (~60Hz), and static (once) updates.
  */
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
-import { PHYSICS, GRAPHICS, STATIC } from "./structs";
+import { STATIC } from "./structs";
 import { parseAccBuffers } from "./parser";
 import { readWString } from "./utils";
 import { processPacket } from "../../pipeline";
@@ -27,19 +25,20 @@ import { getAccTrackByName } from "../../../shared/acc-track-data";
 
 const MAGIC = Buffer.from("ACCREC\0\0", "ascii");
 const VERSION = 1;
-const HEADER_SIZE = 8 + 4 + 4 + 4 + 4; // magic + version + 3 sizes
+// V1 format: magic(8) + version(4) + physicsSize(4) + graphicsSize(4) + staticSize(4) = 24 bytes
+const HEADER_SIZE_V1 = 8 + 4 + 4 + 4 + 4;
+// V2 format: magic(8) + version(4) + frameCount(4) = 16 bytes
+const HEADER_SIZE_V2 = 16;
 const FRAME_HEADER = 8; // f64le timestamp
 
 function defaultRecordingDir(): string {
-  return resolve(process.cwd(), "data", "acc-recordings");
+  return resolve(process.cwd(), "test", "artifacts", "laps");
 }
 
 export class AccRecorder {
   private _file: Bun.FileSink | null = null;
   private _path: string | null = null;
   private _frameCount = 0;
-  // @ts-ignore — written but not yet read (state tracking for future use)
-  private _headerWritten = false;
 
   get recording(): boolean {
     return this._file !== null;
@@ -63,45 +62,88 @@ export class AccRecorder {
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    this._path = resolve(outDir, `acc-${timestamp}.bin`);
-    this._file = Bun.file(this._path).writer();
+    const filename = `acc-${timestamp}.bin`;
+    this._path = resolve(outDir, filename);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this._file = (Bun.file(this._path) as any).writer({ append: true });
     this._frameCount = 0;
-    this._headerWritten = false;
 
-    // Write header
-    const header = Buffer.alloc(HEADER_SIZE);
-    MAGIC.copy(header, 0);
-    header.writeUInt32LE(VERSION, 8);
-    header.writeUInt32LE(PHYSICS.SIZE, 12);
-    header.writeUInt32LE(GRAPHICS.SIZE, 16);
-    header.writeUInt32LE(STATIC.SIZE, 20);
-    this._file.write(header);
-    this._headerWritten = true;
+    // Write header with placeholder frameCount (will update on close)
+    const header = Buffer.alloc(HEADER_SIZE_V2);
+    Buffer.from("ACCTEST\0", "ascii").copy(header, 0);
+    header.writeUInt32LE(2, 8); // version 2
+    header.writeUInt32LE(0, 12); // frameCount (placeholder)
+    this._file!.write(header);
 
-    console.log(`[ACC Recorder] Recording to ${this._path}`);
+    console.log(`[ACC Recorder] Dump file created: ${filename}`);
     return this._path;
   }
 
-  /** Record a single frame of raw buffers */
+  /** Record physics buffer from shared memory */
+  writePhysics(buffer: Buffer): void {
+    this._writeBufferFrame(0, buffer);
+  }
+
+  /** Record graphics buffer from shared memory */
+  writeGraphics(buffer: Buffer): void {
+    this._writeBufferFrame(1, buffer);
+  }
+
+  /** Record static buffer from shared memory (typically once per session) */
+  writeStatic(buffer: Buffer): void {
+    this._writeBufferFrame(2, buffer);
+  }
+
+  /** Deprecated: old API that wrote triplets. Use writePhysics/writeGraphics/writeStatic instead. */
   writeFrame(physics: Buffer, graphics: Buffer, staticData: Buffer): void {
     if (!this._file) return;
-
-    const ts = Buffer.alloc(FRAME_HEADER);
-    ts.writeDoubleLE(Date.now(), 0);
-
-    this._file.write(ts);
-    this._file.write(physics);
-    this._file.write(graphics);
-    this._file.write(staticData);
-    this._frameCount++;
+    this.writePhysics(physics);
+    this.writeGraphics(graphics);
+    this.writeStatic(staticData);
   }
 
   /** Stop recording and flush to disk */
   async stop(): Promise<void> {
     if (!this._file) return;
+
     await this._file.end();
-    console.log(`[ACC Recorder] Stopped. ${this._frameCount} frames written to ${this._path}`);
+
+    // Update frameCount in header and get final file size
+    if (this._path) {
+      const file = Bun.file(this._path);
+      const data = await file.arrayBuffer();
+      const buf = Buffer.from(data);
+      buf.writeUInt32LE(this._frameCount, 12);
+      await Bun.write(this._path, buf);
+
+      const fileSizeKb = (buf.length / 1024).toFixed(2);
+      const filename = this._path.split(/[\\\/]/).pop();
+      console.log(`[ACC Recorder] Stopped. ${this._frameCount} frames (${fileSizeKb}KB) written to ${filename}`);
+    }
+
     this._file = null;
+  }
+
+  private _writeBufferFrame(type: number, buffer: Buffer): void {
+    if (!this._file) {
+      console.warn("[ACC Recorder] _file is null, cannot write");
+      return;
+    }
+
+    const typeNames = ["physics", "graphics", "static"];
+    const frameHeader = Buffer.alloc(5);
+    frameHeader.writeUInt8(type, 0);
+    frameHeader.writeUInt32LE(buffer.length, 1);
+
+    if (this._frameCount % 100 === 0) {
+      console.log(
+        `[ACC Recorder] Writing frame ${this._frameCount}: type=${typeNames[type]} size=${buffer.length}`
+      );
+    }
+
+    this._file.write(frameHeader);
+    this._file.write(buffer);
+    this._frameCount++;
   }
 }
 
@@ -111,7 +153,7 @@ function readHeader(buf: Buffer): {
   graphicsSize: number;
   staticSize: number;
 } | null {
-  if (buf.length < HEADER_SIZE) return null;
+  if (buf.length < HEADER_SIZE_V1) return null;
   if (!buf.slice(0, 8).equals(MAGIC)) return null;
 
   const version = buf.readUInt32LE(8);
@@ -125,6 +167,128 @@ function readHeader(buf: Buffer): {
     graphicsSize: buf.readUInt32LE(16),
     staticSize: buf.readUInt32LE(20),
   };
+}
+
+/**
+ * Read all frames from an ACC recording file.
+ * Supports both old format (v1, triplets) and new format (v2, individual frames).
+ * Returns an array of {physics, graphics, staticData} buffer tuples for old format,
+ * or individual frames for new format (caller must assemble triplets).
+ */
+export function readAccFrames(
+  filePath: string
+): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
+  const data = Buffer.from(readFileSync(filePath));
+
+  // Check format by magic bytes
+  if (data.length >= 8 && data.slice(0, 8).equals(Buffer.from("ACCTEST\0", "ascii"))) {
+    // New format (v2) — return assembled triplets from individual frames
+    return _readAccFramesV2(data);
+  } else if (data.length >= 8 && data.slice(0, 8).equals(MAGIC)) {
+    // Old format (v1) — legacy triplet format
+    return _readAccFramesV1(data);
+  }
+
+  return [];
+}
+
+function _readAccFramesV1(data: Buffer): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
+  const header = readHeader(data);
+  if (!header) return [];
+
+  const { physicsSize, graphicsSize, staticSize } = header;
+  const frameSize = FRAME_HEADER + physicsSize + graphicsSize + staticSize;
+  const frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[] = [];
+
+  let offset = HEADER_SIZE_V1;
+  while (offset + frameSize <= data.length) {
+    const physicsStart = offset + FRAME_HEADER;
+    const graphicsStart = physicsStart + physicsSize;
+    const staticStart = graphicsStart + graphicsSize;
+
+    frames.push({
+      physics: Buffer.from(data.subarray(physicsStart, graphicsStart)),
+      graphics: Buffer.from(data.subarray(graphicsStart, staticStart)),
+      staticData: Buffer.from(data.subarray(staticStart, staticStart + staticSize)),
+    });
+    offset += frameSize;
+  }
+
+  return frames;
+}
+
+function _readAccFramesV2(data: Buffer): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
+  const V2_HEADER_SIZE = 16; // magic (8) + version (4) + frameCount (4)
+  const V2_FRAME_HEADER = 5; // type (1) + size (4)
+  if (data.length < V2_HEADER_SIZE) return [];
+
+  let frameCount = data.readUInt32LE(12);
+  const frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[] = [];
+
+  // Use empty buffers as placeholders until real data arrives
+  let lastPhysics = Buffer.alloc(0);
+  let lastGraphics = Buffer.alloc(0);
+  let lastStatic = Buffer.alloc(0);
+
+  let offset = V2_HEADER_SIZE;
+  let frameIdx = 0;
+
+  // If frameCount is 0 but file is huge, scan to count actual frames
+  // (handles killed process that didn't update header)
+  if (frameCount === 0 && data.length > V2_HEADER_SIZE + 100) {
+    console.log("[ACC Replay] frameCount=0 but file is large, scanning for actual frames...");
+    let scanOffset = V2_HEADER_SIZE;
+    while (scanOffset + V2_FRAME_HEADER <= data.length) {
+      const frameType = data.readUInt8(scanOffset);
+      if (frameType > 2) break; // Invalid frame type
+      const bufferSize = data.readUInt32LE(scanOffset + 1);
+      if (bufferSize > 500000) break; // Unreasonably large
+      if (scanOffset + V2_FRAME_HEADER + bufferSize > data.length) break;
+      frameCount++;
+      scanOffset += V2_FRAME_HEADER + bufferSize;
+    }
+    console.log(`[ACC Replay] Found ${frameCount} frames by scanning`);
+  }
+
+  while (frameIdx < frameCount && offset + V2_FRAME_HEADER <= data.length) {
+    const frameType = data.readUInt8(offset);
+    const bufferSize = data.readUInt32LE(offset + 1);
+
+    offset += V2_FRAME_HEADER;
+
+    if (offset + bufferSize > data.length) break;
+
+    const bufferData = Buffer.from(data.subarray(offset, offset + bufferSize));
+    offset += bufferSize;
+
+    // Update the appropriate buffer type
+    switch (frameType) {
+      case 0: // physics
+        lastPhysics = bufferData;
+        break;
+      case 1: // graphics
+        lastGraphics = bufferData;
+        break;
+      case 2: // static
+        lastStatic = bufferData;
+        break;
+      default:
+        frameIdx++;
+        continue;
+    }
+
+    // Emit a triplet for every frame (using latest of each type)
+    // This is deterministic: same sequence every replay
+    frames.push({
+      physics: lastPhysics,
+      graphics: lastGraphics,
+      staticData: lastStatic,
+    });
+
+    frameIdx++;
+  }
+
+  return frames;
 }
 
 /**
@@ -158,14 +322,14 @@ export async function replayRecording(
 
   const { physicsSize, graphicsSize, staticSize } = header;
   const frameSize = FRAME_HEADER + physicsSize + graphicsSize + staticSize;
-  const frameCount = Math.floor((data.length - HEADER_SIZE) / frameSize);
+  const frameCount = Math.floor((data.length - HEADER_SIZE_V1) / frameSize);
 
   if (frameCount === 0) {
     throw new Error(`Recording file has no frames: ${filePath}`);
   }
 
   // Resolve car/track ordinals from first frame's static buffer
-  const firstStaticOffset = HEADER_SIZE + FRAME_HEADER + physicsSize + graphicsSize;
+  const firstStaticOffset = HEADER_SIZE_V1 + FRAME_HEADER + physicsSize + graphicsSize;
   const firstStatic = data.slice(firstStaticOffset, firstStaticOffset + staticSize);
   const carModel = readWString(firstStatic, STATIC.carModel.offset, STATIC.carModel.size);
   const trackName = readWString(firstStatic, STATIC.track.offset, STATIC.track.size);
@@ -188,7 +352,7 @@ export async function replayRecording(
       for (let i = 0; i < frameCount; i++) {
         if (cancelled) return;
 
-        const frameOffset = HEADER_SIZE + i * frameSize;
+        const frameOffset = HEADER_SIZE_V1 + i * frameSize;
         const timestamp = data.readDoubleLE(frameOffset);
 
         if (firstTimestamp === null) {

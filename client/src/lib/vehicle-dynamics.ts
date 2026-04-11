@@ -130,93 +130,57 @@ export function tireState(wheelStateLabel: string, combinedSlip: number): TireSt
 
 
 // ── Understeer / Oversteer Detection ───────────────────────────────
-// Based on front-vs-rear slip angle difference (Milliken method).
-// delta = avg(front slip angle) - avg(rear slip angle)
-// Positive = understeer (front sliding more), Negative = oversteer (rear sliding more)
-// Near zero = neutral
+// Based on front-vs-rear grip utilization (friction circle) difference,
+// gated by overall grip demand. A car can only be understeering or
+// oversteering if at least one axle is close to its grip limit — a
+// straight-line cruise with 4% front util and 22% rear util is just
+// RWD drive torque, not oversteer.
+//
+// 1. If max(frontUtil, rearUtil) < GRIP_FLOOR → "neutral" (low demand)
+// 2. Otherwise: state based on utilDelta = frontUtil − rearUtil
+//    >  UTIL_DELTA_THRESHOLD  → understeer (fronts overworked)
+//    < -UTIL_DELTA_THRESHOLD  → oversteer  (rears overworked)
+//    else                     → neutral
 
 const RAD2DEG = 180 / Math.PI;
+const UTIL_DELTA_THRESHOLD = 0.15; // 15% front/rear grip-ask difference
+const GRIP_FLOOR = 0.6;            // need ≥60% grip-ask on an axle to even consider under/oversteer
 
 export interface SteerBalance {
-  frontAvgDeg: number;    // avg front slip angle (degrees)
-  rearAvgDeg: number;     // avg rear slip angle (degrees)
-  deltaDeg: number;       // front - rear (positive = understeer)
+  frontAvgDeg: number;    // avg front slip angle (degrees) — secondary info
+  rearAvgDeg: number;     // avg rear slip angle (degrees) — secondary info
+  deltaDeg: number;       // front - rear slip angle (degrees) — secondary info
+  frontUtil: number;      // avg front grip utilization (0 = idle, 1 = at limit, >1 = over)
+  rearUtil: number;       // avg rear grip utilization
+  utilDelta: number;      // front - rear utilization (positive = understeer)
   state: "understeer" | "oversteer" | "neutral";
-  severity: number;       // 0-1, how far from neutral
+  severity: number;       // 0-1, how far past the threshold
 }
-
-/** Slip angle threshold (°) for under/oversteer detection at a given speed */
-export const BALANCE_THRESHOLDS = [
-  { maxMph: 30, deg: 8 },
-  { maxMph: 60, deg: 5 },
-  { maxMph: Infinity, deg: 3 },
-] as const;
-
-export function balanceThreshold(speedMph: number): number {
-  for (const t of BALANCE_THRESHOLDS) {
-    if (speedMph <= t.maxMph) return t.deg;
-  }
-  return BALANCE_THRESHOLDS[BALANCE_THRESHOLDS.length - 1].deg;
-}
-
-/** SVG chart data for the balance threshold graph */
-export interface BalanceChartData {
-  polylinePoints: string;
-  markerX: number;
-  markerY: number;
-  yLabels: { deg: number; y: number }[];
-  xLabels: { mph: number; x: number }[];
-  degToY: (d: number) => number;
-}
-
-export function balanceChartData(speedMph: number): BalanceChartData {
-  const yScale = 10;
-  const degToY = (d: number) => 65 - (d / yScale) * 60;
-  const mphToX = (mph: number) => 30 + (Math.min(mph, 90) / 90) * 165;
-
-  // Build polyline from thresholds
-  const points: string[] = [];
-  let prevMph = 0;
-  for (const t of BALANCE_THRESHOLDS) {
-    const endMph = Math.min(t.maxMph, 90);
-    const y = degToY(t.deg);
-    if (points.length > 0) points.push(`${mphToX(prevMph)},${y}`);
-    points.push(`${mphToX(endMph)},${y}`);
-    prevMph = endMph;
-  }
-
-  const thr = balanceThreshold(speedMph);
-
-  return {
-    polylinePoints: points.join(" "),
-    markerX: mphToX(speedMph),
-    markerY: degToY(thr),
-    yLabels: BALANCE_THRESHOLDS.map(t => ({ deg: t.deg, y: degToY(t.deg) })),
-    xLabels: [0, 30, 60, 90].map(v => ({ mph: v, x: mphToX(v) })),
-    degToY,
-  };
-}
-
-// EMA state for smoothing — persists across calls
-let _smoothedDelta = 0;
-const EMA_ALPHA = 0.15; // lower = smoother, less flicker
 
 export function steerBalance(pkt: TelemetryPacket): SteerBalance {
-  const frontAvg = (Math.abs(pkt.TireSlipAngleFL) + Math.abs(pkt.TireSlipAngleFR)) / 2 * RAD2DEG;
-  const rearAvg = (Math.abs(pkt.TireSlipAngleRL) + Math.abs(pkt.TireSlipAngleRR)) / 2 * RAD2DEG;
-  const rawDelta = frontAvg - rearAvg;
+  const frontAvgDeg = (Math.abs(pkt.TireSlipAngleFL) + Math.abs(pkt.TireSlipAngleFR)) / 2 * RAD2DEG;
+  const rearAvgDeg  = (Math.abs(pkt.TireSlipAngleRL) + Math.abs(pkt.TireSlipAngleRR)) / 2 * RAD2DEG;
+  const deltaDeg = frontAvgDeg - rearAvgDeg;
 
-  // EMA smoothing to prevent frame-by-frame flickering
-  _smoothedDelta = EMA_ALPHA * rawDelta + (1 - EMA_ALPHA) * _smoothedDelta;
-  const delta = _smoothedDelta;
+  const flUtil = frictionCircleUtil(Math.abs(pkt.TireCombinedSlipFL));
+  const frUtil = frictionCircleUtil(Math.abs(pkt.TireCombinedSlipFR));
+  const rlUtil = frictionCircleUtil(Math.abs(pkt.TireCombinedSlipRL));
+  const rrUtil = frictionCircleUtil(Math.abs(pkt.TireCombinedSlipRR));
+  const frontUtil = (flUtil + frUtil) / 2;
+  const rearUtil = (rlUtil + rrUtil) / 2;
+  const utilDelta = frontUtil - rearUtil;
 
-  const speedMph = pkt.Speed * 2.23694;
-  const threshold = balanceThreshold(speedMph);
+  const maxAxleUtil = Math.max(frontUtil, rearUtil);
+  const state: SteerBalance["state"] =
+    maxAxleUtil < GRIP_FLOOR        ? "neutral"    :
+    utilDelta >  UTIL_DELTA_THRESHOLD ? "understeer" :
+    utilDelta < -UTIL_DELTA_THRESHOLD ? "oversteer"  :
+    "neutral";
+  const severity = maxAxleUtil < GRIP_FLOOR
+    ? 0
+    : Math.min(1, Math.abs(utilDelta) / (UTIL_DELTA_THRESHOLD * 2));
 
-  const state = delta > threshold ? "understeer" : delta < -threshold ? "oversteer" : "neutral";
-  const severity = Math.min(1, Math.abs(delta) / (threshold * 1.5));
-
-  return { frontAvgDeg: frontAvg, rearAvgDeg: rearAvg, deltaDeg: delta, state, severity };
+  return { frontAvgDeg, rearAvgDeg, deltaDeg, frontUtil, rearUtil, utilDelta, state, severity };
 }
 
 // ── Tire Load Estimation ───────────────────────────────────────────

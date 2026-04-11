@@ -3,11 +3,11 @@ process.title = "RaceIQ";
 import { captureConsole } from "./logger";
 captureConsole();
 
-import { spawn, execSync } from "child_process";
+import { spawn } from "child_process";
 import app from "./routes";
 import { udpListener } from "./udp";
 import { wsManager, type WSData } from "./ws";
-import { loadSettings, saveSettings } from "./settings";
+import { loadSettings } from "./settings";
 import { initServerGameAdapters } from "./games/init";
 import { initGameAdapters } from "../shared/games/init";
 
@@ -43,6 +43,17 @@ if (process.platform === "darwin") {
 
 const HTTP_PORT = Number(process.env.SERVER_PORT) || 3117;
 
+// Check for recording mode flag: --record=gameId
+// e.g. bun run dev --record=acc
+const recordingGameId = (() => {
+  const arg = process.argv.find((a) => a.startsWith("--record="));
+  return arg ? arg.split("=")[1] : null;
+})();
+
+if (recordingGameId) {
+  console.log(`[Server] Recording mode enabled for game: ${recordingGameId}`);
+}
+
 // Import DB to ensure schema is created on startup
 import "./db/index";
 import { deleteEmptySessions } from "./db/queries";
@@ -66,6 +77,7 @@ console.log(`[Server] Starting RaceIQ Server...`);
 // Kill any process already listening on the port (e.g. previous hot-reload instance)
 function killPort(port: number): void {
   try {
+    const { execSync } = require("child_process");
     if (process.platform === "win32") {
       execSync(
         `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort ${port} -State Listen -EA 0 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -EA 0 }"`,
@@ -83,7 +95,7 @@ killPort(HTTP_PORT);
 console.log("[Boot] Port cleared");
 
 // Start the HTTP/WebSocket server
-const server = Bun.serve<WSData>({
+Bun.serve<WSData>({
   port: HTTP_PORT,
   idleTimeout: 120, // seconds — AI analysis via Claude CLI can take up to 90s
   async fetch(req, server) {
@@ -152,13 +164,20 @@ console.log(`[Server] HTTP/WS server listening on http://localhost:${HTTP_PORT}`
 const udpPort = settings.udpPort ?? (Number(process.env.UDP_PORT) || 5301);
 udpListener.start(udpPort);
 
-import { accReader } from "./games/acc/shared-memory";
+import { AccSharedMemoryReader } from "./games/acc/shared-memory";
 import { startTray } from "./tray";
+
+// Create ACC reader with recording mode flag (if --record=acc)
+export const accReader = new AccSharedMemoryReader(recordingGameId === "acc");
 
 // Start ACC shared memory reader + system tray (Windows only)
 if (process.platform === "win32") {
   accReader.start();
-  console.log("[Server] ACC shared memory reader started (will connect when ACC is running)");
+  if (recordingGameId === "acc") {
+    console.log("[Server] ACC recording mode: bin file created, waiting for ACC process");
+  } else {
+    console.log("[Server] ACC shared memory reader started (will connect when ACC is running)");
+  }
   startTray(HTTP_PORT);
 }
 

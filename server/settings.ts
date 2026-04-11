@@ -23,6 +23,10 @@ const AppSettingsSchema = z.object({
   chatModel: z.string().default(""),
   localEndpoint: z.string().default("http://localhost:1234/v1"),
   wsRefreshRate: z.enum(["60", "50", "40", "30"]).default("60"),
+  // Max render rate for the 3D wireframe Canvas. Throttles gl.render
+  // calls to cap GPU/CPU work when the scene is idle or when the user
+  // wants to trade smoothness for battery/thermal headroom. 15–120 fps.
+  renderFpsCap: z.number().int().min(15).max(120).default(60),
   tireTempCelsiusThresholds: z.object({
     cold: z.number().default(65),
     warm: z.number().default(105),

@@ -7,7 +7,7 @@ import { SHARED_DIR } from "../paths";
 import { accRecorder, replayRecording } from "../games/acc/recorder";
 import { getAllAccCars } from "../../shared/acc-car-data";
 import { getAccCarSpecs } from "../../shared/acc-car-specs";
-import { accReader } from "../games/acc/shared-memory";
+import { accReader } from "../index";
 import { PHYSICS, GRAPHICS, STATIC } from "../games/acc/structs";
 import { readWString } from "../games/acc/utils";
 import { getAccSharedTrackName } from "../../shared/acc-track-data";
@@ -395,7 +395,7 @@ export const accRoutes = new Hono()
   })
 
   .get("/api/acc/recordings", (c) => {
-    const dir = resolve(process.cwd(), "data", "acc-recordings");
+    const dir = resolve(process.cwd(), "test", "artifacts", "laps");
     if (!existsSync(dir)) return c.json([]);
     const files = readdirSync(dir)
       .filter((f) => f.endsWith(".bin"))

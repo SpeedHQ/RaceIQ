@@ -23,4 +23,7 @@ export const f1Adapter: GameAdapter = {
   getSharedTrackName() {
     return undefined;
   },
+
+  carForwardOffset(yaw) { return [Math.sin(yaw), Math.cos(yaw)]; },
+  followViewRotation(yaw) { return Math.PI - yaw; },
 };

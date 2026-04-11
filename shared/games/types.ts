@@ -17,6 +17,22 @@ export interface GameAdapter {
   /** Coordinate system used for track maps */
   coordSystem: string;
 
+  /**
+   * Returns the world-space forward offset (dx, dz) for rendering the car arrow
+   * at a given yaw angle. Accounts for each game's heading convention.
+   * ACC: heading=0 = facing +X (heading = atan2(-z, x))
+   * Forza/F1: heading=0 = facing +Z
+   */
+  carForwardOffset(yaw: number): [number, number];
+
+  /**
+   * Returns the canvas rotation angle for follow/car view so the car faces up.
+   * Derived from the canvas heading angle for each coordinate system:
+   *   Forza/F1: canvas_angle = π/2 + yaw  → rotate by π - yaw
+   *   ACC:      canvas_angle = π   + yaw  → rotate by π/2 - yaw
+   */
+  followViewRotation(yaw: number): number;
+
   /** Steering center value in the raw Steer field (Forza=127, F1/ACC=0) */
   steeringCenter: number;
 

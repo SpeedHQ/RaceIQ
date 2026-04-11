@@ -85,7 +85,13 @@ export function RecordedLaps({ trackOrdinal, showSessionType = false, maxLaps = 
               const timeColor = isBest ? "text-purple-400" : delta < 0.5 ? "text-emerald-400" : delta < 1.5 ? "text-app-text" : "text-red-400";
               return (
                 <div key={l.id} className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_auto_auto] gap-x-2 px-3 py-1.5 items-center">
-                  <span className="text-xs text-app-text-muted font-mono w-10">{l.lapNumber}</span>
+                  <span
+                    className={`text-xs font-mono w-10 flex items-center gap-1 ${l.isValid ? "text-app-text-muted" : "text-red-400"}`}
+                    title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}
+                  >
+                    {!l.isValid && <span className="text-red-400 leading-none">✕</span>}
+                    {l.lapNumber}
+                  </span>
                   <span className={`text-sm font-mono tabular-nums text-right ${sectorColor(s1, bestS1)}`}>
                     {s1 > 0 ? s1.toFixed(3) : "—"}
                   </span>

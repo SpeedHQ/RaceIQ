@@ -11,11 +11,11 @@
  * Fuel and tire wear deltas are tracked per-lap for strategy overlays.
  */
 import type { TelemetryPacket, GameId } from "../shared/types";
-import { insertSession, insertLap, getTrackOutlineSectors } from "./db/queries";
-import { extractCurbSegments, recordCurbData, getTrackSectorsByOrdinal, loadSharedTrackMeta } from "../shared/track-data";
-import { getTuneAssignment } from "./db/tune-queries";
+import type { DbAdapter } from "./pipeline-adapters";
+import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface";
+import { extractCurbSegments, recordCurbData } from "../shared/track-data";
 import { assessLapRecording } from "./lap-quality";
-import { tryGetGame } from "../shared/games/registry";
+import { computeLapSectors as computeLapSectorsHelper } from "./compute-lap-sectors";
 import { detectSessionBoundary, detectLapBoundary, detectLapReset } from "./lap-detection";
 
 
@@ -49,6 +49,11 @@ export interface LapSavedEvent {
   lapTime: number;
   isValid: boolean;
   sectors: { s1: number; s2: number; s3: number } | null;
+  estimatedBestLapTime: number; // best lap time in session (0 if none yet)
+}
+
+export interface LapSavedNotification extends LapSavedEvent {
+  type: "lap-saved";
 }
 
 export interface LapCompleteEvent {
@@ -59,7 +64,28 @@ export interface LapCompleteEvent {
   sectors: { s1: number; s2: number; s3: number } | null;
 }
 
-class LapDetector {
+export class LapDetector implements ILapDetector {
+  private readonly bypassPacketRateFilter: boolean;
+  private db: DbAdapter;
+
+  constructor(dbOrOpts: DbAdapter | LapDetectorOptions, options?: { bypassPacketRateFilter?: boolean }) {
+    if (dbOrOpts && typeof (dbOrOpts as LapDetectorOptions).db !== "undefined") {
+      // New-style: LapDetectorOptions object
+      const opts = dbOrOpts as LapDetectorOptions;
+      this.db = opts.db;
+      this.bypassPacketRateFilter = opts.bypassPacketRateFilter ?? false;
+      if (opts.callbacks) {
+        if (opts.callbacks.onSessionStart) this.onSessionStart = opts.callbacks.onSessionStart;
+        if (opts.callbacks.onLapComplete) this.onLapComplete_ = opts.callbacks.onLapComplete;
+        if (opts.callbacks.onLapSaved) this.onLapSaved = opts.callbacks.onLapSaved;
+      }
+    } else {
+      // Legacy positional style: new LapDetector(db, options?)
+      this.db = dbOrOpts as DbAdapter;
+      this.bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
+    }
+  }
+
   onSessionStart?: (session: SessionState) => void | Promise<void>;
   onLapComplete_?: (event: LapCompleteEvent) => void;
   onLapSaved?: (event: LapSavedEvent) => void;
@@ -69,6 +95,7 @@ class LapDetector {
   private lapBuffer: TelemetryPacket[] = []; // all packets for the in-progress lap
   private lapIsValid: boolean = true; // false if rewind detected mid-lap
   private invalidReason: string | null = null;
+  private _loggedFeedOnce: boolean = false; // debug flag to log feed start once
   private lastLastLap: number = 0; // track LastLap changes for final-lap detection
   private lastTimestampMS: number = 0; // in-game timestamp for rewind detection
   private lastPacketTime: number = 0; // wall clock for silence timeout detection
@@ -103,6 +130,12 @@ class LapDetector {
    * Handles session creation, lap boundary detection, and rewind detection.
    */
   async feed(packet: TelemetryPacket): Promise<void> {
+    // Debug: log if lap detector receives any packets
+    if (!this._loggedFeedOnce) {
+      console.log("[Lap Detector] Started receiving packets from pipeline");
+      this._loggedFeedOnce = true;
+    }
+
     const now = Date.now();
 
     // Track packet rate to distinguish active driving from post-race trickle
@@ -115,7 +148,7 @@ class LapDetector {
 
     // Ignore trickle packets (< 30 pps) — post-race/menu screens send
     // sporadic packets that cause ghost sessions and bad data
-    if (this.currentSession && this.packetRate > 0 && this.packetRate < 30) {
+    if (!this.bypassPacketRateFilter && this.currentSession && this.packetRate > 0 && this.packetRate < 30) {
       this.lastPacketTime = now;
       return;
     }
@@ -228,7 +261,7 @@ class LapDetector {
     const sessionType = packet.f1?.sessionType;
     let sessionId: number;
     try {
-      sessionId = await insertSession(packet.CarOrdinal, trackOrd, gameId, sessionType);
+      sessionId = await this.db.insertSession(packet.CarOrdinal, trackOrd, gameId, sessionType);
     } catch (err) {
       console.error(`[LapDetector] Failed to insert session:`, (err as Error).message);
       return;
@@ -325,7 +358,7 @@ class LapDetector {
     }
 
     {
-      const tuneAssignment = await getTuneAssignment(
+      const tuneAssignment = await this.db.getTuneAssignment(
         this.currentSession.carOrdinal,
         this.currentSession.trackOrdinal
       );
@@ -356,7 +389,7 @@ class LapDetector {
         });
       }
 
-      insertLap(
+      this.db.insertLap(
         this.currentSession.sessionId,
         lapNum,
         lapTime,
@@ -370,7 +403,14 @@ class LapDetector {
         console.log(
           `[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid}${invalidReason ? ` (${invalidReason})` : ""} | Packets: ${packetCount} | DB ID: ${lapId}`
         );
-        this.onLapSaved?.({ lapId, lapNumber: lapNum, lapTime, isValid: valid, sectors });
+        this.onLapSaved?.({
+          lapId,
+          lapNumber: lapNum,
+          lapTime,
+          isValid: valid,
+          sectors,
+          estimatedBestLapTime: this.currentSession!.bestLapTime,
+        });
       }).catch((err) => {
         console.error(`[Lap] Failed to save lap ${lapNum}:`, err);
       });
@@ -401,11 +441,11 @@ class LapDetector {
       const lastPacket = this.lapBuffer[this.lapBuffer.length - 1];
       const lapTime = lastPacket.CurrentLap;
       if (lapTime >= 10) {
-          const tuneAssignment = await getTuneAssignment(
+          const tuneAssignment = await this.db.getTuneAssignment(
             this.currentSession.carOrdinal,
             this.currentSession.trackOrdinal
           );
-          insertLap(
+          this.db.insertLap(
             this.currentSession.sessionId,
             this.currentLapNumber,
             lapTime,
@@ -413,7 +453,8 @@ class LapDetector {
             this.lapBuffer,
             null,
             tuneAssignment?.tuneId ?? null,
-            "incomplete"
+            "incomplete",
+            null
           ).then(() => {
             console.log(`[Lap] Saved incomplete lap (session ended)`);
           }).catch((err) => {
@@ -453,13 +494,13 @@ class LapDetector {
     const isComplete = lastPacket.LastLap > 0 && lastPacket.LastLap !== this.lastLastLap;
 
     {
-      const tuneAssignment = await getTuneAssignment(
+      const tuneAssignment = await this.db.getTuneAssignment(
         this.currentSession.carOrdinal,
         this.currentSession.trackOrdinal
       );
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
-      insertLap(
+      this.db.insertLap(
         this.currentSession.sessionId,
         lapNum,
         lapTime,
@@ -467,7 +508,8 @@ class LapDetector {
         this.lapBuffer,
         null,
         tuneAssignment?.tuneId ?? null,
-        isComplete ? this.invalidReason : "incomplete"
+        isComplete ? this.invalidReason : "incomplete",
+        null
       ).then((lapId) => {
         console.log(
           `[Lap] Flushed stale lap ${lapNum} | Time: ${formatLapTime(lapTime)} | ${isComplete ? "Complete" : "Incomplete"} | Packets: ${packetCount} | DB ID: ${lapId} (${(silenceMs / 1000).toFixed(0)}s silence)`
@@ -512,60 +554,12 @@ class LapDetector {
     packets: TelemetryPacket[],
     lapTime: number
   ): Promise<{ s1: number; s2: number; s3: number } | null> {
-    if (!this.currentSession || packets.length < 50) return null;
+    if (!this.currentSession) return null;
     const { trackOrdinal, gameId } = this.currentSession;
-
-    // Resolve sector boundaries
-    const adapter = tryGetGame(gameId);
-    const sharedName = adapter?.getSharedTrackName?.(trackOrdinal);
-    const dbSectors = await getTrackOutlineSectors(trackOrdinal, gameId);
-    const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-    const gameSectors = gameId ? (sharedMeta as any)?.games?.[gameId]?.sectors : null;
-    const raw = dbSectors ?? gameSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(trackOrdinal);
-    const s1End = raw?.s1End ?? 1 / 3;
-    const s2End = raw?.s2End ?? 2 / 3;
-
-    // F1: prefer game-broadcast sector times
-    let s1 = 0, s2 = 0;
-    for (const p of packets) {
-      if ((p.f1?.sector1Time ?? 0) > 0) s1 = p.f1!.sector1Time;
-      if ((p.f1?.sector2Time ?? 0) > 0) s2 = p.f1!.sector2Time;
-    }
-
-    // ACC: use native sector times tracked live during the lap
-    if (s1 === 0 && s2 === 0 && gameId === "acc" && this.accS1 > 0 && this.accS2 > 0) {
-      s1 = this.accS1;
-      s2 = this.accS2;
-    }
-
-    // Fall back to distance-fraction computation
-    if (s1 === 0 || s2 === 0) {
-      const startDist = packets[0].DistanceTraveled;
-      const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
-      if (lapDist < 100) return null;
-
-      let sector = 0;
-      let sectorStart = packets[0].CurrentLap;
-      s1 = 0;
-      s2 = 0;
-      for (const p of packets) {
-        const frac = (p.DistanceTraveled - startDist) / lapDist;
-        const expected = frac < s1End ? 0 : frac < s2End ? 1 : 2;
-        if (expected > sector) {
-          const t = p.CurrentLap - sectorStart;
-          if (sector === 0) s1 = t;
-          else if (sector === 1) s2 = t;
-          sectorStart = p.CurrentLap;
-          sector = expected;
-        }
-      }
-    }
-
-    if (s1 > 0 && s2 > 0) {
-      const s3 = lapTime - s1 - s2;
-      return s3 > 0 ? { s1, s2, s3 } : null;
-    }
-    return null;
+    const accLiveSectors = this.accS1 > 0 && this.accS2 > 0
+      ? { s1: this.accS1, s2: this.accS2 }
+      : undefined;
+    return computeLapSectorsHelper(this.db, trackOrdinal, gameId, packets, lapTime, accLiveSectors);
   }
 
   private resetLapState(newLapFirstPacket: TelemetryPacket, seedPackets: TelemetryPacket[] = []): void {
@@ -897,7 +891,3 @@ function formatLapTime(seconds: number): string {
   return `${mins}:${secs.toFixed(3).padStart(6, "0")}`;
 }
 
-export const lapDetector = new LapDetector();
-
-// Periodic check: flush stale laps when packets stop (e.g. race ended, game closed)
-setInterval(() => lapDetector.flushStaleLap(), 5_000);

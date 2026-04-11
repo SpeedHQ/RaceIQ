@@ -115,13 +115,16 @@ export function useLapPlayback({
       if (telemetry.length === 0) return;
       if (e.key === "ArrowLeft") {
         e.preventDefault();
-        setCursorIdx(Math.max(0, cursorRef.current - 1));
-        cursorRef.current = Math.max(0, cursorRef.current - 1);
+        const next = Math.max(0, cursorRef.current - 1);
+        cursorRef.current = next;
+        setCursorIdx(next);
+        updateOverlays(next);
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
         const next = Math.min(telemetry.length - 1, cursorRef.current + 1);
         cursorRef.current = next;
         setCursorIdx(next);
+        updateOverlays(next);
       } else if (e.key === " ") {
         const tag = (e.target as HTMLElement)?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA") return;
@@ -131,7 +134,7 @@ export function useLapPlayback({
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [telemetry, cursorRef, setCursorIdx, setPlaying]);
+  }, [telemetry, cursorRef, setCursorIdx, setPlaying, updateOverlays]);
 
   return { updateOverlays };
 }

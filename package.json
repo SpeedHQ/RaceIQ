@@ -6,8 +6,15 @@
     "client"
   ],
   "scripts": {
-    "dev": "concurrently \"bun run dev:server\" \"bun run dev:client\"",
+    "dev": "concurrently \"bun --watch run server/index.ts\" \"bun run dev:client\"",
     "dev:server": "bun --watch run server/index.ts",
+    "dev:record": "bun run server/record.ts",
+    "dev:record:f1": "bun run server/record.ts f1-2025",
+    "dev:record:fm": "bun run server/record.ts fm-2023",
+    "dev:record:acc": "bun run server/record.ts acc",
+    "dev:record:acc:new": "concurrently \"bun --watch run server/index.ts --record=acc\" \"cd client && portless raceiq bun run dev\"",
+    "dev:record:f1:new": "concurrently \"bun --watch run server/index.ts --record=f1-2025\" \"cd client && portless raceiq bun run dev\"",
+    "dev:record:fm:new": "concurrently \"bun --watch run server/index.ts --record=fm-2023\" \"cd client && portless raceiq bun run dev\"",
     "dev:client": "cd client && portless raceiq bun run dev",
     "build": "mkdir -p dist && rm -rf dist/* && cd client && bun vite build && cd .. && bun scripts/copy-shared-data.ts && cp -r client/dist dist/public && NODE_ENV=production bun build --compile server/bootstrap.ts --outfile dist/raceiq",
     "start": "NODE_ENV=production ./dist/raceiq",
@@ -34,8 +41,10 @@
     "drizzle-orm": "^0.45.2",
     "fflate": "^0.8.2",
     "fzstd": "^0.1.1",
+    "gif-encoder": "^0.7.2",
     "hono": "^4.12.10",
     "libsql": "^0.5.29",
+    "sharp": "^0.34.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {

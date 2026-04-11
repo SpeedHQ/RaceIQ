@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect, useLayoutEffect, useImperativeHandle, forwardRef } from "react";
 import type { TelemetryPacket } from "@shared/types";
+import { tryGetGame } from "@shared/games/registry";
 
 export interface Point {
   x: number;
@@ -16,6 +17,7 @@ export interface TrackHighlight {
   color: "good" | "warning" | "critical";
   label: string;
 }
+
 
 const HIGHLIGHT_COLORS = {
   good: { stroke: "rgba(52, 211, 153, 0.7)", width: 6 },       // green
@@ -401,11 +403,12 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     ctx.scale(dpr, dpr);
 
     const pkt = telemetry[idx];
+    const game = pkt ? tryGetGame(pkt.gameId) : undefined;
     if (pkt && (pkt.PositionX !== 0 || pkt.PositionZ !== 0)) {
       const carCx = t.offsetX + (t.maxX - pkt.PositionX) * t.scale;
       const carCy = t.offsetZ + (pkt.PositionZ - t.minZ) * t.scale;
       ctx.translate(t.w / 2, t.h / 2);
-      ctx.rotate(Math.PI - pkt.Yaw);
+      ctx.rotate(game?.followViewRotation(pkt.Yaw) ?? Math.PI - pkt.Yaw);
       ctx.translate(-carCx, -carCy);
     }
 
@@ -415,8 +418,9 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     if (pkt2 && (pkt2.PositionX !== 0 || pkt2.PositionZ !== 0)) {
       const cx = t.offsetX + (t.maxX - pkt2.PositionX) * t.scale;
       const cy = t.offsetZ + (pkt2.PositionZ - t.minZ) * t.scale;
-      const fwdX = pkt2.PositionX + Math.sin(pkt2.Yaw);
-      const fwdZ = pkt2.PositionZ + Math.cos(pkt2.Yaw);
+      const [dx, dz] = game?.carForwardOffset(pkt2.Yaw) ?? [Math.sin(pkt2.Yaw), Math.cos(pkt2.Yaw)];
+      const fwdX = pkt2.PositionX + dx;
+      const fwdZ = pkt2.PositionZ + dz;
       const fx = t.offsetX + (t.maxX - fwdX) * t.scale;
       const fy = t.offsetZ + (fwdZ - t.minZ) * t.scale;
       const angle = Math.atan2(fy - cy, fx - cx);
@@ -474,8 +478,10 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
 
     const [cx, cy] = toCanvas(pkt.PositionX, pkt.PositionZ);
     const triSize = 8;
-    const fwdX = pkt.PositionX + Math.sin(pkt.Yaw) * 1;
-    const fwdZ = pkt.PositionZ + Math.cos(pkt.Yaw) * 1;
+    const game = tryGetGame(pkt.gameId);
+    const [dx, dz] = game?.carForwardOffset(pkt.Yaw) ?? [Math.sin(pkt.Yaw), Math.cos(pkt.Yaw)];
+    const fwdX = pkt.PositionX + dx;
+    const fwdZ = pkt.PositionZ + dz;
     const [fx, fy] = toCanvas(fwdX, fwdZ);
     const angle = Math.atan2(fy - cy, fx - cx);
     ctx.save();

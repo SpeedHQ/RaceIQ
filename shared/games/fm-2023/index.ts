@@ -40,4 +40,7 @@ export const forzaAdapter: GameAdapter = {
     1: "RWD",
     2: "AWD",
   },
+
+  carForwardOffset(yaw) { return [Math.sin(yaw), Math.cos(yaw)]; },
+  followViewRotation(yaw) { return Math.PI - yaw; },
 };
