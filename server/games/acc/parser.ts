@@ -78,6 +78,42 @@ export function parseAccBuffers(
   const outerRL = physicsBuf.readFloatLE(PHYSICS.tyreTempOuterRL.offset);
   const outerRR = physicsBuf.readFloatLE(PHYSICS.tyreTempOuterRR.offset);
 
+  // Camber (radians, negative = top of tire leaning in)
+  const camberFL = physicsBuf.readFloatLE(PHYSICS.camberFL.offset);
+  const camberFR = physicsBuf.readFloatLE(PHYSICS.camberFR.offset);
+  const camberRL = physicsBuf.readFloatLE(PHYSICS.camberRL.offset);
+  const camberRR = physicsBuf.readFloatLE(PHYSICS.camberRR.offset);
+
+  // Per-tire contact heading (unit vec, world space, forward-rolling dir)
+  const chBase = PHYSICS.contactHeadingBase.offset;
+  const contactHeading: [
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+  ] = [
+    [
+      physicsBuf.readFloatLE(chBase),
+      physicsBuf.readFloatLE(chBase + 4),
+      physicsBuf.readFloatLE(chBase + 8),
+    ],
+    [
+      physicsBuf.readFloatLE(chBase + 12),
+      physicsBuf.readFloatLE(chBase + 16),
+      physicsBuf.readFloatLE(chBase + 20),
+    ],
+    [
+      physicsBuf.readFloatLE(chBase + 24),
+      physicsBuf.readFloatLE(chBase + 28),
+      physicsBuf.readFloatLE(chBase + 32),
+    ],
+    [
+      physicsBuf.readFloatLE(chBase + 36),
+      physicsBuf.readFloatLE(chBase + 40),
+      physicsBuf.readFloatLE(chBase + 44),
+    ],
+  ];
+
   // Tire wear (0..1, higher = more worn)
   const wearFL = physicsBuf.readFloatLE(PHYSICS.tyreWearFL.offset);
   const wearFR = physicsBuf.readFloatLE(PHYSICS.tyreWearFR.offset);
@@ -181,6 +217,14 @@ export function parseAccBuffers(
 
   // --- Static ---
   const maxRpm = staticBuf.readInt32LE(STATIC.maxRpm.offset);
+  const suspMaxFL = staticBuf.readFloatLE(STATIC.suspMaxFL.offset);
+  const suspMaxFR = staticBuf.readFloatLE(STATIC.suspMaxFR.offset);
+  const suspMaxRL = staticBuf.readFloatLE(STATIC.suspMaxRL.offset);
+  const suspMaxRR = staticBuf.readFloatLE(STATIC.suspMaxRR.offset);
+  const tyreRadFL = staticBuf.readFloatLE(STATIC.tyreRadiusFL.offset);
+  const tyreRadFR = staticBuf.readFloatLE(STATIC.tyreRadiusFR.offset);
+  const tyreRadRL = staticBuf.readFloatLE(STATIC.tyreRadiusRL.offset);
+  const tyreRadRR = staticBuf.readFloatLE(STATIC.tyreRadiusRR.offset);
 
   // --- Derived values ---
   const gear = accGear <= 1 ? 0 : accGear - 1;
@@ -208,6 +252,9 @@ export function parseAccBuffers(
     tireCoreTemp: [coreFL, coreFR, coreRL, coreRR],
     tireInnerTemp: [innerFL, innerFR, innerRL, innerRR],
     tireOuterTemp: [outerFL, outerFR, outerRL, outerRR],
+    tireCamber: [camberFL, camberFR, camberRL, camberRR],
+    tireRadius: [tyreRadFL, tyreRadFR, tyreRadRL, tyreRadRR],
+    tireContactHeading: contactHeading,
     brakePadCompound: 0,
     brakePadWear: [padFL, padFR, padRL, padRR],
     tc,
@@ -259,11 +306,11 @@ export function parseAccBuffers(
     Pitch: pitch,
     Roll: roll,
 
-    // Not provided by ACC — compute at display time from SuspensionTravelM
-    NormSuspensionTravelFL: 0,
-    NormSuspensionTravelFR: 0,
-    NormSuspensionTravelRL: 0,
-    NormSuspensionTravelRR: 0,
+    // Normalized 0..1 from travel / suspensionMaxTravel (from STATIC)
+    NormSuspensionTravelFL: suspMaxFL > 0 ? suspFL / suspMaxFL : 0,
+    NormSuspensionTravelFR: suspMaxFR > 0 ? suspFR / suspMaxFR : 0,
+    NormSuspensionTravelRL: suspMaxRL > 0 ? suspRL / suspMaxRL : 0,
+    NormSuspensionTravelRR: suspMaxRR > 0 ? suspRR / suspMaxRR : 0,
 
     TireSlipRatioFL: slipRatioFL,
     TireSlipRatioFR: slipRatioFR,

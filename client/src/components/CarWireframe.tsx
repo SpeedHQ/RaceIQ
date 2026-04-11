@@ -172,6 +172,9 @@ export const CarWireframe = React.memo(function CarWireframe({
         {!minimal && <ToggleButton label="Track" active={toggles.track} onClick={() => toggle("track")} />}
         {!minimal && <ToggleButton label="Grid" active={toggles.grid} onClick={() => toggle("grid")} />}
         {!minimal && <ToggleButton label="Drive" active={toggles.drivetrain} onClick={() => toggle("drivetrain")} />}
+        {/* Camber toggle intentionally not rendered: ACC is the only game
+            with camber in telemetry and Kunos currently ships camberRAD[4]
+            as a zeroed stub. Re-enable when the game writes real values. */}
         {minimal && <ToggleButton label="Dims" active={toggles.dimensions} onClick={() => toggle("dimensions")} />}
       </div>}
 

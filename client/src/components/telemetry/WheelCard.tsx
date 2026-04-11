@@ -24,7 +24,9 @@ export function WheelCard({ label, temp, wear, slipAngle, outerSide, wheelState,
   puddleDepth: number;
   brakeTemp?: number;
 }) {
-  const clampedAngle = Math.max(-25, Math.min(25, slipAngle));
+  // Negate for display: physics sign convention is opposite of the visual
+  // "tire heading relative to velocity" we want to show in the SVG.
+  const clampedAngle = -Math.max(-25, Math.min(25, slipAngle));
   const stroke = tireTempColor(temp, thresholds);
   const fill = tireTempColor(temp, thresholds);
   const slipCol = slipAngleColor(slipAngle);
@@ -91,13 +93,6 @@ export function WheelCard({ label, temp, wear, slipAngle, outerSide, wheelState,
             <line key={dy} x1={cx - 8} y1={cy + dy} x2={cx + 8} y2={cy + dy} stroke={stroke} strokeWidth={0.5} opacity={0.15} />
           ))}
         </g>
-
-        {/* Slip angle line — only for front wheels where steering makes it meaningful */}
-        {steerAngle !== 0 && (
-          <g transform={`rotate(${clampedAngle}, ${cx}, ${cy})`}>
-            <line x1={cx} y1={cy + tH / 2 - 4} x2={cx} y2={cy - tH / 2 + 4} stroke={slipCol} strokeWidth={1.2} opacity={0.6} />
-          </g>
-        )}
 
         {/* Spin/Lock indicators (static, inside tire) */}
         {isSpin && (

@@ -84,6 +84,27 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
 
   const steerRad = -(packet.Steer / 127) * 0.35;
 
+  // All games: fronts rotate by the normalized Steer input scaled to a
+  // ballpark max front wheel angle; rears stay at 0. ACC's tyreContactHeading
+  // field is parsed into acc.tireContactHeading for potential future use but
+  // isn't used here — in practice the field tracks tire velocity direction
+  // more than the physical wheel axle, so steering barely moves it.
+  const steerFL = steerRad;
+  const steerFR = steerRad;
+  const steerRL = 0;
+  const steerRR = 0;
+
+  // Camber rendering is currently disabled for every game. ACC is the only
+  // title exposing a camber field (camberRAD[4] in the shared memory Physics
+  // page) and Kunos ships it as a zeroed stub — reading it produces no
+  // visible effect. The parser still reads it into packet.acc.tireCamber so
+  // this can be re-enabled (along with the Camber UI toggle) the moment ACC
+  // or AC Evo starts writing real values.
+  const cambFL = 0;
+  const cambFR = 0;
+  const cambRL = 0;
+  const cambRR = 0;
+
   // Zero out wheel rotation during lockup — locked wheel = no spin
   const ws = allWheelStates(packet);
   const rotFL = ws.fl.state === "lockup" ? 0 : packet.WheelRotationSpeedFL;
@@ -99,10 +120,10 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
   const fTireW = carModel.frontTireWidth ?? 0.30;
   const rTireW = carModel.rearTireWidth ?? 0.30;
   const wheelData = [
-    { pos: [wb, 0, -ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFL, traction: tireState(ws.fl.state, ws.fl.slipRatio, packet.TireSlipAngleFL).hex, rimColor: colorFL, brakeTemp: packet.BrakeTempFrontLeft ?? packet.f1?.brakeTempFL ?? 0, onRumble: packet.WheelOnRumbleStripFL !== 0, puddle: packet.WheelInPuddleDepthFL, wearRate: wearRatesVal[0], wear: packet.TireWearFL, rotSpeed: rotFL, tireRadius: fTireR, tireWidth: fTireW },
-    { pos: [wb, 0, ft] as [number, number, number], steer: steerRad, susp: packet.NormSuspensionTravelFR, traction: tireState(ws.fr.state, ws.fr.slipRatio, packet.TireSlipAngleFR).hex, rimColor: colorFR, brakeTemp: packet.BrakeTempFrontRight ?? packet.f1?.brakeTempFR ?? 0, onRumble: packet.WheelOnRumbleStripFR !== 0, puddle: packet.WheelInPuddleDepthFR, wearRate: wearRatesVal[1], wear: packet.TireWearFR, rotSpeed: rotFR, tireRadius: fTireR, tireWidth: fTireW },
-    { pos: [-wb, 0, -rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRL, traction: tireState(ws.rl.state, ws.rl.slipRatio, packet.TireSlipAngleRL).hex, rimColor: colorRL, brakeTemp: packet.BrakeTempRearLeft ?? packet.f1?.brakeTempRL ?? 0, onRumble: packet.WheelOnRumbleStripRL !== 0, puddle: packet.WheelInPuddleDepthRL, wearRate: wearRatesVal[2], wear: packet.TireWearRL, rotSpeed: rotRL, tireRadius: rTireR, tireWidth: rTireW },
-    { pos: [-wb, 0, rt] as [number, number, number], steer: 0, susp: packet.NormSuspensionTravelRR, traction: tireState(ws.rr.state, ws.rr.slipRatio, packet.TireSlipAngleRR).hex, rimColor: colorRR, brakeTemp: packet.BrakeTempRearRight ?? packet.f1?.brakeTempRR ?? 0, onRumble: packet.WheelOnRumbleStripRR !== 0, puddle: packet.WheelInPuddleDepthRR, wearRate: wearRatesVal[3], wear: packet.TireWearRR, rotSpeed: rotRR, tireRadius: rTireR, tireWidth: rTireW },
+    { pos: [wb, 0, -ft] as [number, number, number], steer: steerFL, camber: cambFL, susp: packet.NormSuspensionTravelFL, traction: tireState(ws.fl.state, ws.fl.slipRatio, packet.TireSlipAngleFL).hex, rimColor: colorFL, brakeTemp: packet.BrakeTempFrontLeft ?? packet.f1?.brakeTempFL ?? 0, onRumble: packet.WheelOnRumbleStripFL !== 0, puddle: packet.WheelInPuddleDepthFL, wearRate: wearRatesVal[0], wear: packet.TireWearFL, rotSpeed: rotFL, tireRadius: fTireR, tireWidth: fTireW },
+    { pos: [wb, 0, ft] as [number, number, number], steer: steerFR, camber: cambFR, susp: packet.NormSuspensionTravelFR, traction: tireState(ws.fr.state, ws.fr.slipRatio, packet.TireSlipAngleFR).hex, rimColor: colorFR, brakeTemp: packet.BrakeTempFrontRight ?? packet.f1?.brakeTempFR ?? 0, onRumble: packet.WheelOnRumbleStripFR !== 0, puddle: packet.WheelInPuddleDepthFR, wearRate: wearRatesVal[1], wear: packet.TireWearFR, rotSpeed: rotFR, tireRadius: fTireR, tireWidth: fTireW },
+    { pos: [-wb, 0, -rt] as [number, number, number], steer: steerRL, camber: cambRL, susp: packet.NormSuspensionTravelRL, traction: tireState(ws.rl.state, ws.rl.slipRatio, packet.TireSlipAngleRL).hex, rimColor: colorRL, brakeTemp: packet.BrakeTempRearLeft ?? packet.f1?.brakeTempRL ?? 0, onRumble: packet.WheelOnRumbleStripRL !== 0, puddle: packet.WheelInPuddleDepthRL, wearRate: wearRatesVal[2], wear: packet.TireWearRL, rotSpeed: rotRL, tireRadius: rTireR, tireWidth: rTireW },
+    { pos: [-wb, 0, rt] as [number, number, number], steer: steerRR, camber: cambRR, susp: packet.NormSuspensionTravelRR, traction: tireState(ws.rr.state, ws.rr.slipRatio, packet.TireSlipAngleRR).hex, rimColor: colorRR, brakeTemp: packet.BrakeTempRearRight ?? packet.f1?.brakeTempRR ?? 0, onRumble: packet.WheelOnRumbleStripRR !== 0, puddle: packet.WheelInPuddleDepthRR, wearRate: wearRatesVal[3], wear: packet.TireWearRR, rotSpeed: rotRR, tireRadius: rTireR, tireWidth: rTireW },
   ];
 
   return (
@@ -180,6 +201,7 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
             key={i}
             position={w.pos}
             steerAngle={w.steer}
+            camberAngle={w.camber}
             gripColor={w.traction}
             rimColor={w.rimColor}
             rotationSpeed={w.rotSpeed}

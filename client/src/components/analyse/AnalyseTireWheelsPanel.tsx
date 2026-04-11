@@ -36,6 +36,11 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
   const brakeRR = currentPacket.BrakeTempRearRight ?? currentPacket.f1?.brakeTempRR ?? 0;
   const hasBrakes = brakeFL > 0 || brakeFR > 0;
 
+  // Camber row intentionally omitted: ACC declares camberRAD[4] in its shared
+  // memory struct but Kunos has never populated it — the field ships as 0 on
+  // every release, in pit/track/replay. Re-enable once ACC (or AC Evo) starts
+  // writing real values.
+
   const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
 
   const rows = [

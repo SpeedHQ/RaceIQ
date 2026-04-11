@@ -10,6 +10,7 @@ const useWheelGeometries = (radius = 0.34, width = 0.30) =>
 export function Wheel({
   position,
   steerAngle,
+  camberAngle = 0,
   gripColor,
   rimColor,
   rotationSpeed,
@@ -26,6 +27,7 @@ export function Wheel({
 }: {
   position: [number, number, number];
   steerAngle: number;
+  camberAngle?: number; // radians, already sign-flipped per side by caller
   gripColor: string;
   rimColor: string;
   rotationSpeed: number;
@@ -55,16 +57,18 @@ export function Wheel({
   return (
     <group position={[position[0], wheelY, position[2]]}>
       <group rotation={[0, steerAngle, 0]}>
-        <group ref={spinRef}>
-          <mesh geometry={tire}>
-            <meshBasicMaterial color={gripColor} wireframe />
-          </mesh>
-          <mesh geometry={rim}>
-            <meshBasicMaterial color={rimColor} transparent opacity={0.85} side={THREE.DoubleSide} />
-          </mesh>
-          <mesh geometry={hub}>
-            <meshBasicMaterial color="#475569" wireframe side={THREE.DoubleSide} />
-          </mesh>
+        <group rotation={[camberAngle, 0, 0]}>
+          <group ref={spinRef}>
+            <mesh geometry={tire}>
+              <meshBasicMaterial color={gripColor} wireframe />
+            </mesh>
+            <mesh geometry={rim}>
+              <meshBasicMaterial color={rimColor} transparent opacity={0.85} side={THREE.DoubleSide} />
+            </mesh>
+            <mesh geometry={hub}>
+              <meshBasicMaterial color="#475569" wireframe side={THREE.DoubleSide} />
+            </mesh>
+          </group>
         </group>
         {/* Brake disc — vertical, inboard of wheel (between wheel and spring) */}
         {brakeTemp > 0 && (

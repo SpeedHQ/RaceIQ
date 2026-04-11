@@ -184,6 +184,15 @@ export interface AccExtendedData {
   tireCoreTemp: [number, number, number, number];
   tireInnerTemp: [number, number, number, number];
   tireOuterTemp: [number, number, number, number];
+  tireCamber: [number, number, number, number]; // radians, FL/FR/RL/RR
+  tireRadius: [number, number, number, number]; // metres, FL/FR/RL/RR (from STATIC)
+  // Per-tire forward-rolling heading unit vector in world space (FL/FR/RL/RR, [x,y,z])
+  tireContactHeading: [
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+  ];
 
   // Brake detail
   brakePadCompound: number;

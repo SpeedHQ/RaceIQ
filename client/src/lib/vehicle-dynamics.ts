@@ -61,6 +61,14 @@ export function slipRatio(wheelRotSpeed: number, groundSpeed: number, wheelRadiu
 // Derived from average wheel speed vs ground speed when driving straight
 
 export function effectiveWheelRadius(pkt: TelemetryPacket): number {
+  // ACC publishes authoritative per-tire radius in the static page — use it
+  // directly (averaged) instead of back-solving from rotation vs ground speed,
+  // which is unreliable under slip/lockup and at low speed.
+  const accRadii = pkt.acc?.tireRadius;
+  if (accRadii && accRadii[0] > 0) {
+    return (accRadii[0] + accRadii[1] + accRadii[2] + accRadii[3]) / 4;
+  }
+
   const gs = pkt.Speed; // m/s
   const rotSpeeds = [
     Math.abs(pkt.WheelRotationSpeedFL),
