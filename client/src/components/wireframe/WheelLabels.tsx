@@ -8,10 +8,10 @@ const REF_DIST = 4;
 const MIN_FACTOR = 1;
 const MAX_FACTOR = 2.5;
 
-const CARD_W = 256;
-const ROW_H = 56;
-const PAD_Y = 14;
-const BASE_SCALE = 0.82;
+const CARD_W = 200;
+const ROW_H = 42;
+const PAD_Y = 10;
+const BASE_SCALE = 0.62;
 
 function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
@@ -126,7 +126,7 @@ export function WheelInfoCard({
     rows.forEach((row, i) => {
       const y = PAD_Y + i * ROW_H + ROW_H / 2;
       if (row.kind === "health") {
-        ctx.font = "bold 32px monospace";
+        ctx.font = "bold 24px monospace";
         const text = `${row.pct}%`;
         const metrics = ctx.measureText(text);
         const heartSize = 13;
@@ -138,11 +138,11 @@ export function WheelInfoCard({
         ctx.fillText(text, left + heartSize * 2 + 10, y);
         ctx.textAlign = "center";
       } else if (row.kind === "temp") {
-        ctx.font = "bold 38px monospace";
+        ctx.font = "bold 28px monospace";
         ctx.fillStyle = row.color;
         ctx.fillText(row.text, CARD_W / 2, y);
       } else if (row.kind === "brake") {
-        ctx.font = "bold 32px monospace";
+        ctx.font = "bold 24px monospace";
         const metrics = ctx.measureText(row.text);
         const iconW = 36;
         const groupW = iconW + 8 + metrics.width;
@@ -153,11 +153,11 @@ export function WheelInfoCard({
         ctx.fillText(row.text, left + iconW + 8, y);
         ctx.textAlign = "center";
       } else if (row.kind === "pressure") {
-        ctx.font = "bold 30px monospace";
+        ctx.font = "bold 22px monospace";
         ctx.fillStyle = row.color;
         ctx.fillText(row.text, CARD_W / 2, y);
       } else if (row.kind === "wear") {
-        ctx.font = "bold 28px monospace";
+        ctx.font = "bold 20px monospace";
         ctx.fillStyle = "#f97316";
         ctx.fillText(row.text, CARD_W / 2, y);
       }
