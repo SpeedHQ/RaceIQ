@@ -4,13 +4,103 @@ import { resolve } from "path";
 import { parsePacket } from "../parsers/index";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../games/init";
+import { getAllServerGames } from "../games/registry";
 import { readAccFrames } from "../games/acc/recorder";
 import { parseAccBuffers } from "../games/acc/parser";
 import { readWString } from "../games/acc/utils";
 import { STATIC } from "../games/acc/structs";
 import { getAccCarByModel } from "../../shared/acc-car-data";
 import { getAccTrackByName } from "../../shared/acc-track-data";
-import type { GameId } from "../../shared/types";
+import { KNOWN_GAME_IDS, type GameId, type TelemetryPacket, type LapMeta } from "../../shared/types";
+import { getGame } from "../../shared/games/registry";
+import { Pipeline } from "../pipeline";
+import { RealDbAdapter, type DbAdapter, type WsAdapter } from "../pipeline-adapters";
+
+class NoopWsAdapter implements WsAdapter {
+  broadcast(): void {}
+  broadcastNotification(): void {}
+  broadcastDevState(): void {}
+}
+
+interface ImportedLap {
+  lapId: number;
+  sessionId: number;
+  lapNumber: number;
+  lapTime: number;
+  isValid: boolean;
+  carOrdinal: number;
+  trackOrdinal: number;
+}
+
+/**
+ * Delegates to RealDbAdapter but captures the returned lap IDs + session
+ * metadata so the import endpoint can tell the UI what got inserted and
+ * build deep links into the analyse page.
+ */
+class ImportCaptureAdapter implements DbAdapter {
+  private readonly _inner = new RealDbAdapter();
+  readonly laps: ImportedLap[] = [];
+  private readonly _sessionMeta = new Map<
+    number,
+    { carOrdinal: number; trackOrdinal: number }
+  >();
+
+  async insertSession(
+    carOrdinal: number,
+    trackOrdinal: number,
+    gameId: GameId,
+    sessionType?: string
+  ): Promise<number> {
+    const id = await this._inner.insertSession(carOrdinal, trackOrdinal, gameId, sessionType);
+    this._sessionMeta.set(id, { carOrdinal, trackOrdinal });
+    return id;
+  }
+
+  async insertLap(
+    sessionId: number,
+    lapNumber: number,
+    lapTime: number,
+    isValid: boolean,
+    packets: TelemetryPacket[],
+    profileId: number | null,
+    tuneId: number | null,
+    invalidReason: string | null,
+    sectors: { s1: number; s2: number; s3: number } | null
+  ): Promise<number> {
+    const id = await this._inner.insertLap(
+      sessionId, lapNumber, lapTime, isValid, packets, profileId, tuneId, invalidReason, sectors
+    );
+    const meta = this._sessionMeta.get(sessionId);
+    this.laps.push({
+      lapId: id,
+      sessionId,
+      lapNumber,
+      lapTime,
+      isValid,
+      carOrdinal: meta?.carOrdinal ?? 0,
+      trackOrdinal: meta?.trackOrdinal ?? 0,
+    });
+    return id;
+  }
+
+  getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
+    return this._inner.getLaps(gameId, limit);
+  }
+  getTrackOutlineSectors(trackOrdinal: number, gameId: GameId) {
+    return this._inner.getTrackOutlineSectors(trackOrdinal, gameId);
+  }
+  getTuneAssignment(carOrdinal: number, trackOrdinal: number) {
+    return this._inner.getTuneAssignment(carOrdinal, trackOrdinal);
+  }
+}
+
+function detectGameIdFromFilename(name: string): GameId | null {
+  const sorted = [...KNOWN_GAME_IDS].sort((a, b) => b.length - a.length);
+  for (const id of sorted) {
+    if (name.startsWith(`${id}-`) || name.startsWith(`${id}_`)) return id;
+  }
+  return null;
+}
 
 const ARTIFACTS_DIR = resolve(process.cwd(), "test/artifacts/laps");
 
@@ -364,6 +454,135 @@ function generateTrackSVG(packets: Array<{ x: number; y: number }>): string {
  * Parse .bin recording file and return packet data (positions, speeds)
  * recordingName should be the .bin filename without extension
  */
+/**
+ * POST /api/dev/import-dump
+ * Multipart body: file=<uploaded .bin file>
+ * Takes an uploaded .bin dump and feeds it through the full pipeline (lap
+ * detection + DB writes) so any detected laps land in data/forza-telemetry.db.
+ * GameId is auto-detected from the uploaded filename prefix.
+ * Dev-only — only mounted when IS_DEV is true.
+ */
+devRoutes.post("/api/dev/import-dump", async (c) => {
+  let tmpPath: string | null = null;
+  try {
+    const form = await c.req.formData().catch(() => null);
+    const file = form?.get("file");
+    if (!(file instanceof File)) {
+      return c.json({ error: "Missing 'file' in multipart body" }, 400);
+    }
+
+    const uploadName = file.name || "upload.bin";
+    if (!uploadName.toLowerCase().endsWith(".bin")) {
+      return c.json({ error: "Expected a .bin file" }, 400);
+    }
+
+    const gameId = detectGameIdFromFilename(uploadName);
+    if (!gameId) {
+      return c.json(
+        {
+          error: `Could not detect gameId from filename "${uploadName}". Expected prefix: ${KNOWN_GAME_IDS.join(", ")}.`,
+        },
+        400
+      );
+    }
+
+    // Write to temp file — readAccFrames and the UDP reader both take a path
+    const os = await import("os");
+    const { writeFileSync, unlinkSync } = await import("fs");
+    tmpPath = resolve(
+      os.tmpdir(),
+      `raceiq-dump-${Date.now()}-${Math.random().toString(36).slice(2)}.bin`
+    );
+    const arrayBuf = await file.arrayBuffer();
+    writeFileSync(tmpPath, Buffer.from(arrayBuf));
+
+    const packets: TelemetryPacket[] = [];
+    let carModel: string | null = null;
+    let trackName: string | null = null;
+
+    if (gameId === "acc") {
+      let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
+      try {
+        frames = readAccFrames(tmpPath);
+      } catch (e) {
+        return c.json({ error: "Failed to read ACC frames", details: String(e) }, 400);
+      }
+      let carOrdinal = 0;
+      let trackOrdinal = 0;
+      for (const frame of frames) {
+        if (carOrdinal === 0 || trackOrdinal === 0) {
+          const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
+          const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
+          if (cm) { carModel = cm; carOrdinal = getAccCarByModel(cm)?.id ?? 0; }
+          if (tn) { trackName = tn; trackOrdinal = getAccTrackByName(tn)?.id ?? 0; }
+        }
+        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal });
+        if (packet) packets.push(packet);
+      }
+    } else {
+      // UDP dump — use fresh per-import parser state so we don't collide with
+      // the live-telemetry parsePacket() module-level state.
+      const serverAdapter = getAllServerGames().find((a) => a.id === gameId);
+      if (!serverAdapter) {
+        return c.json({ error: `No server adapter for gameId ${gameId}` }, 400);
+      }
+      const parserState = serverAdapter.createParserState?.() ?? null;
+      const buffer = readFileSync(tmpPath);
+      let offset = 0;
+      while (offset + 4 <= buffer.length) {
+        const len = buffer.readUInt32LE(offset);
+        offset += 4;
+        if (offset + len > buffer.length) break;
+        const chunk = buffer.slice(offset, offset + len);
+        const packet = serverAdapter.tryParse(chunk, parserState);
+        if (packet) packets.push(packet);
+        offset += len;
+      }
+    }
+
+    if (packets.length === 0) {
+      return c.json({ error: "No packets found in dump" }, 400);
+    }
+
+    // Fresh pipeline per import so lap-detector state doesn't leak
+    const db = new ImportCaptureAdapter();
+    const pipeline = new Pipeline(db, new NoopWsAdapter(), {
+      bypassPacketRateFilter: true,
+    });
+    const start = Date.now();
+    for (const packet of packets) {
+      await pipeline.processPacket(packet);
+    }
+    await pipeline.flushIncompleteLap();
+    // Lap-detector uses setTimeout(..., 0) for deferred insertLap calls
+    await new Promise<void>((r) => setTimeout(r, 100));
+    const elapsedMs = Date.now() - start;
+
+    // Best-effort temp cleanup
+    try { unlinkSync(tmpPath); tmpPath = null; } catch { /* ignore */ }
+
+    const routePrefix = getGame(gameId).routePrefix;
+
+    return c.json({
+      ok: true,
+      filename: uploadName,
+      gameId,
+      routePrefix,
+      packetCount: packets.length,
+      carModel,
+      trackName,
+      elapsedMs,
+      laps: db.laps,
+    });
+  } catch (e) {
+    console.error("[dev] import-dump failed:", e);
+    if (tmpPath) {
+      try { (await import("fs")).unlinkSync(tmpPath); } catch { /* ignore */ }
+    }
+    return c.json({ error: "Import failed", details: String(e) }, 500);
+  }
+});
+
 devRoutes.get("/api/dev/e2e-packets/:recordingName", (c) => {
   try {
     const recordingName = c.req.param("recordingName");

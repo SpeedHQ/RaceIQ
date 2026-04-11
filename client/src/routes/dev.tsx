@@ -2,13 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { DevStateViewer } from "../components/DevStateViewer";
 import { E2EViewer } from "../components/settings/E2EViewer";
+import { ImportDumpPanel } from "../components/dev/ImportDumpPanel";
 
 function DevPage() {
-  const [activeTab, setActiveTab] = useState<"state" | "e2e">("state");
+  const [activeTab, setActiveTab] = useState<"state" | "e2e" | "import">("state");
 
   const tabs = [
     { id: "state", label: "State" },
     { id: "e2e", label: "E2E Recordings" },
+    { id: "import", label: "Import Dump" },
   ] as const;
 
   return (
@@ -38,6 +40,7 @@ function DevPage() {
             <E2EViewer />
           </div>
         )}
+        {activeTab === "import" && <ImportDumpPanel />}
       </div>
     </div>
   );

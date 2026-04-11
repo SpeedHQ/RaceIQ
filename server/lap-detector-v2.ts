@@ -194,6 +194,13 @@ export class LapDetectorV2 implements ILapDetector {
         sectors,
         estimatedBestLapTime: this.currentSession!.bestLapTime,
       });
+      this.onLapComplete_?.({
+        packets,
+        lapDistStart: packets[0]?.DistanceTraveled ?? 0,
+        lapTime,
+        isValid,
+        sectors,
+      });
     }
 
     this.currentLapNumber = lapNum + 1;
