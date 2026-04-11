@@ -25,7 +25,7 @@ interface Props {
   currentPacket: TelemetryPacket | null;
   currentDisplayPacket: DisplayPacket | null;
   startFuel: number | undefined;
-  gameId: GameId | undefined;
+  gameId: GameId;
   units: ReturnType<typeof useUnits>;
   wearRate: WearRate | null;
   lapInsights: LapInsight[];

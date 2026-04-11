@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { LapMeta, SessionMeta, TelemetryPacket } from "@shared/types";
+import type { LapMeta, SessionMeta, TelemetryPacket, GameId } from "@shared/types";
+import { tryGetGame } from "@shared/games/registry";
 import type { CatalogTune } from "../data/tune-catalog";
 import { client } from "../lib/rpc";
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
@@ -259,6 +260,47 @@ export function useCarName(ord: number | undefined) {
     },
     enabled: ord != null && ord > 0 && gameId != null,
   });
+}
+
+// ── ACC car class (server-resolved) ─────────────────────────────────────────
+export function useAccCarClass(ordinal: number | undefined) {
+  return useQuery({
+    queryKey: ["acc-car-class", ordinal],
+    queryFn: async () => {
+      const res = await client.api.acc.cars[":ordinal"]["class"].$get({
+        param: { ordinal: String(ordinal!) },
+      });
+      if (!res.ok) return null;
+      const body = (await res.json()) as { class: string | null };
+      return body.class;
+    },
+    enabled: ordinal != null && ordinal >= 0,
+    staleTime: Infinity,
+  });
+}
+
+// Kunos' published hot-pressure windows by ACC class. Kept client-side —
+// the class itself is the server-authoritative fact, the mapping rule isn't.
+const ACC_PRESSURE_BY_CLASS: Record<string, { min: number; max: number }> = {
+  GT3: { min: 26.0, max: 27.2 },
+  GT2: { min: 26.0, max: 27.2 },
+  GTC: { min: 26.0, max: 27.2 },
+  CHL: { min: 26.0, max: 27.2 },
+  GT4: { min: 26.5, max: 27.5 },
+  TCX: { min: 30.0, max: 32.0 },
+};
+
+/** Universal tire pressure window resolver. ACC is class-aware (fetches car
+ *  class server-side), other games fall back to the static adapter value. */
+export function useTirePressureOptimal(
+  gameId: GameId,
+  ordinal: number | undefined,
+): { min: number; max: number } | undefined {
+  const { data: accClass } = useAccCarClass(gameId === "acc" ? ordinal : undefined);
+  if (gameId === "acc") {
+    return accClass ? ACC_PRESSURE_BY_CLASS[accClass] : undefined;
+  }
+  return tryGetGame(gameId)?.tirePressureOptimal;
 }
 
 // ── Live telemetry history ──────────────────────────────────────────────────

@@ -495,6 +495,21 @@ export function brakeTempColor(
   return "blue";
 }
 
+export type PressureColor = "green" | "blue" | "orange" | "gray";
+
+/** Tire pressure color key. Blue under-inflated, orange over-inflated,
+ *  green in the optimal range, gray when no data or no thresholds. */
+export function tirePressureColor(
+  psi: number,
+  optimal?: { min: number; max: number },
+): PressureColor {
+  if (psi <= 0) return "gray";
+  if (!optimal) return "gray";
+  if (psi < optimal.min) return "blue";
+  if (psi > optimal.max) return "orange";
+  return "green";
+}
+
 // ── Slip Angle Color ──────────────────────────────────────────────
 
 export function slipAngleColor(deg: number): string {

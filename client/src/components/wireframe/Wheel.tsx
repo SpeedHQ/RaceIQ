@@ -1,7 +1,8 @@
 import { useRef, useMemo } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { makeWheelGeometries, brakeTempColor } from "../../lib/wireframe-utils";
+import { makeWheelGeometries } from "../../lib/wireframe-utils";
+import { brakeTempColor, COLORS_HEX } from "../../lib/vehicle-dynamics";
 import { WheelInfoCard } from "./WheelLabels";
 
 const useWheelGeometries = (radius = 0.34, width = 0.30) =>
@@ -17,9 +18,12 @@ export function Wheel({
   displayTemp,
   rimColorForDisplay,
   brakeTemp,
+  pressurePsi,
+  pressureOptimal,
   wearRate,
   wear,
   side,
+  isRear,
   onCurb,
   puddleDepth,
   tireRadius = 0.34,
@@ -34,9 +38,12 @@ export function Wheel({
   displayTemp: string;
   rimColorForDisplay: string;
   brakeTemp: number;
+  pressurePsi: number;
+  pressureOptimal?: { min: number; max: number };
   wearRate: number;
   wear: number;
   side: "left" | "right";
+  isRear: boolean;
   onCurb: boolean;
   puddleDepth: number;
   tireRadius?: number;
@@ -74,7 +81,7 @@ export function Wheel({
             rotation={[Math.PI / 2, 0, 0]}
           >
             <cylinderGeometry args={[tireRadius * 0.5, tireRadius * 0.5, 0.02, 24]} />
-            <meshBasicMaterial color={brakeTempColor(brakeTemp)} transparent opacity={0.7} side={THREE.DoubleSide} />
+            <meshBasicMaterial color={COLORS_HEX[brakeTempColor(brakeTemp, isRear)]} transparent opacity={0.7} side={THREE.DoubleSide} />
           </mesh>
         )}
       </group>
@@ -86,7 +93,10 @@ export function Wheel({
           wear={wear}
           wearRate={wearRate}
           brakeTemp={brakeTemp}
+          pressurePsi={pressurePsi}
+          pressureOptimal={pressureOptimal}
           side={side}
+          isRear={isRear}
         />
       )}
       {/* Curb indicator — orange ring under tire when on rumble strip */}

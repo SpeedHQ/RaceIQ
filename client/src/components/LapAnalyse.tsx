@@ -8,7 +8,7 @@ import { useUnits } from "../hooks/useUnits";
 import { useConvertedTelemetry } from "../hooks/useConvertedTelemetry";
 import { useLaps as useLapsQuery, useLapTelemetry, useTrackName, useCarName, useResolveNames, useTrackOutline, useTrackBoundaries, useTrackSectorBoundaries, useTrackSectors, useSettings } from "../hooks/queries";
 import { client } from "../lib/rpc";
-import { useGameId } from "../stores/game";
+import { useRequiredGameId } from "../stores/game";
 import { analyzeLap } from "../lib/lap-insights";
 import { useLapPlayback } from "../hooks/useLapPlayback";
 import { type AnalysisHighlight, type AiPanelHandle } from "./AiPanel";
@@ -32,7 +32,7 @@ export function LapAnalyse() {
   const search = useSearch({ strict: false }) as { track?: number; car?: number; lap?: number };
   const navigate = useNavigate();
   const units = useUnits();
-  const gameId = useGameId();
+  const gameId = useRequiredGameId();
   const queryClient = useQueryClient();
   const { displaySettings } = useSettings();
 
@@ -584,7 +584,7 @@ export function LapAnalyse() {
             currentPacket={currentPacket}
             currentDisplayPacket={currentDisplayPacket}
             startFuel={telemetry[0]?.Fuel}
-            gameId={gameId ?? undefined}
+            gameId={gameId}
             units={units}
             wearRate={wearRate}
             lapInsights={lapInsights}

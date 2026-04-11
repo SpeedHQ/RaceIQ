@@ -1,7 +1,7 @@
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { brakeTempColor } from "../../lib/wireframe-utils";
+import { brakeTempColor, tirePressureColor, COLORS_HEX } from "../../lib/vehicle-dynamics";
 
 const _tmpVec = new THREE.Vector3();
 const REF_DIST = 4;
@@ -66,6 +66,7 @@ type Row =
   | { kind: "health"; pct: string; color: string }
   | { kind: "temp"; text: string; color: string }
   | { kind: "brake"; text: string; color: string }
+  | { kind: "pressure"; text: string; color: string }
   | { kind: "wear"; text: string };
 
 export function WheelInfoCard({
@@ -74,25 +75,33 @@ export function WheelInfoCard({
   wear,
   wearRate,
   brakeTemp,
+  pressurePsi,
+  pressureOptimal,
   side,
+  isRear,
 }: {
   displayTemp: string;
   tempColor: string;
   wear: number;
   wearRate: number;
   brakeTemp: number;
+  pressurePsi: number;
+  pressureOptimal?: { min: number; max: number };
   side: "left" | "right";
+  isRear: boolean;
 }) {
   const { texture, cardH } = useMemo(() => {
     const health = 1 - wear;
     const pct = (health * 100).toFixed(0);
     const healthColor = health > 0.7 ? "#34d399" : health > 0.4 ? "#fbbf24" : "#ef4444";
-    const brakeCol = brakeTempColor(brakeTemp);
+    const brakeCol = COLORS_HEX[brakeTempColor(brakeTemp, isRear)];
+    const pressureCol = COLORS_HEX[tirePressureColor(pressurePsi, pressureOptimal)];
 
     const rows: Row[] = [
       { kind: "health", pct, color: healthColor },
       { kind: "temp", text: displayTemp, color: tempColor },
     ];
+    if (pressurePsi > 0) rows.push({ kind: "pressure", text: `${pressurePsi.toFixed(1)} psi`, color: pressureCol });
     if (brakeTemp > 0) rows.push({ kind: "brake", text: `${brakeTemp.toFixed(0)}°C`, color: brakeCol });
     if (wearRate > 0.0001) rows.push({ kind: "wear", text: `-${(wearRate * 100).toFixed(2)}%/s` });
 
@@ -143,6 +152,10 @@ export function WheelInfoCard({
         ctx.textAlign = "left";
         ctx.fillText(row.text, left + iconW + 8, y);
         ctx.textAlign = "center";
+      } else if (row.kind === "pressure") {
+        ctx.font = "bold 30px monospace";
+        ctx.fillStyle = row.color;
+        ctx.fillText(row.text, CARD_W / 2, y);
       } else if (row.kind === "wear") {
         ctx.font = "bold 28px monospace";
         ctx.fillStyle = "#f97316";
@@ -153,7 +166,7 @@ export function WheelInfoCard({
     const tex = new THREE.CanvasTexture(canvas);
     tex.needsUpdate = true;
     return { texture: tex, cardH: h };
-  }, [displayTemp, tempColor, wear, wearRate, brakeTemp]);
+  }, [displayTemp, tempColor, wear, wearRate, brakeTemp, isRear, pressurePsi, pressureOptimal]);
 
   const scaleY = BASE_SCALE * (cardH / CARD_W);
   const spriteRef = useRef<THREE.Sprite>(null);
@@ -168,10 +181,13 @@ export function WheelInfoCard({
     spriteRef.current.scale.set(BASE_SCALE * factor, scaleY * factor, 1);
   });
 
+  // Rear cards sit ~0.6m lower so they don't stack on top of the front cards
+  // in screen space when the camera is directly behind (or in front of) the car.
+  const cardY = isRear ? 0.65 : 1.25;
   return (
     <sprite
       ref={spriteRef}
-      position={[0, 1.25, side === "left" ? -0.95 : 0.95]}
+      position={[0, cardY, side === "left" ? -0.95 : 0.95]}
       scale={[BASE_SCALE, scaleY, 1]}
       renderOrder={999}
     >

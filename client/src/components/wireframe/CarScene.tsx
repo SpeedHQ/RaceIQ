@@ -7,6 +7,8 @@ import type { TelemetryPacket } from "@shared/types";
 import type { CarModelEnrichment } from "../../data/car-models";
 import type { ViewToggles, ViewPreset } from "../../lib/wireframe-data";
 import { allWheelStates, tireState } from "../../lib/vehicle-dynamics";
+import { useRequiredGameId } from "../../stores/game";
+import { useTirePressureOptimal } from "../../hooks/queries";
 import { CarBody } from "./CarBody";
 import { Wheel } from "./Wheel";
 import { SuspensionSpring } from "./SuspensionSpring";
@@ -46,6 +48,8 @@ function computeLoadDotXZ(
 
 export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, boundaries, toggles, viewPreset, carModel, modelOffsetX, fmtTemp, hideModelWheels, suspThresholds, autoOrbit, tireColors }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null; toggles: ViewToggles; viewPreset: ViewPreset; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; fmtTemp: (f: number) => string; hideModelWheels?: boolean; suspThresholds: number[]; autoOrbit?: boolean; tireColors: [string, string, string, string] }) {
   const [colorFL, colorFR, colorRL, colorRR] = tireColors;
+  const gameId = useRequiredGameId();
+  const pressureOptimal = useTirePressureOptimal(gameId, packetProp.CarOrdinal);
 
   // Keep packet in a ref so useFrame reads latest without triggering re-render
   const packetRef = useRef(packetProp);
@@ -153,11 +157,15 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
   const rTireR = carModel.rearTireRadius ?? carModel.tireRadius;
   const fTireW = carModel.frontTireWidth ?? 0.30;
   const rTireW = carModel.rearTireWidth ?? 0.30;
+  const pressFL = packet.TirePressureFrontLeft ?? packet.f1?.tyrePressureFL ?? 0;
+  const pressFR = packet.TirePressureFrontRight ?? packet.f1?.tyrePressureFR ?? 0;
+  const pressRL = packet.TirePressureRearLeft ?? packet.f1?.tyrePressureRL ?? 0;
+  const pressRR = packet.TirePressureRearRight ?? packet.f1?.tyrePressureRR ?? 0;
   const wheelData = [
-    { pos: [wb, 0, -ft] as [number, number, number], steer: steerFL, camber: cambFL, susp: packet.NormSuspensionTravelFL, drop: dropFL, traction: tireState(ws.fl.state, ws.fl.slipRatio, packet.TireSlipAngleFL).hex, rimColor: colorFL, brakeTemp: packet.BrakeTempFrontLeft ?? packet.f1?.brakeTempFL ?? 0, onRumble: packet.WheelOnRumbleStripFL !== 0, puddle: packet.WheelInPuddleDepthFL, wearRate: wearRatesVal[0], wear: packet.TireWearFL, rotSpeed: rotFL, tireRadius: fTireR, tireWidth: fTireW },
-    { pos: [wb, 0, ft] as [number, number, number], steer: steerFR, camber: cambFR, susp: packet.NormSuspensionTravelFR, drop: dropFR, traction: tireState(ws.fr.state, ws.fr.slipRatio, packet.TireSlipAngleFR).hex, rimColor: colorFR, brakeTemp: packet.BrakeTempFrontRight ?? packet.f1?.brakeTempFR ?? 0, onRumble: packet.WheelOnRumbleStripFR !== 0, puddle: packet.WheelInPuddleDepthFR, wearRate: wearRatesVal[1], wear: packet.TireWearFR, rotSpeed: rotFR, tireRadius: fTireR, tireWidth: fTireW },
-    { pos: [-wb, 0, -rt] as [number, number, number], steer: steerRL, camber: cambRL, susp: packet.NormSuspensionTravelRL, drop: dropRL, traction: tireState(ws.rl.state, ws.rl.slipRatio, packet.TireSlipAngleRL).hex, rimColor: colorRL, brakeTemp: packet.BrakeTempRearLeft ?? packet.f1?.brakeTempRL ?? 0, onRumble: packet.WheelOnRumbleStripRL !== 0, puddle: packet.WheelInPuddleDepthRL, wearRate: wearRatesVal[2], wear: packet.TireWearRL, rotSpeed: rotRL, tireRadius: rTireR, tireWidth: rTireW },
-    { pos: [-wb, 0, rt] as [number, number, number], steer: steerRR, camber: cambRR, susp: packet.NormSuspensionTravelRR, drop: dropRR, traction: tireState(ws.rr.state, ws.rr.slipRatio, packet.TireSlipAngleRR).hex, rimColor: colorRR, brakeTemp: packet.BrakeTempRearRight ?? packet.f1?.brakeTempRR ?? 0, onRumble: packet.WheelOnRumbleStripRR !== 0, puddle: packet.WheelInPuddleDepthRR, wearRate: wearRatesVal[3], wear: packet.TireWearRR, rotSpeed: rotRR, tireRadius: rTireR, tireWidth: rTireW },
+    { pos: [wb, 0, -ft] as [number, number, number], steer: steerFL, camber: cambFL, susp: packet.NormSuspensionTravelFL, drop: dropFL, traction: tireState(ws.fl.state, ws.fl.slipRatio, packet.TireSlipAngleFL).hex, rimColor: colorFL, brakeTemp: packet.BrakeTempFrontLeft ?? packet.f1?.brakeTempFL ?? 0, pressure: pressFL, onRumble: packet.WheelOnRumbleStripFL !== 0, puddle: packet.WheelInPuddleDepthFL, wearRate: wearRatesVal[0], wear: packet.TireWearFL, rotSpeed: rotFL, tireRadius: fTireR, tireWidth: fTireW },
+    { pos: [wb, 0, ft] as [number, number, number], steer: steerFR, camber: cambFR, susp: packet.NormSuspensionTravelFR, drop: dropFR, traction: tireState(ws.fr.state, ws.fr.slipRatio, packet.TireSlipAngleFR).hex, rimColor: colorFR, brakeTemp: packet.BrakeTempFrontRight ?? packet.f1?.brakeTempFR ?? 0, pressure: pressFR, onRumble: packet.WheelOnRumbleStripFR !== 0, puddle: packet.WheelInPuddleDepthFR, wearRate: wearRatesVal[1], wear: packet.TireWearFR, rotSpeed: rotFR, tireRadius: fTireR, tireWidth: fTireW },
+    { pos: [-wb, 0, -rt] as [number, number, number], steer: steerRL, camber: cambRL, susp: packet.NormSuspensionTravelRL, drop: dropRL, traction: tireState(ws.rl.state, ws.rl.slipRatio, packet.TireSlipAngleRL).hex, rimColor: colorRL, brakeTemp: packet.BrakeTempRearLeft ?? packet.f1?.brakeTempRL ?? 0, pressure: pressRL, onRumble: packet.WheelOnRumbleStripRL !== 0, puddle: packet.WheelInPuddleDepthRL, wearRate: wearRatesVal[2], wear: packet.TireWearRL, rotSpeed: rotRL, tireRadius: rTireR, tireWidth: rTireW },
+    { pos: [-wb, 0, rt] as [number, number, number], steer: steerRR, camber: cambRR, susp: packet.NormSuspensionTravelRR, drop: dropRR, traction: tireState(ws.rr.state, ws.rr.slipRatio, packet.TireSlipAngleRR).hex, rimColor: colorRR, brakeTemp: packet.BrakeTempRearRight ?? packet.f1?.brakeTempRR ?? 0, pressure: pressRR, onRumble: packet.WheelOnRumbleStripRR !== 0, puddle: packet.WheelInPuddleDepthRR, wearRate: wearRatesVal[3], wear: packet.TireWearRR, rotSpeed: rotRR, tireRadius: rTireR, tireWidth: rTireW },
   ];
 
   // Load distribution — weighted centroid of excess-compression per corner.
@@ -285,9 +293,12 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
             displayTemp={fmtTemp(i === 0 ? packet.TireTempFL : i === 1 ? packet.TireTempFR : i === 2 ? packet.TireTempRL : packet.TireTempRR)}
             rimColorForDisplay={w.rimColor}
             brakeTemp={w.brakeTemp}
+            pressurePsi={w.pressure}
+            pressureOptimal={pressureOptimal}
             wearRate={w.wearRate}
             wear={w.wear}
             side={i % 2 === 0 ? "left" : "right"}
+            isRear={i >= 2}
             onCurb={w.onRumble}
             puddleDepth={w.puddle}
             tireRadius={w.tireRadius}

@@ -107,7 +107,8 @@ export const CarWireframe = React.memo(function CarWireframe({
         gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
         dpr={[1, 1.5]}
         frameloop="always"
-        style={{ background: "transparent" }}
+        tabIndex={-1}
+        style={{ background: "transparent", outline: "none", WebkitTapHighlightColor: "transparent", userSelect: "none" }}
         onCreated={({ gl }) => {
           const origRender = gl.render.bind(gl);
           let lastRender = 0;
