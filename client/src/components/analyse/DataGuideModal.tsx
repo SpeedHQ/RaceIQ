@@ -80,12 +80,11 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
             </>} />
             <Row label="Traction" desc={
               <span className="space-y-0.5 block">
-                <span className="block"><ColorDot color="#34d399" />GRIP — linear region, both axes inside peak</span>
-                <span className="block"><ColorDot color="#fbbf24" />SLIP — working hard (ratio &gt;10% or angle &gt;6°)</span>
-                <span className="block"><ColorDot color="#f97316" />SPIN — longitudinal wheelspin (ratio past peak)</span>
-                <span className="block"><ColorDot color="#ef4444" />SLIDE — lateral slide (slip angle &gt;12°)</span>
-                <span className="block"><ColorDot color="#ef4444" />DRIFT — both axes past peak (power slide)</span>
-                <span className="block"><ColorDot color="#ef4444" />LOCK — wheel rotation stopped under braking</span>
+                <span className="block"><ColorDot color="#34d399" />GRIP — within grip budget (Grip Ask &lt; 90%)</span>
+                <span className="block"><ColorDot color="#fbbf24" />SLIP — at the edge (Grip Ask 90–100%)</span>
+                <span className="block"><ColorDot color="#f97316" />SPIN — past peak, longitudinal axis dominant</span>
+                <span className="block"><ColorDot color="#ef4444" />SLIDE — past peak, lateral axis dominant</span>
+                <span className="block"><ColorDot color="#ef4444" />LOCK — wheel stopped or dragging under braking</span>
                 <span className="block"><ColorDot color="#6b7280" />IDLE — stationary</span>
               </span>
             } />

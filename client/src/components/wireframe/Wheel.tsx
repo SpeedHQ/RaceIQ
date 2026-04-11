@@ -49,7 +49,7 @@ export function Wheel({
   useFrame((_, delta) => {
     if (!spinRef.current) return;
     if (Math.abs(rotationSpeed) < 0.5) return;
-    spinRef.current.rotation.z += rotationSpeed * delta * 0.3;
+    spinRef.current.rotation.z -= rotationSpeed * delta;
   });
 
   return (

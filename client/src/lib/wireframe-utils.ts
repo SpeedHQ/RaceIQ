@@ -9,11 +9,11 @@ import { COLORS_HEX, tireState } from "./vehicle-dynamics";
  */
 export function makeWheelGeometries(radius: number, width: number) {
   const rimRadius = radius * 0.67;
-  const tire = new THREE.CylinderGeometry(radius, radius, width, 16, 1, false);
+  const tire = new THREE.CylinderGeometry(radius, radius, width, 16, 1, true);
   tire.rotateX(Math.PI / 2);
   const rim = new THREE.CylinderGeometry(rimRadius, rimRadius, width * 0.8, 8, 1, true);
   rim.rotateX(Math.PI / 2);
-  const hub = new THREE.CircleGeometry(rimRadius, 5);
+  const hub = new THREE.RingGeometry(rimRadius * 0.2, rimRadius, 5, 1);
   hub.rotateX(Math.PI / 2);
   return { tire, rim, hub };
 }

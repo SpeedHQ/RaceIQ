@@ -102,8 +102,8 @@ export function wheelSlipRatios(pkt: TelemetryPacket): { fl: number; fr: number;
 // which each game reports in its own non-SAE scale. Slip angle IS
 // radians in all three games (FM/F1/ACC) so we use it directly.
 
-const SLIP_RATIO_PEAK = 0.15;
-const SLIP_ANGLE_PEAK_RAD = 10 * Math.PI / 180;  // 10°
+const SLIP_RATIO_PEAK = 0.12;
+const SLIP_ANGLE_PEAK_RAD = 8 * Math.PI / 180;  // 8°
 
 export function frictionCircleUtil(slipRatio: number, slipAngleRad: number): number {
   const rNorm = Math.abs(slipRatio) / SLIP_RATIO_PEAK;
@@ -123,23 +123,21 @@ export function allFrictionCircle(pkt: TelemetryPacket): { fl: number; fr: numbe
 
 // ── Tire Traction State ───────────────────────────────────────────
 // Single source of truth for tire grip state labels and colors.
-// Decomposed by axis so the label tells you the *cause*:
-//   LOCK   — wheel rotation has stopped (rot-speed pipeline)
-//   SPIN   — longitudinal wheelspin (rot-speed pipeline OR ratio past peak)
-//   SLIDE  — lateral slide (slip angle past peak)
-//   DRIFT  — both axes past peak (power slide)
-//   SLIP   — working hard but not past peak (warning)
-//   GRIP   — operating in the linear region
+// Driven by Grip Ask (friction-circle utilization) so labels and %
+// stay consistent — under 100% = within grip budget, over = past peak.
+//   LOCK   — wheel rotation has stopped or is dragging (rot-speed pipeline)
+//   SPIN   — util > 1 with longitudinal axis dominant
+//   SLIDE  — util > 1 with lateral axis dominant
+//   SLIP   — 0.90 ≤ util < 1.0 (warning — at the edge of grip)
+//   GRIP   — util < 0.90 (operating in the linear region)
 //   IDLE   — stationary
 //
 // All other color derivations (hex, Three.js) must delegate to this.
 
-const SLIP_ANGLE_SLIDE_RAD = 12 * Math.PI / 180;  // 12° → past peak, sliding
-const SLIP_ANGLE_WARN_RAD  = 6 * Math.PI / 180;   // 6° → working hard
-const SLIP_RATIO_WARN      = 0.10;                // 10% → warning band
+const GRIP_WARN_UTIL = 0.90;  // start warning at 90% of friction budget
 
 export interface TireState {
-  label: "LOCK" | "SPIN" | "IDLE" | "SLIDE" | "DRIFT" | "SLIP" | "GRIP";
+  label: "LOCK" | "SPIN" | "IDLE" | "SLIDE" | "SLIP" | "GRIP";
   color: string;   // CSS var — use in React inline styles / SVG
   hex: string;     // Raw hex — use in canvas, WebGL, Three.js
 }
@@ -152,18 +150,17 @@ export function tireState(
   if (wheelStateLabel === "lockup") return { label: "LOCK", color: COLORS.red,  hex: COLORS_HEX.red };
   if (wheelStateLabel === "idle")   return { label: "IDLE", color: COLORS.gray, hex: COLORS_HEX.gray };
 
-  const ratio = Math.abs(slipRatio);
-  const angle = Math.abs(slipAngleRad);
+  const rNorm = Math.abs(slipRatio) / SLIP_RATIO_PEAK;
+  const aNorm = Math.abs(slipAngleRad) / SLIP_ANGLE_PEAK_RAD;
+  const util = Math.min(Math.hypot(rNorm, aNorm), 2.0);
 
-  const longHot = wheelStateLabel === "spin" || ratio > SLIP_RATIO_PEAK;
-  const latHot  = angle > SLIP_ANGLE_SLIDE_RAD;
-  const warn    = ratio > SLIP_RATIO_WARN || angle > SLIP_ANGLE_WARN_RAD;
+  if (util < GRIP_WARN_UTIL) return { label: "GRIP", color: COLORS.green,  hex: COLORS_HEX.green };
+  if (util < 1.0)            return { label: "SLIP", color: COLORS.yellow, hex: COLORS_HEX.yellow };
 
-  if (longHot && latHot) return { label: "DRIFT", color: COLORS.red,    hex: COLORS_HEX.red };
-  if (latHot)            return { label: "SLIDE", color: COLORS.red,    hex: COLORS_HEX.red };
-  if (longHot)           return { label: "SPIN",  color: COLORS.orange, hex: COLORS_HEX.orange };
-  if (warn)              return { label: "SLIP",  color: COLORS.yellow, hex: COLORS_HEX.yellow };
-  return                       { label: "GRIP",  color: COLORS.green,  hex: COLORS_HEX.green };
+  // Past peak — classify by which axis carries more of the saturation
+  if (wheelStateLabel === "spin") return { label: "SPIN",  color: COLORS.orange, hex: COLORS_HEX.orange };
+  if (aNorm >= rNorm)             return { label: "SLIDE", color: COLORS.red,    hex: COLORS_HEX.red };
+  return                                { label: "SPIN",  color: COLORS.orange, hex: COLORS_HEX.orange };
 }
 
 
@@ -300,8 +297,11 @@ export function wheelState(
 
   const sr = slipRatio(wheelRotSpeed, groundSpeed, wheelRadius);
 
-  // Lockup = wheel has fully stopped while car is moving
-  if (Math.abs(wheelRotSpeed) < 0.5 && groundSpeed > 3) return { state: "lockup", slipRatio: sr };
+  // Lockup = full stop OR wheel rotating far slower than free-roll
+  // (negative slip ratio past peak means tire is dragging, not rolling)
+  if (groundSpeed > 3 && (Math.abs(wheelRotSpeed) < 0.5 || sr < -0.20)) {
+    return { state: "lockup", slipRatio: sr };
+  }
 
   // In turns, inner wheels naturally rotate slower — widen the threshold
   const steerFactor = Math.abs(steerAngle) / 127; // 0-1
