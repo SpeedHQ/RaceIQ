@@ -132,7 +132,9 @@ export const PHYSICS = {
   slipAngleFR:    { offset: 660, type: "f32" },
   slipAngleRL:    { offset: 664, type: "f32" },
   slipAngleRR:    { offset: 668, type: "f32" },
-  // tcinAction (672), absInAction (676), suspensionDamage[4] (680-692)
+  // tcInAction (672), absInAction (676), suspensionDamage[4] (680-692)
+  // — all marked "Not used in ACC" per Kunos header; real intervention
+  // signals are the vibration floats at the very end of the struct.
   // tyreTemp[4] — per-tyre average display temp, °C
   tyreTempFL:     { offset: 696, type: "f32" },
   tyreTempFR:     { offset: 700, type: "f32" },
@@ -150,6 +152,11 @@ export const PHYSICS = {
   discLifeFR:     { offset: 760, type: "f32" },
   discLifeRL:     { offset: 764, type: "f32" },
   discLifeRR:     { offset: 768, type: "f32" },
+  // ignitionOn (772), starterEngineOn (776), isEngineRunning (780)
+  kerbVibration:  { offset: 784, type: "f32" },
+  slipVibrations: { offset: 788, type: "f32" },
+  gVibrations:    { offset: 792, type: "f32" },
+  absVibrations:  { offset: 796, type: "f32" },
 } as const;
 
 // --- SPageFileGraphic ---

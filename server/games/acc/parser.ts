@@ -166,10 +166,14 @@ export function parseAccBuffers(
   const damRight = physicsBuf.readFloatLE(PHYSICS.damRight.offset);
   const damCentre = physicsBuf.readFloatLE(PHYSICS.damCentre.offset);
 
-  // @ts-ignore
-  const _tcPhysics = physicsBuf.readFloatLE(PHYSICS.tc.offset);
-  // @ts-ignore
-  const _absPhysics = physicsBuf.readFloatLE(PHYSICS.abs.offset);
+  // Runtime intervention — reading all candidate offsets so we can see
+  // which ones ACC populates on this install.
+  const tcFloat = physicsBuf.readFloatLE(PHYSICS.tc.offset);
+  const absFloat = physicsBuf.readFloatLE(PHYSICS.abs.offset);
+  const slipVib = physicsBuf.readFloatLE(PHYSICS.slipVibrations.offset);
+  const absVib = physicsBuf.readFloatLE(PHYSICS.absVibrations.offset);
+  const tcActive = tcFloat > 0.01 || slipVib > 0.01 ? 1 : 0;
+  const absActive = absFloat > 0.01 || absVib > 0.01 ? 1 : 0;
   const brakeBias = physicsBuf.readFloatLE(PHYSICS.brakeBias.offset);
   const currentMaxRpm = physicsBuf.readInt32LE(PHYSICS.currentMaxRpm.offset);
 
@@ -262,6 +266,12 @@ export function parseAccBuffers(
     abs: absLevel,
     engineMap,
     brakeBias,
+    tcIntervention: tcActive,
+    absIntervention: absActive,
+    tcRaw: tcFloat,
+    absRaw: absFloat,
+    slipVibrations: slipVib,
+    absVibrations: absVib,
     rainIntensity: 0,
     trackGripStatus,
     windSpeed,

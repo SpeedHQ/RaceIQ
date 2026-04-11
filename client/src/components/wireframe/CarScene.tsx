@@ -70,6 +70,15 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
         "YXZ"
       );
     }
+    // Prune 1s load-dot trail by wall-clock (bail out when nothing to drop)
+    const now = performance.now();
+    setLoadTrail((prev) => {
+      if (!prev.length || now - prev[0].t <= 1000) return prev;
+      const cutoff = now - 1000;
+      let cut = 0;
+      while (cut < prev.length && prev[cut].t < cutoff) cut++;
+      return cut === 0 ? prev : prev.slice(cut);
+    });
   });
 
   // Compute tire wear rate (/s) — smoothed with EMA
@@ -162,22 +171,16 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
     return { x, z, y: 0.23 + bodyDrop, color, springZMax };
   })();
 
-  // Append current load dot position to 1s trail buffer (packet timestamps, ms)
+  // Append current load-dot position to trail buffer (wall-clock timestamps)
   const dotX = loadDot?.x ?? 0;
   const dotZ = loadDot?.z ?? 0;
   const hasDot = loadDot !== null;
   const ts = packet.TimestampMS;
   useEffect(() => {
     if (!hasDot) return;
-    setLoadTrail((prev) => {
-      // Reset on backward time jump (scrubbing in analyse mode)
-      if (prev.length && ts < prev[prev.length - 1].t) {
-        return [{ x: dotX, z: dotZ, t: ts }];
-      }
-      const next = [...prev, { x: dotX, z: dotZ, t: ts }];
-      while (next.length && ts - next[0].t > 1000) next.shift();
-      return next;
-    });
+    // eslint-disable-next-line react-hooks/purity
+    const t = performance.now();
+    setLoadTrail((prev) => [...prev, { x: dotX, z: dotZ, t }]);
   }, [ts, dotX, dotZ, hasDot]);
 
   return (

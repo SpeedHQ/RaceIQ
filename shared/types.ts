@@ -198,12 +198,22 @@ export interface AccExtendedData {
   brakePadCompound: number;
   brakePadWear: [number, number, number, number];
 
-  // Electronics
+  // Electronics — driver settings (level values)
   tc: number;
   tcCut: number;
   abs: number;
   engineMap: number;
   brakeBias: number;
+  // Electronics — runtime intervention. tc@204 and abs@252 are the canonical
+  // aid floats; slipVibrations@788 and absVibrations@796 are fallbacks that
+  // some ACC versions populate instead. `tcIntervention`/`absIntervention`
+  // are 1 when any of the sources indicates activity.
+  tcIntervention: number;
+  absIntervention: number;
+  tcRaw: number;
+  absRaw: number;
+  slipVibrations: number;
+  absVibrations: number;
 
   // Weather
   rainIntensity: number;

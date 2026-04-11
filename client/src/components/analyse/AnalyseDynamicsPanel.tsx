@@ -127,6 +127,16 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
         </span>
       </div>
 
+      {/* Brake Bias (ACC) */}
+      {currentPacket.acc && (
+        <div className="flex justify-between">
+          <span className="text-app-text-muted">Brake Bias</span>
+          <span className="tabular-nums text-app-text">
+            {(currentPacket.acc.brakeBias * 100).toFixed(1)}%F
+          </span>
+        </div>
+      )}
+
       {/* Tire state */}
       <WheelTable rows={[
         { label: "Grip Ask", fl: C(`${(fc.fl * 100).toFixed(0)}%`, frictionUtilColor(fc.fl)), fr: C(`${(fc.fr * 100).toFixed(0)}%`, frictionUtilColor(fc.fr)), rl: C(`${(fc.rl * 100).toFixed(0)}%`, frictionUtilColor(fc.rl)), rr: C(`${(fc.rr * 100).toFixed(0)}%`, frictionUtilColor(fc.rr)) },
