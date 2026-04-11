@@ -252,30 +252,6 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
         <Suspense fallback={null}>
           {carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} />}
         </Suspense>
-        {/* Tail lights — glow red when braking */}
-        {(() => {
-          const braking = packet.Brake > 10;
-          const color = braking ? "#ff2020" : "#661111";
-          const intensity = braking ? 2 : 0;
-          return (
-            <>
-              {/* Left tail light */}
-              <mesh position={[-2.01, 0.22, -0.70]}>
-                <boxGeometry args={[0.02, 0.08, 0.18]} />
-                <meshBasicMaterial color={color} />
-              </mesh>
-              {/* Right tail light */}
-              <mesh position={[-2.01, 0.22, 0.70]}>
-                <boxGeometry args={[0.02, 0.08, 0.18]} />
-                <meshBasicMaterial color={color} />
-              </mesh>
-              {/* Brake light glow */}
-              {braking && (
-                <pointLight position={[-2.10, 0.22, 0]} color="#ff2020" intensity={intensity} distance={2} decay={2} />
-              )}
-            </>
-          );
-        })()}
       </group>
 
       {/* Running gear — positioned by suspension */}
@@ -290,7 +266,7 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
             gripColor={w.traction}
             rimColor={w.rimColor}
             rotationSpeed={w.rotSpeed}
-            displayTemp={fmtTemp(i === 0 ? packet.TireTempFL : i === 1 ? packet.TireTempFR : i === 2 ? packet.TireTempRL : packet.TireTempRR)}
+            displayTemp={toggles.wheelInfo ? fmtTemp(i === 0 ? packet.TireTempFL : i === 1 ? packet.TireTempFR : i === 2 ? packet.TireTempRL : packet.TireTempRR) : ""}
             rimColorForDisplay={w.rimColor}
             brakeTemp={w.brakeTemp}
             pressurePsi={w.pressure}

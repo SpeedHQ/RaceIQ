@@ -78,10 +78,13 @@ export const CarWireframe = React.memo(function CarWireframe({
   const [editMode, setEditMode] = useState(false);
   const [modelOffsetX, setModelOffsetX] = useState(carModel.glbOffsetX ?? 0);
   const [saveStatus, setSaveStatus] = useState<"" | "saving" | "saved">("");
-  const [toggles, setToggles] = useLocalStorage<ViewToggles>("carwireframe-toggles", {
+  const [storedToggles, setToggles] = useLocalStorage<ViewToggles>("carwireframe-toggles", {
     ...DEFAULT_TOGGLES,
     dimensions: showDimensions ?? false,
   });
+  // Merge defaults so any keys added after the user's localStorage was first
+  // written get sensible values instead of undefined.
+  const toggles: ViewToggles = { ...DEFAULT_TOGGLES, ...storedToggles };
   const [viewPreset, setViewPreset] = useState<ViewPreset>("3/4");
 
   const toggle = (key: keyof ViewToggles) =>
@@ -173,6 +176,7 @@ export const CarWireframe = React.memo(function CarWireframe({
         {!minimal && <ToggleButton label="Track" active={toggles.track} onClick={() => toggle("track")} />}
         {!minimal && <ToggleButton label="Grid" active={toggles.grid} onClick={() => toggle("grid")} />}
         {!minimal && <ToggleButton label="Drive" active={toggles.drivetrain} onClick={() => toggle("drivetrain")} />}
+        {!minimal && <ToggleButton label="Tire Info" active={toggles.wheelInfo} onClick={() => toggle("wheelInfo")} />}
         {/* Camber toggle intentionally not rendered: ACC is the only game
             with camber in telemetry and Kunos currently ships camberRAD[4]
             as a zeroed stub. Re-enable when the game writes real values. */}
