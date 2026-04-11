@@ -66,11 +66,11 @@ export function Wheel({
       <group rotation={[0, steerAngle, 0]}>
         <group rotation={[camberAngle, 0, 0]}>
           <group ref={spinRef}>
-            <mesh geometry={tire}>
-              <meshBasicMaterial color={gripColor} wireframe />
+            <mesh geometry={tire} renderOrder={10}>
+              <meshBasicMaterial color={gripColor} wireframe depthTest={false} transparent />
             </mesh>
-            <mesh geometry={rim}>
-              <meshBasicMaterial color={rimColor} transparent opacity={0.85} side={THREE.DoubleSide} />
+            <mesh geometry={rim} renderOrder={10}>
+              <meshBasicMaterial color={rimColor} transparent opacity={0.85} side={THREE.DoubleSide} depthTest={false} />
             </mesh>
           </group>
         </group>
@@ -79,9 +79,10 @@ export function Wheel({
           <mesh
             position={[0, 0, side === "left" ? tireWidth * 0.6 : -tireWidth * 0.6]}
             rotation={[Math.PI / 2, 0, 0]}
+            renderOrder={10}
           >
             <cylinderGeometry args={[tireRadius * 0.5, tireRadius * 0.5, 0.02, 24]} />
-            <meshBasicMaterial color={COLORS_HEX[brakeTempColor(brakeTemp, isRear)]} transparent opacity={0.7} side={THREE.DoubleSide} />
+            <meshBasicMaterial color={COLORS_HEX[brakeTempColor(brakeTemp, isRear)]} transparent opacity={0.7} side={THREE.DoubleSide} depthTest={false} />
           </mesh>
         )}
       </group>
