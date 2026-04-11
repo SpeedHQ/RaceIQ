@@ -17,8 +17,8 @@ export function InputOverlay({
     const yaw = packet.Yaw;
     const s = Math.sin(yaw);
     const c = Math.cos(yaw);
-    const Y = -0.33; // ground level
-    const OFFSET = 0.05; // lateral offset from center in meters
+    const Y = -0.44; // match TrackOutline race-line Y
+    const OFFSET = 0.10; // lateral offset from center in meters
     const AHEAD = 60;
     const BEHIND = 20;
     const maxDist2 = AHEAD * AHEAD;
@@ -52,16 +52,12 @@ export function InputOverlay({
     const throttleRuns: { pts: [number, number, number][]; cols: THREE.Color[] }[] = [];
     const brakeRuns: { pts: [number, number, number][]; cols: THREE.Color[] }[] = [];
 
+    const EPS = 0.02; // ignore pedal noise / off-pedal
     for (const pts of runs) {
       if (pts.length < 2) continue;
-      // Single continuous offset line per range-run. Color is modulated
-      // by input value — black when off, full color at max. Keeping the
-      // line unbroken avoids the visual "dots" caused by flushing every
-      // time the driver briefly lifted on/off a pedal.
-      const tPts: [number, number, number][] = [];
-      const tCols: THREE.Color[] = [];
-      const bPts: [number, number, number][] = [];
-      const bCols: THREE.Color[] = [];
+      // Pre-compute offset positions per side
+      const tPos: [number, number, number][] = [];
+      const bPos: [number, number, number][] = [];
       for (let i = 0; i < pts.length; i++) {
         const prev = pts[Math.max(0, i - 1)];
         const next = pts[Math.min(pts.length - 1, i + 1)];
@@ -71,15 +67,41 @@ export function InputOverlay({
         const nFwd = -tLat / len;
         const nLat = tFwd / len;
         const p = pts[i];
-        tPts.push([p.fwd + nFwd * OFFSET, Y, p.lat + nLat * OFFSET]);
-        tCols.push(new THREE.Color(0, 0, 0).lerp(THROTTLE_COLOR, p.throttle));
-        bPts.push([p.fwd - nFwd * OFFSET, Y, p.lat - nLat * OFFSET]);
-        bCols.push(new THREE.Color(0, 0, 0).lerp(BRAKE_COLOR, p.brake));
+        tPos.push([p.fwd + nFwd * OFFSET, Y, p.lat + nLat * OFFSET]);
+        bPos.push([p.fwd - nFwd * OFFSET, Y, p.lat - nLat * OFFSET]);
       }
-      // Drop very short runs — drei Line2 renders thick round end-caps
-      // that look like isolated dots on 2–4 point segments.
-      if (tPts.length >= 5) throttleRuns.push({ pts: tPts, cols: tCols });
-      if (bPts.length >= 5) brakeRuns.push({ pts: bPts, cols: bCols });
+      // Split into sub-runs covering only frames where the pedal is on,
+      // so off-pedal stretches stay invisible instead of drawing a black line.
+      const flush = (
+        bucket: { pts: [number, number, number][]; cols: THREE.Color[] }[],
+        ptsBuf: [number, number, number][],
+        colsBuf: THREE.Color[],
+      ) => {
+        if (ptsBuf.length >= 5) bucket.push({ pts: ptsBuf.slice(), cols: colsBuf.slice() });
+        ptsBuf.length = 0;
+        colsBuf.length = 0;
+      };
+      const tBufP: [number, number, number][] = [];
+      const tBufC: THREE.Color[] = [];
+      const bBufP: [number, number, number][] = [];
+      const bBufC: THREE.Color[] = [];
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i];
+        if (p.throttle > EPS) {
+          tBufP.push(tPos[i]);
+          tBufC.push(new THREE.Color(0, 0, 0).lerp(THROTTLE_COLOR, p.throttle));
+        } else if (tBufP.length > 0) {
+          flush(throttleRuns, tBufP, tBufC);
+        }
+        if (p.brake > EPS) {
+          bBufP.push(bPos[i]);
+          bBufC.push(new THREE.Color(0, 0, 0).lerp(BRAKE_COLOR, p.brake));
+        } else if (bBufP.length > 0) {
+          flush(brakeRuns, bBufP, bBufC);
+        }
+      }
+      if (tBufP.length > 0) flush(throttleRuns, tBufP, tBufC);
+      if (bBufP.length > 0) flush(brakeRuns, bBufP, bBufC);
     }
 
     return { throttleRuns, brakeRuns };
@@ -88,10 +110,10 @@ export function InputOverlay({
   return (
     <>
       {data.throttleRuns.map((run, i) => (
-        <Line key={`t-${i}`} points={run.pts} vertexColors={run.cols} lineWidth={3} transparent opacity={0.9} />
+        <Line key={`t-${i}`} points={run.pts} vertexColors={run.cols} lineWidth={6} transparent opacity={0.9} />
       ))}
       {data.brakeRuns.map((run, i) => (
-        <Line key={`b-${i}`} points={run.pts} vertexColors={run.cols} lineWidth={3} transparent opacity={0.9} />
+        <Line key={`b-${i}`} points={run.pts} vertexColors={run.cols} lineWidth={6} transparent opacity={0.9} />
       ))}
     </>
   );
