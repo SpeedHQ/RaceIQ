@@ -63,8 +63,8 @@ const TRACTION_COLORS = new Map<string, THREE.Color>([
 ]);
 
 /** Returns a pre-allocated THREE.Color driven by tireState() — single source of truth. */
-export function trailColorFromState(wheelStateLabel: string, combinedSlip: number): THREE.Color {
-  return TRACTION_COLORS.get(tireState(wheelStateLabel, combinedSlip).hex) ?? TRACTION_COLORS.get(COLORS_HEX.green)!;
+export function trailColorFromState(wheelStateLabel: string, slipRatio: number, slipAngleRad: number): THREE.Color {
+  return TRACTION_COLORS.get(tireState(wheelStateLabel, slipRatio, slipAngleRad).hex) ?? TRACTION_COLORS.get(COLORS_HEX.green)!;
 }
 
 // ── Input overlay colors ─────────────────────────────────────────────

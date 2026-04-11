@@ -33,13 +33,15 @@ export function TireTrails({
   const trailLengthM = gameId === "acc" ? TRAIL_LENGTH_M_ACC : TRAIL_LENGTH_M_DEFAULT;
   const WHEEL_OFFSETS = useMemo(() => getWheelOffsets(carModel), [carModel]);
 
-  // Per-wheel slip-state callbacks (unchanged — drives per-segment color).
-  const slipFns = useMemo(
+  // Per-wheel slip-angle extractor (radians). Slip ratio comes from
+  // allWheelStates (rot-speed-derived SAE ratio, not the game's raw
+  // TireSlipRatio field which uses per-game scaling).
+  const angleFns = useMemo(
     () => [
-      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipFL),
-      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipFR),
-      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipRL),
-      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipRR),
+      (p: TelemetryPacket) => p.TireSlipAngleFL,
+      (p: TelemetryPacket) => p.TireSlipAngleFR,
+      (p: TelemetryPacket) => p.TireSlipAngleRL,
+      (p: TelemetryPacket) => p.TireSlipAngleRR,
     ],
     [],
   );
@@ -97,11 +99,12 @@ export function TireTrails({
         pts[j * 3 + 1] = -0.42;
         pts[j * 3 + 2] = dx * c - dz * s + off[1];
         const ws = allWheelStates(p);
-        cols.push(trailColorFromState(ws[wheelKeys[w]].state, slipFns[w](p)));
+        const wsWheel = ws[wheelKeys[w]];
+        cols.push(trailColorFromState(wsWheel.state, wsWheel.slipRatio, angleFns[w](p)));
       }
       return { pts, cols };
     });
-  }, [telemetry, cursorIdx, WHEEL_OFFSETS, slipFns, wheelKeys, trailLengthM]);
+  }, [telemetry, cursorIdx, WHEEL_OFFSETS, angleFns, wheelKeys, trailLengthM]);
 
   // Single instancedMesh across all 4 wheels — one draw call for everything.
   // Each instance is a thin box stretched to a segment length and rotated

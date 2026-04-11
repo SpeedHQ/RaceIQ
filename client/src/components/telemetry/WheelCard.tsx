@@ -9,11 +9,10 @@ import { tireTempColor, slipAngleColor, tireState } from "@/lib/vehicle-dynamics
  * the angle between tire heading and actual travel direction.
  * Spin/lockup detection uses animated glow rings and X/arrow overlays.
  */
-export function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, wheelState, steerAngle, thresholds, tempFn, tempUnit, onRumble, puddleDepth, brakeTemp }: {
+export function WheelCard({ label, temp, wear, slipAngle, outerSide, wheelState, steerAngle, thresholds, tempFn, tempUnit, onRumble, puddleDepth, brakeTemp }: {
   label: string;
   temp: number;
   wear: number;
-  combined: number;
   slipAngle: number;
   outerSide: "left" | "right";
   wheelState: WheelState;
@@ -167,9 +166,14 @@ export function WheelCard({ label, temp, wear, combined, slipAngle, outerSide, w
         <text x={cx} y={105} textAnchor="middle" fill="#94a3b8" fontSize={9} fontFamily="monospace">
           Health {((1 - wearPct) * 100).toFixed(0)}%
         </text>
-        <text x={cx} y={117} textAnchor="middle" fill={tireState(wheelState.state, combined).color} fontSize={8} fontWeight="bold" fontFamily="monospace">
-          {tireState(wheelState.state, combined).label}
-        </text>
+        {(() => {
+          const ts = tireState(wheelState.state, wheelState.slipRatio, slipAngle * Math.PI / 180);
+          return (
+            <text x={cx} y={117} textAnchor="middle" fill={ts.color} fontSize={8} fontWeight="bold" fontFamily="monospace">
+              {ts.label}
+            </text>
+          );
+        })()}
 
         {/* Brake temp */}
         {brakeTemp != null && brakeTemp > 0 && (
