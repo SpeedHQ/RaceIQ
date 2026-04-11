@@ -112,14 +112,22 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
       <directionalLight position={[5, 8, 5]} intensity={2} />
       <directionalLight position={[-3, 4, -2]} intensity={1.2} />
 
-      {/* Ground grid — scrolls with car movement */}
-      {toggles.grid && (
+      {/* Ground grid — scrolls with car movement.
+          Scroll phase is taken in the car-local frame so section lines pass
+          under the car along its forward/lateral axes, matching the same
+          yaw transform used by TireTrails / TrackOutline / CurbMarkers. */}
+      {toggles.grid && (() => {
+        const gs = Math.sin(packet.Yaw);
+        const gc = Math.cos(packet.Yaw);
+        const gLocalX = packet.PositionX * gs + packet.PositionZ * gc;
+        const gLocalZ = packet.PositionX * gc - packet.PositionZ * gs;
+        return (
         <Grid
           args={[10, 10]}
           position={[
-            -(packet.PositionX % 2),
+            -(gLocalX % 2),
             -0.45,
-            -(packet.PositionZ % 2),
+            -(gLocalZ % 2),
           ]}
           cellSize={0.5}
           cellThickness={0.5}
@@ -130,7 +138,8 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
           fadeDistance={8}
           infiniteGrid
         />
-      )}
+        );
+      })()}
 
       {/* Body — rolls with pitch/roll */}
       <group ref={carGroupRef}>
