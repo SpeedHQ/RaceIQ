@@ -99,10 +99,21 @@ export function parseAccBuffers(
   const suspRR = physicsBuf.readFloatLE(PHYSICS.suspTravelRR.offset);
 
   // Wheel slip & rotation
-  const slipFL = physicsBuf.readFloatLE(PHYSICS.wheelSlipFL.offset);
-  const slipFR = physicsBuf.readFloatLE(PHYSICS.wheelSlipFR.offset);
-  const slipRL = physicsBuf.readFloatLE(PHYSICS.wheelSlipRL.offset);
-  const slipRR = physicsBuf.readFloatLE(PHYSICS.wheelSlipRR.offset);
+  // wheelSlip[4] at 56 is ACC's combined slip magnitude; slipRatio[4] at 640
+  // is longitudinal and slipAngle[4] at 656 is lateral — all three are
+  // exposed separately by ACC shared memory.
+  const combinedSlipFL = physicsBuf.readFloatLE(PHYSICS.wheelSlipFL.offset);
+  const combinedSlipFR = physicsBuf.readFloatLE(PHYSICS.wheelSlipFR.offset);
+  const combinedSlipRL = physicsBuf.readFloatLE(PHYSICS.wheelSlipRL.offset);
+  const combinedSlipRR = physicsBuf.readFloatLE(PHYSICS.wheelSlipRR.offset);
+  const slipRatioFL = physicsBuf.readFloatLE(PHYSICS.slipRatioFL.offset);
+  const slipRatioFR = physicsBuf.readFloatLE(PHYSICS.slipRatioFR.offset);
+  const slipRatioRL = physicsBuf.readFloatLE(PHYSICS.slipRatioRL.offset);
+  const slipRatioRR = physicsBuf.readFloatLE(PHYSICS.slipRatioRR.offset);
+  const slipAngleFL = physicsBuf.readFloatLE(PHYSICS.slipAngleFL.offset);
+  const slipAngleFR = physicsBuf.readFloatLE(PHYSICS.slipAngleFR.offset);
+  const slipAngleRL = physicsBuf.readFloatLE(PHYSICS.slipAngleRL.offset);
+  const slipAngleRR = physicsBuf.readFloatLE(PHYSICS.slipAngleRR.offset);
   const rotFL = physicsBuf.readFloatLE(PHYSICS.wheelRotFL.offset);
   const rotFR = physicsBuf.readFloatLE(PHYSICS.wheelRotFR.offset);
   const rotRL = physicsBuf.readFloatLE(PHYSICS.wheelRotRL.offset);
@@ -250,10 +261,10 @@ export function parseAccBuffers(
     NormSuspensionTravelRL: 0,
     NormSuspensionTravelRR: 0,
 
-    TireSlipRatioFL: slipFL,
-    TireSlipRatioFR: slipFR,
-    TireSlipRatioRL: slipRL,
-    TireSlipRatioRR: slipRR,
+    TireSlipRatioFL: slipRatioFL,
+    TireSlipRatioFR: slipRatioFR,
+    TireSlipRatioRL: slipRatioRL,
+    TireSlipRatioRR: slipRatioRR,
 
     WheelRotationSpeedFL: rotFL,
     WheelRotationSpeedFR: rotFR,
@@ -310,14 +321,14 @@ export function parseAccBuffers(
     SurfaceRumbleFR: 0,
     SurfaceRumbleRL: 0,
     SurfaceRumbleRR: 0,
-    TireSlipAngleFL: slipFL,
-    TireSlipAngleFR: slipFR,
-    TireSlipAngleRL: slipRL,
-    TireSlipAngleRR: slipRR,
-    TireCombinedSlipFL: slipFL,
-    TireCombinedSlipFR: slipFR,
-    TireCombinedSlipRL: slipRL,
-    TireCombinedSlipRR: slipRR,
+    TireSlipAngleFL: slipAngleFL,
+    TireSlipAngleFR: slipAngleFR,
+    TireSlipAngleRL: slipAngleRL,
+    TireSlipAngleRR: slipAngleRR,
+    TireCombinedSlipFL: combinedSlipFL,
+    TireCombinedSlipFR: combinedSlipFR,
+    TireCombinedSlipRL: combinedSlipRL,
+    TireCombinedSlipRR: combinedSlipRR,
 
     // Suspension travel (meters)
     SuspensionTravelMFL: suspFL,

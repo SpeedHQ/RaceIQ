@@ -111,7 +111,14 @@ export const PHYSICS = {
   // localVelocity[3] (568-576), P2PActivations (580), P2PStatus (584)
   currentMaxRpm:  { offset: 588, type: "i32" },
   // mz[4] (592-604), fx[4] (608-620), fy[4] (624-636)
-  // slipRatio[4] (640-652), slipAngle[4] (656-668)
+  slipRatioFL:    { offset: 640, type: "f32" },
+  slipRatioFR:    { offset: 644, type: "f32" },
+  slipRatioRL:    { offset: 648, type: "f32" },
+  slipRatioRR:    { offset: 652, type: "f32" },
+  slipAngleFL:    { offset: 656, type: "f32" },
+  slipAngleFR:    { offset: 660, type: "f32" },
+  slipAngleRL:    { offset: 664, type: "f32" },
+  slipAngleRR:    { offset: 668, type: "f32" },
   // tcinAction (672), absInAction (676), suspensionDamage[4] (680-692)
   // tyreTemp[4] — per-tyre average display temp, °C
   tyreTempFL:     { offset: 696, type: "f32" },
