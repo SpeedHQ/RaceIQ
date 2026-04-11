@@ -167,11 +167,7 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
     const xz = computeLoadDotXZ([suspFL, suspFR, suspRL, suspRR], wb, ft, rt);
     if (!xz) return null;
     const springZMax = Math.max(ft - 0.35, rt - 0.35);
-    const maxDist = Math.sqrt(wb * wb + springZMax * springZMax);
-    const dist = Math.sqrt(xz.x * xz.x + xz.z * xz.z);
-    const mag = Math.min(1, dist / maxDist);
-    const color = mag > 0.6 ? "#ef4444" : mag > 0.3 ? "#fbbf24" : "#34d399";
-    return { x: xz.x, z: xz.z, y: 0.23 + bodyDrop, color, springZMax };
+    return { x: xz.x, z: xz.z, y: 0.23 + bodyDrop, color: "#ef4444", springZMax };
   })();
 
   // Derive load-dot trail from the last 1s of lap time walked back from
