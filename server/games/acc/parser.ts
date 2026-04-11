@@ -38,6 +38,10 @@ export function parseAccBuffers(
   const velX = physicsBuf.readFloatLE(PHYSICS.velocityX.offset);
   const velY = physicsBuf.readFloatLE(PHYSICS.velocityY.offset);
   const velZ = physicsBuf.readFloatLE(PHYSICS.velocityZ.offset);
+  // Car-local angular velocity — yaw rate is the Y component (rad/s)
+  const angVelX = physicsBuf.readFloatLE(PHYSICS.localAngularVelX.offset);
+  const angVelY = physicsBuf.readFloatLE(PHYSICS.localAngularVelY.offset);
+  const angVelZ = physicsBuf.readFloatLE(PHYSICS.localAngularVelZ.offset);
   const gX = physicsBuf.readFloatLE(PHYSICS.accGX.offset);
   const gY = physicsBuf.readFloatLE(PHYSICS.accGY.offset);
   const gZ = physicsBuf.readFloatLE(PHYSICS.accGZ.offset);
@@ -247,9 +251,9 @@ export function parseAccBuffers(
     VelocityX: velX,
     VelocityY: velY,
     VelocityZ: velZ,
-    AngularVelocityX: 0,
-    AngularVelocityY: 0,
-    AngularVelocityZ: 0,
+    AngularVelocityX: angVelX,
+    AngularVelocityY: angVelY,
+    AngularVelocityZ: angVelZ,
 
     Yaw: heading,
     Pitch: pitch,

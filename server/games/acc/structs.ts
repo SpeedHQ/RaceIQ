@@ -79,7 +79,11 @@ export const PHYSICS = {
   // rideHeight[2] (268-272), turboBoost (276), ballast (280), airDensity (284)
   airTemp:        { offset: 288, type: "f32" },
   roadTemp:       { offset: 292, type: "f32" },
-  // localAngularVel[3] (296-304), finalFF (308), performanceMeter (312)
+  // localAngularVel[3] (296-304) — car-local rates: [0]=pitch (X), [1]=yaw (Y), [2]=roll (Z)
+  localAngularVelX: { offset: 296, type: "f32" },
+  localAngularVelY: { offset: 300, type: "f32" },
+  localAngularVelZ: { offset: 304, type: "f32" },
+  // finalFF (308), performanceMeter (312)
   // engineBrake (316), ersRecoveryLevel (320), ersPowerLevel (324)
   // ersHeatCharging (328), ersIsCharging (332), kersCurrentKJ (336)
   // drsAvailable (340), drsEnabled (344)
@@ -108,7 +112,11 @@ export const PHYSICS = {
   // tyreContactPoint[4][3] (420-468), tyreContactNormal[4][3] (468-516)
   // tyreContactHeading[4][3] (516-564)
   brakeBias:      { offset: 564, type: "f32" },
-  // localVelocity[3] (568-576), P2PActivations (580), P2PStatus (584)
+  // localVelocity[3] (568-576) — car-local linear velocity: [0]=X (lateral), [1]=Y (vertical), [2]=Z (longitudinal)
+  localVelocityX: { offset: 568, type: "f32" },
+  localVelocityY: { offset: 572, type: "f32" },
+  localVelocityZ: { offset: 576, type: "f32" },
+  // P2PActivations (580), P2PStatus (584)
   currentMaxRpm:  { offset: 588, type: "i32" },
   // mz[4] (592-604), fx[4] (608-620), fy[4] (624-636)
   slipRatioFL:    { offset: 640, type: "f32" },

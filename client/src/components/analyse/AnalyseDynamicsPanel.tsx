@@ -4,7 +4,6 @@ import {
   allWheelStates,
   allFrictionCircle,
   steerBalance,
-  balanceChartData,
   tireState,
   slipRatioColor,
   frictionUtilColor,
@@ -58,8 +57,16 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
     </span>
   );
 
-  const isMetric = units.unit === "metric";
-  const chart = balanceChartData(currentPacket.Speed * 2.23694);
+  // Balance chart: map util delta ∈ [-0.5, +0.5] → x ∈ [0, 200].
+  // Threshold bands at ±15% (x = 70 and x = 130).
+  const BAL_MIN = -0.5;
+  const BAL_MAX = 0.5;
+  const BAL_THR = 0.15;
+  const balX = (d: number) =>
+    Math.max(0, Math.min(200, 100 + ((d - 0) / (BAL_MAX - BAL_MIN)) * 200));
+  const thrLeftX = balX(-BAL_THR);
+  const thrRightX = balX(BAL_THR);
+  const currentX = balX(bal.utilDelta);
 
   return (
     <div className="text-[11px] font-mono space-y-1.5 mb-3">
@@ -69,39 +76,42 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
           Balance
           <Info className="w-3 h-3 text-app-text-dim cursor-help" />
           <span className="absolute left-0 top-full mt-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2.5 py-2 text-[10px] text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal w-[280px]">
-            <span className="block mb-1">Front vs rear slip angle delta (Milliken method). EMA-smoothed.</span>
+            <span className="block mb-1">Front vs rear grip utilization (friction circle).</span>
             <span className="block mb-1.5 text-app-text-dim">
-              +δ = understeer (fronts slide more)<br />
-              −δ = oversteer (rears slide more)
+              +Δ = understeer (fronts overworked)<br />
+              −Δ = oversteer (rears overworked)<br />
+              Threshold: ±15% front/rear grip-ask difference
             </span>
-            <span className="block text-[9px] text-app-text-dim mb-1">Slip Angle Threshold (°) vs Speed ({isMetric ? "km/h" : "mph"})</span>
-            <svg viewBox="0 0 200 80" className="w-full h-auto">
-              <line x1="30" y1="5" x2="30" y2="65" stroke="currentColor" opacity="0.15" />
-              <line x1="30" y1="65" x2="195" y2="65" stroke="currentColor" opacity="0.15" />
-              <text x="27" y={chart.degToY(0) + 3} textAnchor="end" fill="currentColor" opacity="0.4" fontSize="7">0°</text>
-              {chart.yLabels.map((l, i) => (
-                <g key={i}>
-                  <line x1="30" y1={l.y} x2="195" y2={l.y} stroke="currentColor" opacity="0.08" strokeDasharray="2,2" />
-                  <text x="27" y={l.y + 3} textAnchor="end" fill="currentColor" opacity="0.4" fontSize="7">{l.deg}°</text>
-                </g>
-              ))}
-              {chart.xLabels.map(l => {
-                const label = isMetric ? Math.round(l.mph * 1.60934) : l.mph;
-                const isLast = l.mph === 90;
-                return (
-                  <text key={l.mph} x={l.x} y="75" textAnchor="middle" fill="currentColor" opacity="0.4" fontSize="7">
-                    {isLast ? `${label} ${isMetric ? "km/h" : "mph"}` : String(label)}
-                  </text>
-                );
-              })}
-              <polyline points={chart.polylinePoints} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinejoin="round" />
-              <circle cx={chart.markerX} cy={chart.markerY} r="3" fill="#3b82f6" />
+            <svg viewBox="0 0 200 60" className="w-full h-auto mt-1">
+              {/* Colored regions */}
+              <rect x="0" y="14" width={thrLeftX} height="18" fill="#ef4444" opacity="0.18" />
+              <rect x={thrLeftX} y="14" width={thrRightX - thrLeftX} height="18" fill="#34d399" opacity="0.18" />
+              <rect x={thrRightX} y="14" width={200 - thrRightX} height="18" fill="#3b82f6" opacity="0.18" />
+              {/* Threshold lines */}
+              <line x1={thrLeftX} y1="10" x2={thrLeftX} y2="36" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
+              <line x1={thrRightX} y1="10" x2={thrRightX} y2="36" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
+              {/* Zero marker */}
+              <line x1="100" y1="8" x2="100" y2="38" stroke="currentColor" opacity="0.25" />
+              {/* Current position marker */}
+              <circle cx={currentX} cy="23" r="4" fill={balanceColor(bal.state)} stroke="#0f172a" strokeWidth="1.2" />
+              {/* Region labels */}
+              <text x={thrLeftX / 2} y="46" textAnchor="middle" fill="#ef4444" fontSize="7.5" fontWeight="600">OVER</text>
+              <text x="100" y="46" textAnchor="middle" fill="#34d399" fontSize="7.5" fontWeight="600">NEUTRAL</text>
+              <text x={(thrRightX + 200) / 2} y="46" textAnchor="middle" fill="#3b82f6" fontSize="7.5" fontWeight="600">UNDER</text>
+              {/* Tick labels */}
+              <text x="0" y="56" textAnchor="start" fill="currentColor" opacity="0.4" fontSize="6.5">−50%</text>
+              <text x={thrLeftX} y="56" textAnchor="middle" fill="currentColor" opacity="0.4" fontSize="6.5">−15%</text>
+              <text x={thrRightX} y="56" textAnchor="middle" fill="currentColor" opacity="0.4" fontSize="6.5">+15%</text>
+              <text x="200" y="56" textAnchor="end" fill="currentColor" opacity="0.4" fontSize="6.5">+50%</text>
             </svg>
+            <span className="block text-[9px] text-app-text-dim mt-1">
+              Front: {(bal.frontUtil * 100).toFixed(0)}% · Rear: {(bal.rearUtil * 100).toFixed(0)}% · Slip Δ: {bal.deltaDeg > 0 ? "+" : ""}{bal.deltaDeg.toFixed(1)}°
+            </span>
           </span>
         </span>
         <span className="tabular-nums" style={{ color: balanceColor(bal.state) }}>
           {bal.state === "neutral" ? "Neutral" : bal.state === "understeer" ? "Understeer" : "Oversteer"}
-          <span className="text-app-text-dim ml-1">({bal.deltaDeg > 0 ? "+" : ""}{bal.deltaDeg.toFixed(1)}°)</span>
+          <span className="text-app-text-dim ml-1">({bal.utilDelta > 0 ? "+" : ""}{(bal.utilDelta * 100).toFixed(0)}%)</span>
         </span>
       </div>
 
