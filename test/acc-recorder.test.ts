@@ -6,7 +6,7 @@ import { join } from "path";
 import os from "os";
 
 describe("readAccFrames", () => {
-  test("reads frames written by AccRecorder", async () => {
+  test("emits one triplet per [physics, graphics, static] group", async () => {
     const dir = mkdtempSync(join(os.tmpdir(), "acc-test-"));
     try {
       const recorder = new AccRecorder();
@@ -16,18 +16,20 @@ describe("readAccFrames", () => {
       const graphics = Buffer.alloc(GRAPHICS.SIZE, 0x02);
       const staticData = Buffer.alloc(STATIC.SIZE, 0x03);
 
-      recorder.writeStatic(staticData);
-      recorder.writeGraphics(graphics);
-      recorder.writePhysics(physics);
-      recorder.writePhysics(physics);
+      // DumpToBinProcessor writes [physics, graphics, static] per 100Hz poll.
+      // Three polls → three triplets on replay.
+      for (let i = 0; i < 3; i++) {
+        recorder.writePhysics(physics);
+        recorder.writeGraphics(graphics);
+        recorder.writeStatic(staticData);
+      }
       await recorder.stop();
 
       const frames = readAccFrames(filePath);
-      expect(frames).toHaveLength(4);
-      // After all three types have been seen, triplets carry the latest of each
-      expect(frames[2].physics).toEqual(physics);
-      expect(frames[2].graphics).toEqual(graphics);
-      expect(frames[2].staticData).toEqual(staticData);
+      expect(frames).toHaveLength(3);
+      expect(frames[0].physics).toEqual(physics);
+      expect(frames[0].graphics).toEqual(graphics);
+      expect(frames[0].staticData).toEqual(staticData);
     } finally {
       rmSync(dir, { recursive: true });
     }
