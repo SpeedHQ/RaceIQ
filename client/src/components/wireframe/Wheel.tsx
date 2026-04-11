@@ -2,7 +2,7 @@ import { useRef, useMemo } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { makeWheelGeometries, brakeTempColor } from "../../lib/wireframe-utils";
-import { TempLabel, WearLabel, BrakeTempLabel, HealthLabel } from "./WheelLabels";
+import { WheelInfoCard } from "./WheelLabels";
 
 const useWheelGeometries = (radius = 0.34, width = 0.30) =>
   useMemo(() => makeWheelGeometries(radius, width), [radius, width]);
@@ -81,14 +81,16 @@ export function Wheel({
           </mesh>
         )}
       </group>
-      {/* Temp / health / wear labels — only when there's live data */}
+      {/* Unified info card — health / temp / brake / wear on one sprite */}
       {displayTemp && (
-        <>
-          <TempLabel displayTemp={displayTemp} color={rimColorForDisplay} side={side} />
-          <HealthLabel wear={wear} side={side} />
-          <WearLabel wearRate={wearRate} side={side} />
-          {brakeTemp > 0 && <BrakeTempLabel temp={brakeTemp} side={side} />}
-        </>
+        <WheelInfoCard
+          displayTemp={displayTemp}
+          tempColor={rimColorForDisplay}
+          wear={wear}
+          wearRate={wearRate}
+          brakeTemp={brakeTemp}
+          side={side}
+        />
       )}
       {/* Curb indicator — orange ring under tire when on rumble strip */}
       {onCurb && (
