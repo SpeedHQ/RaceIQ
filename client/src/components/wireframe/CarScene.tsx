@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, Suspense } from "react";
+import { useRef, useState, useEffect, useMemo, Suspense } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Grid } from "@react-three/drei";
 import { Line } from "@react-three/drei";
@@ -17,6 +17,33 @@ import { TrackOutline, TrackBoundaryEdges } from "./TrackElements";
 import { DimensionLines } from "./DimensionLines";
 import { AutoChaseCamera, CameraController } from "./CameraControllers";
 
+// Load-dot geometry: direction comes from the baseline-subtracted weighted
+// centroid (which corner is dominant), magnitude comes from the *max*
+// normalized compression (how hard that corner is loaded). Dot reaches a
+// corner edge only when that corner is at 100% compression AND the others
+// are at the baseline.
+function computeLoadDotXZ(
+  susp: [number, number, number, number],
+  wb: number,
+  ft: number,
+  rt: number,
+): { x: number; z: number } | null {
+  const base = Math.min(susp[0], susp[1], susp[2], susp[3]);
+  const maxC = Math.max(susp[0], susp[1], susp[2], susp[3]);
+  const w0 = susp[0] - base;
+  const w1 = susp[1] - base;
+  const w2 = susp[2] - base;
+  const w3 = susp[3] - base;
+  const total = w0 + w1 + w2 + w3;
+  if (total < 1e-4) return { x: 0, z: 0 };
+  const cornerX = [wb, wb, -wb, -wb];
+  const cornerZ = [-ft + 0.35, ft - 0.35, -rt + 0.35, rt - 0.35];
+  const dirX = (cornerX[0] * w0 + cornerX[1] * w1 + cornerX[2] * w2 + cornerX[3] * w3) / total;
+  const dirZ = (cornerZ[0] * w0 + cornerZ[1] * w1 + cornerZ[2] * w2 + cornerZ[3] * w3) / total;
+  const scale = Math.min(1, maxC);
+  return { x: dirX * scale, z: dirZ * scale };
+}
+
 export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, boundaries, toggles, viewPreset, carModel, modelOffsetX, fmtTemp, hideModelWheels, suspThresholds, autoOrbit, tireColors }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null; toggles: ViewToggles; viewPreset: ViewPreset; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; fmtTemp: (f: number) => string; hideModelWheels?: boolean; suspThresholds: number[]; autoOrbit?: boolean; tireColors: [string, string, string, string] }) {
   const [colorFL, colorFR, colorRL, colorRR] = tireColors;
 
@@ -25,7 +52,6 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
   useEffect(() => { packetRef.current = packetProp; });
   const packet = packetProp; // still use prop for JSX (re-renders at 10fps)
   const carGroupRef = useRef<THREE.Group>(null);
-  const [loadTrail, setLoadTrail] = useState<Array<{ x: number; z: number; t: number }>>([]);
   const prevTimeRef = useRef(packet.TimestampMS);
   const prevWear = useRef([packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR]);
   const [wearRatesVal, setWearRatesVal] = useState([0, 0, 0, 0]);
@@ -70,15 +96,6 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
         "YXZ"
       );
     }
-    // Prune 1s load-dot trail by wall-clock (bail out when nothing to drop)
-    const now = performance.now();
-    setLoadTrail((prev) => {
-      if (!prev.length || now - prev[0].t <= 1000) return prev;
-      const cutoff = now - 1000;
-      let cut = 0;
-      while (cut < prev.length && prev[cut].t < cutoff) cut++;
-      return cut === 0 ? prev : prev.slice(cut);
-    });
   });
 
   // Compute tire wear rate (/s) — smoothed with EMA
@@ -143,45 +160,52 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
     { pos: [-wb, 0, rt] as [number, number, number], steer: steerRR, camber: cambRR, susp: packet.NormSuspensionTravelRR, drop: dropRR, traction: tireState(ws.rr.state, ws.rr.slipRatio, packet.TireSlipAngleRR).hex, rimColor: colorRR, brakeTemp: packet.BrakeTempRearRight ?? packet.f1?.brakeTempRR ?? 0, onRumble: packet.WheelOnRumbleStripRR !== 0, puddle: packet.WheelInPuddleDepthRR, wearRate: wearRatesVal[3], wear: packet.TireWearRR, rotSpeed: rotRR, tireRadius: rTireR, tireWidth: rTireW },
   ];
 
-  // Load distribution — weighted centroid of spring loads (null when no load data).
+  // Load distribution — weighted centroid of excess-compression per corner.
+  // Dot reaches a corner iff that corner is at max compression (susp=1) while
+  // the others are at/below static (susp≤0.5).
   const loadDot = (() => {
-    const total = wheelData[0].susp + wheelData[1].susp + wheelData[2].susp + wheelData[3].susp;
-    if (total < 0.01) return null;
+    const xz = computeLoadDotXZ([suspFL, suspFR, suspRL, suspRR], wb, ft, rt);
+    if (!xz) return null;
     const springZMax = Math.max(ft - 0.35, rt - 0.35);
-    const corners = [
-      { x: wb, z: -ft + 0.35 },
-      { x: wb, z: ft - 0.35 },
-      { x: -wb, z: -rt + 0.35 },
-      { x: -wb, z: rt - 0.35 },
-    ];
-    let cx = 0, cz = 0;
-    for (let i = 0; i < 4; i++) {
-      cx += corners[i].x * wheelData[i].susp;
-      cz += corners[i].z * wheelData[i].susp;
-    }
-    cx /= total;
-    cz /= total;
-    const sensitivity = 3;
-    const x = Math.max(-wb, Math.min(wb, cx * sensitivity));
-    const z = Math.max(-springZMax, Math.min(springZMax, cz * sensitivity));
-    const dist = Math.sqrt(x * x + z * z);
     const maxDist = Math.sqrt(wb * wb + springZMax * springZMax);
-    const mag = Math.min(1, (dist / maxDist) * 2);
+    const dist = Math.sqrt(xz.x * xz.x + xz.z * xz.z);
+    const mag = Math.min(1, dist / maxDist);
     const color = mag > 0.6 ? "#ef4444" : mag > 0.3 ? "#fbbf24" : "#34d399";
-    return { x, z, y: 0.23 + bodyDrop, color, springZMax };
+    return { x: xz.x, z: xz.z, y: 0.23 + bodyDrop, color, springZMax };
   })();
 
-  // Append current load-dot position to trail buffer (wall-clock timestamps)
-  const dotX = loadDot?.x ?? 0;
-  const dotZ = loadDot?.z ?? 0;
-  const hasDot = loadDot !== null;
-  const ts = packet.TimestampMS;
-  useEffect(() => {
-    if (!hasDot) return;
-    // eslint-disable-next-line react-hooks/purity
-    const t = performance.now();
-    setLoadTrail((prev) => [...prev, { x: dotX, z: dotZ, t }]);
-  }, [ts, dotX, dotZ, hasDot]);
+  // Derive load-dot trail from the last 1s of lap time walked back from
+  // cursorIdx. Uses packet.CurrentLap (lap-time seconds) so the window is
+  // scoped to the current lap and resets cleanly at the lap boundary.
+  // Pure derivation — persists on pause, reconstructs correctly on scrub.
+  const loadTrail = useMemo(() => {
+    const cur = telemetry[cursorIdx];
+    if (!cur) return [];
+    const endLap = cur.CurrentLap;
+    const pts: Array<[number, number]> = [];
+    for (let i = cursorIdx; i >= 0; i--) {
+      const p = telemetry[i];
+      if (!p) break;
+      // Stop at lap boundary: previous lap has a *larger* CurrentLap value
+      // (lap time reset on crossing the line).
+      if (p.CurrentLap > endLap) break;
+      if (endLap - p.CurrentLap > 1) break;
+      const xz = computeLoadDotXZ(
+        [
+          p.NormSuspensionTravelFL,
+          p.NormSuspensionTravelFR,
+          p.NormSuspensionTravelRL,
+          p.NormSuspensionTravelRR,
+        ],
+        wb,
+        ft,
+        rt,
+      );
+      if (xz) pts.push([xz.x, xz.z]);
+    }
+    // Oldest first → newest last, matching the drawing direction of the Line.
+    return pts.reverse();
+  }, [telemetry, cursorIdx, wb, ft, rt]);
 
   return (
     <>
@@ -295,10 +319,10 @@ export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, bo
             {/* Crosshairs */}
             <Line points={[[-wb, loadDot.y, 0], [wb, loadDot.y, 0]]} color="#475569" lineWidth={0.5} />
             <Line points={[[0, loadDot.y, -loadDot.springZMax], [0, loadDot.y, loadDot.springZMax]]} color="#475569" lineWidth={0.5} />
-            {/* 1 second trail */}
+            {/* 1 second trail — derived from packet history */}
             {loadTrail.length > 1 && (
               <Line
-                points={loadTrail.map((p) => [p.x, loadDot.y, p.z] as [number, number, number])}
+                points={loadTrail.map(([x, z]) => [x, loadDot.y, z] as [number, number, number])}
                 color={loadDot.color}
                 lineWidth={1.2}
                 transparent
