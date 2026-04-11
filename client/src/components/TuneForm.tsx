@@ -220,6 +220,7 @@ export function TuneSettingsPanel({ settings: raw }: { settings: TuneSettings })
         ["Rear Decel", `${settings.differential.rearDecel}%`],
         ...(settings.differential.frontAccel != null ? [["Front Accel", `${settings.differential.frontAccel}%`] as [string, string]] : []),
         ...(settings.differential.frontDecel != null ? [["Front Decel", `${settings.differential.frontDecel}%`] as [string, string]] : []),
+        ...(settings.differential.center != null ? [["Center", `${settings.differential.center}%`] as [string, string]] : []),
       ],
     },
     {
@@ -720,6 +721,7 @@ export function TuneForm({
                 <NumberField label="Rear Decel" value={settings.differential.rearDecel} onChange={(v) => updateSettings("differential", "rearDecel", v)} step={1} unit="%" />
                 <NumberField label="Front Accel" value={settings.differential.frontAccel ?? 0} onChange={(v) => updateSettings("differential", "frontAccel", v)} step={1} unit="%" />
                 <NumberField label="Front Decel" value={settings.differential.frontDecel ?? 0} onChange={(v) => updateSettings("differential", "frontDecel", v)} step={1} unit="%" />
+                <NumberField label="Center" value={settings.differential.center ?? 50} onChange={(v) => updateSettings("differential", "center", v)} step={1} unit="%" />
               </div>
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">

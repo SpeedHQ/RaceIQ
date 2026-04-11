@@ -569,6 +569,12 @@ export function TuneFormDialog({
                     onChange={(v) => updateSettings("differential", "frontDecel", v)}
                     step={1}
                   />
+                  <NumberField
+                    label="Center %"
+                    value={settings.differential.center ?? 50}
+                    onChange={(v) => updateSettings("differential", "center", v)}
+                    step={1}
+                  />
                 </SettingsSection>
 
                 {/* Brakes */}

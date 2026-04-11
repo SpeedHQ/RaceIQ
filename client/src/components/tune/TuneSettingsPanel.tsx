@@ -100,6 +100,14 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
               ] as [string, string],
             ]
           : []),
+        ...(settings.differential.center != null
+          ? [
+              [
+                "Center",
+                `${settings.differential.center}%`,
+              ] as [string, string],
+            ]
+          : []),
       ],
     },
     {
