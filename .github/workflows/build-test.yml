@@ -21,5 +21,8 @@ jobs:
       - name: Build client
         run: cd client && bun install && bun run build
 
+      - name: Pull LFS files
+        run: git lfs pull
+
       - name: Run tests
         run: bun test
