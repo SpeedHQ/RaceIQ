@@ -21,6 +21,7 @@
     "extract:tracks:forza": "bun scripts/extract-fm2023-tracks.ts",
     "extract:tracks:f1": "bun scripts/extract-f1-25-tracks.ts",
     "extract:tracks:acc": "bun scripts/extract-acc-tracks.ts",
+    "scrape:car-images:ac-evo": "bun scripts/scrape-ac-evo-car-images.ts",
     "laps:export": "bun scripts/export-laps.ts",
     "laps:import": "bun scripts/import-laps.ts",
     "build:installer": "bun scripts/build-installer.ts",

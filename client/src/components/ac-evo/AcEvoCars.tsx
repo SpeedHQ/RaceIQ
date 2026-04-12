@@ -129,6 +129,19 @@ export function AcEvoCars() {
                     className="group relative bg-app-surface-alt/20 rounded-lg border border-app-border/10 overflow-hidden hover:border-app-border/30 transition-all"
                   >
                     <div className="h-0.5" style={{ backgroundColor: brandColor }} />
+                    {/* Car image */}
+                    <div className="relative w-full h-48 overflow-hidden bg-app-surface-alt/10">
+                      <img
+                        src={`/car-images/ac-evo-${car.id}.jpg`}
+                        alt={car.name}
+                        className="w-full h-full object-cover object-center"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                      <span className={`absolute bottom-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded ${c.bg} ${c.text}`}>
+                        {cls}
+                      </span>
+                    </div>
                     <div className="p-3">
                       <div className="flex items-start justify-between gap-2">
                         <div>
