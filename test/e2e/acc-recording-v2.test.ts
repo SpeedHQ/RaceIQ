@@ -151,6 +151,7 @@ describe("ACC recording v2", () => {
       // Lap 3: the incomplete tail (recording ended mid-lap)
       expect(laps[3].isValid).toBe(false);
       expect(laps[3].invalidReason).toBe("incomplete");
+
     }, { timeout: 30000 });
   });
 
@@ -194,6 +195,80 @@ describe("ACC recording v2", () => {
       assertBrandHatchSectorBounds(laps[2]);
       expect(laps[3].isValid).toBe(true);
       assertBrandHatchSectorBounds(laps[3]);
+    }, { timeout: 30000 });
+  });
+
+  describe("acc-2026-04-12T21-16-07-841Z", () => {
+    const recordingFile = "acc-2026-04-12T21-16-07-841Z.bin";
+    const recording = join(RECORDINGS_DIR, recordingFile);
+
+    test("detects laps correctly with no duplicates", async () => {
+      if (!existsSync(recording)) {
+        console.log(`Recording not found: ${recordingFile}`);
+        return;
+      }
+
+      const { laps, wsNotifications } = await parseDumpV2("acc", recording);
+
+      const lapSaved = (wsNotifications as any[]).filter(n => n.type === "lap-saved");
+
+      for (const l of laps) {
+        const mins = Math.floor(l.lapTime / 60);
+        const secs = (l.lapTime % 60).toFixed(3);
+        const valid = l.isValid ? "valid" : `invalid (${l.invalidReason ?? "unknown"})`;
+        const s = l.sectors;
+        const ss = s ? `s1=${s.s1.toFixed(3)} s2=${s.s2.toFixed(3)} s3=${s.s3.toFixed(3)}` : "sectors=null";
+        console.log(`  Lap ${l.lapNumber}: ${mins}:${secs.padStart(6, "0")} ${valid} | ${ss}`);
+      }
+      console.log(`  lap-saved notifications: ${lapSaved.map((n: any) => `lap${n.lapNumber}`).join(", ")}`);
+    }, { timeout: 30000 });
+  });
+
+  describe("acc-2026-04-12T21-44-38-899Z", () => {
+    const recordingFile = "acc-2026-04-12T21-44-38-899Z.bin";
+    const recording = join(RECORDINGS_DIR, recordingFile);
+
+    test("pit-only opening segment discarded, outlap is lap 0", async () => {
+      if (!existsSync(recording)) {
+        console.log(`Recording not found: ${recordingFile}`);
+        return;
+      }
+
+      const { laps, rawPackets } = await parseDumpV2("acc", recording);
+
+      for (const l of laps) {
+        const mins = Math.floor(l.lapTime / 60);
+        const secs = (l.lapTime % 60).toFixed(3);
+        const valid = l.isValid ? "valid" : `invalid (${l.invalidReason ?? "unknown"})`;
+        const s = l.sectors;
+        const ss = s ? `s1=${s.s1.toFixed(3)} s2=${s.s2.toFixed(3)} s3=${s.s3.toFixed(3)}` : "sectors=null";
+        console.log(`  Lap ${l.lapNumber}: ${mins}:${secs.padStart(6, "0")} ${valid} | ${ss}`);
+      }
+
+      // The opening segment that used to push the outlap to lap 1 must be in pit.
+      // This confirms the discard logic fired correctly: the raw recording started
+      // while the car was sitting in the pit box (not on track).
+      expect(rawPackets[0].acc?.pitStatus).not.toBe("out");
+
+      // 3 laps: outlap + valid + incomplete
+      // The 17-minute pit-only opening segment is discarded — recording started while
+      // the car was sitting in the pit box, so that data is useless. Outlap is lap 0.
+      expect(laps.length).toBe(3);
+
+      // Lap 0: outlap (was lap 1 before the pit-only opening segment was discarded)
+      // First packet is still pit_lane — Brand Hatch pit exit beacon is after S/F line.
+      expect(laps[0].isValid).toBe(false);
+      expect(laps[0].invalidReason).toBe("outlap");
+      expect(laps[0].packets[0].acc?.pitStatus).not.toBe("out");
+      assertBrandHatchSectorBounds(laps[0]);
+
+      // Lap 1: clean lap
+      expect(laps[1].isValid).toBe(true);
+      assertBrandHatchSectorBounds(laps[1]);
+
+      // Lap 2: incomplete tail
+      expect(laps[2].isValid).toBe(false);
+      expect(laps[2].invalidReason).toBe("incomplete");
     }, { timeout: 30000 });
   });
 });
