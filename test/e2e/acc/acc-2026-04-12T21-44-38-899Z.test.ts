@@ -2,7 +2,7 @@ console.log = () => {};
 import { describe, test, expect } from "bun:test";
 import { existsSync } from "fs";
 import { join } from "path";
-import { parseDumpV2 } from "../../helpers/parse-dump-v2";
+import { parseDump } from "../../helpers/parse-dump";
 import { TestLogger } from "../../helpers/test-logger";
 import { assertBrandHatchSectorBounds, lapSummary, RECORDINGS_DIR } from "./shared";
 
@@ -14,7 +14,7 @@ describe(recordingFile, () => {
     if (!existsSync(recording)) return;
 
     const log = new TestLogger(recordingFile);
-    const { laps, rawPackets } = await parseDumpV2("acc", recording);
+    const { laps, rawPackets } = await parseDump("acc", recording);
     for (const l of laps) log.log(lapSummary(l));
 
     // Raw recording started in pit box — confirms discard logic fired correctly
