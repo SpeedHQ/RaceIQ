@@ -14,10 +14,10 @@ function getRecording(filename: string): string | null {
 }
 
 describe("ACC recording", () => {
-  describe("acc-2026-04-10T02-59-28-972Z.bin", () => {
+  describe("acc-2026-04-10T02-59-28-972Z", () => {
     const recordingFile = "acc-2026-04-10T02-59-28-972Z.bin";
 
-    test("detects laps correctly", async () => {
+    test("5 laps: outlap + 3 valid + incomplete tail", async () => {
       const recording = getRecording(recordingFile);
       if (!recording) {
         console.log(`Recording not found: ${recordingFile}`);

@@ -14,7 +14,7 @@ function getRecording(filename: string): string | null {
 }
 
 describe("FM-2023 recording", () => {
-  describe("fm-2023-2026-04-09T21-53-00-102Z.bin", () => {
+  describe("fm-2023-2026-04-09T21-53-00-102Z", () => {
     const recordingFile = "fm-2023-2026-04-09T21-53-00-102Z.bin";
 
     test("detects laps correctly", async () => {
@@ -110,7 +110,7 @@ describe("FM-2023 recording", () => {
     }, { timeout: 30000 });
   });
 
-  describe("fm-2023-2026-04-09T21-55-03-186Z.bin", () => {
+  describe("fm-2023-2026-04-09T21-55-03-186Z", () => {
     const recordingFile = "fm-2023-2026-04-09T21-55-03-186Z.bin";
 
     test("detects laps correctly", async () => {

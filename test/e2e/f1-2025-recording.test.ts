@@ -14,7 +14,7 @@ function getRecording(filename: string): string | null {
 }
 
 describe("F1-2025 recording", () => {
-  describe("f1-2025-2026-04-09T21-34-10-190Z.bin", () => {
+  describe("f1-2025-2026-04-09T21-34-10-190Z", () => {
     const recordingFile = "f1-2025-2026-04-09T21-34-10-190Z.bin";
 
     test("detects laps correctly", { timeout: 120000 }, async () => {

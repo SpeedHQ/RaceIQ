@@ -25,7 +25,7 @@ function assertBrandHatchSectorBounds(lap: CapturedLap): void {
 const RECORDINGS_DIR = "test/artifacts/laps";
 
 describe("ACC recording v2", () => {
-  describe("Brand Hatch — McLaren 720S GT3 Evo — 3 clean laps (acc-2026-04-10T02-59-28-972Z.bin)", () => {
+  describe("acc-2026-04-10T02-59-28-972Z", () => {
     const recordingFile = "acc-2026-04-10T02-59-28-972Z.bin";
     const recording = join(RECORDINGS_DIR, recordingFile);
 
@@ -89,7 +89,7 @@ describe("ACC recording v2", () => {
     }, { timeout: 30000 });
   });
 
-  describe("Brand Hatch — McLaren 720S GT3 Evo — 2 clean laps (acc-2026-04-09T18-56-49-633Z.bin)", () => {
+  describe("acc-2026-04-09T18-56-49-633Z", () => {
     const recordingFile = "acc-2026-04-09T18-56-49-633Z.bin";
     const recording = join(RECORDINGS_DIR, recordingFile);
 
@@ -154,7 +154,7 @@ describe("ACC recording v2", () => {
     }, { timeout: 30000 });
   });
 
-  describe("Brand Hatch — pit lap then outlap then 2 valid laps (acc-2026-04-12T20-41-21-436Z.bin)", () => {
+  describe("acc-2026-04-12T20-41-21-436Z", () => {
     const recordingFile = "acc-2026-04-12T20-41-21-436Z.bin";
     const recording = join(RECORDINGS_DIR, recordingFile);
 
