@@ -84,6 +84,8 @@ export function buildAnalystPrompt(
   unit: UnitSystem = "metric",
   tune?: Tune,
   segments?: { type: string; name: string; startFrac: number; endFrac: number }[],
+  /** Pre-fetched track guide text. When provided, skips internal lookup. */
+  externalTrackGuide?: string,
 ): string {
   const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
   const trackName = getTrackName(lap.trackOrdinal ?? 0);
@@ -136,7 +138,7 @@ export function buildAnalystPrompt(
     carDetailsText += `\nDimensions: ${specs.weightKg}kg, ${specs.hp}hp, ${specs.drivetrain}`;
   }
 
-  const trackGuide = buildTrackGuideContext(trackName);
+  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName);
 
   const context = `${carDetailsText}
 Track: ${trackName}

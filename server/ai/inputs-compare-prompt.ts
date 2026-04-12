@@ -238,11 +238,13 @@ export function buildInputsComparePrompt(
   comparison: ComparisonResult,
   segments: PromptSegment[] | null,
   unit: UnitSystem = "metric",
+  /** Pre-fetched track guide text. When provided, skips internal lookup. */
+  externalTrackGuide?: string,
 ): string {
   const carA = getCarName(lapA.carOrdinal ?? 0);
   const carB = getCarName(lapB.carOrdinal ?? 0);
   const trackName = getTrackName(lapA.trackOrdinal ?? 0);
-  const trackGuide = buildTrackGuideContext(trackName);
+  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName);
   const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? 0;
 
   const useSegs = (segments && segments.length > 0)
