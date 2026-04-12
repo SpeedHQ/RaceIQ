@@ -14,10 +14,10 @@ function getRecording(filename: string): string | null {
 }
 
 describe("FM-2023 recording", () => {
-  describe("fm-2023-2026-04-09T21-53-00-102Z.bin.gz", () => {
-    const recordingFile = "fm-2023-2026-04-09T21-53-00-102Z.bin.gz";
+  describe("fm-2023-2026-04-09T21-53-00-102Z", () => {
+    const recordingFile = "fm-2023-2026-04-09T21-53-00-102Z.bin";
 
-    test("detects laps correctly", { timeout: 60000 }, async () => {
+    test("detects laps correctly", async () => {
       const recording = getRecording(recordingFile);
       if (!recording) {
         console.log(`Recording not found: ${recordingFile}`);
@@ -104,16 +104,16 @@ describe("FM-2023 recording", () => {
       // Regenerate SVG + GIF visualizations for this recording
       if (wsNotifications.length > 0) {
         const { rawPackets } = await parseDump("fm-2023", recording);
-        generateRecordingVisualizations(recordingFile, laps, rawPackets);
+        await generateRecordingVisualizations(recordingFile, laps, rawPackets);
         console.log(`[Visualizations] Generated for ${laps.length} laps`);
       }
-    });
+    }, { timeout: 30000 });
   });
 
-  describe("fm-2023-2026-04-09T21-55-03-186Z.bin.gz", () => {
-    const recordingFile = "fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
+  describe("fm-2023-2026-04-09T21-55-03-186Z", () => {
+    const recordingFile = "fm-2023-2026-04-09T21-55-03-186Z.bin";
 
-    test("detects laps correctly", { timeout: 60000 }, async () => {
+    test("detects laps correctly", async () => {
       const recording = getRecording(recordingFile);
       if (!recording) {
         console.log(`Recording not found: ${recordingFile}`);
@@ -200,9 +200,9 @@ describe("FM-2023 recording", () => {
       // Regenerate SVG + GIF visualizations for this recording
       if (wsNotifications.length > 0) {
         const { rawPackets } = await parseDump("fm-2023", recording);
-        generateRecordingVisualizations(recordingFile, laps, rawPackets);
+        await generateRecordingVisualizations(recordingFile, laps, rawPackets);
         console.log(`[Visualizations] Generated for ${laps.length} laps`);
       }
-    });
+    }, { timeout: 30000 });
   });
 });

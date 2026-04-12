@@ -14,10 +14,10 @@ function getRecording(filename: string): string | null {
 }
 
 describe("F1-2025 recording", () => {
-  describe("f1-2025-2026-04-09T21-34-10-190Z.bin.gz", () => {
-    const recordingFile = "f1-2025-2026-04-09T21-34-10-190Z.bin.gz";
+  describe("f1-2025-2026-04-09T21-34-10-190Z", () => {
+    const recordingFile = "f1-2025-2026-04-09T21-34-10-190Z.bin";
 
-    test("detects laps correctly", { timeout: 60000 }, async () => {
+    test("detects laps correctly", { timeout: 120000 }, async () => {
       const recording = getRecording(recordingFile);
       if (!recording) {
         console.log(`Recording not found: ${recordingFile}`);
@@ -104,7 +104,7 @@ describe("F1-2025 recording", () => {
       // Regenerate SVG + GIF visualizations for this recording
       if (wsNotifications.length > 0) {
         const { rawPackets } = await parseDump("f1-2025", recording);
-        generateRecordingVisualizations(recordingFile, laps, rawPackets);
+        await generateRecordingVisualizations(recordingFile, laps, rawPackets);
         console.log(`[Visualizations] Generated for ${laps.length} laps`);
       }
     });
