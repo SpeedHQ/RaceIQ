@@ -138,8 +138,7 @@ export class SectorTracker {
       // following lap (e.g. S3 before turn 2 on the outlap).
       // Other games don't have this issue so always refine for them.
       const completedDist = packet.DistanceTraveled - this.lapDistStart;
-      const isSharedMemoryGame = this.currentGameId === "acc" || this.currentGameId === "ac-evo";
-      const minPlausibleLap = isSharedMemoryGame && this.bounds ? this.bounds.trackLength * 0.5 : 100;
+      const minPlausibleLap = this.currentGameId === "acc" && this.bounds ? this.bounds.trackLength * 0.5 : 100;
       if (completedDist > minPlausibleLap) {
         this.lapDistTotal = completedDist;
       }
@@ -152,17 +151,10 @@ export class SectorTracker {
     this.lastLap = packet.LapNumber;
 
     // Sector boundary detection.
-    // For ACC/AC Evo: use the game's own currentSectorIndex — it's track-position-based
-    // and accurate regardless of where in the lap the recording started.
-    // For other games: fall back to distance-fraction against lapDistTotal.
-    const isSharedMemoryGame = this.currentGameId === "acc" || this.currentGameId === "ac-evo";
-    if (isSharedMemoryGame && packet.acc?.currentSectorIndex !== undefined) {
-      const idx = packet.acc.currentSectorIndex; // 0, 1, or 2
-      if (idx > this.currentSector) {
-        this.currentTimes[this.currentSector] = packet.CurrentLap - this.sectorStartTime;
-        this.sectorStartTime = packet.CurrentLap;
-        this.currentSector = idx;
-      }
+    // ACC: use the game's own currentSectorIndex (track-position-based, accurate from any lap start).
+    // Other games: fall back to distance-fraction against lapDistTotal.
+    if (this.currentGameId === "acc" && packet.acc?.currentSectorIndex !== undefined) {
+      this.updateAccSector(packet);
     } else if (this.lapDistTotal > 0) {
       const lapDist = packet.DistanceTraveled - this.lapDistStart;
       const frac = lapDist / this.lapDistTotal;
@@ -243,6 +235,15 @@ export class SectorTracker {
       times[i] = packets[i].CurrentLap;
     }
     return { distances, times, lapTime };
+  }
+
+  private updateAccSector(packet: TelemetryPacket): void {
+    const idx = packet.acc!.currentSectorIndex!;
+    if (idx > this.currentSector) {
+      this.currentTimes[this.currentSector] = packet.CurrentLap - this.sectorStartTime;
+      this.sectorStartTime = packet.CurrentLap;
+      this.currentSector = idx;
+    }
   }
 
   /** Update reference lap and bests from a just-completed valid live lap. */
