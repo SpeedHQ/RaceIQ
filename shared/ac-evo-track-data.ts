@@ -19,8 +19,8 @@ function ensureLoaded(): Map<number, AcEvoTrack> {
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    // Format: id\tname\tvariant\tcommonTrackName (tab-separated)
-    const parts = trimmed.split("\t");
+    // Format: id,name,variant,commonTrackName (comma-separated)
+    const parts = trimmed.split(",");
     if (parts.length < 3) continue;
     const id = parseInt(parts[0], 10);
     const name = parts[1];
