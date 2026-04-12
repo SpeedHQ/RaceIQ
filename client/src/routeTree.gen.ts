@@ -13,10 +13,12 @@ import { Route as Fm23RouteImport } from './routes/fm23'
 import { Route as F125RouteImport } from './routes/f125'
 import { Route as DevRouteImport } from './routes/dev'
 import { Route as AccRouteImport } from './routes/acc'
+import { Route as AcEvoRouteImport } from './routes/ac-evo'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as Fm23IndexRouteImport } from './routes/fm23/index'
 import { Route as F125IndexRouteImport } from './routes/f125/index'
 import { Route as AccIndexRouteImport } from './routes/acc/index'
+import { Route as AcEvoIndexRouteImport } from './routes/ac-evo/index'
 import { Route as Fm23TunesRouteImport } from './routes/fm23/tunes'
 import { Route as Fm23TracksRouteImport } from './routes/fm23/tracks'
 import { Route as Fm23SetupRouteImport } from './routes/fm23/setup'
@@ -46,6 +48,14 @@ import { Route as AccCompareRouteImport } from './routes/acc/compare'
 import { Route as AccChatsRouteImport } from './routes/acc/chats'
 import { Route as AccCarsRouteImport } from './routes/acc/cars'
 import { Route as AccAnalyseRouteImport } from './routes/acc/analyse'
+import { Route as AcEvoTracksRouteImport } from './routes/ac-evo/tracks'
+import { Route as AcEvoSessionsRouteImport } from './routes/ac-evo/sessions'
+import { Route as AcEvoRawRouteImport } from './routes/ac-evo/raw'
+import { Route as AcEvoLiveRouteImport } from './routes/ac-evo/live'
+import { Route as AcEvoCompareRouteImport } from './routes/ac-evo/compare'
+import { Route as AcEvoChatsRouteImport } from './routes/ac-evo/chats'
+import { Route as AcEvoCarsRouteImport } from './routes/ac-evo/cars'
+import { Route as AcEvoAnalyseRouteImport } from './routes/ac-evo/analyse'
 import { Route as Fm23TunesIndexRouteImport } from './routes/fm23/tunes/index'
 import { Route as Fm23SetupIndexRouteImport } from './routes/fm23/setup/index'
 import { Route as F125TunesIndexRouteImport } from './routes/f125/tunes/index'
@@ -79,6 +89,11 @@ const AccRoute = AccRouteImport.update({
   path: '/acc',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AcEvoRoute = AcEvoRouteImport.update({
+  id: '/ac-evo',
+  path: '/ac-evo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -98,6 +113,11 @@ const AccIndexRoute = AccIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AccRoute,
+} as any)
+const AcEvoIndexRoute = AcEvoIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AcEvoRoute,
 } as any)
 const Fm23TunesRoute = Fm23TunesRouteImport.update({
   id: '/tunes',
@@ -244,6 +264,46 @@ const AccAnalyseRoute = AccAnalyseRouteImport.update({
   path: '/analyse',
   getParentRoute: () => AccRoute,
 } as any)
+const AcEvoTracksRoute = AcEvoTracksRouteImport.update({
+  id: '/tracks',
+  path: '/tracks',
+  getParentRoute: () => AcEvoRoute,
+} as any)
+const AcEvoSessionsRoute = AcEvoSessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
+  getParentRoute: () => AcEvoRoute,
+} as any)
+const AcEvoRawRoute = AcEvoRawRouteImport.update({
+  id: '/raw',
+  path: '/raw',
+  getParentRoute: () => AcEvoRoute,
+} as any)
+const AcEvoLiveRoute = AcEvoLiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => AcEvoRoute,
+} as any)
+const AcEvoCompareRoute = AcEvoCompareRouteImport.update({
+  id: '/compare',
+  path: '/compare',
+  getParentRoute: () => AcEvoRoute,
+} as any)
+const AcEvoChatsRoute = AcEvoChatsRouteImport.update({
+  id: '/chats',
+  path: '/chats',
+  getParentRoute: () => AcEvoRoute,
+} as any)
+const AcEvoCarsRoute = AcEvoCarsRouteImport.update({
+  id: '/cars',
+  path: '/cars',
+  getParentRoute: () => AcEvoRoute,
+} as any)
+const AcEvoAnalyseRoute = AcEvoAnalyseRouteImport.update({
+  id: '/analyse',
+  path: '/analyse',
+  getParentRoute: () => AcEvoRoute,
+} as any)
 const Fm23TunesIndexRoute = Fm23TunesIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -307,10 +367,19 @@ const Fm23TunesEditTuneIdRoute = Fm23TunesEditTuneIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ac-evo': typeof AcEvoRouteWithChildren
   '/acc': typeof AccRouteWithChildren
   '/dev': typeof DevRoute
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
+  '/ac-evo/analyse': typeof AcEvoAnalyseRoute
+  '/ac-evo/cars': typeof AcEvoCarsRoute
+  '/ac-evo/chats': typeof AcEvoChatsRoute
+  '/ac-evo/compare': typeof AcEvoCompareRoute
+  '/ac-evo/live': typeof AcEvoLiveRoute
+  '/ac-evo/raw': typeof AcEvoRawRoute
+  '/ac-evo/sessions': typeof AcEvoSessionsRoute
+  '/ac-evo/tracks': typeof AcEvoTracksRoute
   '/acc/analyse': typeof AccAnalyseRoute
   '/acc/cars': typeof AccCarsRoute
   '/acc/chats': typeof AccChatsRoute
@@ -340,6 +409,7 @@ export interface FileRoutesByFullPath {
   '/fm23/setup': typeof Fm23SetupRouteWithChildren
   '/fm23/tracks': typeof Fm23TracksRoute
   '/fm23/tunes': typeof Fm23TunesRouteWithChildren
+  '/ac-evo/': typeof AcEvoIndexRoute
   '/acc/': typeof AccIndexRoute
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
@@ -359,6 +429,14 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dev': typeof DevRoute
+  '/ac-evo/analyse': typeof AcEvoAnalyseRoute
+  '/ac-evo/cars': typeof AcEvoCarsRoute
+  '/ac-evo/chats': typeof AcEvoChatsRoute
+  '/ac-evo/compare': typeof AcEvoCompareRoute
+  '/ac-evo/live': typeof AcEvoLiveRoute
+  '/ac-evo/raw': typeof AcEvoRawRoute
+  '/ac-evo/sessions': typeof AcEvoSessionsRoute
+  '/ac-evo/tracks': typeof AcEvoTracksRoute
   '/acc/analyse': typeof AccAnalyseRoute
   '/acc/cars': typeof AccCarsRoute
   '/acc/chats': typeof AccChatsRoute
@@ -383,6 +461,7 @@ export interface FileRoutesByTo {
   '/fm23/raw': typeof Fm23RawRoute
   '/fm23/sessions': typeof Fm23SessionsRoute
   '/fm23/tracks': typeof Fm23TracksRoute
+  '/ac-evo': typeof AcEvoIndexRoute
   '/acc': typeof AccIndexRoute
   '/f125': typeof F125IndexRoute
   '/fm23': typeof Fm23IndexRoute
@@ -402,10 +481,19 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ac-evo': typeof AcEvoRouteWithChildren
   '/acc': typeof AccRouteWithChildren
   '/dev': typeof DevRoute
   '/f125': typeof F125RouteWithChildren
   '/fm23': typeof Fm23RouteWithChildren
+  '/ac-evo/analyse': typeof AcEvoAnalyseRoute
+  '/ac-evo/cars': typeof AcEvoCarsRoute
+  '/ac-evo/chats': typeof AcEvoChatsRoute
+  '/ac-evo/compare': typeof AcEvoCompareRoute
+  '/ac-evo/live': typeof AcEvoLiveRoute
+  '/ac-evo/raw': typeof AcEvoRawRoute
+  '/ac-evo/sessions': typeof AcEvoSessionsRoute
+  '/ac-evo/tracks': typeof AcEvoTracksRoute
   '/acc/analyse': typeof AccAnalyseRoute
   '/acc/cars': typeof AccCarsRoute
   '/acc/chats': typeof AccChatsRoute
@@ -435,6 +523,7 @@ export interface FileRoutesById {
   '/fm23/setup': typeof Fm23SetupRouteWithChildren
   '/fm23/tracks': typeof Fm23TracksRoute
   '/fm23/tunes': typeof Fm23TunesRouteWithChildren
+  '/ac-evo/': typeof AcEvoIndexRoute
   '/acc/': typeof AccIndexRoute
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
@@ -455,10 +544,19 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/ac-evo'
     | '/acc'
     | '/dev'
     | '/f125'
     | '/fm23'
+    | '/ac-evo/analyse'
+    | '/ac-evo/cars'
+    | '/ac-evo/chats'
+    | '/ac-evo/compare'
+    | '/ac-evo/live'
+    | '/ac-evo/raw'
+    | '/ac-evo/sessions'
+    | '/ac-evo/tracks'
     | '/acc/analyse'
     | '/acc/cars'
     | '/acc/chats'
@@ -488,6 +586,7 @@ export interface FileRouteTypes {
     | '/fm23/setup'
     | '/fm23/tracks'
     | '/fm23/tunes'
+    | '/ac-evo/'
     | '/acc/'
     | '/f125/'
     | '/fm23/'
@@ -507,6 +606,14 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dev'
+    | '/ac-evo/analyse'
+    | '/ac-evo/cars'
+    | '/ac-evo/chats'
+    | '/ac-evo/compare'
+    | '/ac-evo/live'
+    | '/ac-evo/raw'
+    | '/ac-evo/sessions'
+    | '/ac-evo/tracks'
     | '/acc/analyse'
     | '/acc/cars'
     | '/acc/chats'
@@ -531,6 +638,7 @@ export interface FileRouteTypes {
     | '/fm23/raw'
     | '/fm23/sessions'
     | '/fm23/tracks'
+    | '/ac-evo'
     | '/acc'
     | '/f125'
     | '/fm23'
@@ -549,10 +657,19 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/ac-evo'
     | '/acc'
     | '/dev'
     | '/f125'
     | '/fm23'
+    | '/ac-evo/analyse'
+    | '/ac-evo/cars'
+    | '/ac-evo/chats'
+    | '/ac-evo/compare'
+    | '/ac-evo/live'
+    | '/ac-evo/raw'
+    | '/ac-evo/sessions'
+    | '/ac-evo/tracks'
     | '/acc/analyse'
     | '/acc/cars'
     | '/acc/chats'
@@ -582,6 +699,7 @@ export interface FileRouteTypes {
     | '/fm23/setup'
     | '/fm23/tracks'
     | '/fm23/tunes'
+    | '/ac-evo/'
     | '/acc/'
     | '/f125/'
     | '/fm23/'
@@ -601,6 +719,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AcEvoRoute: typeof AcEvoRouteWithChildren
   AccRoute: typeof AccRouteWithChildren
   DevRoute: typeof DevRoute
   F125Route: typeof F125RouteWithChildren
@@ -637,6 +756,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/ac-evo': {
+      id: '/ac-evo'
+      path: '/ac-evo'
+      fullPath: '/ac-evo'
+      preLoaderRoute: typeof AcEvoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -664,6 +790,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/acc/'
       preLoaderRoute: typeof AccIndexRouteImport
       parentRoute: typeof AccRoute
+    }
+    '/ac-evo/': {
+      id: '/ac-evo/'
+      path: '/'
+      fullPath: '/ac-evo/'
+      preLoaderRoute: typeof AcEvoIndexRouteImport
+      parentRoute: typeof AcEvoRoute
     }
     '/fm23/tunes': {
       id: '/fm23/tunes'
@@ -868,6 +1001,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccAnalyseRouteImport
       parentRoute: typeof AccRoute
     }
+    '/ac-evo/tracks': {
+      id: '/ac-evo/tracks'
+      path: '/tracks'
+      fullPath: '/ac-evo/tracks'
+      preLoaderRoute: typeof AcEvoTracksRouteImport
+      parentRoute: typeof AcEvoRoute
+    }
+    '/ac-evo/sessions': {
+      id: '/ac-evo/sessions'
+      path: '/sessions'
+      fullPath: '/ac-evo/sessions'
+      preLoaderRoute: typeof AcEvoSessionsRouteImport
+      parentRoute: typeof AcEvoRoute
+    }
+    '/ac-evo/raw': {
+      id: '/ac-evo/raw'
+      path: '/raw'
+      fullPath: '/ac-evo/raw'
+      preLoaderRoute: typeof AcEvoRawRouteImport
+      parentRoute: typeof AcEvoRoute
+    }
+    '/ac-evo/live': {
+      id: '/ac-evo/live'
+      path: '/live'
+      fullPath: '/ac-evo/live'
+      preLoaderRoute: typeof AcEvoLiveRouteImport
+      parentRoute: typeof AcEvoRoute
+    }
+    '/ac-evo/compare': {
+      id: '/ac-evo/compare'
+      path: '/compare'
+      fullPath: '/ac-evo/compare'
+      preLoaderRoute: typeof AcEvoCompareRouteImport
+      parentRoute: typeof AcEvoRoute
+    }
+    '/ac-evo/chats': {
+      id: '/ac-evo/chats'
+      path: '/chats'
+      fullPath: '/ac-evo/chats'
+      preLoaderRoute: typeof AcEvoChatsRouteImport
+      parentRoute: typeof AcEvoRoute
+    }
+    '/ac-evo/cars': {
+      id: '/ac-evo/cars'
+      path: '/cars'
+      fullPath: '/ac-evo/cars'
+      preLoaderRoute: typeof AcEvoCarsRouteImport
+      parentRoute: typeof AcEvoRoute
+    }
+    '/ac-evo/analyse': {
+      id: '/ac-evo/analyse'
+      path: '/analyse'
+      fullPath: '/ac-evo/analyse'
+      preLoaderRoute: typeof AcEvoAnalyseRouteImport
+      parentRoute: typeof AcEvoRoute
+    }
     '/fm23/tunes/': {
       id: '/fm23/tunes/'
       path: '/'
@@ -954,6 +1143,32 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AcEvoRouteChildren {
+  AcEvoAnalyseRoute: typeof AcEvoAnalyseRoute
+  AcEvoCarsRoute: typeof AcEvoCarsRoute
+  AcEvoChatsRoute: typeof AcEvoChatsRoute
+  AcEvoCompareRoute: typeof AcEvoCompareRoute
+  AcEvoLiveRoute: typeof AcEvoLiveRoute
+  AcEvoRawRoute: typeof AcEvoRawRoute
+  AcEvoSessionsRoute: typeof AcEvoSessionsRoute
+  AcEvoTracksRoute: typeof AcEvoTracksRoute
+  AcEvoIndexRoute: typeof AcEvoIndexRoute
+}
+
+const AcEvoRouteChildren: AcEvoRouteChildren = {
+  AcEvoAnalyseRoute: AcEvoAnalyseRoute,
+  AcEvoCarsRoute: AcEvoCarsRoute,
+  AcEvoChatsRoute: AcEvoChatsRoute,
+  AcEvoCompareRoute: AcEvoCompareRoute,
+  AcEvoLiveRoute: AcEvoLiveRoute,
+  AcEvoRawRoute: AcEvoRawRoute,
+  AcEvoSessionsRoute: AcEvoSessionsRoute,
+  AcEvoTracksRoute: AcEvoTracksRoute,
+  AcEvoIndexRoute: AcEvoIndexRoute,
+}
+
+const AcEvoRouteWithChildren = AcEvoRoute._addFileChildren(AcEvoRouteChildren)
 
 interface AccSetupRouteChildren {
   AccSetupIndexRoute: typeof AccSetupIndexRoute
@@ -1129,6 +1344,7 @@ const Fm23RouteWithChildren = Fm23Route._addFileChildren(Fm23RouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AcEvoRoute: AcEvoRouteWithChildren,
   AccRoute: AccRouteWithChildren,
   DevRoute: DevRoute,
   F125Route: F125RouteWithChildren,
