@@ -930,7 +930,7 @@ export const trackRoutes = new Hono()
           rightEdge: extractedBoundaries.rightEdge,
           centerLine,
           pitLane: extractedBoundaries.pitLane,
-          coordSystem: validGameId === "f1-2025" ? "f1-2025" : "forza",
+          coordSystem: validGameId === "f1-2025" ? "f1-2025" : validGameId === "acc" ? "acc" : "forza",
         });
       }
 

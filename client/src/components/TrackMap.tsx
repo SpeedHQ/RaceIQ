@@ -84,8 +84,8 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
     if (!trackOrdinal) { setBoundaries(null); return; }
     if (!gameId) return;
     client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gameId ?? undefined } })
-      .then((r) => r.json() as any)
-      .then((data: any) => setBoundaries(data))
+      .then((r) => r.json() as unknown as BoundaryData)
+      .then((data) => setBoundaries(data))
       .catch(() => setBoundaries(null));
   }, [trackOrdinal, gameId]);
 
@@ -122,7 +122,7 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
     }
 
     // Compute bounds — include boundary edges if in same coord system
-    const hasBounds = boundaries && (boundaries.coordSystem === "forza" || boundaries.coordSystem === "f1-2025") && useWorld;
+    const hasBounds = boundaries && (boundaries.coordSystem === "forza" || boundaries.coordSystem === "f1-2025" || boundaries.coordSystem === "acc") && useWorld;
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
 
     const allPointSets: { x: number; z: number }[][] = [

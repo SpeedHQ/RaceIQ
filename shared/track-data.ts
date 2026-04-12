@@ -679,8 +679,9 @@ function loadExtractedBoundary(ordinal: number, gameId: string): TrackBoundary |
     let right: Point[] = data.rightEdge;
     let pit: Point[] | null = data.pitLane ?? null;
 
-    // If alignment was poor, transform boundaries to match telemetry outline
-    if (!data.aligned) {
+    // If alignment was poor, transform boundaries to match telemetry outline.
+    // ACC coordinates are pre-aligned (same space as telemetry), skip.
+    if (!data.aligned && data.coordSystem !== "acc") {
       const extContent = readUserOrBundled(gameId, `extracted/recorded-${ordinal}.csv`);
       const caName = computedAverageFileName(gameId, ordinal);
       const telContent = readDataFile(resolve(userGameDir(gameId), `${caName}.csv`));
