@@ -11,6 +11,7 @@ const GAME_LABELS: Record<string, string> = {
   "fm-2023": "Forza",
   "f1-2025": "F1 25",
   "acc": "ACC",
+  "ac-evo": "AC Evo",
 };
 
 export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving }: Props) {

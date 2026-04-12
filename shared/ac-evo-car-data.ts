@@ -54,6 +54,16 @@ export function getAcEvoCarByModel(model: string): AcEvoCar | undefined {
   return modelMap!.get(model);
 }
 
+/** Find a car by its shared memory display name (e.g. "Porsche 911 GT3 Cup (992)") */
+export function getAcEvoCarByDisplayName(displayName: string): AcEvoCar | undefined {
+  ensureLoaded();
+  const needle = displayName.toLowerCase().trim();
+  for (const car of carMap!.values()) {
+    if (car.name.toLowerCase() === needle) return car;
+  }
+  return undefined;
+}
+
 export function getAcEvoCarClass(ordinal: number): string | undefined {
   ensureLoaded();
   return carMap!.get(ordinal)?.class;

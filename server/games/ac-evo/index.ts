@@ -30,7 +30,7 @@ Be concise and prioritize the highest-impact improvements first.`;
 export const acEvoServerAdapter: ServerGameAdapter = {
   ...acEvoAdapter,
 
-  processNames: ["AssettoCorsa.exe", "AC2.exe"],
+  processNames: ["AssettoCorsaEVO.exe"],
 
   getCarName(ordinal: number): string {
     return getAcEvoCarName(ordinal);

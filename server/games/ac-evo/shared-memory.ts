@@ -2,14 +2,33 @@
  * AC Evo Shared Memory Reader.
  *
  * Reuses ACC's BufferedAccMemoryReader + TripletAssembler + TripletPipeline
- * infrastructure (same shared memory format). Only differences:
- *   - Uses acEvoProcessChecker (watches AssettoCorsa.exe / AC2.exe)
- *   - Passes gameId: "ac-evo" to ParsingProcessor
+ * infrastructure (same shared memory format). Key differences:
+ *   - Uses acEvoProcessChecker (watches AssettoCorsaEVO.exe)
+ *   - Uses AcEvoParsingProcessor which resolves car/track ordinals from
+ *     STATIC display names via the AC Evo CSV lookups
  */
 import { BufferedAccMemoryReader } from "../acc/buffered-memory-reader";
 import { TripletAssembler } from "../acc/triplet-assembler";
-import { TripletPipeline, StatusCheckProcessor, ParsingProcessor } from "../acc/triplet-pipeline";
+import { TripletPipeline, StatusCheckProcessor } from "../acc/triplet-pipeline";
+import type { TripletProcessor } from "../acc/triplet-pipeline";
+import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
+import type { AcEvoParserCache } from "./parser";
 import { acEvoProcessChecker } from "./process-checker";
+
+class AcEvoParsingProcessor implements TripletProcessor {
+  private cache: AcEvoParserCache = createAcEvoParserCache();
+
+  async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<void> {
+    try {
+      const { processPacket } = require("../../pipeline");
+      const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, this.cache);
+      if (packet) await processPacket(packet);
+    } catch (err) {
+      console.error("[AC Evo ParsingProcessor] Error:", err instanceof Error ? err.message : err);
+      throw err;
+    }
+  }
+}
 
 export class AcEvoSharedMemoryReader {
   private _bufferedReader: BufferedAccMemoryReader;
@@ -66,9 +85,9 @@ export class AcEvoSharedMemoryReader {
     this._connected = true;
 
     this._pipeline.register(new StatusCheckProcessor(this._disconnect.bind(this), "AC Evo"));
-    this._pipeline.register(new ParsingProcessor(0, 0, undefined, "ac-evo", "AC Evo"));
+    this._pipeline.register(new AcEvoParsingProcessor());
 
-    console.log("[AC Evo] Triplet pipeline: StatusCheckProcessor → ParsingProcessor (gameId: ac-evo)");
+    console.log("[AC Evo] Triplet pipeline: StatusCheckProcessor → AcEvoParsingProcessor");
 
     this._tripletAssembler.start(this._pipeline.process.bind(this._pipeline));
 

@@ -6,6 +6,7 @@ const GAME_ROUTES: Record<string, string> = {
   "fm-2023": "/fm23",
   "f1-2025": "/f125",
   "acc": "/acc",
+  "ac-evo": "/ac-evo",
 };
 
 interface GameState {
