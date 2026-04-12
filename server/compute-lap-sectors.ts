@@ -47,8 +47,36 @@ export async function computeLapSectors(
     s2 = accLiveSectors.s2;
   }
 
-  // Fall back to distance-fraction computation
+  // ACC: derive sector times from currentSectorIndex transitions in the packet stream.
+  // Works for all laps including outlaps — sector index is track-position-based, not
+  // distance-from-start-based, so it correctly fires at S1/S2/S3 boundaries regardless
+  // of where the lap began (pit exit, mid-lap join, etc).
+  if (s1 === 0 && s2 === 0 && gameId === "acc") {
+    let prevIdx = packets[0].acc?.currentSectorIndex ?? -1;
+    let sectorStart = packets[0].CurrentLap;
+    for (const p of packets) {
+      const idx = p.acc?.currentSectorIndex ?? prevIdx;
+      if (idx !== prevIdx) {
+        const elapsed = p.CurrentLap - sectorStart;
+        if (prevIdx === 0) s1 = elapsed;
+        else if (prevIdx === 1) s2 = elapsed;
+        sectorStart = p.CurrentLap;
+        prevIdx = idx;
+      }
+    }
+  }
+
+  // Fall back to distance-fraction computation.
+  // Guard: if the first packet's CurrentLap is already well into the lap (car started
+  // mid-lap, e.g. a pit lap where recording began in the pit lane), the measured
+  // lapDist is only the remaining distance to the line — sector fractions are meaningless.
+  const lapStartTime = packets[0].CurrentLap;
   if (s1 === 0 || s2 === 0) {
+    if (lapStartTime > 10) {
+      // Started too far into the lap to derive reliable sector splits — bail out.
+      return null;
+    }
+
     const startDist = packets[0].DistanceTraveled;
     const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
     if (lapDist < 100) return null;
