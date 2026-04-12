@@ -24,7 +24,7 @@ export function TrackCard({ track, onSelect, gameId }: { track: TrackInfo; onSel
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
-    drawTrack(canvasRef.current, outline, false, null);
+    drawTrack(canvasRef.current, outline, false, null, 1, { x: 0, z: 0 }, undefined, gameId === "acc");
   }, [outline]);
 
   return (

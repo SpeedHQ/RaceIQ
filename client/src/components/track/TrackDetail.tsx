@@ -142,7 +142,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
       ? { s1End: editS1 / 100, s2End: editS2 / 100 }
       : sectorBounds ?? undefined;
     const sectorOverride = showSectors ? sectorBoundsForDraw : undefined;
-    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride);
+    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, isAcc);
   }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab]);
 
   useEffect(() => {

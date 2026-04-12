@@ -6,7 +6,7 @@ import type { Point, TrackSectors } from "@/components/track/types";
  * Segment labels are offset perpendicular to the track direction so they don't overlap the line.
  * The perpendicular offset is computed from neighboring outline points' tangent vector.
  */
-export function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, sectors?: TrackSectors | null, zoom: number = 1, pan: { x: number; z: number } = { x: 0, z: 0 }, sectorOverride?: { s1End: number; s2End: number }) {
+export function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, sectors?: TrackSectors | null, zoom: number = 1, pan: { x: number; z: number } = { x: 0, z: 0 }, sectorOverride?: { s1End: number; s2End: number }, flipX?: boolean) {
   const ctx = canvas.getContext("2d");
   if (!ctx || outline.length < 2) return;
 
@@ -36,7 +36,7 @@ export function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: bo
   const offsetZ = (h - rangeZ * scale) / 2 + pan.z;
 
   function toCanvas(x: number, z: number): [number, number] {
-    return [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
+    return [flipX ? offsetX + (x - minX) * scale : offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
   }
 
   // Track outline
