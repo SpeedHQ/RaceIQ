@@ -9,6 +9,7 @@ import type { UnitSystem } from "../export";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import type { GameId } from "../../shared/types";
 import { compareEngineerPersona, compareLapHeader } from "./compare-engineer";
+import { buildTrackGuideContext } from "./track-guides";
 
 /**
  * Zod schema for the per-segment inputs comparison output.
@@ -241,6 +242,7 @@ export function buildInputsComparePrompt(
   const carA = getCarName(lapA.carOrdinal ?? 0);
   const carB = getCarName(lapB.carOrdinal ?? 0);
   const trackName = getTrackName(lapA.trackOrdinal ?? 0);
+  const trackGuide = buildTrackGuideContext(trackName);
   const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? 0;
 
   const useSegs = (segments && segments.length > 0)
@@ -350,7 +352,7 @@ Rules:
 - Top-level "coaching" is for the overall lap, max 5 tips, target the slower lap unless a meaningful issue exists on the faster lap.
 
 ${compareLapHeader(trackName, carA, carB, lapA, lapB, finalDelta)}
-
+${trackGuide}
 Per-segment timings (positive Δ = Lap A is slower):
 ${formatSegmentTable(tableRows)}
 
