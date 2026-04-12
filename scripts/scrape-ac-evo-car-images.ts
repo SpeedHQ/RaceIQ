@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 /**
- * Scrapes car images for AC Evo from the Assetto Corsa Evo wiki (fandom).
+ * Scrapes car images for AC Evo from Wikipedia.
  *
- * For each car in shared/games/ac-evo/cars.csv it:
- *   1. Searches the wiki for the car's page
- *   2. Pulls the first high-res image from the page's infobox
- *   3. Downloads it as client/public/car-images/ac-evo-{id}.jpg
+ * For each car in shared/games/ac-evo/cars.csv it fetches the Wikipedia
+ * page summary (which includes originalimage URL) and downloads it as
+ * client/public/car-images/ac-evo-{id}.jpg
  *
  * Usage:
  *   bun scripts/scrape-ac-evo-car-images.ts
@@ -13,8 +12,8 @@
  *   bun scripts/scrape-ac-evo-car-images.ts --id 50     # single car by id
  */
 
-import { writeFileSync, mkdirSync, existsSync } from "fs";
-import { resolve, dirname } from "path";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
+import { resolve, dirname, extname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -22,14 +21,34 @@ const ROOT = resolve(__dirname, "..");
 const OUT_DIR = resolve(ROOT, "client/public/car-images");
 const CARS_CSV = resolve(ROOT, "shared/games/ac-evo/cars.csv");
 
-const WIKI_API = "https://assettocorsaevo.fandom.com/api.php";
-
 const args = process.argv.slice(2);
 const DRY_RUN = args.includes("--dry-run");
 const SINGLE_ID = (() => {
   const idx = args.indexOf("--id");
   return idx !== -1 ? parseInt(args[idx + 1], 10) : null;
 })();
+
+const WIKI_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/";
+const HEADERS = { "User-Agent": "RaceIQ-scraper/1.0 (github.com/SpeedHQ/RaceIQ)" };
+
+// Manual overrides for cars whose names don't match Wikipedia article titles
+const WIKI_OVERRIDES: Record<string, string> = {
+  "Lamborghini Huracan EVO":       "Lamborghini_Huracán",
+  "Lamborghini Huracan STO":       "Lamborghini_Huracán",
+  "Lamborghini Huracan GT3 EVO2":  "Lamborghini_Huracán_GT3_Evo",
+  "Lamborghini Revuelto":          "Lamborghini_Revuelto",
+  "BMW M4 GT3":                    "BMW_M4_GT3",
+  "BMW M4 Competition":            "BMW_M4",
+  "BMW M4 CSL":                    "BMW_M4_CSL",
+  "Mercedes-AMG GT3 2024":         "Mercedes-AMG_GT3",
+  "Audi R8 LMS EVO II":            "Audi_R8_LMS",
+  "Honda NSX GT3 Evo":             "Honda_NSX_(NC1)",
+  "McLaren 720S GT3 EVO":          "McLaren_720S",
+  "Porsche 992 GT3 R":             "Porsche_992",
+  "Alfa Romeo Giulia GTA":         "Alfa_Romeo_Giulia",
+  "Abarth 695":                    "Abarth_695",
+  "Lotus Emira V6":                "Lotus_Emira",
+};
 
 // ── CSV parsing ──────────────────────────────────────────────────────────────
 
@@ -41,99 +60,58 @@ interface CarEntry {
 }
 
 function loadCars(): CarEntry[] {
-  const text = Bun.file(CARS_CSV).toString();
+  const text = readFileSync(CARS_CSV, "utf8");
   return text
     .trim()
     .split("\n")
-    .slice(1) // skip header
+    .slice(1)
     .map((line) => {
-      const [id, model, ...rest] = line.split(",");
-      // name may contain commas (e.g. "Mercedes-AMG GT3 2024")
-      const lastField = rest.pop()!.trim();
-      const name = rest.join(",").trim();
-      return { id: parseInt(id, 10), model: model.trim(), name, class: lastField };
+      const parts = line.split(",");
+      const id = parseInt(parts[0], 10);
+      const model = parts[1].trim();
+      const cls = parts[parts.length - 1].trim();
+      const name = parts.slice(2, parts.length - 1).join(",").trim();
+      return { id, model, name, class: cls };
     });
 }
 
-// ── Wiki helpers ─────────────────────────────────────────────────────────────
+// ── Wikipedia ────────────────────────────────────────────────────────────────
 
-async function searchPage(carName: string): Promise<string | null> {
-  const url = new URL(WIKI_API);
-  url.searchParams.set("action", "query");
-  url.searchParams.set("list", "search");
-  url.searchParams.set("srsearch", carName);
-  url.searchParams.set("srlimit", "3");
-  url.searchParams.set("format", "json");
-
-  const res = await fetch(url.toString(), { headers: { "User-Agent": "RaceIQ-scraper/1.0" } });
-  const json = (await res.json()) as any;
-  const results: any[] = json?.query?.search ?? [];
-  if (results.length === 0) return null;
-  return results[0].title as string;
+interface WikiSummary {
+  title: string;
+  thumbnail?: { source: string };
+  originalimage?: { source: string };
 }
 
-async function getPageImages(title: string): Promise<string[]> {
-  const url = new URL(WIKI_API);
-  url.searchParams.set("action", "query");
-  url.searchParams.set("titles", title);
-  url.searchParams.set("prop", "images");
-  url.searchParams.set("imlimit", "20");
-  url.searchParams.set("format", "json");
-
-  const res = await fetch(url.toString(), { headers: { "User-Agent": "RaceIQ-scraper/1.0" } });
-  const json = (await res.json()) as any;
-  const pages = Object.values(json?.query?.pages ?? {}) as any[];
-  if (!pages.length) return [];
-  return (pages[0].images ?? []).map((i: any) => i.title as string);
+async function fetchWikiSummary(title: string): Promise<WikiSummary | null> {
+  const url = WIKI_SUMMARY + encodeURIComponent(title);
+  const res = await fetch(url, { headers: HEADERS });
+  if (!res.ok) return null;
+  return res.json() as Promise<WikiSummary>;
 }
 
-async function getImageUrl(fileTitle: string): Promise<string | null> {
-  const url = new URL(WIKI_API);
-  url.searchParams.set("action", "query");
-  url.searchParams.set("titles", fileTitle);
-  url.searchParams.set("prop", "imageinfo");
-  url.searchParams.set("iiprop", "url");
-  url.searchParams.set("format", "json");
-
-  const res = await fetch(url.toString(), { headers: { "User-Agent": "RaceIQ-scraper/1.0" } });
-  const json = (await res.json()) as any;
-  const pages = Object.values(json?.query?.pages ?? {}) as any[];
-  if (!pages.length) return null;
-  return pages[0]?.imageinfo?.[0]?.url ?? null;
-}
-
-/** Pick the best image from a page's image list.
- *  Prefers images whose filename contains the car name words or "car", avoids icons/logos. */
-function pickBestImage(images: string[], carName: string): string | null {
-  const carWords = carName.toLowerCase().split(/\s+/);
-
-  const scored = images.map((title) => {
-    const lower = title.toLowerCase();
-    // Skip small icons, logos, flags
-    if (/icon|logo|flag|badge|symbol|wiki|favicon/i.test(lower)) return { title, score: -1 };
-    // Skip SVG / gif
-    if (/\.(svg|gif)$/i.test(lower)) return { title, score: -1 };
-
-    let score = 0;
-    for (const word of carWords) {
-      if (lower.includes(word)) score += 2;
-    }
-    if (/\.(jpg|jpeg|png|webp)$/i.test(lower)) score += 1;
-    if (/front|side|photo|render/i.test(lower)) score += 1;
-    return { title, score };
-  });
-
-  const valid = scored.filter((s) => s.score >= 0).sort((a, b) => b.score - a.score);
-  return valid[0]?.title ?? null;
+function wikiTitle(car: CarEntry): string {
+  if (WIKI_OVERRIDES[car.name]) return WIKI_OVERRIDES[car.name];
+  return car.name.replace(/ /g, "_");
 }
 
 // ── Download ─────────────────────────────────────────────────────────────────
 
-async function downloadImage(imageUrl: string, destPath: string): Promise<void> {
-  const res = await fetch(imageUrl, { headers: { "User-Agent": "RaceIQ-scraper/1.0" } });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${imageUrl}`);
-  const buf = await res.arrayBuffer();
-  writeFileSync(destPath, Buffer.from(buf));
+async function downloadAsJpeg(imageUrl: string, destPath: string): Promise<void> {
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    const res = await fetch(imageUrl, { headers: HEADERS });
+    if (res.status === 429) {
+      const wait = attempt * 3000;
+      console.log(`  rate limited, waiting ${wait / 1000}s...`);
+      await new Promise((r) => setTimeout(r, wait));
+      continue;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const buf = await res.arrayBuffer();
+    writeFileSync(destPath, Buffer.from(buf));
+    return;
+  }
+  throw new Error("gave up after 4 attempts (rate limited)");
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -146,48 +124,34 @@ async function processOne(car: CarEntry): Promise<void> {
     return;
   }
 
-  console.log(`[fetch] ${car.name} (id=${car.id})`);
+  const title = wikiTitle(car);
+  console.log(`[fetch] ${car.name} (id=${car.id}) → Wikipedia:${title}`);
 
-  const pageTitle = await searchPage(car.name);
-  if (!pageTitle) {
-    console.warn(`  ✗ no wiki page found for "${car.name}"`);
-    return;
-  }
-  console.log(`  page: ${pageTitle}`);
-
-  const images = await getPageImages(pageTitle);
-  if (!images.length) {
-    console.warn(`  ✗ no images on page`);
+  const summary = await fetchWikiSummary(title);
+  if (!summary) {
+    console.warn(`  ✗ not found on Wikipedia`);
     return;
   }
 
-  const chosen = pickBestImage(images, car.name);
-  if (!chosen) {
-    console.warn(`  ✗ no suitable image found (${images.length} candidates)`);
-    return;
-  }
-  console.log(`  image: ${chosen}`);
-
-  const imageUrl = await getImageUrl(chosen);
+  const imageUrl = summary.originalimage?.source ?? summary.thumbnail?.source;
   if (!imageUrl) {
-    console.warn(`  ✗ could not resolve image URL`);
+    console.warn(`  ✗ no image on Wikipedia page "${summary.title}"`);
     return;
   }
+
   console.log(`  url: ${imageUrl}`);
 
   if (DRY_RUN) {
-    console.log(`  [dry-run] would save to ${outPath}`);
+    console.log(`  [dry-run] → ${outPath}`);
     return;
   }
 
-  await downloadImage(imageUrl, outPath);
-  console.log(`  ✓ saved ${outPath}`);
+  await downloadAsJpeg(imageUrl, outPath);
+  console.log(`  ✓ saved`);
 }
 
 async function main() {
-  if (!DRY_RUN) {
-    mkdirSync(OUT_DIR, { recursive: true });
-  }
+  if (!DRY_RUN) mkdirSync(OUT_DIR, { recursive: true });
 
   const cars = loadCars();
   const targets = SINGLE_ID !== null ? cars.filter((c) => c.id === SINGLE_ID) : cars;
@@ -203,8 +167,7 @@ async function main() {
     } catch (err) {
       console.error(`  ✗ error for ${car.name}:`, err);
     }
-    // Polite delay between requests
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 15000));
   }
 
   console.log("\nDone.");
