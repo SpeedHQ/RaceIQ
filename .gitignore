@@ -17,6 +17,7 @@ scripts/track-data/
 /.claude
 lighthouse-report.html
 test-results/
+test/e2e/output/
 .mastra/
 /mastra/public/
 *.duckdb
