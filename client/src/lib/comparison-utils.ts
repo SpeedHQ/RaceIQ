@@ -45,7 +45,7 @@ export function drawTrackCanvas(
   // Bounding box of outline (include boundary edges if available)
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
   const allBoundSets: Point[][] = [outline];
-  if (boundaries && (boundaries.coordSystem === "forza" || boundaries.coordSystem === "f1-2025")) {
+  if (boundaries && (boundaries.coordSystem === "forza" || boundaries.coordSystem === "f1-2025" || boundaries.coordSystem === "acc")) {
     allBoundSets.push(boundaries.leftEdge, boundaries.rightEdge);
   }
   for (const pts of allBoundSets) {
@@ -96,7 +96,7 @@ export function drawTrackCanvas(
   }
 
   // Draw track boundary edges (track limits)
-  if (boundaries && (boundaries.coordSystem === "forza" || boundaries.coordSystem === "f1-2025")) {
+  if (boundaries && (boundaries.coordSystem === "forza" || boundaries.coordSystem === "f1-2025" || boundaries.coordSystem === "acc")) {
     const left = boundaries.leftEdge;
     const right = boundaries.rightEdge;
 
