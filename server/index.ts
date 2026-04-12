@@ -165,10 +165,14 @@ const udpPort = settings.udpPort ?? (Number(process.env.UDP_PORT) || 5301);
 udpListener.start(udpPort);
 
 import { AccSharedMemoryReader } from "./games/acc/shared-memory";
+import { AcEvoSharedMemoryReader } from "./games/ac-evo/shared-memory";
 import { startTray } from "./tray";
 
 // Create ACC reader with recording mode flag (if --record=acc)
 export const accReader = new AccSharedMemoryReader(recordingGameId === "acc");
+
+// Create AC Evo reader alongside ACC reader
+export const acEvoReader = new AcEvoSharedMemoryReader();
 
 // Start ACC shared memory reader + system tray (Windows only)
 if (process.platform === "win32") {
@@ -178,6 +182,8 @@ if (process.platform === "win32") {
   } else {
     console.log("[Server] ACC shared memory reader started (will connect when ACC is running)");
   }
+  acEvoReader.start();
+  console.log("[Server] AC Evo shared memory reader started (will connect when AC Evo is running)");
   startTray(HTTP_PORT);
 }
 
