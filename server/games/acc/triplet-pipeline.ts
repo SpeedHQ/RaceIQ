@@ -70,9 +70,17 @@ export class DumpToBinProcessor implements TripletProcessor {
 export class ParsingProcessor implements TripletProcessor {
   private carOrdinal: number;
   private trackOrdinal: number;
-  constructor(carOrdinal: number, trackOrdinal: number, _accRecorder?: any) {
+  private gameId: import("../../../shared/types").GameId;
+
+  constructor(
+    carOrdinal: number,
+    trackOrdinal: number,
+    _accRecorder?: any,
+    gameId: import("../../../shared/types").GameId = "acc",
+  ) {
     this.carOrdinal = carOrdinal;
     this.trackOrdinal = trackOrdinal;
+    this.gameId = gameId;
   }
 
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<void> {
@@ -80,6 +88,7 @@ export class ParsingProcessor implements TripletProcessor {
       const packet = parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData, {
         carOrdinal: this.carOrdinal,
         trackOrdinal: this.trackOrdinal,
+        gameId: this.gameId,
       });
       if (packet) {
         await processPacket(packet);

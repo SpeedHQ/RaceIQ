@@ -16,7 +16,7 @@ export function parseAccBuffers(
   physicsBuf: Buffer,
   graphicsBuf: Buffer,
   staticBuf: Buffer,
-  overrides?: { carOrdinal?: number; trackOrdinal?: number }
+  overrides?: { carOrdinal?: number; trackOrdinal?: number; gameId?: import("../../../shared/types").GameId }
 ): TelemetryPacket | null {
   if (
     physicsBuf.length < PHYSICS.SIZE ||
@@ -293,7 +293,7 @@ export function parseAccBuffers(
   };
 
   const packet: TelemetryPacket = {
-    gameId: "acc",
+    gameId: overrides?.gameId ?? "acc",
     acc,
     IsRaceOn: isRaceOn,
     TimestampMS: Date.now(),
