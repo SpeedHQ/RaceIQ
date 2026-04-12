@@ -41,12 +41,12 @@ Check out the [demo](https://www.youtube.com/watch?v=hWuIItofivA) and [screensho
 
 ## Supported Games
 
-| Game | Community Tunes | Community Guides |
-|------|-----------------|-----------------|
-| Forza Motorsport 2023 | No | No |
-| F1 2025 | Yes | Yes |
-| Assetto Corsa Competizione | Yes | Yes |
-| Assetto Corsa Evo | No | No |
+| Game | Community Tunes | Community Guides | Tune Creator |
+|------|-----------------|-----------------|--------------|
+| Forza Motorsport 2023 | No | No | Yes |
+| F1 2025 | Yes | Yes | No |
+| Assetto Corsa Competizione | Yes | Yes | No |
+| Assetto Corsa Evo | No | No | No |
 
 ## Getting Started
 
