@@ -11,6 +11,7 @@ import { trackRoutes } from "./routes/track-routes";
 import { carRoutes } from "./routes/car-routes";
 import { tuneRoutes } from "./routes/tune-routes";
 import { accRoutes } from "./routes/acc-routes";
+import { acEvoRoutes } from "./routes/ac-evo-routes";
 import { f125Routes } from "./routes/f125-routes";
 import { miscRoutes } from "./routes/misc-routes";
 import { devRoutes } from "./routes/dev-routes";
@@ -26,6 +27,7 @@ const app = new Hono()
   .route("/", carRoutes)
   .route("/", tuneRoutes)
   .route("/", accRoutes)
+  .route("/", acEvoRoutes)
   .route("/", f125Routes)
   .route("/", miscRoutes);
 

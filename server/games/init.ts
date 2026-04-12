@@ -3,6 +3,7 @@ import { registerGame } from "../../shared/games/registry";
 import { forzaServerAdapter } from "./fm-2023";
 import { f1ServerAdapter } from "./f1-2025";
 import { accServerAdapter } from "./acc";
+import { acEvoServerAdapter } from "./ac-evo";
 
 /** Register all server game adapters. Call once at server startup. */
 export function initServerGameAdapters(): void {
@@ -11,10 +12,12 @@ export function initServerGameAdapters(): void {
   registerServerGame(f1ServerAdapter);
   registerServerGame(forzaServerAdapter);
   registerServerGame(accServerAdapter);
+  registerServerGame(acEvoServerAdapter);
 
   // Also update the shared registry with server adapters, which override
   // the stub name-resolution methods with real fs-backed implementations.
   registerGame(f1ServerAdapter);
   registerGame(forzaServerAdapter);
   registerGame(accServerAdapter);
+  registerGame(acEvoServerAdapter);
 }
