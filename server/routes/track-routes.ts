@@ -16,7 +16,6 @@ import {
 import {
   getTrackOutlineByOrdinal,
   getBundledOutlineByOrdinal,
-  hasTrackOutline,
   hasRecordedOutline as sharedHasRecordedOutline,
   getTrackSectorsByOrdinal,
   getStartYaw,
@@ -341,8 +340,7 @@ export const trackRoutes = new Hono()
       if (gameId === "acc") {
         const accTracks = getAccTracks();
         const tracks = Array.from(accTracks.entries()).map(([id, info]) => {
-          const hasExtracted = hasTrackOutline(id, "acc") || sharedHasRecordedOutline(id, "acc");
-          const hasShared = !!info.commonTrackName && !!loadSharedOutline(info.commonTrackName);
+          const hasBundled = !!getTrackOutlineByOrdinal(id, "acc", info.commonTrackName ?? undefined);
           return {
             ordinal: id,
             name: info.name,
@@ -350,8 +348,8 @@ export const trackRoutes = new Hono()
             country: "",
             variant: info.variant,
             lengthKm: 0,
-            hasOutline: hasExtracted || hasShared,
-            outlineSource: hasExtracted ? "recorded" : hasShared ? "tumftm" : null,
+            hasOutline: hasBundled,
+            outlineSource: hasBundled ? "bundled" : null,
             createdAt: null,
           };
         });

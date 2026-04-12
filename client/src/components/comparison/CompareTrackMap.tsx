@@ -74,7 +74,26 @@ export function CompareTrackMap({
   // Extracted outlines (e.g. F1 2025 from AI spline data) may be in a different
   // coordinate system than telemetry PositionX/Z. Detect misalignment by checking
   // bounding box overlap, and if needed apply Procrustes (translate + rotate + scale).
+  // ACC coordinate system has X axis opposite to the display convention (which negates X).
+  // Pre-flip outline/boundary X so they render correctly against telemetry.
+  const displayOutline = useMemo(() =>
+    gameId === "acc" ? outline.map(p => ({ x: -p.x, z: p.z })) : outline,
+  [outline, gameId]);
+  const displayBoundaries = useMemo(() => {
+    if (gameId !== "acc" || !boundaries) return boundaries;
+    const flip = (pts: Point[]) => pts.map(p => ({ x: -p.x, z: p.z }));
+    return {
+      ...boundaries,
+      leftEdge: flip(boundaries.leftEdge),
+      rightEdge: flip(boundaries.rightEdge),
+      centerLine: flip(boundaries.centerLine),
+      pitLane: boundaries.pitLane ? flip(boundaries.pitLane) : null,
+    };
+  }, [boundaries, gameId]);
+
   const { alignedOutline, alignedBoundaries, telXFn, trackRange } = useMemo(() => {
+    const outline = displayOutline;
+    const boundaries = displayBoundaries;
     const identity = (x: number) => x;
 
     const computeRange = (pts: Point[]) => {
@@ -212,7 +231,7 @@ export function CompareTrackMap({
     }
 
     return { alignedOutline: newOutline, alignedBoundaries: newBoundaries, telXFn: identity, trackRange: computeRange(newOutline) };
-  }, [outline, telemetryA, boundaries]);
+  }, [displayOutline, telemetryA, displayBoundaries]);
 
   const drawBoth = useCallback(() => {
     const hd = hoveredDistanceRef.current;

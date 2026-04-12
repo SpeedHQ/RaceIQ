@@ -1,21 +1,21 @@
 id,name,variant,commonTrackName
 0,Monza,GP,monza
-1,Zolder,GP,
+1,Zolder,GP,zolder
 2,Brands Hatch,GP,brands-hatch
 3,Silverstone,GP,silverstone
-4,Paul Ricard,GP,
-5,Misano,GP,
+4,Paul Ricard,GP,paul-ricard
+5,Misano,GP,misano
 6,Spa-Francorchamps,GP,spa
 7,Nurburgring,GP,nurburgring
 8,Barcelona,GP,catalunya
 9,Hungaroring,GP,budapest
 10,Zandvoort,GP,zandvoort
 11,Monza 2019,GP,monza
-12,Zolder 2019,GP,
+12,Zolder 2019,GP,zolder
 13,Brands Hatch 2019,GP,brands-hatch
 14,Silverstone 2019,GP,silverstone
-15,Paul Ricard 2019,GP,
-16,Misano 2019,GP,
+15,Paul Ricard 2019,GP,paul-ricard
+16,Misano 2019,GP,misano
 17,Spa 2019,GP,spa
 18,Nurburgring 2019,GP,nurburgring
 19,Barcelona 2019,GP,catalunya
@@ -25,12 +25,12 @@ id,name,variant,commonTrackName
 23,Mount Panorama,GP,mount-panorama
 24,Suzuka,GP,suzuka
 25,Laguna Seca,GP,laguna-seca
-26,Oulton Park,GP,
-27,Donington Park,GP,
-28,Snetterton,GP,
+26,Oulton Park,GP,oulton-park
+27,Donington Park,GP,donington
+28,Snetterton,GP,snetterton
 29,Imola,GP,imola
 30,Watkins Glen,GP,watkins-glen
 31,COTA,GP,austin
 32,Indianapolis,GP,indianapolis
-33,Valencia,GP,
+33,Valencia,GP,valencia
 34,Red Bull Ring,GP,spielberg
