@@ -26,7 +26,8 @@ export const accAdapter: GameAdapter = {
     return `Track #${ordinal}`;
   },
 
-  getSharedTrackName(): string | undefined {
+  // Stub — server adapter overrides with real CSV-backed lookup
+  getSharedTrackName(_ordinal: number): string | undefined {
     return undefined;
   },
 

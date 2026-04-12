@@ -26,12 +26,44 @@ function ensureFmNames() {
   }
 }
 
+/** ACC 2019 variant ordinals map to the same layout as the base ordinal. */
+const ACC_2019_VARIANT: Record<number, number> = {
+  11: 0, 12: 1, 13: 2, 14: 3, 15: 4, 16: 5, 17: 6, 18: 7, 19: 8, 20: 9, 21: 10,
+};
+
+/** ACC ordinal → bundled file name, built lazily from tracks.csv. */
+let _accNamesBuilt = false;
+const accOrdinalToFileName = new Map<number, string>();
+function ensureAccNames() {
+  if (_accNamesBuilt) return;
+  _accNamesBuilt = true;
+  const raw = readDataFile(resolve(SHARED_DIR, "games", "acc", "tracks.csv"));
+  for (const line of (raw ?? "").split("\n")) {
+    const parts = line.trim().split(",");
+    const ordinal = parseInt(parts[0], 10);
+    if (isNaN(ordinal)) continue;
+    const commonName = parts[3]?.trim();
+    if (commonName) {
+      accOrdinalToFileName.set(ordinal, commonName);
+    }
+  }
+  // 2019 variants share the same layout as their base track
+  for (const [variant, base] of Object.entries(ACC_2019_VARIANT)) {
+    const baseName = accOrdinalToFileName.get(base);
+    if (baseName) accOrdinalToFileName.set(Number(variant), baseName);
+  }
+}
+
 /** Resolve ordinal to bundled file prefix (e.g. f1: 5 → "monaco", fm: 21 → "silverstone-21"). */
 function getBundledTrackName(gameId: string, ordinal: number): string | undefined {
   if (gameId === "f1-2025") return getF1TrackInfo(ordinal)?.commonTrackName || undefined;
   if (gameId === "fm-2023") {
     ensureFmNames();
     return fmOrdinalToFileName.get(ordinal);
+  }
+  if (gameId === "acc") {
+    ensureAccNames();
+    return accOrdinalToFileName.get(ordinal);
   }
   return undefined;
 }
