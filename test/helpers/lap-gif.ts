@@ -144,7 +144,7 @@ function drawText(
     for (let row = 0; row < 7; row++) {
       const bits = glyph[row]!;
       for (let col2 = 0; col2 < 5; col2++) {
-        if (bits & (1 << (4 - col2))) {
+        if (bits & (1 << col2)) {
           for (let sy = 0; sy < scale; sy++)
             for (let sx = 0; sx < scale; sx++)
               setPixel(buf, cx + col2 * scale + sx, y + row * scale + sy, col);
