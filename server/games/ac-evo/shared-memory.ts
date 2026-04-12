@@ -65,8 +65,8 @@ export class AcEvoSharedMemoryReader {
     this._bufferedReader.start();
     this._connected = true;
 
-    this._pipeline.register(new StatusCheckProcessor(this._disconnect.bind(this)));
-    this._pipeline.register(new ParsingProcessor(0, 0, undefined, "ac-evo"));
+    this._pipeline.register(new StatusCheckProcessor(this._disconnect.bind(this), "AC Evo"));
+    this._pipeline.register(new ParsingProcessor(0, 0, undefined, "ac-evo", "AC Evo"));
 
     console.log("[AC Evo] Triplet pipeline: StatusCheckProcessor → ParsingProcessor (gameId: ac-evo)");
 

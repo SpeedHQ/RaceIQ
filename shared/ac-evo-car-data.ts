@@ -21,14 +21,14 @@ function ensureLoaded(): void {
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    // Format: id\tmodel\tname\tclass (tab-separated)
-    const parts = trimmed.split("\t");
+    // Format: id,model,name,class (comma-separated)
+    const parts = trimmed.split(",");
     if (parts.length < 4) continue;
     const id = parseInt(parts[0], 10);
     const model = parts[1].trim();
     // Name may contain commas, so rejoin middle parts
     const carClass = parts[parts.length - 1].trim();
-    const name = parts.slice(2, parts.length - 1).join("\t").trim();
+    const name = parts.slice(2, parts.length - 1).join(",").trim();
     if (!isNaN(id)) {
       const car: AcEvoCar = { id, model, name, class: carClass };
       carMap.set(id, car);
