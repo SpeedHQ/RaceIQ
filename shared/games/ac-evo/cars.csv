@@ -1,0 +1,21 @@
+id,model,name,class
+0,ferrari_sf90_stradale,Ferrari SF90 Stradale,Road
+1,ferrari_488_pista,Ferrari 488 Pista,Road
+2,lamborghini_huracan_evo,Lamborghini Huracan EVO,Road
+3,lamborghini_huracan_sto,Lamborghini Huracan STO,Road
+4,bmw_m4_competition,BMW M4 Competition,Road
+5,bmw_m4_csl,BMW M4 CSL,Road
+6,alfa_romeo_giulia_gta,Alfa Romeo Giulia GTA,Road
+7,abarth_695,Abarth 695,Road
+8,lotus_emira_v6,Lotus Emira V6,Road
+9,toyota_gr86,Toyota GR86,Road
+10,porsche_911_gt3_rs,Porsche 911 GT3 RS,Road
+11,lamborghini_revuelto,Lamborghini Revuelto,Road
+50,ferrari_296_gt3,Ferrari 296 GT3,GT3
+51,bmw_m4_gt3,BMW M4 GT3,GT3
+52,mclaren_720s_gt3_evo,McLaren 720S GT3 EVO,GT3
+53,porsche_992_gt3_r,Porsche 992 GT3 R,GT3
+54,lamborghini_huracan_gt3_evo2,Lamborghini Huracan GT3 EVO2,GT3
+55,mercedes_amg_gt3_2024,Mercedes-AMG GT3 2024,GT3
+56,audi_r8_lms_evo2,Audi R8 LMS EVO II,GT3
+57,honda_nsx_gt3_evo,Honda NSX GT3 Evo,GT3
