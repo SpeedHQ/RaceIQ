@@ -75,6 +75,7 @@ const ACC_DIR_TO_ORDINAL: Record<string, number> = {
   indianapolis: 32,
   valencia: 33,
   red_bull_ring: 34,
+  nurburgring_24h: 35,
 };
 
 // ── CSV track name lookup ────────────────────────────────────────────
