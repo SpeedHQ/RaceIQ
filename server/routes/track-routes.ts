@@ -866,22 +866,24 @@ export const trackRoutes = new Hono()
       const startYaw = gameId ? getStartYaw(ordinal, gameId) : null;
       const altitude = getTrackAltitudeByOrdinal(ordinal);
 
+      const flipX = gameId === "acc";
+
       // Try all sources: bundled game data → computed average → DB → TUMFTM
       if (gameId) {
         const outline = getTrackOutlineByOrdinal(ordinal, gameId, sharedName);
-        if (outline) return c.json({ points: outline, recorded: true, source: "bundled", startYaw, ...(altitude && { altitude }) });
+        if (outline) return c.json({ points: outline, recorded: true, source: "bundled", startYaw, flipX, ...(altitude && { altitude }) });
       }
 
       // DB-recorded outlines (legacy/ACC)
       if (gameId) {
         const dbOutline = await getDbTrackOutline(ordinal, gameId as GameId);
-        if (dbOutline) return c.json({ points: dbOutline, recorded: true, source: "recorded", startYaw, ...(altitude && { altitude }) });
+        if (dbOutline) return c.json({ points: dbOutline, recorded: true, source: "recorded", startYaw, flipX, ...(altitude && { altitude }) });
       }
 
       // Shared outlines (cross-game TUMFTM) — fallback
       if (sharedName) {
         const shared = loadSharedOutline(sharedName);
-        if (shared) return c.json({ points: shared, recorded: false, source: "tumftm", startYaw });
+        if (shared) return c.json({ points: shared, recorded: false, source: "tumftm", startYaw, flipX });
       }
 
       return c.json({ error: "No outline available" }, 404);

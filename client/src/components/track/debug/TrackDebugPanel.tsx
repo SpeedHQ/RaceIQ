@@ -9,7 +9,7 @@ import type { Point, TrackBoundaries, TrackCalibration, TrackCurb } from "../typ
  * TrackDebugPanel — Full-page debug visualization for track boundary data.
  * Shows outline + boundaries on a large canvas with drag/zoom and diagnostic info sidebar.
  */
-export function TrackDebugPanel({ trackOrdinal, outline }: { trackOrdinal: number; outline: Point[] | null }) {
+export function TrackDebugPanel({ trackOrdinal, outline, flipX = false }: { trackOrdinal: number; outline: Point[] | null; flipX?: boolean }) {
   const gid = useGameId() ?? undefined;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [boundaries, setBoundaries] = useState<TrackBoundaries | null>(null);
@@ -120,7 +120,7 @@ export function TrackDebugPanel({ trackOrdinal, outline }: { trackOrdinal: numbe
     const offsetZ = (h - rangeZ * scale) / 2 + pan.z;
 
     function toCanvas(x: number, z: number): [number, number] {
-      return [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
+      return [flipX ? offsetX + (x - minX) * scale : offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
     }
 
     // Draw boundary fill
@@ -257,7 +257,7 @@ export function TrackDebugPanel({ trackOrdinal, outline }: { trackOrdinal: numbe
     if (boundaries?.pitLane) {
       ctx.fillStyle = "#22d3ee"; ctx.fillRect(340, legendY - 5, 14, 2); ctx.fillText("Pit lane", 358, legendY);
     }
-  }, [outline, boundaries, curbs, zoom, pan]);
+  }, [outline, boundaries, curbs, zoom, pan, flipX]);
 
   if (loading) {
     return <div className="text-app-subtext text-app-text-dim py-8 text-center">Loading debug data...</div>;

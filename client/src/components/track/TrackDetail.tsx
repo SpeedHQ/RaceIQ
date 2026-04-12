@@ -36,6 +36,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   const gid = gameId ?? undefined;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [flipX, setFlipX] = useState(false);
   const [sectors, setSectors] = useState<TrackSectors | null>(null);
   const [segSource, setSegSource] = useState<string>(""); // "user" | "extracted" | "named" | "shared" | "auto"
 
@@ -101,13 +102,18 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
     if (!track.hasOutline) return;
     if (!gameId) return;
     Promise.all([
-      client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid ?? undefined } }).then((r) => r.json() as unknown as { points?: Point[] } | Point[]),
+      client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid ?? undefined } }).then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
       client.api["track-sectors"][":ordinal"].$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } }).then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
       client.api["track-sector-boundaries"][":ordinal"].$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } }).then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
     ]).then(([outlineData, sectorData, boundsData]) => {
-      if (!Array.isArray(outlineData) && outlineData?.points && Array.isArray(outlineData.points)) setOutline(outlineData.points);
-      else if (Array.isArray(outlineData)) setOutline(outlineData);
-      else setOutline(null);
+      if (!Array.isArray(outlineData) && outlineData?.points && Array.isArray(outlineData.points)) {
+        setOutline(outlineData.points);
+        setFlipX(outlineData.flipX ?? false);
+      } else if (Array.isArray(outlineData)) {
+        setOutline(outlineData);
+      } else {
+        setOutline(null);
+      }
       setSectors(sectorData);
       setSegSource((sectorData as (TrackSectors & { source?: string }) | null)?.source ?? "");
       if (boundsData?.s1End) setSectorBounds(boundsData);
@@ -142,8 +148,8 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
       ? { s1End: editS1 / 100, s2End: editS2 / 100 }
       : sectorBounds ?? undefined;
     const sectorOverride = showSectors ? sectorBoundsForDraw : undefined;
-    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, isAcc);
-  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab]);
+    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX);
+  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -417,7 +423,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
 
       {/* Debug: full-page view */}
       {activeTab === "debug" ? (
-        <TrackDebugPanel trackOrdinal={track.ordinal} outline={outline} />
+        <TrackDebugPanel trackOrdinal={track.ordinal} outline={outline} flipX={flipX} />
       ) : (
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 h-[calc(100vh-160px)]">
         {/* Left column: Map + Laps */}

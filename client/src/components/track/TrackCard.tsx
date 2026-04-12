@@ -9,23 +9,29 @@ import type { TrackInfo, Point } from "./types";
 export function TrackCard({ track, onSelect, gameId }: { track: TrackInfo; onSelect: (t: TrackInfo) => void; gameId?: GameId | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
+  const [flipX, setFlipX] = useState(false);
 
   useEffect(() => {
     if (!track.hasOutline) return;
     client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } })
-      .then((r) => r.json() as unknown as { points?: Point[] } | Point[])
+      .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[])
       .then((data) => {
-        if (!Array.isArray(data) && data?.points && Array.isArray(data.points)) setOutline(data.points);
-        else if (Array.isArray(data)) setOutline(data);
-        else setOutline(null);
+        if (!Array.isArray(data) && data?.points && Array.isArray(data.points)) {
+          setOutline(data.points);
+          setFlipX(data.flipX ?? false);
+        } else if (Array.isArray(data)) {
+          setOutline(data);
+        } else {
+          setOutline(null);
+        }
       })
       .catch(() => {});
   }, [track.ordinal, track.hasOutline, gameId]);
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
-    drawTrack(canvasRef.current, outline, false, null, 1, { x: 0, z: 0 }, undefined, gameId === "acc");
-  }, [outline]);
+    drawTrack(canvasRef.current, outline, false, null, 1, { x: 0, z: 0 }, undefined, flipX);
+  }, [outline, flipX]);
 
   return (
     <div
