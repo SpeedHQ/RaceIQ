@@ -41,8 +41,8 @@ Check out the [demo](https://www.youtube.com/watch?v=hWuIItofivA) and [screensho
 
 ## Supported Games
 
-| Game | Tunes | Guides |
-|------|-------|--------|
+| Game | Community Tunes | Community Guides |
+|------|-----------------|-----------------|
 | Forza Motorsport 2023 | No | No |
 | F1 2025 | Yes | Yes |
 | Assetto Corsa Competizione | Yes | Yes |
