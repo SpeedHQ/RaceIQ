@@ -42,9 +42,20 @@ export function PitEstimate({ packet }: { packet: TelemetryPacket }) {
     };
   });
 
+  const pitStatus = packet.acc?.pitStatus;
+  const pitBadge =
+    pitStatus === "in_pit"   ? { label: "IN PIT",   cls: "bg-sky-500/20 text-sky-300 border-sky-500/30" } :
+    pitStatus === "pit_lane" ? { label: "PIT LANE", cls: "bg-amber-500/20 text-amber-300 border-amber-500/30" } :
+    null;
+
   return (
     <div>
-      <div className="flex justify-end mb-3">
+      <div className="flex items-center justify-between mb-3">
+        {pitBadge ? (
+          <span className={`text-xs font-bold px-2 py-0.5 rounded border tracking-widest uppercase ${pitBadge.cls}`}>
+            {pitBadge.label}
+          </span>
+        ) : <span />}
         <PitWindow />
       </div>
       <div className="space-y-3">
