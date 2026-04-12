@@ -55,7 +55,9 @@ export interface GameAdapter {
   /** Tire temp thresholds in °C — blue < cold < green < warm < amber < hot < red */
   tireTempThresholds: { cold: number; warm: number; hot: number };
 
-  /** Optimal tire pressure range in PSI — shown green when in range, blue below, orange above */
+  /** Optimal tire pressure range in PSI — shown green when in range, blue
+   *  below, orange above. Games that need class-aware windows (e.g. ACC's
+   *  GT3/GT4/TCX split) resolve this server-side via a game-specific API. */
   tirePressureOptimal?: { min: number; max: number };
 
   /** Brake temp thresholds in °C — front/rear have different working ranges */
@@ -70,3 +72,4 @@ export interface GameAdapter {
   /** Drivetrain names (e.g. FWD/RWD/AWD) — undefined if N/A */
   drivetrainNames?: Record<number, string>;
 }
+

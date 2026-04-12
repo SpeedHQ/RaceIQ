@@ -13,6 +13,7 @@ export interface AlignedTrace {
   posZ: number[];
   elapsedTime: number[]; // seconds from lap start
   tireWear: number[]; // average of all 4 tires (0-1)
+  fuel: number[]; // raw fuel value (game-dependent units; treated as a fraction for FM)
 }
 
 export interface ComparisonResult {
@@ -75,6 +76,7 @@ interface LapData {
   posZs: number[];
   times: number[];
   tireWears: number[];
+  fuels: number[];
 }
 
 function extractLapData(packets: TelemetryPacket[]): LapData {
@@ -93,6 +95,7 @@ function extractLapData(packets: TelemetryPacket[]): LapData {
     posZs: packets.map((p) => p.VelocityZ),
     times: packets.map((p) => elapsedSeconds(p, first)),
     tireWears: packets.map((p) => (p.TireWearFL + p.TireWearFR + p.TireWearRL + p.TireWearRR) / 4),
+    fuels: packets.map((p) => p.Fuel),
   };
 }
 
@@ -150,6 +153,7 @@ function alignLap(data: LapData, grid: number[]): AlignedTrace {
     posZ: interpolateChannel(data.distances, data.posZs, grid),
     elapsedTime: interpolateChannel(data.distances, data.times, grid),
     tireWear: interpolateChannel(data.distances, data.tireWears, grid),
+    fuel: interpolateChannel(data.distances, data.fuels, grid),
   };
 }
 

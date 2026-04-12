@@ -16,7 +16,7 @@ import { getAllGames } from "@shared/games/registry";
 
 import { queryClient } from "../lib/queryClient";
 
-const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Tracks", "Cars", "Tunes", "Setup", "Raw"] as const;
+const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Chats", "Tracks", "Cars", "Tunes", "Setup", "Raw"] as const;
 
 // Computed lazily on first call — the registry is empty at module load time
 // because initGameAdapters() runs in main.tsx after route modules are imported.

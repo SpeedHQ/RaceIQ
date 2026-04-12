@@ -5,7 +5,7 @@ import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, mkdirSy
 import { resolve } from "path";
 import { SHARED_DIR } from "../paths";
 import { accRecorder, replayRecording } from "../games/acc/recorder";
-import { getAllAccCars } from "../../shared/acc-car-data";
+import { getAllAccCars, getAccCarClass } from "../../shared/acc-car-data";
 import { getAccCarSpecs } from "../../shared/acc-car-specs";
 import { accReader } from "../index";
 import { PHYSICS, GRAPHICS, STATIC } from "../games/acc/structs";
@@ -284,6 +284,15 @@ export const accRoutes = new Hono()
     }));
     cars.sort((a, b) => a.class.localeCompare(b.class) || a.name.localeCompare(b.name));
     return c.json(cars);
+  })
+
+  // Resolves the ACC class (GT3/GT4/TCX/…) for a car ordinal. Class is the
+  // authoritative server-side fact; the client maps class → pressure window
+  // (or other class-aware rules) locally.
+  .get("/api/acc/cars/:ordinal/class", (c) => {
+    const ord = Number(c.req.param("ordinal"));
+    if (!Number.isFinite(ord)) return c.json({ class: null });
+    return c.json({ class: getAccCarClass(ord) ?? null });
   })
 
   // ── Debug ─────────────────────────────────────────────────────────────────

@@ -16,6 +16,8 @@ export interface CarModelEnrichment {
   rearTireWidth?: number;    // meters (default 0.30)
   frontTireRadius?: number;  // meters (overrides tireRadius for front)
   rearTireRadius?: number;   // meters (overrides tireRadius for rear)
+  /** Full suspension travel range in metres (total stroke, compressed→extended). Optional — falls back to 0.08 default. */
+  suspStroke?: number;
   glbWheelbase?: number;
   glbOffsetX?: number;
   glbOffsetY?: number;

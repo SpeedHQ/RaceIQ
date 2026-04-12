@@ -4,10 +4,20 @@ import type { TelemetryPacket } from "@shared/types";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { getWheelOffsets, trailColorFromState } from "../../lib/wireframe-utils";
 import { allWheelStates } from "../../lib/vehicle-dynamics";
+import { useGameId } from "../../stores/game";
 
-// Upper bound on trail segments across all 4 wheels. At ACC's ~300 Hz
-// physics with the 80 ms trail duration, a single wheel keeps ~24 points
-// (23 segments), so 4 × 23 = 92 worst case. Round up generously.
+// Trail length in meters of track behind each wheel. Distance-based so the
+// visual length is stable across games, packet rates, car speed, and any
+// recorded-timestamp jitter (notably ACC, which stamps with Date.now()).
+// ACC gets a shorter trail — its slip signal is tighter and long trails
+// over-emphasize the effect.
+const TRAIL_LENGTH_M_DEFAULT = 4;
+const TRAIL_LENGTH_M_ACC = 2;
+// Hard cap on samples walked back from the cursor. Bounds worst-case work at
+// very low speed where the arc-length target is never reached.
+const MAX_TRAIL_SAMPLES = 64;
+// Upper bound on trail segments across all 4 wheels:
+// MAX_TRAIL_SAMPLES × 4 wheels = 256 worst case.
 const MAX_TRAIL_INSTANCES = 256;
 
 export function TireTrails({
@@ -19,16 +29,19 @@ export function TireTrails({
   cursorIdx: number;
   carModel: CarModelEnrichment;
 }) {
-  const TRAIL_DURATION_MS = 80;
+  const gameId = useGameId();
+  const trailLengthM = gameId === "acc" ? TRAIL_LENGTH_M_ACC : TRAIL_LENGTH_M_DEFAULT;
   const WHEEL_OFFSETS = useMemo(() => getWheelOffsets(carModel), [carModel]);
 
-  // Per-wheel slip-state callbacks (unchanged — drives per-segment color).
-  const slipFns = useMemo(
+  // Per-wheel slip-angle extractor (radians). Slip ratio comes from
+  // allWheelStates (rot-speed-derived SAE ratio, not the game's raw
+  // TireSlipRatio field which uses per-game scaling).
+  const angleFns = useMemo(
     () => [
-      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipFL),
-      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipFR),
-      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipRL),
-      (p: TelemetryPacket) => Math.abs(p.TireCombinedSlipRR),
+      (p: TelemetryPacket) => p.TireSlipAngleFL,
+      (p: TelemetryPacket) => p.TireSlipAngleFR,
+      (p: TelemetryPacket) => p.TireSlipAngleRL,
+      (p: TelemetryPacket) => p.TireSlipAngleRR,
     ],
     [],
   );
@@ -40,10 +53,29 @@ export function TireTrails({
   const trails = useMemo(() => {
     const cur = telemetry[cursorIdx];
     if (!cur) return null;
-    const curTime = cur.TimestampMS;
+    // Walk back along the recorded path, summing hypot between adjacent
+    // samples, until we have trailLengthM meters of track behind the car.
+    // Cumulative arc length (not straight-line to cursor) so hairpins that
+    // loop back near the cursor's XZ don't cut the walk short.
     let startIdx = cursorIdx;
-    while (startIdx > 0 && curTime - telemetry[startIdx - 1].TimestampMS < TRAIL_DURATION_MS) startIdx--;
+    let acc = 0;
+    let lastSegLen = 0;
+    while (startIdx > 0 && cursorIdx - startIdx < MAX_TRAIL_SAMPLES) {
+      const a = telemetry[startIdx];
+      const b = telemetry[startIdx - 1];
+      lastSegLen = Math.hypot(a.PositionX - b.PositionX, a.PositionZ - b.PositionZ);
+      acc += lastSegLen;
+      startIdx--;
+      if (acc >= trailLengthM) break;
+    }
     if (cursorIdx - startIdx < 2) return null;
+    // Fractional clip of the oldest segment so the rear endpoint sits at
+    // *exactly* trailLengthM behind the car. Without this, the tail snaps
+    // between whole-sample boundaries each cursor tick → visible jitter.
+    // startIdx points to the oldest included sample; if we overshot, nudge
+    // it toward telemetry[startIdx + 1] by (overshoot / lastSegLen).
+    const overshoot = acc - trailLengthM;
+    const tailFrac = overshoot > 0 && lastSegLen > 1e-6 ? overshoot / lastSegLen : 0;
 
     const cx = cur.PositionX, cz = cur.PositionZ;
     const s = Math.sin(cur.Yaw), c = Math.cos(cur.Yaw);
@@ -53,16 +85,26 @@ export function TireTrails({
       const cols: THREE.Color[] = [];
       for (let i = startIdx, j = 0; i <= cursorIdx; i++, j++) {
         const p = telemetry[i];
-        const dx = p.PositionX - cx, dz = p.PositionZ - cz;
+        // For the oldest sample, lerp toward the next sample by tailFrac so
+        // the rear endpoint lands at exactly trailLengthM (kills tail jitter).
+        let px = p.PositionX;
+        let pz = p.PositionZ;
+        if (i === startIdx && tailFrac > 0) {
+          const next = telemetry[startIdx + 1];
+          px += (next.PositionX - px) * tailFrac;
+          pz += (next.PositionZ - pz) * tailFrac;
+        }
+        const dx = px - cx, dz = pz - cz;
         pts[j * 3] = dx * s + dz * c + off[0];
         pts[j * 3 + 1] = -0.42;
         pts[j * 3 + 2] = dx * c - dz * s + off[1];
         const ws = allWheelStates(p);
-        cols.push(trailColorFromState(ws[wheelKeys[w]].state, slipFns[w](p)));
+        const wsWheel = ws[wheelKeys[w]];
+        cols.push(trailColorFromState(wsWheel.state, wsWheel.slipRatio, angleFns[w](p)));
       }
       return { pts, cols };
     });
-  }, [telemetry, cursorIdx, WHEEL_OFFSETS, slipFns, wheelKeys]);
+  }, [telemetry, cursorIdx, WHEEL_OFFSETS, angleFns, wheelKeys, trailLengthM]);
 
   // Single instancedMesh across all 4 wheels — one draw call for everything.
   // Each instance is a thin box stretched to a segment length and rotated

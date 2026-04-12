@@ -22,6 +22,7 @@ export interface ViewToggles {
   grid: boolean;
   drivetrain: boolean;
   dimensions: boolean;
+  wheelInfo: boolean;
 }
 
 export const DEFAULT_TOGGLES: ViewToggles = {
@@ -33,4 +34,5 @@ export const DEFAULT_TOGGLES: ViewToggles = {
   grid: true,
   drivetrain: true,
   dimensions: false,
+  wheelInfo: true,
 };

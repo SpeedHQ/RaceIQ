@@ -192,8 +192,54 @@ export const ANALYSIS_SCHEMA = {
   required: ["verdict", "pace", "handling", "corners", "braking", "throttle", "coaching", "setup"],
 };
 
+/**
+ * JSON schema for the per-segment inputs-comparison analysis.
+ * Matches the `InputsAnalysis` shape consumed by CompareAiPanel.
+ */
+export const INPUTS_COMPARE_SCHEMA = {
+  type: "object",
+  properties: {
+    verdict: { type: "string", description: "1-2 sentence top-line summary of input differences." },
+    segments: {
+      type: "array",
+      description: "ONE entry per track segment, in the order given by the prompt. MUST NOT be empty.",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Segment name from the prompt's segment list." },
+          type: { type: "string", enum: ["corner", "straight"] },
+          deltaSeconds: { type: "number", description: "Lap A time minus Lap B time for this segment, in seconds. Positive = A slower." },
+          throttle: { type: "string", description: "1 sentence on throttle differences." },
+          brake: { type: "string", description: "1 sentence on brake differences." },
+          steering: { type: "string", description: "1 sentence on steering differences." },
+          severity: { type: "string", enum: ["minor", "moderate", "major"] },
+        },
+        required: ["name", "type", "deltaSeconds", "throttle", "brake", "steering", "severity"],
+      },
+    },
+    coaching: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          tip: { type: "string", description: "Actionable change in 1 sentence." },
+          detail: { type: "string", description: "Why and how, 1-2 sentences." },
+          targetLap: { type: "string", enum: ["A", "B"] },
+        },
+        required: ["tip", "detail", "targetLap"],
+      },
+    },
+  },
+  required: ["verdict", "segments", "coaching"],
+};
+
 /** Run analysis via Gemini API. */
-export async function runGemini(prompt: string, apiKey: string, model?: string): Promise<AiResult> {
+export async function runGemini(
+  prompt: string,
+  apiKey: string,
+  model?: string,
+  schema: object = ANALYSIS_SCHEMA,
+): Promise<AiResult> {
   model = model || "gemini-2.0-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -205,7 +251,7 @@ export async function runGemini(prompt: string, apiKey: string, model?: string):
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         responseMimeType: "application/json",
-        responseSchema: ANALYSIS_SCHEMA,
+        responseSchema: schema,
         temperature: 0.3,
       },
     }),
@@ -251,7 +297,13 @@ function extractJson(text: string): string {
 }
 
 /** Run analysis via OpenAI API. */
-export async function runOpenAi(prompt: string, apiKey: string, model?: string): Promise<AiResult> {
+export async function runOpenAi(
+  prompt: string,
+  apiKey: string,
+  model?: string,
+  schema: object = ANALYSIS_SCHEMA,
+  schemaName: string = "lap_analysis",
+): Promise<AiResult> {
   model = model || "gpt-4o-mini";
   const start = performance.now();
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -262,7 +314,7 @@ export async function runOpenAi(prompt: string, apiKey: string, model?: string):
       messages: [{ role: "user", content: prompt }],
       response_format: {
         type: "json_schema",
-        json_schema: { name: "lap_analysis", strict: true, schema: ANALYSIS_SCHEMA },
+        json_schema: { name: schemaName, strict: true, schema },
       },
       temperature: 0.3,
     }),

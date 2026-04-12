@@ -24,6 +24,7 @@ import { Route as Fm23SessionsRouteImport } from './routes/fm23/sessions'
 import { Route as Fm23RawRouteImport } from './routes/fm23/raw'
 import { Route as Fm23LiveRouteImport } from './routes/fm23/live'
 import { Route as Fm23CompareRouteImport } from './routes/fm23/compare'
+import { Route as Fm23ChatsRouteImport } from './routes/fm23/chats'
 import { Route as Fm23CarsRouteImport } from './routes/fm23/cars'
 import { Route as Fm23AnalyseRouteImport } from './routes/fm23/analyse'
 import { Route as F125TunesRouteImport } from './routes/f125/tunes'
@@ -33,6 +34,7 @@ import { Route as F125SessionsRouteImport } from './routes/f125/sessions'
 import { Route as F125RawRouteImport } from './routes/f125/raw'
 import { Route as F125LiveRouteImport } from './routes/f125/live'
 import { Route as F125CompareRouteImport } from './routes/f125/compare'
+import { Route as F125ChatsRouteImport } from './routes/f125/chats'
 import { Route as F125CarsRouteImport } from './routes/f125/cars'
 import { Route as F125AnalyseRouteImport } from './routes/f125/analyse'
 import { Route as AccTracksRouteImport } from './routes/acc/tracks'
@@ -41,6 +43,7 @@ import { Route as AccSessionsRouteImport } from './routes/acc/sessions'
 import { Route as AccRawRouteImport } from './routes/acc/raw'
 import { Route as AccLiveRouteImport } from './routes/acc/live'
 import { Route as AccCompareRouteImport } from './routes/acc/compare'
+import { Route as AccChatsRouteImport } from './routes/acc/chats'
 import { Route as AccCarsRouteImport } from './routes/acc/cars'
 import { Route as AccAnalyseRouteImport } from './routes/acc/analyse'
 import { Route as Fm23TunesIndexRouteImport } from './routes/fm23/tunes/index'
@@ -131,6 +134,11 @@ const Fm23CompareRoute = Fm23CompareRouteImport.update({
   path: '/compare',
   getParentRoute: () => Fm23Route,
 } as any)
+const Fm23ChatsRoute = Fm23ChatsRouteImport.update({
+  id: '/chats',
+  path: '/chats',
+  getParentRoute: () => Fm23Route,
+} as any)
 const Fm23CarsRoute = Fm23CarsRouteImport.update({
   id: '/cars',
   path: '/cars',
@@ -176,6 +184,11 @@ const F125CompareRoute = F125CompareRouteImport.update({
   path: '/compare',
   getParentRoute: () => F125Route,
 } as any)
+const F125ChatsRoute = F125ChatsRouteImport.update({
+  id: '/chats',
+  path: '/chats',
+  getParentRoute: () => F125Route,
+} as any)
 const F125CarsRoute = F125CarsRouteImport.update({
   id: '/cars',
   path: '/cars',
@@ -214,6 +227,11 @@ const AccLiveRoute = AccLiveRouteImport.update({
 const AccCompareRoute = AccCompareRouteImport.update({
   id: '/compare',
   path: '/compare',
+  getParentRoute: () => AccRoute,
+} as any)
+const AccChatsRoute = AccChatsRouteImport.update({
+  id: '/chats',
+  path: '/chats',
   getParentRoute: () => AccRoute,
 } as any)
 const AccCarsRoute = AccCarsRouteImport.update({
@@ -295,6 +313,7 @@ export interface FileRoutesByFullPath {
   '/fm23': typeof Fm23RouteWithChildren
   '/acc/analyse': typeof AccAnalyseRoute
   '/acc/cars': typeof AccCarsRoute
+  '/acc/chats': typeof AccChatsRoute
   '/acc/compare': typeof AccCompareRoute
   '/acc/live': typeof AccLiveRoute
   '/acc/raw': typeof AccRawRoute
@@ -303,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/acc/tracks': typeof AccTracksRoute
   '/f125/analyse': typeof F125AnalyseRoute
   '/f125/cars': typeof F125CarsRoute
+  '/f125/chats': typeof F125ChatsRoute
   '/f125/compare': typeof F125CompareRoute
   '/f125/live': typeof F125LiveRoute
   '/f125/raw': typeof F125RawRoute
@@ -312,6 +332,7 @@ export interface FileRoutesByFullPath {
   '/f125/tunes': typeof F125TunesRouteWithChildren
   '/fm23/analyse': typeof Fm23AnalyseRoute
   '/fm23/cars': typeof Fm23CarsRoute
+  '/fm23/chats': typeof Fm23ChatsRoute
   '/fm23/compare': typeof Fm23CompareRoute
   '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/fm23/raw': typeof Fm23RawRoute
@@ -340,6 +361,7 @@ export interface FileRoutesByTo {
   '/dev': typeof DevRoute
   '/acc/analyse': typeof AccAnalyseRoute
   '/acc/cars': typeof AccCarsRoute
+  '/acc/chats': typeof AccChatsRoute
   '/acc/compare': typeof AccCompareRoute
   '/acc/live': typeof AccLiveRoute
   '/acc/raw': typeof AccRawRoute
@@ -347,6 +369,7 @@ export interface FileRoutesByTo {
   '/acc/tracks': typeof AccTracksRoute
   '/f125/analyse': typeof F125AnalyseRoute
   '/f125/cars': typeof F125CarsRoute
+  '/f125/chats': typeof F125ChatsRoute
   '/f125/compare': typeof F125CompareRoute
   '/f125/live': typeof F125LiveRoute
   '/f125/raw': typeof F125RawRoute
@@ -354,6 +377,7 @@ export interface FileRoutesByTo {
   '/f125/tracks': typeof F125TracksRoute
   '/fm23/analyse': typeof Fm23AnalyseRoute
   '/fm23/cars': typeof Fm23CarsRoute
+  '/fm23/chats': typeof Fm23ChatsRoute
   '/fm23/compare': typeof Fm23CompareRoute
   '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/fm23/raw': typeof Fm23RawRoute
@@ -384,6 +408,7 @@ export interface FileRoutesById {
   '/fm23': typeof Fm23RouteWithChildren
   '/acc/analyse': typeof AccAnalyseRoute
   '/acc/cars': typeof AccCarsRoute
+  '/acc/chats': typeof AccChatsRoute
   '/acc/compare': typeof AccCompareRoute
   '/acc/live': typeof AccLiveRoute
   '/acc/raw': typeof AccRawRoute
@@ -392,6 +417,7 @@ export interface FileRoutesById {
   '/acc/tracks': typeof AccTracksRoute
   '/f125/analyse': typeof F125AnalyseRoute
   '/f125/cars': typeof F125CarsRoute
+  '/f125/chats': typeof F125ChatsRoute
   '/f125/compare': typeof F125CompareRoute
   '/f125/live': typeof F125LiveRoute
   '/f125/raw': typeof F125RawRoute
@@ -401,6 +427,7 @@ export interface FileRoutesById {
   '/f125/tunes': typeof F125TunesRouteWithChildren
   '/fm23/analyse': typeof Fm23AnalyseRoute
   '/fm23/cars': typeof Fm23CarsRoute
+  '/fm23/chats': typeof Fm23ChatsRoute
   '/fm23/compare': typeof Fm23CompareRoute
   '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/fm23/raw': typeof Fm23RawRoute
@@ -434,6 +461,7 @@ export interface FileRouteTypes {
     | '/fm23'
     | '/acc/analyse'
     | '/acc/cars'
+    | '/acc/chats'
     | '/acc/compare'
     | '/acc/live'
     | '/acc/raw'
@@ -442,6 +470,7 @@ export interface FileRouteTypes {
     | '/acc/tracks'
     | '/f125/analyse'
     | '/f125/cars'
+    | '/f125/chats'
     | '/f125/compare'
     | '/f125/live'
     | '/f125/raw'
@@ -451,6 +480,7 @@ export interface FileRouteTypes {
     | '/f125/tunes'
     | '/fm23/analyse'
     | '/fm23/cars'
+    | '/fm23/chats'
     | '/fm23/compare'
     | '/fm23/live'
     | '/fm23/raw'
@@ -479,6 +509,7 @@ export interface FileRouteTypes {
     | '/dev'
     | '/acc/analyse'
     | '/acc/cars'
+    | '/acc/chats'
     | '/acc/compare'
     | '/acc/live'
     | '/acc/raw'
@@ -486,6 +517,7 @@ export interface FileRouteTypes {
     | '/acc/tracks'
     | '/f125/analyse'
     | '/f125/cars'
+    | '/f125/chats'
     | '/f125/compare'
     | '/f125/live'
     | '/f125/raw'
@@ -493,6 +525,7 @@ export interface FileRouteTypes {
     | '/f125/tracks'
     | '/fm23/analyse'
     | '/fm23/cars'
+    | '/fm23/chats'
     | '/fm23/compare'
     | '/fm23/live'
     | '/fm23/raw'
@@ -522,6 +555,7 @@ export interface FileRouteTypes {
     | '/fm23'
     | '/acc/analyse'
     | '/acc/cars'
+    | '/acc/chats'
     | '/acc/compare'
     | '/acc/live'
     | '/acc/raw'
@@ -530,6 +564,7 @@ export interface FileRouteTypes {
     | '/acc/tracks'
     | '/f125/analyse'
     | '/f125/cars'
+    | '/f125/chats'
     | '/f125/compare'
     | '/f125/live'
     | '/f125/raw'
@@ -539,6 +574,7 @@ export interface FileRouteTypes {
     | '/f125/tunes'
     | '/fm23/analyse'
     | '/fm23/cars'
+    | '/fm23/chats'
     | '/fm23/compare'
     | '/fm23/live'
     | '/fm23/raw'
@@ -678,6 +714,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Fm23CompareRouteImport
       parentRoute: typeof Fm23Route
     }
+    '/fm23/chats': {
+      id: '/fm23/chats'
+      path: '/chats'
+      fullPath: '/fm23/chats'
+      preLoaderRoute: typeof Fm23ChatsRouteImport
+      parentRoute: typeof Fm23Route
+    }
     '/fm23/cars': {
       id: '/fm23/cars'
       path: '/cars'
@@ -741,6 +784,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof F125CompareRouteImport
       parentRoute: typeof F125Route
     }
+    '/f125/chats': {
+      id: '/f125/chats'
+      path: '/chats'
+      fullPath: '/f125/chats'
+      preLoaderRoute: typeof F125ChatsRouteImport
+      parentRoute: typeof F125Route
+    }
     '/f125/cars': {
       id: '/f125/cars'
       path: '/cars'
@@ -795,6 +845,13 @@ declare module '@tanstack/react-router' {
       path: '/compare'
       fullPath: '/acc/compare'
       preLoaderRoute: typeof AccCompareRouteImport
+      parentRoute: typeof AccRoute
+    }
+    '/acc/chats': {
+      id: '/acc/chats'
+      path: '/chats'
+      fullPath: '/acc/chats'
+      preLoaderRoute: typeof AccChatsRouteImport
       parentRoute: typeof AccRoute
     }
     '/acc/cars': {
@@ -913,6 +970,7 @@ const AccSetupRouteWithChildren = AccSetupRoute._addFileChildren(
 interface AccRouteChildren {
   AccAnalyseRoute: typeof AccAnalyseRoute
   AccCarsRoute: typeof AccCarsRoute
+  AccChatsRoute: typeof AccChatsRoute
   AccCompareRoute: typeof AccCompareRoute
   AccLiveRoute: typeof AccLiveRoute
   AccRawRoute: typeof AccRawRoute
@@ -925,6 +983,7 @@ interface AccRouteChildren {
 const AccRouteChildren: AccRouteChildren = {
   AccAnalyseRoute: AccAnalyseRoute,
   AccCarsRoute: AccCarsRoute,
+  AccChatsRoute: AccChatsRoute,
   AccCompareRoute: AccCompareRoute,
   AccLiveRoute: AccLiveRoute,
   AccRawRoute: AccRawRoute,
@@ -963,6 +1022,7 @@ const F125TunesRouteWithChildren = F125TunesRoute._addFileChildren(
 interface F125RouteChildren {
   F125AnalyseRoute: typeof F125AnalyseRoute
   F125CarsRoute: typeof F125CarsRoute
+  F125ChatsRoute: typeof F125ChatsRoute
   F125CompareRoute: typeof F125CompareRoute
   F125LiveRoute: typeof F125LiveRoute
   F125RawRoute: typeof F125RawRoute
@@ -976,6 +1036,7 @@ interface F125RouteChildren {
 const F125RouteChildren: F125RouteChildren = {
   F125AnalyseRoute: F125AnalyseRoute,
   F125CarsRoute: F125CarsRoute,
+  F125ChatsRoute: F125ChatsRoute,
   F125CompareRoute: F125CompareRoute,
   F125LiveRoute: F125LiveRoute,
   F125RawRoute: F125RawRoute,
@@ -1037,6 +1098,7 @@ const Fm23TunesRouteWithChildren = Fm23TunesRoute._addFileChildren(
 interface Fm23RouteChildren {
   Fm23AnalyseRoute: typeof Fm23AnalyseRoute
   Fm23CarsRoute: typeof Fm23CarsRoute
+  Fm23ChatsRoute: typeof Fm23ChatsRoute
   Fm23CompareRoute: typeof Fm23CompareRoute
   Fm23LiveRoute: typeof Fm23LiveRouteWithChildren
   Fm23RawRoute: typeof Fm23RawRoute
@@ -1051,6 +1113,7 @@ interface Fm23RouteChildren {
 const Fm23RouteChildren: Fm23RouteChildren = {
   Fm23AnalyseRoute: Fm23AnalyseRoute,
   Fm23CarsRoute: Fm23CarsRoute,
+  Fm23ChatsRoute: Fm23ChatsRoute,
   Fm23CompareRoute: Fm23CompareRoute,
   Fm23LiveRoute: Fm23LiveRouteWithChildren,
   Fm23RawRoute: Fm23RawRoute,

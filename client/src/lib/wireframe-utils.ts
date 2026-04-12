@@ -9,24 +9,14 @@ import { COLORS_HEX, tireState } from "./vehicle-dynamics";
  */
 export function makeWheelGeometries(radius: number, width: number) {
   const rimRadius = radius * 0.67;
-  const tire = new THREE.CylinderGeometry(radius, radius, width, 16, 1, false);
+  const tire = new THREE.CylinderGeometry(radius, radius, width, 16, 1, true);
   tire.rotateX(Math.PI / 2);
   const rim = new THREE.CylinderGeometry(rimRadius, rimRadius, width * 0.8, 8, 1, true);
   rim.rotateX(Math.PI / 2);
-  const hub = new THREE.CircleGeometry(rimRadius, 5);
-  hub.rotateX(Math.PI / 2);
-  return { tire, rim, hub };
+  return { tire, rim };
 }
 
 // ── Color helpers ─────────────────────────────────────────────────────
-
-export function brakeTempColor(temp: number): string {
-  if (temp < 200) return "#3b82f6";  // cold — blue
-  if (temp < 400) return "#6ee7b7";  // warming — green
-  if (temp < 700) return "#fbbf24";  // optimal — amber
-  if (temp < 900) return "#f97316";  // hot — orange
-  return "#ef4444";                   // critical — red
-}
 
 // Pre-allocated color objects to avoid GC pressure
 export const SLIP_GREEN = new THREE.Color("#34d399");
@@ -63,8 +53,8 @@ const TRACTION_COLORS = new Map<string, THREE.Color>([
 ]);
 
 /** Returns a pre-allocated THREE.Color driven by tireState() — single source of truth. */
-export function trailColorFromState(wheelStateLabel: string, combinedSlip: number): THREE.Color {
-  return TRACTION_COLORS.get(tireState(wheelStateLabel, combinedSlip).hex) ?? TRACTION_COLORS.get(COLORS_HEX.green)!;
+export function trailColorFromState(wheelStateLabel: string, slipRatio: number, slipAngleRad: number): THREE.Color {
+  return TRACTION_COLORS.get(tireState(wheelStateLabel, slipRatio, slipAngleRad).hex) ?? TRACTION_COLORS.get(COLORS_HEX.green)!;
 }
 
 // ── Input overlay colors ─────────────────────────────────────────────

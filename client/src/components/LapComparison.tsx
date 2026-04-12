@@ -1,17 +1,19 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import type { LapMeta, ComparisonData } from "@shared/types";
-import { TrackMap } from "./TrackMap";
 import { TelemetryChart } from "./TelemetryChart";
 import { TimeDelta } from "./TimeDelta";
-import { CornerTable } from "./CornerTable";
 import { useUnits } from "../hooks/useUnits";
 import { useLaps, useTrackOutline, useTrackSectors } from "../hooks/queries";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
 import { SearchSelect } from "./ui/SearchSelect";
 import { CompareTrackMap, type SegmentTiming } from "./comparison/CompareTrackMap";
+import { CompareAiSidebar } from "./comparison/CompareAiSidebar";
+import type { CompareAiPanelHandle } from "./comparison/CompareAiPanel";
 import { COLOR_A, COLOR_B, formatLapTime, type Point } from "../lib/comparison-utils";
+import { Sparkles } from "lucide-react";
+import { Button } from "./ui/button";
 
 const SYNC_KEY = "lap-compare";
 
@@ -56,6 +58,17 @@ export function LapComparison() {
   const prevCarBRef = useRef<number | null | undefined>(undefined);
   const hoveredDistanceRef = useRef<number | null>(null);
   const mapRedrawRef = useRef<(() => void) | null>(null);
+  const aiPanelRef = useRef<CompareAiPanelHandle | null>(null);
+  const [aiPanelOpen, setAiPanelOpen] = useState<boolean>(() => {
+    try { return localStorage.getItem("compare-ai-panel-open") === "1"; } catch { return false; }
+  });
+  const toggleAiPanel = useCallback(() => {
+    setAiPanelOpen((v) => {
+      const next = !v;
+      try { localStorage.setItem("compare-ai-panel-open", next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
   const handleCursorMove = useCallback((d: number | null) => {
     hoveredDistanceRef.current = d;
     // Directly redraw the map canvas without React re-render
@@ -203,6 +216,21 @@ export function LapComparison() {
     fetchComparison();
   }, [fetchComparison]);
 
+  // Synthetic outline fallback: use telemetryA world positions when no track
+  // outline exists. Keeps CompareTrackMap's Overview/Zoomed layout rendering
+  // at the same dimensions for games without track edge data (e.g. ACC).
+  const syntheticOutline = useMemo<Point[]>(() => {
+    if (!comparison) return [];
+    const tel = comparison.telemetryA;
+    if (!tel || tel.length < 2) return [];
+    const step = Math.max(1, Math.floor(tel.length / 400));
+    const out: Point[] = [];
+    for (let i = 0; i < tel.length; i += step) {
+      out.push({ x: tel[i].PositionX, z: tel[i].PositionZ });
+    }
+    return out;
+  }, [comparison]);
+
   // Compute per-segment times for both laps
   const segmentTimings = useMemo((): SegmentTiming[] => {
     if (!trackSegments || trackSegments.length === 0 || !comparison) return [];
@@ -308,6 +336,24 @@ export function LapComparison() {
             focusColor="blue-500"
           />
         </div>
+
+        {/* AI panel toggle */}
+        <div className="flex flex-col gap-1 self-end">
+          <Button
+            variant="app-outline"
+            size="app-lg"
+            onClick={toggleAiPanel}
+            disabled={!comparison}
+            title="Toggle AI compare panel"
+            className={aiPanelOpen
+              ? "text-app-accent border-app-accent/40 bg-app-accent/10"
+              : "hover:text-app-accent"
+            }
+          >
+            <Sparkles className="size-3.5" />
+            AI Analysis
+          </Button>
+        </div>
       </div>
 
       {/* Loading / Error */}
@@ -335,48 +381,20 @@ export function LapComparison() {
         <div className="flex gap-4 flex-1 min-h-0 overflow-hidden">
           {/* Left: track map */}
           <div className="w-[440px] shrink-0 min-h-0">
-          {trackOutline && trackOutline.length >= 2 ? (
-            <CompareTrackMap
-              outline={trackOutline}
-              telemetryA={comparison.telemetryA}
-              telemetryB={comparison.telemetryB}
-              labelA={`${carNames.get(comparison.lapA.carOrdinal!) || "Car A"} — Lap ${comparison.lapA.lapNumber}`}
-              labelB={`${carNames.get(comparison.lapB.carOrdinal!) || "Car B"} — Lap ${comparison.lapB.lapNumber}`}
-              lapTimeA={formatLapTime(comparison.lapA.lapTime)}
-              lapTimeB={formatLapTime(comparison.lapB.lapTime)}
-              segments={segmentTimings}
-              hoveredDistanceRef={hoveredDistanceRef}
-              redrawRef={mapRedrawRef}
-              trackOrdinal={selectedTrack}
-              gameId={gameId}
-            />
-          ) : (
-            /* Fallback: velocity-integrated racing lines side-by-side */
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="bg-app-surface rounded-lg border border-app-border overflow-hidden">
-                <div className="px-3 py-2 border-b border-app-border flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-wider" style={{ color: COLOR_A }}>
-                    {carNames.get(comparison.lapA.carOrdinal!) || "Car A"} — Lap {comparison.lapA.lapNumber}
-                  </span>
-                  <span className="text-xs font-mono text-app-text-secondary">{formatLapTime(comparison.lapA.lapTime)}</span>
-                </div>
-                <div className="h-[250px]">
-                  <TrackMap telemetry={comparison.telemetryA} lineColor={COLOR_A} trackOrdinal={selectedTrack ?? undefined} />
-                </div>
-              </div>
-              <div className="bg-app-surface rounded-lg border border-app-border overflow-hidden">
-                <div className="px-3 py-2 border-b border-app-border flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-wider" style={{ color: COLOR_B }}>
-                    {carNames.get(comparison.lapB.carOrdinal!) || "Car B"} — Lap {comparison.lapB.lapNumber}
-                  </span>
-                  <span className="text-xs font-mono text-app-text-secondary">{formatLapTime(comparison.lapB.lapTime)}</span>
-                </div>
-                <div className="h-[250px]">
-                  <TrackMap telemetry={comparison.telemetryB} lineColor={COLOR_B} trackOrdinal={selectedTrack ?? undefined} />
-                </div>
-              </div>
-            </div>
-          )}
+          <CompareTrackMap
+            outline={trackOutline ?? syntheticOutline}
+            telemetryA={comparison.telemetryA}
+            telemetryB={comparison.telemetryB}
+            labelA={`${carNames.get(comparison.lapA.carOrdinal!) || "Car A"} — Lap ${comparison.lapA.lapNumber}`}
+            labelB={`${carNames.get(comparison.lapB.carOrdinal!) || "Car B"} — Lap ${comparison.lapB.lapNumber}`}
+            lapTimeA={formatLapTime(comparison.lapA.lapTime)}
+            lapTimeB={formatLapTime(comparison.lapB.lapTime)}
+            segments={segmentTimings}
+            hoveredDistanceRef={hoveredDistanceRef}
+            redrawRef={mapRedrawRef}
+            trackOrdinal={selectedTrack}
+            gameId={gameId}
+          />
         </div>
 
         {/* Right column: time delta pinned + scrollable charts */}
@@ -466,20 +484,27 @@ export function LapComparison() {
             </div>
           )}
 
-          {/* Corner Table */}
-          {comparison.corners.length > 0 && (
-            <div className="bg-app-surface rounded-lg border border-app-border overflow-hidden">
-              <div className="px-3 py-2 border-b border-app-border">
-                <span className="text-xs text-app-text-muted uppercase tracking-wider">
-                  Corner-by-Corner Delta
-                </span>
-              </div>
-              <CornerTable corners={comparison.corners} />
-            </div>
-          )}
           </div>
           </div>
         </div>
+
+        {/* AI compare sidebar */}
+        {aiPanelOpen && (
+          <CompareAiSidebar
+            lapA={{
+              id: lapAId!,
+              label: `${carNames.get(comparison.lapA.carOrdinal!) || "Car A"} — Lap ${comparison.lapA.lapNumber} (${formatLapTime(comparison.lapA.lapTime)})`,
+              lapTime: comparison.lapA.lapTime,
+            }}
+            lapB={{
+              id: lapBId!,
+              label: `${carNames.get(comparison.lapB.carOrdinal!) || "Car B"} — Lap ${comparison.lapB.lapNumber} (${formatLapTime(comparison.lapB.lapTime)})`,
+              lapTime: comparison.lapB.lapTime,
+            }}
+            panelRef={aiPanelRef}
+            onClose={toggleAiPanel}
+          />
+        )}
         </div>
       ) : null}
     </div>

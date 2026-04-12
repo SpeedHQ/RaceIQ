@@ -5,7 +5,7 @@ import { LapTimeChart } from "../LapTimeChart";
 import { PitEstimate } from "../telemetry/PitEstimate";
 import { RecordedLaps } from "../RecordedLaps";
 import { NoDataView } from "../NoDataView";
-import { useTrackName, useCarName } from "../../hooks/queries";
+import { useTrackName, useCarName, useTirePressureOptimal } from "../../hooks/queries";
 import { RaceInfo } from "../RaceInfo";
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
@@ -14,6 +14,7 @@ export function AccLiveDashboard() {
   const packet = useTelemetryStore((s) => s.packet);
   const { data: trackName } = useTrackName(packet?.TrackOrdinal);
   const { data: carName } = useCarName(packet?.CarOrdinal);
+  const pressureOptimal = useTirePressureOptimal("acc", packet?.CarOrdinal);
 
   if (!packet || packet.gameId !== "acc") {
     return (
@@ -36,7 +37,7 @@ export function AccLiveDashboard() {
             rr={{ tempC: packet.TireTempRR, wear: packet.TireWearRR, brakeTemp: packet.BrakeTempRearRight ?? 0, brakePadMm: packet.acc?.brakePadWear[3], pressure: packet.TirePressureRearRight ?? 0 }}
             healthThresholds={tryGetGame("acc")?.tireHealthThresholds ?? { green: 0.85, yellow: 0.70 }}
             tempThresholds={{ blue: 70, orange: 100, red: 110 }}
-            pressureOptimal={tryGetGame("acc")?.tirePressureOptimal}
+            pressureOptimal={pressureOptimal}
             brakeTempThresholds={tryGetGame("acc")?.brakeTempThresholds}
             compound={packet.acc?.tireCompound}
           />

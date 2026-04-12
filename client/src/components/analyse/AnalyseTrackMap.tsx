@@ -524,6 +524,31 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawStaticTrack]);
 
+  // ResizeObserver — rebuild the offscreen cache whenever the canvas
+  // dimensions change (window resize, pane drag, layout toggles, etc).
+  // containerHeight prop only catches some of these; this catches all of them.
+  const cursorRef = useRef(cursorIdx);
+  useEffect(() => { cursorRef.current = cursorIdx; }, [cursorIdx]);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let lastW = 0;
+    let lastH = 0;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      if (width === lastW && height === lastH) return;
+      lastW = width;
+      lastH = height;
+      drawStaticTrack();
+      if (rotateWithCar) compositeTrack(cursorRef.current);
+      else drawCarOverlay(cursorRef.current);
+    });
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, [drawStaticTrack, compositeTrack, drawCarOverlay, rotateWithCar]);
+
   // Update car overlay when cursorIdx changes via React state (fixed view only)
   useLayoutEffect(() => {
     if (!rotateWithCar) drawCarOverlay(cursorIdx);

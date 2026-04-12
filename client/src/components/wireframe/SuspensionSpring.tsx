@@ -41,12 +41,15 @@ export function SuspensionSpring({
   return (
     <group>
       {/* Coil spring */}
-      <Line points={points} color={color} lineWidth={1.5} />
+      <Line points={points} color={color} lineWidth={4} depthTest={false} renderOrder={10} transparent />
       {/* Damper rod (thin line through center) */}
       <Line
         points={[[bodyPos[0], topY + 0.05, bodyPos[2]], [bodyPos[0], botY - 0.05, bodyPos[2]]]}
         color="#64748b"
         lineWidth={1}
+        depthTest={false}
+        renderOrder={10}
+        transparent
       />
     </group>
   );

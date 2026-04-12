@@ -15,6 +15,9 @@ import {
   saveCorners,
   getAnalysis,
   saveAnalysis,
+  getCompareAnalysis,
+  saveCompareAnalysis,
+  deleteCompareAnalysis,
 } from "../db/queries";
 import { assessLapRecording } from "../lap-quality";
 
@@ -29,6 +32,30 @@ import { getTrackOutlineSectors } from "../db/queries";
 import type { GameId } from "../../shared/types";
 import { loadSettings } from "../settings";
 import { buildAnalystPrompt } from "../ai/analyst-prompt";
+import {
+  getChatMemory,
+  chatThreadId,
+  compareChatThreadId,
+  CHAT_RESOURCE_ID,
+} from "../ai/chat-agent";
+import { runGemini, runOpenAi } from "../ai/providers";
+import { getSecret } from "../keystore";
+import { deleteAnalysis as deleteAnalysisQuery } from "../db/queries";
+import { tryGetGame } from "../../shared/games/registry";
+import { loadSharedTrackMeta } from "../../shared/track-data";
+import { buildChatSystemPrompt } from "../ai/chat-prompt";
+import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
+import {
+  buildInputsComparePrompt,
+  InputsCompareSchema,
+} from "../ai/inputs-compare-prompt";
+// Dev uses the full Mastra instance (so Studio sees traces); prod tree-shakes
+// the Mastra wrapper out. See `server/ai/agents.ts` for the switch.
+import {
+  lapChatAgent,
+  compareEngineerAgent,
+  compareChatAgent,
+} from "../ai/agents";
 
 const CompareParamsSchema = z.object({
   id1: z.string().transform(val => parseInt(val, 10)),
@@ -223,8 +250,6 @@ export const lapRoutes = new Hono()
       // Fetch track segments for the AI to use exact names
       let segments: { type: string; name: string; startFrac: number; endFrac: number }[] | undefined;
       try {
-        const { tryGetGame } = await import("../../shared/games/registry");
-        const { loadSharedTrackMeta } = await import("../../shared/track-data");
         const adapter = lap.gameId ? tryGetGame(lap.gameId) : null;
         const sharedName = adapter?.getSharedTrackName?.(lap.trackOrdinal ?? 0);
         if (sharedName) {
@@ -243,8 +268,6 @@ export const lapRoutes = new Hono()
       );
 
       try {
-        const { runGemini, runOpenAi } = await import("../ai/providers");
-        const { getSecret } = await import("../keystore");
         let result;
         if (settings.aiProvider === "openai") {
           const apiKey = await getSecret("openai-api-key");
@@ -273,7 +296,6 @@ export const lapRoutes = new Hono()
     async (c) => {
       const { id } = c.req.valid("param");
       try {
-        const { getChatMemory, chatThreadId } = await import("../ai/chat-agent");
         const memory = getChatMemory();
         const threadId = chatThreadId(id);
         const thread = await memory.getThreadById({ threadId });
@@ -340,14 +362,12 @@ export const lapRoutes = new Hono()
       const analysisJson = cached?.analysis;
 
       // Build chat prompt
-      const { buildChatSystemPrompt } = await import("../ai/chat-prompt");
       const systemPrompt = buildChatSystemPrompt(
         lap, lap.telemetry, corners, settings.unit, parsedTune, analysisJson
       );
 
       // Set up API key env vars for Mastra/AI SDK (uses chatProvider setting)
       const chatProvider = settings.chatProvider;
-      const { getSecret } = await import("../keystore");
       if (chatProvider === "gemini") {
         const key = await getSecret("gemini-api-key");
         if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
@@ -362,12 +382,10 @@ export const lapRoutes = new Hono()
       }
 
       try {
-        const { createChatAgent, getMastraModelId, chatThreadId, CHAT_RESOURCE_ID } = await import("../ai/chat-agent");
-        const modelId = getMastraModelId(chatProvider, settings.chatModel);
-        const agent = createChatAgent(systemPrompt, modelId);
         const threadId = chatThreadId(id);
 
-        const stream = await agent.stream(message, {
+        const stream = await lapChatAgent.stream(message, {
+          instructions: systemPrompt,
           memory: {
             thread: threadId,
             resource: CHAT_RESOURCE_ID,
@@ -410,7 +428,6 @@ export const lapRoutes = new Hono()
     async (c) => {
       const { id } = c.req.valid("param");
       try {
-        const { getChatMemory, chatThreadId } = await import("../ai/chat-agent");
         const memory = getChatMemory();
         const threadId = chatThreadId(id);
         await memory.deleteThread(threadId);
@@ -419,8 +436,7 @@ export const lapRoutes = new Hono()
       }
       // Also clear cached analysis
       try {
-        const { deleteAnalysis } = await import("../db/queries");
-        await deleteAnalysis(id);
+        await deleteAnalysisQuery(id);
       } catch (err: any) {
         console.error("[Chat] Failed to clear analysis:", err.message);
       }
@@ -542,11 +558,22 @@ export const lapRoutes = new Hono()
         );
 
       const trackOrdinal = lapA.trackOrdinal ?? 0;
-      let corners = lapA.gameId ? await getCorners(trackOrdinal, lapA.gameId) : [];
+      let corners: Awaited<ReturnType<typeof getCorners>> = [];
+      try {
+        corners = lapA.gameId ? await getCorners(trackOrdinal, lapA.gameId) : [];
+      } catch { /* corners optional */ }
 
       if (corners.length === 0 && trackOrdinal > 0) {
-        corners = detectCorners(lapA.telemetry);
-        if (corners.length > 0 && lapA.gameId) await saveCorners(trackOrdinal, corners, lapA.gameId, true);
+        const detected = detectCorners(lapA.telemetry);
+        if (detected.length > 0 && lapA.gameId) {
+          try {
+            await saveCorners(trackOrdinal, detected, lapA.gameId, true);
+            corners = detected;
+          } catch {
+            // Race / unique constraint — corners optional, fall back to in-memory only
+            corners = detected;
+          }
+        }
       }
 
       const result = compareLaps(lapA.telemetry, lapB.telemetry, corners);
@@ -585,6 +612,322 @@ export const lapRoutes = new Hono()
         telemetryB: lapB.telemetry,
         gameId: lapA.gameId,
       });
+    }
+  )
+
+  // ── Inputs comparison analysis ─────────────────────────────
+  .post(
+    "/api/laps/:id1/compare/:id2/inputs-analyse",
+    zValidator("param", CompareParamsSchema),
+    zValidator("query", AnalyseQuerySchema),
+    async (c) => {
+      const { id1, id2 } = c.req.valid("param");
+      const { regenerate, cacheOnly } = c.req.valid("query");
+      if (id1 === id2)
+        return c.json({ error: "Cannot compare a lap with itself" }, 400);
+
+      // Cache lookup first
+      if (!regenerate) {
+        const cached = await getCompareAnalysis(id1, id2, "inputs");
+        if (cached) {
+          return c.json({
+            analysis: cached.analysis,
+            cached: true,
+            usage: {
+              inputTokens: cached.inputTokens,
+              outputTokens: cached.outputTokens,
+              costUsd: cached.costUsd,
+              durationMs: cached.durationMs,
+              model: cached.model,
+            },
+          });
+        }
+        if (cacheOnly) return c.json({ analysis: null, cached: false });
+      }
+
+      const lapA = await getLapById(id1);
+      if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
+      const lapB = await getLapById(id2);
+      if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
+      if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0)
+        return c.json({ error: "One or both laps have no telemetry data" }, 400);
+
+      const trackOrdinal = lapA.trackOrdinal ?? 0;
+      let corners: Awaited<ReturnType<typeof getCorners>> = [];
+      try {
+        corners = lapA.gameId ? await getCorners(trackOrdinal, lapA.gameId) : [];
+      } catch { /* corners optional */ }
+
+      const comparison = compareLaps(lapA.telemetry, lapB.telemetry, corners);
+
+      const settings = loadSettings();
+
+      // Fetch named track segments (corners + straights) for per-segment breakdown
+      let segments: { name: string; type: "corner" | "straight"; startFrac: number; endFrac: number }[] | null = null;
+      try {
+        const adapter = lapA.gameId ? tryGetGame(lapA.gameId) : null;
+        const sharedName = adapter?.getSharedTrackName?.(lapA.trackOrdinal ?? 0);
+        if (sharedName) {
+          const meta = loadSharedTrackMeta(sharedName);
+          if (meta?.segments?.length) {
+            segments = meta.segments.map((s: any) => ({
+              name: s.name,
+              type: (s.type === "corner" ? "corner" : "straight") as "corner" | "straight",
+              startFrac: s.startFrac,
+              endFrac: s.endFrac,
+            }));
+          }
+        }
+      } catch { /* segments optional */ }
+
+      const prompt = buildInputsComparePrompt(
+        {
+          lapNumber: lapA.lapNumber,
+          lapTime: lapA.lapTime,
+          isValid: lapA.isValid,
+          carOrdinal: lapA.carOrdinal ?? undefined,
+          trackOrdinal: lapA.trackOrdinal ?? undefined,
+          gameId: lapA.gameId as GameId | undefined,
+        },
+        {
+          lapNumber: lapB.lapNumber,
+          lapTime: lapB.lapTime,
+          isValid: lapB.isValid,
+          carOrdinal: lapB.carOrdinal ?? undefined,
+          trackOrdinal: lapB.trackOrdinal ?? undefined,
+          gameId: lapB.gameId as GameId | undefined,
+        },
+        comparison,
+        segments,
+        settings.unit,
+      );
+
+      // Set provider env vars before calling Mastra (the dynamic model resolver
+      // reads settings at request time but env-based API keys must be in scope).
+      if (settings.aiProvider === "openai") {
+        const key = await getSecret("openai-api-key");
+        if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
+        process.env.OPENAI_API_KEY = key;
+      } else if (settings.aiProvider === "local") {
+        process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+        process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+      } else {
+        const key = await getSecret("gemini-api-key");
+        if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
+        process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+      }
+
+      try {
+        const start = performance.now();
+        const result = await compareEngineerAgent.generate(prompt, {
+          structuredOutput: { schema: InputsCompareSchema },
+        });
+        const durationMs = Math.round(performance.now() - start);
+
+        const object = (result as any).object;
+        if (!object) throw new Error("Compare engineer returned no structured object");
+
+        // Merge server-authoritative segment types into the model response so
+        // named corners never appear as "straight". Match by name first; fall
+        // back to positional order (both lists are emitted in the same order).
+        if (Array.isArray(object.segments) && segments) {
+          const byName = new Map(segments.map((s) => [s.name, s.type]));
+          object.segments = object.segments.map((seg: any, i: number) => ({
+            ...seg,
+            type: byName.get(seg.name) ?? segments[i]?.type ?? "straight",
+          }));
+        }
+        const analysisJson = JSON.stringify(object);
+        const totalUsage = (result as any).totalUsage ?? (result as any).usage ?? {};
+        const usage = {
+          inputTokens: totalUsage.inputTokens ?? totalUsage.promptTokens ?? 0,
+          outputTokens: totalUsage.outputTokens ?? totalUsage.completionTokens ?? 0,
+          costUsd: 0,
+          durationMs,
+          model: settings.aiModel || settings.aiProvider,
+        };
+        await saveCompareAnalysis(id1, id2, analysisJson, usage, "inputs");
+        return c.json({ analysis: analysisJson, cached: false, usage });
+      } catch (err: any) {
+        console.error("[InputsCompare] Failed:", err.message);
+        return c.json({ error: err.message }, err.message.includes("timed out") ? 504 : 500);
+      }
+    }
+  )
+
+  // ── Inputs comparison: clear cached analysis ───────────────
+  .delete(
+    "/api/laps/:id1/compare/:id2/inputs-analyse",
+    zValidator("param", CompareParamsSchema),
+    async (c) => {
+      const { id1, id2 } = c.req.valid("param");
+      try {
+        await deleteCompareAnalysis(id1, id2, "inputs");
+      } catch (err: any) {
+        console.error("[InputsCompare] Failed to clear:", err.message);
+      }
+      return c.json({ ok: true });
+    }
+  )
+
+  // ── Compare chat: get messages ─────────────────────────────
+  .get(
+    "/api/laps/:id1/compare/:id2/chat",
+    zValidator("param", CompareParamsSchema),
+    async (c) => {
+      const { id1, id2 } = c.req.valid("param");
+      try {
+        const memory = getChatMemory();
+        const threadId = compareChatThreadId(id1, id2);
+        const thread = await memory.getThreadById({ threadId });
+        if (!thread) return c.json({ messages: [] });
+        const result = await memory.recall({ threadId });
+        const raw = result.messages ?? [];
+        const messages = raw
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => {
+            const c = m.content as any;
+            let content = "";
+            if (typeof c === "string") {
+              content = c;
+            } else if (c && typeof c === "object") {
+              content = c.content ?? c.parts?.map((p: any) => p.text ?? "").join("") ?? "";
+            }
+            return { role: m.role, content, createdAt: m.createdAt ?? "" };
+          });
+        return c.json({ messages });
+      } catch (err: any) {
+        console.error("[CompareChat] Failed to load messages:", err.message);
+        return c.json({ messages: [] });
+      }
+    }
+  )
+
+  // ── Compare chat: send message (streaming) ────────────────
+  .post(
+    "/api/laps/:id1/compare/:id2/chat",
+    zValidator("param", CompareParamsSchema),
+    zValidator("json", ChatBodySchema),
+    async (c) => {
+      const { id1, id2 } = c.req.valid("param");
+      const { message } = c.req.valid("json");
+      if (id1 === id2)
+        return c.json({ error: "Cannot compare a lap with itself" }, 400);
+
+      const lapA = await getLapById(id1);
+      if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
+      const lapB = await getLapById(id2);
+      if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
+      if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0)
+        return c.json({ error: "One or both laps have no telemetry data" }, 400);
+
+      const cachedA = await getAnalysis(id1);
+      const cachedB = await getAnalysis(id2);
+      if (!cachedA || !cachedB) {
+        return c.json(
+          { error: "Both laps must be analysed before chatting. Run analysis on each lap first." },
+          400,
+        );
+      }
+
+      const trackOrdinal = lapA.trackOrdinal ?? 0;
+      let corners: Awaited<ReturnType<typeof getCorners>> = [];
+      try {
+        corners = lapA.gameId ? await getCorners(trackOrdinal, lapA.gameId) : [];
+      } catch { /* corners optional */ }
+
+      const comparison = compareLaps(lapA.telemetry, lapB.telemetry, corners);
+
+      const settings = loadSettings();
+      const systemPrompt = buildCompareChatSystemPrompt(
+        {
+          id: id1,
+          lapNumber: lapA.lapNumber,
+          lapTime: lapA.lapTime,
+          isValid: lapA.isValid,
+          carOrdinal: lapA.carOrdinal ?? undefined,
+          trackOrdinal: lapA.trackOrdinal ?? undefined,
+          gameId: lapA.gameId as GameId | undefined,
+        },
+        {
+          id: id2,
+          lapNumber: lapB.lapNumber,
+          lapTime: lapB.lapTime,
+          isValid: lapB.isValid,
+          carOrdinal: lapB.carOrdinal ?? undefined,
+          trackOrdinal: lapB.trackOrdinal ?? undefined,
+          gameId: lapB.gameId as GameId | undefined,
+        },
+        comparison,
+        cachedA.analysis,
+        cachedB.analysis,
+        settings.unit,
+      );
+
+      const chatProvider = settings.chatProvider;
+      if (chatProvider === "gemini") {
+        const key = await getSecret("gemini-api-key");
+        if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
+        process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+      } else if (chatProvider === "openai") {
+        const key = await getSecret("openai-api-key");
+        if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
+        process.env.OPENAI_API_KEY = key;
+      } else if (chatProvider === "local") {
+        process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+        process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+      }
+
+      try {
+        const threadId = compareChatThreadId(id1, id2);
+
+        const stream = await compareChatAgent.stream(message, {
+          instructions: systemPrompt,
+          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+        });
+
+        const encoder = new TextEncoder();
+        const readable = new ReadableStream({
+          async start(controller) {
+            try {
+              for await (const chunk of stream.textStream) {
+                controller.enqueue(encoder.encode(chunk));
+              }
+              controller.close();
+            } catch (err) {
+              controller.error(err);
+            }
+          },
+        });
+
+        return new Response(readable, {
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-cache",
+            "Transfer-Encoding": "chunked",
+          },
+        });
+      } catch (err: any) {
+        console.error("[CompareChat] Stream failed:", err.message);
+        return c.json({ error: err.message }, 500);
+      }
+    }
+  )
+
+  // ── Compare chat: clear messages ───────────────────────────
+  .delete(
+    "/api/laps/:id1/compare/:id2/chat",
+    zValidator("param", CompareParamsSchema),
+    async (c) => {
+      const { id1, id2 } = c.req.valid("param");
+      try {
+        const memory = getChatMemory();
+        const threadId = compareChatThreadId(id1, id2);
+        await memory.deleteThread(threadId);
+      } catch (err: any) {
+        console.error("[CompareChat] Failed to clear thread:", err.message);
+      }
+      return c.json({ ok: true });
     }
   )
 

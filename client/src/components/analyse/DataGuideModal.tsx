@@ -62,18 +62,30 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
 
           {/* Dynamics */}
           <Section title="Dynamics">
-            <Row label="Balance" desc={<>Understeer/oversteer via front vs rear slip angle delta (Milliken method, EMA-smoothed). <span className="text-app-text">+δ</span> = fronts slide more (understeer) · <span className="text-app-text">−δ</span> = rears slide more (oversteer).</>} />
+            <Row label="Balance" desc={<>
+              Hybrid understeer/oversteer detector. Combines two independent physics signals:{" "}
+              <span className="text-app-text">yaw rate vs path curvature</span> (ω compared to Aᵧ/V — MoTeC/VBox standard) and{" "}
+              <span className="text-app-text">front−rear slip angle delta</span>.{" "}
+              <span className="text-app-text">+</span> = understeer (fronts outrunning rears) ·{" "}
+              <span className="text-app-text">−</span> = oversteer (body yawing past path).{" "}
+              Gated by <span className="text-app-text">|latG| ≥ 0.25g</span>, so straight-line wheelspin or lockup never counts as balance.
+            </>} />
             <Row label="G-Force" desc="Lateral (cornering) and longitudinal (braking/acceleration) g-forces." />
-            <Row label="Grip Ask" desc={<>Friction circle utilisation per tire. <span className="text-app-text">100%</span> = exactly at the grip limit · <span className="text-app-text">&gt;100%</span> = exceeding it.</>} />
+            <Row label="Grip Ask" desc={<>
+              Friction circle utilisation per tire, from physics signals:{" "}
+              <span className="text-app-text">hypot(|slipRatio|/0.15, |slipAngle|/10°)</span>.{" "}
+              Slip ratio is derived from wheel rotation vs ground speed (SAE J670, not the game's raw slip field).{" "}
+              <span className="text-app-text">100%</span> = at peak grip · <span className="text-app-text">&gt;100%</span> = past peak.{" "}
+              Universal across FM, F1, and ACC.
+            </>} />
             <Row label="Traction" desc={
               <span className="space-y-0.5 block">
-                <span className="block"><ColorDot color="#34d399" />GRIP — normal rolling</span>
-                <span className="block"><ColorDot color="#fbbf24" />SLIP — mild combined slip (&gt;0.5)</span>
-                <span className="block"><ColorDot color="#f97316" />SLIDE — significant slip (&gt;1.0)</span>
-                <span className="block"><ColorDot color="#ef4444" />LOSS — over grip limit (&gt;2.0)</span>
-                <span className="block"><ColorDot color="#f97316" />SPIN — wheelspin detected</span>
-                <span className="block"><ColorDot color="#ef4444" />LOCK — brake lockup detected</span>
-                <span className="block"><ColorDot color="#6b7280" />IDLE — wheel stopped</span>
+                <span className="block"><ColorDot color="#34d399" />GRIP — within grip budget (Grip Ask &lt; 90%)</span>
+                <span className="block"><ColorDot color="#fbbf24" />SLIP — at the edge (Grip Ask 90–100%)</span>
+                <span className="block"><ColorDot color="#f97316" />SPIN — past peak, longitudinal axis dominant</span>
+                <span className="block"><ColorDot color="#ef4444" />SLIDE — past peak, lateral axis dominant</span>
+                <span className="block"><ColorDot color="#ef4444" />LOCK — wheel stopped or dragging under braking</span>
+                <span className="block"><ColorDot color="#6b7280" />IDLE — stationary</span>
               </span>
             } />
             <Row label="Temp" desc={<>Tire surface temperature zone: <ColorDot color="#3b82f6" />cold · <ColorDot color="#34d399" />optimal · <ColorDot color="#fbbf24" />hot · <ColorDot color="#ef4444" />critical</>} />

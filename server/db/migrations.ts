@@ -140,4 +140,24 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE laps ADD COLUMN s3_time REAL`,
     ],
   },
+  {
+    version: 16,
+    name: "create compare_analyses table",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS compare_analyses (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        lap_a_id      INTEGER NOT NULL,
+        lap_b_id      INTEGER NOT NULL,
+        kind          TEXT NOT NULL DEFAULT 'inputs',
+        analysis      TEXT NOT NULL,
+        input_tokens  INTEGER NOT NULL DEFAULT 0,
+        output_tokens INTEGER NOT NULL DEFAULT 0,
+        cost_usd      REAL NOT NULL DEFAULT 0,
+        duration_ms   INTEGER NOT NULL DEFAULT 0,
+        model         TEXT NOT NULL DEFAULT '',
+        created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (lap_a_id, lap_b_id, kind)
+      )`,
+    ],
+  },
 ];

@@ -74,7 +74,8 @@ export function F1CarWireframeSection({ packet }: { packet: TelemetryPacket }) {
         <Canvas
           camera={{ position: [5, 3, 5], fov: 35 }}
           gl={{ antialias: true, alpha: true }}
-          style={{ background: "transparent" }}
+          tabIndex={-1}
+          style={{ background: "transparent", outline: "none", WebkitTapHighlightColor: "transparent", userSelect: "none" }}
         >
           <ambientLight intensity={0.5} />
           <directionalLight position={[5, 5, 5]} intensity={0.7} />

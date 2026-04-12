@@ -61,6 +61,14 @@ export function slipRatio(wheelRotSpeed: number, groundSpeed: number, wheelRadiu
 // Derived from average wheel speed vs ground speed when driving straight
 
 export function effectiveWheelRadius(pkt: TelemetryPacket): number {
+  // ACC publishes authoritative per-tire radius in the static page — use it
+  // directly (averaged) instead of back-solving from rotation vs ground speed,
+  // which is unreliable under slip/lockup and at low speed.
+  const accRadii = pkt.acc?.tireRadius;
+  if (accRadii && accRadii[0] > 0) {
+    return (accRadii[0] + accRadii[1] + accRadii[2] + accRadii[3]) / 4;
+  }
+
   const gs = pkt.Speed; // m/s
   const rotSpeeds = [
     Math.abs(pkt.WheelRotationSpeedFL),
@@ -89,98 +97,167 @@ export function wheelSlipRatios(pkt: TelemetryPacket): { fl: number; fr: number;
 }
 
 // ── Friction Circle Utilization ────────────────────────────────────
-// How much of the tire's available grip is being used.
-// Uses combined slip as a proxy: sqrt(longSlip² + latSlip²)
-// Normalized: 0 = no demand, 1 = at limit, >1 = beyond limit
+// Physics-based: combine longitudinal slip ratio and lateral slip
+// angle on their own scales. Each axis is normalized to its own peak
+// (the point past which a racing tire starts losing grip), then taken
+// in quadrature. 1.0 = at peak, >1 = past peak.
+//
+// Peak slip ratio  ~0.12–0.15  (race rubber on track, SAE J670)
+// Peak slip angle  ~8–10°      (≈ 0.14–0.18 rad)
+//
+// The longitudinal slip is derived from wheel-rotation vs ground
+// speed (wheelSlipRatios / slipRatio) — NOT from pkt.TireSlipRatio*,
+// which each game reports in its own non-SAE scale. Slip angle IS
+// radians in all three games (FM/F1/ACC) so we use it directly.
 
-export function frictionCircleUtil(combinedSlip: number): number {
-  // Combined slip of ~1.0 typically represents the grip limit
-  return Math.min(combinedSlip / 1.0, 2.0);
+const SLIP_RATIO_PEAK = 0.12;
+const SLIP_ANGLE_PEAK_RAD = 8 * Math.PI / 180;  // 8°
+
+export function frictionCircleUtil(slipRatio: number, slipAngleRad: number): number {
+  const rNorm = Math.abs(slipRatio) / SLIP_RATIO_PEAK;
+  const aNorm = Math.abs(slipAngleRad) / SLIP_ANGLE_PEAK_RAD;
+  return Math.min(Math.hypot(rNorm, aNorm), 2.0);
 }
 
 export function allFrictionCircle(pkt: TelemetryPacket): { fl: number; fr: number; rl: number; rr: number } {
+  const sr = wheelSlipRatios(pkt);
   return {
-    fl: frictionCircleUtil(Math.abs(pkt.TireCombinedSlipFL)),
-    fr: frictionCircleUtil(Math.abs(pkt.TireCombinedSlipFR)),
-    rl: frictionCircleUtil(Math.abs(pkt.TireCombinedSlipRL)),
-    rr: frictionCircleUtil(Math.abs(pkt.TireCombinedSlipRR)),
+    fl: frictionCircleUtil(sr.fl, pkt.TireSlipAngleFL),
+    fr: frictionCircleUtil(sr.fr, pkt.TireSlipAngleFR),
+    rl: frictionCircleUtil(sr.rl, pkt.TireSlipAngleRL),
+    rr: frictionCircleUtil(sr.rr, pkt.TireSlipAngleRR),
   };
 }
 
 // ── Tire Traction State ───────────────────────────────────────────
 // Single source of truth for tire grip state labels and colors.
+// Driven by Grip Ask (friction-circle utilization) so labels and %
+// stay consistent — under 100% = within grip budget, over = past peak.
+//   LOCK   — wheel rotation has stopped or is dragging (rot-speed pipeline)
+//   SPIN   — util > 1 with longitudinal axis dominant
+//   SLIDE  — util > 1 with lateral axis dominant
+//   SLIP   — 0.90 ≤ util < 1.0 (warning — at the edge of grip)
+//   GRIP   — util < 0.90 (operating in the linear region)
+//   IDLE   — stationary
+//
 // All other color derivations (hex, Three.js) must delegate to this.
 
+const GRIP_WARN_UTIL = 0.90;  // start warning at 90% of friction budget
+
 export interface TireState {
-  label: "LOCK" | "SPIN" | "IDLE" | "SLIDE" | "SLIP" | "GRIP" | "LOSS";
+  label: "LOCK" | "SPIN" | "IDLE" | "SLIDE" | "SLIP" | "GRIP";
   color: string;   // CSS var — use in React inline styles / SVG
   hex: string;     // Raw hex — use in canvas, WebGL, Three.js
 }
 
-export function tireState(wheelStateLabel: string, combinedSlip: number): TireState {
-  const combined = Math.abs(combinedSlip);
-  if (wheelStateLabel === "lockup") return { label: "LOCK",  color: COLORS.red,    hex: COLORS_HEX.red };
-  if (wheelStateLabel === "spin")   return { label: "SPIN",  color: COLORS.orange, hex: COLORS_HEX.orange };
-  if (wheelStateLabel === "idle")   return { label: "IDLE",  color: COLORS.gray,   hex: COLORS_HEX.gray };
-  if (combined >= 2.0)              return { label: "LOSS",  color: COLORS.red,    hex: COLORS_HEX.red };
-  if (combined >= 1.0)              return { label: "SLIDE", color: COLORS.red,    hex: COLORS_HEX.red };
-  if (combined >= 0.5)              return { label: "SLIP",  color: COLORS.yellow, hex: COLORS_HEX.yellow };
-  return                                   { label: "GRIP",  color: COLORS.green,  hex: COLORS_HEX.green };
+export function tireState(
+  wheelStateLabel: string,
+  slipRatio: number,
+  slipAngleRad: number,
+): TireState {
+  if (wheelStateLabel === "lockup") return { label: "LOCK", color: COLORS.red,  hex: COLORS_HEX.red };
+  if (wheelStateLabel === "idle")   return { label: "IDLE", color: COLORS.gray, hex: COLORS_HEX.gray };
+
+  const rNorm = Math.abs(slipRatio) / SLIP_RATIO_PEAK;
+  const aNorm = Math.abs(slipAngleRad) / SLIP_ANGLE_PEAK_RAD;
+  const util = Math.min(Math.hypot(rNorm, aNorm), 2.0);
+
+  if (util < GRIP_WARN_UTIL) return { label: "GRIP", color: COLORS.green,  hex: COLORS_HEX.green };
+  if (util < 1.0)            return { label: "SLIP", color: COLORS.yellow, hex: COLORS_HEX.yellow };
+
+  // Past peak — classify by which axis carries more of the saturation
+  if (wheelStateLabel === "spin") return { label: "SPIN",  color: COLORS.orange, hex: COLORS_HEX.orange };
+  if (aNorm >= rNorm)             return { label: "SLIDE", color: COLORS.red,    hex: COLORS_HEX.red };
+  return                                { label: "SPIN",  color: COLORS.orange, hex: COLORS_HEX.orange };
 }
 
 
 // ── Understeer / Oversteer Detection ───────────────────────────────
-// Based on front-vs-rear grip utilization (friction circle) difference,
-// gated by overall grip demand. A car can only be understeering or
-// oversteering if at least one axle is close to its grip limit — a
-// straight-line cruise with 4% front util and 22% rear util is just
-// RWD drive torque, not oversteer.
+// Physics-based hybrid using two independent signals. Avoids the
+// combined-slip trap where RWD drive wheelspin on a straight line
+// shows up as "rear grip utilization" and gets called oversteer.
 //
-// 1. If max(frontUtil, rearUtil) < GRIP_FLOOR → "neutral" (low demand)
-// 2. Otherwise: state based on utilDelta = frontUtil − rearUtil
-//    >  UTIL_DELTA_THRESHOLD  → understeer (fronts overworked)
-//    < -UTIL_DELTA_THRESHOLD  → oversteer  (rears overworked)
-//    else                     → neutral
+// Signal A — Yaw rate vs path curvature (MoTeC/VBox approach):
+//   Steady-state circular motion: ω = Ay / V. If the body rotates
+//   faster than that, heading has outrun the velocity vector →
+//   oversteer onset. Slower → understeer.
+//   No wheelbase, no steering calibration required.
+//
+// Signal B — Front/rear slip-angle delta (VBox/OptimumG/trophi):
+//   Racing tyres peak at ~6–10° slip angle. Whichever axle is
+//   running the larger slip angle is the one giving up grip first.
+//   front − rear > 0 → understeer, < 0 → oversteer.
+//
+// Gates — must be cornering to classify anything:
+//   • |latG| ≥ LAT_G_FLOOR — straight-line wheelspin/lockup produce
+//     no lateral load and never count as balance.
+//   • V ≥ SPEED_FLOOR — ignore parking manoeuvres.
+//
+// Combined signal is normalized so positive = understeer, negative
+// = oversteer, magnitude ≈ severity. Classification requires both
+// signals to agree (or one of them to be far past its threshold).
 
 const RAD2DEG = 180 / Math.PI;
-const UTIL_DELTA_THRESHOLD = 0.15; // 15% front/rear grip-ask difference
-const GRIP_FLOOR = 0.6;            // need ≥60% grip-ask on an axle to even consider under/oversteer
+const G = 9.81;                      // m/s²
+const LAT_G_FLOOR = 0.25;            // g — below this, not really cornering
+const SPEED_FLOOR = 5;               // m/s (~18 km/h)
+const YAW_ERR_SCALE = 0.3;           // rad/s yaw-rate error that counts as "full" severity
+const SLIP_DELTA_SCALE = 6;          // degrees front-rear slip delta that counts as "full" severity
+const CLASSIFY_THRESHOLD = 0.3;      // combined-signal magnitude to leave "neutral"
 
 export interface SteerBalance {
-  frontAvgDeg: number;    // avg front slip angle (degrees) — secondary info
-  rearAvgDeg: number;     // avg rear slip angle (degrees) — secondary info
-  deltaDeg: number;       // front - rear slip angle (degrees) — secondary info
-  frontUtil: number;      // avg front grip utilization (0 = idle, 1 = at limit, >1 = over)
-  rearUtil: number;       // avg rear grip utilization
-  utilDelta: number;      // front - rear utilization (positive = understeer)
+  // Physics signals
+  latG: number;            // g, signed (right-positive, matches existing convention)
+  yawRate: number;         // rad/s, raw body yaw rate
+  yawRatePath: number;     // rad/s, expected from |latG|·g / V
+  yawError: number;        // rad/s, |yawRate| − yawRatePath (>0 = over-rotating → oversteer)
+  frontSlipDeg: number;    // avg front slip angle magnitude (degrees)
+  rearSlipDeg: number;     // avg rear slip angle magnitude (degrees)
+  slipDelta: number;       // front − rear (degrees, >0 = understeer, <0 = oversteer)
+  // Combined normalized balance
+  balance: number;         // [-1, +1], + = understeer, − = oversteer
   state: "understeer" | "oversteer" | "neutral";
-  severity: number;       // 0-1, how far past the threshold
+  severity: number;        // 0-1, magnitude of |balance| past threshold
 }
 
 export function steerBalance(pkt: TelemetryPacket): SteerBalance {
-  const frontAvgDeg = (Math.abs(pkt.TireSlipAngleFL) + Math.abs(pkt.TireSlipAngleFR)) / 2 * RAD2DEG;
-  const rearAvgDeg  = (Math.abs(pkt.TireSlipAngleRL) + Math.abs(pkt.TireSlipAngleRR)) / 2 * RAD2DEG;
-  const deltaDeg = frontAvgDeg - rearAvgDeg;
+  const frontSlipDeg = (Math.abs(pkt.TireSlipAngleFL) + Math.abs(pkt.TireSlipAngleFR)) / 2 * RAD2DEG;
+  const rearSlipDeg  = (Math.abs(pkt.TireSlipAngleRL) + Math.abs(pkt.TireSlipAngleRR)) / 2 * RAD2DEG;
+  const slipDelta = frontSlipDeg - rearSlipDeg;
 
-  const flUtil = frictionCircleUtil(Math.abs(pkt.TireCombinedSlipFL));
-  const frUtil = frictionCircleUtil(Math.abs(pkt.TireCombinedSlipFR));
-  const rlUtil = frictionCircleUtil(Math.abs(pkt.TireCombinedSlipRL));
-  const rrUtil = frictionCircleUtil(Math.abs(pkt.TireCombinedSlipRR));
-  const frontUtil = (flUtil + frUtil) / 2;
-  const rearUtil = (rlUtil + rrUtil) / 2;
-  const utilDelta = frontUtil - rearUtil;
+  const latG = -pkt.AccelerationX / G;
+  const speed = Math.max(pkt.Speed, 0.1);
+  const yawRate = pkt.AngularVelocityY;
 
-  const maxAxleUtil = Math.max(frontUtil, rearUtil);
-  const state: SteerBalance["state"] =
-    maxAxleUtil < GRIP_FLOOR        ? "neutral"    :
-    utilDelta >  UTIL_DELTA_THRESHOLD ? "understeer" :
-    utilDelta < -UTIL_DELTA_THRESHOLD ? "oversteer"  :
-    "neutral";
-  const severity = maxAxleUtil < GRIP_FLOOR
+  // Path-curvature yaw rate: in steady cornering, ω = Ay / V.
+  // Compared in magnitudes to stay agnostic of per-game yaw/lat-g
+  // sign conventions — the sign of the balance comes from slipDelta.
+  const yawRatePath = Math.abs(latG * G) / speed;
+  const yawError = Math.abs(yawRate) - yawRatePath;
+
+  const gated = Math.abs(latG) < LAT_G_FLOOR || speed < SPEED_FLOOR;
+
+  // Normalize both signals so positive = understeer, negative = oversteer.
+  const uSlip = slipDelta / SLIP_DELTA_SCALE;       // front > rear → positive
+  const uYaw  = -yawError / YAW_ERR_SCALE;          // over-rotating → negative
+  const balanceRaw = gated ? 0 : 0.5 * uSlip + 0.5 * uYaw;
+  const balance = Math.max(-1.5, Math.min(1.5, balanceRaw));
+
+  let state: SteerBalance["state"] = "neutral";
+  if (!gated) {
+    if (balance >  CLASSIFY_THRESHOLD) state = "understeer";
+    else if (balance < -CLASSIFY_THRESHOLD) state = "oversteer";
+  }
+
+  const severity = gated
     ? 0
-    : Math.min(1, Math.abs(utilDelta) / (UTIL_DELTA_THRESHOLD * 2));
+    : Math.min(1, Math.max(0, (Math.abs(balance) - CLASSIFY_THRESHOLD) / (1 - CLASSIFY_THRESHOLD)));
 
-  return { frontAvgDeg, rearAvgDeg, deltaDeg, frontUtil, rearUtil, utilDelta, state, severity };
+  return {
+    latG, yawRate, yawRatePath, yawError,
+    frontSlipDeg, rearSlipDeg, slipDelta,
+    balance, state, severity,
+  };
 }
 
 // ── Tire Load Estimation ───────────────────────────────────────────
@@ -228,8 +305,11 @@ export function wheelState(
 
   const sr = slipRatio(wheelRotSpeed, groundSpeed, wheelRadius);
 
-  // Lockup = wheel has fully stopped while car is moving
-  if (Math.abs(wheelRotSpeed) < 0.5 && groundSpeed > 3) return { state: "lockup", slipRatio: sr };
+  // Lockup = full stop OR wheel rotating far slower than free-roll
+  // (negative slip ratio past peak means tire is dragging, not rolling)
+  if (groundSpeed > 3 && (Math.abs(wheelRotSpeed) < 0.5 || sr < -0.20)) {
+    return { state: "lockup", slipRatio: sr };
+  }
 
   // In turns, inner wheels naturally rotate slower — widen the threshold
   const steerFactor = Math.abs(steerAngle) / 127; // 0-1
@@ -413,6 +493,21 @@ export function brakeTempColor(
   if (temp > hot)  return "red";
   if (temp > warm) return "orange";
   return "blue";
+}
+
+export type PressureColor = "green" | "blue" | "orange" | "gray";
+
+/** Tire pressure color key. Blue under-inflated, orange over-inflated,
+ *  green in the optimal range, gray when no data or no thresholds. */
+export function tirePressureColor(
+  psi: number,
+  optimal?: { min: number; max: number },
+): PressureColor {
+  if (psi <= 0) return "gray";
+  if (!optimal) return "gray";
+  if (psi < optimal.min) return "blue";
+  if (psi > optimal.max) return "orange";
+  return "green";
 }
 
 // ── Slip Angle Color ──────────────────────────────────────────────

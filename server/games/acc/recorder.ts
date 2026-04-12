@@ -277,13 +277,17 @@ function _readAccFramesV2(data: Buffer): { physics: Buffer; graphics: Buffer; st
         continue;
     }
 
-    // Emit a triplet for every frame (using latest of each type)
-    // This is deterministic: same sequence every replay
-    frames.push({
-      physics: lastPhysics,
-      graphics: lastGraphics,
-      staticData: lastStatic,
-    });
+    // DumpToBinProcessor writes frames in fixed order per 100Hz poll:
+    // [physics, graphics, static]. Emit one triplet per group (on the static
+    // frame), so replay produces 100 triplets/sec matching the recording poll
+    // rate instead of 3:1 amplification.
+    if (frameType === 2 && lastPhysics.length > 0 && lastGraphics.length > 0) {
+      frames.push({
+        physics: lastPhysics,
+        graphics: lastGraphics,
+        staticData: lastStatic,
+      });
+    }
 
     frameIdx++;
   }

@@ -30,10 +30,10 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
   const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
 
   const states = [
-    { l: "FL", ...tireState(ws.fl.state, currentPacket.TireCombinedSlipFL), temp: tireTempLabel(units.toTempC(currentPacket.TireTempFL), units.thresholds) },
-    { l: "FR", ...tireState(ws.fr.state, currentPacket.TireCombinedSlipFR), temp: tireTempLabel(units.toTempC(currentPacket.TireTempFR), units.thresholds) },
-    { l: "RL", ...tireState(ws.rl.state, currentPacket.TireCombinedSlipRL), temp: tireTempLabel(units.toTempC(currentPacket.TireTempRL), units.thresholds) },
-    { l: "RR", ...tireState(ws.rr.state, currentPacket.TireCombinedSlipRR), temp: tireTempLabel(units.toTempC(currentPacket.TireTempRR), units.thresholds) },
+    { l: "FL", ...tireState(ws.fl.state, ws.fl.slipRatio, currentPacket.TireSlipAngleFL), temp: tireTempLabel(units.toTempC(currentPacket.TireTempFL), units.thresholds) },
+    { l: "FR", ...tireState(ws.fr.state, ws.fr.slipRatio, currentPacket.TireSlipAngleFR), temp: tireTempLabel(units.toTempC(currentPacket.TireTempFR), units.thresholds) },
+    { l: "RL", ...tireState(ws.rl.state, ws.rl.slipRatio, currentPacket.TireSlipAngleRL), temp: tireTempLabel(units.toTempC(currentPacket.TireTempRL), units.thresholds) },
+    { l: "RR", ...tireState(ws.rr.state, ws.rr.slipRatio, currentPacket.TireSlipAngleRR), temp: tireTempLabel(units.toTempC(currentPacket.TireTempRR), units.thresholds) },
   ];
 
   const speedMph = currentPacket.Speed * 2.23694;
@@ -57,16 +57,15 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
     </span>
   );
 
-  // Balance chart: map util delta ∈ [-0.5, +0.5] → x ∈ [0, 200].
-  // Threshold bands at ±15% (x = 70 and x = 130).
-  const BAL_MIN = -0.5;
-  const BAL_MAX = 0.5;
-  const BAL_THR = 0.15;
+  // Balance chart: map combined balance ∈ [-1, +1] → x ∈ [0, 200].
+  // Threshold bands at ±0.3 (classify threshold in steerBalance).
+  const BAL_RANGE = 1.0;
+  const BAL_THR = 0.3;
   const balX = (d: number) =>
-    Math.max(0, Math.min(200, 100 + ((d - 0) / (BAL_MAX - BAL_MIN)) * 200));
+    Math.max(0, Math.min(200, 100 + (d / BAL_RANGE) * 100));
   const thrLeftX = balX(-BAL_THR);
   const thrRightX = balX(BAL_THR);
-  const currentX = balX(bal.utilDelta);
+  const currentX = balX(bal.balance);
 
   return (
     <div className="text-[11px] font-mono space-y-1.5 mb-3">
@@ -75,12 +74,12 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
         <span className="flex items-center gap-1 group relative text-app-text-muted">
           Balance
           <Info className="w-3 h-3 text-app-text-dim cursor-help" />
-          <span className="absolute left-0 top-full mt-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2.5 py-2 text-[10px] text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal w-[280px]">
-            <span className="block mb-1">Front vs rear grip utilization (friction circle).</span>
+          <span className="absolute left-0 top-full mt-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2.5 py-2 text-[10px] text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal w-[300px]">
+            <span className="block mb-1">Yaw rate vs path curvature + front/rear slip-angle delta.</span>
             <span className="block mb-1.5 text-app-text-dim">
-              +Δ = understeer (fronts overworked)<br />
-              −Δ = oversteer (rears overworked)<br />
-              Threshold: ±15% front/rear grip-ask difference
+              + = understeer (front slip &gt; rear)<br />
+              − = oversteer (body yawing past Ay/V)<br />
+              Gated by |latG| ≥ 0.25g — straight-line wheelspin ignored
             </span>
             <svg viewBox="0 0 200 60" className="w-full h-auto mt-1">
               {/* Colored regions */}
@@ -99,19 +98,22 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
               <text x="100" y="46" textAnchor="middle" fill="#34d399" fontSize="7.5" fontWeight="600">NEUTRAL</text>
               <text x={(thrRightX + 200) / 2} y="46" textAnchor="middle" fill="#3b82f6" fontSize="7.5" fontWeight="600">UNDER</text>
               {/* Tick labels */}
-              <text x="0" y="56" textAnchor="start" fill="currentColor" opacity="0.4" fontSize="6.5">−50%</text>
-              <text x={thrLeftX} y="56" textAnchor="middle" fill="currentColor" opacity="0.4" fontSize="6.5">−15%</text>
-              <text x={thrRightX} y="56" textAnchor="middle" fill="currentColor" opacity="0.4" fontSize="6.5">+15%</text>
-              <text x="200" y="56" textAnchor="end" fill="currentColor" opacity="0.4" fontSize="6.5">+50%</text>
+              <text x="0" y="56" textAnchor="start" fill="currentColor" opacity="0.4" fontSize="6.5">−1.0</text>
+              <text x={thrLeftX} y="56" textAnchor="middle" fill="currentColor" opacity="0.4" fontSize="6.5">−0.3</text>
+              <text x={thrRightX} y="56" textAnchor="middle" fill="currentColor" opacity="0.4" fontSize="6.5">+0.3</text>
+              <text x="200" y="56" textAnchor="end" fill="currentColor" opacity="0.4" fontSize="6.5">+1.0</text>
             </svg>
             <span className="block text-[9px] text-app-text-dim mt-1">
-              Front: {(bal.frontUtil * 100).toFixed(0)}% · Rear: {(bal.rearUtil * 100).toFixed(0)}% · Slip Δ: {bal.deltaDeg > 0 ? "+" : ""}{bal.deltaDeg.toFixed(1)}°
+              Slip Δ: {bal.slipDelta > 0 ? "+" : ""}{bal.slipDelta.toFixed(1)}° (F {bal.frontSlipDeg.toFixed(1)}° / R {bal.rearSlipDeg.toFixed(1)}°)
+            </span>
+            <span className="block text-[9px] text-app-text-dim">
+              Yaw err: {bal.yawError > 0 ? "+" : ""}{bal.yawError.toFixed(2)} rad/s (path {bal.yawRatePath.toFixed(2)})
             </span>
           </span>
         </span>
         <span className="tabular-nums" style={{ color: balanceColor(bal.state) }}>
           {bal.state === "neutral" ? "Neutral" : bal.state === "understeer" ? "Understeer" : "Oversteer"}
-          <span className="text-app-text-dim ml-1">({bal.utilDelta > 0 ? "+" : ""}{(bal.utilDelta * 100).toFixed(0)}%)</span>
+          <span className="text-app-text-dim ml-1">({bal.balance > 0 ? "+" : ""}{bal.balance.toFixed(2)})</span>
         </span>
       </div>
 
@@ -124,6 +126,16 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
           Lon {lonG > 0 ? "+" : ""}{lonG.toFixed(2)}g
         </span>
       </div>
+
+      {/* Brake Bias (ACC) */}
+      {currentPacket.acc && (
+        <div className="flex justify-between">
+          <span className="text-app-text-muted">Brake Bias</span>
+          <span className="tabular-nums text-app-text">
+            {(currentPacket.acc.brakeBias * 100).toFixed(1)}%F
+          </span>
+        </div>
+      )}
 
       {/* Tire state */}
       <WheelTable rows={[

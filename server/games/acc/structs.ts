@@ -55,7 +55,11 @@ export const PHYSICS = {
   tyreCoreFR:     { offset: 156, type: "f32" },
   tyreCoreRL:     { offset: 160, type: "f32" },
   tyreCoreRR:     { offset: 164, type: "f32" },
-  // camberRAD[4] (168-180) — skipped
+  // camberRAD[4] — radians
+  camberFL:       { offset: 168, type: "f32" },
+  camberFR:       { offset: 172, type: "f32" },
+  camberRL:       { offset: 176, type: "f32" },
+  camberRR:       { offset: 180, type: "f32" },
   // suspensionTravel[4] — metres
   suspTravelFL:   { offset: 184, type: "f32" },
   suspTravelFR:   { offset: 188, type: "f32" },
@@ -110,7 +114,8 @@ export const PHYSICS = {
   tyreTempOuterRR: { offset: 412, type: "f32" },
   // isAIControlled (416)
   // tyreContactPoint[4][3] (420-468), tyreContactNormal[4][3] (468-516)
-  // tyreContactHeading[4][3] (516-564)
+  // tyreContactHeading[4][3] — unit vec per tire, world space forward-rolling dir
+  contactHeadingBase: { offset: 516, type: "f32" }, // stride: 12 bytes (3 floats) per tire, FL/FR/RL/RR
   brakeBias:      { offset: 564, type: "f32" },
   // localVelocity[3] (568-576) — car-local linear velocity: [0]=X (lateral), [1]=Y (vertical), [2]=Z (longitudinal)
   localVelocityX: { offset: 568, type: "f32" },
@@ -127,7 +132,9 @@ export const PHYSICS = {
   slipAngleFR:    { offset: 660, type: "f32" },
   slipAngleRL:    { offset: 664, type: "f32" },
   slipAngleRR:    { offset: 668, type: "f32" },
-  // tcinAction (672), absInAction (676), suspensionDamage[4] (680-692)
+  // tcInAction (672), absInAction (676), suspensionDamage[4] (680-692)
+  // — all marked "Not used in ACC" per Kunos header; real intervention
+  // signals are the vibration floats at the very end of the struct.
   // tyreTemp[4] — per-tyre average display temp, °C
   tyreTempFL:     { offset: 696, type: "f32" },
   tyreTempFR:     { offset: 700, type: "f32" },
@@ -145,6 +152,11 @@ export const PHYSICS = {
   discLifeFR:     { offset: 760, type: "f32" },
   discLifeRL:     { offset: 764, type: "f32" },
   discLifeRR:     { offset: 768, type: "f32" },
+  // ignitionOn (772), starterEngineOn (776), isEngineRunning (780)
+  kerbVibration:  { offset: 784, type: "f32" },
+  slipVibrations: { offset: 788, type: "f32" },
+  gVibrations:    { offset: 792, type: "f32" },
+  absVibrations:  { offset: 796, type: "f32" },
 } as const;
 
 // --- SPageFileGraphic ---
@@ -215,7 +227,16 @@ export const STATIC = {
   // maxTorque (404), maxPower (408)
   maxRpm:           { offset: 412, type: "i32" },
   maxFuel:          { offset: 416, type: "f32" },
-  // suspensionMaxTravel[4] (420-432), tyreRadius[4] (436-448)
+  // suspensionMaxTravel[4] — metres, per wheel FL/FR/RL/RR
+  suspMaxFL:        { offset: 420, type: "f32" },
+  suspMaxFR:        { offset: 424, type: "f32" },
+  suspMaxRL:        { offset: 428, type: "f32" },
+  suspMaxRR:        { offset: 432, type: "f32" },
+  // tyreRadius[4] — metres, per wheel FL/FR/RL/RR
+  tyreRadiusFL:     { offset: 436, type: "f32" },
+  tyreRadiusFR:     { offset: 440, type: "f32" },
+  tyreRadiusRL:     { offset: 444, type: "f32" },
+  tyreRadiusRR:     { offset: 448, type: "f32" },
   // maxTurboBoost (452), deprecated (456-460), penaltiesEnabled (464)
   // aids (468-492), hasDRS (496), hasERS (500), hasKERS (504)
   // kersMaxJ (508), engineBrakeSettingsCount (512), ersPowerControllerCount (516)
