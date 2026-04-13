@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "snapshot": "playwright test --update-snapshots && cp src/stories/__snapshots__/snapshot-*.png ../screenshots/",
+    "snapshot": "playwright test --update-snapshots && cp src/stories/__snapshots__/snapshot-F1LiveDashboard.png ../assets/screenshots/F1LiveDashboard.png && cp src/stories/__snapshots__/snapshot-ForzaLiveDashboard.png ../assets/screenshots/ForzaLiveDashboard.png && cp src/stories/__snapshots__/snapshot-AccLiveDashboard.png ../assets/screenshots/AccLiveDashboard.png",
     "snapshot:test": "playwright test"
   },
   "dependencies": {
