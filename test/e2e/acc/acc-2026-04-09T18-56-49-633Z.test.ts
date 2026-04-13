@@ -4,6 +4,7 @@ import { join } from "path";
 import { parseDump } from "../../helpers/parse-dump";
 import { generateRecordingVisualizations } from "../../helpers/lap-viz";
 import { assertBrandHatchSectorBounds, lapSummary, RECORDINGS_DIR } from "./shared";
+import { assertValidLapHasSectors } from "../../helpers/lap-assertions";
 
 const recordingFile = "acc-2026-04-09T18-56-49-633Z.bin.gz";
 const recording = join(RECORDINGS_DIR, recordingFile);
@@ -30,17 +31,13 @@ describe(recordingFile, () => {
 
     // Laps 1-2: valid laps with sectors
     expect(laps[1].isValid).toBe(true);
-    expect(laps[1].sectors?.s1).toBeGreaterThan(0);
-    expect(laps[1].sectors?.s2).toBeGreaterThan(0);
-    expect(laps[1].sectors?.s3).toBeGreaterThan(0);
     expect(laps[2].isValid).toBe(true);
-    expect(laps[2].sectors?.s1).toBeGreaterThan(0);
-    expect(laps[2].sectors?.s2).toBeGreaterThan(0);
-    expect(laps[2].sectors?.s3).toBeGreaterThan(0);
 
     expect(laps[1].lapTime).toBeCloseTo(100.312, 0);
     expect(laps[2].lapTime).toBeCloseTo(101.750, 0);
 
+    assertValidLapHasSectors(laps[1]);
+    assertValidLapHasSectors(laps[2]);
     assertBrandHatchSectorBounds(laps[1]);
     assertBrandHatchSectorBounds(laps[2]);
 
