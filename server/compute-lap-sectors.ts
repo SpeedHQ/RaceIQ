@@ -50,24 +50,18 @@ export async function computeLapSectors(
     const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
     if (lapDist < 100) return null;
 
-    const lapProgression = packets[packets.length - 1].CurrentLap - packets[0].CurrentLap;
-    const useTimestamp = lapProgression < 1;
-    const getTime = useTimestamp
-      ? (p: TelemetryPacket) => p.TimestampMS / 1000
-      : (p: TelemetryPacket) => p.CurrentLap;
-
     let sector = 0;
-    let sectorStart = getTime(packets[0]);
+    let sectorStart = packets[0].CurrentLap;
     s1 = 0;
     s2 = 0;
     for (const p of packets) {
       const frac = (p.DistanceTraveled - startDist) / lapDist;
       const expected = frac < s1End ? 0 : frac < s2End ? 1 : 2;
       if (expected > sector) {
-        const t = getTime(p) - sectorStart;
+        const t = p.CurrentLap - sectorStart;
         if (sector === 0) s1 = t;
         else if (sector === 1) s2 = t;
-        sectorStart = getTime(p);
+        sectorStart = p.CurrentLap;
         sector = expected;
       }
     }
@@ -89,23 +83,17 @@ export async function computeLapSectors(
     const startDist = packets[0].DistanceTraveled;
     const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
     if (lapDist >= 100) {
-      const lapProgression2 = packets[packets.length - 1].CurrentLap - packets[0].CurrentLap;
-      const useTimestamp2 = lapProgression2 < 1;
-      const getTime2 = useTimestamp2
-        ? (p: TelemetryPacket) => p.TimestampMS / 1000
-        : (p: TelemetryPacket) => p.CurrentLap;
-
       let sector = 0;
-      let sectorStart = getTime2(packets[0]);
+      let sectorStart = packets[0].CurrentLap;
       let s1Retry = 0, s2Retry = 0;
       for (const p of packets) {
         const frac = (p.DistanceTraveled - startDist) / lapDist;
         const expected = frac < s1End ? 0 : frac < s2End ? 1 : 2;
         if (expected > sector) {
-          const t = getTime2(p) - sectorStart;
+          const t = p.CurrentLap - sectorStart;
           if (sector === 0) s1Retry = t;
           else if (sector === 1) s2Retry = t;
-          sectorStart = getTime2(p);
+          sectorStart = p.CurrentLap;
           sector = expected;
         }
       }
