@@ -5,6 +5,11 @@ import { initGameAdapters } from "../../shared/games/init";
 // Initialize game adapter registry so tryGetGame() works in stories
 initGameAdapters();
 
+// Apply dark mode class and app theme to Storybook's iframe <html> element
+// so CSS variables (--app-bg, --app-border etc) resolve correctly
+document.documentElement.classList.add("dark");
+document.documentElement.setAttribute("data-theme", "morph");
+
 const preview: Preview = {
   parameters: {
     controls: {

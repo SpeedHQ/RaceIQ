@@ -40,7 +40,7 @@ function StoryDecorator({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="dark" style={{ height: "100vh", overflow: "auto", background: "#0a0a0a" }}>
+      <div style={{ height: "100vh", overflow: "auto", background: "var(--app-bg)" }}>
         {children}
       </div>
     </QueryClientProvider>
