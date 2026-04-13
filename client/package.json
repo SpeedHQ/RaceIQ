@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "snapshot": "playwright test --update-snapshots",
+    "snapshot": "playwright test --update-snapshots && cp src/stories/__snapshots__/snapshot-*.png ../screenshots/",
     "snapshot:test": "playwright test"
   },
   "dependencies": {
