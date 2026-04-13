@@ -566,6 +566,7 @@ export interface TuneSettings {
   gearing: {
     finalDrive: number;
     ratios?: number[];
+    topSpeedKph?: number;
     description?: string;
   };
   alignment: {

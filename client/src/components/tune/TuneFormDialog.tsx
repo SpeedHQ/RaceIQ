@@ -181,7 +181,7 @@ export function TuneFormDialog({
   ) => {
     setSettings((prev) => ({
       ...prev,
-      [group]: { ...prev[group], [field]: value },
+      [group]: { ...(prev[group] as object), [field]: value },
     }));
   };
 
