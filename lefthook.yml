@@ -10,3 +10,8 @@ pre-commit:
       root: "client/"
       glob: "client/src/**/*.{ts,tsx}"
       run: bun run build
+
+    - name: snapshots
+      root: "client/"
+      glob: "client/src/**/*.{ts,tsx}"
+      run: bun run snapshot:test
