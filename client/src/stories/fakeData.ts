@@ -122,7 +122,7 @@ export const fakeF1Packet: TelemetryPacket = {
   WeatherType: 0,
   TrackTemp: 42,
   AirTemp: 28,
-  RainPercent: 0,
+  RainPercent: 15,
   TyreCompound: 16, // soft
   BrakeTempFrontLeft: 580,
   BrakeTempFrontRight: 575,
@@ -146,7 +146,7 @@ export const fakeF1Packet: TelemetryPacket = {
     weather: 0,
     trackTemperature: 42,
     airTemperature: 28,
-    rainPercentage: 0,
+    rainPercentage: 15,
     sessionType: "Race",
     totalLaps: 57,
     currentSector: 1,

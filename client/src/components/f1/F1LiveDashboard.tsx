@@ -230,8 +230,9 @@ function ErsSection({ f1 }: { f1: F1ExtendedData }) {
   const harvestedPct = Math.min(100, (f1.ersHarvestedThisLap / ERS_MAX_ENERGY) * 100);
 
   let barColor = "bg-green-500";
-  if (pct < 20) barColor = "bg-red-500";
-  else if (pct < 50) barColor = "bg-yellow-500";
+  let barTextColor = "text-green-500";
+  if (pct < 20) { barColor = "bg-red-500"; barTextColor = "text-red-500"; }
+  else if (pct < 50) { barColor = "bg-yellow-500"; barTextColor = "text-yellow-500"; }
 
   return (
     <div>
@@ -243,7 +244,7 @@ function ErsSection({ f1 }: { f1: F1ExtendedData }) {
         <div className="flex items-center justify-between gap-2 mt-1">
           <span className="text-[10px] text-app-text-muted uppercase tracking-wider">ERS</span>
           <div className="flex items-center gap-1.5">
-            <span className={`text-sm font-bold px-2 py-0.5 rounded bg-zinc-700 tabular-nums ${barColor.replace("bg-", "text-")}`}>{pct.toFixed(0)}%</span>
+            <span className={`text-sm font-bold px-2 py-0.5 rounded bg-zinc-700 tabular-nums ${barTextColor}`}>{pct.toFixed(0)}%</span>
             <span className={`text-sm font-bold px-2 py-0.5 rounded bg-zinc-700 ${mode.color}`}>{mode.label}</span>
           </div>
         </div>
