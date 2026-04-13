@@ -69,7 +69,7 @@ export class SectorTracker {
     const sharedName = adapter?.getSharedTrackName?.(trackOrdinal);
     const dbSectors = await getTrackOutlineSectors(trackOrdinal, gameId);
     const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-    const sectors = dbSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(trackOrdinal);
+    const sectors = dbSectors ?? sharedMeta?.games?.[gameId]?.sectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(trackOrdinal);
 
     if (!sectors?.s1End || !sectors?.s2End) return;
 
