@@ -51,7 +51,7 @@ const basePacket = {
   SurfaceRumbleRR_2: 0,
   TireSlipCombinedFL_2: 0,
   Boost: 0.6,
-  Fuel: 0.72,
+  Fuel: 42.5, // litres remaining (F1/ACC treat as litres; Forza overrides below)
   DistanceTraveled: 3240,
   BestLap: 92.341,
   LastLap: 93.105,
@@ -67,10 +67,11 @@ const basePacket = {
   Steer: 4,
   NormDrivingLine: 0,
   NormAIBrakeDiff: 0,
-  TireWearFL: 82,
-  TireWearFR: 81,
-  TireWearRL: 78,
-  TireWearRR: 79,
+  // TireWear is 0–1 fraction worn (0 = new, 1 = dead)
+  TireWearFL: 0.18,
+  TireWearFR: 0.19,
+  TireWearRL: 0.22,
+  TireWearRR: 0.21,
   SurfaceRumbleFL: 0,
   SurfaceRumbleFR: 0,
   SurfaceRumbleRL: 0,
@@ -259,13 +260,13 @@ export const fakeForzaPacket: TelemetryPacket = {
   CarPerformanceIndex: 820,
   DrivetrainType: 1, // RWD
   NumCylinders: 6,
-  Fuel: 0.68,
+  Fuel: 0.68, // Forza: 0–1 fraction of tank
   LapNumber: 3,
   RacePosition: 1,
-  TireWearFL: 92,
-  TireWearFR: 91,
-  TireWearRL: 88,
-  TireWearRR: 89,
+  TireWearFL: 0.08,
+  TireWearFR: 0.09,
+  TireWearRL: 0.12,
+  TireWearRR: 0.11,
 };
 
 // ── ACC Fake Packet ──────────────────────────────────────────────────────────
@@ -300,13 +301,13 @@ export const fakeAccPacket: TelemetryPacket = {
   Gear: 5,
   Accel: 200,
   Brake: 0,
-  Fuel: 0.58,
+  Fuel: 38.2, // ACC: litres remaining
   LapNumber: 8,
   RacePosition: 2,
-  TireWearFL: 75,
-  TireWearFR: 74,
-  TireWearRL: 70,
-  TireWearRR: 71,
+  TireWearFL: 0.25,
+  TireWearFR: 0.26,
+  TireWearRL: 0.30,
+  TireWearRR: 0.29,
   acc: {
     tireCompound: "DHF",
     tireCoreTemp: [88, 91, 86, 89],
@@ -321,7 +322,7 @@ export const fakeAccPacket: TelemetryPacket = {
       [0.0, 0.0, 1.0],
     ],
     brakePadCompound: 1,
-    brakePadWear: [0.22, 0.21, 0.18, 0.17],
+    brakePadWear: [28.4, 28.2, 28.6, 28.5], // mm remaining (new = 29mm → ~98% health)
     tc: 3,
     tcCut: 0,
     abs: 4,
@@ -399,9 +400,9 @@ export const fakePit: LivePitData = {
   tireEstimates: {
     toCliff: [13, 13, 11, 12],
     toDead: [23, 23, 21, 22],
-    wearPerLap: [2.8, 2.9, 3.2, 3.1],
+    wearPerLap: [0.028, 0.029, 0.032, 0.031], // fraction per lap (×100 = % per lap)
   },
-  tireWearPerLap: 3.2,
+  tireWearPerLap: 0.032,
   pitInLaps: 12,
   limitedBy: "tires",
   trackLength: 5412,
