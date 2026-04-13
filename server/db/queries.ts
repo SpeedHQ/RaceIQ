@@ -652,23 +652,6 @@ export async function saveTrackOutlineFromPackets(
   await saveTrackOutline(trackOrdinal, points, gameId);
 }
 
-/** @deprecated DB sectors removed — always returns null. Sector data lives in JSON meta files. */
-export async function getTrackOutlineSectors(
-  _trackOrdinal: number,
-  _gameId: GameId
-): Promise<{ s1End: number; s2End: number } | null> {
-  return null;
-}
-
-/** @deprecated DB sectors removed — no-op. Sector data lives in JSON meta files. */
-export async function updateTrackOutlineSectors(
-  _trackOrdinal: number,
-  _sectors: { s1End: number; s2End: number },
-  _gameId: GameId
-): Promise<boolean> {
-  return false;
-}
-
 /**
  * Check if a recorded (DB) outline exists for a track ordinal.
  */

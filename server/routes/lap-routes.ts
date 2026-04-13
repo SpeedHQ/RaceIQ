@@ -28,7 +28,7 @@ import { generateExport } from "../export";
 import { compareLaps } from "../comparison";
 import { detectCorners } from "../corner-detection";
 import { getTrackSectorsByOrdinal } from "../../shared/track-data";
-import { getTrackOutlineSectors } from "../db/queries";
+
 import type { GameId } from "../../shared/types";
 import { loadSettings } from "../settings";
 import { buildAnalystPrompt } from "../ai/analyst-prompt";
@@ -117,9 +117,7 @@ export const lapRoutes = new Hono()
     let sectorTimes: { times: [number, number, number]; s1Idx: number; s2Idx: number; firstDist: number; lapDist: number } | null = null;
     const packets = lap.telemetry;
     if (packets.length >= 10 && lap.trackOrdinal != null) {
-      const dbSectors = lap.gameId ? await getTrackOutlineSectors(lap.trackOrdinal, lap.gameId as GameId) : null;
-      const bundled = getTrackSectorsByOrdinal(lap.trackOrdinal);
-      const sectors = dbSectors ?? bundled;
+      const sectors = getTrackSectorsByOrdinal(lap.trackOrdinal);
       if (sectors?.s1End && sectors?.s2End) {
         const firstDist = packets[0].DistanceTraveled;
         const lastDist = packets[packets.length - 1].DistanceTraveled;
@@ -493,8 +491,7 @@ export const lapRoutes = new Hono()
           }
 
           if (s1 === 0 || s2 === 0) {
-            const dbSectors = gameId ? await getTrackOutlineSectors(lap.trackOrdinal!, gameId) : null;
-            const raw = dbSectors ?? getTrackSectorsByOrdinal(lap.trackOrdinal!);
+            const raw = getTrackSectorsByOrdinal(lap.trackOrdinal!);
             const s1End = raw?.s1End ?? 1 / 3;
             const s2End = raw?.s2End ?? 2 / 3;
 

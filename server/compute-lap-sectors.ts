@@ -1,5 +1,4 @@
 import type { TelemetryPacket, GameId } from "../shared/types";
-import type { DbAdapter } from "./pipeline-adapters";
 import { tryGetGame } from "../shared/games/registry";
 import { getTrackSectorsByOrdinal, loadSharedTrackMeta } from "../shared/track-data";
 
@@ -15,7 +14,6 @@ import { getTrackSectorsByOrdinal, loadSharedTrackMeta } from "../shared/track-d
  *                       Pass undefined for non-ACC games or when not yet tracked.
  */
 export async function computeLapSectors(
-  db: Pick<DbAdapter, "getTrackOutlineSectors">,
   trackOrdinal: number,
   gameId: GameId,
   packets: TelemetryPacket[],
@@ -24,13 +22,12 @@ export async function computeLapSectors(
 ): Promise<{ s1: number; s2: number; s3: number } | null> {
   if (packets.length < 50) return null;
 
-  // Resolve sector boundaries
+  // Resolve sector boundaries: game-specific JSON -> shared JSON -> bundled code
   const adapter = tryGetGame(gameId);
   const sharedName = adapter?.getSharedTrackName?.(trackOrdinal);
-  const dbSectors = await db.getTrackOutlineSectors(trackOrdinal, gameId);
   const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-  const gameSectors = gameId ? (sharedMeta as any)?.games?.[gameId]?.sectors : null;
-  const raw = dbSectors ?? gameSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(trackOrdinal);
+  const gameSectors = (sharedMeta as any)?.games?.[gameId]?.sectors;
+  const raw = gameSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(trackOrdinal);
   const s1End = raw?.s1End ?? 1 / 3;
   const s2End = raw?.s2End ?? 2 / 3;
 

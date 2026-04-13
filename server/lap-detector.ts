@@ -559,7 +559,7 @@ export class LapDetector implements ILapDetector {
     const accLiveSectors = this.accS1 > 0 && this.accS2 > 0
       ? { s1: this.accS1, s2: this.accS2 }
       : undefined;
-    return computeLapSectorsHelper(this.db, trackOrdinal, gameId, packets, lapTime, accLiveSectors);
+    return computeLapSectorsHelper(trackOrdinal, gameId, packets, lapTime, accLiveSectors);
   }
 
   private resetLapState(newLapFirstPacket: TelemetryPacket, seedPackets: TelemetryPacket[] = []): void {
