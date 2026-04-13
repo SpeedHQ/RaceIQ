@@ -15,6 +15,7 @@
  * between physics (~300Hz), graphics (~60Hz), and static (once) updates.
  */
 import { existsSync, mkdirSync, readFileSync } from "fs";
+import { gunzipSync } from "zlib";
 import { resolve } from "path";
 import { STATIC } from "./structs";
 import { parseAccBuffers } from "./parser";
@@ -178,7 +179,8 @@ function readHeader(buf: Buffer): {
 export function readAccFrames(
   filePath: string
 ): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
-  const data = Buffer.from(readFileSync(filePath));
+  const raw = readFileSync(filePath);
+  const data = filePath.endsWith(".gz") ? Buffer.from(gunzipSync(raw)) : Buffer.from(raw);
 
   // Check format by magic bytes
   if (data.length >= 8 && data.slice(0, 8).equals(Buffer.from("ACCTEST\0", "ascii"))) {

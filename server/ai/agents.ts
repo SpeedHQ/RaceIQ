@@ -22,7 +22,6 @@
  * Mastra instance out of the prod bundle while still letting the dev server
  * emit traces.
  */
-import { IS_DEV } from "../env";
 import { lapChatAgent as rawLapChatAgent } from "../../mastra/agents/lap-chat";
 import { compareEngineerAgent as rawCompareEngineerAgent } from "../../mastra/agents/compare-engineer";
 import { compareChatAgent as rawCompareChatAgent } from "../../mastra/agents/compare-chat";
@@ -35,7 +34,7 @@ let lapChatAgent: LapChatAgent = rawLapChatAgent;
 let compareEngineerAgent: CompareEngineerAgent = rawCompareEngineerAgent;
 let compareChatAgent: CompareChatAgent = rawCompareChatAgent;
 
-if (IS_DEV) {
+if (process.env.NODE_ENV !== "production") {
   const { mastra } = await import("../../mastra");
   lapChatAgent = mastra.getAgent("lap-chat") as unknown as LapChatAgent;
   compareEngineerAgent = mastra.getAgent("compare-engineer") as unknown as CompareEngineerAgent;

@@ -19,6 +19,7 @@ function EditTunePage() {
 
   return (
     <div className="flex-1 overflow-auto">
+      <div className="max-w-3xl mx-auto">
       <TuneForm
         title={`Edit: ${tune.name}`}
         initialData={{
@@ -33,6 +34,7 @@ function EditTunePage() {
         onSubmit={(data) => updateTune.mutate({ id: parseInt(tuneId), ...data } as any, { onSuccess: () => navigate({ to: "/fm23/tunes" }) })}
         isSubmitting={updateTune.isPending}
       />
+      </div>
     </div>
   );
 }

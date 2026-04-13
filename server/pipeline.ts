@@ -138,8 +138,9 @@ export class Pipeline {
       this.sectorTracker.getLapDistStart()
     );
 
-    // Track calibration only needs sparse position data (~10Hz)
-    if (this._totalProcessed % 6 === 0) {
+    // Track calibration only needed for games whose coordinate system differs from the
+    // track outline space (Forza, F1). ACC outlines are already in standard-xyz — skip.
+    if (this._totalProcessed % 6 === 0 && adapter?.coordSystem !== "standard-xyz") {
       const session = detector.session;
       if (session && session.trackOrdinal) {
         const outline = getTrackOutlineByOrdinal(session.trackOrdinal, session.gameId);

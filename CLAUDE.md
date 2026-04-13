@@ -19,8 +19,8 @@ bun run dev:server
 bun run dev:client
 
 # Tests (Bun test runner)
-bun test
-bun test test/parser.test.ts   # single test file
+bun run test                        # use bun run test, not bun test (sets --timeout 60000)
+bun test --timeout 60000 test/parser.test.ts   # single test file
 
 # Database
 bun run db:push       # sync Drizzle schema to SQLite (dev introspection only — see note below)

@@ -3,10 +3,12 @@ import { LiveTrackMap } from "./LiveTrackMap";
 import { LapTimes } from "./telemetry/LapTimes";
 import { SectorTimes } from "./SectorTimes";
 
-export function RaceInfo({ packet, trackName, carName, showTrackMap = true, showSectors = true }: {
+export function RaceInfo({ packet, trackName, carName, totalLaps, sessionType, showTrackMap = true, showSectors = true }: {
   packet: NonNullable<ReturnType<typeof useTelemetryStore.getState>["packet"]>;
   trackName: string | undefined;
   carName: string | undefined;
+  totalLaps?: number;
+  sessionType?: string;
   showTrackMap?: boolean;
   showSectors?: boolean;
 }) {
@@ -17,7 +19,12 @@ export function RaceInfo({ packet, trackName, carName, showTrackMap = true, show
         {/* Race timing */}
         <div className={showTrackMap ? "border-r border-app-border" : ""}>
           <div className="p-2 border-b border-app-border flex items-center justify-between">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Race</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Race</h2>
+              {sessionType && sessionType !== "unknown" && (
+                <span className="text-xs font-bold text-app-accent uppercase">{sessionType.replace(/-/g, " ")}</span>
+              )}
+            </div>
             <div className="flex items-center gap-2 truncate ml-2">
               {carName && <span className="text-xs text-app-text-secondary truncate">{carName}</span>}
               {carName && trackName && <span className="text-xs text-app-text-dim">/</span>}
@@ -35,7 +42,7 @@ export function RaceInfo({ packet, trackName, carName, showTrackMap = true, show
               <div>
                 <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap</div>
                 <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
-                  {packet.LapNumber}
+                  {packet.LapNumber}{totalLaps && totalLaps > 0 ? `/${totalLaps}` : ""}
                 </div>
               </div>
             </div>

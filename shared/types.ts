@@ -566,6 +566,7 @@ export interface TuneSettings {
   gearing: {
     finalDrive: number;
     ratios?: number[];
+    topSpeedKph?: number;
     description?: string;
   };
   alignment: {
@@ -605,6 +606,7 @@ export interface TuneSettings {
     rearDownforce: number;
     unit?: string;
   };
+  drivetrain?: "rwd" | "fwd" | "awd";
   differential: {
     frontAccel?: number;
     frontDecel?: number;

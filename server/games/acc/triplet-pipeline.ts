@@ -6,6 +6,8 @@
  */
 
 import { GRAPHICS, AC_STATUS } from "./structs";
+import { parseAccBuffers } from "./parser";
+import { processPacket } from "../../pipeline";
 
 export interface TripletProcessor {
   /** Return false to halt the pipeline for this triplet (e.g. invalid status). */
@@ -75,9 +77,6 @@ export class ParsingProcessor implements TripletProcessor {
 
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<void> {
     try {
-      const { parseAccBuffers } = require("./parser") as typeof import("./parser");
-      const { processPacket } = require("../../pipeline");
-
       const packet = parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData, {
         carOrdinal: this.carOrdinal,
         trackOrdinal: this.trackOrdinal,

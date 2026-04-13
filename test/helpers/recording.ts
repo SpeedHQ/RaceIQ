@@ -1,4 +1,10 @@
 import { readFileSync } from "fs";
+import { gunzipSync } from "zlib";
+
+function readMaybeGzipped(filePath: string): Buffer {
+  const raw = readFileSync(filePath);
+  return filePath.endsWith(".gz") ? gunzipSync(raw) : raw;
+}
 
 /**
  * Read a UDP dump file written by UdpRecorder.
@@ -6,10 +12,12 @@ import { readFileSync } from "fs";
  * Format: repeated [uint32 LE length][N raw bytes]
  * A truncated final record (declared length > remaining bytes) is silently skipped.
  *
+ * Supports both plain .bin and gzip-compressed .bin.gz files.
+ *
  * @returns Array of raw packet Buffers in recording order.
  */
 export function readUdpDump(filePath: string): Buffer[] {
-  const data = readFileSync(filePath);
+  const data = readMaybeGzipped(filePath);
   const packets: Buffer[] = [];
   let offset = 0;
 

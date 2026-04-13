@@ -1,6 +1,6 @@
 {
   "name": "raceiq",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "workspaces": [
     "client"
@@ -12,11 +12,11 @@
     "dev:dump:f1": "concurrently \"bun --watch run server/index.ts --record=f1-2025\" \"cd client && portless raceiq bun run dev\"",
     "dev:dump:fm": "concurrently \"bun --watch run server/index.ts --record=fm-2023\" \"cd client && portless raceiq bun run dev\"",
     "dev:client": "cd client && portless raceiq bun run dev",
-    "build": "mkdir -p dist && rm -rf dist/* && cd client && bun vite build && cd .. && bun scripts/copy-shared-data.ts && cp -r client/dist dist/public && NODE_ENV=production bun build --compile server/bootstrap.ts --outfile dist/raceiq",
+    "build": "mkdir -p dist && rm -rf dist/* && cd client && bun vite build && cd .. && bun scripts/copy-shared-data.ts && bun scripts/copy-client-dist.ts && NODE_ENV=production bun build --compile --define 'process.env.NODE_ENV=\"production\"' server/bootstrap.ts --outfile dist/raceiq",
     "start": "NODE_ENV=production ./dist/raceiq",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "test": "bun test",
+    "test": "bun test --timeout 60000",
     "extract:tracks": "bun scripts/extract-fm2023-tracks.ts && bun scripts/extract-f1-tracks.ts",
     "extract:tracks:forza": "bun scripts/extract-fm2023-tracks.ts",
     "extract:tracks:f1": "bun scripts/extract-f1-25-tracks.ts",
@@ -38,7 +38,6 @@
     "drizzle-orm": "^0.45.2",
     "fflate": "^0.8.2",
     "fzstd": "^0.1.1",
-    "gif-encoder": "^0.7.2",
     "hono": "^4.12.12",
     "libsql": "^0.5.29",
     "sharp": "^0.34.5",

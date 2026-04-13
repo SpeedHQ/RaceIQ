@@ -8,7 +8,7 @@ import { client } from "../lib/rpc";
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAllCars() {
-  return useQuery<{ ordinal: number; name: string; specs?: { topSpeedMph: number } }[]>({
+  return useQuery<{ ordinal: number; name: string; specs?: { topSpeedMph: number; hp: number; torque: number; engine: string; drivetrain: string; weightKg: number; displacement: number; aspiration: string; imageUrl: string; division: string } }[]>({
     queryKey: ["all-cars"],
     queryFn: () => client.api.cars.$get().then((r) => r.json()),
     staleTime: Infinity,
@@ -71,7 +71,7 @@ export function unitLabel(cat: ConvCategory, isMetric: boolean): string {
 export function defaultTuneSettings(): TuneSettings {
   return {
     tires: { frontPressure: 1.7, rearPressure: 1.7 },
-    gearing: { finalDrive: 3.5 },
+    gearing: { finalDrive: 3.5, ratios: [3.5, 2.5, 1.9, 1.5, 1.2, 1.0], topSpeedKph: 250 },
     alignment: { frontCamber: -1.0, rearCamber: -0.5, frontToe: 0.0, rearToe: 0.0 },
     antiRollBars: { front: 20, rear: 20 },
     springs: { frontRate: 100, rearRate: 100, frontHeight: 10, rearHeight: 10 },
@@ -327,47 +327,54 @@ export function UserTuneCard({
 
 // ── GearRatioChart ────────────────────────────────────────────────────────────
 
-function GearRatioChart({ ratios, finalDrive, topSpeedMph }: { ratios: number[]; finalDrive: number; topSpeedMph?: number }) {
+function GearRatioChart({ ratios, finalDrive, topSpeedMph, maxRpm = 8000 }: { ratios: number[]; finalDrive: number; topSpeedMph?: number; maxRpm?: number }) {
   if (!ratios.length) return null;
 
-  const MAX_RPM = 8000;
   const topGearRatio = ratios[ratios.length - 1];
   // Back-calculate tire circumference from stock top speed if available, else use typical 2.0m
   const CIRC = topSpeedMph && topGearRatio
-    ? (topSpeedMph * 1.60934 * topGearRatio * finalDrive) / (MAX_RPM / 60) / 3.6
+    ? (topSpeedMph * 1.60934 * topGearRatio * finalDrive) / (maxRpm / 60) / 3.6
     : 2.0;
   const toKph = (rpm: number, ratio: number) =>
     (rpm / 60 / (ratio * finalDrive)) * CIRC * 3.6;
 
-  const maxSpeed = Math.ceil(toKph(MAX_RPM, ratios[ratios.length - 1]) / 50) * 50;
+  const maxSpeed = Math.ceil(toKph(maxRpm, ratios[ratios.length - 1]) / 50) * 50;
 
-  const W = 340, H = 160;
-  const pad = { top: 20, right: 20, bottom: 28, left: 32 };
+  const W = 280, H = 120;
+  const pad = { top: 18, right: 16, bottom: 24, left: 32 };
   const cW = W - pad.left - pad.right;
   const cH = H - pad.top - pad.bottom;
 
   const sx = (v: number) => Math.min((v / maxSpeed) * cW, cW);
-  const sy = (rpm: number) => cH - (rpm / MAX_RPM) * cH;
+  const sy = (rpm: number) => cH - (rpm / maxRpm) * cH;
 
-  const COLORS = ['#f87171','#fb923c','#facc15','#4ade80','#60a5fa','#a78bfa','#f472b6','#34d399','#38bdf8','#f59e0b'];
-  const rpmGrids = [2000, 4000, 6000, 8000];
-  const speedGrids = Array.from({ length: 6 }, (_, i) => Math.round((maxSpeed / 5) * i));
+  // RPM gridlines at even intervals
+  const rpmStep = maxRpm <= 8000 ? 2000 : maxRpm <= 12000 ? 3000 : 4000;
+  const rpmGrids = Array.from({ length: Math.floor(maxRpm / rpmStep) }, (_, i) => (i + 1) * rpmStep);
+  const speedGridCount = 4;
+  const speedGrids = Array.from({ length: speedGridCount + 1 }, (_, i) => Math.round((maxSpeed / speedGridCount) * i));
+
+  // Redline at maxRpm
+  const redlineY = pad.top + sy(maxRpm);
 
   return (
-    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', maxWidth: '280px' }}>
       <defs>
         <clipPath id="gchart">
           <rect x={pad.left} y={pad.top} width={cW} height={cH} />
         </clipPath>
       </defs>
 
+      {/* Background */}
+      <rect x={pad.left} y={pad.top} width={cW} height={cH} fill="currentColor" fillOpacity="0.03" />
+
       {/* RPM gridlines */}
       {rpmGrids.map(rpm => (
         <g key={rpm}>
           <line x1={pad.left} y1={pad.top + sy(rpm)} x2={pad.left + cW} y2={pad.top + sy(rpm)}
-            stroke="currentColor" strokeOpacity="0.08" strokeWidth="1" />
-          <text x={pad.left - 3} y={pad.top + sy(rpm) + 3} textAnchor="end" fontSize="7"
-            fill="currentColor" fillOpacity="0.4">{rpm / 1000}k</text>
+            stroke="currentColor" strokeOpacity="0.1" strokeWidth="1" />
+          <text x={pad.left - 4} y={pad.top + sy(rpm) + 3} textAnchor="end" fontSize="7"
+            fill="currentColor" fillOpacity="0.45">{rpm / 1000}</text>
         </g>
       ))}
 
@@ -375,39 +382,45 @@ function GearRatioChart({ ratios, finalDrive, topSpeedMph }: { ratios: number[];
       {speedGrids.map(spd => (
         <g key={spd}>
           <line x1={pad.left + sx(spd)} y1={pad.top} x2={pad.left + sx(spd)} y2={pad.top + cH}
-            stroke="currentColor" strokeOpacity="0.08" strokeWidth="1" />
+            stroke="currentColor" strokeOpacity="0.1" strokeWidth="1" />
           <text x={pad.left + sx(spd)} y={pad.top + cH + 10} textAnchor="middle" fontSize="7"
-            fill="currentColor" fillOpacity="0.4">{spd}</text>
+            fill="currentColor" fillOpacity="0.45">{spd}</text>
         </g>
       ))}
 
       {/* Axis labels */}
-      <text x={pad.left + cW / 2} y={H - 2} textAnchor="middle" fontSize="7"
-        fill="currentColor" fillOpacity="0.4">km/h</text>
-      <text x={8} y={pad.top + cH / 2} textAnchor="middle" fontSize="7"
-        fill="currentColor" fillOpacity="0.4" transform={`rotate(-90 8 ${pad.top + cH / 2})`}>RPM</text>
+      <text x={pad.left + cW} y={pad.top + cH + 20} textAnchor="end" fontSize="7"
+        fill="currentColor" fillOpacity="0.35">KM/H</text>
+      <text x={pad.left - 4} y={pad.top - 6} textAnchor="end" fontSize="7"
+        fill="currentColor" fillOpacity="0.35">RPM ×1000</text>
 
-      {/* Gear lines */}
+      {/* Gear lines — white, slightly transparent, each starts from prev gear's shift point */}
       {ratios.map((ratio, i) => {
-        const pts = Array.from({ length: 60 }, (_, j) => {
-          const rpm = (j / 59) * MAX_RPM;
+        const startKph = i === 0 ? 0 : toKph(maxRpm, ratios[i - 1]);
+        const startRpm = i === 0 ? 0 : (startKph / 3.6) * (ratio * finalDrive) / CIRC * 60;
+        const steps = 60;
+        const pts = Array.from({ length: steps }, (_, j) => {
+          const rpm = startRpm + (j / (steps - 1)) * (maxRpm - startRpm);
           return `${pad.left + sx(toKph(rpm, ratio))},${pad.top + sy(rpm)}`;
         }).join(' ');
-        const labelX = pad.left + sx(toKph(MAX_RPM, ratio));
-        const color = COLORS[i % COLORS.length];
+        const labelX = pad.left + sx(toKph(maxRpm, ratio));
         return (
           <g key={i}>
-            <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5"
-              strokeOpacity="0.85" clipPath="url(#gchart)" />
-            <text x={labelX} y={pad.top - 5} textAnchor="middle" fontSize="8"
-              fill={color} fillOpacity="0.9" fontWeight="600">{i + 1}</text>
+            <polyline points={pts} fill="none" stroke="white" strokeWidth="1.5"
+              strokeOpacity="0.7" clipPath="url(#gchart)" />
+            <text x={labelX + 2} y={pad.top + sy(maxRpm) - 3} textAnchor="middle" fontSize="7"
+              fill="white" fillOpacity="0.6" fontWeight="600">{i + 1}</text>
           </g>
         );
       })}
 
+      {/* Redline */}
+      <line x1={pad.left} y1={redlineY} x2={pad.left + cW} y2={redlineY}
+        stroke="#ef4444" strokeWidth="1" strokeOpacity="0.8" strokeDasharray="3 2" />
+
       {/* Chart border */}
       <rect x={pad.left} y={pad.top} width={cW} height={cH}
-        fill="none" stroke="currentColor" strokeOpacity="0.12" strokeWidth="1" />
+        fill="none" stroke="currentColor" strokeOpacity="0.15" strokeWidth="1" />
     </svg>
   );
 }
@@ -433,7 +446,8 @@ export function TuneForm({
   const [category, setCategory] = useState<TuneCategory>(initialData?.category ?? "circuit");
   const [description, setDescription] = useState(initialData?.description ?? "");
   const [settings, setSettings] = useState<TuneSettings>(withDefaults(initialData?.settings));
-  const [activeTab, setActiveTab] = useState<"info" | "settings">("info");
+  const [drivetrain, setDrivetrain] = useState<"rwd" | "fwd" | "awd">(initialData?.settings?.drivetrain ?? "rwd");
+  const [activeTab, setActiveTab] = useState<"info" | "settings">("settings");
   const [jsonMode, setJsonMode] = useState(false);
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
@@ -459,6 +473,7 @@ export function TuneForm({
     setCategory(initialData?.category ?? "circuit");
     setDescription(initialData?.description ?? "");
     setSettings(withDefaults(initialData?.settings));
+    setDrivetrain(initialData?.settings?.drivetrain ?? "rwd");
     setActiveTab("info");
     setJsonMode(false);
     setJsonText("");
@@ -469,7 +484,7 @@ export function TuneForm({
   }, [initialData]);
 
   const updateSettings = <K extends keyof TuneSettings>(group: K, field: string, value: number) => {
-    setSettings((prev) => ({ ...prev, [group]: { ...prev[group], [field]: value } }));
+    setSettings((prev) => ({ ...prev, [group]: { ...(prev[group] as object), [field]: value } }));
   };
 
   const handleJsonParse = () => {
@@ -496,6 +511,7 @@ export function TuneForm({
     e.preventDefault();
     const savedSettings: TuneSettings = {
       ...settings,
+      drivetrain,
       springs: { ...settings.springs, unit: unitLabel("springs", isMetric) },
       aero: { ...settings.aero, unit: unitLabel("aero", isMetric) },
     };
@@ -503,34 +519,28 @@ export function TuneForm({
   };
 
   const tabCls = (tab: "info" | "settings") =>
-    `px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
+    `px-3 py-1 text-xs font-medium rounded transition-colors ${
       activeTab === tab
-        ? "border-app-accent text-app-accent"
-        : "border-transparent text-app-text-muted hover:text-app-text"
+        ? "bg-app-accent/15 text-app-accent"
+        : "text-app-text-muted hover:text-app-text"
     }`;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col min-h-full">
-      {/* Sticky header */}
-      <div className="sticky top-0 z-10 bg-app-bg border-b border-app-border flex items-center justify-between px-6 py-3">
-        <div className="flex items-center gap-2">
-          <Button type="button" variant="app-ghost" size="app-sm" onClick={onCancel}>&larr;</Button>
-          <h2 className="text-base font-bold text-app-text">{title}</h2>
+      {/* Sticky header — title, tabs, and actions in one bar */}
+      <div className="sticky top-0 z-10 bg-app-bg border-b border-app-border flex items-center gap-3 px-4 py-2">
+        <Button type="button" variant="app-ghost" size="app-sm" onClick={onCancel}>&larr;</Button>
+        <h2 className="text-sm font-semibold text-app-text">{title}</h2>
+        <div className="flex items-center gap-1 ml-2">
+          <button type="button" className={tabCls("info")} onClick={() => setActiveTab("info")}>Info</button>
+          <button type="button" className={tabCls("settings")} onClick={() => setActiveTab("settings")}>Settings</button>
         </div>
-        <div className="flex items-center gap-2">
-          <Button type="button" variant="app-outline" size="app-md" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" variant="app-primary" size="app-md" disabled={!name || isSubmitting}>
+        <div className="flex items-center gap-2 ml-auto">
+          <Button type="button" variant="app-outline" size="app-sm" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" variant="app-primary" size="app-sm" disabled={!name || isSubmitting}>
             {isSubmitting ? "Saving..." : "Save Tune"}
           </Button>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-app-border px-6">
-        <button type="button" className={tabCls("info")} onClick={() => setActiveTab("info")}>Info</button>
-        <button type="button" className={tabCls("settings")} onClick={() => setActiveTab("settings")}>Settings</button>
       </div>
 
       {/* Info tab */}
@@ -578,10 +588,38 @@ export function TuneForm({
               {ALL_CATEGORIES.map((c) => (<option key={c} value={c}>{CATEGORY_LABELS[c]}</option>))}
             </select>
           </label>
+          <label className="space-y-1">
+            <span className="text-xs font-medium text-app-text-muted">Drivetrain</span>
+            <select value={drivetrain} onChange={(e) => setDrivetrain(e.target.value as "rwd" | "fwd" | "awd")} className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent">
+              <option value="rwd">RWD</option>
+              <option value="fwd">FWD</option>
+              <option value="awd">AWD</option>
+            </select>
+          </label>
           <label className="col-span-2 space-y-1">
             <span className="text-xs font-medium text-app-text-muted">Description</span>
             <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent" />
           </label>
+          {(() => {
+            const carData = allCars.find((c) => c.ordinal === carOrdinal);
+            if (!carData?.specs) return null;
+            const s = carData.specs;
+            return (
+              <div className="col-span-2 rounded-lg bg-app-surface ring-1 ring-app-border overflow-hidden">
+                <div className="p-3 grid grid-cols-3 gap-x-4 gap-y-2">
+                  {s.hp > 0 && <div className="flex flex-col"><span className="text-[10px] text-app-text-muted uppercase tracking-wide">Power</span><span className="text-xs font-mono text-app-text">{s.hp} hp</span></div>}
+                  {s.torque > 0 && <div className="flex flex-col"><span className="text-[10px] text-app-text-muted uppercase tracking-wide">Torque</span><span className="text-xs font-mono text-app-text">{s.torque} lb-ft</span></div>}
+                  {s.weightKg > 0 && <div className="flex flex-col"><span className="text-[10px] text-app-text-muted uppercase tracking-wide">Weight</span><span className="text-xs font-mono text-app-text">{s.weightKg} kg</span></div>}
+                  {s.engine && <div className="flex flex-col"><span className="text-[10px] text-app-text-muted uppercase tracking-wide">Engine</span><span className="text-xs font-mono text-app-text truncate">{s.engine}{s.aspiration && s.aspiration !== "NA" ? ` · ${s.aspiration}` : ""}</span></div>}
+                  {s.topSpeedMph > 0 && <div className="flex flex-col"><span className="text-[10px] text-app-text-muted uppercase tracking-wide">Top Speed</span><span className="text-xs font-mono text-app-text">{Math.round(s.topSpeedMph * 1.60934)} km/h</span></div>}
+                  {s.division && <div className="flex flex-col"><span className="text-[10px] text-app-text-muted uppercase tracking-wide">Division</span><span className="text-xs text-app-text truncate">{s.division}</span></div>}
+                </div>
+                {s.imageUrl && (
+                  <img src={s.imageUrl} alt={carData.name} className="w-full object-contain bg-black" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -620,6 +658,7 @@ export function TuneForm({
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Gearing</h4>
                 <NumberField label="Final Drive" value={settings.gearing.finalDrive} onChange={(v) => updateSettings("gearing", "finalDrive", v)} step={0.01} unit=":1" />
+                <NumberField label="Top Speed" value={settings.gearing.topSpeedKph ?? Math.round((allCars.find((c) => c.ordinal === carOrdinal)?.specs?.topSpeedMph ?? 0) * 1.60934)} onChange={(v) => setSettings((s) => ({ ...s, gearing: { ...s.gearing, topSpeedKph: v } }))} step={1} unit="km/h" />
                 <div className="space-y-1 pt-1">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-app-text-muted">Gear Ratios</span>
@@ -638,24 +677,38 @@ export function TuneForm({
                       ))}
                     </select>
                   </div>
-                  {(settings.gearing.ratios ?? []).map((ratio, i) => (
-                    <NumberField
-                      key={i}
-                      label={`Gear ${i + 1}`}
-                      value={ratio}
-                      onChange={(v) => {
-                        const ratios = [...(settings.gearing.ratios ?? [])];
-                        ratios[i] = v;
-                        setSettings((s) => ({ ...s, gearing: { ...s.gearing, ratios } }));
-                      }}
-                      step={0.01}
-                      unit=":1"
-                    />
-                  ))}
+                  {(settings.gearing.ratios ?? []).map((ratio, i) => {
+                    const topSpeedKph = settings.gearing.topSpeedKph ?? Math.round((allCars.find((c) => c.ordinal === carOrdinal)?.specs?.topSpeedMph ?? 0) * 1.60934);
+                    const topGearRatio = (settings.gearing.ratios ?? [])[(settings.gearing.ratios ?? []).length - 1];
+                    const CIRC = topSpeedKph && topGearRatio
+                      ? (topSpeedKph * topGearRatio * settings.gearing.finalDrive) / (8000 / 60) / 3.6
+                      : 2.0;
+                    const gearTopKph = (8000 / 60 / (ratio * settings.gearing.finalDrive)) * CIRC * 3.6;
+                    return (
+                      <label key={i} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="text-app-text-muted whitespace-nowrap">Gear {i + 1}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-app-text-muted font-mono tabular-nums w-14 text-right">{Math.round(gearTopKph)} km/h</span>
+                          <input
+                            type="number"
+                            value={ratio}
+                            step={0.01}
+                            onChange={(e) => {
+                              const ratios = [...(settings.gearing.ratios ?? [])];
+                              ratios[i] = parseFloat(e.target.value) || 0;
+                              setSettings((s) => ({ ...s, gearing: { ...s.gearing, ratios } }));
+                            }}
+                            className="w-20 bg-app-bg border border-app-border rounded px-1.5 py-0.5 text-xs text-app-text font-mono text-right focus:outline-none focus:ring-1 focus:ring-app-accent"
+                          />
+                          <span className="text-[10px] text-app-text-muted w-8">:1</span>
+                        </div>
+                      </label>
+                    );
+                  })}
                   <GearRatioChart
                     ratios={settings.gearing.ratios ?? []}
                     finalDrive={settings.gearing.finalDrive}
-                    topSpeedMph={allCars.find((c) => c.ordinal === carOrdinal)?.specs?.topSpeedMph}
+                    topSpeedMph={(settings.gearing.topSpeedKph ?? Math.round((allCars.find((c) => c.ordinal === carOrdinal)?.specs?.topSpeedMph ?? 0) * 1.60934)) / 1.60934}
                   />
                 </div>
               </div>
@@ -717,11 +770,17 @@ export function TuneForm({
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Differential</h4>
-                <NumberField label="Rear Accel" value={settings.differential.rearAccel} onChange={(v) => updateSettings("differential", "rearAccel", v)} step={1} unit="%" />
-                <NumberField label="Rear Decel" value={settings.differential.rearDecel} onChange={(v) => updateSettings("differential", "rearDecel", v)} step={1} unit="%" />
-                <NumberField label="Front Accel" value={settings.differential.frontAccel ?? 0} onChange={(v) => updateSettings("differential", "frontAccel", v)} step={1} unit="%" />
-                <NumberField label="Front Decel" value={settings.differential.frontDecel ?? 0} onChange={(v) => updateSettings("differential", "frontDecel", v)} step={1} unit="%" />
-                <NumberField label="Center" value={settings.differential.center ?? 50} onChange={(v) => updateSettings("differential", "center", v)} step={1} unit="%" />
+                {(drivetrain === "rwd" || drivetrain === "awd") && <>
+                  <NumberField label="Rear Accel" value={settings.differential.rearAccel} onChange={(v) => updateSettings("differential", "rearAccel", v)} step={1} unit="%" />
+                  <NumberField label="Rear Decel" value={settings.differential.rearDecel} onChange={(v) => updateSettings("differential", "rearDecel", v)} step={1} unit="%" />
+                </>}
+                {(drivetrain === "fwd" || drivetrain === "awd") && <>
+                  <NumberField label="Front Accel" value={settings.differential.frontAccel ?? 0} onChange={(v) => updateSettings("differential", "frontAccel", v)} step={1} unit="%" />
+                  <NumberField label="Front Decel" value={settings.differential.frontDecel ?? 0} onChange={(v) => updateSettings("differential", "frontDecel", v)} step={1} unit="%" />
+                </>}
+                {drivetrain === "awd" && (
+                  <NumberField label="Center" value={settings.differential.center ?? 50} onChange={(v) => updateSettings("differential", "center", v)} step={1} unit="%" />
+                )}
               </div>
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">

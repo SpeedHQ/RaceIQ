@@ -2,7 +2,6 @@ import type { TelemetryPacket } from "../../shared/types";
 import { mkdirSync } from "fs";
 import { join } from "path";
 import { generateLapSvg, generateRawSvg } from "./lap-svg";
-import { generateLapGif, generateRawGif } from "./lap-gif";
 
 const OUTPUT_DIR = "test/e2e/output";
 
@@ -21,16 +20,15 @@ export interface VisualizableLap {
  * Output goes to `test/e2e/output/<recording-basename>/`. Directory is created
  * if missing. Lap GIFs/SVGs include lapTime and valid-status labels.
  */
-export async function generateRecordingVisualizations(
+export function generateRecordingVisualizations(
   recordingFile: string,
   laps: VisualizableLap[],
   rawPackets: TelemetryPacket[]
-): Promise<void> {
-  const outputDir = join(OUTPUT_DIR, recordingFile.replace(/\.bin$/, ""));
+): void {
+  const outputDir = join(OUTPUT_DIR, recordingFile.replace(/\.bin(\.gz)?$/, ""));
   mkdirSync(outputDir, { recursive: true });
 
   generateRawSvg(rawPackets, outputDir);
-  await generateRawGif(rawPackets, outputDir);
 
   for (const lap of laps) {
     const meta = {
@@ -39,6 +37,5 @@ export async function generateRecordingVisualizations(
       invalidReason: lap.invalidReason,
     };
     generateLapSvg(lap.packets, lap.lapNumber, outputDir, undefined, meta);
-    await generateLapGif(lap.packets, lap.lapNumber, outputDir, undefined, meta);
   }
 }

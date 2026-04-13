@@ -12,15 +12,13 @@ function formatLapTime(seconds: number): string {
 
 interface RecordedLapsProps {
   trackOrdinal?: number;
-  showSessionType?: boolean;
   maxLaps?: number;
 }
 
-export function RecordedLaps({ trackOrdinal, showSessionType = false, maxLaps = 15 }: RecordedLapsProps) {
+export function RecordedLaps({ trackOrdinal, maxLaps = 15 }: RecordedLapsProps) {
   const navigate = useNavigate({ from: "/" });
   const gameRoute = useGameRoute();
   const laps = useTelemetryStore((s) => s.sessionLaps);
-  const rawPacket = useTelemetryStore((s) => s.rawPacket);
   const deleteLap = useDeleteLap();
 
   // Filter by track if provided, otherwise use all
@@ -58,9 +56,6 @@ export function RecordedLaps({ trackOrdinal, showSessionType = false, maxLaps = 
     <div className="border-b border-app-border">
       <div className="p-2 border-b border-app-border flex items-center justify-between">
         <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Recorded Laps</h2>
-        {showSessionType && rawPacket?.f1?.sessionType && (
-          <span className="text-xs font-bold text-app-accent uppercase">{rawPacket.f1.sessionType.replace(/-/g, " ")}</span>
-        )}
       </div>
       {sorted.length === 0 ? (
         <div className="p-3 text-center text-xs text-app-text-dim">No completed laps yet</div>

@@ -8,12 +8,14 @@ function NewTunePage() {
 
   return (
     <div className="flex-1 overflow-auto">
+      <div className="max-w-3xl mx-auto">
       <TuneForm
         title="Create New Tune"
         onCancel={() => navigate({ to: "/fm23/tunes" })}
         onSubmit={(data) => createTune.mutate(data as any, { onSuccess: () => navigate({ to: "/fm23/tunes" }) })}
         isSubmitting={createTune.isPending}
       />
+      </div>
     </div>
   );
 }

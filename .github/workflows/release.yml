@@ -83,7 +83,7 @@ jobs:
 
       - name: Compile server binary
         shell: bash
-        run: NODE_ENV=production bun build --compile --target=bun-windows-x64 --windows-icon=assets/raceiq.ico server/bootstrap.ts --outfile dist/raceiq.exe
+        run: NODE_ENV=production bun build --compile --target=bun-windows-x64 --windows-icon=assets/raceiq.ico --define 'process.env.NODE_ENV="production"' server/bootstrap.ts --outfile dist/raceiq.exe
 
       - name: Copy libsql native addon
         shell: bash
