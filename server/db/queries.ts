@@ -960,3 +960,15 @@ export async function getLapsRaw(ids?: number[]) {
 
   return await base.all();
 }
+
+/** Count laps per trackOrdinal for a given game. Returns a Map<trackOrdinal, count>. */
+export async function getLapCountsByTrack(gameId: GameId): Promise<Map<number, number>> {
+  const rows = await db
+    .select({ trackOrdinal: sessions.trackOrdinal, count: sql<number>`count(*)` })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(eq(sessions.gameId, gameId))
+    .groupBy(sessions.trackOrdinal)
+    .all();
+  return new Map(rows.map((r) => [r.trackOrdinal, Number(r.count)]));
+}

@@ -7,6 +7,7 @@ export interface TrackInfo {
   lengthKm: number;
   hasOutline: boolean;
   createdAt: string | null;
+  lapCount?: number;
 }
 
 export interface Point {

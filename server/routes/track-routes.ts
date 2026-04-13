@@ -12,6 +12,7 @@ import {
   getTrackOutline as getDbTrackOutline,
   getTrackOutlineSectors,
   updateTrackOutlineSectors,
+  getLapCountsByTrack,
 } from "../db/queries";
 import {
   getTrackOutlineByOrdinal,
@@ -310,14 +311,14 @@ export const trackRoutes = new Hono()
     }
   )
 
-  // GET /api/tracks — list all tracks with outline availability
+  // GET /api/tracks — list all tracks with outline availability and lap counts
   .get("/api/tracks",
-    (c) => {
+    async (c) => {
       const gameId = c.req.query("gameId");
 
       if (gameId === "f1-2025") {
-        // Return F1 tracks
         const f1Tracks = getF1Tracks();
+        const lapCounts = await getLapCountsByTrack("f1-2025");
         const tracks = Array.from(f1Tracks.entries()).map(([id, info]) => {
           const hasBundled = !!getTrackOutlineByOrdinal(id, "f1-2025", info.commonTrackName);
           return {
@@ -331,6 +332,7 @@ export const trackRoutes = new Hono()
             outlineSource: hasBundled ? "bundled" : null,
             commonTrackName: info.commonTrackName || null,
             createdAt: null,
+            lapCount: lapCounts.get(id) ?? 0,
           };
         });
         tracks.sort((a, b) => a.name.localeCompare(b.name));
@@ -339,6 +341,7 @@ export const trackRoutes = new Hono()
 
       if (gameId === "acc") {
         const accTracks = getAccTracks();
+        const lapCounts = await getLapCountsByTrack("acc");
         const tracks = Array.from(accTracks.entries()).map(([id, info]) => {
           const hasBundled = !!getTrackOutlineByOrdinal(id, "acc", info.commonTrackName ?? undefined);
           return {
@@ -351,6 +354,7 @@ export const trackRoutes = new Hono()
             hasOutline: hasBundled,
             outlineSource: hasBundled ? "bundled" : null,
             createdAt: null,
+            lapCount: lapCounts.get(id) ?? 0,
           };
         });
         tracks.sort((a, b) => a.name.localeCompare(b.name));
@@ -359,6 +363,7 @@ export const trackRoutes = new Hono()
 
       // Default: Forza tracks
       const forzaGameId = gameId ?? "fm-2023";
+      const lapCounts = await getLapCountsByTrack(forzaGameId as any);
       const tracks = Array.from(trackMap.entries()).map(([ordinal, info]) => {
         const hasBundled = !!getTrackOutlineByOrdinal(ordinal, forzaGameId);
         return {
@@ -371,6 +376,7 @@ export const trackRoutes = new Hono()
           hasOutline: hasBundled,
           outlineSource: hasBundled ? "bundled" : null,
           createdAt: null,
+          lapCount: lapCounts.get(ordinal) ?? 0,
         };
       });
       // Sort: tracks with outlines first, then alphabetically
