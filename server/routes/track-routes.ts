@@ -299,8 +299,6 @@ export const trackRoutes = new Hono()
         writeFileSync(resolve(metaDir, `${sharedName}.json`), JSON.stringify(meta, null, 2));
       }
 
-      }
-
       return c.json({ success: true, s1End, s2End });
     }
   )
