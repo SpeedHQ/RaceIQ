@@ -25,3 +25,4 @@ test-results/
 .worktrees/
 laps.json
 client/debug-storybook.log
+client/src/stories/__snapshots__/results/
