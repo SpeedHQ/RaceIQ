@@ -22,33 +22,35 @@ jobs:
           cp screenshots/ForzaLiveDashboard.png assets/screenshots/ForzaLiveDashboard.png
           cp screenshots/AccLiveDashboard.png assets/screenshots/AccLiveDashboard.png
 
-      - name: Inject screenshots into README
+      - name: Append dashboard screenshots to assets/screenshots/README.md
         run: |
-          BLOCK="### Live Dashboards\n\n"
-          BLOCK+="| F1 2025 | Forza Motorsport | Assetto Corsa Competizione |\n"
-          BLOCK+="|---|---|---|\n"
-          BLOCK+="| ![F1 2025](assets/screenshots/F1LiveDashboard.png) | ![Forza Motorsport](assets/screenshots/ForzaLiveDashboard.png) | ![ACC](assets/screenshots/AccLiveDashboard.png) |\n"
-
-          # Replace content between marker comments
           python3 - <<'PYEOF'
           import re, pathlib
 
-          readme = pathlib.Path("README.md").read_text()
+          readme = pathlib.Path("assets/screenshots/README.md").read_text()
           block = (
-            "### Live Dashboards\n\n"
-            "| F1 2025 | Forza Motorsport | Assetto Corsa Competizione |\n"
-            "|---|---|---|\n"
-            "| ![F1 2025](assets/screenshots/F1LiveDashboard.png) "
-            "| ![Forza Motorsport](assets/screenshots/ForzaLiveDashboard.png) "
-            "| ![ACC](assets/screenshots/AccLiveDashboard.png) |\n"
+            "\n### F1 2025 Live Dashboard\n\n"
+            "![F1 2025 Live Dashboard](F1LiveDashboard.png)\n\n"
+            "### Forza Motorsport Live Dashboard\n\n"
+            "![Forza Motorsport Live Dashboard](ForzaLiveDashboard.png)\n\n"
+            "### Assetto Corsa Competizione Live Dashboard\n\n"
+            "![Assetto Corsa Competizione Live Dashboard](AccLiveDashboard.png)\n"
           )
-          updated = re.sub(
-            r"<!-- dashboard-screenshots-start -->.*?<!-- dashboard-screenshots-end -->",
-            f"<!-- dashboard-screenshots-start -->\n{block}<!-- dashboard-screenshots-end -->",
-            readme,
-            flags=re.DOTALL,
-          )
-          pathlib.Path("README.md").write_text(updated)
+
+          marker_start = "<!-- dashboard-screenshots-start -->"
+          marker_end = "<!-- dashboard-screenshots-end -->"
+
+          if marker_start in readme:
+            updated = re.sub(
+              r"<!-- dashboard-screenshots-start -->.*?<!-- dashboard-screenshots-end -->",
+              f"{marker_start}{block}{marker_end}",
+              readme,
+              flags=re.DOTALL,
+            )
+          else:
+            updated = readme.rstrip("\n") + f"\n\n{marker_start}{block}{marker_end}\n"
+
+          pathlib.Path("assets/screenshots/README.md").write_text(updated)
           PYEOF
 
       - name: Commit and push
@@ -58,6 +60,6 @@ jobs:
           git add assets/screenshots/F1LiveDashboard.png \
                   assets/screenshots/ForzaLiveDashboard.png \
                   assets/screenshots/AccLiveDashboard.png \
-                  README.md
-          git diff --cached --quiet || git commit -m "chore: update dashboard screenshots in README [skip ci]"
+                  assets/screenshots/README.md
+          git diff --cached --quiet || git commit -m "chore: update dashboard screenshots [skip ci]"
           git push
