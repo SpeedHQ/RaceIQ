@@ -10,8 +10,6 @@ import {
   saveCorners,
   getFirstLapIdForTrack,
   getTrackOutline as getDbTrackOutline,
-  getTrackOutlineSectors,
-  updateTrackOutlineSectors,
   getLapCountsByTrack,
 } from "../db/queries";
 import {
@@ -245,11 +243,10 @@ export const trackRoutes = new Hono()
       const gameId = c.req.query("gameId");
       const sharedName = getSharedTrackName(ordinal, gameId);
 
-      // Priority: DB -> game-specific meta -> shared meta -> bundled code -> default
-      const dbSectors = gameId ? await getTrackOutlineSectors(ordinal, requireGameId(c)) : null;
+      // Priority: game-specific meta -> shared meta -> bundled code
       const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
       const gameSectors = gameId ? (sharedMeta as any)?.games?.[gameId]?.sectors : null;
-      const sectors = dbSectors ?? gameSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(ordinal);
+      const sectors = gameSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(ordinal);
 
       // Compute track length from outline
       let trackLength = 0;
@@ -302,9 +299,6 @@ export const trackRoutes = new Hono()
         writeFileSync(resolve(metaDir, `${sharedName}.json`), JSON.stringify(meta, null, 2));
       }
 
-      // Also attempt DB save (best-effort, may fail if no outline recorded)
-      if (gameId) {
-        await updateTrackOutlineSectors(ordinal, { s1End, s2End }, gameId as GameId).catch(() => null);
       }
 
       return c.json({ success: true, s1End, s2End });
@@ -804,10 +798,9 @@ export const trackRoutes = new Hono()
 
       // Get sector boundaries (same priority as /api/track-sector-boundaries)
       const sharedName = getSharedTrackName(ordinal, gameId);
-      const dbSectors = gameId ? await getTrackOutlineSectors(ordinal, gameId) : null;
       const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
       const gameSectors = gameId ? (sharedMeta as any)?.games?.[gameId]?.sectors : null;
-      const rawSectors = dbSectors ?? gameSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(ordinal);
+      const rawSectors = gameSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(ordinal);
       const sectors = { s1End: rawSectors?.s1End ?? 1 / 3, s2End: rawSectors?.s2End ?? 2 / 3 };
 
       const result: Record<number, { s1: number; s2: number; s3: number }> = {};

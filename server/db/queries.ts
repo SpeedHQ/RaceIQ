@@ -653,53 +653,6 @@ export async function saveTrackOutlineFromPackets(
 }
 
 /**
- * Get stored sectors for a track ordinal from the track_outlines table.
- * Returns {s1End, s2End} or null if not stored.
- */
-export async function getTrackOutlineSectors(
-  trackOrdinal: number,
-  gameId: GameId
-): Promise<{ s1End: number; s2End: number } | null> {
-  const row = await db
-    .select({ sectors: trackOutlines.sectors })
-    .from(trackOutlines)
-    .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
-    .get();
-
-  if (!row?.sectors) return null;
-  try {
-    return JSON.parse(row.sectors as string);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Update just the sector boundaries (s1End, s2End) for a track outline.
- * Returns true if a row was updated.
- */
-export async function updateTrackOutlineSectors(
-  trackOrdinal: number,
-  sectors: { s1End: number; s2End: number },
-  gameId: GameId
-): Promise<boolean> {
-  const existing = await db
-    .select({ id: trackOutlines.id })
-    .from(trackOutlines)
-    .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
-    .get();
-
-  if (!existing) return false;
-
-  await db.update(trackOutlines)
-    .set({ sectors: JSON.stringify(sectors) })
-    .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
-    .run();
-
-  return true;
-}
-
-/**
  * Check if a recorded (DB) outline exists for a track ordinal.
  */
 export async function hasRecordedOutline(trackOrdinal: number, gameId: GameId): Promise<boolean> {
