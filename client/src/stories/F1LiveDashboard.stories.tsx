@@ -14,6 +14,8 @@ import {
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
+// Pre-seed LapTimeChart query so it renders without a server
+queryClient.setQueryData(["laps", "f1-2025"], fakeSessionLaps);
 
 function StoryDecorator({ children }: { children: React.ReactNode }) {
   // Inject fake state into stores before render

@@ -15,6 +15,7 @@ import {
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
+queryClient.setQueryData(["laps", "fm-2023"], fakeSessionLaps);
 
 function StoryDecorator({ children }: { children: React.ReactNode }) {
   useTelemetryStore.setState({
