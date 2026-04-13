@@ -27,7 +27,7 @@ import { getTuneById as getDbTune } from "../db/tune-queries";
 import { generateExport } from "../export";
 import { compareLaps } from "../comparison";
 import { detectCorners } from "../corner-detection";
-import { getTrackSectorsByOrdinal, loadSharedTrackMeta } from "../../shared/track-data";
+import { getTrackSectorsByOrdinal } from "../../shared/track-data";
 import { getGame } from "../../shared/games/registry";
 
 import type { GameId } from "../../shared/types";

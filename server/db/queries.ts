@@ -597,15 +597,12 @@ export async function saveTrackOutline(
   trackOrdinal: number,
   points: { x: number; z: number; speed?: number }[],
   gameId: GameId,
-  sectors?: { s1End: number; s2End: number }
 ): Promise<void> {
   if (points.length < 10) return;
 
   const compressed = Buffer.from(
     Bun.gzipSync(Buffer.from(JSON.stringify(points)))
   );
-
-  const sectorsJson = sectors ? JSON.stringify(sectors) : null;
 
   // Upsert
   const existing = await db
@@ -616,12 +613,12 @@ export async function saveTrackOutline(
 
   if (existing) {
     await db.update(trackOutlines)
-      .set({ outline: compressed, sectors: sectorsJson })
+      .set({ outline: compressed })
       .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
       .run();
   } else {
     await db.insert(trackOutlines)
-      .values({ trackOrdinal, outline: compressed, sectors: sectorsJson, gameId })
+      .values({ trackOrdinal, outline: compressed, gameId })
       .run();
   }
 
