@@ -54,8 +54,8 @@ const basePacket = {
   Fuel: 42.5, // litres remaining (F1/ACC treat as litres; Forza overrides below)
   DistanceTraveled: 3240,
   BestLap: 92.341,
-  LastLap: 93.105,
-  CurrentLap: 28.5,
+  LastLap: 92.341,     // lap 4
+  CurrentLap: 61.645,  // S1 29.845 + S2 31.8 elapsed so far
   CurrentRaceTime: 445.2,
   LapNumber: 5,
   RacePosition: 3,
@@ -149,9 +149,9 @@ export const fakeF1Packet: TelemetryPacket = {
     rainPercentage: 15,
     sessionType: "Race",
     totalLaps: 57,
-    currentSector: 1,
+    currentSector: 2,   // in sector 2 (1-indexed)
     sector1Time: 29.845,
-    sector2Time: 0,
+    sector2Time: 0,     // not yet completed
     brakeTempFL: 580,
     brakeTempFR: 575,
     brakeTempRL: 420,
@@ -171,7 +171,7 @@ export const fakeF1Packet: TelemetryPacket = {
     fuelMix: 1,
     frontBrakeBias: 57,
     pitLimiterStatus: 0,
-    fuelRemainingLaps: 32.4,
+    fuelRemainingLaps: 15.2,
     drsActivationDistance: 48,
     actualTyreCompound: 19,
     vehicleFIAFlags: 0,
@@ -375,25 +375,29 @@ export const fakeForzaDisplayPacket: DisplayPacket = makeDisplayPacket(fakeForza
 export const fakeAccDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAccPacket);
 
 // ── Sector Data ──────────────────────────────────────────────────────────────
+// We are on lap 5, partway through S2.
+// Last completed lap = lap 4: S1=29.845 S2=32.21 S3=30.286 → 92.341
+// Best sectors across all laps: S1=29.8 (lap3), S2=32.21 (lap4), S3=30.286 (lap4)
+// Current lap: S1=29.845 done, S2 running at ~31.8 (on pace for purple)
 
 export const fakeSectors: LiveSectorData = {
-  currentSector: 1,
-  currentSectorTime: 28.5,
-  currentTimes: [29.845, 28.5, 0],
-  lastTimes: [29.920, 32.815, 31.370],
-  bestTimes: [29.845, 32.210, 31.050],
-  lastLapTime: 94.105,
-  bestLapTime: 92.341,
-  estimatedLap: 93.980,
-  deltaToBest: 1.639,
-  deltaToLast: -0.125,
+  currentSector: 1,          // 0-indexed: in sector 2
+  currentSectorTime: 31.8,   // elapsed time in current sector (S2)
+  currentTimes: [29.845, 31.8, 0],          // S1 done, S2 in progress
+  lastTimes: [29.845, 32.210, 30.286],      // lap 4 sectors (sum = 92.341)
+  bestTimes: [29.800, 32.210, 30.286],      // best S1 from lap3, S2+S3 from lap4
+  lastLapTime: 92.341,                      // lap 4
+  bestLapTime: 92.341,                      // lap 4 is best
+  estimatedLap: 92.686,                     // S1=29.845 + S2~31.8 + bestS3=30.286 est → ≈91.9 optimistic; use 92.686
+  deltaToBest: 0.345,                       // on track for +0.345 vs best
+  deltaToLast: 0.345,                       // same as best this session
 };
 
 // ── Pit Data ─────────────────────────────────────────────────────────────────
 
 export const fakePit: LivePitData = {
   fuelPerLap: 2.8,
-  fuelLapsRemaining: 18.4,
+  fuelLapsRemaining: 15.2,  // 42.5L ÷ 2.8L/lap
   currentLapFuelUsed: 1.4,
   tireLapsToBad: 12,
   tireLapsToCritical: 22,
