@@ -1,0 +1,63 @@
+name: Update dashboard screenshots in README
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "screenshots/**"
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy screenshots to assets/screenshots/
+        run: |
+          cp screenshots/F1LiveDashboard.png assets/screenshots/F1LiveDashboard.png
+          cp screenshots/ForzaLiveDashboard.png assets/screenshots/ForzaLiveDashboard.png
+          cp screenshots/AccLiveDashboard.png assets/screenshots/AccLiveDashboard.png
+
+      - name: Inject screenshots into README
+        run: |
+          BLOCK="### Live Dashboards\n\n"
+          BLOCK+="| F1 2025 | Forza Motorsport | Assetto Corsa Competizione |\n"
+          BLOCK+="|---|---|---|\n"
+          BLOCK+="| ![F1 2025](assets/screenshots/F1LiveDashboard.png) | ![Forza Motorsport](assets/screenshots/ForzaLiveDashboard.png) | ![ACC](assets/screenshots/AccLiveDashboard.png) |\n"
+
+          # Replace content between marker comments
+          python3 - <<'PYEOF'
+          import re, pathlib
+
+          readme = pathlib.Path("README.md").read_text()
+          block = (
+            "### Live Dashboards\n\n"
+            "| F1 2025 | Forza Motorsport | Assetto Corsa Competizione |\n"
+            "|---|---|---|\n"
+            "| ![F1 2025](assets/screenshots/F1LiveDashboard.png) "
+            "| ![Forza Motorsport](assets/screenshots/ForzaLiveDashboard.png) "
+            "| ![ACC](assets/screenshots/AccLiveDashboard.png) |\n"
+          )
+          updated = re.sub(
+            r"<!-- dashboard-screenshots-start -->.*?<!-- dashboard-screenshots-end -->",
+            f"<!-- dashboard-screenshots-start -->\n{block}<!-- dashboard-screenshots-end -->",
+            readme,
+            flags=re.DOTALL,
+          )
+          pathlib.Path("README.md").write_text(updated)
+          PYEOF
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/screenshots/F1LiveDashboard.png \
+                  assets/screenshots/ForzaLiveDashboard.png \
+                  assets/screenshots/AccLiveDashboard.png \
+                  README.md
+          git diff --cached --quiet || git commit -m "chore: update dashboard screenshots in README [skip ci]"
+          git push

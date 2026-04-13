@@ -29,6 +29,9 @@ It captures telemetry from your racing games, provides a live dashboard, records
 
 Check out the [demo](https://www.youtube.com/watch?v=hWuIItofivA) and [screenshots](assets/screenshots/) to see it in action.
 
+<!-- dashboard-screenshots-start -->
+<!-- dashboard-screenshots-end -->
+
 ## Features
 
 - **Live telemetry** — real-time dashboard with speed, inputs, tires, suspension, G-forces, and 3D car visualization
