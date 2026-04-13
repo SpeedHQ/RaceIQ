@@ -605,6 +605,7 @@ export interface TuneSettings {
     rearDownforce: number;
     unit?: string;
   };
+  drivetrain?: "rwd" | "fwd" | "awd";
   differential: {
     frontAccel?: number;
     frontDecel?: number;

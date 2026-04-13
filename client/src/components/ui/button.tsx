@@ -22,7 +22,7 @@ const buttonVariants = cva(
 
         // App design-token variants (use app-* CSS vars)
         "app-outline": "!border-neutral-700 text-app-text-secondary hover:text-app-text rounded",
-        "app-primary": "bg-app-accent text-white hover:bg-app-accent/80 rounded",
+        "app-primary": "bg-app-accent text-white hover:bg-app-accent/80 rounded disabled:bg-app-accent/40 disabled:opacity-100",
         "app-ghost":   "text-app-text-secondary hover:text-app-text rounded",
         "app-danger":  "bg-red-600 text-white hover:bg-red-500 rounded",
       },

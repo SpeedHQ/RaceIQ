@@ -341,8 +341,8 @@ function GearRatioChart({ ratios, finalDrive, topSpeedMph }: { ratios: number[];
 
   const maxSpeed = Math.ceil(toKph(MAX_RPM, ratios[ratios.length - 1]) / 50) * 50;
 
-  const W = 340, H = 160;
-  const pad = { top: 20, right: 20, bottom: 28, left: 32 };
+  const W = 280, H = 110;
+  const pad = { top: 16, right: 16, bottom: 22, left: 28 };
   const cW = W - pad.left - pad.right;
   const cH = H - pad.top - pad.bottom;
 
@@ -354,7 +354,7 @@ function GearRatioChart({ ratios, finalDrive, topSpeedMph }: { ratios: number[];
   const speedGrids = Array.from({ length: 6 }, (_, i) => Math.round((maxSpeed / 5) * i));
 
   return (
-    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', maxWidth: '280px' }}>
       <defs>
         <clipPath id="gchart">
           <rect x={pad.left} y={pad.top} width={cW} height={cH} />
@@ -433,7 +433,8 @@ export function TuneForm({
   const [category, setCategory] = useState<TuneCategory>(initialData?.category ?? "circuit");
   const [description, setDescription] = useState(initialData?.description ?? "");
   const [settings, setSettings] = useState<TuneSettings>(withDefaults(initialData?.settings));
-  const [activeTab, setActiveTab] = useState<"info" | "settings">("info");
+  const [drivetrain, setDrivetrain] = useState<"rwd" | "fwd" | "awd">(initialData?.settings?.drivetrain ?? "rwd");
+  const [activeTab, setActiveTab] = useState<"info" | "settings">("settings");
   const [jsonMode, setJsonMode] = useState(false);
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
@@ -459,6 +460,7 @@ export function TuneForm({
     setCategory(initialData?.category ?? "circuit");
     setDescription(initialData?.description ?? "");
     setSettings(withDefaults(initialData?.settings));
+    setDrivetrain(initialData?.settings?.drivetrain ?? "rwd");
     setActiveTab("info");
     setJsonMode(false);
     setJsonText("");
@@ -496,6 +498,7 @@ export function TuneForm({
     e.preventDefault();
     const savedSettings: TuneSettings = {
       ...settings,
+      drivetrain,
       springs: { ...settings.springs, unit: unitLabel("springs", isMetric) },
       aero: { ...settings.aero, unit: unitLabel("aero", isMetric) },
     };
@@ -576,6 +579,14 @@ export function TuneForm({
             <span className="text-xs font-medium text-app-text-muted">Category</span>
             <select value={category} onChange={(e) => setCategory(e.target.value as TuneCategory)} className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent">
               {ALL_CATEGORIES.map((c) => (<option key={c} value={c}>{CATEGORY_LABELS[c]}</option>))}
+            </select>
+          </label>
+          <label className="space-y-1">
+            <span className="text-xs font-medium text-app-text-muted">Drivetrain</span>
+            <select value={drivetrain} onChange={(e) => setDrivetrain(e.target.value as "rwd" | "fwd" | "awd")} className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent">
+              <option value="rwd">RWD</option>
+              <option value="fwd">FWD</option>
+              <option value="awd">AWD</option>
             </select>
           </label>
           <label className="col-span-2 space-y-1">
@@ -717,11 +728,17 @@ export function TuneForm({
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Differential</h4>
-                <NumberField label="Rear Accel" value={settings.differential.rearAccel} onChange={(v) => updateSettings("differential", "rearAccel", v)} step={1} unit="%" />
-                <NumberField label="Rear Decel" value={settings.differential.rearDecel} onChange={(v) => updateSettings("differential", "rearDecel", v)} step={1} unit="%" />
-                <NumberField label="Front Accel" value={settings.differential.frontAccel ?? 0} onChange={(v) => updateSettings("differential", "frontAccel", v)} step={1} unit="%" />
-                <NumberField label="Front Decel" value={settings.differential.frontDecel ?? 0} onChange={(v) => updateSettings("differential", "frontDecel", v)} step={1} unit="%" />
-                <NumberField label="Center" value={settings.differential.center ?? 50} onChange={(v) => updateSettings("differential", "center", v)} step={1} unit="%" />
+                {(drivetrain === "rwd" || drivetrain === "awd") && <>
+                  <NumberField label="Rear Accel" value={settings.differential.rearAccel} onChange={(v) => updateSettings("differential", "rearAccel", v)} step={1} unit="%" />
+                  <NumberField label="Rear Decel" value={settings.differential.rearDecel} onChange={(v) => updateSettings("differential", "rearDecel", v)} step={1} unit="%" />
+                </>}
+                {(drivetrain === "fwd" || drivetrain === "awd") && <>
+                  <NumberField label="Front Accel" value={settings.differential.frontAccel ?? 0} onChange={(v) => updateSettings("differential", "frontAccel", v)} step={1} unit="%" />
+                  <NumberField label="Front Decel" value={settings.differential.frontDecel ?? 0} onChange={(v) => updateSettings("differential", "frontDecel", v)} step={1} unit="%" />
+                </>}
+                {drivetrain === "awd" && (
+                  <NumberField label="Center" value={settings.differential.center ?? 50} onChange={(v) => updateSettings("differential", "center", v)} step={1} unit="%" />
+                )}
               </div>
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
