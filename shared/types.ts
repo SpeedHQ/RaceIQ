@@ -339,6 +339,7 @@ export interface TelemetryPacket {
   CurrentLap: number;
   CurrentRaceTime: number;
 
+
   // Lap/position
   LapNumber: number; // u16
   RacePosition: number; // u8

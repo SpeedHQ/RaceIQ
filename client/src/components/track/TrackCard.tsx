@@ -39,7 +39,12 @@ export function TrackCard({ track, onSelect, gameId }: { track: TrackInfo; onSel
       onClick={() => onSelect(track)}
     >
       <div className="p-3">
-        <div className="text-app-body font-medium text-app-text">{track.name}</div>
+        <div className="flex items-start justify-between gap-2">
+          <div className="text-app-body font-medium text-app-text">{track.name}</div>
+          <span className="shrink-0 text-app-label px-1.5 py-0.5 rounded bg-app-surface-alt border border-app-border text-app-text-muted">
+            {track.lapCount ?? 0} {(track.lapCount ?? 0) === 1 ? "lap" : "laps"}
+          </span>
+        </div>
         <div className="text-app-label text-app-text-muted">
           {track.variant} · {track.location}, {countryName(track.country)}
           {track.lengthKm > 0 && ` · ${track.lengthKm} km`}

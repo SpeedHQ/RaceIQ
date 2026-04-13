@@ -44,11 +44,6 @@ describe("CapturingDbAdapter", () => {
     expect(await db.getLaps("f1-2025", 100)).toEqual([]);
   });
 
-  test("getTrackOutlineSectors returns null", async () => {
-    const db = new CapturingDbAdapter();
-    expect(await db.getTrackOutlineSectors(1, "f1-2025")).toBeNull();
-  });
-
   test("getTuneAssignment returns null", async () => {
     const db = new CapturingDbAdapter();
     expect(await db.getTuneAssignment(1, 1)).toBeNull();

@@ -129,6 +129,7 @@ interface SharedTrackMeta {
   name: string;
   sectors?: TrackSectors;
   segments?: NamedSegment[];
+  games?: Record<string, { sectors?: TrackSectors; segments?: NamedSegment[] }>;
 }
 
 const sharedTrackMetaCache = new Map<string, SharedTrackMeta | null>();

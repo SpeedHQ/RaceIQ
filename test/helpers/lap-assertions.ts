@@ -16,6 +16,19 @@ export function assertSectorTimesMatchLapTime(lap: CapturedLap, tolerance: numbe
 }
 
 /**
+ * Assert that a valid lap has non-null sector times and they sum to the lap time.
+ * Use this for valid laps where sectors must be computed.
+ */
+export function assertValidLapHasSectors(lap: CapturedLap, tolerance: number = 0.5): void {
+  expect(lap.sectors).not.toBeNull();
+  expect(lap.sectors!.s1).toBeGreaterThan(0);
+  expect(lap.sectors!.s2).toBeGreaterThan(0);
+  expect(lap.sectors!.s3).toBeGreaterThan(0);
+  const sectorSum = lap.sectors!.s1 + lap.sectors!.s2 + lap.sectors!.s3;
+  expect(Math.abs(sectorSum - lap.lapTime)).toBeLessThan(tolerance);
+}
+
+/**
  * Assert that a lap's telemetry shows proper start/end times.
  * Detects lap splitting issues by checking that:
  * - Lap starts with CurrentLap time near 0

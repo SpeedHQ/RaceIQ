@@ -3,7 +3,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { parseDump } from "../../helpers/parse-dump";
 import { generateRecordingVisualizations } from "../../helpers/lap-viz";
-import { assertSectorTimesMatchLapTime, assertLapTimesProper } from "../../helpers/lap-assertions";
+import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertValidLapHasSectors } from "../../helpers/lap-assertions";
 import type { LapSavedNotification } from "../../../server/lap-detector";
 import { assertBrandHatchSectorBounds, lapSummary, RECORDINGS_DIR } from "./shared";
 
@@ -46,6 +46,9 @@ describe(recordingFile, () => {
     expect(laps[2].lapTime).toBeCloseTo(88.120, 0);
     expect(laps[3].lapTime).toBeCloseTo(89.277, 0);
 
+    assertValidLapHasSectors(laps[1]);
+    assertValidLapHasSectors(laps[2]);
+    assertValidLapHasSectors(laps[3]);
     assertBrandHatchSectorBounds(laps[1]);
     assertBrandHatchSectorBounds(laps[2]);
     assertBrandHatchSectorBounds(laps[3]);

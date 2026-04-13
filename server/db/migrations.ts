@@ -160,4 +160,11 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       )`,
     ],
   },
+  {
+    version: 17,
+    name: "drop sectors column from track_outlines",
+    sql: [
+      `ALTER TABLE track_outlines DROP COLUMN sectors`,
+    ],
+  },
 ];

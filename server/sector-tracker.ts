@@ -6,7 +6,7 @@
  * client just renders numbers.
  */
 import type { TelemetryPacket, GameId, LiveSectorData, LivePitData, LapMeta } from "../shared/types";
-import { getTrackOutlineSectors, getLaps, getLapById } from "./db/queries";
+import { getLaps, getLapById } from "./db/queries";
 import { getTrackSectorsByOrdinal, getTrackOutlineByOrdinal, loadSharedTrackMeta } from "../shared/track-data";
 import { tryGetGame } from "../shared/games/registry";
 
@@ -67,9 +67,8 @@ export class SectorTracker {
     // Load sector boundaries: DB → shared meta → bundled fallback
     const adapter = tryGetGame(gameId);
     const sharedName = adapter?.getSharedTrackName?.(trackOrdinal);
-    const dbSectors = await getTrackOutlineSectors(trackOrdinal, gameId);
     const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-    const sectors = dbSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(trackOrdinal);
+    const sectors = sharedMeta?.games?.[gameId]?.sectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(trackOrdinal);
 
     if (!sectors?.s1End || !sectors?.s2End) return;
 
