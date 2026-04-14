@@ -16,7 +16,7 @@ export function parseAccBuffers(
   physicsBuf: Buffer,
   graphicsBuf: Buffer,
   staticBuf: Buffer,
-  overrides?: { carOrdinal?: number; trackOrdinal?: number; gameId?: import("../../../shared/types").GameId }
+  overrides?: { carOrdinal?: number; trackOrdinal?: number; gameId?: import("../../../shared/types").GameId; playerSlot?: number }
 ): TelemetryPacket | null {
   if (
     physicsBuf.length < PHYSICS.SIZE ||
@@ -192,13 +192,16 @@ export function parseAccBuffers(
   const flag = graphicsBuf.readInt32LE(GRAPHICS.flag.offset);
 
   // Car world position from graphics: find player slot via playerCarID
-  const playerCarID = graphicsBuf.readInt32LE(GRAPHICS.playerCarID.offset);
-  let playerSlot = 0;
-  if (playerCarID > 0) {
-    for (let i = 0; i < 60; i++) {
-      if (graphicsBuf.readInt32LE(GRAPHICS.carIDBase.offset + i * 4) === playerCarID) {
-        playerSlot = i;
-        break;
+  // overrides.playerSlot takes precedence (used by AC Evo which calibrates slot externally)
+  let playerSlot = overrides?.playerSlot ?? 0;
+  if (overrides?.playerSlot === undefined) {
+    const playerCarID = graphicsBuf.readInt32LE(GRAPHICS.playerCarID.offset);
+    if (playerCarID > 0) {
+      for (let i = 0; i < 60; i++) {
+        if (graphicsBuf.readInt32LE(GRAPHICS.carIDBase.offset + i * 4) === playerCarID) {
+          playerSlot = i;
+          break;
+        }
       }
     }
   }

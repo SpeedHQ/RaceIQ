@@ -9,6 +9,7 @@ import { getAllServerGames } from "../../server/games/registry";
 import { readUdpDump } from "./recording";
 import { readAccFrames } from "../../server/games/acc/recorder";
 import { parseAccBuffers } from "../../server/games/acc/parser";
+import { parseAcEvoBuffers, createAcEvoParserCache } from "../../server/games/ac-evo/parser";
 import { readWString } from "../../server/games/acc/utils";
 import { STATIC } from "../../server/games/acc/structs";
 import { getAccCarByModel } from "../../shared/acc-car-data";
@@ -67,6 +68,31 @@ export function readAccPackets(dumpPath: string): ParsedFrames {
 }
 
 /**
+ * Read all packets from an AC Evo recording. Exported for reuse by tests.
+ */
+export function readAcEvoPackets(dumpPath: string): ParsedFrames {
+  let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
+  try {
+    frames = readAccFrames(dumpPath);
+  } catch {
+    return { packets: [], carModel: null, trackName: null };
+  }
+  let carModel: string | null = null;
+  let trackName: string | null = null;
+  const cache = createAcEvoParserCache();
+  const packets: TelemetryPacket[] = [];
+  for (const frame of frames) {
+    const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
+    const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
+    if (cm && !carModel) carModel = cm;
+    if (tn && !trackName) trackName = tn;
+    const packet = parseAcEvoBuffers(frame.physics, frame.graphics, frame.staticData, cache);
+    if (packet) packets.push(packet);
+  }
+  return { packets, carModel, trackName };
+}
+
+/**
  * Read all packets from a UDP dump. Exported for reuse by parseDumpV2.
  */
 export function readUdpPackets(dumpPath: string): ParsedFrames {
@@ -110,6 +136,13 @@ export async function parseDump(
 
   if (gameId === "acc") {
     const parsed = readAccPackets(dumpPath);
+    carModel = parsed.carModel;
+    trackName = parsed.trackName;
+    for (const packet of parsed.packets) {
+      await pipeline.processPacket(packet);
+    }
+  } else if (gameId === "ac-evo") {
+    const parsed = readAcEvoPackets(dumpPath);
     carModel = parsed.carModel;
     trackName = parsed.trackName;
     for (const packet of parsed.packets) {

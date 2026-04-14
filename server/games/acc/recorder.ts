@@ -36,7 +36,7 @@ function defaultRecordingDir(): string {
   return resolve(process.cwd(), "test", "artifacts", "laps");
 }
 
-export class AccRecorder {
+export class AcRecorder {
   private _file: Bun.FileSink | null = null;
   private _path: string | null = null;
   private _frameCount = 0;
@@ -54,7 +54,7 @@ export class AccRecorder {
   }
 
   /** Start recording to a new file. Returns the file path. */
-  start(dir?: string): string {
+  start(dir?: string, prefix = "acc"): string {
     if (this._file) this.stop();
 
     const outDir = dir ?? defaultRecordingDir();
@@ -63,7 +63,7 @@ export class AccRecorder {
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `acc-${timestamp}.bin`;
+    const filename = `${prefix}-${timestamp}.bin`;
     this._path = resolve(outDir, filename);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this._file = (Bun.file(this._path) as any).writer({ append: true });
@@ -408,4 +408,4 @@ export async function replayRecording(
   };
 }
 
-export const accRecorder = new AccRecorder();
+export const accRecorder = new AcRecorder();

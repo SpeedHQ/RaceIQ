@@ -60,7 +60,8 @@ export function AnalyseDataPanel({
     if (gameId === "fm-2023" || pkt.Boost > 0) lines.push(`Boost: ${pkt.Boost.toFixed(1)} psi`);
     if (gameId === "fm-2023" || pkt.Power > 0) lines.push(`Power: ${(pkt.Power / 745.7).toFixed(0)} hp`);
     if (gameId === "fm-2023" || pkt.Torque > 0) lines.push(`Torque: ${pkt.Torque.toFixed(0)} Nm`);
-    lines.push(`Fuel: ${(pkt.Fuel * 100).toFixed(1)}%`);
+    const fuelIsLitres = pkt.gameId === "acc" || pkt.gameId === "ac-evo" || pkt.gameId === "f1-2025";
+    lines.push(fuelIsLitres ? `Fuel: ${pkt.Fuel.toFixed(1)}L` : `Fuel: ${(pkt.Fuel * 100).toFixed(1)}%`);
 
     // Dynamics
     lines.push("", "--- Dynamics ---");

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { AccRecorder, readAccFrames } from "../server/games/acc/recorder";
+import { AcRecorder, readAccFrames } from "../server/games/acc/recorder";
 import { PHYSICS, GRAPHICS, STATIC } from "../server/games/acc/structs";
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
@@ -9,7 +9,7 @@ describe("readAccFrames", () => {
   test("emits one triplet per [physics, graphics, static] group", async () => {
     const dir = mkdtempSync(join(os.tmpdir(), "acc-test-"));
     try {
-      const recorder = new AccRecorder();
+      const recorder = new AcRecorder();
       const filePath = recorder.start(dir);
 
       const physics = Buffer.alloc(PHYSICS.SIZE, 0x01);
@@ -38,7 +38,7 @@ describe("readAccFrames", () => {
   test("returns empty array for file with no frames", async () => {
     const dir = mkdtempSync(join(os.tmpdir(), "acc-test-"));
     try {
-      const recorder = new AccRecorder();
+      const recorder = new AcRecorder();
       const filePath = recorder.start(dir);
       await recorder.stop();
       const frames = readAccFrames(filePath);

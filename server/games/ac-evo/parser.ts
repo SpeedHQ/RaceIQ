@@ -8,14 +8,20 @@
  *
  * Offsets that differ from ACC will be noted here as they're discovered during
  * early access. Physics struct is confirmed identical.
+ *
+ * Known AC Evo v0.5 limitations (lap detection not possible until fixed upstream):
+ *   - completedLaps, iCurrentTime, normalizedCarPosition, distanceTraveled all zero
  */
 
 import { parseAccBuffers } from "../acc/parser";
-import { STATIC, GRAPHICS } from "../acc/structs";
+import { STATIC, GRAPHICS, PHYSICS } from "../acc/structs";
 import { readWString } from "../acc/utils";
 import { getAcEvoCarByDisplayName } from "../../../shared/ac-evo-car-data";
 import { getAcEvoTrackByName } from "../../../shared/ac-evo-track-data";
 import type { TelemetryPacket } from "../../../shared/types";
+
+const SLOT_CALIBRATION_FRAMES = 60; // frames of movement needed to lock in player slot
+const SPEED_THRESHOLD_KMH = 20;     // only score slots when car is actually moving
 
 export function parseAcEvoBuffers(
   physicsBuf: Buffer,
@@ -52,6 +58,11 @@ export function parseAcEvoBuffers(
     }
   }
 
+  // Calibrate player slot if not yet locked
+  if (cache.playerSlot === -1) {
+    calibratePlayerSlot(physicsBuf, graphicsBuf, cache);
+  }
+
   // Read normalizedCarPosition from graphics — used for track map
   // Same offset as ACC (248)
   const normalizedCarPos = graphicsBuf.readFloatLE(GRAPHICS.normalizedCarPosition.offset);
@@ -60,17 +71,11 @@ export function parseAcEvoBuffers(
     carOrdinal: cache.carOrdinal,
     trackOrdinal: cache.trackOrdinal,
     gameId: "ac-evo",
+    playerSlot: cache.playerSlot === -1 ? undefined : cache.playerSlot,
   });
 
-  if (packet) {
-    // AC Evo may not populate STATIC maxRpm — fall back to physics currentMaxRpm
-    // which is already handled in parseAccBuffers (EngineMaxRpm: currentMaxRpm || maxRpm)
-
-    // Attach normalized car position for track map (not in base TelemetryPacket,
-    // stored in acc extended data)
-    if (packet.acc) {
-      (packet.acc as any).normalizedCarPosition = normalizedCarPos;
-    }
+  if (packet && packet.acc) {
+    (packet.acc as any).normalizedCarPosition = normalizedCarPos;
   }
 
   return packet;
@@ -82,8 +87,81 @@ export interface AcEvoParserCache {
   trackOrdinal: number;
   lastCarModel: string;
   lastTrack: string;
+  /** Locked player slot (-1 = not yet identified) */
+  playerSlot: number;
+  /** Per-slot cosine score accumulators for slot calibration */
+  _slotScores: Float32Array;
+  /** Number of scored frames so far */
+  _scoredFrames: number;
+  /** Previous graphics coordinates per slot for delta computation [slot][xyz] */
+  _prevCoords: Float32Array;
 }
 
 export function createAcEvoParserCache(): AcEvoParserCache {
-  return { carOrdinal: 0, trackOrdinal: 0, lastCarModel: "", lastTrack: "" };
+  return {
+    carOrdinal: 0,
+    trackOrdinal: 0,
+    lastCarModel: "",
+    lastTrack: "",
+    playerSlot: -1,
+    _slotScores: new Float32Array(60),
+    _scoredFrames: 0,
+    _prevCoords: new Float32Array(60 * 3),
+  };
+}
+
+/**
+ * Identify the player slot by correlating physics velocity direction with
+ * coordinate deltas across slots. Called each frame until the slot is locked.
+ */
+function calibratePlayerSlot(
+  physicsBuf: Buffer,
+  graphicsBuf: Buffer,
+  cache: AcEvoParserCache,
+): void {
+  const speedKmh = physicsBuf.readFloatLE(PHYSICS.speedKmh.offset);
+  if (speedKmh < SPEED_THRESHOLD_KMH) return;
+
+  const velX = physicsBuf.readFloatLE(PHYSICS.velocityX.offset);
+  const velZ = physicsBuf.readFloatLE(PHYSICS.velocityZ.offset);
+  const velMag = Math.sqrt(velX * velX + velZ * velZ);
+  if (velMag < 0.1) return;
+
+  const activeCars = graphicsBuf.readInt32LE(GRAPHICS.activeCars.offset);
+  const coordBase = GRAPHICS.carCoordinatesBase.offset;
+
+  for (let i = 0; i < Math.min(activeCars, 60); i++) {
+    const x = graphicsBuf.readFloatLE(coordBase + i * 12);
+    const z = graphicsBuf.readFloatLE(coordBase + i * 12 + 8);
+    const prevX = cache._prevCoords[i * 3];
+    const prevZ = cache._prevCoords[i * 3 + 2];
+
+    const dx = x - prevX;
+    const dz = z - prevZ;
+    const dMag = Math.sqrt(dx * dx + dz * dz);
+
+    if (dMag > 0.01) {
+      // Cosine similarity between velocity and coordinate delta
+      const cosine = (velX * dx + velZ * dz) / (velMag * dMag);
+      cache._slotScores[i] += cosine;
+    }
+
+    cache._prevCoords[i * 3] = x;
+    cache._prevCoords[i * 3 + 2] = z;
+  }
+
+  cache._scoredFrames++;
+
+  if (cache._scoredFrames >= SLOT_CALIBRATION_FRAMES) {
+    let bestSlot = 0;
+    let bestScore = -Infinity;
+    for (let i = 0; i < 60; i++) {
+      if (cache._slotScores[i] > bestScore) {
+        bestScore = cache._slotScores[i];
+        bestSlot = i;
+      }
+    }
+    cache.playerSlot = bestSlot;
+    console.log(`[AC Evo Parser] Player slot locked: ${bestSlot} (score ${bestScore.toFixed(1)} after ${cache._scoredFrames} frames)`);
+  }
 }

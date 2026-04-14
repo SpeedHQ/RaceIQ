@@ -171,8 +171,8 @@ import { startTray } from "./tray";
 // Create ACC reader with recording mode flag (if --record=acc)
 export const accReader = new AccSharedMemoryReader(recordingGameId === "acc");
 
-// Create AC Evo reader alongside ACC reader
-export const acEvoReader = new AcEvoSharedMemoryReader();
+// Create AC Evo reader with recording mode flag (if --record=ac-evo)
+export const acEvoReader = new AcEvoSharedMemoryReader(recordingGameId === "ac-evo");
 
 // Start ACC shared memory reader + system tray (Windows only)
 if (process.platform === "win32") {
@@ -183,7 +183,11 @@ if (process.platform === "win32") {
     console.log("[Server] ACC shared memory reader started (will connect when ACC is running)");
   }
   acEvoReader.start();
-  console.log("[Server] AC Evo shared memory reader started (will connect when AC Evo is running)");
+  if (recordingGameId === "ac-evo") {
+    console.log("[Server] AC Evo recording mode: bin file created, waiting for AC Evo process");
+  } else {
+    console.log("[Server] AC Evo shared memory reader started (will connect when AC Evo is running)");
+  }
   startTray(HTTP_PORT);
 }
 

@@ -54,15 +54,15 @@ export class StatusCheckProcessor implements TripletProcessor {
  * DumpToBinProcessor: writes raw buffers to .bin file (recording mode).
  */
 export class DumpToBinProcessor implements TripletProcessor {
-  private accRecorder: any;
-  constructor(accRecorder: any) {
-    this.accRecorder = accRecorder;
+  private recorder: any;
+  constructor(recorder: any) {
+    this.recorder = recorder;
   }
 
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<void> {
-    this.accRecorder.writePhysics(triplet.physics);
-    this.accRecorder.writeGraphics(triplet.graphics);
-    this.accRecorder.writeStatic(triplet.staticData);
+    this.recorder.writePhysics(triplet.physics);
+    this.recorder.writeGraphics(triplet.graphics);
+    this.recorder.writeStatic(triplet.staticData);
   }
 }
 
