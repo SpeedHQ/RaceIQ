@@ -597,15 +597,12 @@ export async function saveTrackOutline(
   trackOrdinal: number,
   points: { x: number; z: number; speed?: number }[],
   gameId: GameId,
-  sectors?: { s1End: number; s2End: number }
 ): Promise<void> {
   if (points.length < 10) return;
 
   const compressed = Buffer.from(
     Bun.gzipSync(Buffer.from(JSON.stringify(points)))
   );
-
-  const sectorsJson = sectors ? JSON.stringify(sectors) : null;
 
   // Upsert
   const existing = await db
@@ -616,12 +613,12 @@ export async function saveTrackOutline(
 
   if (existing) {
     await db.update(trackOutlines)
-      .set({ outline: compressed, sectors: sectorsJson })
+      .set({ outline: compressed })
       .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
       .run();
   } else {
     await db.insert(trackOutlines)
-      .values({ trackOrdinal, outline: compressed, sectors: sectorsJson, gameId })
+      .values({ trackOrdinal, outline: compressed, gameId })
       .run();
   }
 
@@ -650,53 +647,6 @@ export async function saveTrackOutlineFromPackets(
     });
   }
   await saveTrackOutline(trackOrdinal, points, gameId);
-}
-
-/**
- * Get stored sectors for a track ordinal from the track_outlines table.
- * Returns {s1End, s2End} or null if not stored.
- */
-export async function getTrackOutlineSectors(
-  trackOrdinal: number,
-  gameId: GameId
-): Promise<{ s1End: number; s2End: number } | null> {
-  const row = await db
-    .select({ sectors: trackOutlines.sectors })
-    .from(trackOutlines)
-    .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
-    .get();
-
-  if (!row?.sectors) return null;
-  try {
-    return JSON.parse(row.sectors as string);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Update just the sector boundaries (s1End, s2End) for a track outline.
- * Returns true if a row was updated.
- */
-export async function updateTrackOutlineSectors(
-  trackOrdinal: number,
-  sectors: { s1End: number; s2End: number },
-  gameId: GameId
-): Promise<boolean> {
-  const existing = await db
-    .select({ id: trackOutlines.id })
-    .from(trackOutlines)
-    .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
-    .get();
-
-  if (!existing) return false;
-
-  await db.update(trackOutlines)
-    .set({ sectors: JSON.stringify(sectors) })
-    .where(and(eq(trackOutlines.trackOrdinal, trackOrdinal), eq(trackOutlines.gameId, gameId)))
-    .run();
-
-  return true;
 }
 
 /**
@@ -959,4 +909,16 @@ export async function getLapsRaw(ids?: number[]) {
   }
 
   return await base.all();
+}
+
+/** Count laps per trackOrdinal for a given game. Returns a Map<trackOrdinal, count>. */
+export async function getLapCountsByTrack(gameId: GameId): Promise<Map<number, number>> {
+  const rows = await db
+    .select({ trackOrdinal: sessions.trackOrdinal, count: sql<number>`count(*)` })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(eq(sessions.gameId, gameId))
+    .groupBy(sessions.trackOrdinal)
+    .all();
+  return new Map(rows.map((r) => [r.trackOrdinal, Number(r.count)]));
 }

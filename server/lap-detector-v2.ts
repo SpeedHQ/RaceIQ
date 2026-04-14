@@ -180,7 +180,6 @@ export class LapDetectorV2 implements ILapDetector {
     }
 
     const sectors = await computeLapSectors(
-      this.db,
       this.currentSession!.trackOrdinal,
       this.currentSession!.gameId,
       packets,

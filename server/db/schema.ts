@@ -114,7 +114,6 @@ export const trackOutlines = sqliteTable(
     createdAt: text("created_at")
       .notNull()
       .default(sql`(datetime('now'))`),
-    sectors: text("sectors"), // JSON string of TrackSectors {s1End, s2End} or null
   },
   (table) => ({
     trackIdx: index("idx_outlines_track").on(table.trackOrdinal),

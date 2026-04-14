@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import type { LapSavedNotification } from "../../server/lap-detector";
 import { parseDump } from "../helpers/parse-dump";
-import { assertSectorTimesMatchLapTime, assertLapTimesProper } from "../helpers/lap-assertions";
+import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertValidLapHasSectors } from "../helpers/lap-assertions";
 import { generateRecordingVisualizations } from "../helpers/lap-viz";
 import { existsSync } from "fs";
 import { join } from "path";
@@ -64,6 +64,7 @@ describe("FM-2023 recording", () => {
         // Only check lap times for valid laps (skip incomplete/invalid ones)
         if (lap.isValid) {
           assertLapTimesProper(lap.packets, lap.lapTime);
+          assertValidLapHasSectors(lap);
         }
       }
 
@@ -160,6 +161,7 @@ describe("FM-2023 recording", () => {
         // Only check lap times for valid laps (skip incomplete/invalid ones)
         if (lap.isValid) {
           assertLapTimesProper(lap.packets, lap.lapTime);
+          assertValidLapHasSectors(lap);
         }
       }
 

@@ -3,6 +3,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { parseDump } from "../../helpers/parse-dump";
 import { assertBrandHatchSectorBounds, lapSummary, RECORDINGS_DIR } from "./shared";
+import { assertValidLapHasSectors } from "../../helpers/lap-assertions";
 
 const recordingFile = "acc-2026-04-12T20-41-21-436Z.bin.gz";
 const recording = join(RECORDINGS_DIR, recordingFile);
@@ -29,8 +30,10 @@ describe(recordingFile, () => {
 
     // Laps 2-3: clean laps
     expect(laps[2].isValid).toBe(true);
+    assertValidLapHasSectors(laps[2]);
     assertBrandHatchSectorBounds(laps[2]);
     expect(laps[3].isValid).toBe(true);
+    assertValidLapHasSectors(laps[3]);
     assertBrandHatchSectorBounds(laps[3]);
   });
 });

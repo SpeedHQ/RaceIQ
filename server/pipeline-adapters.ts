@@ -1,5 +1,5 @@
 import type { TelemetryPacket, LapMeta, LiveSectorData, LivePitData, GameId } from "../shared/types";
-import { insertSession, insertLap, getLaps, getTrackOutlineSectors } from "./db/queries";
+import { insertSession, insertLap, getLaps } from "./db/queries";
 import { getTuneAssignment } from "./db/tune-queries";
 import { wsManager } from "./ws";
 
@@ -41,10 +41,6 @@ export interface DbAdapter {
     sectors: { s1: number; s2: number; s3: number } | null
   ): Promise<number>;
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]>;
-  getTrackOutlineSectors(
-    trackOrdinal: number,
-    gameId: GameId
-  ): Promise<{ s1End: number; s2End: number } | null>;
   getTuneAssignment(
     carOrdinal: number,
     trackOrdinal: number
@@ -71,9 +67,6 @@ export class RealDbAdapter implements DbAdapter {
   }
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
     return getLaps(gameId, limit);
-  }
-  getTrackOutlineSectors(trackOrdinal: number, gameId: GameId): Promise<{ s1End: number; s2End: number } | null> {
-    return getTrackOutlineSectors(trackOrdinal, gameId);
   }
   getTuneAssignment(carOrdinal: number, trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
     return getTuneAssignment(carOrdinal, trackOrdinal);
@@ -112,10 +105,6 @@ export class CapturingDbAdapter implements DbAdapter {
 
   getLaps(_gameId: GameId, _limit: number): Promise<LapMeta[]> {
     return Promise.resolve([]);
-  }
-
-  getTrackOutlineSectors(_trackOrdinal: number, _gameId: GameId): Promise<{ s1End: number; s2End: number } | null> {
-    return Promise.resolve(null);
   }
 
   getTuneAssignment(_carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {

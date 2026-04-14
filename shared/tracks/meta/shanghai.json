@@ -2,6 +2,14 @@
   "name": "Shanghai International Circuit",
   "sectors": {
     "s1End": 0.314,
-    "s2End": 0.660
+    "s2End": 0.66
+  },
+  "games": {
+    "f1-2025": {
+      "sectors": {
+        "s1End": 0.342,
+        "s2End": 0.6809999999999999
+      }
+    }
   }
 }
