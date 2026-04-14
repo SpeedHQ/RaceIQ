@@ -94,13 +94,14 @@ export const f125Routes = new Hono()
           if (!data.trackSlug) continue;
           const setups = loadSetupsByTrack(data.trackSlug);
           const meta = loadTrackMeta(data.trackSlug);
+          const firstGuide = Array.isArray(meta.trackGuide) ? meta.trackGuide[0] : null;
           summary.push({
             trackSlug: data.trackSlug,
             trackName: data.trackName,
             trackOrdinal: data.trackOrdinal,
             setupCount: setups.length,
-            videoUrl: meta.videoUrl ?? "",
-            guideUrl: meta.guideUrl ?? "",
+            videoUrl: firstGuide?.videoUrl ?? meta.videoUrl ?? "",
+            guideUrl: firstGuide?.source ?? meta.guideUrl ?? "",
           });
         } catch {}
       }

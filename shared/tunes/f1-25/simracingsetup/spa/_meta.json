@@ -1,7 +1,32 @@
 {
-  "trackGuide": "Sector 1: Launch and Elevation\nTurn 1: La Source (Hairpin)\nApproach:\nHeavy braking into a tight right-hand hairpin after the start-finish straight.\nTips:\nBrake late but avoid locking up. Early acceleration is key for speed down to Eau Rouge.\nTurns 2-4: Eau Rouge & Raidillon\nApproach:\nOne of the most iconic corner combinations in Formula 1.\nTips:\nStay flat out in time trial or qualifying. For races, you might need a slight lift with heavy fuel. Take a tight line and avoid the kerbs too aggressively to prevent bottoming out.\nSector 2: Technical and Downforce Dependent\nTurn 5-6: Les Combes (Chicane)\nApproach:\nBrake hard at the end of the Kemmel Straight. Great overtaking opportunity.\nTips:\nUse all the track on entry, hit both apexes, and avoid running too wide to prevent time loss.\nTurn 7: Malmedy\nFast right-hander after Les Combes.\nTips:\nKeep momentum high and stay tight on the inside line.\nTurn 8: Bruxelles (Long Hairpin)\nApproach:\nA downhill right-hand corner.\nTips:\nBrake early and deep, then trail brake into the apex. Rotate the car smoothly to avoid understeer.\nTurn 9: No Name Corner\nFast, flowing left-hand bend.\nTips:\nCarry as much speed as possible while avoiding track limits. Use minimal steering input.\nTurns 10-11: Pouhon (Double Apex Left-Hander)\nApproach:\nOne of the most challenging high-speed corners on the track.\nTips:\nTake it flat or with a slight lift depending on setup. Use a wide entry and clip both apexes.\nTurns 12-13: Campus/Les Fagnes Chicane\nApproach:\nMedium-speed chicane.\nTips:\nBe aggressive on entry but careful not to overshoot. Smooth throttle application is key.\nTurn 14: Stavelot\nLast real corner before the flat-out section.\nTips:\nGet a strong exit to build momentum toward Blanchimont and the final chicane.\nSector 3: Flat-Out and Final Challenge\nTurn 15: Blanchimont\nApproach:\nVery fast left-hander taken flat out in most conditions.\nTips:\nDon’t lift unless absolutely necessary. Stay tight to the apex.\nTurns 18-19: Bus Stop Chicane\nApproach:\nFinal heavy braking zone before the start/finish straight.\nTips:\nBrake late but stay composed. Clip both apexes and get a strong exit to end the lap well.\nBest car setup approach for Spa-Francorchamps in F1 25\nBelow is a quick setup over to maximise your car setup around Spa-Francorchamps in F1 25.\nSetup Area\nRecommended Settings\nAerodynamics\nYoull want minimal aero around Spa-Francorchamps because of its long straights.\nTransmission\nAn aggressive on throttle differential can help push your car out of faster corners.\nSuspension\nA less aggressive suspension setup is ideal, with minimal rake reducing drag and a stiff setup.\nBrakes\nYou should adjust your brake bias throughout a lap with more forward bias into heavier braking zones.\nTyres\nHigh tyre pressures can help limit tyre wear, and also cause less friction and drag on the track surface.\nRace strategy for Belgium\nOptimal",
-  "setupTips": "",
-  "drivingTips": "",
-  "videoUrl": "https://www.youtube.com/watch?v=wRVSPSAtvJY",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/belgium-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/belgium-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=wRVSPSAtvJY",
+      "sections": [
+        {
+          "heading": "Sector 1: Launch and Elevation",
+          "body": "Turn 1: La Source (Hairpin)\n\n• Approach: Heavy braking into a tight right-hand hairpin after the start-finish straight.\n\n• Tips: Brake late but avoid locking up. Early acceleration is key for speed down to Eau Rouge.\n\nTurns 2-4: Eau Rouge & Raidillon\n\n• Approach: One of the most iconic corner combinations in Formula 1.\n\n• Tips: Stay flat out in time trial or qualifying. For races, you might need a slight lift with heavy fuel. Take a tight line and avoid the kerbs too aggressively to prevent bottoming out."
+        },
+        {
+          "heading": "Sector 2: Technical and Downforce Dependent",
+          "body": "Turn 5-6: Les Combes (Chicane)\n\n• Approach: Brake hard at the end of the Kemmel Straight. Great overtaking opportunity.\n\n• Tips: Use all the track on entry, hit both apexes, and avoid running too wide to prevent time loss.\n\nTurn 7: Malmedy\n\n• Fast right-hander after Les Combes.\n\n• Tips: Keep momentum high and stay tight on the inside line.\n\nTurn 8: Bruxelles (Long Hairpin)\n\n• Approach: A downhill right-hand corner.\n\n• Tips: Brake early and deep, then trail brake into the apex. Rotate the car smoothly to avoid understeer.\n\nTurn 9: No Name Corner\n\n• Fast, flowing left-hand bend.\n\n• Tips: Carry as much speed as possible while avoiding track limits. Use minimal steering input.\n\nTurns 10-11: Pouhon (Double Apex Left-Hander)\n\n• Approach: One of the most challenging high-speed corners on the track.\n\n• Tips: Take it flat or with a slight lift depending on setup. Use a wide entry and clip both apexes.\n\nTurns 12-13: Campus/Les Fagnes Chicane\n\n• Approach: Medium-speed chicane.\n\n• Tips: Be aggressive on entry but careful not to overshoot. Smooth throttle application is key.\n\nTurn 14: Stavelot\n\n• Last real corner before the flat-out section.\n\n• Tips: Get a strong exit to build momentum toward Blanchimont and the final chicane."
+        },
+        {
+          "heading": "Sector 3: Flat-Out and Final Challenge",
+          "body": "Turn 15: Blanchimont\n\n• Approach: Very fast left-hander taken flat out in most conditions.\n\n• Tips: Don’t lift unless absolutely necessary. Stay tight to the apex.\n\nTurns 18-19: Bus Stop Chicane\n\n• Approach: Final heavy braking zone before the start/finish straight.\n\n• Tips: Brake late but stay composed. Clip both apexes and get a strong exit to end the lap well."
+        },
+        {
+          "heading": "Best car setup approach for Spa-Francorchamps in F1 25",
+          "body": "Below is a quick setup over to maximise your car setup around Spa-Francorchamps in F1 25.\n\nSetup AreaRecommended SettingsAerodynamicsYoull want minimal aero around Spa-Francorchamps because of its long straights.TransmissionAn aggressive on throttle differential can help push your car out of faster corners.SuspensionA less aggressive suspension setup is ideal, with minimal rake reducing drag and a stiff setup.BrakesYou should adjust your brake bias throughout a lap with more forward bias into heavier braking zones.TyresHigh tyre pressures can help limit tyre wear, and also cause less friction and drag on the track surface."
+        },
+        {
+          "heading": "Race strategy for Belgium",
+          "body": "Optimal"
+        }
+      ],
+      "setupTips": "",
+      "drivingTips": ""
+    }
+  ]
 }

@@ -1,7 +1,24 @@
 {
-  "trackGuide": "Sector 1: Turns 1–6\n✅\nTurn 1\nBrake at the 100m board; take a late apex to set up for Turn 2.\nStay tight but don’t over-slow — you need to flow into the next section.\n✅\nTurns 2–3\nQuick change of direction; Turn 2 is flat, but you need to position the car perfectly for Turn 3.\nSmall lift or slight brake for Turn 3, depending on car balance.\n✅\nTurns 4–5–6\nFast left-right-left sweepers.\nPrecision is key: aim to stay as flat as possible, but don’t compromise your line.\nGood balance and confident steering inputs will help you carry momentum.\nSector 2: Turns 7–10\n✅\nTurn 7\nHeavy braking zone; brake hard and late.\nPrioritize exit speed; this leads into another medium-speed sequence.\n✅\nTurns 8–9–10\nFast and flowing; minimal braking, maybe just a lift or light tap.\nKeep the car balanced — overdriving will cost you here.\nSector 3: Turns 11–16\n✅\nTurn 11 (Big Hairpin)\nHard braking again; trail brake into the apex, but avoid running wide on exit.\nEssential to get a clean run out because the next section is full-throttle.\n✅\nTurns 12–13–14 (Fast Right-Handers)\nOne of the fastest sections on the track — it’s all about commitment.\nIdeally flat, but be ready to modulate if you feel understeer.\nUse the track width and stay smooth on inputs.\n✅\nTurn 15\nSlight lift, depending on balance; again, it’s a momentum corner.\n✅\nTurn 16 (Final Corner)\nCrucial exit onto the long main straight.\nBrake late, but don’t overslow.\nFocus on early throttle to maximize top speed for the straight and DRS zone.\nCar",
-  "setupTips": "",
-  "drivingTips": "Driving Tips\n✅\nStay smooth\n: The track’s flowing nature punishes erratic inputs.\n✅\nOptimize exits\n: Particularly from Turn 16 — that straight is long and punishes bad exits.\n✅\nERS strategy\n: Deploy mainly down the pit straight and between Turns 10–11; conserve elsewhere.\n✅\nTire management\n: Front-left tire wear is high here due to long right-handers — avoid aggressive steering.",
-  "videoUrl": "https://www.youtube.com/watch?v=VdqFG3knkls",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/qatar-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/qatar-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=VdqFG3knkls",
+      "sections": [
+        {
+          "heading": "Sector 1: Turns 1–6",
+          "body": "• Turn 1\n\n• Brake at the 100m board; take a late apex to set up for Turn 2.\n\n• Stay tight but don’t over-slow — you need to flow into the next section.\n\n• Turns 2–3\n\n• Quick change of direction; Turn 2 is flat, but you need to position the car perfectly for Turn 3.\n\n• Small lift or slight brake for Turn 3, depending on car balance.\n\n• Turns 4–5–6\n\n• Fast left-right-left sweepers.\n\n• Precision is key: aim to stay as flat as possible, but don’t compromise your line.\n\n• Good balance and confident steering inputs will help you carry momentum."
+        },
+        {
+          "heading": "Sector 2: Turns 7–10",
+          "body": "• Turn 7\n\n• Heavy braking zone; brake hard and late.\n\n• Prioritize exit speed; this leads into another medium-speed sequence.\n\n• Turns 8–9–10\n\n• Fast and flowing; minimal braking, maybe just a lift or light tap.\n\n• Keep the car balanced — overdriving will cost you here."
+        },
+        {
+          "heading": "Sector 3: Turns 11–16",
+          "body": "• Turn 11 (Big Hairpin)\n\n• Hard braking again; trail brake into the apex, but avoid running wide on exit.\n\n• Essential to get a clean run out because the next section is full-throttle.\n\n• Turns 12–13–14 (Fast Right-Handers)\n\n• One of the fastest sections on the track — it’s all about commitment.\n\n• Ideally flat, but be ready to modulate if you feel understeer.\n\n• Use the track width and stay smooth on inputs.\n\n• Turn 15\n\n• Slight lift, depending on balance; again, it’s a momentum corner.\n\n• Turn 16 (Final Corner)\n\n• Crucial exit onto the long main straight.\n\n• Brake late, but don’t overslow.\n\n• Focus on early throttle to maximize top speed for the straight and DRS zone.\n\nCar"
+        }
+      ],
+      "setupTips": "Setup Tips\n\n• Wings: Medium downforce — you need front-end bite but can’t afford too much drag on the straights.\n\n• Suspension: Slightly stiffer to handle the many direction changes.\n\n• Brakes: Medium to high pressure; big stops at Turns 1, 7, and 11 demand good stopping power.\n\n• Differential: Open on entry for rotation, closed slightly on exit to control wheelspin.\n\n• Ride Height: Low, as the track is smooth and rewards aero efficiency.",
+      "drivingTips": "Driving Tips\n\n• Stay smooth: The track’s flowing nature punishes erratic inputs.\n\n• Optimize exits: Particularly from Turn 16 — that straight is long and punishes bad exits.\n\n• ERS strategy: Deploy mainly down the pit straight and between Turns 10–11; conserve elsewhere.\n\n• Tire management: Front-left tire wear is high here due to long right-handers — avoid aggressive steering."
+    }
+  ]
 }

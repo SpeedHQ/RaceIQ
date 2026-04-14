@@ -1,7 +1,24 @@
 {
-  "trackGuide": "Sector 1: Rettifilo (Turn 1–2, Variante del Rettifilo)\n✅\nMain straight\nDeploy ERS fully — top speed is king.\nSlipstreaming is critical in both qualifying and the race.\n✅\nTurns 1–2 (First Chicane)\nBrake just after the 150m board; it’s a heavy, tricky stop.\nAttack the first curb, but\ndon’t overcut\nthe second curb or you’ll spin or get a penalty.\nWatch traction on exit; avoid wheelspin.\nSector 2: Curva Grande to Ascari\n✅\nTurn 3 (Curva Grande)\nFlat-out right-hander; use it to close up or defend.\nStay smooth on the steering to minimize tire scrub.\n✅\nTurns 4–5 (Variante della Roggia)\nBrake at about 100m; attack the first sausage curb, but keep control.\nSecond curb is tighter — focus on a clean exit, as it leads into Lesmo.\n✅\nTurns 6–7 (Lesmo 1 & 2)\nLesmo 1: Brake around the 50m board, slightly trail the brakes in, and keep tight.\nLesmo 2: Slightly faster, but you must get a\nstrong exit\nonto the long back straight.\nSector 3: Ascari and Parabolica\n✅\nTurns 8–10 (Ascari Chicane)\nBrake just before the 100m board.\nAttack the first left curb, balance the car through the middle, and\ndon’t overrun the right-hand exit curb\nor you’ll invalidate the lap.\nCarry momentum.\n✅\nTurn 11 (Parabolica / Curva Alboreto)\nBrake gently (about 50m), trail brake in, and focus fully on the exit.\nGet on the throttle as early as you can without running wide — this exit sets up the long start-finish straight.\nCar",
-  "setupTips": "",
-  "drivingTips": "Driving Tips\n✅\nBrake late but controlled\n: You’ll gain most time under braking — practice hitting your marks consistently.\n✅\nUse curbs aggressively\n: The chicanes reward curb attack but will punish overdoing it.\n✅\nPrioritize exits\n: Especially out of Lesmo 2 and Parabolica; the straights are so long that poor exits cost big.\n✅\nERS management\n: Focus on using ERS down the main straight and into Ascari.\n✅\nQualify well\n: Slipstreaming is huge here, so plan your quali laps carefully (find a tow).\nItaly race strategy\n<img decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-Monza-Race-Strategy-1024x576.webp\" alt=\"F1 24 Monza",
-  "videoUrl": "https://www.youtube.com/watch?v=RfboPpJje4g",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/italian-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/italian-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=RfboPpJje4g",
+      "sections": [
+        {
+          "heading": "Sector 1: Rettifilo (Turn 1–2, Variante del Rettifilo)",
+          "body": "• Main straight\n\n• Deploy ERS fully — top speed is king.\n\n• Slipstreaming is critical in both qualifying and the race.\n\n• Turns 1–2 (First Chicane)\n\n• Brake just after the 150m board; it’s a heavy, tricky stop.\n\n• Attack the first curb, but don’t overcut the second curb or you’ll spin or get a penalty.\n\n• Watch traction on exit; avoid wheelspin."
+        },
+        {
+          "heading": "Sector 2: Curva Grande to Ascari",
+          "body": "• Turn 3 (Curva Grande)\n\n• Flat-out right-hander; use it to close up or defend.\n\n• Stay smooth on the steering to minimize tire scrub.\n\n• Turns 4–5 (Variante della Roggia)\n\n• Brake at about 100m; attack the first sausage curb, but keep control.\n\n• Second curb is tighter — focus on a clean exit, as it leads into Lesmo.\n\n• Turns 6–7 (Lesmo 1 & 2)\n\n• Lesmo 1: Brake around the 50m board, slightly trail the brakes in, and keep tight.\n\n• Lesmo 2: Slightly faster, but you must get a strong exit onto the long back straight."
+        },
+        {
+          "heading": "Sector 3: Ascari and Parabolica",
+          "body": "• Turns 8–10 (Ascari Chicane)\n\n• Brake just before the 100m board.\n\n• Attack the first left curb, balance the car through the middle, and don’t overrun the right-hand exit curb or you’ll invalidate the lap.\n\n• Carry momentum.\n\n• Turn 11 (Parabolica / Curva Alboreto)\n\n• Brake gently (about 50m), trail brake in, and focus fully on the exit.\n\n• Get on the throttle as early as you can without running wide — this exit sets up the long start-finish straight.\n\nCar"
+        }
+      ],
+      "setupTips": "Setup Tips\n\n• Wings: Very low (minimum) — prioritize top speed.\n\n• Suspension: Stiff enough to handle curbs but soft enough for traction out of slow chicanes.\n\n• Brakes: High pressure; you need maximum stopping power.\n\n• Differential: Closed on throttle for strong traction; open on coast to help rotation into slow corners.\n\n• Ride Height: Low for max straight-line efficiency, but avoid bottoming out on curbs.",
+      "drivingTips": "Driving Tips\n\n• Brake late but controlled: You’ll gain most time under braking — practice hitting your marks consistently.\n\n• Use curbs aggressively: The chicanes reward curb attack but will punish overdoing it.\n\n• Prioritize exits: Especially out of Lesmo 2 and Parabolica; the straights are so long that poor exits cost big.\n\n• ERS management: Focus on using ERS down the main straight and into Ascari.\n\n• Qualify well: Slipstreaming is huge here, so plan your quali laps carefully (find a tow).\n\nItaly race strategy\n\n<img decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-Monza-Race-Strategy-1024x576.webp\" alt=\"F1 24 Monza"
+    }
+  ]
 }

@@ -1,7 +1,64 @@
 {
-  "trackGuide": "",
-  "setupTips": "",
-  "drivingTips": "",
-  "videoUrl": "https://www.youtube.com/watch?v=sHtvNqNTfT0",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/british-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/british-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=sHtvNqNTfT0",
+      "sections": [
+        {
+          "heading": "Track guide overview for Silverstone",
+          "body": "Below is a run down of the Silverstone circuit, with an overview on how to master each corner sequence."
+        },
+        {
+          "heading": "Turn 1: Abbey (High-Speed Left-Hander)",
+          "body": "• Approach: Abbey is one of the fastest corners on the circuit, requiring high levels of downforce and stability. Entering at high speed, you need to be very precise with your steering inputs.\n\n• Tips: Keep your throttle application steady and don’t over-steer. Be mindful of track limits here, as even a small mistake can lose valuable time."
+        },
+        {
+          "heading": "Turn 2: Farm Curve (Right-Hander)",
+          "body": "• Approach: After Abbey, you’ll enter the Farm Curve, a fast, sweeping right-hander that requires balance and smooth throttle application.\n\n• Tips: You’ll need to brake gently before turning right. Maintain a stable throttle application to avoid losing grip, and keep an eye on the track exit to avoid running wide."
+        },
+        {
+          "heading": "Turn 3: Village (Tight Left-Hander)",
+          "body": "• Approach: This is a slow, tight left-hand corner that requires a significant braking zone. This is one of the key corners to nail, as it sets up your entry to the next section of the track.\n\n• Tips: Brake hard and downshift quickly into the tight left-hander. Be sure to get a good exit, as Turn 4 comes quickly."
+        },
+        {
+          "heading": "Turn 4: The Loop (Right-Hander)",
+          "body": "• Approach: Immediately following Turn 3, the Loop requires precision and good throttle management.\n\n• Tips: You’ll need to take this corner at a relatively low speed, so focus on getting the throttle right as you exit to maintain momentum."
+        },
+        {
+          "heading": "Turn 5: Aintree (Long Right-Hander)",
+          "body": "• Approach: The Aintree corner leads onto the famous Brooklands straight. It’s a high-speed right-hander that demands smooth inputs.\n\n• Tips: Keep a steady throttle application and avoid excessive steering. Getting a good exit will give you a strong launch onto the long straight."
+        },
+        {
+          "heading": "Turn 6-7: Brooklands and Luffield (Right-Left Combo)",
+          "body": "• Approach: This is a critical section for lap time, featuring a long right-hander followed by a tight left. Proper braking and throttle control are essential here.\n\n• Tips: Brake heavily for Brooklands and focus on a smooth transition to the left for Luffield. This section requires precision in braking and acceleration, as it’s easy to oversteer or run wide."
+        },
+        {
+          "heading": "Turn 8-9: Copse Corner (High-Speed Right-Hander)",
+          "body": "• Approach: Copse is one of the fastest corners in F1, requiring the car to be extremely stable.\n\n• Tips: You’ll need to carry a lot of speed through this corner. Keep your foot planted on the throttle and focus on a smooth, steady line."
+        },
+        {
+          "heading": "Turn 10: Maggots (High-Speed Left-Hander)",
+          "body": "• Approach: Maggots is one of the fastest and most iconic sections of the circuit, with a quick left-right-left combination.\n\n• Tips: This section requires quick reflexes and great car control. Stay smooth with your inputs and carry as much speed through the sequence as possible."
+        },
+        {
+          "heading": "Turn 11-12: Becketts and Chapel (Right-Left-Right Sequence)",
+          "body": "• Approach: This is a high-speed section that challenges your car’s balance. It’s essential to maintain a fast, but stable line through here.\n\n• Tips: Becketts is where you need to get the car rotating properly. The subsequent corners need smooth transitions and careful throttle application to avoid losing grip."
+        },
+        {
+          "heading": "Turn 13: Stowe (Right-Hander)",
+          "body": "• Approach: Stowe is a heavy braking zone that requires you to reduce speed quickly to navigate the tight right-hander.\n\n• Tips: Brake hard and get on the throttle early as you exit. The Stowe corner is a perfect place for overtaking during races."
+        },
+        {
+          "heading": "Turn 14: Vale (Tight Left-Hander)",
+          "body": "• Approach: This tight left-hander leads into the final corner of the circuit. A clean exit is essential for a strong finish to the lap.\n\n• Tips: Brake late, but ensure you don’t oversteer. Getting a smooth exit will help you maintain speed on the long final straight."
+        },
+        {
+          "heading": "Turn 15-16: Club (Double Right-Hander)",
+          "body": "• Approach: Club is the final corner of the Silverstone circuit. It’s a tight right-left sequence that requires precision.\n\n• Tips: Brake smoothly and focus on getting a clean exit onto the start-finish straight. The smoother your exit, the better your lap time.\n\nIs Silverstone a"
+        }
+      ],
+      "setupTips": "",
+      "drivingTips": ""
+    }
+  ]
 }

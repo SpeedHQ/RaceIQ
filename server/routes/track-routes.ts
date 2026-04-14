@@ -744,6 +744,46 @@ export const trackRoutes = new Hono()
     }
   )
 
+  // GET /api/tracks/:trackOrdinal/all-laps — all laps for a track (ungrouped, for detail view)
+  .get("/api/tracks/:trackOrdinal/all-laps",
+    zValidator("param", TrackOrdinalParamSchema),
+    async (c) => {
+      const { trackOrdinal } = c.req.valid("param");
+      const gameId = c.req.query("gameId") as GameId | undefined;
+      const trackLaps = (await getLaps(gameId)).filter(
+        (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0
+      );
+
+      const piClass = (pi: number): string => {
+        if (pi >= 999) return "X";
+        if (pi >= 901) return "P";
+        if (pi >= 801) return "R";
+        if (pi >= 701) return "S";
+        if (pi >= 601) return "A";
+        if (pi >= 501) return "B";
+        if (pi >= 401) return "C";
+        if (pi >= 301) return "D";
+        return "E";
+      };
+
+      const entries = trackLaps.map((lap) => {
+        const pi = lap.pi ?? 0;
+        return {
+          lapId: lap.id,
+          lapNumber: lap.lapNumber,
+          lapTime: lap.lapTime,
+          carOrdinal: lap.carOrdinal ?? 0,
+          carName: (lap.gameId ? tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal ?? 0) : undefined) ?? getCarName(lap.carOrdinal ?? 0, lap.gameId),
+          carClass: piClass(pi),
+          pi,
+          createdAt: lap.createdAt,
+        };
+      });
+
+      return c.json(entries);
+    }
+  )
+
   // GET /api/track-calibration/:ordinal — calibration status
   .get("/api/track-calibration/:ordinal",
     zValidator("param", OrdinalParamSchema),

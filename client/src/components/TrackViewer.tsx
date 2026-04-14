@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useTracks } from "../hooks/queries";
 import { useGameId } from "../stores/game";
 import { AppInput } from "./ui/AppInput";
 import { countryName } from "@/lib/country-names";
 import { TrackCard } from "./track/TrackCard";
 import { TrackDetail } from "./track/TrackDetail";
+import { client } from "@/lib/rpc";
 import type { TrackInfo } from "./track/types";
 
 type SortKey = "name" | "laps";
@@ -17,6 +19,12 @@ export function TrackViewer() {
 
   const gameId = useGameId();
   const { data: tracks = [], isLoading: loading } = useTracks() as { data: TrackInfo[]; isLoading: boolean };
+  const { data: f125Tracks = [] } = useQuery<{ trackOrdinal: number; setupCount: number; guideUrl: string }[]>({
+    queryKey: ["f125-tracks"],
+    queryFn: () => client.api["f1-25"].tracks.$get().then(r => r.json() as unknown as { trackOrdinal: number; setupCount: number; guideUrl: string }[]),
+    enabled: gameId === "f1-2025",
+  });
+  const f125ByOrdinal = Object.fromEntries(f125Tracks.map(t => [t.trackOrdinal, t]));
   const [selectedTrack, setSelectedTrack] = useState<TrackInfo | null>(null);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
@@ -100,7 +108,9 @@ export function TrackViewer() {
       {withOutline.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
           {withOutline.map((t) => (
-            <TrackCard key={t.ordinal} track={t} onSelect={handleSelectTrack} gameId={gameId} />
+            <TrackCard key={t.ordinal} track={t} onSelect={handleSelectTrack} gameId={gameId}
+              setupCount={f125ByOrdinal[t.ordinal]?.setupCount}
+              hasGuide={!!f125ByOrdinal[t.ordinal]?.guideUrl} />
           ))}
         </div>
       )}

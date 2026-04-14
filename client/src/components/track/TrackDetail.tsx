@@ -2,17 +2,17 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { isDevelopment } from "@/lib/env";
 import { useNavigate } from "@tanstack/react-router";
 import { formatLapTime } from "@/lib/format";
-import { useQuery } from "@tanstack/react-query";
 import { useBulkDeleteLaps, useDeleteLap } from "@/hooks/queries";
 import { useGameId } from "@/stores/game";
 import { client } from "@/lib/rpc";
 import { drawTrack } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
-import { F125SetupsWithGuide } from "@/components/f1/F125TrackSetups";
+import { F125SetupsWithGuide, F125TrackGuide } from "@/components/f1/F125TrackSetups";
 import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
 import { AccTrackSetups, AccTrackGuide } from "@/components/acc/AccTrackSetups";
 import { TrackTunes } from "./TrackTunes";
 import { Button } from "@/components/ui/button";
+import { Table, THead, TH, TBody, TRow, TD } from "@/components/ui/AppTable";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";
 import type { TrackInfo, Point, TrackSegment, TrackSectors } from "./types";
 
@@ -59,7 +59,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   const [trackLaps, setTrackLaps] = useState<TrackLap[]>([]);
   const [selectedCars, setSelectedCars] = useState<Set<number>>(new Set());
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
-  const [sortBy, setSortBy] = useState<"time" | "lap">("time");
+  const [sortBy, setSortBy] = useState<"time" | "lap" | "date">("time");
   const [sortAsc, setSortAsc] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -68,23 +68,9 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   const isAcc = gameId === "acc";
 
   // F1 25 track video — shown beside map on setups tab
-  const { data: f125Tracks = [] } = useQuery<{ trackSlug: string; trackOrdinal: number; videoUrl: string }[]>({
-    queryKey: ["f125-tracks"],
-    queryFn: () => client.api["f1-25"].tracks.$get().then(r => r.json() as unknown as { trackSlug: string; trackOrdinal: number; videoUrl: string }[]),
-    enabled: isF125,
-  });
-  const f125VideoUrl = isF125 ? f125Tracks.find(t => t.trackOrdinal === track.ordinal)?.videoUrl : undefined;
-  const f125EmbedUrl = f125VideoUrl ? (() => {
-    try {
-      const u = new URL(f125VideoUrl);
-      if (u.hostname.includes("youtube.com") && u.searchParams.has("v")) return `https://www.youtube.com/embed/${u.searchParams.get("v")}`;
-      if (u.hostname === "youtu.be") return `https://www.youtube.com/embed${u.pathname}`;
-    } catch {}
-    return null;
-  })() : null;
   const hasForzaTunes = !gameId || gameId === "fm-2023";
   const allTabs = hasForzaTunes ? ["laps", "tunes", "debug"] as const
-    : isF125 ? ["laps", "setups", "debug"] as const
+    : isF125 ? ["laps", "setups", "guide", "debug"] as const
     : isAcc ? ["laps", "setups", "guide", "debug"] as const
     : ["laps", "debug"] as const;
   type Tab = typeof allTabs[number];
@@ -122,14 +108,13 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
 
   // Fetch all laps for this track
   const fetchTrackLaps = useCallback(() => {
-    client.api.tracks[":trackOrdinal"].leaderboard.$get({ param: { trackOrdinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } } as never)
-      .then((r) => r.json() as unknown as Record<string, TrackLap[]> | null)
+    client.api.tracks[":trackOrdinal"]["all-laps"].$get({ param: { trackOrdinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } } as never)
+      .then((r) => r.json() as unknown as TrackLap[] | null)
       .then((data) => {
         if (!data) { setTrackLaps([]); return; }
-        const all = Object.values(data).flat() as TrackLap[];
-        setTrackLaps(all);
+        setTrackLaps(data);
         // Initialize car filter to all cars
-        setSelectedCars(new Set(all.map((l) => l.carOrdinal)));
+        setSelectedCars(new Set(data.map((l) => l.carOrdinal)));
       })
       .catch(() => {});
   }, [track.ordinal, gameId]);
@@ -321,7 +306,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
     return trackLaps
       .filter((l) => selectedCars.has(l.carOrdinal))
       .sort((a, b) => {
-        const cmp = sortBy === "time" ? a.lapTime - b.lapTime : a.lapNumber - b.lapNumber;
+        const cmp = sortBy === "time" ? a.lapTime - b.lapTime : sortBy === "date" ? (new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime()) : a.lapNumber - b.lapNumber;
         return sortAsc ? cmp : -cmp;
       });
   }, [trackLaps, selectedCars, sortBy, sortAsc]);
@@ -375,7 +360,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
     fetchTrackLaps();
   }, [fetchTrackLaps, singleDelete]);
 
-  const handleSort = useCallback((col: "time" | "lap") => {
+  const handleSort = useCallback((col: "time" | "lap" | "date") => {
     if (sortBy === col) setSortAsc((a) => !a);
     else { setSortBy(col); setSortAsc(true); }
   }, [sortBy]);
@@ -429,7 +414,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
         {/* Left column: Map + Laps */}
         <div className="flex flex-col gap-4 min-h-0 overflow-hidden">
           {/* Track map */}
-          <div className="shrink-0" style={{ height: 440 }}>
+          <div className="shrink-0" style={{ height: activeTab === "guide" && isF125 ? 160 : 440 }}>
           <div className="bg-app-bg rounded-lg border border-app-border relative w-full h-full">
             {track.hasOutline ? (
               <canvas
@@ -493,7 +478,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
             {/* Setups tab — no outer scroll, component handles its own */}
             {activeTab === "setups" && (
               <div className="flex-1 min-h-0">
-                {isF125 && <F125SetupsWithGuide trackOrdinal={track.ordinal} trackName={track.name} videoEmbedUrl={f125EmbedUrl} />}
+                {isF125 && <F125SetupsWithGuide trackOrdinal={track.ordinal} trackName={track.name} />}
                 {isAcc && <AccTrackSetups trackOrdinal={track.ordinal} />}
               </div>
             )}
@@ -501,6 +486,11 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
             {activeTab === "guide" && isAcc && (
               <div className="flex-1 min-h-0">
                 <AccTrackGuide trackOrdinal={track.ordinal} trackName={track.name} />
+              </div>
+            )}
+            {activeTab === "guide" && isF125 && (
+              <div className="flex-1 min-h-0 p-2">
+                <F125TrackGuide trackOrdinal={track.ordinal} />
               </div>
             )}
 
@@ -516,13 +506,13 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                 <div className={isF125 ? "flex gap-4 h-full overflow-hidden" : "flex flex-col gap-3"}>
                   {/* F1 25: leaderboard on left */}
                   {isF125 && (
-                    <div className="w-1/2 min-w-0 overflow-y-auto">
+                    <div className="w-[480px] shrink-0 min-w-0 overflow-y-auto">
                       <F125Leaderboard trackOrdinal={track.ordinal} />
                     </div>
                   )}
 
                   {/* Own laps */}
-                  <div className={isF125 ? "w-1/2 min-w-0 overflow-y-auto" : "flex flex-col gap-3"}>
+                  <div className={isF125 ? "flex-1 min-w-0 overflow-y-auto" : "flex flex-col gap-3"}>
                   {trackLaps.length === 0 ? (
                     <div className="text-app-subtext text-app-text-dim py-4 text-center">No laps recorded for this track</div>
                   ) : (
@@ -549,7 +539,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                     : "border-app-border text-app-text-dim hover:text-app-text-secondary"
                                 }`}
                               >
-                                <span className={`font-bold font-mono mr-1 ${classTextColors[car.carClass] ?? "text-app-text-secondary"}`}>{car.carClass}</span>
+                                {!isF125 && <span className={`font-bold font-mono mr-1 ${classTextColors[car.carClass] ?? "text-app-text-secondary"}`}>{car.carClass}</span>}
                                 {car.carName}
                               </button>
                             );
@@ -557,43 +547,91 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                         </div>
                       </div>
 
+                      {/* Lap stats sidebar + table */}
+                      <div className="flex gap-3 items-start">
+                      {/* Stats panel */}
+                      {filteredLaps.length > 0 && (() => {
+                        const times = [...filteredLaps.map(l => l.lapTime)].sort((a, b) => a - b);
+                        const minT = times[0];
+                        const maxT = times[times.length - 1];
+                        const mid = Math.floor(times.length / 2);
+                        const medT = times.length % 2 === 0 ? (times[mid - 1] + times[mid]) / 2 : times[mid];
+                        const range = maxT - minT || 1;
+                        const medPct = ((medT - minT) / range) * 100;
+                        return (
+                          <div className="shrink-0 w-36 bg-app-surface/50 rounded-lg p-3 flex flex-col gap-3 sticky top-0">
+                            <div className="text-app-label text-app-text-muted uppercase tracking-wider text-center">Lap Times</div>
+                            {[
+                              { label: "Best", value: minT, color: "text-purple-400" },
+                              { label: "Median", value: medT, color: "text-app-text" },
+                              { label: "Worst", value: maxT, color: "text-app-text-muted" },
+                            ].map(({ label, value, color }) => (
+                              <div key={label} className="flex flex-col gap-0.5">
+                                <div className="text-[10px] text-app-text-dim uppercase tracking-wider">{label}</div>
+                                <div className={`font-mono text-app-body tabular-nums ${color}`}>{formatLapTime(value)}</div>
+                              </div>
+                            ))}
+                            {/* Range bar */}
+                            <div className="flex flex-col gap-1">
+                              <div className="relative h-2 bg-app-surface-alt rounded-full overflow-visible">
+                                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/60 to-app-text-dim/30 rounded-full" />
+                                <div
+                                  className="absolute top-1/2 -translate-y-1/2 w-2 h-3 bg-white/80 rounded-sm shadow"
+                                  style={{ left: `calc(${medPct}% - 4px)` }}
+                                />
+                              </div>
+                              <div className="flex justify-between text-[9px] text-app-text-dim font-mono">
+                                <span>{formatLapTime(minT)}</span>
+                                <span>{formatLapTime(maxT)}</span>
+                              </div>
+                            </div>
+                            <div className="text-[10px] text-app-text-dim text-center">{times.length} lap{times.length !== 1 ? "s" : ""}</div>
+                          </div>
+                        );
+                      })()}
                       {/* Lap table */}
-                      <div className="bg-app-surface/50 rounded-lg border border-app-border overflow-hidden">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="border-b border-app-border text-app-text-muted text-app-label">
-                              <th className="w-8 px-2 py-2 text-left">
-                                <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-cyan-400" />
-                              </th>
-                              <th className="px-2 py-2 text-left">Car</th>
-                              <th className="px-2 py-2 text-left">Class</th>
-                              <th className="px-2 py-2 text-left cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("lap")}>
-                                Lap # {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
-                              </th>
-                              <th className="px-2 py-2 text-left cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("time")}>
-                                Time {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
-                              </th>
-                              <th className="px-2 py-2 text-left">Date</th>
-                              <th className="px-2 py-2 text-right">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredLaps.map((lap) => (
-                              <tr key={lap.lapId} className={`border-b border-app-border/50 hover:bg-app-surface-alt/30 ${selectedLaps.has(lap.lapId) ? "bg-cyan-500/5" : ""}`}>
-                                <td className="px-2 py-1.5">
+                      <div className="flex-1 min-w-0">
+                        <Table>
+                          <THead className="sticky top-0 z-10">
+                            <TH className="w-8 px-3">
+                              <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-cyan-400" />
+                            </TH>
+                            <TH>Car</TH>
+                            {!isF125 && <TH>Class</TH>}
+                            <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("lap")}>
+                              Lap # {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
+                            </TH>
+                            <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("time")}>
+                              Time {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
+                            </TH>
+                            <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("date")}>
+                              Date {sortBy === "date" ? (sortAsc ? "▲" : "▼") : ""}
+                            </TH>
+                            <TH className="text-right">Actions</TH>
+                          </THead>
+                          <TBody>
+                            {(() => {
+                              const fastestTime = Math.min(...filteredLaps.map(l => l.lapTime));
+                              return filteredLaps.map((lap) => {
+                              const isFastest = lap.lapTime === fastestTime;
+                              return (
+                              <TRow key={lap.lapId} className={selectedLaps.has(lap.lapId) ? "bg-cyan-500/5" : ""}>
+                                <TD className="px-3">
                                   <input type="checkbox" checked={selectedLaps.has(lap.lapId)} onChange={() => toggleLapSelect(lap.lapId)} className="accent-cyan-400" />
-                                </td>
-                                <td className="px-2 py-1.5 text-app-body text-app-text truncate max-w-[200px]">{lap.carName}</td>
-                                <td className="px-2 py-1.5 text-app-label">
-                                  <span className={`font-bold font-mono ${classTextColors[lap.carClass] ?? "text-app-text-secondary"}`}>{lap.carClass}</span>
-                                  <span className="text-app-text-secondary ml-1">PI {lap.pi}</span>
-                                </td>
-                                <td className="px-2 py-1.5 text-app-label font-mono text-app-text-secondary">{lap.lapNumber}</td>
-                                <td className="px-2 py-1.5 text-app-body font-mono tabular-nums text-app-text">{formatLapTime(lap.lapTime)}</td>
-                                <td className="px-2 py-1.5 text-app-label text-app-text-secondary whitespace-nowrap font-mono">
+                                </TD>
+                                <TD className="truncate max-w-[200px]">{lap.carName}</TD>
+                                {!isF125 && (
+                                  <TD>
+                                    <span className={`font-bold font-mono ${classTextColors[lap.carClass] ?? "text-app-text-secondary"}`}>{lap.carClass}</span>
+                                    <span className="text-app-text-secondary ml-1">PI {lap.pi}</span>
+                                  </TD>
+                                )}
+                                <TD className="font-mono text-app-text-secondary">{lap.lapNumber}</TD>
+                                <TD className={`font-mono tabular-nums ${isFastest ? "text-purple-400 font-bold" : ""}`}>{formatLapTime(lap.lapTime)}</TD>
+                                <TD className="text-app-text-secondary whitespace-nowrap font-mono">
                                   {lap.createdAt ? `${new Date(lap.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} ${new Date(lap.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : "—"}
-                                </td>
-                                <td className="px-2 py-1.5 text-right">
+                                </TD>
+                                <TD className="text-right">
                                   <div className="flex items-center justify-end gap-1">
                                     <Button
                                       variant="app-outline"
@@ -612,15 +650,16 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                       <button onClick={() => setConfirmSingleDelete(lap.lapId)} className="text-app-unit px-1.5 py-0.5 rounded text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/40">Delete</button>
                                     )}
                                   </div>
-                                </td>
-                              </tr>
-                            ))}
+                                </TD>
+                              </TRow>
+                            );});})()}
                             {filteredLaps.length === 0 && (
-                              <tr><td colSpan={6} className="px-2 py-4 text-center text-app-subtext text-app-text-dim">No laps match the selected filters</td></tr>
+                              <tr><td colSpan={6} className="px-3 py-4 text-center text-sm text-app-text-dim">No laps match the selected filters</td></tr>
                             )}
-                          </tbody>
-                        </table>
+                          </TBody>
+                        </Table>
                       </div>
+                      </div>{/* end stats+table flex */}
 
                       {/* Action bar */}
                       {selectedLaps.size > 0 && (

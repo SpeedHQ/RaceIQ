@@ -1278,5 +1278,37 @@
     },
     "source": "https://www.f1laps.com/f1-25/setups/japan/96d4c1a2-c321-4297-9eee-80ab9f33fd23/",
     "provider": "f1laps"
+  },
+  {
+    "team": "Red Bull Racing",
+    "author": "1233",
+    "lapTime": "1:28.688",
+    "sessionType": "Time Trial",
+    "inputDevice": "controller",
+    "weather": "Dry",
+    "setup": {
+      "frontWing": 31,
+      "rearWing": 21,
+      "diffOnThrottle": 100,
+      "diffOffThrottle": 35,
+      "frontCamber": -3.5,
+      "rearCamber": -2,
+      "frontToe": 0,
+      "rearToe": 0.1,
+      "frontSuspension": 41,
+      "rearSuspension": 1,
+      "frontAntiRollBar": 6,
+      "rearAntiRollBar": 21,
+      "frontRideHeight": 22,
+      "rearRideHeight": 42,
+      "brakePressure": 100,
+      "frontBrakeBias": 53,
+      "frontRightTyrePressure": 29.5,
+      "frontLeftTyrePressure": 29.5,
+      "rearRightTyrePressure": 21,
+      "rearLeftTyrePressure": 21
+    },
+    "source": "https://www.f1laps.com/f1-25/setups/japan/31d330b7-a80c-44c5-b424-c270bdafa3bd/",
+    "provider": "f1laps"
   }
 ]

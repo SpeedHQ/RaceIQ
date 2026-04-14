@@ -1,7 +1,24 @@
 {
-  "trackGuide": "Sector 1 – Turns 1–3: Heavy Braking & Acceleration\nTurn 1 (Castrol Edge)\n: Uphill right-hander; brake hard at the 100m board, downshift to third gear. Focus on an early apex and maximize exit speed for the DRS straight. Avoid running too wide, as track limits are tight.\nTurn 2\n: Not a real corner, but a kink before the heavy braking zone — position the car on the far left.\nTurn 3 (Remus Hairpin)\n: One of the slowest corners; brake hard at ~120m, down to first or second gear. Watch for rear locking and avoid aggressive throttle on exit.\nKey tip\n: Prioritize clean exits from Turns 1 and 3, as they lead onto long DRS zones.\nSector 2 – Turns 4–7: Fast Entries & Kerb Attacks\nTurn 4 (Schlossgold)\n: Downhill heavy braking; brake at ~100m, down to second or third gear. Watch for snap oversteer on exit.\nTurn 5\n: Flat-out left kink — easy flat, but position the car for Turn 6.\nTurn 6–7 (Rauch & Würth Kurve)\n: Fast right-hander followed by a tricky left. Lift slightly or light brake into Turn 6; carry speed but avoid the inside sausage kerb. Turn 7 requires a clean, early apex to hold momentum.\nKey tip\n: Use the kerbs aggressively but stay within track limits — invalidated laps are common here in time trial mode.\nSector 3 – Turns 8–10: Precision & Traction\nTurn 8 (Rindt)\n: Fast right-hander; lift slightly, commit early, and trust the car’s grip. Be careful on the exit kerb.\nTurn 9 (Red Bull Mobile)\n: Final right-hander onto the main straight; brake lightly or lift, hit a late apex, and prioritize exit speed.\nKey tip\n: The final two corners are where lap time can be won or lost — practice them repeatedly to build consistency.\nF1 25",
-  "setupTips": "Car Setup Tips for the Red Bull Ring\nSetup Area\nRecommended Settings\nAerodynamics\nA solid rear end is crucial for stability through the faster corners.\nTransmission\nLowering your on throttle differential can help limit wheelspin out of slower turns.\nSuspension\nAn aggressive suspension setup will help you attack the medium speed turns and ride the kerbs.\nBrakes\nMany different corner style require changes to brake bias throughout a lap.\nTyres\nAustria can overheat your front tyres due to the fast and long corners.\nHow to Be Fast at the Red Bull Ring in F1 24\n✅\nNail the braking points\n: Focus on smooth, hard braking into Turns 1, 3, and 4. Lockups cost massive time.\n✅\nStay within track limits\n: Many corners (especially Turns 1, 9, 10) are easy to invalidate — keep the car clean for consistent lap times.\n✅\nOptimize traction zones\n: Short-shifting on exit from hairpins helps avoid wheelspin, preserving rear tyre life.\nAustria",
-  "drivingTips": "",
-  "videoUrl": "https://www.youtube.com/watch?v=WsYgzVqywt8",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/austrian-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/austrian-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=WsYgzVqywt8",
+      "sections": [
+        {
+          "heading": "Sector 1 – Turns 1–3: Heavy Braking & Acceleration",
+          "body": "• Turn 1 (Castrol Edge): Uphill right-hander; brake hard at the 100m board, downshift to third gear. Focus on an early apex and maximize exit speed for the DRS straight. Avoid running too wide, as track limits are tight.\n\n• Turn 2: Not a real corner, but a kink before the heavy braking zone — position the car on the far left.\n\n• Turn 3 (Remus Hairpin): One of the slowest corners; brake hard at ~120m, down to first or second gear. Watch for rear locking and avoid aggressive throttle on exit.\n\nKey tip: Prioritize clean exits from Turns 1 and 3, as they lead onto long DRS zones."
+        },
+        {
+          "heading": "Sector 2 – Turns 4–7: Fast Entries & Kerb Attacks",
+          "body": "• Turn 4 (Schlossgold): Downhill heavy braking; brake at ~100m, down to second or third gear. Watch for snap oversteer on exit.\n\n• Turn 5: Flat-out left kink — easy flat, but position the car for Turn 6.\n\n• Turn 6–7 (Rauch & Würth Kurve): Fast right-hander followed by a tricky left. Lift slightly or light brake into Turn 6; carry speed but avoid the inside sausage kerb. Turn 7 requires a clean, early apex to hold momentum.\n\nKey tip: Use the kerbs aggressively but stay within track limits — invalidated laps are common here in time trial mode."
+        },
+        {
+          "heading": "Sector 3 – Turns 8–10: Precision & Traction",
+          "body": "• Turn 8 (Rindt): Fast right-hander; lift slightly, commit early, and trust the car’s grip. Be careful on the exit kerb.\n\n• Turn 9 (Red Bull Mobile): Final right-hander onto the main straight; brake lightly or lift, hit a late apex, and prioritize exit speed.\n\nKey tip: The final two corners are where lap time can be won or lost — practice them repeatedly to build consistency.\n\nF1 25"
+        }
+      ],
+      "setupTips": "Car Setup Tips for the Red Bull Ring\n\nSetup AreaRecommended SettingsAerodynamicsA solid rear end is crucial for stability through the faster corners.TransmissionLowering your on throttle differential can help limit wheelspin out of slower turns.SuspensionAn aggressive suspension setup will help you attack the medium speed turns and ride the kerbs.BrakesMany different corner style require changes to brake bias throughout a lap.TyresAustria can overheat your front tyres due to the fast and long corners.\n\nHow to Be Fast at the Red Bull Ring in F1 24\n\n• Nail the braking points: Focus on smooth, hard braking into Turns 1, 3, and 4. Lockups cost massive time.\n\n• Stay within track limits: Many corners (especially Turns 1, 9, 10) are easy to invalidate — keep the car clean for consistent lap times.\n\n• Optimize traction zones: Short-shifting on exit from hairpins helps avoid wheelspin, preserving rear tyre life.\n\nAustria",
+      "drivingTips": ""
+    }
+  ]
 }

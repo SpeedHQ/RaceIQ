@@ -958,5 +958,37 @@
     },
     "source": "https://www.f1laps.com/f1-25/setups/bahrain/f06c66db-dc8f-4745-a725-0583cb5e5401/",
     "provider": "f1laps"
+  },
+  {
+    "team": "Kick Sauber",
+    "author": "MichiWizard",
+    "lapTime": "1:28.748",
+    "sessionType": "Time Trial",
+    "inputDevice": "wheel",
+    "weather": "Dry",
+    "setup": {
+      "frontWing": 34,
+      "rearWing": 29,
+      "diffOnThrottle": 75,
+      "diffOffThrottle": 40,
+      "frontCamber": -3.5,
+      "rearCamber": -2,
+      "frontToe": 0,
+      "rearToe": 0.1,
+      "frontSuspension": 41,
+      "rearSuspension": 2,
+      "frontAntiRollBar": 10,
+      "rearAntiRollBar": 19,
+      "frontRideHeight": 22,
+      "rearRideHeight": 48,
+      "brakePressure": 100,
+      "frontBrakeBias": 55,
+      "frontRightTyrePressure": 28.5,
+      "frontLeftTyrePressure": 28.5,
+      "rearRightTyrePressure": 26.5,
+      "rearLeftTyrePressure": 26.5
+    },
+    "source": "https://www.f1laps.com/f1-25/setups/bahrain/426f1ec4-4131-4172-8724-2a99637b5130/",
+    "provider": "f1laps"
   }
 ]

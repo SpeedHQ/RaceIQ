@@ -1,7 +1,24 @@
 {
-  "trackGuide": "Sector 1: Technical Start\n✅\nTurns 1–3 (Opening Complex)\nHard braking into Turn 1 (100m board), down to 2nd gear.\nShort squirt of throttle before Turn 2; stay tight to avoid running wide.\nTurn 3 is slow and awkward — focus on early throttle application, but don’t overdo it or you’ll understeer into the wall.\n✅\nTurns 4–5 (Short Chicane)\nQuick change of direction; keep it clean, no need to overpush.\nUse 3rd gear and clip the inside curbs lightly — they can unsettle the car.\nSector 2: High-Speed Straights & Big Brakes\n✅\nTurn 6 (Left Sweeper)\nBuild speed on the straight, take this left-hand kink flat out.\n✅\nTurn 7 (Heavy Braking)\nBrake HARD at the 100m board, down to 2nd or 3rd gear.\nWide entry, tight apex — maximize exit speed for the next long straight.\nWatch for lockups here, especially if running lower brake pressure.\n✅\nLong Back Straight\nFull throttle, DRS open, ERS deploy if needed.\nThis is a key overtaking zone — prepare for slipstream battles.\nSector 3: Final Complex\n✅\nTurn 12 (Sharp Left)\nAfter the massive straight, brake early; it’s easy to miss the braking point here.\nDown to 3rd gear, be careful on throttle as the rear can snap.\n✅\nTurns 13–14 (Fast Kinks)\nFlat out or small lift, depending on fuel and setup.\nPrecision matters — walls are close, and you can’t afford mistakes.\n✅\nTurns 15–16 (Final Hairpin + Exit)\nHeavy braking again, down to 2nd gear.\nPatience! Don’t rush the throttle — you’ll just spin or understeer wide.\nFocus on clean exit speed to blast down the pit straight.\nCar",
-  "setupTips": "",
-  "drivingTips": "Driving Tips\n✅ Be smooth under braking — late but controlled stops are your best chance to make up time.\n✅ Maximize exits onto long straights — your lap time depends on it.\n✅ Use slipstream and DRS wisely, especially on the back straight for overtakes.\n✅ Save ERS for the straights or critical passes — don’t waste it on short bursts.\nRecommended Las Vegas race strategy\n<img decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-Las-Vega-Race-Strategy-1024x576.webp\" alt=\"F1 24 Las Vega",
-  "videoUrl": "https://www.youtube.com/watch?v=ZgvT_CgsklM",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/las-vegas-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/las-vegas-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=ZgvT_CgsklM",
+      "sections": [
+        {
+          "heading": "Sector 1: Technical Start",
+          "body": "• Turns 1–3 (Opening Complex)\n\n• Hard braking into Turn 1 (100m board), down to 2nd gear.\n\n• Short squirt of throttle before Turn 2; stay tight to avoid running wide.\n\n• Turn 3 is slow and awkward — focus on early throttle application, but don’t overdo it or you’ll understeer into the wall.\n\n• Turns 4–5 (Short Chicane)\n\n• Quick change of direction; keep it clean, no need to overpush.\n\n• Use 3rd gear and clip the inside curbs lightly — they can unsettle the car."
+        },
+        {
+          "heading": "Sector 2: High-Speed Straights & Big Brakes",
+          "body": "• Turn 6 (Left Sweeper)\n\n• Build speed on the straight, take this left-hand kink flat out.\n\n• Turn 7 (Heavy Braking)\n\n• Brake HARD at the 100m board, down to 2nd or 3rd gear.\n\n• Wide entry, tight apex — maximize exit speed for the next long straight.\n\n• Watch for lockups here, especially if running lower brake pressure.\n\n• Long Back Straight\n\n• Full throttle, DRS open, ERS deploy if needed.\n\n• This is a key overtaking zone — prepare for slipstream battles."
+        },
+        {
+          "heading": "Sector 3: Final Complex",
+          "body": "• Turn 12 (Sharp Left)\n\n• After the massive straight, brake early; it’s easy to miss the braking point here.\n\n• Down to 3rd gear, be careful on throttle as the rear can snap.\n\n• Turns 13–14 (Fast Kinks)\n\n• Flat out or small lift, depending on fuel and setup.\n\n• Precision matters — walls are close, and you can’t afford mistakes.\n\n• Turns 15–16 (Final Hairpin + Exit)\n\n• Heavy braking again, down to 2nd gear.\n\n• Patience! Don’t rush the throttle — you’ll just spin or understeer wide.\n\n• Focus on clean exit speed to blast down the pit straight.\n\nCar"
+        }
+      ],
+      "setupTips": "Setup Tips\n\n• Wings: Low–medium downforce; prioritize straight-line speed but don’t make the car unmanageable in slow corners.\n\n• Differential: More open on-throttle to help control traction out of the hairpins.\n\n• Suspension: Softer for bumps and curbs, especially on a street circuit.\n\n• Brakes: Medium–high pressure, rearward bias helps prevent front lockups into heavy braking zones.\n\n• Tyres: Manage overheating carefully; the stop-start nature can punish the rears.",
+      "drivingTips": "Driving Tips\n\n• Be smooth under braking — late but controlled stops are your best chance to make up time.\n\n• Maximize exits onto long straights — your lap time depends on it.\n\n• Use slipstream and DRS wisely, especially on the back straight for overtakes.\n\n• Save ERS for the straights or critical passes — don’t waste it on short bursts.\n\nRecommended Las Vegas race strategy\n\n<img decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-Las-Vega-Race-Strategy-1024x576.webp\" alt=\"F1 24 Las Vega"
+    }
+  ]
 }

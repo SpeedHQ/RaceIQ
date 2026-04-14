@@ -1,7 +1,68 @@
 {
-  "trackGuide": "Sector 1: Long Straights and Heavy Braking\nTurn 1: 90° Left-Hander\nTips:\nBig braking zone — prime overtaking spot. Brake late and downshift to 2nd gear. Don’t clip the inside kerb too hard or you’ll lose balance.\nTurn 2: Another 90° Left\nTips:\nSimilar to Turn 1 but slightly faster. Prepare for the short DRS straight after the corner. Focus on a clean exit.\nTurn 3: 90° Right\nTips:\nA common lock-up spot. Brake in a straight line and turn in sharply. Use the kerb sparingly.\nTurn 4: 90° Left\nTips:\nQuick transition, stay tight and carry good speed to avoid getting caught off-line for the flowing mid-sector.\nSector 2: Technical Corners and the Castle Section\nTurns 5–6: Quick Left-Right Chicane\nTips:\nMaintain rhythm and flow. Don’t overcommit — getting too aggressive can lead to contact with walls.\nTurn 7: Tight Left\nTips:\nImportant to slow the car down fully. Sets up entry into the infamous castle section.\nTurns 8–11: Castle Section\nTips:\nThe narrowest part of the circuit. Hug the left wall on entry, glide through the corner complex with minimal steering corrections. Oversteer here usually ends in retirement.\nTurn 12: Right Kink\nTips:\nFlat out but be precise. Don’t clip the exit wall.\nTurn 13–15: Fast Sweepers\nTips:\nStay smooth and straight. Turn 15 is a braking zone with a tricky camber — lock-ups are common here.\nSector 3: Maximum Speed\nTurn 16: Final Real Corner\nTips:\nMedium-speed left. Carry speed and maximize your exit to fly down the main straight.\nTurns 17–20: Flat-Out Kinks\nTips:\nAll flat. Prioritize low drag setup to gain maximum top speed here. DRS opens up at Turn 20 exit.\nSetup tips for Baku\nBelow are some general setup tips to help you improve your cars handling and performance at Baku in F1 25.\nSetup Area\nRecommended Settings\nAerodynamics\nAzerbaijan rewards a stable rear end, so opt for a low downforce setup with higher rear wing aero.\nTransmission\nStability is key, so be more conservative on the differential setup.\nSuspension\nYou can opt for a really high rake approach for Baku to eliminate understeer.\nBrakes\nHigher brake bias will offset the off throttle diff setup, and provide good braking stability.\nTyres\nTyre wear isnt as high at Baku as other tracks, so you can modulate your pressures for better performance.\nOptimal race strategy\nA hard to medium, or medium to hard strategy is the best option for a race around Bake, as the soft tyres fall apart quickly.\nOption 1:\nMedium → Hard\nBest for balanced performance.\nPit around Lap 10–13.\n<img fetchpriority=\"high\" decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-Baku-Race-Strategy-1024x576.webp\" alt=\"F1 24 Baku",
-  "setupTips": "",
-  "drivingTips": "",
-  "videoUrl": "https://www.youtube.com/watch?v=ih1sBETaFi4",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/azerbaijan-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/azerbaijan-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=ih1sBETaFi4",
+      "sections": [
+        {
+          "heading": "Turn 1: 90° Left-Hander",
+          "body": "• Tips: Big braking zone — prime overtaking spot. Brake late and downshift to 2nd gear. Don’t clip the inside kerb too hard or you’ll lose balance."
+        },
+        {
+          "heading": "Turn 2: Another 90° Left",
+          "body": "• Tips: Similar to Turn 1 but slightly faster. Prepare for the short DRS straight after the corner. Focus on a clean exit."
+        },
+        {
+          "heading": "Turn 3: 90° Right",
+          "body": "• Tips: A common lock-up spot. Brake in a straight line and turn in sharply. Use the kerb sparingly."
+        },
+        {
+          "heading": "Turn 4: 90° Left",
+          "body": "• Tips: Quick transition, stay tight and carry good speed to avoid getting caught off-line for the flowing mid-sector."
+        },
+        {
+          "heading": "Turns 5–6: Quick Left-Right Chicane",
+          "body": "• Tips: Maintain rhythm and flow. Don’t overcommit — getting too aggressive can lead to contact with walls."
+        },
+        {
+          "heading": "Turn 7: Tight Left",
+          "body": "• Tips: Important to slow the car down fully. Sets up entry into the infamous castle section."
+        },
+        {
+          "heading": "Turns 8–11: Castle Section",
+          "body": "• Tips: The narrowest part of the circuit. Hug the left wall on entry, glide through the corner complex with minimal steering corrections. Oversteer here usually ends in retirement."
+        },
+        {
+          "heading": "Turn 12: Right Kink",
+          "body": "• Tips: Flat out but be precise. Don’t clip the exit wall."
+        },
+        {
+          "heading": "Turn 13–15: Fast Sweepers",
+          "body": "• Tips: Stay smooth and straight. Turn 15 is a braking zone with a tricky camber — lock-ups are common here."
+        },
+        {
+          "heading": "Turn 16: Final Real Corner",
+          "body": "• Tips: Medium-speed left. Carry speed and maximize your exit to fly down the main straight."
+        },
+        {
+          "heading": "Turns 17–20: Flat-Out Kinks",
+          "body": "• Tips: All flat. Prioritize low drag setup to gain maximum top speed here. DRS opens up at Turn 20 exit."
+        },
+        {
+          "heading": "Setup tips for Baku",
+          "body": "Below are some general setup tips to help you improve your cars handling and performance at Baku in F1 25.\n\nSetup AreaRecommended SettingsAerodynamicsAzerbaijan rewards a stable rear end, so opt for a low downforce setup with higher rear wing aero.TransmissionStability is key, so be more conservative on the differential setup.SuspensionYou can opt for a really high rake approach for Baku to eliminate understeer.BrakesHigher brake bias will offset the off throttle diff setup, and provide good braking stability.TyresTyre wear isnt as high at Baku as other tracks, so you can modulate your pressures for better performance."
+        },
+        {
+          "heading": "Optimal race strategy",
+          "body": "A hard to medium, or medium to hard strategy is the best option for a race around Bake, as the soft tyres fall apart quickly."
+        },
+        {
+          "heading": "Option 1: Medium → Hard",
+          "body": "• Best for balanced performance.\n\n• Pit around Lap 10–13.\n\n<img fetchpriority=\"high\" decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-Baku-Race-Strategy-1024x576.webp\" alt=\"F1 24 Baku"
+        }
+      ],
+      "setupTips": "",
+      "drivingTips": ""
+    }
+  ]
 }

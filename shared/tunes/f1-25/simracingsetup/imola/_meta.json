@@ -1,7 +1,28 @@
 {
-  "trackGuide": "Sector 1: Turns 1–4 (Tamburello & Villeneuve)\nTurn 1–2 (Tamburello chicane)\n: Brake just after the 100m board, down to 4th or 5th gear. Clip both apex curbs — especially the first — but avoid riding them too aggressively or you’ll destabilize the car. Use the runoff on exit.\nTurn 4–5 (Villeneuve chicane)\n: Light brake or lift, attack the inside curb aggressively. It’s tempting to brake late, but you need a clean exit for the run down to Tosa.\n✅\nKey tip\n: Focus on smooth inputs; the car wants to dance here, so trust the downforce.\nSector 2: Turns 6–12 (Tosa, Piratella, Acque Minerali)\nTurn 6 (Tosa hairpin)\n: Heavy braking to 2nd gear. Late apex and prioritize a clean, full-throttle exit — traction is tricky here.\nTurn 9 (Piratella)\n: Medium-speed left; brake lightly and keep the car stable over the crest. Cut a lot of the inside curb but watch track limits.\nTurns 11–12 (Acque Minerali)\n: One of the trickiest parts. Brake hard downhill, carry speed in, then immediately accelerate uphill — traction is critical, so modulate the throttle carefully.\n✅\nKey tip\n: Carry speed through Piratella but stay composed; mistakes here cost big time.\nSector 3: Turns 14–21 (Variante Alta & Rivazza)\nTurn 14–15 (Variante Alta chicane)\n: Brake hard, take a lot of the curbs — it’s the only way to stay fast. Be careful on throttle over the crest; the rear can snap loose.\nTurns 17–18 (Rivazza double left)\n: Brake early, get the car rotated, and square off the second Rivazza for the long straight. A strong exit is crucial for your top speed.\n✅\nKey tip\n: Don’t overdrive Rivazza; smoothness matters more than late braking.\nFinal Tips\nERS and Fuel\n: Deploy ERS on the long straights and up the hill from Acque Minerali. Be efficient — save it for key overtaking spots or lap time gains.\nBrake Bias\n: Shift brake bias slightly forward for the downhill sections, then slightly rearward for better rotation uphill.\nSetup Adjustments\n: If you struggle with the curbs, soften your suspension a touch. If you understeer in fast corners, consider adding front wing or adjusting diff settings.",
-  "setupTips": "Car Setup Tips\nFocus on\naero balance\n: you need confidence in the middle sector without sacrificing too much on the straights.\nKeep\nsuspension soft enough\nto handle the chicanes and curbs.\nWatch\ntraction zones\n: they can punish you if you’re too aggressive on the throttle.\nBrake performance\nis critical: practice hitting your marks consistently.\nFinally, remember that setup is only part of the puzzle. Practice your lines, braking points, and throttle application to maximize the potential of your car. Adjust the setup to match your driving style — some players prefer a slightly looser rear or stiffer front to suit their technique. With the right balance, you’ll be ready to dominate at Imola in F1 25!\nRace strategy\nImola",
-  "drivingTips": "",
-  "videoUrl": "https://www.youtube.com/watch?v=NNAxHXoDjqA",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/imola-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/imola-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=NNAxHXoDjqA",
+      "sections": [
+        {
+          "heading": "Sector 1: Turns 1–4 (Tamburello & Villeneuve)",
+          "body": "• Turn 1–2 (Tamburello chicane): Brake just after the 100m board, down to 4th or 5th gear. Clip both apex curbs — especially the first — but avoid riding them too aggressively or you’ll destabilize the car. Use the runoff on exit.\n\n• Turn 4–5 (Villeneuve chicane): Light brake or lift, attack the inside curb aggressively. It’s tempting to brake late, but you need a clean exit for the run down to Tosa.\n\n• Key tip: Focus on smooth inputs; the car wants to dance here, so trust the downforce."
+        },
+        {
+          "heading": "Sector 2: Turns 6–12 (Tosa, Piratella, Acque Minerali)",
+          "body": "• Turn 6 (Tosa hairpin): Heavy braking to 2nd gear. Late apex and prioritize a clean, full-throttle exit — traction is tricky here.\n\n• Turn 9 (Piratella): Medium-speed left; brake lightly and keep the car stable over the crest. Cut a lot of the inside curb but watch track limits.\n\n• Turns 11–12 (Acque Minerali): One of the trickiest parts. Brake hard downhill, carry speed in, then immediately accelerate uphill — traction is critical, so modulate the throttle carefully.\n\n• Key tip: Carry speed through Piratella but stay composed; mistakes here cost big time."
+        },
+        {
+          "heading": "Sector 3: Turns 14–21 (Variante Alta & Rivazza)",
+          "body": "• Turn 14–15 (Variante Alta chicane): Brake hard, take a lot of the curbs — it’s the only way to stay fast. Be careful on throttle over the crest; the rear can snap loose.\n\n• Turns 17–18 (Rivazza double left): Brake early, get the car rotated, and square off the second Rivazza for the long straight. A strong exit is crucial for your top speed.\n\n• Key tip: Don’t overdrive Rivazza; smoothness matters more than late braking."
+        },
+        {
+          "heading": "Final Tips",
+          "body": "• ERS and Fuel: Deploy ERS on the long straights and up the hill from Acque Minerali. Be efficient — save it for key overtaking spots or lap time gains.\n\n• Brake Bias: Shift brake bias slightly forward for the downhill sections, then slightly rearward for better rotation uphill.\n\n• Setup Adjustments: If you struggle with the curbs, soften your suspension a touch. If you understeer in fast corners, consider adding front wing or adjusting diff settings."
+        }
+      ],
+      "setupTips": "Car Setup Tips\n\n• Focus on aero balance: you need confidence in the middle sector without sacrificing too much on the straights.\n\n• Keep suspension soft enough to handle the chicanes and curbs.\n\n• Watch traction zones: they can punish you if you’re too aggressive on the throttle.\n\n• Brake performance is critical: practice hitting your marks consistently.\n\nFinally, remember that setup is only part of the puzzle. Practice your lines, braking points, and throttle application to maximize the potential of your car. Adjust the setup to match your driving style — some players prefer a slightly looser rear or stiffer front to suit their technique. With the right balance, you’ll be ready to dominate at Imola in F1 25!\n\nRace strategy\n\nImola",
+      "drivingTips": ""
+    }
+  ]
 }

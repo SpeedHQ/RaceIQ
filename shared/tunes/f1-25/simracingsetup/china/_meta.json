@@ -1,7 +1,44 @@
 {
-  "trackGuide": "",
-  "setupTips": "",
-  "drivingTips": "",
-  "videoUrl": "https://www.youtube.com/watch?v=_cRLgM_wBb0",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/china-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/china-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=_cRLgM_wBb0",
+      "sections": [
+        {
+          "heading": "Turns 1–4 (Long right-hand spiral into tight left)",
+          "body": "• One of the most unique first corners in F1. Gradually tighten your steering and lift off the throttle in Turn 1, keeping the car balanced.\n\n• Downshift carefully into Turn 2 and avoid running wide in Turn 3.\n\n• Keep left and short-shift into Turn 4 to prevent wheelspin.\n\nTip: Focus on smooth inputs; abrupt throttle or steering will kill your entry speed."
+        },
+        {
+          "heading": "Turns 5–6 (Short straight and tight hairpin)",
+          "body": "• Carry momentum through Turn 5, a fast right-hander.\n\n• Brake hard for Turn 6 hairpin and stay tight on entry to block undercuts or set up overtakes.\n\nTip: Watch for inside divebombs from AI or online opponents into Turn 6."
+        },
+        {
+          "heading": "Turns 7–8 (Medium-speed esses",
+          "body": "• Stay tight left for the fast right-left sweep.\n\n• A lift or small brake tap helps rotate the car.\n\n• Clip the apex curbs but avoid unsettling the car.\n\nTip: Keep steering smooth to maintain speed and rear grip."
+        },
+        {
+          "heading": "Turns 9–10 (Technical left-right)",
+          "body": "• Medium-speed double corner.\n\n• Stay off the inside curb at Turn 9.\n\n• Prepare early for Turn 10 and short-shift on exit to minimize traction loss."
+        },
+        {
+          "heading": "Turns 11–13 (Long right-hand spiral onto back straight)",
+          "body": "• Slow entry, fast exit.\n\n• Hug the inside and gradually unwind the steering through the never-ending Turn 13.\n\nTip: Get the best exit possible; this sets up your top speed on the back straight."
+        },
+        {
+          "heading": "Turns 14–16 (Back straight and final hairpin)",
+          "body": "• Maximize top speed down the back straight (use ERS here).\n\n• Brake hard into the Turn 14 hairpin; aim for a late apex.\n\n• Short-shift out of the hairpin and prepare for the off-camber Turn 16 onto the main straight.\n\nTip: A clean exit from Turn 16 is crucial for lap time and DRS battles."
+        },
+        {
+          "heading": "How to set up a car for China in F1 25?",
+          "body": "To be fast at China in F1 25, your car setup needs to balance top speed, rear stability, and front-end responsiveness.\n\nSetup AreaRecommended SettingAeroBalance downforce, and straight-line speed with a medium to high aero setupTransmissionLower on-throttle diff for better tractionSuspensionSofter rear suspension and front ARB will improve rotation and traction out of slow cornersBrakesFocus on the braking zone into the hairpin with a more forward brake biasTyresChina is known for overheating tyres so maximise tyre pressures if needed."
+        },
+        {
+          "heading": "F1 25 China race strategy",
+          "body": "A medium to hard strategy is ideal for China and its high tyre wear. The hard tires last longer but are slower, so you’ll need to focus on managing your pace. Pitting around lap 15 or 16 on the hard tyre, or around lap 11 if you started on the medium tyre is ideal.\n\n<img fetchpriority=\"high\" decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-China-Race-Strategy-1024x576.webp\" alt=\"F1 24 China"
+        }
+      ],
+      "setupTips": "",
+      "drivingTips": ""
+    }
+  ]
 }

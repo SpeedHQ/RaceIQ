@@ -1,7 +1,24 @@
 {
-  "trackGuide": "Sector 1 – Turns 1–3: Fast Start, Heavy Braking\nTurn 1\n: Fast right-hander with a tricky braking zone. Brake slightly earlier than you think at ~100m, trail brake in, and ride the inside kerb carefully. A clean exit here is key for Turn 2.\nTurn 2\n: Easy flat-out left — stay tight and prepare to defend or attack into the next braking zone.\nTurn 3\n: Heavy braking zone (one of the best overtaking spots). Brake hard at ~100m down to second gear, rotate the car early, and avoid overcommitting on the throttle at exit.\nKey tip\n: Focus on smooth braking and stable rear-end rotation to avoid snaps.\nSector 2 – Turns 4–10: Medium-Speed Sweepers & High-Speed Chicane\nTurn 4\n: Slight lift or light brake, quick flick right — be precise on entry, as the exit kerb can unsettle the car.\nTurn 5\n: Flat-out left-hander; position the car wide for the fastest line.\nTurns 6–7\n: Brake late into this right-hander, clip the inside kerb, and short-shift on exit to maintain traction.\nTurns 8–9–10\n(Fast chicane): The most thrilling section. Carry as much speed as possible through this fast left-right, keeping the car stable over the kerbs. Don’t cut too much or you’ll invalidate your lap.\nKey tip\n: Stability is everything — setup your suspension for kerb handling and keep throttle inputs smooth.\nSector 3 – Turns 11–14: Tight Corners, Traction Management\nTurns 11–12\n: Another high-speed chicane; stay committed but avoid using too much kerb to prevent unsettling the car.\nTurn 13\n: Medium-speed right-hander with a tricky, bumpy braking zone. Brake earlier, keep it tight, and be patient on throttle.\nTurn 14 (Final Corner)\n: A deceptively tight left-hand corner. Maximize exit speed for the long pit straight by focusing on early throttle and smooth steering.\nKey tip\n: Watch rear tyre wear — aggressive traction zones here can overheat the rears late in the race.\nF1 25 Australia",
-  "setupTips": "",
-  "drivingTips": "",
-  "videoUrl": "https://www.youtube.com/watch?v=AwGa9himi0o",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/australian-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/australian-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=AwGa9himi0o",
+      "sections": [
+        {
+          "heading": "Sector 1 – Turns 1–3: Fast Start, Heavy Braking",
+          "body": "• Turn 1: Fast right-hander with a tricky braking zone. Brake slightly earlier than you think at ~100m, trail brake in, and ride the inside kerb carefully. A clean exit here is key for Turn 2.\n\n• Turn 2: Easy flat-out left — stay tight and prepare to defend or attack into the next braking zone.\n\n• Turn 3: Heavy braking zone (one of the best overtaking spots). Brake hard at ~100m down to second gear, rotate the car early, and avoid overcommitting on the throttle at exit.\n\nKey tip: Focus on smooth braking and stable rear-end rotation to avoid snaps."
+        },
+        {
+          "heading": "Sector 2 – Turns 4–10: Medium-Speed Sweepers & High-Speed Chicane",
+          "body": "• Turn 4: Slight lift or light brake, quick flick right — be precise on entry, as the exit kerb can unsettle the car.\n\n• Turn 5: Flat-out left-hander; position the car wide for the fastest line.\n\n• Turns 6–7: Brake late into this right-hander, clip the inside kerb, and short-shift on exit to maintain traction.\n\n• Turns 8–9–10 (Fast chicane): The most thrilling section. Carry as much speed as possible through this fast left-right, keeping the car stable over the kerbs. Don’t cut too much or you’ll invalidate your lap.\n\nKey tip: Stability is everything — setup your suspension for kerb handling and keep throttle inputs smooth."
+        },
+        {
+          "heading": "Sector 3 – Turns 11–14: Tight Corners, Traction Management",
+          "body": "• Turns 11–12: Another high-speed chicane; stay committed but avoid using too much kerb to prevent unsettling the car.\n\n• Turn 13: Medium-speed right-hander with a tricky, bumpy braking zone. Brake earlier, keep it tight, and be patient on throttle.\n\n• Turn 14 (Final Corner): A deceptively tight left-hand corner. Maximize exit speed for the long pit straight by focusing on early throttle and smooth steering.\n\nKey tip: Watch rear tyre wear — aggressive traction zones here can overheat the rears late in the race.\n\nF1 25 Australia"
+        }
+      ],
+      "setupTips": "Setup Tips – Best Car Settings for Albert Park\n\nSetup AreaRecommended SettingsAerodynamicsPrioritize medium downforce with lower wings for the race for the best top speed and stabilityTransmissionNormal approach for the transmission with high on throttle and low off throttle is key.SuspensionMedium to soft front anti roll bars will help with rotation into corners. A low ride height with minimal rake is optimal.BrakesMore rear focused brake bias is ideal for the faster corners.TyresPrioritise tyre wear as Albert Park can punish your front tyres a lot.\n\nTips on How to Be Fast at Albert Park in F1 25\n\n• Master braking zones: Albert Park punishes late brakers. Focus on smooth, progressive braking to avoid lockups or rear-end snaps.\n\n• Attack the kerbs carefully: In fast chicanes like Turns 8–10, cutting too much can invalidate laps; find the perfect line over the kerbs without unsettling the car.\n\n• Maximize ERS: Use ERS where overtaking matters — mainly between Turns 2–3 and Turns 10–11.\n\n• Manage tyre temps: Rear traction zones can overheat tyres, especially late in the race. Smooth throttle input helps reduce degradation.\n\nWhat is the best",
+      "drivingTips": ""
+    }
+  ]
 }

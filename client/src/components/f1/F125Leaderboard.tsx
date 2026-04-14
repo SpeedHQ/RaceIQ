@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { client } from "@/lib/rpc";
+import { Table, THead, TH, TBody, TRow, TD } from "@/components/ui/AppTable";
 
 interface LeaderboardEntry {
   rank: number;
@@ -22,14 +23,14 @@ interface F125TrackSummary {
 export function F125Leaderboard({ trackOrdinal }: { trackOrdinal: number }) {
   const { data: tracks = [] } = useQuery<F125TrackSummary[]>({
     queryKey: ["f125-tracks"],
-    queryFn: () => client.api["f1-25"].tracks.$get().then(r => r.json() as any),
+    queryFn: () => client.api["f1-25"].tracks.$get().then(r => r.json() as unknown as F125TrackSummary[]),
   });
 
   const trackSlug = tracks.find(t => t.trackOrdinal === trackOrdinal)?.trackSlug;
 
   const { data: trackData } = useQuery<F125TrackData>({
     queryKey: ["f125-setups", trackSlug],
-    queryFn: () => client.api["f1-25"].setups.$get({ query: { track: trackSlug! } }).then(r => r.json() as any),
+    queryFn: () => client.api["f1-25"].setups.$get({ query: { track: trackSlug! } }).then(r => r.json() as unknown as F125TrackData),
     enabled: !!trackSlug,
   });
 
@@ -51,28 +52,26 @@ export function F125Leaderboard({ trackOrdinal }: { trackOrdinal: number }) {
           View Full
         </a>
       </div>
-      <table className="w-full text-app-unit">
-        <thead>
-          <tr className="text-app-text-dim uppercase border-b border-app-border/20">
-            <th className="text-left py-1 px-1 w-6">#</th>
-            <th className="text-left py-1 px-1">Player</th>
-            <th className="text-left py-1 px-1">Team</th>
-            <th className="text-left py-1 px-1">Session</th>
-            <th className="text-right py-1 px-1">Time</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <THead>
+          <TH className="w-6">#</TH>
+          <TH>Player</TH>
+          <TH>Team</TH>
+          <TH>Session</TH>
+          <TH className="text-right">Time</TH>
+        </THead>
+        <TBody>
           {leaderboard.map((e) => (
-            <tr key={e.rank} className="border-b border-app-border/10 hover:bg-app-surface-alt/30">
-              <td className="py-1 px-1 text-app-text-dim font-mono">{e.rank}</td>
-              <td className="py-1 px-1 text-app-text font-medium">{e.player}</td>
-              <td className="py-1 px-1 text-app-text-secondary">{e.team}</td>
-              <td className="py-1 px-1 text-app-text-dim">{e.sessionType}</td>
-              <td className="py-1 px-1 text-right font-mono text-emerald-400">{e.lapTime}</td>
-            </tr>
+            <TRow key={e.rank}>
+              <TD className="font-mono text-app-text-dim">{e.rank}</TD>
+              <TD className="font-medium">{e.player}</TD>
+              <TD className="text-app-text-secondary">{e.team}</TD>
+              <TD className="text-app-text-dim">{e.sessionType}</TD>
+              <TD className="text-right font-mono text-emerald-400">{e.lapTime}</TD>
+            </TRow>
           ))}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
     </div>
   );
 }
