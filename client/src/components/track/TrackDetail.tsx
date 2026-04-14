@@ -400,7 +400,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                   : "text-app-text-muted hover:text-app-text-secondary hover:bg-app-surface-alt"
               }`}
             >
-              {tab === "laps" && trackLaps.length > 0 ? `Laps (${trackLaps.length})` : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === "laps" && trackLaps.length > 0 ? `Laps (${trackLaps.length})` : tab === "guide" ? "Guides" : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>

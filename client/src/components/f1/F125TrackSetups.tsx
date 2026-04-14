@@ -143,6 +143,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
 
   const guides = trackData?.trackGuide ?? [];
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
+  const [contentTab, setContentTab] = useState<"guide" | "setup">("guide");
   const activeGuide = guides.find(g => g.source === selectedSource) ?? guides[0];
 
   if (guides.length === 0) return (
@@ -174,12 +175,6 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
               </div>
               <table className="w-full text-[10px] text-app-text-secondary">
                 <tbody>
-                  {sectionCount > 0 && (
-                    <tr>
-                      <td className="pr-2 text-app-text-dim">Sections</td>
-                      <td>{sectionCount}</td>
-                    </tr>
-                  )}
                   {g.setupTips && (
                     <tr>
                       <td className="pr-2 text-app-text-dim">Setup tips</td>
@@ -201,39 +196,63 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
 
       {/* Guide content */}
       {activeGuide && (
-        <div className="flex-1 min-w-0 overflow-y-auto rounded-lg border border-app-border/15 bg-app-surface-alt/15 p-3" style={{ overflow: "auto" }}>
-          {activeGuide.videoUrl && (
-            <div className="float-right ml-4 mb-4 rounded-lg overflow-hidden border border-app-border/30" style={{ width: "45%" }}>
-              <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-                <iframe src={toEmbedUrl(activeGuide.videoUrl)} title="Track Guide" className="absolute inset-0 w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
-              </div>
+        <div className="flex-1 min-w-0 flex flex-col min-h-0">
+          {/* Source link + content tabs */}
+          <div className="flex items-center justify-between mb-2 shrink-0">
+            {activeGuide.source ? (
+              <a href={activeGuide.source} target="_blank" rel="noopener noreferrer"
+                className="text-[10px] text-app-text-dim hover:text-app-text-secondary underline underline-offset-2">
+                View on {sourceDisplayName(activeGuide.source)} ↗
+              </a>
+            ) : <span />}
+            <div className="flex gap-1">
+              <button onClick={() => setContentTab("guide")}
+                className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${contentTab === "guide" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}>
+                Guide
+              </button>
+              {activeGuide.setupTips && (
+                <button onClick={() => setContentTab("setup")}
+                  className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${contentTab === "setup" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}>
+                  Setup Tips
+                </button>
+              )}
             </div>
-          )}
-          {activeGuide.sections?.map((s, i) => (
-            <div key={i} className="mb-6">
-              {s.heading && <p className="text-app-text font-semibold text-app-unit mb-1">{s.heading}</p>}
-              <p className="text-app-text-secondary text-app-unit leading-relaxed whitespace-pre-line">{s.body}</p>
-            </div>
-          ))}
-          {activeGuide.setupTips && (
-            <div className="mb-4 clear-right">
-              <p className="text-app-text font-semibold text-app-unit mb-1">Setup Tips</p>
-              <p className="text-app-text-secondary text-app-unit leading-relaxed">{activeGuide.setupTips}</p>
-            </div>
-          )}
-          {activeGuide.drivingTips && (
-            <div className="mb-6">
-              <p className="text-app-text font-semibold text-app-unit mb-1">Driving Tips</p>
-              <p className="text-app-text-secondary text-app-unit leading-relaxed">{activeGuide.drivingTips}</p>
-            </div>
-          )}
-          {activeGuide.source && (
-            <a href={activeGuide.source} target="_blank" rel="noopener noreferrer"
-              className="self-start text-[10px] text-app-text-dim hover:text-app-text-secondary underline underline-offset-2">
-              View on {sourceDisplayName(activeGuide.source)}
-            </a>
-          )}
+          </div>
+          <div className="overflow-y-auto rounded-lg border border-app-border/15 bg-app-surface-alt/15 p-3 flex-1">
+            {contentTab === "guide" && (
+              <>
+                {activeGuide.videoUrl && (
+                  <div className="float-right ml-4 mb-4 rounded-lg overflow-hidden border border-app-border/30" style={{ width: "45%" }}>
+                    <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+                      <iframe src={toEmbedUrl(activeGuide.videoUrl)} title="Track Guide" className="absolute inset-0 w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+                    </div>
+                  </div>
+                )}
+                {activeGuide.sections?.map((s, i) => (
+                  <div key={i} className="mb-6">
+                    {s.heading && <p className="text-app-text font-semibold text-app-unit mb-1">{s.heading}</p>}
+                    <p className="text-app-text-secondary text-app-unit leading-relaxed whitespace-pre-line">{s.body}</p>
+                  </div>
+                ))}
+              </>
+            )}
+            {contentTab === "setup" && (
+              <>
+                {activeGuide.setupTips && (
+                  <div className="mb-4">
+                    <p className="text-app-text-secondary text-app-unit leading-relaxed whitespace-pre-line">{activeGuide.setupTips}</p>
+                  </div>
+                )}
+                {activeGuide.drivingTips && (
+                  <div className="mb-6">
+                    <p className="text-app-text font-semibold text-app-unit mb-1">Driving Tips</p>
+                    <p className="text-app-text-secondary text-app-unit leading-relaxed whitespace-pre-line">{activeGuide.drivingTips}</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
