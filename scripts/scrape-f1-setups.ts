@@ -169,6 +169,7 @@ async function scrapeF1Laps(slug: string): Promise<any[]> {
 // ── simracingsetup.com ──────────────────────────────────────────────────
 
 type GuideSection = { heading: string; body: string };
+type GuideEntry = { source: string; videoUrl: string; sections: GuideSection[]; setupTips: string; drivingTips: string };
 
 function srsParseListingPage(html: string): { setupUrls: string[]; videoUrl: string; trackGuide: GuideSection[]; setupTips: string; drivingTips: string } {
   // Setup detail URLs
@@ -350,18 +351,106 @@ async function scrapeSRS(srsSlug: string): Promise<{ setups: any[]; videoUrl: st
   return { setups, videoUrl, guideUrl, trackGuide, setupTips, drivingTips };
 }
 
+// ── overtake.gg ─────────────────────────────────────────────────────────
+
+const OVERTAKE_BASE = "https://www.overtake.gg/news/f1-25-track-guides.3245";
+
+const OVERTAKE_TRACK_MAP: Record<string, string> = {
+  australia:   "page/australia-albert-park.348/",
+  china:       "page/china-shanghai-international-circuit.353/",
+  japan:       "page/japan-suzuka.354/",
+  bahrain:     "page/bahrain-bahrain-international-circuit.352/",
+  saudi_arabia:"page/saudi-arabia-jeddah-corniche-circuit.355/",
+  miami:       "page/usa-miami-international-autodrome.356/",
+  imola:       "page/italy-autodromo-internazionale-enzo-e-dino-ferrari.351/",
+  monaco:      "page/monaco-circuit-de-monaco.357/",
+  spain:       "page/spain-barcelona.343/",
+  canada:      "page/canada-montr%C3%A9al-circuit-gilles-villeneuve.345/",
+  austria:     "page/austria-red-bull-ring.344/",
+  silverstone: "page/great-britian-silverstone.346/",
+  spa:         "page/belgium-spa-francorchamps.347/",
+  hungary:     "page/hungary-hungaroring.349/",
+  netherlands: "page/netherlands-zandvoort.358/",
+  monza:       "page/italy-monza.350/",
+  azerbaijan:  "page/azerbaijan-baku.359/",
+  singapore:   "page/singapore-marina-bay.360/",
+  usa:         "page/usa-circuit-of-the-americas.361/",
+  mexico:      "page/mexico-hermanos-rodriguez.362/",
+  brazil:      "page/brazil-interlagos.363/",
+  las_vegas:   "page/usa-las-vegas-strip-circuit.364/",
+  qatar:       "page/qatar-lusail.365/",
+  abudhabi:    "page/abu-dhabi-yas-marina.366/",
+};
+
+function overtakeExtractSections(html: string): GuideSection[] {
+  function decodeEntities(s: string): string {
+    return s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&#8211;/g, "–").replace(/&#8212;/g, "—").replace(/&nbsp;/g, " ").replace(/&#\d+;/g, "");
+  }
+  function toPlainText(fragment: string): string {
+    return decodeEntities(
+      fragment
+        .replace(/<li[^>]*>/gi, "\n• ")
+        .replace(/<\/li>/gi, "")
+        .replace(/<\/?(strong|em|span|a)[^>]*>/gi, "")
+        .replace(/<\/?(p|ul|ol|div|br|h[2-6])[^>]*>/gi, "\n")
+        .replace(/<[^>]*>/g, "")
+    ).replace(/[ \t]+/g, " ").replace(/\n[ \t]+/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  // Find the article content — starts after "Table of contents" nav, ends before "Continue Reading" or "More in Guides"
+  const contentStart = html.indexOf('class="bbWrapper"');
+  if (contentStart < 0) return [];
+  const contentEnd = Math.min(
+    ...["Continue Reading", "More in Guides", "class=\"p-article-tag-list\"", "Next page:", "Previous page:", "Last edited:"].map(m => {
+      const i = html.indexOf(m, contentStart);
+      return i > 0 ? i : html.length;
+    })
+  );
+  const content = html.slice(contentStart, contentEnd);
+
+  const headingRe = /<b>(Sector \d[^<]*)<\/b>|<h[234][^>]*>([\s\S]*?)<\/h[234]>/gi;
+  const sections: GuideSection[] = [];
+  let lastIdx = 0;
+  let pendingHeading = "";
+  let hm: RegExpExecArray | null;
+
+  while ((hm = headingRe.exec(content)) !== null) {
+    if (pendingHeading) {
+      const body = toPlainText(content.slice(lastIdx, hm.index));
+      if (body.length > 20) sections.push({ heading: pendingHeading, body });
+    }
+    pendingHeading = decodeEntities((hm[1] || hm[2] || "").replace(/<[^>]*>/g, "")).trim();
+    lastIdx = hm.index + hm[0].length;
+  }
+  if (pendingHeading) {
+    const body = toPlainText(content.slice(lastIdx));
+    if (body.length > 20) sections.push({ heading: pendingHeading, body });
+  }
+  return sections;
+}
+
+async function scrapeOvertake(slug: string): Promise<GuideSection[]> {
+  const pagePath = OVERTAKE_TRACK_MAP[slug];
+  if (!pagePath) return [];
+  const url = `${OVERTAKE_BASE}/${pagePath}`;
+  const html = await fetchText(url);
+  return overtakeExtractSections(html);
+}
+
 // ── Main ────────────────────────────────────────────────────────────────
 
 async function scrapeTrack(slug: string) {
   const track = TRACK_MAP[slug];
 
   // Scrape all sources in parallel
-  const [f1lapsSetups, srsData] = await Promise.all([
+  const [f1lapsSetups, srsData, overtakeSections] = await Promise.all([
     scrapeF1Laps(slug).catch(err => { console.error(`  [${slug}] f1laps: ${(err as Error).message}`); return []; }),
-    scrapeSRS(track.srsSlug).catch(err => { console.error(`  [${slug}] srs: ${(err as Error).message}`); return { setups: [], videoUrl: "", guideUrl: "", trackGuide: "", setupTips: "", drivingTips: "" }; }),
+    scrapeSRS(track.srsSlug).catch(err => { console.error(`  [${slug}] srs: ${(err as Error).message}`); return { setups: [], videoUrl: "", guideUrl: "", trackGuide: [] as GuideSection[], setupTips: "", drivingTips: "" }; }),
+    scrapeOvertake(slug).catch(err => { console.error(`  [${slug}] overtake: ${(err as Error).message}`); return [] as GuideSection[]; }),
   ]);
 
-  return { slug, track, f1lapsSetups, srsData };
+  return { slug, track, f1lapsSetups, srsData, overtakeSections };
 }
 
 function ensureSourceMeta(sourceSlug: string, name: string, domain: string, url: string) {
@@ -381,11 +470,13 @@ async function main() {
   ensureSourceMeta("f1laps", "F1Laps", "f1laps.com", "https://www.f1laps.com/");
   ensureSourceMeta("simracingsetup", "SimRacingSetup", "simracingsetup.com", "https://simracingsetup.com/");
 
-  console.log(`Scraping ${slugs.length} tracks (f1laps + simracingsetup, 4 concurrent)...\n`);
+  ensureSourceMeta("overtake", "Overtake.gg", "overtake.gg", "https://www.overtake.gg/news/f1-25-track-guides.3245/");
+
+  console.log(`Scraping ${slugs.length} tracks (f1laps + simracingsetup + overtake, 4 concurrent)...\n`);
 
   let totalF1L = 0, totalSRS = 0;
   await pooled(slugs, 4, async (slug) => {
-    const { track, f1lapsSetups, srsData } = await scrapeTrack(slug);
+    const { track, f1lapsSetups, srsData, overtakeSections } = await scrapeTrack(slug);
 
     // Write track identity file
     await Bun.write(`${OUT_DIR}/${slug}.json`, JSON.stringify({
@@ -417,7 +508,6 @@ async function main() {
     let existingMeta: any = {};
     try { existingMeta = JSON.parse(readFileSync(`${srsDir}/_meta.json`, "utf-8")); } catch {}
     // trackGuide is an array of { source, videoUrl, sections, setupTips, drivingTips } — upsert by source URL
-    type GuideEntry = { source: string; videoUrl: string; sections: GuideSection[]; setupTips: string; drivingTips: string };
     const existingGuides: GuideEntry[] = Array.isArray(existingMeta.trackGuide)
       ? existingMeta.trackGuide
       : [];
@@ -440,14 +530,40 @@ async function main() {
       trackGuide: existingGuides,
     }, null, 2));
 
+    // Write overtake guide
+    if (OVERTAKE_TRACK_MAP[slug]) {
+      const overtakeDir = `${OUT_DIR}/overtake/${slug}`;
+      mkdirSync(overtakeDir, { recursive: true });
+      const overtakeMetaPath = `${overtakeDir}/_meta.json`;
+      let existingOvertakeMeta: any = {};
+      try { existingOvertakeMeta = JSON.parse(readFileSync(overtakeMetaPath, "utf-8")); } catch {}
+      const overtakeGuideUrl = `${OVERTAKE_BASE}/${OVERTAKE_TRACK_MAP[slug]}`;
+      const existingOvertakeGuides: GuideEntry[] = Array.isArray(existingOvertakeMeta.trackGuide) ? existingOvertakeMeta.trackGuide : [];
+      const hasNewOvertake = overtakeSections.length > 0;
+      if (hasNewOvertake || existingOvertakeGuides.length === 0) {
+        const idx = existingOvertakeGuides.findIndex(g => g.source === overtakeGuideUrl);
+        const prev = existingOvertakeGuides[idx];
+        const entry: GuideEntry = {
+          source: overtakeGuideUrl,
+          videoUrl: prev?.videoUrl || "",
+          sections: overtakeSections.length > 0 ? overtakeSections : (prev?.sections ?? []),
+          setupTips: prev?.setupTips || "",
+          drivingTips: prev?.drivingTips || "",
+        };
+        if (idx >= 0) existingOvertakeGuides[idx] = entry;
+        else existingOvertakeGuides.push(entry);
+        await Bun.write(overtakeMetaPath, JSON.stringify({ trackGuide: existingOvertakeGuides }, null, 2));
+      }
+    }
+
     totalF1L += mergedF1L.length;
     totalSRS += mergedSRS.length;
-    console.log(`  ✓ ${slug.padEnd(14)} f1laps: ${mergedF1L.length} | srs: ${mergedSRS.length} | sections: ${srsData.trackGuide.length}`);
+    console.log(`  ✓ ${slug.padEnd(14)} f1laps: ${mergedF1L.length} | srs: ${mergedSRS.length} | srs-sections: ${srsData.trackGuide.length} | overtake: ${overtakeSections.length}`);
   });
 
   // Update lastScraped in _source.json
   const ts = new Date().toISOString();
-  for (const src of ["f1laps", "simracingsetup"]) {
+  for (const src of ["f1laps", "simracingsetup", "overtake"]) {
     const metaPath = `${OUT_DIR}/${src}/_source.json`;
     const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
     meta.lastScraped = ts;

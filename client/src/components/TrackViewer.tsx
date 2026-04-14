@@ -19,9 +19,9 @@ export function TrackViewer() {
 
   const gameId = useGameId();
   const { data: tracks = [], isLoading: loading } = useTracks() as { data: TrackInfo[]; isLoading: boolean };
-  const { data: f125Tracks = [] } = useQuery<{ trackOrdinal: number; setupCount: number; guideUrl: string }[]>({
+  const { data: f125Tracks = [] } = useQuery<{ trackOrdinal: number; setupCount: number; guideCount: number; guideUrl: string }[]>({
     queryKey: ["f125-tracks"],
-    queryFn: () => client.api["f1-25"].tracks.$get().then(r => r.json() as unknown as { trackOrdinal: number; setupCount: number; guideUrl: string }[]),
+    queryFn: () => client.api["f1-25"].tracks.$get().then(r => r.json() as unknown as { trackOrdinal: number; setupCount: number; guideCount: number; guideUrl: string }[]),
     enabled: gameId === "f1-2025",
   });
   const f125ByOrdinal = Object.fromEntries(f125Tracks.map(t => [t.trackOrdinal, t]));
@@ -110,6 +110,7 @@ export function TrackViewer() {
           {withOutline.map((t) => (
             <TrackCard key={t.ordinal} track={t} onSelect={handleSelectTrack} gameId={gameId}
               setupCount={f125ByOrdinal[t.ordinal]?.setupCount}
+              guideCount={f125ByOrdinal[t.ordinal]?.guideCount}
               hasGuide={!!f125ByOrdinal[t.ordinal]?.guideUrl} />
           ))}
         </div>

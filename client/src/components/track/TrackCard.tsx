@@ -6,7 +6,7 @@ import { countryName } from "@/lib/country-names";
 import type { TrackInfo, Point } from "./types";
 
 /** TrackCard — Gallery thumbnail: fetches outline by ordinal and renders a small static track map. */
-export function TrackCard({ track, onSelect, gameId, setupCount, hasGuide }: { track: TrackInfo; onSelect: (t: TrackInfo) => void; gameId?: GameId | null; setupCount?: number; hasGuide?: boolean }) {
+export function TrackCard({ track, onSelect, gameId, setupCount, guideCount, hasGuide }: { track: TrackInfo; onSelect: (t: TrackInfo) => void; gameId?: GameId | null; setupCount?: number; guideCount?: number; hasGuide?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [flipX, setFlipX] = useState(false);
@@ -65,7 +65,12 @@ export function TrackCard({ track, onSelect, gameId, setupCount, hasGuide }: { t
                 {setupCount} setup{setupCount !== 1 ? "s" : ""}
               </span>
             )}
-            {hasGuide && (
+            {(guideCount ?? 0) > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-900/70 border border-orange-700/50 text-orange-300 font-mono leading-none">
+                {guideCount} guide{guideCount !== 1 ? "s" : ""}
+              </span>
+            )}
+            {hasGuide && (guideCount ?? 0) === 0 && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-900/70 border border-orange-700/50 text-orange-300 font-mono leading-none">
                 guide
               </span>
