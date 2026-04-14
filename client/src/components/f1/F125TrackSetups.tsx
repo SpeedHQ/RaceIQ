@@ -153,7 +153,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
   return (
     <div className="flex h-full min-h-0 gap-3">
       {/* Source list */}
-      <div className="w-48 shrink-0 flex flex-col gap-1">
+      <div className="w-56 shrink-0 flex flex-col gap-1">
         {guides.map(g => {
           const isActive = g.source === activeGuide?.source;
           const sectionCount = g.sections?.length ?? 0;
@@ -163,7 +163,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
                 isActive ? "border-app-accent/40 bg-app-accent/10" : "border-app-border hover:border-app-border-hover bg-app-surface-alt/30 hover:bg-app-surface-alt"
               }`}>
               <div className="flex items-center gap-1.5 mb-1">
-                <span className={`text-app-unit font-medium ${isActive ? "text-app-accent" : "text-app-text"}`}>
+                <span className={`text-sm font-medium ${isActive ? "text-app-accent" : "text-app-text"}`}>
                   {sourceDisplayName(g.source)}
                 </span>
                 {sectionCount > 0 && (
@@ -173,7 +173,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
                   <span className="px-1 py-0.5 text-[8px] font-bold uppercase rounded bg-red-500/20 text-red-400">YT</span>
                 )}
               </div>
-              <table className="w-full text-[10px] text-app-text-secondary">
+              <table className="w-full text-xs text-app-text-secondary">
                 <tbody>
                   {g.setupTips && (
                     <tr>
@@ -197,26 +197,24 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
       {/* Guide content */}
       {activeGuide && (
         <div className="flex-1 min-w-0 flex flex-col min-h-0">
-          {/* Source link + content tabs */}
-          <div className="flex items-center justify-between mb-2 shrink-0">
-            {activeGuide.source ? (
+          {/* Content tabs + source link */}
+          <div className="flex items-center gap-2 mb-2 shrink-0">
+            <button onClick={() => setContentTab("guide")}
+              className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${contentTab === "guide" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}>
+              Guide
+            </button>
+            {activeGuide.setupTips && (
+              <button onClick={() => setContentTab("setup")}
+                className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${contentTab === "setup" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}>
+                Setup Tips
+              </button>
+            )}
+            {activeGuide.source && (
               <a href={activeGuide.source} target="_blank" rel="noopener noreferrer"
-                className="text-[10px] text-app-text-dim hover:text-app-text-secondary underline underline-offset-2">
+                className="text-[10px] text-app-text-muted hover:text-app-text underline underline-offset-2">
                 View on {sourceDisplayName(activeGuide.source)} ↗
               </a>
-            ) : <span />}
-            <div className="flex gap-1">
-              <button onClick={() => setContentTab("guide")}
-                className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${contentTab === "guide" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}>
-                Guide
-              </button>
-              {activeGuide.setupTips && (
-                <button onClick={() => setContentTab("setup")}
-                  className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${contentTab === "setup" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}>
-                  Setup Tips
-                </button>
-              )}
-            </div>
+            )}
           </div>
           <div className="overflow-y-auto rounded-lg border border-app-border/15 bg-app-surface-alt/15 p-3 flex-1">
             {contentTab === "guide" && (
@@ -231,8 +229,8 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
                 )}
                 {activeGuide.sections?.map((s, i) => (
                   <div key={i} className="mb-6">
-                    {s.heading && <p className="text-app-text font-semibold text-app-unit mb-1">{s.heading}</p>}
-                    <p className="text-app-text-secondary text-app-unit leading-relaxed whitespace-pre-line">{s.body}</p>
+                    {s.heading && <p className="text-app-text font-semibold text-sm mb-1">{s.heading}</p>}
+                    <p className="text-app-text-secondary text-sm leading-relaxed whitespace-pre-line">{s.body}</p>
                   </div>
                 ))}
               </>
@@ -241,13 +239,13 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
               <>
                 {activeGuide.setupTips && (
                   <div className="mb-4">
-                    <p className="text-app-text-secondary text-app-unit leading-relaxed whitespace-pre-line">{activeGuide.setupTips}</p>
+                    <p className="text-app-text-secondary text-sm leading-relaxed whitespace-pre-line">{activeGuide.setupTips}</p>
                   </div>
                 )}
                 {activeGuide.drivingTips && (
                   <div className="mb-6">
-                    <p className="text-app-text font-semibold text-app-unit mb-1">Driving Tips</p>
-                    <p className="text-app-text-secondary text-app-unit leading-relaxed whitespace-pre-line">{activeGuide.drivingTips}</p>
+                    <p className="text-app-text font-semibold text-sm mb-1">Driving Tips</p>
+                    <p className="text-app-text-secondary text-sm leading-relaxed whitespace-pre-line">{activeGuide.drivingTips}</p>
                   </div>
                 )}
               </>
