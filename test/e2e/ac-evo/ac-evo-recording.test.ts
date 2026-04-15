@@ -123,8 +123,12 @@ describe("AC Evo v0.6 recording", () => {
     if (!recording) return;
     // Log what we got for debugging
     for (const l of laps) {
+      const s = l.sectors;
+      const sectorStr = s
+        ? ` s1=${s.s1.toFixed(3)} s2=${s.s2.toFixed(3)} s3=${s.s3.toFixed(3)} Σ=${(s.s1 + s.s2 + s.s3).toFixed(3)}`
+        : " sectors=null";
       console.log(
-        `  lap ${l.lapNumber}: ${l.lapTime.toFixed(3)}s ${l.isValid ? "valid" : "invalid"}${l.invalidReason ? ` (${l.invalidReason})` : ""}`,
+        `  lap ${l.lapNumber}: ${l.lapTime.toFixed(3)}s ${l.isValid ? "valid" : "invalid"}${l.invalidReason ? ` (${l.invalidReason})` : ""}${sectorStr}`,
       );
     }
 
