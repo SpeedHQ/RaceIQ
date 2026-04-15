@@ -9,6 +9,7 @@ import { useSettings, useSaveSettings } from "../hooks/queries";
 import { useTheme, type Theme } from "../context/theme";
 
 import { WheelPicker } from "./settings/WheelPicker";
+import { GamesSection } from "./settings/GamesSection";
 import { AiSection } from "./settings/AiSection";
 import { UpdatesSection } from "./settings/UpdatesSection";
 import { ExtractionSection } from "./settings/ExtractionSection";
@@ -50,6 +51,7 @@ import {
 
 const NAV_ITEMS = [
   { id: "theme", label: "Theme" },
+  { id: "games", label: "Games" },
   { id: "connection", label: "Connection" },
   { id: "wheel", label: "Wheel" },
   { id: "temperature", label: "Temperature" },
@@ -237,6 +239,8 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
       {/* Right content */}
       <div className="flex-1 overflow-y-auto p-6">
+        {activeSection === "games" && <GamesSection />}
+
         {activeSection === "theme" && (
           <section>
             <h2 className="text-lg font-semibold text-app-text mb-1">Theme</h2>

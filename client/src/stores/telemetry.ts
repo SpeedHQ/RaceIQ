@@ -27,6 +27,8 @@ export interface DisplaySettings {
   driverName?: string;
   /** Whether the user has completed onboarding */
   onboardingComplete?: boolean;
+  /** Game IDs excluded from nav and home page */
+  hiddenGames?: string[];
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {

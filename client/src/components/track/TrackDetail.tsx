@@ -4,7 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { formatLapTime } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { useBulkDeleteLaps, useDeleteLap } from "@/hooks/queries";
-import { useGameId } from "@/stores/game";
+import { useGameId, getGameRoute } from "@/stores/game";
 import { client } from "@/lib/rpc";
 import { drawTrack } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
@@ -599,7 +599,10 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                       variant="app-outline"
                                       size="app-sm"
                                       className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
-                                      onClick={() => navTo({ to: "/fm23/analyse", search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } })}
+                                      onClick={() => {
+                                        if (!gameId) return;
+                                        navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
+                                      }}
                                     >
                                       Analyse
                                     </Button>
@@ -630,10 +633,14 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                           {selectedLaps.size === 2 && (() => {
                             const [lapA, lapB] = Array.from(selectedLaps);
                             return (
-                              <button
-                                onClick={() => navTo({ to: "/fm23/compare", search: { track: track.ordinal, lapA, lapB, carA: trackLaps.find((l) => l.lapId === lapA)?.carOrdinal, carB: trackLaps.find((l) => l.lapId === lapB)?.carOrdinal } })}
-                                className="text-xs px-3 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-medium"
-                              >Compare</button>
+                              <Button
+                                variant="app-primary"
+                                size="app-md"
+                                onClick={() => {
+                                  if (!gameId) return;
+                                  navTo({ to: `${getGameRoute(gameId)}/compare`, search: { track: track.ordinal, lapA, lapB, carA: trackLaps.find((l) => l.lapId === lapA)?.carOrdinal, carB: trackLaps.find((l) => l.lapId === lapB)?.carOrdinal } } as never);
+                                }}
+                              >Compare</Button>
                             );
                           })()}
                           {!confirmDelete ? (

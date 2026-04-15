@@ -34,6 +34,7 @@ const AppSettingsSchema = z.object({
   }).default({ cold: 65, warm: 105, hot: 138 }),
   tireHealthThresholds: ColorThresholdsSchema.default({ values: [20, 40, 60, 80] }),
   suspensionThresholds: ColorThresholdsSchema.default({ values: [25, 65, 85] }),
+  hiddenGames: z.array(z.string()).default([]),
 });
 
 export type AppSettings = z.infer<typeof AppSettingsSchema>;

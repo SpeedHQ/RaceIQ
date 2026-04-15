@@ -18,17 +18,6 @@ import { queryClient } from "../lib/queryClient";
 
 const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Chats", "Tracks", "Cars", "Tunes", "Setup", "Raw"] as const;
 
-// Computed lazily on first call — the registry is empty at module load time
-// because initGameAdapters() runs in main.tsx after route modules are imported.
-let _globalTabs: { to: string; label: string }[] | null = null;
-function getGlobalTabs() {
-  return _globalTabs ??= [
-    { to: "/", label: "Home" },
-    ...getAllGames().map((g) => ({ to: `/${g.routePrefix}`, label: g.shortName })),
-    ...(import.meta.env.DEV ? [{ to: "/dev", label: "Dev" }] : []),
-  ];
-}
-
 let _gamePrefixes: string[] | null = null;
 function getGamePrefixes() {
   return _gamePrefixes ??= getAllGames().map((g) => `/${g.routePrefix}`);
@@ -60,6 +49,18 @@ function AppShell() {
   });
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const location = useLocation();
+
+  // Global nav tabs — filtered by user's hidden games preference
+  const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
+  const hiddenGamesKey = hiddenGames.join(",");
+  const globalTabs = useMemo(() => [
+    { to: "/", label: "Home" },
+    ...getAllGames()
+      .filter((g) => !hiddenGames.includes(g.id))
+      .map((g) => ({ to: `/${g.routePrefix}`, label: g.shortName })),
+    ...(import.meta.env.DEV ? [{ to: "/dev", label: "Dev" }] : []),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [hiddenGamesKey]);
 
   // Determine which game-specific tabs to show based on current route
   const gameTabs = useMemo(() => {
@@ -94,7 +95,7 @@ function AppShell() {
               <div className="w-px h-4 bg-app-border mx-2" />
 
               <div className="flex items-center gap-0">
-                {getGlobalTabs().map((tab) => (
+                {globalTabs.map((tab) => (
                   <Link
                     key={tab.to}
                     to={tab.to}
@@ -172,7 +173,7 @@ function AppShell() {
                   </button>
                 </div>
                 <div className="h-[calc(100%-3rem)]">
-                  <Settings initialSection={settingsSection as "ai" | "updates" | "about" | undefined} onClose={() => { closeSettings(); }} />
+                  <Settings initialSection={settingsSection as "games" | "ai" | "updates" | "about" | undefined} onClose={() => { closeSettings(); }} />
                 </div>
               </div>
             </div>
