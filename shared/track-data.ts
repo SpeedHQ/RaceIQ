@@ -54,6 +54,22 @@ function ensureAccNames() {
   }
 }
 
+/** AC Evo ordinal → bundled file name, built lazily from tracks.csv. */
+let _acEvoNamesBuilt = false;
+const acEvoOrdinalToFileName = new Map<number, string>();
+function ensureAcEvoNames() {
+  if (_acEvoNamesBuilt) return;
+  _acEvoNamesBuilt = true;
+  const raw = readDataFile(resolve(SHARED_DIR, "games", "ac-evo", "tracks.csv"));
+  for (const line of (raw ?? "").split("\n")) {
+    const parts = line.trim().split(",");
+    const ordinal = parseInt(parts[0], 10);
+    if (isNaN(ordinal)) continue;
+    const commonName = parts[3]?.trim();
+    if (commonName) acEvoOrdinalToFileName.set(ordinal, commonName);
+  }
+}
+
 /** Resolve ordinal to bundled file prefix (e.g. f1: 5 → "monaco", fm: 21 → "silverstone-21"). */
 function getBundledTrackName(gameId: string, ordinal: number): string | undefined {
   if (gameId === "f1-2025") return getF1TrackInfo(ordinal)?.commonTrackName || undefined;
@@ -64,6 +80,10 @@ function getBundledTrackName(gameId: string, ordinal: number): string | undefine
   if (gameId === "acc") {
     ensureAccNames();
     return accOrdinalToFileName.get(ordinal);
+  }
+  if (gameId === "ac-evo") {
+    ensureAcEvoNames();
+    return acEvoOrdinalToFileName.get(ordinal);
   }
   return undefined;
 }
@@ -117,6 +137,12 @@ function userGameDir(gameId: string): string {
 
 /** Bundled extracted track data per game (boundaries, centerlines). */
 function bundledGameDir(gameId: string): string {
+  // AC Evo ships no bundled track outline data of its own. Its tracks are
+  // the same Kunos circuits ACC ships, so reuse ACC's centerline/boundary
+  // files rather than duplicating them. `shared/games/ac-evo/tracks.csv`
+  // is a strict subset of ACC's commonTrackName set, so every AC Evo track
+  // resolves to an existing ACC file.
+  if (gameId === "ac-evo") return resolve(SHARED_DIR, "tracks", "acc");
   return resolve(SHARED_DIR, "tracks", gameId);
 }
 
