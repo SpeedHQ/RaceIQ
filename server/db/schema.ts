@@ -51,7 +51,7 @@ export const sessions = sqliteTable("sessions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   carOrdinal: integer("car_ordinal").notNull(),
   trackOrdinal: integer("track_ordinal").notNull(),
-  gameId: text("game_id").notNull().default("fm-2023"),
+  gameId: text("game_id").notNull(),
   sessionType: text("session_type"),
   notes: text("notes"),
   createdAt: text("created_at")
@@ -109,7 +109,7 @@ export const trackOutlines = sqliteTable(
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     trackOrdinal: integer("track_ordinal").notNull(),
-    gameId: text("game_id").notNull().default("fm-2023"),
+    gameId: text("game_id").notNull(),
     outline: blob("outline", { mode: "buffer" }).notNull(), // gzip'd JSON array of {x,z,speed}
     createdAt: text("created_at")
       .notNull()
@@ -126,7 +126,7 @@ export const trackCorners = sqliteTable(
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     trackOrdinal: integer("track_ordinal").notNull(),
-    gameId: text("game_id").notNull().default("fm-2023"),
+    gameId: text("game_id").notNull(),
     cornerIndex: integer("corner_index").notNull(),
     label: text("label").notNull(),
     distanceStart: real("distance_start").notNull(),

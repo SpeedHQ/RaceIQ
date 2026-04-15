@@ -3,10 +3,9 @@ import { getAcEvoCarByDisplayName, getAcEvoCarName } from "../shared/ac-evo-car-
 
 describe("AC Evo car lookup", () => {
   test("resolves a CSV-listed car to its real ordinal", () => {
-    // IDs come from the game's internal class ID
     const car = getAcEvoCarByDisplayName("Porsche 992 GT3 R");
     expect(car).toBeDefined();
-    expect(car!.id).toBe(34);
+    expect(car!.id).toBe(53);
     expect(car!.class).toBe("GT3");
   });
 

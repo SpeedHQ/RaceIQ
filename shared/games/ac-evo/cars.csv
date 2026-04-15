@@ -1,56 +1,23 @@
 id,model,name,class
-0,porsche_991_gt3_r,Porsche 991 GT3 R,GT3
-1,mercedes_amg_gt3,Mercedes AMG GT3,GT3
-2,ferrari_488_gt3,Ferrari 488 GT3,GT3
-3,audi_r8_lms,Audi R8 LMS,Unknown
-4,lamborghini_huracan_gt3,Lamborghini Huracan GT3,GT3
-5,mclaren_650s_gt3,McLaren 650s GT3,GT3
-6,nissan_gt_r_gt3_2018,Nissan GT R GT3 2018,GT3
-7,bmw_m6_gt3,BMW M6 GT3,GT3
-8,bentley_continental_gt3_2018,Bentley Continental GT3 2018,GT3
-9,porsche_991ii_gt3_cup,Porsche 991 II GT3 CUP,GT3 Cup
-10,nissan_gt_r_gt3_2017,Nissan GT R GT3 2017,GT3
-11,bentley_continental_gt3_2016,Bentley Continental GT3 2016,GT3
-12,amr_v12_vantage_gt3,AMR V12 Vantage GT3,GT3
-13,lamborghini_gallardo_rex,Lamborghini Gallardo REX,Unknown
-14,jaguar_g3,Jaguar G3,Unknown
-15,lexus_rc_f_gt3,Lexus RC F GT3,GT3
-16,lamborghini_huracan_gt3_evo,Lamborghini Huracan GT3 EVO,GT3
-17,honda_nsx_gt3,Honda NSX GT3,GT3
-18,lamborghini_huracan_st,Lamborghini Huracan ST,Super Trofeo
-19,audi_r8_lms_evo,Audi R8 LMS EVO,Unknown
-20,amr_v8_vantage_gt3,AMR V8 Vantage GT3,GT3
-21,honda_nsx_gt3_evo,Honda NSX GT3 Evo,GT3
-22,mclaren_720s_gt3,McLaren 720s GT3,GT3
-23,porsche_991ii_gt3_r,Porsche 991 II GT3 R,GT3
-24,ferrari_488_gt3_evo,Ferrari 488 GT3 EVO,GT3
-25,mercedes_amg_gt3_evo,Mercedes AMG GT3 EVO,GT3
-26,ferrari_488_challenge_evo,Ferrari 488 Challenge EVO,Ferrari Challenge
-27,bmw_m2_cs_racing,BMW M2 CS Racing,TCX
-28,porsche_992_gt3_cup,Porsche 992 GT3 CUP,GT3 Cup
-29,lamborghini_huracan_st_evo2,Lamborghini Huracan ST EVO2,Super Trofeo
-30,bmw_m4_gt3,BMW M4 GT3,GT3
-31,audi_r8_lms_evo_ii,Audi R8 LMS EVO II,Unknown
-32,ferrari_296_gt3,Ferrari 296 GT3,GT3
-33,lamborghini_huracan_gt3_evo2,Lamborghini Huracan GT3 EVO2,GT3
-34,porsche_992_gt3_r,Porsche 992 GT3 R,GT3
-35,mclaren_720s_gt3_evo,McLaren 720S GT3 EVO,GT3
-36,ford_mustang_gt3,Ford Mustang GT3,GT3
-50,alpine_a110_gt4,Alpine A110 GT4,GT4
-51,amr_v8_vantage_gt4,AMR V8 Vantage GT4,GT4
-52,audi_r8_gt4,Audi R8 GT4,GT4
-53,bmw_m4_gt4,BMW M4 GT4,GT4
-55,chevrolet_camaro_gt4r,Chevrolet Camaro Gt4r,GT4
-56,ginetta_g55_gt4,Ginetta G55 GT4,GT4
-57,ktm_xbow_gt4,KTM Xbow GT4,GT4
-58,maserati_mc_gt4,Maserati MC GT4,GT4
-59,mclaren_570s_gt4,McLaren 570s GT4,GT4
-60,mercedes_amg_gt4,Mercedes AMG GT4,GT4
-61,porsche_718_cayman_gt4_mr,Porsche 718 Cayman GT4 MR,GT4
-80,audi_r8_lms_gt2,Audi R8 LMS GT2,GT2
-82,ktm_xbow_gt2,KTM Xbow GT2,GT2
-83,maserati_mc20_gt2,Maserati MC20 GT2,GT2
-84,mercedes_amg_gt2,Mercedes AMG GT2,GT2
-85,porsche_991ii_gt2_rs_cs_evo,Porsche 991 II GT2 RS CS EVO,GT2
-86,porsche_935,Porsche 935,GT2
-87,porsche_992_gt3_r_rennsport,Porsche 992 GT3 R Rennsport,Unknown
+0,ferrari_sf90_stradale,Ferrari SF90 Stradale,Road
+1,ferrari_488_pista,Ferrari 488 Pista,Road
+2,lamborghini_huracan_evo,Lamborghini Huracan EVO,Road
+3,lamborghini_huracan_sto,Lamborghini Huracan STO,Road
+4,bmw_m4_competition,BMW M4 Competition,Road
+5,bmw_m4_csl,BMW M4 CSL,Road
+6,alfa_romeo_giulia_gta,Alfa Romeo Giulia GTA,Road
+7,abarth_695,Abarth 695,Road
+8,lotus_emira_v6,Lotus Emira V6,Road
+9,toyota_gr86,Toyota GR86,Road
+10,porsche_911_gt3_rs,Porsche 911 GT3 RS,Road
+11,lamborghini_revuelto,Lamborghini Revuelto,Road
+50,ferrari_296_gt3,Ferrari 296 GT3,GT3
+51,bmw_m4_gt3,BMW M4 GT3,GT3
+52,mclaren_720s_gt3_evo,McLaren 720S GT3 EVO,GT3
+53,porsche_992_gt3_r,Porsche 992 GT3 R,GT3
+54,lamborghini_huracan_gt3_evo2,Lamborghini Huracan GT3 EVO2,GT3
+55,mercedes_amg_gt3_2024,Mercedes-AMG GT3 2024,GT3
+56,audi_r8_lms_evo2,Audi R8 LMS EVO II,GT3
+57,honda_nsx_gt3_evo,Honda NSX GT3 Evo,GT3
+58,porsche_911_gt3_cup_992,Porsche 911 GT3 Cup (992),GT3 Cup
+59,porsche_992_gt3_r_rennsport,Porsche 992 GT3 R Rennsport,GT3

@@ -42,7 +42,7 @@ export class SectorTracker {
   private refLap: ReferenceLap | null = null;
   private currentTrackOrdinal = -1;
   private currentCarOrdinal = -1;
-  private currentGameId: GameId = "fm-2023";
+  private currentGameId: GameId | null = null;
 
   /** Reset for a new session — loads sector boundaries and track length. */
   async reset(trackOrdinal: number, gameId: GameId, carOrdinal: number = -1): Promise<void> {

@@ -376,11 +376,13 @@ export const trackRoutes = new Hono()
         return c.json(tracks);
       }
 
-      // Default: Forza tracks
-      const forzaGameId = gameId ?? "fm-2023";
-      const lapCounts = await getLapCountsByTrack(forzaGameId as any);
+      if (gameId !== "fm-2023") {
+        return c.json({ error: `unknown or missing gameId: ${gameId ?? "(none)"}` }, 400);
+      }
+
+      const lapCounts = await getLapCountsByTrack("fm-2023");
       const tracks = Array.from(trackMap.entries()).map(([ordinal, info]) => {
-        const hasBundled = !!getTrackOutlineByOrdinal(ordinal, forzaGameId);
+        const hasBundled = !!getTrackOutlineByOrdinal(ordinal, "fm-2023");
         return {
           ordinal,
           name: info.name,

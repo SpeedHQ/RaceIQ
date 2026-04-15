@@ -82,7 +82,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
     } catch {}
     return null;
   })() : null;
-  const hasForzaTunes = !gameId || gameId === "fm-2023";
+  const hasForzaTunes = gameId === "fm-2023";
   const allTabs = hasForzaTunes ? ["laps", "tunes", "debug"] as const
     : isF125 ? ["laps", "setups", "debug"] as const
     : isAcc ? ["laps", "setups", "guide", "debug"] as const

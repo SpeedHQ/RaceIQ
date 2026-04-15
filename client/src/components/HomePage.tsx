@@ -56,7 +56,10 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
           const car = lap.carOrdinal != null ? carNames[lap.carOrdinal] ?? "" : "";
           const ago = formatTimeAgo(new Date(lap.createdAt));
           return (
-            <TRow key={lap.id} onClick={() => { window.location.href = `${getGameRoute(lap.gameId ?? "fm-2023")}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`; }}>
+            <TRow key={lap.id} onClick={() => {
+              if (!lap.gameId) return; // can't navigate without a game context
+              window.location.href = `${getGameRoute(lap.gameId)}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`;
+            }}>
               {showGame && <TD>
                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${lap.gameId === "f1-2025" ? "bg-red-500/20 text-red-400" : lap.gameId === "acc" ? "bg-orange-500/20 text-orange-400" : "bg-app-accent/20 text-app-accent"}`}>
                   {lap.gameId === "f1-2025" ? "F1" : lap.gameId === "acc" ? "ACC" : "FM"}
