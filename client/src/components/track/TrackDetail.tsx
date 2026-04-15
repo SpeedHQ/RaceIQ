@@ -517,6 +517,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   const [confirmDelete, setConfirmDelete] = useState(false);
   const isF125 = gameId === "f1-2025";
   const isAcc = gameId === "acc";
+  const hideClassCol = isF125 || gameId === "ac-evo";
 
   const hasForzaTunes = gameId === "fm-2023";
   const allTabs = hasForzaTunes ? ["laps", "tunes", "debug"] as const
@@ -1032,10 +1033,16 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
         <div className="flex flex-col gap-4 min-h-0 overflow-hidden flex-1">
           {/* Track map */}
           <div className="shrink-0 flex gap-3" style={{ height: activeTab === "guide" && isF125 ? 160 : 320 }}>
-          {/* F1 leaderboard left of map on laps tab */}
-          {isF125 && activeTab === "laps" && (
+          {/* Leaderboard left of map on laps tab */}
+          {activeTab === "laps" && (
             <div className="w-[420px] shrink-0 overflow-hidden flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3">
-              <F125Leaderboard trackOrdinal={track.ordinal} />
+              {isF125 ? (
+                <F125Leaderboard trackOrdinal={track.ordinal} />
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm text-center px-4">
+                  No leaderboard yet
+                </div>
+              )}
             </div>
           )}
           <div className="bg-app-bg rounded-lg border border-app-border relative flex-1 min-w-0">
@@ -1198,7 +1205,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                         <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${active ? "bg-app-accent border-app-accent" : "border-app-border-input"}`}>
                                           {active && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
                                         </span>
-                                        {!isF125 && <span className={`font-bold font-mono text-[10px] flex-shrink-0 ${classTextColors[car.carClass] ?? "text-app-text-secondary"}`}>{car.carClass}</span>}
+                                        {!hideClassCol && <span className={`font-bold font-mono text-[10px] flex-shrink-0 ${classTextColors[car.carClass] ?? "text-app-text-secondary"}`}>{car.carClass}</span>}
                                         <span className="truncate">{car.carName}</span>
                                       </button>
                                     );
@@ -1251,7 +1258,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                               <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-cyan-400" />
                             </TH>
                             <TH>Car</TH>
-                            {!isF125 && <TH>Class</TH>}
+                            {!hideClassCol && <TH>Class</TH>}
                             {hasSessionTypes && <TH>Type</TH>}
                             <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("lap")}>
                               Lap # {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
@@ -1279,7 +1286,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                   <input type="checkbox" checked={selectedLaps.has(lap.lapId)} onChange={() => toggleLapSelect(lap.lapId)} className="accent-cyan-400" />
                                 </TD>
                                 <TD className="truncate max-w-[200px]">{lap.carName}</TD>
-                                {!isF125 && (
+                                {!hideClassCol && (
                                   <TD>
                                     <span className={`font-bold font-mono ${classTextColors[lap.carClass] ?? "text-app-text-secondary"}`}>{lap.carClass}</span>
                                     <span className="text-app-text-secondary ml-1">PI {lap.pi}</span>
