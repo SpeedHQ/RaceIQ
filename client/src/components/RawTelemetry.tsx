@@ -4,6 +4,25 @@ interface Props {
   packet: TelemetryPacket | null;
 }
 
+function flatten(obj: unknown, prefix = "", out: Record<string, unknown> = {}): Record<string, unknown> {
+  if (obj === null || obj === undefined) {
+    if (prefix) out[prefix] = obj;
+    return out;
+  }
+  if (Array.isArray(obj)) {
+    obj.forEach((v, i) => flatten(v, prefix ? `${prefix}[${i}]` : `[${i}]`, out));
+    return out;
+  }
+  if (typeof obj === "object") {
+    for (const [k, v] of Object.entries(obj)) {
+      flatten(v, prefix ? `${prefix}.${k}` : k, out);
+    }
+    return out;
+  }
+  out[prefix] = obj;
+  return out;
+}
+
 export function RawTelemetry({ packet }: Props) {
   if (!packet) {
     return (
@@ -13,7 +32,7 @@ export function RawTelemetry({ packet }: Props) {
     );
   }
 
-  const entries = Object.entries(packet).sort(([a], [b]) => a.localeCompare(b));
+  const entries = Object.entries(flatten(packet)).sort(([a], [b]) => a.localeCompare(b));
 
   return (
     <div className="p-4 overflow-auto h-full">

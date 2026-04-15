@@ -39,8 +39,7 @@ function ensureLoaded(): void {
 
 export function getAcEvoCarName(ordinal: number): string {
   ensureLoaded();
-  const car = carMap!.get(ordinal);
-  return car ? car.name : `Car #${ordinal}`;
+  return carMap!.get(ordinal)?.name ?? `Car #${ordinal}`;
 }
 
 export function getAcEvoCarNameByModel(model: string): string {
@@ -54,7 +53,11 @@ export function getAcEvoCarByModel(model: string): AcEvoCar | undefined {
   return modelMap!.get(model);
 }
 
-/** Find a car by its shared memory display name (e.g. "Porsche 911 GT3 Cup (992)") */
+/**
+ * Find a car by its shared memory display name (e.g. "Porsche 911 GT3 Cup (992)").
+ * Returns undefined when the car isn't in cars.csv — callers should default the
+ * ordinal and emit a warning so the CSV can be updated.
+ */
 export function getAcEvoCarByDisplayName(displayName: string): AcEvoCar | undefined {
   ensureLoaded();
   const needle = displayName.toLowerCase().trim();

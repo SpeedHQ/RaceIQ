@@ -18,6 +18,24 @@ interface MappedFile {
   size: number;
 }
 
+/**
+ * Options to override struct sizes, mapping names, and session detection for
+ * games that share the acpmf_* memory format but with different layouts or
+ * names (AC Evo v0.6 uses acevo_pmf_* instead of acpmf_*).
+ */
+export interface BufferedReaderOptions {
+  physicsSize?: number;
+  graphicsSize?: number;
+  staticSize?: number;
+  physicsName?: string;
+  graphicsName?: string;
+  staticName?: string;
+  /** Offset in graphics buffer holding a stable session id. Null = disable change detection; read static only on first connect. */
+  sessionIdOffset?: number | null;
+  /** Log prefix for diagnostics. */
+  logPrefix?: string;
+}
+
 export class BufferedAccMemoryReader implements IRealtimeAccMemoryReader {
   private _physics: MappedFile | null = null;
   private _graphics: MappedFile | null = null;
@@ -39,6 +57,12 @@ export class BufferedAccMemoryReader implements IRealtimeAccMemoryReader {
   private _ffiPtr: ((buf: Buffer) => unknown) | null = null;
   // Session detection for smart static re-reading
   private _lastSessionId: number | null = null;
+
+  private readonly _opts: BufferedReaderOptions;
+
+  constructor(opts: BufferedReaderOptions = {}) {
+    this._opts = opts;
+  }
 
   connected(): boolean {
     return this._connected;
@@ -135,22 +159,28 @@ export class BufferedAccMemoryReader implements IRealtimeAccMemoryReader {
 
       // Open shared memory regions
       const { PHYSICS, GRAPHICS, STATIC } = require("./structs");
+      const physicsSize = this._opts.physicsSize ?? PHYSICS.SIZE;
+      const graphicsSize = this._opts.graphicsSize ?? GRAPHICS.SIZE;
+      const staticSize = this._opts.staticSize ?? STATIC.SIZE;
       const FILE_MAP_READ = 0x0004;
 
+      const physicsName = this._opts.physicsName ?? "Local\\acpmf_physics";
+      const graphicsName = this._opts.graphicsName ?? "Local\\acpmf_graphics";
+      const staticName = this._opts.staticName ?? "Local\\acpmf_static";
       const physicsHandle = this._kernel32.symbols.OpenFileMappingW(
         FILE_MAP_READ,
         false,
-        this._ffiPtr!(Buffer.from("Local\\acpmf_physics\0", "utf16le"))
+        this._ffiPtr!(Buffer.from(physicsName + "\0", "utf16le"))
       );
       const graphicsHandle = this._kernel32.symbols.OpenFileMappingW(
         FILE_MAP_READ,
         false,
-        this._ffiPtr!(Buffer.from("Local\\acpmf_graphics\0", "utf16le"))
+        this._ffiPtr!(Buffer.from(graphicsName + "\0", "utf16le"))
       );
       const staticHandle = this._kernel32.symbols.OpenFileMappingW(
         FILE_MAP_READ,
         false,
-        this._ffiPtr!(Buffer.from("Local\\acpmf_static\0", "utf16le"))
+        this._ffiPtr!(Buffer.from(staticName + "\0", "utf16le"))
       );
 
       if (!physicsHandle || !graphicsHandle || !staticHandle) {
@@ -169,21 +199,21 @@ export class BufferedAccMemoryReader implements IRealtimeAccMemoryReader {
         return;
       }
 
-      this._physics = { handle: Number(physicsHandle), view: Number(physicsView), size: PHYSICS.SIZE };
+      this._physics = { handle: Number(physicsHandle), view: Number(physicsView), size: physicsSize };
       this._graphics = {
         handle: Number(graphicsHandle),
         view: Number(graphicsView),
-        size: GRAPHICS.SIZE,
+        size: graphicsSize,
       };
-      this._static = { handle: Number(staticHandle), view: Number(staticView), size: STATIC.SIZE };
+      this._static = { handle: Number(staticHandle), view: Number(staticView), size: staticSize };
 
       this._connected = true;
-      console.log("[ACC Buffered Reader] Connected to shared memory");
+      console.log(`[${this._opts.logPrefix ?? "ACC"} Buffered Reader] Connected to shared memory`);
 
       // Start polling at native rates
       this._startPolling();
     } catch (e) {
-      console.error("[ACC Buffered Reader] Connection failed:", e);
+      console.error(`[${this._opts.logPrefix ?? "ACC"} Buffered Reader] Connection failed:`, e);
       this._disconnect();
     }
   }
@@ -197,16 +227,21 @@ export class BufferedAccMemoryReader implements IRealtimeAccMemoryReader {
     }, 1000 / 300);
 
     // Graphics at 60Hz (every 16.67ms)
+    const sessionIdOffset = this._opts.sessionIdOffset === undefined ? 8 : this._opts.sessionIdOffset;
     this._graphicsTimer = setInterval(() => {
       if (this._graphics) {
         this._graphicsBuffer = this._readMapped(this._graphics);
 
-        // Check if session changed (offset 8 in graphics buffer)
-        // Only re-read expensive static buffer on session change
-        const currentSessionId = this._graphicsBuffer.readInt32LE(8);
-        if (this._lastSessionId !== currentSessionId && this._static) {
+        if (sessionIdOffset !== null) {
+          // Check if session changed — only re-read static on session change
+          const currentSessionId = this._graphicsBuffer.readInt32LE(sessionIdOffset);
+          if (this._lastSessionId !== currentSessionId && this._static) {
+            this._staticBuffer = this._readMapped(this._static);
+            this._lastSessionId = currentSessionId;
+          }
+        } else if (!this._staticBuffer && this._static) {
+          // No session detection — just read static once on first graphics tick
           this._staticBuffer = this._readMapped(this._static);
-          this._lastSessionId = currentSessionId;
         }
       }
     }, 1000 / 60);
@@ -220,7 +255,7 @@ export class BufferedAccMemoryReader implements IRealtimeAccMemoryReader {
 
     // Log if read takes >5ms (indicates real contention, normal reads are 1-2ms)
     if (duration > 5) {
-      console.warn(`[ACC Buffered Reader] Slow read: ${duration}ms for ${mapped.size} bytes`);
+      console.warn(`[${this._opts.logPrefix ?? "ACC"} Buffered Reader] Slow read: ${duration}ms for ${mapped.size} bytes`);
     }
 
     return dest;

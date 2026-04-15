@@ -69,6 +69,9 @@ export function readAccPackets(dumpPath: string): ParsedFrames {
 
 /**
  * Read all packets from an AC Evo recording. Exported for reuse by tests.
+ *
+ * v0.6 has car_model in GRAPHICS_EVO and track in STATIC_EVO, so we rely on the
+ * parser cache to resolve names rather than reading them here directly.
  */
 export function readAcEvoPackets(dumpPath: string): ParsedFrames {
   let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
@@ -77,19 +80,17 @@ export function readAcEvoPackets(dumpPath: string): ParsedFrames {
   } catch {
     return { packets: [], carModel: null, trackName: null };
   }
-  let carModel: string | null = null;
-  let trackName: string | null = null;
   const cache = createAcEvoParserCache();
   const packets: TelemetryPacket[] = [];
   for (const frame of frames) {
-    const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-    const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
-    if (cm && !carModel) carModel = cm;
-    if (tn && !trackName) trackName = tn;
     const packet = parseAcEvoBuffers(frame.physics, frame.graphics, frame.staticData, cache);
     if (packet) packets.push(packet);
   }
-  return { packets, carModel, trackName };
+  return {
+    packets,
+    carModel: cache.lastCarModel || null,
+    trackName: cache.lastTrack || null,
+  };
 }
 
 /**

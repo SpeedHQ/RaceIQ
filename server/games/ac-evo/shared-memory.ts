@@ -9,13 +9,14 @@
  */
 import { BufferedAccMemoryReader } from "../acc/buffered-memory-reader";
 import { TripletAssembler } from "../acc/triplet-assembler";
-import { TripletPipeline, StatusCheckProcessor, DumpToBinProcessor } from "../acc/triplet-pipeline";
+import { TripletPipeline, DumpToBinProcessor } from "../acc/triplet-pipeline";
 import type { TripletProcessor } from "../acc/triplet-pipeline";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
 import type { AcEvoParserCache } from "./parser";
 import { acEvoProcessChecker } from "./process-checker";
 import { processPacket } from "../../pipeline";
 import { acEvoRecorder } from "./recorder";
+import { PHYSICS, GRAPHICS_EVO, STATIC_EVO } from "./structs";
 
 class AcEvoParsingProcessor implements TripletProcessor {
   private cache: AcEvoParserCache = createAcEvoParserCache();
@@ -40,7 +41,20 @@ export class AcEvoSharedMemoryReader {
   private _recordingOnly: boolean;
 
   constructor(recordingOnly = false) {
-    this._bufferedReader = new BufferedAccMemoryReader();
+    this._bufferedReader = new BufferedAccMemoryReader({
+      // AC Evo v0.6 uses acevo_pmf_* names (confirmed via handle.exe against
+      // AssettoCorsaEVO.exe — ACC's acpmf_* names are not owned by the game).
+      physicsName: "Local\\acevo_pmf_physics",
+      graphicsName: "Local\\acevo_pmf_graphics",
+      staticName: "Local\\acevo_pmf_static",
+      physicsSize: PHYSICS.SIZE,
+      graphicsSize: GRAPHICS_EVO.SIZE,
+      staticSize: STATIC_EVO.SIZE,
+      // AC Evo v0.6 graphics offset 8 is uint64 focused_car_id_a (not stable),
+      // so disable change-based static re-read and just read static once.
+      sessionIdOffset: null,
+      logPrefix: "AC Evo",
+    });
     const enableMetrics = process.env.NODE_ENV !== "production" || process.env.ACC_METRICS === "1";
     this._tripletAssembler = new TripletAssembler(this._bufferedReader, enableMetrics);
     this._pipeline = new TripletPipeline();
@@ -92,17 +106,19 @@ export class AcEvoSharedMemoryReader {
     this._bufferedReader.start();
     this._connected = true;
 
-    this._pipeline.register(new StatusCheckProcessor(this._disconnect.bind(this), "AC Evo"));
-
+    // StatusCheck is skipped for AC Evo v0.6: the `status` byte at offset 4 in
+    // Local\acpmf_graphics stays at 0 even during live sessions (page appears
+    // to be a legacy stub), so using it as a gate silences every real packet.
+    // Always parse — let the UI show whatever the page has so we can diagnose.
     if (this._recordingOnly) {
       this._pipeline.register(
         new DumpToBinProcessor(acEvoRecorder),
         new AcEvoParsingProcessor(),
       );
-      console.log("[AC Evo] Triplet pipeline: StatusCheckProcessor → DumpToBinProcessor → AcEvoParsingProcessor");
+      console.log("[AC Evo] Triplet pipeline: DumpToBinProcessor → AcEvoParsingProcessor");
     } else {
       this._pipeline.register(new AcEvoParsingProcessor());
-      console.log("[AC Evo] Triplet pipeline: StatusCheckProcessor → AcEvoParsingProcessor");
+      console.log("[AC Evo] Triplet pipeline: AcEvoParsingProcessor");
     }
 
     this._tripletAssembler.start(this._pipeline.process.bind(this._pipeline));

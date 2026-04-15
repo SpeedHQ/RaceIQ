@@ -7,16 +7,17 @@
 import type { TelemetryPacket } from "../shared/types";
 
 /**
- * Returns true if the very first packet of an ACC recording was captured while
- * the driver was already several seconds into a lap.
+ * Returns true if the very first packet of a Kunos (ACC / AC Evo) recording
+ * was captured while the driver was already several seconds into a lap.
  *
- * This is a recording-side artifact, not an ACC feature: ACC's shared memory
- * continuously exposes `iCurrentTime`, so if the recorder attaches mid-lap the
- * first packet we see will have `CurrentLap > 0`. Other games start CurrentLap
- * at 0 on each new session, so this heuristic only applies to ACC.
+ * This is a recording-side artifact: both games' shared memory continuously
+ * expose current lap time, so if the recorder attaches mid-lap the first
+ * packet we see will have `CurrentLap > 0`. Non-Kunos games (Forza, F1) start
+ * CurrentLap at 0 on each new session, so this heuristic is Kunos-only.
  */
 export function accFirstPacketIsMidLap(packet: TelemetryPacket): boolean {
-  return packet.gameId === "acc" && packet.CurrentLap > 5;
+  const isKunos = packet.gameId === "acc" || packet.gameId === "ac-evo";
+  return isKunos && packet.CurrentLap > 5;
 }
 
 /**
@@ -36,7 +37,10 @@ export function classifyAccPitLap(
   packets: TelemetryPacket[]
 ): "outlap" | "inlap" | "pit lap" | null {
   if (packets.length === 0) return null;
-  if (packets[0].gameId !== "acc") return null;
+  // AC Evo shares the same `acc` extended-data shape as ACC, so the same
+  // pit-status logic applies unchanged.
+  const gameId = packets[0].gameId;
+  if (gameId !== "acc" && gameId !== "ac-evo") return null;
 
   const firstPit = packets[0].acc?.pitStatus ?? "out";
   const lastPit = packets[packets.length - 1].acc?.pitStatus ?? "out";

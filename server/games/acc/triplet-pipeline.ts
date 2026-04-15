@@ -26,9 +26,11 @@ export class StatusCheckProcessor implements TripletProcessor {
   private onDisconnect: () => Promise<void>;
   private loggedInvalidStatus = false;
   private label: string;
-  constructor(onDisconnect: () => Promise<void>, label = "ACC") {
+  private disconnectOnOff: boolean;
+  constructor(onDisconnect: () => Promise<void>, label = "ACC", disconnectOnOff = true) {
     this.onDisconnect = onDisconnect;
     this.label = label;
+    this.disconnectOnOff = disconnectOnOff;
   }
 
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<boolean> {
@@ -38,13 +40,16 @@ export class StatusCheckProcessor implements TripletProcessor {
         console.log(`[${this.label} StatusCheck] Invalid status: ${status} (AC_LIVE=${AC_STATUS.AC_LIVE}, AC_OFF=${AC_STATUS.AC_OFF})`);
         this.loggedInvalidStatus = true;
       }
-      if (status === AC_STATUS.AC_OFF) {
+      if (status === AC_STATUS.AC_OFF && this.disconnectOnOff) {
         console.log(`[${this.label} StatusCheck] AC_OFF detected, disconnecting`);
         await this.onDisconnect();
       }
-      return false; // halt pipeline
+      return false; // halt pipeline for this frame; reader keeps polling
     }
     // Status is valid, pipeline continues
+    if (this.loggedInvalidStatus) {
+      console.log(`[${this.label} StatusCheck] Status now AC_LIVE, resuming`);
+    }
     this.loggedInvalidStatus = false;
     return true;
   }
