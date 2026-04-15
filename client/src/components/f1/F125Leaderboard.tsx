@@ -38,8 +38,8 @@ export function F125Leaderboard({ trackOrdinal }: { trackOrdinal: number }) {
   if (!leaderboard?.length) return null;
 
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-2">
+    <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
+      <div className="flex items-center gap-2 mb-2 shrink-0">
         <div className="text-app-label text-app-text-muted uppercase tracking-wider">
           F1Laps Leaderboard
         </div>
@@ -47,17 +47,17 @@ export function F125Leaderboard({ trackOrdinal }: { trackOrdinal: number }) {
           href={`https://www.f1laps.com/f1-25/leaderboard/${trackSlug}/`}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-app-unit text-app-accent hover:underline"
+          className="text-app-unit hover:underline"
         >
           View Full
         </a>
       </div>
+      <div className="overflow-y-auto flex-1">
       <Table>
         <THead>
           <TH className="w-6">#</TH>
           <TH>Player</TH>
           <TH>Team</TH>
-          <TH>Session</TH>
           <TH className="text-right">Time</TH>
         </THead>
         <TBody>
@@ -66,12 +66,12 @@ export function F125Leaderboard({ trackOrdinal }: { trackOrdinal: number }) {
               <TD className="font-mono text-app-text-dim">{e.rank}</TD>
               <TD className="font-medium">{e.player}</TD>
               <TD className="text-app-text-secondary">{e.team}</TD>
-              <TD className="text-app-text-dim">{e.sessionType}</TD>
-              <TD className="text-right font-mono text-emerald-400">{e.lapTime}</TD>
+              <TD className="text-right font-mono">{e.lapTime}</TD>
             </TRow>
           ))}
         </TBody>
       </Table>
+      </div>
     </div>
   );
 }

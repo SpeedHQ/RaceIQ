@@ -31,11 +31,26 @@ export async function computeLapSectors(
   const s1End = raw?.s1End ?? 1 / 3;
   const s2End = raw?.s2End ?? 2 / 3;
 
-  // F1: prefer game-broadcast sector times
+  // F1: prefer SessionHistory definitive sector times (lastS1/lastS2/lastS3 from final packet)
   let s1 = 0, s2 = 0;
-  for (const p of packets) {
-    if ((p.f1?.sector1Time ?? 0) > 0) s1 = p.f1!.sector1Time;
-    if ((p.f1?.sector2Time ?? 0) > 0) s2 = p.f1!.sector2Time;
+  if (gameId === "f1-2025") {
+    // SessionHistory delivers completed-lap sector times; use the last packet that has them
+    for (let i = packets.length - 1; i >= 0; i--) {
+      const p = packets[i];
+      if ((p.f1?.lastS1 ?? 0) > 0 && (p.f1?.lastS2 ?? 0) > 0 && (p.f1?.lastS3 ?? 0) > 0) {
+        s1 = p.f1!.lastS1;
+        s2 = p.f1!.lastS2;
+        // s3 = lastS3 but we compute it as lapTime - s1 - s2 below for consistency
+        break;
+      }
+    }
+    // Fall back to live sector times (reset to 0 at lap start, so scan for last non-zero)
+    if (s1 === 0 || s2 === 0) {
+      for (const p of packets) {
+        if ((p.f1?.sector1Time ?? 0) > 0) s1 = p.f1!.sector1Time;
+        if ((p.f1?.sector2Time ?? 0) > 0) s2 = p.f1!.sector2Time;
+      }
+    }
   }
 
   // ACC: use native sector times tracked live during the lap

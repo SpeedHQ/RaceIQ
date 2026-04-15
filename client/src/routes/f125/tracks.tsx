@@ -15,7 +15,7 @@ export const Route = createFileRoute("/f125/tracks")({
     </div>
   ),
   validateSearch: (search: Record<string, unknown>): TracksSearch => ({
-    track: search.track ? Number(search.track) : undefined,
+    track: search.track != null && search.track !== "" ? Number(search.track) : undefined,
     tab: typeof search.tab === "string" ? search.tab : undefined,
     setup: typeof search.setup === "string" ? search.setup : undefined,
     subtab: typeof search.subtab === "string" ? search.subtab : undefined,

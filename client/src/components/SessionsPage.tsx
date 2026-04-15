@@ -399,7 +399,7 @@ const deleteSelected = useCallback(async () => {
       </div>
 
       <Table className="flex-1 overflow-auto">
-        <THead className="sticky top-0 z-10">
+        <THead>
           <TH className="w-10 px-2">
             <input
               type="checkbox"

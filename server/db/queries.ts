@@ -312,6 +312,71 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
   }));
 }
 
+export type LapSummary = {
+  lapId: number;
+  lapNumber: number;
+  lapTime: number;
+  carOrdinal: number;
+  pi: number;
+  gameId: GameId;
+  sessionId: number;
+  createdAt: string;
+  s1Time: number | null;
+  s2Time: number | null;
+  s3Time: number | null;
+  isValid: boolean;
+  invalidReason: string | null;
+  notes: string | null;
+};
+
+export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: GameId): Promise<LapSummary[]> {
+  const query = db
+    .select({
+      lapId: laps.id,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      carOrdinal: sessions.carOrdinal,
+      pi: laps.pi,
+      gameId: sessions.gameId,
+      sessionId: laps.sessionId,
+      createdAt: laps.createdAt,
+      s1Time: laps.s1Time,
+      s2Time: laps.s2Time,
+      s3Time: laps.s3Time,
+      isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
+      notes: laps.notes,
+    })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(
+      gameId
+        ? and(eq(sessions.trackOrdinal, trackOrdinal), eq(sessions.gameId, gameId))
+        : eq(sessions.trackOrdinal, trackOrdinal)
+    )
+    .orderBy(desc(laps.id));
+
+  const rows = await query.all();
+  return rows
+    .filter(r => (r.lapTime ?? 0) > 0)
+    .map(r => ({
+      lapId: r.lapId,
+      lapNumber: r.lapNumber ?? 0,
+      lapTime: r.lapTime,
+      carOrdinal: r.carOrdinal ?? 0,
+      pi: r.pi ?? 0,
+      gameId: r.gameId as GameId,
+      sessionId: r.sessionId,
+      createdAt: r.createdAt,
+      s1Time: r.s1Time ?? null,
+      s2Time: r.s2Time ?? null,
+      s3Time: r.s3Time ?? null,
+      isValid: Boolean(r.isValid),
+      invalidReason: r.invalidReason ?? null,
+      notes: r.notes ?? null,
+    }));
+}
+
 const telemetryCache = new Map<number, TelemetryPacket[]>();
 
 /**

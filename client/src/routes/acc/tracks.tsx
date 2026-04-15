@@ -13,7 +13,7 @@ export const Route = createFileRoute("/acc/tracks")({
     </div>
   ),
   validateSearch: (search: Record<string, unknown>): TracksSearch => ({
-    track: search.track ? Number(search.track) : undefined,
+    track: search.track != null && search.track !== "" ? Number(search.track) : undefined,
     tab: typeof search.tab === "string" ? search.tab : undefined,
   }),
 });

@@ -2,7 +2,7 @@ import type { ReactNode, TdHTMLAttributes, ThHTMLAttributes } from "react";
 
 export function Table({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-lg overflow-x-auto ${className}`}>
+    <div className={`rounded-lg ${className}`}>
       <table className="w-full text-sm">
         {children}
       </table>
@@ -12,8 +12,8 @@ export function Table({ children, className = "" }: { children: ReactNode; class
 
 export function THead({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <thead className={className}>
-      <tr className="text-[10px] uppercase tracking-wider text-app-text-muted border-b border-app-border bg-app-surface">
+    <thead className={`bg-app-surface sticky top-0 z-10 ${className}`}>
+      <tr className="text-[10px] uppercase tracking-wider text-app-text-muted border-b border-app-border">
         {children}
       </tr>
     </thead>

@@ -5,6 +5,7 @@ import { IS_DEV } from "../env";
 import { OrdinalParamSchema, GameIdQuerySchema } from "../../shared/schemas";
 import {
   getLaps,
+  getLapSummariesByTrack,
   getLapById,
   getCorners,
   saveCorners,
@@ -29,7 +30,7 @@ import {
   recordLapTrace,
   getTrackAltitudeByOrdinal,
 } from "../../shared/track-data";
-import { trackMap, getCarName, getTrackName } from "../../shared/car-data";
+import { trackMap, getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
 import { detectCorners, type Corner } from "../corner-detection";
 import {
   filterLapOutliers,
@@ -750,9 +751,7 @@ export const trackRoutes = new Hono()
     async (c) => {
       const { trackOrdinal } = c.req.valid("param");
       const gameId = c.req.query("gameId") as GameId | undefined;
-      const trackLaps = (await getLaps(gameId)).filter(
-        (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0
-      );
+      const trackLaps = await getLapSummariesByTrack(trackOrdinal, gameId);
 
       const piClass = (pi: number): string => {
         if (pi >= 999) return "X";
@@ -769,14 +768,22 @@ export const trackRoutes = new Hono()
       const entries = trackLaps.map((lap) => {
         const pi = lap.pi ?? 0;
         return {
-          lapId: lap.id,
+          lapId: lap.lapId,
           lapNumber: lap.lapNumber,
           lapTime: lap.lapTime,
-          carOrdinal: lap.carOrdinal ?? 0,
-          carName: (lap.gameId ? tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal ?? 0) : undefined) ?? getCarName(lap.carOrdinal ?? 0, lap.gameId),
+          carOrdinal: lap.carOrdinal,
+          carName: (lap.gameId ? tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal) : undefined) ?? getCarName(lap.carOrdinal, lap.gameId),
           carClass: piClass(pi),
           pi,
           createdAt: lap.createdAt,
+          sessionId: lap.sessionId,
+          s1Time: lap.s1Time,
+          s2Time: lap.s2Time,
+          s3Time: lap.s3Time,
+          isValid: lap.isValid,
+          invalidReason: lap.invalidReason,
+          division: carSpecsMap.get(lap.carOrdinal)?.division ?? null,
+          notes: lap.notes,
         };
       });
 

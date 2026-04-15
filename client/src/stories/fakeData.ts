@@ -226,6 +226,9 @@ export const fakeF1Packet: TelemetryPacket = {
     sector3LapDistanceStart: 3540,
     pitStopWindowIdealLap: 28,
     pitStopWindowLatestLap: 34,
+    lastS1: 29.845,
+    lastS2: 0,
+    lastS3: 0,
     grid: [
       { position: 1, driverId: 1, teamId: 1, name: "M. VERSTAPPEN", currentLapTime: 28.1, lastLapTime: 92.841, bestLapTime: 92.341, gapToLeader: 0, gapToCarAhead: 0, pitStatus: 0, numPitStops: 0, tyreCompound: "medium", tyreAge: 12, penalties: 0, bestS1: 28.4, bestS2: 32.1, bestS3: 31.8, lastS1: 28.6, lastS2: 32.3, lastS3: 31.9 },
       { position: 2, driverId: 4, teamId: 6, name: "C. LECLERC", currentLapTime: 28.4, lastLapTime: 92.905, bestLapTime: 92.680, gapToLeader: 0.3, gapToCarAhead: 0.3, pitStatus: 0, numPitStops: 0, tyreCompound: "medium", tyreAge: 12, penalties: 0, bestS1: 28.5, bestS2: 32.2, bestS3: 32.0, lastS1: 28.7, lastS2: 32.4, lastS3: 31.8 },
