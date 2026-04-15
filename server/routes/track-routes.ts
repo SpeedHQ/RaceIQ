@@ -718,8 +718,14 @@ export const trackRoutes = new Hono()
       const { trackOrdinal } = c.req.valid("param");
 
       const gameId = c.req.query("gameId") as GameId | undefined;
+      if (!gameId) {
+        return c.json({ error: "gameId query parameter is required" }, 400);
+      }
+      // Hard-filter by gameId even though getLaps() already scopes its query:
+      // belt-and-braces so cross-game ordinal collisions (Forza track 2 ≠ AC
+      // Evo track 2) can never leak into the wrong tracks page.
       const trackLaps = (await getLaps(gameId)).filter(
-        (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0
+        (l) => l.trackOrdinal === trackOrdinal && l.lapTime > 0 && l.gameId === gameId
       );
 
       // Derive class letter from PI value
