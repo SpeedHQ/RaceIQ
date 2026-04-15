@@ -357,13 +357,14 @@ export function parseAcEvoBuffers(
     Pitch: pitch,
     Roll: roll,
 
-    // v0.6 doesn't expose suspensionMaxTravel — use a nominal max of 0.1m (10cm).
-    // Clamp to [0, 1]: values go negative during extension (droop), which the
-    // display doesn't support, so floor at 0.
-    NormSuspensionTravelFL: Math.max(0, Math.min(1, suspFL / 0.1)),
-    NormSuspensionTravelFR: Math.max(0, Math.min(1, suspFR / 0.1)),
-    NormSuspensionTravelRL: Math.max(0, Math.min(1, suspRL / 0.1)),
-    NormSuspensionTravelRR: Math.max(0, Math.min(1, suspRR / 0.1)),
+    // v0.6 signed travel (0 = rest, + = compression, - = extension).
+    // Encode as centered 0–1 so the bar fills correctly: 0.5 = rest,
+    // >0.5 = compressed, <0.5 = extended. ±50 mm assumed full range.
+    // SuspensionTravelMFL carries the raw metres for the mm display label.
+    NormSuspensionTravelFL: Math.max(0, Math.min(1, 0.5 + suspFL / 0.1)),
+    NormSuspensionTravelFR: Math.max(0, Math.min(1, 0.5 + suspFR / 0.1)),
+    NormSuspensionTravelRL: Math.max(0, Math.min(1, 0.5 + suspRL / 0.1)),
+    NormSuspensionTravelRR: Math.max(0, Math.min(1, 0.5 + suspRR / 0.1)),
 
     TireSlipRatioFL: slipRatioFL,
     TireSlipRatioFR: slipRatioFR,

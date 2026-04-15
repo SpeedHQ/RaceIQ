@@ -40,16 +40,25 @@ export function TireDiagram({ packet }: { packet: DisplayPacket | TelemetryPacke
     packet.NormSuspensionTravelRR,
   ];
 
+  // AC Evo uses signed mm travel (0 = rest); pass raw mm so SuspBar renders centred mode.
+  const isAcEvo = packet.gameId === "ac-evo";
+  const suspMm = isAcEvo ? [
+    packet.SuspensionTravelMFL * 1000,
+    packet.SuspensionTravelMFR * 1000,
+    packet.SuspensionTravelMRL * 1000,
+    packet.SuspensionTravelMRR * 1000,
+  ] : [undefined, undefined, undefined, undefined];
+
   return (
     <div className="relative flex flex-col gap-3 w-full max-w-xs mx-auto">
       {/* Front axle */}
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-1">
           <WheelCard {...wheels[0]} outerSide="left" thresholds={units.thresholds} tempFn={(c) => convertTemp(c, units.tempUnit, "C")} tempUnit={units.tempUnit} />
-          <SuspBar norm={susp[0]} thresholds={suspThresh} />
+          <SuspBar norm={susp[0]} thresholds={suspThresh} mmTravel={suspMm[0]} />
         </div>
         <div className="flex items-center gap-1">
-          <SuspBar norm={susp[1]} thresholds={suspThresh} />
+          <SuspBar norm={susp[1]} thresholds={suspThresh} mmTravel={suspMm[1]} />
           <WheelCard {...wheels[1]} outerSide="right" thresholds={units.thresholds} tempFn={(c) => convertTemp(c, units.tempUnit, "C")} tempUnit={units.tempUnit} />
         </div>
       </div>
@@ -58,10 +67,10 @@ export function TireDiagram({ packet }: { packet: DisplayPacket | TelemetryPacke
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-1">
           <WheelCard {...wheels[2]} outerSide="left" thresholds={units.thresholds} tempFn={(c) => convertTemp(c, units.tempUnit, "C")} tempUnit={units.tempUnit} />
-          <SuspBar norm={susp[2]} thresholds={suspThresh} />
+          <SuspBar norm={susp[2]} thresholds={suspThresh} mmTravel={suspMm[2]} />
         </div>
         <div className="flex items-center gap-1">
-          <SuspBar norm={susp[3]} thresholds={suspThresh} />
+          <SuspBar norm={susp[3]} thresholds={suspThresh} mmTravel={suspMm[3]} />
           <WheelCard {...wheels[3]} outerSide="right" thresholds={units.thresholds} tempFn={(c) => convertTemp(c, units.tempUnit, "C")} tempUnit={units.tempUnit} />
         </div>
       </div>
