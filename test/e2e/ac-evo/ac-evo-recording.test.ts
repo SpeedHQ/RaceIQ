@@ -23,7 +23,7 @@ const RECORDINGS_DIR = "test/artifacts/laps";
 function findLatestAcEvoBin(): string | null {
   if (!existsSync(RECORDINGS_DIR)) return null;
   const files = readdirSync(RECORDINGS_DIR)
-    .filter((f) => f.startsWith("ac-evo-") && f.endsWith(".bin"))
+    .filter((f) => f.startsWith("ac-evo-") && (f.endsWith(".bin") || f.endsWith(".bin.gz")))
     .sort()
     .reverse();
   return files[0] ? join(RECORDINGS_DIR, files[0]) : null;
