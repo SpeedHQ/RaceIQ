@@ -93,7 +93,7 @@ export function ImportDumpPanel() {
     <div className="h-full overflow-y-auto p-6 max-w-2xl">
       <h2 className="text-lg font-semibold mb-1">Import Dump to Database</h2>
       <p className="text-sm text-app-text-muted mb-4">
-        Upload a recorded <code className="text-xs bg-app-surface-alt px-1 py-0.5 rounded">.bin</code> dump.
+        Upload a recorded <code className="text-xs bg-app-surface-alt px-1 py-0.5 rounded">.bin</code> or <code className="text-xs bg-app-surface-alt px-1 py-0.5 rounded">.bin.gz</code> dump.
         It's fed through the full pipeline so detected laps are saved to the
         database just like a live session.
       </p>
@@ -112,7 +112,7 @@ export function ImportDumpPanel() {
           id="dump-file-input"
           ref={inputRef}
           type="file"
-          accept=".bin"
+          accept=".bin,.bin.gz"
           className="hidden"
           onChange={(e) => handleSelect(e.target.files?.[0] ?? null)}
         />
@@ -125,7 +125,7 @@ export function ImportDumpPanel() {
           </div>
         ) : (
           <>
-            <div className="text-sm">Drop a .bin file here, or click to browse</div>
+            <div className="text-sm">Drop a .bin or .bin.gz file here, or click to browse</div>
             <div className="text-xs text-app-text-muted">
               Filename must start with <code className="bg-app-surface-alt px-1 rounded">acc-</code>,{" "}
               <code className="bg-app-surface-alt px-1 rounded">fm-2023-</code>, or{" "}
