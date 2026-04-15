@@ -39,28 +39,38 @@ async function runMigrations() {
 
   console.log(`[DB] Running ${pending.length} migration(s)...`);
 
-  for (const migration of pending) {
-    console.log(`[DB]   v${migration.version}: ${migration.name}`);
-    await client.execute("BEGIN");
-    try {
-      for (const sql of migration.sql) {
-        try {
-          await client.execute(sql);
-        } catch (stmtErr: unknown) {
-          // ALTER TABLE ADD COLUMN is idempotent — ignore "duplicate column name" errors
-          const msg = stmtErr instanceof Error ? stmtErr.message : String(stmtErr);
-          if (!msg.includes("duplicate column name")) throw stmtErr;
+  // Disable FK enforcement during migrations so schema rebuilds (e.g. dropping
+  // and recreating a table to remove a column default) can proceed even when
+  // other tables reference the dropped one. SQLite requires this pragma to be
+  // set outside any transaction, which is why it lives at the runner level.
+  await client.execute("PRAGMA foreign_keys = OFF");
+
+  try {
+    for (const migration of pending) {
+      console.log(`[DB]   v${migration.version}: ${migration.name}`);
+      await client.execute("BEGIN");
+      try {
+        for (const sql of migration.sql) {
+          try {
+            await client.execute(sql);
+          } catch (stmtErr: unknown) {
+            // ALTER TABLE ADD COLUMN is idempotent — ignore "duplicate column name" errors
+            const msg = stmtErr instanceof Error ? stmtErr.message : String(stmtErr);
+            if (!msg.includes("duplicate column name")) throw stmtErr;
+          }
         }
+        await client.execute({
+          sql: "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
+          args: [migration.version, migration.name],
+        });
+        await client.execute("COMMIT");
+      } catch (err) {
+        await client.execute("ROLLBACK");
+        throw err;
       }
-      await client.execute({
-        sql: "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
-        args: [migration.version, migration.name],
-      });
-      await client.execute("COMMIT");
-    } catch (err) {
-      await client.execute("ROLLBACK");
-      throw err;
     }
+  } finally {
+    await client.execute("PRAGMA foreign_keys = ON");
   }
 
   console.log(`[DB] Migrations complete.`);
