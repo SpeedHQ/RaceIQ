@@ -16,6 +16,7 @@ import type { TelemetryPacket } from "../../../shared/types";
 import type { CapturedLap } from "../../../server/pipeline-adapters";
 import { readAcEvoPackets, parseDump, ensureInit } from "../../helpers/parse-dump";
 import { generateRecordingVisualizations } from "../../helpers/lap-viz";
+import { assertValidLapHasSectors } from "../../helpers/lap-assertions";
 
 const RECORDINGS_DIR = "test/artifacts/laps";
 
@@ -142,6 +143,8 @@ describe("AC Evo v0.6 recording", () => {
       // GT3 lap at any real circuit: 60-180s
       expect(l.lapTime).toBeGreaterThan(60);
       expect(l.lapTime).toBeLessThan(180);
+      // Sector times must be populated and sum to the lap time
+      assertValidLapHasSectors(l);
     }
 
     // Final lap: driver entered pit (inlap) or recording stopped mid-lap (incomplete)
