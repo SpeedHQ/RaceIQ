@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { formatLapTime } from "@/lib/format";
 
 interface ImportedLap {
   lapId: number;
@@ -24,13 +25,6 @@ interface ImportResult {
   laps: ImportedLap[];
 }
 
-function formatLapTime(ms: number): string {
-  if (!ms || ms <= 0) return "—";
-  const totalSeconds = ms / 1000;
-  const mins = Math.floor(totalSeconds / 60);
-  const secs = (totalSeconds - mins * 60).toFixed(3);
-  return `${mins}:${secs.padStart(6, "0")}`;
-}
 
 export function ImportDumpPanel() {
   const [file, setFile] = useState<File | null>(null);
