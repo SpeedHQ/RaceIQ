@@ -118,22 +118,35 @@ describe("AC Evo v0.6 recording", () => {
     expect(liveCount / packets.length).toBeGreaterThan(0.5);
   });
 
-  test("lap detection: first lap is outlap, final lap is inlap", () => {
+  test("lap detection: outlap invalid, at least one valid flying lap, final lap invalid", () => {
     if (!recording) return;
-    expect(laps.length).toBeGreaterThanOrEqual(2);
     // Log what we got for debugging
     for (const l of laps) {
       console.log(
-        `  lap ${l.lapNumber}: ${(l.lapTime / 1).toFixed(3)}s ${l.isValid ? "valid" : "invalid"}${l.invalidReason ? ` (${l.invalidReason})` : ""}`,
+        `  lap ${l.lapNumber}: ${l.lapTime.toFixed(3)}s ${l.isValid ? "valid" : "invalid"}${l.invalidReason ? ` (${l.invalidReason})` : ""}`,
       );
     }
-    // First lap: driver exits the pit → outlap (started inside pit, ended on track)
+
+    // Must have at least outlap + 1 flying lap
+    expect(laps.length).toBeGreaterThanOrEqual(2);
+
+    // Lap 0: outlap — driver exits pit, not a valid timed lap
     expect(laps[0].invalidReason).toBe("outlap");
     expect(laps[0].isValid).toBe(false);
-    // Final lap: driver enters the pit → inlap (started on track, ended inside pit).
-    // Accept either "inlap" or "incomplete" if the recording was stopped mid-lap
-    // before the driver actually entered the pit.
+
+    // At least one flying lap between outlap and final — valid with no invalidReason
+    const validLaps = laps.filter((l) => l.isValid);
+    expect(validLaps.length).toBeGreaterThanOrEqual(1);
+    for (const l of validLaps) {
+      expect(l.invalidReason).toBeNull();
+      // GT3 lap at any real circuit: 60-180s
+      expect(l.lapTime).toBeGreaterThan(60);
+      expect(l.lapTime).toBeLessThan(180);
+    }
+
+    // Final lap: driver entered pit (inlap) or recording stopped mid-lap (incomplete)
     const last = laps[laps.length - 1];
+    expect(last.isValid).toBe(false);
     expect(last.invalidReason === "inlap" || last.invalidReason === "incomplete").toBe(true);
   });
 
