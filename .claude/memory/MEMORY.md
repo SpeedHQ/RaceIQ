@@ -16,4 +16,5 @@
 - [feedback_git_lfs_push.md](feedback_git_lfs_push.md) — Git LFS hooks block push on macOS; git-lfs not installed
 - [feedback_no_game_fallback.md](feedback_no_game_fallback.md) — Never fall back to "fm-2023" when gameId is missing; make gameId required
 - [feedback_no_dynamic_imports.md](feedback_no_dynamic_imports.md) — Prefer static `import` at top of file over `await import(...)`; don't copy existing dynamic-import patterns
+- [feedback_bunx_over_npx.md](feedback_bunx_over_npx.md) — Always use bunx instead of npx for CLI tools (project uses Bun)
 - [project_game_id_in_request_header.md](project_game_id_in_request_header.md) — gameId should travel via X-Game-Id header, not query params or effect-populated store
