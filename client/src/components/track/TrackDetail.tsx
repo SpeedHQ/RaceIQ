@@ -1210,6 +1210,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                               </div>
                             </div>
                           )}
+
                         </div>
                         {/* Selection actions — inline in header row */}
                         {selectedLaps.size > 0 && (
