@@ -1278,5 +1278,37 @@
     },
     "source": "https://www.f1laps.com/f1-25/setups/spa/05280f51-d5a7-4720-8426-aa67f60e9b0b/",
     "provider": "f1laps"
+  },
+  {
+    "team": "F1 Custom Team",
+    "author": "Riku",
+    "lapTime": "1:42.937",
+    "sessionType": "Time Trial",
+    "inputDevice": "wheel",
+    "weather": "Dry",
+    "setup": {
+      "frontWing": 7,
+      "rearWing": 2,
+      "diffOnThrottle": 100,
+      "diffOffThrottle": 30,
+      "frontCamber": -3.5,
+      "rearCamber": -2,
+      "frontToe": 0.02,
+      "rearToe": 0.13,
+      "frontSuspension": 40,
+      "rearSuspension": 1,
+      "frontAntiRollBar": 5,
+      "rearAntiRollBar": 20,
+      "frontRideHeight": 22,
+      "rearRideHeight": 40,
+      "brakePressure": 100,
+      "frontBrakeBias": 51,
+      "frontRightTyrePressure": 29.5,
+      "frontLeftTyrePressure": 29.5,
+      "rearRightTyrePressure": 26.5,
+      "rearLeftTyrePressure": 26.5
+    },
+    "source": "https://www.f1laps.com/f1-25/setups/spa/9d7f4877-97b3-4888-b6ff-ad2cae5a47e6/",
+    "provider": "f1laps"
   }
 ]

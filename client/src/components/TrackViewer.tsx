@@ -1,11 +1,13 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useTracks } from "../hooks/queries";
 import { useGameId } from "../stores/game";
 import { AppInput } from "./ui/AppInput";
 import { countryName } from "@/lib/country-names";
 import { TrackCard } from "./track/TrackCard";
 import { TrackDetail } from "./track/TrackDetail";
+import { client } from "@/lib/rpc";
 import type { TrackInfo } from "./track/types";
 
 type SortKey = "name" | "laps";
@@ -17,27 +19,28 @@ export function TrackViewer() {
 
   const gameId = useGameId();
   const { data: tracks = [], isLoading: loading } = useTracks() as { data: TrackInfo[]; isLoading: boolean };
-  const [selectedTrack, setSelectedTrack] = useState<TrackInfo | null>(null);
+  const { data: f125Tracks = [] } = useQuery<{ trackOrdinal: number; setupCount: number; guideCount: number; guideUrl: string }[]>({
+    queryKey: ["f125-tracks", gameId],
+    queryFn: () => client.api["f1-25"].tracks.$get().then(r => r.json() as unknown as { trackOrdinal: number; setupCount: number; guideCount: number; guideUrl: string }[]),
+    enabled: gameId === "f1-2025",
+  });
+  const f125ByOrdinal = Object.fromEntries(f125Tracks.map(t => [t.trackOrdinal, t]));
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
 
+  // Derive selected track from URL param — no useEffect needed, no gallery flash
+  const selectedTrack = useMemo(
+    () => (routeSearch.track != null ? tracks.find((t) => t.ordinal === routeSearch.track) ?? null : null),
+    [tracks, routeSearch.track]
+  );
+
   const handleSelectTrack = useCallback((t: TrackInfo) => {
-    setSelectedTrack(t);
     navigate({ search: { track: t.ordinal } as never, replace: true });
   }, [navigate]);
 
   const handleBack = useCallback(() => {
-    setSelectedTrack(null);
     navigate({ search: {} as never, replace: true });
   }, [navigate]);
-
-  // If URL has a track param, select it once tracks load
-  useEffect(() => {
-    if (tracks.length > 0 && routeSearch.track && !selectedTrack) {
-      const match = tracks.find((t) => t.ordinal === routeSearch.track);
-      if (match) setSelectedTrack(match);
-    }
-  }, [tracks, routeSearch.track]);
 
   if (loading) {
     return <div className="p-4 text-app-text-dim">Loading tracks...</div>;
@@ -100,7 +103,10 @@ export function TrackViewer() {
       {withOutline.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
           {withOutline.map((t) => (
-            <TrackCard key={t.ordinal} track={t} onSelect={handleSelectTrack} gameId={gameId} />
+            <TrackCard key={t.ordinal} track={t} onSelect={handleSelectTrack} gameId={gameId}
+              setupCount={gameId === "f1-2025" ? f125ByOrdinal[t.ordinal]?.setupCount : undefined}
+              guideCount={gameId === "f1-2025" ? f125ByOrdinal[t.ordinal]?.guideCount : undefined}
+              hasGuide={gameId === "f1-2025" ? !!f125ByOrdinal[t.ordinal]?.guideUrl : undefined} />
           ))}
         </div>
       )}

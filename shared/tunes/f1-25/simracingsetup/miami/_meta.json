@@ -1,7 +1,24 @@
 {
-  "trackGuide": "Sector 1: High Speed & Fast Corners\n✅\nTurns 1–3 (Opening Complex)\nBrake hard at ~100m into Turn 1; it’s easy to lock up.\nKeep tight through T1, then balance throttle for the left-right sweep of T2 and T3.\nPrioritize clean exits over aggression here — overdriving ruins your run into the next straight.\n✅\nTurns 4–8 (Fast Curves + Short Straights)\nThese are flowing, high-speed direction changes.\nLight brake or lift for Turn 4, stay committed through 5–6, and balance the car through 7–8.\nUsing the curbs here can help, but overusing them leads to track limit warnings or unsettles the car.\nSector 2: Stadium & Underpass Section\n✅\nTurns 11–16 (Tight Chicane + Stadium Section)\nThis is where lap time is made or lost.\nBrake hard into T11, a tight left-hander, then slow the car right down for the tricky T14–T16 chicane.\nPatience! You’ll want to attack the curbs, but the car can get very unsettled — focus on\nclean exits\n, not cutting too much.\nCarrying speed out of T16 is crucial, as it leads onto the longest straight.\nSector 3: Long Straight + Hairpin Finish\n✅\nTurns 17–19 (End of Lap)\nAfter the long straight (with DRS), brake late but controlled into T17 hairpin (second gear).\nIt’s a prime overtaking spot — but overshooting kills your run.\nStay tidy through T18–19 and get back on the throttle early to maximize speed down the main straight.\nCar",
-  "setupTips": "",
-  "drivingTips": "Driving Tips\n✅\nMaximize DRS zones\n: Use ERS smartly on the two long straights — don’t waste it mid-lap.\n✅\nStay smooth in the chicane\n: The stadium section is bumpy and tight; don’t overcommit, as mistakes here ruin lap flow.\n✅\nNail braking points\n: Turns 1, 11, and 17 are the main overtaking zones; master late but controlled braking.\n✅\nWatch rear traction\n: Miami punishes aggressive throttle — be measured on exits.\nRecommended Miami race strategy in F1 24\n<img decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-Miami-Race-Strategy-1024x576.webp\" alt=\"F1 24 Miami",
-  "videoUrl": "https://www.youtube.com/watch?v=EP0sr245ET8",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/miami-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/miami-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=EP0sr245ET8",
+      "sections": [
+        {
+          "heading": "Sector 1: High Speed & Fast Corners",
+          "body": "• Turns 1–3 (Opening Complex)\n\n• Brake hard at ~100m into Turn 1; it’s easy to lock up.\n\n• Keep tight through T1, then balance throttle for the left-right sweep of T2 and T3.\n\n• Prioritize clean exits over aggression here — overdriving ruins your run into the next straight.\n\n• Turns 4–8 (Fast Curves + Short Straights)\n\n• These are flowing, high-speed direction changes.\n\n• Light brake or lift for Turn 4, stay committed through 5–6, and balance the car through 7–8.\n\n• Using the curbs here can help, but overusing them leads to track limit warnings or unsettles the car."
+        },
+        {
+          "heading": "Sector 2: Stadium & Underpass Section",
+          "body": "• Turns 11–16 (Tight Chicane + Stadium Section)\n\n• This is where lap time is made or lost.\n\n• Brake hard into T11, a tight left-hander, then slow the car right down for the tricky T14–T16 chicane.\n\n• Patience! You’ll want to attack the curbs, but the car can get very unsettled — focus on clean exits, not cutting too much.\n\n• Carrying speed out of T16 is crucial, as it leads onto the longest straight."
+        },
+        {
+          "heading": "Sector 3: Long Straight + Hairpin Finish",
+          "body": "• Turns 17–19 (End of Lap)\n\n• After the long straight (with DRS), brake late but controlled into T17 hairpin (second gear).\n\n• It’s a prime overtaking spot — but overshooting kills your run.\n\n• Stay tidy through T18–19 and get back on the throttle early to maximize speed down the main straight.\n\nCar"
+        }
+      ],
+      "setupTips": "Setup Tips\n\n• Wings: Medium downforce — you need good top speed but also enough rear stability through the technical middle sector.\n\n• Suspension: Slightly softer to handle curbs, especially under the stadium.\n\n• Differential: More open on throttle helps you get clean traction out of the hairpins.\n\n• Brakes: High brake pressure, but careful balance to avoid front lockups into big stops.\n\n• Tyres: Watch rear temperatures, especially out of slow corners.",
+      "drivingTips": "Driving Tips\n\n• Maximize DRS zones: Use ERS smartly on the two long straights — don’t waste it mid-lap.\n\n• Stay smooth in the chicane: The stadium section is bumpy and tight; don’t overcommit, as mistakes here ruin lap flow.\n\n• Nail braking points: Turns 1, 11, and 17 are the main overtaking zones; master late but controlled braking.\n\n• Watch rear traction: Miami punishes aggressive throttle — be measured on exits.\n\nRecommended Miami race strategy in F1 24\n\n<img decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-Miami-Race-Strategy-1024x576.webp\" alt=\"F1 24 Miami"
+    }
+  ]
 }

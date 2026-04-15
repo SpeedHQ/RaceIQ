@@ -168,7 +168,10 @@ async function scrapeF1Laps(slug: string): Promise<any[]> {
 
 // ── simracingsetup.com ──────────────────────────────────────────────────
 
-function srsParseListingPage(html: string): { setupUrls: string[]; videoUrl: string; trackGuide: string; setupTips: string; drivingTips: string } {
+type GuideSection = { heading: string; body: string };
+type GuideEntry = { source: string; videoUrl: string; sections: GuideSection[]; setupTips: string; drivingTips: string };
+
+function srsParseListingPage(html: string): { setupUrls: string[]; videoUrl: string; trackGuide: GuideSection[]; setupTips: string; drivingTips: string } {
   // Setup detail URLs
   const setupUrls: string[] = [];
   const urlRe = /href="(https:\/\/simracingsetup\.com\/setups\/f1-25-setups\/[^"]+)"/gi;
@@ -181,8 +184,65 @@ function srsParseListingPage(html: string): { setupUrls: string[]; videoUrl: str
   const vidMatch = html.match(/(?:tube\.rvere\.com\/embed\?v=|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
   const videoUrl = vidMatch ? `https://www.youtube.com/watch?v=${vidMatch[1]}` : "";
 
-  // Guide text
-  function extractSection(startLabel: string, endLabels: string[]): string {
+  function decodeEntities(s: string): string {
+    return s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&#8211;/g, "–").replace(/&#8212;/g, "—").replace(/&nbsp;/g, " ").replace(/&#\d+;/g, "");
+  }
+
+  function toPlainText(fragment: string): string {
+    return decodeEntities(
+      fragment
+        .replace(/<li[^>]*>/gi, "\n• ")
+        .replace(/<\/li>/gi, "")
+        .replace(/<\/?(strong|em|span|a)[^>]*>/gi, "")
+        .replace(/<\/?(p|ul|ol|div|br|h[2-6])[^>]*>/gi, "\n")
+        .replace(/<[^>]*>/g, "")
+    ).replace(/✅/g, "\n• ").replace(/[ \t]+/g, " ").replace(/\n[ \t]+/g, "\n").replace(/• \n/g, "• ").replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  /** Extract a range of HTML between a start label and end markers, return as structured sections. */
+  function extractSections(startLabel: string, endLabels: string[]): GuideSection[] {
+    const labelIdx = html.indexOf(startLabel);
+    if (labelIdx < 0) return [];
+    // Backtrack to the opening <h tag so the first heading is fully captured
+    const hTagStart = html.lastIndexOf("<h", labelIdx);
+    const start = hTagStart >= 0 && hTagStart > labelIdx - 200 ? hTagStart : labelIdx;
+    let end = html.length;
+    for (const marker of endLabels) {
+      const idx = html.indexOf(marker, labelIdx + startLabel.length);
+      if (idx > 0 && idx < end) end = idx;
+    }
+    const chunk = html.slice(start, end);
+
+    // Split on h3/h4 headings
+    const headingRe = /<h[234][^>]*>([\s\S]*?)<\/h[234]>/gi;
+    const sections: GuideSection[] = [];
+    let lastIdx = 0;
+    let pendingHeading = "";
+    let hm: RegExpExecArray | null;
+
+    while ((hm = headingRe.exec(chunk)) !== null) {
+      if (pendingHeading) {
+        const body = toPlainText(chunk.slice(lastIdx, hm.index));
+        if (body) sections.push({ heading: pendingHeading, body });
+      }
+      pendingHeading = decodeEntities(hm[1].replace(/<[^>]*>/g, "")).trim();
+      lastIdx = hm.index + hm[0].length;
+    }
+    // Last section
+    if (pendingHeading) {
+      const body = toPlainText(chunk.slice(lastIdx));
+      if (body) sections.push({ heading: pendingHeading, body });
+    }
+    // Fallback: no headings found, treat whole block as one section
+    if (sections.length === 0) {
+      const body = toPlainText(chunk);
+      if (body) sections.push({ heading: "", body });
+    }
+    return sections;
+  }
+
+  function extractPlainSection(startLabel: string, endLabels: string[]): string {
     const start = html.indexOf(startLabel);
     if (start < 0) return "";
     let end = html.length;
@@ -190,18 +250,20 @@ function srsParseListingPage(html: string): { setupUrls: string[]; videoUrl: str
       const idx = html.indexOf(marker, start + startLabel.length);
       if (idx > 0 && idx < end) end = idx;
     }
-    return html.slice(start, end)
-      .replace(/<\/?(h[2-4]|p|li|ul|ol|div|strong|em|br|span)[^>]*>/gi, "\n")
-      .replace(/<[^>]*>/g, "")
-      .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-      .replace(/&#8211;/g, "–").replace(/&#8212;/g, "—").replace(/&nbsp;/g, " ").replace(/&#\d+;/g, "")
-      .split("\n").map(l => l.trim()).filter(l => l.length > 0).join("\n").trim();
+    return toPlainText(html.slice(start, end));
   }
 
-  const endMarkers = ["Car Setup Tips", "Setup Tips", "Driving Tips", "Recommended race strategy", "Race Strategy", "Pirelli", "car-setup-archive"];
-  const trackGuide = extractSection("Sector 1", endMarkers);
-  const setupTips = extractSection("Car Setup Tips", ["Driving Tips", ...endMarkers.slice(3)]);
-  const drivingTips = extractSection("Driving Tips", endMarkers.slice(3));
+  const endMarkers = ["Car Setup Tips", "Setup Tips", "Driving Tips", "Recommended race strategy", "Race Strategy", "race strategy for", "high or low downforce", "How to create", "Pirelli", "car-setup-archive"];
+  const trackGuide = (
+    extractSections("Sector 1", endMarkers).length ? extractSections("Sector 1", endMarkers) :
+    extractSections("General Tips", endMarkers).length ? extractSections("General Tips", endMarkers) :
+    extractSections("Track guide overview for", endMarkers).length ? extractSections("Track guide overview for", endMarkers) :
+    extractSections("Turns 1", endMarkers).length ? extractSections("Turns 1", endMarkers) :
+    extractSections("Turn 1", endMarkers)
+  );
+  const setupTips = extractPlainSection("Car Setup Tips", ["Driving Tips", ...endMarkers.slice(3)])
+    || extractPlainSection("Setup Tips", ["Driving Tips", ...endMarkers.slice(3)]);
+  const drivingTips = extractPlainSection("Driving Tips", endMarkers.slice(3));
 
   return { setupUrls: [...new Set(setupUrls)], videoUrl, trackGuide, setupTips, drivingTips };
 }
@@ -289,18 +351,106 @@ async function scrapeSRS(srsSlug: string): Promise<{ setups: any[]; videoUrl: st
   return { setups, videoUrl, guideUrl, trackGuide, setupTips, drivingTips };
 }
 
+// ── overtake.gg ─────────────────────────────────────────────────────────
+
+const OVERTAKE_BASE = "https://www.overtake.gg/news/f1-25-track-guides.3245";
+
+const OVERTAKE_TRACK_MAP: Record<string, string> = {
+  australia:   "page/australia-albert-park.348/",
+  china:       "page/china-shanghai-international-circuit.353/",
+  japan:       "page/japan-suzuka.354/",
+  bahrain:     "page/bahrain-bahrain-international-circuit.352/",
+  saudi_arabia:"page/saudi-arabia-jeddah-corniche-circuit.355/",
+  miami:       "page/usa-miami-international-autodrome.356/",
+  imola:       "page/italy-autodromo-internazionale-enzo-e-dino-ferrari.351/",
+  monaco:      "page/monaco-circuit-de-monaco.357/",
+  spain:       "page/spain-barcelona.343/",
+  canada:      "page/canada-montr%C3%A9al-circuit-gilles-villeneuve.345/",
+  austria:     "page/austria-red-bull-ring.344/",
+  silverstone: "page/great-britian-silverstone.346/",
+  spa:         "page/belgium-spa-francorchamps.347/",
+  hungary:     "page/hungary-hungaroring.349/",
+  netherlands: "page/netherlands-zandvoort.358/",
+  monza:       "page/italy-monza.350/",
+  azerbaijan:  "page/azerbaijan-baku.359/",
+  singapore:   "page/singapore-marina-bay.360/",
+  usa:         "page/usa-circuit-of-the-americas.361/",
+  mexico:      "page/mexico-hermanos-rodriguez.362/",
+  brazil:      "page/brazil-interlagos.363/",
+  las_vegas:   "page/usa-las-vegas-strip-circuit.364/",
+  qatar:       "page/qatar-lusail.365/",
+  abudhabi:    "page/abu-dhabi-yas-marina.366/",
+};
+
+function overtakeExtractSections(html: string): GuideSection[] {
+  function decodeEntities(s: string): string {
+    return s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&#8211;/g, "–").replace(/&#8212;/g, "—").replace(/&nbsp;/g, " ").replace(/&#\d+;/g, "");
+  }
+  function toPlainText(fragment: string): string {
+    return decodeEntities(
+      fragment
+        .replace(/<li[^>]*>/gi, "\n• ")
+        .replace(/<\/li>/gi, "")
+        .replace(/<\/?(strong|em|span|a)[^>]*>/gi, "")
+        .replace(/<\/?(p|ul|ol|div|br|h[2-6])[^>]*>/gi, "\n")
+        .replace(/<[^>]*>/g, "")
+    ).replace(/[ \t]+/g, " ").replace(/\n[ \t]+/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  // Find the article content — starts after "Table of contents" nav, ends before "Continue Reading" or "More in Guides"
+  const contentStart = html.indexOf('class="bbWrapper"');
+  if (contentStart < 0) return [];
+  const contentEnd = Math.min(
+    ...["Continue Reading", "More in Guides", "class=\"p-article-tag-list\"", "Next page:", "Previous page:", "Last edited:"].map(m => {
+      const i = html.indexOf(m, contentStart);
+      return i > 0 ? i : html.length;
+    })
+  );
+  const content = html.slice(contentStart, contentEnd);
+
+  const headingRe = /<b>(Sector \d[^<]*)<\/b>|<h[234][^>]*>([\s\S]*?)<\/h[234]>/gi;
+  const sections: GuideSection[] = [];
+  let lastIdx = 0;
+  let pendingHeading = "";
+  let hm: RegExpExecArray | null;
+
+  while ((hm = headingRe.exec(content)) !== null) {
+    if (pendingHeading) {
+      const body = toPlainText(content.slice(lastIdx, hm.index));
+      if (body.length > 20) sections.push({ heading: pendingHeading, body });
+    }
+    pendingHeading = decodeEntities((hm[1] || hm[2] || "").replace(/<[^>]*>/g, "")).trim();
+    lastIdx = hm.index + hm[0].length;
+  }
+  if (pendingHeading) {
+    const body = toPlainText(content.slice(lastIdx));
+    if (body.length > 20) sections.push({ heading: pendingHeading, body });
+  }
+  return sections;
+}
+
+async function scrapeOvertake(slug: string): Promise<GuideSection[]> {
+  const pagePath = OVERTAKE_TRACK_MAP[slug];
+  if (!pagePath) return [];
+  const url = `${OVERTAKE_BASE}/${pagePath}`;
+  const html = await fetchText(url);
+  return overtakeExtractSections(html);
+}
+
 // ── Main ────────────────────────────────────────────────────────────────
 
 async function scrapeTrack(slug: string) {
   const track = TRACK_MAP[slug];
 
   // Scrape all sources in parallel
-  const [f1lapsSetups, srsData] = await Promise.all([
+  const [f1lapsSetups, srsData, overtakeSections] = await Promise.all([
     scrapeF1Laps(slug).catch(err => { console.error(`  [${slug}] f1laps: ${(err as Error).message}`); return []; }),
-    scrapeSRS(track.srsSlug).catch(err => { console.error(`  [${slug}] srs: ${(err as Error).message}`); return { setups: [], videoUrl: "", guideUrl: "", trackGuide: "", setupTips: "", drivingTips: "" }; }),
+    scrapeSRS(track.srsSlug).catch(err => { console.error(`  [${slug}] srs: ${(err as Error).message}`); return { setups: [], videoUrl: "", guideUrl: "", trackGuide: [] as GuideSection[], setupTips: "", drivingTips: "" }; }),
+    scrapeOvertake(slug).catch(err => { console.error(`  [${slug}] overtake: ${(err as Error).message}`); return [] as GuideSection[]; }),
   ]);
 
-  return { slug, track, f1lapsSetups, srsData };
+  return { slug, track, f1lapsSetups, srsData, overtakeSections };
 }
 
 function ensureSourceMeta(sourceSlug: string, name: string, domain: string, url: string) {
@@ -320,11 +470,13 @@ async function main() {
   ensureSourceMeta("f1laps", "F1Laps", "f1laps.com", "https://www.f1laps.com/");
   ensureSourceMeta("simracingsetup", "SimRacingSetup", "simracingsetup.com", "https://simracingsetup.com/");
 
-  console.log(`Scraping ${slugs.length} tracks (f1laps + simracingsetup, 4 concurrent)...\n`);
+  ensureSourceMeta("overtake", "Overtake.gg", "overtake.gg", "https://www.overtake.gg/news/f1-25-track-guides.3245/");
+
+  console.log(`Scraping ${slugs.length} tracks (f1laps + simracingsetup + overtake, 4 concurrent)...\n`);
 
   let totalF1L = 0, totalSRS = 0;
   await pooled(slugs, 4, async (slug) => {
-    const { track, f1lapsSetups, srsData } = await scrapeTrack(slug);
+    const { track, f1lapsSetups, srsData, overtakeSections } = await scrapeTrack(slug);
 
     // Write track identity file
     await Bun.write(`${OUT_DIR}/${slug}.json`, JSON.stringify({
@@ -352,23 +504,66 @@ async function main() {
     const mergedSRS = [...existingSRS, ...srsData.setups.filter((s: any) => !existingSrsUrls.has(s.source))];
     await Bun.write(`${srsDir}/setups.json`, JSON.stringify(mergedSRS, null, 2));
 
-    // Write _meta.json for simracingsetup (guide, video, etc.)
+    // Write _meta.json for simracingsetup (guide, video, etc.) — upsert: keep existing values if scrape returns empty
+    let existingMeta: any = {};
+    try { existingMeta = JSON.parse(readFileSync(`${srsDir}/_meta.json`, "utf-8")); } catch {}
+    // trackGuide is an array of { source, videoUrl, sections, setupTips, drivingTips } — upsert by source URL
+    const existingGuides: GuideEntry[] = Array.isArray(existingMeta.trackGuide)
+      ? existingMeta.trackGuide
+      : [];
+    const guideUrl = srsData.guideUrl || existingMeta.guideUrl || "";
+    const hasNewGuide = srsData.trackGuide.length > 0 || srsData.setupTips || srsData.drivingTips;
+    if (hasNewGuide) {
+      const idx = existingGuides.findIndex(g => g.source === guideUrl);
+      const prev = existingGuides[idx];
+      const entry: GuideEntry = {
+        source: guideUrl,
+        videoUrl: srsData.videoUrl || prev?.videoUrl || "",
+        sections: srsData.trackGuide.length > 0 ? srsData.trackGuide : (prev?.sections ?? []),
+        setupTips: srsData.setupTips || prev?.setupTips || "",
+        drivingTips: srsData.drivingTips || prev?.drivingTips || "",
+      };
+      if (idx >= 0) existingGuides[idx] = entry;
+      else existingGuides.push(entry);
+    }
     await Bun.write(`${srsDir}/_meta.json`, JSON.stringify({
-      trackGuide: srsData.trackGuide || "",
-      setupTips: srsData.setupTips || "",
-      drivingTips: srsData.drivingTips || "",
-      videoUrl: srsData.videoUrl || "",
-      guideUrl: srsData.guideUrl || "",
+      trackGuide: existingGuides,
     }, null, 2));
+
+    // Write overtake guide
+    if (OVERTAKE_TRACK_MAP[slug]) {
+      const overtakeDir = `${OUT_DIR}/overtake/${slug}`;
+      mkdirSync(overtakeDir, { recursive: true });
+      const overtakeMetaPath = `${overtakeDir}/_meta.json`;
+      let existingOvertakeMeta: any = {};
+      try { existingOvertakeMeta = JSON.parse(readFileSync(overtakeMetaPath, "utf-8")); } catch {}
+      const overtakeGuideUrl = `${OVERTAKE_BASE}/${OVERTAKE_TRACK_MAP[slug]}`;
+      const existingOvertakeGuides: GuideEntry[] = Array.isArray(existingOvertakeMeta.trackGuide) ? existingOvertakeMeta.trackGuide : [];
+      const hasNewOvertake = overtakeSections.length > 0;
+      if (hasNewOvertake || existingOvertakeGuides.length === 0) {
+        const idx = existingOvertakeGuides.findIndex(g => g.source === overtakeGuideUrl);
+        const prev = existingOvertakeGuides[idx];
+        const entry: GuideEntry = {
+          source: overtakeGuideUrl,
+          videoUrl: prev?.videoUrl || "",
+          sections: overtakeSections.length > 0 ? overtakeSections : (prev?.sections ?? []),
+          setupTips: prev?.setupTips || "",
+          drivingTips: prev?.drivingTips || "",
+        };
+        if (idx >= 0) existingOvertakeGuides[idx] = entry;
+        else existingOvertakeGuides.push(entry);
+        await Bun.write(overtakeMetaPath, JSON.stringify({ trackGuide: existingOvertakeGuides }, null, 2));
+      }
+    }
 
     totalF1L += mergedF1L.length;
     totalSRS += mergedSRS.length;
-    console.log(`  ✓ ${slug.padEnd(14)} f1laps: ${mergedF1L.length} | srs: ${mergedSRS.length} | guide: ${(srsData.trackGuide?.length ?? 0)} chars`);
+    console.log(`  ✓ ${slug.padEnd(14)} f1laps: ${mergedF1L.length} | srs: ${mergedSRS.length} | srs-sections: ${srsData.trackGuide.length} | overtake: ${overtakeSections.length}`);
   });
 
   // Update lastScraped in _source.json
   const ts = new Date().toISOString();
-  for (const src of ["f1laps", "simracingsetup"]) {
+  for (const src of ["f1laps", "simracingsetup", "overtake"]) {
     const metaPath = `${OUT_DIR}/${src}/_source.json`;
     const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
     meta.lastScraped = ts;

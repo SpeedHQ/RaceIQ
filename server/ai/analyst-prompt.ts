@@ -5,6 +5,7 @@ import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../client/src/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
+import { buildTrackGuideContext } from "./track-guides";
 
 interface CornerDef {
   index: number;
@@ -83,6 +84,8 @@ export function buildAnalystPrompt(
   unit: UnitSystem = "metric",
   tune?: Tune,
   segments?: { type: string; name: string; startFrac: number; endFrac: number }[],
+  /** Pre-fetched track guide text. When provided, skips internal lookup. */
+  externalTrackGuide?: string,
 ): string {
   const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
   const trackName = getTrackName(lap.trackOrdinal ?? 0);
@@ -135,9 +138,11 @@ export function buildAnalystPrompt(
     carDetailsText += `\nDimensions: ${specs.weightKg}kg, ${specs.hp}hp, ${specs.drivetrain}`;
   }
 
+  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName);
+
   const context = `${carDetailsText}
 Track: ${trackName}
-${tuneText}${segmentsList}
+${tuneText}${segmentsList}${trackGuide}
 ${exportText}
 ${cornerData}
 ${insightsText}`;

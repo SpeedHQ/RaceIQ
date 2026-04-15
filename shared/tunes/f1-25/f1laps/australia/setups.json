@@ -1278,5 +1278,37 @@
     },
     "source": "https://www.f1laps.com/f1-25/setups/australia/e302302b-bd08-4e07-b7a9-3c7798073eb6/",
     "provider": "f1laps"
+  },
+  {
+    "team": "McLaren",
+    "author": "dezzali",
+    "lapTime": "1:16.434",
+    "sessionType": "Time Trial",
+    "inputDevice": "wheel",
+    "weather": "Dry",
+    "setup": {
+      "frontWing": 23,
+      "rearWing": 10,
+      "diffOnThrottle": 100,
+      "diffOffThrottle": 25,
+      "frontCamber": -3.5,
+      "rearCamber": -2,
+      "frontToe": 0,
+      "rearToe": 0.1,
+      "frontSuspension": 41,
+      "rearSuspension": 1,
+      "frontAntiRollBar": 12,
+      "rearAntiRollBar": 17,
+      "frontRideHeight": 20,
+      "rearRideHeight": 44,
+      "brakePressure": 100,
+      "frontBrakeBias": 52,
+      "frontRightTyrePressure": 29.5,
+      "frontLeftTyrePressure": 29.5,
+      "rearRightTyrePressure": 21.3,
+      "rearLeftTyrePressure": 21.3
+    },
+    "source": "https://www.f1laps.com/f1-25/setups/australia/0b4feec9-94cd-4b1a-bd8b-b13a90a5403e/",
+    "provider": "f1laps"
   }
 ]

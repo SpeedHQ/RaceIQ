@@ -1,7 +1,24 @@
 {
-  "trackGuide": "Sector 1: The Esses & Dunlop\n✅\nTurn 1–2\nApproach fast in 7th gear, lift slightly, and brake gently into Turn 1.\nUse 4th gear through Turn 2; trail brake to rotate the car.\nFocus on positioning — you want to be perfectly placed for the S-curves.\n✅\nTurns 3–7 (S-curves / Esses)\nA rhythmic sequence: lift–turn–lift–turn, maintaining minimum braking.\nUse 4th or 5th gear; smooth steering inputs.\nDon’t overcommit early — a mistake here ruins the whole sector.\n✅\nTurn 8 (Dunlop curve)\nFull throttle if setup allows; balance the car with tiny steering corrections.\nAvoid touching the outside curb — it’s easy to spin here.\nSector 2: Degners & Hairpin\n✅\nTurns 9–10 (Degner 1 & 2)\nDegner 1: Brake slightly before turn-in, use 5th gear, short-shift to stay stable.\nDegner 2: Heavy brake just before the curb, down to 3rd gear.\nWatch for the inside curb — too much can throw you off into the gravel.\n✅\nTurn 11 (Hairpin)\nBrake hard at the 100m board, down to 2nd gear.\nLate apex for best traction on exit.\nBe patient on throttle — easy to spin the rear here.\nSector 3: Spoon, 130R, Casio Triangle\n✅\nTurns 13–14 (Spoon curve)\nBrake just before the first apex, down to 4th gear.\nSmooth lift + brake into the second part.\nFocus on maximizing exit speed for the long run down to 130R.\n✅\nTurn 15 (130R)\nFlat out in 7th or 8th gear (depending on setup).\nSlight lift if needed in race trim or on heavy fuel.\nTrust the downforce but don’t touch the outside curb on exit.\n✅\nTurns 16–18 (Casio Triangle chicane)\nHeavy brake at the 100m board, down to 2nd or 3rd gear.\nJump the curbs aggressively.\nGood exit is critical — this leads to the main straight.\nCar",
-  "setupTips": "",
-  "drivingTips": "Driving Tips\n✅ Be smooth — Suzuka rewards rhythm, not aggression.\n✅ Don’t overdrive the S-curves; focus on exit speed, not max entry.\n✅ Use ERS and DRS mainly on the main straight; save battery if needed for overtakes after Spoon.\n✅ Watch tire temps — the long corners punish worn rubber.\nRace strategy for Japan in F1 25\n<img decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-Japan-Race-Strategy-1024x576.webp\" alt=\"F1 24 Japan",
-  "videoUrl": "https://www.youtube.com/watch?v=MWFq9dIG6bc",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/japanese-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/japanese-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=MWFq9dIG6bc",
+      "sections": [
+        {
+          "heading": "Sector 1: The Esses & Dunlop",
+          "body": "• Turn 1–2\n\n• Approach fast in 7th gear, lift slightly, and brake gently into Turn 1.\n\n• Use 4th gear through Turn 2; trail brake to rotate the car.\n\n• Focus on positioning — you want to be perfectly placed for the S-curves.\n\n• Turns 3–7 (S-curves / Esses)\n\n• A rhythmic sequence: lift–turn–lift–turn, maintaining minimum braking.\n\n• Use 4th or 5th gear; smooth steering inputs.\n\n• Don’t overcommit early — a mistake here ruins the whole sector.\n\n• Turn 8 (Dunlop curve)\n\n• Full throttle if setup allows; balance the car with tiny steering corrections.\n\n• Avoid touching the outside curb — it’s easy to spin here."
+        },
+        {
+          "heading": "Sector 2: Degners & Hairpin",
+          "body": "• Turns 9–10 (Degner 1 & 2)\n\n• Degner 1: Brake slightly before turn-in, use 5th gear, short-shift to stay stable.\n\n• Degner 2: Heavy brake just before the curb, down to 3rd gear.\n\n• Watch for the inside curb — too much can throw you off into the gravel.\n\n• Turn 11 (Hairpin)\n\n• Brake hard at the 100m board, down to 2nd gear.\n\n• Late apex for best traction on exit.\n\n• Be patient on throttle — easy to spin the rear here."
+        },
+        {
+          "heading": "Sector 3: Spoon, 130R, Casio Triangle",
+          "body": "• Turns 13–14 (Spoon curve)\n\n• Brake just before the first apex, down to 4th gear.\n\n• Smooth lift + brake into the second part.\n\n• Focus on maximizing exit speed for the long run down to 130R.\n\n• Turn 15 (130R)\n\n• Flat out in 7th or 8th gear (depending on setup).\n\n• Slight lift if needed in race trim or on heavy fuel.\n\n• Trust the downforce but don’t touch the outside curb on exit.\n\n• Turns 16–18 (Casio Triangle chicane)\n\n• Heavy brake at the 100m board, down to 2nd or 3rd gear.\n\n• Jump the curbs aggressively.\n\n• Good exit is critical — this leads to the main straight.\n\nCar"
+        }
+      ],
+      "setupTips": "Setup Tips\n\n• Wings: Medium–high downforce for S-curves; too low and you’ll understeer.\n\n• Differential: Slightly open on-throttle for smooth traction out of hairpin and Spoon.\n\n• Suspension: Soft front helps absorb curbs, stiff rear keeps rotation sharp.\n\n• Brakes: Forward bias (around 58%) to control downhill braking zones.",
+      "drivingTips": "Driving Tips\n\n• Be smooth — Suzuka rewards rhythm, not aggression.\n\n• Don’t overdrive the S-curves; focus on exit speed, not max entry.\n\n• Use ERS and DRS mainly on the main straight; save battery if needed for overtakes after Spoon.\n\n• Watch tire temps — the long corners punish worn rubber.\n\nRace strategy for Japan in F1 25\n\n<img decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-Japan-Race-Strategy-1024x576.webp\" alt=\"F1 24 Japan"
+    }
+  ]
 }

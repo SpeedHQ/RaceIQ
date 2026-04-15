@@ -6,7 +6,7 @@ import { countryName } from "@/lib/country-names";
 import type { TrackInfo, Point } from "./types";
 
 /** TrackCard — Gallery thumbnail: fetches outline by ordinal and renders a small static track map. */
-export function TrackCard({ track, onSelect, gameId }: { track: TrackInfo; onSelect: (t: TrackInfo) => void; gameId?: GameId | null }) {
+export function TrackCard({ track, onSelect, gameId, setupCount, guideCount, hasGuide }: { track: TrackInfo; onSelect: (t: TrackInfo) => void; gameId?: GameId | null; setupCount?: number; guideCount?: number; hasGuide?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [flipX, setFlipX] = useState(false);
@@ -50,12 +50,31 @@ export function TrackCard({ track, onSelect, gameId }: { track: TrackInfo; onSel
           {track.lengthKm > 0 && ` · ${track.lengthKm} km`}
         </div>
       </div>
-      <div className="bg-app-bg" style={{ height: 150 }}>
+      <div className="bg-app-bg relative" style={{ height: 150 }}>
         {track.hasOutline ? (
           <canvas ref={canvasRef} className="w-full h-full" />
         ) : (
           <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">
             No outline available
+          </div>
+        )}
+        {(setupCount !== undefined || hasGuide !== undefined) && (
+          <div className="absolute bottom-1.5 right-1.5 flex flex-col items-end gap-1 pointer-events-none">
+            {(setupCount ?? 0) > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-900/70 border border-green-700/50 text-green-300 font-mono leading-none">
+                {setupCount} setup{setupCount !== 1 ? "s" : ""}
+              </span>
+            )}
+            {(guideCount ?? 0) > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-900/70 border border-orange-700/50 text-orange-300 font-mono leading-none">
+                {guideCount} guide{guideCount !== 1 ? "s" : ""}
+              </span>
+            )}
+            {hasGuide && (guideCount ?? 0) === 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-900/70 border border-orange-700/50 text-orange-300 font-mono leading-none">
+                guide
+              </span>
+            )}
           </div>
         )}
       </div>

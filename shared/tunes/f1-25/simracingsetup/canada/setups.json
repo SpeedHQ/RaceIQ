@@ -295,5 +295,38 @@
     },
     "source": "https://simracingsetup.com/setups/f1-25-setups/canadian-grand-prix-2025-ferrari-dry-1-13-667/",
     "provider": "simracingsetup"
+  },
+  {
+    "team": "Red Bull",
+    "author": "SimRacingSetup",
+    "videoUrl": "",
+    "lapTime": "1:10.968",
+    "sessionType": "",
+    "inputDevice": "wheel",
+    "weather": "Dry",
+    "setup": {
+      "frontWing": 25,
+      "rearWing": 21,
+      "diffOnThrottle": 80,
+      "diffOffThrottle": 30,
+      "frontCamber": -3.5,
+      "rearCamber": -2,
+      "frontToe": 0,
+      "rearToe": 0.1,
+      "frontSuspension": 41,
+      "rearSuspension": 1,
+      "frontAntiRollBar": 8,
+      "rearAntiRollBar": 21,
+      "frontRideHeight": 19,
+      "rearRideHeight": 47,
+      "brakePressure": 100,
+      "frontBrakeBias": 54,
+      "frontRightTyrePressure": 29.5,
+      "frontLeftTyrePressure": 29.5,
+      "rearRightTyrePressure": 24.5,
+      "rearLeftTyrePressure": 24.5
+    },
+    "source": "https://simracingsetup.com/setups/f1-25-setups/canadian-grand-prix-2025-red-bull-dry-110968/",
+    "provider": "simracingsetup"
   }
 ]

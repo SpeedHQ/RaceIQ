@@ -10,6 +10,7 @@ import { compareEngineerPersona } from "../../server/ai/compare-engineer";
 import { getChatMemory } from "../../server/ai/chat-agent";
 import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
+import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 
 export const compareChatAgent = new Agent({
   id: "compare-chat",
@@ -19,5 +20,6 @@ export const compareChatAgent = new Agent({
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel);
   },
+  tools: { getTrackGuideTool, listTrackGuidesTool },
   memory: getChatMemory(),
 });

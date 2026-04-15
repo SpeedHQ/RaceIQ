@@ -8,6 +8,7 @@ import { Agent } from "@mastra/core/agent";
 import { getChatMemory } from "../../server/ai/chat-agent";
 import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
+import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 
 const LAP_CHAT_INSTRUCTIONS = `You are a senior race engineer answering a driver's questions about a single lap of theirs. Lap context, telemetry summary, and (if available) the previous structured analysis are supplied per request via the system prompt. Be brief, use bullet points where helpful, cite specific numbers with units, and refer to the driver as "you". Do NOT output JSON.`;
 
@@ -19,5 +20,6 @@ export const lapChatAgent = new Agent({
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel);
   },
+  tools: { getTrackGuideTool, listTrackGuidesTool },
   memory: getChatMemory(),
 });

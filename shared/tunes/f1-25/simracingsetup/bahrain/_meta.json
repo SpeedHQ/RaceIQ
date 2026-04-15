@@ -1,7 +1,56 @@
 {
-  "trackGuide": "",
-  "setupTips": "",
-  "drivingTips": "",
-  "videoUrl": "https://www.youtube.com/watch?v=elPZ05VAUPM",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/bahrain-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/bahrain-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=elPZ05VAUPM",
+      "sections": [
+        {
+          "heading": "Turn 1 – Heavy Braking Zone",
+          "body": "Approach at full speed, brake hard at around 100m, and shift down to second gear. Rotate the car smoothly, avoid locking up, and prepare for the uphill Turn 2 exit."
+        },
+        {
+          "heading": "Turn 2",
+          "body": "Short kink to the left; stay smooth on throttle to avoid wheelspin. Use short shifting to maintain rear traction."
+        },
+        {
+          "heading": "Turn 3",
+          "body": "Flat-out right-hand sweep. Focus on carrying maximum speed onto the straight."
+        },
+        {
+          "heading": "Turn 4",
+          "body": "Brake at 100m, downshift to third gear. Hug the inside curb, but avoid riding it aggressively as it can unsettle the car. Watch the exit as you apply power to prevent rear traction loss."
+        },
+        {
+          "heading": "Turns 5-6-7 (High-Speed Sweepers)",
+          "body": "Take these flat out in qualifying or with light fuel, but be ready to lift slightly in race trim. Maintain a clean line to set up Turn 8."
+        },
+        {
+          "heading": "Turn 8 – Hairpin",
+          "body": "Heavy braking into second gear. Hug the inside, short shift on exit to control traction."
+        },
+        {
+          "heading": "Turns 9-10 – Trickiest Braking Zone",
+          "body": "Brake while turning left – one of the hardest sections in F1 25. Be gentle on the brake pedal to avoid front lock-ups, and focus on smooth steering input."
+        },
+        {
+          "heading": "Turn 11",
+          "body": "Climb the hill, brake at 75m, downshift to fourth gear, and smoothly carry speed into the sweeping right."
+        },
+        {
+          "heading": "Turn 12",
+          "body": "Flat or near-flat right-hander; watch out for understeer mid-corner."
+        },
+        {
+          "heading": "Turn 13",
+          "body": "Brake at 50m, downshift to third gear. Late apex and good exit are key to maximizing speed down the long back straight."
+        },
+        {
+          "heading": "Turn 14-15 (Final Corner)",
+          "body": "Brake at around 100m, downshift to second gear. Focus on a clean exit as this feeds onto the main straight. Avoid spinning up the rear tires here."
+        }
+      ],
+      "setupTips": "",
+      "drivingTips": ""
+    }
+  ]
 }

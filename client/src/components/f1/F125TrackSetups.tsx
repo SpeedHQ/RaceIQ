@@ -20,15 +20,24 @@ interface F125Setup {
   setup: Record<string, number | null>;
 }
 
+interface F125GuideSection {
+  heading: string;
+  body: string;
+}
+
+interface F125GuideEntry {
+  source: string;
+  videoUrl: string;
+  sections: F125GuideSection[];
+  setupTips: string;
+  drivingTips: string;
+}
+
 interface F125TrackData {
   trackSlug: string;
   trackName: string;
   trackOrdinal: number;
-  videoUrl?: string;
-  guideUrl?: string;
-  trackGuide?: string;
-  setupTips?: string;
-  drivingTips?: string;
+  trackGuide?: F125GuideEntry[];
   setups: F125Setup[];
 }
 
@@ -54,36 +63,42 @@ function ProviderBadge({ provider }: { provider: string }) {
   return null;
 }
 
-function SetupVideo({ url }: { url: string }) {
+function getYouTubeVid(url: string): string | null {
   try {
     const u = new URL(url);
-    const vid = u.hostname.includes("youtube.com") ? u.searchParams.get("v") : u.hostname === "youtu.be" ? u.pathname.slice(1) : null;
-    if (!vid) return null;
-    return (
-      <div className="rounded-lg overflow-hidden border border-app-border/20">
-        <iframe src={`https://www.youtube.com/embed/${vid}`} title="Hotlap" className="w-full aspect-video"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
-      </div>
-    );
-  } catch { return null; }
+    if (u.hostname.includes("youtube.com")) return u.searchParams.get("v");
+    if (u.hostname === "youtu.be") return u.pathname.slice(1);
+  } catch { /* invalid URL */ }
+  return null;
 }
 
-export function F125SetupsWithGuide({ trackOrdinal, trackName, videoEmbedUrl }: { trackOrdinal: number; trackName: string; videoEmbedUrl: string | null }) {
+function SetupVideo({ url }: { url: string }) {
+  const vid = getYouTubeVid(url);
+  if (!vid) return null;
+  return (
+    <div className="rounded-lg overflow-hidden border border-app-border/20">
+      <iframe src={`https://www.youtube.com/embed/${vid}`} title="Hotlap" className="w-full aspect-video"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+    </div>
+  );
+}
+
+export function F125SetupsWithGuide({ trackOrdinal, trackName }: { trackOrdinal: number; trackName: string }) {
   const search = useSearch({ strict: false }) as { subtab?: string };
   const navigate = useNavigate();
-  const validSubTabs = ["setups", "ranges", "guide"] as const;
+  const validSubTabs = ["setups", "ranges"] as const;
   type SubTab = typeof validSubTabs[number];
   const subTab: SubTab = (validSubTabs as readonly string[]).includes(search.subtab ?? "") ? (search.subtab as SubTab) : "setups";
   const setSubTab = (tab: SubTab) => {
     navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, subtab: tab === "setups" ? undefined : tab }) as never, replace: true });
   };
 
-  const tabLabels = { setups: "Setups", ranges: "Compare", guide: "Track Guide" } as const;
+  const tabLabels = { setups: "Setups", ranges: "Compare" } as const;
 
   return (
     <div className="flex flex-col gap-2 h-full">
       <div className="flex gap-1 shrink-0">
-        {(["setups", "ranges", "guide"] as const).map(tab => (
+        {(["setups", "ranges"] as const).map(tab => (
           <button key={tab} onClick={() => setSubTab(tab)}
             className={`text-app-unit px-3 py-1 rounded border transition-colors ${
               subTab === tab ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"
@@ -94,68 +109,148 @@ export function F125SetupsWithGuide({ trackOrdinal, trackName, videoEmbedUrl }: 
       </div>
       {subTab === "setups" ? (
         <F125TrackSetups trackOrdinal={trackOrdinal} trackName={trackName} />
-      ) : subTab === "ranges" ? (
-        <F125SetupRanges trackOrdinal={trackOrdinal} />
       ) : (
-        <div className="flex gap-4 flex-1 min-h-0 overflow-hidden">
-          {videoEmbedUrl && (
-            <div className="w-1/2 shrink-0 rounded-lg overflow-hidden border border-app-border">
-              <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
-                <iframe src={videoEmbedUrl} title={`${trackName} Guide`} className="absolute inset-0 w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
-              </div>
-            </div>
-          )}
-          <div className="flex-1 min-w-0 overflow-y-auto">
-            <F125TrackGuide trackOrdinal={trackOrdinal} />
-          </div>
-        </div>
+        <F125SetupRanges trackOrdinal={trackOrdinal} />
       )}
     </div>
   );
 }
 
-export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
-  const [guideTab, setGuideTab] = useState<"off" | "sectors" | "setup" | "driving">("off");
+function sourceDisplayName(url: string): string {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
+}
 
+function toEmbedUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes("youtube.com") && u.searchParams.has("v")) return `https://www.youtube.com/embed/${u.searchParams.get("v")}`;
+    if (u.hostname === "youtu.be") return `https://www.youtube.com/embed${u.pathname}`;
+  } catch {}
+  return url;
+}
+
+export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
   const { data: tracks = [] } = useQuery<F125TrackSummary[]>({
     queryKey: ["f125-tracks"],
-    queryFn: () => client.api["f1-25"].tracks.$get().then(r => r.json() as any),
+    queryFn: () => client.api["f1-25"].tracks.$get().then(r => r.json() as unknown as F125TrackSummary[]),
   });
   const trackSlug = tracks.find(t => t.trackOrdinal === trackOrdinal)?.trackSlug;
   const { data: trackData } = useQuery<F125TrackData>({
     queryKey: ["f125-setups", trackSlug],
-    queryFn: () => client.api["f1-25"].setups.$get({ query: { track: trackSlug! } }).then(r => r.json() as any),
+    queryFn: () => client.api["f1-25"].setups.$get({ query: { track: trackSlug! } }).then(r => r.json() as unknown as F125TrackData),
     enabled: !!trackSlug,
   });
 
-  if (!trackData) return null;
+  const guides = trackData?.trackGuide ?? [];
+  const [selectedSource, setSelectedSource] = useState<string | null>(null);
+  const [contentTab, setContentTab] = useState<"guide" | "setup">("guide");
+  const activeGuide = guides.find(g => g.source === selectedSource) ?? guides[0];
 
-  const guideTabs = [
-    trackData.trackGuide && "sectors" as const,
-    trackData.setupTips && "setup" as const,
-    trackData.drivingTips && "driving" as const,
-  ].filter(Boolean) as ("sectors" | "setup" | "driving")[];
-  if (guideTabs.length === 0) return null;
-
-  const guideLabels = { sectors: "Sector Guide", setup: "Setup Tips", driving: "Driving Tips" };
-  const guideContent = guideTab === "sectors" ? trackData.trackGuide : guideTab === "setup" ? trackData.setupTips : guideTab === "driving" ? trackData.drivingTips : null;
+  if (guides.length === 0) return (
+    <div className="text-app-text-secondary text-app-unit p-4">No guide available for this track.</div>
+  );
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col">
-      <div className="flex gap-1 mb-1">
-        {guideTabs.map(tab => (
-          <button key={tab} onClick={() => setGuideTab(guideTab === tab ? "off" : tab)}
-            className={`text-app-unit px-2 py-0.5 rounded border transition-colors ${
-              guideTab === tab ? "border-app-accent/50 bg-app-accent/10 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"
-            }`}>
-            {guideLabels[tab]}
-          </button>
-        ))}
+    <div className="flex h-full min-h-0 gap-3">
+      {/* Source list */}
+      <div className="w-56 shrink-0 flex flex-col gap-1">
+        {guides.map(g => {
+          const isActive = g.source === activeGuide?.source;
+          const sectionCount = g.sections?.length ?? 0;
+          return (
+            <button key={g.source} onClick={() => setSelectedSource(g.source)}
+              className={`text-left px-2 py-2 rounded border transition-colors ${
+                isActive ? "border-app-accent/40 bg-app-accent/10" : "border-app-border hover:border-app-border-hover bg-app-surface-alt/30 hover:bg-app-surface-alt"
+              }`}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className={`text-sm font-medium ${isActive ? "text-app-accent" : "text-app-text"}`}>
+                  {sourceDisplayName(g.source)}
+                </span>
+                {sectionCount > 0 && (
+                  <span className="px-1 py-0.5 text-[8px] font-bold uppercase rounded bg-blue-500/20 text-blue-400">Text</span>
+                )}
+                {g.videoUrl && (
+                  <span className="px-1 py-0.5 text-[8px] font-bold uppercase rounded bg-red-500/20 text-red-400">YT</span>
+                )}
+              </div>
+              <table className="w-full text-xs text-app-text-secondary">
+                <tbody>
+                  {g.setupTips && (
+                    <tr>
+                      <td className="pr-2 text-app-text-dim">Setup tips</td>
+                      <td>Yes</td>
+                    </tr>
+                  )}
+                  {g.drivingTips && (
+                    <tr>
+                      <td className="pr-2 text-app-text-dim">Driving tips</td>
+                      <td>Yes</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </button>
+          );
+        })}
       </div>
-      {guideContent && (
-        <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-app-border/15 bg-app-surface-alt/15 p-2">
-          <pre className="whitespace-pre-wrap text-app-text-secondary font-sans text-app-unit leading-relaxed">{guideContent}</pre>
+
+      {/* Guide content */}
+      {activeGuide && (
+        <div className="flex-1 min-w-0 flex flex-col min-h-0">
+          {/* Content tabs + source link */}
+          <div className="flex items-center gap-2 mb-2 shrink-0">
+            <button onClick={() => setContentTab("guide")}
+              className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${contentTab === "guide" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}>
+              Guide
+            </button>
+            {activeGuide.setupTips && (
+              <button onClick={() => setContentTab("setup")}
+                className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${contentTab === "setup" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}>
+                Setup Tips
+              </button>
+            )}
+            {activeGuide.source && (
+              <a href={activeGuide.source} target="_blank" rel="noopener noreferrer"
+                className="text-[10px] text-app-text-muted hover:text-app-text underline underline-offset-2">
+                View on {sourceDisplayName(activeGuide.source)} ↗
+              </a>
+            )}
+          </div>
+          <div className="overflow-y-auto rounded-lg border border-app-border/15 bg-app-surface-alt/15 p-3 flex-1">
+            {contentTab === "guide" && (
+              <>
+                {activeGuide.videoUrl && (
+                  <div className="float-right ml-4 mb-4 rounded-lg overflow-hidden border border-app-border/30" style={{ width: "45%" }}>
+                    <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+                      <iframe src={toEmbedUrl(activeGuide.videoUrl)} title="Track Guide" className="absolute inset-0 w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+                    </div>
+                  </div>
+                )}
+                {activeGuide.sections?.map((s, i) => (
+                  <div key={i} className="mb-6">
+                    {s.heading && <p className="text-app-text font-semibold text-sm mb-1">{s.heading}</p>}
+                    <p className="text-app-text-secondary text-sm leading-relaxed whitespace-pre-line">{s.body}</p>
+                  </div>
+                ))}
+              </>
+            )}
+            {contentTab === "setup" && (
+              <>
+                {activeGuide.setupTips && (
+                  <div className="mb-4">
+                    <p className="text-app-text-secondary text-sm leading-relaxed whitespace-pre-line">{activeGuide.setupTips}</p>
+                  </div>
+                )}
+                {activeGuide.drivingTips && (
+                  <div className="mb-6">
+                    <p className="text-app-text font-semibold text-sm mb-1">Driving Tips</p>
+                    <p className="text-app-text-secondary text-sm leading-relaxed whitespace-pre-line">{activeGuide.drivingTips}</p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -171,17 +266,18 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
 
   const { data: tracks = [] } = useQuery<F125TrackSummary[]>({
     queryKey: ["f125-tracks"],
-    queryFn: () => client.api["f1-25"].tracks.$get().then(r => r.json() as any),
+    queryFn: () => client.api["f1-25"].tracks.$get().then(r => r.json() as unknown as F125TrackSummary[]),
   });
 
   const trackSlug = tracks.find(t => t.trackOrdinal === trackOrdinal)?.trackSlug;
 
   const { data: trackData, isLoading } = useQuery<F125TrackData>({
     queryKey: ["f125-setups", trackSlug],
-    queryFn: () => client.api["f1-25"].setups.$get({ query: { track: trackSlug! } }).then(r => r.json() as any),
+    queryFn: () => client.api["f1-25"].setups.$get({ query: { track: trackSlug! } }).then(r => r.json() as unknown as F125TrackData),
     enabled: !!trackSlug,
   });
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const filteredSetups = useMemo(() => {
     if (!trackData?.setups) return [];
     let s = trackData.setups;
@@ -422,17 +518,18 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
 
   const { data: tracks = [] } = useQuery<F125TrackSummary[]>({
     queryKey: ["f125-tracks"],
-    queryFn: () => client.api["f1-25"].tracks.$get().then(r => r.json() as any),
+    queryFn: () => client.api["f1-25"].tracks.$get().then(r => r.json() as unknown as F125TrackSummary[]),
   });
 
   const trackSlug = tracks.find(t => t.trackOrdinal === trackOrdinal)?.trackSlug;
 
   const { data: trackData, isLoading } = useQuery<F125TrackData>({
     queryKey: ["f125-setups", trackSlug],
-    queryFn: () => client.api["f1-25"].setups.$get({ query: { track: trackSlug! } }).then(r => r.json() as any),
+    queryFn: () => client.api["f1-25"].setups.$get({ query: { track: trackSlug! } }).then(r => r.json() as unknown as F125TrackData),
     enabled: !!trackSlug,
   });
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const allWeatherSetups = useMemo(() => {
     if (!trackData?.setups) return [];
     return (weather === "Dry"

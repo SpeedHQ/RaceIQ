@@ -1,7 +1,32 @@
 {
-  "trackGuide": "Sector 1: Traction and Braking Precision\nTurn 1: Heavy Braking Right-Hander\nTips:\nOne of the few overtaking spots. Brake late, down to 2nd gear. Focus on exit traction for the DRS zone to Turn 2.\nTurn 2: Medium-Speed Left\nTips:\nBrake while turning slightly left. Be patient with throttle application to avoid understeer on exit.\nTurn 3: Fast Right Kink\nTips:\nFlat-out if positioned correctly. Stay tight and prepare for the technical second sector.\nSector 2: Rhythm and Flow Matter\nTurn 4: Blind Left-Hander\nTips:\nVery fast and tricky. Clip the inside kerb but avoid running wide – track limits penalty risk.\nTurn 5: Medium-Speed Right\nTips:\nBrake late but manage weight transfer. Avoid sausage kerb on the inside as it can destabilize the car.\nTurns 6-7: Chicane\nTips:\nQuick change of direction. Ride the kerbs slightly but don’t overdo it – can lead to penalties or damage.\nTurns 8-9: Left-Right Combo\nTips:\nBalance is key. Hit both apexes and maintain flow. Keep throttle input steady to avoid losing rear grip.\nTurns 10-11: High-Speed Right-Left\nTips:\nStay flat if possible. Slight lift may be required depending on fuel/tyre condition. Watch for track limits at exit.\n▶️ Sector 3: Focus on Precision\nTurn 12: Downhill Right-Hander\nTips:\nBrake while turning and control rear traction. Important to keep a tight line to set up Turn 13.\nTurn 13: Long Left Hairpin\nTips:\nEarly apex and long throttle application. You can be aggressive here, but wheelspin is a risk.\nTurn 14: Final Corner\nTips:\nSmooth exit is critical for lap time and to set up DRS on the main straight. Trail brake into apex and unwind steering early.\nHow should I set up my car for Hungary in F1 25?\nA quick setup overview for Hungary in F1 25 is below.\nSetup Area\nRecommended Settings\nAerodynamics\nHungary requires one of the highest aerodynamic setups of any track in F1 25.\nTransmission\nPrioritise good rotation by minimising your off throttle differential.\nSuspension\nA really soft rear suspension can help with rotation through the slower corners.\nBrakes\nYou can use a fairly rearward brake bias to avoid locking up due to the slower corner speeds.\nTyres\nTyre wear can be high when stuck in a DRS train, so increase tyre pressures if needed.\nF1 25 Hungary race strategy\nThe fastest race strategy for Hungary in F1 25 is to start on the medium tyre to optimise the race start. Then change onto the hard tyres around lap 10. You can stop earlier to undercut if stuck in a DRS train.\nOptimal race strategy:\nStart on Mediums → Hard Tyres\nPit Window:\nLap 10\nHungary",
-  "setupTips": "",
-  "drivingTips": "",
-  "videoUrl": "https://www.youtube.com/watch?v=9chxjErGc_U",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/hungarian-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/hungarian-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=9chxjErGc_U",
+      "sections": [
+        {
+          "heading": "Sector 1: Traction and Braking Precision",
+          "body": "Turn 1: Heavy Braking Right-Hander\n\n• Tips: One of the few overtaking spots. Brake late, down to 2nd gear. Focus on exit traction for the DRS zone to Turn 2.\n\nTurn 2: Medium-Speed Left\n\n• Tips: Brake while turning slightly left. Be patient with throttle application to avoid understeer on exit.\n\nTurn 3: Fast Right Kink\n\n• Tips: Flat-out if positioned correctly. Stay tight and prepare for the technical second sector."
+        },
+        {
+          "heading": "Sector 2: Rhythm and Flow Matter",
+          "body": "Turn 4: Blind Left-Hander\n\n• Tips: Very fast and tricky. Clip the inside kerb but avoid running wide – track limits penalty risk.\n\nTurn 5: Medium-Speed Right\n\n• Tips: Brake late but manage weight transfer. Avoid sausage kerb on the inside as it can destabilize the car.\n\nTurns 6-7: Chicane\n\n• Tips: Quick change of direction. Ride the kerbs slightly but don’t overdo it – can lead to penalties or damage.\n\nTurns 8-9: Left-Right Combo\n\n• Tips: Balance is key. Hit both apexes and maintain flow. Keep throttle input steady to avoid losing rear grip.\n\nTurns 10-11: High-Speed Right-Left\n\n• Tips: Stay flat if possible. Slight lift may be required depending on fuel/tyre condition. Watch for track limits at exit."
+        },
+        {
+          "heading": "▶️ Sector 3: Focus on Precision",
+          "body": "Turn 12: Downhill Right-Hander\n\n• Tips: Brake while turning and control rear traction. Important to keep a tight line to set up Turn 13.\n\nTurn 13: Long Left Hairpin\n\n• Tips: Early apex and long throttle application. You can be aggressive here, but wheelspin is a risk.\n\nTurn 14: Final Corner\n\n• Tips: Smooth exit is critical for lap time and to set up DRS on the main straight. Trail brake into apex and unwind steering early."
+        },
+        {
+          "heading": "How should I set up my car for Hungary in F1 25?",
+          "body": "A quick setup overview for Hungary in F1 25 is below.\n\nSetup AreaRecommended SettingsAerodynamicsHungary requires one of the highest aerodynamic setups of any track in F1 25.TransmissionPrioritise good rotation by minimising your off throttle differential.SuspensionA really soft rear suspension can help with rotation through the slower corners.BrakesYou can use a fairly rearward brake bias to avoid locking up due to the slower corner speeds.TyresTyre wear can be high when stuck in a DRS train, so increase tyre pressures if needed."
+        },
+        {
+          "heading": "F1 25 Hungary race strategy",
+          "body": "The fastest"
+        }
+      ],
+      "setupTips": "",
+      "drivingTips": ""
+    }
+  ]
 }

@@ -1278,5 +1278,37 @@
     },
     "source": "https://www.f1laps.com/f1-25/setups/imola/f7663c36-5031-4ddc-8c60-eb8fcc52a753/",
     "provider": "f1laps"
+  },
+  {
+    "team": "Ferrari",
+    "author": "Avril9248",
+    "lapTime": "1:15.886",
+    "sessionType": "Time Trial",
+    "inputDevice": "wheel",
+    "weather": "Dry",
+    "setup": {
+      "frontWing": 23,
+      "rearWing": 23,
+      "diffOnThrottle": 60,
+      "diffOffThrottle": 55,
+      "frontCamber": -3.4,
+      "rearCamber": -1.9,
+      "frontToe": 0.08,
+      "rearToe": 0.18,
+      "frontSuspension": 37,
+      "rearSuspension": 19,
+      "frontAntiRollBar": 15,
+      "rearAntiRollBar": 9,
+      "frontRideHeight": 23,
+      "rearRideHeight": 50,
+      "brakePressure": 97,
+      "frontBrakeBias": 53,
+      "frontRightTyrePressure": 24.2,
+      "frontLeftTyrePressure": 24.2,
+      "rearRightTyrePressure": 21.3,
+      "rearLeftTyrePressure": 21.3
+    },
+    "source": "https://www.f1laps.com/f1-25/setups/imola/97b8507d-4adb-4aff-ba20-bdcb2a1c5cc6/",
+    "provider": "f1laps"
   }
 ]

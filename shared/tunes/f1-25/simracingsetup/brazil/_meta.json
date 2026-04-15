@@ -1,7 +1,64 @@
 {
-  "trackGuide": "Sector 1: The Senna ‘S’\nTurn 1 (Descida do Sol): Tight Left-Hander\nTips:\nBrake just after the 100m board and turn in sharply. Downshift to 3rd gear. Hug the apex and prepare for quick transition into Turn 2.\nTurn 2 (Senna S): Tight Right\nTips:\nSmooth throttle application is crucial. Avoid spinning the rear. Keep the car positioned left for a wide line into Turn 3.\nTurn 3 (Curva do Sol): Flat-Out Curve\nTips:\nFlat in all dry conditions. DRS opens up shortly after exit. Perfect exit speed is vital for overtaking into Turn 4.\nSector 2: Technical and Undulating\nTurn 4 (Descida do Lago): Heavy Braking Zone\nTips:\nGreat overtaking spot. Brake just before the 100m marker. Use 4th gear and mount a bit of the inside kerb without unsettling the car.\nTurn 5: Left-Hand Kink\nTips:\nStay flat and flow through to maintain speed heading into Turn 6. Line matters for the following tight corners.\nTurn 6 (Ferradura): Long Right-Hander\nTips:\nTrail brake slightly and let the car roll. Keep tight to the inside but prepare for immediate change of direction.\nTurn 7 (Laranjinha): Fast Left\nTips:\nKeep throttle steady. Position the car on the right to prepare for the tricky slow-speed section.\nTurn 8 (Pinheirinho): Tight Right\nTips:\nSlowest part of the track. Brake early and avoid running wide on exit.\nTurn 9 (Bico de Pato): Hairpin Left\nTips:\nMaximize rotation with a quick flick. Apply throttle gently on exit to avoid wheelspin.\nTurn 10 (Mergulho): Downhill Right\nTips:\nBrake in a straight line, use 3rd gear, and get a clean exit for Turn 11.\nTurn 11 (Juncao): Final Real Corner\nTips:\nAbsolutely critical for lap time. Brake slightly earlier and sacrifice apex for strong exit onto the uphill straight.\nSector 3: Flat-Out Finish\nTurns 12–15: Curva da Arquibancada + Reta Oposta\nTips:\nThese are essentially flat-out sweeping bends. DRS opens on the main straight. Minimize steering input and run low downforce to maximize straight-line speed.\nSetting up a car to master Brazil\nSetup Area\nRecommended Settings\nAerodynamics\nOptimise your aero to be high, with a higher front wing than rear.\nTransmission\nRotation into slow corners is key, so lower your off throttle differential.\nSuspension\nWith such a slow and undulating layout, you can soften your suspension.\nBrakes\nA low brake bias setup is key to avoiding lockups into the slower corners.\nTyres\nIncrease your tyre pressures to make the tyres last during a race.\nBrazil race strategy for F1 25\nOptimal strategy: Medium → Hard\nStart on medium tyres and switch to hards around Lap 11–13.\nOffers good grip at the start of the race to maximise your first corner overtaking.\n<img fetchpriority=\"high\" decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-Brazil-Race-Strategy-1024x576.webp\" alt=\"F1 24 Brazil",
-  "setupTips": "",
-  "drivingTips": "",
-  "videoUrl": "https://www.youtube.com/watch?v=jOk6aJkh9JU",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/brazilian-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/brazilian-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=jOk6aJkh9JU",
+      "sections": [
+        {
+          "heading": "Turn 1 (Descida do Sol): Tight Left-Hander",
+          "body": "• Tips: Brake just after the 100m board and turn in sharply. Downshift to 3rd gear. Hug the apex and prepare for quick transition into Turn 2."
+        },
+        {
+          "heading": "Turn 2 (Senna S): Tight Right",
+          "body": "• Tips: Smooth throttle application is crucial. Avoid spinning the rear. Keep the car positioned left for a wide line into Turn 3."
+        },
+        {
+          "heading": "Turn 3 (Curva do Sol): Flat-Out Curve",
+          "body": "• Tips: Flat in all dry conditions. DRS opens up shortly after exit. Perfect exit speed is vital for overtaking into Turn 4."
+        },
+        {
+          "heading": "Turn 4 (Descida do Lago): Heavy Braking Zone",
+          "body": "• Tips: Great overtaking spot. Brake just before the 100m marker. Use 4th gear and mount a bit of the inside kerb without unsettling the car."
+        },
+        {
+          "heading": "Turn 5: Left-Hand Kink",
+          "body": "• Tips: Stay flat and flow through to maintain speed heading into Turn 6. Line matters for the following tight corners."
+        },
+        {
+          "heading": "Turn 6 (Ferradura): Long Right-Hander",
+          "body": "• Tips: Trail brake slightly and let the car roll. Keep tight to the inside but prepare for immediate change of direction."
+        },
+        {
+          "heading": "Turn 7 (Laranjinha): Fast Left",
+          "body": "• Tips: Keep throttle steady. Position the car on the right to prepare for the tricky slow-speed section."
+        },
+        {
+          "heading": "Turn 8 (Pinheirinho): Tight Right",
+          "body": "• Tips: Slowest part of the track. Brake early and avoid running wide on exit."
+        },
+        {
+          "heading": "Turn 9 (Bico de Pato): Hairpin Left",
+          "body": "• Tips: Maximize rotation with a quick flick. Apply throttle gently on exit to avoid wheelspin."
+        },
+        {
+          "heading": "Turn 10 (Mergulho): Downhill Right",
+          "body": "• Tips: Brake in a straight line, use 3rd gear, and get a clean exit for Turn 11."
+        },
+        {
+          "heading": "Turn 11 (Juncao): Final Real Corner",
+          "body": "• Tips: Absolutely critical for lap time. Brake slightly earlier and sacrifice apex for strong exit onto the uphill straight."
+        },
+        {
+          "heading": "Turns 12–15: Curva da Arquibancada + Reta Oposta",
+          "body": "• Tips: These are essentially flat-out sweeping bends. DRS opens on the main straight. Minimize steering input and run low downforce to maximize straight-line speed."
+        },
+        {
+          "heading": "Setting up a car to master Brazil",
+          "body": "Setup AreaRecommended SettingsAerodynamicsOptimise your aero to be high, with a higher front wing than rear.TransmissionRotation into slow corners is key, so lower your off throttle differential.SuspensionWith such a slow and undulating layout, you can soften your suspension.BrakesA low brake bias setup is key to avoiding lockups into the slower corners.TyresIncrease your tyre pressures to make the tyres last during a race.\n\nBrazil"
+        }
+      ],
+      "setupTips": "",
+      "drivingTips": ""
+    }
+  ]
 }

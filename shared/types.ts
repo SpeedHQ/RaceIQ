@@ -48,6 +48,9 @@ export interface F1ExtendedData {
   currentSector: number; // 0=S1, 1=S2, 2=S3
   sector1Time: number; // seconds (0 if not completed this lap)
   sector2Time: number; // seconds (0 if not completed this lap)
+  lastS1: number; // definitive sector times from SessionHistory (0 if not yet received)
+  lastS2: number;
+  lastS3: number;
   // Damage (0-100, 0=no damage)
   // Brake temps (Celsius)
   brakeTempFL: number;

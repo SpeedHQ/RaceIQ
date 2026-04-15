@@ -1278,5 +1278,37 @@
     },
     "source": "https://www.f1laps.com/f1-25/setups/austria/9317d2a4-8306-4f4a-af5e-1985fc3b058b/",
     "provider": "f1laps"
+  },
+  {
+    "team": "Ferrari",
+    "author": "Ethan24",
+    "lapTime": "1:04.787",
+    "sessionType": "Time Trial",
+    "inputDevice": "wheel",
+    "weather": "Dry",
+    "setup": {
+      "frontWing": 16,
+      "rearWing": 13,
+      "diffOnThrottle": 100,
+      "diffOffThrottle": 20,
+      "frontCamber": -3.5,
+      "rearCamber": -2,
+      "frontToe": 0,
+      "rearToe": 0.1,
+      "frontSuspension": 41,
+      "rearSuspension": 1,
+      "frontAntiRollBar": 1,
+      "rearAntiRollBar": 21,
+      "frontRideHeight": 20,
+      "rearRideHeight": 40,
+      "brakePressure": 100,
+      "frontBrakeBias": 54,
+      "frontRightTyrePressure": 29.5,
+      "frontLeftTyrePressure": 29.5,
+      "rearRightTyrePressure": 22.5,
+      "rearLeftTyrePressure": 22.5
+    },
+    "source": "https://www.f1laps.com/f1-25/setups/austria/c5cd9e0a-a68e-47d5-896d-0c6a3286f7fb/",
+    "provider": "f1laps"
   }
 ]

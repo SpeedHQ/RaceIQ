@@ -1150,5 +1150,37 @@
     },
     "source": "https://www.f1laps.com/f1-25/setups/azerbaijan/173006dd-f1da-423f-94f1-772ce0da5436/",
     "provider": "f1laps"
+  },
+  {
+    "team": "Red Bull Racing",
+    "author": "futureyt_",
+    "lapTime": "2:00.564",
+    "sessionType": "Race",
+    "inputDevice": "",
+    "weather": "Wet",
+    "setup": {
+      "frontWing": 10,
+      "rearWing": 12,
+      "diffOnThrottle": 90,
+      "diffOffThrottle": 55,
+      "frontCamber": -3.5,
+      "rearCamber": -2,
+      "frontToe": 0.02,
+      "rearToe": 0.12,
+      "frontSuspension": 37,
+      "rearSuspension": 10,
+      "frontAntiRollBar": 15,
+      "rearAntiRollBar": 10,
+      "frontRideHeight": 25,
+      "rearRideHeight": 46,
+      "brakePressure": 100,
+      "frontBrakeBias": 58,
+      "frontRightTyrePressure": 24.3,
+      "frontLeftTyrePressure": 24.3,
+      "rearRightTyrePressure": 21.5,
+      "rearLeftTyrePressure": 21.5
+    },
+    "source": "https://www.f1laps.com/f1-25/setups/azerbaijan/7df11a36-0bbf-45b9-99f8-94986fcd417e/",
+    "provider": "f1laps"
   }
 ]

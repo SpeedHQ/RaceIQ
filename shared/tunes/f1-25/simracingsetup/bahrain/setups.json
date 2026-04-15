@@ -361,5 +361,38 @@
     },
     "source": "https://simracingsetup.com/setups/f1-25-setups/bahrain-grand-prix-2025-mercedes-dry-130-336/",
     "provider": "simracingsetup"
+  },
+  {
+    "team": "Haas",
+    "author": "SimRacingSetup",
+    "videoUrl": "",
+    "lapTime": "1:27.873",
+    "sessionType": "",
+    "inputDevice": "controller",
+    "weather": "Dry",
+    "setup": {
+      "frontWing": 29,
+      "rearWing": 24,
+      "diffOnThrottle": 80,
+      "diffOffThrottle": 30,
+      "frontCamber": -3.5,
+      "rearCamber": -2,
+      "frontToe": 0,
+      "rearToe": 0.1,
+      "frontSuspension": 31,
+      "rearSuspension": 10,
+      "frontAntiRollBar": 9,
+      "rearAntiRollBar": 18,
+      "frontRideHeight": 20,
+      "rearRideHeight": 46,
+      "brakePressure": 100,
+      "frontBrakeBias": 53,
+      "frontRightTyrePressure": 26.8,
+      "frontLeftTyrePressure": 26.8,
+      "rearRightTyrePressure": 22.5,
+      "rearLeftTyrePressure": 22.5
+    },
+    "source": "https://simracingsetup.com/setups/f1-25-setups/bahrain-grand-prix-2025-haas-dry-127-873/",
+    "provider": "simracingsetup"
   }
 ]

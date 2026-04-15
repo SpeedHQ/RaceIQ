@@ -1,7 +1,24 @@
 {
-  "trackGuide": "Sector 1: Main Straight & First Complex\n✅\nStart/Finish Straight\nOne of the longest straights on the calendar — DRS wide open, minimal drag setup.\nERS deployment is powerful here; use it wisely, especially in qualifying.\n✅\nTurns 1–3 (Heavy Braking Chicane)\nBrake at ~100m marker, down to 2nd gear.\nBig overtaking zone — but be careful, it’s easy to outbrake yourself.\nClip the apex of Turn 1, swing wide for Turn 2, and straighten up Turn 3 to maximize exit speed.\nSector 2: Medium-Speed Sweepers\n✅\nTurns 4–6 (Esses + Hairpin)\nShort burst after T3, brake early for T4 (down to 3rd gear), then flow into T5 and T6.\nPrioritize a clean, balanced line — don’t rush throttle out of T6 or you’ll slide wide.\n✅\nTurns 7–11 (Fast S-Curves)\nThe famous Mexico Esses: confidence and precision matter.\nSmall lifts or feathering the throttle; don’t overcommit or you’ll invalidate the lap or spin.\nUse curbs gently, not aggressively — too much curb unsettles the car.\nSector 3: Stadium Section\n✅\nTurns 12–13 (Slow Entry)\nBrake hard down to 2nd gear, watch the inside curb — it’s raised and can bounce the car.\nKeep it tight but prioritize clean exit.\n✅\nTurns 14–16 (Stadium Hairpins)\nThis is the slowest part of the lap, surrounded by grandstands.\nPatience on throttle, avoid understeer pushing you wide.\nFinal right-hander leads back to the straight —\nmaximize exit\n, as the straight is critical for lap time.\nC\nar",
-  "setupTips": "",
-  "drivingTips": "Driving Tips\n✅\nMaximize straight-line speed\n: Focus on good exits onto long straights, especially out of Turn 16.\n✅\nCareful ERS usage\n: Best saved for the long start/finish straight.\n✅\nBrake consistently\n: Especially into Turns 1 and 4, which are major overtaking points.\n✅\nStay smooth through the Esses\n: It’s easy to lose rhythm or spin here — smooth inputs win.\nF1 25 Mexico race strategy\n<img decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-Mexico-Race-Strategy-1024x576.webp\" alt=\"F1 24 Mexico",
-  "videoUrl": "https://www.youtube.com/watch?v=8n8xtXwah8E",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/mexican-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/mexican-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=8n8xtXwah8E",
+      "sections": [
+        {
+          "heading": "Sector 1: Main Straight & First Complex",
+          "body": "• Start/Finish Straight\n\n• One of the longest straights on the calendar — DRS wide open, minimal drag setup.\n\n• ERS deployment is powerful here; use it wisely, especially in qualifying.\n\n• Turns 1–3 (Heavy Braking Chicane)\n\n• Brake at ~100m marker, down to 2nd gear.\n\n• Big overtaking zone — but be careful, it’s easy to outbrake yourself.\n\n• Clip the apex of Turn 1, swing wide for Turn 2, and straighten up Turn 3 to maximize exit speed."
+        },
+        {
+          "heading": "Sector 2: Medium-Speed Sweepers",
+          "body": "• Turns 4–6 (Esses + Hairpin)\n\n• Short burst after T3, brake early for T4 (down to 3rd gear), then flow into T5 and T6.\n\n• Prioritize a clean, balanced line — don’t rush throttle out of T6 or you’ll slide wide.\n\n• Turns 7–11 (Fast S-Curves)\n\n• The famous Mexico Esses: confidence and precision matter.\n\n• Small lifts or feathering the throttle; don’t overcommit or you’ll invalidate the lap or spin.\n\n• Use curbs gently, not aggressively — too much curb unsettles the car."
+        },
+        {
+          "heading": "Sector 3: Stadium Section",
+          "body": "• Turns 12–13 (Slow Entry)\n\n• Brake hard down to 2nd gear, watch the inside curb — it’s raised and can bounce the car.\n\n• Keep it tight but prioritize clean exit.\n\n• Turns 14–16 (Stadium Hairpins)\n\n• This is the slowest part of the lap, surrounded by grandstands.\n\n• Patience on throttle, avoid understeer pushing you wide.\n\n• Final right-hander leads back to the straight — maximize exit, as the straight is critical for lap time.\n\nCar"
+        }
+      ],
+      "setupTips": "Setup Tips\n\n• Wings: Medium–high downforce — higher than you’d expect because thin air reduces drag.\n\n• Suspension: Softer to handle curbs and maintain grip in the stadium.\n\n• Differential: Slightly more open on-throttle to manage slow exits.\n\n• Brakes: Medium–high pressure; rearward bias helps avoid front lockups into heavy braking zones.\n\n• Tyres: Rear management is key; avoid overheating by controlling wheelspin out of slow corners.",
+      "drivingTips": "Driving Tips\n\n• Maximize straight-line speed: Focus on good exits onto long straights, especially out of Turn 16.\n\n• Careful ERS usage: Best saved for the long start/finish straight.\n\n• Brake consistently: Especially into Turns 1 and 4, which are major overtaking points.\n\n• Stay smooth through the Esses: It’s easy to lose rhythm or spin here — smooth inputs win.\n\nF1 25 Mexico race strategy\n\n<img decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-Mexico-Race-Strategy-1024x576.webp\" alt=\"F1 24 Mexico"
+    }
+  ]
 }

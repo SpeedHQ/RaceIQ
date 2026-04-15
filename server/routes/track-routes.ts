@@ -5,6 +5,7 @@ import { IS_DEV } from "../env";
 import { OrdinalParamSchema, GameIdQuerySchema } from "../../shared/schemas";
 import {
   getLaps,
+  getLapSummariesByTrack,
   getLapById,
   getCorners,
   saveCorners,
@@ -29,7 +30,7 @@ import {
   recordLapTrace,
   getTrackAltitudeByOrdinal,
 } from "../../shared/track-data";
-import { trackMap, getCarName, getTrackName } from "../../shared/car-data";
+import { trackMap, getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
 import { detectCorners, type Corner } from "../corner-detection";
 import {
   filterLapOutliers,
@@ -772,6 +773,52 @@ export const trackRoutes = new Hono()
       }
 
       return c.json(result);
+    }
+  )
+
+  // GET /api/tracks/:trackOrdinal/all-laps — all laps for a track (ungrouped, for detail view)
+  .get("/api/tracks/:trackOrdinal/all-laps",
+    zValidator("param", TrackOrdinalParamSchema),
+    async (c) => {
+      const { trackOrdinal } = c.req.valid("param");
+      const gameId = c.req.query("gameId") as GameId | undefined;
+      const trackLaps = await getLapSummariesByTrack(trackOrdinal, gameId);
+
+      const piClass = (pi: number): string => {
+        if (pi >= 999) return "X";
+        if (pi >= 901) return "P";
+        if (pi >= 801) return "R";
+        if (pi >= 701) return "S";
+        if (pi >= 601) return "A";
+        if (pi >= 501) return "B";
+        if (pi >= 401) return "C";
+        if (pi >= 301) return "D";
+        return "E";
+      };
+
+      const entries = trackLaps.map((lap) => {
+        const pi = lap.pi ?? 0;
+        return {
+          lapId: lap.lapId,
+          lapNumber: lap.lapNumber,
+          lapTime: lap.lapTime,
+          carOrdinal: lap.carOrdinal,
+          carName: (lap.gameId ? tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal) : undefined) ?? getCarName(lap.carOrdinal, lap.gameId),
+          carClass: piClass(pi),
+          pi,
+          createdAt: lap.createdAt,
+          sessionId: lap.sessionId,
+          s1Time: lap.s1Time,
+          s2Time: lap.s2Time,
+          s3Time: lap.s3Time,
+          isValid: lap.isValid,
+          invalidReason: lap.invalidReason,
+          division: carSpecsMap.get(lap.carOrdinal)?.division ?? null,
+          notes: lap.notes,
+        };
+      });
+
+      return c.json(entries);
     }
   )
 

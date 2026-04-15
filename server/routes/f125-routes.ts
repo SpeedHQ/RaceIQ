@@ -60,7 +60,12 @@ function loadTrackMeta(trackSlug: string): Record<string, any> {
     if (existsSync(metaPath)) {
       const meta = JSON.parse(readFileSync(metaPath, "utf-8"));
       for (const [k, v] of Object.entries(meta)) {
-        if (v && (!merged[k] || (Array.isArray(merged[k]) && merged[k].length === 0))) {
+        if (k === "trackGuide" && Array.isArray(v) && v.length > 0) {
+          // Concat guide arrays from all sources, dedupe by source URL
+          const existing: any[] = Array.isArray(merged[k]) ? merged[k] : [];
+          const existingSources = new Set(existing.map((g: any) => g.source));
+          merged[k] = [...existing, ...(v as any[]).filter((g: any) => !existingSources.has(g.source))];
+        } else if (v && (!merged[k] || (Array.isArray(merged[k]) && merged[k].length === 0))) {
           merged[k] = v;
         }
       }
@@ -94,13 +99,16 @@ export const f125Routes = new Hono()
           if (!data.trackSlug) continue;
           const setups = loadSetupsByTrack(data.trackSlug);
           const meta = loadTrackMeta(data.trackSlug);
+          const guides = Array.isArray(meta.trackGuide) ? meta.trackGuide : (meta.trackGuide ? [meta.trackGuide] : []);
+          const firstGuide = guides[0] ?? null;
           summary.push({
             trackSlug: data.trackSlug,
             trackName: data.trackName,
             trackOrdinal: data.trackOrdinal,
             setupCount: setups.length,
-            videoUrl: meta.videoUrl ?? "",
-            guideUrl: meta.guideUrl ?? "",
+            guideCount: guides.length,
+            videoUrl: firstGuide?.videoUrl ?? meta.videoUrl ?? "",
+            guideUrl: firstGuide?.source ?? meta.guideUrl ?? "",
           });
         } catch {}
       }

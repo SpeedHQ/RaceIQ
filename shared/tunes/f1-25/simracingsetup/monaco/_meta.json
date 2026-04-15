@@ -1,7 +1,24 @@
 {
-  "trackGuide": "Sector 1: Saint Devote to Casino Square\n✅\nTurn 1 (Saint Devote)\nBrake just before the 100m board.\nIt’s easy to lock up the fronts; be gentle and prioritize the exit — you need a clean run up the hill.\nSlight lift through the climb to\nBeau Rivage\n; stay planted.\n✅\nTurns 3–4 (Massenet & Casino)\nThis is a fast, flowing left-hander into a tricky right.\nStay tight, trust the downforce, and avoid running wide at Casino where the wall juts out.\nSector 2: Mirabeau, Hairpin, and Portier\n✅\nTurns 5–6 (Mirabeau & Grand Hotel Hairpin)\nBrake early for Mirabeau; don’t overcommit.\nFor the Hairpin, go to\nfull lock\nand crawl around in 1st gear — smooth throttle and patience are key.\n✅\nTurns 7–8 (Portier)\nImportant to get a clean exit here, as it leads to the tunnel.\nStay off the outside wall on exit.\nSector 3: Tunnel, Chicane, and Swimming Pool\n✅\nTunnel & Chicane (Turns 9–10)\nFlat through the tunnel (watch your line), then brake hard for the Nouvelle Chicane.\nStay tight, don’t cut too much (track limits), and get on power early.\n✅\nTurns 11–14 (Tabac & Swimming Pool)\nHigh-speed left at Tabac — slightly lift, full commitment.\nInto Swimming Pool, brake just enough to get the car rotated; use the curbs, but don’t overattack, or you’ll clip the barriers.\n✅\nTurns 15–19 (Rascasse & Antony Noghes)\nBrake early into Rascasse, stay tight, and balance throttle carefully.\nFinal corner (Antony Noghes) is crucial — get a clean exit to maximize speed onto the main straight.\nCar",
-  "setupTips": "",
-  "drivingTips": "Driving Tips\n✅\nPrecision > aggression\n: You won’t gain time by pushing too hard; be smooth and consistent.\n✅\nStay focused\n: Monaco punishes even the smallest lapse in concentration.\n✅\nQualifying is king\n: Overtaking is almost impossible, so one-lap pace matters most.\n✅\nUse ERS carefully\n: Deploy in key zones like the run out of Portier and out of Antony Noghes.\n✅\nPractice narrow lines\n: Get comfortable brushing the barriers without hitting them.\nMonaco race strategy\nMonaco",
-  "videoUrl": "https://www.youtube.com/watch?v=74bXIuyLPVo",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/monaco-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/monaco-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=74bXIuyLPVo",
+      "sections": [
+        {
+          "heading": "Sector 1: Saint Devote to Casino Square",
+          "body": "• Turn 1 (Saint Devote)\n\n• Brake just before the 100m board.\n\n• It’s easy to lock up the fronts; be gentle and prioritize the exit — you need a clean run up the hill.\n\n• Slight lift through the climb to Beau Rivage; stay planted.\n\n• Turns 3–4 (Massenet & Casino)\n\n• This is a fast, flowing left-hander into a tricky right.\n\n• Stay tight, trust the downforce, and avoid running wide at Casino where the wall juts out."
+        },
+        {
+          "heading": "Sector 2: Mirabeau, Hairpin, and Portier",
+          "body": "• Turns 5–6 (Mirabeau & Grand Hotel Hairpin)\n\n• Brake early for Mirabeau; don’t overcommit.\n\n• For the Hairpin, go to full lock and crawl around in 1st gear — smooth throttle and patience are key.\n\n• Turns 7–8 (Portier)\n\n• Important to get a clean exit here, as it leads to the tunnel.\n\n• Stay off the outside wall on exit."
+        },
+        {
+          "heading": "Sector 3: Tunnel, Chicane, and Swimming Pool",
+          "body": "• Tunnel & Chicane (Turns 9–10)\n\n• Flat through the tunnel (watch your line), then brake hard for the Nouvelle Chicane.\n\n• Stay tight, don’t cut too much (track limits), and get on power early.\n\n• Turns 11–14 (Tabac & Swimming Pool)\n\n• High-speed left at Tabac — slightly lift, full commitment.\n\n• Into Swimming Pool, brake just enough to get the car rotated; use the curbs, but don’t overattack, or you’ll clip the barriers.\n\n• Turns 15–19 (Rascasse & Antony Noghes)\n\n• Brake early into Rascasse, stay tight, and balance throttle carefully.\n\n• Final corner (Antony Noghes) is crucial — get a clean exit to maximize speed onto the main straight.\n\nCar"
+        }
+      ],
+      "setupTips": "Setup Tips\n\n• Wings: Maximum downforce (highest settings) — top speed doesn’t matter; cornering grip is everything.\n\n• Suspension: Soft to handle bumps and curbs.\n\n• Differential: Open on throttle to prevent wheelspin on slow exits.\n\n• Brakes: High pressure, but be gentle on inputs to avoid lockups.\n\n• Ride Height: Slightly raised to avoid bottoming on bumps.",
+      "drivingTips": "Driving Tips\n\n• Precision > aggression: You won’t gain time by pushing too hard; be smooth and consistent.\n\n• Stay focused: Monaco punishes even the smallest lapse in concentration.\n\n• Qualifying is king: Overtaking is almost impossible, so one-lap pace matters most.\n\n• Use ERS carefully: Deploy in key zones like the run out of Portier and out of Antony Noghes.\n\n• Practice narrow lines: Get comfortable brushing the barriers without hitting them.\n\nMonaco race strategy\n\nMonaco"
+    }
+  ]
 }

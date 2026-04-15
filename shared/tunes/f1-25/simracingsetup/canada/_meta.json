@@ -1,7 +1,48 @@
 {
-  "trackGuide": "",
-  "setupTips": "",
-  "drivingTips": "",
-  "videoUrl": "https://www.youtube.com/watch?v=JfdpGY08G94",
-  "guideUrl": "https://simracingsetup.com/setups/f1-25/canadian-gp-setups/"
+  "trackGuide": [
+    {
+      "source": "https://simracingsetup.com/setups/f1-25/canadian-gp-setups/",
+      "videoUrl": "https://www.youtube.com/watch?v=JfdpGY08G94",
+      "sections": [
+        {
+          "heading": "Turn 1: Senna Corner (Hairpin)",
+          "body": "• Approach: Enter from the long straight, and position your car to the far right side of the track. The hairpin requires heavy braking, and you need to brake as late as possible without locking up.\n\n• Tips: Be smooth with your steering inputs here. Stay tight to the inside curb to minimize track distance while exiting with good traction."
+        },
+        {
+          "heading": "Turn 2-3: The Chicane",
+          "body": "• Approach: After the hairpin, youll approach a chicane that requires precise braking and quick directional changes.\n\n• Tips: Brake in a straight line and turn quickly to the right for Turn 2 and then left for Turn 3. Be careful not to hit the curbs too aggressively as this can destabilize the car."
+        },
+        {
+          "heading": "Turn 4: Double Apex Right",
+          "body": "• Approach: This is a long right-hand corner that requires smooth throttle application.\n\n• Tips: Apply throttle gently after the first apex to maintain balance, using the second apex as a reference for an optimal exit. This section leads onto a long straight, so get a good exit to maximize your speed."
+        },
+        {
+          "heading": "Turn 5: Fast Right-Hander",
+          "body": "• Approach: This is a high-speed corner that requires quick inputs and precision.\n\n• Tips: Stay steady on the throttle and avoid too much steering input. Maintaining balance here is key to keeping speed on the long back straight."
+        },
+        {
+          "heading": "Turn 6-7: The Tight Left and Right",
+          "body": "• Approach: A slow, technical section of the track. Youll need to brake hard for Turn 6 and make a quick, tight right at Turn 7.\n\n• Tips: Keep your braking zone clean and short, then get back on the throttle early for Turn 7 to set up a good exit speed for the next straight."
+        },
+        {
+          "heading": "Turn 8: The Long Right-Hander",
+          "body": "• Approach: This is another high-speed corner, but this time you must carry speed through the corner while maintaining stability.\n\n• Tips: Apply throttle progressively, keeping the car stable. The exit is important, as it leads onto the back straight."
+        },
+        {
+          "heading": "Turn 9-10: The Chicane (Wall of Champions)",
+          "body": "• Approach: This is the most famous corner of the track, known as the Wall of Champions. Brake heavily into the chicane and navigate the sharp left-right-left sequence.\n\n• Tips: Take care when exiting Turn 10, as the walls are very close, and a small mistake can end your race. Brake slightly earlier than usual to avoid hitting the wall on the right after the chicane."
+        },
+        {
+          "heading": "Setting up the suspension to handle the kerbs + setup tips",
+          "body": "Canada is a real test of balance and car handling, as youll be attacking every kerb. If your car isnt set up to handle these bumps, youll have a tough time through the race with stability.\n\nSetup AreaRecommended SettingsAerodynamicsFocus your aero balance on the rear of the car to ensure stability through the faster cornersTransmissionMaximise your on throttle differential to boost your drive out of cornersSuspensionA really high rake is key to responsiveness, with a soft rear suspensionBrakesA more neutral brake balance will help braking into the faster turnsTyresTyre temperatures arent as much of an issue at Canada, so run medium pressures"
+        },
+        {
+          "heading": "F1 25 Canada race strategy",
+          "body": "The Canadian race is another example of using a one stop strategy of hard to mediums, or medium to hard. Either option will work, but dont use the soft tyres as theyll wear too fast.\n\nA one stop strategy, pitting on lap 20 from the hard tyres, or on lap 12 from the mediums will result in the fastest overall race time.\n\n<img fetchpriority=\"high\" decoding=\"async\" width=\"1024\" height=\"576\" src=\"//simracingsetup.com/wp-content/plugins/a3-lazy-load/assets/images/lazy_placeholder.gif\" data-lazy-type=\"image\" data-src=\"https://simracingsetup.com/wp-content/uploads/2024/04/F1-24-Canada-Race-Strategy-1024x576.webp\" alt=\"F1 24 Canada"
+        }
+      ],
+      "setupTips": "",
+      "drivingTips": ""
+    }
+  ]
 }

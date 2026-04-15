@@ -3,13 +3,19 @@ import { useGameId } from "@/stores/game";
 import { client } from "@/lib/rpc";
 import { formatLapTime } from "@/lib/format";
 import { CurbDebugSection } from "./CurbDebugSection";
-import type { Point, TrackBoundaries, TrackCalibration, TrackCurb } from "../types";
+import type { Point, TrackBoundaries, TrackCalibration, TrackCurb, TrackSectors } from "../types";
 
 /**
  * TrackDebugPanel — Full-page debug visualization for track boundary data.
  * Shows outline + boundaries on a large canvas with drag/zoom and diagnostic info sidebar.
  */
-export function TrackDebugPanel({ trackOrdinal, outline, flipX = false }: { trackOrdinal: number; outline: Point[] | null; flipX?: boolean }) {
+export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displaySectors, sectorBounds, editingSegments, editingSectors, trackLengthKm, trackCreatedAt, corners, straights }: { trackOrdinal: number; outline: Point[] | null; flipX?: boolean; displaySectors?: TrackSectors | null; sectorBounds?: { s1End: number; s2End: number } | null; editingSegments?: boolean; editingSectors?: boolean; trackLengthKm?: number; trackCreatedAt?: string; corners?: number; straights?: number }) {
+  const [overlayMode, setOverlayMode] = useState<"segments" | "sectors">("segments");
+
+  useEffect(() => {
+    if (editingSegments) setOverlayMode("segments");
+    else if (editingSectors) setOverlayMode("sectors");
+  }, [editingSegments, editingSectors]);
   const gid = useGameId() ?? undefined;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [boundaries, setBoundaries] = useState<TrackBoundaries | null>(null);
@@ -123,8 +129,8 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false }: { trac
       return [flipX ? offsetX + (x - minX) * scale : offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
     }
 
-    // Draw boundary fill
-    if (boundaries && boundaries.leftEdge.length > 2 && boundaries.rightEdge.length > 2) {
+    // Draw boundary fill (hidden when editing segments/sectors)
+    if (!editingSegments && !editingSectors && boundaries && boundaries.leftEdge.length > 2 && boundaries.rightEdge.length > 2) {
       ctx.beginPath();
       const [lx0, ly0] = toCanvas(boundaries.leftEdge[0].x, boundaries.leftEdge[0].z);
       ctx.moveTo(lx0, ly0);
@@ -200,6 +206,65 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false }: { trac
     ctx.lineTo(sx, sy);
     ctx.stroke();
 
+    // Draw segment or sector overlays
+    if (overlayMode === "segments" && displaySectors && displaySectors.segments.length > 0) {
+      const n = outline.length;
+      for (const seg of displaySectors.segments) {
+        const start = Math.floor(seg.startFrac * n);
+        const end = Math.min(Math.ceil(seg.endFrac * n), n - 1);
+        if (start >= end) continue;
+        ctx.beginPath();
+        const [segX0, segY0] = toCanvas(outline[start].x, outline[start].z);
+        ctx.moveTo(segX0, segY0);
+        for (let i = start + 1; i <= end; i++) {
+          const [px, py] = toCanvas(outline[i].x, outline[i].z);
+          ctx.lineTo(px, py);
+        }
+        ctx.strokeStyle = seg.type === "corner" ? "rgba(239,68,68,0.7)" : "rgba(59,130,246,0.6)";
+        ctx.lineWidth = 4;
+        ctx.globalAlpha = 0.8;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        // Label at midpoint
+        const mid = Math.floor((start + end) / 2);
+        const [lx, ly] = toCanvas(outline[mid].x, outline[mid].z);
+        const label = seg.name || (seg.type === "corner" ? "T" : "S");
+        ctx.font = "bold 10px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#0f172a";
+        ctx.fillRect(lx - ctx.measureText(label).width / 2 - 2, ly - 7, ctx.measureText(label).width + 4, 14);
+        ctx.fillStyle = seg.type === "corner" ? "#fca5a5" : "#93c5fd";
+        ctx.fillText(label, lx, ly);
+      }
+      ctx.lineWidth = 2.5;
+    } else if (overlayMode === "sectors" && sectorBounds) {
+      const n = outline.length;
+      const s1 = Math.floor(sectorBounds.s1End * n);
+      const s2 = Math.floor(sectorBounds.s2End * n);
+      const sectorDefs = [
+        { from: 0, to: s1, color: "rgba(239,68,68,0.7)" },
+        { from: s1, to: s2, color: "rgba(59,130,246,0.6)" },
+        { from: s2, to: n - 1, color: "rgba(234,179,8,0.6)" },
+      ];
+      for (const { from, to, color } of sectorDefs) {
+        if (from >= to) continue;
+        ctx.beginPath();
+        const [sx0, sy0] = toCanvas(outline[from].x, outline[from].z);
+        ctx.moveTo(sx0, sy0);
+        for (let i = from + 1; i <= to; i++) {
+          const [px, py] = toCanvas(outline[i].x, outline[i].z);
+          ctx.lineTo(px, py);
+        }
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.globalAlpha = 0.8;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      ctx.lineWidth = 2.5;
+    }
+
     // Also draw the recorded outline faintly for comparison when boundary center is used
     if (boundaries?.centerLine?.length && outline) {
       ctx.beginPath();
@@ -257,7 +322,7 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false }: { trac
     if (boundaries?.pitLane) {
       ctx.fillStyle = "#22d3ee"; ctx.fillRect(340, legendY - 5, 14, 2); ctx.fillText("Pit lane", 358, legendY);
     }
-  }, [outline, boundaries, curbs, zoom, pan, flipX]);
+  }, [outline, boundaries, curbs, zoom, pan, flipX, displaySectors, sectorBounds, overlayMode, editingSegments, editingSectors]);
 
   if (loading) {
     return <div className="text-app-subtext text-app-text-dim py-8 text-center">Loading debug data...</div>;
@@ -298,7 +363,28 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false }: { trac
               className="w-7 h-7 text-app-unit bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
             >{zoom % 1 === 0 ? `${zoom}x` : zoom.toFixed(1) + "x"}</button>
           )}
+          {(displaySectors || sectorBounds) && (
+            <>
+              <div className="h-px" />
+              <button
+                onClick={() => setOverlayMode(m => m === "segments" ? "sectors" : "segments")}
+                className={`px-1.5 py-1 text-[9px] font-mono rounded border transition-colors ${
+                  overlayMode === "sectors"
+                    ? "bg-amber-900/50 border-amber-700 text-amber-400"
+                    : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
+                }`}
+              >{overlayMode === "sectors" ? "Sectors" : "Segments"}</button>
+            </>
+          )}
         </div>
+        {(trackLengthKm || corners || straights || trackCreatedAt) && (
+          <div className="absolute bottom-2 left-2 flex items-center gap-2.5 text-[10px] font-mono text-app-text-dim bg-app-surface/70 backdrop-blur-sm rounded px-2 py-1 pointer-events-none">
+            {(trackLengthKm ?? 0) > 0 && <span>{trackLengthKm} km</span>}
+            {(corners ?? 0) > 0 && <><span className="text-app-text-dim/40">·</span><span>{corners} corners</span></>}
+            {(straights ?? 0) > 0 && <><span className="text-app-text-dim/40">·</span><span>{straights} straights</span></>}
+            {trackCreatedAt && <><span className="text-app-text-dim/40">·</span><span>{new Date(trackCreatedAt).toLocaleDateString()}</span></>}
+          </div>
+        )}
       </div>
 
       {/* Info sidebar */}
