@@ -16,7 +16,7 @@ export const Route = createFileRoute("/fm23/compare")({
     </div>
   ),
   validateSearch: (search: Record<string, unknown>): CompareSearch => ({
-    track: search.track ? Number(search.track) : undefined,
+    track: search.track != null ? Number(search.track) : undefined,
     carA: search.carA ? Number(search.carA) : undefined,
     carB: search.carB ? Number(search.carB) : undefined,
     lapA: search.lapA ? Number(search.lapA) : undefined,

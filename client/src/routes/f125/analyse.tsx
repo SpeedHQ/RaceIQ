@@ -16,7 +16,7 @@ export const Route = createFileRoute("/f125/analyse")({
     </div>
   ),
   validateSearch: (search: Record<string, unknown>): AnalyseSearch => ({
-    track: search.track ? Number(search.track) : undefined,
+    track: search.track != null ? Number(search.track) : undefined,
     car: search.car ? Number(search.car) : undefined,
     lap: search.lap ? Number(search.lap) : undefined,
     cursor: search.cursor ? Number(search.cursor) : undefined,
