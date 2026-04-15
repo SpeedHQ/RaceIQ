@@ -47,6 +47,7 @@ import {
 } from "../track-calibration";
 import { getF1Tracks } from "../../shared/f1-track-data";
 import { getAccTracks } from "../../shared/acc-track-data";
+import { getAcEvoTracks } from "../../shared/ac-evo-track-data";
 import { tryGetServerGame } from "../games/registry";
 import { tryGetGame } from "../../shared/games/registry";
 import { GameIdSchema, type GameId } from "../../shared/types";
@@ -336,6 +337,28 @@ export const trackRoutes = new Hono()
         const lapCounts = await getLapCountsByTrack("acc");
         const tracks = Array.from(accTracks.entries()).map(([id, info]) => {
           const hasBundled = !!getTrackOutlineByOrdinal(id, "acc", info.commonTrackName ?? undefined);
+          return {
+            ordinal: id,
+            name: info.name,
+            location: "",
+            country: "",
+            variant: info.variant,
+            lengthKm: 0,
+            hasOutline: hasBundled,
+            outlineSource: hasBundled ? "bundled" : null,
+            createdAt: null,
+            lapCount: lapCounts.get(id) ?? 0,
+          };
+        });
+        tracks.sort((a, b) => a.name.localeCompare(b.name));
+        return c.json(tracks);
+      }
+
+      if (gameId === "ac-evo") {
+        const acEvoTracks = getAcEvoTracks();
+        const lapCounts = await getLapCountsByTrack("ac-evo");
+        const tracks = Array.from(acEvoTracks.entries()).map(([id, info]) => {
+          const hasBundled = !!getTrackOutlineByOrdinal(id, "ac-evo", info.commonTrackName ?? undefined);
           return {
             ordinal: id,
             name: info.name,
