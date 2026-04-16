@@ -53,6 +53,7 @@
     "drizzle-kit": "^0.31.10",
     "lefthook": "^2.1.5",
     "lighthouse": "^13.1.0",
+    "mitata": "^1.0.34",
     "portless": "^0.10.1"
   }
 }
