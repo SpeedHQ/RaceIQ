@@ -1,6 +1,9 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, afterAll } from "bun:test";
 import { parseDump } from "./helpers/parse-dump";
 import { LapDetectorV2 } from "../server/lap-detector-v2";
+import { stopMaintenanceTasks } from "../server/pipeline";
+
+afterAll(() => stopMaintenanceTasks());
 import type { TelemetryPacket } from "../shared/types";
 
 // Fake DB stub — v2 should only call insertLap / getTuneAssignment / insertSession
@@ -56,7 +59,9 @@ describe("LapDetectorV2 — reset detection", () => {
     const saved: Array<{ lapNumber: number; lapTime: number }> = [];
     const d = new LapDetectorV2({
       db,
-      onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
+      callbacks: {
+        onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
+      },
     });
 
     // Drive a fake lap: CurrentLap climbs 0 -> 90, DistanceTraveled accumulates
@@ -194,7 +199,9 @@ describe("LapDetectorV2 — reset detection", () => {
     const saved: Array<{ lapNumber: number; lapTime: number }> = [];
     const d = new LapDetectorV2({
       db,
-      onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
+      callbacks: {
+        onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
+      },
     });
 
     // Drive 20 seconds into lap 0 (distance accumulating)
@@ -224,7 +231,9 @@ describe("LapDetectorV2 — reset detection", () => {
     const saved: Array<{ lapNumber: number; lapTime: number; isValid: boolean }> = [];
     const d = new LapDetectorV2({
       db,
-      onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime, isValid: n.isValid }),
+      callbacks: {
+        onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime, isValid: n.isValid }),
+      },
     });
 
     // 50 packets with DistanceTraveled increasing only ~50m total — fails the "lapDistance < 100" rule

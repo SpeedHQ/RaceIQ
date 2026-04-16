@@ -1,19 +1,26 @@
 import { readFileSync } from "fs";
 import { gunzipSync } from "zlib";
 
+const V1_MAGIC = Buffer.from("ACCREC\0\0", "ascii");
+const V1_HEADER_SIZE = 24; // magic(8) + version(4) + physicsSize(4) + graphicsSize(4) + staticSize(4)
+const V1_FRAME_HEADER = 8; // f64le timestamp
+
 const V2_MAGIC = Buffer.from("ACCTEST\0", "ascii");
 const V2_HEADER_SIZE = 16; // magic (8) + version (4) + frameCount (4)
 const V2_FRAME_HEADER = 5; // type (1) + size (4)
 
 /**
- * Read assembled triplets from a V2 ACC recording (.bin or .bin.gz).
+ * Read assembled triplets from a V1 or V2 ACC recording (.bin or .bin.gz).
  * @param limit Maximum number of triplets to return (default: all)
  */
 export function readAccFrames(filePath: string, limit?: number): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
   const raw = readFileSync(filePath);
   const data: Buffer = filePath.endsWith(".gz") ? Buffer.from(gunzipSync(raw)) : Buffer.from(raw);
 
-  if (data.length < 8 || !data.subarray(0, 8).equals(V2_MAGIC)) return [];
+  if (data.length < 8) return [];
+
+  if (data.subarray(0, 8).equals(V1_MAGIC)) return _readV1(data, limit);
+  if (!data.subarray(0, 8).equals(V2_MAGIC)) return [];
 
   // If frameCount=0 (killed process) and no limit requested, scan to count.
   // If a limit is provided, skip the scan and just iterate until satisfied.
@@ -65,5 +72,26 @@ export function readAccFrames(filePath: string, limit?: number): { physics: Buff
     frameIdx++;
   }
 
+  return frames;
+}
+
+function _readV1(data: Buffer, limit?: number): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
+  if (data.length < V1_HEADER_SIZE) return [];
+  const physicsSize = data.readUInt32LE(12);
+  const graphicsSize = data.readUInt32LE(16);
+  const staticSize = data.readUInt32LE(20);
+  const frameSize = V1_FRAME_HEADER + physicsSize + graphicsSize + staticSize;
+  const frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[] = [];
+  let offset = V1_HEADER_SIZE;
+  while (offset + frameSize <= data.length) {
+    const physicsStart = offset + V1_FRAME_HEADER;
+    frames.push({
+      physics: Buffer.from(data.subarray(physicsStart, physicsStart + physicsSize)),
+      graphics: Buffer.from(data.subarray(physicsStart + physicsSize, physicsStart + physicsSize + graphicsSize)),
+      staticData: Buffer.from(data.subarray(physicsStart + physicsSize + graphicsSize, physicsStart + physicsSize + graphicsSize + staticSize)),
+    });
+    offset += frameSize;
+    if (limit !== undefined && frames.length >= limit) break;
+  }
   return frames;
 }

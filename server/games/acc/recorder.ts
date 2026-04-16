@@ -169,7 +169,6 @@ function readHeader(buf: Buffer): {
     staticSize: buf.readUInt32LE(20),
   };
 }
-}
 
 /**
  * Replay a recorded ACC telemetry file.
