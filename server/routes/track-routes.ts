@@ -941,7 +941,7 @@ export const trackRoutes = new Hono()
       const startYaw = gameId ? getStartYaw(ordinal, gameId) : null;
       const altitude = getTrackAltitudeByOrdinal(ordinal);
 
-      const flipX = gameId === "acc";
+      const flipX = gameId === "acc" || gameId === "ac-evo";
 
       // Try all sources: bundled game data → computed average → DB → TUMFTM
       if (gameId) {
