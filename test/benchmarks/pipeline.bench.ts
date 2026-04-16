@@ -95,7 +95,7 @@ const accPackets = accFrames
 console.log(`[bench] acc loaded — ${accPackets.length} packets, car: ${accCm ?? "?"} track: ${accTn ?? "?"} ${elapsed()}`);
 
 // --- Pre-warm pipelines with null adapters (no DB/WS IO) ---
-const pipelineOpts = { bypassPacketRateFilter: true, skipHistorySeeding: true };
+const pipelineOpts = { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true };
 const fmPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
 const f1Pipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
 const accPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
