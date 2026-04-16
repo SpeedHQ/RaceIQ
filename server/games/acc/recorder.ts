@@ -14,9 +14,9 @@
  * Replay reads frames individually, preserving the realistic async timing
  * between physics (~300Hz), graphics (~60Hz), and static (once) updates.
  */
-import { existsSync, mkdirSync, readFileSync } from "fs";
-import { gunzipSync } from "zlib";
+import { existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
+export { readAccFrames } from "./frame-reader";
 import { STATIC } from "./structs";
 import { parseAccBuffers } from "./parser";
 import { readWString } from "./utils";
@@ -169,132 +169,6 @@ function readHeader(buf: Buffer): {
     staticSize: buf.readUInt32LE(20),
   };
 }
-
-/**
- * Read all frames from an ACC recording file.
- * Supports both old format (v1, triplets) and new format (v2, individual frames).
- * Returns an array of {physics, graphics, staticData} buffer tuples for old format,
- * or individual frames for new format (caller must assemble triplets).
- */
-export function readAccFrames(
-  filePath: string
-): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
-  const raw = readFileSync(filePath);
-  const data = filePath.endsWith(".gz") ? Buffer.from(gunzipSync(raw)) : Buffer.from(raw);
-
-  // Check format by magic bytes
-  if (data.length >= 8 && data.slice(0, 8).equals(Buffer.from("ACCTEST\0", "ascii"))) {
-    // New format (v2) — return assembled triplets from individual frames
-    return _readAccFramesV2(data);
-  } else if (data.length >= 8 && data.slice(0, 8).equals(MAGIC)) {
-    // Old format (v1) — legacy triplet format
-    return _readAccFramesV1(data);
-  }
-
-  return [];
-}
-
-function _readAccFramesV1(data: Buffer): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
-  const header = readHeader(data);
-  if (!header) return [];
-
-  const { physicsSize, graphicsSize, staticSize } = header;
-  const frameSize = FRAME_HEADER + physicsSize + graphicsSize + staticSize;
-  const frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[] = [];
-
-  let offset = HEADER_SIZE_V1;
-  while (offset + frameSize <= data.length) {
-    const physicsStart = offset + FRAME_HEADER;
-    const graphicsStart = physicsStart + physicsSize;
-    const staticStart = graphicsStart + graphicsSize;
-
-    frames.push({
-      physics: Buffer.from(data.subarray(physicsStart, graphicsStart)),
-      graphics: Buffer.from(data.subarray(graphicsStart, staticStart)),
-      staticData: Buffer.from(data.subarray(staticStart, staticStart + staticSize)),
-    });
-    offset += frameSize;
-  }
-
-  return frames;
-}
-
-function _readAccFramesV2(data: Buffer): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
-  const V2_HEADER_SIZE = 16; // magic (8) + version (4) + frameCount (4)
-  const V2_FRAME_HEADER = 5; // type (1) + size (4)
-  if (data.length < V2_HEADER_SIZE) return [];
-
-  let frameCount = data.readUInt32LE(12);
-  const frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[] = [];
-
-  // Use empty buffers as placeholders until real data arrives
-  let lastPhysics = Buffer.alloc(0);
-  let lastGraphics = Buffer.alloc(0);
-  let lastStatic = Buffer.alloc(0);
-
-  let offset = V2_HEADER_SIZE;
-  let frameIdx = 0;
-
-  // If frameCount is 0 but file is huge, scan to count actual frames
-  // (handles killed process that didn't update header)
-  if (frameCount === 0 && data.length > V2_HEADER_SIZE + 100) {
-    console.log("[ACC Replay] frameCount=0 but file is large, scanning for actual frames...");
-    let scanOffset = V2_HEADER_SIZE;
-    while (scanOffset + V2_FRAME_HEADER <= data.length) {
-      const frameType = data.readUInt8(scanOffset);
-      if (frameType > 2) break; // Invalid frame type
-      const bufferSize = data.readUInt32LE(scanOffset + 1);
-      if (bufferSize > 500000) break; // Unreasonably large
-      if (scanOffset + V2_FRAME_HEADER + bufferSize > data.length) break;
-      frameCount++;
-      scanOffset += V2_FRAME_HEADER + bufferSize;
-    }
-    console.log(`[ACC Replay] Found ${frameCount} frames by scanning`);
-  }
-
-  while (frameIdx < frameCount && offset + V2_FRAME_HEADER <= data.length) {
-    const frameType = data.readUInt8(offset);
-    const bufferSize = data.readUInt32LE(offset + 1);
-
-    offset += V2_FRAME_HEADER;
-
-    if (offset + bufferSize > data.length) break;
-
-    const bufferData = Buffer.from(data.subarray(offset, offset + bufferSize));
-    offset += bufferSize;
-
-    // Update the appropriate buffer type
-    switch (frameType) {
-      case 0: // physics
-        lastPhysics = bufferData;
-        break;
-      case 1: // graphics
-        lastGraphics = bufferData;
-        break;
-      case 2: // static
-        lastStatic = bufferData;
-        break;
-      default:
-        frameIdx++;
-        continue;
-    }
-
-    // DumpToBinProcessor writes frames in fixed order per 100Hz poll:
-    // [physics, graphics, static]. Emit one triplet per group (on the static
-    // frame), so replay produces 100 triplets/sec matching the recording poll
-    // rate instead of 3:1 amplification.
-    if (frameType === 2 && lastPhysics.length > 0 && lastGraphics.length > 0) {
-      frames.push({
-        physics: lastPhysics,
-        graphics: lastGraphics,
-        staticData: lastStatic,
-      });
-    }
-
-    frameIdx++;
-  }
-
-  return frames;
 }
 
 /**
