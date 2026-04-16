@@ -2,6 +2,8 @@ import { run, bench, group } from "mitata";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getAllServerGames } from "../../server/games/registry";
+import { NullDbAdapter, NullWsAdapter } from "../../server/pipeline-adapters";
+import { Pipeline } from "../../server/pipeline";
 import { readUdpDump } from "../helpers/recording";
 
 // --- Init ---
@@ -29,18 +31,39 @@ const f1Buf = f1Buffers[0];
 // ACC benchmarks are Windows-only (shared memory reader hangs on macOS).
 // Add acc group in CI on Windows once GH Actions integration is wired up.
 
+// --- Pre-warm pipelines (outside bench loops — steady-state cost only) ---
+const fmPacket = fmAdapter.tryParse(fmBuf!, null)!;
+const fmPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), { bypassPacketRateFilter: true });
+await fmPipeline.processPacket(fmPacket);
+
+let f1Packet = null;
+const f1InitState = f1Adapter.createParserState?.() ?? null;
+for (const buf of f1Buffers) {
+  const p = f1Adapter.tryParse(buf, f1InitState);
+  if (p) { f1Packet = p; break; }
+}
+const f1Pipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), { bypassPacketRateFilter: true });
+if (f1Packet) await f1Pipeline.processPacket(f1Packet);
+
 // --- Benchmarks ---
 
 group("fm", () => {
   bench("parse", () => {
     fmAdapter.tryParse(fmBuf!, null);
   });
+
+  bench("pipeline", async () => {
+    await fmPipeline.processPacket(fmPacket);
+  });
 });
 
 group("f1", () => {
   bench("parse", () => {
-    // Fresh state per iteration — measures per-buffer dispatch cost
     f1Adapter.tryParse(f1Buf, f1Adapter.createParserState?.() ?? null);
+  });
+
+  bench("pipeline", async () => {
+    if (f1Packet) await f1Pipeline.processPacket(f1Packet);
   });
 });
 
