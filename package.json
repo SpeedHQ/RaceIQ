@@ -17,6 +17,7 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "test": "bun test --timeout 60000",
+    "bench": "bun test/benchmarks/pipeline.bench.ts",
     "extract:tracks": "bun scripts/extract-fm2023-tracks.ts && bun scripts/extract-f1-tracks.ts",
     "extract:tracks:forza": "bun scripts/extract-fm2023-tracks.ts",
     "extract:tracks:f1": "bun scripts/extract-f1-25-tracks.ts",
