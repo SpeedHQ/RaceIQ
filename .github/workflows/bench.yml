@@ -43,7 +43,7 @@ jobs:
         id: compare
         working-directory: pr
         run: |
-          bun scripts/bench-compare.ts ../base-results.json ../pr-results.json --threshold=10 > ../comparison.md
+          bun scripts/bench-compare.ts ../base-results.json ../pr-results.json --threshold=5 > ../comparison.md
           cat ../comparison.md
           {
             echo 'body<<EOF'
