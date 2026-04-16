@@ -1,0 +1,67 @@
+name: Bench compare
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: bench-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    runs-on: blacksmith-2vcpu-ubuntu-2204
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          path: pr
+
+      - name: Checkout base (main)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Run bench on base
+        working-directory: base
+        run: |
+          bun install --frozen-lockfile
+          bun run test/benchmarks/pipeline.bench.ts
+          mv bench-results.json ../base-results.json
+
+      - name: Run bench on PR
+        working-directory: pr
+        run: |
+          bun install --frozen-lockfile
+          bun run test/benchmarks/pipeline.bench.ts
+          mv bench-results.json ../pr-results.json
+
+      - name: Compare
+        id: compare
+        working-directory: pr
+        run: |
+          bun scripts/bench-compare.ts ../base-results.json ../pr-results.json --threshold=5 > ../comparison.md
+          cat ../comparison.md
+          {
+            echo 'body<<EOF'
+            cat ../comparison.md
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Find existing comment
+        id: find
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "## Bench comparison"
+
+      - name: Comment on PR (create or update)
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.find.outputs.comment-id }}
+          body: ${{ steps.compare.outputs.body }}
+          edit-mode: replace

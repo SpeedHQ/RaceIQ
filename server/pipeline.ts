@@ -17,16 +17,20 @@ export class Pipeline {
   private db: DbAdapter;
   private ws: WsAdapter;
   private _bypassPacketRateFilter: boolean;
+  private _skipHistorySeeding: boolean;
+  private _skipDevState: boolean;
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
     return this._lapDetector;
   }
 
-  constructor(db: DbAdapter, ws: WsAdapter, options?: { bypassPacketRateFilter?: boolean }) {
+  constructor(db: DbAdapter, ws: WsAdapter, options?: { bypassPacketRateFilter?: boolean; skipHistorySeeding?: boolean; skipDevState?: boolean }) {
     this.db = db;
     this.ws = ws;
     this._bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
+    this._skipHistorySeeding = options?.skipHistorySeeding ?? false;
+    this._skipDevState = options?.skipDevState ?? false;
   }
 
   private _buildCallbacks(): LapDetectorCallbacks {
@@ -36,10 +40,12 @@ export class Pipeline {
         this.pitTracker.reset();
         const adapter = tryGetGame(session.gameId);
         if (adapter) this.pitTracker.setTireThresholds(adapter.tireHealthThresholds.yellow);
-        // Seed fuel from history (same engine regardless of compound).
-        // Tire wear is NOT seeded — compound-dependent, starts fresh each session.
-        await this.pitTracker.seedFromHistory(session.trackOrdinal, session.carOrdinal, session.carPI, session.gameId);
-        await this._broadcastSessionLaps(session.sessionId, session.trackOrdinal, session.carOrdinal, session.gameId);
+        if (!this._skipHistorySeeding) {
+          // Seed fuel from history (same engine regardless of compound).
+          // Tire wear is NOT seeded — compound-dependent, starts fresh each session.
+          await this.pitTracker.seedFromHistory(session.trackOrdinal, session.carOrdinal, session.carPI, session.gameId);
+          await this._broadcastSessionLaps(session.sessionId, session.trackOrdinal, session.carOrdinal, session.gameId);
+        }
       },
 
       onLapComplete: (event) => {
@@ -158,11 +164,13 @@ export class Pipeline {
     // Broadcast to WebSocket clients (handles 30Hz throttle internally)
     this.ws.broadcast(packet, sectors, pit);
 
-    this.ws.broadcastDevState({
-      lapDetector: detector.getDebugState?.() ?? {},
-      sectorTracker: this.sectorTracker.getDebugState(),
-      pitTracker: this.pitTracker.getDebugState(),
-    });
+    if (!this._skipDevState) {
+      this.ws.broadcastDevState({
+        lapDetector: detector.getDebugState?.() ?? {},
+        sectorTracker: this.sectorTracker.getDebugState(),
+        pitTracker: this.pitTracker.getDebugState(),
+      });
+    }
   }
 }
 
@@ -178,4 +186,9 @@ export const lapDetector = {
 };
 
 // Periodic check: flush stale laps when packets stop (e.g. race ended, game closed)
-setInterval(() => _default.lapDetector?.flushStaleLap?.(), 5_000);
+const _maintenanceInterval = setInterval(() => _default.lapDetector?.flushStaleLap?.(), 5_000);
+
+/** Stop the module-level maintenance interval. Call in test/bench contexts to allow clean exit. */
+export function stopMaintenanceTasks(): void {
+  clearInterval(_maintenanceInterval);
+}

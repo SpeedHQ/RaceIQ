@@ -119,6 +119,22 @@ export class NullWsAdapter implements WsAdapter {
   broadcastDevState(_state: Record<string, unknown>): void {}
 }
 
+/** No-op database adapter. Used in benchmarks and tests that don't need DB output. */
+export class NullDbAdapter implements DbAdapter {
+  insertSession(_carOrdinal: number, _trackOrdinal: number, _gameId: GameId, _sessionType?: string): Promise<number> {
+    return Promise.resolve(1);
+  }
+  insertLap(_sessionId: number, _lapNumber: number, _lapTime: number, _isValid: boolean, _packets: TelemetryPacket[], _profileId: number | null, _tuneId: number | null, _invalidReason: string | null, _sectors: { s1: number; s2: number; s3: number } | null): Promise<number> {
+    return Promise.resolve(1);
+  }
+  getLaps(_gameId: GameId, _limit: number): Promise<LapMeta[]> {
+    return Promise.resolve([]);
+  }
+  getTuneAssignment(_carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
+    return Promise.resolve(null);
+  }
+}
+
 /** Capturing WebSocket adapter that records all events. Used in tests. */
 export class CapturingWsAdapter implements WsAdapter {
   readonly broadcastedPackets: Array<{ packet: TelemetryPacket; sectors?: LiveSectorData | null; pit?: LivePitData | null }> = [];

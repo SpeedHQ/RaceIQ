@@ -4,19 +4,17 @@
  * Records raw shared memory frames individually with type information
  * to a binary file for offline development and debugging.
  *
- * New format (v2):
- *   Header: "ACCTEST\0" (8 bytes magic) — NOTE: changed from ACCREC for new format
+ * Format (v2):
+ *   Header: "ACCTEST\0" (8 bytes magic)
  *           u32le version (4 bytes, currently 2)
  *           u32le frameCount (4 bytes)
- *   Frames: [type(1 byte)] [timestamp(8 bytes f64)] [size(4 bytes)] [data(N bytes)]
+ *   Frames: [type(1 byte)] [size(4 bytes)] [data(N bytes)]
  *           type: 0=physics, 1=graphics, 2=static
- *
- * Replay reads frames individually, preserving the realistic async timing
- * between physics (~300Hz), graphics (~60Hz), and static (once) updates.
  */
-import { existsSync, mkdirSync, readFileSync } from "fs";
-import { gunzipSync } from "zlib";
+import { existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
+import { readAccFrames } from "./frame-reader";
+export { readAccFrames } from "./frame-reader";
 import { STATIC } from "./structs";
 import { parseAccBuffers } from "./parser";
 import { readWString } from "./utils";
@@ -24,13 +22,8 @@ import { processPacket } from "../../pipeline";
 import { getAccCarByModel } from "../../../shared/acc-car-data";
 import { getAccTrackByName } from "../../../shared/acc-track-data";
 
-const MAGIC = Buffer.from("ACCREC\0\0", "ascii");
-const VERSION = 1;
-// V1 format: magic(8) + version(4) + physicsSize(4) + graphicsSize(4) + staticSize(4) = 24 bytes
-const HEADER_SIZE_V1 = 8 + 4 + 4 + 4 + 4;
 // V2 format: magic(8) + version(4) + frameCount(4) = 16 bytes
 const HEADER_SIZE_V2 = 16;
-const FRAME_HEADER = 8; // f64le timestamp
 
 function defaultRecordingDir(): string {
   return resolve(process.cwd(), "test", "artifacts", "laps");
@@ -148,162 +141,13 @@ export class AcRecorder {
   }
 }
 
-/** Parse and validate a recording file header. Returns sizes or null if invalid. */
-function readHeader(buf: Buffer): {
-  physicsSize: number;
-  graphicsSize: number;
-  staticSize: number;
-} | null {
-  if (buf.length < HEADER_SIZE_V1) return null;
-  if (!buf.slice(0, 8).equals(MAGIC)) return null;
-
-  const version = buf.readUInt32LE(8);
-  if (version !== VERSION) {
-    console.error(`[ACC Replay] Unsupported recording version: ${version}`);
-    return null;
-  }
-
-  return {
-    physicsSize: buf.readUInt32LE(12),
-    graphicsSize: buf.readUInt32LE(16),
-    staticSize: buf.readUInt32LE(20),
-  };
-}
-
-/**
- * Read all frames from an ACC recording file.
- * Supports both old format (v1, triplets) and new format (v2, individual frames).
- * Returns an array of {physics, graphics, staticData} buffer tuples for old format,
- * or individual frames for new format (caller must assemble triplets).
- */
-export function readAccFrames(
-  filePath: string
-): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
-  const raw = readFileSync(filePath);
-  const data = filePath.endsWith(".gz") ? Buffer.from(gunzipSync(raw)) : Buffer.from(raw);
-
-  // Check format by magic bytes
-  if (data.length >= 8 && data.slice(0, 8).equals(Buffer.from("ACCTEST\0", "ascii"))) {
-    // New format (v2) — return assembled triplets from individual frames
-    return _readAccFramesV2(data);
-  } else if (data.length >= 8 && data.slice(0, 8).equals(MAGIC)) {
-    // Old format (v1) — legacy triplet format
-    return _readAccFramesV1(data);
-  }
-
-  return [];
-}
-
-function _readAccFramesV1(data: Buffer): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
-  const header = readHeader(data);
-  if (!header) return [];
-
-  const { physicsSize, graphicsSize, staticSize } = header;
-  const frameSize = FRAME_HEADER + physicsSize + graphicsSize + staticSize;
-  const frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[] = [];
-
-  let offset = HEADER_SIZE_V1;
-  while (offset + frameSize <= data.length) {
-    const physicsStart = offset + FRAME_HEADER;
-    const graphicsStart = physicsStart + physicsSize;
-    const staticStart = graphicsStart + graphicsSize;
-
-    frames.push({
-      physics: Buffer.from(data.subarray(physicsStart, graphicsStart)),
-      graphics: Buffer.from(data.subarray(graphicsStart, staticStart)),
-      staticData: Buffer.from(data.subarray(staticStart, staticStart + staticSize)),
-    });
-    offset += frameSize;
-  }
-
-  return frames;
-}
-
-function _readAccFramesV2(data: Buffer): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
-  const V2_HEADER_SIZE = 16; // magic (8) + version (4) + frameCount (4)
-  const V2_FRAME_HEADER = 5; // type (1) + size (4)
-  if (data.length < V2_HEADER_SIZE) return [];
-
-  let frameCount = data.readUInt32LE(12);
-  const frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[] = [];
-
-  // Use empty buffers as placeholders until real data arrives
-  let lastPhysics = Buffer.alloc(0);
-  let lastGraphics = Buffer.alloc(0);
-  let lastStatic = Buffer.alloc(0);
-
-  let offset = V2_HEADER_SIZE;
-  let frameIdx = 0;
-
-  // If frameCount is 0 but file is huge, scan to count actual frames
-  // (handles killed process that didn't update header)
-  if (frameCount === 0 && data.length > V2_HEADER_SIZE + 100) {
-    console.log("[ACC Replay] frameCount=0 but file is large, scanning for actual frames...");
-    let scanOffset = V2_HEADER_SIZE;
-    while (scanOffset + V2_FRAME_HEADER <= data.length) {
-      const frameType = data.readUInt8(scanOffset);
-      if (frameType > 2) break; // Invalid frame type
-      const bufferSize = data.readUInt32LE(scanOffset + 1);
-      if (bufferSize > 500000) break; // Unreasonably large
-      if (scanOffset + V2_FRAME_HEADER + bufferSize > data.length) break;
-      frameCount++;
-      scanOffset += V2_FRAME_HEADER + bufferSize;
-    }
-    console.log(`[ACC Replay] Found ${frameCount} frames by scanning`);
-  }
-
-  while (frameIdx < frameCount && offset + V2_FRAME_HEADER <= data.length) {
-    const frameType = data.readUInt8(offset);
-    const bufferSize = data.readUInt32LE(offset + 1);
-
-    offset += V2_FRAME_HEADER;
-
-    if (offset + bufferSize > data.length) break;
-
-    const bufferData = Buffer.from(data.subarray(offset, offset + bufferSize));
-    offset += bufferSize;
-
-    // Update the appropriate buffer type
-    switch (frameType) {
-      case 0: // physics
-        lastPhysics = bufferData;
-        break;
-      case 1: // graphics
-        lastGraphics = bufferData;
-        break;
-      case 2: // static
-        lastStatic = bufferData;
-        break;
-      default:
-        frameIdx++;
-        continue;
-    }
-
-    // DumpToBinProcessor writes frames in fixed order per 100Hz poll:
-    // [physics, graphics, static]. Emit one triplet per group (on the static
-    // frame), so replay produces 100 triplets/sec matching the recording poll
-    // rate instead of 3:1 amplification.
-    if (frameType === 2 && lastPhysics.length > 0 && lastGraphics.length > 0) {
-      frames.push({
-        physics: lastPhysics,
-        graphics: lastGraphics,
-        staticData: lastStatic,
-      });
-    }
-
-    frameIdx++;
-  }
-
-  return frames;
-}
-
 /**
  * Replay a recorded ACC telemetry file.
  *
- * Reads frames from the file and feeds them through the parser → pipeline
- * at the original recording speed (or faster with speedMultiplier).
+ * Reads V2 frames and feeds them through the parser → pipeline.
+ * Uses packet TimestampMS for real-time pacing.
  *
- * @param filePath Path to the .bin recording file
+ * @param filePath Path to the .bin or .bin.gz recording file
  * @param options.speed Playback speed multiplier (default 1.0 = real-time)
  * @param options.loop Whether to loop the recording (default false)
  * @returns A stop function to cancel playback
@@ -315,58 +159,38 @@ export async function replayRecording(
   const speed = options.speed ?? 1.0;
   const loop = options.loop ?? false;
 
-  const file = Bun.file(filePath);
-  if (!(await file.exists())) {
-    throw new Error(`Recording file not found: ${filePath}`);
-  }
+  const frames = readAccFrames(filePath);
+  if (frames.length === 0) throw new Error(`Recording file has no frames: ${filePath}`);
 
-  const data = Buffer.from(await file.arrayBuffer());
-  const header = readHeader(data);
-  if (!header) {
-    throw new Error(`Invalid ACC recording file: ${filePath}`);
-  }
-
-  const { physicsSize, graphicsSize, staticSize } = header;
-  const frameSize = FRAME_HEADER + physicsSize + graphicsSize + staticSize;
-  const frameCount = Math.floor((data.length - HEADER_SIZE_V1) / frameSize);
-
-  if (frameCount === 0) {
-    throw new Error(`Recording file has no frames: ${filePath}`);
-  }
-
-  // Resolve car/track ordinals from first frame's static buffer
-  const firstStaticOffset = HEADER_SIZE_V1 + FRAME_HEADER + physicsSize + graphicsSize;
-  const firstStatic = data.slice(firstStaticOffset, firstStaticOffset + staticSize);
+  // Resolve car/track ordinals from first frame's static data
+  const firstStatic = frames[0].staticData;
   const carModel = readWString(firstStatic, STATIC.carModel.offset, STATIC.carModel.size);
   const trackName = readWString(firstStatic, STATIC.track.offset, STATIC.track.size);
   const carOrdinal = getAccCarByModel(carModel)?.id ?? 0;
   const trackOrdinal = getAccTrackByName(trackName)?.id ?? 0;
-  console.log(`[ACC Replay] Playing ${filePath} — ${frameCount} frames at ${speed}x (car: ${carModel} → #${carOrdinal}, track: ${trackName} → #${trackOrdinal})`);
+  const overrides = { carOrdinal, trackOrdinal };
+  console.log(`[ACC Replay] Playing ${filePath} — ${frames.length} frames at ${speed}x (car: ${carModel} → #${carOrdinal}, track: ${trackName} → #${trackOrdinal})`);
 
   let cancelled = false;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  const overrides = { carOrdinal, trackOrdinal };
 
   async function playFrames(): Promise<void> {
-    let firstTimestamp: number | null = null;
-    let playbackStart = Date.now();
-
     do {
-      firstTimestamp = null;
-      playbackStart = Date.now();
+      let firstTimestamp: number | null = null;
+      let playbackStart = Date.now();
 
-      for (let i = 0; i < frameCount; i++) {
+      for (const frame of frames) {
         if (cancelled) return;
 
-        const frameOffset = HEADER_SIZE_V1 + i * frameSize;
-        const timestamp = data.readDoubleLE(frameOffset);
+        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, overrides);
+        if (!packet) continue;
 
         if (firstTimestamp === null) {
-          firstTimestamp = timestamp;
+          firstTimestamp = packet.TimestampMS;
+          playbackStart = Date.now();
         }
 
-        // Wait for correct timing relative to playback start
-        const recordedElapsed = timestamp - firstTimestamp;
+        const recordedElapsed = packet.TimestampMS - firstTimestamp;
         const targetElapsed = recordedElapsed / speed;
         const actualElapsed = Date.now() - playbackStart;
         const delay = targetElapsed - actualElapsed;
@@ -378,18 +202,7 @@ export async function replayRecording(
           if (cancelled) return;
         }
 
-        const physicsOffset = frameOffset + FRAME_HEADER;
-        const graphicsOffset = physicsOffset + physicsSize;
-        const staticOffset = graphicsOffset + graphicsSize;
-
-        const physics = data.slice(physicsOffset, physicsOffset + physicsSize);
-        const graphics = data.slice(graphicsOffset, graphicsOffset + graphicsSize);
-        const staticBuf = data.slice(staticOffset, staticOffset + staticSize);
-
-        const packet = parseAccBuffers(physics, graphics, staticBuf, overrides);
-        if (packet) {
-          await processPacket(packet);
-        }
+        await processPacket(packet);
       }
     } while (loop && !cancelled);
 
@@ -404,7 +217,7 @@ export async function replayRecording(
       if (timeoutId) clearTimeout(timeoutId);
       console.log("[ACC Replay] Stopped");
     },
-    frameCount,
+    frameCount: frames.length,
   };
 }
 
