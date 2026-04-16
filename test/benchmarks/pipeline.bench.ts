@@ -1,8 +1,37 @@
-import { run, bench, group } from "mitata";
+import { run, bench, group, do_not_optimize, measure } from "mitata";
+import { B } from "mitata/src/main.mjs";
+
+// Mitata's `run(opts)` does NOT forward sampling options to measurement. Its default
+// `min_cpu_time` is 642ms per bench — async benches end up doing millions of iters and
+// 30+ seconds each. Patch B.prototype.run to call measure() directly with our caps.
+const BENCH_OPTS = { min_samples: 10, max_samples: 30, batch_samples: 10, min_cpu_time: 50_000_000 };
+B.prototype.run = async function (thrw = false) {
+  const args = Object.keys(this._args);
+  const isStatic = args.length === 0;
+  const tune: Record<string, unknown> = {
+    inner_gc: this._gc === "inner",
+    gc: !this._gc ? false : undefined,
+    heap: globalThis.Bun
+      ? await (async () => { const { memoryUsage } = await import("bun:jsc"); return () => memoryUsage().current; })()
+      : undefined,
+    ...BENCH_OPTS,
+  };
+  const baseline = !!(this.flags & 0x1);
+  const style = { highlight: this._highlight, compact: !!(this.flags & 0x2) };
+  if (isStatic) {
+    let stats, error;
+    try { stats = await measure(this.f, tune); }
+    catch (err) { error = err; if (thrw) throw err; }
+    return { kind: "static", args: this._args, alias: this._name, group: this._group, baseline,
+      runs: [{ stats, error, args: {}, name: this._name }], style };
+  }
+  throw new Error("parametric benches not supported in patched run()");
+};
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getAllServerGames } from "../../server/games/registry";
-import { stopMaintenanceTasks } from "../../server/pipeline";
+import { Pipeline, stopMaintenanceTasks } from "../../server/pipeline";
+import { NullDbAdapter, NullWsAdapter } from "../../server/pipeline-adapters";
 import { readUdpDump } from "../helpers/recording";
 import { parseAccBuffers } from "../../server/games/acc/parser";
 import { readWString } from "../../server/games/acc/utils";
@@ -19,7 +48,9 @@ initGameAdapters();
 initServerGameAdapters();
 console.log(`[bench] adapters init ${elapsed()}`);
 
-// --- Load and extract FM data (read until 1k parsed packets) ---
+const N_FRAMES = 5000;
+
+// --- Load and extract FM data ---
 const FM_DUMP = "test/artifacts/laps/fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
 const fmAdapter = getAllServerGames().find((a) => a.canHandle(readUdpDump(FM_DUMP, 1)[0]))!;
 const fmPackets: ReturnType<typeof fmAdapter.tryParse>[] = [];
@@ -27,7 +58,7 @@ const fmBuffers: Buffer[] = [];
 for (const buf of readUdpDump(FM_DUMP)) {
   const p = fmAdapter.tryParse(buf, null);
   if (p) { fmPackets.push(p); fmBuffers.push(buf); }
-  if (fmPackets.length >= 1000) break;
+  if (fmPackets.length >= N_FRAMES) break;
 }
 console.log(`[bench] fm loaded  — ${fmPackets.length} packets (${fmBuffers.length} bufs) ${elapsed()}`);
 
@@ -43,14 +74,14 @@ const f1Buffers: Buffer[] = [];
     f1Buffers.push(buf);
     const p = f1Adapter.tryParse(buf, state);
     if (p) f1Packets.push(p);
-    if (f1Packets.length >= 1000) break;
+    if (f1Packets.length >= N_FRAMES) break;
   }
 }
 console.log(`[bench] f1 loaded  — ${f1Packets.length} packets (${f1Buffers.length} bufs) ${elapsed()}`);
 
 // --- Load and extract ACC data ---
 const ACC_DUMP = "test/artifacts/laps/acc-2026-04-10T02-55-22-777Z.bin.gz";
-const accFrames = readAccFrames(ACC_DUMP, 1000);
+const accFrames = readAccFrames(ACC_DUMP, N_FRAMES);
 if (accFrames.length === 0) throw new Error("No ACC frames found in dump");
 const accCm = readWString(accFrames[0].staticData, STATIC.carModel.offset, STATIC.carModel.size);
 const accTn = readWString(accFrames[0].staticData, STATIC.track.offset, STATIC.track.size);
@@ -58,39 +89,84 @@ const accOpts = {
   carOrdinal: accCm ? (getAccCarByModel(accCm)?.id ?? 0) : 0,
   trackOrdinal: accTn ? (getAccTrackByName(accTn)?.id ?? 0) : 0,
 };
-const accPackets = accFrames.map((f) => parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts)).filter(Boolean);
+const accPackets = accFrames
+  .map((f) => parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts))
+  .filter((p): p is NonNullable<typeof p> => p !== null);
 console.log(`[bench] acc loaded — ${accPackets.length} packets, car: ${accCm ?? "?"} track: ${accTn ?? "?"} ${elapsed()}`);
 
+// --- Pre-warm pipelines with null adapters (no DB/WS IO) ---
+const pipelineOpts = { bypassPacketRateFilter: true, skipHistorySeeding: true };
+const fmPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
+const f1Pipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
+const accPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
+await fmPipeline.processPacket(fmPackets[0]!);
+await f1Pipeline.processPacket(f1Packets[0]!);
+await accPipeline.processPacket(accPackets[0]!);
+console.log(`[bench] pipelines warm ${elapsed()}`);
 
+// Stop the default pipeline's maintenance interval (created at import time)
+stopMaintenanceTasks();
 
 // --- Benchmarks (all synchronous — avoids async event-loop hangs) ---
 // Pipeline benches fire-and-forget: measures sync dispatch cost up to the first await.
 // Parse benches are fully synchronous and measure raw decode throughput.
 
 group("fm", () => {
-  bench("parse 1k", () => {
-    for (const buf of fmBuffers) fmAdapter.tryParse(buf, null);
+  let i = 0;
+  bench("parse", () => {
+    const buf = fmBuffers[i]; i = (i + 1) % fmBuffers.length;
+    do_not_optimize(fmAdapter.tryParse(buf, null));
+  });
+  let pi = 0;
+  bench("pipeline", async () => {
+    const packet = fmPackets[pi]!; pi = (pi + 1) % fmPackets.length;
+    await fmPipeline.processPacket(packet);
   });
 });
 
 group("f1", () => {
-  bench("parse 1k", () => {
-    const state = f1Adapter.createParserState?.() ?? null;
-    for (const buf of f1Buffers) f1Adapter.tryParse(buf, state);  // f1Buffers = bufs that produced 1k packets
+  let i = 0;
+  let state = f1Adapter.createParserState?.() ?? null;
+  bench("parse", () => {
+    const buf = f1Buffers[i];
+    i++;
+    if (i >= f1Buffers.length) { i = 0; state = f1Adapter.createParserState?.() ?? null; }
+    do_not_optimize(f1Adapter.tryParse(buf, state));
+  });
+  let pi = 0;
+  bench("pipeline", async () => {
+    const packet = f1Packets[pi]!; pi = (pi + 1) % f1Packets.length;
+    await f1Pipeline.processPacket(packet);
   });
 });
 
 group("acc", () => {
-  bench("parse 1k", () => {
-    for (const f of accFrames) parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts);
+  let i = 0;
+  bench("parse", () => {
+    const f = accFrames[i]; i = (i + 1) % accFrames.length;
+    do_not_optimize(parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts));
+  });
+  let pi = 0;
+  bench("pipeline", async () => {
+    const packet = accPackets[pi]!; pi = (pi + 1) % accPackets.length;
+    await accPipeline.processPacket(packet);
   });
 });
 
 console.log(`[bench] starting run ${elapsed()}`);
+// Silence pipeline logging (lap detector / session / sector spam) during mitata iterations.
+const _origLog = console.log;
+const _origWarn = console.warn;
+console.log = () => {};
+console.warn = () => {};
+// Cap bench duration via `time` (ms per task). Without this, async benches can run for 30+s each.
 const results = await run({ time: 200 });
+console.log = _origLog;
+console.warn = _origWarn;
 
-await Bun.write("bench-results.json", JSON.stringify(results, null, 2));
+// Strip raw sample arrays (can be millions of entries → 30+MB files)
+const slim = JSON.parse(JSON.stringify(results), (k, v) => (k === "samples" || k === "ticks" ? undefined : v));
+await Bun.write("bench-results.json", JSON.stringify(slim, null, 2));
 console.log(`[bench] results written to bench-results.json ${elapsed()}`);
 
-stopMaintenanceTasks();
 process.exit(0);
