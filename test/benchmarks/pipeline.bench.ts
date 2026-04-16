@@ -5,9 +5,12 @@ import { B } from "mitata/src/main.mjs";
 // `min_cpu_time` is 642ms per bench — async benches end up doing millions of iters and
 // 30+ seconds each. Patch B.prototype.run to call measure() directly with our caps.
 const BENCH_OPTS = { min_samples: 10, max_samples: 30, batch_samples: 10, min_cpu_time: 50_000_000 };
-B.prototype.run = async function (thrw = false) {
-  const args = Object.keys(this._args);
-  const isStatic = args.length === 0;
+type BInternal = {
+  _args: Record<string, unknown[]>; _name: string; _group: number; _gc: string | boolean;
+  _highlight: unknown; flags: number; f: unknown;
+};
+(B.prototype as unknown as { run: (thrw?: boolean) => Promise<unknown> }).run = async function (this: BInternal, thrw = false) {
+  const isStatic = Object.keys(this._args).length === 0;
   const tune: Record<string, unknown> = {
     inner_gc: this._gc === "inner",
     gc: !this._gc ? false : undefined,
@@ -20,7 +23,7 @@ B.prototype.run = async function (thrw = false) {
   const style = { highlight: this._highlight, compact: !!(this.flags & 0x2) };
   if (isStatic) {
     let stats, error;
-    try { stats = await measure(this.f, tune); }
+    try { stats = await measure(this.f as Parameters<typeof measure>[0], tune as unknown as Parameters<typeof measure>[1]); }
     catch (err) { error = err; if (thrw) throw err; }
     return { kind: "static", args: this._args, alias: this._name, group: this._group, baseline,
       runs: [{ stats, error, args: {}, name: this._name }], style };
@@ -159,8 +162,8 @@ const _origLog = console.log;
 const _origWarn = console.warn;
 console.log = () => {};
 console.warn = () => {};
-// Cap bench duration via `time` (ms per task). Without this, async benches can run for 30+s each.
-const results = await run({ time: 200 });
+// Iteration cap is applied via the B.prototype.run patch above; no options passed to run().
+const results = await run();
 console.log = _origLog;
 console.warn = _origWarn;
 
