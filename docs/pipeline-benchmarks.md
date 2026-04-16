@@ -84,6 +84,42 @@ await Bun.write("bench-results.json", JSON.stringify(slim, null, 2));
 | `bench-results.json`| 34MB   | 20KB   |
 | Intermittent hang   | Yes    | No     |
 
+## Perf findings surfaced by the bench
+
+With the harness working, the numbers pointed at two real issues in production code:
+
+### `broadcastDevState` allocates every packet
+
+`Pipeline.processPacket` built a fresh debug-state object tree (lap detector
++ sector tracker + pit tracker) every call and sent it to the WebSocket
+adapter, even with no dev clients connected. Added a `skipDevState` option
+to the Pipeline constructor; the bench passes `skipDevState: true`. Minor
+win for FM/F1 (dev state wasn't their dominant allocator), meaningful
+cleanup for ACC. In production this should be gated on whether any client
+has the dev tab open.
+
+### Bundled centerline CSVs were read from disk every 6 packets
+
+Biggest win. Track calibration runs every 6 packets and calls
+`getTrackOutlineByOrdinal` → `loadBundledCenterline`, which did
+`readFileSync` + parse of a ~1000-line CSV into ~1000 Point objects **on
+every invocation**. No memoization. That meant every running game session
+did ~10 sync disk reads per second forever, and allocated ~58 kb per call.
+
+Fix: module-level `Map<key, Point[] | null>` in `shared/track-data.ts`
+keyed by `(gameId, ordinal)`. Bundled centerline files are static, so the
+cache is safe. Recorded and shared outlines (which can change at runtime)
+are still loaded fresh.
+
+| Game | pipeline µs/iter | pipeline alloc/iter |
+|------|------------------|---------------------|
+| FM   | 60.24 → 5.03 (12×)  | 11.84 kb → 327 b (36×) |
+| F1   | 25.69 → 2.24 (11×)  |  6.83 kb → 163 b (41×) |
+| ACC  |  2.17 → 2.21 (same) |     54 b → 163 b (same) |
+
+ACC doesn't hit the calibration path (`adapter.coordSystem === "standard-xyz"`
+skips it), so no change there.
+
 ## Maintenance notes
 
 - The `B.prototype.run` override currently handles the static-args case only. If a future bench uses `.args()` / `.range()` for parametric sweeps, extend the patch to handle the `kind !== "static"` branch in upstream `main.mjs`.
