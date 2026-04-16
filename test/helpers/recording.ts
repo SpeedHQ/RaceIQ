@@ -16,7 +16,7 @@ function readMaybeGzipped(filePath: string): Buffer {
  *
  * @returns Array of raw packet Buffers in recording order.
  */
-export function readUdpDump(filePath: string): Buffer[] {
+export function readUdpDump(filePath: string, limit?: number): Buffer[] {
   const data = readMaybeGzipped(filePath);
   const packets: Buffer[] = [];
   let offset = 0;
@@ -27,6 +27,7 @@ export function readUdpDump(filePath: string): Buffer[] {
     if (offset + len > data.length) break; // truncated final record
     packets.push(data.slice(offset, offset + len));
     offset += len;
+    if (limit !== undefined && packets.length >= limit) break;
   }
 
   return packets;

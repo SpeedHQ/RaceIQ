@@ -2,8 +2,7 @@ import { run, bench, group } from "mitata";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getAllServerGames } from "../../server/games/registry";
-import { NullDbAdapter, NullWsAdapter } from "../../server/pipeline-adapters";
-import { Pipeline, stopMaintenanceTasks } from "../../server/pipeline";
+import { stopMaintenanceTasks } from "../../server/pipeline";
 import { readUdpDump } from "../helpers/recording";
 import { parseAccBuffers } from "../../server/games/acc/parser";
 import { readWString } from "../../server/games/acc/utils";
@@ -20,108 +19,70 @@ initGameAdapters();
 initServerGameAdapters();
 console.log(`[bench] adapters init ${elapsed()}`);
 
-// --- Load FM data ---
-const FM_DUMP = "test/artifacts/laps/fm-2023-2026-04-09T21-53-00-102Z.bin.gz";
-const fmBuffers = readUdpDump(FM_DUMP);
-const fmAdapter = getAllServerGames().find((a) => a.canHandle(fmBuffers[0]))!;
-let fmBuf: Buffer | null = null;
-for (const buf of fmBuffers) {
-  if (fmAdapter.tryParse(buf, null)) { fmBuf = buf; break; }
+// --- Load and extract FM data (read until 1k parsed packets) ---
+const FM_DUMP = "test/artifacts/laps/fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
+const fmAdapter = getAllServerGames().find((a) => a.canHandle(readUdpDump(FM_DUMP, 1)[0]))!;
+const fmPackets: ReturnType<typeof fmAdapter.tryParse>[] = [];
+const fmBuffers: Buffer[] = [];
+for (const buf of readUdpDump(FM_DUMP)) {
+  const p = fmAdapter.tryParse(buf, null);
+  if (p) { fmPackets.push(p); fmBuffers.push(buf); }
+  if (fmPackets.length >= 1000) break;
 }
-if (!fmBuf) throw new Error("No parseable FM packet found");
-console.log(`[bench] fm loaded  — ${fmBuffers.length} packets ${elapsed()}`);
+console.log(`[bench] fm loaded  — ${fmPackets.length} packets (${fmBuffers.length} bufs) ${elapsed()}`);
 
-// --- Load F1 data ---
+// --- Load and extract F1 data (read until 1k parsed packets) ---
 const F1_DUMP = "test/artifacts/laps/f1-2025-2026-04-09T21-34-10-190Z.bin.gz";
-const f1Buffers = readUdpDump(F1_DUMP);
-const f1Adapter = getAllServerGames().find((a) => a.canHandle(f1Buffers[0]))!;
-const f1Buf = f1Buffers[0];
-const f1PipelineBufs: Buffer[] = [];
+const f1AllBuffers = readUdpDump(F1_DUMP);
+const f1Adapter = getAllServerGames().find((a) => a.canHandle(f1AllBuffers[0]))!;
+const f1Packets: ReturnType<typeof f1Adapter.tryParse>[] = [];
+const f1Buffers: Buffer[] = [];
 {
-  const scanState = f1Adapter.createParserState?.() ?? null;
-  for (const buf of f1Buffers) {
-    f1PipelineBufs.push(buf);
-    if (f1Adapter.tryParse(buf, scanState)) break;
+  const state = f1Adapter.createParserState?.() ?? null;
+  for (const buf of f1AllBuffers) {
+    f1Buffers.push(buf);
+    const p = f1Adapter.tryParse(buf, state);
+    if (p) f1Packets.push(p);
+    if (f1Packets.length >= 1000) break;
   }
 }
-console.log(`[bench] f1 loaded  — ${f1Buffers.length} packets, pipeline slice: ${f1PipelineBufs.length} bufs ${elapsed()}`);
+console.log(`[bench] f1 loaded  — ${f1Packets.length} packets (${f1Buffers.length} bufs) ${elapsed()}`);
 
-// --- Load ACC data ---
+// --- Load and extract ACC data ---
 const ACC_DUMP = "test/artifacts/laps/acc-2026-04-10T02-55-22-777Z.bin.gz";
-const accFrames = readAccFrames(ACC_DUMP, 1);
-const accFrame = accFrames[0];
-if (!accFrame) throw new Error("No ACC frames found in dump");
-const accCm = readWString(accFrame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-const accTn = readWString(accFrame.staticData, STATIC.track.offset, STATIC.track.size);
+const accFrames = readAccFrames(ACC_DUMP, 1000);
+if (accFrames.length === 0) throw new Error("No ACC frames found in dump");
+const accCm = readWString(accFrames[0].staticData, STATIC.carModel.offset, STATIC.carModel.size);
+const accTn = readWString(accFrames[0].staticData, STATIC.track.offset, STATIC.track.size);
 const accOpts = {
   carOrdinal: accCm ? (getAccCarByModel(accCm)?.id ?? 0) : 0,
   trackOrdinal: accTn ? (getAccTrackByName(accTn)?.id ?? 0) : 0,
 };
-console.log(`[bench] acc loaded — car: ${accCm ?? "?"} track: ${accTn ?? "?"} ${elapsed()}`);
+const accPackets = accFrames.map((f) => parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts)).filter(Boolean);
+console.log(`[bench] acc loaded — ${accPackets.length} packets, car: ${accCm ?? "?"} track: ${accTn ?? "?"} ${elapsed()}`);
 
-// --- Pre-warm pipelines ---
-console.log(`[bench] warming pipelines…`);
-const fmPacket = fmAdapter.tryParse(fmBuf!, null)!;
-const fmPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), { bypassPacketRateFilter: true, skipHistorySeeding: true });
-await fmPipeline.processPacket(fmPacket);
-console.log(`[bench] fm  pipeline warm ${elapsed()}`);
 
-const f1Pipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), { bypassPacketRateFilter: true, skipHistorySeeding: true });
-{
-  const warmState = f1Adapter.createParserState?.() ?? null;
-  for (const buf of f1PipelineBufs) {
-    const p = f1Adapter.tryParse(buf, warmState);
-    if (p) { await f1Pipeline.processPacket(p); break; }
-  }
-}
-console.log(`[bench] f1  pipeline warm ${elapsed()}`);
-
-const accPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), { bypassPacketRateFilter: true, skipHistorySeeding: true });
-{
-  const warmPacket = parseAccBuffers(accFrame.physics, accFrame.graphics, accFrame.staticData, accOpts);
-  if (warmPacket) await accPipeline.processPacket(warmPacket);
-}
-console.log(`[bench] acc pipeline warm ${elapsed()}`);
 
 // --- Benchmarks (all synchronous — avoids async event-loop hangs) ---
 // Pipeline benches fire-and-forget: measures sync dispatch cost up to the first await.
 // Parse benches are fully synchronous and measure raw decode throughput.
 
-group("acc", () => {
-  bench("parse", () => {
-    parseAccBuffers(accFrame.physics, accFrame.graphics, accFrame.staticData, accOpts);
-  });
-
-  bench("pipeline", () => {
-    const ld = accPipeline.lapDetector as any;
-    if (ld?.lapBuffer?.length > 1) ld.lapBuffer.length = 1;
-    const packet = parseAccBuffers(accFrame.physics, accFrame.graphics, accFrame.staticData, accOpts);
-    if (packet) void accPipeline.processPacket(packet);
-  });
-});
-
 group("fm", () => {
-  bench("parse", () => {
-    fmAdapter.tryParse(fmBuf!, null);
-  });
-
-  bench("pipeline", () => {
-    const packet = fmAdapter.tryParse(fmBuf!, null)!;
-    void fmPipeline.processPacket(packet);
+  bench("parse 1k", () => {
+    for (const buf of fmBuffers) fmAdapter.tryParse(buf, null);
   });
 });
 
 group("f1", () => {
-  bench("parse", () => {
-    f1Adapter.tryParse(f1Buf, f1Adapter.createParserState?.() ?? null);
-  });
-
-  bench("pipeline", () => {
+  bench("parse 1k", () => {
     const state = f1Adapter.createParserState?.() ?? null;
-    for (const buf of f1PipelineBufs) {
-      const packet = f1Adapter.tryParse(buf, state);
-      if (packet) { void f1Pipeline.processPacket(packet); break; }
-    }
+    for (const buf of f1Buffers) f1Adapter.tryParse(buf, state);  // f1Buffers = bufs that produced 1k packets
+  });
+});
+
+group("acc", () => {
+  bench("parse 1k", () => {
+    for (const f of accFrames) parseAccBuffers(f.physics, f.graphics, f.staticData, accOpts);
   });
 });
 
