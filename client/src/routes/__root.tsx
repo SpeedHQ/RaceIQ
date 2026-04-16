@@ -66,9 +66,11 @@ function AppShell() {
   const gameTabs = useMemo(() => {
     const prefix = getGamePrefixes().find((p) => location.pathname.startsWith(p));
     if (!prefix) return [];
-    const hideTunes = prefix === "/f125" || prefix === "/acc"; // setups are in Tracks tab
+    const hideTunes = prefix !== "/fm23"; // only fm23 has a Tunes tab; other games put setups in the Tracks tab
+    const hideSetup = prefix === "/ac-evo";
     return GAME_SUB_TABS
       .filter((label) => !(hideTunes && label === "Tunes"))
+      .filter((label) => !(hideSetup && label === "Setup"))
       .map((label) => ({ to: `${prefix}/${label.toLowerCase()}`, label }));
   }, [location.pathname]);
 
