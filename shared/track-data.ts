@@ -894,20 +894,26 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
 }
 
 /** Load bundled game-extracted centerline CSV by ordinal. */
+const bundledCenterlineCache = new Map<string, Point[] | null>();
 function loadBundledCenterline(ordinal: number, gameId: string): Point[] | null {
+  const key = gk(gameId, ordinal);
+  const cached = bundledCenterlineCache.get(key);
+  if (cached !== undefined) return cached;
   const name = getBundledTrackName(gameId, ordinal);
-  if (!name) return null;
+  if (!name) { bundledCenterlineCache.set(key, null); return null; }
   const filePath = resolve(bundledGameDir(gameId), `${name}-centerline.csv`);
   const content = readDataFile(filePath);
-  if (!content) return null;
+  if (!content) { bundledCenterlineCache.set(key, null); return null; }
   try {
     const lines = content.split("\n").filter(Boolean);
     const data: Point[] = lines.slice(1).map((l) => {
       const [x, z] = l.split(",").map(Number);
       return { x, z };
     });
-    return data.length > 10 ? data : null;
-  } catch { return null; }
+    const result = data.length > 10 ? data : null;
+    bundledCenterlineCache.set(key, result);
+    return result;
+  } catch { bundledCenterlineCache.set(key, null); return null; }
 }
 
 /**
