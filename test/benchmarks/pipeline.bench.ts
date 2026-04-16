@@ -42,6 +42,7 @@ import { STATIC } from "../../server/games/acc/structs";
 import { readAccFrames } from "../../server/games/acc/frame-reader";
 import { getAccCarByModel } from "../../shared/acc-car-data";
 import { getAccTrackByName } from "../../shared/acc-track-data";
+import { parseAcEvoBuffers, createAcEvoParserCache } from "../../server/games/ac-evo/parser";
 
 const t0 = performance.now();
 const elapsed = () => `+${((performance.now() - t0) / 1000).toFixed(2)}s`;
@@ -97,14 +98,26 @@ const accPackets = accFrames
   .filter((p): p is NonNullable<typeof p> => p !== null);
 console.log(`[bench] acc loaded — ${accPackets.length} packets, car: ${accCm ?? "?"} track: ${accTn ?? "?"} ${elapsed()}`);
 
+// --- Load and extract AC Evo data (same recorder format as ACC) ---
+const ACEVO_DUMP = "test/artifacts/laps/ac-evo-2026-04-15T17-12-25-825Z.bin.gz";
+const acEvoFrames = readAccFrames(ACEVO_DUMP, N_FRAMES);
+if (acEvoFrames.length === 0) throw new Error("No AC Evo frames found in dump");
+const acEvoCache = createAcEvoParserCache();
+const acEvoPackets = acEvoFrames
+  .map((f) => parseAcEvoBuffers(f.physics, f.graphics, f.staticData, acEvoCache))
+  .filter((p): p is NonNullable<typeof p> => p !== null);
+console.log(`[bench] ac-evo loaded — ${acEvoPackets.length} packets ${elapsed()}`);
+
 // --- Pre-warm pipelines with null adapters (no DB/WS IO) ---
 const pipelineOpts = { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true };
 const fmPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
 const f1Pipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
 const accPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
+const acEvoPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
 await fmPipeline.processPacket(fmPackets[0]!);
 await f1Pipeline.processPacket(f1Packets[0]!);
 await accPipeline.processPacket(accPackets[0]!);
+await acEvoPipeline.processPacket(acEvoPackets[0]!);
 console.log(`[bench] pipelines warm ${elapsed()}`);
 
 // Stop the default pipeline's maintenance interval (created at import time)
@@ -153,6 +166,20 @@ group("acc", () => {
   bench("pipeline", async () => {
     const packet = accPackets[pi]!; pi = (pi + 1) % accPackets.length;
     await accPipeline.processPacket(packet);
+  });
+});
+
+group("ac-evo", () => {
+  let i = 0;
+  const parseCache = createAcEvoParserCache();
+  bench("parse", () => {
+    const f = acEvoFrames[i]; i = (i + 1) % acEvoFrames.length;
+    do_not_optimize(parseAcEvoBuffers(f.physics, f.graphics, f.staticData, parseCache));
+  });
+  let pi = 0;
+  bench("pipeline", async () => {
+    const packet = acEvoPackets[pi]!; pi = (pi + 1) % acEvoPackets.length;
+    await acEvoPipeline.processPacket(packet);
   });
 });
 
