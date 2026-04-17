@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IS_DEV } from "../env";
 import { OrdinalParamSchema, GameIdQuerySchema } from "../../shared/schemas";
+import { detectSegmentsV1, detectSegmentsV2 } from "../track-segment-detect";
 import {
   getLaps,
   getLapSummariesByTrack,
@@ -445,35 +446,38 @@ export const trackRoutes = new Hono()
   )
 
   // GET /api/track-sectors/:ordinal — returns user-edited, named, or auto-detected segments.
-  // Optional ?source=extracted to force returning only extracted game segments.
+  // Optional ?algo=v2 forces the curvature-based v2 detector and bypasses shared meta
+  // (useful for previewing detection on tracks that already have meta overrides).
   .get("/api/track-sectors/:ordinal",
     zValidator("param", OrdinalParamSchema),
-    zValidator("query", GameIdQuerySchema),
+    zValidator("query", GameIdQuerySchema.extend({ algo: z.enum(["v1", "v2"]).optional() })),
     async (c) => {
       const { ordinal } = c.req.valid("param");
       const gameId = c.req.query("gameId");
+      const algo = c.req.query("algo") === "v2" ? "v2" : "v1";
       const sharedName = getSharedTrackName(ordinal, gameId);
 
-      // 1. Shared track meta segments — game-specific only (no cross-game fallback)
-      const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-      const metaSegments = gameId
-        ? (sharedMeta as any)?.games?.[gameId]?.segments ?? null
-        : sharedMeta?.segments ?? null;
-      if (metaSegments && metaSegments.length > 0) {
-        return c.json({
-          segments: metaSegments.map((s: any) => ({
-            ...s,
-            startIdx: 0,
-            endIdx: 0,
-            distStart: 0,
-            distEnd: 0,
-          })),
-          totalDist: 0,
-          source: "shared",
-        });
+      // Shared meta wins for v1; v2 always recomputes so users can preview the new algo
+      if (algo === "v1") {
+        const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
+        const metaSegments = gameId
+          ? (sharedMeta as any)?.games?.[gameId]?.segments ?? null
+          : sharedMeta?.segments ?? null;
+        if (metaSegments && metaSegments.length > 0) {
+          return c.json({
+            segments: metaSegments.map((s: any) => ({
+              ...s,
+              startIdx: 0,
+              endIdx: 0,
+              distStart: 0,
+              distEnd: 0,
+            })),
+            totalDist: 0,
+            source: "shared",
+          });
+        }
       }
 
-      // Fall back to auto-detection from outline curvature
       let outline = gameId ? getTrackOutlineByOrdinal(ordinal, gameId, sharedName) : null;
       if (!outline) {
         const recorded = gameId ? await getDbTrackOutline(ordinal, gameId as GameId) : null;
@@ -483,119 +487,8 @@ export const trackRoutes = new Hono()
       }
       if (!outline || outline.length < 20) return c.json({ segments: [] });
 
-      const n = outline.length;
-
-      // Compute cumulative distance
-      const dists = [0];
-      for (let i = 1; i < n; i++) {
-        const dx = outline[i].x - outline[i - 1].x;
-        const dz = outline[i].z - outline[i - 1].z;
-        dists.push(dists[i - 1] + Math.sqrt(dx * dx + dz * dz));
-      }
-      const totalDist = dists[n - 1];
-
-      // Compute curvature at each point using angle change over a window
-      const window = Math.max(3, Math.floor(n / 80));
-      const signedCurvature: number[] = [];
-      const curvature: number[] = [];
-      for (let i = 0; i < n; i++) {
-        const prev = (i - window + n) % n;
-        const next = (i + window) % n;
-        const dx1 = outline[i].x - outline[prev].x;
-        const dz1 = outline[i].z - outline[prev].z;
-        const dx2 = outline[next].x - outline[i].x;
-        const dz2 = outline[next].z - outline[i].z;
-        const angle1 = Math.atan2(dz1, dx1);
-        const angle2 = Math.atan2(dz2, dx2);
-        let diff = angle2 - angle1;
-        while (diff > Math.PI) diff -= 2 * Math.PI;
-        while (diff < -Math.PI) diff += 2 * Math.PI;
-        signedCurvature.push(diff);
-        curvature.push(Math.abs(diff));
-      }
-
-      // Smooth curvature
-      const smoothWindow = Math.max(2, Math.floor(n / 60));
-      const smoothed: number[] = [];
-      for (let i = 0; i < n; i++) {
-        let sum = 0;
-        for (let j = -smoothWindow; j <= smoothWindow; j++) {
-          sum += curvature[(i + j + n) % n];
-        }
-        smoothed.push(sum / (smoothWindow * 2 + 1));
-      }
-
-      // Threshold: 54th percentile
-      const sorted = [...smoothed].sort((a, b) => a - b);
-      const threshold = sorted[Math.floor(n * 0.54)];
-
-      // Build segments by classifying each point
-      type Seg = { type: "corner" | "straight"; startIdx: number; endIdx: number; startFrac: number; endFrac: number };
-      const segments: Seg[] = [];
-      let currentType: "corner" | "straight" = smoothed[0] > threshold ? "corner" : "straight";
-      let segStart = 0;
-
-      for (let i = 1; i < n; i++) {
-        const type = smoothed[i] > threshold ? "corner" : "straight";
-        if (type !== currentType) {
-          segments.push({ type: currentType, startFrac: segStart / n, endFrac: i / n, startIdx: segStart, endIdx: i });
-          currentType = type;
-          segStart = i;
-        }
-      }
-      segments.push({ type: currentType, startFrac: segStart / n, endFrac: 1, startIdx: segStart, endIdx: n - 1 });
-
-      // Merge tiny segments (< 1.5% of track) into neighbor
-      const pass1: Seg[] = [];
-      for (const seg of segments) {
-        if ((seg.endFrac - seg.startFrac) < 0.015 && pass1.length > 0) {
-          pass1[pass1.length - 1].endFrac = seg.endFrac;
-          pass1[pass1.length - 1].endIdx = seg.endIdx;
-        } else {
-          pass1.push({ ...seg });
-        }
-      }
-
-      // Consolidate adjacent same-type segments
-      const merged: Seg[] = [];
-      for (const seg of pass1) {
-        if (merged.length > 0 && merged[merged.length - 1].type === seg.type) {
-          merged[merged.length - 1].endFrac = seg.endFrac;
-          merged[merged.length - 1].endIdx = seg.endIdx;
-        } else {
-          merged.push({ ...seg });
-        }
-      }
-
-      // Name segments with direction for corners
-      let cornerNum = 1;
-      let straightNum = 1;
-      const namedSegs = merged.map((seg) => {
-        let name: string;
-        let direction: "left" | "right" | null = null;
-
-        if (seg.type === "corner") {
-          // Sum signed curvature over the segment to determine direction
-          let sumCurv = 0;
-          for (let i = seg.startIdx; i <= Math.min(seg.endIdx, n - 1); i++) {
-            sumCurv += signedCurvature[i];
-          }
-          direction = sumCurv > 0 ? "right" : "left";
-          name = `T${cornerNum++} ${direction === "left" ? "L" : "R"}`;
-        } else {
-          name = `S${straightNum++}`;
-        }
-
-        return {
-          ...seg,
-          name,
-          direction,
-          distStart: dists[seg.startIdx],
-          distEnd: seg.endIdx < n ? dists[seg.endIdx] : totalDist,
-        };
-      });
-
-      return c.json({ segments: namedSegs, totalDist });
+      const result = algo === "v2" ? detectSegmentsV2(outline) : detectSegmentsV1(outline);
+      return c.json({ segments: result.segments, totalDist: result.totalDist, source: `auto-${algo}` });
     }
   )
 
