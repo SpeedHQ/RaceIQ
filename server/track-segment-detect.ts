@@ -263,7 +263,6 @@ export function detectSegmentsV2(outline: OutlinePoint[]): SegmentDetectionResul
 
   // Split any section longer than MAX_SECTION_M until all sections fit under the cap.
   // Preferred split: sustained signed-κ sign change; fallback: lowest-|κ| point near middle.
-  const MAX_SECTION_M = 1000;
   const RUN_THRESHOLD = Math.max(4, Math.round(50 / meanSpacing));
   // Cleanup: short straights wedged between two corner sections aren't real
   // straights — they're connecting tissue inside one larger corner complex.
@@ -308,19 +307,41 @@ export function detectSegmentsV2(outline: OutlinePoint[]): SegmentDetectionResul
     if (!pieces.every((p) => dists[p.endIdx] - dists[p.startIdx] >= MIN_SECTION_M)) return [r];
     return pieces;
   };
-  // Pass B: halve any section still exceeding MAX_SECTION_M at its lowest-|κ| point.
+  // Pass B: split sections that contain too much total turning. A "technical"
+  // section (hairpins, esses, lots of direction change) accumulates radians
+  // quickly — those split into smaller pieces so each can be focused on. A
+  // long gentle sweeper stays as one long segment because it accumulates slowly.
+  const TURN_BUDGET_RAD = (2 * Math.PI) / 3; // ~120° of integrated turning per segment
   const sizeSplit = (r: Raw): Raw[] => {
-    if (r.type !== "corner" || dists[r.endIdx] - dists[r.startIdx] <= MAX_SECTION_M) return [r];
-    const mid = Math.floor((r.startIdx + r.endIdx) / 2);
-    const search = Math.max(3, Math.round(150 / meanSpacing));
-    let bestIdx = mid, bestK = Infinity;
-    for (let k = mid - search; k <= mid + search; k++) {
-      if (k <= r.startIdx || k >= r.endIdx) continue;
-      if (smooth[k] < bestK) { bestK = smooth[k]; bestIdx = k; }
+    if (r.type !== "corner") return [r];
+    const totalTurn = (() => {
+      let t = 0;
+      for (let i = r.startIdx; i <= r.endIdx; i++) t += Math.abs(signedKappa[i]) * meanSpacing;
+      return t;
+    })();
+    if (totalTurn <= TURN_BUDGET_RAD) return [r];
+    // Find the index where half the turning has accumulated, then snap to the
+    // nearest local |κ| minimum so the cut lands between corners, not mid-apex.
+    const half = totalTurn / 2;
+    let acc = 0;
+    let halfIdx = Math.floor((r.startIdx + r.endIdx) / 2);
+    for (let i = r.startIdx; i <= r.endIdx; i++) {
+      acc += Math.abs(signedKappa[i]) * meanSpacing;
+      if (acc >= half) { halfIdx = i; break; }
     }
+    const search = Math.max(5, Math.round(150 / meanSpacing));
+    let splitIdx = halfIdx;
+    let bestK = smooth[halfIdx];
+    for (let k = halfIdx - search; k <= halfIdx + search; k++) {
+      if (k <= r.startIdx + 1 || k >= r.endIdx - 1) continue;
+      if (smooth[k] < bestK) { bestK = smooth[k]; splitIdx = k; }
+    }
+    if (splitIdx <= r.startIdx + 1 || splitIdx >= r.endIdx - 1) return [r];
+    if (dists[splitIdx] - dists[r.startIdx] < MIN_SECTION_M) return [r];
+    if (dists[r.endIdx] - dists[splitIdx] < MIN_SECTION_M) return [r];
     return [
-      { type: "corner", startIdx: r.startIdx, endIdx: bestIdx },
-      { type: "corner", startIdx: bestIdx, endIdx: r.endIdx },
+      { type: "corner", startIdx: r.startIdx, endIdx: splitIdx },
+      { type: "corner", startIdx: splitIdx, endIdx: r.endIdx },
     ];
   };
   // Pass A2: split a section at deep valleys between two distinct curvature peaks.
@@ -353,8 +374,9 @@ export function detectSegmentsV2(outline: OutlinePoint[]): SegmentDetectionResul
       }
       // Only split if the valley is meaningfully lower than peaks (≤60% of avg peak)
       const avgPeak = (peaks[p].k + peaks[p + 1].k) / 2;
-      // Valley must be deep AND sit well below the genuine straight threshold
-      if (valK < avgPeak * 0.4 && valK < STRAIGHT_OUT) cuts.push(valIdx);
+      // Valley must be very deep AND sit well below the straight threshold —
+      // we only split a same-direction section when there's a clear gap.
+      if (valK < avgPeak * 0.25 && valK < STRAIGHT_IN) cuts.push(valIdx);
     }
     cuts.push(r.endIdx);
     if (cuts.length <= 2) return [r];

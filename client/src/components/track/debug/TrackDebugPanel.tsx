@@ -237,6 +237,30 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
         ctx.fillStyle = seg.type === "corner" ? "#fca5a5" : "#93c5fd";
         ctx.fillText(label, lx, ly);
       }
+      // Draw perpendicular separator ticks at every segment boundary
+      const TICK_HALF = 12;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(255,255,255,0.85)";
+      ctx.setLineDash([3, 2]);
+      for (const seg of displaySectors.segments) {
+        const idx = Math.floor(seg.startFrac * n);
+        const a = (idx - 1 + n) % n;
+        const b = (idx + 1) % n;
+        const [tx, ty] = toCanvas(outline[idx].x, outline[idx].z);
+        const [ax, ay] = toCanvas(outline[a].x, outline[a].z);
+        const [bx, by] = toCanvas(outline[b].x, outline[b].z);
+        const dx = bx - ax;
+        const dy = by - ay;
+        const len = Math.hypot(dx, dy) || 1;
+        // Perpendicular = (-dy, dx) / len
+        const px = -dy / len;
+        const py = dx / len;
+        ctx.beginPath();
+        ctx.moveTo(tx - px * TICK_HALF, ty - py * TICK_HALF);
+        ctx.lineTo(tx + px * TICK_HALF, ty + py * TICK_HALF);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
       ctx.lineWidth = 2.5;
     } else if (overlayMode === "sectors" && sectorBounds) {
       const n = outline.length;
