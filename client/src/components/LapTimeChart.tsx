@@ -14,11 +14,14 @@ export function LapTimeChart({
   packet,
   allLaps = [],
   height,
+  yTicks = 5,
 }: {
   packet: TelemetryPacket | null;
   allLaps?: LapMeta[];
   /** Optional fixed height. If omitted the chart fills its parent via flex. */
   height?: number;
+  /** Number of y-axis intervals (ticks = yTicks + 1). Default 5. */
+  yTicks?: number;
 }) {
   const [liveLaps, setLiveLaps] = useState<{ lap: number; time: number }[]>([]);
   const [hiddenSessionIds, setHiddenSessionIds] = useState<Set<number>>(new Set());
@@ -137,7 +140,7 @@ export function LapTimeChart({
     ctx.font = "13px monospace";
     ctx.fillStyle = "#94a3b8";
     ctx.textAlign = "right";
-    const tickCount = 5;
+    const tickCount = yTicks;
     for (let i = 0; i <= tickCount; i++) {
       const val = minY + (yRange * i) / tickCount;
       const y = topPad + plotH - (i / tickCount) * plotH;
@@ -198,7 +201,7 @@ export function LapTimeChart({
       ctx.textAlign = "center";
       ctx.fillText(`${laps[i].lap}`, x, topPad + plotH + 14);
     }
-  }, [laps, effectiveHeight, containerWidth]);
+  }, [laps, effectiveHeight, containerWidth, yTicks]);
 
   return (
     <div className="h-full flex flex-col border-b border-app-border">

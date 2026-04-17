@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ComboDash } from "../components/dashes/ComboDash";
 import { ComboDash2 } from "../components/dashes/ComboDash2";
 import {
@@ -29,31 +29,20 @@ const PREVIEW_RAW_PACKET = {
 // Forza stores tire temps in °F — convert to °C.
 const fToC = (f: number) => ((f - 32) * 5) / 9;
 
-interface DashEntry {
-  slug: string;
+interface DashMeta {
+  slug: "combo-1" | "combo-2";
   title: string;
   description: string;
   href: "/dash/combo-1" | "/dash/combo-2";
-  preview: ReactNode;
 }
 
-const DASHES: DashEntry[] = [
+const DASH_META: DashMeta[] = [
   {
     slug: "combo-1",
     href: "/dash/combo-1",
     title: "Combo Dash 1",
     description:
       "Rev bar + gear/speed/lap tiles, fuel & tire laps-remaining, lap + sector readout, and a live tire grid. Landscape tablet-friendly.",
-    preview: (
-      <ComboDash
-        rawPacket={PREVIEW_RAW_PACKET}
-        packet={fakeForzaDisplayPacket}
-        sectors={fakeSectors}
-        pit={fakePit}
-        unitSystem="metric"
-        toTempC={fToC}
-      />
-    ),
   },
   {
     slug: "combo-2",
@@ -61,15 +50,25 @@ const DASHES: DashEntry[] = [
     title: "Combo Dash 2 — Lap Times & Pace",
     description:
       "Lap timing summary across the top, big lap-time trend chart with optimum and average pace lines, plus live sector splits and recent laps on the side.",
-    preview: (
-      <ComboDash2
-        rawPacket={PREVIEW_RAW_PACKET}
-        allLaps={fakeSessionLaps}
-        sessionLaps={fakeSessionLaps}
-      />
-    ),
   },
 ];
+
+function useViewportSize() {
+  const [size, setSize] = useState(() => ({
+    w: typeof window !== "undefined" ? window.innerWidth : 844,
+    h: typeof window !== "undefined" ? window.innerHeight : 390,
+  }));
+  useEffect(() => {
+    const onResize = () => setSize({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
+  return size;
+}
 
 function useNetworkInfo() {
   return useQuery<{ lanIps: string[]; port: number }>({
@@ -88,6 +87,40 @@ function DashCatalogue() {
   const { data } = useNetworkInfo();
   const lanIp = data?.lanIps?.[0];
   const port = typeof window !== "undefined" ? window.location.port || data?.port : data?.port;
+  const vp = useViewportSize();
+  const SCALE = 0.6;
+  const maxW = Math.floor(vp.w * SCALE);
+  const maxH = Math.floor(vp.h * SCALE);
+  const previewWidth = `min(100%, ${maxW}px, ${Math.floor((maxH * vp.w) / vp.h)}px)`;
+  const previewAspect = `${vp.w} / ${vp.h}`;
+
+  const [combo2LapCount, setCombo2LapCount] = useState(fakeSessionLaps.length);
+  const combo2Laps = useMemo(
+    () => fakeSessionLaps.slice(0, combo2LapCount),
+    [combo2LapCount],
+  );
+
+  const previewFor = (slug: DashMeta["slug"]): ReactNode => {
+    if (slug === "combo-1") {
+      return (
+        <ComboDash
+          rawPacket={PREVIEW_RAW_PACKET}
+          packet={fakeForzaDisplayPacket}
+          sectors={fakeSectors}
+          pit={fakePit}
+          unitSystem="metric"
+          toTempC={fToC}
+        />
+      );
+    }
+    return (
+      <ComboDash2
+        rawPacket={PREVIEW_RAW_PACKET}
+        allLaps={combo2Laps}
+        sessionLaps={combo2Laps}
+      />
+    );
+  };
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
@@ -110,7 +143,7 @@ function DashCatalogue() {
         </div>
 
         <ul className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {DASHES.map((d) => {
+          {DASH_META.map((d) => {
             const url = lanIp && port ? `http://${lanIp}:${port}${d.href}` : null;
             return (
               <li
@@ -119,13 +152,36 @@ function DashCatalogue() {
               >
                 <Link to={d.href} className="block group">
                   <div
-                    className="relative bg-black border-b border-white/10 overflow-hidden"
-                    style={{ aspectRatio: "16/9", transform: "translateZ(0)" }}
+                    className="relative bg-black border-b border-white/10 overflow-hidden mx-auto"
+                    style={{
+                      aspectRatio: previewAspect,
+                      width: previewWidth,
+                      transform: "translateZ(0)",
+                    }}
                   >
-                    <div className="absolute inset-0 pointer-events-none">{d.preview}</div>
+                    <div className="absolute inset-0 pointer-events-none">{previewFor(d.slug)}</div>
                     <div className="absolute inset-0 transition-colors group-hover:bg-white/[0.04]" />
                   </div>
                 </Link>
+                {d.slug === "combo-2" && (
+                  <div className="px-5 pt-3 flex items-center gap-3">
+                    <label className="text-[10px] uppercase tracking-wider text-white/40 font-mono shrink-0">
+                      Laps
+                    </label>
+                    <input
+                      type="range"
+                      min={1}
+                      max={fakeSessionLaps.length}
+                      step={1}
+                      value={combo2LapCount}
+                      onChange={(e) => setCombo2LapCount(Number(e.target.value))}
+                      className="flex-1 accent-app-accent"
+                    />
+                    <span className="text-xs font-mono tabular-nums text-white/60 w-10 text-right">
+                      {combo2LapCount}/{fakeSessionLaps.length}
+                    </span>
+                  </div>
+                )}
                 <div className="p-5 flex gap-4 items-start">
                   <div className="flex-1 min-w-0">
                     <Link to={d.href}>
@@ -137,7 +193,7 @@ function DashCatalogue() {
                     </div>
                   </div>
                   {url && (
-                    <div className="shrink-0 rounded bg-white p-2">
+                    <div className="shrink-0 rounded bg-white p-2 hidden lg:block">
                       <QRCodeSVG value={url} size={96} />
                     </div>
                   )}
