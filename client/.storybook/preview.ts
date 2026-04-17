@@ -32,6 +32,26 @@ const preview: Preview = {
           styles: { width: "1920px", height: "1080px" },
           type: "desktop",
         },
+        iphone14: {
+          name: "iPhone 14 (390×844)",
+          styles: { width: "390px", height: "844px" },
+          type: "mobile",
+        },
+        iphone14Landscape: {
+          name: "iPhone 14 Landscape (844×390)",
+          styles: { width: "844px", height: "390px" },
+          type: "mobile",
+        },
+        ipadMini: {
+          name: "iPad Mini (768×1024)",
+          styles: { width: "768px", height: "1024px" },
+          type: "tablet",
+        },
+        ipadLandscape: {
+          name: "iPad Landscape (1024×768)",
+          styles: { width: "1024px", height: "768px" },
+          type: "tablet",
+        },
       },
       defaultViewport: "1080p",
     },
