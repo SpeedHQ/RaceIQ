@@ -46,13 +46,15 @@ export function assertLapTimesProper(
   expect(packets.length).toBeGreaterThan(0);
 
   const firstPacket = packets[0];
-  const lastPacket = packets[packets.length - 1];
 
   // Lap should start near 0
   expect(firstPacket.CurrentLap).toBeLessThan(tolerance);
 
-  // Lap should end near the full lap time, not reset to 0
-  expect(lastPacket.CurrentLap).toBeGreaterThan(lapTime - tolerance);
+  // Peak CurrentLap should reach near the full lap time. The final packet is
+  // the finish-line crossing frame (CurrentLap already reset), so we use max
+  // across the buffer rather than the last sample.
+  const peakCurrentLap = Math.max(...packets.map((p) => p.CurrentLap));
+  expect(peakCurrentLap).toBeGreaterThan(lapTime - tolerance);
 }
 
 // ────────────────────────────────────────────────────────────────────────────

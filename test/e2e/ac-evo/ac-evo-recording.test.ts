@@ -157,6 +157,39 @@ describe("AC Evo v0.6 recording", () => {
     expect(last.invalidReason === "inlap" || last.invalidReason === "incomplete").toBe(true);
   });
 
+  test("stored lap time matches game's last_laptime_ms at lap transition", () => {
+    if (!recording) return;
+    // For each completed lap, the *next* lap's first packet carries the game's
+    // authoritative last_laptime_ms (already in packet.LastLap, seconds).
+    // Our pipeline should store that same value — not the overshoot from
+    // peak CurrentLap on the previous lap.
+    for (let k = 0; k < laps.length - 1; k++) {
+      const lap = laps[k];
+      const nextLap = laps[k + 1];
+      if (nextLap.packets.length === 0) continue;
+
+      const firstPkt = nextLap.packets[0];
+      const gameLastLapMs = Math.round(firstPkt.LastLap * 1000);
+      const storedMs = Math.round(lap.lapTime * 1000);
+
+      // Max CurrentLap on the previous lap shows sampling overshoot
+      const maxCurrentLapMs = Math.round(
+        Math.max(...lap.packets.map((p) => p.CurrentLap)) * 1000,
+      );
+
+      console.log(
+        `  lap ${lap.lapNumber}: stored=${storedMs}ms gameLastT=${gameLastLapMs}ms ` +
+          `peakCurT=${maxCurrentLapMs}ms (overshoot=${maxCurrentLapMs - gameLastLapMs}ms)`,
+      );
+
+      // Skip bogus game values (0 or INT32 sentinel)
+      if (gameLastLapMs <= 0 || gameLastLapMs > 1000 * 60 * 10) continue;
+
+      // Stored lap time must match game's authoritative value exactly (ms precision)
+      expect(storedMs).toBe(gameLastLapMs);
+    }
+  });
+
   test("outputs SVG visualization", () => {
     if (!recording) return;
     const sampled = packets.filter((_, i) => i % 10 === 0);

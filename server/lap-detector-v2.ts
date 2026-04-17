@@ -101,7 +101,7 @@ export class LapDetectorV2 implements ILapDetector {
         this.firstLapIsPartial = false;
       }
 
-      await this.emitLap(null);
+      await this.emitLap(null, { trigger: packet });
     }
 
     this.lapBuffer.push(packet);
@@ -126,9 +126,19 @@ export class LapDetectorV2 implements ILapDetector {
   /** Emit the current lapBuffer as a saved lap. Callers clear state afterwards. */
   private async emitLap(
     forcedInvalidReason: string | null,
-    opts?: { silent?: boolean }
+    opts?: { silent?: boolean; trigger?: TelemetryPacket }
   ): Promise<void> {
-    const lapTime = this.peakCurrentLap;
+    // Prefer the game's authoritative LastLap from the lap-boundary trigger
+    // packet, but only when it has actually been refreshed for THIS lap.
+    // AC Evo writes LastLap atomically with the lap-counter bump, so the
+    // trigger packet's LastLap is the new value. ACC resets CurrentLap first
+    // and updates LastLap one frame later (when completedLaps increments), so
+    // the trigger packet still carries the PREVIOUS lap's LastLap. Detect that
+    // by comparing against the last buffered packet — identical value = stale.
+    const lastBufferedLastLap = this.lapBuffer[this.lapBuffer.length - 1]?.LastLap ?? 0;
+    const gameLastLap = opts?.trigger?.LastLap ?? 0;
+    const gameLastLapFresh = gameLastLap > 0 && gameLastLap !== lastBufferedLastLap;
+    const lapTime = gameLastLapFresh ? gameLastLap : this.peakCurrentLap;
     const lapNum = this.currentLapNumber;
 
     if (lapNum === this._lastEmittedLapNumber) return;
@@ -138,7 +148,11 @@ export class LapDetectorV2 implements ILapDetector {
     // arriving during the async window (computeLapSectors / insertLap) would be
     // pushed into the same array that `packets` references, bleeding the next
     // lap's data into this lap's saved packet buffer.
+    // Also append the trigger packet (first sample of the NEW lap) so the
+    // outgoing lap's recording reaches the finish-line crossing rather than
+    // stopping at the last pre-reset packet.
     const packets = this.lapBuffer;
+    if (opts?.trigger) packets.push(opts.trigger);
     this.lapBuffer = [];
     this.peakCurrentLap = 0;
     this.currentLapNumber = lapNum + 1;
