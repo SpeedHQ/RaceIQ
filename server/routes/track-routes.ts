@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IS_DEV } from "../env";
 import { OrdinalParamSchema, GameIdQuerySchema } from "../../shared/schemas";
-import { detectSegmentsV1, detectSegmentsV2 } from "../track-segment-detect";
+import { detectSegments } from "../track-segment-detect";
 import {
   getLaps,
   getLapSummariesByTrack,
@@ -446,36 +446,30 @@ export const trackRoutes = new Hono()
   )
 
   // GET /api/track-sectors/:ordinal — returns user-edited, named, or auto-detected segments.
-  // Optional ?algo=v2 forces the curvature-based v2 detector and bypasses shared meta
-  // (useful for previewing detection on tracks that already have meta overrides).
   .get("/api/track-sectors/:ordinal",
     zValidator("param", OrdinalParamSchema),
-    zValidator("query", GameIdQuerySchema.extend({ algo: z.enum(["v1", "v2"]).optional() })),
+    zValidator("query", GameIdQuerySchema),
     async (c) => {
       const { ordinal } = c.req.valid("param");
       const gameId = c.req.query("gameId");
-      const algo = c.req.query("algo") === "v2" ? "v2" : "v1";
       const sharedName = getSharedTrackName(ordinal, gameId);
 
-      // Shared meta wins for v1; v2 always recomputes so users can preview the new algo
-      if (algo === "v1") {
-        const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-        const metaSegments = gameId
-          ? (sharedMeta as any)?.games?.[gameId]?.segments ?? null
-          : sharedMeta?.segments ?? null;
-        if (metaSegments && metaSegments.length > 0) {
-          return c.json({
-            segments: metaSegments.map((s: any) => ({
-              ...s,
-              startIdx: 0,
-              endIdx: 0,
-              distStart: 0,
-              distEnd: 0,
-            })),
-            totalDist: 0,
-            source: "shared",
-          });
-        }
+      const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
+      const metaSegments = gameId
+        ? (sharedMeta as any)?.games?.[gameId]?.segments ?? null
+        : sharedMeta?.segments ?? null;
+      if (metaSegments && metaSegments.length > 0) {
+        return c.json({
+          segments: metaSegments.map((s: any) => ({
+            ...s,
+            startIdx: 0,
+            endIdx: 0,
+            distStart: 0,
+            distEnd: 0,
+          })),
+          totalDist: 0,
+          source: "shared",
+        });
       }
 
       let outline = gameId ? getTrackOutlineByOrdinal(ordinal, gameId, sharedName) : null;
@@ -487,8 +481,8 @@ export const trackRoutes = new Hono()
       }
       if (!outline || outline.length < 20) return c.json({ segments: [] });
 
-      const result = algo === "v2" ? detectSegmentsV2(outline) : detectSegmentsV1(outline);
-      return c.json({ segments: result.segments, totalDist: result.totalDist, source: `auto-${algo}` });
+      const result = detectSegments(outline);
+      return c.json({ segments: result.segments, totalDist: result.totalDist, source: "auto" });
     }
   )
 

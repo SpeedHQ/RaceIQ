@@ -497,7 +497,6 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   panRef.current = pan;
   const dragging = useRef<{ startX: number; startY: number; startPanX: number; startPanZ: number } | null>(null);
   const [mapDisplayMode, setMapDisplayMode] = useState<"segments" | "sectors">("segments");
-  const [segAlgo, setSegAlgo] = useState<"v1" | "v2">("v1");
   const [editing, setEditing] = useState(false);
   const [editSegments, setEditSegments] = useState<TrackSegment[]>([]);
   const [saving, setSaving] = useState(false);
@@ -537,10 +536,10 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   const navTo = useNavigate();
 
   const { data: trackMapData } = useQuery({
-    queryKey: ["track-map", track.ordinal, gameId ?? null, segAlgo],
+    queryKey: ["track-map", track.ordinal, gameId ?? null],
     queryFn: () => Promise.all([
       client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid ?? undefined } }).then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
-      client.api["track-sectors"][":ordinal"].$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid!, algo: segAlgo } } as never).then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
+      client.api["track-sectors"][":ordinal"].$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } }).then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
       client.api["track-sector-boundaries"][":ordinal"].$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } }).then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
     ]).then(([outlineData, sectorData, boundsData]) => ({ outlineData, sectorData, boundsData })),
     enabled: track.hasOutline && !!gameId,
@@ -1099,18 +1098,6 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                   </button>
                 </>
               )}
-              <div className="h-px" />
-              <button
-                onClick={() => setSegAlgo((a) => a === "v1" ? "v2" : "v1")}
-                className={`px-1.5 py-1 text-[9px] font-mono rounded border transition-colors ${
-                  segAlgo === "v2"
-                    ? "bg-emerald-900/50 border-emerald-700 text-emerald-400"
-                    : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
-                }`}
-                title={segAlgo === "v2" ? "Using new curvature-based detector — click for v1" : "Using legacy detector — click to preview v2"}
-              >
-                {segAlgo === "v2" ? "Algo v2" : "Algo v1"}
-              </button>
             </div>
             {/* Track info overlay — bottom left */}
             <div className="absolute bottom-2 left-2 flex items-center gap-2.5 text-[10px] font-mono text-app-text-dim bg-app-surface/70 backdrop-blur-sm rounded px-2 py-1 pointer-events-none">

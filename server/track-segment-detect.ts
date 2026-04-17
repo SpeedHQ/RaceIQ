@@ -41,114 +41,18 @@ function cumulativeDistance(outline: OutlinePoint[]): number[] {
 }
 
 /**
- * Original algorithm — index-based windows + 54th-percentile threshold on |κ|.
- * Known weakness: merges S-bends into single corners and produces too few
- * segments on long tracks (Nordschleife, Le Mans).
- */
-export function detectSegmentsV1(outline: OutlinePoint[]): SegmentDetectionResult {
-  const n = outline.length;
-  if (n < 20) return { segments: [], totalDist: 0 };
-
-  const dists = cumulativeDistance(outline);
-  const totalDist = dists[n - 1];
-
-  const window = Math.max(3, Math.floor(n / 80));
-  const signedCurvature: number[] = [];
-  const curvature: number[] = [];
-  for (let i = 0; i < n; i++) {
-    const prev = (i - window + n) % n;
-    const next = (i + window) % n;
-    const a1 = Math.atan2(outline[i].z - outline[prev].z, outline[i].x - outline[prev].x);
-    const a2 = Math.atan2(outline[next].z - outline[i].z, outline[next].x - outline[i].x);
-    let diff = a2 - a1;
-    while (diff > Math.PI) diff -= 2 * Math.PI;
-    while (diff < -Math.PI) diff += 2 * Math.PI;
-    signedCurvature.push(diff);
-    curvature.push(Math.abs(diff));
-  }
-
-  const smoothWindow = Math.max(2, Math.floor(n / 60));
-  const smoothed: number[] = [];
-  for (let i = 0; i < n; i++) {
-    let sum = 0;
-    for (let j = -smoothWindow; j <= smoothWindow; j++) sum += curvature[(i + j + n) % n];
-    smoothed.push(sum / (smoothWindow * 2 + 1));
-  }
-
-  const sorted = [...smoothed].sort((a, b) => a - b);
-  const threshold = sorted[Math.floor(n * 0.54)];
-
-  type Seg = { type: SegmentType; startIdx: number; endIdx: number; startFrac: number; endFrac: number };
-  const raw: Seg[] = [];
-  let curType: SegmentType = smoothed[0] > threshold ? "corner" : "straight";
-  let segStart = 0;
-  for (let i = 1; i < n; i++) {
-    const t: SegmentType = smoothed[i] > threshold ? "corner" : "straight";
-    if (t !== curType) {
-      raw.push({ type: curType, startFrac: segStart / n, endFrac: i / n, startIdx: segStart, endIdx: i });
-      curType = t;
-      segStart = i;
-    }
-  }
-  raw.push({ type: curType, startFrac: segStart / n, endFrac: 1, startIdx: segStart, endIdx: n - 1 });
-
-  const pass1: Seg[] = [];
-  for (const seg of raw) {
-    if (seg.endFrac - seg.startFrac < 0.015 && pass1.length > 0) {
-      pass1[pass1.length - 1].endFrac = seg.endFrac;
-      pass1[pass1.length - 1].endIdx = seg.endIdx;
-    } else {
-      pass1.push({ ...seg });
-    }
-  }
-
-  const merged: Seg[] = [];
-  for (const seg of pass1) {
-    if (merged.length > 0 && merged[merged.length - 1].type === seg.type) {
-      merged[merged.length - 1].endFrac = seg.endFrac;
-      merged[merged.length - 1].endIdx = seg.endIdx;
-    } else {
-      merged.push({ ...seg });
-    }
-  }
-
-  let cornerNum = 1;
-  let straightNum = 1;
-  const segments: DetectedSegment[] = merged.map((seg) => {
-    let direction: "left" | "right" | null = null;
-    let name: string;
-    if (seg.type === "corner") {
-      let sumCurv = 0;
-      for (let i = seg.startIdx; i <= Math.min(seg.endIdx, n - 1); i++) sumCurv += signedCurvature[i];
-      direction = sumCurv > 0 ? "right" : "left";
-      name = `T${cornerNum++} ${direction === "left" ? "L" : "R"}`;
-    } else {
-      name = `S${straightNum++}`;
-    }
-    return {
-      ...seg,
-      name,
-      direction,
-      distStart: dists[seg.startIdx],
-      distEnd: seg.endIdx < n ? dists[seg.endIdx] : totalDist,
-    };
-  });
-
-  return { segments, totalDist };
-}
-
-/**
- * Coarse segmentation: identify true straights and group everything else
- * into "section" segments (each section can contain many corners).
+ * Curvature-based segmentation: identify true straights and group everything
+ * else into "section" segments (each section can contain many corners). Tuned
+ * against FM/AC Evo Nordschleife, Brands Hatch GP, and short circuits.
  *
- * Definition of a straight: a continuous run where smoothed |κ| stays under
- * STRAIGHT_KAPPA for at least MIN_STRAIGHT_M meters. Anything between two
- * straights is one section, regardless of how many corners it contains.
- *
- * Direction is reported on sections as the sign of the dominant integrated
- * curvature, but most sections are mixed and will report `null`.
+ * - Straight = peak |κ| stays under STRAIGHT_IN over a 40 m window
+ * - Hysteresis on enter/exit of straight state to avoid flicker
+ * - Sign-change splits separate L/R complexes
+ * - Peak-split separates same-direction sections with deep valleys between apexes
+ * - Turning-budget split (~120°) splits technical sections short, leaves sweepers long
+ * - Cuts snap to local |κ| valleys so they land between corners, not on apexes
  */
-export function detectSegmentsV2(outline: OutlinePoint[]): SegmentDetectionResult {
+export function detectSegments(outline: OutlinePoint[]): SegmentDetectionResult {
   const n = outline.length;
   if (n < 20) return { segments: [], totalDist: 0 };
 
