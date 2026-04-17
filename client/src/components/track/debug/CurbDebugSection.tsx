@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useGameId } from "@/stores/game";
 import { client } from "@/lib/rpc";
-import type { TrackBoundaries, TrackCalibration, TrackCurb } from "../types";
+import type { TrackBoundaries, TrackCurb } from "../types";
 
 /**
  * CurbDebugSection — Curb data display with extract/recalibrate controls.
@@ -11,13 +11,11 @@ export function CurbDebugSection({
   curbs,
   setCurbs,
   setBoundaries,
-  setCalibration,
 }: {
   trackOrdinal: number;
   curbs: TrackCurb[] | null;
   setCurbs: (c: TrackCurb[] | null) => void;
   setBoundaries: (b: TrackBoundaries | null) => void;
-  setCalibration: (c: TrackCalibration | null) => void;
 }) {
   const gid = useGameId() ?? undefined;
   const [extracting, setExtracting] = useState(false);
@@ -33,16 +31,13 @@ export function CurbDebugSection({
         const data = await res.json();
         setResult(data);
 
-        // Refresh curb data, boundaries, and calibration
-        const calRes = await client.api["track-calibration"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) } }).catch(() => null);
-        const [newCurbs, newBoundaries, newCal] = await Promise.all([
+        // Refresh curb data and boundaries
+        const [newCurbs, newBoundaries] = await Promise.all([
           client.api["track-curbs"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } }).then((r) => r.ok ? r.json() as unknown as TrackCurb[] : null).catch(() => null),
           client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } }).then((r) => r.ok ? r.json() as unknown as TrackBoundaries : null).catch(() => null),
-          calRes?.ok ? calRes.json() : null,
         ]);
         setCurbs(newCurbs);
         setBoundaries(newBoundaries);
-        setCalibration(newCal);
       }
     } catch (err) {
       console.error("Curb extraction failed:", err);

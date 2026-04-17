@@ -1,9 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useGameId } from "@/stores/game";
 import { client } from "@/lib/rpc";
-import { formatLapTime } from "@/lib/format";
 import { CurbDebugSection } from "./CurbDebugSection";
-import type { Point, TrackBoundaries, TrackCalibration, TrackCurb, TrackSectors } from "../types";
+import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../types";
 
 /**
  * TrackDebugPanel — Full-page debug visualization for track boundary data.
@@ -21,16 +20,12 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
   const [boundaries, setBoundaries] = useState<TrackBoundaries | null>(null);
   const [curbs, setCurbs] = useState<TrackCurb[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [calibration, setCalibration] = useState<TrackCalibration | null>(null);
-  const [trackLaps, setTrackLaps] = useState<{ id: number; lapTime: number; lapNumber: number }[]>([]);
-  const [selectedLapId, setSelectedLapId] = useState<number | null>(null);
-  const [calibrating, setCalibrating] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, z: 0 });
   const zoomRef = useRef(1);
   const panRef = useRef({ x: 0, z: 0 });
-  zoomRef.current = zoom;
-  panRef.current = pan;
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => { panRef.current = pan; }, [pan]);
   const dragging = useRef<{ startX: number; startY: number; startPanX: number; startPanZ: number } | null>(null);
 
   useEffect(() => {
@@ -39,17 +34,12 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
     Promise.all([
       client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } }).then((r) => r.ok ? r.json() as unknown as TrackBoundaries : null).catch(() => null),
       client.api["track-curbs"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } }).then((r) => r.ok ? r.json() as unknown as TrackCurb[] : null).catch(() => null),
-      client.api["track-calibration"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) } }).then(r => r.ok ? r.json() as unknown as TrackCalibration : null).catch(() => null),
-      client.api.laps.$get({ query: { gameId: gid ?? undefined } }).then((r) => r.json() as unknown as { trackOrdinal: number; lapTime: number; id: number; lapNumber: number }[]).then((laps) => laps.filter(l => l.trackOrdinal === trackOrdinal && l.lapTime > 0)),
-    ]).then(([b, c, cal, laps]) => {
+    ]).then(([b, c]) => {
       setBoundaries(b);
       setCurbs(c);
-      setCalibration(cal);
-      setTrackLaps(laps);
-      if (laps.length > 0 && !selectedLapId) setSelectedLapId(laps[0].id);
       setLoading(false);
     });
-  }, [trackOrdinal]);
+  }, [trackOrdinal, gid]);
 
   // Scroll-to-zoom (cursor-centered)
   useEffect(() => {
@@ -130,45 +120,62 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
     }
 
     // Draw boundary fill (hidden when editing segments/sectors)
-    if (!editingSegments && !editingSectors && boundaries && boundaries.leftEdge.length > 2 && boundaries.rightEdge.length > 2) {
+    const leftEdge = boundaries?.leftEdge;
+    const rightEdge = boundaries?.rightEdge;
+    if (!editingSegments && !editingSectors && leftEdge && rightEdge && leftEdge.length > 2 && rightEdge.length > 2) {
       ctx.beginPath();
-      const [lx0, ly0] = toCanvas(boundaries.leftEdge[0].x, boundaries.leftEdge[0].z);
+      const [lx0, ly0] = toCanvas(leftEdge[0].x, leftEdge[0].z);
       ctx.moveTo(lx0, ly0);
-      for (let i = 1; i < boundaries.leftEdge.length; i++) {
-        const [lx, ly] = toCanvas(boundaries.leftEdge[i].x, boundaries.leftEdge[i].z);
+      for (let i = 1; i < leftEdge.length; i++) {
+        const [lx, ly] = toCanvas(leftEdge[i].x, leftEdge[i].z);
         ctx.lineTo(lx, ly);
       }
-      for (let i = boundaries.rightEdge.length - 1; i >= 0; i--) {
-        const [rx, ry] = toCanvas(boundaries.rightEdge[i].x, boundaries.rightEdge[i].z);
+      for (let i = rightEdge.length - 1; i >= 0; i--) {
+        const [rx, ry] = toCanvas(rightEdge[i].x, rightEdge[i].z);
         ctx.lineTo(rx, ry);
       }
       ctx.closePath();
       ctx.fillStyle = "rgba(51, 65, 85, 0.3)";
       ctx.fill();
 
-      // Left edge line
-      ctx.beginPath();
-      ctx.moveTo(lx0, ly0);
-      for (let i = 1; i < boundaries.leftEdge.length; i++) {
-        const [lx, ly] = toCanvas(boundaries.leftEdge[i].x, boundaries.leftEdge[i].z);
-        ctx.lineTo(lx, ly);
-      }
-      ctx.strokeStyle = "#ef4444";
-      ctx.lineWidth = 1.5;
-      ctx.globalAlpha = 0.7;
-      ctx.stroke();
-
-      // Right edge line
-      ctx.beginPath();
-      const [rx0, ry0] = toCanvas(boundaries.rightEdge[0].x, boundaries.rightEdge[0].z);
-      ctx.moveTo(rx0, ry0);
-      for (let i = 1; i < boundaries.rightEdge.length; i++) {
-        const [rx, ry] = toCanvas(boundaries.rightEdge[i].x, boundaries.rightEdge[i].z);
-        ctx.lineTo(rx, ry);
-      }
-      ctx.strokeStyle = "#3b82f6";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+      // Edge lines — color each edge span by the segment it belongs to.
+      const SEG_COLORS = ["#f87171", "#60a5fa", "#34d399", "#fbbf24", "#a78bfa", "#f472b6", "#2dd4bf", "#fb923c"];
+      const segList = (overlayMode === "segments" && displaySectors?.segments.length) ? displaySectors.segments : null;
+      const drawEdge = (edge: Point[]) => {
+        if (!segList) {
+          ctx.beginPath();
+          const [ex0, ey0] = toCanvas(edge[0].x, edge[0].z);
+          ctx.moveTo(ex0, ey0);
+          for (let i = 1; i < edge.length; i++) {
+            const [ex, ey] = toCanvas(edge[i].x, edge[i].z);
+            ctx.lineTo(ex, ey);
+          }
+          ctx.strokeStyle = "#64748b";
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          return;
+        }
+        const en = edge.length;
+        for (let s = 0; s < segList.length; s++) {
+          const seg = segList[s];
+          const startI = Math.max(0, Math.floor(seg.startFrac * en));
+          const endI = Math.min(en - 1, Math.ceil(seg.endFrac * en));
+          if (startI >= endI) continue;
+          ctx.beginPath();
+          const [ex0, ey0] = toCanvas(edge[startI].x, edge[startI].z);
+          ctx.moveTo(ex0, ey0);
+          for (let i = startI + 1; i <= endI; i++) {
+            const [ex, ey] = toCanvas(edge[i].x, edge[i].z);
+            ctx.lineTo(ex, ey);
+          }
+          ctx.strokeStyle = SEG_COLORS[s % SEG_COLORS.length];
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      };
+      ctx.globalAlpha = 0.85;
+      drawEdge(leftEdge);
+      drawEdge(rightEdge);
       ctx.globalAlpha = 1;
 
       // Pit lane
@@ -190,44 +197,61 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
       }
     }
 
-    // Draw center-line (prefer boundary-derived geometric center over recorded driving line)
-    const centerPts = boundaries?.centerLine?.length ? boundaries.centerLine : outline;
-    ctx.beginPath();
-    ctx.strokeStyle = boundaries?.centerLine?.length ? "#e2e8f0" : "#94a3b8";
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+    // Geometric centerline: midpoint of left/right edges per index when
+    // boundaries are available. Falls back to the recorded API outline.
+    const geoCenter: Point[] = (() => {
+      if (!leftEdge?.length || !rightEdge?.length) return outline;
+      const m = Math.min(leftEdge.length, rightEdge.length);
+      const pts: Point[] = new Array(m);
+      for (let i = 0; i < m; i++) {
+        pts[i] = { x: (leftEdge[i].x + rightEdge[i].x) / 2, z: (leftEdge[i].z + rightEdge[i].z) / 2 };
+      }
+      return pts;
+    })();
+    const centerPts = geoCenter;
     const [sx, sy] = toCanvas(centerPts[0].x, centerPts[0].z);
-    ctx.moveTo(sx, sy);
-    for (let i = 1; i < centerPts.length; i++) {
-      const [px, py] = toCanvas(centerPts[i].x, centerPts[i].z);
-      ctx.lineTo(px, py);
+    // Skip the centerline draw when track edges are visible — the edges already
+    // define the corridor and the segment overlays sit on top.
+    if (!boundaries?.leftEdge?.length || !boundaries?.rightEdge?.length) {
+      ctx.beginPath();
+      ctx.strokeStyle = "#e2e8f0";
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.moveTo(sx, sy);
+      for (let i = 1; i < centerPts.length; i++) {
+        const [px, py] = toCanvas(centerPts[i].x, centerPts[i].z);
+        ctx.lineTo(px, py);
+      }
+      ctx.lineTo(sx, sy);
+      ctx.stroke();
     }
-    ctx.lineTo(sx, sy);
-    ctx.stroke();
 
-    // Draw segment or sector overlays
+    // Draw segment or sector overlays — use geoCenter for visual alignment.
     if (overlayMode === "segments" && displaySectors && displaySectors.segments.length > 0) {
-      const n = outline.length;
+      const n = centerPts.length;
       for (const seg of displaySectors.segments) {
         const start = Math.floor(seg.startFrac * n);
         const end = Math.min(Math.ceil(seg.endFrac * n), n - 1);
         if (start >= end) continue;
-        ctx.beginPath();
-        const [segX0, segY0] = toCanvas(outline[start].x, outline[start].z);
-        ctx.moveTo(segX0, segY0);
-        for (let i = start + 1; i <= end; i++) {
-          const [px, py] = toCanvas(outline[i].x, outline[i].z);
-          ctx.lineTo(px, py);
+        // Continuous colored stroke only while editing — otherwise ticks + labels alone.
+        if (editingSegments) {
+          ctx.beginPath();
+          const [segX0, segY0] = toCanvas(centerPts[start].x, centerPts[start].z);
+          ctx.moveTo(segX0, segY0);
+          for (let i = start + 1; i <= end; i++) {
+            const [px, py] = toCanvas(centerPts[i].x, centerPts[i].z);
+            ctx.lineTo(px, py);
+          }
+          ctx.strokeStyle = seg.type === "corner" ? "rgba(239,68,68,0.7)" : "rgba(59,130,246,0.6)";
+          ctx.lineWidth = 4;
+          ctx.globalAlpha = 0.8;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
         }
-        ctx.strokeStyle = seg.type === "corner" ? "rgba(239,68,68,0.7)" : "rgba(59,130,246,0.6)";
-        ctx.lineWidth = 4;
-        ctx.globalAlpha = 0.8;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
         // Label at midpoint
         const mid = Math.floor((start + end) / 2);
-        const [lx, ly] = toCanvas(outline[mid].x, outline[mid].z);
+        const [lx, ly] = toCanvas(centerPts[mid].x, centerPts[mid].z);
         const label = seg.name || (seg.type === "corner" ? "T" : "S");
         ctx.font = "bold 10px monospace";
         ctx.textAlign = "center";
@@ -246,9 +270,9 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
         const idx = Math.floor(seg.startFrac * n);
         const a = (idx - 1 + n) % n;
         const b = (idx + 1) % n;
-        const [tx, ty] = toCanvas(outline[idx].x, outline[idx].z);
-        const [ax, ay] = toCanvas(outline[a].x, outline[a].z);
-        const [bx, by] = toCanvas(outline[b].x, outline[b].z);
+        const [tx, ty] = toCanvas(centerPts[idx].x, centerPts[idx].z);
+        const [ax, ay] = toCanvas(centerPts[a].x, centerPts[a].z);
+        const [bx, by] = toCanvas(centerPts[b].x, centerPts[b].z);
         const dx = bx - ax;
         const dy = by - ay;
         const len = Math.hypot(dx, dy) || 1;
@@ -263,7 +287,7 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
       ctx.setLineDash([]);
       ctx.lineWidth = 2.5;
     } else if (overlayMode === "sectors" && sectorBounds) {
-      const n = outline.length;
+      const n = centerPts.length;
       const s1 = Math.floor(sectorBounds.s1End * n);
       const s2 = Math.floor(sectorBounds.s2End * n);
       const sectorDefs = [
@@ -274,10 +298,10 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
       for (const { from, to, color } of sectorDefs) {
         if (from >= to) continue;
         ctx.beginPath();
-        const [sx0, sy0] = toCanvas(outline[from].x, outline[from].z);
+        const [sx0, sy0] = toCanvas(centerPts[from].x, centerPts[from].z);
         ctx.moveTo(sx0, sy0);
         for (let i = from + 1; i <= to; i++) {
-          const [px, py] = toCanvas(outline[i].x, outline[i].z);
+          const [px, py] = toCanvas(centerPts[i].x, centerPts[i].z);
           ctx.lineTo(px, py);
         }
         ctx.strokeStyle = color;
@@ -287,23 +311,6 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
         ctx.globalAlpha = 1;
       }
       ctx.lineWidth = 2.5;
-    }
-
-    // Also draw the recorded outline faintly for comparison when boundary center is used
-    if (boundaries?.centerLine?.length && outline) {
-      ctx.beginPath();
-      ctx.strokeStyle = "#475569";
-      ctx.lineWidth = 1;
-      ctx.globalAlpha = 0.4;
-      const [ox, oy] = toCanvas(outline[0].x, outline[0].z);
-      ctx.moveTo(ox, oy);
-      for (let i = 1; i < outline.length; i++) {
-        const [px, py] = toCanvas(outline[i].x, outline[i].z);
-        ctx.lineTo(px, py);
-      }
-      ctx.lineTo(ox, oy);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
     }
 
     // Draw curbs as dots
@@ -424,63 +431,6 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
         </div>
 
         <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
-          <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-2">Calibration</div>
-          <div className="space-y-1 text-app-body">
-            <div className="flex justify-between">
-              <span className="text-app-text-muted">Status</span>
-              <span className={`font-mono ${calibration?.calibrated ? "text-green-400" : "text-amber-400"}`}>
-                {calibration?.calibrated ? "Calibrated" : "Not calibrated"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-app-text-muted">Points collected</span>
-              <span className="font-mono text-app-text">{calibration?.pointsCollected ?? 0}</span>
-            </div>
-          </div>
-
-          {trackLaps.length > 0 && (
-            <div className="mt-2 space-y-2">
-              <select
-                value={selectedLapId ?? ""}
-                onChange={e => setSelectedLapId(Number(e.target.value))}
-                className="w-full px-2 py-1 text-xs rounded border border-app-border bg-app-bg text-app-text font-mono"
-              >
-                {trackLaps.map(l => (
-                  <option key={l.id} value={l.id}>
-                    Lap {l.lapNumber} — {formatLapTime(l.lapTime)}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={async () => {
-                  if (!selectedLapId) return;
-                  setCalibrating(true);
-                  try {
-                    const res = await client.api["track-calibration"][":ordinal"]["from-lap"].$post({
-                      param: { ordinal: String(trackOrdinal) },
-                      query: { gameId: gid ?? undefined },
-                      json: { lapId: selectedLapId },
-                    } as never);
-                    if (res.ok) {
-                      const cal = await res.json() as unknown as TrackCalibration;
-                      setCalibration(cal);
-                    }
-                  } catch (err) {
-                    console.error("Calibration failed:", err);
-                  } finally {
-                    setCalibrating(false);
-                  }
-                }}
-                disabled={calibrating || !selectedLapId}
-                className="w-full px-2 py-1.5 text-app-label uppercase tracking-wider font-semibold rounded border transition-colors bg-blue-900/40 border-blue-700/50 text-blue-400 hover:bg-blue-800/50 disabled:opacity-50"
-              >
-                {calibrating ? "Calibrating..." : "Calibrate from Lap"}
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-2">Boundaries</div>
           <div className="space-y-1 text-app-body">
             <div className="flex justify-between">
@@ -514,7 +464,7 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
           </div>
         </div>
 
-        <CurbDebugSection trackOrdinal={trackOrdinal} curbs={curbs} setCurbs={setCurbs} setBoundaries={setBoundaries} setCalibration={setCalibration} />
+        <CurbDebugSection trackOrdinal={trackOrdinal} curbs={curbs} setCurbs={setCurbs} setBoundaries={setBoundaries} />
       </div>
     </div>
   );

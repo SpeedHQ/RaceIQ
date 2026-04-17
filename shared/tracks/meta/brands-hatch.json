@@ -3,5 +3,142 @@
   "sectors": {
     "s1End": 0.32,
     "s2End": 0.67
+  },
+  "games": {
+    "acc": {
+      "sectors": {
+        "s1End": 0.353,
+        "s2End": 0.67
+      },
+      "segments": [
+        {
+          "type": "straight",
+          "startIdx": 0,
+          "endIdx": 0,
+          "startFrac": 0,
+          "endFrac": 0.038,
+          "distStart": 0,
+          "distEnd": 0,
+          "name": "",
+          "direction": null
+        },
+        {
+          "type": "corner",
+          "name": "1",
+          "startFrac": 0.038,
+          "endFrac": 0.128,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "startIdx": 0,
+          "endIdx": 0,
+          "startFrac": 0.128,
+          "endFrac": 0.1866151866151866,
+          "distStart": 0,
+          "distEnd": 0,
+          "name": "2",
+          "direction": null
+        },
+        {
+          "type": "corner",
+          "startIdx": 0,
+          "endIdx": 0,
+          "startFrac": 0.1866151866151866,
+          "endFrac": 0.27927927927927926,
+          "distStart": 0,
+          "distEnd": 0,
+          "name": "3",
+          "direction": null
+        },
+        {
+          "type": "corner",
+          "startIdx": 0,
+          "endIdx": 0,
+          "startFrac": 0.27927927927927926,
+          "endFrac": 0.35263835263835264,
+          "distStart": 0,
+          "distEnd": 0,
+          "name": "4",
+          "direction": null
+        },
+        {
+          "type": "straight",
+          "startIdx": 0,
+          "endIdx": 0,
+          "startFrac": 0.35263835263835264,
+          "endFrac": 0.4697554697554698,
+          "distStart": 0,
+          "distEnd": 0,
+          "name": "",
+          "direction": null
+        },
+        {
+          "type": "corner",
+          "startIdx": 0,
+          "endIdx": 0,
+          "startFrac": 0.4697554697554698,
+          "endFrac": 0.5572715572715573,
+          "distStart": 0,
+          "distEnd": 0,
+          "name": "6",
+          "direction": null
+        },
+        {
+          "type": "corner",
+          "startIdx": 0,
+          "endIdx": 0,
+          "startFrac": 0.5572715572715573,
+          "endFrac": 0.67,
+          "distStart": 0,
+          "distEnd": 0,
+          "name": "7",
+          "direction": null
+        },
+        {
+          "type": "corner",
+          "name": "8",
+          "startFrac": 0.67,
+          "endFrac": 0.7374517374517374,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "startIdx": 0,
+          "endIdx": 0,
+          "startFrac": 0.7374517374517374,
+          "endFrac": 0.8005148005148005,
+          "distStart": 0,
+          "distEnd": 0,
+          "name": "9",
+          "direction": null
+        },
+        {
+          "type": "corner",
+          "startIdx": 0,
+          "endIdx": 0,
+          "startFrac": 0.8005148005148005,
+          "endFrac": 0.941,
+          "distStart": 0,
+          "distEnd": 0,
+          "name": "10",
+          "direction": null
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.941,
+          "endFrac": 0.9987129987129987,
+          "startIdx": 0,
+          "endIdx": 0
+        }
+      ]
+    }
   }
 }

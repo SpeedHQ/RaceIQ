@@ -64,6 +64,19 @@ const TrackOrdinalParamSchema = z.object({
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+/**
+ * Pull a per-game override (segments, sectors, …) from a shared track meta blob.
+ * AC Evo and ACC share the same Kunos track geometry, so any ACC override is
+ * reused for AC Evo when AC Evo doesn't have its own.
+ */
+function gameMetaOverride(sharedMeta: unknown, gameId: string | undefined, field: "sectors" | "segments"): any {
+  const games = (sharedMeta as { games?: Record<string, Record<string, unknown>> } | null)?.games;
+  if (!games) return null;
+  if (gameId && games[gameId]?.[field] != null) return games[gameId][field];
+  if (gameId === "ac-evo" && games.acc?.[field] != null) return games.acc[field];
+  return null;
+}
+
 /** Extract gameId, throwing if missing. Use for endpoints that require game context. */
 function requireGameId(c: { req: { query: (key: string) => string | undefined } }): GameId {
   const raw = c.req.query("gameId");
@@ -248,8 +261,7 @@ export const trackRoutes = new Hono()
 
       // Priority: game-specific meta -> shared meta -> bundled code
       const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-      const gameSectors = gameId ? (sharedMeta as any)?.games?.[gameId]?.sectors : null;
-      const sectors = gameSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(ordinal);
+      const sectors = gameMetaOverride(sharedMeta, gameId, "sectors") ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(ordinal);
 
       // Compute track length from outline
       let trackLength = 0;
@@ -455,9 +467,9 @@ export const trackRoutes = new Hono()
       const sharedName = getSharedTrackName(ordinal, gameId);
 
       const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-      const metaSegments = gameId
-        ? (sharedMeta as any)?.games?.[gameId]?.segments ?? null
-        : sharedMeta?.segments ?? null;
+      const metaSegments = (gameId
+        ? gameMetaOverride(sharedMeta, gameId, "segments")
+        : (sharedMeta?.segments as unknown)) ?? null;
       if (metaSegments && metaSegments.length > 0) {
         return c.json({
           segments: metaSegments.map((s: any) => ({
@@ -762,8 +774,7 @@ export const trackRoutes = new Hono()
       // Get sector boundaries (same priority as /api/track-sector-boundaries)
       const sharedName = getSharedTrackName(ordinal, gameId);
       const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-      const gameSectors = gameId ? (sharedMeta as any)?.games?.[gameId]?.sectors : null;
-      const rawSectors = gameSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(ordinal);
+      const rawSectors = gameMetaOverride(sharedMeta, gameId, "sectors") ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(ordinal);
       const sectors = { s1End: rawSectors?.s1End ?? 1 / 3, s2End: rawSectors?.s2End ?? 2 / 3 };
 
       const result: Record<number, { s1: number; s2: number; s3: number }> = {};

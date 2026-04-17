@@ -710,7 +710,13 @@ function loadExtractedBoundary(ordinal: number, gameId: string): TrackBoundary |
   const userExtracted = resolve(userGameDir(gameId), "extracted", `boundaries-${ordinal}.json`);
   const trackName = getBundledTrackName(gameId, ordinal);
   const bundledFile = trackName ? resolve(bundledGameDir(gameId), `${trackName}-boundaries.json`) : null;
-  const content = readDataFile(userExtracted) ?? (bundledFile ? readDataFile(bundledFile) : null);
+  // AC Evo and ACC share the same Kunos coord space and the same track geometry
+  // for common layouts. Reuse ACC's bundled boundary files for AC Evo when we
+  // don't have an AC Evo-specific file.
+  const accFallback = gameId === "ac-evo" && trackName ? resolve(bundledGameDir("acc"), `${trackName}-boundaries.json`) : null;
+  const content = readDataFile(userExtracted)
+    ?? (bundledFile ? readDataFile(bundledFile) : null)
+    ?? (accFallback ? readDataFile(accFallback) : null);
   if (!content) return null;
   try {
     const data = JSON.parse(content);
@@ -720,8 +726,11 @@ function loadExtractedBoundary(ordinal: number, gameId: string): TrackBoundary |
     let pit: Point[] | null = data.pitLane ?? null;
 
     // If alignment was poor, transform boundaries to match telemetry outline.
-    // ACC coordinates are pre-aligned (same space as telemetry), skip.
-    if (!data.aligned && data.coordSystem !== "acc") {
+    // Kunos-based shared-memory games (ACC, AC Evo) are already in the same
+    // coord space as telemetry — skip the recorded-lap alignment to avoid
+    // introducing wobble from noisy lap samples.
+    const isPreAligned = data.aligned || data.coordSystem === "acc" || gameId === "acc" || gameId === "ac-evo";
+    if (!isPreAligned) {
       const extContent = readUserOrBundled(gameId, `extracted/recorded-${ordinal}.csv`);
       const caName = computedAverageFileName(gameId, ordinal);
       const telContent = readDataFile(resolve(userGameDir(gameId), `${caName}.csv`));
