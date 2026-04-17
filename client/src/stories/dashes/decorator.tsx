@@ -15,6 +15,7 @@ import type { DisplayPacket } from "../../lib/convert-packet";
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
+queryClient.setQueryData(["laps", "fm-2023"], fakeSessionLaps);
 
 export interface DashStoryOverrides {
   raw?: Partial<TelemetryPacket>;

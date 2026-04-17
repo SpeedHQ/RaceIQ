@@ -6,7 +6,7 @@ interface DashEntry {
   slug: string;
   title: string;
   description: string;
-  href: "/dash/combo-1";
+  href: "/dash/combo-1" | "/dash/combo-2";
 }
 
 const DASHES: DashEntry[] = [
@@ -16,6 +16,13 @@ const DASHES: DashEntry[] = [
     title: "Combo Dash 1",
     description:
       "Rev bar + gear/speed/lap tiles, fuel & tire laps-remaining, lap + sector readout, and a live tire grid. Landscape tablet-friendly.",
+  },
+  {
+    slug: "combo-2",
+    href: "/dash/combo-2",
+    title: "Combo Dash 2 — Lap Times & Pace",
+    description:
+      "Lap timing summary across the top, big lap-time trend chart with optimum and average pace lines, plus live sector splits and recent laps on the side.",
   },
 ];
 

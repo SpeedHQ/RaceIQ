@@ -7,6 +7,7 @@ import {
 } from "../stories/fakeData";
 import { useTelemetryStore } from "../stores/telemetry";
 import { useGameStore } from "../stores/game";
+import { queryClient } from "../lib/queryClient";
 import type { TelemetryPacket } from "@shared/types";
 
 const PREVIEW_RAW_PACKET = {
@@ -55,6 +56,10 @@ export function seedDashPreviewState() {
     serverStatus: PREVIEW_SERVER_STATUS,
   });
   useGameStore.setState({ gameId: "fm-2023" });
+
+  // Seed the laps query so components backed by useLaps() (LapTimeChart,
+  // RecordedLaps) have data to render in preview iframes.
+  queryClient.setQueryData(["laps", "fm-2023"], fakeSessionLaps);
 }
 
 /** Read `?preview=1` from the current URL (SSR-safe). */
