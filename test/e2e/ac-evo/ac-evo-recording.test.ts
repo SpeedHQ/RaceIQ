@@ -17,6 +17,7 @@ import type { CapturedLap } from "../../../server/pipeline-adapters";
 import { readAcEvoPackets, parseDump, ensureInit } from "../../helpers/parse-dump";
 import { generateRecordingVisualizations } from "../../helpers/lap-viz";
 import { assertValidLapHasSectors } from "../../helpers/lap-assertions";
+import { getTrackSectorsByOrdinal } from "../../../shared/track-data";
 
 const RECORDINGS_DIR = "test/artifacts/laps";
 
@@ -187,6 +188,44 @@ describe("AC Evo v0.6 recording", () => {
 
       // Stored lap time must match game's authoritative value exactly (ms precision)
       expect(storedMs).toBe(gameLastLapMs);
+    }
+  });
+
+  test("sector times align with track's s1/s2 fractions and sum exactly", () => {
+    if (!recording) return;
+    const validLaps = laps.filter((l) => l.isValid && l.sectors);
+    expect(validLaps.length).toBeGreaterThanOrEqual(1);
+
+    for (const l of validLaps) {
+      const s = l.sectors!;
+
+      // Strict sum: stored lap time and sector sum both derive from the same
+      // packet timestamps, so they must match at ms precision.
+      const sumMs = Math.round((s.s1 + s.s2 + s.s3) * 1000);
+      const lapMs = Math.round(l.lapTime * 1000);
+      expect(sumMs).toBe(lapMs);
+
+      // Compare measured time-fractions against the track's distance-fractions.
+      // Time and distance diverge due to speed profile (slow corners inflate
+      // time in one sector), so allow a wide ±0.12 absolute tolerance. This
+      // still catches a collapsed/miscomputed boundary (e.g. s1 taking 80% of
+      // lap time when the split is at 31% of distance).
+      const trackOrdinal = l.packets[0].TrackOrdinal ?? 0;
+      const meta = getTrackSectorsByOrdinal(trackOrdinal);
+      const s1Frac = s.s1 / l.lapTime;
+      const s12Frac = (s.s1 + s.s2) / l.lapTime;
+      expect(Math.abs(s1Frac - meta.s1End)).toBeLessThan(0.12);
+      expect(Math.abs(s12Frac - meta.s2End)).toBeLessThan(0.12);
+    }
+
+    // Consistency across valid laps: same sector should not vary by more than
+    // 10s (catches a bad boundary/reset on one lap).
+    if (validLaps.length >= 2) {
+      for (const key of ["s1", "s2", "s3"] as const) {
+        const values = validLaps.map((l) => l.sectors![key]);
+        const spread = Math.max(...values) - Math.min(...values);
+        expect(spread).toBeLessThan(10);
+      }
     }
   });
 
