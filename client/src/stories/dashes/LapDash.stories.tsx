@@ -13,10 +13,7 @@ function wrap(overrides?: DashStoryOverrides) {
 const meta: Meta<typeof LapDash> = {
   title: "Dashes/LapDash",
   component: LapDash,
-  parameters: {
-    layout: "fullscreen",
-    viewport: { defaultViewport: "iphone14" },
-  },
+  parameters: { layout: "fullscreen" },
 };
 
 export default meta;
@@ -64,5 +61,5 @@ export const NoBestYet: Story = {
 
 export const Tablet: Story = {
   render: () => wrap(),
-  parameters: { viewport: { defaultViewport: "ipadMini" } },
+  globals: { viewport: { value: "ipadMini", isRotated: false } },
 };

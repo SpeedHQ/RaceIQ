@@ -13,10 +13,7 @@ function wrap(overrides?: DashStoryOverrides) {
 const meta: Meta<typeof SpeedDash> = {
   title: "Dashes/SpeedDash",
   component: SpeedDash,
-  parameters: {
-    layout: "fullscreen",
-    viewport: { defaultViewport: "iphone14" },
-  },
+  parameters: { layout: "fullscreen" },
 };
 
 export default meta;
@@ -43,5 +40,5 @@ export const TopSpeed: Story = {
 
 export const Tablet: Story = {
   render: () => wrap({ display: { DisplaySpeed: 260 }, unitSystem: "metric" }),
-  parameters: { viewport: { defaultViewport: "ipadLandscape" } },
+  globals: { viewport: { value: "ipadLandscape", isRotated: false } },
 };

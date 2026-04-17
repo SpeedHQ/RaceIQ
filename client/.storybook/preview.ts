@@ -26,7 +26,7 @@ const preview: Preview = {
       ],
     },
     viewport: {
-      viewports: {
+      options: {
         "1080p": {
           name: "1920×1080 (16:9)",
           styles: { width: "1920px", height: "1080px" },
@@ -53,7 +53,6 @@ const preview: Preview = {
           type: "tablet",
         },
       },
-      defaultViewport: "1080p",
     },
   },
 };

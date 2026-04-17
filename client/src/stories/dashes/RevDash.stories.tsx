@@ -13,10 +13,7 @@ function wrap(overrides?: DashStoryOverrides) {
 const meta: Meta<typeof RevDash> = {
   title: "Dashes/RevDash",
   component: RevDash,
-  parameters: {
-    layout: "fullscreen",
-    viewport: { defaultViewport: "iphone14" },
-  },
+  parameters: { layout: "fullscreen" },
 };
 
 export default meta;
@@ -47,5 +44,5 @@ export const Reverse: Story = {
 
 export const Tablet: Story = {
   render: () => wrap(),
-  parameters: { viewport: { defaultViewport: "ipadLandscape" } },
+  globals: { viewport: { value: "ipadLandscape", isRotated: false } },
 };

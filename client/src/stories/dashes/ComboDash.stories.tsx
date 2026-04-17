@@ -13,17 +13,14 @@ function wrap(overrides?: DashStoryOverrides) {
 const meta: Meta<typeof ComboDash> = {
   title: "Dashes/ComboDash",
   component: ComboDash,
-  parameters: {
-    layout: "fullscreen",
-    viewport: { defaultViewport: "ipadLandscape" },
-  },
+  parameters: { layout: "fullscreen" },
 };
 
 export default meta;
 type Story = StoryObj<typeof ComboDash>;
 
 export const Default: Story = {
-  render: () => wrap(),
+  render: () => wrap({ totalLaps: 57 }),
 };
 
 export const RedLine: Story = {
@@ -48,10 +45,10 @@ export const UnderBest: Story = {
 
 export const Phone: Story = {
   render: () => wrap(),
-  parameters: { viewport: { defaultViewport: "iphone14Landscape" } },
+  globals: { viewport: { value: "iphone14Landscape", isRotated: false } },
 };
 
 export const TabletPortrait: Story = {
   render: () => wrap(),
-  parameters: { viewport: { defaultViewport: "ipadMini" } },
+  globals: { viewport: { value: "ipadMini", isRotated: false } },
 };
