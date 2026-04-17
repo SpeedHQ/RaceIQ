@@ -137,6 +137,8 @@ export class AcEvoSharedMemoryReader {
 
   private _onLost(): void {
     console.log("[AC Evo] AC Evo process lost, disconnecting...");
-    this._disconnect();
+    this._disconnect().catch((err) => {
+      console.error("[AC Evo] Disconnect failed:", err instanceof Error ? err.message : err);
+    });
   }
 }

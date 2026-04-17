@@ -10,6 +10,7 @@ graph TB
         FM[Forza Motorsport]
         F1[F1 2025]
         ACC[Assetto Corsa Competizione]
+        ACEVO[Assetto Corsa Evo]
     end
 
     subgraph Server["Server (Bun + Hono)"]
@@ -22,7 +23,7 @@ graph TB
         PitTrack[Pit Tracker]
         TrackCal[Track Calibration<br/>~10Hz outline refinement]
         WS[WebSocket Manager<br/>30Hz throttled broadcast]
-        API[Hono REST API<br/>11 route modules]
+        API[Hono REST API<br/>12 route modules]
         DB[(SQLite + Drizzle)]
         AI[AI Analysis<br/>Mastra agents + Claude API]
     end
@@ -39,6 +40,7 @@ graph TB
     FM -- "UDP :5300" --> UDP
     F1 -- "UDP :5300" --> UDP
     ACC -- "Shared Memory" --> SHM
+    ACEVO -- "Shared Memory" --> SHM
 
     UDP --> Parser
     SHM --> Parser
@@ -287,9 +289,19 @@ classDiagram
         Windows process detection
     }
 
+    class AcEvoAdapter {
+        id = "ac-evo"
+        coordSystem = "standard-xyz"
+        steeringCenter = 0
+        v0.6 shared memory (acevo_pmf_*)
+        Reuses ACC triplet pipeline
+        Tracks mapped to ACC outlines (X-flipped)
+    }
+
     ServerGameAdapter <|.. ForzaAdapter
     ServerGameAdapter <|.. F1Adapter
     ServerGameAdapter <|.. ACCAdapter
+    ServerGameAdapter <|.. AcEvoAdapter
 
     class SharedRegistry {
         -games: Map~GameId, GameAdapter~
@@ -484,6 +496,7 @@ graph TB
         FM23["/fm23 — Forza Motorsport"]
         F125["/f125 — F1 2025"]
         ACCRoute["/acc — ACC"]
+        ACEVORoute["/ac-evo — Assetto Corsa Evo"]
         Dev["/dev — Dev Tools"]
     end
 
@@ -516,11 +529,13 @@ graph TB
     Root --> FM23
     Root --> F125
     Root --> ACCRoute
+    Root --> ACEVORoute
     Root --> Dev
 
     FM23 --> GamePages
     F125 --> GamePages
     ACCRoute --> GamePages
+    ACEVORoute --> GamePages
 
     WSC --> TS
     RPC --> TQ
@@ -546,6 +561,7 @@ graph LR
         Settings[settings-routes.ts<br/>User preferences]
         ChatsR[chats-routes.ts<br/>AI chat threads]
         ACC[acc-routes.ts<br/>ACC setups, shared memory]
+        ACEVOR[ac-evo-routes.ts<br/>AC Evo cars, reader, debug]
         F125R[f125-routes.ts<br/>F1-specific APIs]
         Misc[misc-routes.ts<br/>Export, comparison, status]
         DevR[dev-routes.ts<br/>Debug endpoints, dev only]
@@ -583,7 +599,7 @@ sequenceDiagram
     Note over UDP: 64MB OS receive buffer
 
     opt Windows
-        Main->>SHM: Start ACC shared memory reader
+        Main->>SHM: Start ACC + AC Evo shared memory readers
         Main->>Tray: Initialize system tray
     end
 
@@ -631,28 +647,52 @@ flowchart LR
     D --> G[AI inputs analysis<br/>cached in compareAnalyses]
 ```
 
-## ACC Adapter Detail
+## ACC + AC Evo Adapter Detail
+
+Both games use shared memory on Windows and the same underlying infrastructure.
+AC Evo reuses ACC's `BufferedAccMemoryReader`, `TripletAssembler`, and
+`TripletPipeline` — only the memory-map names, struct layouts, process name,
+and parser differ.
 
 ```mermaid
 graph TB
-    subgraph ACC["ACC Game Adapter (Windows)"]
-        Proc[Process Checker<br/>acc.exe detection]
-        SHM[Shared Memory Reader<br/>Physics + Graphics + Static]
-        Buf[Buffered Memory Reader]
-        Structs[Struct Definitions<br/>C memory layouts]
-        Trip[Triplet Pipeline<br/>Multi-packet assembly]
-        Asm[Triplet Assembler]
-        Parse[ACC Parser]
-        Rec[Recorder<br/>Bin file capture]
+    subgraph Shared["Shared Infra (server/games/acc)"]
+        Buf[BufferedAccMemoryReader]
+        Trip[TripletPipeline<br/>Multi-packet assembly]
+        Asm[TripletAssembler]
+    end
+
+    subgraph ACC["ACC Adapter (server/games/acc)"]
+        AccProc[Process Checker<br/>acc.exe detection]
+        AccSHM[Shared Memory<br/>Local\\acpmf_*]
+        AccStructs[ACC Struct Definitions]
+        AccParse[ACC Parser]
+        AccRec[ACC Recorder<br/>Bin file capture]
         Extract[Track Extractor<br/>Outline from telemetry]
     end
 
-    Proc --> SHM
-    SHM --> Buf
-    Buf --> Structs
-    Structs --> Trip
+    subgraph ACEVO["AC Evo Adapter (server/games/ac-evo)"]
+        EvoProc[Process Checker<br/>AssettoCorsaEVO.exe]
+        EvoSHM[Shared Memory<br/>Local\\acevo_pmf_*]
+        EvoStructs[v0.6 Struct Definitions]
+        EvoParse[AC Evo Parser<br/>CSV-backed car/track resolution]
+        EvoRec[AC Evo Recorder<br/>.bin.gz]
+    end
+
+    AccProc --> AccSHM
+    AccSHM --> Buf
+    EvoProc --> EvoSHM
+    EvoSHM --> Buf
+
+    Buf --> Trip
     Trip --> Asm
-    Asm --> Parse
-    Parse --> Rec
-    SHM --> Extract
+    Asm --> AccParse
+    Asm --> EvoParse
+
+    AccStructs -. "layout" .- AccParse
+    EvoStructs -. "layout" .- EvoParse
+
+    AccParse --> AccRec
+    EvoParse --> EvoRec
+    AccSHM --> Extract
 ```
