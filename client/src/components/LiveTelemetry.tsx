@@ -5,6 +5,8 @@ import { SteeringWheel } from "./SteeringWheel";
 import { useUnits } from "../hooks/useUnits";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
+import { useTelemetryStore } from "../stores/telemetry";
+import { useSettings } from "../hooks/queries";
 
 import { GripHistory } from "./telemetry/GripHistory";
 import { PitEstimate } from "./telemetry/PitEstimate";
@@ -27,6 +29,8 @@ interface Props {
 
 export function LiveTelemetry({ packet, mode = "driver" }: Props) {
   const gameId = useGameId();
+  const pit = useTelemetryStore((s) => s.pit);
+  const { displaySettings } = useSettings();
   const [carName, setCarName] = useState<string>("");
   const lastCarOrdRef = useRef<number | null>(null);
 
@@ -130,7 +134,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Pit Window</h2>
           </div>
           <div className="p-3">
-            <PitEstimate packet={packet} />
+            <PitEstimate packet={packet} pit={pit} gameId={gameId} healthThresholds={displaySettings.tireHealthThresholds.values} />
           </div>
         </div>
 

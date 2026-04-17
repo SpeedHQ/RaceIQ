@@ -3,28 +3,25 @@ import { useEffect } from "react";
 import { ComboDash2 } from "../components/dashes/ComboDash2";
 import { useGameStore } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
+import { useLaps } from "../hooks/queries";
 import type { GameId } from "@shared/types";
-import { isPreviewMode, seedDashPreviewState } from "./dash-preview-state";
 
 function ComboDash2Route() {
   const setGameId = useGameStore((s) => s.setGameId);
+  const rawPacket = useTelemetryStore((s) => s.rawPacket);
+  const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
+  const { data: allLaps = [] } = useLaps();
   const detectedGameId = useTelemetryStore((s) => s.serverStatus?.detectedGame?.id) as
     | GameId
     | null
     | undefined;
 
-  const preview = isPreviewMode();
-
   useEffect(() => {
-    if (preview) {
-      seedDashPreviewState();
-      return;
-    }
     if (detectedGameId) setGameId(detectedGameId);
     return () => setGameId(null);
-  }, [detectedGameId, setGameId, preview]);
+  }, [detectedGameId, setGameId]);
 
-  return <ComboDash2 />;
+  return <ComboDash2 rawPacket={rawPacket} allLaps={allLaps} sessionLaps={sessionLaps} />;
 }
 
 export const Route = createFileRoute("/dash/combo-2")({

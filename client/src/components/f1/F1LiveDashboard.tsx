@@ -8,7 +8,7 @@ import { PitEstimate } from "../telemetry/PitEstimate";
 import { RecordedLaps } from "../RecordedLaps";
 import { NoDataView } from "../NoDataView";
 import { RaceInfo } from "../RaceInfo";
-import { useTrackName, useCarName } from "../../hooks/queries";
+import { useTrackName, useCarName, useLaps, useSettings } from "../../hooks/queries";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,6 +55,11 @@ function formatGap(gap: number): string {
 export function F1LiveDashboard() {
   const rawPacket = useTelemetryStore((s) => s.rawPacket);
   const packet = useTelemetryStore((s) => s.packet);
+  const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
+  const sectors = useTelemetryStore((s) => s.sectors);
+  const pit = useTelemetryStore((s) => s.pit);
+  const { data: allLaps = [] } = useLaps();
+  const { displaySettings } = useSettings();
   const hasF1Data = rawPacket?.gameId === "f1-2025" && rawPacket.f1;
   const f1 = hasF1Data ? rawPacket.f1! : null;
   const { data: trackName } = useTrackName(rawPacket?.TrackOrdinal);
@@ -108,7 +113,7 @@ export function F1LiveDashboard() {
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Pit Window</h2>
           </div>
           <div className="p-3">
-            <PitEstimate packet={rawPacket!} />
+            <PitEstimate packet={rawPacket!} pit={pit} gameId="f1-2025" healthThresholds={displaySettings.tireHealthThresholds.values} />
           </div>
         </div>
         <GridSection f1={f1} playerPosition={rawPacket!.RacePosition} />
@@ -116,10 +121,10 @@ export function F1LiveDashboard() {
 
       {/* Right column: Race info + Charts + Recorded Laps */}
       <div className="overflow-y-auto overflow-x-hidden flex flex-col">
-        <RaceInfo packet={packet!} trackName={trackName} carName={carName} totalLaps={f1.totalLaps} sessionType={f1.sessionType} showTrackMap={false} showSectors={true} />
-        <LapTimeChart packet={rawPacket!} />
+        <RaceInfo packet={packet!} sectors={sectors} trackName={trackName} carName={carName} totalLaps={f1.totalLaps} sessionType={f1.sessionType} showTrackMap={false} showSectors={true} />
+        <LapTimeChart packet={rawPacket!} allLaps={allLaps} />
         <div className="flex-1">
-          <RecordedLaps />
+          <RecordedLaps laps={sessionLaps} />
         </div>
       </div>
     </div>

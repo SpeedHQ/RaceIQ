@@ -1,19 +1,22 @@
-import type { TelemetryPacket } from "@shared/types";
-import { useSettings } from "@/hooks/queries";
-import { useGameId } from "@/stores/game";
-import { useTelemetryStore } from "@/stores/telemetry";
+import type { TelemetryPacket, LivePitData, GameId } from "@shared/types";
 import { tireHealthTextClass, tireHealthBgClass } from "@/lib/vehicle-dynamics";
 import { PitWindow } from "./PitWindow";
+
+interface PitEstimateProps {
+  packet: TelemetryPacket;
+  pit: LivePitData | null;
+  gameId: GameId | null;
+  /** Tire health thresholds (0–100 percentages) from display settings. */
+  healthThresholds: number[];
+}
 
 /**
  * PitEstimate — Displays server-computed fuel and tire estimates.
  * All computation happens server-side in PitTracker; this component just renders.
+ * Pure: caller supplies pit + gameId + healthThresholds.
  */
-export function PitEstimate({ packet }: { packet: TelemetryPacket }) {
-  const gameId = useGameId();
-  const { displaySettings } = useSettings();
-  const healthThresh = displaySettings.tireHealthThresholds.values;
-  const pit = useTelemetryStore((s) => s.pit);
+export function PitEstimate({ packet, pit, gameId, healthThresholds }: PitEstimateProps) {
+  const healthThresh = healthThresholds;
 
   // Forza: Fuel is 0..1 fraction → percentage. ACC/F1: Fuel is in litres/kg.
   const fuelIsLitres = gameId === "acc" || gameId === "f1-2025";
@@ -45,7 +48,7 @@ export function PitEstimate({ packet }: { packet: TelemetryPacket }) {
   return (
     <div>
       <div className="flex justify-end mb-3">
-        <PitWindow />
+        <PitWindow pit={pit} gameId={gameId} />
       </div>
       <div className="space-y-3">
         {/* Fuel row */}

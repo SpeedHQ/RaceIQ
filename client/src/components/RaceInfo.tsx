@@ -1,10 +1,12 @@
-import { useTelemetryStore } from "../stores/telemetry";
+import type { LiveSectorData } from "@shared/types";
+import type { DisplayPacket } from "../lib/convert-packet";
 import { LiveTrackMap } from "./LiveTrackMap";
 import { LapTimes } from "./telemetry/LapTimes";
 import { SectorTimes } from "./SectorTimes";
 
-export function RaceInfo({ packet, trackName, carName, totalLaps, sessionType, showTrackMap = true, showSectors = true }: {
-  packet: NonNullable<ReturnType<typeof useTelemetryStore.getState>["packet"]>;
+export function RaceInfo({ packet, sectors, trackName, carName, totalLaps, sessionType, showTrackMap = true, showSectors = true }: {
+  packet: DisplayPacket;
+  sectors: LiveSectorData | null;
   trackName: string | undefined;
   carName: string | undefined;
   totalLaps?: number;
@@ -12,7 +14,6 @@ export function RaceInfo({ packet, trackName, carName, totalLaps, sessionType, s
   showTrackMap?: boolean;
   showSectors?: boolean;
 }) {
-  const sectors = useTelemetryStore((s) => s.sectors);
   return (
     <div className="border-b border-app-border">
       <div className={showTrackMap ? "grid grid-cols-1 xl:grid-cols-[1fr_220px]" : ""}>
@@ -48,7 +49,7 @@ export function RaceInfo({ packet, trackName, carName, totalLaps, sessionType, s
             </div>
             <LapTimes packet={packet} sectors={sectors} />
             <div className="mt-3" />
-            {showSectors && <SectorTimes />}
+            {showSectors && <SectorTimes sectors={sectors} />}
           </div>
         </div>
 

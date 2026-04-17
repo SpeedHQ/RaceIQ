@@ -1,10 +1,12 @@
-import { useTelemetryStore } from "../../stores/telemetry";
+import type { DisplayPacket } from "../../lib/convert-packet";
 import { DashShell } from "./dash-shell";
 
-export function SpeedDash() {
-  const packet = useTelemetryStore((s) => s.packet);
-  const unitSystem = useTelemetryStore((s) => s.unitSystem);
+interface SpeedDashProps {
+  packet: DisplayPacket | null;
+  unitSystem: "metric" | "imperial";
+}
 
+export function SpeedDash({ packet, unitSystem }: SpeedDashProps) {
   const speed = packet?.DisplaySpeed ?? 0;
   const unit = unitSystem === "metric" ? "km/h" : "mph";
 

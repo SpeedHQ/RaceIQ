@@ -1,19 +1,18 @@
-import { useTelemetryStore } from "../../stores/telemetry";
+import type { LiveSectorData } from "@shared/types";
+import type { DisplayPacket } from "../../lib/convert-packet";
 import { RaceInfo } from "../RaceInfo";
-import { useCarName, useTrackName } from "../../hooks/queries";
 import { FitToViewport } from "./FitToViewport";
 
 const BASE_WIDTH = 640;
 
-export function LapDash() {
-  const packet = useTelemetryStore((s) => s.packet);
-  const serverStatus = useTelemetryStore((s) => s.serverStatus);
+interface LapDashProps {
+  packet: DisplayPacket | null;
+  sectors: LiveSectorData | null;
+  carName?: string;
+  trackName?: string;
+}
 
-  const carOrdinal = serverStatus?.currentSession?.carOrdinal ?? packet?.CarOrdinal;
-  const trackOrdinal = serverStatus?.currentSession?.trackOrdinal;
-  const { data: carName } = useCarName(carOrdinal);
-  const { data: trackName } = useTrackName(trackOrdinal);
-
+export function LapDash({ packet, sectors, carName, trackName }: LapDashProps) {
   return (
     <div className="fixed inset-0 overflow-hidden bg-app-bg text-app-text">
       {packet ? (
@@ -21,6 +20,7 @@ export function LapDash() {
           <div style={{ width: BASE_WIDTH }}>
             <RaceInfo
               packet={packet}
+              sectors={sectors}
               carName={carName}
               trackName={trackName}
               showTrackMap={false}

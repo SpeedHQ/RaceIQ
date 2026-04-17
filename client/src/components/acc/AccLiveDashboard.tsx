@@ -5,13 +5,18 @@ import { LapTimeChart } from "../LapTimeChart";
 import { PitEstimate } from "../telemetry/PitEstimate";
 import { RecordedLaps } from "../RecordedLaps";
 import { NoDataView } from "../NoDataView";
-import { useTrackName, useCarName, useTirePressureOptimal } from "../../hooks/queries";
+import { useTrackName, useCarName, useTirePressureOptimal, useLaps, useSettings } from "../../hooks/queries";
 import { RaceInfo } from "../RaceInfo";
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 
 export function AccLiveDashboard() {
   const packet = useTelemetryStore((s) => s.packet);
+  const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
+  const sectors = useTelemetryStore((s) => s.sectors);
+  const pit = useTelemetryStore((s) => s.pit);
+  const { data: allLaps = [] } = useLaps();
+  const { displaySettings } = useSettings();
   const { data: trackName } = useTrackName(packet?.TrackOrdinal);
   const { data: carName } = useCarName(packet?.CarOrdinal);
   const pressureOptimal = useTirePressureOptimal("acc", packet?.CarOrdinal);
@@ -49,19 +54,19 @@ export function AccLiveDashboard() {
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Pit Window</h2>
           </div>
           <div className="p-3">
-            <PitEstimate packet={packet} />
+            <PitEstimate packet={packet} pit={pit} gameId="acc" healthThresholds={displaySettings.tireHealthThresholds.values} />
           </div>
         </div>
       </div>
 
       {/* Right column: Race (with sectors) + Charts + Recorded Laps */}
       <div className="overflow-auto flex flex-col">
-        <RaceInfo packet={packet} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
+        <RaceInfo packet={packet} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
 
-        <LapTimeChart packet={packet} />
+        <LapTimeChart packet={packet} allLaps={allLaps} />
 
         <div className="flex-1">
-          <RecordedLaps />
+          <RecordedLaps laps={sessionLaps} />
         </div>
       </div>
     </div>

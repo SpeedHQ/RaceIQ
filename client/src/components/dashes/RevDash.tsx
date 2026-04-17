@@ -1,6 +1,10 @@
-import { useTelemetryStore } from "../../stores/telemetry";
+import type { DisplayPacket } from "../../lib/convert-packet";
 import { DashShell } from "./dash-shell";
 import { RevBar } from "./RevBar";
+
+interface RevDashProps {
+  packet: DisplayPacket | null;
+}
 
 function gearLabel(gear: number): string {
   if (gear <= 0) return "R";
@@ -8,9 +12,7 @@ function gearLabel(gear: number): string {
   return String(gear - 1);
 }
 
-export function RevDash() {
-  const packet = useTelemetryStore((s) => s.packet);
-
+export function RevDash({ packet }: RevDashProps) {
   const rpm = packet?.CurrentEngineRpm ?? 0;
   const idle = packet?.EngineIdleRpm ?? 0;
   const max = packet?.EngineMaxRpm ?? 10000;

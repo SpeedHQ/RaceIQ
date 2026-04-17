@@ -1,7 +1,5 @@
-import { useTelemetryStore } from "../../stores/telemetry";
-import { useGameId } from "../../stores/game";
-import { useUnits } from "../../hooks/useUnits";
-import { tryGetGame } from "@shared/games/registry";
+import type { TelemetryPacket, LiveSectorData, LivePitData } from "@shared/types";
+import type { DisplayPacket } from "../../lib/convert-packet";
 import { LapTimes } from "../telemetry/LapTimes";
 import { SectorTimes } from "../SectorTimes";
 import { TireGrid } from "../telemetry/TireGrid";
@@ -9,22 +7,32 @@ import { DashShell } from "./dash-shell";
 import { FitToViewport } from "./FitToViewport";
 import { RevBar } from "./RevBar";
 
+interface ComboDashProps {
+  rawPacket: TelemetryPacket | null;
+  packet: DisplayPacket | null;
+  sectors: LiveSectorData | null;
+  pit: LivePitData | null;
+  unitSystem: "metric" | "imperial";
+  tireHealthThresholds?: { green: number; yellow: number };
+  /** Convert a tire temperature from the game's native unit to °C. */
+  toTempC: (t: number) => number;
+}
+
 function gearLabel(gear: number): string {
   if (gear <= 0) return "R";
   if (gear === 1) return "N";
   return String(gear - 1);
 }
 
-export function ComboDash() {
-  const rawPacket = useTelemetryStore((s) => s.rawPacket);
-  const packet = useTelemetryStore((s) => s.packet);
-  const sectors = useTelemetryStore((s) => s.sectors);
-  const pit = useTelemetryStore((s) => s.pit);
-  const unitSystem = useTelemetryStore((s) => s.unitSystem);
-  const gameId = useGameId();
-  const units = useUnits();
-  const game = gameId ? tryGetGame(gameId) : null;
-
+export function ComboDash({
+  rawPacket,
+  packet,
+  sectors,
+  pit,
+  unitSystem,
+  tireHealthThresholds,
+  toTempC,
+}: ComboDashProps) {
   const fuelLaps = pit?.fuelLapsRemaining ?? null;
   const tireCliffs = pit?.tireEstimates?.toCliff ?? [];
   const tireLabels = ["FL", "FR", "RL", "RR"] as const;
@@ -47,6 +55,7 @@ export function ComboDash() {
   const unit = unitSystem === "metric" ? "km/h" : "mph";
   const lapNumber = packet?.LapNumber ?? 0;
   const totalLaps = rawPacket?.f1?.totalLaps;
+  const health = tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
 
   return (
     <DashShell>
@@ -140,7 +149,7 @@ export function ComboDash() {
               <FitToViewport padding={12} alignX="start" alignY="start">
                 <div style={{ width: 560 }} className="space-y-3">
                   <LapTimes packet={rawPacket} sectors={sectors} />
-                  <SectorTimes />
+                  <SectorTimes sectors={sectors} />
                 </div>
               </FitToViewport>
             ) : (
@@ -154,30 +163,30 @@ export function ComboDash() {
                 <div style={{ width: 400 }} className="[&>div>:first-child]:hidden">
                   <TireGrid
                     fl={{
-                      tempC: Math.round(units.toTempC(rawPacket.TireTempFL)),
+                      tempC: Math.round(toTempC(rawPacket.TireTempFL)),
                       wear: rawPacket.TireWearFL,
                       brakeTemp: rawPacket.BrakeTempFrontLeft ?? 0,
                       pressure: rawPacket.TirePressureFrontLeft ?? 0,
                     }}
                     fr={{
-                      tempC: Math.round(units.toTempC(rawPacket.TireTempFR)),
+                      tempC: Math.round(toTempC(rawPacket.TireTempFR)),
                       wear: rawPacket.TireWearFR,
                       brakeTemp: rawPacket.BrakeTempFrontRight ?? 0,
                       pressure: rawPacket.TirePressureFrontRight ?? 0,
                     }}
                     rl={{
-                      tempC: Math.round(units.toTempC(rawPacket.TireTempRL)),
+                      tempC: Math.round(toTempC(rawPacket.TireTempRL)),
                       wear: rawPacket.TireWearRL,
                       brakeTemp: rawPacket.BrakeTempRearLeft ?? 0,
                       pressure: rawPacket.TirePressureRearLeft ?? 0,
                     }}
                     rr={{
-                      tempC: Math.round(units.toTempC(rawPacket.TireTempRR)),
+                      tempC: Math.round(toTempC(rawPacket.TireTempRR)),
                       wear: rawPacket.TireWearRR,
                       brakeTemp: rawPacket.BrakeTempRearRight ?? 0,
                       pressure: rawPacket.TirePressureRearRight ?? 0,
                     }}
-                    healthThresholds={game?.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 }}
+                    healthThresholds={health}
                     tempThresholds={{ blue: 60, orange: 85, red: 100 }}
                   />
                 </div>

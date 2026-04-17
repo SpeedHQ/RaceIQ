@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { formatLapTime } from "@/lib/format";
 import { getSoundEnabled, getSoundVolume, getSoundType, getSoundUrl } from "./Settings";
-import { useTelemetryStore } from "../stores/telemetry";
+import type { LiveSectorData } from "@shared/types";
 
 /** Shared AudioContext — reused across all blips to avoid browser throttling. */
 let sharedAudioCtx: AudioContext | null = null;
@@ -83,8 +83,7 @@ export function playBlip(pitch = 1) {
  * SectorTimes — Display-only component for server-computed sector splits.
  * All timing computation happens server-side in SectorTracker.
  */
-export function SectorTimes() {
-  const sectors = useTelemetryStore((s) => s.sectors);
+export function SectorTimes({ sectors }: { sectors: LiveSectorData | null }) {
   const prevSectorRef = useRef<number>(-1);
   const prevLapTimeRef = useRef<number>(0);
 

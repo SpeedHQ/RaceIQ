@@ -25,6 +25,7 @@ function getGlobalTabs() {
   return _globalTabs ??= [
     { to: "/", label: "Home" },
     ...getAllGames().map((g) => ({ to: `/${g.routePrefix}`, label: g.shortName })),
+    { to: "/dash", label: "Dashes" },
     ...(import.meta.env.DEV ? [{ to: "/dev", label: "Dev" }] : []),
   ];
 }

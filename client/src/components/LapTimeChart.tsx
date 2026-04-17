@@ -1,16 +1,24 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import type { TelemetryPacket } from "@shared/types";
+import type { TelemetryPacket, LapMeta } from "@shared/types";
 import { formatLapTime } from "./LiveTelemetry";
-import { useLaps } from "../hooks/queries";
 /**
  * LapTimeChart — Canvas-drawn lap time trend with pace reference lines.
  * "Optimum" = median of top 5 laps (robust to single-flier best laps).
  * "Avg" = mean of last 4 laps (recent rolling pace).
  * Dots are colored: purple=best, green=on pace (<=optimum), orange=off pace.
- * Seeds from /api/laps on mount, then appends live laps on LapNumber boundary.
+ *
+ * Pure-ish: the caller supplies `allLaps` (historical) and `packet` (for live
+ * lap accumulation on lap-number boundaries).
  */
-export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
-  const { data: allLaps = [] } = useLaps();
+export function LapTimeChart({
+  packet,
+  allLaps = [],
+  height = 280,
+}: {
+  packet: TelemetryPacket | null;
+  allLaps?: LapMeta[];
+  height?: number;
+}) {
   const [liveLaps, setLiveLaps] = useState<{ lap: number; time: number }[]>([]);
   const [hiddenSessionIds, setHiddenSessionIds] = useState<Set<number>>(new Set());
   const lastLapRef = useRef<number>(0);
@@ -51,7 +59,6 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const height = 280;
 
   const handleClearAll = () => {
     setLiveLaps([]);
@@ -76,7 +83,7 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
 
-    const leftPad = 65;
+    const leftPad = 78;
     const rightPad = 10;
 
     const times = laps.map((l) => l.time);

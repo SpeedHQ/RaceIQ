@@ -1,12 +1,40 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
+import type { ReactNode } from "react";
+import { ComboDash } from "../components/dashes/ComboDash";
+import { ComboDash2 } from "../components/dashes/ComboDash2";
+import {
+  fakeForzaPacket,
+  fakeForzaDisplayPacket,
+  fakeSectors,
+  fakePit,
+  fakeSessionLaps,
+} from "../stories/fakeData";
+import type { TelemetryPacket } from "@shared/types";
+
+const PREVIEW_RAW_PACKET = {
+  ...fakeForzaPacket,
+  BrakeTempFrontLeft: 380,
+  BrakeTempFrontRight: 375,
+  BrakeTempRearLeft: 240,
+  BrakeTempRearRight: 238,
+  TirePressureFrontLeft: 27.8,
+  TirePressureFrontRight: 27.7,
+  TirePressureRearLeft: 26.5,
+  TirePressureRearRight: 26.4,
+  f1: { ...(fakeForzaPacket.f1 ?? {}), totalLaps: 57 },
+} as TelemetryPacket;
+
+// Forza stores tire temps in °F — convert to °C.
+const fToC = (f: number) => ((f - 32) * 5) / 9;
 
 interface DashEntry {
   slug: string;
   title: string;
   description: string;
   href: "/dash/combo-1" | "/dash/combo-2";
+  preview: ReactNode;
 }
 
 const DASHES: DashEntry[] = [
@@ -16,6 +44,16 @@ const DASHES: DashEntry[] = [
     title: "Combo Dash 1",
     description:
       "Rev bar + gear/speed/lap tiles, fuel & tire laps-remaining, lap + sector readout, and a live tire grid. Landscape tablet-friendly.",
+    preview: (
+      <ComboDash
+        rawPacket={PREVIEW_RAW_PACKET}
+        packet={fakeForzaDisplayPacket}
+        sectors={fakeSectors}
+        pit={fakePit}
+        unitSystem="metric"
+        toTempC={fToC}
+      />
+    ),
   },
   {
     slug: "combo-2",
@@ -23,6 +61,13 @@ const DASHES: DashEntry[] = [
     title: "Combo Dash 2 — Lap Times & Pace",
     description:
       "Lap timing summary across the top, big lap-time trend chart with optimum and average pace lines, plus live sector splits and recent laps on the side.",
+    preview: (
+      <ComboDash2
+        rawPacket={PREVIEW_RAW_PACKET}
+        allLaps={fakeSessionLaps}
+        sessionLaps={fakeSessionLaps}
+      />
+    ),
   },
 ];
 
@@ -42,7 +87,6 @@ function useNetworkInfo() {
 function DashCatalogue() {
   const { data } = useNetworkInfo();
   const lanIp = data?.lanIps?.[0];
-  // Use the page's current port so dev (Vite proxy) and prod (Bun) both work.
   const port = typeof window !== "undefined" ? window.location.port || data?.port : data?.port;
 
   return (
@@ -74,14 +118,11 @@ function DashCatalogue() {
                 className="rounded-lg border border-white/10 bg-white/[0.03] overflow-hidden"
               >
                 <Link to={d.href} className="block group">
-                  <div className="relative bg-black border-b border-white/10" style={{ aspectRatio: "16/9" }}>
-                    <iframe
-                      src={`${d.href}?preview=1`}
-                      title={d.title}
-                      className="absolute inset-0 w-full h-full pointer-events-none"
-                      loading="lazy"
-                      tabIndex={-1}
-                    />
+                  <div
+                    className="relative bg-black border-b border-white/10 overflow-hidden"
+                    style={{ aspectRatio: "16/9", transform: "translateZ(0)" }}
+                  >
+                    <div className="absolute inset-0 pointer-events-none">{d.preview}</div>
                     <div className="absolute inset-0 transition-colors group-hover:bg-white/[0.04]" />
                   </div>
                 </Link>

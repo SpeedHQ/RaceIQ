@@ -1,12 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { RevDash } from "../../components/dashes/RevDash";
-import { DashStoryDecorator, type DashStoryOverrides } from "./decorator";
+import { fakeForzaDisplayPacket } from "../fakeData";
+import type { DisplayPacket } from "../../lib/convert-packet";
 
-function wrap(overrides?: DashStoryOverrides) {
+function wrap(overrides?: Partial<DisplayPacket>) {
+  const packet = { ...fakeForzaDisplayPacket, ...(overrides ?? {}) } as DisplayPacket;
   return (
-    <DashStoryDecorator overrides={overrides}>
-      <RevDash />
-    </DashStoryDecorator>
+    <div style={{ width: "100vw", height: "100vh", background: "#000" }}>
+      <RevDash packet={packet} />
+    </div>
   );
 }
 
@@ -19,29 +21,11 @@ const meta: Meta<typeof RevDash> = {
 export default meta;
 type Story = StoryObj<typeof RevDash>;
 
-export const Default: Story = {
-  render: () => wrap(),
-};
-
-export const Idle: Story = {
-  render: () =>
-    wrap({ raw: { CurrentEngineRpm: 3000, Gear: 1 } }),
-};
-
-export const Midrange: Story = {
-  render: () =>
-    wrap({ raw: { CurrentEngineRpm: 11000, Gear: 4 } }),
-};
-
-export const RedLine: Story = {
-  render: () =>
-    wrap({ raw: { CurrentEngineRpm: 17900, Gear: 7 } }),
-};
-
-export const Reverse: Story = {
-  render: () => wrap({ raw: { CurrentEngineRpm: 4500, Gear: 0 } }),
-};
-
+export const Default: Story = { render: () => wrap() };
+export const Idle: Story = { render: () => wrap({ CurrentEngineRpm: 3000, Gear: 1 }) };
+export const Midrange: Story = { render: () => wrap({ CurrentEngineRpm: 11000, Gear: 4 }) };
+export const RedLine: Story = { render: () => wrap({ CurrentEngineRpm: 17900, Gear: 7 }) };
+export const Reverse: Story = { render: () => wrap({ CurrentEngineRpm: 4500, Gear: 0 }) };
 export const Tablet: Story = {
   render: () => wrap(),
   globals: { viewport: { value: "ipadLandscape", isRotated: false } },

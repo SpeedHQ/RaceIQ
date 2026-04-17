@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
-import { useTelemetryStore } from "../stores/telemetry";
 import { useDeleteLap } from "../hooks/queries";
 import { useGameRoute } from "../stores/game";
+import type { LapMeta } from "@shared/types";
 
 function formatLapTime(seconds: number): string {
   if (seconds <= 0) return "-:--.---";
@@ -11,14 +11,14 @@ function formatLapTime(seconds: number): string {
 }
 
 interface RecordedLapsProps {
+  laps: LapMeta[];
   trackOrdinal?: number;
   maxLaps?: number;
 }
 
-export function RecordedLaps({ trackOrdinal, maxLaps = 15 }: RecordedLapsProps) {
+export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsProps) {
   const navigate = useNavigate({ from: "/" });
   const gameRoute = useGameRoute();
-  const laps = useTelemetryStore((s) => s.sessionLaps);
   const deleteLap = useDeleteLap();
 
   // Filter by track if provided, otherwise use all
