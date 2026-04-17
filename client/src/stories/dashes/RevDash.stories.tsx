@@ -22,6 +22,13 @@ export default meta;
 type Story = StoryObj<typeof RevDash>;
 
 export const Default: Story = { render: () => wrap() };
+export const NoData: Story = {
+  render: () => (
+    <div style={{ width: "100vw", height: "100vh", background: "#000" }}>
+      <RevDash packet={null} />
+    </div>
+  ),
+};
 export const Idle: Story = { render: () => wrap({ CurrentEngineRpm: 3000, Gear: 1 }) };
 export const Midrange: Story = { render: () => wrap({ CurrentEngineRpm: 11000, Gear: 4 }) };
 export const RedLine: Story = { render: () => wrap({ CurrentEngineRpm: 17900, Gear: 7 }) };

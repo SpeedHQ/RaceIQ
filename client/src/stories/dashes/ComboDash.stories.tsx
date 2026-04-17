@@ -71,6 +71,23 @@ export const Default: Story = {
   render: () => wrap(),
 };
 
+export const NoData: Story = {
+  render: () => (
+    <QueryClientProvider client={queryClient}>
+      <div style={{ width: "100vw", height: "100vh", background: "#000" }}>
+        <ComboDash
+          rawPacket={null}
+          packet={null}
+          sectors={null}
+          pit={null}
+          unitSystem="metric"
+          toTempC={fToC}
+        />
+      </div>
+    </QueryClientProvider>
+  ),
+};
+
 export const RedLine: Story = {
   render: () =>
     wrap({

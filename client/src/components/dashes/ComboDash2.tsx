@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import type { TelemetryPacket, LapMeta } from "@shared/types";
 import { LapTimeChart } from "../LapTimeChart";
 import { RecordedLaps } from "../RecordedLaps";
@@ -13,32 +12,11 @@ interface ComboDash2Props {
 export function ComboDash2({ rawPacket, allLaps, sessionLaps }: ComboDash2Props) {
   const trackOrdinal = rawPacket?.TrackOrdinal;
 
-  const chartPanelRef = useRef<HTMLDivElement>(null);
-  const [chartHeight, setChartHeight] = useState(280);
-
-  useEffect(() => {
-    const el = chartPanelRef.current;
-    if (!el) return;
-    const update = () => {
-      // Panel has p-2 (16px total), and the legend row below the canvas
-      // needs ~26px. Reserve both so the legend doesn't clip.
-      const h = Math.max(80, el.clientHeight - 16 - 26);
-      setChartHeight(h);
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
   return (
     <DashShell>
-      <div className="h-full w-full grid grid-rows-[1fr_1fr] gap-3 p-4">
-        <div
-          ref={chartPanelRef}
-          className="min-w-0 min-h-0 rounded-md border border-white/10 bg-white/[0.02] overflow-hidden [&_div:has(>h2)]:hidden [&_button]:hidden"
-        >
-          <LapTimeChart packet={rawPacket} allLaps={allLaps} height={chartHeight} />
+      <div className="h-full w-full grid grid-rows-[3fr_2fr] gap-3 p-4">
+        <div className="min-w-0 min-h-0 rounded-md border border-white/10 bg-white/[0.02] overflow-hidden [&_div:has(>h2)]:hidden [&_button]:hidden">
+          <LapTimeChart packet={rawPacket} allLaps={allLaps} />
         </div>
 
         <div className="min-w-0 min-h-0 rounded-md border border-white/10 bg-white/[0.02] overflow-hidden [&_div:has(>h2)]:hidden [&_button]:hidden [&_div.w-16]:hidden">

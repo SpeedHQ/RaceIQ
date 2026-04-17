@@ -26,6 +26,13 @@ type Story = StoryObj<typeof SpeedDash>;
 export const Metric: Story = {
   render: () => wrap({ display: { DisplaySpeed: 260 }, unitSystem: "metric" }),
 };
+export const NoData: Story = {
+  render: () => (
+    <div style={{ width: "100vw", height: "100vh", background: "#000" }}>
+      <SpeedDash packet={null} unitSystem="metric" />
+    </div>
+  ),
+};
 export const Imperial: Story = {
   render: () => wrap({ display: { DisplaySpeed: 162 }, unitSystem: "imperial" }),
 };

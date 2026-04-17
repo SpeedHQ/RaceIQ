@@ -46,6 +46,14 @@ export const Default: Story = {
   render: () => wrap(),
 };
 
+export const NoData: Story = {
+  render: () => (
+    <div style={{ width: "100vw", height: "100vh", background: "#000" }}>
+      <ComboDash2 rawPacket={null} allLaps={[]} sessionLaps={[]} />
+    </div>
+  ),
+};
+
 export const Tablet: Story = {
   render: () => wrap(),
   globals: { viewport: { value: "ipadLandscape", isRotated: false } },

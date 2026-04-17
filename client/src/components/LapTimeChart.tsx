@@ -13,10 +13,11 @@ import { formatLapTime } from "./LiveTelemetry";
 export function LapTimeChart({
   packet,
   allLaps = [],
-  height = 280,
+  height,
 }: {
   packet: TelemetryPacket | null;
   allLaps?: LapMeta[];
+  /** Optional fixed height. If omitted the chart fills its parent via flex. */
   height?: number;
 }) {
   const [liveLaps, setLiveLaps] = useState<{ lap: number; time: number }[]>([]);
@@ -59,18 +60,27 @@ export function LapTimeChart({
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
+  // When height is provided via props, use it; otherwise the canvas
+  // wrapper fills its flex parent and we measure its rendered size.
+  const [measured, setMeasured] = useState<{ w: number; h: number }>({ w: 0, h: 280 });
 
-  // Track container width so the canvas redraws when the panel resizes.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const update = () => setContainerWidth(container.clientWidth);
+    const update = () => {
+      const rect = container.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setMeasured({ w: rect.width, h: rect.height });
+      }
+    };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(container);
     return () => ro.disconnect();
   }, []);
+
+  const containerWidth = measured.w;
+  const effectiveHeight = height ?? measured.h;
 
   const handleClearAll = () => {
     setLiveLaps([]);
@@ -87,19 +97,20 @@ export function LapTimeChart({
     if (!ctx) return;
 
     const width = container.clientWidth;
+    const h = effectiveHeight;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
-    canvas.height = height * dpr;
+    canvas.height = h * dpr;
     canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    canvas.style.height = `${h}px`;
     ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, width, height);
+    ctx.clearRect(0, 0, width, h);
 
     const leftPad = 78;
     const rightPad = 10;
     const topPad = 12;
     const bottomPad = 20;
-    const plotH = Math.max(1, height - topPad - bottomPad);
+    const plotH = Math.max(1, h - topPad - bottomPad);
     const yOf = (v: number) => topPad + plotH - ((v - minY) / yRange) * plotH;
 
     const times = laps.map((l) => l.time);
@@ -187,11 +198,11 @@ export function LapTimeChart({
       ctx.textAlign = "center";
       ctx.fillText(`${laps[i].lap}`, x, topPad + plotH + 14);
     }
-  }, [laps, height, containerWidth]);
+  }, [laps, effectiveHeight, containerWidth]);
 
   return (
-    <div className="border-b border-app-border">
-      <div className="p-2 border-b border-app-border flex items-center justify-between">
+    <div className="h-full flex flex-col border-b border-app-border">
+      <div className="shrink-0 p-2 border-b border-app-border flex items-center justify-between">
         <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Lap Times</h2>
         <button
           onClick={handleClearAll}
@@ -200,18 +211,26 @@ export function LapTimeChart({
           Clear All
         </button>
       </div>
-      <div className="p-2" ref={containerRef}>
+      <div className="flex-1 min-h-0 relative p-2" ref={containerRef} style={height ? { height: height + 16 } : undefined}>
         {laps.length === 0 && (
-          <div className="flex items-center justify-center rounded bg-app-surface/40 text-app-text-dim text-sm" style={{ height }}>
+          <div className="absolute inset-2 flex items-center justify-center rounded bg-app-surface/40 text-app-text-dim text-sm">
             Complete a lap to see lap times
           </div>
         )}
         <canvas
           ref={canvasRef}
-          style={{ width: "100%", height, display: laps.length > 0 ? "block" : "none" }}
+          style={{
+            position: "absolute",
+            inset: 8,
+            width: "calc(100% - 16px)",
+            height: "calc(100% - 16px)",
+            display: laps.length > 0 ? "block" : "none",
+          }}
           className="rounded bg-app-surface/40"
         />
-        <div className="flex gap-3 mt-1.5 flex-wrap">
+      </div>
+      <div className="shrink-0 p-2 border-t border-app-border/50">
+        <div className="flex gap-3 flex-wrap">
           <div className="flex items-center gap-1">
             <div className="w-3 h-0.5 bg-cyan-400 rounded" />
             <span className="text-xs text-app-text-muted">Lap time</span>

@@ -41,6 +41,15 @@ export default meta;
 type Story = StoryObj<typeof LapDash>;
 
 export const Default: Story = { render: () => wrap() };
+export const NoData: Story = {
+  render: () => (
+    <QueryClientProvider client={queryClient}>
+      <div style={{ width: "100vw", height: "100vh", background: "#000" }}>
+        {withRouter(<LapDash packet={null} sectors={null} />)}
+      </div>
+    </QueryClientProvider>
+  ),
+};
 export const UnderBest: Story = {
   render: () => wrap({ LapNumber: 6, CurrentLap: 45.2, LastLap: 91.88, BestLap: 92.341 }),
 };
