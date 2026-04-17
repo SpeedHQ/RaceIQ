@@ -135,7 +135,7 @@ export function ComboDash() {
         </div>
 
         <div className="col-span-2 min-h-0 flex gap-3">
-          <div className="flex-[2] min-w-0 min-h-0 rounded-md border border-white/10 bg-white/[0.02] overflow-hidden">
+          <div className="flex-[3] min-w-0 min-h-0 rounded-md border border-white/10 bg-white/[0.02] overflow-hidden">
             {rawPacket ? (
               <FitToViewport padding={12} alignX="start" alignY="start">
                 <div style={{ width: 560 }} className="space-y-3">
@@ -148,7 +148,7 @@ export function ComboDash() {
             )}
           </div>
 
-          <div className="flex-1 min-w-0 min-h-0 rounded-md border border-white/10 bg-white/[0.02] overflow-hidden">
+          <div className="flex-[2] min-w-0 min-h-0 rounded-md border border-white/10 bg-white/[0.02] overflow-hidden">
             {rawPacket ? (
               <FitToViewport padding={4} maxScale={5}>
                 <div style={{ width: 400 }} className="[&>div>:first-child]:hidden">
