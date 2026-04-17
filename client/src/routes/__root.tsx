@@ -71,6 +71,8 @@ function AppShell() {
       .map((label) => ({ to: `${prefix}/${label.toLowerCase()}`, label }));
   }, [location.pathname]);
 
+  const isDash = location.pathname === "/dash" || location.pathname.startsWith("/dash/");
+
   // Block rendering until settings load, then show onboarding if needed
   if (!settingsLoaded) {
     return <ThemeProvider><div className="h-screen bg-app-bg" /></ThemeProvider>;
@@ -78,6 +80,17 @@ function AppShell() {
 
   if (!displaySettings.onboardingComplete) {
     return <ThemeProvider><OnboardingModal /></ThemeProvider>;
+  }
+
+  // Minimal-chrome mode for /dash/* routes — no nav, no header.
+  if (isDash) {
+    return (
+      <ThemeProvider>
+        <div className="h-screen bg-black text-app-text">
+          <Outlet />
+        </div>
+      </ThemeProvider>
+    );
   }
 
   return (

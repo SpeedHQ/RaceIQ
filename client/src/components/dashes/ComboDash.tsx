@@ -98,8 +98,8 @@ export function ComboDash() {
           </Tile>
         </div>
 
-        <div className="flex gap-3">
-          <div className="flex-1">
+        <div className="grid grid-cols-3 gap-3 min-h-0">
+          <div className="min-w-0 min-h-0">
             <Tile label="GEAR">
               <div
                 className="font-black leading-none"
@@ -109,7 +109,7 @@ export function ComboDash() {
               </div>
             </Tile>
           </div>
-          <div className="flex-1">
+          <div className="min-w-0 min-h-0">
             <Tile label={unit.toUpperCase()}>
               <div
                 className="font-black leading-none"
@@ -119,7 +119,7 @@ export function ComboDash() {
               </div>
             </Tile>
           </div>
-          <div className="flex-1">
+          <div className="min-w-0 min-h-0">
             <Tile label="LAP">
               <div
                 className="font-black leading-none tabular-nums"
@@ -216,7 +216,7 @@ function PitRow({
 
 function Tile({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="relative rounded-md border border-white/10 bg-white/[0.02] flex flex-col overflow-hidden min-w-0 min-h-0">
+    <div className="relative rounded-md border border-white/10 bg-white/[0.02] flex flex-col overflow-hidden min-w-0 min-h-0 h-full">
       <div className="shrink-0 text-white/40 text-xs tracking-widest uppercase px-3 pt-2">
         {label}
       </div>

@@ -302,6 +302,21 @@ export const miscRoutes = new Hono()
     return c.json(getUpdateState());
   })
 
+  // GET /api/network/info — local LAN IPv4 addresses + server port so clients
+  // can build QR codes for phones/tablets on the same network.
+  .get("/api/network/info", (c) => {
+    const nics = networkInterfaces();
+    const lanIps: string[] = [];
+    for (const list of Object.values(nics)) {
+      if (!list) continue;
+      for (const i of list) {
+        if (i.family === "IPv4" && !i.internal) lanIps.push(i.address);
+      }
+    }
+    const port = Number(process.env.SERVER_PORT) || 3117;
+    return c.json({ lanIps, port });
+  })
+
   // POST /api/update/check — force a fresh update check and return result
   .post("/api/update/check", async (c) => {
     const result = await checkForUpdate();

@@ -11,7 +11,7 @@ function wrap(overrides?: DashStoryOverrides) {
 }
 
 const meta: Meta<typeof ComboDash> = {
-  title: "Dashes/ComboDash",
+  title: "Dashes/Combo Dash 1",
   component: ComboDash,
   parameters: { layout: "fullscreen" },
 };

@@ -16,6 +16,7 @@ import { Route as AccRouteImport } from './routes/acc'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as Fm23IndexRouteImport } from './routes/fm23/index'
 import { Route as F125IndexRouteImport } from './routes/f125/index'
+import { Route as DashIndexRouteImport } from './routes/dash.index'
 import { Route as AccIndexRouteImport } from './routes/acc/index'
 import { Route as Fm23TunesRouteImport } from './routes/fm23/tunes'
 import { Route as Fm23TracksRouteImport } from './routes/fm23/tracks'
@@ -37,6 +38,7 @@ import { Route as F125CompareRouteImport } from './routes/f125/compare'
 import { Route as F125ChatsRouteImport } from './routes/f125/chats'
 import { Route as F125CarsRouteImport } from './routes/f125/cars'
 import { Route as F125AnalyseRouteImport } from './routes/f125/analyse'
+import { Route as DashCombo1RouteImport } from './routes/dash.combo-1'
 import { Route as AccTracksRouteImport } from './routes/acc/tracks'
 import { Route as AccSetupRouteImport } from './routes/acc/setup'
 import { Route as AccSessionsRouteImport } from './routes/acc/sessions'
@@ -93,6 +95,11 @@ const F125IndexRoute = F125IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => F125Route,
+} as any)
+const DashIndexRoute = DashIndexRouteImport.update({
+  id: '/dash/',
+  path: '/dash/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AccIndexRoute = AccIndexRouteImport.update({
   id: '/',
@@ -198,6 +205,11 @@ const F125AnalyseRoute = F125AnalyseRouteImport.update({
   id: '/analyse',
   path: '/analyse',
   getParentRoute: () => F125Route,
+} as any)
+const DashCombo1Route = DashCombo1RouteImport.update({
+  id: '/dash/combo-1',
+  path: '/dash/combo-1',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AccTracksRoute = AccTracksRouteImport.update({
   id: '/tracks',
@@ -320,6 +332,7 @@ export interface FileRoutesByFullPath {
   '/acc/sessions': typeof AccSessionsRoute
   '/acc/setup': typeof AccSetupRouteWithChildren
   '/acc/tracks': typeof AccTracksRoute
+  '/dash/combo-1': typeof DashCombo1Route
   '/f125/analyse': typeof F125AnalyseRoute
   '/f125/cars': typeof F125CarsRoute
   '/f125/chats': typeof F125ChatsRoute
@@ -341,6 +354,7 @@ export interface FileRoutesByFullPath {
   '/fm23/tracks': typeof Fm23TracksRoute
   '/fm23/tunes': typeof Fm23TunesRouteWithChildren
   '/acc/': typeof AccIndexRoute
+  '/dash/': typeof DashIndexRoute
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
   '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
@@ -367,6 +381,7 @@ export interface FileRoutesByTo {
   '/acc/raw': typeof AccRawRoute
   '/acc/sessions': typeof AccSessionsRoute
   '/acc/tracks': typeof AccTracksRoute
+  '/dash/combo-1': typeof DashCombo1Route
   '/f125/analyse': typeof F125AnalyseRoute
   '/f125/cars': typeof F125CarsRoute
   '/f125/chats': typeof F125ChatsRoute
@@ -384,6 +399,7 @@ export interface FileRoutesByTo {
   '/fm23/sessions': typeof Fm23SessionsRoute
   '/fm23/tracks': typeof Fm23TracksRoute
   '/acc': typeof AccIndexRoute
+  '/dash': typeof DashIndexRoute
   '/f125': typeof F125IndexRoute
   '/fm23': typeof Fm23IndexRoute
   '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
@@ -415,6 +431,7 @@ export interface FileRoutesById {
   '/acc/sessions': typeof AccSessionsRoute
   '/acc/setup': typeof AccSetupRouteWithChildren
   '/acc/tracks': typeof AccTracksRoute
+  '/dash/combo-1': typeof DashCombo1Route
   '/f125/analyse': typeof F125AnalyseRoute
   '/f125/cars': typeof F125CarsRoute
   '/f125/chats': typeof F125ChatsRoute
@@ -436,6 +453,7 @@ export interface FileRoutesById {
   '/fm23/tracks': typeof Fm23TracksRoute
   '/fm23/tunes': typeof Fm23TunesRouteWithChildren
   '/acc/': typeof AccIndexRoute
+  '/dash/': typeof DashIndexRoute
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
   '/fm23/cars_/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
@@ -468,6 +486,7 @@ export interface FileRouteTypes {
     | '/acc/sessions'
     | '/acc/setup'
     | '/acc/tracks'
+    | '/dash/combo-1'
     | '/f125/analyse'
     | '/f125/cars'
     | '/f125/chats'
@@ -489,6 +508,7 @@ export interface FileRouteTypes {
     | '/fm23/tracks'
     | '/fm23/tunes'
     | '/acc/'
+    | '/dash/'
     | '/f125/'
     | '/fm23/'
     | '/fm23/cars/$carOrdinal'
@@ -515,6 +535,7 @@ export interface FileRouteTypes {
     | '/acc/raw'
     | '/acc/sessions'
     | '/acc/tracks'
+    | '/dash/combo-1'
     | '/f125/analyse'
     | '/f125/cars'
     | '/f125/chats'
@@ -532,6 +553,7 @@ export interface FileRouteTypes {
     | '/fm23/sessions'
     | '/fm23/tracks'
     | '/acc'
+    | '/dash'
     | '/f125'
     | '/fm23'
     | '/fm23/cars/$carOrdinal'
@@ -562,6 +584,7 @@ export interface FileRouteTypes {
     | '/acc/sessions'
     | '/acc/setup'
     | '/acc/tracks'
+    | '/dash/combo-1'
     | '/f125/analyse'
     | '/f125/cars'
     | '/f125/chats'
@@ -583,6 +606,7 @@ export interface FileRouteTypes {
     | '/fm23/tracks'
     | '/fm23/tunes'
     | '/acc/'
+    | '/dash/'
     | '/f125/'
     | '/fm23/'
     | '/fm23/cars_/$carOrdinal'
@@ -605,6 +629,8 @@ export interface RootRouteChildren {
   DevRoute: typeof DevRoute
   F125Route: typeof F125RouteWithChildren
   Fm23Route: typeof Fm23RouteWithChildren
+  DashCombo1Route: typeof DashCombo1Route
+  DashIndexRoute: typeof DashIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -657,6 +683,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/f125/'
       preLoaderRoute: typeof F125IndexRouteImport
       parentRoute: typeof F125Route
+    }
+    '/dash/': {
+      id: '/dash/'
+      path: '/dash'
+      fullPath: '/dash/'
+      preLoaderRoute: typeof DashIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/acc/': {
       id: '/acc/'
@@ -804,6 +837,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/f125/analyse'
       preLoaderRoute: typeof F125AnalyseRouteImport
       parentRoute: typeof F125Route
+    }
+    '/dash/combo-1': {
+      id: '/dash/combo-1'
+      path: '/dash/combo-1'
+      fullPath: '/dash/combo-1'
+      preLoaderRoute: typeof DashCombo1RouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/acc/tracks': {
       id: '/acc/tracks'
@@ -1133,6 +1173,8 @@ const rootRouteChildren: RootRouteChildren = {
   DevRoute: DevRoute,
   F125Route: F125RouteWithChildren,
   Fm23Route: Fm23RouteWithChildren,
+  DashCombo1Route: DashCombo1Route,
+  DashIndexRoute: DashIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
