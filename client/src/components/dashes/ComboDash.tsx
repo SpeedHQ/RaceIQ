@@ -59,11 +59,8 @@ export function ComboDash({
 
   return (
     <DashShell>
-      <div className="h-full w-full grid grid-cols-[3fr_1fr] grid-rows-[auto_1fr_2fr] gap-3 p-4">
-        <div
-          className="relative flex items-center gap-3"
-          style={{ height: "10vh", minHeight: 50 }}
-        >
+      <div className="h-full w-full grid grid-cols-[3fr_1fr] grid-rows-[1fr_2fr_5fr] gap-3 p-4">
+        <div className="relative flex items-center gap-3 min-h-0">
           <div className="flex-1 h-full">
             <RevBar rpm={rpm} idle={idle} max={max} segments={80} />
           </div>
