@@ -15,6 +15,7 @@ export function LapTimeChart({
   allLaps = [],
   height,
   yTicks = 5,
+  maxLaps = 10,
 }: {
   packet: TelemetryPacket | null;
   allLaps?: LapMeta[];
@@ -22,6 +23,9 @@ export function LapTimeChart({
   height?: number;
   /** Number of y-axis intervals (ticks = yTicks + 1). Default 5. */
   yTicks?: number;
+  /** Maximum number of laps shown. X-axis step is anchored to this so existing
+   *  dots don't shift as new laps arrive. Default 10. */
+  maxLaps?: number;
 }) {
   const [liveLaps, setLiveLaps] = useState<{ lap: number; time: number }[]>([]);
   const [hiddenSessionIds, setHiddenSessionIds] = useState<Set<number>>(new Set());
@@ -35,8 +39,8 @@ export function LapTimeChart({
     return trackLaps
       .filter((l) => l.sessionId === latestSessionId)
       .map((l) => ({ lap: l.lapNumber, time: l.lapTime }))
-      .slice(-10);
-  }, [allLaps, packet, hiddenSessionIds]);
+      .slice(-maxLaps);
+  }, [allLaps, packet, hiddenSessionIds, maxLaps]);
 
   // Merge recorded + live laps
   const laps = useMemo(() => {
@@ -46,8 +50,8 @@ export function LapTimeChart({
         merged.push(live);
       }
     }
-    return merged.slice(-10);
-  }, [recordedLaps, liveLaps]);
+    return merged.slice(-maxLaps);
+  }, [recordedLaps, liveLaps, maxLaps]);
 
   // Accumulate live laps
   useEffect(() => {
@@ -63,27 +67,18 @@ export function LapTimeChart({
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  // When height is provided via props, use it; otherwise the canvas
-  // wrapper fills its flex parent and we measure its rendered size.
-  const [measured, setMeasured] = useState<{ w: number; h: number }>({ w: 0, h: 280 });
+  const [resizeTick, setResizeTick] = useState(0);
 
+  // Re-draw on canvas resize without owning size in state — the canvas'
+  // CSS dimensions (calc(100% - 16px)) drive layout; we just measure
+  // clientWidth/clientHeight at draw time.
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const update = () => {
-      const rect = container.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        setMeasured({ w: rect.width, h: rect.height });
-      }
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(container);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ro = new ResizeObserver(() => setResizeTick((t) => t + 1));
+    ro.observe(canvas);
     return () => ro.disconnect();
   }, []);
-
-  const containerWidth = measured.w;
-  const effectiveHeight = height ?? measured.h;
 
   const handleClearAll = () => {
     setLiveLaps([]);
@@ -99,14 +94,17 @@ export function LapTimeChart({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const width = container.clientWidth;
-    const h = effectiveHeight;
+    const width = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if (width <= 0 || h <= 0) return;
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = h * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${h}px`;
-    ctx.scale(dpr, dpr);
+    // Only resize the bitmap when logical size actually changed — avoids
+    // clearing + re-scaling the context on every re-render.
+    const targetW = Math.round(width * dpr);
+    const targetH = Math.round(h * dpr);
+    if (canvas.width !== targetW) canvas.width = targetW;
+    if (canvas.height !== targetH) canvas.height = targetH;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, h);
 
     const leftPad = 78;
@@ -175,7 +173,9 @@ export function LapTimeChart({
     ctx.fillStyle = "#fbbf24";
     ctx.fillText(`avg`, width - rightPad - 2, avgY - 5);
 
-    const step = laps.length > 1 ? chartW / (laps.length - 1) : chartW / 2;
+    const denom = Math.max(1, maxLaps - 1);
+    const step = chartW / denom;
+    const dotR = Math.max(2, Math.min(4.5, step * 0.35));
     ctx.beginPath();
     for (let i = 0; i < laps.length; i++) {
       const x = leftPad + i * step;
@@ -187,21 +187,24 @@ export function LapTimeChart({
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
+    const labelEvery = Math.max(1, Math.ceil((laps.length * 32) / Math.max(1, chartW)));
     for (let i = 0; i < laps.length; i++) {
       const x = leftPad + i * step;
       const y = yOf(laps[i].time);
       const isBest = laps[i].time === best;
       ctx.beginPath();
-      ctx.arc(x, y, isBest ? 4.5 : 3.5, 0, Math.PI * 2);
+      ctx.arc(x, y, isBest ? dotR + 1 : dotR, 0, Math.PI * 2);
       ctx.fillStyle = isBest ? "#a855f7" : laps[i].time <= optimum ? "#34d399" : "#fb923c";
       ctx.fill();
 
-      ctx.fillStyle = "#94a3b8";
-      ctx.font = "12px monospace";
-      ctx.textAlign = "center";
-      ctx.fillText(`${laps[i].lap}`, x, topPad + plotH + 14);
+      if (i % labelEvery === 0 || i === laps.length - 1) {
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "12px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(`${laps[i].lap}`, x, topPad + plotH + 14);
+      }
     }
-  }, [laps, effectiveHeight, containerWidth, yTicks]);
+  }, [laps, yTicks, maxLaps, resizeTick]);
 
   return (
     <div className="h-full flex flex-col border-b border-app-border">

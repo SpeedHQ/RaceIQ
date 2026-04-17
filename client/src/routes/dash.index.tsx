@@ -9,8 +9,10 @@ import {
   fakeForzaDisplayPacket,
   fakeSectors,
   fakePit,
-  fakeSessionLaps,
+  generateFakeSessionLaps,
 } from "../stories/fakeData";
+
+const MAX_PREVIEW_LAPS = 100;
 import type { TelemetryPacket } from "@shared/types";
 
 const PREVIEW_RAW_PACKET = {
@@ -94,9 +96,9 @@ function DashCatalogue() {
   const previewWidth = `min(100%, ${maxW}px, ${Math.floor((maxH * vp.w) / vp.h)}px)`;
   const previewAspect = `${vp.w} / ${vp.h}`;
 
-  const [combo2LapCount, setCombo2LapCount] = useState(fakeSessionLaps.length);
+  const [combo2LapCount, setCombo2LapCount] = useState(10);
   const combo2Laps = useMemo(
-    () => fakeSessionLaps.slice(0, combo2LapCount),
+    () => generateFakeSessionLaps(combo2LapCount),
     [combo2LapCount],
   );
 
@@ -171,14 +173,14 @@ function DashCatalogue() {
                     <input
                       type="range"
                       min={1}
-                      max={fakeSessionLaps.length}
+                      max={MAX_PREVIEW_LAPS}
                       step={1}
                       value={combo2LapCount}
                       onChange={(e) => setCombo2LapCount(Number(e.target.value))}
                       className="flex-1 accent-app-accent"
                     />
                     <span className="text-xs font-mono tabular-nums text-white/60 w-10 text-right">
-                      {combo2LapCount}/{fakeSessionLaps.length}
+                      {combo2LapCount}/{MAX_PREVIEW_LAPS}
                     </span>
                   </div>
                 )}

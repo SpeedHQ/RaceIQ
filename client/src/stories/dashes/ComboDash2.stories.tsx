@@ -2,7 +2,9 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, createMemoryHistory, RouterProvider, createRootRoute } from "@tanstack/react-router";
 import { ComboDash2 } from "../../components/dashes/ComboDash2";
-import { fakeForzaPacket, fakeSessionLaps } from "../fakeData";
+import { fakeForzaPacket, generateFakeSessionLaps } from "../fakeData";
+
+const MAX_LAPS = 100;
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -17,15 +19,20 @@ function withRouter(node: React.ReactNode) {
   return <RouterProvider router={router} />;
 }
 
-function wrap() {
+interface Args {
+  lapCount: number;
+}
+
+function wrap({ lapCount }: Args) {
+  const laps = generateFakeSessionLaps(lapCount);
   return (
     <QueryClientProvider client={queryClient}>
       <div style={{ width: "100%", height: "100vh", background: "#000" }}>
         {withRouter(
           <ComboDash2
             rawPacket={fakeForzaPacket}
-            allLaps={fakeSessionLaps}
-            sessionLaps={fakeSessionLaps}
+            allLaps={laps}
+            sessionLaps={laps}
           />,
         )}
       </div>
@@ -33,17 +40,25 @@ function wrap() {
   );
 }
 
-const meta: Meta<typeof ComboDash2> = {
+const meta: Meta<Args> = {
   title: "Dashes/Combo/Combo Dash 2",
-  component: ComboDash2,
   parameters: { layout: "fullscreen" },
+  argTypes: {
+    lapCount: {
+      name: "Laps",
+      control: { type: "range", min: 1, max: MAX_LAPS, step: 1 },
+    },
+  },
+  args: {
+    lapCount: 10,
+  },
 };
 
 export default meta;
-type Story = StoryObj<typeof ComboDash2>;
+type Story = StoryObj<Args>;
 
 export const Default: Story = {
-  render: () => wrap(),
+  render: (args) => wrap(args),
 };
 
 export const NoData: Story = {
@@ -55,6 +70,6 @@ export const NoData: Story = {
 };
 
 export const Tablet: Story = {
-  render: () => wrap(),
+  render: (args) => wrap(args),
   globals: { viewport: { value: "ipadLandscape", isRotated: false } },
 };
