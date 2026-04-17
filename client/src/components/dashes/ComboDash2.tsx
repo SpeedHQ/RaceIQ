@@ -20,7 +20,9 @@ export function ComboDash2({ rawPacket, allLaps, sessionLaps }: ComboDash2Props)
     const el = chartPanelRef.current;
     if (!el) return;
     const update = () => {
-      const h = Math.max(80, el.clientHeight - 16);
+      // Panel has p-2 (16px total), and the legend row below the canvas
+      // needs ~26px. Reserve both so the legend doesn't clip.
+      const h = Math.max(80, el.clientHeight - 16 - 26);
       setChartHeight(h);
     };
     update();

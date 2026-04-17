@@ -59,6 +59,18 @@ export function LapTimeChart({
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  // Track container width so the canvas redraws when the panel resizes.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const update = () => setContainerWidth(container.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, []);
 
   const handleClearAll = () => {
     setLiveLaps([]);
@@ -85,6 +97,10 @@ export function LapTimeChart({
 
     const leftPad = 78;
     const rightPad = 10;
+    const topPad = 12;
+    const bottomPad = 20;
+    const plotH = Math.max(1, height - topPad - bottomPad);
+    const yOf = (v: number) => topPad + plotH - ((v - minY) / yRange) * plotH;
 
     const times = laps.map((l) => l.time);
     const best = Math.min(...times);
@@ -99,11 +115,11 @@ export function LapTimeChart({
     const optimum = top5.length % 2 === 0
       ? (top5[top5.length / 2 - 1] + top5[top5.length / 2]) / 2
       : top5[Math.floor(top5.length / 2)];
-    const optimumY = height - ((optimum - minY) / yRange) * height;
+    const optimumY = yOf(optimum);
 
     const recent4 = times.slice(-4);
     const avgPace = recent4.reduce((a, b) => a + b, 0) / recent4.length;
-    const avgY = height - ((avgPace - minY) / yRange) * height;
+    const avgY = yOf(avgPace);
 
     const chartW = width - leftPad - rightPad;
 
@@ -113,7 +129,7 @@ export function LapTimeChart({
     const tickCount = 5;
     for (let i = 0; i <= tickCount; i++) {
       const val = minY + (yRange * i) / tickCount;
-      const y = height - (i / tickCount) * height;
+      const y = topPad + plotH - (i / tickCount) * plotH;
       ctx.fillText(formatLapTime(val), leftPad - 6, y + 5);
       ctx.strokeStyle = "rgba(100,116,139,0.08)";
       ctx.lineWidth = 0.5;
@@ -149,7 +165,7 @@ export function LapTimeChart({
     ctx.beginPath();
     for (let i = 0; i < laps.length; i++) {
       const x = leftPad + i * step;
-      const y = height - ((laps[i].time - minY) / yRange) * height;
+      const y = yOf(laps[i].time);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
@@ -159,7 +175,7 @@ export function LapTimeChart({
 
     for (let i = 0; i < laps.length; i++) {
       const x = leftPad + i * step;
-      const y = height - ((laps[i].time - minY) / yRange) * height;
+      const y = yOf(laps[i].time);
       const isBest = laps[i].time === best;
       ctx.beginPath();
       ctx.arc(x, y, isBest ? 4.5 : 3.5, 0, Math.PI * 2);
@@ -169,9 +185,9 @@ export function LapTimeChart({
       ctx.fillStyle = "#94a3b8";
       ctx.font = "12px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(`${laps[i].lap}`, x, height - 4);
+      ctx.fillText(`${laps[i].lap}`, x, topPad + plotH + 14);
     }
-  }, [laps]);
+  }, [laps, height, containerWidth]);
 
   return (
     <div className="border-b border-app-border">
