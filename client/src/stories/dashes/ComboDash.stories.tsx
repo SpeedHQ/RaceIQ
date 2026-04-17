@@ -62,13 +62,27 @@ const meta: Meta<typeof ComboDash> = {
   title: "Dashes/Combo/Combo Dash 1",
   component: ComboDash,
   parameters: { layout: "fullscreen" },
+  argTypes: {
+    rpm: {
+      control: { type: "range", min: 3000, max: 18000, step: 50 },
+      description: "Live RPM (drive the rev bar interactively)",
+    },
+    gear: {
+      control: { type: "range", min: 0, max: 10, step: 1 },
+      description: "Gear (0 = R, 1 = N, 2+ = forward gears)",
+    },
+  },
 };
 
 export default meta;
-type Story = StoryObj<typeof ComboDash>;
+type Story = StoryObj<typeof ComboDash & { rpm?: number; gear?: number }>;
 
 export const Default: Story = {
-  render: () => wrap(),
+  args: { rpm: 14200, gear: 7 },
+  render: (args) =>
+    wrap({
+      raw: { CurrentEngineRpm: args.rpm ?? 14200, Gear: args.gear ?? 7 },
+    }),
 };
 
 export const NoData: Story = {

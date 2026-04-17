@@ -16,6 +16,14 @@ const stories = [
     name: "AccLiveDashboard",
     id: "dashboards-acclivedashboard--default",
   },
+  {
+    name: "ComboDash1",
+    id: "dashes-combo-combo-dash-1--default",
+  },
+  {
+    name: "ComboDash2",
+    id: "dashes-combo-combo-dash-2--default",
+  },
 ];
 
 for (const story of stories) {

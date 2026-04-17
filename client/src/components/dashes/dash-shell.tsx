@@ -18,8 +18,6 @@ export function DashShell({ children, className = "" }: DashShellProps) {
         WebkitTouchCallout: "none",
         overscrollBehavior: "none",
         touchAction: "none",
-        fontFamily:
-          'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
         fontVariantNumeric: "tabular-nums",
       }}
     >

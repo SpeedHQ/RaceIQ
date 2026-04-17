@@ -36,10 +36,11 @@ export function RevBar({ rpm, idle, max, segments = 100, className = "" }: RevBa
   const redlining = pct >= 0.97;
   const strobeOn = useRedlineStrobe(redlining);
 
-  const color = barColor(pct);
-  const visible = !redlining || strobeOn;
-  const litBg = visible ? color : "rgba(255,255,255,0.06)";
-  const litShadow = visible ? `0 0 8px ${color}66` : "none";
+  const baseColor = barColor(pct);
+  // While redlining, alternate between red and orange instead of blinking off.
+  const color = redlining && !strobeOn ? "#ff6a00" : baseColor;
+  const litBg = color;
+  const litShadow = `0 0 8px ${color}66`;
 
   return (
     <div className={`flex h-full w-full gap-[1px] ${className}`}>
