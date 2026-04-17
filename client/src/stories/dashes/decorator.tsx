@@ -46,10 +46,11 @@ export function DashStoryDecorator({
     ...brakeAndPsiDefaults,
     ...(overrides?.raw ?? {}),
   } as TelemetryPacket;
-  const raw =
-    overrides?.totalLaps !== undefined
-      ? ({ ...rawBase, f1: { ...(rawBase.f1 ?? {}), totalLaps: overrides.totalLaps } } as TelemetryPacket)
-      : rawBase;
+  const totalLapsValue = overrides?.totalLaps ?? 57;
+  const raw = {
+    ...rawBase,
+    f1: { ...(rawBase.f1 ?? {}), totalLaps: totalLapsValue },
+  } as TelemetryPacket;
   const display = {
     ...fakeForzaDisplayPacket,
     ...(overrides?.raw ?? {}),

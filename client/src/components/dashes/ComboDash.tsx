@@ -19,10 +19,25 @@ export function ComboDash() {
   const rawPacket = useTelemetryStore((s) => s.rawPacket);
   const packet = useTelemetryStore((s) => s.packet);
   const sectors = useTelemetryStore((s) => s.sectors);
+  const pit = useTelemetryStore((s) => s.pit);
   const unitSystem = useTelemetryStore((s) => s.unitSystem);
   const gameId = useGameId();
   const units = useUnits();
   const game = gameId ? tryGetGame(gameId) : null;
+
+  const fuelLaps = pit?.fuelLapsRemaining ?? null;
+  const tireCliffs = pit?.tireEstimates?.toCliff ?? [];
+  const tireLabels = ["FL", "FR", "RL", "RR"] as const;
+  let weakestLabel: string | null = null;
+  let weakestLaps: number | null = null;
+  for (let i = 0; i < Math.min(tireCliffs.length, 4); i++) {
+    const v = tireCliffs[i];
+    if (v == null) continue;
+    if (weakestLaps == null || v < weakestLaps) {
+      weakestLaps = v;
+      weakestLabel = tireLabels[i];
+    }
+  }
 
   const rpm = packet?.CurrentEngineRpm ?? 0;
   const idle = packet?.EngineIdleRpm ?? 0;
@@ -35,9 +50,9 @@ export function ComboDash() {
 
   return (
     <DashShell>
-      <div className="h-full w-full grid grid-cols-2 grid-rows-[auto_minmax(0,auto)_1fr] gap-3 p-4">
+      <div className="h-full w-full grid grid-cols-[3fr_1fr] grid-rows-[auto_1fr_2fr] gap-3 p-4">
         <div
-          className="col-span-2 relative flex items-center gap-3"
+          className="relative flex items-center gap-3"
           style={{ height: "10vh", minHeight: 50 }}
         >
           <div className="flex-1 h-full">
@@ -48,8 +63,43 @@ export function ComboDash() {
           </div>
         </div>
 
-        <div className="col-span-2 flex gap-3">
-          <div className="w-1/4">
+        <div className="row-span-2 min-h-0">
+          <Tile label="REMAINING">
+            <div className="space-y-2">
+              <PitRow
+                label="FUEL"
+                value={fuelLaps != null ? fuelLaps.toFixed(1) : "—"}
+                suffix="laps"
+                color={
+                  fuelLaps == null
+                    ? "text-white/40"
+                    : fuelLaps < 3
+                      ? "text-red-400"
+                      : fuelLaps < 8
+                        ? "text-amber-400"
+                        : "text-emerald-400"
+                }
+              />
+              <PitRow
+                label={weakestLabel ? `TYRE (${weakestLabel})` : "TYRE"}
+                value={weakestLaps != null ? weakestLaps.toFixed(1) : "—"}
+                suffix="laps"
+                color={
+                  weakestLaps == null
+                    ? "text-white/40"
+                    : weakestLaps < 3
+                      ? "text-red-400"
+                      : weakestLaps < 8
+                        ? "text-amber-400"
+                        : "text-emerald-400"
+                }
+              />
+            </div>
+          </Tile>
+        </div>
+
+        <div className="flex gap-3">
+          <div className="flex-1">
             <Tile label="GEAR">
               <div
                 className="font-black leading-none"
@@ -59,7 +109,7 @@ export function ComboDash() {
               </div>
             </Tile>
           </div>
-          <div className="w-1/4">
+          <div className="flex-1">
             <Tile label={unit.toUpperCase()}>
               <div
                 className="font-black leading-none"
@@ -69,7 +119,7 @@ export function ComboDash() {
               </div>
             </Tile>
           </div>
-          <div className="w-1/4">
+          <div className="flex-1">
             <Tile label="LAP">
               <div
                 className="font-black leading-none tabular-nums"
@@ -100,8 +150,8 @@ export function ComboDash() {
 
           <div className="flex-1 min-w-0 min-h-0 rounded-md border border-white/10 bg-white/[0.02] overflow-hidden">
             {rawPacket ? (
-              <FitToViewport padding={12} maxScale={1.5}>
-                <div style={{ width: 340 }} className="[&>div>:first-child]:hidden">
+              <FitToViewport padding={4} maxScale={5}>
+                <div style={{ width: 400 }} className="[&>div>:first-child]:hidden">
                   <TireGrid
                     fl={{
                       tempC: Math.round(units.toTempC(rawPacket.TireTempFL)),
@@ -139,6 +189,28 @@ export function ComboDash() {
         </div>
       </div>
     </DashShell>
+  );
+}
+
+function PitRow({
+  label,
+  value,
+  suffix,
+  color,
+}: {
+  label: string;
+  value: string;
+  suffix: string;
+  color: string;
+}) {
+  return (
+    <div>
+      <div className="text-white/40 text-xs tracking-widest uppercase">{label}</div>
+      <div className={`font-black leading-none tabular-nums ${color}`} style={{ fontSize: "2.5rem" }}>
+        {value}
+        <span className="text-white/40 text-base font-semibold ml-2">{suffix}</span>
+      </div>
+    </div>
   );
 }
 
