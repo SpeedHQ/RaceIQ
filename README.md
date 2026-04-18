@@ -37,7 +37,6 @@ Check out the [demo](https://www.youtube.com/watch?v=hWuIItofivA) and [screensho
 - **AI coaching** — send any lap for AI-powered technique, setup, and tire feedback
 - **Vehicle setup** — tune catalog, car browser with performance data
 - **Tune analysis** — compare the fastest tunes/setups and see popular setting ranges across the community
-- **Driver profiles** — multiple profiles, lap export, and aggregate stats like laps completed and distance driven.
 
 ## Supported Games
 

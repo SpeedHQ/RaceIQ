@@ -2,7 +2,7 @@ import React, { useRef, useMemo, useState, useCallback, useEffect } from "react"
 import { client } from "../lib/rpc";
 import { Canvas } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
-import type { TelemetryPacket } from "@shared/types";
+import type { GameId, TelemetryPacket } from "@shared/types";
 import { getCarModel, loadCarModelConfigs, F1_CAR, DEMO_CAR, type CarModelEnrichment } from "../data/car-models";
 import { tireTempColorHex } from "../lib/vehicle-dynamics";
 import { useUnits } from "../hooks/useUnits";
@@ -22,6 +22,7 @@ useGLTF.preload("/models/aston_martin_vantage_gt3.glb");
 useGLTF.preload("/models/f1_2025_mclaren_mcl39.glb");
 
 export const CarWireframe = React.memo(function CarWireframe({
+  gameId: gameIdProp,
   packet,
   telemetry,
   cursorIdx,
@@ -35,6 +36,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   hideControls,
   autoOrbit,
 }: {
+  gameId?: GameId;
   packet: TelemetryPacket;
   telemetry: TelemetryPacket[];
   cursorIdx: number;
@@ -53,7 +55,11 @@ export const CarWireframe = React.memo(function CarWireframe({
 }) {
   const [configsLoaded, setConfigsLoaded] = useState(false);
   useEffect(() => { loadCarModelConfigs().then(() => setConfigsLoaded(true)); }, []);
-  const gameId = useGameId();
+  const storeGameId = useGameId();
+  const gameId = gameIdProp ?? storeGameId;
+  if (!gameId) {
+    throw new Error("CarWireframe: gameId missing — pass as prop or mount inside a GameProvider");
+  }
   const isF1 = gameId === "f1-2025";
 
   const carModel = useMemo(() => {
@@ -85,7 +91,13 @@ export const CarWireframe = React.memo(function CarWireframe({
   });
   // Merge defaults so any keys added after the user's localStorage was first
   // written get sensible values instead of undefined.
-  const toggles: ViewToggles = { ...DEFAULT_TOGGLES, ...storedToggles };
+  // When controls are hidden (e.g. onboarding preview) force wheelInfo off —
+  // the user has no way to toggle it and the stat cards clutter the scene.
+  const toggles: ViewToggles = {
+    ...DEFAULT_TOGGLES,
+    ...storedToggles,
+    ...(hideControls ? { wheelInfo: false } : {}),
+  };
   const [viewPreset, setViewPreset] = useState<ViewPreset>("3/4");
 
   const flippedBoundaries = useMemo(() => {
@@ -157,7 +169,7 @@ export const CarWireframe = React.memo(function CarWireframe({
           };
         }}
       >
-        <CarScene packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} boundaries={flippedBoundaries} toggles={toggles} viewPreset={viewPreset} carModel={carModel} modelOffsetX={modelOffsetX} fmtTemp={fmtTemp} hideModelWheels={!minimal} suspThresholds={suspThresholds} autoOrbit={autoOrbit} tireColors={[
+        <CarScene gameId={gameId} packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} boundaries={flippedBoundaries} toggles={toggles} viewPreset={viewPreset} carModel={carModel} modelOffsetX={modelOffsetX} fmtTemp={fmtTemp} hideModelWheels={!minimal} suspThresholds={suspThresholds} autoOrbit={autoOrbit} tireColors={[
           tireTempColorHex(units.toTempC(packet.TireTempFL), units.thresholds),
           tireTempColorHex(units.toTempC(packet.TireTempFR), units.thresholds),
           tireTempColorHex(units.toTempC(packet.TireTempRL), units.thresholds),
