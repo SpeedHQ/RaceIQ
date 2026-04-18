@@ -162,22 +162,23 @@ class UdpListener {
     await processPacket(packet);
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     if (this._socket) {
       this._socket.stop();
       this._socket = null;
       console.log("[UDP] Listener stopped");
     }
     if (this._recorder) {
-      // Fire-and-forget — writes are append-only, so even a crash mid-flush
-      // only risks the last packet being truncated.
-      void this._recorder.stop();
+      // Await the flush on a clean shutdown. The format is append-only, so
+      // even a hard kill only risks the last packet being truncated — but
+      // waiting here means `Ctrl+C` produces a complete file.
+      await this._recorder.stop();
       this._recorder = null;
     }
   }
 
   async restart(port: number, hostname?: string): Promise<void> {
-    this.stop();
+    await this.stop();
     this._droppedPackets = 0;
     this._totalPackets = 0;
     this._receiving = false;

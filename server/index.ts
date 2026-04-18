@@ -10,6 +10,8 @@ import { wsManager, type WSData } from "./ws";
 import { loadSettings } from "./settings";
 import { initServerGameAdapters } from "./games/init";
 import { initGameAdapters } from "../shared/games/init";
+import { accRecorder } from "./games/acc/recorder";
+import { acEvoRecorder } from "./games/ac-evo/recorder";
 
 // Register all game adapters (shared + server)
 initGameAdapters();
@@ -166,6 +168,27 @@ console.log(`[Server] HTTP/WS server listening on http://localhost:${HTTP_PORT}`
 // same init-time shape as AccSharedMemoryReader's constructor flag.
 if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
   udpListener.setRecordingGameId(recordingGameId);
+}
+
+// Flush every recorder on Ctrl+C / kill so each .bin has a clean tail. All
+// three recorders buffer via Bun.file().writer() — without this handler the
+// default SIGINT path exits before the buffer drains and the file ends up
+// zero-length (or missing the tail).
+if (recordingGameId) {
+  const gracefulShutdown = async (signal: NodeJS.Signals) => {
+    console.log(`[Server] Received ${signal} — finalizing recording...`);
+    try {
+      await Promise.allSettled([
+        udpListener.stop(),
+        accRecorder.stop(),
+        acEvoRecorder.stop(),
+      ]);
+    } finally {
+      process.exit(0);
+    }
+  };
+  process.on("SIGINT", () => void gracefulShutdown("SIGINT"));
+  process.on("SIGTERM", () => void gracefulShutdown("SIGTERM"));
 }
 
 // Start UDP listener — settings.udpPort takes priority, env var is the fallback
