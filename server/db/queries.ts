@@ -399,6 +399,7 @@ export async function getLapById(
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
+      carSetup: laps.carSetup,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -458,6 +459,7 @@ export async function getLapById(
     tuneId: row.tuneId ?? undefined,
     tuneName: row.tuneName ?? undefined,
     gameId: row.gameId as GameId,
+    carSetup: row.carSetup ?? undefined,
     telemetry,
   };
 }

@@ -72,6 +72,7 @@ function getSystemPrompt(gameId: GameId, unit: UnitSystem): string {
 
 export function buildAnalystPrompt(
   lap: {
+    id?: number;
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
@@ -120,6 +121,8 @@ export function buildAnalystPrompt(
       settings: tune.settings,
     }) + "\n";
   }
+  // F1 setup comes from the `compare-f1-setup-to-catalog` tool — see the
+  // Lap Analyst system prompt. Not injected here.
 
   let segmentsList = "";
   if (segments && segments.length > 0) {
@@ -157,9 +160,11 @@ ${insightsText}`;
     f1ExtendedContext = serverAdapter.buildAiContext(packets);
   }
 
+  const lapIdLine = lap.id !== undefined ? `Lap ID: ${lap.id}\n` : "";
+
   return `${systemPrompt}
 
 --- TELEMETRY DATA ---
 
-${context}${f1ExtendedContext}`;
+${lapIdLine}${context}${f1ExtendedContext}`;
 }

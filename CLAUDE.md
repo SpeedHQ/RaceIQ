@@ -236,6 +236,32 @@ Installed via `postinstall` script. Runs in parallel on staged client files:
 - **lint** — ESLint on staged `client/src/**/*.{ts,tsx}`
 - **typecheck** — full client build (`cd client && bun run build`)
 
+### AI Evaluators
+
+Lap Analyst and Compare Engineer outputs are gated by deterministic scorers under `mastra/evals/scorers/`. The eval harness runs real fixture laps through an eval-only agent (pinned to `google/gemini-3-flash`), scores the output, and fails the build if any score drops below its threshold in `mastra/evals/index.ts::SCORER_THRESHOLDS`.
+
+**Scorers (all deterministic, no LLM judge):**
+- `output-shape` — analyst output parses against `AnalystOutputSchema` (`server/ai/schemas.ts`). Threshold 1.0.
+- `corner-coverage` — fraction of the fixture's expected slowest corners mentioned. Threshold 0.7.
+- `numeric-grounding` — fraction of `tuning[]` entries citing a concrete number-with-unit. Threshold 0.8.
+- `unit-consistency` — metric fixtures must not leak imperial units, and vice versa. Threshold 1.0.
+- `compare-directionality` — compare output correctly names the faster lap. Threshold 0.9.
+- `chat-freeform-shape` — chat output is non-empty, cites real corners, no hallucinated corner names. Threshold 0.8.
+
+**Schema source of truth:** every game adapter prompt (FM, F1, ACC, AC Evo) renders its JSON output shape via `renderAnalystSchemaForPrompt()` from `server/ai/schemas.ts`, so the scorer and the model's instructions stay in lockstep. Per-game prompts still own their own category guidelines and domain rules, but the shape is centralised.
+
+**Running evals:**
+```
+bun run test:ai                  # runs test/ai-quality.test.ts
+bun run ai:baseline              # snapshots scores to test/ai-fixtures/baselines/<sha>-<model>.json
+```
+
+Both commands require `GEMINI_API_KEY` (or `GOOGLE_GENERATIVE_AI_API_KEY`); they skip cleanly when absent so forks and fresh clones don't flake.
+
+**Adding a fixture:** see `test/ai-fixtures/README.md`. In short: export a real lap via `bun run laps:export --ids <id> -o test/ai-fixtures/packets/<id>.zip`, then add a matching JSON under `test/ai-fixtures/laps/` with an `expected` block pinning _signals_ (corner names, faster lap, setup direction) — not a reference answer. Signals survive prompt iteration; reference answers do not.
+
+**CI:** a separate `ai-quality` job in `.github/workflows/build-test.yml` runs `bun run test:ai` after the main test job. Uses repo secret `GEMINI_API_KEY`; skips on forks where the secret is unavailable.
+
 ### Testing
 
 Tests live in `test/` and use Bun's native test runner (`bun:test` with `describe`/`test`/`expect`). Tests that involve packet parsing must initialize game adapters first:

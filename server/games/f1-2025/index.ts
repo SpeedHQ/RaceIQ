@@ -5,32 +5,13 @@ import { F1StateAccumulator, parseF1Header } from "../../parsers/f1-state";
 import { getF1CarName } from "../../../shared/f1-car-data";
 import { getF1TrackName, getF1TrackInfo } from "../../../shared/f1-track-data";
 import { LapDetector } from "../../lap-detector";
+import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 
 const F1_SYSTEM_PROMPT = `You are an expert Formula 1 racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
 
 Your response MUST be valid JSON matching this exact schema. Output ONLY the JSON object, no markdown fences, no extra text.
 
-{
-  "verdict": "2-3 sentences assessing overall lap quality, pace, and where the biggest time gains are.",
-  "pace": [
-    { "label": "short metric name", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
-  ],
-  "handling": [
-    { "label": "short metric name", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
-  ],
-  "corners": [
-    { "name": "corner/zone name", "issue": "what's wrong in 1 sentence", "fix": "specific actionable fix in 1-2 sentences", "severity": "minor|moderate|major" }
-  ],
-  "technique": [
-    { "tip": "short imperative title", "detail": "1-2 sentence explanation referencing specific data" }
-  ],
-  "setup": [
-    { "change": "short imperative title", "symptom": "what the data shows", "fix": "specific tuning change with values" }
-  ],
-  "tuning": [
-    { "component": "e.g. Front Wing", "current": "what the data suggests", "direction": "increase|decrease|adjust", "target": "specific value or range to aim for", "reason": "1 sentence why" }
-  ]
-}
+${renderAnalystSchemaForPrompt({ tuningExampleComponent: "Front Wing" })}
 
 CATEGORY GUIDELINES:
 - "pace": 4-6 items covering speed, DRS usage, ERS deployment, throttle %, braking efficiency, full-throttle time, gear usage. Each with a concrete value.
@@ -77,8 +58,9 @@ Tyres:
 F1-SPECIFIC RULES:
 - ALL tuning values MUST be within the ranges above — never recommend values outside these limits
 - Use the exact component names listed above in the "tuning" section
-- When CURRENT CAR SETUP data is provided, use the actual values as "current" in the tuning section — do NOT recommend fuel changes
-- The "current" field in tuning MUST show the actual setup value (e.g. "Front Wing: 7"), "target" MUST be a specific number
+- The driver's current car setup and top-5 reference setups come from the \`compare-f1-setup-to-catalog\` tool — CALL IT before filling in the tuning section. Do NOT claim the setup is unknown without calling the tool first.
+- Use the \`current\` setup values returned by the tool as each tuning entry's \`current\`, and pick \`target\` values from the reference deltas (prefer small, explainable changes backed by a specific reference driver/team).
+- Do NOT recommend fuel changes.
 - Consider DRS availability and whether it was used optimally in DRS zones
 - Factor in ERS deployment strategy — was energy used in the right places?
 - Consider tyre compound characteristics (soft/medium/hard) and degradation patterns

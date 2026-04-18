@@ -39,7 +39,6 @@ import {
   compareChatThreadId,
   CHAT_RESOURCE_ID,
 } from "../ai/chat-agent";
-import { runGemini, runOpenAi } from "../ai/providers";
 import { getSecret } from "../keystore";
 import { deleteAnalysis as deleteAnalysisQuery } from "../db/queries";
 import { tryGetGame } from "../../shared/games/registry";
@@ -53,6 +52,7 @@ import {
 // Dev uses the full Mastra instance (so Studio sees traces); prod tree-shakes
 // the Mastra wrapper out. See `server/ai/agents.ts` for the switch.
 import {
+  lapAnalystAgent,
   lapChatAgent,
   compareEngineerAgent,
   compareChatAgent,
@@ -203,6 +203,13 @@ export const lapRoutes = new Hono()
         endFrac: Math.min(1, (c.distanceEnd - firstDist) / totalDist),
       }));
 
+      // `hasTune` tells the UI whether the analysis had authoritative setup data.
+      // Forza laps: a linked `tuneId`. F1 laps: the per-lap `carSetup` snapshot
+      // (fetched by the compare-f1-setup-to-catalog tool, not injected into
+      // the prompt). Without this, the "No tune data linked" banner would fire
+      // on every F1 analysis even though the tool gives the model the setup.
+      const hasTune = !!lap.tuneId || (lap.gameId === "f1-2025" && !!lap.carSetup);
+
       if (!regenerate) {
         const cached = await getAnalysis(id);
         if (cached) {
@@ -217,11 +224,11 @@ export const lapRoutes = new Hono()
               model: cached.model,
             },
             cornerFracs,
-            hasTune: !!lap.tuneId,
+            hasTune,
           });
         }
         if (cacheOnly) {
-          return c.json({ analysis: null, cached: false, cornerFracs, hasTune: !!lap.tuneId });
+          return c.json({ analysis: null, cached: false, cornerFracs, hasTune });
         }
       }
       const settings = loadSettings();
@@ -269,21 +276,40 @@ export const lapRoutes = new Hono()
         segments,
       );
 
-      try {
-        let result;
-        if (settings.aiProvider === "openai") {
-          const apiKey = await getSecret("openai-api-key");
-          if (!apiKey) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
-          result = await runOpenAi(prompt, apiKey, settings.aiModel || undefined);
-        } else {
-          // Default: Gemini (also handles "local" fallback)
-          const apiKey = await getSecret("gemini-api-key");
-          if (!apiKey) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
-          result = await runGemini(prompt, apiKey, settings.aiModel || undefined);
-        }
+      // Bridge keystore secret → env var so Mastra / AI SDK providers can resolve it.
+      // The Mastra lap-analyst agent reads the provider from settings via `getMastraModelId`.
+      const analystProvider = settings.aiProvider;
+      if (analystProvider === "openai") {
+        const key = await getSecret("openai-api-key");
+        if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
+        process.env.OPENAI_API_KEY = key;
+      } else if (analystProvider === "local") {
+        process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+        process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+      } else {
+        const key = await getSecret("gemini-api-key");
+        if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
+        process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+      }
 
-        await saveAnalysis(id, result.analysis, result.usage);
-        return c.json({ analysis: result.analysis, cached: false, usage: result.usage, cornerFracs, hasTune: !!parsedTune });
+      try {
+        const startedAt = Date.now();
+        // maxSteps > 1 lets the agent call tools (e.g. compare-f1-setup-to-catalog)
+        // and loop their results back into the final output.
+        const response = await lapAnalystAgent.generate(prompt, { maxSteps: 5 });
+        const durationMs = Date.now() - startedAt;
+
+        const analysis = response.text ?? "";
+        const usage = {
+          inputTokens: response.usage?.inputTokens ?? response.usage?.promptTokens ?? 0,
+          outputTokens: response.usage?.outputTokens ?? response.usage?.completionTokens ?? 0,
+          costUsd: 0,
+          durationMs,
+          model: settings.aiModel || (analystProvider === "openai" ? "gpt-4o-mini" : "gemini-2.0-flash"),
+        };
+
+        await saveAnalysis(id, analysis, usage);
+        return c.json({ analysis, cached: false, usage, cornerFracs, hasTune });
       } catch (err: any) {
         console.error("[AI] Analysis failed:", err.message);
         return c.json({ error: err.message }, err.message.includes("timed out") ? 504 : 500);
