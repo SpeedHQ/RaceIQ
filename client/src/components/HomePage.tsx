@@ -383,7 +383,7 @@ export function HomePage() {
           {/* Icon + Name */}
           <div className="relative flex items-center gap-2.5 mb-3.5">
             <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-orange-500/8 border border-orange-500/10">
-              <span className="text-xs font-black text-orange-400">AC</span>
+              <img src="/acc-logo.png" alt="" className="w-5 h-5 object-contain" />
             </div>
             <span className="text-sm font-bold text-white/90">Assetto Corsa Competizione</span>
           </div>
