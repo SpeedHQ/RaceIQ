@@ -10,6 +10,7 @@ import { tryGetGame } from "@shared/games/registry";
 import { useUiStore } from "../stores/ui";
 import { PiBadge, PI_COLORS, piClass } from "./forza/PiBadge";
 import { Table, THead, TBody, TRow, TH, TD } from "./ui/AppTable";
+import { ActivityHeatmap } from "./ActivityHeatmap";
 
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
@@ -159,6 +160,7 @@ export function HomePage() {
       const totalTime = laps.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
       const tracks = new Set(laps.map((l) => l.trackOrdinal).filter(Boolean)).size;
       const cars = new Set(laps.map((l) => l.carOrdinal).filter(Boolean)).size;
+      const sessions = new Set(laps.map((l) => l.sessionId).filter(Boolean)).size;
       const carCounts = new Map<number, number>();
       for (const l of laps) {
         if (l.carOrdinal) carCounts.set(l.carOrdinal, (carCounts.get(l.carOrdinal) ?? 0) + 1);
@@ -168,7 +170,7 @@ export function HomePage() {
       for (const [ord, count] of carCounts) {
         if (count > favCarCount) { favCarOrd = ord; favCarCount = count; }
       }
-      return { laps: laps.length, valid: valid.length, best, avgTime, totalTime, tracks, cars, favCarOrd, favCarCount };
+      return { laps: laps.length, valid: valid.length, best, avgTime, totalTime, tracks, cars, sessions, favCarOrd, favCarCount };
     }
 
     const gameLaps = gameId ? allLaps.filter((l) => l.gameId === gameId) : allLaps;
@@ -435,6 +437,9 @@ export function HomePage() {
         </Link>}
       </div>}
 
+      {/* Activity heatmap */}
+      <ActivityHeatmap laps={gameId ? allLaps.filter((l) => l.gameId === gameId) : allLaps} />
+
       {/* Period tabs + stats */}
       <div>
         <div className="flex items-center gap-1 mb-3">
@@ -457,7 +462,8 @@ export function HomePage() {
             return h > 0 ? `${h}h ${m}m` : `${m}m`;
           };
           return (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <StatCard label="Sessions" value={`${data.sessions}`} />
               <StatCard label="Laps" value={`${data.laps}`} />
               <StatCard label="Tracks" value={`${data.tracks}`} />
               <StatCard label="Cars" value={`${data.cars}`} />
