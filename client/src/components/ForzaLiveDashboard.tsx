@@ -1,6 +1,6 @@
 import { useTelemetryStore } from "../stores/telemetry";
 import { Link } from "@tanstack/react-router";
-import { useTrackName, useCarName } from "../hooks/queries";
+import { useTrackName, useCarName, useLaps } from "../hooks/queries";
 import { useGameId, useGameRoute } from "../stores/game";
 import { LiveTelemetry, type DashboardMode } from "./LiveTelemetry";
 import { RecordedLaps } from "./RecordedLaps";
@@ -70,6 +70,9 @@ function PageHeader({ dashMode, demo }: {
 export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }) {
   const packet = useTelemetryStore((s) => s.packet);
   const serverStatus = useTelemetryStore((s) => s.serverStatus);
+  const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
+  const sectors = useTelemetryStore((s) => s.sectors);
+  const { data: allLaps = [] } = useLaps();
   const trackOrd = packet?.TrackOrdinal ?? serverStatus?.currentSession?.trackOrdinal;
   const carOrd = packet?.CarOrdinal;
   const { data: trackName } = useTrackName(trackOrd);
@@ -96,10 +99,10 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
 
         {/* Right column: Race (with sectors) + Lap Chart + Recorded Laps */}
         <div className="overflow-y-auto overflow-x-hidden flex flex-col">
-          <RaceInfo packet={packet} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
-          <LapTimeChart packet={packet} />
+          <RaceInfo packet={packet} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
+          <LapTimeChart packet={packet} allLaps={allLaps} />
           <div className="flex-1">
-            <RecordedLaps />
+            <RecordedLaps laps={sessionLaps} />
           </div>
         </div>
       </div>
@@ -117,10 +120,10 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
 
       {/* Right column: Race HUD + laps */}
       <div className="overflow-auto flex flex-col">
-        <RaceInfo packet={packet} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
-        <LapTimeChart packet={packet} />
+        <RaceInfo packet={packet} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
+        <LapTimeChart packet={packet} allLaps={allLaps} />
         <div className="flex-1">
-          <RecordedLaps />
+          <RecordedLaps laps={sessionLaps} />
         </div>
       </div>
     </div>

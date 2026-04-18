@@ -1,14 +1,15 @@
-import { useTelemetryStore } from "@/stores/telemetry";
-import { useGameId } from "@/stores/game";
+import type { LivePitData, GameId } from "@shared/types";
+
+interface PitWindowProps {
+  pit: LivePitData | null;
+  gameId: GameId | null;
+}
 
 /**
  * PitWindow — Pit stop laps remaining + limited by indicator.
- * Reads from Zustand store. Renders inline in section headers (right side).
+ * Pure component; caller supplies pit + gameId.
  */
-export function PitWindow() {
-  const pit = useTelemetryStore((s) => s.pit);
-  const gameId = useGameId();
-
+export function PitWindow({ pit, gameId }: PitWindowProps) {
   const fuelIsLitres = gameId === "acc" || gameId === "f1-2025";
   const fuelColor = fuelIsLitres
     ? (pit?.fuelLapsRemaining != null

@@ -1,16 +1,32 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import type { TelemetryPacket } from "@shared/types";
+import type { TelemetryPacket, LapMeta } from "@shared/types";
 import { formatLapTime } from "./LiveTelemetry";
-import { useLaps } from "../hooks/queries";
 /**
  * LapTimeChart — Canvas-drawn lap time trend with pace reference lines.
  * "Optimum" = median of top 5 laps (robust to single-flier best laps).
  * "Avg" = mean of last 4 laps (recent rolling pace).
  * Dots are colored: purple=best, green=on pace (<=optimum), orange=off pace.
- * Seeds from /api/laps on mount, then appends live laps on LapNumber boundary.
+ *
+ * Pure-ish: the caller supplies `allLaps` (historical) and `packet` (for live
+ * lap accumulation on lap-number boundaries).
  */
-export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
-  const { data: allLaps = [] } = useLaps();
+export function LapTimeChart({
+  packet,
+  allLaps = [],
+  height,
+  yTicks = 5,
+  maxLaps = 10,
+}: {
+  packet: TelemetryPacket | null;
+  allLaps?: LapMeta[];
+  /** Optional fixed height. If omitted the chart fills its parent via flex. */
+  height?: number;
+  /** Number of y-axis intervals (ticks = yTicks + 1). Default 5. */
+  yTicks?: number;
+  /** Maximum number of laps shown. X-axis step is anchored to this so existing
+   *  dots don't shift as new laps arrive. Default 10. */
+  maxLaps?: number;
+}) {
   const [liveLaps, setLiveLaps] = useState<{ lap: number; time: number }[]>([]);
   const [hiddenSessionIds, setHiddenSessionIds] = useState<Set<number>>(new Set());
   const lastLapRef = useRef<number>(0);
@@ -23,8 +39,8 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
     return trackLaps
       .filter((l) => l.sessionId === latestSessionId)
       .map((l) => ({ lap: l.lapNumber, time: l.lapTime }))
-      .slice(-10);
-  }, [allLaps, packet, hiddenSessionIds]);
+      .slice(-maxLaps);
+  }, [allLaps, packet, hiddenSessionIds, maxLaps]);
 
   // Merge recorded + live laps
   const laps = useMemo(() => {
@@ -34,8 +50,8 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
         merged.push(live);
       }
     }
-    return merged.slice(-10);
-  }, [recordedLaps, liveLaps]);
+    return merged.slice(-maxLaps);
+  }, [recordedLaps, liveLaps, maxLaps]);
 
   // Accumulate live laps
   useEffect(() => {
@@ -51,7 +67,18 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const height = 280;
+  const [resizeTick, setResizeTick] = useState(0);
+
+  // Re-draw on canvas resize without owning size in state — the canvas'
+  // CSS dimensions (calc(100% - 16px)) drive layout; we just measure
+  // clientWidth/clientHeight at draw time.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ro = new ResizeObserver(() => setResizeTick((t) => t + 1));
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, []);
 
   const handleClearAll = () => {
     setLiveLaps([]);
@@ -67,17 +94,25 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const width = container.clientWidth;
+    const width = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if (width <= 0 || h <= 0) return;
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, width, height);
+    // Only resize the bitmap when logical size actually changed — avoids
+    // clearing + re-scaling the context on every re-render.
+    const targetW = Math.round(width * dpr);
+    const targetH = Math.round(h * dpr);
+    if (canvas.width !== targetW) canvas.width = targetW;
+    if (canvas.height !== targetH) canvas.height = targetH;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, h);
 
-    const leftPad = 65;
+    const leftPad = 78;
     const rightPad = 10;
+    const topPad = 12;
+    const bottomPad = 20;
+    const plotH = Math.max(1, h - topPad - bottomPad);
+    const yOf = (v: number) => topPad + plotH - ((v - minY) / yRange) * plotH;
 
     const times = laps.map((l) => l.time);
     const best = Math.min(...times);
@@ -92,21 +127,21 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
     const optimum = top5.length % 2 === 0
       ? (top5[top5.length / 2 - 1] + top5[top5.length / 2]) / 2
       : top5[Math.floor(top5.length / 2)];
-    const optimumY = height - ((optimum - minY) / yRange) * height;
+    const optimumY = yOf(optimum);
 
     const recent4 = times.slice(-4);
     const avgPace = recent4.reduce((a, b) => a + b, 0) / recent4.length;
-    const avgY = height - ((avgPace - minY) / yRange) * height;
+    const avgY = yOf(avgPace);
 
     const chartW = width - leftPad - rightPad;
 
     ctx.font = "13px monospace";
     ctx.fillStyle = "#94a3b8";
     ctx.textAlign = "right";
-    const tickCount = 5;
+    const tickCount = yTicks;
     for (let i = 0; i <= tickCount; i++) {
       const val = minY + (yRange * i) / tickCount;
-      const y = height - (i / tickCount) * height;
+      const y = topPad + plotH - (i / tickCount) * plotH;
       ctx.fillText(formatLapTime(val), leftPad - 6, y + 5);
       ctx.strokeStyle = "rgba(100,116,139,0.08)";
       ctx.lineWidth = 0.5;
@@ -138,11 +173,13 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
     ctx.fillStyle = "#fbbf24";
     ctx.fillText(`avg`, width - rightPad - 2, avgY - 5);
 
-    const step = laps.length > 1 ? chartW / (laps.length - 1) : chartW / 2;
+    const denom = Math.max(1, maxLaps - 1);
+    const step = chartW / denom;
+    const dotR = Math.max(2, Math.min(4.5, step * 0.35));
     ctx.beginPath();
     for (let i = 0; i < laps.length; i++) {
       const x = leftPad + i * step;
-      const y = height - ((laps[i].time - minY) / yRange) * height;
+      const y = yOf(laps[i].time);
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
@@ -150,25 +187,28 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
+    const labelEvery = Math.max(1, Math.ceil((laps.length * 32) / Math.max(1, chartW)));
     for (let i = 0; i < laps.length; i++) {
       const x = leftPad + i * step;
-      const y = height - ((laps[i].time - minY) / yRange) * height;
+      const y = yOf(laps[i].time);
       const isBest = laps[i].time === best;
       ctx.beginPath();
-      ctx.arc(x, y, isBest ? 4.5 : 3.5, 0, Math.PI * 2);
+      ctx.arc(x, y, isBest ? dotR + 1 : dotR, 0, Math.PI * 2);
       ctx.fillStyle = isBest ? "#a855f7" : laps[i].time <= optimum ? "#34d399" : "#fb923c";
       ctx.fill();
 
-      ctx.fillStyle = "#94a3b8";
-      ctx.font = "12px monospace";
-      ctx.textAlign = "center";
-      ctx.fillText(`${laps[i].lap}`, x, height - 4);
+      if (i % labelEvery === 0 || i === laps.length - 1) {
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "12px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(`${laps[i].lap}`, x, topPad + plotH + 14);
+      }
     }
-  }, [laps]);
+  }, [laps, yTicks, maxLaps, resizeTick]);
 
   return (
-    <div className="border-b border-app-border">
-      <div className="p-2 border-b border-app-border flex items-center justify-between">
+    <div className="h-full flex flex-col border-b border-app-border">
+      <div className="shrink-0 p-2 border-b border-app-border flex items-center justify-between">
         <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Lap Times</h2>
         <button
           onClick={handleClearAll}
@@ -177,18 +217,26 @@ export function LapTimeChart({ packet }: { packet: TelemetryPacket | null }) {
           Clear All
         </button>
       </div>
-      <div className="p-2" ref={containerRef}>
+      <div className="flex-1 min-h-0 relative p-2" ref={containerRef} style={height ? { height: height + 16 } : undefined}>
         {laps.length === 0 && (
-          <div className="flex items-center justify-center rounded bg-app-surface/40 text-app-text-dim text-sm" style={{ height }}>
+          <div className="absolute inset-2 flex items-center justify-center rounded bg-app-surface/40 text-app-text-dim text-sm">
             Complete a lap to see lap times
           </div>
         )}
         <canvas
           ref={canvasRef}
-          style={{ width: "100%", height, display: laps.length > 0 ? "block" : "none" }}
+          style={{
+            position: "absolute",
+            inset: 8,
+            width: "calc(100% - 16px)",
+            height: "calc(100% - 16px)",
+            display: laps.length > 0 ? "block" : "none",
+          }}
           className="rounded bg-app-surface/40"
         />
-        <div className="flex gap-3 mt-1.5 flex-wrap">
+      </div>
+      <div className="shrink-0 p-2 border-t border-app-border/50">
+        <div className="flex gap-3 flex-wrap">
           <div className="flex items-center gap-1">
             <div className="w-3 h-0.5 bg-cyan-400 rounded" />
             <span className="text-xs text-app-text-muted">Lap time</span>
