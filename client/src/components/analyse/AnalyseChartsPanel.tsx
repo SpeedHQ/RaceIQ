@@ -58,12 +58,19 @@ function buildChartData(displayTelemetry: DisplayPacket[]): ChartData | null {
   let hasBrakeTemp = false;
 
   const startTime = displayTelemetry[0].CurrentLap;
-  const endTime = displayTelemetry[displayTelemetry.length - 1].CurrentLap;
-  const lapDuration = endTime - startTime || 1;
+  // Use max CurrentLap as end time — last packet may have reset to next lap
+  let maxTime = startTime;
+  for (const p of displayTelemetry) {
+    if (p.CurrentLap > maxTime) maxTime = p.CurrentLap;
+  }
+  const lapDuration = maxTime - startTime || 1;
   const timeFracs: number[] = [];
 
+  let prevFrac = 0;
   for (const p of displayTelemetry) {
-    timeFracs.push((p.CurrentLap - startTime) / lapDuration);
+    const frac = Math.max(prevFrac, (p.CurrentLap - startTime) / lapDuration);
+    timeFracs.push(frac);
+    prevFrac = frac;
     speed.push(p.DisplaySpeed);
     throttle.push((p.Accel / 255) * 100);
     brake.push((p.Brake / 255) * 100);
@@ -78,9 +85,13 @@ function buildChartData(displayTelemetry: DisplayPacket[]): ChartData | null {
     tireTempFR.push(p.DisplayTireTempFR ?? p.TireTempFR);
     tireTempRL.push(p.DisplayTireTempRL ?? p.TireTempRL);
     tireTempRR.push(p.DisplayTireTempRR ?? p.TireTempRR);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const btfl = p.BrakeTempFrontLeft ?? (p as any).f1?.brakeTempFL ?? 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const btfr = p.BrakeTempFrontRight ?? (p as any).f1?.brakeTempFR ?? 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const btrl = p.BrakeTempRearLeft ?? (p as any).f1?.brakeTempRL ?? 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const btrr = p.BrakeTempRearRight ?? (p as any).f1?.brakeTempRR ?? 0;
     brakeTempFL.push(btfl); brakeTempFR.push(btfr); brakeTempRL.push(btrl); brakeTempRR.push(btrr);
     if (btfl > 0) hasBrakeTemp = true;

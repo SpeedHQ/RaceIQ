@@ -47,9 +47,18 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
   const timelineData = useMemo(() => {
     if (displayTelemetry.length === 0) return null;
     const startTime = displayTelemetry[0].CurrentLap;
-    const endTime = displayTelemetry[displayTelemetry.length - 1].CurrentLap;
-    const lapDuration = endTime - startTime || 1;
-    const timeFracs = displayTelemetry.map(p => (p.CurrentLap - startTime) / lapDuration);
+    // Use max CurrentLap as end time — last packet may have reset to next lap
+    let maxTime = startTime;
+    for (const p of displayTelemetry) {
+      if (p.CurrentLap > maxTime) maxTime = p.CurrentLap;
+    }
+    const lapDuration = maxTime - startTime || 1;
+    let prevFrac = 0;
+    const timeFracs = displayTelemetry.map(p => {
+      const frac = Math.max(prevFrac, (p.CurrentLap - startTime) / lapDuration);
+      prevFrac = frac;
+      return frac;
+    });
     const times = displayTelemetry.map(p => p.CurrentLap);
     return { timeFracs, times };
   }, [displayTelemetry]);
