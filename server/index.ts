@@ -160,16 +160,17 @@ Bun.serve<WSData>({
 
 console.log(`[Server] HTTP/WS server listening on http://localhost:${HTTP_PORT}`);
 
+// UDP-based recording for `dev:dump:fm` / `dev:dump:f1`. Shared-memory games
+// (acc, ac-evo) record via their own readers further down. Set before start()
+// so the listener opens its .bin the moment it begins receiving packets —
+// same init-time shape as AccSharedMemoryReader's constructor flag.
+if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
+  udpListener.setRecordingGameId(recordingGameId);
+}
+
 // Start UDP listener — settings.udpPort takes priority, env var is the fallback
 const udpPort = settings.udpPort ?? (Number(process.env.UDP_PORT) || 5301);
 udpListener.start(udpPort);
-
-// UDP-based recording for `dev:dump:fm` / `dev:dump:f1`. Shared-memory games
-// (acc, ac-evo) record via their own readers further down.
-if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
-  const path = udpListener.startRecording(recordingGameId);
-  console.log(`[Server] Recording UDP packets to ${path}`);
-}
 
 import { AccSharedMemoryReader } from "./games/acc/shared-memory";
 import { AcEvoSharedMemoryReader } from "./games/ac-evo/shared-memory";

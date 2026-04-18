@@ -34,28 +34,7 @@ class UdpListener {
   private _port = 5301;
   private _hostname = "0.0.0.0";
   private _recorder: UdpRecorder | null = null;
-
-  /**
-   * Begin appending every incoming raw UDP datagram to a timestamped .bin file
-   * under test/artifacts/laps/. The filename is prefixed with the gameId so
-   * the /dev import route can auto-detect the format. Used by `dev:dump:fm`
-   * and `dev:dump:f1`.
-   */
-  startRecording(gameId: GameId): string {
-    const dir = resolve(process.cwd(), "test", "artifacts", "laps");
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filePath = resolve(dir, `${gameId}-${timestamp}.bin`);
-    this._recorder = new UdpRecorder();
-    this._recorder.start(filePath);
-    return filePath;
-  }
-
-  async stopRecording(): Promise<void> {
-    if (this._recorder) {
-      await this._recorder.stop();
-      this._recorder = null;
-    }
-  }
+  private _recordingGameId: GameId | null = null;
 
   get droppedPackets(): number {
     return this._droppedPackets;
@@ -81,10 +60,29 @@ class UdpListener {
     return this._hostname;
   }
 
+  /**
+   * Pin a recording gameId. When set, `start()` opens a timestamped .bin file
+   * under test/artifacts/laps/ and every incoming datagram is appended to it
+   * (in addition to the normal parse → pipeline → DB/WS flow). Mirrors how the
+   * AccSharedMemoryReader/AcEvoSharedMemoryReader constructors create their
+   * .bin files when `recordingOnly=true`. Used by `dev:dump:fm` / `dev:dump:f1`.
+   */
+  setRecordingGameId(gameId: GameId | null): void {
+    this._recordingGameId = gameId;
+  }
+
   async start(port: number = 5301, hostname: string = "0.0.0.0"): Promise<void> {
     this._port = port;
     this._hostname = hostname;
     console.log(`[UDP] Starting listener on ${hostname}:${port}...`);
+
+    if (this._recordingGameId && !this._recorder) {
+      const dir = resolve(process.cwd(), "test", "artifacts", "laps");
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const filePath = resolve(dir, `${this._recordingGameId}-${timestamp}.bin`);
+      this._recorder = new UdpRecorder();
+      this._recorder.start(filePath);
+    }
 
     // Use dgram for socket buffer tuning — Bun.udpSocket doesn't expose setsockopt
     const dgram = require("dgram");
@@ -170,9 +168,12 @@ class UdpListener {
       this._socket = null;
       console.log("[UDP] Listener stopped");
     }
-    // Fire-and-forget — the recorder writes are append-only, so even a crash
-    // mid-flush only risks the last packet being truncated.
-    void this.stopRecording();
+    if (this._recorder) {
+      // Fire-and-forget — writes are append-only, so even a crash mid-flush
+      // only risks the last packet being truncated.
+      void this._recorder.stop();
+      this._recorder = null;
+    }
   }
 
   async restart(port: number, hostname?: string): Promise<void> {
