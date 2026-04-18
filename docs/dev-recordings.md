@@ -64,8 +64,24 @@ git add test/artifacts/laps/fm-2023-2026-04-18T17-28-14-420Z.bin.gz
 ```
 
 `-k` keeps the raw `.bin` next to the `.bin.gz` so you can still replay
-it locally without decompressing. The importer and pipeline-test helpers
-both accept `.bin.gz` directly — no need to gunzip before running.
+it locally without decompressing.
+
+Test helpers accept `.bin.gz` directly — they decompress on load, so
+fixtures stay compressed in the repo and nothing has to be unpacked
+into a temp file first:
+
+```ts
+// test/e2e/fm-2023-recording.test.ts
+import { parseDump } from "../helpers/parse-dump";
+
+const result = await parseDump(
+  "test/artifacts/laps/fm-2023-2026-04-18T17-28-14-420Z.bin.gz"
+);
+expect(result.laps).toHaveLength(3);
+```
+
+Same for the `/dev` Import Dump panel — drop a `.bin.gz`, the server
+gunzips it server-side before replaying.
 
 ## Tips
 
