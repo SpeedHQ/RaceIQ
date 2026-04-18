@@ -3,11 +3,10 @@ import { useFrame } from "@react-three/fiber";
 import { Grid } from "@react-three/drei";
 import { Line } from "@react-three/drei";
 import * as THREE from "three";
-import type { TelemetryPacket } from "@shared/types";
+import type { GameId, TelemetryPacket } from "@shared/types";
 import type { CarModelEnrichment } from "../../data/car-models";
 import type { ViewToggles, ViewPreset } from "../../lib/wireframe-data";
 import { allWheelStates, tireState } from "../../lib/vehicle-dynamics";
-import { useRequiredGameId } from "../../stores/game";
 import { useTirePressureOptimal } from "../../hooks/queries";
 import { CarBody } from "./CarBody";
 import { Wheel } from "./Wheel";
@@ -46,9 +45,8 @@ function computeLoadDotXZ(
   return { x: dirX * scale, z: dirZ * scale };
 }
 
-export function CarScene({ packet: packetProp, telemetry, cursorIdx, outline, boundaries, toggles, viewPreset, carModel, modelOffsetX, fmtTemp, hideModelWheels, suspThresholds, autoOrbit, tireColors }: { packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null; toggles: ViewToggles; viewPreset: ViewPreset; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; fmtTemp: (f: number) => string; hideModelWheels?: boolean; suspThresholds: number[]; autoOrbit?: boolean; tireColors: [string, string, string, string] }) {
+export function CarScene({ gameId, packet: packetProp, telemetry, cursorIdx, outline, boundaries, toggles, viewPreset, carModel, modelOffsetX, fmtTemp, hideModelWheels, suspThresholds, autoOrbit, tireColors }: { gameId: GameId; packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null; toggles: ViewToggles; viewPreset: ViewPreset; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; fmtTemp: (f: number) => string; hideModelWheels?: boolean; suspThresholds: number[]; autoOrbit?: boolean; tireColors: [string, string, string, string] }) {
   const [colorFL, colorFR, colorRL, colorRR] = tireColors;
-  const gameId = useRequiredGameId();
   const pressureOptimal = useTirePressureOptimal(gameId, packetProp.CarOrdinal);
 
   // Keep packet in a ref so useFrame reads latest without triggering re-render

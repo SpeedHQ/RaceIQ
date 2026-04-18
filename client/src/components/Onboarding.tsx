@@ -95,6 +95,7 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
   return (
     <div className="w-full h-48 rounded-lg overflow-hidden border border-app-border bg-black">
       <CarWireframe
+        gameId="fm-2023"
         packet={packet}
         telemetry={telemetry}
         cursorIdx={cursorIdx}
