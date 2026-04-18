@@ -38,28 +38,14 @@ detector, DB writer — so any detected laps land in
 Both raw `.bin` and gzipped `.bin.gz` are accepted — the server detects
 gzip magic bytes and decompresses on the fly. No need to gunzip first.
 
-### Option 1 — Dev route (recommended)
-
 1. Run the dev server: `bun run dev`
 2. Open http://raceiq.localhost:1355/dev
 3. Drag a `.bin` or `.bin.gz` onto the **Import Dump** panel
 4. The panel reports detected `gameId`, parsed packet count, detected
    car/track, and how many laps were written
 
-### Option 2 — Direct API call
-
-```bash
-# Raw
-curl -F "file=@test/artifacts/laps/fm-2023-…-.bin" \
-     http://raceiq.localhost:1355/api/dev/import-dump
-
-# Gzipped
-curl -F "file=@test/artifacts/laps/fm-2023-…-.bin.gz" \
-     http://raceiq.localhost:1355/api/dev/import-dump
-```
-
-The route is mounted only when `IS_DEV` is true — not available in
-production builds.
+The `/dev` route is only mounted when `IS_DEV` is true — not available
+in production builds.
 
 ## Committing a recording as a test fixture
 
