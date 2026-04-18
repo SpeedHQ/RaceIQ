@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ComboDash } from "../components/dashes/ComboDash";
 import { ComboDash2 } from "../components/dashes/ComboDash2";
 import {
@@ -11,9 +11,9 @@ import {
   fakePit,
   generateFakeSessionLaps,
 } from "../stories/fakeData";
-
-const MAX_PREVIEW_LAPS = 100;
 import type { TelemetryPacket } from "@shared/types";
+
+const PREVIEW_LAPS = generateFakeSessionLaps(10);
 
 const PREVIEW_RAW_PACKET = {
   ...fakeForzaPacket,
@@ -42,7 +42,7 @@ const DASH_META: DashMeta[] = [
   {
     slug: "combo-1",
     href: "/dash/combo-1",
-    title: "Combo Dash 1",
+    title: "Combo Dash 1 — Race HUD",
     description:
       "Rev bar + gear/speed/lap tiles, fuel & tire laps-remaining, lap + sector readout, and a live tire grid. Landscape tablet-friendly.",
   },
@@ -96,12 +96,6 @@ function DashCatalogue() {
   const previewWidth = `min(100%, ${maxW}px, ${Math.floor((maxH * vp.w) / vp.h)}px)`;
   const previewAspect = `${vp.w} / ${vp.h}`;
 
-  const [combo2LapCount, setCombo2LapCount] = useState(10);
-  const combo2Laps = useMemo(
-    () => generateFakeSessionLaps(combo2LapCount),
-    [combo2LapCount],
-  );
-
   const previewFor = (slug: DashMeta["slug"]): ReactNode => {
     if (slug === "combo-1") {
       return (
@@ -118,8 +112,8 @@ function DashCatalogue() {
     return (
       <ComboDash2
         rawPacket={PREVIEW_RAW_PACKET}
-        allLaps={combo2Laps}
-        sessionLaps={combo2Laps}
+        allLaps={PREVIEW_LAPS}
+        sessionLaps={PREVIEW_LAPS}
       />
     );
   };
@@ -165,25 +159,6 @@ function DashCatalogue() {
                     <div className="absolute inset-0 transition-colors group-hover:bg-white/[0.04]" />
                   </div>
                 </Link>
-                {d.slug === "combo-2" && (
-                  <div className="px-5 pt-3 flex items-center gap-3">
-                    <label className="text-[10px] uppercase tracking-wider text-white/40 font-mono shrink-0">
-                      Laps
-                    </label>
-                    <input
-                      type="range"
-                      min={1}
-                      max={MAX_PREVIEW_LAPS}
-                      step={1}
-                      value={combo2LapCount}
-                      onChange={(e) => setCombo2LapCount(Number(e.target.value))}
-                      className="flex-1 accent-app-accent"
-                    />
-                    <span className="text-xs font-mono tabular-nums text-white/60 w-10 text-right">
-                      {combo2LapCount}/{MAX_PREVIEW_LAPS}
-                    </span>
-                  </div>
-                )}
                 <div className="p-5 flex gap-4 items-start">
                   <div className="flex-1 min-w-0">
                     <Link to={d.href}>

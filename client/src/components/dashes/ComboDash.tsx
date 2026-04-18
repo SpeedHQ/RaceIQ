@@ -143,7 +143,7 @@ export function ComboDash({
         <div className="col-span-2 min-h-0 flex gap-3">
           <div className="flex-[3] min-w-0 min-h-0 rounded-md border border-white/10 bg-white/[0.02] overflow-hidden">
             {rawPacket ? (
-              <FitToViewport padding={12} alignX="start" alignY="start">
+              <FitToViewport padding={12} alignX="start" alignY="center">
                 <div style={{ width: 560 }} className="space-y-3">
                   <LapTimes packet={rawPacket} sectors={sectors} />
                   <SectorTimes sectors={sectors} />
