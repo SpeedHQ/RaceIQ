@@ -16,8 +16,10 @@ the dev server in recording mode and opens the dashboard:
 | Assetto Corsa Competizione | `bun run dev:dump:acc` | Shared memory (Windows only) |
 | Assetto Corsa Evo | `bun run dev:dump:ac-evo` | Shared memory (Windows only) |
 
-Drive your session. The server appends packets live — kill the process
-when you're done (`Ctrl+C`). Recording files are timestamped:
+Drive your session. The server appends packets live. When you're done,
+hit `Ctrl+C` — the signal handler flushes the recorder before exiting,
+so the file ends on a clean packet boundary. Recording files are
+timestamped:
 
 ```
 test/artifacts/laps/fm-2023-2026-04-18T17-32-09-418Z.bin
@@ -39,7 +41,7 @@ Both raw `.bin` and gzipped `.bin.gz` are accepted — the server detects
 gzip magic bytes and decompresses on the fly. No need to gunzip first.
 
 1. Run the dev server: `bun run dev`
-2. Open http://raceiq.localhost:1355/dev
+2. Open http://localhost:5173/dev
 3. Drag a `.bin` or `.bin.gz` onto the **Import Dump** panel
 4. The panel reports detected `gameId`, parsed packet count, detected
    car/track, and how many laps were written
@@ -53,7 +55,7 @@ Raw `.bin` dumps are gitignored — they're developer-local by default.
 To commit one as a regression fixture, **gzip it first**:
 
 ```sh
-bun run gzip:recordings test/artifacts/laps/fm-2023-2026-04-18T17-28-14-420Z.bin
+bun run gzip:recording test/artifacts/laps/fm-2023-2026-04-18T17-28-14-420Z.bin
 git add test/artifacts/laps/fm-2023-2026-04-18T17-28-14-420Z.bin.gz
 ```
 
@@ -71,6 +73,7 @@ into a temp file first:
 import { parseDump } from "../helpers/parse-dump";
 
 const result = await parseDump(
+  "fm-2023",
   "test/artifacts/laps/fm-2023-2026-04-18T17-28-14-420Z.bin.gz"
 );
 expect(result.laps).toHaveLength(3);
@@ -81,8 +84,10 @@ gunzips it server-side before replaying.
 
 ## Tips
 
-- Recordings are append-only. A hard kill mid-write truncates at most
-  the last packet — everything prior is intact and importable.
+- Recordings are append-only. A clean `Ctrl+C` runs the SIGINT handler
+  and flushes the buffer, so the file ends on a packet boundary. A
+  hard kill (e.g. `kill -9`) can still truncate the in-flight record,
+  but everything written prior remains importable.
 - Shared-memory games (ACC, AC Evo) use their own `.bin` triplet
   format; UDP games (FM, F1) use the `UdpRecorder` `[uint32 len][N
   bytes]` format. The importer picks the reader automatically from the

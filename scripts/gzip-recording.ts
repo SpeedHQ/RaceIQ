@@ -7,11 +7,11 @@ import { resolve, basename } from "path";
 // you commit as a test fixture.
 //
 // Usage:
-//   bun run gzip:recordings test/artifacts/laps/fm-2023-2026-…-.bin
+//   bun run gzip:recording test/artifacts/laps/fm-2023-2026-…-.bin
 
 const target = process.argv[2];
 if (!target) {
-  console.error("Usage: bun run gzip:recordings <path/to/file.bin>");
+  console.error("Usage: bun run gzip:recording <path/to/file.bin>");
   process.exit(1);
 }
 
