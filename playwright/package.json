@@ -2,8 +2,10 @@
   "name": "raceiq-e2e",
   "private": true,
   "scripts": {
-    "test": "playwright test",
-    "screenshots": "playwright test"
+    "build": "cd .. && bun run build",
+    "test": "bun run build && playwright test",
+    "test:ui": "bun run build && playwright test --ui",
+    "screenshots": "playwright test --project=marketing"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1"

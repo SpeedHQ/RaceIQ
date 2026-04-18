@@ -29,3 +29,5 @@ client/src/stories/__snapshots__/results/
 bench-results.json
 client/storybook-static/
 .superset/
+
+playwright/test-data/

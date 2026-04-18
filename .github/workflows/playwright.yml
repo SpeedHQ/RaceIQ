@@ -1,0 +1,44 @@
+name: Playwright E2E
+
+on:
+  workflow_call:
+    inputs:
+      dist-artifact:
+        description: "Artifact name containing the prebuilt dist/ (raceiq.exe + libsql + public)"
+        required: true
+        type: string
+
+jobs:
+  onboarding:
+    runs-on: blacksmith-2vcpu-windows-2025
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.dist-artifact }}
+          path: dist
+
+      - name: Install Playwright deps
+        working-directory: playwright
+        run: bun install
+
+      - name: Install Chromium
+        working-directory: playwright
+        run: bunx playwright install chromium
+
+      - name: Run onboarding E2E test
+        working-directory: playwright
+        shell: bash
+        run: bunx playwright test --project=onboarding
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: playwright/test-results/
+          retention-days: 7

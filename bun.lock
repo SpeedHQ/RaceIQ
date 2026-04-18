@@ -32,6 +32,9 @@
         "lighthouse": "^13.1.0",
         "portless": "^0.10.3",
       },
+      "optionalDependencies": {
+        "@libsql/darwin-arm64": "^0.5.29",
+      },
     },
     "client": {
       "name": "client",
