@@ -31,3 +31,6 @@ client/storybook-static/
 .superset/
 
 playwright/test-data/
+
+# Dev dump recordings — track gzipped fixtures only
+test/artifacts/laps/*.bin
