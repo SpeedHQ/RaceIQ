@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "concurrently \"bun --watch run server/index.ts\" \"bun run dev:client\"",
     "dev:server": "bun --watch run server/index.ts",
-    "dev:proxy": "portless proxy stop > /dev/null 2>&1; portless proxy start --no-tls",
+    "dev:proxy": "bun scripts/dev-proxy.ts",
     "dev:dump:ac-evo": "bun run dev:proxy && concurrently \"bun --watch run server/index.ts --record=ac-evo\" \"cd client && portless raceiq bun run dev\"",
     "dev:dump:acc": "bun run dev:proxy && concurrently \"bun --watch run server/index.ts --record=acc\" \"cd client && portless raceiq bun run dev\"",
     "dev:dump:f1": "bun run dev:proxy && concurrently \"bun --watch run server/index.ts --record=f1-2025\" \"cd client && portless raceiq bun run dev\"",

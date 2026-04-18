@@ -1,4 +1,4 @@
-import type { TelemetryPacket, GameId } from "../shared/types";
+import type { TelemetryPacket, GameId, LapMeta } from "../shared/types";
 import { type DbAdapter, type WsAdapter, RealDbAdapter, RealWsAdapter } from "./pipeline-adapters";
 import type { ILapDetector, LapDetectorCallbacks } from "./lap-detector-interface";
 import { SectorTracker, PitTracker } from "./sector-tracker";
@@ -19,10 +19,16 @@ export class Pipeline {
   private _bypassPacketRateFilter: boolean;
   private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
+  private _sessionLaps: LapMeta[] = [];
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
     return this._lapDetector;
+  }
+
+  /** In-memory session laps — sent to newly connected WS clients. */
+  get sessionLaps(): readonly LapMeta[] {
+    return this._sessionLaps;
   }
 
   constructor(db: DbAdapter, ws: WsAdapter, options?: { bypassPacketRateFilter?: boolean; skipHistorySeeding?: boolean; skipDevState?: boolean }) {
@@ -44,8 +50,11 @@ export class Pipeline {
           // Seed fuel from history (same engine regardless of compound).
           // Tire wear is NOT seeded — compound-dependent, starts fresh each session.
           await this.pitTracker.seedFromHistory(session.trackOrdinal, session.carOrdinal, session.carPI, session.gameId);
-          await this._broadcastSessionLaps(session.sessionId, session.trackOrdinal, session.carOrdinal, session.gameId);
+          await this._seedSessionLaps(session.sessionId, session.trackOrdinal, session.carOrdinal, session.gameId);
+        } else {
+          this._sessionLaps = [];
         }
+        this._broadcastSessionLaps();
       },
 
       onLapComplete: (event) => {
@@ -61,9 +70,25 @@ export class Pipeline {
 
       onLapSaved: (event) => {
         this.ws.broadcastNotification({ type: "lap-saved", ...event });
-        // Re-push updated lap list after save completes
+        // Append to in-memory list and broadcast
         const session = this._lapDetector?.session ?? null;
-        if (session) this._broadcastSessionLaps(session.sessionId, session.trackOrdinal, session.carOrdinal, session.gameId);
+        if (session) {
+          this._sessionLaps.push({
+            id: event.lapId,
+            sessionId: session.sessionId,
+            lapNumber: event.lapNumber,
+            lapTime: event.lapTime,
+            isValid: event.isValid,
+            createdAt: new Date().toISOString(),
+            gameId: session.gameId,
+            carOrdinal: session.carOrdinal,
+            trackOrdinal: session.trackOrdinal,
+            s1Time: event.sectors?.s1,
+            s2Time: event.sectors?.s2,
+            s3Time: event.sectors?.s3,
+          });
+          this._broadcastSessionLaps();
+        }
       },
     };
   }
@@ -90,8 +115,8 @@ export class Pipeline {
     await this._lapDetector?.flushIncompleteLap?.();
   }
 
-  /** Push the current session's recorded laps (filtered by session) to all WS clients. */
-  private async _broadcastSessionLaps(
+  /** Seed in-memory session laps from DB (called once on session start). */
+  private async _seedSessionLaps(
     sessionId: number,
     trackOrdinal: number,
     carOrdinal: number,
@@ -99,11 +124,17 @@ export class Pipeline {
   ): Promise<void> {
     try {
       const allLaps = await this.db.getLaps(gameId, 200);
-      const laps = allLaps.filter(
+      this._sessionLaps = allLaps.filter(
         (l) => l.sessionId === sessionId && l.trackOrdinal === trackOrdinal && l.carOrdinal === carOrdinal
       );
-      this.ws.broadcastNotification({ type: "session-laps", laps });
-    } catch {}
+    } catch {
+      this._sessionLaps = [];
+    }
+  }
+
+  /** Push in-memory session laps to all WS clients. */
+  private _broadcastSessionLaps(): void {
+    this.ws.broadcastNotification({ type: "session-laps", laps: this._sessionLaps });
   }
 
   /**
@@ -175,7 +206,13 @@ export class Pipeline {
 }
 
 // Backward-compatible singleton exports — unchanged for all callers
-const _default = new Pipeline(new RealDbAdapter(), new RealWsAdapter());
+const _defaultWs = new RealWsAdapter();
+const _default = new Pipeline(new RealDbAdapter(), _defaultWs);
+
+// Wire session laps provider so WS manager can send laps on client connect
+import { wsManager } from "./ws";
+wsManager.setSessionLapsProvider(() => _default.sessionLaps);
+
 export const processPacket = (p: TelemetryPacket) => _default.processPacket(p);
 
 /** Returns the current lap detector (may be null before the first packet is processed). */
@@ -184,6 +221,11 @@ export const lapDetector = {
   get fuelHistory() { return _default.lapDetector?.fuelHistory ?? []; },
   get tireWearHistory() { return _default.lapDetector?.tireWearHistory ?? []; },
 };
+
+/** In-memory session laps for the current session. */
+export function getSessionLaps(): readonly LapMeta[] {
+  return _default.sessionLaps;
+}
 
 // Periodic check: flush stale laps when packets stop (e.g. race ended, game closed)
 const _maintenanceInterval = setInterval(() => _default.lapDetector?.flushStaleLap?.(), 5_000);

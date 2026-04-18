@@ -9,7 +9,7 @@
  *    (every 6th packet) keeps memory bounded at 600 samples per channel.
  */
 import type { ServerWebSocket } from "bun";
-import type { TelemetryPacket, LiveSectorData, LivePitData } from "../shared/types";
+import type { TelemetryPacket, LiveSectorData, LivePitData, LapMeta } from "../shared/types";
 
 export interface WSData {
   createdAt: number;
@@ -51,6 +51,12 @@ class WebSocketManager {
   private gripHistory: GripHistoryData = { fl: [], fr: [], rl: [], rr: [] };
   /** Last broadcast JSON — sent to new clients so they don't start blank */
   private lastBroadcastJson: string | null = null;
+  /** Injected getter for session laps — avoids circular import with pipeline */
+  private _getSessionLaps: (() => readonly LapMeta[]) | null = null;
+
+  setSessionLapsProvider(fn: () => readonly LapMeta[]): void {
+    this._getSessionLaps = fn;
+  }
   private telemetryHistory: TelemetryHistoryData = {
     grip: { fl: [], fr: [], rl: [], rr: [] },
     temp: { fl: [], fr: [], rl: [], rr: [] },
@@ -78,6 +84,11 @@ class WebSocketManager {
     // Send last state so client doesn't start blank on refresh
     if (this.lastBroadcastJson) {
       try { ws.send(this.lastBroadcastJson); } catch {}
+    }
+    // Send current session laps so recorded laps survive refresh
+    const laps = this._getSessionLaps?.();
+    if (laps && laps.length > 0) {
+      try { ws.send(JSON.stringify({ type: "session-laps", laps })); } catch {}
     }
     console.log(`[WS] Client connected. Active: ${this.clients.size}`);
     if (this.clients.size === 1) this.startBroadcastTimer(); // first client — start pushing

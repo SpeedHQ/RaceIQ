@@ -1,24 +1,22 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import type { TelemetryPacket, LapMeta } from "@shared/types";
+import { useEffect, useRef, useState, useMemo } from "react";
+import type { LapMeta } from "@shared/types";
 import { formatLapTime } from "./LiveTelemetry";
+
 /**
  * LapTimeChart — Canvas-drawn lap time trend with pace reference lines.
  * "Optimum" = median of top 5 laps (robust to single-flier best laps).
  * "Avg" = mean of last 4 laps (recent rolling pace).
  * Dots are colored: purple=best, green=on pace (<=optimum), orange=off pace.
  *
- * Pure-ish: the caller supplies `allLaps` (historical) and `packet` (for live
- * lap accumulation on lap-number boundaries).
+ * Data source: sessionLaps from Zustand (server-pushed via WS).
  */
 export function LapTimeChart({
-  packet,
-  allLaps = [],
+  sessionLaps,
   height,
   yTicks = 5,
   maxLaps = 10,
 }: {
-  packet: TelemetryPacket | null;
-  allLaps?: LapMeta[];
+  sessionLaps: LapMeta[];
   /** Optional fixed height. If omitted the chart fills its parent via flex. */
   height?: number;
   /** Number of y-axis intervals (ticks = yTicks + 1). Default 5. */
@@ -27,51 +25,18 @@ export function LapTimeChart({
    *  dots don't shift as new laps arrive. Default 10. */
   maxLaps?: number;
 }) {
-  const [liveLaps, setLiveLaps] = useState<{ lap: number; time: number }[]>([]);
-  const [hiddenSessionIds, setHiddenSessionIds] = useState<Set<number>>(new Set());
-  const lastLapRef = useRef<number>(0);
-
-  const recordedLaps = useMemo(() => {
-    if (!packet?.TrackOrdinal) return [];
-    const trackLaps = allLaps.filter((l) => l.lapTime > 0 && l.trackOrdinal === packet.TrackOrdinal && !hiddenSessionIds.has(l.sessionId));
-    // Only show laps from the most recent session (don't mix qualifying into race)
-    const latestSessionId = trackLaps.length > 0 ? Math.max(...trackLaps.map((l) => l.sessionId)) : null;
-    return trackLaps
-      .filter((l) => l.sessionId === latestSessionId)
-      .map((l) => ({ lap: l.lapNumber, time: l.lapTime }))
-      .slice(-maxLaps);
-  }, [allLaps, packet, hiddenSessionIds, maxLaps]);
-
-  // Merge recorded + live laps
   const laps = useMemo(() => {
-    const merged = [...recordedLaps];
-    for (const live of liveLaps) {
-      if (!merged.some((l) => l.lap === live.lap && Math.abs(l.time - live.time) < 0.01)) {
-        merged.push(live);
-      }
-    }
-    return merged.slice(-maxLaps);
-  }, [recordedLaps, liveLaps, maxLaps]);
-
-  // Accumulate live laps
-  useEffect(() => {
-    if (!packet) return;
-    if (packet.LapNumber > lastLapRef.current && packet.LastLap > 0 && lastLapRef.current > 0) {
-      setLiveLaps((prev) => {
-        if (prev.some((l) => l.lap === lastLapRef.current)) return prev;
-        return [...prev, { lap: lastLapRef.current, time: packet.LastLap }];
-      });
-    }
-    lastLapRef.current = packet.LapNumber;
-  }, [packet?.LapNumber]);
+    return [...sessionLaps]
+      .filter((l) => l.lapTime > 0)
+      .sort((a, b) => a.id - b.id)
+      .slice(-maxLaps)
+      .map((l) => ({ lap: l.lapNumber, time: l.lapTime }));
+  }, [sessionLaps, maxLaps]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [resizeTick, setResizeTick] = useState(0);
 
-  // Re-draw on canvas resize without owning size in state — the canvas'
-  // CSS dimensions (calc(100% - 16px)) drive layout; we just measure
-  // clientWidth/clientHeight at draw time.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -79,13 +44,6 @@ export function LapTimeChart({
     ro.observe(canvas);
     return () => ro.disconnect();
   }, []);
-
-  const handleClearAll = () => {
-    setLiveLaps([]);
-    // Hide all current sessions so recorded laps disappear from chart
-    const sessionIds = new Set(allLaps.map((l) => l.sessionId));
-    setHiddenSessionIds(sessionIds);
-  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -98,8 +56,6 @@ export function LapTimeChart({
     const h = canvas.clientHeight;
     if (width <= 0 || h <= 0) return;
     const dpr = window.devicePixelRatio || 1;
-    // Only resize the bitmap when logical size actually changed — avoids
-    // clearing + re-scaling the context on every re-render.
     const targetW = Math.round(width * dpr);
     const targetH = Math.round(h * dpr);
     if (canvas.width !== targetW) canvas.width = targetW;
@@ -210,12 +166,6 @@ export function LapTimeChart({
     <div className="h-full flex flex-col border-b border-app-border">
       <div className="shrink-0 p-2 border-b border-app-border flex items-center justify-between">
         <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Lap Times</h2>
-        <button
-          onClick={handleClearAll}
-          className="text-[10px] text-red-400 hover:text-red-300 font-mono"
-        >
-          Clear All
-        </button>
       </div>
       <div className="flex-1 min-h-0 relative p-2" ref={containerRef} style={height ? { height: height + 16 } : undefined}>
         {laps.length === 0 && (

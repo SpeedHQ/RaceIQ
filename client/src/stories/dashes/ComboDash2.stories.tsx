@@ -70,7 +70,6 @@ function render({ game, lapCount }: Args) {
         {withRouter(
           <ComboDash2
             rawPacket={rawPacket}
-            allLaps={laps}
             sessionLaps={laps}
           />,
         )}
@@ -114,7 +113,7 @@ export const ACEvo: Story = { name: "AC Evo", args: { game: "ac-evo" }, render }
 export const NoData: Story = {
   render: () => (
     <div style={{ width: "100vw", height: "100vh", background: "#000" }}>
-      <ComboDash2 rawPacket={null} allLaps={[]} sessionLaps={[]} />
+      <ComboDash2 rawPacket={null} sessionLaps={[]} />
     </div>
   ),
 };

@@ -112,7 +112,6 @@ function DashCatalogue() {
     return (
       <ComboDash2
         rawPacket={PREVIEW_RAW_PACKET}
-        allLaps={PREVIEW_LAPS}
         sessionLaps={PREVIEW_LAPS}
       />
     );

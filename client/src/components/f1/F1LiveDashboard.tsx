@@ -8,7 +8,7 @@ import { PitEstimate } from "../telemetry/PitEstimate";
 import { RecordedLaps } from "../RecordedLaps";
 import { NoDataView } from "../NoDataView";
 import { RaceInfo } from "../RaceInfo";
-import { useTrackName, useCarName, useLaps, useSettings } from "../../hooks/queries";
+import { useTrackName, useCarName, useSettings } from "../../hooks/queries";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -58,7 +58,6 @@ export function F1LiveDashboard() {
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const sectors = useTelemetryStore((s) => s.sectors);
   const pit = useTelemetryStore((s) => s.pit);
-  const { data: allLaps = [] } = useLaps();
   const { displaySettings } = useSettings();
   const hasF1Data = rawPacket?.gameId === "f1-2025" && rawPacket.f1;
   const f1 = hasF1Data ? rawPacket.f1! : null;
@@ -122,8 +121,10 @@ export function F1LiveDashboard() {
       {/* Right column: Race info + Charts + Recorded Laps */}
       <div className="overflow-y-auto overflow-x-hidden flex flex-col">
         <RaceInfo packet={packet!} sectors={sectors} trackName={trackName} carName={carName} totalLaps={f1.totalLaps} sessionType={f1.sessionType} showTrackMap={false} showSectors={true} />
-        <LapTimeChart packet={rawPacket!} allLaps={allLaps} />
-        <div className="flex-1">
+        <div className="shrink-0 h-[240px]">
+          <LapTimeChart sessionLaps={sessionLaps} />
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <RecordedLaps laps={sessionLaps} />
         </div>
       </div>
