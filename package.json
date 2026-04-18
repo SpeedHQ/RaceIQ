@@ -29,6 +29,7 @@
     "scrape:car-images:ac-evo": "bun scripts/scrape-ac-evo-car-images.ts",
     "laps:export": "bun scripts/export-laps.ts",
     "laps:import": "bun scripts/import-laps.ts",
+    "gzip:recordings": "bun scripts/gzip-recordings.ts",
     "build:installer": "bun scripts/build-installer.ts",
     "mastra:dev": "DATA_DIR=\"$PWD/data\" npx mastra dev --dir mastra",
     "postinstall": "lefthook install",

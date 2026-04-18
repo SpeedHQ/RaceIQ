@@ -59,12 +59,13 @@ Raw `.bin` dumps are gitignored — they're developer-local by default.
 To commit one as a regression fixture, **gzip it first**:
 
 ```sh
-gzip -k test/artifacts/laps/fm-2023-2026-04-18T17-28-14-420Z.bin
+bun run gzip:recordings                          # gzip every .bin in test/artifacts/laps/
+bun run gzip:recordings path/to/one-file.bin     # or gzip a single file
 git add test/artifacts/laps/fm-2023-2026-04-18T17-28-14-420Z.bin.gz
 ```
 
-`-k` keeps the raw `.bin` next to the `.bin.gz` so you can still replay
-it locally without decompressing.
+The script keeps the raw `.bin` next to the `.bin.gz` so you can still
+replay it locally without decompressing.
 
 Test helpers accept `.bin.gz` directly — they decompress on load, so
 fixtures stay compressed in the repo and nothing has to be unpacked
