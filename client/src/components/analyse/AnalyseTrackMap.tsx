@@ -87,7 +87,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
       return;
     }
 
-    const hasBounds = (boundaries?.coordSystem === "forza" || boundaries?.coordSystem === "f1-2025") && boundaries.leftEdge?.length > 2;
+    const hasBounds = boundaries?.coordSystem && boundaries.leftEdge?.length > 2;
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     const allBoundsPts: Point[][] = [displayOutline];
     if (hasBounds) allBoundsPts.push(boundaries!.leftEdge, boundaries!.rightEdge);
