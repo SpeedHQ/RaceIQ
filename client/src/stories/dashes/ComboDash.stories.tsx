@@ -9,6 +9,8 @@ import {
   fakeF1DisplayPacket,
   fakeAccPacket,
   fakeAccDisplayPacket,
+  fakeAcEvoPacket,
+  fakeAcEvoDisplayPacket,
   fakeSectors,
   fakePit,
 } from "../fakeData";
@@ -23,7 +25,7 @@ const queryClient = new QueryClient({
 const fToC = (f: number) => ((f - 32) * 5) / 9;
 const idC = (c: number) => c;
 
-type Game = "fm-2023" | "f1-2025" | "acc";
+type Game = "fm-2023" | "f1-2025" | "acc" | "ac-evo";
 
 // Brake / pressure values only populated for games whose adapters provide them.
 const BRAKE_PRESSURE = {
@@ -60,6 +62,11 @@ const FIXTURES: Record<Game, GameFixture> = {
   acc: {
     raw: { ...fakeAccPacket, ...BRAKE_PRESSURE } as TelemetryPacket,
     display: fakeAccDisplayPacket,
+    tempUnit: "C",
+  },
+  "ac-evo": {
+    raw: { ...fakeAcEvoPacket, ...BRAKE_PRESSURE } as TelemetryPacket,
+    display: fakeAcEvoDisplayPacket,
     tempUnit: "C",
   },
 };
@@ -125,7 +132,7 @@ const meta: Meta<Args> = {
     game: {
       name: "Game",
       control: { type: "radio" },
-      options: ["fm-2023", "f1-2025", "acc"] satisfies Game[],
+      options: ["fm-2023", "f1-2025", "acc", "ac-evo"] satisfies Game[],
       description: "Which game the fake packet represents (sets gameId store)",
     },
     rpm: {
@@ -169,6 +176,12 @@ export const F12025: Story = {
 export const ACC: Story = {
   name: "ACC",
   args: { game: "acc" },
+  render,
+};
+
+export const ACEvo: Story = {
+  name: "AC Evo",
+  args: { game: "ac-evo" },
   render,
 };
 

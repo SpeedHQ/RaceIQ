@@ -18,8 +18,8 @@ interface PitEstimateProps {
 export function PitEstimate({ packet, pit, gameId, healthThresholds }: PitEstimateProps) {
   const healthThresh = healthThresholds;
 
-  // Forza: Fuel is 0..1 fraction → percentage. ACC/F1: Fuel is in litres/kg.
-  const fuelIsLitres = gameId === "acc" || gameId === "f1-2025";
+  // Forza: Fuel is 0..1 fraction → percentage. ACC/AC Evo/F1: Fuel is in litres/kg.
+  const fuelIsLitres = gameId === "acc" || gameId === "ac-evo" || gameId === "f1-2025";
   const fuelPct = fuelIsLitres ? Math.min(100, packet.Fuel) : (packet.Fuel * 100);
   const fuelDisplay = fuelIsLitres ? `${packet.Fuel.toFixed(1)}L` : `${fuelPct.toFixed(0)}%`;
   const fuelColor = fuelIsLitres

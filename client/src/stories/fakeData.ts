@@ -373,9 +373,14 @@ function makeDisplayPacket(raw: TelemetryPacket): DisplayPacket {
   };
 }
 
+// AC Evo shares ACC's shared-memory shape; the packet differs only in the
+// gameId the store holds alongside it.
+export const fakeAcEvoPacket: TelemetryPacket = { ...fakeAccPacket };
+
 export const fakeF1DisplayPacket: DisplayPacket = makeDisplayPacket(fakeF1Packet);
 export const fakeForzaDisplayPacket: DisplayPacket = makeDisplayPacket(fakeForzaPacket);
 export const fakeAccDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAccPacket);
+export const fakeAcEvoDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAcEvoPacket);
 
 // ── Sector Data ──────────────────────────────────────────────────────────────
 // We are on lap 5, partway through S2.
