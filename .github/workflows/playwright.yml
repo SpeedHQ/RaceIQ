@@ -22,8 +22,7 @@ jobs:
           name: ${{ inputs.dist-artifact }}
           path: dist
 
-      - name: Install Playwright deps
-        working-directory: playwright
+      - name: Install workspace deps (installs playwright workspace too)
         run: bun install
 
       - name: Install Chromium

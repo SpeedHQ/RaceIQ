@@ -3,7 +3,8 @@
   "version": "0.6.0",
   "type": "module",
   "workspaces": [
-    "client"
+    "client",
+    "playwright"
   ],
   "scripts": {
     "dev": "concurrently \"bun --watch run server/index.ts\" \"bun run dev:client\"",
