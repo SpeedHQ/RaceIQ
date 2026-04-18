@@ -10,11 +10,14 @@
  * The parser auto-detects whether incoming packets are Forza Dash (324 bytes)
  * or F1 2025 format based on packet structure and header signatures.
  */
+import { resolve } from "path";
 import { parsePacket } from "./parser";
 import { wsManager } from "./ws";
 import { processPacket } from "./pipeline";
 import { getRunningGame } from "./games/registry";
 import { lapDetector } from "./pipeline";
+import { UdpRecorder } from "./udp-recorder";
+import type { GameId } from "../shared/types";
 
 const MIN_PACKET_LENGTH = 29; // Minimum: F1 header size
 const PACKETS_PER_SEC_WINDOW = 1000; // 1-second sliding window for rate display
@@ -30,6 +33,29 @@ class UdpListener {
   private _socket: { stop(): void } | null = null;
   private _port = 5301;
   private _hostname = "0.0.0.0";
+  private _recorder: UdpRecorder | null = null;
+
+  /**
+   * Begin appending every incoming raw UDP datagram to a timestamped .bin file
+   * under test/artifacts/laps/. The filename is prefixed with the gameId so
+   * the /dev import route can auto-detect the format. Used by `dev:dump:fm`
+   * and `dev:dump:f1`.
+   */
+  startRecording(gameId: GameId): string {
+    const dir = resolve(process.cwd(), "test", "artifacts", "laps");
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filePath = resolve(dir, `${gameId}-${timestamp}.bin`);
+    this._recorder = new UdpRecorder();
+    this._recorder.start(filePath);
+    return filePath;
+  }
+
+  async stopRecording(): Promise<void> {
+    if (this._recorder) {
+      await this._recorder.stop();
+      this._recorder = null;
+    }
+  }
 
   get droppedPackets(): number {
     return this._droppedPackets;
@@ -124,6 +150,10 @@ class UdpListener {
       return;
     }
 
+    // Append raw datagrams to the dump BEFORE parsing so recordings preserve
+    // the exact wire format (including any packets parsePacket would skip).
+    this._recorder?.writePacket(buf);
+
     // Returns null when game is paused/in menus (IsRaceOn == 0)
     const packet = parsePacket(buf);
     if (!packet) {
@@ -140,6 +170,9 @@ class UdpListener {
       this._socket = null;
       console.log("[UDP] Listener stopped");
     }
+    // Fire-and-forget — the recorder writes are append-only, so even a crash
+    // mid-flush only risks the last packet being truncated.
+    void this.stopRecording();
   }
 
   async restart(port: number, hostname?: string): Promise<void> {
