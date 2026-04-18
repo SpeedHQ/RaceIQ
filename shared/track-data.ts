@@ -747,14 +747,6 @@ function loadExtractedBoundary(ordinal: number, gameId: string): TrackBoundary |
       }
     }
 
-    // Pipeline flips PositionX for standard-xyz games (ACC, AC Evo) so
-    // telemetry uses negated X. Flip boundary X to match.
-    if (gameId === "acc" || gameId === "ac-evo") {
-      left = left.map(p => ({ x: -p.x, z: p.z }));
-      right = right.map(p => ({ x: -p.x, z: p.z }));
-      if (pit) pit = pit.map(p => ({ x: -p.x, z: p.z }));
-    }
-
     return { leftEdge: left, rightEdge: right, pitLane: pit };
   } catch { return null; }
 }

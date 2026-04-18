@@ -87,10 +87,17 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
       return;
     }
 
-    const hasBounds = boundaries?.coordSystem && boundaries.leftEdge?.length > 2;
+    // Pipeline negates PositionX for standard-xyz games (ACC, AC Evo).
+    // Boundary data is in raw game coords — negate X to match telemetry.
+    const game = telemetry[0] ? tryGetGame(telemetry[0].gameId) : null;
+    const negateEdgeX = game?.coordSystem === "standard-xyz";
+    const flipPt = (p: Point): Point => negateEdgeX ? { x: -p.x, z: p.z } : p;
+    const flippedLeft = boundaries?.leftEdge?.map(flipPt);
+    const flippedRight = boundaries?.rightEdge?.map(flipPt);
+    const hasBounds = boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2;
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     const allBoundsPts: Point[][] = [displayOutline];
-    if (hasBounds) allBoundsPts.push(boundaries!.leftEdge, boundaries!.rightEdge);
+    if (hasBounds) allBoundsPts.push(flippedLeft!, flippedRight!);
     for (const pts of allBoundsPts) {
       for (const p of pts) {
         minX = Math.min(minX, p.x);
@@ -131,8 +138,8 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
 
     // Draw track boundary surface
     if (hasBounds) {
-      const left = boundaries!.leftEdge;
-      const right = boundaries!.rightEdge;
+      const left = flippedLeft!;
+      const right = flippedRight!;
       ctx.beginPath();
       const [lx0, ly0] = toCanvas(left[0].x, left[0].z);
       ctx.moveTo(lx0, ly0);
