@@ -41,7 +41,7 @@ Both raw `.bin` and gzipped `.bin.gz` are accepted — the server detects
 gzip magic bytes and decompresses on the fly. No need to gunzip first.
 
 1. Run the dev server: `bun run dev`
-2. Open http://localhost:5173/dev
+2. Open http://raceiq.localhost:1355/dev
 3. Drag a `.bin` or `.bin.gz` onto the **Import Dump** panel
 4. The panel reports detected `gameId`, parsed packet count, detected
    car/track, and how many laps were written
