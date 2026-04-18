@@ -76,11 +76,12 @@ export function CompareTrackMap({
   // bounding box overlap, and if needed apply Procrustes (translate + rotate + scale).
   // ACC coordinate system has X axis opposite to the display convention (which negates X).
   // Pre-flip outline/boundary X so they render correctly against telemetry.
+  const isStandardXyz = gameId === "acc" || gameId === "ac-evo";
   const displayOutline = useMemo(() =>
-    gameId === "acc" ? outline.map(p => ({ x: -p.x, z: p.z })) : outline,
-  [outline, gameId]);
+    isStandardXyz ? outline.map(p => ({ x: -p.x, z: p.z })) : outline,
+  [outline, isStandardXyz]);
   const displayBoundaries = useMemo(() => {
-    if (gameId !== "acc" || !boundaries) return boundaries;
+    if (!isStandardXyz || !boundaries) return boundaries;
     const flip = (pts: Point[]) => pts.map(p => ({ x: -p.x, z: p.z }));
     return {
       ...boundaries,
@@ -89,7 +90,7 @@ export function CompareTrackMap({
       centerLine: flip(boundaries.centerLine),
       pitLane: boundaries.pitLane ? flip(boundaries.pitLane) : null,
     };
-  }, [boundaries, gameId]);
+  }, [boundaries, isStandardXyz]);
 
   const { alignedOutline, alignedBoundaries, telXFn, trackRange } = useMemo(() => {
     const outline = displayOutline;
