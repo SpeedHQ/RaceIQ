@@ -1,8 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 import { resolve } from "path";
 
-// Onboarding project runs against the compiled production binary (`dist/raceiq`)
-// with an isolated DATA_DIR so each run simulates a fresh install.
+// Fresh-install project runs against the compiled production binary
+// (`dist/raceiq`) with an isolated DATA_DIR so each run simulates a new
+// install (empty settings, onboarding wizard shown).
 // Marketing project runs against the user's running dev server
 // (`https://raceiq.localhost` via portless) and captures screenshots.
 //
@@ -10,16 +11,13 @@ import { resolve } from "path";
 // "open browser" branch — spawn("open") currently kills the compiled macOS
 // binary. Onboarding still fires because onboardingComplete defaults to false.
 
-const ONBOARDING_PORT = process.env.PW_ONBOARDING_PORT ?? "3118";
-const ONBOARDING_UDP_PORT = process.env.PW_ONBOARDING_UDP_PORT ?? "15318";
-const ONBOARDING_DATA_DIR = resolve(__dirname, "test-data");
-const BINARY_NAME = process.platform === "win32" ? "raceiq.exe" : "raceiq";
-const BINARY = resolve(__dirname, "..", "dist", BINARY_NAME);
+const FRESH_INSTALL_PORT = process.env.PW_FRESH_INSTALL_PORT ?? "3118";
+const FRESH_INSTALL_UDP_PORT = process.env.PW_FRESH_INSTALL_UDP_PORT ?? "15318";
+const FRESH_INSTALL_DATA_DIR = resolve(__dirname, "test-data");
 
 export default defineConfig({
   testDir: ".",
   outputDir: "./test-results",
-  globalSetup: "./global-setup.ts",
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
@@ -34,10 +32,10 @@ export default defineConfig({
 
   projects: [
     {
-      name: "onboarding",
-      testMatch: "onboarding.spec.ts",
+      name: "fresh-install",
+      testMatch: "fresh-install.spec.ts",
       use: {
-        baseURL: `http://localhost:${ONBOARDING_PORT}`,
+        baseURL: `http://localhost:${FRESH_INSTALL_PORT}`,
         viewport: { width: 1280, height: 900 },
       },
     },
@@ -53,16 +51,19 @@ export default defineConfig({
 
   webServer: [
     {
-      command: `"${BINARY}"`,
+      command: `bun start-server.ts`,
       env: {
-        DATA_DIR: ONBOARDING_DATA_DIR,
-        SERVER_PORT: ONBOARDING_PORT,
-        UDP_PORT: ONBOARDING_UDP_PORT,
+        DATA_DIR: FRESH_INSTALL_DATA_DIR,
+        SERVER_PORT: FRESH_INSTALL_PORT,
+        UDP_PORT: FRESH_INSTALL_UDP_PORT,
         NODE_ENV: "production",
       },
-      url: `http://localhost:${ONBOARDING_PORT}`,
+      url: `http://localhost:${FRESH_INSTALL_PORT}`,
       timeout: 120_000,
-      reuseExistingServer: !process.env.CI,
+      // Never reuse: the server opens a SQLite connection on boot, so if the
+      // binary kept running across runs the globalSetup's DATA_DIR wipe would
+      // orphan the DB file while the server clung to the stale fd.
+      reuseExistingServer: false,
       stdout: "pipe",
       stderr: "pipe",
     },

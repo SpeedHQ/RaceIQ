@@ -239,10 +239,11 @@ export function useTracks() {
     queryKey: ["tracks", gameId ?? null],
     queryFn: async () => {
       const res = await client.api.tracks.$get({
-        query: { gameId: gameId ?? undefined },
+        query: { gameId: gameId! },
       });
       return rpcJson(res);
     },
+    enabled: !!gameId,
   });
 }
 

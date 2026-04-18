@@ -9,7 +9,7 @@ on:
         type: string
 
 jobs:
-  onboarding:
+  fresh-install:
     runs-on: blacksmith-2vcpu-windows-2025
     steps:
       - uses: actions/checkout@v4
@@ -30,10 +30,9 @@ jobs:
         working-directory: playwright
         run: bunx playwright install chromium
 
-      - name: Run onboarding E2E test
+      - name: Run fresh-install E2E test
         working-directory: playwright
-        shell: bash
-        run: bunx playwright test --project=onboarding
+        run: bunx playwright test --project=fresh-install
 
       - name: Upload traces on failure
         if: failure()
