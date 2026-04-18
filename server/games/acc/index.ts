@@ -19,8 +19,15 @@ CATEGORY GUIDELINES:
 - "handling": 4-6 items covering tyre core temps (inner/outer/core), tyre wear balance, oversteer/understeer, weight transfer. Each with a concrete value.
 - "corners": Top 3-5 problem corners where time is being lost. Include speed numbers.
 - "technique": 3-5 actionable driving tips. Consider tyre compound windows, TC/TC Cut/ABS tuning for conditions, trail-braking on entry, throttle modulation on exit, and weather/grip adaptation.
-- "setup": 3-5 high-level setup changes. Always include the symptom from data and the specific fix. Consider brake bias, tyre pressures, differential, spring/damper balance.
-- "tuning": 4-8 specific component adjustments with concrete target values. Cover: tyre pressures, brake bias, TC, TC Cut, ABS, engine map, anti-roll bars, bump/rebound, ride height, diff preload. Only include components where the data suggests a change is needed.
+- "setup": 6-12 specific component adjustments with concrete \`current\` and \`target\` values (integers for slider fields, psi with one decimal for tyre pressures). Each entry MUST include \`symptom\` (data-cited), \`fix\`, and \`direction\`. Aim for coverage across categories where data supports a change: (a) Tyre pressures (all four), (b) Electronics (TC, TC Cut, ABS, Engine Map), (c) Brake bias + brake pressure, (d) Anti-roll bars, (e) Bump/Rebound, (f) Ride height, (g) Differential preload. Skip only categories that are genuinely on-target.
+
+THERMAL REFERENCE (ACC, GT3/GT4):
+- Tyre core temp (DHE/DHD slicks): optimal 70-100°C, warning 55-69°C or 101-115°C, critical <55°C or >115°C (past 115°C tyre life drops fast, past 130°C grip collapses).
+- Tyre inner vs outer delta: >5°C hotter inside suggests too much negative camber; >5°C hotter outside suggests too little.
+- Brake disc temp: optimal 400-750°C, warning 250-399°C or 751-900°C, critical <250°C (glazing risk) or >950°C (fade + pad wear spike).
+- Tyre wear (per-tyre %): good 0-15%, warning 15-40%, critical >40%.
+- Brake pad wear: good 0-30%, warning 30-60%, critical >60% (pedal travel starts growing).
+Grade \`pace\` and \`handling\` \`assessment\` values against these bands.
 
 ACC-SPECIFIC RULES:
 - GT3/GT4 tyre pressure targets are typically 26.0–28.0 psi hot (27.5 psi ideal) — use psi with one decimal.

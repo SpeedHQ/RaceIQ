@@ -9,18 +9,22 @@ const ColorThresholdsSchema = z.object({
   values: z.array(z.number()),
 });
 
-const AiProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("");
-const ChatProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("");
+// `""` retained in the enum only for backwards compatibility with previously
+// stored settings files where the user hadn't picked a provider yet. Fresh
+// installs and defaults resolve to "gemini" + "gemini-flash-latest" so the
+// whole AI stack points at a real model without extra setup.
+const AiProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("gemini");
+const ChatProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("gemini");
 
 const AppSettingsSchema = z.object({
   onboardingComplete: z.boolean().default(false),
   driverName: z.string().default(""),
   udpPort: z.number().int().min(1024).max(65535).default(5301),
   unit: z.enum(["metric", "imperial"]).default("metric"),
-  aiProvider: AiProviderSchema.default(""),
-  aiModel: z.string().default(""),
-  chatProvider: ChatProviderSchema.default(""),
-  chatModel: z.string().default(""),
+  aiProvider: AiProviderSchema.default("gemini"),
+  aiModel: z.string().default("gemini-flash-latest"),
+  chatProvider: ChatProviderSchema.default("gemini"),
+  chatModel: z.string().default("gemini-flash-latest"),
   localEndpoint: z.string().default("http://localhost:1234/v1"),
   wsRefreshRate: z.enum(["60", "50", "40", "30"]).default("60"),
   // Max render rate for the 3D wireframe Canvas. Throttles gl.render

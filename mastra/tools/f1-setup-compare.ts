@@ -100,17 +100,25 @@ export const compareF1SetupToCatalogTool = createTool({
       return emptyResult(lapId, `no catalog coverage for track ordinal ${trackOrdinal}`);
     }
 
-    const references = topCatalogReferences(trackOrdinal, limit, currentSetup).map((r) => ({
-      rank: r.rank,
-      lapTime: r.lapTime,
-      lapTimeSeconds: r.lapTimeSeconds,
-      team: r.team,
-      author: r.author,
-      weather: r.weather,
-      inputDevice: r.inputDevice,
-      setup: r.setup,
-      delta: r.delta ?? {},
-    }));
+    const references = topCatalogReferences(trackOrdinal, limit, currentSetup).map((r) => {
+      // Coerce Partial<F1Setup> to Record<string, number> by stripping any
+      // undefined values — the zod outputSchema requires a strict numeric map.
+      const delta: Record<string, number> = {};
+      for (const [k, v] of Object.entries(r.delta ?? {})) {
+        if (typeof v === "number") delta[k] = v;
+      }
+      return {
+        rank: r.rank,
+        lapTime: r.lapTime,
+        lapTimeSeconds: r.lapTimeSeconds,
+        team: r.team,
+        author: r.author,
+        weather: r.weather,
+        inputDevice: r.inputDevice,
+        setup: r.setup,
+        delta,
+      };
+    });
 
     return {
       available: references.length > 0,

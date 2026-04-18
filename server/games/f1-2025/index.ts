@@ -17,9 +17,22 @@ CATEGORY GUIDELINES:
 - "pace": 4-6 items covering speed, DRS usage, ERS deployment, throttle %, braking efficiency, full-throttle time, gear usage. Each with a concrete value.
 - "handling": 4-6 items covering tyre temps, tyre wear balance (front/rear, left/right), oversteer/understeer, weight transfer, tyre compound degradation. Each with a concrete value.
 - "corners": Top 3-5 problem corners where time is being lost. Include speed numbers.
-- "technique": 3-5 actionable driving tips. Reference specific telemetry values. Consider DRS activation zones, ERS harvesting vs deployment, lift-and-coast for fuel/tyre saving, and tyre temperature management.
-- "setup": 3-5 high-level setup changes. Always include the symptom from data and the specific fix. Consider front/rear wing balance, differential, brake bias, tyre pressures.
-- "tuning": 4-8 specific component adjustments with concrete target values. Cover: front wing, rear wing, differential (on/off throttle), brake bias, tyre pressures, suspension geometry, anti-roll bars, ride height. Only include components where the data suggests a change is needed.
+- "technique": 3-5 actionable driving tips. Consider DRS activation zones, ERS harvesting vs deployment, lift-and-coast for fuel/tyre saving, and tyre temperature management.
+- "setup": 8-14 specific component adjustments with concrete \`current\` and \`target\` values. Each entry MUST include \`symptom\`, \`fix\`, \`direction\`, and a ranked reference citation (e.g. "rank 2 — mitchlobbes, Mercedes") when the tool returned one. Coverage rule: when the tool shows a non-zero delta for a field, prefer to include it. Aim for at least one entry per category where deltas exist — (a) Aero: Front Wing, Rear Wing; (b) Transmission: Diff On-Throttle, Diff Off-Throttle; (c) Suspension Geometry: Front/Rear Camber, Front/Rear Toe; (d) Suspension Stiffness: Front/Rear Suspension, Front/Rear ARB, Front/Rear Ride Height; (e) Brakes: Brake Pressure, Front Brake Bias, Engine Braking; (f) Tyres: all four pressures. Skip only fields the tool shows no meaningful delta for.
+
+THERMAL REFERENCE (F1 25, slick tyres, dry):
+- Tyre surface temp: optimal 90-110°C, warning 80-89°C or 111-125°C, critical <80°C or >125°C.
+- Tyre inner-carcass temp: optimal 95-115°C, warning 85-94°C or 116-125°C, critical <85°C or >125°C.
+- Brake disc temp: optimal 450-700°C, warning 350-449°C or 701-850°C, critical <350°C or >850°C (carbon brakes cold-crack below 200°C and fade above 900°C).
+- Tyre health / wear remaining: good 100-85%, warning 84-60%, critical <60% (scale grip loss and lap-time cost in your verdict).
+When citing temps in \`pace\`, \`handling\`, or \`corners\`, use these bands to grade \`assessment\`.
+
+ERS & LAP-TYPE RULES (read \`Session Type\` from the prompt context):
+- \`one-shot-qualifying\` / \`time-trial\` / \`qualifying-3\`: this is a single hot lap. ERS deployment must be aggressive — reserve should finish near 0-10% at the line. If \`ers.reserve\` ends the lap above ~15%, flag it as left-on-the-table in \`technique[]\` and in the verdict.
+- \`qualifying-1\` / \`qualifying-2\` / \`short-qualifying\`: same single-lap logic — target 0-10% reserve at the line.
+- \`race\` / \`race-2\` / \`race-3\`: opposite — ending the lap at 0% is a strategy problem. Grade deployment against race-pace cadence, not max dump.
+- \`practice-*\`: neutral. Skip ERS end-of-lap reserve critique.
+- When \`Session Type\` is \`unknown\` or missing, assume \`one-shot-qualifying\` (covers the common Analyse-one-good-lap flow).
 
 F1 25 SETUP RANGES — all tuning recommendations MUST use values within these ranges:
 
@@ -58,8 +71,8 @@ Tyres:
 F1-SPECIFIC RULES:
 - ALL tuning values MUST be within the ranges above — never recommend values outside these limits
 - Use the exact component names listed above in the "tuning" section
-- The driver's current car setup and top-5 reference setups come from the \`compare-f1-setup-to-catalog\` tool — CALL IT before filling in the tuning section. Do NOT claim the setup is unknown without calling the tool first.
-- Use the \`current\` setup values returned by the tool as each tuning entry's \`current\`, and pick \`target\` values from the reference deltas (prefer small, explainable changes backed by a specific reference driver/team).
+- The driver's current car setup and top-5 reference setups come from the \`compare-f1-setup-to-catalog\` tool — CALL IT before filling in the setup section. Do NOT claim the setup is unknown without calling the tool first.
+- Use the \`current\` values returned by the tool as each setup entry's \`current\`, and pick \`target\` values from the reference deltas (prefer small, explainable changes backed by a specific reference driver/team).
 - Do NOT recommend fuel changes.
 - Consider DRS availability and whether it was used optimally in DRS zones
 - Factor in ERS deployment strategy — was energy used in the right places?

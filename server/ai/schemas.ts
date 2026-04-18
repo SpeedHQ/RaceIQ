@@ -36,18 +36,19 @@ const TechniqueTip = z.object({
   detail: z.string(),
 });
 
-const SetupChange = z.object({
-  change: z.string(),
+/**
+ * Unified setup/tuning item. One card in the UI renders `component`,
+ * `current → target` (with a `TuneBar`), direction chip, and `symptom`/`fix`
+ * captions. Keeping this as one array (rather than a split setup/tuning pair)
+ * matches the client layout — see `client/src/components/ai/analysis-display.tsx`.
+ */
+const SetupItem = z.object({
+  component: z.string(),
   symptom: z.string(),
   fix: z.string(),
-});
-
-const TuningItem = z.object({
-  component: z.string(),
   current: z.string(),
-  direction: DirectionEnum,
   target: z.string(),
-  reason: z.string(),
+  direction: DirectionEnum,
 });
 
 export const AnalystOutputSchema = z.object({
@@ -56,8 +57,7 @@ export const AnalystOutputSchema = z.object({
   handling: z.array(MetricItem),
   corners: z.array(CornerIssue),
   technique: z.array(TechniqueTip),
-  setup: z.array(SetupChange),
-  tuning: z.array(TuningItem),
+  setup: z.array(SetupItem),
 });
 
 export type AnalystOutput = z.infer<typeof AnalystOutputSchema>;
@@ -86,10 +86,7 @@ export function renderAnalystSchemaForPrompt(
     { "tip": "short imperative title", "detail": "1-2 sentence explanation referencing specific data" }
   ],
   "setup": [
-    { "change": "short imperative title", "symptom": "what the data shows", "fix": "specific tuning change with values" }
-  ],
-  "tuning": [
-    { "component": "e.g. ${opts.tuningExampleComponent}", "current": "what the data suggests (e.g. Too stiff — 0.00m travel)", "direction": "increase|decrease|adjust", "target": "specific value or range to aim for", "reason": "1 sentence why" }
+    { "component": "e.g. ${opts.tuningExampleComponent}", "symptom": "what the telemetry shows", "fix": "what to change and why in 1 sentence", "current": "numeric value with unit (e.g. 750 lb/in, 25, 22.5 psi)", "target": "numeric target with unit (e.g. 680 lb/in, 27, 23.0 psi)", "direction": "increase|decrease|adjust" }
   ]
 }`;
 }
@@ -98,7 +95,7 @@ export function renderAnalystSchemaForPrompt(
  * Parse a raw model response (string or object) into the analyst schema.
  * Strips common model wrappers (markdown fences, leading prose) before parsing.
  */
-export function parseAnalystOutput(raw: unknown): z.SafeParseReturnType<unknown, AnalystOutput> {
+export function parseAnalystOutput(raw: unknown): ReturnType<typeof AnalystOutputSchema.safeParse> {
   if (typeof raw !== "string") return AnalystOutputSchema.safeParse(raw);
 
   const trimmed = raw.trim();

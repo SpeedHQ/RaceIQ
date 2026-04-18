@@ -13,11 +13,11 @@
 import { Agent } from "@mastra/core/agent";
 import { compareEngineerPersona } from "../../server/ai/compare-engineer";
 
-const DEFAULT_EVAL_MODEL = "google/gemini-3-flash";
+const DEFAULT_EVAL_MODEL = "google/gemini-flash-latest";
 
 export function resolveEvalModelId(): string {
   const provider = process.env.EVALS_PROVIDER ?? "gemini";
-  const model = process.env.EVALS_MODEL ?? "gemini-3-flash";
+  const model = process.env.EVALS_MODEL ?? "gemini-flash-latest";
   if (provider === "gemini") return `google/${model}`;
   if (provider === "openai") return `openai/${model}`;
   return DEFAULT_EVAL_MODEL;

@@ -98,36 +98,42 @@ export function AnalyseLapHeader({
         fallbackLabel={selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
       />
 
-      {/* Tune selector */}
+      {/* Tune / setup controls.
+          F1 25 laps capture the full car setup on-packet, surfaced via the
+          Car Setup modal — the Forza-style tune picker doesn't apply there,
+          so we hide it and render only the Car Setup button. */}
       {selectedLapId && hasTelemetry && (
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-app-text-muted">Tune:</span>
-          <select
-            value={selectedLap?.tuneId ?? ""}
-            onChange={(e) => {
-              const val = e.target.value;
-              onTuneChange(val ? parseInt(val, 10) : null);
-            }}
-            disabled={tunePending}
-            className="bg-app-surface border border-app-border-input rounded px-2 py-1 text-sm text-app-text"
-          >
-            <option value="">No tune</option>
-            {availableTunes?.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
-          {selectedLap?.tuneId && (
-            <Button variant="app-outline" size="app-sm" onClick={() => onViewTune(selectedLap.tuneId!)}>
-              View
-            </Button>
-          )}
-          {tunePending && (
-            <span className="text-xs text-app-text-muted animate-pulse">Saving...</span>
-          )}
-          {hasF1Setup && (
+          {hasF1Setup ? (
             <Button variant="app-outline" size="app-sm" onClick={onShowSetup}>
               Car Setup
             </Button>
+          ) : (
+            <>
+              <span className="text-app-text-muted">Tune:</span>
+              <select
+                value={selectedLap?.tuneId ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onTuneChange(val ? parseInt(val, 10) : null);
+                }}
+                disabled={tunePending}
+                className="bg-app-surface border border-app-border-input rounded px-2 py-1 text-sm text-app-text"
+              >
+                <option value="">No tune</option>
+                {availableTunes?.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              {selectedLap?.tuneId && (
+                <Button variant="app-outline" size="app-sm" onClick={() => onViewTune(selectedLap.tuneId!)}>
+                  View
+                </Button>
+              )}
+              {tunePending && (
+                <span className="text-xs text-app-text-muted animate-pulse">Saving...</span>
+              )}
+            </>
           )}
         </div>
       )}

@@ -45,6 +45,7 @@ import { tryGetGame } from "../../shared/games/registry";
 import { loadSharedTrackMeta } from "../../shared/track-data";
 import { buildChatSystemPrompt } from "../ai/chat-prompt";
 import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
+import { chatStreamResponse } from "../ai/chat-stream";
 import {
   buildInputsComparePrompt,
   InputsCompareSchema,
@@ -190,7 +191,13 @@ export const lapRoutes = new Hono()
         return c.json({ error: "No telemetry data" }, 400);
 
       const trackOrdinal = lap.trackOrdinal ?? 0;
-      const corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId) : [];
+      // Curated corners from `track_corners` first; fall back to telemetry
+      // detection (T1..Tn) when the track has no entries — lets the client
+      // resolve "T13" card clicks to the correct position instead of lap start.
+      let corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId) : [];
+      if (corners.length === 0 && lap.telemetry.length > 0) {
+        corners = detectCorners(lap.telemetry);
+      }
 
       // Compute corner fracs for client-side track highlighting
       const totalDist = lap.telemetry.length > 1
@@ -300,16 +307,29 @@ export const lapRoutes = new Hono()
         const durationMs = Date.now() - startedAt;
 
         const analysis = response.text ?? "";
-        const usage = {
-          inputTokens: response.usage?.inputTokens ?? response.usage?.promptTokens ?? 0,
-          outputTokens: response.usage?.outputTokens ?? response.usage?.completionTokens ?? 0,
+        const toolCalls = Array.isArray(response.toolCalls) ? response.toolCalls.length : 0;
+        // AI SDK v4 uses `inputTokens`/`outputTokens`; some older releases
+        // exposed `promptTokens`/`completionTokens`. Cast + probe defensively.
+        const rawUsage = (response.usage ?? {}) as Record<string, unknown>;
+        const pickNum = (k: string) => (typeof rawUsage[k] === "number" ? (rawUsage[k] as number) : 0);
+        const persistedUsage = {
+          inputTokens: pickNum("inputTokens") || pickNum("promptTokens"),
+          outputTokens: pickNum("outputTokens") || pickNum("completionTokens"),
           costUsd: 0,
           durationMs,
-          model: settings.aiModel || (analystProvider === "openai" ? "gpt-4o-mini" : "gemini-2.0-flash"),
+          model: settings.aiModel || (analystProvider === "openai" ? "gpt-4o-mini" : "gemini-flash-latest"),
         };
 
-        await saveAnalysis(id, analysis, usage);
-        return c.json({ analysis, cached: false, usage, cornerFracs, hasTune });
+        await saveAnalysis(id, analysis, persistedUsage);
+        // `toolCalls` is a live-run metric (not persisted) so cached responses
+        // return `toolCalls: undefined` and the UI can show "—" for those.
+        return c.json({
+          analysis,
+          cached: false,
+          usage: { ...persistedUsage, toolCalls },
+          cornerFracs,
+          hasTune,
+        });
       } catch (err: any) {
         console.error("[AI] Analysis failed:", err.message);
         return c.json({ error: err.message }, err.message.includes("timed out") ? 504 : 500);
@@ -367,7 +387,13 @@ export const lapRoutes = new Hono()
 
       const settings = loadSettings();
       const trackOrdinal = lap.trackOrdinal ?? 0;
-      const corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId) : [];
+      // Curated corners from `track_corners` first; fall back to telemetry
+      // detection (T1..Tn) when the track has no entries — lets the client
+      // resolve "T13" card clicks to the correct position instead of lap start.
+      let corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId) : [];
+      if (corners.length === 0 && lap.telemetry.length > 0) {
+        corners = detectCorners(lap.telemetry);
+      }
 
       // Load tune if linked
       let parsedTune: Tune | undefined;
@@ -411,37 +437,10 @@ export const lapRoutes = new Hono()
 
       try {
         const threadId = chatThreadId(id);
-
-        const stream = await lapChatAgent.stream(message, {
+        return chatStreamResponse(lapChatAgent.stream(message, {
           instructions: systemPrompt,
-          memory: {
-            thread: threadId,
-            resource: CHAT_RESOURCE_ID,
-          },
-        });
-
-        // Pipe the text stream through a TextEncoder for the Response body
-        const encoder = new TextEncoder();
-        const readable = new ReadableStream({
-          async start(controller) {
-            try {
-              for await (const chunk of stream.textStream) {
-                controller.enqueue(encoder.encode(chunk));
-              }
-              controller.close();
-            } catch (err) {
-              controller.error(err);
-            }
-          },
-        });
-
-        return new Response(readable, {
-          headers: {
-            "Content-Type": "text/plain; charset=utf-8",
-            "Cache-Control": "no-cache",
-            "Transfer-Encoding": "chunked",
-          },
-        });
+          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+        }));
       } catch (err: any) {
         console.error("[Chat] Stream failed:", err.message);
         return c.json({ error: err.message }, 500);
@@ -911,32 +910,10 @@ export const lapRoutes = new Hono()
       try {
         const threadId = compareChatThreadId(id1, id2);
 
-        const stream = await compareChatAgent.stream(message, {
+        return chatStreamResponse(compareChatAgent.stream(message, {
           instructions: systemPrompt,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-        });
-
-        const encoder = new TextEncoder();
-        const readable = new ReadableStream({
-          async start(controller) {
-            try {
-              for await (const chunk of stream.textStream) {
-                controller.enqueue(encoder.encode(chunk));
-              }
-              controller.close();
-            } catch (err) {
-              controller.error(err);
-            }
-          },
-        });
-
-        return new Response(readable, {
-          headers: {
-            "Content-Type": "text/plain; charset=utf-8",
-            "Cache-Control": "no-cache",
-            "Transfer-Encoding": "chunked",
-          },
-        });
+        }));
       } catch (err: any) {
         console.error("[CompareChat] Stream failed:", err.message);
         return c.json({ error: err.message }, 500);

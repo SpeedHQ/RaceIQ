@@ -5,28 +5,28 @@ const NUMERIC_UNIT_RE = /\d+(\.\d+)?\s*(lb\/in|N\/mm|psi|bar|mm|m\b|km\/h|mph|rp
 const DELTA_RE = /-?\d+(\.\d+)?\s*(→|->|to)\s*-?\d+(\.\d+)?/;
 
 /**
- * Fraction of `tuning[]` entries whose `target` or `reason` cites a concrete
- * number-with-unit or a delta (e.g. "3 → 5", "22.5 psi"). Keeps the model
+ * Fraction of `setup[]` entries whose `current` or `target` cites a concrete
+ * number-with-unit (e.g. "22.5 psi", "680 lb/in", "27"). Keeps the model
  * from shipping vague advice like "stiffen the front" with no target.
  */
 export const numericGroundingScorer = createScorer({
   id: "numeric-grounding",
-  description: "Fraction of tuning entries that cite concrete numeric targets",
+  description: "Fraction of setup entries that cite concrete numeric current/target values",
 })
   .generateScore(({ run }) => {
     const parsed = parseAnalystOutput(run.output);
-    if (!parsed.success || parsed.data.tuning.length === 0) return 0;
+    if (!parsed.success || parsed.data.setup.length === 0) return 0;
 
-    const grounded = parsed.data.tuning.filter((t) => {
-      const blob = `${t.current} ${t.target} ${t.reason}`;
-      return NUMERIC_UNIT_RE.test(blob) || DELTA_RE.test(blob);
+    const grounded = parsed.data.setup.filter((t) => {
+      const blob = `${t.current} ${t.target}`;
+      return NUMERIC_UNIT_RE.test(blob) || DELTA_RE.test(blob) || /^-?\d+(\.\d+)?$/.test(t.target.trim());
     }).length;
 
-    return grounded / parsed.data.tuning.length;
+    return grounded / parsed.data.setup.length;
   })
   .generateReason(({ run, score }) => {
     const parsed = parseAnalystOutput(run.output);
     if (!parsed.success) return "output failed to parse — cannot score grounding";
-    const total = parsed.data.tuning.length;
-    return `${Math.round(score * total)} / ${total} tuning entries grounded (score ${score.toFixed(2)})`;
+    const total = parsed.data.setup.length;
+    return `${Math.round(score * total)} / ${total} setup entries grounded (score ${score.toFixed(2)})`;
   });

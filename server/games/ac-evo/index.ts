@@ -18,9 +18,16 @@ CATEGORY GUIDELINES:
 - "pace": 4-6 items covering speed, throttle %, braking efficiency, full-throttle time, gear usage. Each with a concrete value.
 - "handling": 4-6 items covering tyre core temps (inner/outer/core), tyre wear balance, oversteer/understeer, weight transfer. Each with a concrete value.
 - "corners": Top 3-5 problem corners where time is being lost. Include speed numbers.
-- "technique": 3-5 actionable driving tips. Adapt tone to car class (road car vs GT3): smoother inputs for road cars on semi-slicks, aggressive trail braking for GT3 on slicks. Reference compound and temperature.
-- "setup": 3-5 high-level setup changes. Always include the symptom from data and the specific fix. Consider brake bias, tyre pressures, differential, spring/damper balance.
-- "tuning": 4-8 specific component adjustments with concrete target values. Cover: tyre pressures, brake bias, TC, ABS, engine map, anti-roll bars, bump/rebound, ride height, diff preload. Only include components where the data suggests a change is needed.
+- "technique": 3-5 actionable driving tips. Adapt tone to car class (road car vs GT3). Reference compound and temperature.
+- "setup": 6-12 specific component adjustments with concrete \`current\` and \`target\` values (integers for slider fields, psi with one decimal for tyre pressures). Each entry MUST include \`symptom\` (data-cited), \`fix\`, and \`direction\`. Aim for coverage across categories where data supports a change: (a) Tyre pressures (all four), (b) Electronics (TC, ABS, Engine Map), (c) Brake bias, (d) Anti-roll bars, (e) Bump/Rebound, (f) Ride height, (g) Differential preload. Skip only categories that are genuinely on-target.
+
+THERMAL REFERENCE (AC Evo, compound-dependent):
+- Slick tyres: optimal core 75-100°C, warning 60-74°C or 101-115°C, critical <60°C or >115°C.
+- Semi-slicks: optimal core 60-85°C, warning 45-59°C or 86-100°C, critical <45°C or >100°C.
+- Road tyres: optimal core 40-70°C, warning 25-39°C or 71-85°C, critical <25°C or >85°C.
+- Brake disc temp: optimal 350-700°C for race cars, 200-500°C for road cars; warning 150°C either side; critical <100°C or >900°C.
+- Tyre wear (per-tyre %): good 0-20%, warning 20-45%, critical >45%.
+When you cite a temp, pair it with the tyre compound (the prompt context lists it) so grading is unambiguous.
 
 AC EVO-SPECIFIC RULES:
 - Tyre type matters: road tyres, semi-slicks, and slicks have different optimal pressures and temperature windows — cite the type before recommending a pressure.

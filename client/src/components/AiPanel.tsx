@@ -6,9 +6,11 @@ import { Button } from "./ui/button";
 import { toPng } from "html-to-image";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { SetupSection } from "./ai/analysis-display";
+import { readChatStream } from "../lib/chat-stream";
 import {
   Sparkles, RefreshCw, Gauge, Sliders, AlertTriangle,
-  Lightbulb, Wrench, Download,
+  Lightbulb, Download,
   Send, Trash2, CircleDot, Zap,
 } from "lucide-react";
 
@@ -67,28 +69,6 @@ function MetricCard({ item }: { item: PaceItem | HandlingItem }) {
   );
 }
 
-function TuneBar({ current, target }: { current: number; target: number }) {
-  const lo = Math.min(current, target);
-  const hi = Math.max(current, target);
-  const spread = hi - lo || 1;
-  const min = Math.max(0, lo - spread * 1.5);
-  const max = hi + spread * 1.5;
-  const range = max - min || 1;
-  const currentPct = ((current - min) / range) * 100;
-  const targetPct = ((target - min) / range) * 100;
-  return (
-    <div className="relative h-3 mt-1 mb-0.5">
-      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 bg-app-border-input/50 rounded-full" />
-      <div className="absolute top-1/2 -translate-y-1/2 h-1 bg-amber-400/20 rounded-full" style={{ left: `${Math.min(currentPct, targetPct)}%`, width: `${Math.abs(targetPct - currentPct)}%` }} />
-      <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${currentPct}%` }}>
-        <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent border-t-cyan-400" />
-      </div>
-      <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${targetPct}%` }}>
-        <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[6px] border-l-transparent border-r-transparent border-b-amber-400" />
-      </div>
-    </div>
-  );
-}
 
 type Segment = { type: string; name: string; startFrac: number; endFrac: number };
 
@@ -177,6 +157,12 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   const [chatLoading, setChatLoading] = useState(false);
   const [streaming, setStreaming] = useState("");
   const [chatError, setChatError] = useState<string | null>(null);
+  // Live status from the NDJSON stream: "thinking" (waiting for first token),
+  // "generating" (tokens flowing), or null when idle. `chatTool` shows the
+  // currently-executing tool name (e.g. "compare-f1-setup-to-catalog").
+  const [chatStatus, setChatStatus] = useState<"thinking" | "generating" | null>(null);
+  const [chatTool, setChatTool] = useState<string | null>(null);
+  const [chatUsage, setChatUsage] = useState<{ inputTokens: number; outputTokens: number } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useImperativeHandle(ref, () => ({
@@ -349,15 +335,22 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     }
   }, [carName, trackName]);
 
-  // Send chat message
+  // Send chat message — consumes the NDJSON stream defined in
+  // server/ai/chat-stream.ts so we can surface thinking / tool-call /
+  // generating states separately from the text body.
   const sendChat = useCallback(async () => {
     const msg = chatInput.trim();
     if (!msg || chatLoading) return;
     setChatLoading(true);
     setChatError(null);
     setStreaming("");
+    setChatStatus("thinking");
+    setChatTool(null);
+    setChatUsage(null);
     setMessages((prev) => [...prev, { role: "user", content: msg }]);
     setChatInput("");
+    let fullText = "";
+    let finalUsage: { inputTokens: number; outputTokens: number } | null = null;
     try {
       const res = await fetch(`/api/laps/${lapId}/chat`, {
         method: "POST",
@@ -368,22 +361,37 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         const errData = await res.json().catch(() => ({ error: "Request failed" })) as { error?: string };
         throw new Error(errData.error || `HTTP ${res.status}`);
       }
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("No stream");
-      const decoder = new TextDecoder();
-      let fullText = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        fullText += decoder.decode(value, { stream: true });
-        setStreaming(fullText);
-      }
+      await readChatStream(res, (event) => {
+        switch (event.type) {
+          case "status":
+            setChatStatus(event.state);
+            break;
+          case "tool":
+            setChatTool(event.state === "start" ? event.name : null);
+            break;
+          case "text":
+            fullText += event.delta;
+            setStreaming(fullText);
+            break;
+          case "usage":
+            finalUsage = { inputTokens: event.inputTokens, outputTokens: event.outputTokens };
+            break;
+          case "error":
+            throw new Error(event.message);
+          case "ping":
+          case "done":
+            break;
+        }
+      });
       setStreaming("");
       setMessages((prev) => [...prev, { role: "assistant", content: fullText }]);
+      setChatUsage(finalUsage);
     } catch (err: unknown) {
       setChatError(err instanceof Error ? err.message : "Chat failed");
     } finally {
       setChatLoading(false);
+      setChatStatus(null);
+      setChatTool(null);
     }
   }, [chatInput, chatLoading, lapId]);
 
@@ -559,39 +567,15 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 </div>
               )}
 
-              {/* Setup */}
+              {/* Setup — collapsed into a button; opens a modal. Shared with AnalysisDisplay. */}
               {analysis.setup?.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <span className="text-app-text-secondary"><Wrench className="size-3" /></span>
-                    <h3 className="text-[10px] font-semibold text-app-text uppercase tracking-wider">Setup</h3>
-                    {!hasTune && <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">Best Guess</span>}
-                  </div>
-                  {!hasTune && (
-                    <p className="text-[9px] text-amber-400/70 mb-1.5 leading-snug">No tune data linked — values are estimated from telemetry. Link a tune for accurate setup suggestions.</p>
-                  )}
-                  <div className="grid grid-cols-1 gap-1.5">
-                    {analysis.setup.map((item, i) => {
-                      const extractNum = (s?: string) => { const m = s?.match(/-?\d+\.?\d*/); return m ? parseFloat(m[0]) : NaN; };
-                      const currentNum = extractNum(item.current);
-                      const targetNum = extractNum(item.target);
-                      const hasBoth = !isNaN(currentNum) && !isNaN(targetNum) && currentNum !== targetNum;
-                      return (
-                        <TrackCard key={i} seg={findSegment(cornerFracs.length ? cornerFracs : segments, item.symptom, item.fix)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-2.5 py-2">
-                          <span className="text-[11px] font-semibold text-app-text block mb-1">{item.component}</span>
-                          <span className={`text-[9px] font-mono px-1 py-0.5 rounded ${
-                            item.direction === "increase" ? "bg-emerald-400/10 text-emerald-400" :
-                            item.direction === "decrease" ? "bg-red-400/10 text-red-400" :
-                            "bg-amber-400/10 text-amber-400"
-                          }`}>{item.current} → {item.target}</span>
-                          {hasBoth && <TuneBar current={currentNum} target={targetNum} />}
-                          <p className="text-[10px] text-app-text-secondary mt-1"><span className="text-red-400/70">Symptom:</span> {item.symptom}</p>
-                          <p className="text-[10px] text-app-text-secondary mt-0.5"><span className="text-emerald-400/70">Fix:</span> {item.fix}</p>
-                        </TrackCard>
-                      );
-                    })}
-                  </div>
-                </div>
+                <SetupSection
+                  setup={analysis.setup}
+                  hasTune={hasTune}
+                  lookupSegs={cornerFracs.length ? cornerFracs : (segments ?? null)}
+                  onJumpToFrac={onJumpToFrac}
+                  onHighlightsChange={onHighlightsChange}
+                />
               )}
 
               {/* Actions bar */}
@@ -639,25 +623,35 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             ))}
 
             {streaming && (
-              <div className="flex justify-start">
+              <div className="flex flex-col items-start gap-0.5">
                 <div className="max-w-[90%] rounded-lg px-2.5 py-1.5 text-[11px] leading-relaxed bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary">
                   <div className="prose-chat"><Markdown remarkPlugins={[remarkGfm]}>{streaming}</Markdown></div>
                 </div>
+                {chatStatus === "generating" && (
+                  <span className="text-[9px] text-app-text-muted font-mono pl-1">Generating…</span>
+                )}
+              </div>
+            )}
+            {chatUsage && !streaming && (
+              <div className="flex justify-start pl-1">
+                <span className="text-[9px] text-app-text-muted font-mono">
+                  {chatUsage.inputTokens.toLocaleString()}↓ {chatUsage.outputTokens.toLocaleString()}↑ tokens
+                </span>
               </div>
             )}
 
-            {chatLoading && !streaming && (
+            {chatLoading && (chatStatus === "thinking" || chatTool) && !streaming && (
               <div className="flex justify-start">
                 <div className="rounded-lg px-2.5 py-1.5 bg-app-surface-alt/60 border border-app-border-input/40">
                   <div className="flex items-center gap-1.5">
-                    <div className="size-1.5 rounded-full bg-app-text-dim animate-pulse" />
-                    <div className="size-1.5 rounded-full bg-app-text-dim animate-pulse [animation-delay:150ms]" />
-                    <div className="size-1.5 rounded-full bg-app-text-dim animate-pulse [animation-delay:300ms]" />
+                    <div className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span className="text-[10px] text-app-text-secondary">
+                      {chatTool ? `Using tool: ${chatTool}` : "Thinking…"}
+                    </span>
                   </div>
                 </div>
               </div>
             )}
-
             {chatError && (
               <div className="flex justify-start">
                 <div className="rounded-lg px-2.5 py-2 bg-red-400/10 border border-red-400/20">

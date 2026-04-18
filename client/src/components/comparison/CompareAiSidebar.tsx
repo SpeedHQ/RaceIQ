@@ -8,9 +8,13 @@ interface CompareAiSidebarProps {
   lapB: { id: number; label: string; lapTime: number };
   panelRef: RefObject<CompareAiPanelHandle | null>;
   onClose: () => void;
+  /** Named track segments (startFrac/endFrac) for AI-segment click resolution. */
+  segments?: { name: string; startFrac: number; endFrac: number }[];
+  /** Move the track cursor / chart to a normalised lap fraction. */
+  onJumpToFrac?: (frac: number) => void;
 }
 
-export function CompareAiSidebar({ lapA, lapB, panelRef, onClose }: CompareAiSidebarProps) {
+export function CompareAiSidebar({ lapA, lapB, panelRef, onClose, segments, onJumpToFrac }: CompareAiSidebarProps) {
   return (
     <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2 border-b border-app-border shrink-0">
@@ -34,6 +38,8 @@ export function CompareAiSidebar({ lapA, lapB, panelRef, onClose }: CompareAiSid
         lapA={lapA}
         lapB={lapB}
         panelOpen={true}
+        segments={segments}
+        onJumpToFrac={onJumpToFrac}
       />
     </div>
   );

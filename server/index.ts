@@ -99,7 +99,7 @@ console.log("[Boot] Port cleared");
 // Start the HTTP/WebSocket server
 Bun.serve<WSData>({
   port: HTTP_PORT,
-  idleTimeout: 120, // seconds — AI analysis via Claude CLI can take up to 90s
+  idleTimeout: 255, // seconds (Bun max) — local model first-token latency can spike
   async fetch(req, server) {
     // Handle WebSocket upgrade
     const url = new URL(req.url);

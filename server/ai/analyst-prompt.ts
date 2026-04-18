@@ -14,6 +14,35 @@ interface CornerDef {
   distanceEnd: number;
 }
 
+/**
+ * Combine corner labels from the DB-stored `trackCorners` rows and the
+ * shared-track-meta `segments` entries into a deduped whitelist. Used to
+ * constrain the model's corner naming so it can't invent labels like
+ * "Bit-Kurve" at a track that doesn't have one.
+ */
+function collectCornerLabels(
+  corners: CornerDef[],
+  segments?: { type: string; name: string; startFrac: number; endFrac: number }[],
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of corners) {
+    if (c.label && !seen.has(c.label)) {
+      seen.add(c.label);
+      out.push(c.label);
+    }
+  }
+  if (segments) {
+    for (const s of segments) {
+      if (s.type === "corner" && s.name && !seen.has(s.name)) {
+        seen.add(s.name);
+        out.push(s.name);
+      }
+    }
+  }
+  return out;
+}
+
 const FORZA_SYSTEM_PROMPT = `You are an expert Forza Motorsport racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
 
 Your response MUST be valid JSON matching this exact schema. Output ONLY the JSON object, no markdown fences, no extra text.
@@ -131,6 +160,14 @@ export function buildAnalystPrompt(
     segmentsList += "\n";
   }
 
+  // Track grounding: the model invents corner names (e.g. "Bit-Kurve" at Lusail)
+  // when nothing else constrains it. Build a whitelist from whatever named
+  // sources we have; if none, force Tn numbering.
+  const cornerLabelWhitelist = collectCornerLabels(corners, segments);
+  const cornerGuardrail = cornerLabelWhitelist.length > 0
+    ? `\n--- Valid Corner Labels (the ONLY names you may use for corners in this output) ---\n${cornerLabelWhitelist.join(", ")}\n`
+    : `\n--- Corner Naming ---\nNo named corner data is available for this track. Refer to corners as "T1", "T2", … based on sequence. Do NOT invent corner names.\n`;
+
   // Get car specs for additional context
   const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
   const specs = carSpecsMap.get(carOrdinal);
@@ -145,7 +182,7 @@ export function buildAnalystPrompt(
 
   const context = `${carDetailsText}
 Track: ${trackName}
-${tuneText}${segmentsList}${trackGuide}
+${tuneText}${segmentsList}${cornerGuardrail}${trackGuide}
 ${exportText}
 ${cornerData}
 ${insightsText}`;
@@ -161,10 +198,15 @@ ${insightsText}`;
   }
 
   const lapIdLine = lap.id !== undefined ? `Lap ID: ${lap.id}\n` : "";
+  // Session type affects how the model should interpret strategy-dependent
+  // signals (e.g. for F1 one-shot qualifying we expect ERS reserve near 0%
+  // at the line; in race trim the same reading would be a red flag).
+  const sessionType = packets[0]?.f1?.sessionType;
+  const sessionTypeLine = sessionType ? `Session Type: ${sessionType}\n` : "";
 
   return `${systemPrompt}
 
 --- TELEMETRY DATA ---
 
-${lapIdLine}${context}${f1ExtendedContext}`;
+${lapIdLine}${sessionTypeLine}${context}${f1ExtendedContext}`;
 }

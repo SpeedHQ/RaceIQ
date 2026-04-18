@@ -40,5 +40,5 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           EVALS_PROVIDER: gemini
-          EVALS_MODEL: gemini-3-flash
+          EVALS_MODEL: gemini-flash-latest
         run: bun run test:ai

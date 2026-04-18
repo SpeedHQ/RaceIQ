@@ -74,6 +74,13 @@ export function LapComparison() {
     // Directly redraw the map canvas without React re-render
     mapRedrawRef.current?.();
   }, []);
+  const handleJumpToFrac = useCallback((frac: number) => {
+    const distances = comparison?.traces?.distance;
+    if (!distances || distances.length === 0) return;
+    const idx = Math.max(0, Math.min(distances.length - 1, Math.floor(frac * distances.length)));
+    hoveredDistanceRef.current = distances[idx];
+    mapRedrawRef.current?.();
+  }, [comparison]);
 
   // Set cursor from URL param once comparison data loads
   const appliedInitialCursor = useRef(false);
@@ -503,6 +510,8 @@ export function LapComparison() {
             }}
             panelRef={aiPanelRef}
             onClose={toggleAiPanel}
+            segments={segmentTimings}
+            onJumpToFrac={handleJumpToFrac}
           />
         )}
         </div>
