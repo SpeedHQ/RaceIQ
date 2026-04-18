@@ -13,7 +13,7 @@ import { formatLapTime } from "./LiveTelemetry";
 export function LapTimeChart({
   sessionLaps,
   height,
-  yTicks = 5,
+  yTicks = 3,
   maxLaps = 10,
 }: {
   sessionLaps: LapMeta[];
