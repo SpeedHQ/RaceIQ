@@ -53,12 +53,24 @@ curl -F "file=@test/artifacts/laps/fm-2023-…-.bin" \
 The route is mounted only when `IS_DEV` is true — not available in
 production builds.
 
+## Committing a recording as a test fixture
+
+Raw `.bin` dumps are gitignored — they're developer-local by default.
+To commit one as a regression fixture, **gzip it first**:
+
+```sh
+gzip -k test/artifacts/laps/fm-2023-2026-04-18T17-28-14-420Z.bin
+git add test/artifacts/laps/fm-2023-2026-04-18T17-28-14-420Z.bin.gz
+```
+
+`-k` keeps the raw `.bin` next to the `.bin.gz` so you can still replay
+it locally without decompressing. The importer and pipeline-test helpers
+both accept `.bin.gz` directly — no need to gunzip before running.
+
 ## Tips
 
 - Recordings are append-only. A hard kill mid-write truncates at most
   the last packet — everything prior is intact and importable.
-- `.bin.gz` uploads are decompressed on the server, so large dumps can
-  be checked into the repo gzipped.
 - Shared-memory games (ACC, AC Evo) use their own `.bin` triplet
   format; UDP games (FM, F1) use the `UdpRecorder` `[uint32 len][N
   bytes]` format. The importer picks the reader automatically from the
