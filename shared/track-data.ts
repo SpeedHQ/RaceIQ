@@ -612,7 +612,7 @@ export function getTrackBoundariesByOrdinal(ordinal: number, gameId: string): Tr
 
 /** Compute Procrustes transform (scale + rotation + translation) from src to tgt.
  *  Tries both normal and Z-flipped source, picks whichever has lower error. */
-function computeAlignment(src: Point[], tgt: Point[]): { scale: number; cos: number; sin: number; tx: number; tz: number; flipZ: boolean; flipX: boolean } | null {
+export function computeAlignment(src: Point[], tgt: Point[]): { scale: number; cos: number; sin: number; tx: number; tz: number; flipZ: boolean; flipX: boolean } | null {
   if (src.length < 5 || tgt.length < 5) return null;
   const n = Math.min(100, Math.min(src.length, tgt.length));
   const sample = (pts: Point[]) => {
@@ -699,7 +699,7 @@ function computeAlignment(src: Point[], tgt: Point[]): { scale: number; cos: num
   return best ? { scale: best.scale, cos: best.cos, sin: best.sin, tx: best.tx, tz: best.tz, flipZ: best.flipZ, flipX: best.flipX } : null;
 }
 
-function applyAlignment(p: Point, a: { scale: number; cos: number; sin: number; tx: number; tz: number; flipZ: boolean; flipX: boolean }): Point {
+export function applyAlignment(p: Point, a: { scale: number; cos: number; sin: number; tx: number; tz: number; flipZ: boolean; flipX: boolean }): Point {
   const px = a.flipX ? -p.x : p.x;
   const pz = a.flipZ ? -p.z : p.z;
   return { x: a.scale * (a.cos * px - a.sin * pz) + a.tx, z: a.scale * (a.sin * px + a.cos * pz) + a.tz };
@@ -726,10 +726,10 @@ function loadExtractedBoundary(ordinal: number, gameId: string): TrackBoundary |
     let pit: Point[] | null = data.pitLane ?? null;
 
     // If alignment was poor, transform boundaries to match telemetry outline.
-    // Kunos-based shared-memory games (ACC, AC Evo) are already in the same
-    // coord space as telemetry — skip the recorded-lap alignment to avoid
-    // introducing wobble from noisy lap samples.
-    const isPreAligned = data.aligned || data.coordSystem === "acc" || gameId === "acc" || gameId === "ac-evo";
+    // ACC's extracted boundaries are already in telemetry coordinate space.
+    // AC Evo reuses ACC boundary files but may have a different world origin,
+    // so it must NOT be marked pre-aligned — it needs Procrustes alignment.
+    const isPreAligned = data.aligned || data.coordSystem === "acc" || gameId === "acc";
     if (!isPreAligned) {
       const extContent = readUserOrBundled(gameId, `extracted/recorded-${ordinal}.csv`);
       const caName = computedAverageFileName(gameId, ordinal);
@@ -857,7 +857,9 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
 
   // If an extracted (game-file) outline already exists, don't overwrite it
   // with telemetry recordings — the game data is higher quality.
-  if (hasExtractedOutline(ordinal, gameId)) return;
+  // Exception: AC Evo reuses ACC's extracted outlines but still needs its own
+  // telemetry recording for boundary alignment (different coordinate space).
+  if (hasExtractedOutline(ordinal, gameId) && gameId !== "ac-evo") return;
 
   // Filter outlier points from the trace (pit lane teleports, rewind jumps)
   trace = filterOutlierPoints(trace);

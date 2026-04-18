@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { TelemetryPacket, GameId } from "@shared/types";
 import { client } from "../../lib/rpc";
+import { needsTrackFlip, flipPoints, flipBoundaries } from "../../lib/track-coords";
 import {
   COLOR_A,
   COLOR_B,
@@ -74,23 +75,15 @@ export function CompareTrackMap({
   // Extracted outlines (e.g. F1 2025 from AI spline data) may be in a different
   // coordinate system than telemetry PositionX/Z. Detect misalignment by checking
   // bounding box overlap, and if needed apply Procrustes (translate + rotate + scale).
-  // ACC coordinate system has X axis opposite to the display convention (which negates X).
   // Pre-flip outline/boundary X so they render correctly against telemetry.
-  const isStandardXyz = gameId === "acc" || gameId === "ac-evo";
+  const flip = needsTrackFlip(gameId);
   const displayOutline = useMemo(() =>
-    isStandardXyz ? outline.map(p => ({ x: -p.x, z: p.z })) : outline,
-  [outline, isStandardXyz]);
+    flip ? flipPoints(outline) : outline,
+  [outline, flip]);
   const displayBoundaries = useMemo(() => {
-    if (!isStandardXyz || !boundaries) return boundaries;
-    const flip = (pts: Point[]) => pts.map(p => ({ x: -p.x, z: p.z }));
-    return {
-      ...boundaries,
-      leftEdge: flip(boundaries.leftEdge),
-      rightEdge: flip(boundaries.rightEdge),
-      centerLine: flip(boundaries.centerLine),
-      pitLane: boundaries.pitLane ? flip(boundaries.pitLane) : null,
-    };
-  }, [boundaries, isStandardXyz]);
+    if (!flip || !boundaries) return boundaries;
+    return flipBoundaries(boundaries);
+  }, [boundaries, flip]);
 
   const { alignedOutline, alignedBoundaries, telXFn, trackRange } = useMemo(() => {
     const outline = displayOutline;

@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect, useLayoutEffect, useImperativeHandle, forwardRef } from "react";
 import type { TelemetryPacket } from "@shared/types";
 import { tryGetGame } from "@shared/games/registry";
+import { needsTrackFlip, flipPoints } from "../../lib/track-coords";
 
 export interface Point {
   x: number;
@@ -87,13 +88,9 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
       return;
     }
 
-    // Pipeline negates PositionX for standard-xyz games (ACC, AC Evo).
-    // Boundary data is in raw game coords — negate X to match telemetry.
-    const game = telemetry[0] ? tryGetGame(telemetry[0].gameId) : null;
-    const negateEdgeX = game?.coordSystem === "standard-xyz";
-    const flipPt = (p: Point): Point => negateEdgeX ? { x: -p.x, z: p.z } : p;
-    const flippedLeft = boundaries?.leftEdge?.map(flipPt);
-    const flippedRight = boundaries?.rightEdge?.map(flipPt);
+    const flip = needsTrackFlip(telemetry[0]?.gameId);
+    const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
+    const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
     const hasBounds = boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2;
     let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
     const allBoundsPts: Point[][] = [displayOutline];
