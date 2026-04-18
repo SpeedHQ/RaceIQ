@@ -90,7 +90,13 @@ export const CarWireframe = React.memo(function CarWireframe({
   });
   // Merge defaults so any keys added after the user's localStorage was first
   // written get sensible values instead of undefined.
-  const toggles: ViewToggles = { ...DEFAULT_TOGGLES, ...storedToggles };
+  // When controls are hidden (e.g. onboarding preview) force wheelInfo off —
+  // the user has no way to toggle it and the stat cards clutter the scene.
+  const toggles: ViewToggles = {
+    ...DEFAULT_TOGGLES,
+    ...storedToggles,
+    ...(hideControls ? { wheelInfo: false } : {}),
+  };
   const [viewPreset, setViewPreset] = useState<ViewPreset>("3/4");
 
   const toggle = (key: keyof ViewToggles) =>
