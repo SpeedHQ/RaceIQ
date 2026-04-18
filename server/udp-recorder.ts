@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync } from "fs";
-import { resolve, dirname } from "path";
+import { dirname } from "path";
 
 /**
  * Appends raw UDP packets to a binary dump file.
