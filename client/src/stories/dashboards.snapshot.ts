@@ -18,11 +18,11 @@ const stories = [
   },
   {
     name: "ComboDash1",
-    id: "dashes-combo-combo-dash-1--default",
+    id: "dashes-combo-combo-dash-1--fm-2023",
   },
   {
     name: "ComboDash2",
-    id: "dashes-combo-combo-dash-2--default",
+    id: "dashes-combo-combo-dash-2--fm-2023",
   },
 ];
 

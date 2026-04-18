@@ -1,21 +1,32 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { ComboDash } from "../../components/dashes/ComboDash";
 import {
   fakeForzaPacket,
   fakeForzaDisplayPacket,
+  fakeF1Packet,
+  fakeF1DisplayPacket,
+  fakeAccPacket,
+  fakeAccDisplayPacket,
   fakeSectors,
   fakePit,
 } from "../fakeData";
-import type { TelemetryPacket } from "@shared/types";
+import type { TelemetryPacket, GameId } from "@shared/types";
 import type { DisplayPacket } from "../../lib/convert-packet";
+import { useGameStore } from "../../stores/game";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
 
-const BASE_RAW = {
-  ...fakeForzaPacket,
+const fToC = (f: number) => ((f - 32) * 5) / 9;
+const idC = (c: number) => c;
+
+type Game = "fm-2023" | "f1-2025" | "acc";
+
+// Brake / pressure values only populated for games whose adapters provide them.
+const BRAKE_PRESSURE = {
   BrakeTempFrontLeft: 380,
   BrakeTempFrontRight: 375,
   BrakeTempRearLeft: 240,
@@ -24,65 +35,141 @@ const BASE_RAW = {
   TirePressureFrontRight: 27.7,
   TirePressureRearLeft: 26.5,
   TirePressureRearRight: 26.4,
-  f1: { ...(fakeForzaPacket.f1 ?? {}), totalLaps: 57 },
-} as TelemetryPacket;
+} as const;
 
-const fToC = (f: number) => ((f - 32) * 5) / 9;
+interface GameFixture {
+  raw: TelemetryPacket;
+  display: DisplayPacket;
+  tempUnit: "C" | "F";
+}
 
-function wrap(
-  overrides?: {
-    raw?: Partial<TelemetryPacket>;
-    display?: Partial<DisplayPacket>;
-    unitSystem?: "metric" | "imperial";
+const FIXTURES: Record<Game, GameFixture> = {
+  "fm-2023": {
+    raw: {
+      ...fakeForzaPacket,
+      f1: { ...(fakeForzaPacket.f1 ?? {}), totalLaps: 57 },
+    } as TelemetryPacket,
+    display: fakeForzaDisplayPacket,
+    tempUnit: "F",
   },
-) {
-  const raw = { ...BASE_RAW, ...(overrides?.raw ?? {}) } as TelemetryPacket;
+  "f1-2025": {
+    raw: { ...fakeF1Packet, ...BRAKE_PRESSURE } as TelemetryPacket,
+    display: fakeF1DisplayPacket,
+    tempUnit: "C",
+  },
+  acc: {
+    raw: { ...fakeAccPacket, ...BRAKE_PRESSURE } as TelemetryPacket,
+    display: fakeAccDisplayPacket,
+    tempUnit: "C",
+  },
+};
+
+interface Args {
+  game: Game;
+  rpm: number;
+  gear: number;
+  unitSystem: "metric" | "imperial";
+}
+
+function GameIdSync({ game }: { game: Game }) {
+  const setGameId = useGameStore((s) => s.setGameId);
+  useEffect(() => {
+    setGameId(game as GameId);
+    return () => setGameId(null);
+  }, [game, setGameId]);
+  return null;
+}
+
+function render({ game, rpm, gear, unitSystem }: Args) {
+  const fx = FIXTURES[game];
+  const raw = { ...fx.raw, CurrentEngineRpm: rpm, Gear: gear } as TelemetryPacket;
   const display = {
-    ...fakeForzaDisplayPacket,
-    ...(overrides?.raw ?? {}),
-    ...(overrides?.display ?? {}),
+    ...fx.display,
+    CurrentEngineRpm: rpm,
+    Gear: gear,
   } as DisplayPacket;
   return (
     <QueryClientProvider client={queryClient}>
-      <div style={{ width: "100vw", height: "100vh", background: "#000" }}>
+      <GameIdSync game={game} />
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          aspectRatio: "19.5 / 9",
+          background: "#000",
+          overflow: "hidden",
+          transform: "translateZ(0)",
+        }}
+      >
         <ComboDash
           rawPacket={raw}
           packet={display}
           sectors={fakeSectors}
           pit={fakePit}
-          unitSystem={overrides?.unitSystem ?? "metric"}
-          toTempC={fToC}
+          unitSystem={unitSystem}
+          toTempC={fx.tempUnit === "F" ? fToC : idC}
         />
       </div>
     </QueryClientProvider>
   );
 }
 
-const meta: Meta<typeof ComboDash> = {
+const meta: Meta<Args> = {
   title: "Dashes/Combo/Combo Dash 1",
-  component: ComboDash,
-  parameters: { layout: "fullscreen" },
+  tags: ["autodocs"],
+  parameters: {
+    layout: "fullscreen",
+    docs: { story: { inline: true, height: "420px" } },
+  },
   argTypes: {
+    game: {
+      name: "Game",
+      control: { type: "radio" },
+      options: ["fm-2023", "f1-2025", "acc"] satisfies Game[],
+      description: "Which game the fake packet represents (sets gameId store)",
+    },
     rpm: {
+      name: "RPM",
       control: { type: "range", min: 3000, max: 18000, step: 50 },
-      description: "Live RPM (drive the rev bar interactively)",
     },
     gear: {
+      name: "Gear",
       control: { type: "range", min: 0, max: 10, step: 1 },
-      description: "Gear (0 = R, 1 = N, 2+ = forward gears)",
+      description: "0 = R, 1 = N, 2+ = forward gears",
     },
+    unitSystem: {
+      name: "Units",
+      control: { type: "radio" },
+      options: ["metric", "imperial"],
+    },
+  },
+  args: {
+    game: "fm-2023",
+    rpm: 14200,
+    gear: 7,
+    unitSystem: "metric",
   },
 };
 
 export default meta;
-type Story = StoryObj<typeof ComboDash & { rpm?: number; gear?: number }>;
+type Story = StoryObj<Args>;
 
-export const Default: Story = {
-  args: { rpm: 14200, gear: 7 },
-  render: (args) =>
-    wrap({
-      raw: { CurrentEngineRpm: args.rpm ?? 14200, Gear: args.gear ?? 7 },
-    }),
+export const FM2023: Story = {
+  name: "FM 2023",
+  args: { game: "fm-2023" },
+  render,
+};
+
+export const F12025: Story = {
+  name: "F1 2025",
+  args: { game: "f1-2025" },
+  render,
+};
+
+export const ACC: Story = {
+  name: "ACC",
+  args: { game: "acc" },
+  render,
 };
 
 export const NoData: Story = {
@@ -100,34 +187,4 @@ export const NoData: Story = {
       </div>
     </QueryClientProvider>
   ),
-};
-
-export const RedLine: Story = {
-  render: () =>
-    wrap({
-      raw: { CurrentEngineRpm: 17900, Gear: 7 },
-      display: { DisplaySpeed: 315 },
-    }),
-};
-
-export const UnderBest: Story = {
-  render: () =>
-    wrap({
-      raw: {
-        LapNumber: 6,
-        CurrentLap: 45.2,
-        LastLap: 91.88,
-        BestLap: 92.341,
-      },
-    }),
-};
-
-export const Phone: Story = {
-  render: () => wrap(),
-  globals: { viewport: { value: "iphone14Landscape", isRotated: false } },
-};
-
-export const TabletPortrait: Story = {
-  render: () => wrap(),
-  globals: { viewport: { value: "ipadMini", isRotated: false } },
 };

@@ -162,26 +162,26 @@ export function ComboDash({
                     fl={{
                       tempC: Math.round(toTempC(rawPacket.TireTempFL)),
                       wear: rawPacket.TireWearFL,
-                      brakeTemp: rawPacket.BrakeTempFrontLeft ?? 0,
-                      pressure: rawPacket.TirePressureFrontLeft ?? 0,
+                      brakeTemp: rawPacket.BrakeTempFrontLeft,
+                      pressure: rawPacket.TirePressureFrontLeft,
                     }}
                     fr={{
                       tempC: Math.round(toTempC(rawPacket.TireTempFR)),
                       wear: rawPacket.TireWearFR,
-                      brakeTemp: rawPacket.BrakeTempFrontRight ?? 0,
-                      pressure: rawPacket.TirePressureFrontRight ?? 0,
+                      brakeTemp: rawPacket.BrakeTempFrontRight,
+                      pressure: rawPacket.TirePressureFrontRight,
                     }}
                     rl={{
                       tempC: Math.round(toTempC(rawPacket.TireTempRL)),
                       wear: rawPacket.TireWearRL,
-                      brakeTemp: rawPacket.BrakeTempRearLeft ?? 0,
-                      pressure: rawPacket.TirePressureRearLeft ?? 0,
+                      brakeTemp: rawPacket.BrakeTempRearLeft,
+                      pressure: rawPacket.TirePressureRearLeft,
                     }}
                     rr={{
                       tempC: Math.round(toTempC(rawPacket.TireTempRR)),
                       wear: rawPacket.TireWearRR,
-                      brakeTemp: rawPacket.BrakeTempRearRight ?? 0,
-                      pressure: rawPacket.TirePressureRearRight ?? 0,
+                      brakeTemp: rawPacket.BrakeTempRearRight,
+                      pressure: rawPacket.TirePressureRearRight,
                     }}
                     healthThresholds={health}
                     tempThresholds={{ blue: 60, orange: 85, red: 100 }}
