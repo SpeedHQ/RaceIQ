@@ -7,7 +7,7 @@
     "playwright"
   ],
   "scripts": {
-    "dev": "concurrently \"bun --watch run server/index.ts\" \"bun run dev:client\"",
+    "dev": "bun run dev:proxy && concurrently \"bun --watch run server/index.ts\" \"cd client && portless raceiq bun run dev\"",
     "dev:server": "bun --watch run server/index.ts",
     "dev:proxy": "bun scripts/dev-proxy.ts",
     "dev:dump:ac-evo": "bun run dev:proxy && concurrently \"bun --watch run server/index.ts --record=ac-evo\" \"cd client && portless raceiq bun run dev\"",
