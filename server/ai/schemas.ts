@@ -63,6 +63,16 @@ export const AnalystOutputSchema = z.object({
 export type AnalystOutput = z.infer<typeof AnalystOutputSchema>;
 
 /**
+ * JSON Schema form of `AnalystOutputSchema`, for OpenAI-spec Structured
+ * Outputs (`response_format: { type: "json_schema", ... }`). Grammar-
+ * constrained decoding guarantees valid, complete JSON — critical for
+ * local models (LM Studio) that otherwise truncate or emit bad chars.
+ */
+export function getAnalystJsonSchema(): Record<string, unknown> {
+  return z.toJSONSchema(AnalystOutputSchema) as Record<string, unknown>;
+}
+
+/**
  * Render the schema as a JSON skeleton to embed in an adapter system prompt.
  *
  * `tuningExampleComponent` varies per game (e.g. "Front Springs" for FM,

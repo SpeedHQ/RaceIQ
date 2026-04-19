@@ -11,10 +11,13 @@ export type ChatStreamEvent =
   | { type: "status"; state: "thinking" | "generating" }
   | { type: "tool"; state: "start" | "end"; name: string }
   | { type: "text"; delta: string }
-  | { type: "usage"; inputTokens: number; outputTokens: number }
+  | { type: "usage"; inputTokens: number; outputTokens: number; costUsd?: number; durationMs?: number; model?: string; toolCalls?: number }
   | { type: "ping" }
   | { type: "error"; message: string }
-  | { type: "done" };
+  | { type: "done" }
+  // Open-ended tail so analyse-specific events ("meta", "result") and any
+  // future additions flow through without needing to widen the union here.
+  | { type: string; [key: string]: unknown };
 
 export async function readChatStream(
   res: Response,

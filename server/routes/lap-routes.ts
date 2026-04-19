@@ -33,6 +33,7 @@ import { getGame } from "../../shared/games/registry";
 import type { GameId } from "../../shared/types";
 import { loadSettings } from "../settings";
 import { buildAnalystPrompt } from "../ai/analyst-prompt";
+import { getAnalystJsonSchema } from "../ai/schemas";
 import {
   getChatMemory,
   chatThreadId,
@@ -47,6 +48,12 @@ import { buildChatSystemPrompt } from "../ai/chat-prompt";
 import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
 import { chatStreamResponse } from "../ai/chat-stream";
 import {
+  topCatalogReferences,
+  normalizePacketSetup,
+  getCatalogDisplayName,
+} from "../ai/f1-setup-catalog";
+import type { TelemetryPacket } from "../../shared/types";
+import {
   buildInputsComparePrompt,
   InputsCompareSchema,
 } from "../ai/inputs-compare-prompt";
@@ -58,6 +65,64 @@ import {
   compareEngineerAgent,
   compareChatAgent,
 } from "../ai/agents";
+
+/** Parse a stored carSetup JSON blob, returning null on any error. */
+function safeParseJson(raw: string): Record<string, unknown> | null {
+  try {
+    const v = JSON.parse(raw);
+    return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Scan telemetry packets for the first `f1.setup` object. */
+function firstPacketF1Setup(packets: TelemetryPacket[]): Record<string, unknown> | null {
+  for (const p of packets) {
+    const s = p.f1?.setup;
+    if (s && typeof s === "object") return s as unknown as Record<string, unknown>;
+  }
+  return null;
+}
+
+/**
+ * Build the "F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS" block appended to
+ * the analyst prompt for F1 laps. The same data the
+ * `compare-f1-setup-to-catalog` tool returns, but inline so local models
+ * (Gemma 4) can answer in one shot instead of looping tool calls.
+ */
+function buildF1SetupReferenceBlock(
+  carSetupJson: string | undefined,
+  telemetry: TelemetryPacket[],
+  trackOrdinal: number,
+): string {
+  const setup = carSetupJson ? safeParseJson(carSetupJson) : firstPacketF1Setup(telemetry);
+  if (!setup || trackOrdinal < 0) return "";
+  const current = normalizePacketSetup(setup);
+  const refs = topCatalogReferences(trackOrdinal, 5, current);
+  if (refs.length === 0) return "";
+
+  const lines: string[] = [];
+  lines.push(`\n\n--- F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS (${getCatalogDisplayName(trackOrdinal) ?? "this track"}) ---`);
+  lines.push("Use this data to populate setup[]. Cite rank/team/author per entry. Only propose steps within the step-cap rules.");
+  lines.push("");
+  lines.push("Current setup:");
+  for (const [k, v] of Object.entries(current)) lines.push(`  ${k}: ${v}`);
+  for (const r of refs) {
+    lines.push("");
+    lines.push(`Rank ${r.rank} — ${r.team} / ${r.author} — ${r.lapTime} (${r.weather}, ${r.inputDevice}):`);
+    const deltas = Object.entries(r.delta ?? {});
+    if (deltas.length === 0) {
+      lines.push("  (identical to current setup)");
+    } else {
+      for (const [k, v] of deltas) {
+        const sign = (v as number) > 0 ? "+" : "";
+        lines.push(`  ${k}: ${current[k]} → ${(r.setup as Record<string, number>)[k]} (${sign}${v})`);
+      }
+    }
+  }
+  return lines.join("\n");
+}
 
 const CompareParamsSchema = z.object({
   id1: z.string().transform(val => parseInt(val, 10)),
@@ -219,7 +284,19 @@ export const lapRoutes = new Hono()
 
       if (!regenerate) {
         const cached = await getAnalysis(id);
-        if (cached) {
+        // Guard: only serve caches whose payload is valid JSON. Earlier runs
+        // (pre-validation) could persist empty strings or truncated output —
+        // those would otherwise get stuck replaying the broken text forever.
+        let cachedIsValid = false;
+        if (cached?.analysis) {
+          try {
+            JSON.parse(cached.analysis);
+            cachedIsValid = true;
+          } catch {
+            cachedIsValid = false;
+          }
+        }
+        if (cached && cachedIsValid) {
           return c.json({
             analysis: cached.analysis,
             cached: true,
@@ -274,7 +351,7 @@ export const lapRoutes = new Hono()
         }
       } catch { /* ignore */ }
 
-      const prompt = buildAnalystPrompt(
+      let prompt = buildAnalystPrompt(
         lap,
         lap.telemetry,
         corners,
@@ -282,6 +359,9 @@ export const lapRoutes = new Hono()
         parsedTune,
         segments,
       );
+      if (lap.gameId === "f1-2025") {
+        prompt += buildF1SetupReferenceBlock(lap.carSetup, lap.telemetry, lap.trackOrdinal ?? -1);
+      }
 
       // Bridge keystore secret → env var so Mastra / AI SDK providers can resolve it.
       // The Mastra lap-analyst agent reads the provider from settings via `getMastraModelId`.
@@ -299,41 +379,181 @@ export const lapRoutes = new Hono()
         process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
       }
 
-      try {
-        const startedAt = Date.now();
-        // maxSteps > 1 lets the agent call tools (e.g. compare-f1-setup-to-catalog)
-        // and loop their results back into the final output.
-        const response = await lapAnalystAgent.generate(prompt, { maxSteps: 5 });
-        const durationMs = Date.now() - startedAt;
+      // Fresh runs now stream as NDJSON (same protocol as the chat flow)
+      // so the client can show thinking / tool-call / generating status
+      // and live token counts. Cached responses kept JSON above.
+      const encoder = new TextEncoder();
+      const writeEvent = (c: ReadableStreamDefaultController, obj: unknown) => {
+        try { c.enqueue(encoder.encode(JSON.stringify(obj) + "\n")); } catch { /* closed */ }
+      };
+      const modelLabel = settings.aiModel || (analystProvider === "openai" ? "gpt-4o-mini" : "gemini-flash-latest");
+      const startedAt = Date.now();
 
-        const analysis = response.text ?? "";
-        const toolCalls = Array.isArray(response.toolCalls) ? response.toolCalls.length : 0;
-        // AI SDK v4 uses `inputTokens`/`outputTokens`; some older releases
-        // exposed `promptTokens`/`completionTokens`. Cast + probe defensively.
-        const rawUsage = (response.usage ?? {}) as Record<string, unknown>;
-        const pickNum = (k: string) => (typeof rawUsage[k] === "number" ? (rawUsage[k] as number) : 0);
-        const persistedUsage = {
-          inputTokens: pickNum("inputTokens") || pickNum("promptTokens"),
-          outputTokens: pickNum("outputTokens") || pickNum("completionTokens"),
-          costUsd: 0,
-          durationMs,
-          model: settings.aiModel || (analystProvider === "openai" ? "gpt-4o-mini" : "gemini-flash-latest"),
-        };
+      const readable = new ReadableStream({
+        async start(controller) {
+          let text = "";
+          let toolCalls = 0;
+          let usage = { inputTokens: 0, outputTokens: 0 };
+          let firstTextArrived = false;
+          writeEvent(controller, { type: "status", state: "thinking" });
+          // Meta lets the UI render the track highlights + "Best Guess"
+          // banner immediately, without waiting for the model to finish.
+          writeEvent(controller, { type: "meta", cornerFracs, hasTune });
+          const keepAlive = setInterval(() => {
+            if (firstTextArrived) return;
+            writeEvent(controller, { type: "ping" });
+          }, 15_000);
+          try {
+            // maxSteps > 1 lets the agent call tools and loop their results
+            // back into the final output (F1 setup comparison especially).
+            // Reasoning budget: keep it small so the model spends more
+            // output tokens on the actual JSON (and reaches tool-call
+            // decisions faster). LM Studio honours `reasoningEffort` for
+            // reasoning-capable locals (e.g. Gemma 4); Gemini Flash
+            // honours `thinkingConfig.thinkingBudget`.
+            // `toolChoice: "required"` would force the tool every step and
+            // starve the model of a chance to emit final text — Gemma 4
+            // just loops maxSteps tool calls. Leave as `auto`: the schema
+            // fix means the tool actually succeeds, so the model will pick
+            // it up voluntarily from the prompt instruction.
+            // Local models (LM Studio / Ollama) loop registered tools
+            // regardless of prompt instructions — Gemma 4 will keep calling
+            // the setup tool until maxSteps runs out, never emitting text.
+            // Hide tools from local models via `activeTools: []`; data is
+            // already inlined in the prompt for F1. Cloud models (Gemini /
+            // OpenAI) still see the tool and can call it if they want.
+            const hideTools = analystProvider === "local";
+            const stream = await lapAnalystAgent.stream(prompt, {
+              maxSteps: 5,
+              ...(hideTools ? { activeTools: [] as never[] } : {}),
+              modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+              providerOptions: {
+                // Force JSON mode so LM Studio/Gemma keeps emitting brackets
+                // until a full valid object closes — avoids mid-string cut-off.
+                openai: {
+                  // LM Studio reasoning models (Gemma 4 etc.) only accept
+                  // "on" / "off" and burn output tokens on hidden reasoning,
+                  // starving the final JSON. Disable for local to keep the
+                  // full 8192 budget available for the actual answer.
+                  reasoningEffort: analystProvider === "local" ? "none" : "low",
+                  // Strict JSON-schema structured output (OpenAI spec). Grammar-
+                  // constrains the decoder so the model can only emit tokens that
+                  // keep the JSON valid — no mid-string truncation, no bad chars.
+                  // Supported by OpenAI, LM Studio, vLLM, Ollama (>=0.5).
+                  responseFormat: {
+                    type: "json_schema",
+                    jsonSchema: {
+                      name: "analyst_output",
+                      strict: true,
+                      schema: getAnalystJsonSchema() as Record<string, never>,
+                    },
+                  } as never,
+                },
+                google: {
+                  thinkingConfig: { thinkingBudget: 2048, includeThoughts: false },
+                  responseMimeType: "application/json",
+                  responseSchema: getAnalystJsonSchema() as never,
+                },
+              },
+            });
+            // Mastra fullStream parts wrap their data under `payload`.
+            for await (const part of stream.fullStream as AsyncIterable<{ type: string; payload?: Record<string, unknown> }>) {
+              const p = part.payload ?? {};
+              // [diag] log every chunk type so we can see if tool-call parts
+              // arrive at all on local models. Remove after debugging.
+              if (part.type !== "text-delta") {
+                // eslint-disable-next-line no-console
+                console.log("[analyse-stream]", part.type, Object.keys(p).slice(0, 6),
+                  part.type === "tool-call" ? JSON.stringify(p.args).slice(0, 120) :
+                  part.type === "tool-result" ? JSON.stringify(p.result).slice(0, 120) : "");
+              }
+              switch (part.type) {
+                case "text-delta": {
+                  if (!firstTextArrived) {
+                    firstTextArrived = true;
+                    writeEvent(controller, { type: "status", state: "generating" });
+                  }
+                  const delta = typeof p.text === "string" ? p.text : "";
+                  if (delta) {
+                    text += delta;
+                    writeEvent(controller, { type: "text", delta });
+                  }
+                  break;
+                }
+                case "tool-call": {
+                  toolCalls += 1;
+                  const name = typeof p.toolName === "string" ? p.toolName : "unknown";
+                  writeEvent(controller, { type: "tool", state: "start", name });
+                  break;
+                }
+                case "tool-result": {
+                  const name = typeof p.toolName === "string" ? p.toolName : "unknown";
+                  writeEvent(controller, { type: "tool", state: "end", name });
+                  break;
+                }
+                case "finish":
+                case "step-finish": {
+                  const output = (p.output ?? {}) as Record<string, unknown>;
+                  const u = (output.usage ?? p.usage ?? {}) as Record<string, unknown>;
+                  const n = (k: string) => (typeof u[k] === "number" ? (u[k] as number) : 0);
+                  usage = {
+                    inputTokens: n("inputTokens") || n("promptTokens") || usage.inputTokens,
+                    outputTokens: n("outputTokens") || n("completionTokens") || usage.outputTokens,
+                  };
+                  break;
+                }
+                case "error":
+                  writeEvent(controller, {
+                    type: "error",
+                    message: p.error instanceof Error ? p.error.message : String(p.error ?? "unknown error"),
+                  });
+                  break;
+              }
+            }
+            const durationMs = Date.now() - startedAt;
+            // eslint-disable-next-line no-console
+            console.log(`[analyse-stream] final text length: ${text.length} chars, ${text.split(/\s+/).length} words`);
+            let validJson = false;
+            try {
+              JSON.parse(text);
+              validJson = true;
+            } catch (parseErr) {
+              const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+              console.warn(`[analyse-stream] model output is not valid JSON (${msg}) — skipping cache write`);
+            }
+            const persistedUsage = { ...usage, costUsd: 0, durationMs, model: modelLabel };
+            if (validJson) {
+              await saveAnalysis(id, text, persistedUsage);
+            } else {
+              writeEvent(controller, {
+                type: "error",
+                message: "Model produced truncated/invalid JSON. Not cached. Try again or switch model.",
+              });
+              controller.close();
+              return;
+            }
+            writeEvent(controller, { type: "usage", ...persistedUsage, toolCalls });
+            writeEvent(controller, { type: "result", analysis: text, cached: false });
+            writeEvent(controller, { type: "done" });
+            controller.close();
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error("[AI] Analysis failed:", msg);
+            writeEvent(controller, { type: "error", message: msg });
+            try { controller.close(); } catch { /* already closed */ }
+          } finally {
+            clearInterval(keepAlive);
+          }
+        },
+      });
 
-        await saveAnalysis(id, analysis, persistedUsage);
-        // `toolCalls` is a live-run metric (not persisted) so cached responses
-        // return `toolCalls: undefined` and the UI can show "—" for those.
-        return c.json({
-          analysis,
-          cached: false,
-          usage: { ...persistedUsage, toolCalls },
-          cornerFracs,
-          hasTune,
-        });
-      } catch (err: any) {
-        console.error("[AI] Analysis failed:", err.message);
-        return c.json({ error: err.message }, err.message.includes("timed out") ? 504 : 500);
-      }
+      return new Response(readable, {
+        headers: {
+          "Content-Type": "application/x-ndjson; charset=utf-8",
+          "Cache-Control": "no-cache",
+          "Transfer-Encoding": "chunked",
+        },
+      });
     }
   )
 

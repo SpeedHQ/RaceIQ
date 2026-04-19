@@ -564,20 +564,24 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
       await readChatStream(res, (event) => {
         switch (event.type) {
           case "status":
-            setChatStatus(event.state);
+            setChatStatus((event as unknown as { state: "thinking" | "generating" }).state);
             break;
-          case "tool":
-            setChatTool(event.state === "start" ? event.name : null);
+          case "tool": {
+            const t = event as unknown as { state: "start" | "end"; name: string };
+            setChatTool(t.state === "start" ? t.name : null);
             break;
+          }
           case "text":
-            fullText += event.delta;
+            fullText += (event as unknown as { delta: string }).delta;
             setStreaming(fullText);
             break;
-          case "usage":
-            finalUsage = { inputTokens: event.inputTokens, outputTokens: event.outputTokens };
+          case "usage": {
+            const u = event as unknown as { inputTokens: number; outputTokens: number };
+            finalUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens };
             break;
+          }
           case "error":
-            throw new Error(event.message);
+            throw new Error((event as unknown as { message: string }).message);
           case "ping":
           case "done":
             break;

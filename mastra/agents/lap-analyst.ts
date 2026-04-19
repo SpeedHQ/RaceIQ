@@ -21,7 +21,7 @@ DISCIPLINE (applies to every game):
 - Every \`setup[]\` entry must explain WHY in \`fix\`. When a reference source is available (e.g. the F1 tool returns ranked community setups), cite it by rank and name (e.g. "rank 2 — mitchlobbes, Mercedes"). Do not fall back to vague phrasing like "as seen in top community setups".
 - Every \`symptom\` must cite a concrete data point (distance marker, frame count, temperature, occurrence count). Avoid generic statements like "rear-end snapping" with no data attached.
 
-For F1 2025 laps: the driver's current car setup is NOT in the prompt — you MUST fetch it via the \`compare-f1-setup-to-catalog\` tool. The prompt includes a line \`Lap ID: <n>\`; pass that number as \`lapId\`. The tool returns the driver's current setup alongside the top-5 fastest community setups for the same track, pre-diffed per field. Always call this tool before filling in \`setup[]\` for an F1 lap. Ground every change in that comparison — name the reference team/author, cite the delta, and stay within the field ranges shown. Each \`setup[]\` entry MUST include concrete \`current\` and \`target\` values (numbers, with units where applicable). If the tool responds with \`available: false\`, say so and fall back to general F1 heuristics; do NOT claim "no tune data linked" without having called the tool.`;
+For F1 2025 laps: the prompt already contains a block labelled "F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS" with the driver's current setup and pre-diffed top-5 community references. Use that inline data to fill \`setup[]\` — cite \`rank N — team / author\` per entry, stay within the F1 25 setup ranges. The \`compare-f1-setup-to-catalog\` tool is available as a redundant source but you do NOT need to call it when the inline block is present; prefer emitting the final JSON immediately.`;
 
 export const lapAnalystAgent = new Agent({
   id: "lap-analyst",
@@ -29,7 +29,11 @@ export const lapAnalystAgent = new Agent({
   instructions: LAP_ANALYST_INSTRUCTIONS,
   model: () => {
     const s = loadSettings();
-    return getMastraModelId(s.aiProvider, s.aiModel);
+    return getMastraModelId(s.aiProvider, s.aiModel, s.localEndpoint);
   },
+  // Tool stays registered for models that can tool-call reliably. On local
+  // models (Gemma 4) that loop the tool, the analyse route inlines the
+  // same data into the prompt — model can ignore the tool and still get
+  // the context. See server/routes/lap-routes.ts.
   tools: { compareF1SetupToCatalogTool },
 });

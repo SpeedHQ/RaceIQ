@@ -136,7 +136,7 @@ export function useTrackName(ord: number | undefined) {
       });
       return res.ok ? res.text() : "";
     },
-    enabled: ord != null && ord > 0 && gameId != null,
+    enabled: ord != null && gameId != null,
   });
 }
 
@@ -151,7 +151,7 @@ export function useTrackSectors(ord: number | undefined) {
       });
       return rpcJson(res);
     },
-    enabled: ord != null && ord > 0 && !!gameId,
+    enabled: ord != null && !!gameId,
   });
 }
 
@@ -166,7 +166,7 @@ export function useTrackSectorBoundaries(ord: number | undefined) {
       });
       return rpcJson(res);
     },
-    enabled: ord != null && ord > 0 && !!gameId,
+    enabled: ord != null && !!gameId,
   });
 }
 
@@ -181,7 +181,7 @@ export function useTrackOutline(ord: number | undefined) {
       });
       return rpcJson(res);
     },
-    enabled: ord != null && ord > 0 && !!gameId,
+    enabled: ord != null && !!gameId,
   });
 }
 
@@ -196,7 +196,7 @@ export function useTrackBoundaries(ord: number | undefined) {
       });
       return rpcJson(res);
     },
-    enabled: ord != null && ord > 0 && !!gameId,
+    enabled: ord != null && !!gameId,
   });
 }
 

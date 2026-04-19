@@ -40,8 +40,8 @@ Check out the [demo](https://www.youtube.com/watch?v=hWuIItofivA) and [screensho
 
 ## Supported Games
 
-| Game | Status | Community Tunes | Community Guides | Tune Creator |
-|------|--------|-----------------|------------------|--------------|
+| Game | Status | Public Tunes | Public Guides | Tune Creator |
+|------|--------|--------------|---------------|--------------|
 | Forza Motorsport 2023 | Supported | No | No | Yes |
 | F1 2025 | Supported | Yes | Yes | No |
 | Assetto Corsa Competizione | Supported | Yes | Yes | No |
@@ -61,6 +61,10 @@ Grab the latest installer from the [releases page](https://github.com/SpeedHQ/Ra
 Configure your game's telemetry settings to send UDP data to `127.0.0.1:5301`, then start a race — telemetry will appear automatically.
 
 > **Already forwarding telemetry to a wheel base or other app?** Use [UDP Forwarder](https://github.com/SpeedHQ/udp-forwarder) to send telemetry to multiple destinations at once.
+
+## Updates
+
+RaceIQ checks for new releases automatically and notifies you when one is available. You can also force a check at any time from **Settings → About → Check for updates**.
 
 ## Platform
 
@@ -83,6 +87,8 @@ The database is created automatically on first run. No cloud account or external
 ## AI Coaching Setup
 
 AI analysis is optional. Add your API key in the RaceIQ settings panel — multiple providers are supported. Analysis is sent directly to the provider's API, no intermediary server.
+
+Want to run AI entirely on your own PC? See the [Local AI](guides/local-ai.md) guide.
 
 ## Sponsorship
 

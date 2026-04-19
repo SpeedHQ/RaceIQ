@@ -21,7 +21,7 @@ export const lapChatAgent = new Agent({
   instructions: LAP_CHAT_INSTRUCTIONS,
   model: () => {
     const s = loadSettings();
-    return getMastraModelId(s.chatProvider, s.chatModel);
+    return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
   },
   tools: { getTrackGuideTool, listTrackGuidesTool, compareF1SetupToCatalogTool },
   memory: getChatMemory(),

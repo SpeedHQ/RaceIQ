@@ -38,6 +38,7 @@
     "lighthouse": "lighthouse http://raceiq.localhost:1355/ --only-categories=accessibility,performance,best-practices --chrome-flags=\"--headless=new --no-sandbox --disable-gpu\" --output=html --output-path=./lighthouse-report.html && echo 'Report: lighthouse-report.html'"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.53",
     "@hono/zod-validator": "^0.7.6",
     "@libsql/client": "^0.17.2",
     "@libsql/win32-x64-msvc": "^0.5.29",

@@ -39,13 +39,18 @@ export const compareF1SetupToCatalogTool = createTool({
       .int()
       .positive()
       .describe("Database ID of the F1 2025 lap being analysed."),
+    // NOTE: Don't combine `.default()` with the surrounding JSON-schema
+    // emission — Mastra + LM Studio marked the field as `required` while
+    // also declaring a default, which made the validator reject calls that
+    // omit `limit` with "expected number, received undefined". Keep it
+    // optional and apply the default inside execute.
     limit: z
       .number()
       .int()
       .min(1)
       .max(10)
-      .default(5)
-      .describe("How many reference setups to return, ranked by lap time."),
+      .optional()
+      .describe("How many reference setups to return, ranked by lap time. Defaults to 5."),
   }),
   outputSchema: z.object({
     available: z.boolean(),
@@ -71,7 +76,8 @@ export const compareF1SetupToCatalogTool = createTool({
       .default([]),
   }),
   execute: async (inputData) => {
-    const { lapId, limit } = inputData;
+    const { lapId, limit: rawLimit } = inputData;
+    const limit = rawLimit ?? 5;
     const lap = await getLapById(lapId);
 
     if (!lap) {

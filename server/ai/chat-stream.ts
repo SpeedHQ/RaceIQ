@@ -45,28 +45,43 @@ export function chatStreamResponse(streamPromise: Promise<AgentStream> | AgentSt
 
       try {
         const stream = await streamPromise;
-        // `fullStream` emits typed parts: text-delta, tool-call, tool-result,
-        // finish, error (plus step-* events we ignore).
+        // Mastra's fullStream emits typed parts with a `payload` sub-object:
+        // { type: "text-delta",   payload: { text } }
+        // { type: "tool-call",    payload: { toolName, args, ... } }
+        // { type: "tool-result",  payload: { toolName, result, ... } }
+        // { type: "finish",       payload: { output: { usage } } }
+        // { type: "error",        payload: { error } }
+        // (plus start/step-start/raw/reasoning-* that we ignore here).
         for await (const part of stream.fullStream as AsyncIterable<AgentStreamPart>) {
+          const p = (part as { payload?: Record<string, unknown> }).payload ?? {};
           switch (part.type) {
             case "text-delta": {
               if (!firstTextArrived) {
                 firstTextArrived = true;
                 writeEvent(controller, { type: "status", state: "generating" });
               }
-              const delta = part.textDelta ?? (part as { text?: string }).text ?? "";
+              const delta = typeof p.text === "string" ? p.text : "";
               if (delta) writeEvent(controller, { type: "text", delta });
               break;
             }
             case "tool-call":
-              writeEvent(controller, { type: "tool", state: "start", name: part.toolName });
+              writeEvent(controller, {
+                type: "tool",
+                state: "start",
+                name: typeof p.toolName === "string" ? p.toolName : "unknown",
+              });
               break;
             case "tool-result":
-              writeEvent(controller, { type: "tool", state: "end", name: part.toolName });
+              writeEvent(controller, {
+                type: "tool",
+                state: "end",
+                name: typeof p.toolName === "string" ? p.toolName : "unknown",
+              });
               break;
             case "finish":
             case "step-finish": {
-              const u = (part.usage ?? {}) as Record<string, unknown>;
+              const output = (p.output ?? {}) as Record<string, unknown>;
+              const u = (output.usage ?? p.usage ?? {}) as Record<string, unknown>;
               const n = (k: string) => (typeof u[k] === "number" ? (u[k] as number) : 0);
               writeEvent(controller, {
                 type: "usage",
@@ -78,7 +93,7 @@ export function chatStreamResponse(streamPromise: Promise<AgentStream> | AgentSt
             case "error":
               writeEvent(controller, {
                 type: "error",
-                message: part.error instanceof Error ? part.error.message : String(part.error),
+                message: p.error instanceof Error ? p.error.message : String(p.error ?? "unknown error"),
               });
               break;
           }

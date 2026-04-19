@@ -16,6 +16,6 @@ export const compareEngineerAgent = new Agent({
   instructions: compareEngineerPersona("metric"),
   model: () => {
     const s = loadSettings();
-    return getMastraModelId(s.aiProvider, s.aiModel);
+    return getMastraModelId(s.aiProvider, s.aiModel, s.localEndpoint);
   },
 });

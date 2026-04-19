@@ -18,7 +18,7 @@ export const compareChatAgent = new Agent({
   instructions: compareEngineerPersona("metric"),
   model: () => {
     const s = loadSettings();
-    return getMastraModelId(s.chatProvider, s.chatModel);
+    return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
   },
   tools: { getTrackGuideTool, listTrackGuidesTool },
   memory: getChatMemory(),
