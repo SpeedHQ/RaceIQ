@@ -84,10 +84,10 @@ export function renderAnalystSchemaForPrompt(
   return `{
   "verdict": "2-3 sentences assessing overall lap quality, pace, and where the biggest time gains are.",
   "pace": [
-    { "label": "short metric name", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
+    { "label": "Short Metric Name (plain English, Title Case, words separated by spaces — never snake_case or camelCase)", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
   ],
   "handling": [
-    { "label": "short metric name", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
+    { "label": "Short Metric Name (plain English, Title Case, words separated by spaces — never snake_case or camelCase)", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
   ],
   "corners": [
     { "name": "corner/zone name", "issue": "what's wrong in 1 sentence", "fix": "specific actionable fix in 1-2 sentences", "severity": "minor|moderate|major" }

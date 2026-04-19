@@ -379,67 +379,31 @@ export const lapRoutes = new Hono()
         process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
       }
 
-      // Fresh runs now stream as NDJSON (same protocol as the chat flow)
-      // so the client can show thinking / tool-call / generating status
-      // and live token counts. Cached responses kept JSON above.
+      // Analyse returns a heartbeat-style NDJSON stream: `ping` every ~200s
+      // to keep Bun's 255s idleTimeout alive for slow local models, then a
+      // single `result` (or `error`) event at the end. The client doesn't
+      // render intermediate status — it just waits for the result.
+      const modelLabel = settings.aiModel || (analystProvider === "openai" ? "gpt-4o-mini" : "gemini-flash-latest");
+      const startedAt = Date.now();
       const encoder = new TextEncoder();
       const writeEvent = (c: ReadableStreamDefaultController, obj: unknown) => {
         try { c.enqueue(encoder.encode(JSON.stringify(obj) + "\n")); } catch { /* closed */ }
       };
-      const modelLabel = settings.aiModel || (analystProvider === "openai" ? "gpt-4o-mini" : "gemini-flash-latest");
-      const startedAt = Date.now();
+      const hideTools = analystProvider === "local";
 
       const readable = new ReadableStream({
         async start(controller) {
-          let text = "";
-          let toolCalls = 0;
-          let usage = { inputTokens: 0, outputTokens: 0 };
-          let firstTextArrived = false;
-          writeEvent(controller, { type: "status", state: "thinking" });
-          // Meta lets the UI render the track highlights + "Best Guess"
-          // banner immediately, without waiting for the model to finish.
-          writeEvent(controller, { type: "meta", cornerFracs, hasTune });
           const keepAlive = setInterval(() => {
-            if (firstTextArrived) return;
             writeEvent(controller, { type: "ping" });
-          }, 15_000);
+          }, 200_000);
           try {
-            // maxSteps > 1 lets the agent call tools and loop their results
-            // back into the final output (F1 setup comparison especially).
-            // Reasoning budget: keep it small so the model spends more
-            // output tokens on the actual JSON (and reaches tool-call
-            // decisions faster). LM Studio honours `reasoningEffort` for
-            // reasoning-capable locals (e.g. Gemma 4); Gemini Flash
-            // honours `thinkingConfig.thinkingBudget`.
-            // `toolChoice: "required"` would force the tool every step and
-            // starve the model of a chance to emit final text — Gemma 4
-            // just loops maxSteps tool calls. Leave as `auto`: the schema
-            // fix means the tool actually succeeds, so the model will pick
-            // it up voluntarily from the prompt instruction.
-            // Local models (LM Studio / Ollama) loop registered tools
-            // regardless of prompt instructions — Gemma 4 will keep calling
-            // the setup tool until maxSteps runs out, never emitting text.
-            // Hide tools from local models via `activeTools: []`; data is
-            // already inlined in the prompt for F1. Cloud models (Gemini /
-            // OpenAI) still see the tool and can call it if they want.
-            const hideTools = analystProvider === "local";
-            const stream = await lapAnalystAgent.stream(prompt, {
+            const result = await lapAnalystAgent.generate(prompt, {
               maxSteps: 5,
               ...(hideTools ? { activeTools: [] as never[] } : {}),
               modelSettings: { maxOutputTokens: 8192, temperature: 0 },
               providerOptions: {
-                // Force JSON mode so LM Studio/Gemma keeps emitting brackets
-                // until a full valid object closes — avoids mid-string cut-off.
                 openai: {
-                  // LM Studio reasoning models (Gemma 4 etc.) only accept
-                  // "on" / "off" and burn output tokens on hidden reasoning,
-                  // starving the final JSON. Disable for local to keep the
-                  // full 8192 budget available for the actual answer.
                   reasoningEffort: analystProvider === "local" ? "none" : "low",
-                  // Strict JSON-schema structured output (OpenAI spec). Grammar-
-                  // constrains the decoder so the model can only emit tokens that
-                  // keep the JSON valid — no mid-string truncation, no bad chars.
-                  // Supported by OpenAI, LM Studio, vLLM, Ollama (>=0.5).
                   responseFormat: {
                     type: "json_schema",
                     jsonSchema: {
@@ -456,93 +420,48 @@ export const lapRoutes = new Hono()
                 },
               },
             });
-            // Mastra fullStream parts wrap their data under `payload`.
-            for await (const part of stream.fullStream as AsyncIterable<{ type: string; payload?: Record<string, unknown> }>) {
-              const p = part.payload ?? {};
-              // [diag] log every chunk type so we can see if tool-call parts
-              // arrive at all on local models. Remove after debugging.
-              if (part.type !== "text-delta") {
-                // eslint-disable-next-line no-console
-                console.log("[analyse-stream]", part.type, Object.keys(p).slice(0, 6),
-                  part.type === "tool-call" ? JSON.stringify(p.args).slice(0, 120) :
-                  part.type === "tool-result" ? JSON.stringify(p.result).slice(0, 120) : "");
-              }
-              switch (part.type) {
-                case "text-delta": {
-                  if (!firstTextArrived) {
-                    firstTextArrived = true;
-                    writeEvent(controller, { type: "status", state: "generating" });
-                  }
-                  const delta = typeof p.text === "string" ? p.text : "";
-                  if (delta) {
-                    text += delta;
-                    writeEvent(controller, { type: "text", delta });
-                  }
-                  break;
-                }
-                case "tool-call": {
-                  toolCalls += 1;
-                  const name = typeof p.toolName === "string" ? p.toolName : "unknown";
-                  writeEvent(controller, { type: "tool", state: "start", name });
-                  break;
-                }
-                case "tool-result": {
-                  const name = typeof p.toolName === "string" ? p.toolName : "unknown";
-                  writeEvent(controller, { type: "tool", state: "end", name });
-                  break;
-                }
-                case "finish":
-                case "step-finish": {
-                  const output = (p.output ?? {}) as Record<string, unknown>;
-                  const u = (output.usage ?? p.usage ?? {}) as Record<string, unknown>;
-                  const n = (k: string) => (typeof u[k] === "number" ? (u[k] as number) : 0);
-                  usage = {
-                    inputTokens: n("inputTokens") || n("promptTokens") || usage.inputTokens,
-                    outputTokens: n("outputTokens") || n("completionTokens") || usage.outputTokens,
-                  };
-                  break;
-                }
-                case "error":
-                  writeEvent(controller, {
-                    type: "error",
-                    message: p.error instanceof Error ? p.error.message : String(p.error ?? "unknown error"),
-                  });
-                  break;
-              }
-            }
+            const text = typeof result.text === "string" ? result.text : "";
             const durationMs = Date.now() - startedAt;
-            // eslint-disable-next-line no-console
-            console.log(`[analyse-stream] final text length: ${text.length} chars, ${text.split(/\s+/).length} words`);
             let validJson = false;
             try {
               JSON.parse(text);
               validJson = true;
             } catch (parseErr) {
               const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
-              console.warn(`[analyse-stream] model output is not valid JSON (${msg}) — skipping cache write`);
+              console.warn(`[analyse] model output is not valid JSON (${msg}) — skipping cache write`);
             }
-            const persistedUsage = { ...usage, costUsd: 0, durationMs, model: modelLabel };
-            if (validJson) {
-              await saveAnalysis(id, text, persistedUsage);
-            } else {
+            const rawUsage = (result.usage ?? {}) as Record<string, unknown>;
+            const n = (k: string) => (typeof rawUsage[k] === "number" ? (rawUsage[k] as number) : 0);
+            const usage = {
+              inputTokens: n("inputTokens") || n("promptTokens"),
+              outputTokens: n("outputTokens") || n("completionTokens"),
+              costUsd: 0,
+              durationMs,
+              model: modelLabel,
+            };
+            if (!validJson) {
               writeEvent(controller, {
                 type: "error",
-                message: "Model produced truncated/invalid JSON. Not cached. Try again or switch model.",
+                message: "Model produced invalid JSON. Not cached. Try again or switch model.",
               });
-              controller.close();
-              return;
+            } else {
+              await saveAnalysis(id, text, usage);
+              writeEvent(controller, {
+                type: "result",
+                analysis: text,
+                cached: false,
+                usage,
+                cornerFracs,
+                hasTune,
+              });
             }
-            writeEvent(controller, { type: "usage", ...persistedUsage, toolCalls });
-            writeEvent(controller, { type: "result", analysis: text, cached: false });
-            writeEvent(controller, { type: "done" });
-            controller.close();
           } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err);
             console.error("[AI] Analysis failed:", msg);
             writeEvent(controller, { type: "error", message: msg });
-            try { controller.close(); } catch { /* already closed */ }
           } finally {
             clearInterval(keepAlive);
+            try { controller.close(); } catch { /* already closed */ }
           }
         },
       });

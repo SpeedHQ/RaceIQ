@@ -65,11 +65,22 @@ export function findSegment(segments: Segment[] | null | undefined, ...texts: st
   return null;
 }
 
+// Some local models emit snake_case/camelCase labels ("front_tyre_temp",
+// "fullThrottleTime") regardless of prompt guidance. Normalise to spaces so
+// the uppercase-styled header reads cleanly.
+function humanizeLabel(raw: string): string {
+  return raw
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function MetricCard({ item }: { item: PaceItem | HandlingItem }) {
   return (
     <div className={`rounded-lg border px-2.5 py-1.5 ${ASSESSMENT_BG[item.assessment]}`}>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[10px] text-app-text-secondary uppercase tracking-wide">{item.label}</span>
+        <span className="text-[10px] text-app-text-secondary uppercase tracking-wide">{humanizeLabel(item.label)}</span>
         <span className={`text-[11px] font-mono font-semibold ${ASSESSMENT_COLORS[item.assessment]}`}>{item.value}</span>
       </div>
       <p className="text-[10px] text-app-text-secondary mt-0.5 leading-relaxed">{item.detail}</p>
@@ -77,15 +88,72 @@ export function MetricCard({ item }: { item: PaceItem | HandlingItem }) {
   );
 }
 
-export function TuneBar({ current, target }: { current: number; target: number }) {
-  const lo = Math.min(current, target);
-  const hi = Math.max(current, target);
-  const spread = hi - lo || Math.max(Math.abs(hi) * 0.1, 1);
-  // Previously floored at 0 which broke negative fields like camber
-  // (current -3.40° → target -3.30°) by clamping min to 0 and pushing both
-  // markers off the right edge. Let min float naturally around the values.
-  const min = lo - spread * 1.5;
-  const max = hi + spread * 1.5;
+// F1 2025 (and common FM) setup field ranges. Key is a normalised
+// component label (lowercased, no spaces/punct) so "Front Wing", "FrontWing",
+// "front-wing" all collide. Falls back to auto-scale when not found so we
+// don't break FM or unknown labels.
+// F1 25 official setup slider bounds.
+const FIELD_RANGES: Record<string, { min: number; max: number }> = {
+  // Aero
+  frontwing: { min: 0, max: 50 },
+  rearwing: { min: 0, max: 50 },
+  fuelload: { min: 5, max: 100 },
+  // Transmission
+  onthrottle: { min: 10, max: 100 },
+  offthrottle: { min: 10, max: 100 },
+  differentialonthrottle: { min: 10, max: 100 },
+  differentialoffthrottle: { min: 10, max: 100 },
+  enginebraking: { min: 0, max: 100 },
+  // Suspension geometry
+  frontcamber: { min: -3.5, max: -2.5 },
+  rearcamber: { min: -2.0, max: -1.0 },
+  fronttoe: { min: 0, max: 0.1 },
+  reartoe: { min: 0, max: 0.4 },
+  fronttoeout: { min: 0, max: 0.1 },
+  reartoein: { min: 0, max: 0.4 },
+  // Suspension
+  frontsuspension: { min: 1, max: 41 },
+  rearsuspension: { min: 1, max: 41 },
+  frontantirollbar: { min: 1, max: 41 },
+  rearantirollbar: { min: 1, max: 41 },
+  frontrideheight: { min: 20, max: 50 },
+  rearrideheight: { min: 20, max: 50 },
+  // Brakes
+  brakepressure: { min: 80, max: 100 },
+  brakebias: { min: 50, max: 70 },
+  frontbrakebias: { min: 50, max: 70 },
+  // Tyres (psi)
+  fronttyrepressure: { min: 22.0, max: 29.5 },
+  reartyrepressure: { min: 20.0, max: 26.5 },
+  frontlefttyrepressure: { min: 22.0, max: 29.5 },
+  frontrighttyrepressure: { min: 22.0, max: 29.5 },
+  rearlefttyrepressure: { min: 20.0, max: 26.5 },
+  rearrighttyrepressure: { min: 20.0, max: 26.5 },
+};
+
+function lookupFieldRange(component: string | undefined): { min: number; max: number } | null {
+  if (!component) return null;
+  const key = component.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return FIELD_RANGES[key] ?? null;
+}
+
+export function TuneBar({ current, target, component }: { current: number; target: number; component?: string }) {
+  const known = lookupFieldRange(component);
+  let min: number;
+  let max: number;
+  if (known) {
+    min = known.min;
+    max = known.max;
+  } else {
+    const lo = Math.min(current, target);
+    const hi = Math.max(current, target);
+    const spread = hi - lo || Math.max(Math.abs(hi) * 0.1, 1);
+    // Previously floored at 0 which broke negative fields like camber
+    // (current -3.40° → target -3.30°) by clamping min to 0 and pushing both
+    // markers off the right edge. Let min float naturally around the values.
+    min = lo - spread * 1.5;
+    max = hi + spread * 1.5;
+  }
   const range = max - min || 1;
   const clamp = (p: number) => Math.min(100, Math.max(0, p));
   const currentPct = clamp(((current - min) / range) * 100);
@@ -223,7 +291,7 @@ export function SetupSection({
                       item.direction === "decrease" ? "bg-red-400/10 text-red-400" :
                       "bg-amber-400/10 text-amber-400"
                     }`}>{item.current} → {item.target}</span>
-                    {hasBoth && <TuneBar current={currentNum} target={targetNum} />}
+                    {hasBoth && <TuneBar current={currentNum} target={targetNum} component={item.component} />}
                     <p className="text-[11px] text-app-text-secondary mt-1.5"><span className="text-red-400/70">Symptom:</span> {item.symptom}</p>
                     <p className="text-[11px] text-app-text-secondary mt-0.5"><span className="text-emerald-400/70">Fix:</span> {item.fix}</p>
                   </TrackCard>

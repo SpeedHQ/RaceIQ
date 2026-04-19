@@ -292,57 +292,26 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
 
       const ct = res.headers.get("content-type") ?? "";
       if (ct.includes("application/x-ndjson")) {
-        setAnalyseStatus("thinking");
-        let cornerFracsEv: { label: string; startFrac: number; endFrac: number }[] | undefined;
-        let hasTuneEv: boolean | undefined;
-        let usageEv: AnalysisUsage | undefined;
-        let analysisText = "";
+        // Heartbeat stream: server emits `ping` every ~200s to hold the
+        // connection past Bun's 255s idleTimeout, then a single `result`
+        // (or `error`) at the end. No intermediate UI.
+        let resolved = false;
         await readChatStream(res, (event) => {
           switch (event.type) {
-            case "status":
-              setAnalyseStatus((event as unknown as { state: "thinking" | "generating" }).state);
-              break;
-            case "tool": {
-              const t = event as unknown as { state: "start" | "end"; name: string };
-              setAnalyseTool(t.state === "start" ? t.name : null);
-              break;
-            }
-            case "text":
-              analysisText += (event as unknown as { delta: string }).delta;
-              break;
-            case "meta": {
-              const meta = event as unknown as { cornerFracs?: typeof cornerFracsEv; hasTune?: boolean };
-              cornerFracsEv = meta.cornerFracs;
-              hasTuneEv = meta.hasTune;
-              break;
-            }
-            case "usage": {
-              const u = event as unknown as AnalysisUsage;
-              usageEv = {
-                inputTokens: u.inputTokens,
-                outputTokens: u.outputTokens,
-                costUsd: u.costUsd ?? 0,
-                durationMs: u.durationMs ?? 0,
-                model: u.model ?? "",
-              };
-              break;
-            }
-            case "result": {
-              const r = event as unknown as { analysis: string };
-              // Prefer the server's consolidated `analysis` string over the
-              // accumulated text deltas (identical today, but more robust if
-              // the stream ever reorders chunks).
-              if (r.analysis) analysisText = r.analysis;
-              break;
-            }
-            case "error":
-              throw new Error((event as unknown as { message: string }).message);
             case "ping":
             case "done":
               break;
+            case "error":
+              throw new Error((event as unknown as { message: string }).message);
+            case "result": {
+              const r = event as unknown as { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean };
+              apply(r);
+              resolved = true;
+              break;
+            }
           }
         });
-        apply({ analysis: analysisText, usage: usageEv, cornerFracs: cornerFracsEv, hasTune: hasTuneEv });
+        if (!resolved) throw new Error("Analyse stream ended without a result");
       } else {
         const data = await res.json() as { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean };
         apply(data);
