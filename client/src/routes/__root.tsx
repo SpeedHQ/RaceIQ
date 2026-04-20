@@ -11,7 +11,7 @@ import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
 import { OnboardingModal } from "../components/Onboarding";
 import { Button } from "@/components/ui/button";
-import { Settings2 } from "lucide-react";
+import { Settings2, RefreshCw, X } from "lucide-react";
 import { getAllGames } from "@shared/games/registry";
 
 import { queryClient } from "../lib/queryClient";
@@ -25,6 +25,47 @@ function getGamePrefixes() {
 
 function useUpdateCheck() {
   return useTelemetryStore((s) => s.versionInfo);
+}
+
+function StaleLapBanner() {
+  const staleLapDetection = useTelemetryStore((s) => s.staleLapDetection);
+  const setStaleLapDetection = useTelemetryStore((s) => s.setStaleLapDetection);
+  const [reprocessing, setReprocessing] = useState(false);
+
+  if (!staleLapDetection) return null;
+
+  const handleReprocess = async () => {
+    setReprocessing(true);
+    try {
+      await fetch("/api/sessions/reprocess-stale", { method: "POST" });
+      setStaleLapDetection(null);
+    } finally {
+      setReprocessing(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-2 bg-blue-500/10 border-b border-blue-500/20 text-sm text-blue-300">
+      <span className="flex-1">
+        Lap detection updated — {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s" : ""} may have improved boundaries.
+      </span>
+      <button
+        onClick={handleReprocess}
+        disabled={reprocessing}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 transition-colors disabled:opacity-50"
+      >
+        <RefreshCw className={`size-3 ${reprocessing ? "animate-spin" : ""}`} />
+        {reprocessing ? "Reprocessing..." : "Reprocess"}
+      </button>
+      <button
+        onClick={() => setStaleLapDetection(null)}
+        className="text-blue-400/60 hover:text-blue-300 transition-colors"
+        aria-label="Dismiss"
+      >
+        <X className="size-3.5" />
+      </button>
+    </div>
+  );
 }
 
 function AppShell() {
@@ -202,6 +243,8 @@ function AppShell() {
           )}
 
           {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
+
+          <StaleLapBanner />
 
           <div className="min-h-0 overflow-y-auto">
             <Outlet />

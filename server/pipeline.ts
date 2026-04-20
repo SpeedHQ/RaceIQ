@@ -1,3 +1,4 @@
+import { resolve } from "path";
 import type { TelemetryPacket, GameId, LapMeta } from "../shared/types";
 import { type DbAdapter, type WsAdapter, RealDbAdapter, RealWsAdapter } from "./pipeline-adapters";
 import type { ILapDetector, LapDetectorCallbacks } from "./lap-detector-interface";
@@ -7,6 +8,8 @@ import { getTrackOutlineByOrdinal } from "../shared/track-data";
 import { tryGetGame } from "../shared/games/registry";
 import { getServerGame } from "./games/registry";
 import { fillNormSuspension } from "./telemetry-utils";
+import { UdpRecorder } from "./udp-recorder";
+import { LAP_DETECTOR_VERSION } from "./lap-detector";
 
 export class Pipeline {
   private sectorTracker = new SectorTracker();
@@ -20,6 +23,7 @@ export class Pipeline {
   private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
   private _sessionLaps: LapMeta[] = [];
+  private _sessionRecorder: UdpRecorder | null = null;
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
@@ -42,6 +46,19 @@ export class Pipeline {
   private _buildCallbacks(): LapDetectorCallbacks {
     return {
       onSessionStart: async (session) => {
+        // Close previous session recorder before opening a new one
+        if (this._sessionRecorder) {
+          await this._sessionRecorder.stop();
+          this._sessionRecorder = null;
+        }
+        // Open append-only raw session file
+        const dataDir = process.env.DATA_DIR ?? "./data";
+        const filePath = resolve(dataDir, "sessions", `${session.sessionId}.bin`);
+        this._sessionRecorder = new UdpRecorder();
+        this._sessionRecorder.start(filePath);
+        this._sessionRecorder.writeMetaFrame(Buffer.alloc(0)); // reserved for future parser state snapshot
+        await this.db.updateSessionRawFile(session.sessionId, filePath, LAP_DETECTOR_VERSION);
+
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
         this.pitTracker.reset();
         const adapter = tryGetGame(session.gameId);
@@ -143,8 +160,15 @@ export class Pipeline {
    *
    * Pipeline: normalize coords → lap detection → track calibration (~10Hz) → WebSocket broadcast (30Hz)
    */
-  async processPacket(packet: TelemetryPacket): Promise<void> {
+  async processPacket(packet: TelemetryPacket, rawBuf?: Buffer): Promise<void> {
     this._totalProcessed++;
+
+    // Snapshot byte offset BEFORE writing so it points to this packet's position
+    let rawByteOffset: number | undefined;
+    if (rawBuf && this._sessionRecorder) {
+      rawByteOffset = this._sessionRecorder.getCurrentByteOffset();
+      this._sessionRecorder.writePacket(rawBuf);
+    }
 
     // Normalize coordinates so all games use the same display convention.
     const adapter = tryGetGame(packet.gameId);
@@ -159,7 +183,7 @@ export class Pipeline {
     fillNormSuspension(packet);
 
     const detector = this._getOrCreateDetector(packet.gameId);
-    await detector.feed(packet);
+    await detector.feed(packet, rawByteOffset);
 
     const sectors = this.sectorTracker.feed(packet);
 
@@ -213,7 +237,7 @@ const _default = new Pipeline(new RealDbAdapter(), _defaultWs);
 import { wsManager } from "./ws";
 wsManager.setSessionLapsProvider(() => _default.sessionLaps);
 
-export const processPacket = (p: TelemetryPacket) => _default.processPacket(p);
+export const processPacket = (p: TelemetryPacket, rawBuf?: Buffer) => _default.processPacket(p, rawBuf);
 
 /** Returns the current lap detector (may be null before the first packet is processed). */
 export const lapDetector = {

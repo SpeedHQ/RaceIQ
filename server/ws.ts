@@ -53,9 +53,15 @@ class WebSocketManager {
   private lastBroadcastJson: string | null = null;
   /** Injected getter for session laps — avoids circular import with pipeline */
   private _getSessionLaps: (() => readonly LapMeta[]) | null = null;
+  /** Stale lap detection notification — sent to each new client on connect */
+  private _staleSessionsNotification: Record<string, unknown> | null = null;
 
   setSessionLapsProvider(fn: () => readonly LapMeta[]): void {
     this._getSessionLaps = fn;
+  }
+
+  setStaleSessionsNotification(payload: Record<string, unknown> | null): void {
+    this._staleSessionsNotification = payload;
   }
   private telemetryHistory: TelemetryHistoryData = {
     grip: { fl: [], fr: [], rl: [], rr: [] },
@@ -89,6 +95,10 @@ class WebSocketManager {
     const laps = this._getSessionLaps?.();
     if (laps && laps.length > 0) {
       try { ws.send(JSON.stringify({ type: "session-laps", laps })); } catch {}
+    }
+    // Send stale lap detection notification if any sessions need reprocessing
+    if (this._staleSessionsNotification) {
+      try { ws.send(JSON.stringify(this._staleSessionsNotification)); } catch {}
     }
     console.log(`[WS] Client connected. Active: ${this.clients.size}`);
     if (this.clients.size === 1) this.startBroadcastTimer(); // first client — start pushing

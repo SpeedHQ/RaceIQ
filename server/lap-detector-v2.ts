@@ -29,6 +29,9 @@ export class LapDetectorV2 implements ILapDetector {
   // when the next tick arrives, the same lap could be saved twice. Track the last
   // emitted lap number — if emitLap is triggered again for the same number, ignore it.
   private _lastEmittedLapNumber = -1;
+  private _lapByteOffset: number | null = null;
+  private _lapFrameCount = 0;
+  private _currentRawByteOffset: number | null = null;
 
   constructor(opts: LapDetectorOptions) {
     this.db = opts.db;
@@ -41,7 +44,14 @@ export class LapDetectorV2 implements ILapDetector {
     return this.currentSession;
   }
 
-  async feed(packet: TelemetryPacket): Promise<void> {
+  async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
+    if (rawByteOffset !== undefined) {
+      if (this._currentRawByteOffset === null) {
+        this._lapByteOffset = rawByteOffset;
+      }
+      this._currentRawByteOffset = rawByteOffset;
+      this._lapFrameCount++;
+    }
     if (!this.currentSession) {
       const sessionId = await this.db.insertSession(
         packet.CarOrdinal,
@@ -71,6 +81,8 @@ export class LapDetectorV2 implements ILapDetector {
       this.lapBuffer = [];
       this.peakCurrentLap = 0;
       this.firstLapIsPartial = false;
+      this._lapByteOffset = this._currentRawByteOffset;
+      this._lapFrameCount = 0;
       this.lapBuffer.push(packet);
       if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
       return;
@@ -94,6 +106,8 @@ export class LapDetectorV2 implements ILapDetector {
           this.lapBuffer = [];
           this.peakCurrentLap = 0;
           this.firstLapIsPartial = false;
+          this._lapByteOffset = this._currentRawByteOffset;
+          this._lapFrameCount = 0;
           this.lapBuffer.push(packet);
           if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
           return;
@@ -156,6 +170,8 @@ export class LapDetectorV2 implements ILapDetector {
     this.lapBuffer = [];
     this.peakCurrentLap = 0;
     this.currentLapNumber = lapNum + 1;
+    this._lapByteOffset = this._currentRawByteOffset;
+    this._lapFrameCount = 0;
 
     const quality = assessLapRecording(packets, lapTime);
     let isValid = forcedInvalidReason ? false : quality.valid;
@@ -187,7 +203,8 @@ export class LapDetectorV2 implements ILapDetector {
       lapNum,
       lapTime,
       isValid,
-      packets,
+      this._lapByteOffset,
+      this._lapFrameCount,
       null,
       null,
       invalidReason,

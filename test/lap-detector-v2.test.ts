@@ -17,9 +17,10 @@ function makeFakeDb() {
       lapNumber: number,
       lapTime: number,
       valid: boolean,
-      _packets: unknown,
-      _a: unknown,
-      _b: unknown,
+      _rawByteOffset: unknown,
+      _rawFrameCount: unknown,
+      _profileId: unknown,
+      _tuneId: unknown,
       invalidReason: string | null,
       _sectors: unknown
     ) => {

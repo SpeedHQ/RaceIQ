@@ -166,6 +166,19 @@ export async function parseDump(
   // Extract raw packets from broadcast events (all packets that went through the pipeline)
   const rawPackets = ws.broadcastedPackets.map((e) => e.packet);
 
+  // Attach per-lap packets to each CapturedLap for test assertions
+  const lapPacketsByNumber = new Map<number, TelemetryPacket[]>();
+  for (const pkt of rawPackets) {
+    const n = pkt.LapNumber;
+    if (n !== undefined) {
+      if (!lapPacketsByNumber.has(n)) lapPacketsByNumber.set(n, []);
+      lapPacketsByNumber.get(n)!.push(pkt);
+    }
+  }
+  for (const lap of db.laps) {
+    lap.packets = lapPacketsByNumber.get(lap.lapNumber) ?? [];
+  }
+
   return {
     laps: db.laps,
     sessions: db.sessions,
