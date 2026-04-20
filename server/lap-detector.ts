@@ -57,7 +57,7 @@ export interface LapSavedNotification extends LapSavedEvent {
 }
 
 /** Bump this whenever lap detection logic changes — triggers UI prompt to reprocess old sessions. */
-export const LAP_DETECTOR_VERSION = "1.0.0";
+export const LAP_DETECTOR_VERSION = "1";
 
 export interface LapCompleteEvent {
   packets: TelemetryPacket[];

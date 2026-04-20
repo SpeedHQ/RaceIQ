@@ -92,11 +92,12 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   let lapsUpdated = 0;
 
   if (detectedLaps.length === existingLaps.length) {
-    // Same count — update frame indexes and metadata in-place
+    // Same count — update frame indexes and metadata in-place, matched by lap number
     strategy = "in-place";
-    for (let i = 0; i < detectedLaps.length; i++) {
-      const detected = detectedLaps[i];
-      const existing = existingLaps[i];
+    const existingByLapNum = new Map(existingLaps.map(l => [l.lapNumber, l]));
+    for (const detected of detectedLaps) {
+      const existing = existingByLapNum.get(detected.lapNumber);
+      if (!existing) continue;
       const sectors = detected.sectors ? { s1: detected.sectors.s1, s2: detected.sectors.s2, s3: detected.sectors.s3 } : null;
       await updateLapRawIndex(
         existing.id,

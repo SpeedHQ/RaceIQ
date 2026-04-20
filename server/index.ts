@@ -174,22 +174,22 @@ if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
 // three recorders buffer via Bun.file().writer() — without this handler the
 // default SIGINT path exits before the buffer drains and the file ends up
 // zero-length (or missing the tail).
-if (recordingGameId) {
-  const gracefulShutdown = async (signal: NodeJS.Signals) => {
-    console.log(`[Server] Received ${signal} — finalizing recording...`);
-    try {
-      await Promise.allSettled([
-        udpListener.stop(),
-        accRecorder.stop(),
-        acEvoRecorder.stop(),
-      ]);
-    } finally {
-      process.exit(0);
+import { flushSessionRecorder } from "./pipeline";
+
+const gracefulShutdown = async (signal: NodeJS.Signals) => {
+  console.log(`[Server] Received ${signal} — flushing session recorder...`);
+  try {
+    const tasks: Promise<unknown>[] = [flushSessionRecorder()];
+    if (recordingGameId) {
+      tasks.push(udpListener.stop(), accRecorder.stop(), acEvoRecorder.stop());
     }
-  };
-  process.on("SIGINT", () => void gracefulShutdown("SIGINT"));
-  process.on("SIGTERM", () => void gracefulShutdown("SIGTERM"));
-}
+    await Promise.allSettled(tasks);
+  } finally {
+    process.exit(0);
+  }
+};
+process.on("SIGINT", () => void gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => void gracefulShutdown("SIGTERM"));
 
 // Start UDP listener — settings.udpPort takes priority, env var is the fallback
 const udpPort = settings.udpPort ?? (Number(process.env.UDP_PORT) || 5301);

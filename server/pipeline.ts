@@ -227,6 +227,13 @@ export class Pipeline {
       });
     }
   }
+
+  async flushSessionRecorder(): Promise<void> {
+    if (this._sessionRecorder) {
+      await this._sessionRecorder.stop();
+      this._sessionRecorder = null;
+    }
+  }
 }
 
 // Backward-compatible singleton exports — unchanged for all callers
@@ -257,4 +264,9 @@ const _maintenanceInterval = setInterval(() => _default.lapDetector?.flushStaleL
 /** Stop the module-level maintenance interval. Call in test/bench contexts to allow clean exit. */
 export function stopMaintenanceTasks(): void {
   clearInterval(_maintenanceInterval);
+}
+
+/** Flush and close the active session recorder. Call on graceful shutdown. */
+export async function flushSessionRecorder(): Promise<void> {
+  await _default.flushSessionRecorder();
 }

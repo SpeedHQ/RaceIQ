@@ -230,7 +230,7 @@ async function doInsertLap(
 }
 
 export async function updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
-  await db.update(sessions).set({ rawFile, lapDetectorVersion }).where(eq(sessions.id, sessionId));
+  await db.update(sessions).set({ rawFile, lapDetectorVersion }).where(eq(sessions.id, sessionId)).run();
 }
 
 /**
