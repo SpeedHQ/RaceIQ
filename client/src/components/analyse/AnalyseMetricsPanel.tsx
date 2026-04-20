@@ -15,8 +15,8 @@ export function MetricsPanel({ pkt, startFuel, gameId }: { pkt: TelemetryPacket 
       <MetricRow label="Speed" value={`${speed.toFixed(0)} ${units.speedLabel}`} />
       <MetricRow label="RPM" value={`${pkt.CurrentEngineRpm.toFixed(0)}`} />
       <MetricRow label="Gear" value={`${pkt.Gear}`} />
-      <MetricRow label="Throttle" value={`${throttlePct}%`} color={Number(throttlePct) > 50 ? "#34d399" : undefined} />
-      <MetricRow label="Brake" value={`${brakePct}%`} color={Number(brakePct) > 10 ? "#ef4444" : undefined} />
+      <MetricRow label="Throttle" value={`${throttlePct}%`} color={Number(throttlePct) > 0 ? "#34d399" : undefined} />
+      <MetricRow label="Brake" value={`${brakePct}%`} color={Number(brakePct) > 0 ? "#ef4444" : undefined} />
       <MetricRow label="Steer" value={`${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`} />
       {(gameId === "fm-2023" || pkt.Boost > 0) && <MetricRow label="Boost" value={`${pkt.Boost.toFixed(1)} psi`} />}
       {(gameId === "fm-2023" || pkt.Power > 0) && <MetricRow label="Power" value={`${(pkt.Power / 745.7).toFixed(0)} hp`} />}
