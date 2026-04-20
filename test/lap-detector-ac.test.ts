@@ -1,6 +1,6 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { parseDump } from "./helpers/parse-dump";
-import { LapDetectorV2 } from "../server/lap-detector-v2";
+import { LapDetectorAc } from "../server/lap-detector-ac";
 import { stopMaintenanceTasks } from "../server/pipeline";
 
 afterAll(() => stopMaintenanceTasks());
@@ -54,11 +54,11 @@ function packet(fields: Partial<TelemetryPacket>): TelemetryPacket {
   } as TelemetryPacket;
 }
 
-describe("LapDetectorV2 — reset detection", () => {
+describe("LapDetectorAc — reset detection", () => {
   test("emits a lap when CurrentLap resets from >30 to <2", async () => {
     const db = makeFakeDb();
     const saved: Array<{ lapNumber: number; lapTime: number }> = [];
-    const d = new LapDetectorV2({
+    const d = new LapDetectorAc({
       db,
       callbacks: {
         onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
@@ -85,7 +85,7 @@ describe("LapDetectorV2 — reset detection", () => {
       lapTime: number;
       isValid: boolean;
     }> = [];
-    const d = new LapDetectorV2({
+    const d = new LapDetectorAc({
       db,
       callbacks: {
         onLapComplete: (e) =>
@@ -113,7 +113,7 @@ describe("LapDetectorV2 — reset detection", () => {
   test("does not fire onLapComplete for silent incomplete-flush events", async () => {
     const db = makeFakeDb();
     let completeCount = 0;
-    const d = new LapDetectorV2({
+    const d = new LapDetectorAc({
       db,
       callbacks: {
         onLapComplete: () => completeCount++,
@@ -131,7 +131,7 @@ describe("LapDetectorV2 — reset detection", () => {
 
   test("saves partial initial lap as invalid outlap when recording starts in pit mid-lap", async () => {
     const db = makeFakeDb();
-    const d = new LapDetectorV2({ db });
+    const d = new LapDetectorAc({ db });
 
     // Recording starts with the car in the pit lane, ~50s into some pre-recording lap
     for (let t = 50; t <= 70; t += 1) {
@@ -198,7 +198,7 @@ describe("LapDetectorV2 — reset detection", () => {
   test("session restart (distance reset) discards in-progress lap and keeps new packet", async () => {
     const db = makeFakeDb();
     const saved: Array<{ lapNumber: number; lapTime: number }> = [];
-    const d = new LapDetectorV2({
+    const d = new LapDetectorAc({
       db,
       callbacks: {
         onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
@@ -230,7 +230,7 @@ describe("LapDetectorV2 — reset detection", () => {
   test("calls assessLapRecording and marks short-distance laps invalid", async () => {
     const db = makeFakeDb();
     const saved: Array<{ lapNumber: number; lapTime: number; isValid: boolean }> = [];
-    const d = new LapDetectorV2({
+    const d = new LapDetectorAc({
       db,
       callbacks: {
         onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime, isValid: n.isValid }),
@@ -250,7 +250,7 @@ describe("LapDetectorV2 — reset detection", () => {
 
   test("marks ACC lap invalid with reason 'outlap' when it starts in the pit lane", async () => {
     const db = makeFakeDb();
-    const d = new LapDetectorV2({ db });
+    const d = new LapDetectorAc({ db });
 
     // Out-lap: starts in pit lane, exits to track, drives a full clean lap
     // First packet: CurrentLap=0, pitStatus=pit_lane (car in pit exit)
@@ -301,7 +301,7 @@ describe("LapDetectorV2 — reset detection", () => {
 
   test("marks ACC lap invalid with reason 'inlap' when it ends in the pit lane", async () => {
     const db = makeFakeDb();
-    const d = new LapDetectorV2({ db });
+    const d = new LapDetectorAc({ db });
 
     // In-lap: drives most of the lap on track, enters pit lane near the finish
     for (let t = 0; t <= 60; t += 1) {

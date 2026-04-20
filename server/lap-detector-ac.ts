@@ -10,7 +10,7 @@ import { accFirstPacketIsMidLap, classifyAccPitLap } from "./acc-lap-rules";
 
 export const LAP_DETECTOR_V2_ID = "ac_lapdetector_v2";
 
-export class LapDetectorV2 implements ILapDetector {
+export class LapDetectorAc implements ILapDetector {
   readonly detectorId = LAP_DETECTOR_V2_ID;
   private readonly db: DbAdapter;
   private readonly onLapSaved?: LapDetectorCallbacks["onLapSaved"];
