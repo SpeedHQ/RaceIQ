@@ -340,10 +340,12 @@ export function useExportLap() {
 }
 
 // ── Tunes ────────────────────────────────────────────────────────────────────
-export function useUserTunes() {
+export function useUserTunes(gameId?: GameId) {
   return useQuery({
-    queryKey: queryKeys.userTunes,
-    queryFn: async () => rpcJson<any[]>(await client.api.tunes.$get({ query: {} })),
+    queryKey: [...queryKeys.userTunes, gameId ?? null],
+    queryFn: async () => rpcJson<any[]>(
+      await client.api.tunes.$get({ query: gameId ? { gameId } : {} }),
+    ),
   });
 }
 
@@ -394,6 +396,42 @@ export function useCloneCatalogTune() {
   return useMutation({
     mutationFn: async (catalogId: string) => {
       const res = await client.api.tunes.clone[":catalogId"].$post({ param: { catalogId } });
+      if (!res.ok) throw new Error((await res.json() as any).error ?? res.statusText);
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
+  });
+}
+
+export function useDuplicateTune() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await (client.api.tunes[":id"] as any).duplicate.$post({ param: { id: String(id) } });
+      if (!res.ok) throw new Error((await res.json() as any).error ?? res.statusText);
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
+  });
+}
+
+export function useSetupFiles(gameId: "acc" | "ac-evo" | null) {
+  return useQuery({
+    queryKey: ["setup-files", gameId],
+    queryFn: async () => {
+      const res = await (client.api.tunes as any)["setup-files"].$get({ query: { gameId } });
+      return rpcJson<{ baseDir: string | null; files: { carModel: string; trackName: string; fileName: string; absolutePath: string }[]; error?: string }>(res);
+    },
+    enabled: gameId != null,
+    staleTime: 30_000,
+  });
+}
+
+export function useImportTuneFile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { gameId: "acc" | "ac-evo"; filePath: string; name?: string; author?: string; carOrdinal: number; category?: string }) => {
+      const res = await (client.api.tunes as any)["import-file"].$post({ json: data });
       if (!res.ok) throw new Error((await res.json() as any).error ?? res.statusText);
       return res.json();
     },

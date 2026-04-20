@@ -96,6 +96,7 @@ export function withDefaults(s?: TuneSettings): TuneSettings {
 // ── TuneFormData interface ───────────────────────────────────────────────────
 
 export interface TuneFormData {
+  gameId: "fm-2023";
   name: string;
   author: string;
   carOrdinal: number;
@@ -261,16 +262,20 @@ export function UserTuneCard({
   isExpanded,
   onToggle,
   onEdit,
+  onDuplicate,
   onDelete,
   isDeleting,
+  isDuplicating,
 }: {
   tune: { id: number; name: string; carOrdinal: number; category: string; source?: string; description: string; author: string; settings?: TuneSettings };
   carName?: string;
   isExpanded: boolean;
   onToggle: () => void;
   onEdit: () => void;
+  onDuplicate?: () => void;
   onDelete: () => void;
   isDeleting: boolean;
+  isDuplicating?: boolean;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   return (
@@ -303,8 +308,17 @@ export function UserTuneCard({
 
       {isExpanded && (
         <div className="px-4 pb-4 space-y-4 border-t border-app-border">
-          <div className="flex items-center gap-2 pt-3">
+          <div className="flex items-center gap-2 pt-3 flex-wrap">
             <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors">Edit</button>
+            {onDuplicate && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+                disabled={isDuplicating}
+                className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-50 transition-colors"
+              >
+                {isDuplicating ? "..." : "Duplicate"}
+              </button>
+            )}
             {!confirmDelete ? (
               <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors">Delete</button>
             ) : (
@@ -515,7 +529,7 @@ export function TuneForm({
       springs: { ...settings.springs, unit: unitLabel("springs", isMetric) },
       aero: { ...settings.aero, unit: unitLabel("aero", isMetric) },
     };
-    onSubmit({ name, author, carOrdinal, category, description, settings: savedSettings, unitSystem: isMetric ? "metric" : "imperial" });
+    onSubmit({ gameId: "fm-2023", name, author, carOrdinal, category, description, settings: savedSettings, unitSystem: isMetric ? "metric" : "imperial" });
   };
 
   const tabCls = (tab: "info" | "settings") =>

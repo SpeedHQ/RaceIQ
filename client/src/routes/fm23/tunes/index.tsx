@@ -8,6 +8,7 @@ import {
 import {
   useUserTunes,
   useDeleteTune,
+  useDuplicateTune,
   useTuneAssignments,
   useDeleteTuneAssignment,
 } from "../../../hooks/queries";
@@ -23,7 +24,7 @@ function MyTunesPage() {
   const [carSearch, setCarSearch] = useState("");
   const [carDropdownOpen, setCarDropdownOpen] = useState(false);
 
-  const { data: userTunes = [], isLoading } = useUserTunes();
+  const { data: userTunes = [], isLoading } = useUserTunes("fm-2023");
   const { data: assignments = [] } = useTuneAssignments();
   const { data: allCarsForNames = [] } = useAllCars();
   const carNameMap = useMemo(() => {
@@ -32,6 +33,7 @@ function MyTunesPage() {
     return map;
   }, [allCarsForNames]);
   const deleteTuneMut = useDeleteTune();
+  const duplicateTuneMut = useDuplicateTune();
   const deleteAssignment = useDeleteTuneAssignment();
 
   const filteredCars = carSearch
@@ -131,8 +133,10 @@ function MyTunesPage() {
               isExpanded={expandedTune === `user-${tune.id}`}
               onToggle={() => setExpandedTune(expandedTune === `user-${tune.id}` ? null : `user-${tune.id}`)}
               onEdit={() => navigate({ to: `/fm23/tunes/edit/${tune.id}` })}
+              onDuplicate={() => duplicateTuneMut.mutate(tune.id)}
               onDelete={() => deleteTuneMut.mutate(tune.id)}
               isDeleting={deleteTuneMut.isPending}
+              isDuplicating={duplicateTuneMut.isPending}
             />
           ))
         )}

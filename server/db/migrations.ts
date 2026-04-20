@@ -235,4 +235,18 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_corners_track ON track_corners(track_ordinal)`,
     ],
   },
+
+  // ── v19: add game_id to tunes ─────────────────────────────────────────
+  //
+  // Tunes were previously Forza-only. Multi-game support (ACC, AC-EVO, F1 2025)
+  // requires disambiguating which game a tune belongs to. Existing rows are
+  // backfilled to 'fm-2023' since that was the only game with tune management.
+  {
+    version: 19,
+    name: "add game_id to tunes",
+    sql: [
+      `ALTER TABLE tunes ADD COLUMN game_id TEXT NOT NULL DEFAULT 'fm-2023'`,
+      `CREATE INDEX IF NOT EXISTS idx_tunes_game_car ON tunes(game_id, car_ordinal)`,
+    ],
+  },
 ];

@@ -21,6 +21,7 @@ export const tunes = sqliteTable(
   "tunes",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
+    gameId: text("game_id").notNull(),
     name: text("name").notNull(),
     author: text("author").notNull(),
     carOrdinal: integer("car_ordinal").notNull(),
@@ -44,6 +45,7 @@ export const tunes = sqliteTable(
   },
   (table) => ({
     carIdx: index("idx_tunes_car").on(table.carOrdinal),
+    gameCarIdx: index("idx_tunes_game_car").on(table.gameId, table.carOrdinal),
   })
 );
 

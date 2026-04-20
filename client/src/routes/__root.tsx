@@ -67,7 +67,8 @@ function AppShell() {
   const gameTabs = useMemo(() => {
     const prefix = getGamePrefixes().find((p) => location.pathname.startsWith(p));
     if (!prefix) return [];
-    const hideTunes = prefix !== "/fm23"; // only fm23 has a Tunes tab; other games put setups in the Tracks tab
+    const TUNES_SUPPORTED = new Set(["/fm23", "/acc", "/ac-evo"]);
+    const hideTunes = !TUNES_SUPPORTED.has(prefix);
     const hideSetup = prefix === "/ac-evo";
     return GAME_SUB_TABS
       .filter((label) => !(hideTunes && label === "Tunes"))
