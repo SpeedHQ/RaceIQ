@@ -45,6 +45,7 @@ export function LapAnalyse() {
   const { data: lapData, isLoading: lapLoading } = useLapTelemetry(selectedLapId);
   const [importedTelemetry, setImportedTelemetry] = useState<TelemetryPacket[] | null>(null);
   const telemetry = importedTelemetry ?? lapData?.telemetry ?? emptyTelemetry;
+  const isLegacyLap = lapData?.isLegacy === true;
   const displayTelemetry = useConvertedTelemetry(telemetry);
 
   // Fetch track data via TanStack Query (keyed on trackOrdinal derived from selection or lap data)
@@ -469,7 +470,7 @@ export function LapAnalyse() {
 
       {telemetry.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-app-text-muted text-sm">
-          <span>{loading ? "Loading lap telemetry..." : selectedLapId ? "No telemetry data for this lap." : "Select a track, car, and lap to analyse."}</span>
+          <span>{loading ? "Loading lap telemetry..." : isLegacyLap ? "This lap was recorded before raw telemetry storage. Lap times and metadata are preserved but telemetry charts are unavailable." : selectedLapId ? "No telemetry data for this lap." : "Select a track, car, and lap to analyse."}</span>
           {import.meta.env.DEV && !loading && (
             <button
               className="text-xs text-app-text-muted/40 underline underline-offset-2 hover:text-app-text-muted/70"

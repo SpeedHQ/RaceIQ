@@ -502,6 +502,8 @@ export interface LapMeta {
   s1Time?: number;
   s2Time?: number;
   s3Time?: number;
+  // True for laps recorded before raw telemetry storage — no charts available
+  isLegacy?: boolean;
 }
 
 export interface SessionMeta {

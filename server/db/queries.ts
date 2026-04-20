@@ -258,6 +258,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       s1Time: laps.s1Time,
       s2Time: laps.s2Time,
       s3Time: laps.s3Time,
+      rawByteOffset: laps.rawByteOffset,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -282,6 +283,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     s1Time: r.s1Time ?? undefined,
     s2Time: r.s2Time ?? undefined,
     s3Time: r.s3Time ?? undefined,
+    isLegacy: r.rawByteOffset == null,
   }));
 }
 
@@ -452,10 +454,9 @@ export async function getLapById(
 }
 
 function buildLapResult(
-  row: { id: number; sessionId: number; lapNumber: number; lapTime: number; isValid: number | boolean; createdAt: string; carOrdinal: number; trackOrdinal: number; tuneId: number | null; tuneName: string | null; gameId: string; carSetup: string | null },
+  row: { id: number; sessionId: number; lapNumber: number; lapTime: number; isValid: number | boolean; createdAt: string; carOrdinal: number; trackOrdinal: number; tuneId: number | null; tuneName: string | null; gameId: string; carSetup: string | null; rawByteOffset?: number | null },
   telemetry: TelemetryPacket[]
 ) {
-
   return {
     id: row.id,
     sessionId: row.sessionId,
@@ -469,6 +470,7 @@ function buildLapResult(
     tuneName: row.tuneName ?? undefined,
     gameId: row.gameId as GameId,
     carSetup: row.carSetup ?? undefined,
+    isLegacy: row.rawByteOffset == null,
     telemetry,
   };
 }

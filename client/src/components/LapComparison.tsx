@@ -209,8 +209,15 @@ export function LapComparison() {
     setLoading(true);
     setError(null);
     try {
-      const data = await client.api.laps[":id1"].compare[":id2"].$get({ param: { id1: String(lapAId), id2: String(lapBId) } }).then((r) => r.json() as unknown as ComparisonData);
-      setComparison(data);
+      const res = await client.api.laps[":id1"].compare[":id2"].$get({ param: { id1: String(lapAId), id2: String(lapBId) } });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        const msg = body.error ?? "Failed to load comparison data";
+        setError(msg.includes("no telemetry") ? "One or both laps were recorded before raw telemetry storage and cannot be compared." : msg);
+        setComparison(null);
+        return;
+      }
+      setComparison(await res.json() as unknown as ComparisonData);
     } catch {
       setError("Failed to load comparison data");
       setComparison(null);
