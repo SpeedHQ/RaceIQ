@@ -29,16 +29,22 @@ export function TRow({
   className = "",
   onClick,
   onContextMenu,
+  title,
+  style,
 }: {
   children: ReactNode;
   className?: string;
   onClick?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
+  title?: string;
+  style?: React.CSSProperties;
 }) {
   return (
     <tr
       className={`hover:bg-app-surface/50 transition-colors ${onClick ? "cursor-pointer" : ""} ${className}`}
       onClick={onClick}
+      title={title}
+      style={style}
       onContextMenu={onContextMenu}
     >
       {children}
