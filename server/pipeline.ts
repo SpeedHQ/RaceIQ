@@ -56,15 +56,7 @@ export class Pipeline {
         const filePath = resolve(dataDir, "sessions", `${session.sessionId}.bin`);
         this._sessionRecorder = new UdpRecorder();
         this._sessionRecorder.start(filePath);
-        const meta = Buffer.from(JSON.stringify({
-          gameId: session.gameId,
-          sessionId: session.sessionId,
-          carOrdinal: session.carOrdinal,
-          trackOrdinal: session.trackOrdinal,
-          lapDetectorId: this._lapDetector?.detectorId,
-          recordedAt: Date.now(),
-        }));
-        this._sessionRecorder.writeMetaFrame(meta);
+        this._sessionRecorder.writeMetaFrame(Buffer.alloc(0));
         await this.db.updateSessionRawFile(session.sessionId, filePath, this._lapDetector?.detectorId ?? LAP_DETECTOR_ID);
 
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
