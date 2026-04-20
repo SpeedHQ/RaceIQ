@@ -54,7 +54,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   let offset = 0;
   if (buf.length >= 8 && buf.readUInt32LE(0) === META_FRAME_MAGIC) {
     const payloadLen = buf.readUInt32LE(4);
-    offset = 8 + payloadLen;
+    offset = 8 + payloadLen; // for the current fixed header this is always 12
   }
 
   // Replay all frames through a capturing lap detector

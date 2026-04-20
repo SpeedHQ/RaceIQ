@@ -27,22 +27,20 @@ describe("UdpRecorder meta frame", () => {
     rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test("writeMetaFrame writes magic prefix and payload", async () => {
+  test("writeMetaFrame writes fixed 12-byte header with frame count", async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
     const recorder = new UdpRecorder();
     recorder.start(join(tmpDir, "session.bin"));
 
-    const payload = Buffer.from("hello");
-    await recorder.writeMetaFrame(payload);
+    recorder.writeMetaFrame();
+    recorder.writePacket(Buffer.from([0x01, 0x02]));
+    recorder.writePacket(Buffer.from([0x03, 0x04]));
     await recorder.stop();
 
     const buf = Buffer.from(await Bun.file(recorder.path!).arrayBuffer());
-    // First 4 bytes: META_FRAME_MAGIC as uint32 LE
     expect(buf.readUInt32LE(0)).toBe(META_FRAME_MAGIC);
-    // Next 4 bytes: payload length
-    expect(buf.readUInt32LE(4)).toBe(payload.length);
-    // Payload bytes
-    expect(buf.subarray(8, 8 + payload.length)).toEqual(payload);
+    expect(buf.readUInt32LE(4)).toBe(4); // payload length always 4
+    expect(buf.readUInt32LE(8)).toBe(2); // frame count patched on stop()
   });
 
   test("getCurrentByteOffset starts at 0 before any writes", () => {
@@ -58,13 +56,13 @@ describe("UdpRecorder meta frame", () => {
     const recorder = new UdpRecorder();
     recorder.start(join(tmpDir, "session.bin"));
 
-    // meta frame: 4 (magic) + 4 (len) + 0 (empty payload) = 8 bytes
-    await recorder.writeMetaFrame(Buffer.alloc(0));
-    expect(recorder.getCurrentByteOffset()).toBe(8);
+    // meta frame: 4 (magic) + 4 (len) + 4 (count) = 12 bytes
+    recorder.writeMetaFrame();
+    expect(recorder.getCurrentByteOffset()).toBe(12);
 
     // packet: 4 (len prefix) + 3 (payload) = 7 bytes
     recorder.writePacket(Buffer.from([0x01, 0x02, 0x03]));
-    expect(recorder.getCurrentByteOffset()).toBe(15);
+    expect(recorder.getCurrentByteOffset()).toBe(19);
 
     await recorder.stop();
   });
@@ -74,9 +72,8 @@ describe("UdpRecorder meta frame", () => {
     const recorder = new UdpRecorder();
     recorder.start(join(tmpDir, "session.bin"));
 
-    const meta = Buffer.from("state-snapshot");
-    await recorder.writeMetaFrame(meta);
-    const offsetAfterMeta = recorder.getCurrentByteOffset(); // = 8 + meta.length
+    recorder.writeMetaFrame();
+    const offsetAfterMeta = recorder.getCurrentByteOffset(); // always 12
 
     const pkt = Buffer.from([0xAA, 0xBB]);
     recorder.writePacket(pkt);
