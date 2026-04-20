@@ -1,5 +1,5 @@
 import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useTelemetryStore } from "../stores/telemetry";
@@ -31,21 +31,19 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
   const complete = done >= total;
 
-  useEffect(() => {
-    if (complete) {
-      const t = setTimeout(onClose, 1500);
-      return () => clearTimeout(t);
-    }
-  }, [complete, onClose]);
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-96 rounded-xl border border-white/10 bg-[#1a1a1a] p-6 shadow-2xl">
         <div className="flex items-center gap-3 mb-4">
           <RefreshCw className={`size-5 text-blue-400 ${complete ? "" : "animate-spin"}`} />
-          <h2 className="text-sm font-semibold text-white">
+          <h2 className="text-sm font-semibold text-white flex-1">
             {complete ? "Reprocessing complete" : "Reprocessing sessions…"}
           </h2>
+          {complete && (
+            <button onClick={onClose} className="text-white/40 hover:text-white/70 transition-colors" aria-label="Close">
+              <X className="size-4" />
+            </button>
+          )}
         </div>
         <div className="mb-3 h-2 w-full rounded-full bg-white/10 overflow-hidden">
           <div
@@ -58,7 +56,7 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
           <span>{percent}%</span>
         </div>
         {complete && (
-          <p className="mt-3 text-xs text-green-400 text-center">All sessions updated — closing…</p>
+          <p className="mt-3 text-xs text-green-400 text-center">All sessions updated.</p>
         )}
       </div>
     </div>
