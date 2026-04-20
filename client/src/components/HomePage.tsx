@@ -63,7 +63,7 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
             <TRow
               key={lap.id}
               title={isLegacy ? "Recorded before raw telemetry storage — analysis unavailable" : undefined}
-              className={isLegacy ? "!cursor-not-allowed" : undefined}
+              className={undefined}
               onClick={isLegacy ? undefined : () => {
                 if (!lap.gameId) return;
                 window.location.href = `${getGameRoute(lap.gameId)}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`;
