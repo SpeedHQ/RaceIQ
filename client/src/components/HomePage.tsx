@@ -10,7 +10,6 @@ import { tryGetGame } from "@shared/games/registry";
 import { useUiStore } from "../stores/ui";
 import { PiBadge, PI_COLORS, piClass } from "./forza/PiBadge";
 import { Table, THead, TBody, TRow, TH, TD } from "./ui/AppTable";
-import { Tooltip } from "./ui/InfoTooltip";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 
 
@@ -63,6 +62,7 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
           return (
             <TRow
               key={lap.id}
+              tooltip={isLegacy ? "Recorded before raw telemetry storage — analysis unavailable" : undefined}
               onClick={isLegacy ? undefined : () => {
                 if (!lap.gameId) return;
                 window.location.href = `${getGameRoute(lap.gameId)}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`;
@@ -81,13 +81,7 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
                 </span>
               )}</TD>}
               <TD className="font-mono text-app-text/90">L{lap.lapNumber}</TD>
-              <TD className="font-mono font-bold text-app-text/90 tabular-nums">
-                {isLegacy ? (
-                  <Tooltip content="Recorded before raw telemetry storage — analysis unavailable" position="top">
-                    <span>{formatLapTime(lap.lapTime)}</span>
-                  </Tooltip>
-                ) : formatLapTime(lap.lapTime)}
-              </TD>
+              <TD className="font-mono font-bold text-app-text/90 tabular-nums">{formatLapTime(lap.lapTime)}</TD>
               <TD className="text-center">
                 <span className={lap.isValid ? "text-emerald-400" : "text-red-400"}>
                   {lap.isValid ? "\u2713" : "\u2717"}
