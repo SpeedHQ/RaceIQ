@@ -44,7 +44,11 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   const serverGame = getServerGame(gameId);
 
   // Read the raw session file
-  const fileData = await Bun.file(session.rawFile).arrayBuffer();
+  const rawFileHandle = Bun.file(session.rawFile);
+  if (!(await rawFileHandle.exists())) {
+    throw new Error(`Session ${sessionId} raw file not found: ${session.rawFile}`);
+  }
+  const fileData = await rawFileHandle.arrayBuffer();
   const buf = Buffer.from(fileData);
 
   // Skip meta frame at offset 0: [0xFFFFFFFF][payload_len uint32][payload]
