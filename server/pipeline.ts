@@ -1,5 +1,6 @@
 import { resolve } from "path";
 import { mkdirSync } from "fs";
+import { USER_DATA_DIR } from "./paths";
 import type { TelemetryPacket, GameId, LapMeta } from "../shared/types";
 import { type DbAdapter, type WsAdapter, RealDbAdapter, RealWsAdapter } from "./pipeline-adapters";
 import type { ILapDetector, LapDetectorCallbacks } from "./lap-detector-interface";
@@ -58,7 +59,7 @@ export class Pipeline {
           this._sessionRecorder = null;
         }
         // Open append-only raw session file
-        const dataDir = process.env.DATA_DIR ?? "./data";
+        const dataDir = process.env.DATA_DIR ?? USER_DATA_DIR;
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         const sessionDir = resolve(dataDir, "sessions", session.gameId);
         mkdirSync(sessionDir, { recursive: true });
