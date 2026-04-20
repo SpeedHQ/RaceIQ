@@ -16,6 +16,7 @@ import type { AcEvoParserCache } from "./parser";
 import { acEvoProcessChecker } from "./process-checker";
 import { processPacket } from "../../pipeline";
 import { acEvoRecorder } from "./recorder";
+import { packTriplet, ACEVO_PACKED_MAGIC } from "../shared/pack-triplet";
 import { PHYSICS, GRAPHICS_EVO, STATIC_EVO } from "./structs";
 
 class AcEvoParsingProcessor implements TripletProcessor {
@@ -24,7 +25,10 @@ class AcEvoParsingProcessor implements TripletProcessor {
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<void> {
     try {
       const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, this.cache);
-      if (packet) await processPacket(packet);
+      if (packet) {
+        const rawBuf = packTriplet(ACEVO_PACKED_MAGIC, packet.CarOrdinal, packet.TrackOrdinal ?? 0, triplet.physics, triplet.graphics, triplet.staticData);
+        await processPacket(packet, rawBuf);
+      }
     } catch (err) {
       console.error("[AC Evo ParsingProcessor] Error:", err instanceof Error ? err.message : err);
       throw err;
