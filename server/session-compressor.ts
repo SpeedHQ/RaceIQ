@@ -6,6 +6,10 @@
  * to .bin.gz. Skips if a session is active to avoid competing with live writes.
  */
 import { unlinkSync } from "fs";
+import { gzip } from "zlib";
+import { promisify } from "util";
+
+const gzipAsync = promisify(gzip);
 import { getUncompressedSessions, updateSessionRawFile } from "./db/queries";
 import { isSessionActive } from "./pipeline";
 import { db } from "./db/index";
@@ -18,7 +22,7 @@ const INTERVAL_MS = 5 * 60 * 1000;
 async function compressSession(id: number, binPath: string): Promise<void> {
   const gzPath = binPath + ".gz";
   const data = await Bun.file(binPath).arrayBuffer();
-  const compressed = await Bun.gzip(new Uint8Array(data));
+  const compressed = await gzipAsync(Buffer.from(data));
   await Bun.write(gzPath, compressed);
 
   // Fetch current lapDetectorVersion to preserve it in the update

@@ -691,4 +691,28 @@ export const miscRoutes = new Hono()
         "Content-Disposition": `attachment; filename="raceiq-diagnostics.zip"`,
       },
     });
+  })
+
+  // GET /api/storage/sessions — recording file stats
+  .get("/api/storage/sessions", (c) => {
+    const sessionsDir = resolve(process.env.DATA_DIR ?? USER_DATA_DIR, "sessions");
+    if (!existsSync(sessionsDir)) {
+      return c.json({ total: 0, binCount: 0, gzCount: 0, totalBytes: 0, binBytes: 0, gzBytes: 0 });
+    }
+    let binCount = 0, gzCount = 0, binBytes = 0, gzBytes = 0;
+    for (const file of readdirSync(sessionsDir)) {
+      try {
+        const size = statSync(join(sessionsDir, file)).size;
+        if (file.endsWith(".bin.gz")) { gzCount++; gzBytes += size; }
+        else if (file.endsWith(".bin"))  { binCount++; binBytes += size; }
+      } catch { /* skip unreadable entries */ }
+    }
+    return c.json({
+      total: binCount + gzCount,
+      binCount,
+      gzCount,
+      totalBytes: binBytes + gzBytes,
+      binBytes,
+      gzBytes,
+    });
   });
