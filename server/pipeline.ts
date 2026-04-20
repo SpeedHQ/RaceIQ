@@ -1,4 +1,5 @@
 import { resolve } from "path";
+import { mkdirSync } from "fs";
 import type { TelemetryPacket, GameId, LapMeta } from "../shared/types";
 import { type DbAdapter, type WsAdapter, RealDbAdapter, RealWsAdapter } from "./pipeline-adapters";
 import type { ILapDetector, LapDetectorCallbacks } from "./lap-detector-interface";
@@ -59,7 +60,9 @@ export class Pipeline {
         // Open append-only raw session file
         const dataDir = process.env.DATA_DIR ?? "./data";
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const filePath = resolve(dataDir, "sessions", `${session.gameId}-${timestamp}.bin`);
+        const sessionDir = resolve(dataDir, "sessions", session.gameId);
+        mkdirSync(sessionDir, { recursive: true });
+        const filePath = resolve(sessionDir, `${timestamp}.bin`);
         this._sessionRecorder = new UdpRecorder();
         this._sessionRecorder.start(filePath);
         this._sessionRecorder.writeMetaFrame(Buffer.alloc(0));

@@ -697,14 +697,26 @@ export const miscRoutes = new Hono()
   .get("/api/storage/sessions", (c) => {
     const sessionsDir = resolve(process.env.DATA_DIR ?? USER_DATA_DIR, "sessions");
     if (!existsSync(sessionsDir)) {
-      return c.json({ total: 0, binCount: 0, gzCount: 0, totalBytes: 0, binBytes: 0, gzBytes: 0 });
+      return c.json({ total: 0, binCount: 0, gzCount: 0, totalBytes: 0, binBytes: 0, gzBytes: 0, diskTotal: 0, diskFree: 0 });
     }
     let binCount = 0, gzCount = 0, binBytes = 0, gzBytes = 0;
-    for (const file of readdirSync(sessionsDir)) {
+    for (const entry of readdirSync(sessionsDir)) {
+      const entryPath = join(sessionsDir, entry);
       try {
-        const size = statSync(join(sessionsDir, file)).size;
-        if (file.endsWith(".bin.gz")) { gzCount++; gzBytes += size; }
-        else if (file.endsWith(".bin"))  { binCount++; binBytes += size; }
+        const entryStat = statSync(entryPath);
+        if (entryStat.isDirectory()) {
+          // per-game subdir
+          for (const file of readdirSync(entryPath)) {
+            try {
+              const size = statSync(join(entryPath, file)).size;
+              if (file.endsWith(".bin.gz")) { gzCount++; gzBytes += size; }
+              else if (file.endsWith(".bin"))  { binCount++; binBytes += size; }
+            } catch { /* skip */ }
+          }
+        } else {
+          if (entry.endsWith(".bin.gz")) { gzCount++; gzBytes += entryStat.size; }
+          else if (entry.endsWith(".bin"))  { binCount++; binBytes += entryStat.size; }
+        }
       } catch { /* skip unreadable entries */ }
     }
     let diskTotal = 0, diskFree = 0;
