@@ -700,25 +700,30 @@ export const miscRoutes = new Hono()
       return c.json({ total: 0, binCount: 0, gzCount: 0, totalBytes: 0, binBytes: 0, gzBytes: 0, diskTotal: 0, diskFree: 0 });
     }
     let binCount = 0, gzCount = 0, binBytes = 0, gzBytes = 0;
+    const byGame: Record<string, { binCount: number; gzCount: number; binBytes: number; gzBytes: number }> = {};
+
+    function tally(gameId: string, file: string, size: number) {
+      const g = byGame[gameId] ??= { binCount: 0, gzCount: 0, binBytes: 0, gzBytes: 0 };
+      if (file.endsWith(".bin.gz")) { gzCount++; gzBytes += size; g.gzCount++; g.gzBytes += size; }
+      else if (file.endsWith(".bin")) { binCount++; binBytes += size; g.binCount++; g.binBytes += size; }
+    }
+
     for (const entry of readdirSync(sessionsDir)) {
       const entryPath = join(sessionsDir, entry);
       try {
         const entryStat = statSync(entryPath);
         if (entryStat.isDirectory()) {
-          // per-game subdir
           for (const file of readdirSync(entryPath)) {
             try {
-              const size = statSync(join(entryPath, file)).size;
-              if (file.endsWith(".bin.gz")) { gzCount++; gzBytes += size; }
-              else if (file.endsWith(".bin"))  { binCount++; binBytes += size; }
+              tally(entry, file, statSync(join(entryPath, file)).size);
             } catch { /* skip */ }
           }
         } else {
-          if (entry.endsWith(".bin.gz")) { gzCount++; gzBytes += entryStat.size; }
-          else if (entry.endsWith(".bin"))  { binCount++; binBytes += entryStat.size; }
+          tally("legacy", entry, entryStat.size);
         }
       } catch { /* skip unreadable entries */ }
     }
+
     let diskTotal = 0, diskFree = 0;
     try {
       const s = (require("fs") as typeof import("fs")).statfsSync(sessionsDir);
@@ -732,6 +737,7 @@ export const miscRoutes = new Hono()
       totalBytes: binBytes + gzBytes,
       binBytes,
       gzBytes,
+      byGame,
       diskTotal,
       diskFree,
     });

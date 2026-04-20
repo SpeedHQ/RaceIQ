@@ -1,6 +1,13 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { HardDrive, Loader2 } from "lucide-react";
 
+interface GameStorageStats {
+  binCount: number;
+  gzCount: number;
+  binBytes: number;
+  gzBytes: number;
+}
+
 interface SessionStorageStats {
   total: number;
   binCount: number;
@@ -8,6 +15,7 @@ interface SessionStorageStats {
   totalBytes: number;
   binBytes: number;
   gzBytes: number;
+  byGame: Record<string, GameStorageStats>;
   diskTotal: number;
   diskFree: number;
 }
@@ -39,7 +47,6 @@ function DonutChart({ binCount, gzCount }: { binCount: number; gzCount: number }
   const gzFraction = gzCount / total;
   const binFraction = binCount / total;
 
-  // gz arc (compressed, blue) starts at top (-90deg), bin arc follows
   const gzDash = gzFraction * circumference;
   const binDash = binFraction * circumference;
   const binOffset = -(gzFraction * circumference);
@@ -47,7 +54,6 @@ function DonutChart({ binCount, gzCount }: { binCount: number; gzCount: number }
   return (
     <div className="flex items-center gap-6">
       <svg width="120" height="120" viewBox="0 0 120 120">
-        {/* gz segment */}
         <circle
           cx={cx} cy={cy} r={r}
           fill="none"
@@ -57,7 +63,6 @@ function DonutChart({ binCount, gzCount }: { binCount: number; gzCount: number }
           strokeDashoffset={circumference / 4}
           strokeLinecap="butt"
         />
-        {/* bin segment */}
         <circle
           cx={cx} cy={cy} r={r}
           fill="none"
@@ -67,7 +72,6 @@ function DonutChart({ binCount, gzCount }: { binCount: number; gzCount: number }
           strokeDashoffset={circumference / 4 + binOffset}
           strokeLinecap="butt"
         />
-        {/* center label */}
         <text x={cx} y={cy - 6} textAnchor="middle" fill="white" fontSize="18" fontWeight="600">{total}</text>
         <text x={cx} y={cy + 10} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="10">files</text>
       </svg>
@@ -87,6 +91,37 @@ function DonutChart({ binCount, gzCount }: { binCount: number; gzCount: number }
   );
 }
 
+function GameBreakdown({ gameId, stats }: { gameId: string; stats: GameStorageStats }) {
+  const total = stats.binCount + stats.gzCount;
+  const totalBytes = stats.binBytes + stats.gzBytes;
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 space-y-1">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-white uppercase tracking-wide">{gameId}</span>
+        <span className="text-xs text-white/40">{total} file{total !== 1 ? "s" : ""} — {fmt(totalBytes)}</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-white/50 flex items-center gap-1.5">
+          <span className="size-2 rounded-sm bg-white/20 inline-block" />
+          Uncompressed
+        </span>
+        <span className="text-xs text-white/70">
+          {stats.binCount > 0 ? `${stats.binCount} — ${fmt(stats.binBytes)}` : "—"}
+        </span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-white/50 flex items-center gap-1.5">
+          <span className="size-2 rounded-sm bg-blue-500 inline-block" />
+          Compressed
+        </span>
+        <span className="text-xs text-white/70">
+          {stats.gzCount > 0 ? `${stats.gzCount} — ${fmt(stats.gzBytes)}` : "—"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function StorageSection() {
   const { data, isLoading, isError, refetch } = useQuery<SessionStorageStats>({
     queryKey: ["storage", "sessions"],
@@ -98,6 +133,8 @@ export function StorageSection() {
     mutationFn: () => fetch("/api/storage/compress", { method: "POST" }).then((r) => r.json()),
     onSuccess: () => void refetch(),
   });
+
+  const gameEntries = data?.byGame ? Object.entries(data.byGame) : [];
 
   return (
     <section className="space-y-6">
@@ -118,7 +155,7 @@ export function StorageSection() {
           </div>
         )}
         {data && (
-          <div className="rounded-lg border border-white/10 bg-white/5 px-4 divide-y divide-white/5">
+          <div className="rounded-lg border border-white/10 bg-white/5 px-4 divide-y divide-white/5 mb-4">
             <StatRow label="Total size" value={fmt(data.totalBytes)} />
             <StatRow
               label="Uncompressed (.bin)"
@@ -140,6 +177,14 @@ export function StorageSection() {
                 <StatRow label="Disk free" value={fmt(data.diskFree)} />
               </>
             )}
+          </div>
+        )}
+        {gameEntries.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-white/40 uppercase tracking-wide">By game</p>
+            {gameEntries.map(([gameId, stats]) => (
+              <GameBreakdown key={gameId} gameId={gameId} stats={stats} />
+            ))}
           </div>
         )}
         {data && data.total === 0 && (
