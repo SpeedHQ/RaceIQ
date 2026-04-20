@@ -1,0 +1,51 @@
+name: PR Playwright — Tunes
+
+# Runs the Linux-based tunes E2E suite on pull requests that touch either the
+# Playwright config/specs themselves or the server + client code they depend
+# on. See pr-playwright-fresh-install.yml for the heavier Windows suite.
+
+on:
+  pull_request:
+    paths:
+      - 'client/e2e/**'
+      - 'client/playwright.tunes.config.ts'
+      - '.github/workflows/pr-playwright.yml'
+      - 'server/routes/tune-routes.ts'
+      - 'server/db/tune-queries.ts'
+      - 'server/db/schema.ts'
+      - 'server/db/migrations.ts'
+      - 'client/src/components/setup-tune/**'
+      - 'client/src/components/TuneForm.tsx'
+      - 'client/src/routes/*/tunes/**'
+      - 'client/src/routes/*/tunes.tsx'
+
+jobs:
+  tunes-e2e:
+    runs-on: blacksmith-2vcpu-ubuntu-2204
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install workspace deps
+        run: bun install
+
+      - name: Install client deps
+        working-directory: client
+        run: bun install
+
+      - name: Install Chromium
+        working-directory: client
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run tunes E2E
+        working-directory: client
+        run: bun run test:tunes:e2e
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tunes-e2e-traces
+          path: client/test-results
+          retention-days: 7
