@@ -116,11 +116,13 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
               <TD>
                 <div className="flex items-center gap-2">
                   <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
-                  <Button variant="app-outline" size="app-sm" className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    onClick={(e) => { e.stopPropagation(); navigate({ to: `${gameRoute}/analyse` as any, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } as any }); }}>
-                    Analyse
-                  </Button>
+                  {!lap.isLegacy && (
+                    <Button variant="app-outline" size="app-sm" className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      onClick={(e) => { e.stopPropagation(); navigate({ to: `${gameRoute}/analyse` as any, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } as any }); }}>
+                      Analyse
+                    </Button>
+                  )}
                 </div>
               </TD>
               <TD>
@@ -398,6 +400,7 @@ const deleteSelected = useCallback(async () => {
             const lapA = allLaps.find((l) => l.id === ids[0]);
             const lapB = allLaps.find((l) => l.id === ids[1]);
             if (!lapA || !lapB) return null;
+            if (lapA.isLegacy || lapB.isLegacy) return null;
             const sessA = sessions.find((s) => s.id === lapA.sessionId);
             const sessB = sessions.find((s) => s.id === lapB.sessionId);
             if (!sessA || !sessB) return null;

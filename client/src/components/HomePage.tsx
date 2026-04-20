@@ -5,6 +5,7 @@ import { useLaps, useSettings } from "../hooks/queries";
 import { formatLapTime } from "./LiveTelemetry";
 import { client } from "../lib/rpc";
 import type { LapMeta } from "@shared/types";
+import { RAW_STORAGE_VERSION } from "@shared/types";
 import { useGameId, getGameRoute } from "../stores/game";
 import { tryGetGame } from "@shared/games/registry";
 import { useUiStore } from "../stores/ui";
@@ -62,7 +63,7 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
           return (
             <TRow
               key={lap.id}
-              tooltip={isLegacy ? "Recorded before raw telemetry storage — analysis unavailable" : undefined}
+              tooltip={isLegacy ? `Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable` : undefined}
               onClick={isLegacy ? undefined : () => {
                 if (!lap.gameId) return;
                 window.location.href = `${getGameRoute(lap.gameId)}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`;
