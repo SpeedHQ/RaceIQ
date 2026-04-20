@@ -723,7 +723,7 @@ export const miscRoutes = new Hono()
             } catch { /* skip */ }
           }));
         } else {
-          tally("legacy", entry, entryStat.size);
+          // flat files pre-date per-game subdirs — skip
         }
       } catch { /* skip unreadable entries */ }
     }));
