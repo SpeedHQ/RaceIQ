@@ -30,6 +30,11 @@ export class Pipeline {
     return this._lapDetector;
   }
 
+  /** True while a session is being recorded (session recorder is open). */
+  get isSessionActive(): boolean {
+    return this._sessionRecorder !== null;
+  }
+
   /** In-memory session laps — sent to newly connected WS clients. */
   get sessionLaps(): readonly LapMeta[] {
     return this._sessionLaps;
@@ -265,6 +270,11 @@ const _maintenanceInterval = setInterval(() => _default.lapDetector?.flushStaleL
 /** Stop the module-level maintenance interval. Call in test/bench contexts to allow clean exit. */
 export function stopMaintenanceTasks(): void {
   clearInterval(_maintenanceInterval);
+}
+
+/** True while a session is actively being recorded. */
+export function isSessionActive(): boolean {
+  return _default.isSessionActive;
 }
 
 /** Flush and close the active session recorder. Call on graceful shutdown. */

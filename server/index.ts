@@ -175,9 +175,11 @@ if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
 // default SIGINT path exits before the buffer drains and the file ends up
 // zero-length (or missing the tail).
 import { flushSessionRecorder } from "./pipeline";
+import { stopSessionCompressor } from "./session-compressor";
 
 const gracefulShutdown = async (signal: NodeJS.Signals) => {
   console.log(`[Server] Received ${signal} — flushing session recorder...`);
+  stopSessionCompressor();
   try {
     const tasks: Promise<unknown>[] = [flushSessionRecorder()];
     if (recordingGameId) {
@@ -255,6 +257,9 @@ if (firstRun) {
     }
   } catch {}
 }
+
+import { startSessionCompressor } from "./session-compressor";
+startSessionCompressor();
 
 console.log(`[Server] RaceIQ Server is ready!`);
 console.log(`[Server] Listening for UDP on port ${udpPort}`);

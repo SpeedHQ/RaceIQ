@@ -532,6 +532,25 @@ export async function getStaleSessions(currentIds: string | string[]): Promise<n
 }
 
 /**
+ * Get sessions with uncompressed raw files (.bin) older than the given age in ms.
+ */
+export async function getUncompressedSessions(olderThanMs: number): Promise<{ id: number; rawFile: string }[]> {
+  const cutoff = new Date(Date.now() - olderThanMs).toISOString();
+  const rows = await db
+    .select({ id: sessions.id, rawFile: sessions.rawFile })
+    .from(sessions)
+    .where(
+      and(
+        sql`${sessions.rawFile} IS NOT NULL`,
+        sql`${sessions.rawFile} NOT LIKE '%.gz'`,
+        sql`${sessions.createdAt} < ${cutoff}`
+      )
+    )
+    .all();
+  return rows.filter((r): r is { id: number; rawFile: string } => r.rawFile !== null);
+}
+
+/**
  * Delete a session and all its laps. Returns number of laps deleted.
  */
 export async function deleteSession(sessionId: number): Promise<number> {
