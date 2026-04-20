@@ -10,8 +10,7 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "snapshot": "playwright test --update-snapshots && bun scripts/copy-snapshots.ts",
-    "snapshot:test": "playwright test",
-    "test:tunes:e2e": "playwright test --config=playwright.tunes.config.ts"
+    "snapshot:test": "playwright test"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.0",
