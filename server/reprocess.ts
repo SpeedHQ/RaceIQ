@@ -5,7 +5,6 @@
 import { getServerGame } from "./games/registry";
 import { CapturingDbAdapter } from "./pipeline-adapters";
 import { META_FRAME_MAGIC } from "./udp-recorder";
-import { LAP_DETECTOR_ID } from "./lap-detector";
 import type { GameId } from "../shared/types";
 import {
   getLapsForSession,

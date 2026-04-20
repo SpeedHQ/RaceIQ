@@ -102,6 +102,8 @@ interface TelemetryState {
   sessionLaps: LapMeta[];
   /** Stale lap detection notification — null if dismissed or no stale sessions */
   staleLapDetection: { sessionCount: number; currentVersion: string } | null;
+  /** Active reprocess progress — null when not reprocessing */
+  reprocessProgress: { done: number; total: number } | null;
   setConnected: (connected: boolean) => void;
   setPacket: (packet: TelemetryPacket) => void;
   setSectors: (sectors: LiveSectorData) => void;
@@ -114,6 +116,8 @@ interface TelemetryState {
   setUpdateProgress: (progress: TelemetryState["updateProgress"]) => void;
   setVersionInfo: (info: VersionInfo) => void;
   setStaleLapDetection: (data: { sessionCount: number; currentVersion: string } | null) => void;
+  setReprocessProgress: (progress: { done: number; total: number } | null) => void;
+  incrementReprocessProgress: () => void;
   devState: unknown | null;
   devStatePaused: boolean;
   setDevState: (state: unknown) => void;
@@ -142,6 +146,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   versionInfo: null,
   sessionLaps: [],
   staleLapDetection: null,
+  reprocessProgress: null,
   devState: null,
   devStatePaused: false,
   setConnected: (connected) => set((prev) => {
@@ -175,6 +180,11 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   }),
   setUpdateAvailable: (version) => set({ updateAvailable: version }),
   setStaleLapDetection: (data) => set({ staleLapDetection: data }),
+  setReprocessProgress: (progress) => set({ reprocessProgress: progress }),
+  incrementReprocessProgress: () => set((prev) => {
+    if (!prev.reprocessProgress) return {};
+    return { reprocessProgress: { ...prev.reprocessProgress, done: prev.reprocessProgress.done + 1 } };
+  }),
   setUpdateProgress: (progress) => set({ updateProgress: progress }),
   setVersionInfo: (info) => set({ versionInfo: info }),
   setDevState: (state) => {

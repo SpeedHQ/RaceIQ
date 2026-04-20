@@ -63,6 +63,7 @@ export function useWebSocket() {
           } else if (data.type === "lap-reprocessed") {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             queryClient.invalidateQueries({ queryKey: ["sessions"] });
+            useTelemetryStore.getState().incrementReprocessProgress();
           } else {
             const { _sectors, _pit, ...packet } = data;
             const s = useTelemetryStore.getState();
