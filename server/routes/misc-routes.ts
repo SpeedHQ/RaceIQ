@@ -707,6 +707,12 @@ export const miscRoutes = new Hono()
         else if (file.endsWith(".bin"))  { binCount++; binBytes += size; }
       } catch { /* skip unreadable entries */ }
     }
+    let diskTotal = 0, diskFree = 0;
+    try {
+      const s = (require("fs") as typeof import("fs")).statfsSync(sessionsDir);
+      diskTotal = s.blocks * s.bsize;
+      diskFree = s.bfree * s.bsize;
+    } catch { /* statfsSync unavailable on some platforms */ }
     return c.json({
       total: binCount + gzCount,
       binCount,
@@ -714,5 +720,13 @@ export const miscRoutes = new Hono()
       totalBytes: binBytes + gzBytes,
       binBytes,
       gzBytes,
+      diskTotal,
+      diskFree,
     });
+  })
+  // POST /api/storage/compress — trigger immediate compression of eligible sessions
+  .post("/api/storage/compress", async (c) => {
+    const { runCompressionNow } = await import("../session-compressor");
+    await runCompressionNow();
+    return c.json({ ok: true });
   });

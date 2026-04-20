@@ -37,6 +37,10 @@ async function compressSession(id: number, binPath: string): Promise<void> {
   console.log(`[Compressor] ${binPath} → ${gzPath} (${(data.byteLength / 1024).toFixed(0)}KB → ${(compressed.byteLength / 1024).toFixed(0)}KB)`);
 }
 
+export async function runCompressionNow(): Promise<void> {
+  return runCompression();
+}
+
 async function runCompression(): Promise<void> {
   if (isSessionActive()) return;
 
