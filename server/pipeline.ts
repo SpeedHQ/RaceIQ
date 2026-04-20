@@ -9,7 +9,7 @@ import { tryGetGame } from "../shared/games/registry";
 import { getServerGame } from "./games/registry";
 import { fillNormSuspension } from "./telemetry-utils";
 import { UdpRecorder } from "./udp-recorder";
-import { LAP_DETECTOR_VERSION } from "./lap-detector";
+import { LAP_DETECTOR_ID } from "./lap-detector";
 
 export class Pipeline {
   private sectorTracker = new SectorTracker();
@@ -57,7 +57,7 @@ export class Pipeline {
         this._sessionRecorder = new UdpRecorder();
         this._sessionRecorder.start(filePath);
         this._sessionRecorder.writeMetaFrame(Buffer.alloc(0)); // reserved for future parser state snapshot
-        await this.db.updateSessionRawFile(session.sessionId, filePath, LAP_DETECTOR_VERSION);
+        await this.db.updateSessionRawFile(session.sessionId, filePath, LAP_DETECTOR_ID);
 
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
         this.pitTracker.reset();

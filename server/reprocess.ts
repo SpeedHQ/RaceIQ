@@ -5,7 +5,7 @@
 import { getServerGame } from "./games/registry";
 import { CapturingDbAdapter } from "./pipeline-adapters";
 import { META_FRAME_MAGIC } from "./udp-recorder";
-import { LAP_DETECTOR_VERSION } from "./lap-detector";
+import { LAP_DETECTOR_ID } from "./lap-detector";
 import type { GameId } from "../shared/types";
 import {
   getLapsForSession,
@@ -134,7 +134,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   }
 
   // Update session lap detector version
-  await updateSessionRawFile(sessionId, session.rawFile, LAP_DETECTOR_VERSION);
+  await updateSessionRawFile(sessionId, session.rawFile, LAP_DETECTOR_ID);
 
   return {
     sessionId,

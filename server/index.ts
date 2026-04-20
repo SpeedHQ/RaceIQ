@@ -198,14 +198,14 @@ udpListener.start(udpPort);
 // Check for sessions recorded with an older lap detector version.
 // Stores the notification in wsManager so it's sent to each client on connect.
 import { countStaleSessions } from "./db/queries";
-import { LAP_DETECTOR_VERSION } from "./lap-detector";
-countStaleSessions(LAP_DETECTOR_VERSION).then((count) => {
+import { LAP_DETECTOR_ID } from "./lap-detector";
+countStaleSessions(LAP_DETECTOR_ID).then((count) => {
   if (count > 0) {
     console.log(`[Server] ${count} session(s) recorded with stale lap detector — will prompt user to reprocess`);
     wsManager.setStaleSessionsNotification({
       type: "stale-lap-detection",
       sessionCount: count,
-      currentVersion: LAP_DETECTOR_VERSION,
+      currentVersion: LAP_DETECTOR_ID,
     });
   }
 }).catch((err) => {
