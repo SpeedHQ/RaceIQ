@@ -13,6 +13,31 @@ import { dirname } from "path";
 /** Magic length value that marks a meta frame (not a real UDP packet). */
 export const META_FRAME_MAGIC = 0xffffffff;
 
+export interface SessionMeta {
+  gameId: string;
+  sessionId: number;
+  carOrdinal: number;
+  trackOrdinal: number;
+  lapDetectorId: string | undefined;
+  recordedAt: number;
+}
+
+/**
+ * Read and parse the session meta frame from a raw session buffer.
+ * Returns null if the file has no meta frame or the payload is empty/invalid.
+ */
+export function readSessionMeta(buf: Buffer): SessionMeta | null {
+  if (buf.length < 8) return null;
+  if (buf.readUInt32LE(0) !== META_FRAME_MAGIC) return null;
+  const payloadLen = buf.readUInt32LE(4);
+  if (payloadLen === 0 || buf.length < 8 + payloadLen) return null;
+  try {
+    return JSON.parse(buf.subarray(8, 8 + payloadLen).toString("utf8")) as SessionMeta;
+  } catch {
+    return null;
+  }
+}
+
 export class UdpRecorder {
   private _file: Bun.FileSink | null = null;
   private _path: string | null = null;
