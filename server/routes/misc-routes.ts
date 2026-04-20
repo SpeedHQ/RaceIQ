@@ -8,6 +8,7 @@ import { zipSync, strToU8 } from "fflate";
 import { lapDetector } from "../pipeline";
 import { wsManager } from "../ws";
 import { USER_TRACKS_DIR, IS_COMPILED, USER_DATA_DIR, ROOT_DIR } from "../paths";
+import { resolveDataDir } from "../data-dir";
 import { getUpdateState, startUpdateCheckSchedule, checkForUpdate, applyUpdate } from "../update-check";
 import { udpListener } from "../udp";
 import { getRunningGame } from "../games/registry";
@@ -696,7 +697,7 @@ export const miscRoutes = new Hono()
 
   // GET /api/storage/sessions — recording file stats
   .get("/api/storage/sessions", async (c) => {
-    const sessionsDir = resolve(process.env.DATA_DIR ?? USER_DATA_DIR, "sessions");
+    const sessionsDir = resolve(resolveDataDir(), "sessions");
     if (!existsSync(sessionsDir)) {
       return c.json({ total: 0, binCount: 0, gzCount: 0, totalBytes: 0, binBytes: 0, gzBytes: 0, byGame: {}, diskTotal: 0, diskFree: 0 });
     }
