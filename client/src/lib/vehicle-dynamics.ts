@@ -257,13 +257,17 @@ export function steerBalance(pkt: TelemetryPacket): SteerBalance {
   // reporting neutral. Don't let a yaw spike override that — yaw can be
   // driven by rear wheelspin / diff torque independent of cornering balance.
   const slipConfident = Math.abs(uSlip) >= 0.15;
+  // Slip angle is always authoritative. Yaw can only amplify in the same
+  // direction — never reduce. If the blend moves the result closer to zero
+  // than slip alone, discard it and use slip alone.
+  const blended = 0.5 * uSlip + 0.5 * yawContrib;
   const balanceRaw = speed < SPEED_FLOOR
     ? 0
     : !signalsAgree || !slipConfident
-      ? uSlip                                    // conflict or slip neutral → slip only
-      : yawActive
-        ? 0.5 * uSlip + 0.5 * yawContrib        // both active, agree → blend
-        : uSlip;                                 // yaw silent → slip only
+      ? uSlip                                                         // conflict or slip neutral → slip only
+      : yawActive && Math.abs(blended) > Math.abs(uSlip)
+        ? blended                                                     // yaw amplifies → use blend
+        : uSlip;                                                      // yaw dilutes or silent → slip only
   const balance = Math.max(-1.5, Math.min(1.5, balanceRaw));
 
   const moving = speed >= SPEED_FLOOR;

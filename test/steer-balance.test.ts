@@ -112,4 +112,66 @@ describe("steerBalance", () => {
     const b = steerBalance(pkt({ speedKph: 190, latG: 0.31, frontSlipDeg: 6.0, rearSlipDeg: 3.25 }));
     expect(b.state).toBe("understeer");
   });
+
+  // ── Yaw amplification rule ────────────────────────────────────────
+  // Yaw can only push the balance further from zero — never closer.
+  // When yaw agrees and is strong enough to amplify → use blend.
+  // When yaw agrees but is weak (blend < slip alone) → use slip alone.
+
+  test("yaw amplifies understeer when it strongly agrees: balance > uSlip alone", () => {
+    // ACC-like: 100 kph, high latG, yaw rotating less than expected (understeer)
+    // yawRatePath at 100 kph / 1.5g = 1.5*9.81/27.8 = 0.529 rad/s
+    // yawRate below path → over-stable → yaw says understeer too
+    const speed = 100;
+    const latG = 1.5;
+    const yawRatePath = (latG * G) / (speed / 3.6);
+    const yawRate = yawRatePath * 0.5; // rotating at half the expected rate → understeer
+    const b = steerBalance(pkt({ speedKph: speed, latG, frontSlipDeg: 6, rearSlipDeg: 3, yawRate }));
+    expect(b.state).toBe("understeer");
+    expect(b.signalsAgree).toBe(true);
+    // Balance should be ≥ uSlip alone (0.5) — yaw amplified, not diluted
+    expect(b.balance).toBeGreaterThanOrEqual(6 / 3 / 6); // uSlip = (6-3)/6 = 0.5
+  });
+
+  test("weak yaw does NOT dilute clear understeer: balance equals uSlip alone", () => {
+    // ACC pkt 360 scenario: front 5.9°, rear 3.3°, weak yaw (uYaw ≈ +0.07)
+    // Old blend: 0.5*0.43 + 0.5*0.07 = 0.25 → neutral (wrong)
+    // New rule: yaw too weak to amplify → use uSlip alone (0.43 → understeer)
+    const speed = 150;
+    const latG = 1.39;
+    const yawRatePath = (latG * G) / (speed / 3.6);
+    // yaw slightly below path (weak understeer signal from yaw)
+    const yawRate = yawRatePath * 0.98;
+    const b = steerBalance(pkt({ speedKph: speed, latG, frontSlipDeg: 5.9, rearSlipDeg: 3.3, yawRate }));
+    expect(b.state).toBe("understeer");
+    // Balance should be close to uSlip alone (2.6°/6 = 0.43), not the diluted blend
+    expect(b.balance).toBeGreaterThan(0.35);
+  });
+
+  test("yaw amplifies oversteer when it strongly agrees: balance < uSlip alone", () => {
+    // ACC pkt 2153: rear slip > front, yaw also over-rotating → amplified oversteer
+    const speed = 122;
+    const latG = 1.32;
+    const yawRatePath = (latG * G) / (speed / 3.6);
+    const yawRate = yawRatePath * 1.5; // rotating faster than path → oversteer from yaw
+    const b = steerBalance(pkt({ speedKph: speed, latG, frontSlipDeg: 2.8, rearSlipDeg: 3.8, yawRate }));
+    expect(b.state).toBe("oversteer");
+    // Balance should be ≤ uSlip alone (-1/6 = -0.17) — amplified further negative
+    expect(b.balance).toBeLessThan(-0.17);
+  });
+
+  test("yaw conflict on oversteer: slip says over, yaw says under → slip wins", () => {
+    // ACC pkt 3943: front 0°, rear 3.1°, but yaw under-rotating (uYaw positive)
+    // Signals conflict → use slip alone → oversteer
+    const speed = 149;
+    const latG = 0.95;
+    const yawRatePath = (latG * G) / (speed / 3.6);
+    const yawRate = yawRatePath * 0.5; // under-rotating → yaw says understeer
+    const b = steerBalance(pkt({ speedKph: speed, latG, frontSlipDeg: 0.5, rearSlipDeg: 3.1, yawRate }));
+    expect(b.signalsAgree).toBe(false);
+    expect(b.state).toBe("oversteer");
+    // Balance driven by slip alone
+    const uSlipAlone = (0.5 - 3.1) / 6;
+    expect(b.balance).toBeCloseTo(uSlipAlone, 1);
+  });
 });
