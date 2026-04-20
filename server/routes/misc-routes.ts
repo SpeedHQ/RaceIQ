@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { existsSync, readdirSync, mkdirSync, readFileSync, writeFileSync, rmSync, statSync } from "fs";
+import { readdir, stat, statfs } from "fs/promises";
 import { resolve, join } from "path";
 import { arch, platform, release, type as osType, cpus, networkInterfaces, totalmem, freemem, uptime as osUptime } from "os";
 import { zipSync, strToU8 } from "fflate";
@@ -694,10 +695,10 @@ export const miscRoutes = new Hono()
   })
 
   // GET /api/storage/sessions — recording file stats
-  .get("/api/storage/sessions", (c) => {
+  .get("/api/storage/sessions", async (c) => {
     const sessionsDir = resolve(process.env.DATA_DIR ?? USER_DATA_DIR, "sessions");
     if (!existsSync(sessionsDir)) {
-      return c.json({ total: 0, binCount: 0, gzCount: 0, totalBytes: 0, binBytes: 0, gzBytes: 0, diskTotal: 0, diskFree: 0 });
+      return c.json({ total: 0, binCount: 0, gzCount: 0, totalBytes: 0, binBytes: 0, gzBytes: 0, byGame: {}, diskTotal: 0, diskFree: 0 });
     }
     let binCount = 0, gzCount = 0, binBytes = 0, gzBytes = 0;
     const byGame: Record<string, { binCount: number; gzCount: number; binBytes: number; gzBytes: number }> = {};
@@ -708,28 +709,31 @@ export const miscRoutes = new Hono()
       else if (file.endsWith(".bin")) { binCount++; binBytes += size; g.binCount++; g.binBytes += size; }
     }
 
-    for (const entry of readdirSync(sessionsDir)) {
+    const entries = await readdir(sessionsDir);
+    await Promise.all(entries.map(async (entry) => {
       const entryPath = join(sessionsDir, entry);
       try {
-        const entryStat = statSync(entryPath);
+        const entryStat = await stat(entryPath);
         if (entryStat.isDirectory()) {
-          for (const file of readdirSync(entryPath)) {
+          const files = await readdir(entryPath);
+          await Promise.all(files.map(async (file) => {
             try {
-              tally(entry, file, statSync(join(entryPath, file)).size);
+              const { size } = await stat(join(entryPath, file));
+              tally(entry, file, size);
             } catch { /* skip */ }
-          }
+          }));
         } else {
           tally("legacy", entry, entryStat.size);
         }
       } catch { /* skip unreadable entries */ }
-    }
+    }));
 
     let diskTotal = 0, diskFree = 0;
     try {
-      const s = (require("fs") as typeof import("fs")).statfsSync(sessionsDir);
+      const s = await statfs(sessionsDir);
       diskTotal = s.blocks * s.bsize;
       diskFree = s.bfree * s.bsize;
-    } catch { /* statfsSync unavailable on some platforms */ }
+    } catch { /* statfs unavailable on some platforms */ }
     return c.json({
       total: binCount + gzCount,
       binCount,
