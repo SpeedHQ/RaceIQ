@@ -7,7 +7,10 @@ import { IdParamSchema } from "../../shared/schemas";
 import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions } from "../db/queries";
 import { reprocessSession } from "../reprocess";
 import { LAP_DETECTOR_ID } from "../lap-detector";
+import { LAP_DETECTOR_V2_ID } from "../lap-detector-ac";
 import { wsManager } from "../ws";
+
+const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_V2_ID];
 
 export const sessionRoutes = new Hono()
   // GET /api/sessions
@@ -37,7 +40,7 @@ export const sessionRoutes = new Hono()
       const { id } = c.req.valid("param");
       const result = await reprocessSession(id);
       wsManager.broadcastNotification({ type: "lap-reprocessed", ...result });
-      const remaining = await countStaleSessions(LAP_DETECTOR_ID);
+      const remaining = await countStaleSessions(ALL_DETECTOR_IDS);
       if (remaining === 0) wsManager.setStaleSessionsNotification(null);
       return c.json(result);
     },
@@ -45,7 +48,7 @@ export const sessionRoutes = new Hono()
 
   // POST /api/sessions/reprocess-stale — reprocess all sessions with outdated lap detector
   .post("/api/sessions/reprocess-stale", async (c) => {
-    const staleIds = await getStaleSessions(LAP_DETECTOR_ID);
+    const staleIds = await getStaleSessions(ALL_DETECTOR_IDS);
     const results = [];
     for (const id of staleIds) {
       const result = await reprocessSession(id);

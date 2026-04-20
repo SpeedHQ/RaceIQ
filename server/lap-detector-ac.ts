@@ -1,4 +1,4 @@
-// server/lap-detector-v2.ts
+// server/lap-detector-ac.ts
 import type { TelemetryPacket } from "@shared/types";
 import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface";
 import type { SessionState } from "./lap-detector";
@@ -8,7 +8,10 @@ import { assessLapRecording } from "./lap-quality";
 import { computeLapSectors } from "./compute-lap-sectors";
 import { accFirstPacketIsMidLap, classifyAccPitLap } from "./acc-lap-rules";
 
+export const LAP_DETECTOR_V2_ID = "ac_lapdetector_v2";
+
 export class LapDetectorV2 implements ILapDetector {
+  readonly detectorId = LAP_DETECTOR_V2_ID;
   private readonly db: DbAdapter;
   private readonly onLapSaved?: LapDetectorCallbacks["onLapSaved"];
   private readonly onSessionStart?: LapDetectorCallbacks["onSessionStart"];

@@ -134,7 +134,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   }
 
   // Update session lap detector version
-  await updateSessionRawFile(sessionId, session.rawFile, LAP_DETECTOR_ID);
+  await updateSessionRawFile(sessionId, session.rawFile, detector.detectorId);
 
   return {
     sessionId,

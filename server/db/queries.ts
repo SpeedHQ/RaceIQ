@@ -1,4 +1,4 @@
-import { eq, desc, and, or, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared/types";
@@ -498,14 +498,15 @@ export async function deleteLap(id: number): Promise<boolean> {
 /**
  * Count sessions with stale lap detector version that have a raw file (can be reprocessed).
  */
-export async function countStaleSessions(currentVersion: string): Promise<number> {
+export async function countStaleSessions(currentIds: string | string[]): Promise<number> {
+  const ids = Array.isArray(currentIds) ? currentIds : [currentIds];
   const rows = await db
     .select({ id: sessions.id })
     .from(sessions)
     .where(
       and(
         sql`${sessions.rawFile} IS NOT NULL`,
-        sql`(${sessions.lapDetectorVersion} IS NULL OR ${sessions.lapDetectorVersion} != ${currentVersion})`
+        or(isNull(sessions.lapDetectorVersion), notInArray(sessions.lapDetectorVersion, ids))
       )
     )
     .all();
@@ -515,14 +516,15 @@ export async function countStaleSessions(currentVersion: string): Promise<number
 /**
  * Get IDs of sessions with stale lap detector version that have a raw file.
  */
-export async function getStaleSessions(currentVersion: string): Promise<number[]> {
+export async function getStaleSessions(currentIds: string | string[]): Promise<number[]> {
+  const ids = Array.isArray(currentIds) ? currentIds : [currentIds];
   const rows = await db
     .select({ id: sessions.id })
     .from(sessions)
     .where(
       and(
         sql`${sessions.rawFile} IS NOT NULL`,
-        sql`(${sessions.lapDetectorVersion} IS NULL OR ${sessions.lapDetectorVersion} != ${currentVersion})`
+        or(isNull(sessions.lapDetectorVersion), notInArray(sessions.lapDetectorVersion, ids))
       )
     )
     .all();

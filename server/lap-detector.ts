@@ -57,7 +57,7 @@ export interface LapSavedNotification extends LapSavedEvent {
 }
 
 /** Bump this whenever lap detection logic changes — triggers UI prompt to reprocess old sessions. */
-export const LAP_DETECTOR_ID = "base";
+export const LAP_DETECTOR_ID = "lapdetector_v1";
 
 export interface LapCompleteEvent {
   packets: TelemetryPacket[];
@@ -68,6 +68,7 @@ export interface LapCompleteEvent {
 }
 
 export class LapDetector implements ILapDetector {
+  readonly detectorId = LAP_DETECTOR_ID;
   private readonly bypassPacketRateFilter: boolean;
   private db: DbAdapter;
 

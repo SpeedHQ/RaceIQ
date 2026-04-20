@@ -34,6 +34,7 @@ export interface LapDetectorOptions {
 
 /** Common interface implemented by all lap detector variants. */
 export interface ILapDetector {
+  readonly detectorId: string;
   readonly session: SessionState | null;
   feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void>;
   /** v1 only — optional so v2 doesn't have to implement it. */

@@ -3,7 +3,7 @@ import type { TelemetryPacket } from "../../../shared/types";
 import { acEvoAdapter } from "../../../shared/games/ac-evo";
 import { getAcEvoCarName } from "../../../shared/ac-evo-car-data";
 import { getAcEvoTrackName, getAcEvoSharedTrackName } from "../../../shared/ac-evo-track-data";
-import { LapDetectorV2 } from "../../lap-detector-v2";
+import { LapDetectorV2 } from "../../lap-detector-ac";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
 import { ACEVO_PACKED_MAGIC, unpackTriplet } from "../shared/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";

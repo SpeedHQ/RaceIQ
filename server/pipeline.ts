@@ -57,7 +57,7 @@ export class Pipeline {
         this._sessionRecorder = new UdpRecorder();
         this._sessionRecorder.start(filePath);
         this._sessionRecorder.writeMetaFrame(Buffer.alloc(0)); // reserved for future parser state snapshot
-        await this.db.updateSessionRawFile(session.sessionId, filePath, LAP_DETECTOR_ID);
+        await this.db.updateSessionRawFile(session.sessionId, filePath, this._lapDetector?.detectorId ?? LAP_DETECTOR_ID);
 
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
         this.pitTracker.reset();
