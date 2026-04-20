@@ -53,7 +53,8 @@ export class Pipeline {
         }
         // Open append-only raw session file
         const dataDir = process.env.DATA_DIR ?? "./data";
-        const filePath = resolve(dataDir, "sessions", `${session.sessionId}.bin`);
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const filePath = resolve(dataDir, "sessions", `${session.gameId}-${timestamp}.bin`);
         this._sessionRecorder = new UdpRecorder();
         this._sessionRecorder.start(filePath);
         this._sessionRecorder.writeMetaFrame(Buffer.alloc(0));
