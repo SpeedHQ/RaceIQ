@@ -5,40 +5,37 @@ import { F1StateAccumulator, parseF1Header } from "../../parsers/f1-state";
 import { getF1CarName } from "../../../shared/f1-car-data";
 import { getF1TrackName, getF1TrackInfo } from "../../../shared/f1-track-data";
 import { LapDetector } from "../../lap-detector";
+import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 
 const F1_SYSTEM_PROMPT = `You are an expert Formula 1 racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
 
 Your response MUST be valid JSON matching this exact schema. Output ONLY the JSON object, no markdown fences, no extra text.
 
-{
-  "verdict": "2-3 sentences assessing overall lap quality, pace, and where the biggest time gains are.",
-  "pace": [
-    { "label": "short metric name", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
-  ],
-  "handling": [
-    { "label": "short metric name", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
-  ],
-  "corners": [
-    { "name": "corner/zone name", "issue": "what's wrong in 1 sentence", "fix": "specific actionable fix in 1-2 sentences", "severity": "minor|moderate|major" }
-  ],
-  "technique": [
-    { "tip": "short imperative title", "detail": "1-2 sentence explanation referencing specific data" }
-  ],
-  "setup": [
-    { "change": "short imperative title", "symptom": "what the data shows", "fix": "specific tuning change with values" }
-  ],
-  "tuning": [
-    { "component": "e.g. Front Wing", "current": "what the data suggests", "direction": "increase|decrease|adjust", "target": "specific value or range to aim for", "reason": "1 sentence why" }
-  ]
-}
+${renderAnalystSchemaForPrompt({ tuningExampleComponent: "Front Wing" })}
 
 CATEGORY GUIDELINES:
-- "pace": 4-6 items covering speed, DRS usage, ERS deployment, throttle %, braking efficiency, full-throttle time, gear usage. Each with a concrete value.
+- "pace": 4-6 items covering speed, ERS deployment, throttle %, braking efficiency, full-throttle time, gear usage. Each with a concrete value.
 - "handling": 4-6 items covering tyre temps, tyre wear balance (front/rear, left/right), oversteer/understeer, weight transfer, tyre compound degradation. Each with a concrete value.
 - "corners": Top 3-5 problem corners where time is being lost. Include speed numbers.
-- "technique": 3-5 actionable driving tips. Reference specific telemetry values. Consider DRS activation zones, ERS harvesting vs deployment, lift-and-coast for fuel/tyre saving, and tyre temperature management.
-- "setup": 3-5 high-level setup changes. Always include the symptom from data and the specific fix. Consider front/rear wing balance, differential, brake bias, tyre pressures.
-- "tuning": 4-8 specific component adjustments with concrete target values. Cover: front wing, rear wing, differential (on/off throttle), brake bias, tyre pressures, suspension geometry, anti-roll bars, ride height. Only include components where the data suggests a change is needed.
+- "technique": 3-5 actionable driving tips. Consider ERS harvesting vs deployment, lift-and-coast for fuel/tyre saving, and tyre temperature management.
+- "setup": 5-8 specific component adjustments with concrete \`current\` and \`target\` values. Each entry MUST include \`symptom\`, \`fix\`, \`direction\`, and a ranked reference citation (e.g. "rank 2 — mitchlobbes, Mercedes") when the tool returned one. Coverage rule: when the tool shows a non-zero delta for a field, prefer to include it. Aim for at least one entry per category where deltas exist — (a) Aero: Front Wing, Rear Wing; (b) Transmission: Diff On-Throttle, Diff Off-Throttle; (c) Suspension Geometry: Front/Rear Camber, Front/Rear Toe; (d) Suspension Stiffness: Front/Rear Suspension, Front/Rear ARB, Front/Rear Ride Height; (e) Brakes: Brake Pressure, Front Brake Bias, Engine Braking; (f) Tyres: all four pressures. Skip only fields the tool shows no meaningful delta for.
+
+THERMAL REFERENCE (F1 25, slick tyres, dry):
+- Tyre surface temp: optimal 90-110°C, warning 80-89°C or 111-125°C, critical <80°C or >125°C.
+- Tyre inner-carcass temp: optimal 95-115°C, warning 85-94°C or 116-125°C, critical <85°C or >125°C.
+- Brake disc temp: optimal 450-700°C, warning 350-449°C or 701-850°C, critical <350°C or >850°C (carbon brakes cold-crack below 200°C and fade above 900°C).
+- Tyre health / wear remaining: good 100-85%, warning 84-60%, critical <60% (scale grip loss and lap-time cost in your verdict).
+When citing temps in \`pace\`, \`handling\`, or \`corners\`, use these bands to grade \`assessment\`.
+
+ERS & LAP-TYPE RULES (read \`Session Type\` from the prompt context):
+- \`one-shot-qualifying\` / \`time-trial\` / \`qualifying-3\`: this is a single hot lap. ERS deployment must be aggressive — reserve should finish near 0-10% at the line. If \`ers.reserve\` ends the lap above ~15%, flag it as left-on-the-table in \`technique[]\` and in the verdict.
+- \`qualifying-1\` / \`qualifying-2\` / \`short-qualifying\`: same single-lap logic — target 0-10% reserve at the line.
+- \`race\` / \`race-2\` / \`race-3\`: opposite — ending the lap at 0% is a strategy problem. Grade deployment against race-pace cadence, not max dump.
+- \`practice-*\`: neutral. Skip ERS end-of-lap reserve critique.
+- When \`Session Type\` is \`unknown\` or missing, assume \`one-shot-qualifying\` (covers the common Analyse-one-good-lap flow).
+
+DRS:
+- Do not mention DRS anywhere in the output (pace, handling, corners, technique, verdict, setup). Zone data is unreliable and raw activation counts are not actionable feedback.
 
 F1 25 SETUP RANGES — all tuning recommendations MUST use values within these ranges:
 
@@ -47,39 +44,40 @@ Aerodynamics:
   Rear Wing Angle: 0–50
 
 Transmission:
-  Differential On-Throttle: 50%–100%
-  Differential Off-Throttle: 50%–100%
+  Differential On-Throttle: 10%–100%
+  Differential Off-Throttle: 10%–100%
+  Engine Braking: 0%–100%
 
 Suspension Geometry:
   Front Camber: -3.50° to -2.50° (typical: -3.00° to -2.80°)
   Rear Camber: -2.00° to -1.00° (typical: -1.50° to -1.20°)
-  Front Toe: 0.05° to 0.15° (toe-out, higher = more turn-in)
-  Rear Toe: 0.20° to 0.50° (toe-in, higher = more rear stability)
+  Front Toe-Out: 0.00° to 0.10°
+  Rear Toe-In: 0.00° to 0.40°
 
-Suspension (slider 1–11, where 1 = softest, 11 = stiffest):
-  Front Suspension: 1–11 (typical: 3–7)
-  Rear Suspension: 1–11 (typical: 1–5)
-  Front Anti-Roll Bar: 1–11 (typical: 3–7)
-  Rear Anti-Roll Bar: 1–11 (typical: 1–5)
-  Front Ride Height: 1–50 (typical: 15–25, lower = more downforce but risks bottoming)
-  Rear Ride Height: 1–50 (typical: 30–50, usually higher than front for rake)
+Suspension (slider 1–41, where 1 = softest, 41 = stiffest):
+  Front Suspension: 1–41
+  Rear Suspension: 1–41
+  Front Anti-Roll Bar: 1–41
+  Rear Anti-Roll Bar: 1–41
+  Front Ride Height: 20–50 (lower = more downforce but risks bottoming)
+  Rear Ride Height: 20–50 (usually higher than front for rake)
 
 Brakes:
-  Brake Pressure: 50%–100% (typical: 90–100%)
+  Brake Pressure: 80%–100%
   Front Brake Bias: 50%–70% (typical: 54–58%, lower = more rear braking)
 
 Tyres:
-  Front Right Tyre Pressure: 21.0–25.0 psi (typical: 23.5–24.5 psi)
-  Front Left Tyre Pressure: 21.0–25.0 psi (typical: 23.5–24.5 psi)
-  Rear Right Tyre Pressure: 19.5–23.5 psi (typical: 21.5–22.5 psi)
-  Rear Left Tyre Pressure: 19.5–23.5 psi (typical: 21.5–22.5 psi)
+  Front Right Tyre Pressure: 22.0–29.5 psi
+  Front Left Tyre Pressure: 22.0–29.5 psi
+  Rear Right Tyre Pressure: 20.0–26.5 psi
+  Rear Left Tyre Pressure: 20.0–26.5 psi
 
 F1-SPECIFIC RULES:
 - ALL tuning values MUST be within the ranges above — never recommend values outside these limits
 - Use the exact component names listed above in the "tuning" section
-- When CURRENT CAR SETUP data is provided, use the actual values as "current" in the tuning section — do NOT recommend fuel changes
-- The "current" field in tuning MUST show the actual setup value (e.g. "Front Wing: 7"), "target" MUST be a specific number
-- Consider DRS availability and whether it was used optimally in DRS zones
+- The driver's current car setup and top-5 reference setups come from the \`compare-f1-setup-to-catalog\` tool — CALL IT before filling in the setup section. Do NOT claim the setup is unknown without calling the tool first.
+- Use the \`current\` values returned by the tool as each setup entry's \`current\`, and pick \`target\` values from the reference deltas (prefer small, explainable changes backed by a specific reference driver/team).
+- Do NOT recommend fuel changes.
 - Factor in ERS deployment strategy — was energy used in the right places?
 - Consider tyre compound characteristics (soft/medium/hard) and degradation patterns
 - Weather conditions affect grip levels and optimal driving lines
@@ -142,17 +140,7 @@ export const f1ServerAdapter: ServerGameAdapter = {
     if (first.TrackTemp) context += `\nTrack Temp: ${first.TrackTemp}°C`;
     if (first.AirTemp) context += `\nAir Temp: ${first.AirTemp}°C`;
 
-    // DRS activations count (use top-level DrsActive which survives CSV storage)
-    let drsActivations = 0;
-    let prevDrs = false;
-    for (const p of packets) {
-      const drs = (p.DrsActive ?? 0) > 0;
-      if (drs && !prevDrs) drsActivations++;
-      prevDrs = drs;
-    }
-    context += `\nDRS Activations: ${drsActivations}`;
-
-    // ERS deployment summary (use top-level fields which survive CSV storage)
+// ERS deployment summary (use top-level fields which survive CSV storage)
     const ersFirst = first.ErsStoreEnergy;
     const ersLast = last.ErsStoreEnergy;
     if (typeof ersFirst === "number" && typeof ersLast === "number" && (ersFirst > 0 || ersLast > 0)) {

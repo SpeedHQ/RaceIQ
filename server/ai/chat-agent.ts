@@ -44,7 +44,7 @@ export function getMastraModelId(
 ): string {
   switch (aiProvider) {
     case "gemini":
-      return `google/${aiModel || "gemini-2.0-flash"}`;
+      return `google/${aiModel || "gemini-flash-latest"}`;
     case "openai":
       return `openai/${aiModel || "gpt-4o-mini"}`;
     case "local": {

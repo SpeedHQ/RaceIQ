@@ -74,6 +74,13 @@ export function LapComparison() {
     // Directly redraw the map canvas without React re-render
     mapRedrawRef.current?.();
   }, []);
+  const handleJumpToFrac = useCallback((frac: number) => {
+    const distances = comparison?.traces?.distance;
+    if (!distances || distances.length === 0) return;
+    const idx = Math.max(0, Math.min(distances.length - 1, Math.floor(frac * distances.length)));
+    hoveredDistanceRef.current = distances[idx];
+    mapRedrawRef.current?.();
+  }, [comparison]);
 
   // Set cursor from URL param once comparison data loads
   const appliedInitialCursor = useRef(false);
@@ -202,8 +209,15 @@ export function LapComparison() {
     setLoading(true);
     setError(null);
     try {
-      const data = await client.api.laps[":id1"].compare[":id2"].$get({ param: { id1: String(lapAId), id2: String(lapBId) } }).then((r) => r.json() as unknown as ComparisonData);
-      setComparison(data);
+      const res = await client.api.laps[":id1"].compare[":id2"].$get({ param: { id1: String(lapAId), id2: String(lapBId) } });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        const msg = body.error ?? "Failed to load comparison data";
+        setError(msg.includes("no telemetry") ? "One or both laps were recorded before raw telemetry storage and cannot be compared." : msg);
+        setComparison(null);
+        return;
+      }
+      setComparison(await res.json() as unknown as ComparisonData);
     } catch {
       setError("Failed to load comparison data");
       setComparison(null);
@@ -503,6 +517,8 @@ export function LapComparison() {
             }}
             panelRef={aiPanelRef}
             onClose={toggleAiPanel}
+            segments={segmentTimings}
+            onJumpToFrac={handleJumpToFrac}
           />
         )}
         </div>

@@ -1,3 +1,6 @@
+import { resolve } from "path";
+import { mkdirSync } from "fs";
+import { resolveDataDir } from "./data-dir";
 import type { TelemetryPacket, GameId, LapMeta } from "../shared/types";
 import { type DbAdapter, type WsAdapter, RealDbAdapter, RealWsAdapter } from "./pipeline-adapters";
 import type { ILapDetector, LapDetectorCallbacks } from "./lap-detector-interface";
@@ -7,6 +10,8 @@ import { getTrackOutlineByOrdinal } from "../shared/track-data";
 import { tryGetGame } from "../shared/games/registry";
 import { getServerGame } from "./games/registry";
 import { fillNormSuspension } from "./telemetry-utils";
+import { UdpRecorder } from "./udp-recorder";
+import { LAP_DETECTOR_ID } from "./lap-detector";
 
 export class Pipeline {
   private sectorTracker = new SectorTracker();
@@ -20,10 +25,16 @@ export class Pipeline {
   private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
   private _sessionLaps: LapMeta[] = [];
+  private _sessionRecorder: UdpRecorder | null = null;
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
     return this._lapDetector;
+  }
+
+  /** True while a session is being recorded (session recorder is open). */
+  get isSessionActive(): boolean {
+    return this._sessionRecorder !== null;
   }
 
   /** In-memory session laps — sent to newly connected WS clients. */
@@ -42,6 +53,22 @@ export class Pipeline {
   private _buildCallbacks(): LapDetectorCallbacks {
     return {
       onSessionStart: async (session) => {
+        // Close previous session recorder before opening a new one
+        if (this._sessionRecorder) {
+          await this._sessionRecorder.stop();
+          this._sessionRecorder = null;
+        }
+        // Open append-only raw session file
+        const dataDir = resolveDataDir();
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const sessionDir = resolve(dataDir, "sessions", session.gameId);
+        mkdirSync(sessionDir, { recursive: true });
+        const filePath = resolve(sessionDir, `${timestamp}.bin`);
+        this._sessionRecorder = new UdpRecorder();
+        this._sessionRecorder.start(filePath);
+        this._sessionRecorder.writeMetaFrame(Buffer.alloc(0));
+        await this.db.updateSessionRawFile(session.sessionId, filePath, this._lapDetector?.detectorId ?? LAP_DETECTOR_ID);
+
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
         this.pitTracker.reset();
         const adapter = tryGetGame(session.gameId);
@@ -143,8 +170,15 @@ export class Pipeline {
    *
    * Pipeline: normalize coords → lap detection → track calibration (~10Hz) → WebSocket broadcast (30Hz)
    */
-  async processPacket(packet: TelemetryPacket): Promise<void> {
+  async processPacket(packet: TelemetryPacket, rawBuf?: Buffer): Promise<void> {
     this._totalProcessed++;
+
+    // Snapshot byte offset BEFORE writing so it points to this packet's position
+    let rawByteOffset: number | undefined;
+    if (rawBuf && this._sessionRecorder) {
+      rawByteOffset = this._sessionRecorder.getCurrentByteOffset();
+      this._sessionRecorder.writePacket(rawBuf);
+    }
 
     // Normalize coordinates so all games use the same display convention.
     const adapter = tryGetGame(packet.gameId);
@@ -159,7 +193,7 @@ export class Pipeline {
     fillNormSuspension(packet);
 
     const detector = this._getOrCreateDetector(packet.gameId);
-    await detector.feed(packet);
+    await detector.feed(packet, rawByteOffset);
 
     const sectors = this.sectorTracker.feed(packet);
 
@@ -203,6 +237,13 @@ export class Pipeline {
       });
     }
   }
+
+  async flushSessionRecorder(): Promise<void> {
+    if (this._sessionRecorder) {
+      await this._sessionRecorder.stop();
+      this._sessionRecorder = null;
+    }
+  }
 }
 
 // Backward-compatible singleton exports — unchanged for all callers
@@ -213,7 +254,7 @@ const _default = new Pipeline(new RealDbAdapter(), _defaultWs);
 import { wsManager } from "./ws";
 wsManager.setSessionLapsProvider(() => _default.sessionLaps);
 
-export const processPacket = (p: TelemetryPacket) => _default.processPacket(p);
+export const processPacket = (p: TelemetryPacket, rawBuf?: Buffer) => _default.processPacket(p, rawBuf);
 
 /** Returns the current lap detector (may be null before the first packet is processed). */
 export const lapDetector = {
@@ -233,4 +274,14 @@ const _maintenanceInterval = setInterval(() => _default.lapDetector?.flushStaleL
 /** Stop the module-level maintenance interval. Call in test/bench contexts to allow clean exit. */
 export function stopMaintenanceTasks(): void {
   clearInterval(_maintenanceInterval);
+}
+
+/** True while a session is actively being recorded. */
+export function isSessionActive(): boolean {
+  return _default.isSessionActive;
+}
+
+/** Flush and close the active session recorder. Call on graceful shutdown. */
+export async function flushSessionRecorder(): Promise<void> {
+  await _default.flushSessionRecorder();
 }

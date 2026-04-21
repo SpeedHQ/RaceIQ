@@ -214,6 +214,10 @@ export interface SteerBalance {
   frontSlipDeg: number;    // avg front slip angle magnitude (degrees)
   rearSlipDeg: number;     // avg rear slip angle magnitude (degrees)
   slipDelta: number;       // front − rear (degrees, >0 = understeer, <0 = oversteer)
+  // Normalized component signals (both scaled so ±1 = "full" severity)
+  uSlip: number;           // slip-angle signal: + = understeer, − = oversteer
+  uYaw: number;            // yaw-rate signal:  + = understeer, − = oversteer
+  signalsAgree: boolean;   // false = conflict → slip angle used alone
   // Combined normalized balance
   balance: number;         // [-1, +1], + = understeer, − = oversteer
   state: "understeer" | "oversteer" | "neutral";
@@ -240,22 +244,47 @@ export function steerBalance(pkt: TelemetryPacket): SteerBalance {
   // Normalize both signals so positive = understeer, negative = oversteer.
   const uSlip = slipDelta / SLIP_DELTA_SCALE;       // front > rear → positive
   const uYaw  = -yawError / YAW_ERR_SCALE;          // over-rotating → negative
-  const balanceRaw = gated ? 0 : 0.5 * uSlip + 0.5 * uYaw;
+
+  // Slip angle is lateral-only — unaffected by straight-line wheelspin, so
+  // it doesn't need the latG gate. Gate only the yaw signal (which can
+  // misread longitudinal yaw from acceleration/braking as oversteer).
+  const yawContrib = gated ? 0 : uYaw;
+  const signalsAgree = uSlip * yawContrib >= 0;
+  // Only blend when yaw is actively contributing — otherwise it just dilutes
+  // the slip signal. Use slip alone when yaw is gated or near zero.
+  const yawActive = Math.abs(yawContrib) > 0.05;
+  // When slip angles are nearly balanced (|uSlip| < 0.15), the tires are
+  // reporting neutral. Don't let a yaw spike override that — yaw can be
+  // driven by rear wheelspin / diff torque independent of cornering balance.
+  const slipConfident = Math.abs(uSlip) >= 0.15;
+  // Slip angle is always authoritative. Yaw can only amplify in the same
+  // direction — never reduce. If the blend moves the result closer to zero
+  // than slip alone, discard it and use slip alone.
+  const blended = 0.5 * uSlip + 0.5 * yawContrib;
+  const balanceRaw = speed < SPEED_FLOOR
+    ? 0
+    : !signalsAgree || !slipConfident
+      ? uSlip                                                         // conflict or slip neutral → slip only
+      : yawActive && Math.abs(blended) > Math.abs(uSlip)
+        ? blended                                                     // yaw amplifies → use blend
+        : uSlip;                                                      // yaw dilutes or silent → slip only
   const balance = Math.max(-1.5, Math.min(1.5, balanceRaw));
 
+  const moving = speed >= SPEED_FLOOR;
   let state: SteerBalance["state"] = "neutral";
-  if (!gated) {
+  if (moving) {
     if (balance >  CLASSIFY_THRESHOLD) state = "understeer";
     else if (balance < -CLASSIFY_THRESHOLD) state = "oversteer";
   }
 
-  const severity = gated
-    ? 0
-    : Math.min(1, Math.max(0, (Math.abs(balance) - CLASSIFY_THRESHOLD) / (1 - CLASSIFY_THRESHOLD)));
+  const severity = moving
+    ? Math.min(1, Math.max(0, (Math.abs(balance) - CLASSIFY_THRESHOLD) / (1 - CLASSIFY_THRESHOLD)))
+    : 0;
 
   return {
     latG, yawRate, yawRatePath, yawError,
     frontSlipDeg, rearSlipDeg, slipDelta,
+    uSlip, uYaw, signalsAgree,
     balance, state, severity,
   };
 }

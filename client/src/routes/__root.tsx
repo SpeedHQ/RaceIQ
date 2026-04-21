@@ -11,7 +11,7 @@ import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
 import { OnboardingModal } from "../components/Onboarding";
 import { Button } from "@/components/ui/button";
-import { Settings2 } from "lucide-react";
+import { Settings2, RefreshCw, X } from "lucide-react";
 import { getAllGames } from "@shared/games/registry";
 
 import { queryClient } from "../lib/queryClient";
@@ -25,6 +25,97 @@ function getGamePrefixes() {
 
 function useUpdateCheck() {
   return useTelemetryStore((s) => s.versionInfo);
+}
+
+function ReprocessProgressModal({ total, done, onClose }: { total: number; done: number; onClose: () => void }) {
+  const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+  const complete = done >= total;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-96 rounded-xl border border-white/10 bg-[#1a1a1a] p-6 shadow-2xl">
+        <div className="flex items-center gap-3 mb-4">
+          <RefreshCw className={`size-5 text-blue-400 ${complete ? "" : "animate-spin"}`} />
+          <h2 className="text-sm font-semibold text-white flex-1">
+            {complete ? "Reprocessing complete" : "Reprocessing sessions…"}
+          </h2>
+          {complete && (
+            <button onClick={onClose} className="text-white/40 hover:text-white/70 transition-colors" aria-label="Close">
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
+        <div className="mb-3 h-2 w-full rounded-full bg-white/10 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-blue-500 transition-all duration-300"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-xs text-white/40">
+          <span>{done} / {total} sessions</span>
+          <span>{percent}%</span>
+        </div>
+        {complete && (
+          <p className="mt-3 text-xs text-green-400 text-center">All sessions updated.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StaleLapBanner() {
+  const staleLapDetection = useTelemetryStore((s) => s.staleLapDetection);
+  const setStaleLapDetection = useTelemetryStore((s) => s.setStaleLapDetection);
+  const reprocessProgress = useTelemetryStore((s) => s.reprocessProgress);
+  const setReprocessProgress = useTelemetryStore((s) => s.setReprocessProgress);
+
+  if (!staleLapDetection && !reprocessProgress) return null;
+
+  const handleReprocess = async () => {
+    const total = staleLapDetection!.sessionCount;
+    setReprocessProgress({ done: 0, total });
+    setStaleLapDetection(null);
+    try {
+      await fetch("/api/sessions/reprocess-stale", { method: "POST" });
+    } finally {
+      // Modal auto-closes via useEffect when done >= total
+    }
+  };
+
+  const handleDismissModal = () => setReprocessProgress(null);
+
+  return (
+    <>
+      {staleLapDetection && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-blue-500/10 border-b border-blue-500/20 text-sm text-blue-300">
+          <span className="flex-1">
+            Lap detection updated — {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s" : ""} may have improved boundaries.
+          </span>
+          <button
+            onClick={handleReprocess}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 transition-colors"
+          >
+            <RefreshCw className="size-3" />
+            Reprocess
+          </button>
+          <button
+            onClick={() => setStaleLapDetection(null)}
+            className="text-blue-400/60 hover:text-blue-300 transition-colors"
+            aria-label="Dismiss"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+      {reprocessProgress && (
+        <ReprocessProgressModal
+          total={reprocessProgress.total}
+          done={reprocessProgress.done}
+          onClose={handleDismissModal}
+        />
+      )}
+    </>
+  );
 }
 
 function AppShell() {
@@ -85,7 +176,8 @@ function AppShell() {
     return <ThemeProvider><div className="h-screen bg-app-bg" /></ThemeProvider>;
   }
 
-  if (!displaySettings.onboardingComplete) {
+  const forceWelcome = new URLSearchParams(window.location.search).has("welcome");
+  if (forceWelcome || !displaySettings.onboardingComplete) {
     return <ThemeProvider><OnboardingModal /></ThemeProvider>;
   }
 
@@ -203,6 +295,8 @@ function AppShell() {
           )}
 
           {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
+
+          <StaleLapBanner />
 
           <div className="min-h-0 overflow-y-auto">
             <Outlet />

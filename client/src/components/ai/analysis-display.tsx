@@ -1,7 +1,7 @@
-import { useRef, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import {
   Sparkles, RefreshCw, Gauge, Sliders, AlertTriangle,
-  Lightbulb, Wrench, Download, Trash2, CircleDot, Zap,
+  Lightbulb, Wrench, Download, Trash2, CircleDot, Zap, X, ChevronRight,
 } from "lucide-react";
 
 export interface AnalysisHighlight {
@@ -65,11 +65,22 @@ export function findSegment(segments: Segment[] | null | undefined, ...texts: st
   return null;
 }
 
+// Some local models emit snake_case/camelCase labels ("front_tyre_temp",
+// "fullThrottleTime") regardless of prompt guidance. Normalise to spaces so
+// the uppercase-styled header reads cleanly.
+function humanizeLabel(raw: string): string {
+  return raw
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function MetricCard({ item }: { item: PaceItem | HandlingItem }) {
   return (
     <div className={`rounded-lg border px-2.5 py-1.5 ${ASSESSMENT_BG[item.assessment]}`}>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[10px] text-app-text-secondary uppercase tracking-wide">{item.label}</span>
+        <span className="text-[10px] text-app-text-secondary uppercase tracking-wide">{humanizeLabel(item.label)}</span>
         <span className={`text-[11px] font-mono font-semibold ${ASSESSMENT_COLORS[item.assessment]}`}>{item.value}</span>
       </div>
       <p className="text-[10px] text-app-text-secondary mt-0.5 leading-relaxed">{item.detail}</p>
@@ -77,15 +88,76 @@ export function MetricCard({ item }: { item: PaceItem | HandlingItem }) {
   );
 }
 
-export function TuneBar({ current, target }: { current: number; target: number }) {
-  const lo = Math.min(current, target);
-  const hi = Math.max(current, target);
-  const spread = hi - lo || 1;
-  const min = Math.max(0, lo - spread * 1.5);
-  const max = hi + spread * 1.5;
+// F1 2025 (and common FM) setup field ranges. Key is a normalised
+// component label (lowercased, no spaces/punct) so "Front Wing", "FrontWing",
+// "front-wing" all collide. Falls back to auto-scale when not found so we
+// don't break FM or unknown labels.
+// F1 25 official setup slider bounds.
+const FIELD_RANGES: Record<string, { min: number; max: number }> = {
+  // Aero
+  frontwing: { min: 0, max: 50 },
+  rearwing: { min: 0, max: 50 },
+  fuelload: { min: 5, max: 100 },
+  // Transmission
+  onthrottle: { min: 10, max: 100 },
+  offthrottle: { min: 10, max: 100 },
+  differentialonthrottle: { min: 10, max: 100 },
+  differentialoffthrottle: { min: 10, max: 100 },
+  enginebraking: { min: 0, max: 100 },
+  // Suspension geometry
+  frontcamber: { min: -3.5, max: -2.5 },
+  rearcamber: { min: -2.0, max: -1.0 },
+  fronttoe: { min: 0, max: 0.1 },
+  reartoe: { min: 0, max: 0.4 },
+  fronttoeout: { min: 0, max: 0.1 },
+  reartoein: { min: 0, max: 0.4 },
+  // Suspension
+  frontsuspension: { min: 1, max: 41 },
+  rearsuspension: { min: 1, max: 41 },
+  frontantirollbar: { min: 1, max: 41 },
+  rearantirollbar: { min: 1, max: 41 },
+  frontrideheight: { min: 20, max: 50 },
+  rearrideheight: { min: 20, max: 50 },
+  // Brakes
+  brakepressure: { min: 80, max: 100 },
+  brakebias: { min: 50, max: 70 },
+  frontbrakebias: { min: 50, max: 70 },
+  // Tyres (psi)
+  fronttyrepressure: { min: 22.0, max: 29.5 },
+  reartyrepressure: { min: 20.0, max: 26.5 },
+  frontlefttyrepressure: { min: 22.0, max: 29.5 },
+  frontrighttyrepressure: { min: 22.0, max: 29.5 },
+  rearlefttyrepressure: { min: 20.0, max: 26.5 },
+  rearrighttyrepressure: { min: 20.0, max: 26.5 },
+};
+
+function lookupFieldRange(component: string | undefined): { min: number; max: number } | null {
+  if (!component) return null;
+  const key = component.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return FIELD_RANGES[key] ?? null;
+}
+
+export function TuneBar({ current, target, component }: { current: number; target: number; component?: string }) {
+  const known = lookupFieldRange(component);
+  let min: number;
+  let max: number;
+  if (known) {
+    min = known.min;
+    max = known.max;
+  } else {
+    const lo = Math.min(current, target);
+    const hi = Math.max(current, target);
+    const spread = hi - lo || Math.max(Math.abs(hi) * 0.1, 1);
+    // Previously floored at 0 which broke negative fields like camber
+    // (current -3.40° → target -3.30°) by clamping min to 0 and pushing both
+    // markers off the right edge. Let min float naturally around the values.
+    min = lo - spread * 1.5;
+    max = hi + spread * 1.5;
+  }
   const range = max - min || 1;
-  const currentPct = ((current - min) / range) * 100;
-  const targetPct = ((target - min) / range) * 100;
+  const clamp = (p: number) => Math.min(100, Math.max(0, p));
+  const currentPct = clamp(((current - min) / range) * 100);
+  const targetPct = clamp(((target - min) / range) * 100);
   return (
     <div className="relative h-3 mt-1 mb-0.5">
       <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 bg-app-border-input/50 rounded-full" />
@@ -132,6 +204,104 @@ export function SectionHeader({ icon, title }: { icon: ReactNode; title: string 
       <span className="text-app-text-secondary">{icon}</span>
       <h3 className="text-[10px] font-semibold text-app-text uppercase tracking-wider">{title}</h3>
     </div>
+  );
+}
+
+/**
+ * Setup recommendations collapse into a single button so the analysis panel
+ * stays scannable when the model returns 10+ entries. Clicking opens a
+ * fixed-overlay modal that renders the full grid — same TrackCard + TuneBar
+ * content as before, with a close button.
+ */
+export function SetupSection({
+  setup,
+  hasTune,
+  lookupSegs,
+  onJumpToFrac,
+  onHighlightsChange,
+}: {
+  setup: SetupItem[];
+  hasTune?: boolean;
+  lookupSegs: Segment[] | null;
+  onJumpToFrac?: (frac: number) => void;
+  onHighlightsChange?: (h: AnalysisHighlight[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="w-full flex items-center gap-2 rounded-lg border border-app-border-input/60 bg-app-surface-alt/40 hover:border-app-border-input hover:bg-app-surface-alt/70 transition-colors px-3 py-2 text-left"
+      >
+        <Wrench className="size-3.5 text-app-text-secondary" />
+        <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">Setup</span>
+        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{setup.length}</span>
+        {!hasTune && (
+          <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">
+            Best Guess
+          </span>
+        )}
+        <ChevronRight className="ml-auto size-3.5 text-app-text-muted" />
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-2xl max-h-[85vh] bg-app-surface border border-app-border-input rounded-lg shadow-xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-app-border-input/50 rounded-t-lg shrink-0">
+              <Wrench className="size-4 text-app-text-secondary" />
+              <h2 className="text-sm font-semibold text-app-text">Setup Recommendations</h2>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{setup.length}</span>
+              {!hasTune && (
+                <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">
+                  Best Guess
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="ml-auto p-1 rounded hover:bg-app-border-input/30 text-app-text-muted hover:text-app-text"
+                aria-label="Close setup modal"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+              {!hasTune && (
+                <p className="text-[10px] text-amber-400/70 leading-snug">
+                  No tune data linked — values are estimated from telemetry. Link a tune for accurate setup suggestions.
+                </p>
+              )}
+              {setup.map((item, i) => {
+                const extractNum = (s?: string) => { const m = s?.match(/-?\d+\.?\d*/); return m ? parseFloat(m[0]) : NaN; };
+                const currentNum = extractNum(item.current);
+                const targetNum = extractNum(item.target);
+                const hasBoth = !isNaN(currentNum) && !isNaN(targetNum) && currentNum !== targetNum;
+                return (
+                  <TrackCard key={i} seg={findSegment(lookupSegs, item.symptom, item.fix)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-3 py-2.5">
+                    <span className="text-[12px] font-semibold text-app-text block mb-1">{item.component}</span>
+                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                      item.direction === "increase" ? "bg-emerald-400/10 text-emerald-400" :
+                      item.direction === "decrease" ? "bg-red-400/10 text-red-400" :
+                      "bg-amber-400/10 text-amber-400"
+                    }`}>{item.current} → {item.target}</span>
+                    {hasBoth && <TuneBar current={currentNum} target={targetNum} component={item.component} />}
+                    <p className="text-[11px] text-app-text-secondary mt-1.5"><span className="text-red-400/70">Symptom:</span> {item.symptom}</p>
+                    <p className="text-[11px] text-app-text-secondary mt-0.5"><span className="text-emerald-400/70">Fix:</span> {item.fix}</p>
+                  </TrackCard>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -265,39 +435,15 @@ export function AnalysisDisplay({
         </div>
       )}
 
-      {/* Setup */}
+      {/* Setup — compact button, details in a modal */}
       {analysis.setup?.length > 0 && (
-        <div>
-          <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-app-text-secondary"><Wrench className="size-3" /></span>
-            <h3 className="text-[10px] font-semibold text-app-text uppercase tracking-wider">Setup</h3>
-            {!hasTune && <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">Best Guess</span>}
-          </div>
-          {!hasTune && (
-            <p className="text-[9px] text-amber-400/70 mb-1.5 leading-snug">No tune data linked — values are estimated from telemetry. Link a tune for accurate setup suggestions.</p>
-          )}
-          <div className="grid grid-cols-1 gap-1.5">
-            {analysis.setup.map((item, i) => {
-              const extractNum = (s?: string) => { const m = s?.match(/-?\d+\.?\d*/); return m ? parseFloat(m[0]) : NaN; };
-              const currentNum = extractNum(item.current);
-              const targetNum = extractNum(item.target);
-              const hasBoth = !isNaN(currentNum) && !isNaN(targetNum) && currentNum !== targetNum;
-              return (
-                <TrackCard key={i} seg={findSegment(lookupSegs, item.symptom, item.fix)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-2.5 py-2">
-                  <span className="text-[11px] font-semibold text-app-text block mb-1">{item.component}</span>
-                  <span className={`text-[9px] font-mono px-1 py-0.5 rounded ${
-                    item.direction === "increase" ? "bg-emerald-400/10 text-emerald-400" :
-                    item.direction === "decrease" ? "bg-red-400/10 text-red-400" :
-                    "bg-amber-400/10 text-amber-400"
-                  }`}>{item.current} → {item.target}</span>
-                  {hasBoth && <TuneBar current={currentNum} target={targetNum} />}
-                  <p className="text-[10px] text-app-text-secondary mt-1"><span className="text-red-400/70">Symptom:</span> {item.symptom}</p>
-                  <p className="text-[10px] text-app-text-secondary mt-0.5"><span className="text-emerald-400/70">Fix:</span> {item.fix}</p>
-                </TrackCard>
-              );
-            })}
-          </div>
-        </div>
+        <SetupSection
+          setup={analysis.setup}
+          hasTune={hasTune}
+          lookupSegs={lookupSegs}
+          onJumpToFrac={onJumpToFrac}
+          onHighlightsChange={onHighlightsChange}
+        />
       )}
 
       {/* Actions bar */}

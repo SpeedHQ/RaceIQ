@@ -1,0 +1,24 @@
+{
+  "id": "fm-silverstone-hot-tires",
+  "game": "fm-2023",
+  "units": "imperial",
+  "lap": {
+    "lapNumber": 3,
+    "lapTime": 93.214,
+    "isValid": true,
+    "carOrdinal": 2710,
+    "trackOrdinal": 6
+  },
+  "packetsPath": "../packets/fm-silverstone-hot-tires.zip",
+  "expected": {
+    "slowestCorners": ["Copse", "Stowe", "Vale"],
+    "trackCorners": [
+      "Abbey", "Farm", "Village", "The Loop", "Aintree",
+      "Wellington Straight", "Brooklands", "Luffield", "Woodcote",
+      "Copse", "Maggotts", "Becketts", "Chapel",
+      "Hangar Straight", "Stowe", "Vale", "Club"
+    ],
+    "dominantIssue": "rear tire overheat",
+    "setupDirection": { "component": "Rear Tire Pressure", "direction": "decrease" }
+  }
+}

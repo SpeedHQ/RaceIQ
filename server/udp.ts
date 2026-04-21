@@ -159,7 +159,7 @@ class UdpListener {
     }
 
     this._receiving = true;
-    await processPacket(packet);
+    await processPacket(packet, buf);
   }
 
   async stop(): Promise<void> {

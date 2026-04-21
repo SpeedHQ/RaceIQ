@@ -56,6 +56,9 @@ export interface LapSavedNotification extends LapSavedEvent {
   type: "lap-saved";
 }
 
+/** Bump this whenever lap detection logic changes — triggers UI prompt to reprocess old sessions. */
+export const LAP_DETECTOR_ID = "lapdetector_v1";
+
 export interface LapCompleteEvent {
   packets: TelemetryPacket[];
   lapDistStart: number;
@@ -65,6 +68,7 @@ export interface LapCompleteEvent {
 }
 
 export class LapDetector implements ILapDetector {
+  readonly detectorId = LAP_DETECTOR_ID;
   private readonly bypassPacketRateFilter: boolean;
   private db: DbAdapter;
 
@@ -112,6 +116,9 @@ export class LapDetector implements ILapDetector {
   private accS1: number = 0;
   private accS2: number = 0;
   private accPrevSectorIdx: number = 0;
+  private _lapByteOffset: number | null = null;
+  private _lapFrameCount: number = 0;
+  private _currentRawByteOffset: number | null = null;
 
   get session(): SessionState | null {
     return this.currentSession;
@@ -129,7 +136,8 @@ export class LapDetector implements ILapDetector {
    * Feed a parsed telemetry packet into the detector.
    * Handles session creation, lap boundary detection, and rewind detection.
    */
-  async feed(packet: TelemetryPacket): Promise<void> {
+  async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
+    this._currentRawByteOffset = rawByteOffset ?? null;
     // Debug: log if lap detector receives any packets
     if (!this._loggedFeedOnce) {
       console.log("[Lap Detector] Started receiving packets from pipeline");
@@ -235,6 +243,7 @@ export class LapDetector implements ILapDetector {
 
     // Buffer the packet for the current lap
     this.lapBuffer.push(packet);
+    this._lapFrameCount++;
     this.lastTimestampMS = packet.TimestampMS;
     this.lastPacketTime = now;
   }
@@ -394,7 +403,8 @@ export class LapDetector implements ILapDetector {
         lapNum,
         lapTime,
         valid,
-        this.lapBuffer,
+        this._lapByteOffset,
+        this._lapFrameCount,
         null,
         tuneId,
         invalidReason,
@@ -450,7 +460,8 @@ export class LapDetector implements ILapDetector {
             this.currentLapNumber,
             lapTime,
             false,
-            this.lapBuffer,
+            this._lapByteOffset,
+            this._lapFrameCount,
             null,
             tuneAssignment?.tuneId ?? null,
             "incomplete",
@@ -505,7 +516,8 @@ export class LapDetector implements ILapDetector {
         lapNum,
         lapTime,
         isComplete && this.lapIsValid,
-        this.lapBuffer,
+        this._lapByteOffset,
+        this._lapFrameCount,
         null,
         tuneAssignment?.tuneId ?? null,
         isComplete ? this.invalidReason : "incomplete",
@@ -569,6 +581,8 @@ export class LapDetector implements ILapDetector {
     this.invalidReason = null;
     this.lastLastLap = newLapFirstPacket.LastLap;
     this._distanceAtLapStart = newLapFirstPacket.DistanceTraveled;
+    this._lapByteOffset = this._currentRawByteOffset;
+    this._lapFrameCount = 0;
     this.fuelAtLapStart = newLapFirstPacket.Fuel;
     this.tireWearAtLapStart = {
       fl: newLapFirstPacket.TireWearFL,

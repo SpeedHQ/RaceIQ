@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { existsSync, readdirSync, mkdirSync, readFileSync, writeFileSync, rmSync, statSync } from "fs";
+import { readdir, stat, statfs } from "fs/promises";
 import { resolve, join } from "path";
 import { arch, platform, release, type as osType, cpus, networkInterfaces, totalmem, freemem, uptime as osUptime } from "os";
 import { zipSync, strToU8 } from "fflate";
@@ -7,6 +8,7 @@ import { zipSync, strToU8 } from "fflate";
 import { lapDetector } from "../pipeline";
 import { wsManager } from "../ws";
 import { USER_TRACKS_DIR, IS_COMPILED, USER_DATA_DIR, ROOT_DIR } from "../paths";
+import { resolveDataDir } from "../data-dir";
 import { getUpdateState, startUpdateCheckSchedule, checkForUpdate, applyUpdate } from "../update-check";
 import { udpListener } from "../udp";
 import { getRunningGame } from "../games/registry";
@@ -691,4 +693,63 @@ export const miscRoutes = new Hono()
         "Content-Disposition": `attachment; filename="raceiq-diagnostics.zip"`,
       },
     });
+  })
+
+  // GET /api/storage/sessions — recording file stats
+  .get("/api/storage/sessions", async (c) => {
+    const sessionsDir = resolve(resolveDataDir(), "sessions");
+    if (!existsSync(sessionsDir)) {
+      return c.json({ total: 0, binCount: 0, gzCount: 0, totalBytes: 0, binBytes: 0, gzBytes: 0, byGame: {}, diskTotal: 0, diskFree: 0 });
+    }
+    let binCount = 0, gzCount = 0, binBytes = 0, gzBytes = 0;
+    const byGame: Record<string, { binCount: number; gzCount: number; binBytes: number; gzBytes: number }> = {};
+
+    function tally(gameId: string, file: string, size: number) {
+      const g = byGame[gameId] ??= { binCount: 0, gzCount: 0, binBytes: 0, gzBytes: 0 };
+      if (file.endsWith(".bin.gz")) { gzCount++; gzBytes += size; g.gzCount++; g.gzBytes += size; }
+      else if (file.endsWith(".bin")) { binCount++; binBytes += size; g.binCount++; g.binBytes += size; }
+    }
+
+    const entries = await readdir(sessionsDir);
+    await Promise.all(entries.map(async (entry) => {
+      const entryPath = join(sessionsDir, entry);
+      try {
+        const entryStat = await stat(entryPath);
+        if (entryStat.isDirectory()) {
+          const files = await readdir(entryPath);
+          await Promise.all(files.map(async (file) => {
+            try {
+              const { size } = await stat(join(entryPath, file));
+              tally(entry, file, size);
+            } catch { /* skip */ }
+          }));
+        } else {
+          // flat files pre-date per-game subdirs — skip
+        }
+      } catch { /* skip unreadable entries */ }
+    }));
+
+    let diskTotal = 0, diskFree = 0;
+    try {
+      const s = await statfs(sessionsDir);
+      diskTotal = s.blocks * s.bsize;
+      diskFree = s.bfree * s.bsize;
+    } catch { /* statfs unavailable on some platforms */ }
+    return c.json({
+      total: binCount + gzCount,
+      binCount,
+      gzCount,
+      totalBytes: binBytes + gzBytes,
+      binBytes,
+      gzBytes,
+      byGame,
+      diskTotal,
+      diskFree,
+    });
+  })
+  // POST /api/storage/compress — trigger immediate compression of eligible sessions
+  .post("/api/storage/compress", async (c) => {
+    const { runCompressionNow } = await import("../session-compressor");
+    await runCompressionNow();
+    return c.json({ ok: true });
   });

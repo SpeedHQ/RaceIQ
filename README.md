@@ -1,3 +1,5 @@
+
+
 <p align="center">
   <img src="assets/raceiq-icon.png" alt="RaceIQ" width="200">
 </p>
@@ -17,9 +19,13 @@
   <a href="https://github.com/SpeedHQ/RaceIQ/releases/latest">Download for Windows</a> · <a href="https://www.youtube.com/watch?v=hWuIItofivA">Watch Demo</a> · <a href="assets/screenshots/">Screenshots</a> · <a href="https://discord.gg/ZNXKyYPumT">Discord</a>
 </p>
 
----
-
 > **Alpha software** — expect bugs, rough edges, and AI analysis that's still being fine-tuned for accuracy. Some features aren't obvious yet, so poke around and join the [Discord](https://discord.gg/ZNXKyYPumT) if you get stuck.
+
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/9200c90d-b039-4616-9b27-9c8e7c53a8ca" autoplay loop muted playsinline width="70%"></video>
+</p>
+
+---
 
 A free, open-source alternative to [Track Titan](https://tracktitan.io/), [Coach Dave Delta](https://coachdaveacademy.com/delta/), and [Racing View](https://www.racingview.app/).
 
@@ -40,8 +46,8 @@ Check out the [demo](https://www.youtube.com/watch?v=hWuIItofivA) and [screensho
 
 ## Supported Games
 
-| Game | Status | Community Tunes | Community Guides | Tune Creator |
-|------|--------|-----------------|------------------|--------------|
+| Game | Status | Public Tunes | Public Guides | Tune Creator |
+|------|--------|--------------|---------------|--------------|
 | Forza Motorsport 2023 | Supported | No | No | Yes |
 | F1 2025 | Supported | Yes | Yes | No |
 | Assetto Corsa Competizione | Supported | Yes | Yes | No |
@@ -61,6 +67,10 @@ Grab the latest installer from the [releases page](https://github.com/SpeedHQ/Ra
 Configure your game's telemetry settings to send UDP data to `127.0.0.1:5301`, then start a race — telemetry will appear automatically.
 
 > **Already forwarding telemetry to a wheel base or other app?** Use [UDP Forwarder](https://github.com/SpeedHQ/udp-forwarder) to send telemetry to multiple destinations at once.
+
+## Updates
+
+RaceIQ checks for new releases automatically and notifies you when one is available. You can also force a check at any time from **Settings → About → Check for updates**.
 
 ## Platform
 
@@ -83,6 +93,8 @@ The database is created automatically on first run. No cloud account or external
 ## AI Coaching Setup
 
 AI analysis is optional. Add your API key in the RaceIQ settings panel — multiple providers are supported. Analysis is sent directly to the provider's API, no intermediary server.
+
+Want to run AI entirely on your own PC? See the [Local AI](guides/local-ai.md) guide.
 
 ## Sponsorship
 

@@ -116,11 +116,13 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
               <TD>
                 <div className="flex items-center gap-2">
                   <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
-                  <Button variant="app-outline" size="app-sm" className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    onClick={(e) => { e.stopPropagation(); navigate({ to: `${gameRoute}/analyse` as any, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } as any }); }}>
-                    Analyse
-                  </Button>
+                  {!lap.isLegacy && (
+                    <Button variant="app-outline" size="app-sm" className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      onClick={(e) => { e.stopPropagation(); navigate({ to: `${gameRoute}/analyse` as any, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } as any }); }}>
+                      Analyse
+                    </Button>
+                  )}
                 </div>
               </TD>
               <TD>
@@ -187,6 +189,8 @@ function SortHeader({ label, field, sortKey, sortDir, toggleSort }: {
 
 export function SessionsPage() {
   const gameId = useGameId();
+  const gameRoute = useGameRoute();
+  const navigate = useNavigate();
   const { data: sessions = [], isLoading } = useSessions();
   const { data: allLaps = [] } = useLaps();
   const qc = useQueryClient();
@@ -388,14 +392,54 @@ const deleteSelected = useCallback(async () => {
             </span>
           )}
         </h1>
-        {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
-          <button
-            onClick={deleteSelected}
-            className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors"
-          >
-            Delete {selectedSessions.size > 0 ? `${selectedSessions.size} session${selectedSessions.size > 1 ? "s" : ""}` : ""}{selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}{selectedLaps.size > 0 ? `${selectedLaps.size} lap${selectedLaps.size > 1 ? "s" : ""}` : ""}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {selectedLaps.size === 2 && (() => {
+            // Only show Compare when the two selected laps are from sessions
+            // on the same track — the compare route expects a single track.
+            const ids = [...selectedLaps];
+            const lapA = allLaps.find((l) => l.id === ids[0]);
+            const lapB = allLaps.find((l) => l.id === ids[1]);
+            if (!lapA || !lapB) return null;
+            if (lapA.isLegacy || lapB.isLegacy) return null;
+            const sessA = sessions.find((s) => s.id === lapA.sessionId);
+            const sessB = sessions.find((s) => s.id === lapB.sessionId);
+            if (!sessA || !sessB) return null;
+            if (sessA.trackOrdinal !== sessB.trackOrdinal) return null;
+            return (
+              <button
+                onClick={() => {
+                  // Route shape is per-game (fm23/compare, f125/compare, …).
+                  // TanStack Router types don't know about the dynamic gameRoute
+                  // template; the existing per-lap navigate at ~line 121 uses
+                  // the same escape hatch.
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const args: any = {
+                    to: `${gameRoute}/compare`,
+                    search: {
+                      track: sessA.trackOrdinal,
+                      carA: sessA.carOrdinal,
+                      carB: sessB.carOrdinal,
+                      lapA: lapA.id,
+                      lapB: lapB.id,
+                    },
+                  };
+                  navigate(args);
+                }}
+                className="px-3 py-1.5 text-sm rounded bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors"
+              >
+                Compare 2 laps
+              </button>
+            );
+          })()}
+          {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
+            <button
+              onClick={deleteSelected}
+              className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors"
+            >
+              Delete {selectedSessions.size > 0 ? `${selectedSessions.size} session${selectedSessions.size > 1 ? "s" : ""}` : ""}{selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}{selectedLaps.size > 0 ? `${selectedLaps.size} lap${selectedLaps.size > 1 ? "s" : ""}` : ""}
+            </button>
+          )}
+        </div>
       </div>
 
       <Table className="flex-1 overflow-auto">

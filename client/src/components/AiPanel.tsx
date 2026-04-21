@@ -6,11 +6,40 @@ import { Button } from "./ui/button";
 import { toPng } from "html-to-image";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { SetupSection } from "./ai/analysis-display";
+import { readChatStream } from "../lib/chat-stream";
 import {
   Sparkles, RefreshCw, Gauge, Sliders, AlertTriangle,
-  Lightbulb, Wrench, Download,
+  Lightbulb, Download,
   Send, Trash2, CircleDot, Zap,
 } from "lucide-react";
+
+interface AnalysisUsage {
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  durationMs: number;
+  model: string;
+}
+
+function safeParseAnalysis(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const posMatch = msg.match(/position (\d+)/);
+    const pos = posMatch ? Number(posMatch[1]) : -1;
+    const windowStart = pos >= 0 ? Math.max(0, pos - 120) : 0;
+    const windowEnd = pos >= 0 ? Math.min(raw.length, pos + 120) : Math.min(raw.length, 240);
+    console.error("[AiPanel] analysis JSON parse failed", {
+      length: raw.length,
+      position: pos,
+      around: raw.slice(windowStart, windowEnd),
+      tail: raw.slice(Math.max(0, raw.length - 200)),
+    });
+    throw err;
+  }
+}
 
 export interface AnalysisHighlight {
   startFrac: number;
@@ -67,28 +96,6 @@ function MetricCard({ item }: { item: PaceItem | HandlingItem }) {
   );
 }
 
-function TuneBar({ current, target }: { current: number; target: number }) {
-  const lo = Math.min(current, target);
-  const hi = Math.max(current, target);
-  const spread = hi - lo || 1;
-  const min = Math.max(0, lo - spread * 1.5);
-  const max = hi + spread * 1.5;
-  const range = max - min || 1;
-  const currentPct = ((current - min) / range) * 100;
-  const targetPct = ((target - min) / range) * 100;
-  return (
-    <div className="relative h-3 mt-1 mb-0.5">
-      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 bg-app-border-input/50 rounded-full" />
-      <div className="absolute top-1/2 -translate-y-1/2 h-1 bg-amber-400/20 rounded-full" style={{ left: `${Math.min(currentPct, targetPct)}%`, width: `${Math.abs(targetPct - currentPct)}%` }} />
-      <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${currentPct}%` }}>
-        <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent border-t-cyan-400" />
-      </div>
-      <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${targetPct}%` }}>
-        <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[6px] border-l-transparent border-r-transparent border-b-amber-400" />
-      </div>
-    </div>
-  );
-}
 
 type Segment = { type: string; name: string; startFrac: number; endFrac: number };
 
@@ -177,6 +184,16 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   const [chatLoading, setChatLoading] = useState(false);
   const [streaming, setStreaming] = useState("");
   const [chatError, setChatError] = useState<string | null>(null);
+  // Live status from the NDJSON stream: "thinking" (waiting for first token),
+  // "generating" (tokens flowing), or null when idle. `chatTool` shows the
+  // currently-executing tool name (e.g. "compare-f1-setup-to-catalog").
+  const [chatStatus, setChatStatus] = useState<"thinking" | "generating" | null>(null);
+  const [chatTool, setChatTool] = useState<string | null>(null);
+  const [chatUsage, setChatUsage] = useState<{ inputTokens: number; outputTokens: number } | null>(null);
+  // Same live-status pair for the analyse flow (separate from chat so the
+  // two can run independently — user can chat while an analysis regenerates).
+  const [analyseStatus, setAnalyseStatus] = useState<"thinking" | "generating" | null>(null);
+  const [analyseTool, setAnalyseTool] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useImperativeHandle(ref, () => ({
@@ -210,67 +227,101 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   }), [lapId, onHighlightsChange]);
 
 
-  // Fetch analysis
+  // Fetch analysis.
+  // Cached (incl. cacheOnly) responses stay JSON.
+  // Fresh runs stream NDJSON (server/ai/chat-stream-style events) so the
+  // UI can show "Thinking…" / tool-call chips / "Generating…" while the
+  // model works — same protocol as the chat flow.
   const fetchAnalysis = useCallback(async (regenerate = false) => {
     setLoading(true);
     setError(null);
+    setAnalyseStatus(null);
+    setAnalyseTool(null);
     try {
-      const res = await client.api.laps[":id"].analyse.$post({
-        param: { id: String(lapId) },
-        query: regenerate ? { regenerate: "true" } : {},
-      });
+      const res = await fetch(`/api/laps/${lapId}/analyse${regenerate ? "?regenerate=true" : ""}`, { method: "POST" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({ error: "Unknown error" })) as { error?: string };
         throw new Error(data.error || `HTTP ${res.status}`);
       }
-      const data = await res.json() as { analysis: string | object | null; usage?: { inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string }; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean };
-      const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
-      setAnalysis(parsed);
-      if (data.usage) setUsage(data.usage);
-      if (data.cornerFracs) {
-        setCornerFracs(data.cornerFracs.map((c: { label: string; startFrac: number; endFrac: number }) => ({
-          type: "corner", name: c.label, startFrac: c.startFrac, endFrac: c.endFrac,
-        })));
-      }
-      setHasTune(!!data.hasTune);
 
-      // Compute track highlights from analysis corners
-      const segs: Segment[] = data.cornerFracs
-        ? data.cornerFracs.map((c: { label: string; startFrac: number; endFrac: number }) => ({
+      // Apply one analysis payload (analysis JSON + usage + cornerFracs +
+      // hasTune) — shared by the cached-JSON and streamed-NDJSON code paths.
+      const apply = (data: { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean }) => {
+        // Empty string = model produced no text (e.g. it burned through
+        // maxSteps calling tools without finalising). Treat as error.
+        if (typeof data.analysis === "string" && data.analysis.trim().length === 0) {
+          throw new Error("Model returned no analysis text (likely got stuck in a tool-call loop). Try again or reduce tool usage.");
+        }
+        const parsed = (typeof data.analysis === "string" ? safeParseAnalysis(data.analysis) : data.analysis) as AnalysisData | null;
+        setAnalysis(parsed);
+        if (data.usage) setUsage(data.usage);
+        if (data.cornerFracs) {
+          setCornerFracs(data.cornerFracs.map((c) => ({
             type: "corner", name: c.label, startFrac: c.startFrac, endFrac: c.endFrac,
-          }))
-        : (segments ?? []);
-      const searchSegs = segs.length ? segs : null;
-      const hl: AnalysisHighlight[] = [];
-      for (const corner of parsed.corners ?? []) {
-        const seg = findSegment(searchSegs, corner.name);
-        if (seg) {
-          hl.push({
-            startFrac: seg.startFrac, endFrac: seg.endFrac,
-            color: corner.severity === "major" ? "critical" : corner.severity === "moderate" ? "warning" : "good",
-            label: corner.name,
-          });
+          })));
         }
-      }
-      for (const item of parsed.braking ?? []) {
-        const seg = findSegment(searchSegs, item.corner);
-        if (seg) {
-          hl.push({ startFrac: seg.startFrac, endFrac: seg.endFrac, color: item.assessment, label: item.corner });
-        }
-      }
-      for (const item of parsed.throttle ?? []) {
-        const seg = findSegment(searchSegs, item.corner);
-        if (seg) {
-          hl.push({ startFrac: seg.startFrac, endFrac: seg.endFrac, color: item.assessment, label: item.corner });
-        }
-      }
-      if (hl.length > 0) onHighlightsChange?.(hl);
+        setHasTune(!!data.hasTune);
 
-      onAnalysisLoaded?.();
+        const segs: Segment[] = data.cornerFracs
+          ? data.cornerFracs.map((c) => ({ type: "corner", name: c.label, startFrac: c.startFrac, endFrac: c.endFrac }))
+          : (segments ?? []);
+        const searchSegs = segs.length ? segs : null;
+        const hl: AnalysisHighlight[] = [];
+        for (const corner of parsed?.corners ?? []) {
+          const seg = findSegment(searchSegs, corner.name);
+          if (seg) {
+            hl.push({
+              startFrac: seg.startFrac, endFrac: seg.endFrac,
+              color: corner.severity === "major" ? "critical" : corner.severity === "moderate" ? "warning" : "good",
+              label: corner.name,
+            });
+          }
+        }
+        for (const item of parsed?.braking ?? []) {
+          const seg = findSegment(searchSegs, item.corner);
+          if (seg) hl.push({ startFrac: seg.startFrac, endFrac: seg.endFrac, color: item.assessment, label: item.corner });
+        }
+        for (const item of parsed?.throttle ?? []) {
+          const seg = findSegment(searchSegs, item.corner);
+          if (seg) hl.push({ startFrac: seg.startFrac, endFrac: seg.endFrac, color: item.assessment, label: item.corner });
+        }
+        if (hl.length > 0) onHighlightsChange?.(hl);
+
+        onAnalysisLoaded?.();
+      };
+
+      const ct = res.headers.get("content-type") ?? "";
+      if (ct.includes("application/x-ndjson")) {
+        // Heartbeat stream: server emits `ping` every ~200s to hold the
+        // connection past Bun's 255s idleTimeout, then a single `result`
+        // (or `error`) at the end. No intermediate UI.
+        let resolved = false;
+        await readChatStream(res, (event) => {
+          switch (event.type) {
+            case "ping":
+            case "done":
+              break;
+            case "error":
+              throw new Error((event as unknown as { message: string }).message);
+            case "result": {
+              const r = event as unknown as { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean };
+              apply(r);
+              resolved = true;
+              break;
+            }
+          }
+        });
+        if (!resolved) throw new Error("Analyse stream ended without a result");
+      } else {
+        const data = await res.json() as { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean };
+        apply(data);
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to fetch analysis");
     } finally {
       setLoading(false);
+      setAnalyseStatus(null);
+      setAnalyseTool(null);
     }
   }, [lapId, onAnalysisLoaded, segments, onHighlightsChange]);
 
@@ -295,7 +346,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       if (!res.ok) return;
       const data = await res.json() as { analysis: string | object | null; cached: boolean; usage?: { inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string }; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean };
       if (!data.cached) return;
-      const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
+      const parsed = (typeof data.analysis === "string" ? safeParseAnalysis(data.analysis) : data.analysis) as AnalysisData | null;
       setAnalysis(parsed);
       if (data.usage) setUsage(data.usage);
       if (data.cornerFracs) {
@@ -349,15 +400,22 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     }
   }, [carName, trackName]);
 
-  // Send chat message
+  // Send chat message — consumes the NDJSON stream defined in
+  // server/ai/chat-stream.ts so we can surface thinking / tool-call /
+  // generating states separately from the text body.
   const sendChat = useCallback(async () => {
     const msg = chatInput.trim();
     if (!msg || chatLoading) return;
     setChatLoading(true);
     setChatError(null);
     setStreaming("");
+    setChatStatus("thinking");
+    setChatTool(null);
+    setChatUsage(null);
     setMessages((prev) => [...prev, { role: "user", content: msg }]);
     setChatInput("");
+    let fullText = "";
+    let finalUsage: { inputTokens: number; outputTokens: number } | null = null;
     try {
       const res = await fetch(`/api/laps/${lapId}/chat`, {
         method: "POST",
@@ -368,22 +426,41 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         const errData = await res.json().catch(() => ({ error: "Request failed" })) as { error?: string };
         throw new Error(errData.error || `HTTP ${res.status}`);
       }
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("No stream");
-      const decoder = new TextDecoder();
-      let fullText = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        fullText += decoder.decode(value, { stream: true });
-        setStreaming(fullText);
-      }
+      await readChatStream(res, (event) => {
+        switch (event.type) {
+          case "status":
+            setChatStatus((event as unknown as { state: "thinking" | "generating" }).state);
+            break;
+          case "tool": {
+            const t = event as unknown as { state: "start" | "end"; name: string };
+            setChatTool(t.state === "start" ? t.name : null);
+            break;
+          }
+          case "text":
+            fullText += (event as unknown as { delta: string }).delta;
+            setStreaming(fullText);
+            break;
+          case "usage": {
+            const u = event as unknown as { inputTokens: number; outputTokens: number };
+            finalUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens };
+            break;
+          }
+          case "error":
+            throw new Error((event as unknown as { message: string }).message);
+          case "ping":
+          case "done":
+            break;
+        }
+      });
       setStreaming("");
       setMessages((prev) => [...prev, { role: "assistant", content: fullText }]);
+      setChatUsage(finalUsage);
     } catch (err: unknown) {
       setChatError(err instanceof Error ? err.message : "Chat failed");
     } finally {
       setChatLoading(false);
+      setChatStatus(null);
+      setChatTool(null);
     }
   }, [chatInput, chatLoading, lapId]);
 
@@ -424,9 +501,23 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               <Sparkles className="absolute inset-0 m-auto size-4 text-amber-400/60" />
             </div>
             <div className="text-center">
-              <p className="text-[11px] text-app-text-secondary font-medium">Analysing your lap</p>
-              <p className="text-[10px] text-app-text-dim mt-1">Reviewing telemetry, corners, and setup data</p>
-              <p className="text-[9px] text-app-text-dim mt-0.5">May take up to 90 seconds</p>
+              <p className="text-[11px] text-app-text-secondary font-medium">
+                {analyseTool
+                  ? `Using tool: ${analyseTool}`
+                  : analyseStatus === "generating"
+                    ? "Generating analysis…"
+                    : analyseStatus === "thinking"
+                      ? "Thinking…"
+                      : "Analysing your lap"}
+              </p>
+              <p className="text-[10px] text-app-text-dim mt-1">
+                {analyseStatus === "generating"
+                  ? "Streaming tokens from the model"
+                  : "Reviewing telemetry, corners, and setup data"}
+              </p>
+              {!analyseStatus && (
+                <p className="text-[9px] text-app-text-dim mt-0.5">May take up to 90 seconds</p>
+              )}
             </div>
             <div className="flex gap-1">
               <div className="size-1 rounded-full bg-amber-400 animate-pulse" />
@@ -559,39 +650,15 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 </div>
               )}
 
-              {/* Setup */}
+              {/* Setup — collapsed into a button; opens a modal. Shared with AnalysisDisplay. */}
               {analysis.setup?.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <span className="text-app-text-secondary"><Wrench className="size-3" /></span>
-                    <h3 className="text-[10px] font-semibold text-app-text uppercase tracking-wider">Setup</h3>
-                    {!hasTune && <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">Best Guess</span>}
-                  </div>
-                  {!hasTune && (
-                    <p className="text-[9px] text-amber-400/70 mb-1.5 leading-snug">No tune data linked — values are estimated from telemetry. Link a tune for accurate setup suggestions.</p>
-                  )}
-                  <div className="grid grid-cols-1 gap-1.5">
-                    {analysis.setup.map((item, i) => {
-                      const extractNum = (s?: string) => { const m = s?.match(/-?\d+\.?\d*/); return m ? parseFloat(m[0]) : NaN; };
-                      const currentNum = extractNum(item.current);
-                      const targetNum = extractNum(item.target);
-                      const hasBoth = !isNaN(currentNum) && !isNaN(targetNum) && currentNum !== targetNum;
-                      return (
-                        <TrackCard key={i} seg={findSegment(cornerFracs.length ? cornerFracs : segments, item.symptom, item.fix)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-2.5 py-2">
-                          <span className="text-[11px] font-semibold text-app-text block mb-1">{item.component}</span>
-                          <span className={`text-[9px] font-mono px-1 py-0.5 rounded ${
-                            item.direction === "increase" ? "bg-emerald-400/10 text-emerald-400" :
-                            item.direction === "decrease" ? "bg-red-400/10 text-red-400" :
-                            "bg-amber-400/10 text-amber-400"
-                          }`}>{item.current} → {item.target}</span>
-                          {hasBoth && <TuneBar current={currentNum} target={targetNum} />}
-                          <p className="text-[10px] text-app-text-secondary mt-1"><span className="text-red-400/70">Symptom:</span> {item.symptom}</p>
-                          <p className="text-[10px] text-app-text-secondary mt-0.5"><span className="text-emerald-400/70">Fix:</span> {item.fix}</p>
-                        </TrackCard>
-                      );
-                    })}
-                  </div>
-                </div>
+                <SetupSection
+                  setup={analysis.setup}
+                  hasTune={hasTune}
+                  lookupSegs={cornerFracs.length ? cornerFracs : (segments ?? null)}
+                  onJumpToFrac={onJumpToFrac}
+                  onHighlightsChange={onHighlightsChange}
+                />
               )}
 
               {/* Actions bar */}
@@ -639,25 +706,35 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             ))}
 
             {streaming && (
-              <div className="flex justify-start">
+              <div className="flex flex-col items-start gap-0.5">
                 <div className="max-w-[90%] rounded-lg px-2.5 py-1.5 text-[11px] leading-relaxed bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary">
                   <div className="prose-chat"><Markdown remarkPlugins={[remarkGfm]}>{streaming}</Markdown></div>
                 </div>
+                {chatStatus === "generating" && (
+                  <span className="text-[9px] text-app-text-muted font-mono pl-1">Generating…</span>
+                )}
+              </div>
+            )}
+            {chatUsage && !streaming && (
+              <div className="flex justify-start pl-1">
+                <span className="text-[9px] text-app-text-muted font-mono">
+                  {chatUsage.inputTokens.toLocaleString()}↓ {chatUsage.outputTokens.toLocaleString()}↑ tokens
+                </span>
               </div>
             )}
 
-            {chatLoading && !streaming && (
+            {chatLoading && (chatStatus === "thinking" || chatTool) && !streaming && (
               <div className="flex justify-start">
                 <div className="rounded-lg px-2.5 py-1.5 bg-app-surface-alt/60 border border-app-border-input/40">
                   <div className="flex items-center gap-1.5">
-                    <div className="size-1.5 rounded-full bg-app-text-dim animate-pulse" />
-                    <div className="size-1.5 rounded-full bg-app-text-dim animate-pulse [animation-delay:150ms]" />
-                    <div className="size-1.5 rounded-full bg-app-text-dim animate-pulse [animation-delay:300ms]" />
+                    <div className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span className="text-[10px] text-app-text-secondary">
+                      {chatTool ? `Using tool: ${chatTool}` : "Thinking…"}
+                    </span>
                   </div>
                 </div>
               </div>
             )}
-
             {chatError && (
               <div className="flex justify-start">
                 <div className="rounded-lg px-2.5 py-2 bg-red-400/10 border border-red-400/20">

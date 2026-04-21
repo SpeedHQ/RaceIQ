@@ -1,0 +1,31 @@
+{
+  "id": "fm-silverstone-hot-vs-cool",
+  "game": "fm-2023",
+  "units": "imperial",
+  "lapA": {
+    "lapNumber": 3,
+    "lapTime": 93.214,
+    "isValid": true,
+    "carOrdinal": 2710,
+    "trackOrdinal": 6,
+    "packetsPath": "../packets/fm-silverstone-hot-tires.zip"
+  },
+  "lapB": {
+    "lapNumber": 4,
+    "lapTime": 92.408,
+    "isValid": true,
+    "carOrdinal": 2710,
+    "trackOrdinal": 6,
+    "packetsPath": "../packets/fm-silverstone-cool-tires.zip"
+  },
+  "expected": {
+    "fasterLap": "B",
+    "trackCorners": [
+      "Abbey", "Farm", "Village", "The Loop", "Aintree",
+      "Wellington Straight", "Brooklands", "Luffield", "Woodcote",
+      "Copse", "Maggotts", "Becketts", "Chapel",
+      "Hangar Straight", "Stowe", "Vale", "Club"
+    ],
+    "gainingSector": 2
+  }
+}

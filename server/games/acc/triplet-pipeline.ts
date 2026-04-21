@@ -8,6 +8,7 @@
 import { GRAPHICS, AC_STATUS } from "./structs";
 import { parseAccBuffers } from "./parser";
 import { processPacket } from "../../pipeline";
+import { packTriplet, ACC_PACKED_MAGIC } from "../shared/pack-triplet";
 
 export interface TripletProcessor {
   /** Return false to halt the pipeline for this triplet (e.g. invalid status). */
@@ -101,7 +102,8 @@ export class ParsingProcessor implements TripletProcessor {
         gameId: this.gameId,
       });
       if (packet) {
-        await processPacket(packet);
+        const rawBuf = packTriplet(ACC_PACKED_MAGIC, this.carOrdinal, this.trackOrdinal, triplet.physics, triplet.graphics, triplet.staticData);
+        await processPacket(packet, rawBuf);
       }
     } catch (err) {
       console.error(`[${this.label} ParsingProcessor] Error:`, err instanceof Error ? err.message : err);

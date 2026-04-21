@@ -1,6 +1,28 @@
 import { Info } from "lucide-react";
 import type { ReactNode } from "react";
 
+export function Tooltip({
+  children,
+  content,
+  position = "top",
+}: {
+  children: ReactNode;
+  content: ReactNode;
+  position?: "top" | "bottom";
+}) {
+  const posClass = position === "top" ? "bottom-full mb-2" : "top-full mt-2";
+  return (
+    <span className="group/tip relative inline-flex items-center">
+      {children}
+      <span
+        className={`absolute left-0 ${posClass} w-max max-w-[280px] hidden group-hover/tip:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed whitespace-normal`}
+      >
+        {content}
+      </span>
+    </span>
+  );
+}
+
 /**
  * Small info icon that shows a tooltip on hover.
  * Wrap in a flex container alongside a label for best alignment.

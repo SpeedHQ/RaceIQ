@@ -22,23 +22,27 @@
  * Mastra instance out of the prod bundle while still letting the dev server
  * emit traces.
  */
+import { lapAnalystAgent as rawLapAnalystAgent } from "../../mastra/agents/lap-analyst";
 import { lapChatAgent as rawLapChatAgent } from "../../mastra/agents/lap-chat";
 import { compareEngineerAgent as rawCompareEngineerAgent } from "../../mastra/agents/compare-engineer";
 import { compareChatAgent as rawCompareChatAgent } from "../../mastra/agents/compare-chat";
 
+type LapAnalystAgent = typeof rawLapAnalystAgent;
 type LapChatAgent = typeof rawLapChatAgent;
 type CompareEngineerAgent = typeof rawCompareEngineerAgent;
 type CompareChatAgent = typeof rawCompareChatAgent;
 
+let lapAnalystAgent: LapAnalystAgent = rawLapAnalystAgent;
 let lapChatAgent: LapChatAgent = rawLapChatAgent;
 let compareEngineerAgent: CompareEngineerAgent = rawCompareEngineerAgent;
 let compareChatAgent: CompareChatAgent = rawCompareChatAgent;
 
 if (process.env.NODE_ENV !== "production") {
   const { mastra } = await import("../../mastra");
+  lapAnalystAgent = mastra.getAgent("lap-analyst") as unknown as LapAnalystAgent;
   lapChatAgent = mastra.getAgent("lap-chat") as unknown as LapChatAgent;
   compareEngineerAgent = mastra.getAgent("compare-engineer") as unknown as CompareEngineerAgent;
   compareChatAgent = mastra.getAgent("compare-chat") as unknown as CompareChatAgent;
 }
 
-export { lapChatAgent, compareEngineerAgent, compareChatAgent };
+export { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent };

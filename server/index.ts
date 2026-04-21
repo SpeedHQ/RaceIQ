@@ -99,7 +99,7 @@ console.log("[Boot] Port cleared");
 // Start the HTTP/WebSocket server
 Bun.serve<WSData>({
   port: HTTP_PORT,
-  idleTimeout: 120, // seconds — AI analysis via Claude CLI can take up to 90s
+  idleTimeout: 255, // seconds (Bun max) — local model first-token latency can spike
   async fetch(req, server) {
     // Handle WebSocket upgrade
     const url = new URL(req.url);
@@ -174,26 +174,47 @@ if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
 // three recorders buffer via Bun.file().writer() — without this handler the
 // default SIGINT path exits before the buffer drains and the file ends up
 // zero-length (or missing the tail).
-if (recordingGameId) {
-  const gracefulShutdown = async (signal: NodeJS.Signals) => {
-    console.log(`[Server] Received ${signal} — finalizing recording...`);
-    try {
-      await Promise.allSettled([
-        udpListener.stop(),
-        accRecorder.stop(),
-        acEvoRecorder.stop(),
-      ]);
-    } finally {
-      process.exit(0);
+import { flushSessionRecorder } from "./pipeline";
+import { stopSessionCompressor } from "./session-compressor";
+
+const gracefulShutdown = async (signal: NodeJS.Signals) => {
+  console.log(`[Server] Received ${signal} — flushing session recorder...`);
+  stopSessionCompressor();
+  try {
+    const tasks: Promise<unknown>[] = [flushSessionRecorder()];
+    if (recordingGameId) {
+      tasks.push(udpListener.stop(), accRecorder.stop(), acEvoRecorder.stop());
     }
-  };
-  process.on("SIGINT", () => void gracefulShutdown("SIGINT"));
-  process.on("SIGTERM", () => void gracefulShutdown("SIGTERM"));
-}
+    await Promise.allSettled(tasks);
+  } finally {
+    process.exit(0);
+  }
+};
+process.on("SIGINT", () => void gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => void gracefulShutdown("SIGTERM"));
 
 // Start UDP listener — settings.udpPort takes priority, env var is the fallback
 const udpPort = settings.udpPort ?? (Number(process.env.UDP_PORT) || 5301);
 udpListener.start(udpPort);
+
+// Check for sessions recorded with an older lap detector version.
+// Stores the notification in wsManager so it's sent to each client on connect.
+import { countStaleSessions } from "./db/queries";
+import { LAP_DETECTOR_ID } from "./lap-detector";
+import { LAP_DETECTOR_V2_ID } from "./lap-detector-ac";
+const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_V2_ID];
+countStaleSessions(ALL_DETECTOR_IDS).then((count) => {
+  if (count > 0) {
+    console.log(`[Server] ${count} session(s) recorded with stale lap detector — will prompt user to reprocess`);
+    wsManager.setStaleSessionsNotification({
+      type: "stale-lap-detection",
+      sessionCount: count,
+      currentVersion: `${LAP_DETECTOR_ID},${LAP_DETECTOR_V2_ID}`,
+    });
+  }
+}).catch((err) => {
+  console.error("[Server] Failed to check stale sessions:", err);
+});
 
 import { AccSharedMemoryReader } from "./games/acc/shared-memory";
 import { AcEvoSharedMemoryReader } from "./games/ac-evo/shared-memory";
@@ -236,6 +257,9 @@ if (firstRun) {
     }
   } catch {}
 }
+
+import { startSessionCompressor } from "./session-compressor";
+startSessionCompressor();
 
 console.log(`[Server] RaceIQ Server is ready!`);
 console.log(`[Server] Listening for UDP on port ${udpPort}`);

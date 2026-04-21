@@ -16,6 +16,7 @@ import { ExtractionSection } from "./settings/ExtractionSection";
 import { F1ExtractionSection } from "./settings/F1ExtractionSection";
 import { AboutSection } from "./settings/AboutSection";
 import { DiagnosticsSection } from "./settings/DiagnosticsSection";
+import { StorageSection } from "./settings/StorageSection";
 
 // Re-export localStorage utilities so existing importers don't break
 export {
@@ -59,6 +60,7 @@ const NAV_ITEMS = [
   { id: "suspension", label: "Suspension" },
   { id: "speed", label: "Units" },
   { id: "sound", label: "Sound" },
+  { id: "storage", label: "Storage" },
   { id: "ai", label: "AI Analysis" },
   { id: "developer", label: "Developer", devOnly: true },
   { id: "diagnostics", label: "Diagnostics" },
@@ -819,6 +821,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             </div>
           </section>
         )}
+        {activeSection === "storage" && <StorageSection />}
         {activeSection === "ai" && (
           <AiSection />
         )}

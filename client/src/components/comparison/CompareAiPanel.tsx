@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from "react";
 import { createPortal } from "react-dom";
 import Markdown from "react-markdown";
+import { readChatStream } from "../../lib/chat-stream";
 import remarkGfm from "remark-gfm";
 import { Sparkles, RefreshCw, Send, Trash2, Eye, X } from "lucide-react";
 import { client } from "../../lib/rpc";
@@ -21,6 +22,11 @@ interface CompareAiPanelProps {
   lapA: LapHeader;
   lapB: LapHeader;
   panelOpen?: boolean;
+  /** Named segments with `startFrac`/`endFrac` so AI-output `segments[i].name`
+   *  can resolve to a track position when clicked. */
+  segments?: { name: string; startFrac: number; endFrac: number }[];
+  /** Move the track cursor / chart to a normalised lap fraction. */
+  onJumpToFrac?: (frac: number) => void;
 }
 
 interface InputsSegment {
@@ -338,9 +344,13 @@ const SEVERITY_DOT = {
 function InputsModal({
   analysis,
   onClose,
+  trackSegments,
+  onJumpToFrac,
 }: {
   analysis: InputsAnalysis;
   onClose: () => void;
+  trackSegments?: { name: string; startFrac: number; endFrac: number }[];
+  onJumpToFrac?: (frac: number) => void;
 }) {
   return createPortal(
     <div
@@ -364,10 +374,20 @@ function InputsModal({
 
           {analysis.segments?.length > 0 && (
             <div className="space-y-2">
-              {analysis.segments.map((seg, i) => (
+              {analysis.segments.map((seg, i) => {
+                // Resolve the AI-named segment to a track position so clicking
+                // the card moves the chart/track cursor to that segment.
+                const match = trackSegments?.find((s) => {
+                  const sn = s.name.toLowerCase();
+                  const gn = seg.name.toLowerCase();
+                  return sn === gn || sn.includes(gn) || gn.includes(sn);
+                });
+                const clickable = !!(match && onJumpToFrac);
+                return (
                 <div
                   key={i}
-                  className="rounded-lg border border-app-border-input/40 bg-app-surface-alt/40 px-2.5 py-2"
+                  onClick={() => match && onJumpToFrac?.((match.startFrac + match.endFrac) / 2)}
+                  className={`rounded-lg border border-app-border-input/40 bg-app-surface-alt/40 px-2.5 py-2 ${clickable ? "cursor-pointer hover:border-cyan-400/40 hover:bg-app-surface-alt/60 transition-colors" : ""}`}
                 >
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className={`size-1.5 rounded-full ${SEVERITY_DOT[seg.severity] ?? SEVERITY_DOT.minor}`} />
@@ -397,7 +417,8 @@ function InputsModal({
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -464,7 +485,7 @@ function AnalysisModal({
 }
 
 export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelProps>(function CompareAiPanel(
-  { lapA, lapB, panelOpen = false },
+  { lapA, lapB, panelOpen = false, segments: trackSegments, onJumpToFrac },
   ref,
 ) {
   const { displaySettings } = useSettings();
@@ -485,6 +506,9 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
   const [chatLoading, setChatLoading] = useState(false);
   const [streaming, setStreaming] = useState("");
   const [chatError, setChatError] = useState<string | null>(null);
+  const [chatStatus, setChatStatus] = useState<"thinking" | "generating" | null>(null);
+  const [chatTool, setChatTool] = useState<string | null>(null);
+  const [chatUsage, setChatUsage] = useState<{ inputTokens: number; outputTokens: number } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const loadChat = useCallback(async () => {
@@ -520,8 +544,13 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
     setChatLoading(true);
     setChatError(null);
     setStreaming("");
+    setChatStatus("thinking");
+    setChatTool(null);
+    setChatUsage(null);
     setMessages((prev) => [...prev, { role: "user", content: msg }]);
     setChatInput("");
+    let fullText = "";
+    let finalUsage: { inputTokens: number; outputTokens: number } | null = null;
     try {
       const res = await fetch(`/api/laps/${lapA.id}/compare/${lapB.id}/chat`, {
         method: "POST",
@@ -532,22 +561,41 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
         const errData = await res.json().catch(() => ({ error: "Request failed" })) as { error?: string };
         throw new Error(errData.error || `HTTP ${res.status}`);
       }
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("No stream");
-      const decoder = new TextDecoder();
-      let fullText = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        fullText += decoder.decode(value, { stream: true });
-        setStreaming(fullText);
-      }
+      await readChatStream(res, (event) => {
+        switch (event.type) {
+          case "status":
+            setChatStatus((event as unknown as { state: "thinking" | "generating" }).state);
+            break;
+          case "tool": {
+            const t = event as unknown as { state: "start" | "end"; name: string };
+            setChatTool(t.state === "start" ? t.name : null);
+            break;
+          }
+          case "text":
+            fullText += (event as unknown as { delta: string }).delta;
+            setStreaming(fullText);
+            break;
+          case "usage": {
+            const u = event as unknown as { inputTokens: number; outputTokens: number };
+            finalUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens };
+            break;
+          }
+          case "error":
+            throw new Error((event as unknown as { message: string }).message);
+          case "ping":
+          case "done":
+            break;
+        }
+      });
       setStreaming("");
       setMessages((prev) => [...prev, { role: "assistant", content: fullText }]);
+      setChatUsage(finalUsage);
     } catch (err: unknown) {
       setChatError(err instanceof Error ? err.message : "Chat failed");
     } finally {
       setChatLoading(false);
+      setChatStatus(null);
+      setChatTool(null);
     }
   }, [chatInput, chatLoading, lapA.id, lapB.id]);
 
@@ -621,10 +669,13 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
             ))}
 
             {streaming && (
-              <div className="flex justify-start">
+              <div className="flex flex-col items-start gap-0.5">
                 <div className="max-w-[90%] rounded-lg px-2.5 py-1.5 text-[11px] leading-relaxed bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary">
                   <div className="prose-chat"><Markdown remarkPlugins={[remarkGfm]}>{streaming}</Markdown></div>
                 </div>
+                {chatStatus === "generating" && (
+                  <span className="text-[9px] text-app-text-muted font-mono pl-1">Generating…</span>
+                )}
               </div>
             )}
 
@@ -632,11 +683,20 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
               <div className="flex justify-start">
                 <div className="rounded-lg px-2.5 py-1.5 bg-app-surface-alt/60 border border-app-border-input/40">
                   <div className="flex items-center gap-1.5">
-                    <div className="size-1.5 rounded-full bg-app-text-dim animate-pulse" />
-                    <div className="size-1.5 rounded-full bg-app-text-dim animate-pulse [animation-delay:150ms]" />
-                    <div className="size-1.5 rounded-full bg-app-text-dim animate-pulse [animation-delay:300ms]" />
+                    <div className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span className="text-[10px] text-app-text-secondary">
+                      {chatTool ? `Using tool: ${chatTool}` : "Thinking…"}
+                    </span>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {chatUsage && !streaming && !chatLoading && (
+              <div className="flex justify-start pl-1">
+                <span className="text-[9px] text-app-text-muted font-mono">
+                  {chatUsage.inputTokens.toLocaleString()}↓ {chatUsage.outputTokens.toLocaleString()}↑ tokens
+                </span>
               </div>
             )}
 
@@ -691,6 +751,8 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
         <InputsModal
           analysis={viewing.analysis}
           onClose={() => setViewing(null)}
+          trackSegments={trackSegments}
+          onJumpToFrac={onJumpToFrac}
         />
       )}
     </div>

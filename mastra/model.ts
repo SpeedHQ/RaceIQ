@@ -1,22 +1,35 @@
 /**
- * Map RaceIQ app settings (provider + model name) to a Mastra model ID string.
+ * Map RaceIQ app settings (provider + model name) to a Mastra model config.
  *
- * Mastra uses the format "provider/model-name". Each agent's `model` field is a
- * function that calls this at request time so swapping providers in Settings UI
- * takes effect on the next call without rebuilding agents.
+ * For `local` (LM Studio / Ollama) we instantiate the native OpenAI provider
+ * with a custom baseURL and `compatibility: "compatible"`, which pins the
+ * transport to `/v1/chat/completions` (not `/v1/responses`). This keeps tool
+ * calls on the format LM Studio fully supports.
  */
+import { createOpenAI } from "@ai-sdk/openai";
+
+type OpenAIModel = ReturnType<ReturnType<typeof createOpenAI>>;
+
 export function getMastraModelId(
   provider: string,
   model: string,
-): string {
+  localEndpoint?: string,
+): string | OpenAIModel {
   switch (provider) {
     case "gemini":
-      return `google/${model || "gemini-2.0-flash"}`;
+      return `google/${model || "gemini-flash-latest"}`;
     case "openai":
       return `openai/${model || "gpt-4o-mini"}`;
-    case "local":
-      // Local models use the OpenAI-compatible API; the model id is passed through.
-      return `openai/${model || "local-model"}`;
+    case "local": {
+      const openai = createOpenAI({
+        baseURL: localEndpoint ?? "http://localhost:1234/v1",
+        apiKey: "local",
+      });
+      // `openai(id)` targets `/v1/responses` in @ai-sdk/openai v3+. LM Studio
+      // only fully implements `/v1/chat/completions`, so pick that transport
+      // explicitly via `.chat(id)`.
+      return openai.chat(model || "local-model");
+    }
     default: {
       // claude-cli fallback
       const claudeMap: Record<string, string> = {

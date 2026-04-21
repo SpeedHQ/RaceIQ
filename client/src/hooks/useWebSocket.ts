@@ -57,8 +57,13 @@ export function useWebSocket() {
           } else if (data.type === "dev-state") {
             useTelemetryStore.getState().setDevState(data);
           } else if (data.type === "lap-saved") {
-            // Also trigger a session-laps refresh (server sends it after save)
             queryClient.invalidateQueries({ queryKey: ["laps"] });
+          } else if (data.type === "stale-lap-detection") {
+            useTelemetryStore.getState().setStaleLapDetection({ sessionCount: data.sessionCount as number, currentVersion: data.currentVersion as string });
+          } else if (data.type === "lap-reprocessed") {
+            queryClient.invalidateQueries({ queryKey: ["laps"] });
+            queryClient.invalidateQueries({ queryKey: ["sessions"] });
+            useTelemetryStore.getState().incrementReprocessProgress();
           } else {
             const { _sectors, _pit, ...packet } = data;
             const s = useTelemetryStore.getState();

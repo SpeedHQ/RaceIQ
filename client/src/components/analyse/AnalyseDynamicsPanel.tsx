@@ -76,39 +76,72 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
           <Info className="w-3 h-3 text-app-text-dim cursor-help" />
           <span className="absolute left-0 top-full mt-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2.5 py-2 text-[10px] text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal w-[300px]">
             <span className="block mb-1">Yaw rate vs path curvature + front/rear slip-angle delta.</span>
-            <span className="block mb-1.5 text-app-text-dim">
-              + = understeer (front slip &gt; rear)<br />
-              − = oversteer (body yawing past Ay/V)<br />
+            <span className="block mb-2 text-app-text-dim">
+              + = understeer (front slip &gt; rear) &nbsp;|&nbsp; − = oversteer (body yawing past Ay/V)<br />
               Gated by |latG| ≥ 0.25g — straight-line wheelspin ignored
             </span>
-            <svg viewBox="0 0 200 60" className="w-full h-auto mt-1">
-              {/* Colored regions */}
-              <rect x="0" y="14" width={thrLeftX} height="18" fill="#ef4444" opacity="0.18" />
-              <rect x={thrLeftX} y="14" width={thrRightX - thrLeftX} height="18" fill="#34d399" opacity="0.18" />
-              <rect x={thrRightX} y="14" width={200 - thrRightX} height="18" fill="#3b82f6" opacity="0.18" />
-              {/* Threshold lines */}
-              <line x1={thrLeftX} y1="10" x2={thrLeftX} y2="36" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
-              <line x1={thrRightX} y1="10" x2={thrRightX} y2="36" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
-              {/* Zero marker */}
-              <line x1="100" y1="8" x2="100" y2="38" stroke="currentColor" opacity="0.25" />
-              {/* Current position marker */}
-              <circle cx={currentX} cy="23" r="4" fill={balanceColor(bal.state)} stroke="#0f172a" strokeWidth="1.2" />
-              {/* Region labels */}
-              <text x={thrLeftX / 2} y="46" textAnchor="middle" fill="#ef4444" fontSize="7.5" fontWeight="600">OVER</text>
-              <text x="100" y="46" textAnchor="middle" fill="#34d399" fontSize="7.5" fontWeight="600">NEUTRAL</text>
-              <text x={(thrRightX + 200) / 2} y="46" textAnchor="middle" fill="#3b82f6" fontSize="7.5" fontWeight="600">UNDER</text>
-              {/* Tick labels */}
-              <text x="0" y="56" textAnchor="start" fill="currentColor" opacity="0.4" fontSize="6.5">−1.0</text>
-              <text x={thrLeftX} y="56" textAnchor="middle" fill="currentColor" opacity="0.4" fontSize="6.5">−0.3</text>
-              <text x={thrRightX} y="56" textAnchor="middle" fill="currentColor" opacity="0.4" fontSize="6.5">+0.3</text>
-              <text x="200" y="56" textAnchor="end" fill="currentColor" opacity="0.4" fontSize="6.5">+1.0</text>
-            </svg>
-            <span className="block text-[9px] text-app-text-dim mt-1">
-              Slip Δ: {bal.slipDelta > 0 ? "+" : ""}{bal.slipDelta.toFixed(1)}° (F {bal.frontSlipDeg.toFixed(1)}° / R {bal.rearSlipDeg.toFixed(1)}°)
-            </span>
-            <span className="block text-[9px] text-app-text-dim">
-              Yaw err: {bal.yawError > 0 ? "+" : ""}{bal.yawError.toFixed(2)} rad/s (path {bal.yawRatePath.toFixed(2)})
-            </span>
+
+            {/* Signal breakdown */}
+            {(() => {
+              const SIG_RANGE = 1.5;
+              const sigX = (u: number) => Math.max(2, Math.min(198, 100 + (Math.max(-SIG_RANGE, Math.min(SIG_RANGE, u)) / SIG_RANGE) * 98));
+              const slipX = sigX(bal.uSlip);
+              const yawX  = sigX(bal.uYaw);
+              const slipColor = bal.uSlip > 0.05 ? "#3b82f6" : bal.uSlip < -0.05 ? "#ef4444" : "#34d399";
+              // Yaw signal becomes unreliable at high speed (yawRatePath → 0).
+              // Fade it out proportionally so the user can see why it's discounted.
+              const yawReliability = Math.min(1, bal.yawRatePath / 0.15);
+              const yawColor = bal.uYaw > 0.05 ? "#3b82f6" : bal.uYaw < -0.05 ? "#ef4444" : "#34d399";
+              return (
+                <svg viewBox="0 0 200 110" className="w-full h-auto mb-1">
+                  {/* ── Signal rows ── */}
+                  {[
+                    { label: "Slip Δ", x: slipX, color: slipColor, opacity: 1,              y: 16, desc: `F ${bal.frontSlipDeg.toFixed(1)}° / R ${bal.rearSlipDeg.toFixed(1)}°` },
+                    { label: "Yaw",    x: yawX,  color: yawColor,  opacity: yawReliability, y: 40, desc: `err ${bal.yawError > 0 ? "+" : ""}${bal.yawError.toFixed(2)} r/s (path ${bal.yawRatePath.toFixed(2)})` },
+                  ].map(({ label, x, color, opacity, y, desc }) => (
+                    <g key={label} opacity={opacity}>
+                      <text x="0" y={y - 4} fill="currentColor" opacity="0.5" fontSize="6.5">{label}</text>
+                      <rect x="0" y={y} width="200" height="10" rx="1" fill="currentColor" opacity="0.06" />
+                      <rect x="0" y={y} width={thrLeftX} height="10" fill="#ef4444" opacity="0.12" />
+                      <rect x={thrLeftX} y={y} width={thrRightX - thrLeftX} height="10" fill="#34d399" opacity="0.12" />
+                      <rect x={thrRightX} y={y} width={200 - thrRightX} height="10" fill="#3b82f6" opacity="0.12" />
+                      <line x1="100" y1={y} x2="100" y2={y + 10} stroke="currentColor" opacity="0.2" />
+                      <line x1={thrLeftX} y1={y} x2={thrLeftX} y2={y + 10} stroke="currentColor" opacity="0.3" strokeDasharray="2,1" />
+                      <line x1={thrRightX} y1={y} x2={thrRightX} y2={y + 10} stroke="currentColor" opacity="0.3" strokeDasharray="2,1" />
+                      <circle cx={x} cy={y + 5} r="4" fill={color} stroke="#0f172a" strokeWidth="1" />
+                      <text x="0" y={y + 20} fill="currentColor" opacity="0.35" fontSize="6">{desc}</text>
+                    </g>
+                  ))}
+
+                  {/* Yaw low-reliability warning */}
+                  {yawReliability < 0.6 && (
+                    <text x="200" y="44" textAnchor="end" fill="#fbbf24" fontSize="6.5" opacity="0.8">
+                      {`↓ unreliable at ${(currentPacket.Speed * 3.6).toFixed(0)} km/h`}
+                    </text>
+                  )}
+
+                  {/* Conflict / agree badge */}
+                  {bal.signalsAgree
+                    ? <text x="100" y="70" textAnchor="middle" fill="#34d399" fontSize="7" fontWeight="600">SIGNALS AGREE — blended 50/50</text>
+                    : <text x="100" y="70" textAnchor="middle" fill="#fbbf24" fontSize="7" fontWeight="600">CONFLICT — slip angle used alone</text>
+                  }
+
+                  {/* Combined balance bar */}
+                  <text x="0" y="80" fill="currentColor" opacity="0.5" fontSize="6.5">Combined</text>
+                  <rect x="0" y="82" width="200" height="10" rx="1" fill="currentColor" opacity="0.06" />
+                  <rect x="0" y="82" width={thrLeftX} height="10" fill="#ef4444" opacity="0.18" />
+                  <rect x={thrLeftX} y="82" width={thrRightX - thrLeftX} height="10" fill="#34d399" opacity="0.18" />
+                  <rect x={thrRightX} y="82" width={200 - thrRightX} height="10" fill="#3b82f6" opacity="0.18" />
+                  <line x1="100" y1="82" x2="100" y2="92" stroke="currentColor" opacity="0.25" />
+                  <line x1={thrLeftX} y1="78" x2={thrLeftX} y2="96" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
+                  <line x1={thrRightX} y1="78" x2={thrRightX} y2="96" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
+                  <circle cx={currentX} cy="87" r="4" fill={balanceColor(bal.state)} stroke="#0f172a" strokeWidth="1.2" />
+                  <text x={thrLeftX / 2} y="106" textAnchor="middle" fill="#ef4444" fontSize="7" fontWeight="600">OVER</text>
+                  <text x="100" y="106" textAnchor="middle" fill="#34d399" fontSize="7" fontWeight="600">NEUTRAL</text>
+                  <text x={(thrRightX + 200) / 2} y="106" textAnchor="middle" fill="#3b82f6" fontSize="7" fontWeight="600">UNDER</text>
+                </svg>
+              );
+            })()}
           </span>
         </span>
         <span className="tabular-nums" style={{ color: balanceColor(bal.state) }}>

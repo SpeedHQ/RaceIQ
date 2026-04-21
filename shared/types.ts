@@ -1,6 +1,9 @@
 import { z } from "zod";
 
 export const KNOWN_GAME_IDS = ["fm-2023", "f1-2025", "acc", "ac-evo"] as const;
+
+/** Version in which raw binary telemetry storage was introduced. Laps recorded before this have no telemetry. */
+export const RAW_STORAGE_VERSION = "v0.8.0";
 export const GameIdSchema = z.enum(KNOWN_GAME_IDS);
 export type GameId = z.infer<typeof GameIdSchema>;
 
@@ -502,6 +505,8 @@ export interface LapMeta {
   s1Time?: number;
   s2Time?: number;
   s3Time?: number;
+  // True for laps recorded before raw telemetry storage — no charts available
+  isLegacy?: boolean;
 }
 
 export interface SessionMeta {

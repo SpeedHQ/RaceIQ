@@ -80,6 +80,7 @@ export function useLapTelemetry(lapId: number | null) {
       if (!res.ok) throw new Error(res.statusText);
       return res.json() as Promise<{
         telemetry: TelemetryPacket[];
+        isLegacy: boolean;
         sectorTimes: { times: [number, number, number]; s1Idx: number; s2Idx: number; firstDist: number; lapDist: number } | null;
         [key: string]: any;
       }>;
@@ -136,7 +137,7 @@ export function useTrackName(ord: number | undefined) {
       });
       return res.ok ? res.text() : "";
     },
-    enabled: ord != null && ord > 0 && gameId != null,
+    enabled: ord != null && gameId != null,
   });
 }
 
@@ -151,7 +152,7 @@ export function useTrackSectors(ord: number | undefined) {
       });
       return rpcJson(res);
     },
-    enabled: ord != null && ord > 0 && !!gameId,
+    enabled: ord != null && !!gameId,
   });
 }
 
@@ -166,7 +167,7 @@ export function useTrackSectorBoundaries(ord: number | undefined) {
       });
       return rpcJson(res);
     },
-    enabled: ord != null && ord > 0 && !!gameId,
+    enabled: ord != null && !!gameId,
   });
 }
 
@@ -181,7 +182,7 @@ export function useTrackOutline(ord: number | undefined) {
       });
       return rpcJson(res);
     },
-    enabled: ord != null && ord > 0 && !!gameId,
+    enabled: ord != null && !!gameId,
   });
 }
 
@@ -196,7 +197,7 @@ export function useTrackBoundaries(ord: number | undefined) {
       });
       return rpcJson(res);
     },
-    enabled: ord != null && ord > 0 && !!gameId,
+    enabled: ord != null && !!gameId,
   });
 }
 

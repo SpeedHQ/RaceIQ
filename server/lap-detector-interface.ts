@@ -1,6 +1,6 @@
 /**
  * Shared interface for all lap detector implementations.
- * Both LapDetector (v1) and LapDetectorV2 implement ILapDetector.
+ * LapDetector (FM/F1) and LapDetectorAc (ACC/AC Evo) both implement ILapDetector.
  */
 import type { TelemetryPacket } from "../shared/types";
 import type { DbAdapter } from "./pipeline-adapters";
@@ -24,27 +24,28 @@ export interface LapDetectorCallbacks {
   onLapComplete?: (event: LapCompleteEvent) => void;
 }
 
-/** Unified constructor options accepted by both LapDetector and LapDetectorV2. */
+/** Unified constructor options accepted by all lap detector implementations. */
 export interface LapDetectorOptions {
   db: DbAdapter;
   callbacks?: LapDetectorCallbacks;
-  /** v1-specific: bypass the 30 pps packet-rate filter (used in tests). v2 ignores this. */
+  /** FM/F1 only: bypass the 30 pps packet-rate filter (used in tests). AC detector ignores this. */
   bypassPacketRateFilter?: boolean;
 }
 
 /** Common interface implemented by all lap detector variants. */
 export interface ILapDetector {
+  readonly detectorId: string;
   readonly session: SessionState | null;
-  feed(packet: TelemetryPacket): Promise<void>;
-  /** v1 only — optional so v2 doesn't have to implement it. */
+  feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void>;
+  /** FM/F1 only — optional so AC detector doesn't have to implement it. */
   readonly fuelHistory?: import("./lap-detector").LapFuelData[];
-  /** v1 only — optional so v2 doesn't have to implement it. */
+  /** FM/F1 only — optional so AC detector doesn't have to implement it. */
   readonly tireWearHistory?: import("./lap-detector").LapTireWearData[];
-  /** Flush a stale in-progress lap when packets stop arriving. v1 only. */
+  /** Flush a stale in-progress lap when packets stop arriving. FM/F1 only. */
   flushStaleLap?(): Promise<void>;
   /** Flush any in-progress lap at end-of-stream as an invalid incomplete lap. */
   flushIncompleteLap?(): Promise<void>;
-  /** Return internal debug state for the dev panel. v1 only. */
+  /** Return internal debug state for the dev panel. FM/F1 only. */
   getDebugState?(): Record<string, unknown>;
 }
 

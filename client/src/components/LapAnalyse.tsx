@@ -21,7 +21,7 @@ import { AnalyseLapHeader } from "./analyse/AnalyseLapHeader";
 import { AnalyseDataPanel } from "./analyse/AnalyseDataPanel";
 import { AnalyseTopSection } from "./analyse/AnalyseTopSection";
 import { AnalyseAiSidebar } from "./analyse/AnalyseAiSidebar";
-import { buildExportCsv, parseLapCsv } from "../lib/lap-export";
+import { buildExportCsv } from "../lib/lap-export";
 
 // Stable empty array to avoid re-renders when no telemetry loaded
 const emptyTelemetry: TelemetryPacket[] = [];
@@ -43,8 +43,8 @@ export function LapAnalyse() {
 
   // Fetch lap telemetry via TanStack Query
   const { data: lapData, isLoading: lapLoading } = useLapTelemetry(selectedLapId);
-  const [importedTelemetry, setImportedTelemetry] = useState<TelemetryPacket[] | null>(null);
-  const telemetry = importedTelemetry ?? lapData?.telemetry ?? emptyTelemetry;
+  const telemetry = lapData?.telemetry ?? emptyTelemetry;
+  const isLegacyLap = lapData?.isLegacy === true;
   const displayTelemetry = useConvertedTelemetry(telemetry);
 
   // Fetch track data via TanStack Query (keyed on trackOrdinal derived from selection or lap data)
@@ -137,8 +137,6 @@ export function LapAnalyse() {
   const thumbRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const chartsPanelRef = useRef<ChartsPanelHandle>(null);
-  const triggerImportRef = useRef<(() => void) | undefined>(undefined);
-
 
   // Name caches for track/car ordinals
   const [trackNames, setTrackNames] = useState<Record<number, string>>({});
@@ -241,7 +239,7 @@ export function LapAnalyse() {
       setCursorIdx(0);
       cursorRef.current = 0;
     }
-    setImportedTelemetry(null);
+
     setCarName(selectedCar != null ? (carNames[selectedCar] ?? "") : "");
     setTrackName(selectedTrack != null ? (trackNames[selectedTrack] ?? "") : "");
   }, [selectedLapId]);
@@ -453,31 +451,11 @@ export function LapAnalyse() {
         onToggleAi={() => setAiPanelOpen((v) => !v)}
         onDeleteLap={handleDeleteLap}
         onNotesChange={(notes) => updateLapNotesMutation.mutate(notes)}
-        {...(import.meta.env.DEV && {
-          onImport: (csv: string) => {
-            const { telemetry: packets, meta } = parseLapCsv(csv);
-            if (packets.length === 0) return;
-            setImportedTelemetry(packets);
-            if (meta.carName) setCarName(meta.carName);
-            if (meta.trackName) setTrackName(meta.trackName);
-            if (meta.carOrdinal != null) setSelectedCar(meta.carOrdinal);
-            if (meta.trackOrdinal != null) setSelectedTrack(meta.trackOrdinal);
-          },
-          triggerImportRef,
-        })}
       />
 
       {telemetry.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-app-text-muted text-sm">
-          <span>{loading ? "Loading lap telemetry..." : selectedLapId ? "No telemetry data for this lap." : "Select a track, car, and lap to analyse."}</span>
-          {import.meta.env.DEV && !loading && (
-            <button
-              className="text-xs text-app-text-muted/40 underline underline-offset-2 hover:text-app-text-muted/70"
-              onClick={() => triggerImportRef.current?.()}
-            >
-              [dev] import exported CSV
-            </button>
-          )}
+          <span>{loading ? "Loading lap telemetry..." : isLegacyLap ? "This lap was recorded before raw telemetry storage. Lap times and metadata are preserved but telemetry charts are unavailable." : selectedLapId ? "No telemetry data for this lap." : "Select a track, car, and lap to analyse."}</span>
         </div>
       )}
 

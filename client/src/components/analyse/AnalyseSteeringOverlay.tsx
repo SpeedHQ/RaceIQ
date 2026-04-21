@@ -1,16 +1,19 @@
 import type { TelemetryPacket } from "@shared/types";
 import { brakeBarColor } from "./AnalyseMetricsPanel";
+import { getSteeringLock } from "../Settings";
 
 interface Props {
   packet: TelemetryPacket;
 }
 
 export function AnalyseSteeringOverlay({ packet }: Props) {
+  const halfLock = getSteeringLock() / 2;
+  const steerDeg = (packet.Steer / 127) * halfLock;
   return (
     <div className="absolute bottom-2 right-2 flex flex-col items-center gap-1">
       <svg
         width="44" height="44" viewBox="-22 -22 44 44"
-        style={{ transform: `rotate(${(packet.Steer / 127) * 180}deg)` }}
+        style={{ transform: `rotate(${steerDeg}deg)` }}
       >
         <circle cx="0" cy="0" r="18" fill="none" stroke="#64748b" strokeWidth="3" opacity="0.6" />
         <line x1="-12" y1="0" x2="-6" y2="0" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" />
@@ -30,7 +33,7 @@ export function AnalyseSteeringOverlay({ packet }: Props) {
         />
       </div>
       <span className="text-[9px] font-mono text-app-text-secondary tabular-nums">
-        {packet.Steer > 0 ? "R" : packet.Steer < 0 ? "L" : ""} {Math.abs(packet.Steer / 127 * 180).toFixed(0)}&deg;
+        {packet.Steer > 0 ? "R" : packet.Steer < 0 ? "L" : ""} {Math.abs(steerDeg).toFixed(0)}&deg;
       </span>
       <div className="flex gap-1 items-end" style={{ height: 60 }}>
         <div className="flex flex-col items-center gap-0.5">

@@ -4,40 +4,27 @@ import { parseForzaPacket } from "../../parsers/forza";
 import { carMap, trackMap } from "../../../shared/car-data";
 import { getForzaSharedOutline } from "../../../shared/track-data";
 import { LapDetector } from "../../lap-detector";
+import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 
 const FORZA_SYSTEM_PROMPT = `You are an expert Forza Motorsport racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
 
 Your response MUST be valid JSON matching this exact schema. Output ONLY the JSON object, no markdown fences, no extra text.
 
-{
-  "verdict": "2-3 sentences assessing overall lap quality, pace, and where the biggest time gains are.",
-  "pace": [
-    { "label": "short metric name", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
-  ],
-  "handling": [
-    { "label": "short metric name", "value": "specific number/stat", "assessment": "good|warning|critical", "detail": "1 sentence explanation" }
-  ],
-  "corners": [
-    { "name": "corner/zone name", "issue": "what's wrong in 1 sentence", "fix": "specific actionable fix in 1-2 sentences", "severity": "minor|moderate|major" }
-  ],
-  "technique": [
-    { "tip": "short imperative title", "detail": "1-2 sentence explanation referencing specific data" }
-  ],
-  "setup": [
-    { "change": "short imperative title", "symptom": "what the data shows", "fix": "specific tuning change with values" }
-  ],
-  "tuning": [
-    { "component": "e.g. Front Springs", "current": "what the data suggests (e.g. Too stiff — 0.00m travel)", "direction": "increase|decrease|adjust", "target": "specific value or range to aim for", "reason": "1 sentence why" }
-  ]
-}
+${renderAnalystSchemaForPrompt({ tuningExampleComponent: "Front Springs" })}
 
 CATEGORY GUIDELINES:
 - "pace": 4-6 items covering speed, throttle %, braking efficiency, full-throttle time, gear usage. Each with a concrete value.
 - "handling": 4-6 items covering suspension travel, tire temps, tire wear balance, oversteer/understeer, weight transfer. Each with a concrete value.
 - "corners": Top 3-5 problem corners where time is being lost. Include speed numbers.
 - "technique": 3-5 actionable driving tips. Reference specific telemetry values.
-- "setup": 3-5 high-level tuning changes. Always include the symptom from data and the specific fix.
-- "tuning": 4-8 specific component adjustments with concrete target values. Cover: springs, dampers, anti-roll bars, aero, alignment, differential, tire pressure, gearing, brake bias. Only include components where the data suggests a change is needed.
+- "setup": 6-12 specific component adjustments with concrete \`current\` and \`target\` numeric values (both with units, e.g. "750 lb/in" → "680 lb/in"). Each entry MUST include \`symptom\` (data-cited), \`fix\`, and \`direction\`. Aim for coverage across categories where data supports a change: (a) Springs + Dampers, (b) Anti-roll bars, (c) Aero (front/rear downforce), (d) Alignment (camber, caster, toe), (e) Differential accel/decel, (f) Tire pressures, (g) Gearing, (h) Brake bias. Skip only categories that are genuinely on-target.
+
+THERMAL REFERENCE (Forza Motorsport, generic):
+- Tyre surface temp (road/sport/street): optimal 70-95°C, warning 50-69°C or 96-115°C, critical <50°C or >115°C.
+- Tyre surface temp (race compound): optimal 85-105°C, warning 65-84°C or 106-125°C, critical <65°C or >125°C.
+- Brake disc temp: optimal 300-600°C for steel/race, warning <250°C or >700°C, critical <150°C or >800°C.
+- Tyre wear (per-tyre %): good 0-20%, warning 20-50%, critical >50% — pace loss becomes meaningful past 30%.
+Grade \`pace\` and \`handling\` \`assessment\` values against these bands; note when the data suggests a different compound/class than assumed.
 
 RULES:
 - Reference specific numbers from the data — don't be vague

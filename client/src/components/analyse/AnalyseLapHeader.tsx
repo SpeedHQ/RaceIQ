@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import type { LapMeta } from "@shared/types";
 import { Sparkles, Trash2, NotebookPen } from "lucide-react";
 import { SearchSelect } from "../ui/SearchSelect";
@@ -37,8 +37,6 @@ interface Props {
   onToggleAi: () => void;
   onDeleteLap: () => void;
   onNotesChange: (notes: string) => void;
-  onImport?: (csv: string) => void;
-  triggerImportRef?: React.MutableRefObject<(() => void) | undefined>;
 }
 
 export function AnalyseLapHeader({
@@ -47,14 +45,10 @@ export function AnalyseLapHeader({
   hasTelemetry, hasF1Setup, availableTunes, tunePending,
   loading, aiPanelOpen,
   onTrackChange, onCarChange, onLapChange, onTuneChange, onViewTune, onShowSetup,
-  onExport, onToggleAi, onDeleteLap, onNotesChange, onImport, triggerImportRef,
+  onExport, onToggleAi, onDeleteLap, onNotesChange,
 }: Props) {
   const [guideOpen, setGuideOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
-  const importInputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (triggerImportRef) triggerImportRef.current = () => importInputRef.current?.click();
-  }, [triggerImportRef]);
   return (
     <>
     <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
@@ -98,52 +92,44 @@ export function AnalyseLapHeader({
         fallbackLabel={selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
       />
 
-      {/* Tune selector */}
+      {/* Tune / setup controls.
+          F1 25 laps capture the full car setup on-packet, surfaced via the
+          Car Setup modal — the Forza-style tune picker doesn't apply there,
+          so we hide it and render only the Car Setup button. */}
       {selectedLapId && hasTelemetry && (
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-app-text-muted">Tune:</span>
-          <select
-            value={selectedLap?.tuneId ?? ""}
-            onChange={(e) => {
-              const val = e.target.value;
-              onTuneChange(val ? parseInt(val, 10) : null);
-            }}
-            disabled={tunePending}
-            className="bg-app-surface border border-app-border-input rounded px-2 py-1 text-sm text-app-text"
-          >
-            <option value="">No tune</option>
-            {availableTunes?.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
-          {selectedLap?.tuneId && (
-            <Button variant="app-outline" size="app-sm" onClick={() => onViewTune(selectedLap.tuneId!)}>
-              View
-            </Button>
-          )}
-          {tunePending && (
-            <span className="text-xs text-app-text-muted animate-pulse">Saving...</span>
-          )}
-          {hasF1Setup && (
+          {hasF1Setup ? (
             <Button variant="app-outline" size="app-sm" onClick={onShowSetup}>
               Car Setup
             </Button>
+          ) : (
+            <>
+              <span className="text-app-text-muted">Tune:</span>
+              <select
+                value={selectedLap?.tuneId ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onTuneChange(val ? parseInt(val, 10) : null);
+                }}
+                disabled={tunePending}
+                className="bg-app-surface border border-app-border-input rounded px-2 py-1 text-sm text-app-text"
+              >
+                <option value="">No tune</option>
+                {availableTunes?.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              {selectedLap?.tuneId && (
+                <Button variant="app-outline" size="app-sm" onClick={() => onViewTune(selectedLap.tuneId!)}>
+                  View
+                </Button>
+              )}
+              {tunePending && (
+                <span className="text-xs text-app-text-muted animate-pulse">Saving...</span>
+              )}
+            </>
           )}
         </div>
-      )}
-
-      {import.meta.env.DEV && onImport && (
-        <input
-          ref={importInputRef}
-          type="file"
-          accept=".csv"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            file.text().then((csv) => { onImport(csv); e.target.value = ""; });
-          }}
-        />
       )}
 
       {noteOpen && (
@@ -154,11 +140,6 @@ export function AnalyseLapHeader({
         />
       )}
       <div className="ml-auto flex items-center gap-2">
-        {import.meta.env.DEV && onImport && (
-          <Button variant="app-outline" size="app-md" onClick={() => importInputRef.current?.click()} title="Dev only: import exported CSV to override telemetry" className="text-app-text-muted/60 border-dashed">
-            [dev] Import CSV
-          </Button>
-        )}
         {selectedLapId != null && (
           <Button
             variant="app-outline"

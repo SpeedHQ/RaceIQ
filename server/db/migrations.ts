@@ -235,14 +235,25 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_corners_track ON track_corners(track_ordinal)`,
     ],
   },
+  {
+    version: 19,
+    name: "raw binary lap storage",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN raw_file TEXT`,
+      `ALTER TABLE sessions ADD COLUMN lap_detector_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN raw_byte_offset INTEGER`,
+      `ALTER TABLE laps ADD COLUMN raw_frame_count INTEGER`,
+      `ALTER TABLE laps DROP COLUMN telemetry`,
+    ],
+  },
 
-  // ── v19: add game_id to tunes ─────────────────────────────────────────
+  // ── v20: add game_id to tunes ─────────────────────────────────────────
   //
   // Tunes were previously Forza-only. Multi-game support (ACC, AC-EVO, F1 2025)
   // requires disambiguating which game a tune belongs to. Existing rows are
   // backfilled to 'fm-2023' since that was the only game with tune management.
   {
-    version: 19,
+    version: 20,
     name: "add game_id to tunes",
     sql: [
       `ALTER TABLE tunes ADD COLUMN game_id TEXT NOT NULL DEFAULT 'fm-2023'`,

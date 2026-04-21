@@ -66,14 +66,15 @@ class ImportCaptureAdapter implements DbAdapter {
     lapNumber: number,
     lapTime: number,
     isValid: boolean,
-    packets: TelemetryPacket[],
+    rawByteOffset: number | null,
+    rawFrameCount: number,
     profileId: number | null,
     tuneId: number | null,
     invalidReason: string | null,
     sectors: { s1: number; s2: number; s3: number } | null
   ): Promise<number> {
     const id = await this._inner.insertLap(
-      sessionId, lapNumber, lapTime, isValid, packets, profileId, tuneId, invalidReason, sectors
+      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors
     );
     const meta = this._sessionMeta.get(sessionId);
     this.laps.push({
@@ -93,6 +94,9 @@ class ImportCaptureAdapter implements DbAdapter {
   }
   getTuneAssignment(carOrdinal: number, trackOrdinal: number) {
     return this._inner.getTuneAssignment(carOrdinal, trackOrdinal);
+  }
+  updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
+    return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
   }
 }
 

@@ -33,19 +33,26 @@ import { getGame } from "../../shared/games/registry";
 import type { GameId } from "../../shared/types";
 import { loadSettings } from "../settings";
 import { buildAnalystPrompt } from "../ai/analyst-prompt";
+import { getAnalystJsonSchema } from "../ai/schemas";
 import {
   getChatMemory,
   chatThreadId,
   compareChatThreadId,
   CHAT_RESOURCE_ID,
 } from "../ai/chat-agent";
-import { runGemini, runOpenAi } from "../ai/providers";
 import { getSecret } from "../keystore";
 import { deleteAnalysis as deleteAnalysisQuery } from "../db/queries";
 import { tryGetGame } from "../../shared/games/registry";
 import { loadSharedTrackMeta } from "../../shared/track-data";
 import { buildChatSystemPrompt } from "../ai/chat-prompt";
 import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
+import { chatStreamResponse } from "../ai/chat-stream";
+import {
+  topCatalogReferences,
+  normalizePacketSetup,
+  getCatalogDisplayName,
+} from "../ai/f1-setup-catalog";
+import type { TelemetryPacket } from "../../shared/types";
 import {
   buildInputsComparePrompt,
   InputsCompareSchema,
@@ -53,10 +60,69 @@ import {
 // Dev uses the full Mastra instance (so Studio sees traces); prod tree-shakes
 // the Mastra wrapper out. See `server/ai/agents.ts` for the switch.
 import {
+  lapAnalystAgent,
   lapChatAgent,
   compareEngineerAgent,
   compareChatAgent,
 } from "../ai/agents";
+
+/** Parse a stored carSetup JSON blob, returning null on any error. */
+function safeParseJson(raw: string): Record<string, unknown> | null {
+  try {
+    const v = JSON.parse(raw);
+    return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Scan telemetry packets for the first `f1.setup` object. */
+function firstPacketF1Setup(packets: TelemetryPacket[]): Record<string, unknown> | null {
+  for (const p of packets) {
+    const s = p.f1?.setup;
+    if (s && typeof s === "object") return s as unknown as Record<string, unknown>;
+  }
+  return null;
+}
+
+/**
+ * Build the "F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS" block appended to
+ * the analyst prompt for F1 laps. The same data the
+ * `compare-f1-setup-to-catalog` tool returns, but inline so local models
+ * (Gemma 4) can answer in one shot instead of looping tool calls.
+ */
+function buildF1SetupReferenceBlock(
+  carSetupJson: string | undefined,
+  telemetry: TelemetryPacket[],
+  trackOrdinal: number,
+): string {
+  const setup = carSetupJson ? safeParseJson(carSetupJson) : firstPacketF1Setup(telemetry);
+  if (!setup || trackOrdinal < 0) return "";
+  const current = normalizePacketSetup(setup);
+  const refs = topCatalogReferences(trackOrdinal, 5, current);
+  if (refs.length === 0) return "";
+
+  const lines: string[] = [];
+  lines.push(`\n\n--- F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS (${getCatalogDisplayName(trackOrdinal) ?? "this track"}) ---`);
+  lines.push("Use this data to populate setup[]. Cite rank/team/author per entry. Only propose steps within the step-cap rules.");
+  lines.push("");
+  lines.push("Current setup:");
+  for (const [k, v] of Object.entries(current)) lines.push(`  ${k}: ${v}`);
+  for (const r of refs) {
+    lines.push("");
+    lines.push(`Rank ${r.rank} — ${r.team} / ${r.author} — ${r.lapTime} (${r.weather}, ${r.inputDevice}):`);
+    const deltas = Object.entries(r.delta ?? {});
+    if (deltas.length === 0) {
+      lines.push("  (identical to current setup)");
+    } else {
+      for (const [k, v] of deltas) {
+        const sign = (v as number) > 0 ? "+" : "";
+        lines.push(`  ${k}: ${current[k]} → ${(r.setup as Record<string, number>)[k]} (${sign}${v})`);
+      }
+    }
+  }
+  return lines.join("\n");
+}
 
 const CompareParamsSchema = z.object({
   id1: z.string().transform(val => parseInt(val, 10)),
@@ -190,7 +256,13 @@ export const lapRoutes = new Hono()
         return c.json({ error: "No telemetry data" }, 400);
 
       const trackOrdinal = lap.trackOrdinal ?? 0;
-      const corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId) : [];
+      // Curated corners from `track_corners` first; fall back to telemetry
+      // detection (T1..Tn) when the track has no entries — lets the client
+      // resolve "T13" card clicks to the correct position instead of lap start.
+      let corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId) : [];
+      if (corners.length === 0 && lap.telemetry.length > 0) {
+        corners = detectCorners(lap.telemetry);
+      }
 
       // Compute corner fracs for client-side track highlighting
       const totalDist = lap.telemetry.length > 1
@@ -203,9 +275,28 @@ export const lapRoutes = new Hono()
         endFrac: Math.min(1, (c.distanceEnd - firstDist) / totalDist),
       }));
 
+      // `hasTune` tells the UI whether the analysis had authoritative setup data.
+      // Forza laps: a linked `tuneId`. F1 laps: the per-lap `carSetup` snapshot
+      // (fetched by the compare-f1-setup-to-catalog tool, not injected into
+      // the prompt). Without this, the "No tune data linked" banner would fire
+      // on every F1 analysis even though the tool gives the model the setup.
+      const hasTune = !!lap.tuneId || (lap.gameId === "f1-2025" && !!lap.carSetup);
+
       if (!regenerate) {
         const cached = await getAnalysis(id);
-        if (cached) {
+        // Guard: only serve caches whose payload is valid JSON. Earlier runs
+        // (pre-validation) could persist empty strings or truncated output —
+        // those would otherwise get stuck replaying the broken text forever.
+        let cachedIsValid = false;
+        if (cached?.analysis) {
+          try {
+            JSON.parse(cached.analysis);
+            cachedIsValid = true;
+          } catch {
+            cachedIsValid = false;
+          }
+        }
+        if (cached && cachedIsValid) {
           return c.json({
             analysis: cached.analysis,
             cached: true,
@@ -217,11 +308,11 @@ export const lapRoutes = new Hono()
               model: cached.model,
             },
             cornerFracs,
-            hasTune: !!lap.tuneId,
+            hasTune,
           });
         }
         if (cacheOnly) {
-          return c.json({ analysis: null, cached: false, cornerFracs, hasTune: !!lap.tuneId });
+          return c.json({ analysis: null, cached: false, cornerFracs, hasTune });
         }
       }
       const settings = loadSettings();
@@ -260,7 +351,7 @@ export const lapRoutes = new Hono()
         }
       } catch { /* ignore */ }
 
-      const prompt = buildAnalystPrompt(
+      let prompt = buildAnalystPrompt(
         lap,
         lap.telemetry,
         corners,
@@ -268,26 +359,120 @@ export const lapRoutes = new Hono()
         parsedTune,
         segments,
       );
-
-      try {
-        let result;
-        if (settings.aiProvider === "openai") {
-          const apiKey = await getSecret("openai-api-key");
-          if (!apiKey) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
-          result = await runOpenAi(prompt, apiKey, settings.aiModel || undefined);
-        } else {
-          // Default: Gemini (also handles "local" fallback)
-          const apiKey = await getSecret("gemini-api-key");
-          if (!apiKey) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
-          result = await runGemini(prompt, apiKey, settings.aiModel || undefined);
-        }
-
-        await saveAnalysis(id, result.analysis, result.usage);
-        return c.json({ analysis: result.analysis, cached: false, usage: result.usage, cornerFracs, hasTune: !!parsedTune });
-      } catch (err: any) {
-        console.error("[AI] Analysis failed:", err.message);
-        return c.json({ error: err.message }, err.message.includes("timed out") ? 504 : 500);
+      if (lap.gameId === "f1-2025") {
+        prompt += buildF1SetupReferenceBlock(lap.carSetup, lap.telemetry, lap.trackOrdinal ?? -1);
       }
+
+      // Bridge keystore secret → env var so Mastra / AI SDK providers can resolve it.
+      // The Mastra lap-analyst agent reads the provider from settings via `getMastraModelId`.
+      const analystProvider = settings.aiProvider;
+      if (analystProvider === "openai") {
+        const key = await getSecret("openai-api-key");
+        if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
+        process.env.OPENAI_API_KEY = key;
+      } else if (analystProvider === "local") {
+        process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+        process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+      } else {
+        const key = await getSecret("gemini-api-key");
+        if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
+        process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+      }
+
+      // Analyse returns a heartbeat-style NDJSON stream: `ping` every ~200s
+      // to keep Bun's 255s idleTimeout alive for slow local models, then a
+      // single `result` (or `error`) event at the end. The client doesn't
+      // render intermediate status — it just waits for the result.
+      const modelLabel = settings.aiModel || (analystProvider === "openai" ? "gpt-4o-mini" : "gemini-flash-latest");
+      const startedAt = Date.now();
+      const encoder = new TextEncoder();
+      const writeEvent = (c: ReadableStreamDefaultController, obj: unknown) => {
+        try { c.enqueue(encoder.encode(JSON.stringify(obj) + "\n")); } catch { /* closed */ }
+      };
+      const hideTools = analystProvider === "local";
+
+      const readable = new ReadableStream({
+        async start(controller) {
+          const keepAlive = setInterval(() => {
+            writeEvent(controller, { type: "ping" });
+          }, 200_000);
+          try {
+            const result = await lapAnalystAgent.generate(prompt, {
+              maxSteps: 5,
+              ...(hideTools ? { activeTools: [] as never[] } : {}),
+              modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+              providerOptions: {
+                openai: {
+                  reasoningEffort: analystProvider === "local" ? "none" : "low",
+                  responseFormat: {
+                    type: "json_schema",
+                    jsonSchema: {
+                      name: "analyst_output",
+                      strict: true,
+                      schema: getAnalystJsonSchema() as Record<string, never>,
+                    },
+                  } as never,
+                },
+                google: {
+                  thinkingConfig: { thinkingBudget: 2048, includeThoughts: false },
+                  responseMimeType: "application/json",
+                  responseSchema: getAnalystJsonSchema() as never,
+                },
+              },
+            });
+            const text = typeof result.text === "string" ? result.text : "";
+            const durationMs = Date.now() - startedAt;
+            let validJson = false;
+            try {
+              JSON.parse(text);
+              validJson = true;
+            } catch (parseErr) {
+              const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+              console.warn(`[analyse] model output is not valid JSON (${msg}) — skipping cache write`);
+            }
+            const rawUsage = (result.usage ?? {}) as Record<string, unknown>;
+            const n = (k: string) => (typeof rawUsage[k] === "number" ? (rawUsage[k] as number) : 0);
+            const usage = {
+              inputTokens: n("inputTokens") || n("promptTokens"),
+              outputTokens: n("outputTokens") || n("completionTokens"),
+              costUsd: 0,
+              durationMs,
+              model: modelLabel,
+            };
+            if (!validJson) {
+              writeEvent(controller, {
+                type: "error",
+                message: "Model produced invalid JSON. Not cached. Try again or switch model.",
+              });
+            } else {
+              await saveAnalysis(id, text, usage);
+              writeEvent(controller, {
+                type: "result",
+                analysis: text,
+                cached: false,
+                usage,
+                cornerFracs,
+                hasTune,
+              });
+            }
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error("[AI] Analysis failed:", msg);
+            writeEvent(controller, { type: "error", message: msg });
+          } finally {
+            clearInterval(keepAlive);
+            try { controller.close(); } catch { /* already closed */ }
+          }
+        },
+      });
+
+      return new Response(readable, {
+        headers: {
+          "Content-Type": "application/x-ndjson; charset=utf-8",
+          "Cache-Control": "no-cache",
+          "Transfer-Encoding": "chunked",
+        },
+      });
     }
   )
 
@@ -341,7 +526,13 @@ export const lapRoutes = new Hono()
 
       const settings = loadSettings();
       const trackOrdinal = lap.trackOrdinal ?? 0;
-      const corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId) : [];
+      // Curated corners from `track_corners` first; fall back to telemetry
+      // detection (T1..Tn) when the track has no entries — lets the client
+      // resolve "T13" card clicks to the correct position instead of lap start.
+      let corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId) : [];
+      if (corners.length === 0 && lap.telemetry.length > 0) {
+        corners = detectCorners(lap.telemetry);
+      }
 
       // Load tune if linked
       let parsedTune: Tune | undefined;
@@ -385,37 +576,10 @@ export const lapRoutes = new Hono()
 
       try {
         const threadId = chatThreadId(id);
-
-        const stream = await lapChatAgent.stream(message, {
+        return chatStreamResponse(lapChatAgent.stream(message, {
           instructions: systemPrompt,
-          memory: {
-            thread: threadId,
-            resource: CHAT_RESOURCE_ID,
-          },
-        });
-
-        // Pipe the text stream through a TextEncoder for the Response body
-        const encoder = new TextEncoder();
-        const readable = new ReadableStream({
-          async start(controller) {
-            try {
-              for await (const chunk of stream.textStream) {
-                controller.enqueue(encoder.encode(chunk));
-              }
-              controller.close();
-            } catch (err) {
-              controller.error(err);
-            }
-          },
-        });
-
-        return new Response(readable, {
-          headers: {
-            "Content-Type": "text/plain; charset=utf-8",
-            "Cache-Control": "no-cache",
-            "Transfer-Encoding": "chunked",
-          },
-        });
+          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+        }));
       } catch (err: any) {
         console.error("[Chat] Stream failed:", err.message);
         return c.json({ error: err.message }, 500);
@@ -885,32 +1049,10 @@ export const lapRoutes = new Hono()
       try {
         const threadId = compareChatThreadId(id1, id2);
 
-        const stream = await compareChatAgent.stream(message, {
+        return chatStreamResponse(compareChatAgent.stream(message, {
           instructions: systemPrompt,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-        });
-
-        const encoder = new TextEncoder();
-        const readable = new ReadableStream({
-          async start(controller) {
-            try {
-              for await (const chunk of stream.textStream) {
-                controller.enqueue(encoder.encode(chunk));
-              }
-              controller.close();
-            } catch (err) {
-              controller.error(err);
-            }
-          },
-        });
-
-        return new Response(readable, {
-          headers: {
-            "Content-Type": "text/plain; charset=utf-8",
-            "Cache-Control": "no-cache",
-            "Transfer-Encoding": "chunked",
-          },
-        });
+        }));
       } catch (err: any) {
         console.error("[CompareChat] Stream failed:", err.message);
         return c.json({ error: err.message }, 500);
