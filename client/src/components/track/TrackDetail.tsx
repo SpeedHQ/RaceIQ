@@ -1269,9 +1269,9 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                               Time {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
                             </TH>
                             <TH className="w-px" />
-                            <TH className="font-mono text-app-text-dim">S1</TH>
-                            <TH className="font-mono text-app-text-dim">S2</TH>
-                            <TH className="font-mono text-app-text-dim">S3</TH>
+                            <TH className="text-red-400">S1</TH>
+                            <TH className="text-blue-400">S2</TH>
+                            <TH className="text-yellow-400">S3</TH>
                             <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("date")}>
                               Date {sortBy === "date" ? (sortAsc ? "▲" : "▼") : ""}
                             </TH>
@@ -1334,9 +1334,9 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                     </Button>
                                   )}
                                 </TD>
-                                <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</TD>
-                                <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</TD>
-                                <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</TD>
+                                <TD className="font-mono tabular-nums text-app-text/90">{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</TD>
+                                <TD className="font-mono tabular-nums text-app-text/90">{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</TD>
+                                <TD className="font-mono tabular-nums text-app-text/90">{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</TD>
                                 <TD className="text-app-text-secondary whitespace-nowrap font-mono">
                                   {lap.createdAt ? `${new Date(lap.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} ${new Date(lap.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : "—"}
                                 </TD>
