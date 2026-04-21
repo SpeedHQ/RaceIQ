@@ -20,12 +20,12 @@ import { resolve } from "path";
  * Env:
  *   DEMO_MAX_FRAMES   max packets to record (default 1800 = 30s @ 60fps)
  *   DEMO_START_FRAME  starting packet index (default 0). Use "30%" for fractional.
- *   DEMO_FRAMES_DIR   output jpg dir (default ./demo-frames)
+ *   DEMO_FRAMES_DIR   output jpg dir (default /tmp/raceiq-demo-frames)
  */
 
 const MAX_FRAMES = parseInt(process.env.DEMO_MAX_FRAMES ?? "1800", 10);
 const START_FRAME_RAW = process.env.DEMO_START_FRAME ?? "0";
-const FRAMES_DIR = resolve(__dirname, "..", process.env.DEMO_FRAMES_DIR ?? "playwright/assets/demo-frames");
+const FRAMES_DIR = resolve(process.env.DEMO_FRAMES_DIR ?? "/tmp/raceiq-demo-frames");
 const WORKER_COUNT = 4;
 
 test("record demo render", async ({ page }, testInfo) => {
