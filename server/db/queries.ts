@@ -410,6 +410,19 @@ async function parseRawLapFrames(
     );
   }
 
+  // Warm up stateful parsers (F1) by replaying frames from the start of the
+  // file. Without this the accumulator starts empty mid-file and drops the
+  // first ~1s of lap telemetry waiting for every sub-packet type to arrive.
+  // Start at 12 to skip the meta frame.
+  let warmupOffset = 12;
+  while (warmupOffset < rawByteOffset && warmupOffset + 4 <= buf.length) {
+    const wLen = buf.readUInt32LE(warmupOffset);
+    if (wLen <= 0 || warmupOffset + 4 + wLen > buf.length) break;
+    const wBuf = buf.subarray(warmupOffset + 4, warmupOffset + 4 + wLen);
+    warmupOffset += 4 + wLen;
+    try { serverGame.tryParse(wBuf, state); } catch { /* warmup best-effort */ }
+  }
+
   let offset = rawByteOffset;
   const packets: TelemetryPacket[] = [];
 
