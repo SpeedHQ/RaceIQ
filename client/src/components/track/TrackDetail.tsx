@@ -1311,8 +1311,8 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                       : <span className="text-[10px] text-emerald-500/60">✓</span>
                                     }
                                     {lap.isLegacy ? (
-                                      <span title={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
-                                        <Button variant="app-outline" size="app-sm" disabled className="opacity-40 cursor-not-allowed bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
+                                      <span title={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`} className="cursor-not-allowed">
+                                        <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
                                           Analyse
                                         </Button>
                                       </span>

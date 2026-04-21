@@ -47,7 +47,7 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
   );
 }
 
-type LapSortKey = "lap" | "time" | "valid";
+type LapSortKey = "lap" | "time";
 
 function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort, selectedLaps, toggleLapSelection }: {
   session: SessionMeta;
@@ -76,9 +76,7 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
 
   const sortedLaps = useMemo(() => [...laps].sort((a, b) => {
     if (lapSortKey === "lap") return lapSortDir === "asc" ? a.lapNumber - b.lapNumber : b.lapNumber - a.lapNumber;
-    if (lapSortKey === "time") return lapSortDir === "asc" ? a.lapTime - b.lapTime : b.lapTime - a.lapTime;
-    const av = a.isValid ? 1 : 0; const bv = b.isValid ? 1 : 0;
-    return lapSortDir === "asc" ? bv - av : av - bv;
+    return lapSortDir === "asc" ? a.lapTime - b.lapTime : b.lapTime - a.lapTime;
   }), [laps, lapSortKey, lapSortDir]);
 
   function sectorColor(time: number, best: number): string {
@@ -92,9 +90,9 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
       <THead>
         <TH className="w-10 px-2" />
         <TH />
-        {(["lap", "time", "valid"] as const).map((f) => (
+        {(["lap", "time"] as const).map((f) => (
           <TH key={f} className="cursor-pointer select-none hover:text-app-text/90" onClick={() => toggleLapSort(f)}>
-            {f === "lap" ? "Lap" : f === "time" ? "Time" : "Valid"}
+            {f === "lap" ? "Lap" : "Time"}
             {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
           </TH>
         ))}
@@ -117,9 +115,10 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
               <TD>
                 <div className="flex items-center gap-2">
                   <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
+                  {lap.isValid ? <span className="text-emerald-400 text-xs">&#10003;</span> : <span className="text-red-400 text-xs" title={lap.invalidReason}>&#10007;</span>}
                   {lap.isLegacy ? (
-                    <span title={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
-                      <Button variant="app-outline" size="app-sm" disabled className="opacity-40 cursor-not-allowed bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
+                    <span title={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`} className="cursor-not-allowed">
+                      <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
                         Analyse
                       </Button>
                     </span>
@@ -131,9 +130,6 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
                     </Button>
                   )}
                 </div>
-              </TD>
-              <TD>
-                {lap.isValid ? <span className="text-emerald-400">&#10003;</span> : <span className="text-red-400" title={lap.invalidReason}>&#10007;</span>}
               </TD>
               {(["s1", "s2", "s3"] as const).map((s) => {
                 const val = s === "s1" ? (lap.s1Time ?? 0) : s === "s2" ? (lap.s2Time ?? 0) : (lap.s3Time ?? 0);
@@ -206,9 +202,9 @@ export function SessionsPage() {
   const [page, setPage] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [lapSortKey, setLapSortKey] = useState<"lap" | "time" | "valid">("lap");
+  const [lapSortKey, setLapSortKey] = useState<LapSortKey>("lap");
   const [lapSortDir, setLapSortDir] = useState<SortDir>("asc");
-  const toggleLapSort = (key: "lap" | "time" | "valid") => {
+  const toggleLapSort = (key: LapSortKey) => {
     if (lapSortKey === key) setLapSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setLapSortKey(key); setLapSortDir("asc"); }
   };
@@ -408,8 +404,8 @@ const deleteSelected = useCallback(async () => {
             const lapB = allLaps.find((l) => l.id === ids[1]);
             if (!lapA || !lapB) return null;
             if (lapA.isLegacy || lapB.isLegacy) return (
-              <span title={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
-                <Button variant="app-outline" size="app-sm" disabled className="opacity-40 cursor-not-allowed">Compare</Button>
+              <span title={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`} className="cursor-not-allowed">
+                <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none">Compare</Button>
               </span>
             );
             const sessA = sessions.find((s) => s.id === lapA.sessionId);
