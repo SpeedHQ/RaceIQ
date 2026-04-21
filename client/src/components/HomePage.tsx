@@ -90,9 +90,9 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
                   <span className={`text-[10px] ${lap.isValid ? "text-emerald-400" : "text-red-400"}`}>{lap.isValid ? "\u2713" : "\u2717"}</span>
                 </span>
               </TD>
-              <TD className="font-mono text-[11px] tabular-nums text-app-text-muted">{lap.s1Time ? formatLapTime(lap.s1Time) : "—"}</TD>
-              <TD className="font-mono text-[11px] tabular-nums text-app-text-muted">{lap.s2Time ? formatLapTime(lap.s2Time) : "—"}</TD>
-              <TD className="font-mono text-[11px] tabular-nums text-app-text-muted">{lap.s3Time ? formatLapTime(lap.s3Time) : "—"}</TD>
+              <TD className="font-mono tabular-nums text-app-text-muted">{lap.s1Time ? formatLapTime(lap.s1Time) : "—"}</TD>
+              <TD className="font-mono tabular-nums text-app-text-muted">{lap.s2Time ? formatLapTime(lap.s2Time) : "—"}</TD>
+              <TD className="font-mono tabular-nums text-app-text-muted">{lap.s3Time ? formatLapTime(lap.s3Time) : "—"}</TD>
               <TD className="text-right text-xs text-app-text/90">{ago}</TD>
             </TRow>
           );
