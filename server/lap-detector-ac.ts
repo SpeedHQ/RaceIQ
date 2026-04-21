@@ -75,6 +75,11 @@ export class LapDetectorAc implements ILapDetector {
       // lap counter (fresh session: packet.LapNumber=0 preserves legacy behaviour).
       this.currentLapNumber = packet.LapNumber ?? 0;
       this.firstLapIsPartial = accFirstPacketIsMidLap(packet);
+      // Seed byte offset from the current packet so this session's first lap
+      // points into the current .bin file, not the previous session's stale
+      // offset. Also reset the rolling frame count.
+      this._lapByteOffset = this._currentRawByteOffset;
+      this._lapFrameCount = 0;
       await this.onSessionStart?.(this.currentSession);
     }
 

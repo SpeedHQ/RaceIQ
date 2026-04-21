@@ -234,6 +234,11 @@ export class LapDetector implements ILapDetector {
     if (this.currentLapNumber < 0) {
       this.currentLapNumber = packet.LapNumber;
       this._distanceAtLapStart = packet.DistanceTraveled;
+      // Seed byte offset from the current packet so lap 1 points to where
+      // it actually starts in the current session's .bin file (not the
+      // previous session's stale offset).
+      this._lapByteOffset = this._currentRawByteOffset;
+      this._lapFrameCount = 0;
       // Seed ACC sector index from actual position so we don't fire a false transition
       // if the car starts mid-track (grid box, pit exit) rather than at sector 0.
       if (packet.gameId === "acc" && packet.acc) {
@@ -301,6 +306,10 @@ export class LapDetector implements ILapDetector {
     this.invalidReason = null;
     this.lastTimestampMS = 0;
     this._distanceAtLapStart = packet.DistanceTraveled;
+    // Reset raw-file bookkeeping so lap 1 of this session doesn't inherit
+    // byte offsets/frame counts from the previous session's .bin file.
+    this._lapByteOffset = null;
+    this._lapFrameCount = 0;
 
     console.log(
       `[Session] New session #${sessionId} | Car: ${packet.CarOrdinal} | Class: ${packet.CarClass} | PI: ${packet.CarPerformanceIndex}${sessionType ? ` | Type: ${sessionType}` : ""}`
