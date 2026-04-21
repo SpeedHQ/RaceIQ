@@ -116,7 +116,7 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
               <TD>
                 <div className="flex items-center gap-2">
                   <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
-                  {lap.isValid ? <span className="text-emerald-400 text-xs">&#10003;</span> : <span className="text-red-400 text-xs" title={lap.invalidReason}>&#10007;</span>}
+                  {lap.isValid ? <span className="text-emerald-400 text-sm">&#10003;</span> : <span className="text-red-400 text-sm" title={lap.invalidReason}>&#10007;</span>}
                   {lap.isLegacy ? (
                     <Tooltip content={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
                       <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">

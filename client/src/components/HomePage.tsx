@@ -75,7 +75,7 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
               <TD className="font-mono font-bold text-app-text/90 tabular-nums whitespace-nowrap">
                 <span className="flex items-center gap-1">
                   {formatLapTime(lap.lapTime)}
-                  <span className={`text-xs ${lap.isValid ? "text-emerald-400" : "text-red-400"}`}>{lap.isValid ? "\u2713" : "\u2717"}</span>
+                  <span className={`text-sm ${lap.isValid ? "text-emerald-400" : "text-red-400"}`}>{lap.isValid ? "\u2713" : "\u2717"}</span>
                 </span>
               </TD>
 

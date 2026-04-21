@@ -1308,8 +1308,8 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                   <div className="flex items-center justify-end gap-1">
                                     <span className={`font-mono tabular-nums ${isFastest ? "text-purple-400 font-bold" : ""}`}>{formatLapTime(lap.lapTime)}</span>
                                     {lap.isValid === false
-                                      ? <span className="group/inv relative text-xs text-red-400 cursor-default">✕<span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">{lap.invalidReason ?? "Invalid lap"}</span></span>
-                                      : <span className="text-xs text-emerald-400">✓</span>
+                                      ? <span className="group/inv relative text-sm text-red-400 cursor-default">✕<span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">{lap.invalidReason ?? "Invalid lap"}</span></span>
+                                      : <span className="text-sm text-emerald-400">✓</span>
                                     }
                                   </div>
                                 </TD>
