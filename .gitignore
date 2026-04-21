@@ -32,5 +32,10 @@ client/storybook-static/
 
 playwright/test-data/
 
+# Demo render output
+demo-frames/
+demo-render.mp4
+demo-render.webm
+
 # Dev dump recordings — track gzipped fixtures only
 test/artifacts/laps/*.bin

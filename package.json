@@ -35,6 +35,7 @@
     "build:installer": "bun scripts/build-installer.ts",
     "mastra:dev": "DATA_DIR=\"$PWD/data\" npx mastra dev --dir mastra",
     "postinstall": "lefthook install",
+    "record:demo": "cd playwright && bunx playwright test --project=record-demo",
     "lighthouse": "lighthouse http://raceiq.localhost:1355/ --only-categories=accessibility,performance,best-practices --chrome-flags=\"--headless=new --no-sandbox --disable-gpu\" --output=html --output-path=./lighthouse-report.html && echo 'Report: lighthouse-report.html'"
   },
   "dependencies": {
