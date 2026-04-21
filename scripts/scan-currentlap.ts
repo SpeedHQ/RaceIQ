@@ -1,8 +1,8 @@
 import { parseDump } from "../test/helpers/parse-dump";
 
 const files: Array<[string, string]> = [
-  ["fm-2023", "test/artifacts/laps/fm-2023-2026-04-09T21-55-03-186Z.bin"],
-  ["f1-2025", "test/artifacts/laps/f1-2025-2026-04-09T21-34-10-190Z.bin"],
+  ["fm-2023", "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin"],
+  ["f1-2025", "test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin"],
 ];
 
 for (const [gameId, path] of files) {

@@ -1,6 +1,6 @@
 /**
  * Extract unique AC Evo car display names from `.bin` recordings in
- * test/artifacts/laps and diff against cars.csv.
+ * test/artifacts/sessions and diff against cars.csv.
  *
  * Reads SPageFileGraphicEvo.car_model (char[33] at offset 3086) from each
  * recording's first populated graphics frame — that's the authoritative
@@ -16,7 +16,7 @@ import { GRAPHICS_EVO } from "../server/games/ac-evo/structs";
 import { readCString } from "../server/games/ac-evo/utils";
 import { getAllAcEvoCars, getAcEvoCarByDisplayName } from "../shared/ac-evo-car-data";
 
-const RECORDINGS_DIR = "test/artifacts/laps";
+const RECORDINGS_DIR = "test/artifacts/sessions";
 const CSV_PATH = "shared/games/ac-evo/cars.csv";
 const V2_HEADER = 16;
 const V2_FRAME_HEADER = 5;

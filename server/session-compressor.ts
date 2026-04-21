@@ -37,7 +37,13 @@ async function compressSession(id: number, binPath: string): Promise<void> {
   console.log(`[Compressor] ${binPath} → ${gzPath} (${(data.byteLength / 1024).toFixed(0)}KB → ${(compressed.byteLength / 1024).toFixed(0)}KB)`);
 }
 
+/** Background-style compression: respects the 24-hour age filter. */
 export async function runCompressionNow(): Promise<void> {
+  return runCompression(false);
+}
+
+/** User-triggered compression: ignores the age filter, compresses all uncompressed sessions. */
+export async function runUserCompressionNow(): Promise<void> {
   return runCompression(true);
 }
 

@@ -64,7 +64,7 @@ class UdpListener {
 
   /**
    * Pin a recording gameId. When set, `start()` opens a timestamped .bin file
-   * under test/artifacts/laps/ and every incoming datagram is appended to it
+   * under test/artifacts/sessions/ and every incoming datagram is appended to it
    * (in addition to the normal parse → pipeline → DB/WS flow). Mirrors how the
    * AccSharedMemoryReader/AcEvoSharedMemoryReader constructors create their
    * .bin files when `recordingOnly=true`. Used by `dev:dump:fm` / `dev:dump:f1`.
@@ -79,7 +79,7 @@ class UdpListener {
     console.log(`[UDP] Starting listener on ${hostname}:${port}...`);
 
     if (this._recordingGameId && !this._recorder) {
-      const dir = resolve(process.cwd(), "test", "artifacts", "laps");
+      const dir = resolve(process.cwd(), "test", "artifacts", "sessions");
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const filePath = resolve(dir, `${this._recordingGameId}-${timestamp}.bin`);
       this._recorder = new UdpRecorder();

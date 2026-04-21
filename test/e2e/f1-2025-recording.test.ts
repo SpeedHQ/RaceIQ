@@ -6,7 +6,7 @@ import { generateRecordingVisualizations } from "../helpers/lap-viz";
 import { existsSync } from "fs";
 import { join } from "path";
 
-const RECORDINGS_DIR = "test/artifacts/laps";
+const RECORDINGS_DIR = "test/artifacts/sessions";
 
 function getRecording(filename: string): string | null {
   const recordingPath = join(RECORDINGS_DIR, filename);

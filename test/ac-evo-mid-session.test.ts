@@ -1,11 +1,11 @@
 /**
  * Tests for AC Evo session recorded mid-session.
  *
- * Regression fixture: user started recording after the session had already begun,
- * which exposes two behaviours:
+ * Regression fixture: user started recording after the session had already begun.
+ * Verifies:
  *   1. Compressed (.bin.gz) session files are decodable via the reprocess path.
- *   2. The lap detector initialises lapNumber at 0 regardless of the
- *      game-reported in-progress lap number (documented quirk).
+ *   2. Lap detector adopts the game-reported LapNumber at session start so
+ *      mid-race recordings match the game's lap counter.
  */
 import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync } from "fs";
@@ -21,7 +21,7 @@ import type { TelemetryPacket } from "../shared/types";
 
 afterAll(() => stopMaintenanceTasks());
 
-const FIXTURE = "test/artifacts/laps/ac-evo-mid-session.bin.gz";
+const FIXTURE = "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz";
 
 async function replaySessionBin(
   filePath: string,

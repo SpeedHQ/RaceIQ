@@ -14,7 +14,7 @@ import { stopMaintenanceTasks } from "../server/pipeline";
 
 initGameAdapters();
 initServerGameAdapters();
-const raw = readFileSync("test/artifacts/laps/ac-evo-mid-session.bin.gz");
+const raw = readFileSync("test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz");
 const buf = Buffer.from(gunzipSync(raw));
 let offset = 0;
 if (buf.readUInt32LE(0) === META_FRAME_MAGIC) {

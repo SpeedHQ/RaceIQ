@@ -71,7 +71,9 @@ export class LapDetectorAc implements ILapDetector {
         sessionUID: packet.sessionUID,
         bestLapTime: 0,
       };
-      this.currentLapNumber = 0;
+      // Use game-reported LapNumber so mid-race recordings match the game's
+      // lap counter (fresh session: packet.LapNumber=0 preserves legacy behaviour).
+      this.currentLapNumber = packet.LapNumber ?? 0;
       this.firstLapIsPartial = accFirstPacketIsMidLap(packet);
       await this.onSessionStart?.(this.currentSession);
     }

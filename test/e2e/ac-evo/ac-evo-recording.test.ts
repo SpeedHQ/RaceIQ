@@ -1,7 +1,7 @@
 /**
  * AC Evo v0.6 shared memory recording smoke test.
  *
- * Globs the latest ac-evo-*.bin in test/artifacts/laps and validates the v0.6
+ * Globs the latest ac-evo-*.bin in test/artifacts/sessions and validates the v0.6
  * parser against it. Skipped if no recording exists.
  *
  * v0.6 confirmed working (via `Local\acevo_pmf_*` mappings, not ACC's acpmf_*):
@@ -19,7 +19,7 @@ import { generateRecordingVisualizations } from "../../helpers/lap-viz";
 import { assertValidLapHasSectors } from "../../helpers/lap-assertions";
 import { getTrackSectorsByOrdinal } from "../../../shared/track-data";
 
-const RECORDINGS_DIR = "test/artifacts/laps";
+const RECORDINGS_DIR = "test/artifacts/sessions";
 
 function findLatestAcEvoBin(): string | null {
   if (!existsSync(RECORDINGS_DIR)) return null;

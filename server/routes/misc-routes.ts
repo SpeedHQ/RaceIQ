@@ -750,7 +750,7 @@ export const miscRoutes = new Hono()
   // POST /api/storage/compress — trigger immediate compression of eligible sessions
   .post("/api/storage/compress", async (c) => {
     console.log("[Compressor] User triggered compression");
-    const { runCompressionNow } = await import("../session-compressor");
-    await runCompressionNow();
+    const { runUserCompressionNow } = await import("../session-compressor");
+    await runUserCompressionNow();
     return c.json({ ok: true });
   });

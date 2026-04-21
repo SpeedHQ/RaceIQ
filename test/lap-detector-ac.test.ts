@@ -342,6 +342,6 @@ describe("LapDetectorAc — reset detection", () => {
 });
 
 test("parseDump runs against the problem recording without throwing", async () => {
-  const result = await parseDump("acc", "test/artifacts/laps/acc-2026-04-10T02-59-28-972Z.bin.gz");
+  const result = await parseDump("acc", "test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz");
   expect(result.laps.length).toBeGreaterThan(0);
 }, { timeout: 30000 });
