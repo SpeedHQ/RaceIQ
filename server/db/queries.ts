@@ -522,7 +522,10 @@ export async function getLapById(
     }
   }
 
-  telemetryCache.set(id, telemetry);
+  // Only cache successful, non-empty parses. Empty/errored results are
+  // transient (often caused by a bug that gets fixed, or a buffer-flush
+  // race) and caching them would require a server restart to recover.
+  if (telemetry.length > 0) telemetryCache.set(id, telemetry);
   const result = buildLapResult(row, telemetry);
   if (parseError) return { ...result, parseError };
   return result;
