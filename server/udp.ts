@@ -122,12 +122,14 @@ class UdpListener {
       const runningGame = getRunningGame();
       const session = lapDetector.session;
 
-      // Log game detection changes
+      // Log game detection changes and finalize session if game disconnects
       if (this._lastDetectedGame?.id !== runningGame?.id) {
         if (runningGame) {
           console.log(`[Game] ${runningGame.displayName} detected (state: ${runningGame.id})`);
         } else {
           console.log("[Game] state change to null");
+          // Finalize session immediately when game disconnects
+          void lapDetector.finalizeCurrentSession();
         }
       }
       this._lastDetectedGame = runningGame;

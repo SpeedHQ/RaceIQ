@@ -261,6 +261,7 @@ export const lapDetector = {
   get session() { return _default.lapDetector?.session ?? null; },
   get fuelHistory() { return _default.lapDetector?.fuelHistory ?? []; },
   get tireWearHistory() { return _default.lapDetector?.tireWearHistory ?? []; },
+  async finalizeCurrentSession() { await _default.lapDetector?.finalizeCurrentSession?.(); },
 };
 
 /** In-memory session laps for the current session. */

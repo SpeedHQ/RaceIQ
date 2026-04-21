@@ -45,6 +45,8 @@ export interface ILapDetector {
   flushStaleLap?(): Promise<void>;
   /** Flush any in-progress lap at end-of-stream as an invalid incomplete lap. */
   flushIncompleteLap?(): Promise<void>;
+  /** Finalize current session immediately (e.g., when game disconnects). */
+  finalizeCurrentSession?(): Promise<void>;
   /** Return internal debug state for the dev panel. FM/F1 only. */
   getDebugState?(): Record<string, unknown>;
 }

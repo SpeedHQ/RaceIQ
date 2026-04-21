@@ -133,6 +133,17 @@ export class LapDetector implements ILapDetector {
   }
 
   /**
+   * Finalize the current session immediately (e.g., when game process disconnects).
+   * Clears session state without waiting for silence timeout.
+   */
+  async finalizeCurrentSession(): Promise<void> {
+    if (!this.currentSession) return;
+    console.log(`[Lap Detector] Finalizing session ${this.currentSession.sessionId} due to game disconnect`);
+    this.currentSession = null;
+    this.lapBuffer = [];
+  }
+
+  /**
    * Feed a parsed telemetry packet into the detector.
    * Handles session creation, lap boundary detection, and rewind detection.
    */
