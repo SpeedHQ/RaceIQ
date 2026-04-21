@@ -1265,9 +1265,10 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                             <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("lap")}>
                               Lap # {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
                             </TH>
-                            <TH className="cursor-pointer hover:text-app-text select-none text-right" onClick={() => handleSort("time")}>
+                            <TH className="cursor-pointer hover:text-app-text select-none text-right w-px whitespace-nowrap" onClick={() => handleSort("time")}>
                               Time {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
                             </TH>
+                            <TH className="w-px" />
                             <TH className="font-mono text-app-text-dim">S1</TH>
                             <TH className="font-mono text-app-text-dim">S2</TH>
                             <TH className="font-mono text-app-text-dim">S3</TH>
@@ -1303,33 +1304,35 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                   </TD>
                                 )}
                                 <TD className="font-mono text-app-text-secondary">{lap.lapNumber}</TD>
-                                <TD className="text-right">
-                                  <div className="flex items-center justify-end gap-2">
+                                <TD className="text-right whitespace-nowrap">
+                                  <div className="flex items-center justify-end gap-1">
                                     <span className={`font-mono tabular-nums ${isFastest ? "text-purple-400 font-bold" : ""}`}>{formatLapTime(lap.lapTime)}</span>
                                     {lap.isValid === false
                                       ? <span className="group/inv relative text-[10px] text-red-400 cursor-default">✕<span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">{lap.invalidReason ?? "Invalid lap"}</span></span>
                                       : <span className="text-[10px] text-emerald-500/60">✓</span>
                                     }
-                                    {lap.isLegacy ? (
-                                      <span title={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`} className="cursor-not-allowed">
-                                        <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
-                                          Analyse
-                                        </Button>
-                                      </span>
-                                    ) : (
-                                      <Button
-                                        variant="app-outline"
-                                        size="app-sm"
-                                        className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
-                                        onClick={() => {
-                                          if (!gameId) return;
-                                          navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
-                                        }}
-                                      >
+                                  </div>
+                                </TD>
+                                <TD className="w-px whitespace-nowrap">
+                                  {lap.isLegacy ? (
+                                    <span title={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`} className="cursor-not-allowed">
+                                      <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
                                         Analyse
                                       </Button>
-                                    )}
-                                  </div>
+                                    </span>
+                                  ) : (
+                                    <Button
+                                      variant="app-outline"
+                                      size="app-sm"
+                                      className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
+                                      onClick={() => {
+                                        if (!gameId) return;
+                                        navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
+                                      }}
+                                    >
+                                      Analyse
+                                    </Button>
+                                  )}
                                 </TD>
                                 <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</TD>
                                 <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</TD>
