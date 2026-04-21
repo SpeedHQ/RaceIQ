@@ -51,7 +51,9 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
         {showPi && <TH className="text-center">PI</TH>}
         <TH>Lap</TH>
         <TH>Time</TH>
-        <TH className="text-center">Valid</TH>
+        <TH className="font-mono text-app-text-muted">S1</TH>
+        <TH className="font-mono text-app-text-muted">S2</TH>
+        <TH className="font-mono text-app-text-muted">S3</TH>
         <TH className="text-right">When</TH>
       </THead>
       <TBody>
@@ -81,13 +83,16 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
                   <span className={`text-[10px] font-semibold ${PI_COLORS[piClass(lap.pi)]?.split(" ")[1] ?? "text-app-text/90-muted"}`}>{lap.pi}</span>
                 </span>
               )}</TD>}
-              <TD className="font-mono text-app-text/90">L{lap.lapNumber}</TD>
-              <TD className="font-mono font-bold text-app-text/90 tabular-nums">{formatLapTime(lap.lapTime)}</TD>
-              <TD className="text-center">
-                <span className={lap.isValid ? "text-emerald-400" : "text-red-400"}>
-                  {lap.isValid ? "\u2713" : "\u2717"}
+              <TD className="font-mono text-app-text/90">{lap.lapNumber}</TD>
+              <TD className="font-mono font-bold text-app-text/90 tabular-nums whitespace-nowrap">
+                <span className="flex items-center gap-1">
+                  {formatLapTime(lap.lapTime)}
+                  <span className={`text-[10px] ${lap.isValid ? "text-emerald-400" : "text-red-400"}`}>{lap.isValid ? "\u2713" : "\u2717"}</span>
                 </span>
               </TD>
+              <TD className="font-mono text-[11px] tabular-nums text-app-text-muted">{lap.s1Time ? formatLapTime(lap.s1Time) : "—"}</TD>
+              <TD className="font-mono text-[11px] tabular-nums text-app-text-muted">{lap.s2Time ? formatLapTime(lap.s2Time) : "—"}</TD>
+              <TD className="font-mono text-[11px] tabular-nums text-app-text-muted">{lap.s3Time ? formatLapTime(lap.s3Time) : "—"}</TD>
               <TD className="text-right text-xs text-app-text/90">{ago}</TD>
             </TRow>
           );
