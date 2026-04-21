@@ -25,7 +25,7 @@ import { resolve } from "path";
 
 const MAX_FRAMES = parseInt(process.env.DEMO_MAX_FRAMES ?? "1800", 10);
 const START_FRAME_RAW = process.env.DEMO_START_FRAME ?? "0";
-const FRAMES_DIR = resolve(__dirname, "..", process.env.DEMO_FRAMES_DIR ?? "demo-frames");
+const FRAMES_DIR = resolve(__dirname, "..", process.env.DEMO_FRAMES_DIR ?? "playwright/assets/demo-frames");
 const WORKER_COUNT = 4;
 
 test("record demo render", async ({ page }, testInfo) => {
