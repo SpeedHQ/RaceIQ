@@ -124,6 +124,7 @@ function AppShell() {
   const driverName = displaySettings.driverName || "";
   const connected = useTelemetryStore((s) => s.connected);
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
+  const isRaceOn = useTelemetryStore((s) => s.isRaceOn);
   const updateState = useUpdateCheck();
 
   const { settingsOpen: showSettings, settingsSection, openSettings, closeSettings, onboardingOpen, closeOnboarding } = useUiStore();
@@ -198,7 +199,7 @@ function AppShell() {
               <ConnectionStatus
                 connected={connected}
                 packetsPerSec={packetsPerSec}
-                forzaReceiving={packetsPerSec > 0}
+                forzaReceiving={isRaceOn && packetsPerSec > 0}
               />
 
               <div className="w-px h-4 bg-app-border mx-2" />
