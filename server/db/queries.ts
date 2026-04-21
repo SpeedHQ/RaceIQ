@@ -301,6 +301,7 @@ export type LapSummary = {
   s3Time: number | null;
   isValid: boolean;
   invalidReason: string | null;
+  rawByteOffset: number | null;
   notes: string | null;
 };
 
@@ -320,6 +321,7 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       s3Time: laps.s3Time,
       isValid: laps.isValid,
       invalidReason: laps.invalidReason,
+      rawByteOffset: laps.rawByteOffset,
       notes: laps.notes,
     })
     .from(laps)
@@ -348,6 +350,7 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       s3Time: r.s3Time ?? null,
       isValid: Boolean(r.isValid),
       invalidReason: r.invalidReason ?? null,
+      rawByteOffset: r.rawByteOffset ?? null,
       notes: r.notes ?? null,
     }));
 }

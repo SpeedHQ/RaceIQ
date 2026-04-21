@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { RAW_STORAGE_VERSION } from "@shared/types";
 import { isDevelopment } from "@/lib/env";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -33,6 +34,7 @@ interface TrackLap {
   s3Time?: number | null;
   isValid?: boolean;
   invalidReason?: string | null;
+  isLegacy?: boolean;
   division?: string | null;
   notes?: string | null;
 }
@@ -1308,17 +1310,25 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                       ? <span className="group/inv relative text-[10px] text-red-400 cursor-default">✕<span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">{lap.invalidReason ?? "Invalid lap"}</span></span>
                                       : <span className="text-[10px] text-emerald-500/60">✓</span>
                                     }
-                                    <Button
-                                      variant="app-outline"
-                                      size="app-sm"
-                                      className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
-                                      onClick={() => {
-                                        if (!gameId) return;
-                                        navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
-                                      }}
-                                    >
-                                      Analyse
-                                    </Button>
+                                    {lap.isLegacy ? (
+                                      <span title={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
+                                        <Button variant="app-outline" size="app-sm" disabled className="opacity-40 cursor-not-allowed bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
+                                          Analyse
+                                        </Button>
+                                      </span>
+                                    ) : (
+                                      <Button
+                                        variant="app-outline"
+                                        size="app-sm"
+                                        className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
+                                        onClick={() => {
+                                          if (!gameId) return;
+                                          navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
+                                        }}
+                                      >
+                                        Analyse
+                                      </Button>
+                                    )}
                                   </div>
                                 </TD>
                                 {hasSectorData && <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</TD>}
