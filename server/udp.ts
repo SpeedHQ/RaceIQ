@@ -35,6 +35,8 @@ class UdpListener {
   private _hostname = "0.0.0.0";
   private _recorder: UdpRecorder | null = null;
   private _recordingGameId: GameId | null = null;
+  private _lastDetectedGame: ReturnType<typeof getRunningGame> = null;
+  private _lastRaceOn = false;
 
   get droppedPackets(): number {
     return this._droppedPackets;
@@ -119,6 +121,25 @@ class UdpListener {
       // Broadcast full server status to clients (replaces REST polling)
       const runningGame = getRunningGame();
       const session = lapDetector.session;
+
+      // Log game detection changes
+      if (this._lastDetectedGame?.id !== runningGame?.id) {
+        if (runningGame) {
+          console.log(`[Game] ${runningGame.displayName} detected (state: ${runningGame.id})`);
+        } else {
+          console.log("[Game] state change to null");
+        }
+      }
+      this._lastDetectedGame = runningGame;
+
+      // Log race state changes
+      if (!this._lastRaceOn && this._receiving) {
+        console.log("[State] Race on");
+      } else if (this._lastRaceOn && !this._receiving) {
+        console.log("[State] Race off");
+      }
+      this._lastRaceOn = this._receiving;
+
       wsManager.broadcastStatus({
         udpPps: this._packetsPerSec,
         isRaceOn: this._receiving,

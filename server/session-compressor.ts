@@ -38,14 +38,19 @@ async function compressSession(id: number, binPath: string): Promise<void> {
 }
 
 export async function runCompressionNow(): Promise<void> {
-  return runCompression();
+  return runCompression(true);
 }
 
-async function runCompression(): Promise<void> {
+async function runCompression(userTriggered = false): Promise<void> {
   if (isSessionActive()) return;
 
-  const candidates = await getUncompressedSessions(ONE_DAY_MS);
-  if (candidates.length === 0) return;
+  const ageMs = userTriggered ? 0 : ONE_DAY_MS;
+  const candidates = await getUncompressedSessions(ageMs);
+  if (candidates.length === 0) {
+    const msg = userTriggered ? "All sessions already compressed" : "No sessions to compress (all < 24h old)";
+    console.log(`[Compressor] ${msg}`);
+    return;
+  }
 
   console.log(`[Compressor] Compressing ${candidates.length} session(s)…`);
   for (const { id, rawFile } of candidates) {
@@ -64,6 +69,8 @@ let _interval: ReturnType<typeof setInterval> | null = null;
 
 export function startSessionCompressor(): void {
   if (_interval) return;
+  // Run immediately on startup, then every 5 minutes
+  void runCompression();
   _interval = setInterval(() => void runCompression(), INTERVAL_MS);
 }
 

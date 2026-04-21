@@ -50,7 +50,7 @@ export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving }: P
           {forzaReceiving
             ? (gameLabel ?? "Receiving")
             : gameLabel
-              ? `${gameLabel} — No Signal`
+              ? `${gameLabel} — Waiting`
               : "No Signal"}
         </span>
       </div>

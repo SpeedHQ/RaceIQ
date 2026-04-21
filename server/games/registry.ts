@@ -55,9 +55,9 @@ function refreshProcessCache(): void {
   );
 }
 
-// Seed immediately, then refresh every 5 seconds
+// Seed immediately, then refresh every second to sync with status broadcast
 refreshProcessCache();
-setInterval(refreshProcessCache, 5000);
+setInterval(refreshProcessCache, 1000);
 
 /** Check if a specific game's process is running. */
 export function isGameRunning(gameId: string): boolean {

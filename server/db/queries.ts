@@ -6,6 +6,10 @@ import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
 import { getServerGame } from "../games/registry";
 import { META_FRAME_MAGIC } from "../udp-recorder";
+import { gunzip } from "zlib";
+import { promisify } from "util";
+
+const gunzipAsync = promisify(gunzip);
 
 // Fixed column order for CSV telemetry storage
 const TELEMETRY_FIELDS: (keyof TelemetryPacket)[] = [
@@ -370,8 +374,11 @@ async function parseRawLapFrames(
   const serverGame = getServerGame(gameId);
   const state = serverGame.createParserState?.() ?? null;
 
-  const fileData = await Bun.file(rawFile).arrayBuffer();
-  const buf = Buffer.from(fileData);
+  let buf = Buffer.from(await Bun.file(rawFile).arrayBuffer());
+  // Decompress if file is gzipped
+  if (rawFile.endsWith(".gz")) {
+    buf = await gunzipAsync(buf);
+  }
 
   // Skip meta frame at offset 0: [0xFFFFFFFF][payload_len uint32][payload]
   // (Future: hydrate F1 state from payload when implemented)
