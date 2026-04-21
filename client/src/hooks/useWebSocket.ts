@@ -44,14 +44,7 @@ export function useWebSocket() {
           const data = JSON.parse(event.data);
           if (data.type === "status") {
             const { type: __ignored, ...status } = data; // eslint-disable-line @typescript-eslint/no-unused-vars
-            const s = useTelemetryStore.getState();
-            const prevGame = s.serverStatus?.detectedGame;
-            const nextGame = status.detectedGame;
-            // Clear packet when game disconnects
-            if (prevGame && !nextGame) {
-              s.clearPacket();
-            }
-            s.setServerStatus(status);
+            useTelemetryStore.getState().setServerStatus(status);
           } else if (data.type === "update-available") {
             useTelemetryStore.getState().setUpdateAvailable(data.version as string);
             fetchVersionInfo();
