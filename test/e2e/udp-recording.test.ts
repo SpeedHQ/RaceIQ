@@ -6,7 +6,7 @@ import { tmpdir } from "os";
 import { join, resolve } from "path";
 import { readUdpDump } from "../helpers/recording";
 
-const RECORDINGS_DIR = resolve(process.cwd(), "test", "artifacts", "laps");
+const RECORDINGS_DIR = resolve(process.cwd(), "test", "artifacts", "sessions");
 
 async function waitFor(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
