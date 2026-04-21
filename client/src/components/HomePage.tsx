@@ -51,9 +51,6 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
         {showPi && <TH className="text-center">PI</TH>}
         <TH>Lap</TH>
         <TH>Time</TH>
-        <TH className="text-red-400">S1</TH>
-        <TH className="text-blue-400">S2</TH>
-        <TH className="text-yellow-400">S3</TH>
         <TH className="text-right">When</TH>
       </THead>
       <TBody>
@@ -90,9 +87,7 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
                   <span className={`text-[10px] ${lap.isValid ? "text-emerald-400" : "text-red-400"}`}>{lap.isValid ? "\u2713" : "\u2717"}</span>
                 </span>
               </TD>
-              <TD className="font-mono tabular-nums text-app-text/90">{lap.s1Time ? formatLapTime(lap.s1Time) : "—"}</TD>
-              <TD className="font-mono tabular-nums text-app-text/90">{lap.s2Time ? formatLapTime(lap.s2Time) : "—"}</TD>
-              <TD className="font-mono tabular-nums text-app-text/90">{lap.s3Time ? formatLapTime(lap.s3Time) : "—"}</TD>
+
               <TD className="text-right text-xs text-app-text/90">{ago}</TD>
             </TRow>
           );
