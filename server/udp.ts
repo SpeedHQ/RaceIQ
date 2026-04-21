@@ -13,7 +13,7 @@
 import { resolve } from "path";
 import { parsePacket } from "./parser";
 import { wsManager } from "./ws";
-import { processPacket } from "./pipeline";
+import { processPacket, flushSessionRecorderBuffer } from "./pipeline";
 import { getRunningGame } from "./games/registry";
 import { lapDetector } from "./pipeline";
 import { UdpRecorder } from "./udp-recorder";
@@ -112,6 +112,12 @@ class UdpListener {
       this._packetsPerSec = this._packetsInWindow;
       this._packetsInWindow = 0;
       this._lastWindowStart = Date.now();
+
+      // Flush the session recorder's in-memory write buffer so rawByteOffset
+      // stored on lap rows always has corresponding bytes on disk. Without
+      // this, an abrupt termination leaves lap offsets pointing past EOF and
+      // telemetry disappears from the analyse view.
+      flushSessionRecorderBuffer();
 
       // Mark as not receiving if no packets in last second
       if (this._packetsPerSec === 0 && this._receiving) {

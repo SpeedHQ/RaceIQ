@@ -80,6 +80,21 @@ export class UdpRecorder {
     this._byteOffset += 4 + buf.length;
   }
 
+  /**
+   * Flush buffered writes to disk without closing. Call periodically (e.g. 1Hz
+   * from the status timer) and before saving a lap so the DB offset / frame
+   * count are in sync with what's actually on disk. Otherwise a crash or hard
+   * exit strands buffered data and lap records point past the EOF.
+   */
+  flush(): void {
+    if (!this._file) return;
+    try {
+      this._file.flush();
+    } catch {
+      // Non-fatal — periodic flush is best-effort
+    }
+  }
+
   /** Flush, patch total frame count into header, and close. */
   async stop(): Promise<void> {
     if (!this._file || !this._path) return;

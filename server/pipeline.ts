@@ -244,6 +244,11 @@ export class Pipeline {
       this._sessionRecorder = null;
     }
   }
+
+  /** Flush buffered writes to disk without closing. */
+  flushSessionRecorderBuffer(): void {
+    this._sessionRecorder?.flush();
+  }
 }
 
 // Backward-compatible singleton exports — unchanged for all callers
@@ -285,4 +290,9 @@ export function isSessionActive(): boolean {
 /** Flush and close the active session recorder. Call on graceful shutdown. */
 export async function flushSessionRecorder(): Promise<void> {
   await _default.flushSessionRecorder();
+}
+
+/** Flush buffered writes to disk. Call periodically so lap offsets stay consistent with file size. */
+export function flushSessionRecorderBuffer(): void {
+  _default.flushSessionRecorderBuffer();
 }
