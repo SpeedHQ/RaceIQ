@@ -48,6 +48,8 @@ test("record demo render", async ({ page }, testInfo) => {
   //   - fps cap bypass               → every RAF triggers an R3F render
   await page.addInitScript(() => {
     (window as unknown as Record<string, unknown>).__recording = true;
+    const toggles = JSON.parse(localStorage.getItem("carwireframe-toggles") ?? "{}");
+    localStorage.setItem("carwireframe-toggles", JSON.stringify({ ...toggles, inputs: true }));
   });
 
   // Fresh server: onboardingComplete=false → wizard shows automatically
