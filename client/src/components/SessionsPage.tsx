@@ -11,6 +11,7 @@ import { Button } from "./ui/button";
 import { NoteModal } from "./ui/NoteModal";
 import { AppInput } from "./ui/AppInput";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
+import { Tooltip } from "./ui/InfoTooltip";
 
 const PAGE_SIZE = 25;
 
@@ -117,11 +118,11 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
                   <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
                   {lap.isValid ? <span className="text-emerald-400 text-xs">&#10003;</span> : <span className="text-red-400 text-xs" title={lap.invalidReason}>&#10007;</span>}
                   {lap.isLegacy ? (
-                    <span title={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`} className="cursor-not-allowed">
+                    <Tooltip content={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
                       <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
                         Analyse
                       </Button>
-                    </span>
+                    </Tooltip>
                   ) : (
                     <Button variant="app-outline" size="app-sm" className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -404,9 +405,9 @@ const deleteSelected = useCallback(async () => {
             const lapB = allLaps.find((l) => l.id === ids[1]);
             if (!lapA || !lapB) return null;
             if (lapA.isLegacy || lapB.isLegacy) return (
-              <span title={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`} className="cursor-not-allowed">
+              <Tooltip content={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
                 <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none">Compare</Button>
-              </span>
+              </Tooltip>
             );
             const sessA = sessions.find((s) => s.id === lapA.sessionId);
             const sessB = sessions.find((s) => s.id === lapB.sessionId);

@@ -16,7 +16,7 @@ import { TrackTunes } from "./TrackTunes";
 import { Button } from "@/components/ui/button";
 import { Table, THead, TH, TBody, TRow, TD } from "@/components/ui/AppTable";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";
-import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { InfoTooltip, Tooltip } from "@/components/ui/InfoTooltip";
 import type { TrackInfo, Point, TrackSegment, TrackSectors } from "./types";
 
 interface TrackLap {
@@ -1315,11 +1315,11 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                 </TD>
                                 <TD className="w-px whitespace-nowrap">
                                   {lap.isLegacy ? (
-                                    <span title={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`} className="cursor-not-allowed">
+                                    <Tooltip content={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
                                       <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
                                         Analyse
                                       </Button>
-                                    </span>
+                                    </Tooltip>
                                   ) : (
                                     <Button
                                       variant="app-outline"
