@@ -365,6 +365,25 @@ const telemetryCache = new Map<number, TelemetryPacket[]>();
  * Re-parse raw UDP frames from a session .bin file for a specific lap.
  * Frame 0 is a meta frame (magic-prefixed); lap frames start at rawByteOffset.
  */
+export interface LapParseErrorDetails {
+  rawFile: string;
+  rawByteOffset: number;
+  rawFrameCount: number;
+  fileSize: number;
+  framesParsed: number;
+  reason: "offset-past-eof" | "truncated-frame" | "truncated-meta" | "no-packets-parsed";
+}
+
+export class LapParseError extends Error {
+  readonly details: LapParseErrorDetails;
+
+  constructor(message: string, details: LapParseErrorDetails) {
+    super(message);
+    this.name = "LapParseError";
+    this.details = details;
+  }
+}
+
 async function parseRawLapFrames(
   rawFile: string,
   rawByteOffset: number,
@@ -380,28 +399,61 @@ async function parseRawLapFrames(
     buf = await gunzipAsync(buf);
   }
 
-  // Skip meta frame at offset 0: [0xFFFFFFFF][payload_len uint32][payload]
-  // (Future: hydrate F1 state from payload when implemented)
+  const fileSize = buf.length;
+
+  // rawByteOffset past EOF means the lap row was written before the
+  // corresponding bytes made it to disk (old bug), or something stomped
+  // the file. Fail loudly so the client can surface a useful message.
+  if (rawByteOffset >= fileSize) {
+    throw new LapParseError(
+      `Lap raw byte offset ${rawByteOffset} is past EOF (file is ${fileSize} bytes) in ${rawFile}`,
+      { rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "offset-past-eof" }
+    );
+  }
 
   let offset = rawByteOffset;
   const packets: TelemetryPacket[] = [];
 
   for (let i = 0; i < rawFrameCount; i++) {
-    if (offset + 4 > buf.length) break;
+    if (offset + 4 > buf.length) {
+      throw new LapParseError(
+        `Truncated frame header at offset ${offset} (file ${fileSize} bytes, wanted frame ${i + 1}/${rawFrameCount})`,
+        { rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-frame" }
+      );
+    }
     const frameLen = buf.readUInt32LE(offset);
     // Skip any stray meta frames
     if (frameLen === META_FRAME_MAGIC) {
-      if (offset + 8 > buf.length) break;
+      if (offset + 8 > buf.length) {
+        throw new LapParseError(
+          `Truncated meta frame at offset ${offset}`,
+          { rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-meta" }
+        );
+      }
       const payloadLen = buf.readUInt32LE(offset + 4);
       offset += 8 + payloadLen;
       continue;
     }
     offset += 4;
-    if (offset + frameLen > buf.length) break;
+    if (offset + frameLen > buf.length) {
+      throw new LapParseError(
+        `Frame ${i + 1}/${rawFrameCount} at offset ${offset} claims ${frameLen} bytes but only ${buf.length - offset} remain`,
+        { rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-frame" }
+      );
+    }
     const frameBuf = buf.subarray(offset, offset + frameLen);
     offset += frameLen;
     const packet = serverGame.tryParse(frameBuf, state);
     if (packet) packets.push(packet);
+  }
+
+  // Parsed every frame successfully but the game adapter rejected all of
+  // them — the state accumulator never built a complete packet. Surface it.
+  if (packets.length === 0 && rawFrameCount > 0) {
+    throw new LapParseError(
+      `Parsed ${rawFrameCount} frames but produced 0 telemetry packets (gameId=${gameId})`,
+      { rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "no-packets-parsed" }
+    );
   }
 
   return packets;
@@ -413,7 +465,7 @@ async function parseRawLapFrames(
  */
 export async function getLapById(
   id: number
-): Promise<(LapMeta & { telemetry: TelemetryPacket[] }) | null> {
+): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string }) | null> {
   const row = await db
     .select({
       id: laps.id,
@@ -446,6 +498,7 @@ export async function getLapById(
   }
 
   let telemetry: TelemetryPacket[] = [];
+  let parseError: string | undefined;
   if (row.rawByteOffset != null && row.rawFrameCount && row.rawFile) {
     try {
       telemetry = await parseRawLapFrames(
@@ -455,12 +508,20 @@ export async function getLapById(
         row.gameId as GameId
       );
     } catch (err) {
-      console.error(`[DB] Failed to parse raw frames for lap ${id}:`, err);
+      if (err instanceof LapParseError) {
+        console.error(`[DB] Lap ${id} parse failed (${err.details.reason}): ${err.message}`, err.details);
+        parseError = err.message;
+      } else {
+        console.error(`[DB] Failed to parse raw frames for lap ${id}:`, err);
+        parseError = err instanceof Error ? err.message : String(err);
+      }
     }
   }
 
   telemetryCache.set(id, telemetry);
-  return buildLapResult(row, telemetry);
+  const result = buildLapResult(row, telemetry);
+  if (parseError) return { ...result, parseError };
+  return result;
 }
 
 function buildLapResult(
