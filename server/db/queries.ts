@@ -5,7 +5,6 @@ import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared
 import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
 import { getServerGame } from "../games/registry";
-import { META_FRAME_MAGIC } from "../udp-recorder";
 import { gunzip } from "zlib";
 import { promisify } from "util";
 
@@ -422,18 +421,11 @@ async function parseRawLapFrames(
       );
     }
     const frameLen = buf.readUInt32LE(offset);
-    // Skip any stray meta frames
-    if (frameLen === META_FRAME_MAGIC) {
-      if (offset + 8 > buf.length) {
-        throw new LapParseError(
-          `Truncated meta frame at offset ${offset}`,
-          { rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-meta" }
-        );
-      }
-      const payloadLen = buf.readUInt32LE(offset + 4);
-      offset += 8 + payloadLen;
-      continue;
-    }
+    // NOTE: we do not check for META_FRAME_MAGIC here — the meta frame only
+    // exists at file offset 0, which laps never start at. Treating any
+    // mid-lap 0xFFFFFFFF as a meta frame would false-positive on legitimate
+    // packet data containing that byte pattern and drift the frame reader
+    // out of alignment.
     offset += 4;
     if (offset + frameLen > buf.length) {
       throw new LapParseError(
@@ -443,8 +435,20 @@ async function parseRawLapFrames(
     }
     const frameBuf = buf.subarray(offset, offset + frameLen);
     offset += frameLen;
-    const packet = serverGame.tryParse(frameBuf, state);
-    if (packet) packets.push(packet);
+    try {
+      const packet = serverGame.tryParse(frameBuf, state);
+      if (packet) packets.push(packet);
+    } catch (err) {
+      // A single malformed frame shouldn't kill the whole lap parse. Log
+      // once (first occurrence) with enough context to diagnose, then skip.
+      if (packets.length === 0 && i < 5) {
+        console.warn(
+          `[DB] tryParse threw on frame ${i + 1}/${rawFrameCount} of lap ` +
+          `(gameId=${gameId}, offset=${offset - frameLen}, len=${frameLen}): ` +
+          `${(err as Error).message}`
+        );
+      }
+    }
   }
 
   // Parsed every frame successfully but the game adapter rejected all of
