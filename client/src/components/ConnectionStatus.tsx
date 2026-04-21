@@ -7,22 +7,15 @@ interface Props {
   forzaReceiving: boolean;
 }
 
-const GAME_LABELS: Record<string, string> = {
-  "fm-2023": "Forza",
-  "f1-2025": "F1 25",
-  "acc": "ACC",
-  "ac-evo": "AC Evo",
-};
-
 export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving }: Props) {
-  const packet = useTelemetryStore((s) => s.packet);
   const detectedGame = useTelemetryStore((s) => s.serverStatus?.detectedGame);
   const { displaySettings } = useSettings();
 
-  // Active game label: prefer live packet gameId, fall back to detected running process
-  const gameLabel = packet?.gameId
-    ? (GAME_LABELS[packet.gameId] ?? packet.gameId)
-    : detectedGame?.name ?? null;
+  // Active game label: tracks the live process-detection signal so the nav
+  // clears when the game exits. Does NOT fall back to the last packet's
+  // gameId — keeping the packet in the store (for post-session dashboard
+  // viewing) would otherwise leave a stale "<game> — Waiting" label here.
+  const gameLabel = detectedGame?.name ?? null;
 
   return (
     <div className="flex items-center gap-4 px-4 py-2 bg-app-surface">
