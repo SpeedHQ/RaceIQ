@@ -35,7 +35,6 @@ playwright/test-data/
 # Demo render output
 playwright/assets/
 demo-frames/
-assets/demo-render.gif
 
 # Dev dump recordings — track gzipped fixtures only
 test/artifacts/laps/*.bin

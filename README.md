@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/9200c90d-b039-4616-9b27-9c8e7c53a8ca" autoplay loop muted playsinline width="100%"></video>
+  <video src="https://github.com/user-attachments/assets/9200c90d-b039-4616-9b27-9c8e7c53a8ca" autoplay loop muted playsinline width="70%"></video>
 </p>
 
 ---
