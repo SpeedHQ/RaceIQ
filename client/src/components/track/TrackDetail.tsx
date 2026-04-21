@@ -519,7 +519,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   const [confirmDelete, setConfirmDelete] = useState(false);
   const isF125 = gameId === "f1-2025";
   const isAcc = gameId === "acc";
-  const hideClassCol = isF125 || gameId === "ac-evo";
+  const hideClassCol = isF125 || isAcc || gameId === "ac-evo";
 
   const hasForzaTunes = gameId === "fm-2023";
   const allTabs = hasForzaTunes ? ["laps", "tunes", "debug"] as const
