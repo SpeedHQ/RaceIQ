@@ -786,7 +786,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
     return vals.some(c => c > 1) && vals.some(c => c === 1);
   }, [isF125, sessionLapCounts]);
 
-  const hasSectorData = useMemo(() => trackLaps.some(l => l.s1Time != null), [trackLaps]);
+
 
   const toggleCar = useCallback((ord: number) => {
     setSelectedCars((prev) => {
@@ -1268,9 +1268,9 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                             <TH className="cursor-pointer hover:text-app-text select-none text-right" onClick={() => handleSort("time")}>
                               Time {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
                             </TH>
-                            {hasSectorData && <TH className="font-mono text-app-text-dim">S1</TH>}
-                            {hasSectorData && <TH className="font-mono text-app-text-dim">S2</TH>}
-                            {hasSectorData && <TH className="font-mono text-app-text-dim">S3</TH>}
+                            <TH className="font-mono text-app-text-dim">S1</TH>
+                            <TH className="font-mono text-app-text-dim">S2</TH>
+                            <TH className="font-mono text-app-text-dim">S3</TH>
                             <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("date")}>
                               Date {sortBy === "date" ? (sortAsc ? "▲" : "▼") : ""}
                             </TH>
@@ -1331,9 +1331,9 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                     )}
                                   </div>
                                 </TD>
-                                {hasSectorData && <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</TD>}
-                                {hasSectorData && <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</TD>}
-                                {hasSectorData && <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</TD>}
+                                <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</TD>
+                                <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</TD>
+                                <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</TD>
                                 <TD className="text-app-text-secondary whitespace-nowrap font-mono">
                                   {lap.createdAt ? `${new Date(lap.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} ${new Date(lap.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : "—"}
                                 </TD>
