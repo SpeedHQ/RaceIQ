@@ -476,6 +476,9 @@ async function parseRawLapFrames(
   return packets;
 }
 
+/** Test-only export so integration tests can drive parseRawLapFrames directly. */
+export const parseRawLapFramesForTest = parseRawLapFrames;
+
 /**
  * Get a single lap by ID, re-parsing telemetry from the raw session .bin file.
  * Returns empty telemetry for pre-migration laps (rawByteOffset is null).
