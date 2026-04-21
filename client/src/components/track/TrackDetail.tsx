@@ -1262,7 +1262,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                             <TH>Car</TH>
                             {!hideClassCol && <TH>Class</TH>}
                             {hasSessionTypes && <TH>Type</TH>}
-                            <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("lap")}>
+                            <TH className="cursor-pointer hover:text-app-text select-none w-px whitespace-nowrap" onClick={() => handleSort("lap")}>
                               Lap # {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
                             </TH>
                             <TH className="cursor-pointer hover:text-app-text select-none text-right w-px whitespace-nowrap" onClick={() => handleSort("time")}>
@@ -1303,7 +1303,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                     }
                                   </TD>
                                 )}
-                                <TD className="font-mono text-app-text-secondary">{lap.lapNumber}</TD>
+                                <TD className="font-mono text-app-text-secondary whitespace-nowrap">{lap.lapNumber}</TD>
                                 <TD className="text-right whitespace-nowrap">
                                   <div className="flex items-center justify-end gap-1">
                                     <span className={`font-mono tabular-nums ${isFastest ? "text-purple-400 font-bold" : ""}`}>{formatLapTime(lap.lapTime)}</span>
