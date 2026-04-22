@@ -54,6 +54,14 @@ export interface F1ExtendedData {
   lastS1: number; // definitive sector times from SessionHistory (0 if not yet received)
   lastS2: number;
   lastS3: number;
+  /**
+   * Per-lap completed sector times from the F1 SessionHistory packet, keyed by
+   * 1-indexed lap number. Each entry is `{ s1, s2, s3, lapTime }` in seconds.
+   * Prefer this over `lastS1/lastS2/lastS3` for specific-lap queries — the
+   * "last" fields track whatever lap is currently in progress in the game, so
+   * they reset to 0 the moment a new lap starts.
+   */
+  lapSectors?: Record<number, { s1: number; s2: number; s3: number; lapTime: number }>;
   // Damage (0-100, 0=no damage)
   // Brake temps (Celsius)
   brakeTempFL: number;
