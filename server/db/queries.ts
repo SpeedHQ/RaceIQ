@@ -425,9 +425,17 @@ async function parseRawLapFrames(
 
   let offset = rawByteOffset;
   const packets: TelemetryPacket[] = [];
+  // Read one extra frame past the stored count so we can enrich the final
+  // in-lap packet with the lap-completion info carried on the next-lap
+  // trigger frame (LastLap, sector3Time, etc). The extra frame is NOT
+  // returned to the caller.
+  const readCount = rawFrameCount + 1;
 
-  for (let i = 0; i < rawFrameCount; i++) {
+  for (let i = 0; i < readCount; i++) {
     if (offset + 4 > buf.length) {
+      // Extra frame may legitimately not exist (end of file). Only complain
+      // about missing frames within rawFrameCount itself.
+      if (i >= rawFrameCount) break;
       throw new LapParseError(
         `Truncated frame header at offset ${offset} (file ${fileSize} bytes, wanted frame ${i + 1}/${rawFrameCount})`,
         { rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-frame" }
@@ -441,6 +449,7 @@ async function parseRawLapFrames(
     // out of alignment.
     offset += 4;
     if (offset + frameLen > buf.length) {
+      if (i >= rawFrameCount) break;
       throw new LapParseError(
         `Frame ${i + 1}/${rawFrameCount} at offset ${offset} claims ${frameLen} bytes but only ${buf.length - offset} remain`,
         { rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-frame" }
@@ -450,7 +459,18 @@ async function parseRawLapFrames(
     offset += frameLen;
     try {
       const packet = serverGame.tryParse(frameBuf, state);
-      if (packet) packets.push(packet);
+      if (!packet) continue;
+      if (i < rawFrameCount) {
+        packets.push(packet);
+      } else {
+        // Extra trailing frame. Use its LastLap (the completed lap time) to
+        // stretch the last real packet's CurrentLap out to the true finish,
+        // so charts don't stop ~16ms short of the authoritative lap time.
+        const last = packets[packets.length - 1];
+        if (last && (packet.LastLap ?? 0) > (last.CurrentLap ?? 0)) {
+          last.CurrentLap = packet.LastLap;
+        }
+      }
     } catch (err) {
       // A single malformed frame shouldn't kill the whole lap parse. Log
       // once (first occurrence) with enough context to diagnose, then skip.
@@ -471,25 +491,6 @@ async function parseRawLapFrames(
       `Parsed ${rawFrameCount} frames but produced 0 telemetry packets (gameId=${gameId})`,
       { rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "no-packets-parsed" }
     );
-  }
-
-  // The lap detector extends rawFrameCount by 1 to include the finish-line
-  // crossing frame. That frame belongs to the NEXT lap (new LapNumber, reset
-  // CurrentLap/DistanceTraveled, but carries the completed lap's time in
-  // LastLap). Rewrite it so charts plotted against CurrentLap /
-  // DistanceTraveled see it at the real finish instead of spiking back to 0.
-  if (packets.length >= 2) {
-    const last = packets[packets.length - 1];
-    const prev = packets[packets.length - 2];
-    if (last.LapNumber !== prev.LapNumber && (last.LastLap ?? 0) > 0) {
-      last.CurrentLap = last.LastLap;
-      last.LapNumber = prev.LapNumber;
-      // Nudge distance just past the previous packet so charts extend rather
-      // than regress. Real track distance for this frame is unknown.
-      if (last.DistanceTraveled < prev.DistanceTraveled) {
-        last.DistanceTraveled = prev.DistanceTraveled;
-      }
-    }
   }
 
   return packets;

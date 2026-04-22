@@ -335,12 +335,6 @@ export class LapDetector implements ILapDetector {
       return;
     }
 
-    // Extend rawFrameCount by 1 so the replay includes the finish-line
-    // crossing frame (the newLapFirstPacket was already written to disk by
-    // the pipeline before feed was called). DO NOT push the packet into
-    // lapBuffer — its DistanceTraveled/CurrentLap have reset for the new
-    // lap, which would fail the lap-quality distance check here.
-    this._lapFrameCount++;
 
     // Record fuel usage
     const fuelEnd = this.lapBuffer[this.lapBuffer.length - 1].Fuel;
