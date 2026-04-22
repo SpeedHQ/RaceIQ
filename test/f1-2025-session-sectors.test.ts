@@ -110,6 +110,19 @@ describe("F1 2025 session 2026-04-22 11:42 — lap times and sector splits", () 
     }
   }, { timeout: 180_000 });
 
+  test("sanity: no valid lap has a sector under 10 seconds", async () => {
+    // A sub-10s sector on a 1:19+ lap can only come from parser drift /
+    // residual fields from the next lap (the symptom of the SessionHistory
+    // 14-byte layout bug and the lastS1/lastS2 aliasing issue).
+    const laps = await replay();
+    for (const lap of laps) {
+      if (!lap.isValid || !lap.sectors || lap.lapTime <= 0) continue;
+      expect(lap.sectors.s1).toBeGreaterThan(10);
+      expect(lap.sectors.s2).toBeGreaterThan(10);
+      expect(lap.sectors.s3).toBeGreaterThan(10);
+    }
+  }, { timeout: 180_000 });
+
   test("sectors come from F1 SessionHistory / LapData (not distance-fraction)", async () => {
     const laps = await replay();
     // computeLapSectors with gameId='f1-2025' must never fall back to the
