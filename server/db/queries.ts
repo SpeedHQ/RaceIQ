@@ -473,6 +473,25 @@ async function parseRawLapFrames(
     );
   }
 
+  // The lap detector extends rawFrameCount by 1 to include the finish-line
+  // crossing frame. That frame belongs to the NEXT lap (new LapNumber, reset
+  // CurrentLap/DistanceTraveled, but carries the completed lap's time in
+  // LastLap). Rewrite it so charts plotted against CurrentLap /
+  // DistanceTraveled see it at the real finish instead of spiking back to 0.
+  if (packets.length >= 2) {
+    const last = packets[packets.length - 1];
+    const prev = packets[packets.length - 2];
+    if (last.LapNumber !== prev.LapNumber && (last.LastLap ?? 0) > 0) {
+      last.CurrentLap = last.LastLap;
+      last.LapNumber = prev.LapNumber;
+      // Nudge distance just past the previous packet so charts extend rather
+      // than regress. Real track distance for this frame is unknown.
+      if (last.DistanceTraveled < prev.DistanceTraveled) {
+        last.DistanceTraveled = prev.DistanceTraveled;
+      }
+    }
+  }
+
   return packets;
 }
 
