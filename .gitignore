@@ -38,5 +38,4 @@ demo-frames/
 
 # Dev dump recordings — track gzipped fixtures only
 test/artifacts/sessions/*.bin
-client/src/routeTree.gen.ts
 .claude/scheduled_tasks.lock
