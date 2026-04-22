@@ -21,6 +21,9 @@ test.describe("ACC tunes", () => {
     await page.getByLabel("Name").fill("E2E ACC Tune");
     await page.getByLabel("Description").fill("Playwright-created");
 
+    // Switch from the default structured form to the raw JSON paste mode.
+    await page.getByRole("radio", { name: "Paste JSON" }).click();
+
     // Populate every ACC tunable section so the "covered" counter hits 8/8.
     const setupJson = {
       basicSetup: {

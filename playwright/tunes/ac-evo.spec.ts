@@ -23,6 +23,9 @@ test.describe("AC EVO tunes", () => {
     // EVO-only category — confirms the dropdown isn't sharing ACC's list.
     await page.getByLabel("Category").selectOption("trackday");
 
+    // Switch from the default structured form to the raw JSON paste mode.
+    await page.getByRole("radio", { name: "Paste JSON" }).click();
+
     // Populate both a core section and the EVO-only suspension presets section.
     const setupJson = {
       basicSetup: {

@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";
 import type { GameId } from "@shared/types";
+import { FillForm } from "./FillForm";
+import { getSchemaForGame } from "./setup-schema";
 
 export interface SetupTuneData {
   gameId: GameId;
@@ -89,10 +91,11 @@ function getCategoriesForGame(gameId: GameId): CategoryOption[] {
   return [{ value: "circuit", label: "Circuit" }];
 }
 
-/** Simple form for ACC / AC-EVO tunes. Their setup schemas are game-native
- *  JSON blobs rather than Forza's `TuneSettings`, so the UI captures metadata
- *  and lets the user paste / edit the raw setup object directly. The section
- *  list shows every tunable group the game's JSON can contain. */
+type Mode = "form" | "json";
+
+/** ACC / AC-EVO tune editor. Users pick an input mode up front — fill the
+ *  structured form or paste the raw setup JSON. Both modes read/write the same
+ *  `settings` object, so switching modes is lossless. */
 export function SetupTuneForm({
   gameId,
   cars,
@@ -112,6 +115,7 @@ export function SetupTuneForm({
 }) {
   const sections = getSectionsForGame(gameId);
   const categories = getCategoriesForGame(gameId);
+  const schema = useMemo(() => getSchemaForGame(gameId), [gameId]);
   const defaultCategory = categories[0]?.value ?? "race";
 
   const [name, setName] = useState(initialData?.name ?? "");
@@ -119,10 +123,18 @@ export function SetupTuneForm({
   const [carOrdinal, setCarOrdinal] = useState<number>(initialData?.carOrdinal ?? cars[0]?.ordinal ?? 0);
   const [category, setCategory] = useState(initialData?.category ?? defaultCategory);
   const [description, setDescription] = useState(initialData?.description ?? "");
+
+  // Structured-form state: keep a live settings object the fill-form mutates.
+  const [settings, setSettings] = useState<Record<string, unknown>>(
+    () => (initialData?.settings as Record<string, unknown>) ?? {},
+  );
+  // JSON-mode state: the textarea string (may be invalid mid-edit).
   const [jsonText, setJsonText] = useState(() =>
     initialData?.settings ? JSON.stringify(initialData.settings, null, 2) : "{}",
   );
   const [jsonError, setJsonError] = useState("");
+
+  const [mode, setMode] = useState<Mode>("form");
 
   useEffect(() => {
     if (!initialData) return;
@@ -131,38 +143,79 @@ export function SetupTuneForm({
     setCarOrdinal(initialData.carOrdinal ?? cars[0]?.ordinal ?? 0);
     setCategory(initialData.category ?? defaultCategory);
     setDescription(initialData.description ?? "");
+    const next = (initialData.settings as Record<string, unknown>) ?? {};
+    setSettings(next);
     setJsonText(initialData.settings ? JSON.stringify(initialData.settings, null, 2) : "{}");
     setJsonError("");
   }, [initialData, cars, defaultCategory]);
 
-  // Detect which tunable sections the user's pasted JSON actually populates —
-  // purely a visual aid; validation doesn't require any particular section.
-  const coveredSections = (() => {
-    let parsed: Record<string, Record<string, unknown>>;
-    try { parsed = JSON.parse(jsonText); } catch { return new Set<string>(); }
+  // Detect which tunable sections are populated — from whichever source is
+  // currently authoritative (live settings in form mode, parsed JSON in JSON
+  // mode so the count updates as the user types).
+  const coveredSections = useMemo(() => {
+    let source: Record<string, Record<string, unknown>> | null;
+    if (mode === "form") {
+      source = settings as Record<string, Record<string, unknown>>;
+    } else {
+      try {
+        source = JSON.parse(jsonText);
+      } catch {
+        source = null;
+      }
+    }
     const covered = new Set<string>();
+    if (!source) return covered;
     for (const s of sections) {
       const [root, leaf] = s.key.split(".");
-      if (parsed?.[root]?.[leaf]) covered.add(s.key);
+      if (source?.[root]?.[leaf]) covered.add(s.key);
     }
     return covered;
-  })();
+  }, [mode, settings, jsonText, sections]);
+
+  // When user flips to JSON mode, seed the textarea from the live settings.
+  // When user flips to form mode, parse the textarea into settings (if valid).
+  const switchMode = (next: Mode) => {
+    if (next === mode) return;
+    if (next === "json") {
+      setJsonText(JSON.stringify(settings, null, 2));
+      setJsonError("");
+    } else {
+      try {
+        const parsed = JSON.parse(jsonText);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          setSettings(parsed as Record<string, unknown>);
+          setJsonError("");
+        } else {
+          setJsonError("Settings must be a JSON object");
+          return;
+        }
+      } catch (err) {
+        setJsonError(err instanceof Error ? err.message : "Invalid JSON");
+        return;
+      }
+    }
+    setMode(next);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    let settings: Record<string, unknown>;
-    try {
-      const parsed = JSON.parse(jsonText);
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        throw new Error("Settings must be a JSON object");
+    let finalSettings: Record<string, unknown>;
+    if (mode === "form") {
+      finalSettings = settings;
+    } else {
+      try {
+        const parsed = JSON.parse(jsonText);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          throw new Error("Settings must be a JSON object");
+        }
+        finalSettings = parsed;
+      } catch (err) {
+        setJsonError(err instanceof Error ? err.message : "Invalid JSON");
+        return;
       }
-      settings = parsed;
-    } catch (err) {
-      setJsonError(err instanceof Error ? err.message : "Invalid JSON");
-      return;
     }
     setJsonError("");
-    onSubmit({ gameId, name, author, carOrdinal, category, description, settings });
+    onSubmit({ gameId, name, author, carOrdinal, category, description, settings: finalSettings });
   };
 
   const gameLabel = gameId === "acc" ? "ACC" : "AC EVO";
@@ -181,6 +234,39 @@ export function SetupTuneForm({
       </div>
 
       <div className="p-6 grid grid-cols-2 gap-4 max-w-3xl">
+        {/* Mode picker — first thing the user sees. Determines whether the
+            settings come from the structured form or a pasted JSON blob. */}
+        <div className="col-span-2 flex items-center gap-2" role="radiogroup" aria-label="Input mode">
+          <span className="text-xs font-medium text-app-text-muted mr-1">Input:</span>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={mode === "form"}
+            onClick={() => switchMode("form")}
+            className={`px-3 py-1 text-xs rounded border ${
+              mode === "form"
+                ? "bg-app-accent/20 border-app-accent text-app-text"
+                : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text"
+            }`}
+          >
+            Fill form
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={mode === "json"}
+            onClick={() => switchMode("json")}
+            className={`px-3 py-1 text-xs rounded border ${
+              mode === "json"
+                ? "bg-app-accent/20 border-app-accent text-app-text"
+                : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text"
+            }`}
+          >
+            Paste JSON
+          </button>
+          {jsonError && <span className="text-[10px] text-red-400 ml-2">{jsonError}</span>}
+        </div>
+
         <label className="col-span-2 space-y-1">
           <span className="text-xs font-medium text-app-text-muted">Name</span>
           <input
@@ -240,60 +326,37 @@ export function SetupTuneForm({
         </label>
 
         {sections.length > 0 && (
-          <div className="col-span-2 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-app-text-muted">Tunable sections</span>
-              <span className="text-[10px] text-app-text-muted">{coveredSections.size} / {sections.length} covered</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {sections.map((s) => {
-                const isCovered = coveredSections.has(s.key);
-                return (
-                  <div
-                    key={s.key}
-                    className={`rounded-lg p-2 ring-1 ${
-                      isCovered
-                        ? "bg-emerald-500/5 ring-emerald-500/30"
-                        : "bg-app-surface ring-app-border"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-app-text">{s.label}</span>
-                      <span
-                        className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded ${
-                          isCovered
-                            ? "bg-emerald-500/20 text-emerald-400"
-                            : "bg-app-bg text-app-text-muted"
-                        }`}
-                      >
-                        {isCovered ? "set" : "—"}
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-app-text-muted mt-0.5">{s.fields}</div>
-                  </div>
-                );
-              })}
-            </div>
+          <div className="col-span-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-app-text-muted">Tunable sections</span>
+            <span className="text-[10px] text-app-text-muted">
+              {coveredSections.size} / {sections.length} covered
+            </span>
           </div>
         )}
 
-        <label className="col-span-2 space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-app-text-muted">Setup JSON</span>
-            {jsonError && <span className="text-[10px] text-red-400">{jsonError}</span>}
-          </div>
-          <textarea
-            value={jsonText}
-            onChange={(e) => setJsonText(e.target.value)}
-            spellCheck={false}
-            className="w-full h-96 bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs font-mono text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
-          />
-          <p className="text-[10px] text-app-text-muted">
-            Paste the full setup JSON produced by {gameLabel}. Every in-game tunable
-            lives inside <code>basicSetup</code> or <code>advancedSetup</code> —
-            the sections above show which groups are present.
-          </p>
-        </label>
+        {mode === "form" && schema.length > 0 && (
+          <FillForm sections={schema} settings={settings} onChange={setSettings} />
+        )}
+
+        {mode === "json" && (
+          <label className="col-span-2 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-app-text-muted">Setup JSON</span>
+              {jsonError && <span className="text-[10px] text-red-400">{jsonError}</span>}
+            </div>
+            <textarea
+              value={jsonText}
+              onChange={(e) => setJsonText(e.target.value)}
+              spellCheck={false}
+              className="w-full h-96 bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs font-mono text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+            />
+            <p className="text-[10px] text-app-text-muted">
+              Paste the full setup JSON produced by {gameLabel}. Every in-game tunable
+              lives inside <code>basicSetup</code> or <code>advancedSetup</code> —
+              the section counter above shows which groups are present.
+            </p>
+          </label>
+        )}
       </div>
     </form>
   );
