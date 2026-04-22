@@ -53,16 +53,19 @@ jobs:
         run: NODE_ENV=production bun build --compile --target=bun-windows-x64 --define 'process.env.NODE_ENV="production"' server/bootstrap.ts --outfile dist/raceiq.exe
 
       - name: Fetch Windows libsql native addon
-        # npm's --force --os=win32 bypasses the package's os={win32} check, so
-        # we can pull the Windows-specific native addon onto the Linux runner
-        # and ship it alongside the cross-compiled raceiq.exe.
-        run: npm install --no-save --force --os=win32 --cpu=x64 @libsql/win32-x64-msvc
-
-      - name: Copy libsql native addon
+        # `npm pack` downloads the tarball directly without resolving a tree,
+        # so it bypasses the package's os={win32} check and avoids the
+        # workspace-wide resolution bug that `npm install --force --os=win32`
+        # triggers. Ships the native addon alongside the cross-compiled
+        # raceiq.exe.
         run: |
           mkdir -p dist/node_modules/@libsql/win32-x64-msvc
-          cp node_modules/@libsql/win32-x64-msvc/index.node dist/node_modules/@libsql/win32-x64-msvc/
-          cp node_modules/@libsql/win32-x64-msvc/package.json dist/node_modules/@libsql/win32-x64-msvc/
+          tmp=$(mktemp -d)
+          cd "$tmp"
+          npm pack @libsql/win32-x64-msvc
+          tar -xzf libsql-win32-x64-msvc-*.tgz
+          cp package/index.node package/package.json \
+            "$GITHUB_WORKSPACE/dist/node_modules/@libsql/win32-x64-msvc/"
 
       - name: Upload dist artifact
         uses: actions/upload-artifact@v4
