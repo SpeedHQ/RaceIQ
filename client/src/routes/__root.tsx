@@ -176,7 +176,8 @@ function AppShell() {
     return <ThemeProvider><div className="h-screen bg-app-bg" /></ThemeProvider>;
   }
 
-  if (!displaySettings.onboardingComplete) {
+  const forceWelcome = new URLSearchParams(window.location.search).has("welcome");
+  if (forceWelcome || !displaySettings.onboardingComplete) {
     return <ThemeProvider><OnboardingModal /></ThemeProvider>;
   }
 

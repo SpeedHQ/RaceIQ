@@ -2,9 +2,9 @@ import type { TelemetryPacket } from "@shared/types";
 import type { DisplayPacket } from "@/lib/convert-packet";
 import { useUnits } from "@/hooks/useUnits";
 import { convertTemp } from "@/lib/temperature";
-import { useSettings } from "@/hooks/queries";
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
 import { allWheelStates } from "@/lib/vehicle-dynamics";
+import { tryGetGame } from "@shared/games/registry";
 import { WheelCard } from "./WheelCard";
 import { SuspBar } from "./SuspBar";
 
@@ -16,8 +16,7 @@ import { SuspBar } from "./SuspBar";
  */
 export function TireDiagram({ packet }: { packet: DisplayPacket | TelemetryPacket }) {
   const units = useUnits();
-  const { displaySettings } = useSettings();
-  const suspThresh = displaySettings.suspensionThresholds.values;
+  const suspThresh = tryGetGame(packet.gameId)?.suspensionThresholds.values ?? [25, 65, 85];
   const toDeg = 180 / Math.PI;
 
   // Use canonical wheel states from vehicle-dynamics (same as LapAnalyse)

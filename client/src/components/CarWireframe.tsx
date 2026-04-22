@@ -8,6 +8,7 @@ import { tireTempColorHex } from "../lib/vehicle-dynamics";
 import { useUnits } from "../hooks/useUnits";
 import { useSettings } from "../hooks/queries";
 import { useGameId } from "../stores/game";
+import { tryGetGame } from "@shared/games/registry";
 import { needsTrackFlip, flipBoundaries } from "../lib/track-coords";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { recordGpuSnapshot } from "../lib/crash-diagnostics";
@@ -79,7 +80,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   }, [carOrdinal, configsLoaded, isF1, carModelProp]);
   const units = useUnits();
   const { displaySettings } = useSettings();
-  const suspThresholds = displaySettings.suspensionThresholds.values;
+  const suspThresholds = tryGetGame(gameId)?.suspensionThresholds.values ?? [25, 65, 85];
   const tLabel = tempLabelProp ?? units.tempLabel;
   const fmtTemp = useCallback((v: number) => `${units.temp(v).toFixed(0)}${tLabel}`, [units, tLabel]);
   const [editMode, setEditMode] = useState(false);
@@ -125,7 +126,7 @@ export const CarWireframe = React.memo(function CarWireframe({
     <div className="w-full h-full relative flex-1">
       <Canvas
         camera={{ position: [4, 2.5, 4], fov: 50 }}
-        gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
+        gl={{ antialias: false, alpha: true, powerPreference: "high-performance", preserveDrawingBuffer: !!(window as unknown as Record<string, unknown>).__recording }}
         dpr={[1, 1.5]}
         frameloop="always"
         tabIndex={-1}
@@ -140,9 +141,10 @@ export const CarWireframe = React.memo(function CarWireframe({
             // would exceed the cap. 0.5 ms fudge avoids consistently
             // landing one frame under the target.
             const now = performance.now();
+            const recording = !!(window as unknown as Record<string, unknown>).__recording;
             const cap = fpsCapRef.current;
             const minInterval = 1000 / Math.max(15, Math.min(120, cap)) - 0.5;
-            if (now - lastRender < minInterval) return;
+            if (!recording && now - lastRender < minInterval) return;
             lastRender = now;
 
             fpsFrames.current++;

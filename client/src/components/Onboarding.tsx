@@ -28,6 +28,8 @@ const WHEEL_STYLE_KEY = "forza-wheel-style";
 
 function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
   const [cursorIdx, setCursorIdx] = useState(() => Math.floor(telemetry.length * 0.3));
+  const rafIdRef = useRef<number>(0);
+  const pausedRef = useRef(false);
   const trackOrdinal = telemetry[0]?.TrackOrdinal;
 
   // Fetch track outline
@@ -57,14 +59,46 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
     staleTime: Infinity,
   });
 
+  // Expose frame control for Playwright recording
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>).__setFrame = (n: number) => setCursorIdx(n);
+    (window as unknown as Record<string, unknown>).__pauseAnimation = () => {
+      pausedRef.current = true;
+      cancelAnimationFrame(rafIdRef.current);
+    };
+    (window as unknown as Record<string, unknown>).__resumeAnimation = () => {
+      pausedRef.current = false;
+      let lastTime = 0;
+      const frameDuration = 1000 / 60;
+      function tick(time: number) {
+        if (pausedRef.current) return;
+        rafIdRef.current = requestAnimationFrame(tick);
+        if (time - lastTime < frameDuration) return;
+        lastTime = time;
+        setCursorIdx((prev) => {
+          const next = prev + 1;
+          return next >= telemetry.length ? 0 : next;
+        });
+      }
+      rafIdRef.current = requestAnimationFrame(tick);
+    };
+    (window as unknown as Record<string, unknown>).__totalFrames = telemetry.length;
+    return () => {
+      delete (window as unknown as Record<string, unknown>).__setFrame;
+      delete (window as unknown as Record<string, unknown>).__pauseAnimation;
+      delete (window as unknown as Record<string, unknown>).__totalFrames;
+    };
+  }, [telemetry.length]);
+
   useEffect(() => {
     if (telemetry.length === 0) return;
+    pausedRef.current = false;
     let lastTime = 0;
-    let rafId: number;
-    const frameDuration = 1000 / 60; // cap at 60fps
+    const frameDuration = 1000 / 60;
 
     function tick(time: number) {
-      rafId = requestAnimationFrame(tick);
+      if (pausedRef.current) return;
+      rafIdRef.current = requestAnimationFrame(tick);
       if (time - lastTime < frameDuration) return;
       lastTime = time;
       setCursorIdx((prev) => {
@@ -73,8 +107,8 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
       });
     }
 
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    rafIdRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafIdRef.current);
   }, [telemetry]);
 
   // Build driving line from telemetry positions — downsample for perf
