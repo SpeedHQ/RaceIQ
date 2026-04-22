@@ -1,5 +1,16 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { HardDrive, Loader2 } from "lucide-react";
+import { HardDrive, Loader2, Database } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useSettings, useSaveSettings } from "../../hooks/queries";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+
+interface CacheStatus {
+  bytesUsed: number;
+  maxBytes: number;
+  entries: number;
+}
 
 interface GameStorageStats {
   binCount: number;
@@ -122,6 +133,107 @@ function GameBreakdown({ gameId, stats }: { gameId: string; stats: GameStorageSt
   );
 }
 
+function CacheSection() {
+  const { displaySettings } = useSettings();
+  const saveSettings = useSaveSettings();
+  const [draftMB, setDraftMB] = useState(String(displaySettings.cacheMaxMB ?? 256));
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    setDraftMB(String(displaySettings.cacheMaxMB ?? 256));
+  }, [displaySettings.cacheMaxMB]);
+
+  const { data: cache } = useQuery<CacheStatus>({
+    queryKey: ["cache", "status"],
+    queryFn: () => fetch("/api/cache/status").then((r) => r.json()),
+    refetchInterval: 5_000,
+  });
+
+  const usedFraction = cache && cache.maxBytes > 0 ? Math.min(1, cache.bytesUsed / cache.maxBytes) : 0;
+  const usedPct = (usedFraction * 100).toFixed(1);
+
+  const onSave = () => {
+    const n = Number(draftMB);
+    if (!Number.isFinite(n) || n < 16 || n > 2048) {
+      setStatus("error");
+      setErrorMsg("Must be 16–2048 MB");
+      return;
+    }
+    setStatus("saving");
+    setErrorMsg("");
+    saveSettings.mutate(
+      { cacheMaxMB: n },
+      {
+        onSuccess: () => {
+          setStatus("saved");
+          setTimeout(() => setStatus("idle"), 1500);
+        },
+        onError: (e) => {
+          setStatus("error");
+          setErrorMsg(e instanceof Error ? e.message : "Save failed");
+        },
+      }
+    );
+  };
+
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+        <Database className="size-4 text-white/40" />
+        Telemetry Cache
+      </h3>
+      <p className="text-xs text-white/40 mb-4">
+        In-memory cache of parsed lap telemetry used by analyse, compare, and chat. LRU eviction when the budget is exceeded.
+      </p>
+
+      {cache && (
+        <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 mb-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-white/60">Used</span>
+            <span className="text-sm font-medium text-white">
+              {fmt(cache.bytesUsed)} / {fmt(cache.maxBytes)} <span className="text-white/40">({usedPct}%)</span>
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+            <div
+              className="h-full bg-blue-500 transition-all"
+              style={{ width: `${usedFraction * 100}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between pt-1 text-xs text-white/50">
+            <span>{cache.entries} cached lap{cache.entries === 1 ? "" : "s"}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-xs">
+        <Label className="text-app-text-secondary">Cache size limit (MB)</Label>
+        <div className="mt-1.5 flex items-center gap-2">
+          <Input
+            type="number"
+            min={16}
+            max={2048}
+            value={draftMB}
+            onChange={(e) => setDraftMB(e.target.value)}
+            className="bg-app-surface border border-app-border-input"
+          />
+          <Button
+            onClick={onSave}
+            disabled={status === "saving" || draftMB === String(displaySettings.cacheMaxMB)}
+            size="sm"
+          >
+            {status === "saving" ? "Saving…" : "Save"}
+          </Button>
+        </div>
+        {status === "saved" && <p className="text-xs text-green-400 mt-2">Saved.</p>}
+        {status === "error" && <p className="text-xs text-red-400 mt-2">{errorMsg}</p>}
+        <p className="text-xs text-white/40 mt-2">Range: 16–2048 MB. Default 256 MB.</p>
+      </div>
+    </div>
+  );
+}
+
 export function StorageSection() {
   const { data, isLoading, isError, refetch } = useQuery<SessionStorageStats>({
     queryKey: ["storage", "sessions"],
@@ -138,6 +250,7 @@ export function StorageSection() {
 
   return (
     <section className="space-y-6">
+      <CacheSection />
       <div>
         <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
           <HardDrive className="size-4 text-white/40" />

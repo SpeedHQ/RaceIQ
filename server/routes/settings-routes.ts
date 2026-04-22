@@ -9,7 +9,7 @@ import { udpListener } from "../udp";
 import { wsManager } from "../ws";
 import { lapDetector } from "../pipeline";
 import { loadSettings, saveSettings, PartialSettingsSchema } from "../settings";
-import { getLaps } from "../db/queries";
+import { getLaps, setCacheMaxBytes } from "../db/queries";
 import { getRunningGame } from "../games/registry";
 import { getTrackOutlineByOrdinal } from "../../shared/track-data";
 
@@ -123,6 +123,9 @@ export const settingsRoutes = new Hono()
       }
       if (merged.wsRefreshRate) {
         wsManager.setRefreshRate(merged.wsRefreshRate);
+      }
+      if (typeof merged.cacheMaxMB === "number") {
+        setCacheMaxBytes(merged.cacheMaxMB * 1024 * 1024);
       }
       saveSettings(merged);
       if (provided.onboardingComplete) {
