@@ -175,6 +175,7 @@ export class Pipeline {
 
     // Snapshot byte offset BEFORE writing so it points to this packet's position
     let rawByteOffset: number | undefined;
+    const recorderBefore = this._sessionRecorder;
     if (rawBuf && this._sessionRecorder) {
       rawByteOffset = this._sessionRecorder.getCurrentByteOffset();
       this._sessionRecorder.writePacket(rawBuf);
@@ -194,6 +195,17 @@ export class Pipeline {
 
     const detector = this._getOrCreateDetector(packet.gameId);
     await detector.feed(packet, rawByteOffset);
+
+    // If a new session was created during feed — either the very first
+    // session (recorder was null) or a rotation (car-changed, etc.) — the
+    // triggering packet was written to the PREVIOUS recorder (or not at all).
+    // Catch up: write it to the NEW recorder as lap 1's first frame and patch
+    // the detector's lap byte offset so the DB row points at the right place.
+    if (rawBuf && this._sessionRecorder && this._sessionRecorder !== recorderBefore) {
+      const firstOffset = this._sessionRecorder.getCurrentByteOffset();
+      this._sessionRecorder.writePacket(rawBuf);
+      detector.setCurrentLapByteOffset?.(firstOffset);
+    }
 
     const sectors = this.sectorTracker.feed(packet);
 

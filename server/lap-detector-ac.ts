@@ -47,6 +47,13 @@ export class LapDetectorAc implements ILapDetector {
     return this.currentSession;
   }
 
+  /** Used by the pipeline to patch lap 1's byte offset when the session
+   *  recorder was created mid-feed for the very first packet. */
+  setCurrentLapByteOffset(offset: number): void {
+    this._lapByteOffset = offset;
+    this._currentRawByteOffset = offset;
+  }
+
   async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
     if (rawByteOffset !== undefined) {
       if (this._currentRawByteOffset === null) {

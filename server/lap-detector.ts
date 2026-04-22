@@ -133,6 +133,17 @@ export class LapDetector implements ILapDetector {
   }
 
   /**
+   * Overwrite the current lap's byte offset. Used by the pipeline when the
+   * session recorder is created mid-feed and the first packet is written
+   * retroactively — the detector itself never saw a valid offset for that
+   * packet, so lap 1 would otherwise start at null.
+   */
+  setCurrentLapByteOffset(offset: number): void {
+    this._lapByteOffset = offset;
+    this._currentRawByteOffset = offset;
+  }
+
+  /**
    * Finalize the current session immediately (e.g., when game process disconnects).
    * Clears session state without waiting for silence timeout.
    */
