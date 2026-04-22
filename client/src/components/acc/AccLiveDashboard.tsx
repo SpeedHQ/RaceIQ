@@ -6,7 +6,7 @@ import { LapTimeChart } from "../LapTimeChart";
 import { PitEstimate } from "../telemetry/PitEstimate";
 import { RecordedLaps } from "../RecordedLaps";
 import { NoDataView } from "../NoDataView";
-import { useTrackName, useCarName, useTirePressureOptimal, useSettings } from "../../hooks/queries";
+import { useTrackName, useCarName, useTirePressureOptimal } from "../../hooks/queries";
 import { RaceInfo } from "../RaceInfo";
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
@@ -16,7 +16,6 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const sectors = useTelemetryStore((s) => s.sectors);
   const pit = useTelemetryStore((s) => s.pit);
-  const { displaySettings } = useSettings();
   const { data: trackName } = useTrackName(packet?.TrackOrdinal);
   const { data: carName } = useCarName(packet?.CarOrdinal);
   const pressureOptimal = useTirePressureOptimal(gameId, packet?.CarOrdinal);
@@ -54,7 +53,7 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Pit Window</h2>
           </div>
           <div className="p-3">
-            <PitEstimate packet={packet} pit={pit} gameId="acc" healthThresholds={displaySettings.tireHealthThresholds.values} />
+            <PitEstimate packet={packet} pit={pit} gameId="acc" />
           </div>
         </div>
       </div>

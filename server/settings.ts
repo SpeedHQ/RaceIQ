@@ -5,10 +5,6 @@ import { resolveDataDir } from "./data-dir";
 const SETTINGS_DIR = resolveDataDir();
 const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 
-const ColorThresholdsSchema = z.object({
-  values: z.array(z.number()),
-});
-
 // `""` retained in the enum only for backwards compatibility with previously
 // stored settings files where the user hadn't picked a provider yet. Fresh
 // installs and defaults resolve to "gemini" + "gemini-flash-latest" so the
@@ -31,18 +27,10 @@ const AppSettingsSchema = z.object({
   // calls to cap GPU/CPU work when the scene is idle or when the user
   // wants to trade smoothness for battery/thermal headroom. 15–120 fps.
   renderFpsCap: z.number().int().min(15).max(120).default(60),
-  tireTempCelsiusThresholds: z.object({
-    cold: z.number().default(65),
-    warm: z.number().default(105),
-    hot: z.number().default(138),
-  }).default({ cold: 65, warm: 105, hot: 138 }),
-  tireHealthThresholds: ColorThresholdsSchema.default({ values: [20, 40, 60, 80] }),
-  suspensionThresholds: ColorThresholdsSchema.default({ values: [25, 65, 85] }),
   hiddenGames: z.array(z.string()).default([]),
 });
 
 export type AppSettings = z.infer<typeof AppSettingsSchema>;
-export type ColorThresholds = z.infer<typeof ColorThresholdsSchema>;
 
 const DEFAULTS: AppSettings = AppSettingsSchema.parse({});
 
@@ -67,14 +55,15 @@ export function loadSettings(): AppSettings {
     if (!parsed.unit && parsed.speedUnit) {
       parsed.unit = parsed.speedUnit === "mph" ? "imperial" : "metric";
     }
-    // Migrate legacy tireTemperatureThresholds → tireTempCelsiusThresholds
-    if (!parsed.tireTempCelsiusThresholds && parsed.tireTemperatureThresholds) {
-      parsed.tireTempCelsiusThresholds = parsed.tireTemperatureThresholds;
-    }
     // Migrate legacy claude-cli provider → gemini
     if (parsed.aiProvider === "claude-cli") {
       parsed.aiProvider = "gemini";
     }
+    // Strip legacy color-threshold fields — now owned by game adapters
+    delete parsed.tireTempCelsiusThresholds;
+    delete parsed.tireTemperatureThresholds;
+    delete parsed.tireHealthThresholds;
+    delete parsed.suspensionThresholds;
 
     return AppSettingsSchema.parse(parsed);
   } catch (err) {

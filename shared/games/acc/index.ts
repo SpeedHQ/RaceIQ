@@ -10,6 +10,7 @@ export const accAdapter: GameAdapter = {
   steeringRange: 1,
   tireHealthThresholds: { green: 0.85, yellow: 0.70 },
   tireTempThresholds: { cold: 70, warm: 100, hot: 120 },
+  suspensionThresholds: { values: [25, 65, 85] },
   // Pressure optimal is class-aware — resolved server-side via the
   // /api/acc/cars/:ordinal/pressure-optimal endpoint.
   brakeTempThresholds: {
