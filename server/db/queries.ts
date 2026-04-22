@@ -7,6 +7,7 @@ import { fillNormSuspension } from "../telemetry-utils";
 import { getServerGame } from "../games/registry";
 import { gunzip } from "zlib";
 import { promisify } from "util";
+import { existsSync, unlinkSync } from "fs";
 
 const gunzipAsync = promisify(gunzip);
 
@@ -358,7 +359,93 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
     }));
 }
 
-const telemetryCache = new Map<number, TelemetryPacket[]>();
+// Rough per-packet byte estimate. TelemetryPacket has ~50–80 numeric fields
+// plus optional game-specific extensions (f1/acc/setup). Sniffing the first
+// packet to pick a tighter estimate is precise enough for an eviction budget
+// that the user controls in settings.
+const BYTES_PER_PACKET_BASE = 500;
+const BYTES_PER_PACKET_F1 = 1100;
+const BYTES_PER_PACKET_ACC = 800;
+
+const DEFAULT_CACHE_MAX_BYTES = 256 * 1024 * 1024;
+
+interface CacheEntry {
+  packets: TelemetryPacket[];
+  bytes: number;
+}
+
+const telemetryCache = new Map<number, CacheEntry>();
+let cacheMaxBytes = DEFAULT_CACHE_MAX_BYTES;
+let cacheBytesUsed = 0;
+
+function estimateBytes(packets: TelemetryPacket[]): number {
+  if (packets.length === 0) return 0;
+  const sample = packets[0] as TelemetryPacket & { f1?: unknown; acc?: unknown };
+  const per = sample.f1 ? BYTES_PER_PACKET_F1
+    : sample.acc ? BYTES_PER_PACKET_ACC
+    : BYTES_PER_PACKET_BASE;
+  return packets.length * per;
+}
+
+function cacheGet(id: number): TelemetryPacket[] | undefined {
+  const entry = telemetryCache.get(id);
+  if (entry) {
+    telemetryCache.delete(id);
+    telemetryCache.set(id, entry);
+    return entry.packets;
+  }
+  return undefined;
+}
+
+function cacheSet(id: number, packets: TelemetryPacket[]): void {
+  const existing = telemetryCache.get(id);
+  if (existing) {
+    cacheBytesUsed -= existing.bytes;
+    telemetryCache.delete(id);
+  }
+  const bytes = estimateBytes(packets);
+  telemetryCache.set(id, { packets, bytes });
+  cacheBytesUsed += bytes;
+  evictUntilWithinBudget();
+}
+
+function cacheDelete(id: number): boolean {
+  const entry = telemetryCache.get(id);
+  if (!entry) return false;
+  cacheBytesUsed -= entry.bytes;
+  return telemetryCache.delete(id);
+}
+
+function evictUntilWithinBudget(): void {
+  while (cacheBytesUsed > cacheMaxBytes && telemetryCache.size > 0) {
+    const oldest = telemetryCache.keys().next().value;
+    if (oldest === undefined) break;
+    cacheDelete(oldest);
+  }
+}
+
+export function setCacheMaxBytes(bytes: number): void {
+  cacheMaxBytes = Math.max(0, Math.floor(bytes));
+  evictUntilWithinBudget();
+}
+
+export function getCacheStats(): { bytesUsed: number; maxBytes: number; entries: number } {
+  return { bytesUsed: cacheBytesUsed, maxBytes: cacheMaxBytes, entries: telemetryCache.size };
+}
+
+export const _telemetryCacheForTest = {
+  get: cacheGet,
+  set: cacheSet,
+  delete: cacheDelete,
+  clear: () => { telemetryCache.clear(); cacheBytesUsed = 0; },
+  size: () => telemetryCache.size,
+  bytesUsed: () => cacheBytesUsed,
+  maxBytes: () => cacheMaxBytes,
+  setMaxBytes: setCacheMaxBytes,
+  resetMaxBytes: () => { cacheMaxBytes = DEFAULT_CACHE_MAX_BYTES; },
+  keys: () => Array.from(telemetryCache.keys()),
+  estimateBytes,
+};
 
 /**
  * Re-parse raw UDP frames from a session .bin file for a specific lap.
@@ -541,8 +628,8 @@ export async function getLapById(
 
   if (!row) return null;
 
-  if (telemetryCache.has(id)) {
-    const cached = telemetryCache.get(id)!;
+  const cached = cacheGet(id);
+  if (cached) {
     return buildLapResult(row, cached);
   }
 
@@ -570,7 +657,7 @@ export async function getLapById(
   // Only cache successful, non-empty parses. Empty/errored results are
   // transient (often caused by a bug that gets fixed, or a buffer-flush
   // race) and caching them would require a server restart to recover.
-  if (telemetry.length > 0) telemetryCache.set(id, telemetry);
+  if (telemetry.length > 0) cacheSet(id, telemetry);
   const result = buildLapResult(row, telemetry);
   if (parseError) return { ...result, parseError };
   return result;
@@ -608,7 +695,7 @@ export async function deleteLap(id: number): Promise<boolean> {
   const lap = await db.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.id, id)).get();
   const result = await db.delete(laps).where(eq(laps.id, id)).returning().all();
   if (result.length > 0) {
-    telemetryCache.delete(id);
+    cacheDelete(id);
     // Clean up empty parent session
     if (lap) {
       const remaining = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, lap.sessionId)).limit(1).all();
@@ -725,7 +812,7 @@ export async function updateLapRawIndex(
   isValid: boolean,
   sectors: { s1: number; s2: number; s3: number } | null
 ): Promise<void> {
-  telemetryCache.delete(lapId);
+  cacheDelete(lapId);
   await db.update(laps).set({
     rawByteOffset,
     rawFrameCount,
@@ -764,24 +851,40 @@ export async function insertReprocessedLap(
 /** Delete all laps for a session (used when reprocess finds different lap count). */
 export async function deleteLapsForSession(sessionId: number): Promise<void> {
   const rows = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
-  for (const { id } of rows) telemetryCache.delete(id);
+  for (const { id } of rows) cacheDelete(id);
   await db.delete(laps).where(eq(laps.sessionId, sessionId));
 }
 
 /**
- * Delete all sessions that have zero laps.
+ * Delete all sessions that have zero laps, excluding `activeSessionId` if
+ * supplied. Also removes the associated raw .bin / .bin.gz file from disk —
+ * empty sessions have no replay value. Pass the current session id when
+ * calling outside of boot so a live recorder isn't yanked out from under
+ * itself (it has 0 laps until the first one completes).
+ *
  * Returns the number of sessions deleted.
  */
-export async function deleteEmptySessions(): Promise<number> {
+export async function deleteEmptySessions(activeSessionId?: number): Promise<number> {
   const empties = await db
-    .select({ id: sessions.id })
+    .select({ id: sessions.id, rawFile: sessions.rawFile })
     .from(sessions)
     .leftJoin(laps, eq(laps.sessionId, sessions.id))
     .groupBy(sessions.id)
     .having(sql`count(${laps.id}) = 0`)
     .all();
-  if (empties.length === 0) return 0;
-  const ids = empties.map(r => r.id);
+  const filtered = activeSessionId
+    ? empties.filter((e) => e.id !== activeSessionId)
+    : empties;
+  if (filtered.length === 0) return 0;
+  for (const { rawFile } of filtered) {
+    if (!rawFile) continue;
+    try {
+      if (existsSync(rawFile)) unlinkSync(rawFile);
+    } catch (err) {
+      console.warn(`[DB] Failed to unlink raw file ${rawFile}:`, err instanceof Error ? err.message : err);
+    }
+  }
+  const ids = filtered.map(r => r.id);
   await db.delete(sessions).where(inArray(sessions.id, ids)).run();
   return ids.length;
 }

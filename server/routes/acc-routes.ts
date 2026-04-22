@@ -298,7 +298,7 @@ export const accRoutes = new Hono()
   // ── Debug ─────────────────────────────────────────────────────────────────
 
   .get("/api/acc/debug/raw", (c) => {
-    const bufs = accReader.getDebugBuffers?.();
+    const bufs = accReader?.getDebugBuffers?.();
     if (!bufs) {
       return c.json({ error: "ACC not connected or getDebugBuffers not available" }, 503);
     }
