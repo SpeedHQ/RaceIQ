@@ -463,12 +463,21 @@ async function parseRawLapFrames(
       if (i < rawFrameCount) {
         packets.push(packet);
       } else {
-        // Extra trailing frame. Use its LastLap (the completed lap time) to
-        // stretch the last real packet's CurrentLap out to the true finish,
-        // so charts don't stop ~16ms short of the authoritative lap time.
+        // Extra trailing frame = the next-lap trigger. It carries real
+        // speed/throttle/etc. values for the finish-line crossing, but its
+        // CurrentLap has already reset for the new lap. Append it as a
+        // synthesized "finish" packet with CurrentLap rewritten to this
+        // lap's time (from LastLap), and LapNumber patched back to the
+        // outgoing lap so consumers don't see a stray new-lap entry.
         const last = packets[packets.length - 1];
-        if (last && (packet.LastLap ?? 0) > (last.CurrentLap ?? 0)) {
-          last.CurrentLap = packet.LastLap;
+        const finishTime = packet.LastLap ?? 0;
+        if (last && finishTime > (last.CurrentLap ?? 0)) {
+          packets.push({
+            ...packet,
+            CurrentLap: finishTime,
+            LapNumber: last.LapNumber,
+            DistanceTraveled: Math.max(packet.DistanceTraveled, last.DistanceTraveled),
+          });
         }
       }
     } catch (err) {

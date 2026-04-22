@@ -152,7 +152,11 @@ export const AnalyseChartsPanel = memo(forwardRef<ChartsPanelHandle, ChartsPanel
     const leftPad = 40;
     const rightPad = 8;
     const chartW = w - leftPad - rightPad;
-    const cx = leftPad + xFrac * chartW;
+    // Clamp away from the y-axis label strip so the cursor doesn't visually
+    // sit on top of the tick labels when idx is at or near 0.
+    const MIN_INSET = 2;
+    const rawCx = leftPad + xFrac * chartW;
+    const cx = Math.max(rawCx, leftPad + MIN_INSET);
 
     // Draw a single vertical line spanning the full scroll height
     ctx.strokeStyle = "rgba(255,255,255,0.5)";
