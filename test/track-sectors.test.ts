@@ -23,11 +23,22 @@ function makeLapPackets(
     const isLast = i === count - 1;
     const f1 = gameId === "f1-2025" && opts.f1Sectors
       ? {
-          // SessionHistory packet populates lastS1/lastS2/lastS3 once the lap
-          // completes — stamp them onto the final packet to match real F1 behaviour.
+          // SessionHistory exposes per-lap sector entries; the computation
+          // code looks up lapSectors[LapNumber]. Stamp the final packet
+          // with a populated entry.
           lastS1: isLast ? opts.f1Sectors.s1 : 0,
           lastS2: isLast ? opts.f1Sectors.s2 : 0,
           lastS3: isLast ? lapTime - opts.f1Sectors.s1 - opts.f1Sectors.s2 : 0,
+          lapSectors: isLast
+            ? {
+                1: {
+                  s1: opts.f1Sectors.s1,
+                  s2: opts.f1Sectors.s2,
+                  s3: lapTime - opts.f1Sectors.s1 - opts.f1Sectors.s2,
+                  lapTime,
+                },
+              }
+            : undefined,
         }
       : undefined;
     packets.push({

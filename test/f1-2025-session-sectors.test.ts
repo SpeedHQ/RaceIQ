@@ -131,11 +131,11 @@ describe("F1 2025 session 2026-04-22 11:42 — lap times and sector splits", () 
     // this recording (i.e. what the game itself reports). Update whenever
     // the fixture changes.
     const expected: Record<number, { lapTime: number; s1: number; s2: number; s3: number }> = {
-      1: { lapTime: 81.535, s1: 32.099, s2: 19.200, s3: 30.236 },
-      2: { lapTime: 79.328, s1: 22.270, s2: 29.115, s3: 27.943 },
-      3: { lapTime: 79.997, s1: 22.486, s2: 29.250, s3: 28.261 },
-      4: { lapTime: 80.914, s1: 22.886, s2: 29.185, s3: 28.843 },
-      5: { lapTime: 81.000, s1: 22.649, s2: 29.434, s3: 28.917 },
+      1: { lapTime: 81.535, s1: 32.099, s2: 29.003, s3: 20.433 },
+      2: { lapTime: 79.328, s1: 29.751, s2: 29.382, s3: 20.195 },
+      3: { lapTime: 79.997, s1: 29.836, s2: 29.784, s3: 20.377 },
+      4: { lapTime: 80.914, s1: 30.438, s2: 29.601, s3: 20.875 },
+      5: { lapTime: 81.000, s1: 30.166, s2: 29.944, s3: 20.890 },
     };
     for (const lap of laps) {
       const want = expected[lap.lapNumber];
