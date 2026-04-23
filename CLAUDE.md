@@ -260,7 +260,7 @@ Both commands require `GEMINI_API_KEY` (or `GOOGLE_GENERATIVE_AI_API_KEY`); they
 
 **Adding a fixture:** see `test/ai-fixtures/README.md`. In short: export a real lap via `bun run laps:export --ids <id> -o test/ai-fixtures/packets/<id>.zip`, then add a matching JSON under `test/ai-fixtures/laps/` with an `expected` block pinning _signals_ (corner names, faster lap, setup direction) — not a reference answer. Signals survive prompt iteration; reference answers do not.
 
-**CI:** AI evals are not run in CI — invoke `bun run test:ai` locally before shipping prompt changes.
+**CI:** AI evals are local-dev only. Not gated in CI and not required before shipping.
 
 ### Testing
 
