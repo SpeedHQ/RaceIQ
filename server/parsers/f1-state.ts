@@ -185,6 +185,13 @@ export class F1StateAccumulator {
     bestLapTime: number;
   }> = new Map();
 
+  // Per-driver per-lap completed sector times. SessionHistory exposes an entry
+  // per lap number; once a lap is completed (lapTime > 0 and all three sectors
+  // populated), we snapshot it here so compute-lap-sectors can look up lap N's
+  // splits without relying on the fragile "last" pointer (which resets to the
+  // next in-progress lap as soon as the finish line is crossed).
+  private driverLapSectors: Map<number, Map<number, { s1: number; s2: number; s3: number; lapTime: number }>> = new Map();
+
   private playerCarIndex = 0;
 
   reset(): void {
@@ -687,9 +694,12 @@ export class F1StateAccumulator {
     // carIdx(0 u8), numLaps(1 u8), numTyreStints(2 u8),
     // bestLapTimeLapNum(3 u8), bestSector1LapNum(4 u8),
     // bestSector2LapNum(5 u8), bestSector3LapNum(6 u8),
-    // lapHistoryData(7, 11 bytes each, up to 100 entries)
-    // LapHistoryData: lapTimeInMS(0 u32), sector1TimeInMS(4 u16),
-    //   sector2TimeInMS(6 u16), sector3TimeInMS(8 u16), lapValidBitFlags(10 u8)
+    // lapHistoryData(7, 14 bytes each, up to 100 entries)
+    // LapHistoryData (F1 2023+): lapTimeInMS(0 u32),
+    //   sector1TimeMSPart(4 u16), sector1TimeMinutesPart(6 u8),
+    //   sector2TimeMSPart(7 u16), sector2TimeMinutesPart(9 u8),
+    //   sector3TimeMSPart(10 u16), sector3TimeMinutesPart(12 u8),
+    //   lapValidBitFlags(13 u8)
     if (data.length < 7) return;
 
     const carIdx = data.readUInt8(0);
@@ -698,8 +708,14 @@ export class F1StateAccumulator {
     const bestS2Lap = data.readUInt8(5);
     const bestS3Lap = data.readUInt8(6);
 
-    const LAP_ENTRY_SIZE = 11;
+    const LAP_ENTRY_SIZE = 14;
     const LAP_DATA_OFFSET = 7;
+
+    const readSector = (off: number, subOffMs: number, subOffMin: number): number => {
+      const ms = data.readUInt16LE(off + subOffMs);
+      const min = data.readUInt8(off + subOffMin);
+      return (min * 60_000 + ms) / 1000;
+    };
 
     let bestS1 = 0, bestS2 = 0, bestS3 = 0, bestLapTime = 0;
     let lastS1 = 0, lastS2 = 0, lastS3 = 0;
@@ -707,15 +723,26 @@ export class F1StateAccumulator {
     // Read best sector times from the specific lap entries
     if (bestS1Lap > 0 && bestS1Lap <= numLaps) {
       const off = LAP_DATA_OFFSET + (bestS1Lap - 1) * LAP_ENTRY_SIZE;
-      if (data.length >= off + LAP_ENTRY_SIZE) bestS1 = data.readUInt16LE(off + 4) / 1000;
+      if (data.length >= off + LAP_ENTRY_SIZE) bestS1 = readSector(off, 4, 6);
     }
     if (bestS2Lap > 0 && bestS2Lap <= numLaps) {
       const off = LAP_DATA_OFFSET + (bestS2Lap - 1) * LAP_ENTRY_SIZE;
-      if (data.length >= off + LAP_ENTRY_SIZE) bestS2 = data.readUInt16LE(off + 6) / 1000;
+      if (data.length >= off + LAP_ENTRY_SIZE) bestS2 = readSector(off, 7, 9);
     }
     if (bestS3Lap > 0 && bestS3Lap <= numLaps) {
       const off = LAP_DATA_OFFSET + (bestS3Lap - 1) * LAP_ENTRY_SIZE;
-      if (data.length >= off + LAP_ENTRY_SIZE) bestS3 = data.readUInt16LE(off + 8) / 1000;
+      if (data.length >= off + LAP_ENTRY_SIZE) bestS3 = readSector(off, 10, 12);
+    }
+
+    // Snapshot every completed-lap entry into the per-lap cache. The last
+    // entry (numLaps - 1) is typically the current in-progress lap, so its
+    // sectors may be partially zero — we still store what's there for
+    // live-lookup, but completed laps (lapTime > 0 AND all three sectors) are
+    // the authoritative source used downstream.
+    let lapSectorMap = this.driverLapSectors.get(carIdx);
+    if (!lapSectorMap) {
+      lapSectorMap = new Map();
+      this.driverLapSectors.set(carIdx, lapSectorMap);
     }
 
     // Read last completed lap sectors and best lap time
@@ -723,19 +750,34 @@ export class F1StateAccumulator {
       const lastOff = LAP_DATA_OFFSET + (numLaps - 1) * LAP_ENTRY_SIZE;
       if (data.length >= lastOff + LAP_ENTRY_SIZE) {
         const lapTimeMs = data.readUInt32LE(lastOff);
-        lastS1 = data.readUInt16LE(lastOff + 4) / 1000;
-        lastS2 = data.readUInt16LE(lastOff + 6) / 1000;
-        lastS3 = data.readUInt16LE(lastOff + 8) / 1000;
+        lastS1 = readSector(lastOff, 4, 6);
+        lastS2 = readSector(lastOff, 7, 9);
+        lastS3 = readSector(lastOff, 10, 12);
         if (lapTimeMs > 0) bestLapTime = lapTimeMs / 1000;
       }
 
-      // Find actual best lap time across all laps
+      // Walk every entry; cache lapNum → sectors keyed 1-indexed (LapData
+      // currentLapNum is also 1-indexed). Update only when a lap becomes
+      // "more complete" so later partial re-reads can't clobber good data.
       for (let i = 0; i < numLaps; i++) {
         const off = LAP_DATA_OFFSET + i * LAP_ENTRY_SIZE;
         if (data.length < off + LAP_ENTRY_SIZE) break;
-        const lt = data.readUInt32LE(off);
-        if (lt > 0 && (bestLapTime === 0 || lt / 1000 < bestLapTime)) {
-          bestLapTime = lt / 1000;
+        const lt = data.readUInt32LE(off) / 1000;
+        const s1 = readSector(off, 4, 6);
+        const s2 = readSector(off, 7, 9);
+        const s3 = readSector(off, 10, 12);
+        const lapNum = i + 1;
+        const existing = lapSectorMap.get(lapNum);
+        const completeness = (s1 > 0 ? 1 : 0) + (s2 > 0 ? 1 : 0) + (s3 > 0 ? 1 : 0) + (lt > 0 ? 1 : 0);
+        const existingCompleteness = existing
+          ? (existing.s1 > 0 ? 1 : 0) + (existing.s2 > 0 ? 1 : 0) + (existing.s3 > 0 ? 1 : 0) + (existing.lapTime > 0 ? 1 : 0)
+          : -1;
+        if (completeness > existingCompleteness) {
+          lapSectorMap.set(lapNum, { s1, s2, s3, lapTime: lt });
+        }
+
+        if (lt > 0 && (bestLapTime === 0 || lt < bestLapTime)) {
+          bestLapTime = lt;
         }
       }
     }
@@ -821,6 +863,10 @@ export class F1StateAccumulator {
       lastS1: this.driverHistory.get(this.playerCarIndex)?.lastS1 ?? 0,
       lastS2: this.driverHistory.get(this.playerCarIndex)?.lastS2 ?? 0,
       lastS3: this.driverHistory.get(this.playerCarIndex)?.lastS3 ?? 0,
+      // Per-lap completed sector times from SessionHistory, keyed by lap
+      // number (1-indexed). Let downstream code look up the authoritative
+      // split for a specific lap rather than the fragile "last" pointer.
+      lapSectors: Object.fromEntries(this.driverLapSectors.get(this.playerCarIndex) ?? []),
       brakeTempFL: ct.brakeTempFL,
       brakeTempFR: ct.brakeTempFR,
       brakeTempRL: ct.brakeTempRL,

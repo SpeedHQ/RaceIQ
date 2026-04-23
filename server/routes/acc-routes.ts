@@ -4,7 +4,8 @@ import { z } from "zod";
 import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, mkdirSync, copyFileSync } from "fs";
 import { resolve } from "path";
 import { SHARED_DIR } from "../paths";
-import { accRecorder, replayRecording } from "../games/acc/recorder";
+import { accRecorder } from "../games/acc/recorder";
+import { replayRecording } from "../games/acc/replay";
 import { getAllAccCars, getAccCarClass } from "../../shared/acc-car-data";
 import { getAccCarSpecs } from "../../shared/acc-car-specs";
 import { accReader } from "../index";
@@ -298,7 +299,7 @@ export const accRoutes = new Hono()
   // ── Debug ─────────────────────────────────────────────────────────────────
 
   .get("/api/acc/debug/raw", (c) => {
-    const bufs = accReader.getDebugBuffers?.();
+    const bufs = accReader?.getDebugBuffers?.();
     if (!bufs) {
       return c.json({ error: "ACC not connected or getDebugBuffers not available" }, 503);
     }

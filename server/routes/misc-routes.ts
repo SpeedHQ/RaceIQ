@@ -9,7 +9,7 @@ import { lapDetector } from "../pipeline";
 import { wsManager } from "../ws";
 import { USER_TRACKS_DIR, IS_COMPILED, USER_DATA_DIR, ROOT_DIR } from "../paths";
 import { resolveDataDir } from "../data-dir";
-import { getUpdateState, startUpdateCheckSchedule, checkForUpdate, applyUpdate } from "../update-check";
+import { getUpdateState, checkForUpdate, applyUpdate } from "../update-check";
 import { udpListener } from "../udp";
 import { getRunningGame } from "../games/registry";
 import { getCurrentDetectedGame } from "../parsers";
@@ -18,8 +18,6 @@ import { client as dbClient } from "../db";
 import { getChatMemory } from "../ai/chat-agent";
 import pkg from "../../package.json";
 
-// Check for updates on startup and then every 4 hours
-startUpdateCheckSchedule();
 import {
   findForzaInstall,
   parseForzaZip,
@@ -749,7 +747,8 @@ export const miscRoutes = new Hono()
   })
   // POST /api/storage/compress — trigger immediate compression of eligible sessions
   .post("/api/storage/compress", async (c) => {
-    const { runCompressionNow } = await import("../session-compressor");
-    await runCompressionNow();
+    console.log("[Compressor] User triggered compression");
+    const { runUserCompressionNow } = await import("../session-compressor");
+    await runUserCompressionNow();
     return c.json({ ok: true });
   });

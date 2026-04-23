@@ -1,5 +1,5 @@
 import type { TelemetryPacket } from "../../shared/types";
-import { mkdirSync } from "fs";
+import { mkdirSync, rmSync } from "fs";
 import { join } from "path";
 import { generateLapSvg, generateRawSvg } from "./lap-svg";
 
@@ -26,6 +26,9 @@ export function generateRecordingVisualizations(
   rawPackets: TelemetryPacket[]
 ): void {
   const outputDir = join(OUTPUT_DIR, recordingFile.replace(/\.bin(\.gz)?$/, ""));
+  // Wipe stale artifacts — prior runs may have produced more/different laps
+  // (e.g. lap-5.svg from an older detector) that would linger otherwise.
+  rmSync(outputDir, { recursive: true, force: true });
   mkdirSync(outputDir, { recursive: true });
 
   generateRawSvg(rawPackets, outputDir);

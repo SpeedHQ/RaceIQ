@@ -21,4 +21,4 @@ export function lapSummary(l: CapturedLap): string {
   return `  Lap ${l.lapNumber}: ${mins}:${secs.padStart(6, "0")} ${valid} | ${ss}`;
 }
 
-export const RECORDINGS_DIR = "test/artifacts/laps";
+export const RECORDINGS_DIR = "test/artifacts/sessions";

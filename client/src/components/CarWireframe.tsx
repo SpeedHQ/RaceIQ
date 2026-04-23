@@ -8,6 +8,7 @@ import { tireTempColorHex } from "../lib/vehicle-dynamics";
 import { useUnits } from "../hooks/useUnits";
 import { useSettings } from "../hooks/queries";
 import { useGameId } from "../stores/game";
+import { tryGetGame } from "@shared/games/registry";
 import { needsTrackFlip, flipBoundaries } from "../lib/track-coords";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { recordGpuSnapshot } from "../lib/crash-diagnostics";
@@ -79,7 +80,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   }, [carOrdinal, configsLoaded, isF1, carModelProp]);
   const units = useUnits();
   const { displaySettings } = useSettings();
-  const suspThresholds = displaySettings.suspensionThresholds.values;
+  const suspThresholds = tryGetGame(gameId)?.suspensionThresholds.values ?? [25, 65, 85];
   const tLabel = tempLabelProp ?? units.tempLabel;
   const fmtTemp = useCallback((v: number) => `${units.temp(v).toFixed(0)}${tLabel}`, [units, tLabel]);
   const [editMode, setEditMode] = useState(false);

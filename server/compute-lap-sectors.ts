@@ -31,26 +31,49 @@ export async function computeLapSectors(
   const s1End = raw?.s1End ?? 1 / 3;
   const s2End = raw?.s2End ?? 2 / 3;
 
-  // F1: prefer SessionHistory definitive sector times (lastS1/lastS2/lastS3 from final packet)
+  // F1: sector times must come from the game's own packets (SessionHistory or
+  // LapData). We never fall back to distance-fraction for F1 — the game is
+  // the authority on its own split points and sync, and guessing from
+  // position can produce wildly wrong sectors, especially on tracks where the
+  // three sectors aren't 1/3 : 1/3 : 1/3 of the lap distance.
   let s1 = 0, s2 = 0;
   if (gameId === "f1-2025") {
-    // SessionHistory delivers completed-lap sector times; use the last packet that has them
-    for (let i = packets.length - 1; i >= 0; i--) {
-      const p = packets[i];
-      if ((p.f1?.lastS1 ?? 0) > 0 && (p.f1?.lastS2 ?? 0) > 0 && (p.f1?.lastS3 ?? 0) > 0) {
-        s1 = p.f1!.lastS1;
-        s2 = p.f1!.lastS2;
-        // s3 = lastS3 but we compute it as lapTime - s1 - s2 below for consistency
-        break;
+    // The F1 2025 LapData packet exposes LapNumber for every packet in the
+    // lap buffer. Every packet also carries a snapshot of the
+    // SessionHistory → lapSectors map (completed-lap sector times indexed by
+    // lap number). Look up the entry for THIS lap by scanning the buffer for
+    // the largest LapNumber we saw (the lap we're about to emit) and
+    // reading its SessionHistory entry from the final packet.
+    const completedLapNum = Math.max(...packets.map((p) => p.LapNumber ?? 0));
+    if (completedLapNum > 0) {
+      // Walk packets from the end — later packets have more up-to-date
+      // SessionHistory because the game finalises the lap entry on the
+      // first history broadcast after finish.
+      for (let i = packets.length - 1; i >= 0; i--) {
+        const entry = packets[i].f1?.lapSectors?.[completedLapNum];
+        if (entry && entry.s1 > 0 && entry.s2 > 0 && entry.s3 > 0) {
+          s1 = entry.s1;
+          s2 = entry.s2;
+          break;
+        }
       }
     }
-    // Fall back to live sector times (reset to 0 at lap start, so scan for last non-zero)
+    // Fall back to live LapData packet 2 sector1Time/sector2Time — still from
+    // the game, just less definitive. Pick the final non-zero value that was
+    // recorded while we were still in this lap (last packets may have moved
+    // into the NEXT lap, resetting these to 0).
     if (s1 === 0 || s2 === 0) {
       for (const p of packets) {
+        if (p.LapNumber !== completedLapNum) continue;
         if ((p.f1?.sector1Time ?? 0) > 0) s1 = p.f1!.sector1Time;
         if ((p.f1?.sector2Time ?? 0) > 0) s2 = p.f1!.sector2Time;
       }
     }
+    // If F1 packets didn't supply both splits, give up rather than guessing.
+    if (s1 === 0 || s2 === 0) return null;
+    const s3 = lapTime - s1 - s2;
+    if (s3 <= 0) return null;
+    return { s1, s2, s3 };
   }
 
   // ACC: use native sector times tracked live during the lap

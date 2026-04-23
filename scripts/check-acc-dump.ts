@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 
-const binPath = "test/artifacts/laps/acc-2026-04-09T18-56-49-633Z.bin";
+const binPath = "test/artifacts/sessions/acc-2026-04-09T18-56-49-633Z.bin";
 const data = readFileSync(binPath);
 
 // Read header

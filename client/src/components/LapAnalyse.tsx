@@ -43,6 +43,7 @@ export function LapAnalyse() {
 
   // Fetch lap telemetry via TanStack Query
   const { data: lapData, isLoading: lapLoading } = useLapTelemetry(selectedLapId);
+  const parseError = (lapData as { parseError?: string } | undefined)?.parseError;
   const telemetry = lapData?.telemetry ?? emptyTelemetry;
   const isLegacyLap = lapData?.isLegacy === true;
   const displayTelemetry = useConvertedTelemetry(telemetry);
@@ -455,7 +456,20 @@ export function LapAnalyse() {
 
       {telemetry.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-app-text-muted text-sm">
-          <span>{loading ? "Loading lap telemetry..." : isLegacyLap ? "This lap was recorded before raw telemetry storage. Lap times and metadata are preserved but telemetry charts are unavailable." : selectedLapId ? "No telemetry data for this lap." : "Select a track, car, and lap to analyse."}</span>
+          {loading ? (
+            <span>Loading lap telemetry...</span>
+          ) : isLegacyLap ? (
+            <span>This lap was recorded before raw telemetry storage. Lap times and metadata are preserved but telemetry charts are unavailable.</span>
+          ) : parseError ? (
+            <div className="flex flex-col items-center gap-2 max-w-xl text-center">
+              <span className="text-app-danger font-medium">Failed to parse lap telemetry</span>
+              <code className="text-xs text-app-text-muted whitespace-pre-wrap break-words">{parseError}</code>
+            </div>
+          ) : selectedLapId ? (
+            <span>No telemetry data for this lap.</span>
+          ) : (
+            <span>Select a track, car, and lap to analyse.</span>
+          )}
         </div>
       )}
 

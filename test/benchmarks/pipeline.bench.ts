@@ -34,7 +34,7 @@ import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getAllServerGames } from "../../server/games/registry";
 import { Pipeline, stopMaintenanceTasks } from "../../server/pipeline";
-import { NullDbAdapter, NullWsAdapter } from "../../server/pipeline-adapters";
+import { NullDbAdapter, NullWsAdapter, NullSessionRecorderAdapter } from "../../server/pipeline-adapters";
 import { readUdpDump } from "../helpers/recording";
 import { parseAccBuffers } from "../../server/games/acc/parser";
 import { readWString } from "../../server/games/acc/utils";
@@ -55,7 +55,7 @@ console.log(`[bench] adapters init ${elapsed()}`);
 const N_FRAMES = 5000;
 
 // --- Load and extract FM data ---
-const FM_DUMP = "test/artifacts/laps/fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
+const FM_DUMP = "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz";
 const fmAdapter = getAllServerGames().find((a) => a.canHandle(readUdpDump(FM_DUMP, 1)[0]))!;
 const fmPackets: ReturnType<typeof fmAdapter.tryParse>[] = [];
 const fmBuffers: Buffer[] = [];
@@ -67,7 +67,7 @@ for (const buf of readUdpDump(FM_DUMP)) {
 console.log(`[bench] fm loaded  — ${fmPackets.length} packets (${fmBuffers.length} bufs) ${elapsed()}`);
 
 // --- Load and extract F1 data (read until 1k parsed packets) ---
-const F1_DUMP = "test/artifacts/laps/f1-2025-2026-04-09T21-34-10-190Z.bin.gz";
+const F1_DUMP = "test/artifacts/sessions/f1-2025-2026-04-09T21-34-10-190Z.bin.gz";
 const f1AllBuffers = readUdpDump(F1_DUMP);
 const f1Adapter = getAllServerGames().find((a) => a.canHandle(f1AllBuffers[0]))!;
 const f1Packets: ReturnType<typeof f1Adapter.tryParse>[] = [];
@@ -84,7 +84,7 @@ const f1Buffers: Buffer[] = [];
 console.log(`[bench] f1 loaded  — ${f1Packets.length} packets (${f1Buffers.length} bufs) ${elapsed()}`);
 
 // --- Load and extract ACC data ---
-const ACC_DUMP = "test/artifacts/laps/acc-2026-04-10T02-55-22-777Z.bin.gz";
+const ACC_DUMP = "test/artifacts/sessions/acc-2026-04-10T02-55-22-777Z.bin.gz";
 const accFrames = readAccFrames(ACC_DUMP, N_FRAMES);
 if (accFrames.length === 0) throw new Error("No ACC frames found in dump");
 const accCm = readWString(accFrames[0].staticData, STATIC.carModel.offset, STATIC.carModel.size);
@@ -99,7 +99,7 @@ const accPackets = accFrames
 console.log(`[bench] acc loaded — ${accPackets.length} packets, car: ${accCm ?? "?"} track: ${accTn ?? "?"} ${elapsed()}`);
 
 // --- Load and extract AC Evo data (same recorder format as ACC) ---
-const ACEVO_DUMP = "test/artifacts/laps/ac-evo-2026-04-15T17-12-25-825Z.bin.gz";
+const ACEVO_DUMP = "test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz";
 const acEvoFrames = readAccFrames(ACEVO_DUMP, N_FRAMES);
 if (acEvoFrames.length === 0) throw new Error("No AC Evo frames found in dump");
 const acEvoCache = createAcEvoParserCache();
@@ -109,7 +109,7 @@ const acEvoPackets = acEvoFrames
 console.log(`[bench] ac-evo loaded — ${acEvoPackets.length} packets ${elapsed()}`);
 
 // --- Pre-warm pipelines with null adapters (no DB/WS IO) ---
-const pipelineOpts = { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true };
+const pipelineOpts = { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true, recorder: new NullSessionRecorderAdapter() };
 const fmPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
 const f1Pipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
 const accPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);

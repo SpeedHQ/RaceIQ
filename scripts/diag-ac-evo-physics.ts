@@ -118,7 +118,7 @@ const FIELDS: Record<string, { offset: number; type: "f32" | "i32" }> = {
   absVibrations:  { offset: 796, type: "f32" },
 };
 
-const BIN_PATH = "C:/Users/acoop/Documents/GitHub/RaceIQ/test/artifacts/laps/ac-evo-2026-04-14T13-22-58-048Z.bin";
+const BIN_PATH = "C:/Users/acoop/Documents/GitHub/RaceIQ/test/artifacts/sessions/ac-evo-2026-04-14T13-22-58-048Z.bin";
 
 const buf = readFileSync(BIN_PATH);
 console.log(`File size: ${buf.length} bytes`);

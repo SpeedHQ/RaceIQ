@@ -10,6 +10,7 @@ export const acEvoAdapter: GameAdapter = {
   steeringRange: 1,
   tireHealthThresholds: { green: 0.85, yellow: 0.70 },
   tireTempThresholds: { cold: 70, warm: 100, hot: 120 },
+  suspensionThresholds: { values: [25, 65, 85] },
   brakeTempThresholds: {
     front: { warm: 650, hot: 700 },
     rear:  { warm: 450, hot: 500 },

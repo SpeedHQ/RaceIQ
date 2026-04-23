@@ -37,7 +37,7 @@ RULES:
 export const forzaServerAdapter: ServerGameAdapter = {
   ...forzaAdapter,
 
-  processNames: ["ForzaMotorsport.exe"],
+  processNames: ["ForzaMotorsport.exe", "forza_steamworks_release_final"],
 
   getCarName(ordinal) {
     const car = carMap.get(ordinal);

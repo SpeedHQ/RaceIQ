@@ -2,33 +2,10 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
 import type { CarModelEnrichment } from "../../data/car-models";
+import { classifyMesh, DEFAULT_HIDDEN_MESHES } from "./classify-mesh";
 
-// Default hidden meshes for the bundled Aston Martin model
-export const DEFAULT_HIDDEN_MESHES = new Set([
-  94, 125, 126, 161, 183, 184, 211, 212, 214, 215, 217, 219,
-  119, 120, 122, 123, 174, 175, 177, 178,
-  7, 8,
-]);
-
-/**
- * Determine what action to take for a mesh given current display mode.
- * Returns "remove" | "solid" | "wire" to indicate the mesh treatment.
- */
-export function classifyMesh(
-  meshName: string,
-  solid: "wire" | "solid" | "hidden",
-  hideModelWheels: boolean,
-  customHiddenMeshes?: number[],
-): "remove" | "solid" | "wire" {
-  const hiddenMeshes = customHiddenMeshes?.length ? new Set(customHiddenMeshes) : DEFAULT_HIDDEN_MESHES;
-  const num = parseInt(meshName.replace(/\D/g, ""), 10);
-  const isWheelMesh = hiddenMeshes.has(num);
-
-  if (solid === "hidden") return "remove";
-  if (isWheelMesh && (solid === "solid" || hideModelWheels)) return "remove";
-  if (solid === "solid") return "solid";
-  return "wire";
-}
+// Re-export so existing importers don't break.
+export { classifyMesh, DEFAULT_HIDDEN_MESHES };
 
 export function CarBody({ solid, carModel, modelOffsetX, hideModelWheels }: { solid: "wire" | "solid" | "hidden"; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; hideModelWheels?: boolean }) {
   const { scene } = useGLTF(carModel.modelPath);

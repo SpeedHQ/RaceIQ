@@ -56,8 +56,6 @@ const NAV_ITEMS = [
   { id: "connection", label: "Connection" },
   { id: "wheel", label: "Wheel" },
   { id: "temperature", label: "Temperature" },
-  { id: "tireHealth", label: "Tire Health" },
-  { id: "suspension", label: "Suspension" },
   { id: "speed", label: "Units" },
   { id: "sound", label: "Sound" },
   { id: "storage", label: "Storage" },
@@ -91,20 +89,12 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
   const { theme, setTheme } = useTheme();
   const [unitSystem, setUnitSystem] = useState<"metric" | "imperial">(displaySettings.unit);
   const tempUnit = unitSystem === "metric" ? "C" as const : "F" as const;
-  const [healthThresholds, setHealthThresholds] = useState(displaySettings.tireHealthThresholds.values);
-  const [suspThresholds, setSuspThresholds] = useState(displaySettings.suspensionThresholds.values);
-  const [healthStatus, setHealthStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [healthError, setHealthError] = useState("");
-  const [suspStatus, setSuspStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [suspError, setSuspError] = useState("");
   const [unitStatus, setUnitStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [unitError, setUnitError] = useState("");
 
   const tempSettingsJson = JSON.stringify(displaySettings);
   useEffect(() => {
     setUnitSystem(displaySettings.unit);
-    setHealthThresholds(displaySettings.tireHealthThresholds.values);
-    setSuspThresholds(displaySettings.suspensionThresholds.values);
   }, [tempSettingsJson]);
 
   // Seed UDP port from settings query
@@ -154,59 +144,6 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
     }
   }
 
-  async function handleHealthSave() {
-    const sorted = [...healthThresholds].sort((a, b) => a - b);
-    if (sorted.some((v) => v < 0 || v > 100)) {
-      setHealthStatus("error");
-      setHealthError("Values must be between 0-100");
-      return;
-    }
-    for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i] <= sorted[i - 1]) {
-        setHealthStatus("error");
-        setHealthError("Thresholds must be in ascending order");
-        return;
-      }
-    }
-    setHealthStatus("saving");
-    setHealthError("");
-    try {
-      await saveSettings.mutateAsync({ tireHealthThresholds: { values: sorted } });
-      setHealthThresholds(sorted);
-      setHealthStatus("saved");
-      setTimeout(() => setHealthStatus("idle"), 2000);
-    } catch (err) {
-      setHealthStatus("error");
-      setHealthError(err instanceof Error ? err.message : "Failed to save");
-    }
-  }
-
-  async function handleSuspSave() {
-    const sorted = [...suspThresholds].sort((a, b) => a - b);
-    if (sorted.some((v) => v < 0 || v > 100)) {
-      setSuspStatus("error");
-      setSuspError("Values must be between 0-100");
-      return;
-    }
-    for (let i = 1; i < sorted.length; i++) {
-      if (sorted[i] <= sorted[i - 1]) {
-        setSuspStatus("error");
-        setSuspError("Thresholds must be in ascending order");
-        return;
-      }
-    }
-    setSuspStatus("saving");
-    setSuspError("");
-    try {
-      await saveSettings.mutateAsync({ suspensionThresholds: { values: sorted } });
-      setSuspThresholds(sorted);
-      setSuspStatus("saved");
-      setTimeout(() => setSuspStatus("idle"), 2000);
-    } catch (err) {
-      setSuspStatus("error");
-      setSuspError(err instanceof Error ? err.message : "Failed to save");
-    }
-  }
 
   const themes: { value: Theme; label: string; description: string }[] = [
     { value: "morph", label: "Morph", description: "Morphic black" },
@@ -585,98 +522,6 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
           </section>
         )}
 
-        {activeSection === "tireHealth" && (
-          <section>
-            <h2 className="text-lg font-semibold text-app-text mb-1">Tire Health</h2>
-            <p className="text-sm text-app-text-muted mb-4">
-              Color thresholds for tire health percentage. Values are health % boundaries (ascending).
-            </p>
-
-            <div className="space-y-3 max-w-xs">
-              {[
-                { label: "Critical (below = red)", color: "text-red-400", idx: 0 },
-                { label: "Low (below = orange)", color: "text-orange-400", idx: 1 },
-                { label: "Medium (below = yellow)", color: "text-yellow-400", idx: 2 },
-                { label: "Good (above = green)", color: "text-emerald-400", idx: 3 },
-              ].map(({ label, color, idx }) => (
-                <div key={idx}>
-                  <Label className={`${color} text-xs`}>{label}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={healthThresholds[idx] ?? ""}
-                    onChange={(e) => {
-                      const next = [...healthThresholds];
-                      next[idx] = parseFloat(e.target.value) || 0;
-                      setHealthThresholds(next);
-                    }}
-                    className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono mt-1 w-24"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-2 mt-4">
-              <Button onClick={handleHealthSave} disabled={healthStatus === "saving"}>
-                {healthStatus === "saving" ? "Saving..." : healthStatus === "saved" ? "Saved" : "Save"}
-              </Button>
-              <Button variant="outline" onClick={() => setHealthThresholds([20, 40, 60, 80])}>
-                Reset
-              </Button>
-            </div>
-
-            {healthStatus === "error" && (
-              <p className="text-red-400 text-sm mt-2">{healthError}</p>
-            )}
-          </section>
-        )}
-
-        {activeSection === "suspension" && (
-          <section>
-            <h2 className="text-lg font-semibold text-app-text mb-1">Suspension</h2>
-            <p className="text-sm text-app-text-muted mb-4">
-              Color thresholds for suspension travel (0-100%). Values are travel % boundaries (ascending).
-            </p>
-
-            <div className="space-y-3 max-w-xs">
-              {[
-                { label: "Extended (below = blue)", color: "text-blue-400", idx: 0 },
-                { label: "Compressed (above = yellow)", color: "text-yellow-400", idx: 1 },
-                { label: "Bottomed (above = red)", color: "text-red-400", idx: 2 },
-              ].map(({ label, color, idx }) => (
-                <div key={idx}>
-                  <Label className={`${color} text-xs`}>{label}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={suspThresholds[idx] ?? ""}
-                    onChange={(e) => {
-                      const next = [...suspThresholds];
-                      next[idx] = parseFloat(e.target.value) || 0;
-                      setSuspThresholds(next);
-                    }}
-                    className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono mt-1 w-24"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-2 mt-4">
-              <Button onClick={handleSuspSave} disabled={suspStatus === "saving"}>
-                {suspStatus === "saving" ? "Saving..." : suspStatus === "saved" ? "Saved" : "Save"}
-              </Button>
-              <Button variant="outline" onClick={() => setSuspThresholds([25, 65, 85])}>
-                Reset
-              </Button>
-            </div>
-
-            {suspStatus === "error" && (
-              <p className="text-red-400 text-sm mt-2">{suspError}</p>
-            )}
-          </section>
-        )}
 
         {activeSection === "speed" && (
           <section>

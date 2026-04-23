@@ -45,6 +45,15 @@ export interface ILapDetector {
   flushStaleLap?(): Promise<void>;
   /** Flush any in-progress lap at end-of-stream as an invalid incomplete lap. */
   flushIncompleteLap?(): Promise<void>;
+  /** Finalize current session immediately (e.g., when game disconnects). */
+  finalizeCurrentSession?(): Promise<void>;
+  /**
+   * Overwrite the current in-progress lap's byte offset. Called by the
+   * pipeline when the session recorder is created mid-feed and the first
+   * packet is retroactively written — without this, lap 1's byte offset is
+   * stuck at null.
+   */
+  setCurrentLapByteOffset?(offset: number): void;
   /** Return internal debug state for the dev panel. FM/F1 only. */
   getDebugState?(): Record<string, unknown>;
 }

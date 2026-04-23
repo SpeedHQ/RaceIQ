@@ -4,9 +4,6 @@ import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
 
 export interface DisplaySettings {
   unit: "metric" | "imperial";
-  tireTempCelsiusThresholds: { cold: number; warm: number; hot: number };
-  tireHealthThresholds: { values: number[] };
-  suspensionThresholds: { values: number[] };
   aiProvider: "gemini" | "openai" | "local";
   aiModel: string;
   chatProvider: "gemini" | "openai" | "local";
@@ -15,6 +12,8 @@ export interface DisplaySettings {
   wsRefreshRate: string;
   /** Max 3D Canvas render rate for the analyse wireframe (15–120 fps). */
   renderFpsCap: number;
+  /** Max in-memory parsed-lap cache, in megabytes. */
+  cacheMaxMB: number;
   /** Server-injected: current UDP port */
   udpPort?: number;
   /** Server-injected: whether a Gemini API key is stored */
@@ -33,9 +32,6 @@ export interface DisplaySettings {
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   unit: "metric",
-  tireTempCelsiusThresholds: { cold: 75, warm: 115, hot: 150 },
-  tireHealthThresholds: { values: [20, 40, 60, 80] },
-  suspensionThresholds: { values: [25, 65, 85] },
   aiProvider: "gemini",
   aiModel: "",
   chatProvider: "gemini",
@@ -43,6 +39,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   localEndpoint: "http://localhost:1234/v1",
   wsRefreshRate: "60",
   renderFpsCap: 60,
+  cacheMaxMB: 256,
 };
 
 export interface ReleaseInfo {

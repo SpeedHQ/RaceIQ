@@ -8,7 +8,7 @@ import { PitEstimate } from "../telemetry/PitEstimate";
 import { RecordedLaps } from "../RecordedLaps";
 import { NoDataView } from "../NoDataView";
 import { RaceInfo } from "../RaceInfo";
-import { useTrackName, useCarName, useSettings } from "../../hooks/queries";
+import { useTrackName, useCarName } from "../../hooks/queries";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -58,7 +58,6 @@ export function F1LiveDashboard() {
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const sectors = useTelemetryStore((s) => s.sectors);
   const pit = useTelemetryStore((s) => s.pit);
-  const { displaySettings } = useSettings();
   const hasF1Data = rawPacket?.gameId === "f1-2025" && rawPacket.f1;
   const f1 = hasF1Data ? rawPacket.f1! : null;
   const { data: trackName } = useTrackName(rawPacket?.TrackOrdinal);
@@ -112,7 +111,7 @@ export function F1LiveDashboard() {
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Pit Window</h2>
           </div>
           <div className="p-3">
-            <PitEstimate packet={rawPacket!} pit={pit} gameId="f1-2025" healthThresholds={displaySettings.tireHealthThresholds.values} />
+            <PitEstimate packet={rawPacket!} pit={pit} gameId="f1-2025" />
           </div>
         </div>
         <GridSection f1={f1} playerPosition={rawPacket!.RacePosition} />

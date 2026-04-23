@@ -272,10 +272,26 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
       }
     }
 
-    // Start/finish
+    // Start/finish. Prefer the telemetry-derived position (packet whose
+    // CurrentLap is lowest = just past the line) so the marker lands exactly
+    // where the car crossed, independent of where outline[0] happens to sit.
+    // Falls back to outline[0] when no telemetry is available.
     if (outline) {
+      let sfX = displayOutline[0].x;
+      let sfZ = displayOutline[0].z;
+      if (telemetry.length > 0) {
+        let minLapIdx = 0;
+        for (let i = 1; i < telemetry.length; i++) {
+          if ((telemetry[i].CurrentLap ?? Infinity) < (telemetry[minLapIdx].CurrentLap ?? Infinity)) {
+            minLapIdx = i;
+          }
+        }
+        sfX = telemetry[minLapIdx].PositionX;
+        sfZ = telemetry[minLapIdx].PositionZ;
+      }
+      const [sfCx, sfCy] = toCanvas(sfX, sfZ);
       ctx.beginPath();
-      ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx.arc(sfCx, sfCy, 5, 0, Math.PI * 2);
       ctx.fillStyle = "#10b981";
       ctx.fill();
       ctx.strokeStyle = "#0f172a";

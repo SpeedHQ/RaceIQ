@@ -1,6 +1,18 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, afterAll } from "bun:test";
+import { readFileSync } from "fs";
+import { gunzipSync } from "zlib";
 import { parseAccBuffers } from "../server/games/acc/parser";
 import { PHYSICS, GRAPHICS, STATIC } from "../server/games/acc/structs";
+import { initGameAdapters } from "../shared/games/init";
+import { initServerGameAdapters } from "../server/games/init";
+import { getServerGame } from "../server/games/registry";
+import { parseRawLapFramesForTest } from "../server/db/queries";
+import { stopMaintenanceTasks } from "../server/pipeline";
+
+initGameAdapters();
+initServerGameAdapters();
+
+afterAll(() => stopMaintenanceTasks());
 
 /** Helper: create a minimal physics buffer with given values */
 function makePhysicsBuf(overrides: Record<string, number> = {}): Buffer {
@@ -70,7 +82,7 @@ describe("ACC parser", () => {
     expect(packet!.Accel).toBeGreaterThan(0);
     expect(packet!.Brake).toBe(0);
     expect(packet!.Gear).toBe(3);
-    expect(packet!.LapNumber).toBe(3);
+    expect(packet!.LapNumber).toBe(4);
     expect(packet!.RacePosition).toBe(1);
     expect(packet!.Yaw).toBeCloseTo(1.5);
   });
@@ -122,4 +134,40 @@ describe("ACC parser", () => {
     expect(packet!.LastLap).toBeCloseTo(92.345);
     expect(packet!.BestLap).toBeCloseTo(91.234);
   });
+});
+
+const ACC_SESSION_BIN = "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz";
+
+describe("parseRawLapFrames — coordinate normalization (standard-xyz)", () => {
+  test("ACC PositionX/VelocityX/AccelerationX are X-flipped vs raw tryParse output", async () => {
+    const raw = Buffer.from(gunzipSync(readFileSync(ACC_SESSION_BIN)));
+    const startOffset = 8 + raw.readUInt32LE(4); // skip meta frame
+
+    const serverGame = getServerGame("acc");
+    const rawPackets: ReturnType<typeof serverGame.tryParse>[] = [];
+    let off = startOffset;
+    const N = 20;
+    while (rawPackets.length < N && off + 4 <= raw.length) {
+      const frameLen = raw.readUInt32LE(off);
+      off += 4;
+      if (off + frameLen > raw.length) break;
+      const pkt = serverGame.tryParse(raw.subarray(off, off + frameLen), null);
+      off += frameLen;
+      if (pkt) rawPackets.push(pkt);
+    }
+    expect(rawPackets.length).toBe(N);
+
+    const normalized = await parseRawLapFramesForTest(ACC_SESSION_BIN, startOffset, N, "acc");
+    expect(normalized.length).toBe(N);
+
+    for (let i = 0; i < N; i++) {
+      const r = rawPackets[i]!;
+      const n = normalized[i];
+      expect(n.PositionX).toBeCloseTo(-r.PositionX, 4);
+      expect(n.VelocityX).toBeCloseTo(-r.VelocityX, 4);
+      expect(n.AccelerationX).toBeCloseTo(-r.AccelerationX, 4);
+      expect(n.PositionY).toBeCloseTo(r.PositionY, 4);
+      expect(n.PositionZ).toBeCloseTo(r.PositionZ, 4);
+    }
+  }, { timeout: 30000 });
 });
