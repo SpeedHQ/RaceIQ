@@ -120,8 +120,8 @@ flowchart TD
         Val{"≥29 bytes?<br/>IsRaceOn == 1?"}
     end
 
-    subgraph Recording["Recording Mode (--record)"]
-        Rec["UdpRecorder<br/>Append to .bin file<br/>[uint32 len][N bytes]"]
+    subgraph Recording["Per-Session Recording"]
+        Rec["SessionRecorder<br/>data/sessions/&lt;gameId&gt;/&lt;ts&gt;.bin<br/>[12B meta frame][uint32 len][N bytes]...<br/>rawByteOffset stamped per lap"]
     end
 
     subgraph Parsing["Parser Dispatch"]
@@ -146,7 +146,7 @@ flowchart TD
         SessStart["Session Start<br/>Car/track change or 30s gap"]
         LapBound["Lap Boundary<br/>LapNumber increment or<br/>CurrentLap timer reset"]
         Quality["Lap Quality Check<br/>≥30 packets, ≥100m distance<br/>±2s time match, no rewind"]
-        Save["Save to SQLite<br/>Packets + sector times + metadata"]
+        Save["Save lap row<br/>rawByteOffset + rawFrameCount<br/>(telemetry re-parsed on demand)"]
     end
 
     subgraph SectorDetail["Sector Tracking"]
@@ -384,6 +384,8 @@ erDiagram
         text gameId
         text sessionType
         text notes
+        text rawFile "Absolute path to session .bin/.bin.gz — NULL for pre-migration sessions (drives isLegacy)"
+        text lapDetectorVersion "Detector version stamp, used by stale-session UI banner"
         text createdAt
     }
 
@@ -402,7 +404,8 @@ erDiagram
         real s1Time
         real s2Time
         real s3Time
-        blob telemetry
+        integer rawByteOffset "Byte offset into session.rawFile where this lap's frames start"
+        integer rawFrameCount "Frame count for this lap in rawFile"
         text createdAt
     }
 
@@ -485,6 +488,8 @@ erDiagram
     tunes ||--o{ tuneAssignments : "assigned"
     laps ||--o| lapAnalyses : "analysed"
 ```
+
+**Legacy-lap derivation (`isLegacy`):** a lap is "legacy" (pre-raw-binary-storage, telemetry unavailable) iff `sessions.raw_file IS NULL`. Migration 19 added `raw_file` + `raw_byte_offset` together, and `Pipeline.onSessionStart` populates `raw_file` before any lap lands — so it's the reliable signal. Per-lap `raw_byte_offset` can be null on a post-migration session (e.g. import-dump path feeds the pipeline without a `rawBuf`, so the recorder stays inactive for that call) and must not be used as the legacy gate.
 
 ## Client Architecture
 
