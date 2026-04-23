@@ -31,27 +31,27 @@ describe("resolveDataDir", () => {
 
 describe("isNewer", () => {
   test("1.2.3 is newer than 1.2.2", async () => {
-    const { isNewer } = await import("../server/update-check");
+    const { isNewer } = await import("../server/version-compare");
     expect(isNewer("1.2.3", "1.2.2")).toBe(true);
   });
 
   test("1.3.0 is newer than 1.2.9", async () => {
-    const { isNewer } = await import("../server/update-check");
+    const { isNewer } = await import("../server/version-compare");
     expect(isNewer("1.3.0", "1.2.9")).toBe(true);
   });
 
   test("2.0.0 is newer than 1.9.9", async () => {
-    const { isNewer } = await import("../server/update-check");
+    const { isNewer } = await import("../server/version-compare");
     expect(isNewer("2.0.0", "1.9.9")).toBe(true);
   });
 
   test("same version is not newer", async () => {
-    const { isNewer } = await import("../server/update-check");
+    const { isNewer } = await import("../server/version-compare");
     expect(isNewer("1.2.3", "1.2.3")).toBe(false);
   });
 
   test("older version is not newer", async () => {
-    const { isNewer } = await import("../server/update-check");
+    const { isNewer } = await import("../server/version-compare");
     expect(isNewer("1.2.1", "1.2.3")).toBe(false);
   });
 });

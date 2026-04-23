@@ -5,6 +5,8 @@ import { tmpdir } from "os";
 import { spawn } from "child_process";
 import pkg from "../package.json";
 import { wsManager } from "./ws";
+import { isNewer } from "./version-compare";
+export { isNewer };
 
 const VERSION = pkg.version;
 const GITHUB_REPO = "SpeedHQ/RaceIQ";
@@ -122,15 +124,6 @@ async function fetchReleases(currentVersion: string): Promise<{
   return { newReleases, currentReleaseNotes, currentReleaseDate };
 }
 
-/** Returns true if version string `a` is strictly newer than `b`. */
-export function isNewer(a: string, b: string): boolean {
-  const parse = (v: string) => v.replace(/^v/, "").split(".").map(Number);
-  const [am, an, ap] = parse(a);
-  const [bm, bn, bp] = parse(b);
-  if (am !== bm) return am > bm;
-  if (an !== bn) return an > bn;
-  return ap > bp;
-}
 
 export async function checkForUpdate(): Promise<UpdateState> {
   // Dev mode: fake an available update using a local installer, but fetch real release notes
