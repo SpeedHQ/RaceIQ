@@ -9,7 +9,7 @@ import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
 import { META_FRAME_MAGIC } from "../server/udp-recorder";
 import { CapturingDbAdapter } from "../server/pipeline-adapters";
-import { LapDetectorAc } from "../server/lap-detector-ac";
+import { LapDetectorAcEvo } from "../server/lap-detector-ac-evo";
 import { stopMaintenanceTasks } from "../server/pipeline";
 
 initGameAdapters();
@@ -24,7 +24,7 @@ if (buf.readUInt32LE(0) === META_FRAME_MAGIC) {
 const serverGame = getServerGame("ac-evo");
 const parserState = serverGame.createParserState?.() ?? null;
 const db = new CapturingDbAdapter();
-const detector = new LapDetectorAc({ db });
+const detector = new LapDetectorAcEvo({ db });
 
 let firstPacket: any = null;
 let maxLap = 0;

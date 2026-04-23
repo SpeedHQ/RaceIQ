@@ -3,7 +3,7 @@ import type { TelemetryPacket } from "../../../shared/types";
 import { accAdapter } from "../../../shared/games/acc";
 import { getAccCarName } from "../../../shared/acc-car-data";
 import { getAccTrackName, getAccSharedTrackName } from "../../../shared/acc-track-data";
-import { LapDetectorAc } from "../../lap-detector-ac";
+import { LapDetectorAcc } from "../../lap-detector-acc";
 import { parseAccBuffers } from "./parser";
 import { ACC_PACKED_MAGIC, unpackTriplet } from "../shared/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
@@ -76,7 +76,7 @@ export const accServerAdapter: ServerGameAdapter = {
     return null;
   },
 
-  createLapDetector: (opts) => new LapDetectorAc(opts),
+  createLapDetector: (opts) => new LapDetectorAcc(opts),
 
   aiSystemPrompt: ACC_SYSTEM_PROMPT,
 

@@ -14,7 +14,7 @@ import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
 import { CapturingDbAdapter } from "../server/pipeline-adapters";
-import { LapDetectorAc } from "../server/lap-detector-ac";
+import { LapDetectorAcEvo } from "../server/lap-detector-ac-evo";
 import { META_FRAME_MAGIC } from "../server/udp-recorder";
 import { stopMaintenanceTasks } from "../server/pipeline";
 import { parseRawLapFramesForTest } from "../server/db/queries";
@@ -46,7 +46,7 @@ async function replaySessionBin(
   const parserState = serverGame.createParserState?.() ?? null;
 
   const db = new CapturingDbAdapter();
-  const detector = new LapDetectorAc({ db });
+  const detector = new LapDetectorAcEvo({ db });
   const packets: TelemetryPacket[] = [];
 
   while (offset < buf.length) {

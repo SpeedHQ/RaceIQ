@@ -1,4 +1,3 @@
-// server/lap-detector-ac.ts
 import type { TelemetryPacket } from "@shared/types";
 import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface";
 import type { SessionState } from "./lap-detector";
@@ -8,10 +7,10 @@ import { assessLapRecording } from "./lap-quality";
 import { computeLapSectors } from "./compute-lap-sectors";
 import { accFirstPacketIsMidLap, classifyAccPitLap } from "./acc-lap-rules";
 
-export const LAP_DETECTOR_V2_ID = "ac_lapdetector_v2";
+export const LAP_DETECTOR_AC_EVO_ID = "ac_evo_lapdetector_v1";
 
-export class LapDetectorAc implements ILapDetector {
-  readonly detectorId = LAP_DETECTOR_V2_ID;
+export class LapDetectorAcEvo implements ILapDetector {
+  readonly detectorId = LAP_DETECTOR_AC_EVO_ID;
   private readonly db: DbAdapter;
   private readonly onLapSaved?: LapDetectorCallbacks["onLapSaved"];
   private readonly onSessionStart?: LapDetectorCallbacks["onSessionStart"];
@@ -80,14 +79,10 @@ export class LapDetectorAc implements ILapDetector {
         sessionUID: packet.sessionUID,
         bestLapTime: 0,
       };
-      // LapNumber = completedLaps+1 (1-indexed, matches game display).
-      // First packet with LapNumber=N means we're currently driving lap N.
-      // Use 1 as fallback when LapNumber is 0 or absent (stale/synthetic data).
+      // AC Evo LapNumber = completedLaps+1 (1-indexed): lap 1 while driving the first lap.
+      // Adopt game-reported value; fall back to 1 for synthetic/stale data.
       this.currentLapNumber = (packet.LapNumber ?? 0) > 0 ? packet.LapNumber! : 1;
       this.firstLapIsPartial = accFirstPacketIsMidLap(packet);
-      // Seed byte offset from the current packet so this session's first lap
-      // points into the current .bin file, not the previous session's stale
-      // offset. Also reset the rolling frame count.
       this._lapByteOffset = this._currentRawByteOffset;
       this._lapFrameCount = 0;
       await this.onSessionStart?.(this.currentSession);
@@ -97,7 +92,6 @@ export class LapDetectorAc implements ILapDetector {
 
     // Session restart detection: distance went backward by >100m
     if (prev && packet.DistanceTraveled < prev.DistanceTraveled - 100) {
-      // Abandon in-progress lap, keep the new packet as lap start
       this.lapBuffer = [];
       this.peakCurrentLap = 0;
       this.firstLapIsPartial = false;
@@ -112,12 +106,6 @@ export class LapDetectorAc implements ILapDetector {
 
     if (isReset) {
       if (this.firstLapIsPartial) {
-        // Recording started mid-lap. Evaluate whether to discard the opening segment:
-        //  1. Trivial fragment (<100m) — timer glitch, skip and wait for the next reset.
-        //  2. Pit-only segment — recording started while the car was stationary in the pit
-        //     box; the entire buffer never left the pit, so it contributes nothing useful.
-        //     Discard it so the outlap becomes lap 0.
-        // Otherwise clear the flag and let normal emission run.
         const bufStart = this.lapBuffer[0]?.DistanceTraveled ?? 0;
         const bufEnd = this.lapBuffer[this.lapBuffer.length - 1]?.DistanceTraveled ?? 0;
         const bufDist = bufEnd - bufStart;
@@ -142,14 +130,6 @@ export class LapDetectorAc implements ILapDetector {
     if (packet.CurrentLap > this.peakCurrentLap) this.peakCurrentLap = packet.CurrentLap;
   }
 
-  /**
-   * Flush any in-progress lap at end-of-stream as an incomplete (invalid) lap.
-   * Called by the pipeline/test harness when packets stop arriving (e.g. recording ends).
-   *
-   * Matches v1 behavior: writes to the DB but does NOT fire onLapSaved. Consumers
-   * (test assertions, live UI) treat incomplete laps as "finalized after the fact"
-   * rather than a real lap-completion event.
-   */
   async flushIncompleteLap(): Promise<void> {
     if (!this.currentSession || this.lapBuffer.length < 10) return;
     await this.emitLap("incomplete", { silent: true });
@@ -170,18 +150,12 @@ export class LapDetectorAc implements ILapDetector {
     this._lastActivePacketTime = 0;
   }
 
-  /** Emit the current lapBuffer as a saved lap. Callers clear state afterwards. */
   private async emitLap(
     forcedInvalidReason: string | null,
     opts?: { silent?: boolean; trigger?: TelemetryPacket }
   ): Promise<void> {
-    // Prefer the game's authoritative LastLap from the lap-boundary trigger
-    // packet, but only when it has actually been refreshed for THIS lap.
     // AC Evo writes LastLap atomically with the lap-counter bump, so the
-    // trigger packet's LastLap is the new value. ACC resets CurrentLap first
-    // and updates LastLap one frame later (when completedLaps increments), so
-    // the trigger packet still carries the PREVIOUS lap's LastLap. Detect that
-    // by comparing against the last buffered packet — identical value = stale.
+    // trigger packet's LastLap is the fresh value for this lap.
     const lastBufferedLastLap = this.lapBuffer[this.lapBuffer.length - 1]?.LastLap ?? 0;
     const gameLastLap = opts?.trigger?.LastLap ?? 0;
     const gameLastLapFresh = gameLastLap > 0 && gameLastLap !== lastBufferedLastLap;
@@ -191,13 +165,6 @@ export class LapDetectorAc implements ILapDetector {
     if (lapNum === this._lastEmittedLapNumber) return;
     this._lastEmittedLapNumber = lapNum;
 
-    // Snapshot and reset synchronously before any await. Without this, packets
-    // arriving during the async window (computeLapSectors / insertLap) would be
-    // pushed into the same array that `packets` references, bleeding the next
-    // lap's data into this lap's saved packet buffer.
-    // Also append the trigger packet (first sample of the NEW lap) so the
-    // outgoing lap's recording reaches the finish-line crossing rather than
-    // stopping at the last pre-reset packet.
     const packets = this.lapBuffer;
     if (opts?.trigger) packets.push(opts.trigger);
     const lapByteOffset = this._lapByteOffset;
@@ -220,13 +187,11 @@ export class LapDetectorAc implements ILapDetector {
       }
     }
 
-
     const sectors = await computeLapSectors(
       this.currentSession!.trackOrdinal,
       this.currentSession!.gameId,
       packets,
       lapTime,
-      // ACC live sectors not yet tracked in v2 — falls back to distance-fraction
       undefined
     );
 
