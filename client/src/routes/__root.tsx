@@ -277,6 +277,7 @@ function AppShell() {
                 variant="ghost"
                 size="sm"
                 onClick={() => showSettings ? closeSettings() : openSettings()}
+                aria-label="Settings"
                 className="text-app-text-secondary hover:text-app-text flex items-center gap-1.5"
               >
                 <span className="hidden sm:inline">{driverName || "Settings"}</span>

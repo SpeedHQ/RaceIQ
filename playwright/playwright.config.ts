@@ -48,6 +48,14 @@ export default defineConfig({
       },
     },
     {
+      name: "mobile-screenshots",
+      testMatch: "mobile-responsive.spec.ts",
+      use: {
+        baseURL: `http://localhost:${FRESH_INSTALL_PORT}`,
+        // Viewport is overridden per-describe-block in the spec.
+      },
+    },
+    {
       name: "record-demo",
       testMatch: "record-demo.spec.ts",
       timeout: 120_000,
