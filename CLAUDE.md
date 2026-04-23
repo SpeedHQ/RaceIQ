@@ -161,7 +161,7 @@ The AI system uses Mastra agents backed by Claude API with streaming and prompt 
 - Client uses TanStack React Query for server state management
 - 3D visualizations use React Three Fiber (Three.js wrapper for React)
 - **Never fall back to "fm-2023"** when gameId is missing — make gameId required
-- **Never use `await import(...)`** — static imports at the top of the file only. The only exception is a literal platform-specific switch (e.g. a Windows-only native module guarded by `process.platform === "win32"`) where the target genuinely doesn't exist on other platforms. "Lazy load to avoid startup cost" or "break a circular dep" are NOT valid reasons — fix the architecture. Don't copy existing dynamic-import patterns.
+- ⚠️ **IMPORTANT — NO DYNAMIC IMPORTS.** `await import(...)` is **banned** in this repo. Static imports at the top of the file, always. The *only* exception is a literal platform-specific switch (e.g. a Windows-only native module guarded by `process.platform === "win32"`) where the target genuinely doesn't exist on other platforms — and even then, document the reason inline. "Lazy-load to avoid startup cost", "break a circular dep", or "match the pattern in this file" are **NOT** valid reasons — fix the architecture instead. This rule has repeatedly caused test hangs (234s `isNewer` case) and opaque module-load chains; it is non-negotiable.
 
 ### Custom Steering Wheels
 
