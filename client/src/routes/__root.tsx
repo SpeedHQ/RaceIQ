@@ -63,7 +63,7 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
   );
 }
 
-function StaleLapBanner() {
+function StaleLapButton() {
   const staleLapDetection = useTelemetryStore((s) => s.staleLapDetection);
   const setStaleLapDetection = useTelemetryStore((s) => s.setStaleLapDetection);
   const reprocessProgress = useTelemetryStore((s) => s.reprocessProgress);
@@ -87,23 +87,20 @@ function StaleLapBanner() {
   return (
     <>
       {staleLapDetection && (
-        <div className="flex items-center gap-3 px-4 py-2 bg-blue-500/10 border-b border-blue-500/20 text-sm text-blue-300">
-          <span className="flex-1">
-            Lap detection updated — {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s" : ""} may have improved boundaries.
-          </span>
+        <div className="flex items-center gap-1">
           <button
             onClick={handleReprocess}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/15 text-blue-300 border border-blue-500/30 hover:bg-blue-500/25 transition-colors"
           >
             <RefreshCw className="size-3" />
-            Reprocess
+            Reparse {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s" : ""}
           </button>
           <button
             onClick={() => setStaleLapDetection(null)}
-            className="text-blue-400/60 hover:text-blue-300 transition-colors"
+            className="text-app-text-muted hover:text-app-text-secondary transition-colors"
             aria-label="Dismiss"
           >
-            <X className="size-3.5" />
+            <X className="size-3" />
           </button>
         </div>
       )}
@@ -248,6 +245,7 @@ function AppShell() {
             </div>
 
             <div className="flex items-center gap-2 mr-2">
+              <StaleLapButton />
               {updateState?.updateAvailable && (
                 <button
                   onClick={() => setShowUpdateModal(true)}
@@ -295,8 +293,6 @@ function AppShell() {
           )}
 
           {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
-
-          <StaleLapBanner />
 
           <div className="min-h-0 overflow-y-auto">
             <Outlet />

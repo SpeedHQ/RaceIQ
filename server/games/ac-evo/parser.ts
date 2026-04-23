@@ -326,11 +326,11 @@ export function parseAcEvoBuffers(
       right: damRight,
       centre: damCentre,
     },
+    isValidLap: isValidLap ? true : null,
   };
 
   // Expose AC Evo-specific extras on the acc object for downstream use
   (acc as any).normalizedCarPosition = normalizedCarPos;
-  (acc as any).isValidLap = isValidLap ? 1 : 0;
   (acc as any).trackLengthM = trackLengthM;
 
   const packet: TelemetryPacket = {
