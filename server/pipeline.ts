@@ -292,8 +292,12 @@ export function getSessionLaps(): readonly LapMeta[] {
   return _default.sessionLaps;
 }
 
-// Periodic check: flush stale laps when packets stop (e.g. race ended, game closed)
+// Periodic check: flush stale laps when packets stop (e.g. race ended, game
+// closed). `.unref()` so bun test's event loop can exit once the tests are
+// done — without it every test that transitively imports this module hangs
+// the runner waiting for a never-arriving interval tick.
 const _maintenanceInterval = setInterval(() => _default.lapDetector?.flushStaleLap?.(), 5_000);
+_maintenanceInterval.unref?.();
 
 /** Stop the module-level maintenance interval. Call in test/bench contexts to allow clean exit. */
 export function stopMaintenanceTasks(): void {
