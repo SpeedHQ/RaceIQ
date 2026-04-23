@@ -93,8 +93,11 @@ export class AccSharedMemoryReader {
     this._connected = true;
 
     // Register pipeline processors
-    // Chain: StatusCheckProcessor (validates AC_LIVE) → Mode-specific processor
-    this._pipeline.register(new StatusCheckProcessor(this._disconnect.bind(this)));
+    // Chain: StatusCheckProcessor (passes AC_LIVE + AC_PAUSE) → Mode-specific
+    // processor. StatusCheckProcessor halts the pipeline for AC_OFF/AC_REPLAY
+    // without tearing the reader down — the process supervisor in
+    // `server/index.ts` owns reader lifecycle.
+    this._pipeline.register(new StatusCheckProcessor("ACC"));
 
     if (this._recordingOnly) {
       this._pipeline.register(
@@ -115,14 +118,5 @@ export class AccSharedMemoryReader {
     console.log("[ACC] Connected - buffers reading and pipeline active");
   }
 
-
-  private async _disconnect(): Promise<void> {
-    if (this._connected) {
-      this._connected = false;
-      await this._tripletAssembler.stop();
-      await this._bufferedReader.stop();
-      console.log("[ACC] Disconnected from shared memory");
-    }
-  }
 
 }

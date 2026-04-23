@@ -23,36 +23,36 @@ export interface TripletProcessor {
 }
 
 /**
- * StatusCheckProcessor: validates ACC status before processing.
- * Filters out invalid status and disconnects on AC_OFF.
+ * StatusCheckProcessor: gates the pipeline by ACC status.
+ *
+ * AC_LIVE and AC_PAUSE pass through — in-race frames, including those where
+ * the user has the pause menu open. AC_OFF (main menu) and AC_REPLAY halt
+ * the pipeline for that frame so no parser/DB work happens. The reader
+ * keeps polling; the pipeline resumes automatically as soon as the user
+ * enters a session again.
+ *
+ * This processor never tears the reader down. Reader lifecycle is owned by
+ * the process supervisor in `server/index.ts` — disconnecting here on
+ * AC_OFF left the reader dead until the user relaunched the app.
  */
 export class StatusCheckProcessor implements TripletProcessor {
-  private onDisconnect: () => Promise<void>;
   private loggedInvalidStatus = false;
   private label: string;
-  private disconnectOnOff: boolean;
-  constructor(onDisconnect: () => Promise<void>, label = "ACC", disconnectOnOff = true) {
-    this.onDisconnect = onDisconnect;
+  constructor(label = "ACC") {
     this.label = label;
-    this.disconnectOnOff = disconnectOnOff;
   }
 
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<boolean> {
     const status = triplet.graphics.readInt32LE(GRAPHICS.status.offset);
-    if (status !== AC_STATUS.AC_LIVE) {
+    if (status !== AC_STATUS.AC_LIVE && status !== AC_STATUS.AC_PAUSE) {
       if (!this.loggedInvalidStatus) {
-        console.log(`[${this.label} StatusCheck] Invalid status: ${status} (AC_LIVE=${AC_STATUS.AC_LIVE}, AC_OFF=${AC_STATUS.AC_OFF})`);
+        console.log(`[${this.label} StatusCheck] Pausing pipeline, status=${status} (AC_OFF=${AC_STATUS.AC_OFF}, AC_REPLAY=${AC_STATUS.AC_REPLAY})`);
         this.loggedInvalidStatus = true;
       }
-      if (status === AC_STATUS.AC_OFF && this.disconnectOnOff) {
-        console.log(`[${this.label} StatusCheck] AC_OFF detected, disconnecting`);
-        await this.onDisconnect();
-      }
-      return false; // halt pipeline for this frame; reader keeps polling
+      return false;
     }
-    // Status is valid, pipeline continues
     if (this.loggedInvalidStatus) {
-      console.log(`[${this.label} StatusCheck] Status now AC_LIVE, resuming`);
+      console.log(`[${this.label} StatusCheck] Status=${status} — pipeline resuming`);
     }
     this.loggedInvalidStatus = false;
     return true;

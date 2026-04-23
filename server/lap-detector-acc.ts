@@ -142,14 +142,32 @@ export class LapDetectorAcc implements ILapDetector {
   async flushStaleLap(): Promise<void> {
     if (
       !this.currentSession ||
-      this.lapBuffer.length < 10 ||
       this._lastActivePacketTime === 0 ||
       Date.now() - this._lastActivePacketTime < 10_000
     ) return;
-    await this.emitLap("incomplete", { silent: true });
+    // Packets stopped arriving for 10s → user went to main menu or replay
+    // (StatusCheckProcessor halts the pipeline for AC_OFF/AC_REPLAY). End the
+    // session so the next time they enter a race a fresh session is created.
+    await this.finalizeCurrentSession();
+  }
+
+  async finalizeCurrentSession(): Promise<void> {
+    if (!this.currentSession) return;
+    const sid = this.currentSession.sessionId;
+    if (this.lapBuffer.length >= 10) {
+      await this.emitLap("incomplete", { silent: true });
+    }
+    console.log(`[ACC Lap Detector] Finalized session ${sid}`);
+    this.currentSession = null;
     this.lapBuffer = [];
     this.peakCurrentLap = 0;
+    this.firstLapIsPartial = false;
+    this._lapByteOffset = null;
+    this._currentRawByteOffset = null;
+    this._lapFrameCount = 0;
     this._lastActivePacketTime = 0;
+    this._lastEmittedLapNumber = -1;
+    this.currentLapNumber = -1;
   }
 
   private async emitLap(
