@@ -45,7 +45,7 @@ const LEVEL_COLORS = [
 export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
   const [hover, setHover] = useState<{ date: string; seconds: number; x: number; y: number } | null>(null);
 
-  const { cells, max, totalDays, totalSeconds, monthMarkers } = useMemo(() => {
+  const { cells, max, totalDays, totalSeconds, monthMarkers, longestStreak } = useMemo(() => {
     const secs = new Map<string, number>();
     for (const lap of laps) {
       if (lap.lapTime <= 0) continue;
@@ -65,6 +65,8 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
     let maxSec = 0;
     let daysActive = 0;
     let totalSec = 0;
+    let currentStreak = 0;
+    let bestStreak = 0;
 
     for (let w = 0; w < WEEKS; w++) {
       const col: { date: Date; key: string; seconds: number }[] = [];
@@ -79,6 +81,10 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
         if (seconds > 0) {
           daysActive++;
           totalSec += seconds;
+          currentStreak++;
+          if (currentStreak > bestStreak) bestStreak = currentStreak;
+        } else {
+          currentStreak = 0;
         }
         if (d === 0 && date.getMonth() !== lastMonth) {
           months.push({ week: w, label: MONTH_LABELS[date.getMonth()] });
@@ -88,7 +94,14 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
       grid.push(col);
     }
 
-    return { cells: grid, max: maxSec, totalDays: daysActive, totalSeconds: totalSec, monthMarkers: months };
+    return {
+      cells: grid,
+      max: maxSec,
+      totalDays: daysActive,
+      totalSeconds: totalSec,
+      monthMarkers: months,
+      longestStreak: bestStreak,
+    };
   }, [laps]);
 
   const width = WEEKS * (CELL + GAP);
@@ -102,7 +115,7 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
           Activity — Last 12 Months
         </h2>
         <div className="text-[11px] text-app-text/90-dim">
-          {fmtDuration(totalSeconds)} · {totalDays} active days
+          {fmtDuration(totalSeconds)} · {totalDays} active days · longest streak {longestStreak} day{longestStreak === 1 ? "" : "s"}
         </div>
       </div>
       <div className="rounded-lg p-4 overflow-x-auto relative">
