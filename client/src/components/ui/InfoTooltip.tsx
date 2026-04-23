@@ -1,5 +1,5 @@
 import { Info } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export function Tooltip({
   children,
@@ -44,11 +44,33 @@ export function InfoTooltip({
     width === "xs"  ? "w-[180px]" :
     width === "sm"  ? "w-[220px]" :
                       "w-[280px]";
+  const [tapOpen, setTapOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!tapOpen) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setTapOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [tapOpen]);
+
   return (
-    <span className="group/tip relative inline-flex items-center shrink-0">
-      <Info className="w-3 h-3 text-app-text-dim cursor-help" />
+    <span ref={ref} className="group/tip relative inline-flex items-center shrink-0">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setTapOpen((o) => !o); }}
+        aria-label="More info"
+        className="inline-flex items-center p-0 m-0 bg-transparent border-0 cursor-help"
+      >
+        <Info className="w-3 h-3 text-app-text-dim" />
+      </button>
       <span
-        className={`absolute left-0 ${posClass} ${widthClass} hidden group-hover/tip:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-[10px] text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal leading-relaxed`}
+        className={`absolute left-0 ${posClass} ${widthClass} ${tapOpen ? "block" : "hidden group-hover/tip:block"} bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-[10px] text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal leading-relaxed`}
       >
         {children}
       </span>

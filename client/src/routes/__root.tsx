@@ -115,6 +115,56 @@ function StaleLapButton() {
   );
 }
 
+export function RotatePrompt() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const check = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      // Prompt when the device is phone-sized (short edge <= 768) and in portrait.
+      const shortEdge = Math.min(w, h);
+      setShow(h > w && shortEdge <= 768);
+    };
+    check();
+    window.addEventListener("resize", check);
+    window.addEventListener("orientationchange", check);
+    return () => {
+      window.removeEventListener("resize", check);
+      window.removeEventListener("orientationchange", check);
+    };
+  }, []);
+
+  const [dismissed, setDismissed] = useState(false);
+  if (!show || dismissed) return null;
+
+  return (
+    <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center px-6 pointer-events-none">
+      <div
+        className="relative w-full max-w-sm rounded-xl border border-app-border bg-app-surface p-6 shadow-2xl text-center pointer-events-auto"
+      >
+        <button
+          onClick={() => setDismissed(true)}
+          className="absolute top-2 right-2 p-1 text-app-text-muted hover:text-app-text"
+          aria-label="Dismiss"
+        >
+          <X className="size-4" />
+        </button>
+        <div className="flex flex-col items-center gap-3">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-app-accent animate-pulse">
+            <rect x="5" y="2" width="14" height="20" rx="2" />
+            <path d="M12 18h.01" />
+            <path d="M3 12 L8 9 L8 15 Z" fill="currentColor" />
+          </svg>
+          <div className="text-base font-semibold text-app-text">Rotate your device</div>
+          <div className="text-sm text-app-text-muted">
+            Dashboards are designed for landscape. Turn your phone sideways for the best view.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppShell() {
   useWebSocket();
   const { displaySettings, settingsLoaded } = useSettings();
@@ -294,7 +344,7 @@ function AppShell() {
                 size="sm"
                 onClick={() => showSettings ? closeSettings() : openSettings()}
                 aria-label="Settings"
-                className="text-app-text-secondary hover:text-app-text flex items-center gap-1.5"
+                className="hidden md:flex text-app-text-secondary hover:text-app-text items-center gap-1.5"
               >
                 <span className="hidden sm:inline">{driverName || "Settings"}</span>
                 <Settings2 className="size-3.5 text-app-text-muted" />
@@ -372,6 +422,18 @@ function AppShell() {
                       ))}
                     </>
                   )}
+
+                  <div className="mx-4 my-2 border-t border-app-border" />
+                  <button
+                    onClick={() => {
+                      setMobileNavOpen(false);
+                      openSettings();
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 border-transparent text-app-text-muted hover:text-app-text"
+                  >
+                    <Settings2 className="size-4" />
+                    <span>{driverName || "Settings"}</span>
+                  </button>
                 </div>
               </nav>
             </div>

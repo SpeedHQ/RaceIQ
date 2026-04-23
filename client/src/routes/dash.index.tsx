@@ -4,6 +4,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState, type ReactNode } from "react";
 import { ComboDash } from "../components/dashes/ComboDash";
 import { ComboDash2 } from "../components/dashes/ComboDash2";
+import { RotatePrompt } from "./__root";
 import {
   fakeForzaPacket,
   fakeForzaDisplayPacket,
@@ -119,6 +120,7 @@ function DashCatalogue() {
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
+      <RotatePrompt />
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-black tracking-tight">Dashboards</h1>

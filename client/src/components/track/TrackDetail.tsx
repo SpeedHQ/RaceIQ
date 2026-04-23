@@ -9,6 +9,7 @@ import { useGameId, getGameRoute } from "@/stores/game";
 import { client } from "@/lib/rpc";
 import { drawTrack } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
+import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
 import { F125SetupsWithGuide, F125TrackGuide } from "@/components/f1/F125TrackSetups";
 import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
 import { AccTrackSetups, AccTrackGuide } from "@/components/acc/AccTrackSetups";
@@ -180,7 +181,7 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
   const showLapNumBreakdown = lapNumData.length > 1;
 
   return (
-    <div className="w-2/5 min-w-0 bg-app-surface/50 border border-app-border rounded-lg flex flex-col overflow-hidden">
+    <div className="w-full md:w-2/5 min-w-0 bg-app-surface/50 border border-app-border rounded-lg flex flex-col md:overflow-hidden">
       {/* Fixed header — outside scroll container */}
       <div className="flex justify-between items-center px-3 py-2 border-b border-app-border shrink-0">
         <div className="flex items-center gap-2">
@@ -208,7 +209,7 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
         <div className="text-[11px] text-app-text-dim font-mono">last 100</div>
       </div>
       {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
+      <div className="flex-1 md:overflow-y-auto p-3 flex flex-col gap-3">
       <div className="flex flex-wrap gap-x-4 gap-y-1">
         {[
           { label: "Best", value: minT, color: "text-purple-400" },
@@ -509,14 +510,38 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   const [savingSectors, setSavingSectors] = useState(false);
   const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
   const [selectedCars, setSelectedCars] = useState<Set<number>>(new Set());
-  const [carSearch, setCarSearch] = useState("");
-  const [carDropdownOpen, setCarDropdownOpen] = useState(false);
-  const carDropdownRef = useRef<HTMLDivElement>(null);
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
   const [sortBy, setSortBy] = useState<"time" | "lap" | "date">("time");
   const [sortAsc, setSortAsc] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [carouselEl, setCarouselEl] = useState<HTMLDivElement | null>(null);
+  const [carouselPage, setCarouselPage] = useState(0);
+  const [carouselHeight, setCarouselHeight] = useState<number | null>(null);
+  const gotoCarouselPage = useCallback((i: number) => {
+    if (!carouselEl) return;
+    carouselEl.scrollTo({ left: carouselEl.clientWidth * i, behavior: "smooth" });
+    setCarouselPage(i);
+  }, [carouselEl]);
+  useEffect(() => {
+    if (!carouselEl) return;
+    const page = carouselEl.children[carouselPage] as HTMLElement | undefined;
+    if (!page) return;
+    const update = () => setCarouselHeight(page.scrollHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(page);
+    return () => ro.disconnect();
+  }, [carouselEl, carouselPage]);
+  useEffect(() => {
+    if (!carouselEl) return;
+    const onScroll = () => {
+      const idx = Math.round(carouselEl.scrollLeft / carouselEl.clientWidth);
+      setCarouselPage(idx);
+    };
+    carouselEl.addEventListener("scroll", onScroll, { passive: true });
+    return () => carouselEl.removeEventListener("scroll", onScroll);
+  }, [carouselEl]);
   const isF125 = gameId === "f1-2025";
   const isAcc = gameId === "acc";
   const hideClassCol = isF125 || isAcc || gameId === "ac-evo";
@@ -797,17 +822,6 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
     setSelectedLaps(new Set());
   }, []);
 
-  useEffect(() => {
-    if (!carDropdownOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (carDropdownRef.current && !carDropdownRef.current.contains(e.target as Node)) {
-        setCarDropdownOpen(false);
-        setCarSearch("");
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [carDropdownOpen]);
 
   const toggleLapSelect = useCallback((lapId: number) => {
     setSelectedLaps((prev) => {
@@ -849,22 +863,24 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   return (
     <div className="p-4 overflow-auto h-full">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
-        <button
-          onClick={onBack}
-          className="text-app-label text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-border-input transition-colors"
-        >
-          &larr; Back
-        </button>
-        <div>
-          <div className="text-app-heading font-semibold text-app-text">{track.name}</div>
-          <div className="text-app-label text-app-text-muted">
-            {track.variant} · {track.location}, {countryName(track.country)}
-            {track.lengthKm > 0 && ` · ${track.lengthKm} km`}
+      <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <button
+            onClick={onBack}
+            className="shrink-0 text-app-label text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-border-input transition-colors"
+          >
+            &larr; Back
+          </button>
+          <div className="min-w-0 flex-1">
+            <div className="text-app-heading font-semibold text-app-text">{track.name}</div>
+            <div className="text-app-label text-app-text-muted">
+              {track.variant} · {track.location}, {countryName(track.country)}
+              {track.lengthKm > 0 && ` · ${track.lengthKm} km`}
+            </div>
           </div>
         </div>
         {/* View mode tabs */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
           {validTabs.map((tab) => (
             <button
               key={tab}
@@ -1031,13 +1047,13 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
           </div>
         </div>
       ) : (
-      <div className="flex flex-col gap-4 h-[calc(100vh-160px)] overflow-hidden">
-        <div className="flex flex-col gap-4 min-h-0 overflow-hidden flex-1">
+      <div className="flex flex-col gap-4 md:h-[calc(100vh-160px)] md:overflow-hidden">
+        <div className="flex flex-col gap-4 min-h-0 md:overflow-hidden flex-1">
           {/* Track map */}
-          <div className="shrink-0 flex gap-3" style={{ height: activeTab === "guide" && isF125 ? 160 : 320 }}>
+          <div className={`shrink-0 flex flex-col md:flex-row gap-3 ${activeTab === "guide" && isF125 ? "md:h-[160px]" : "md:h-[320px]"}`}>
           {/* Leaderboard left of map on laps tab */}
           {activeTab === "laps" && (
-            <div className="w-[420px] shrink-0 overflow-hidden flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3">
+            <div className="order-2 md:order-1 w-full md:w-[420px] shrink-0 overflow-hidden flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
               {isF125 ? (
                 <F125Leaderboard trackOrdinal={track.ordinal} />
               ) : (
@@ -1047,7 +1063,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
               )}
             </div>
           )}
-          <div className="bg-app-bg rounded-lg border border-app-border relative flex-1 min-w-0">
+          <div className="order-1 md:order-2 bg-app-bg rounded-lg border border-app-border relative flex-1 min-w-0 h-[260px] md:h-auto">
             {track.hasOutline ? (
               <canvas
                 ref={canvasRef}
@@ -1133,7 +1149,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
               </div>
             )}
 
-            <div className={`flex-1 min-h-0 ${activeTab === "laps" ? "overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
+            <div className={`flex-1 min-h-0 ${activeTab === "laps" ? "md:overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
 
               {/* Tunes tab (Forza) */}
               {activeTab === "tunes" && (
@@ -1142,84 +1158,51 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
 
               {/* Laps tab */}
               {activeTab === "laps" && (
-                <div className="flex flex-col gap-3 h-full overflow-hidden">
+                <div className="flex flex-col gap-3 md:h-full md:overflow-hidden">
                   {/* Own laps */}
-                  <div className="flex flex-col gap-3 h-full overflow-hidden">
+                  <div className="flex flex-col gap-3 md:h-full md:overflow-hidden">
                   {trackLaps.length === 0 ? (
                     <div className="text-app-subtext text-app-text-dim py-4 text-center">No laps recorded for this track</div>
                   ) : (
-                    <>
-                      {/* Car filter + selection actions */}
-                      <div className="flex items-center gap-3">
+                    (() => {
+                      const filterRow = (
+                      <div className="flex items-center gap-3 flex-wrap">
                         <div className="text-app-label text-app-text-muted uppercase tracking-wider">Laps ({filteredLaps.length})</div>
                         {/* Division filter — Forza only */}
                         {hasForzaTunes && uniqueDivisions.length > 1 && (
-                          <div className="flex items-center gap-1">
-                            <select
-                              value={selectedDivision ?? ""}
-                              onChange={e => setSelectedDivision(e.target.value || null)}
-                              className="text-app-unit px-2 py-0.5 rounded border border-app-border-input text-app-text-secondary bg-app-surface hover:text-app-text focus:outline-none"
-                            >
-                              <option value="">All divisions</option>
-                              {uniqueDivisions.map(d => <option key={d} value={d}>{d}</option>)}
-                            </select>
-                            {selectedDivision && (
-                              <button onClick={() => setSelectedDivision(null)} className="text-app-unit text-app-text-dim hover:text-app-text px-1 py-0.5">✕</button>
-                            )}
-                          </div>
+                          <SearchMultiSelect<string>
+                            mode="single"
+                            buttonLabel={selectedDivision ?? "All divisions"}
+                            options={uniqueDivisions.map((d) => ({ key: d, label: d }))}
+                            isSelected={(k) => selectedDivision === k}
+                            onSelect={(k) => setSelectedDivision(k)}
+                            onClear={selectedDivision ? () => setSelectedDivision(null) : undefined}
+                            searchPlaceholder="Search divisions..."
+                            menuWidthClass="w-56"
+                          />
                         )}
-                        <div className="relative" ref={carDropdownRef}>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => { setCarDropdownOpen(o => !o); setCarSearch(""); }}
-                              className="text-app-unit px-2 py-0.5 rounded border border-app-border-input text-app-text-secondary hover:text-app-text flex items-center gap-1.5"
-                            >
-                              {selectedCars.size === 0 ? "All cars" : `${selectedCars.size} car${selectedCars.size > 1 ? "s" : ""}`}
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                            </button>
-                            {selectedCars.size > 0 && (
-                              <button onClick={() => { setSelectedCars(new Set()); setSelectedLaps(new Set()); }} className="text-app-unit text-app-text-dim hover:text-app-text px-1 py-0.5">✕</button>
-                            )}
-                          </div>
-                          {carDropdownOpen && (
-                            <div className="absolute left-0 top-full mt-1 w-64 bg-app-surface-alt border border-app-border-input rounded-lg shadow-lg z-50">
-                              <div className="p-1.5 border-b border-app-border-input">
-                                <input
-                                  autoFocus
-                                  type="text"
-                                  value={carSearch}
-                                  onChange={e => setCarSearch(e.target.value)}
-                                  placeholder="Search cars..."
-                                  className="w-full bg-app-surface border border-app-border-input rounded px-2 py-1 text-app-label text-app-text placeholder:text-app-text-dim focus:outline-none"
-                                />
-                              </div>
-                              <div className="max-h-48 overflow-y-auto">
-                                {uniqueCars
-                                  .filter(c => c.carName.toLowerCase().includes(carSearch.toLowerCase()))
-                                  .map(car => {
-                                    const active = selectedCars.has(car.carOrdinal);
-                                    return (
-                                      <button
-                                        key={car.carOrdinal}
-                                        onClick={() => toggleCar(car.carOrdinal)}
-                                        className={`w-full text-left flex items-center gap-2 px-3 py-1.5 text-app-label transition-colors hover:bg-app-surface ${active ? "text-app-text" : "text-app-text-secondary"}`}
-                                      >
-                                        <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${active ? "bg-app-accent border-app-accent" : "border-app-border-input"}`}>
-                                          {active && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-                                        </span>
-                                        {!hideClassCol && <span className={`font-bold font-mono text-[10px] flex-shrink-0 ${classTextColors[car.carClass] ?? "text-app-text-secondary"}`}>{car.carClass}</span>}
-                                        <span className="truncate">{car.carName}</span>
-                                      </button>
-                                    );
-                                  })}
-                                {uniqueCars.filter(c => c.carName.toLowerCase().includes(carSearch.toLowerCase())).length === 0 && (
-                                  <div className="px-3 py-2 text-app-label text-app-text-dim">No results</div>
+                        <SearchMultiSelect<number>
+                          buttonLabel={selectedCars.size === 0 ? "All cars" : `${selectedCars.size} car${selectedCars.size > 1 ? "s" : ""}`}
+                          options={uniqueCars.map((c) => ({ key: c.carOrdinal, label: c.carName, search: c.carName }))}
+                          isSelected={(k) => selectedCars.has(k)}
+                          onSelect={(k) => toggleCar(k)}
+                          onClear={selectedCars.size > 0 ? () => { setSelectedCars(new Set()); setSelectedLaps(new Set()); } : undefined}
+                          searchPlaceholder="Search cars..."
+                          menuAlign="right"
+                          renderItem={(opt) => {
+                            const car = uniqueCars.find((c) => c.carOrdinal === opt.key);
+                            return (
+                              <>
+                                {!hideClassCol && car && (
+                                  <span className={`font-bold font-mono text-[10px] flex-shrink-0 ${classTextColors[car.carClass] ?? "text-app-text-secondary"}`}>
+                                    {car.carClass}
+                                  </span>
                                 )}
-                              </div>
-                            </div>
-                          )}
-
-                        </div>
+                                <span className="truncate">{opt.label}</span>
+                              </>
+                            );
+                          }}
+                        />
                         {/* Selection actions — inline in header row */}
                         {selectedLaps.size > 0 && (
                           <div className="flex items-center gap-2 ml-auto">
@@ -1247,12 +1230,115 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                           </div>
                         )}
                       </div>
+                      );
+                      return (<>
+                      {/* Desktop filter row */}
+                      <div className="hidden md:block">{filterRow}</div>
 
-                      {/* Lap stats sidebar + table */}
-                      <div className="flex gap-3 flex-1 min-h-0 overflow-hidden">
-                      {/* LapStatsPanel */}
+                      {/* Mobile: filter + 2-page carousel (stats / laps) */}
+                      <div className="md:hidden flex flex-col gap-2">
+                        {filterRow}
+                        <div className="flex items-center gap-1 border-b border-app-border">
+                          {["Stats", "Laps"].map((label, i) => (
+                            <button
+                              key={label}
+                              onClick={() => gotoCarouselPage(i)}
+                              className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${carouselPage === i ? "border-app-accent text-app-accent" : "border-transparent text-app-text-muted"}`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        <div
+                          ref={setCarouselEl}
+                          className="overflow-x-auto overflow-y-hidden snap-x snap-mandatory flex scroll-smooth items-start"
+                          style={carouselHeight ? { height: carouselHeight } : undefined}
+                        >
+                          <div className="snap-center shrink-0 w-full">
+                            <LapStatsPanel laps={filteredLaps.filter(l => l.isValid !== false)} showSessionFilter={isF125} />
+                          </div>
+                          <div className="snap-center shrink-0 w-full flex flex-col gap-2">
+                        {(() => {
+                          const validLaps = filteredLaps.filter(l => l.isValid !== false);
+                          const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map(l => l.lapTime)) : null;
+                          if (filteredLaps.length === 0) {
+                            return <div className="px-3 py-6 text-center text-sm text-app-text-dim">No laps match the selected filters</div>;
+                          }
+                          return filteredLaps.map((lap) => {
+                            const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
+                            const selected = selectedLaps.has(lap.lapId);
+                            return (
+                              <div
+                                key={lap.lapId}
+                                className={`rounded-lg border border-app-border p-3 ${selected ? "bg-cyan-500/5 border-cyan-500/30" : ""}`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={selected}
+                                    onChange={() => toggleLapSelect(lap.lapId)}
+                                    className="accent-cyan-400 w-5 h-5 mt-0.5 shrink-0"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="min-w-0 flex-1">
+                                        <div className="text-sm font-semibold text-app-text break-words">{lap.carName}</div>
+                                        <div className="mt-0.5 flex items-center gap-2 text-xs text-app-text-muted">
+                                          {!hideClassCol && (
+                                            <span>
+                                              <span className={`font-bold font-mono ${classTextColors[lap.carClass] ?? "text-app-text-secondary"}`}>{lap.carClass}</span>
+                                              <span className="ml-1">PI {lap.pi}</span>
+                                            </span>
+                                          )}
+                                          <span className="font-mono">Lap {lap.lapNumber}</span>
+                                          {hasSessionTypes && lap.sessionId != null && (
+                                            (sessionLapCounts.get(lap.sessionId) ?? 0) > 1
+                                              ? <span className="text-[10px] text-emerald-400 font-medium">Race</span>
+                                              : <span className="text-[10px] text-amber-400 font-medium">Quali</span>
+                                          )}
+                                        </div>
+                                        {lap.createdAt && (
+                                          <div className="mt-1 text-[11px] text-app-text-dim font-mono">
+                                            {new Date(lap.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} {new Date(lap.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                          </div>
+                                        )}
+                                        {lap.notes && <div className="mt-1 text-xs text-app-text-secondary truncate">{lap.notes}</div>}
+                                      </div>
+                                      <div className="shrink-0 flex flex-col items-end gap-1 font-mono tabular-nums text-sm leading-tight">
+                                        <div className="flex items-center gap-1">
+                                          <span className={isFastest ? "text-purple-400 font-bold" : "text-app-text"}>{formatLapTime(lap.lapTime)}</span>
+                                          {lap.isValid === false
+                                            ? <span className="text-red-400 w-6 text-center" title={lap.invalidReason ?? "Invalid lap"}>✕</span>
+                                            : <span className="text-emerald-400 w-6 text-center">✓</span>}
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <span>{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</span>
+                                          <span className="text-red-400 w-6 text-center">S1</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <span>{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</span>
+                                          <span className="text-blue-400 w-6 text-center">S2</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <span>{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</span>
+                                          <span className="text-yellow-400 w-6 text-center">S3</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Desktop: stats + table side-by-side */}
+                      <div className="hidden md:flex gap-3 flex-1 min-h-0 overflow-hidden">
                       <LapStatsPanel laps={filteredLaps.filter(l => l.isValid !== false)} showSessionFilter={isF125} />
-                      {/* Lap table */}
+                      {/* Lap table (md+) */}
                       <div className="flex-1 min-w-0 overflow-y-auto bg-app-surface/50 border border-app-border rounded-lg">
                         <Table>
                           <THead>
@@ -1353,7 +1439,8 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                       </div>
                       </div>{/* end stats+table flex */}
 
-                    </>
+                    </>);
+                    })()
                   )}
                   </div>
                 </div>

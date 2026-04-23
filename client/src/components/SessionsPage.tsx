@@ -450,7 +450,90 @@ const deleteSelected = useCallback(async () => {
         </div>
       </div>
 
-      <Table className="flex-1 overflow-auto">
+      {/* Mobile card list */}
+      <div className="md:hidden flex-1 overflow-auto flex flex-col gap-2">
+        {isLoading ? (
+          <div className="px-3 py-8 text-center text-app-text/90-muted">Loading...</div>
+        ) : pageItems.length === 0 ? (
+          <div className="px-3 py-8 text-center text-app-text/90-muted">No sessions recorded yet</div>
+        ) : (
+          pageItems.map((session) => {
+            const isExpanded = expandedSessions.has(session.id);
+            const sessionLaps = lapsBySession.get(session.id) ?? [];
+            const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((l) => l.lapTime)) : 0);
+            return (
+              <div
+                key={session.id}
+                className={`rounded-lg border border-app-border bg-app-surface ${isExpanded ? "bg-app-surface-alt/40" : ""}`}
+              >
+                <div
+                  className="flex items-start gap-3 p-3 cursor-pointer"
+                  onClick={() => toggleExpand(session.id)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedSessions.has(session.id)}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    onChange={(e) => toggleSessionSelection(session.id, e as any)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="accent-cyan-400 w-5 h-5 mt-0.5 shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <div className="text-sm font-semibold text-app-text truncate">
+                        {trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}
+                      </div>
+                      <div className="text-[11px] text-app-text/90-dim shrink-0">
+                        {new Date(session.createdAt).toLocaleDateString()}{" "}
+                        {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    </div>
+                    <div className="text-xs text-app-text/90-muted truncate mt-0.5">
+                      {carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}
+                      {isF1 && session.sessionType && session.sessionType !== "unknown" && (
+                        <> · {formatSessionType(session.sessionType)}</>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4 mt-2 text-xs">
+                      <span className="text-app-text/90-muted">
+                        Laps <span className="text-app-text font-mono tabular-nums">{session.lapCount ?? 0}</span>
+                      </span>
+                      <span className="text-app-text/90-muted">
+                        Best <span className="text-app-text font-mono tabular-nums">{bestTime ? formatLapTime(bestTime) : "—"}</span>
+                      </span>
+                      <span className="ml-auto text-app-text/90-dim">{isExpanded ? "▾" : "▸"}</span>
+                    </div>
+                    <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                      <NoteCell
+                        value={session.notes ?? undefined}
+                        onSave={(notes) => {
+                          client.api.sessions[":id"].notes.$patch({ param: { id: String(session.id) }, json: { notes: notes || null } });
+                          qc.invalidateQueries({ queryKey: queryKeys.sessions });
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                {isExpanded && sessionLaps.length > 0 && (
+                  <div className="border-t border-app-border overflow-x-auto">
+                    <SessionLapTable
+                      session={session}
+                      laps={sessionLaps}
+                      lapSortKey={lapSortKey}
+                      lapSortDir={lapSortDir}
+                      toggleLapSort={toggleLapSort}
+                      selectedLaps={selectedLaps}
+                      toggleLapSelection={toggleLapSelection}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <Table className="hidden md:table flex-1 overflow-auto">
         <THead>
           <TH className="w-10 px-2">
             <input
