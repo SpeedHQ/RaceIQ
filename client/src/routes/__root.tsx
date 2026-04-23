@@ -1,4 +1,4 @@
-import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
+import { createRootRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo, useEffect } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useWebSocket } from "../hooks/useWebSocket";
@@ -139,10 +139,14 @@ function AppShell() {
   });
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const location = useLocation();
+  const navigate = useNavigate();
 
-  // Close mobile drawer on route change
+  // Close mobile drawer on route change, but keep it open when the user
+  // lands on a bare game root (e.g. /fm23) so they can pick a sub-tab next.
   useEffect(() => {
-    setMobileNavOpen(false);
+    const prefixes = getGamePrefixes();
+    const onGameRoot = prefixes.some((p) => location.pathname === p || location.pathname === `${p}/`);
+    if (!onGameRoot) setMobileNavOpen(false);
   }, [location.pathname]);
 
   // Global nav tabs — filtered by user's hidden games preference
@@ -169,6 +173,11 @@ function AppShell() {
       .filter((label) => !(hideSetup && label === "Setup"))
       .map((label) => ({ to: `${prefix}/${label.toLowerCase()}`, label }));
   }, [location.pathname]);
+
+  // Active game sub-tab (for the tablet <select> dropdown)
+  const activeGameTab = useMemo(() => {
+    return gameTabs.find((t) => location.pathname.startsWith(t.to))?.to ?? gameTabs[0]?.to ?? "";
+  }, [gameTabs, location.pathname]);
 
   // Hide nav only on individual dashes (/dash/combo-1 etc.) — the catalogue
   // at /dash keeps the main app chrome.
@@ -198,17 +207,8 @@ function AppShell() {
   return (
     <ThemeProvider>
         <div className="h-screen grid grid-rows-[auto_1fr] bg-app-bg text-app-text">
-          <div className="flex items-center justify-between border-b border-app-border">
+          <div className="flex items-stretch justify-between border-b border-app-border min-h-14 md:min-h-0">
             <div className="flex items-center min-w-0 flex-1">
-              {/* Hamburger (mobile only) */}
-              <button
-                onClick={() => setMobileNavOpen(true)}
-                className="md:hidden p-2 text-app-text-secondary hover:text-app-text"
-                aria-label="Open navigation"
-              >
-                <Menu className="size-5" />
-              </button>
-
               <ConnectionStatus
                 connected={connected}
                 packetsPerSec={packetsPerSec}
@@ -217,8 +217,8 @@ function AppShell() {
 
               <div className="hidden md:block w-px h-4 bg-app-border mx-2" />
 
-              {/* Desktop tabs */}
-              <div className="hidden md:flex items-center gap-0">
+              {/* Desktop tabs (global, md+) */}
+              <div className="hidden md:flex items-center gap-0 min-w-0">
                 {globalTabs.map((tab) => (
                   <Link
                     key={tab.to}
@@ -239,22 +239,40 @@ function AppShell() {
                 {gameTabs.length > 0 && (
                   <>
                     <div className="w-px h-4 bg-app-border mx-2" />
-                    {gameTabs.map((tab) => (
-                      <Link
-                        key={tab.to}
-                        to={tab.to}
-                        activeOptions={{ exact: false }}
-                        className="px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors"
-                        activeProps={{
-                          className: "px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors border-app-accent text-app-accent",
-                        }}
-                        inactiveProps={{
-                          className: "px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors border-transparent text-app-text-muted hover:text-app-text-secondary",
-                        }}
-                      >
-                        {tab.label}
-                      </Link>
-                    ))}
+
+                    {/* Inline game sub-tabs at lg+ */}
+                    <div className="hidden lg:flex items-center gap-0">
+                      {gameTabs.map((tab) => (
+                        <Link
+                          key={tab.to}
+                          to={tab.to}
+                          activeOptions={{ exact: false }}
+                          className="px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors"
+                          activeProps={{
+                            className: "px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors border-app-accent text-app-accent",
+                          }}
+                          inactiveProps={{
+                            className: "px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors border-transparent text-app-text-muted hover:text-app-text-secondary",
+                          }}
+                        >
+                          {tab.label}
+                        </Link>
+                      ))}
+                    </div>
+
+                    {/* Dropdown for game sub-tabs at md-lg */}
+                    <select
+                      aria-label="Game section"
+                      value={activeGameTab}
+                      onChange={(e) => navigate({ to: e.target.value })}
+                      className="lg:hidden bg-app-surface border border-app-border rounded px-2 py-1 text-xs font-semibold uppercase tracking-wider text-app-text focus:outline-none focus:border-app-accent"
+                    >
+                      {gameTabs.map((tab) => (
+                        <option key={tab.to} value={tab.to}>
+                          {tab.label}
+                        </option>
+                      ))}
+                    </select>
                   </>
                 )}
               </div>
@@ -281,18 +299,27 @@ function AppShell() {
                 <span className="hidden sm:inline">{driverName || "Settings"}</span>
                 <Settings2 className="size-3.5 text-app-text-muted" />
               </Button>
+
+              {/* Hamburger (mobile only, right side) */}
+              <button
+                onClick={() => setMobileNavOpen(true)}
+                className="md:hidden p-3 text-app-text-secondary hover:text-app-text"
+                aria-label="Open navigation"
+              >
+                <Menu className="size-6" />
+              </button>
             </div>
           </div>
 
           {/* Mobile nav drawer */}
           {mobileNavOpen && (
             <div
-              className="md:hidden fixed inset-0 z-50 flex"
+              className="md:hidden fixed inset-0 z-50 flex justify-end"
               onClick={() => setMobileNavOpen(false)}
             >
               <div className="absolute inset-0 bg-black/60" />
               <nav
-                className="relative w-64 max-w-[80vw] h-full bg-app-bg border-r border-app-border flex flex-col overflow-y-auto"
+                className="relative w-64 max-w-[80vw] h-full bg-app-bg border-l border-app-border flex flex-col overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">

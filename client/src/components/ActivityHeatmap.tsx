@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { LapMeta } from "@shared/types";
 
 const CELL = 11;
@@ -113,6 +113,13 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
   const width = WEEKS * (CELL + GAP);
   const height = DAYS * (CELL + GAP);
   const todayKey = dayKey(new Date());
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollLeft = el.scrollWidth;
+  }, [cells]);
 
   return (
     <div>
@@ -124,7 +131,7 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
           {fmtDuration(totalSeconds)} · {totalDays} active days · longest streak {longestStreak} day{longestStreak === 1 ? "" : "s"} · longest day {fmtDuration(bestDaySeconds)}
         </div>
       </div>
-      <div className="rounded-lg p-4 overflow-x-auto relative">
+      <div ref={scrollRef} className="rounded-lg p-4 overflow-x-auto relative">
         <div className="flex gap-2 w-max mx-auto">
           <div className="flex flex-col justify-between py-[14px] pr-1 text-[9px] text-app-text/90-dim leading-none select-none">
             {DAY_LABELS.map((l, i) => (
@@ -183,34 +190,31 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
                 })
               )}
             </svg>
-            <div
-              className="flex items-center justify-end gap-3 mt-2 text-[10px] text-app-text/90-dim"
-              style={{ width }}
-            >
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="inline-block rounded-sm"
-                  style={{
-                    width: CELL,
-                    height: CELL,
-                    background: LEVEL_COLORS[4],
-                    border: "1.5px solid rgba(34, 211, 238, 1)",
-                  }}
-                />
-                Longest day
-              </span>
-              <div className="flex items-center gap-1.5">
-                <span>Less</span>
-                {LEVEL_COLORS.map((c, i) => (
-                  <span
-                    key={i}
-                    className="inline-block rounded-sm"
-                    style={{ width: CELL, height: CELL, background: c, border: "0.5px solid rgba(255,255,255,0.04)" }}
-                  />
-                ))}
-                <span>More</span>
-              </div>
-            </div>
+          </div>
+        </div>
+        <div className="sticky left-0 right-0 flex flex-wrap items-center justify-end gap-3 mt-2 px-1 text-[10px] text-app-text/90-dim">
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block rounded-sm"
+              style={{
+                width: CELL,
+                height: CELL,
+                background: LEVEL_COLORS[4],
+                border: "1.5px solid rgba(34, 211, 238, 1)",
+              }}
+            />
+            Longest day
+          </span>
+          <div className="flex items-center gap-1.5">
+            <span>Less</span>
+            {LEVEL_COLORS.map((c, i) => (
+              <span
+                key={i}
+                className="inline-block rounded-sm"
+                style={{ width: CELL, height: CELL, background: c, border: "0.5px solid rgba(255,255,255,0.04)" }}
+              />
+            ))}
+            <span>More</span>
           </div>
         </div>
         {hover && (

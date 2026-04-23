@@ -22,7 +22,7 @@ export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving }: P
   const view = deriveConnectionStatusView({ connected, forzaReceiving, detectedGame });
 
   return (
-    <div className="flex items-center gap-4 px-4 py-2 bg-app-surface">
+    <div className="flex items-center gap-4 px-4 self-stretch bg-app-surface">
       <div className="flex items-center gap-2 w-28 shrink-0">
         <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${connected ? DOT_CLASS.green : DOT_CLASS.red}`} />
         <span className="text-sm font-medium text-app-text whitespace-nowrap">{view.serverLabel}</span>
