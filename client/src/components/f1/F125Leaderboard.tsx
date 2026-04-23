@@ -53,9 +53,8 @@ export function F125Leaderboard({ trackOrdinal }: { trackOrdinal: number }) {
         </a>
       </div>
       <div className="overflow-y-auto flex-1">
-      <Table>
+      <Table fit>
         <THead>
-          <TH className="w-6">#</TH>
           <TH>Player</TH>
           <TH>Team</TH>
           <TH className="text-right">Time</TH>
@@ -63,7 +62,6 @@ export function F125Leaderboard({ trackOrdinal }: { trackOrdinal: number }) {
         <TBody>
           {leaderboard.map((e) => (
             <TRow key={e.rank}>
-              <TD className="font-mono text-app-text-dim">{e.rank}</TD>
               <TD className="font-medium">{e.player}</TD>
               <TD className="text-app-text-secondary">{e.team}</TD>
               <TD className="text-right font-mono">{e.lapTime}</TD>

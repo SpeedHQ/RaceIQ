@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { client } from "@/lib/rpc";
@@ -274,6 +274,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [filterProvider, setFilterProvider] = useState<"" | "f1laps" | "simracingsetup">("");
   const [filterWeather, setFilterWeather] = useState<"" | "Dry" | "Wet">("");
+  const [mobileView, setMobileView] = useState<"list" | "detail">("list");
 
   const { data: tracks = [] } = useQuery<F125TrackSummary[]>({
     queryKey: ["f125-tracks"],
@@ -308,10 +309,18 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
     if (idx >= 0 && idx !== selectedIdx) setSelectedIdx(idx);
   }, [search.setup, filteredSetups]);
 
-  const selectSetup = (i: number) => {
-    setSelectedIdx(i);
+  const syncSetupUrl = (i: number) => {
     const s = filteredSetups[i];
     if (s) navigate({ search: ((prev: Record<string, unknown>) => ({ ...prev, setup: setupId(s) })) as never, replace: true });
+  };
+  const selectSetup = (i: number) => {
+    setSelectedIdx(i);
+    setMobileView("detail");
+    syncSetupUrl(i);
+  };
+  const resetSetup = () => {
+    setSelectedIdx(0);
+    syncSetupUrl(0);
   };
 
   if (!trackSlug) return <div className="text-app-text-dim text-sm py-4 text-center">No community setups available for this track</div>;
@@ -325,9 +334,9 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
   const dryCount = trackData.setups.filter(s => s.weather !== "Wet").length;
 
   return (
-    <div className="flex gap-3 h-full overflow-hidden">
+    <div className="flex gap-3 md:h-full md:overflow-hidden">
       {/* Left: filters + setup list */}
-      <div className="w-[420px] shrink-0 flex flex-col min-h-0">
+      <div className={`w-full md:w-[420px] shrink-0 flex flex-col min-h-0 ${mobileView === "detail" ? "hidden md:flex" : ""}`}>
         {/* Filters — single row */}
         <div className="flex items-center gap-1 mb-1.5">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider shrink-0">
@@ -335,7 +344,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
           </div>
           <div className="flex gap-0.5 ml-auto">
             {(["", "f1laps", "simracingsetup"] as const).map(p => (
-              <button key={p} onClick={() => { setFilterProvider(p); selectSetup(0); }}
+              <button key={p} onClick={() => { setFilterProvider(p); resetSetup(); }}
                 className={`text-app-unit px-2 py-1 rounded border transition-colors ${filterProvider === p ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}>
                 {p === "" ? "All" : p === "f1laps" ? `F1Laps (${f1lapsCount})` : `SRS (${srsCount})`}
               </button>
@@ -344,7 +353,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
           <span className="text-app-border mx-0.5">|</span>
           <div className="flex gap-0.5">
             {(["Dry", "Wet"] as const).map(w => (
-              <button key={w} onClick={() => { setFilterWeather(filterWeather === w ? "" : w); selectSetup(0); }}
+              <button key={w} onClick={() => { setFilterWeather(filterWeather === w ? "" : w); resetSetup(); }}
                 className={`text-app-unit px-2 py-1 rounded border transition-colors ${filterWeather === w ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}>
                 {w === "Dry" ? `☀ ${dryCount}` : `🌧 ${wetCount}`}
               </button>
@@ -393,9 +402,18 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
 
       {/* Right: setup detail (2/3) + video (1/3) */}
       {setup && (
-        <div className="flex-1 min-w-0 flex gap-3 h-full overflow-hidden">
+        <div className={`flex-1 min-w-0 flex flex-col md:flex-row gap-3 md:h-full md:overflow-hidden ${mobileView === "list" ? "hidden md:flex" : ""}`}>
+          {/* Back button (mobile only) */}
+          <Button
+            variant="app-outline"
+            size="default"
+            onClick={() => setMobileView("list")}
+            className="md:hidden self-start"
+          >
+            &larr; Back to setups
+          </Button>
           {/* Setup detail column */}
-          <div className="flex-1 min-w-0 overflow-y-auto space-y-2">
+          <div className="flex-1 min-w-0 md:overflow-y-auto space-y-2">
             {/* Header */}
             <div className="flex items-center gap-2 flex-wrap">
               <ProviderBadge provider={setup.provider} />
@@ -526,6 +544,25 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
   const [didDrag, setDidDrag] = useState(false);
   const [pickedIdx, setPickedIdx] = useState<number | null>(null); // single click pick
   const [filterProvider, setFilterProvider] = useState<"" | "f1laps" | "simracingsetup">("");
+  const longPressTimer = useRef<number | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const dragStartRef = useRef<number | null>(null);
+  const [carouselEl, setCarouselEl] = useState<HTMLDivElement | null>(null);
+  const [carouselPage, setCarouselPage] = useState(0);
+  const gotoCarouselPage = (i: number) => {
+    if (!carouselEl) return;
+    carouselEl.scrollTo({ left: carouselEl.clientWidth * i, behavior: "smooth" });
+    setCarouselPage(i);
+  };
+  useEffect(() => {
+    if (!carouselEl) return;
+    const onScroll = () => {
+      const idx = Math.round(carouselEl.scrollLeft / carouselEl.clientWidth);
+      setCarouselPage(idx);
+    };
+    carouselEl.addEventListener("scroll", onScroll, { passive: true });
+    return () => carouselEl.removeEventListener("scroll", onScroll);
+  }, [carouselEl]);
 
   const { data: tracks = [] } = useQuery<F125TrackSummary[]>({
     queryKey: ["f125-tracks"],
@@ -600,6 +637,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
   useEffect(() => { setDragRange(new Set()); setPickedIdx(null); }, [weather, filterProvider]);
 
   const handleMouseDown = (i: number) => {
+    dragStartRef.current = i;
     setDragStart(i);
     setDidDrag(false);
   };
@@ -617,6 +655,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
   };
 
   const handleMouseUp = () => {
+    dragStartRef.current = null;
     setDragStart(null);
   };
 
@@ -626,19 +665,47 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
   };
 
   useEffect(() => {
+    dragStartRef.current = dragStart;
     if (dragStart == null) return;
     const up = () => setDragStart(null);
     window.addEventListener("mouseup", up);
     return () => window.removeEventListener("mouseup", up);
   }, [dragStart]);
 
+  // Non-passive touchmove on document so we can preventDefault (block scroll)
+  // during drag-select no matter which ancestor owns the scroll.
+  useEffect(() => {
+    const onMove = (e: TouchEvent) => {
+      if (dragStartRef.current != null) e.preventDefault();
+    };
+    document.addEventListener("touchmove", onMove, { passive: false });
+    return () => document.removeEventListener("touchmove", onMove);
+  }, []);
+
   if (!trackSlug) return <div className="text-app-text-dim text-sm py-4 text-center">No setups available for this track</div>;
   if (isLoading || !trackData) return <div className="text-app-text-dim text-sm py-4 text-center animate-pulse">Loading setups...</div>;
 
   return (
-    <div className="flex gap-3 h-full overflow-hidden">
+    <div className="flex flex-col md:flex-row md:gap-3 md:h-full md:overflow-hidden">
+      {/* Mobile tab bar */}
+      <div className="md:hidden flex items-center gap-1 border-b border-app-border">
+        {["List", "Compare"].map((label, i) => (
+          <button
+            key={label}
+            onClick={() => gotoCarouselPage(i)}
+            className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${carouselPage === i ? "border-app-accent text-app-accent" : "border-transparent text-app-text-muted"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {/* Carousel on mobile, side-by-side at md+ */}
+      <div
+        ref={setCarouselEl}
+        className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth items-start md:contents"
+      >
       {/* Left: setup list */}
-      <div className="w-[420px] shrink-0 flex flex-col min-h-0">
+      <div className="snap-center shrink-0 w-full md:w-[420px] md:shrink-0 flex flex-col min-h-0">
         {/* Filters */}
         <div className="flex items-center gap-1 mb-1.5">
           <div className="flex gap-0.5">
@@ -673,7 +740,41 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
         </div>
 
         {/* Setup list */}
-        <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-app-border/20 select-none">
+        <div
+          ref={listRef}
+          className={`flex-1 min-h-0 overflow-y-auto rounded-lg border border-app-border/20 select-none ${dragStart != null ? "touch-none" : ""}`}
+          onTouchMove={(e) => {
+            // Cancel pending long-press if user starts scrolling before it fires
+            if (longPressTimer.current) {
+              window.clearTimeout(longPressTimer.current);
+              longPressTimer.current = null;
+            }
+            if (dragStart == null) return;
+            setDidDrag(true);
+            const t = e.touches[0];
+            if (!t) return;
+            const target = document.elementFromPoint(t.clientX, t.clientY);
+            const row = target?.closest<HTMLElement>("[data-setup-idx]");
+            if (!row) return;
+            const idx = Number(row.dataset.setupIdx);
+            if (!Number.isNaN(idx)) handleMouseEnter(idx);
+          }}
+          onTouchEnd={(e) => {
+            if (longPressTimer.current) {
+              window.clearTimeout(longPressTimer.current);
+              longPressTimer.current = null;
+            }
+            if (didDrag) e.preventDefault();
+            handleMouseUp();
+          }}
+          onTouchCancel={() => {
+            if (longPressTimer.current) {
+              window.clearTimeout(longPressTimer.current);
+              longPressTimer.current = null;
+            }
+            handleMouseUp();
+          }}
+        >
           {/* Header */}
           <div className="flex items-center gap-1.5 px-2 py-1 bg-app-surface-alt border-b border-app-border/20 sticky top-0 z-10">
             <span className="text-[9px] text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
@@ -691,9 +792,20 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
             return (
             <div
               key={i}
+              data-setup-idx={i}
+              onContextMenu={(e) => e.preventDefault()}
+              style={{ WebkitTouchCallout: "none" }}
               onMouseDown={() => handleMouseDown(i)}
               onMouseEnter={() => handleMouseEnter(i)}
               onMouseUp={handleMouseUp}
+              onTouchStart={() => {
+                setDidDrag(false);
+                if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+                longPressTimer.current = window.setTimeout(() => {
+                  handleMouseDown(i);
+                  longPressTimer.current = null;
+                }, 400);
+              }}
               onClick={() => handleClick(i)}
               className={`flex items-center gap-1.5 px-2 py-1.5 cursor-pointer border-b border-app-border/10 transition-colors ${
                 isPicked ? "bg-emerald-500/15" : inRange && dragRange.size > 0 ? "bg-cyan-500/8" : "hover:bg-app-surface-alt/30"
@@ -720,7 +832,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
       </div>
 
       {/* Right: range bars */}
-      <div className="flex-1 min-w-0 flex flex-col min-h-0 @container">
+      <div className="snap-center shrink-0 w-full md:flex-1 md:min-w-0 flex flex-col min-h-0 @container">
         {/* Legend — matches filter row height */}
         <div className="flex items-center gap-3 mb-1.5 text-[10px] text-app-text-secondary" style={{ minHeight: "1.625rem" }}>
           <span className="flex items-center gap-1">
@@ -746,7 +858,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
         <div className="flex-1 min-h-0 overflow-y-auto">
           {filteredSetups.length === 0 ? (
             <div className="text-app-text-dim text-sm py-4 text-center">No {weather.toLowerCase()} setups available</div>
-          ) : <div className="grid grid-cols-1 @sm:grid-cols-2 @2xl:grid-cols-3 gap-x-4 gap-y-1">
+          ) : <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-1">
             {rangeData.map(group => (
               <div key={group.title} className="rounded-lg border border-app-border bg-transparent p-2 mt-1">
                 <div className="text-xs text-app-accent uppercase tracking-wider font-bold mb-1.5 border-b border-app-border/20 pb-0.5">
@@ -775,6 +887,15 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
           </div>}
         </div>
       </div>
+      </div>
+      {/* Bottom swipe banner (mobile only) */}
+      <button
+        type="button"
+        onClick={() => gotoCarouselPage(carouselPage === 0 ? 1 : 0)}
+        className="md:hidden mt-3 flex items-center justify-center gap-2 py-3 rounded-lg bg-app-surface-alt/50 border border-app-border/40 text-xs text-app-text-muted uppercase tracking-wider select-none"
+      >
+        <span>{carouselPage === 0 ? "Swipe here to view comparison →" : "← Swipe here to view list"}</span>
+      </button>
     </div>
   );
 }
