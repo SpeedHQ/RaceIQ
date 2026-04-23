@@ -9,7 +9,7 @@ import { udpListener } from "../udp";
 import { wsManager } from "../ws";
 import { lapDetector } from "../pipeline";
 import { loadSettings, saveSettings, PartialSettingsSchema } from "../settings";
-import { getLaps, setCacheMaxBytes } from "../db/queries";
+import { getLapStats, setCacheMaxBytes } from "../db/queries";
 import { getRunningGame } from "../games/registry";
 import { getTrackOutlineByOrdinal } from "../../shared/track-data";
 
@@ -140,23 +140,12 @@ export const settingsRoutes = new Hono()
   // GET /api/stats
   .get("/api/stats", zValidator("query", GameIdQuerySchema), async (c) => {
     const { gameId } = c.req.valid("query");
-    const allLaps = await getLaps(gameId);
-    const validLaps = allLaps.filter((l) => l.isValid && l.lapTime > 0);
-
-    const lapsByTrack = new Map<number, number>();
-    for (const lap of allLaps) {
-      if (lap.trackOrdinal && lap.lapTime > 0) {
-        lapsByTrack.set(
-          lap.trackOrdinal,
-          (lapsByTrack.get(lap.trackOrdinal) ?? 0) + 1,
-        );
-      }
-    }
+    const stats = await getLapStats(gameId);
 
     let totalDistanceMeters = 0;
-    for (const [trackOrd, count] of lapsByTrack) {
+    for (const { trackOrdinal, count } of stats.lapsByTrack) {
       const outline = gameId
-        ? getTrackOutlineByOrdinal(trackOrd, gameId)
+        ? getTrackOutlineByOrdinal(trackOrdinal, gameId)
         : null;
       if (outline && outline.length > 1) {
         let trackLen = 0;
@@ -169,18 +158,12 @@ export const settingsRoutes = new Hono()
       }
     }
 
-    const totalTime = allLaps.reduce(
-      (s, l) => s + (l.lapTime > 0 ? l.lapTime : 0),
-      0,
-    );
-
     return c.json({
-      totalLaps: allLaps.length,
-      validLaps: validLaps.length,
+      totalLaps: stats.totalLaps,
+      validLaps: stats.validLaps,
       totalDistanceMeters,
-      totalTimeSec: totalTime,
-      uniqueTracks: lapsByTrack.size,
-      uniqueCars: new Set(allLaps.map((l) => l.carOrdinal).filter(Boolean))
-        .size,
+      totalTimeSec: stats.totalTimeSec,
+      uniqueTracks: stats.uniqueTracks,
+      uniqueCars: stats.uniqueCars,
     });
   });

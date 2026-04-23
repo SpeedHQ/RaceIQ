@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQueries } from "@tanstack/react-query";
 import { Settings2 } from "lucide-react";
 import { useLaps, useSettings } from "../hooks/queries";
 import { formatLapTime } from "./LiveTelemetry";
@@ -114,26 +115,33 @@ export function HomePage() {
     [allLaps]
   );
 
-  // Per-game stats
+  // Per-game stats — fetched from /api/stats per game so counts aren't
+  // capped by useLaps()'s 200-row limit (home and /<gameId> used to
+  // disagree when total laps across games exceeded 200).
+  const gameQueries = useQueries({
+    queries: (["fm-2023", "f1-2025", "acc", "ac-evo"] as const).map((g) => ({
+      queryKey: ["stats", g],
+      queryFn: async () => {
+        const res = await client.api.stats.$get({ query: { gameId: g } });
+        if (!res.ok) throw new Error(res.statusText);
+        return res.json() as Promise<{ totalLaps: number; totalTimeSec: number }>;
+      },
+    })),
+  });
+
   const gameStats = useMemo(() => {
-    const fm = allLaps.filter((l) => l.gameId === "fm-2023");
-    const f1 = allLaps.filter((l) => l.gameId === "f1-2025");
-    const acc = allLaps.filter((l) => l.gameId === "acc");
-    const acEvo = allLaps.filter((l) => l.gameId === "ac-evo");
-    const totalTime = (laps: typeof fm) => laps.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
     const fmtTime = (sec: number) => {
       if (sec <= 0) return "—";
       const h = Math.floor(sec / 3600);
       const m = Math.floor((sec % 3600) / 60);
       return h > 0 ? `${h}h ${m}m` : `${m}m`;
     };
-    return {
-      fm: { laps: fm.length, time: fmtTime(totalTime(fm)) },
-      f1: { laps: f1.length, time: fmtTime(totalTime(f1)) },
-      acc: { laps: acc.length, time: fmtTime(totalTime(acc)) },
-      acEvo: { laps: acEvo.length, time: fmtTime(totalTime(acEvo)) },
+    const pick = (i: number) => {
+      const d = gameQueries[i].data;
+      return { laps: d?.totalLaps ?? 0, time: fmtTime(d?.totalTimeSec ?? 0) };
     };
-  }, [allLaps]);
+    return { fm: pick(0), f1: pick(1), acc: pick(2), acEvo: pick(3) };
+  }, [gameQueries]);
 
   // Period metrics
   const [periodTab, setPeriodTab] = useState<"today" | "week" | "month" | "year" | "allTime">("allTime");
