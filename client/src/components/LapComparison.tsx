@@ -14,6 +14,7 @@ import type { CompareAiPanelHandle } from "./comparison/CompareAiPanel";
 import { COLOR_A, COLOR_B, formatLapTime, type Point } from "../lib/comparison-utils";
 import { Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
+import { MobileNotSupported } from "../routes/__root";
 
 const SYNC_KEY = "lap-compare";
 
@@ -23,7 +24,29 @@ interface TrackGroup {
   laps: LapMeta[];
 }
 
+function useIsPhoneViewport() {
+  const [isPhone, setIsPhone] = useState(() =>
+    typeof window !== "undefined" && Math.min(window.innerWidth, window.innerHeight) <= 768,
+  );
+  useEffect(() => {
+    const check = () => setIsPhone(Math.min(window.innerWidth, window.innerHeight) <= 768);
+    window.addEventListener("resize", check);
+    window.addEventListener("orientationchange", check);
+    return () => {
+      window.removeEventListener("resize", check);
+      window.removeEventListener("orientationchange", check);
+    };
+  }, []);
+  return isPhone;
+}
+
 export function LapComparison() {
+  const isPhone = useIsPhoneViewport();
+  if (isPhone) return <MobileNotSupported feature="Lap compare" />;
+  return <LapComparisonInner />;
+}
+
+function LapComparisonInner() {
   const search = useSearch({ strict: false }) as { track?: number; carA?: number; carB?: number; lapA?: number; lapB?: number; cursor?: number };
   const navigate = useNavigate();
   const units = useUnits();

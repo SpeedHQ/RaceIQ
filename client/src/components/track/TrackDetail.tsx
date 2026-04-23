@@ -1047,7 +1047,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
           </div>
         </div>
       ) : (
-      <div className="flex flex-col gap-4 md:h-[calc(100vh-160px)] md:overflow-hidden">
+      <div className="flex flex-col gap-4 lg:h-[calc(100vh-160px)] lg:overflow-hidden">
         <div className="flex flex-col gap-4 min-h-0 md:overflow-hidden flex-1">
           {/* Track map */}
           <div className={`shrink-0 flex flex-col md:flex-row gap-3 ${activeTab === "guide" && isF125 ? "md:h-[160px]" : "md:h-[320px]"}`}>
@@ -1158,9 +1158,9 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
 
               {/* Laps tab */}
               {activeTab === "laps" && (
-                <div className="flex flex-col gap-3 md:h-full md:overflow-hidden">
+                <div className="flex flex-col gap-3 lg:h-full lg:overflow-hidden">
                   {/* Own laps */}
-                  <div className="flex flex-col gap-3 md:h-full md:overflow-hidden">
+                  <div className="flex flex-col gap-3 lg:h-full lg:overflow-hidden">
                   {trackLaps.length === 0 ? (
                     <div className="text-app-subtext text-app-text-dim py-4 text-center">No laps recorded for this track</div>
                   ) : (

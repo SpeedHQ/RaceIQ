@@ -1,6 +1,5 @@
 import { useState } from "react";
 import fanatec15nm from "@shared/setup/fanatec-15nm.json";
-import { Link } from "@tanstack/react-router";
 
 interface Setting {
   name: string;
@@ -160,7 +159,7 @@ export function WheelCatalogue({ onSelect }: { onSelect: (profileId: string) => 
 
 type DetailTab = "wheel" | "ingame";
 
-export function HardwareSetupDetail({ profileId }: { profileId: string; onBack?: () => void }) {
+export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; onBack?: () => void }) {
   const profile = PROFILES.find((p) => p.id === profileId) ?? PROFILES[0];
   const [activeTab, setActiveTab] = useState<DetailTab>("wheel");
   const [activePreset, setActivePreset] = useState(profile.inGamePresets[0].id);
@@ -171,15 +170,16 @@ export function HardwareSetupDetail({ profileId }: { profileId: string; onBack?:
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <Link
-              to={"/setup" as any}
+            <button
+              type="button"
+              onClick={onBack}
               className="text-app-text-muted hover:text-app-text transition-colors"
               title="Back to catalogue"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
                 <path fillRule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clipRule="evenodd" />
               </svg>
-            </Link>
+            </button>
             <h1 className="text-app-title font-bold text-app-text">Hardware Setup</h1>
             <span className="text-app-unit font-semibold uppercase px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
               {profile.wheelBase.maxTorque}

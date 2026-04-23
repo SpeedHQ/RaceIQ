@@ -12,6 +12,7 @@ import { NoteModal } from "./ui/NoteModal";
 import { AppInput } from "./ui/AppInput";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Tooltip } from "./ui/InfoTooltip";
+import { RotatePrompt } from "../routes/__root";
 
 const PAGE_SIZE = 25;
 
@@ -380,6 +381,7 @@ const deleteSelected = useCallback(async () => {
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
+      <RotatePrompt />
       <div className="flex items-center flex-wrap gap-3">
         <AppInput
           type="search"

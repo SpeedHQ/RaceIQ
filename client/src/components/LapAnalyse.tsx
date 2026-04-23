@@ -22,13 +22,36 @@ import { AnalyseDataPanel } from "./analyse/AnalyseDataPanel";
 import { AnalyseTopSection } from "./analyse/AnalyseTopSection";
 import { AnalyseAiSidebar } from "./analyse/AnalyseAiSidebar";
 import { buildExportCsv } from "../lib/lap-export";
+import { MobileNotSupported } from "../routes/__root";
 
 // Stable empty array to avoid re-renders when no telemetry loaded
 const emptyTelemetry: TelemetryPacket[] = [];
 
 // ── Main Component ───────────────────────────────────────────────────
 
+function useIsPhoneViewport() {
+  const [isPhone, setIsPhone] = useState(() =>
+    typeof window !== "undefined" && Math.min(window.innerWidth, window.innerHeight) <= 768,
+  );
+  useEffect(() => {
+    const check = () => setIsPhone(Math.min(window.innerWidth, window.innerHeight) <= 768);
+    window.addEventListener("resize", check);
+    window.addEventListener("orientationchange", check);
+    return () => {
+      window.removeEventListener("resize", check);
+      window.removeEventListener("orientationchange", check);
+    };
+  }, []);
+  return isPhone;
+}
+
 export function LapAnalyse() {
+  const isPhone = useIsPhoneViewport();
+  if (isPhone) return <MobileNotSupported feature="Lap analyse" />;
+  return <LapAnalyseInner />;
+}
+
+function LapAnalyseInner() {
   const search = useSearch({ strict: false }) as { track?: number; car?: number; lap?: number };
   const navigate = useNavigate();
   const units = useUnits();

@@ -1,5 +1,5 @@
-import { createRootRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { useState, useMemo, useEffect } from "react";
+import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useTelemetryStore } from "../stores/telemetry";
@@ -115,6 +115,42 @@ function StaleLapButton() {
   );
 }
 
+export function MobileNotSupported({ feature = "This view" }: { feature?: string }) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const check = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const shortEdge = Math.min(w, h);
+      setShow(shortEdge <= 768);
+    };
+    check();
+    window.addEventListener("resize", check);
+    window.addEventListener("orientationchange", check);
+    return () => {
+      window.removeEventListener("resize", check);
+      window.removeEventListener("orientationchange", check);
+    };
+  }, []);
+
+  if (!show) return null;
+
+  return (
+    <div className="flex-1 flex items-center justify-center p-8 text-center">
+      <div className="max-w-sm flex flex-col items-center gap-3">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-app-accent">
+          <rect x="3" y="4" width="18" height="14" rx="2" />
+          <path d="M8 20h8" />
+        </svg>
+        <div className="text-base font-semibold text-app-text">Desktop required</div>
+        <div className="text-sm text-app-text-muted">
+          {feature} isn't supported on mobile yet. Open RaceIQ on a tablet or desktop to use it.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function RotatePrompt() {
   const [show, setShow] = useState(false);
   useEffect(() => {
@@ -176,6 +212,8 @@ function AppShell() {
 
   const { settingsOpen: showSettings, settingsSection, openSettings, closeSettings, onboardingOpen, closeOnboarding } = useUiStore();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [gameMenuOpen, setGameMenuOpen] = useState(false);
+  const gameMenuRef = useRef<HTMLDivElement>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has("update")) {
@@ -189,7 +227,6 @@ function AppShell() {
   });
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const location = useLocation();
-  const navigate = useNavigate();
 
   // Close mobile drawer on route change, but keep it open when the user
   // lands on a bare game root (e.g. /fm23) so they can pick a sub-tab next.
@@ -197,7 +234,17 @@ function AppShell() {
     const prefixes = getGamePrefixes();
     const onGameRoot = prefixes.some((p) => location.pathname === p || location.pathname === `${p}/`);
     if (!onGameRoot) setMobileNavOpen(false);
+    setGameMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!gameMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (gameMenuRef.current && !gameMenuRef.current.contains(e.target as Node)) setGameMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [gameMenuOpen]);
 
   // Global nav tabs — filtered by user's hidden games preference
   const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
@@ -257,7 +304,7 @@ function AppShell() {
   return (
     <ThemeProvider>
         <div className="h-screen grid grid-rows-[auto_1fr] bg-app-bg text-app-text">
-          <div className="flex items-stretch justify-between border-b border-app-border min-h-14 md:min-h-0">
+          <div className="flex items-stretch justify-between border-b border-app-border min-h-14 lg:min-h-0">
             <div className="flex items-center min-w-0 flex-1">
               <ConnectionStatus
                 connected={connected}
@@ -311,18 +358,32 @@ function AppShell() {
                     </div>
 
                     {/* Dropdown for game sub-tabs at md-lg */}
-                    <select
-                      aria-label="Game section"
-                      value={activeGameTab}
-                      onChange={(e) => navigate({ to: e.target.value })}
-                      className="lg:hidden bg-app-surface border border-app-border rounded px-2 py-1 text-xs font-semibold uppercase tracking-wider text-app-text focus:outline-none focus:border-app-accent"
-                    >
-                      {gameTabs.map((tab) => (
-                        <option key={tab.to} value={tab.to}>
-                          {tab.label}
-                        </option>
-                      ))}
-                    </select>
+                    <div ref={gameMenuRef} className="lg:hidden relative self-center">
+                      <button
+                        type="button"
+                        onClick={() => setGameMenuOpen((o) => !o)}
+                        className="flex items-center gap-1.5 bg-app-surface border border-app-border rounded px-2 py-1 text-xs font-semibold uppercase tracking-wider text-app-text hover:border-app-accent"
+                      >
+                        <span>{gameTabs.find((t) => t.to === activeGameTab)?.label ?? ""}</span>
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {gameMenuOpen && (
+                        <div className="absolute left-0 top-full mt-1 w-44 bg-app-surface border border-app-border rounded-lg shadow-lg z-50 overflow-hidden">
+                          {gameTabs.map((tab) => (
+                            <Link
+                              key={tab.to}
+                              to={tab.to}
+                              onClick={() => setGameMenuOpen(false)}
+                              className={`block px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${tab.to === activeGameTab ? "text-app-accent bg-app-accent/10" : "text-app-text hover:bg-app-surface-alt"}`}
+                            >
+                              {tab.label}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </div>

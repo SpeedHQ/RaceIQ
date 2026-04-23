@@ -303,7 +303,10 @@ export function CarsPage() {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [selected, setSelected] = useState<Set<number>>(() => initialCompareIds ?? new Set());
   const [comparing, setComparing] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  const [viewMode, setViewMode] = useState<"table" | "grid">(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) return "grid";
+    return "table";
+  });
   const [detailCar, setDetailCar] = useState<Car | null>(null);
 
   // Auto-open compare modal when cars load and ?compare param is present
