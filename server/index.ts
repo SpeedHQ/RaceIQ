@@ -257,8 +257,6 @@ function superviseReader<R extends { start(): void; stop(): Promise<void> }>(
 
 if (process.platform === "win32") {
   console.log("[Supervisor] Watching for shared-memory games (acc, ac-evo) — 2s poll");
-  let lastWaitingLog = 0;
-  const WAITING_LOG_INTERVAL_MS = 60_000;
   setInterval(() => {
     superviseReader(
       "acc",
@@ -274,13 +272,6 @@ if (process.platform === "win32") {
       () => acEvoReader,
       (r) => { acEvoReader = r; },
     );
-    if (!accReader && !acEvoReader) {
-      const now = Date.now();
-      if (now - lastWaitingLog >= WAITING_LOG_INTERVAL_MS) {
-        console.log("[Supervisor] Waiting for ACC or AC Evo to launch...");
-        lastWaitingLog = now;
-      }
-    }
   }, 2000);
 
   startTray(HTTP_PORT);
