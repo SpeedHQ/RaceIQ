@@ -87,20 +87,29 @@ function StaleLapButton() {
   return (
     <>
       {staleLapDetection && (
-        <div className="flex items-center gap-1">
+        <div className="fixed bottom-4 right-4 z-50 w-72 rounded-lg bg-app-surface border border-blue-500/30 shadow-xl p-4">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="size-4 text-blue-400 shrink-0 mt-0.5" />
+              <span className="text-sm font-semibold text-app-text">Lap detection updated</span>
+            </div>
+            <button
+              onClick={() => setStaleLapDetection(null)}
+              className="text-app-text-muted hover:text-app-text-secondary transition-colors shrink-0"
+              aria-label="Dismiss"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+          <p className="text-xs text-app-text-muted mb-3">
+            {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s were" : " was"} recorded with an older lap detector. Reparsing will improve lap boundaries and timing accuracy.
+          </p>
           <button
             onClick={handleReprocess}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/15 text-blue-300 border border-blue-500/30 hover:bg-blue-500/25 transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 transition-colors"
           >
             <RefreshCw className="size-3" />
             Reparse {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s" : ""}
-          </button>
-          <button
-            onClick={() => setStaleLapDetection(null)}
-            className="text-app-text-muted hover:text-app-text-secondary transition-colors"
-            aria-label="Dismiss"
-          >
-            <X className="size-3" />
           </button>
         </div>
       )}
@@ -245,7 +254,6 @@ function AppShell() {
             </div>
 
             <div className="flex items-center gap-2 mr-2">
-              <StaleLapButton />
               {updateState?.updateAvailable && (
                 <button
                   onClick={() => setShowUpdateModal(true)}
@@ -298,6 +306,7 @@ function AppShell() {
             <Outlet />
           </div>
         </div>
+        <StaleLapButton />
     </ThemeProvider>
   );
 }
