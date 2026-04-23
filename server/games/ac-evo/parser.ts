@@ -211,6 +211,14 @@ export function parseAcEvoBuffers(
 
   // --- Graphics (v0.6) ---
   const status = graphicsBuf.readInt32LE(GRAPHICS_EVO.status.offset);
+
+  // Gate out menu / replay frames. Pause (AC_PAUSE) still emits so the detector
+  // keeps `_lastActivePacketTime` fresh and doesn't falsely mark a paused
+  // session as stale. Only hard-exit to main menu (AC_OFF) or replay viewer
+  // (AC_REPLAY) is treated as session-over.
+  if (status === ACEVO_STATUS.AC_OFF || status === ACEVO_STATUS.AC_REPLAY) {
+    return null;
+  }
   const completedLaps = graphicsBuf.readInt32LE(GRAPHICS_EVO.total_lap_count.offset);
   const position = graphicsBuf.readUInt32LE(GRAPHICS_EVO.current_pos.offset);
   const iCurrentTime = graphicsBuf.readInt32LE(GRAPHICS_EVO.current_lap_time_ms.offset);
