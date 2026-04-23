@@ -27,14 +27,15 @@ describe(recordingFile, () => {
     // All laps belong to the same session
     const sessionIds = new Set(laps.map((l) => l.sessionId));
     expect(sessionIds.size).toBe(1);
-    expect(laps.map((l) => l.lapNumber)).toEqual([0, 1, 2, 3, 4]);
+    // ACC lap detector is 1-indexed (LapNumber = completedLaps + 1).
+    expect(laps.map((l) => l.lapNumber)).toEqual([1, 2, 3, 4, 5]);
 
-    // Lap 0: joining lap (recording started mid-lap, from pit)
+    // Lap 1: joining lap (recording started mid-lap, from pit)
     expect(laps[0].isValid).toBe(false);
     expect(laps[0].invalidReason).toBe("outlap");
     expect(laps[0].packets[0].acc?.pitStatus).not.toBe("out");
 
-    // Laps 1-3: valid clean laps
+    // Laps 2-4: valid clean laps
     expect(laps[1].isValid).toBe(true);
     expect(laps[1].packets[0].acc?.pitStatus).toBe("out");
     expect(laps[2].isValid).toBe(true);
@@ -59,19 +60,19 @@ describe(recordingFile, () => {
     assertLapTimesProper(laps[2].packets, laps[2].lapTime);
     assertLapTimesProper(laps[3].packets, laps[3].lapTime);
 
-    // Lap 4: incomplete tail
+    // Lap 5: incomplete tail
     expect(laps[4].isValid).toBe(false);
     expect(laps[4].invalidReason).toBe("incomplete");
 
-    // lap-saved notifications: lap 0 invalid, laps 1-3 valid with best lap tracking
-    expect(lapSaved[0].lapNumber).toBe(0);
+    // lap-saved notifications: lap 1 invalid, laps 2-4 valid with best lap tracking
+    expect(lapSaved[0].lapNumber).toBe(1);
     expect(lapSaved[0].isValid).toBe(false);
-    expect(lapSaved[1].lapNumber).toBe(1);
+    expect(lapSaved[1].lapNumber).toBe(2);
     expect(lapSaved[1].isValid).toBe(true);
     expect(lapSaved[1].estimatedBestLapTime).toBe(lapSaved[1].lapTime);
-    expect(lapSaved[2].lapNumber).toBe(2);
+    expect(lapSaved[2].lapNumber).toBe(3);
     expect(lapSaved[2].isValid).toBe(true);
-    expect(lapSaved[3].lapNumber).toBe(3);
+    expect(lapSaved[3].lapNumber).toBe(4);
     expect(lapSaved[3].isValid).toBe(true);
   });
 });
