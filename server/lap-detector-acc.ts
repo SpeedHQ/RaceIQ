@@ -8,10 +8,8 @@ import { computeLapSectors } from "./compute-lap-sectors";
 import { accFirstPacketIsMidLap, classifyAccPitLap } from "./acc-lap-rules";
 
 export const LAP_DETECTOR_ACC_ID = "acc_lapdetector_v2";
-// Legacy alias — the shared base class used this ID before the ACC/AC Evo split
+// Alias for stale-session checks in index.ts and session-routes.ts
 export const LAP_DETECTOR_V2_ID = LAP_DETECTOR_ACC_ID;
-// Pre-split ID: sessions recorded when LapDetectorAc handled both games
-export const LAP_DETECTOR_KUNOS_LEGACY_ID = "ac_lapdetector_v2";
 
 export class LapDetectorAcc implements ILapDetector {
   readonly detectorId = LAP_DETECTOR_ACC_ID;

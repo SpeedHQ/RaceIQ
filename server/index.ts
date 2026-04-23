@@ -206,9 +206,9 @@ udpListener.start(udpPort);
 // Stores the notification in wsManager so it's sent to each client on connect.
 import { countStaleSessions } from "./db/queries";
 import { LAP_DETECTOR_ID } from "./lap-detector";
-import { LAP_DETECTOR_V2_ID, LAP_DETECTOR_KUNOS_LEGACY_ID } from "./lap-detector-acc";
+import { LAP_DETECTOR_V2_ID } from "./lap-detector-acc";
 import { LAP_DETECTOR_AC_EVO_ID } from "./lap-detector-ac-evo";
-const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_V2_ID, LAP_DETECTOR_KUNOS_LEGACY_ID, LAP_DETECTOR_AC_EVO_ID];
+const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_V2_ID, LAP_DETECTOR_AC_EVO_ID];
 countStaleSessions(ALL_DETECTOR_IDS).then((count) => {
   if (count > 0) {
     console.log(`[Server] ${count} session(s) recorded with stale lap detector — will prompt user to reprocess`);
