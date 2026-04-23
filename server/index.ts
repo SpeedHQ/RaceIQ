@@ -295,5 +295,8 @@ if (firstRun) {
 import { startSessionCompressor } from "./session-compressor";
 startSessionCompressor();
 
+import { startUpdateCheckSchedule } from "./update-check";
+startUpdateCheckSchedule();
+
 console.log(`[Server] RaceIQ Server is ready!`);
 console.log(`[Server] Listening for UDP on port ${udpPort}`);
