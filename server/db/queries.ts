@@ -263,7 +263,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       s1Time: laps.s1Time,
       s2Time: laps.s2Time,
       s3Time: laps.s3Time,
-      rawByteOffset: laps.rawByteOffset,
+      rawFile: sessions.rawFile,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -275,7 +275,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     ? await query.where(eq(sessions.gameId, gameId)).all()
     : await query.all();
 
-  return rows.map((r) => ({
+  return rows.map(({ rawFile, ...r }) => ({
     ...r,
     isValid: Boolean(r.isValid),
     invalidReason: r.invalidReason ?? undefined,
@@ -288,7 +288,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     s1Time: r.s1Time ?? undefined,
     s2Time: r.s2Time ?? undefined,
     s3Time: r.s3Time ?? undefined,
-    isLegacy: r.rawByteOffset == null,
+    isLegacy: rawFile == null,
   }));
 }
 
@@ -306,7 +306,7 @@ export type LapSummary = {
   s3Time: number | null;
   isValid: boolean;
   invalidReason: string | null;
-  rawByteOffset: number | null;
+  rawFile: string | null;
   notes: string | null;
 };
 
@@ -326,7 +326,7 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       s3Time: laps.s3Time,
       isValid: laps.isValid,
       invalidReason: laps.invalidReason,
-      rawByteOffset: laps.rawByteOffset,
+      rawFile: sessions.rawFile,
       notes: laps.notes,
     })
     .from(laps)
@@ -355,7 +355,7 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       s3Time: r.s3Time ?? null,
       isValid: Boolean(r.isValid),
       invalidReason: r.invalidReason ?? null,
-      rawByteOffset: r.rawByteOffset ?? null,
+      rawFile: r.rawFile ?? null,
       notes: r.notes ?? null,
     }));
 }
@@ -674,7 +674,7 @@ export async function getLapById(
 }
 
 function buildLapResult(
-  row: { id: number; sessionId: number; lapNumber: number; lapTime: number; isValid: number | boolean; createdAt: string; carOrdinal: number; trackOrdinal: number; tuneId: number | null; tuneName: string | null; gameId: string; carSetup: string | null; rawByteOffset?: number | null },
+  row: { id: number; sessionId: number; lapNumber: number; lapTime: number; isValid: number | boolean; createdAt: string; carOrdinal: number; trackOrdinal: number; tuneId: number | null; tuneName: string | null; gameId: string; carSetup: string | null; rawFile?: string | null },
   telemetry: TelemetryPacket[]
 ) {
   return {
@@ -690,7 +690,7 @@ function buildLapResult(
     tuneName: row.tuneName ?? undefined,
     gameId: row.gameId as GameId,
     carSetup: row.carSetup ?? undefined,
-    isLegacy: row.rawByteOffset == null,
+    isLegacy: row.rawFile == null,
     telemetry,
   };
 }
