@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { classifyMesh, DEFAULT_HIDDEN_MESHES } from "../client/src/components/wireframe/CarBody";
+import { classifyMesh, DEFAULT_HIDDEN_MESHES } from "../client/src/components/wireframe/classify-mesh";
 
 // Real mesh names from the Aston Martin Vantage GT3 GLB
 const ALL_MESHES = [

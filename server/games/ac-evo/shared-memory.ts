@@ -13,9 +13,9 @@ import { TripletPipeline, DumpToBinProcessor } from "../acc/triplet-pipeline";
 import type { TripletProcessor } from "../acc/triplet-pipeline";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
 import type { AcEvoParserCache } from "./parser";
-import { acEvoProcessChecker } from "./process-checker";
 import { processPacket } from "../../pipeline";
 import { acEvoRecorder } from "./recorder";
+import { packTriplet, ACEVO_PACKED_MAGIC } from "../shared/pack-triplet";
 import { PHYSICS, GRAPHICS_EVO, STATIC_EVO } from "./structs";
 
 class AcEvoParsingProcessor implements TripletProcessor {
@@ -24,7 +24,10 @@ class AcEvoParsingProcessor implements TripletProcessor {
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<void> {
     try {
       const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, this.cache);
-      if (packet) await processPacket(packet);
+      if (packet) {
+        const rawBuf = packTriplet(ACEVO_PACKED_MAGIC, packet.CarOrdinal, packet.TrackOrdinal ?? 0, triplet.physics, triplet.graphics, triplet.staticData);
+        await processPacket(packet, rawBuf);
+      }
     } catch (err) {
       console.error("[AC Evo ParsingProcessor] Error:", err instanceof Error ? err.message : err);
       throw err;
@@ -84,10 +87,8 @@ export class AcEvoSharedMemoryReader {
     this._running = true;
     console.log("[AC Evo] Starting shared memory reader...");
 
-    acEvoProcessChecker.on("ac-evo-detected", () => this._onDetected());
-    acEvoProcessChecker.on("ac-evo-lost", () => this._onLost());
-
-    acEvoProcessChecker.start();
+    // Process detection is handled by the central supervisor in server/index.ts.
+    this._onDetected();
   }
 
   async stop(): Promise<void> {
@@ -126,19 +127,4 @@ export class AcEvoSharedMemoryReader {
     console.log("[AC Evo] Connected - buffers reading and pipeline active");
   }
 
-  private async _disconnect(): Promise<void> {
-    if (this._connected) {
-      this._connected = false;
-      await this._tripletAssembler.stop();
-      await this._bufferedReader.stop();
-      console.log("[AC Evo] Disconnected from shared memory");
-    }
-  }
-
-  private _onLost(): void {
-    console.log("[AC Evo] AC Evo process lost, disconnecting...");
-    this._disconnect().catch((err) => {
-      console.error("[AC Evo] Disconnect failed:", err instanceof Error ? err.message : err);
-    });
-  }
 }

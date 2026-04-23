@@ -4,9 +4,6 @@ import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
 
 export interface DisplaySettings {
   unit: "metric" | "imperial";
-  tireTempCelsiusThresholds: { cold: number; warm: number; hot: number };
-  tireHealthThresholds: { values: number[] };
-  suspensionThresholds: { values: number[] };
   aiProvider: "gemini" | "openai" | "local";
   aiModel: string;
   chatProvider: "gemini" | "openai" | "local";
@@ -15,6 +12,8 @@ export interface DisplaySettings {
   wsRefreshRate: string;
   /** Max 3D Canvas render rate for the analyse wireframe (15–120 fps). */
   renderFpsCap: number;
+  /** Max in-memory parsed-lap cache, in megabytes. */
+  cacheMaxMB: number;
   /** Server-injected: current UDP port */
   udpPort?: number;
   /** Server-injected: whether a Gemini API key is stored */
@@ -33,9 +32,6 @@ export interface DisplaySettings {
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   unit: "metric",
-  tireTempCelsiusThresholds: { cold: 75, warm: 115, hot: 150 },
-  tireHealthThresholds: { values: [20, 40, 60, 80] },
-  suspensionThresholds: { values: [25, 65, 85] },
   aiProvider: "gemini",
   aiModel: "",
   chatProvider: "gemini",
@@ -43,6 +39,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   localEndpoint: "http://localhost:1234/v1",
   wsRefreshRate: "60",
   renderFpsCap: 60,
+  cacheMaxMB: 256,
 };
 
 export interface ReleaseInfo {
@@ -100,6 +97,10 @@ interface TelemetryState {
   versionInfo: VersionInfo | null;
   /** Server-pushed recorded laps for the current session's track+car */
   sessionLaps: LapMeta[];
+  /** Stale lap detection notification — null if dismissed or no stale sessions */
+  staleLapDetection: { sessionCount: number; currentVersion: string } | null;
+  /** Active reprocess progress — null when not reprocessing */
+  reprocessProgress: { done: number; total: number } | null;
   setConnected: (connected: boolean) => void;
   setPacket: (packet: TelemetryPacket) => void;
   setSectors: (sectors: LiveSectorData) => void;
@@ -111,6 +112,9 @@ interface TelemetryState {
   setUpdateAvailable: (version: string | null) => void;
   setUpdateProgress: (progress: TelemetryState["updateProgress"]) => void;
   setVersionInfo: (info: VersionInfo) => void;
+  setStaleLapDetection: (data: { sessionCount: number; currentVersion: string } | null) => void;
+  setReprocessProgress: (progress: { done: number; total: number } | null) => void;
+  incrementReprocessProgress: () => void;
   devState: unknown | null;
   devStatePaused: boolean;
   setDevState: (state: unknown) => void;
@@ -138,6 +142,8 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   updateProgress: null,
   versionInfo: null,
   sessionLaps: [],
+  staleLapDetection: null,
+  reprocessProgress: null,
   devState: null,
   devStatePaused: false,
   setConnected: (connected) => set((prev) => {
@@ -170,6 +176,12 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
     isRaceOn: false,
   }),
   setUpdateAvailable: (version) => set({ updateAvailable: version }),
+  setStaleLapDetection: (data) => set({ staleLapDetection: data }),
+  setReprocessProgress: (progress) => set({ reprocessProgress: progress }),
+  incrementReprocessProgress: () => set((prev) => {
+    if (!prev.reprocessProgress) return {};
+    return { reprocessProgress: { ...prev.reprocessProgress, done: prev.reprocessProgress.done + 1 } };
+  }),
   setUpdateProgress: (progress) => set({ updateProgress: progress }),
   setVersionInfo: (info) => set({ versionInfo: info }),
   setDevState: (state) => {

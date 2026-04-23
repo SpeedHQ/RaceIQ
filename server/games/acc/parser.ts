@@ -20,7 +20,7 @@ export function parseAccBuffers(
 ): TelemetryPacket | null {
   if (
     physicsBuf.length < PHYSICS.SIZE ||
-    graphicsBuf.length < GRAPHICS.SIZE ||
+    graphicsBuf.length < GRAPHICS.MIN_SIZE ||
     staticBuf.length < STATIC.SIZE
   ) {
     return null;
@@ -220,6 +220,11 @@ export function parseAccBuffers(
   const windDirection = graphicsBuf.readFloatLE(GRAPHICS.windDirection.offset);
   const rainTyres = graphicsBuf.readInt32LE(GRAPHICS.rainTyres.offset);
 
+  // V3-only tail fields (absent in legacy 1320-byte recordings). Null on V2.
+  const isValidLap = graphicsBuf.length >= GRAPHICS.isValidLap.offset + 4
+    ? graphicsBuf.readInt32LE(GRAPHICS.isValidLap.offset) === 1
+    : null;
+
   const tireCompound = readWString(graphicsBuf, GRAPHICS.currentTyreCompound.offset, GRAPHICS.currentTyreCompound.size);
 
   // --- Static ---
@@ -283,6 +288,7 @@ export function parseAccBuffers(
     drsAvailable: false,
     drsEnabled: false,
     pitStatus,
+    isValidLap,
     fuelPerLap,
     currentSectorIndex,
     lastSectorTime,
@@ -363,7 +369,7 @@ export function parseAccBuffers(
     CurrentLap: currentLap,
     CurrentRaceTime: currentLap,
 
-    LapNumber: completedLaps,
+    LapNumber: completedLaps + 1,
     RacePosition: position,
 
     Accel: accel,

@@ -1,11 +1,15 @@
 import { describe, test, expect } from "bun:test";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../server/games/ac-evo/parser";
-import { PHYSICS, GRAPHICS_EVO, STATIC_EVO } from "../server/games/ac-evo/structs";
+import { PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS } from "../server/games/ac-evo/structs";
 
 function emptyBuffers() {
+  const graphics = Buffer.alloc(GRAPHICS_EVO.SIZE);
+  // Default status (0) is AC_OFF — parser gates out. Force AC_LIVE so the
+  // parser runs through the full body and exercises the STATIC fallback paths.
+  graphics.writeInt32LE(ACEVO_STATUS.AC_LIVE, GRAPHICS_EVO.status.offset);
   return {
     physics: Buffer.alloc(PHYSICS.SIZE),
-    graphics: Buffer.alloc(GRAPHICS_EVO.SIZE),
+    graphics,
     staticData: Buffer.alloc(STATIC_EVO.SIZE),
   };
 }

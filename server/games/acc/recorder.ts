@@ -4,26 +4,29 @@
  * Records raw shared memory frames individually with type information
  * to a binary file for offline development and debugging.
  *
- * Format (v2):
+ * Format (v3):
  *   Header: "ACCTEST\0" (8 bytes magic)
- *           u32le version (4 bytes, currently 2)
+ *           u32le version (4 bytes)
  *           u32le frameCount (4 bytes)
  *   Frames: [type(1 byte)] [size(4 bytes)] [data(N bytes)]
  *           type: 0=physics, 1=graphics, 2=static
+ *
+ * Version history:
+ *   v2 — graphics buffer truncated at 1320 bytes (legacy ACC struct view).
+ *        isValidLap and other tail fields not captured.
+ *   v3 — graphics buffer captured at full 1588 bytes (ACC SDK v1.8.12).
+ *        Includes sessionIndex, deltaLapTime, isValidLap, missingMandatoryPits, clock, etc.
+ *
+ * Reader must accept both versions. Frames are self-describing (length per frame),
+ * so V2 bins parse fine — tail fields just return null on V2 buffers.
  */
 import { existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
-import { readAccFrames } from "./frame-reader";
 export { readAccFrames } from "./frame-reader";
-import { STATIC } from "./structs";
-import { parseAccBuffers } from "./parser";
-import { readWString } from "./utils";
-import { processPacket } from "../../pipeline";
-import { getAccCarByModel } from "../../../shared/acc-car-data";
-import { getAccTrackByName } from "../../../shared/acc-track-data";
 
-// V2 format: magic(8) + version(4) + frameCount(4) = 16 bytes
-const HEADER_SIZE_V2 = 16;
+// Header: magic(8) + version(4) + frameCount(4) = 16 bytes (same layout v2 and v3)
+const HEADER_SIZE = 16;
+const RECORDER_VERSION = 3;
 
 function defaultRecordingDir(): string {
   return resolve(process.cwd(), "test", "artifacts", "laps");
@@ -63,9 +66,9 @@ export class AcRecorder {
     this._frameCount = 0;
 
     // Write header with placeholder frameCount (will update on close)
-    const header = Buffer.alloc(HEADER_SIZE_V2);
+    const header = Buffer.alloc(HEADER_SIZE);
     Buffer.from("ACCTEST\0", "ascii").copy(header, 0);
-    header.writeUInt32LE(2, 8); // version 2
+    header.writeUInt32LE(RECORDER_VERSION, 8);
     header.writeUInt32LE(0, 12); // frameCount (placeholder)
     this._file!.write(header);
 
@@ -141,84 +144,5 @@ export class AcRecorder {
   }
 }
 
-/**
- * Replay a recorded ACC telemetry file.
- *
- * Reads V2 frames and feeds them through the parser → pipeline.
- * Uses packet TimestampMS for real-time pacing.
- *
- * @param filePath Path to the .bin or .bin.gz recording file
- * @param options.speed Playback speed multiplier (default 1.0 = real-time)
- * @param options.loop Whether to loop the recording (default false)
- * @returns A stop function to cancel playback
- */
-export async function replayRecording(
-  filePath: string,
-  options: { speed?: number; loop?: boolean } = {}
-): Promise<{ stop: () => void; frameCount: number }> {
-  const speed = options.speed ?? 1.0;
-  const loop = options.loop ?? false;
-
-  const frames = readAccFrames(filePath);
-  if (frames.length === 0) throw new Error(`Recording file has no frames: ${filePath}`);
-
-  // Resolve car/track ordinals from first frame's static data
-  const firstStatic = frames[0].staticData;
-  const carModel = readWString(firstStatic, STATIC.carModel.offset, STATIC.carModel.size);
-  const trackName = readWString(firstStatic, STATIC.track.offset, STATIC.track.size);
-  const carOrdinal = getAccCarByModel(carModel)?.id ?? 0;
-  const trackOrdinal = getAccTrackByName(trackName)?.id ?? 0;
-  const overrides = { carOrdinal, trackOrdinal };
-  console.log(`[ACC Replay] Playing ${filePath} — ${frames.length} frames at ${speed}x (car: ${carModel} → #${carOrdinal}, track: ${trackName} → #${trackOrdinal})`);
-
-  let cancelled = false;
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  async function playFrames(): Promise<void> {
-    do {
-      let firstTimestamp: number | null = null;
-      let playbackStart = Date.now();
-
-      for (const frame of frames) {
-        if (cancelled) return;
-
-        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, overrides);
-        if (!packet) continue;
-
-        if (firstTimestamp === null) {
-          firstTimestamp = packet.TimestampMS;
-          playbackStart = Date.now();
-        }
-
-        const recordedElapsed = packet.TimestampMS - firstTimestamp;
-        const targetElapsed = recordedElapsed / speed;
-        const actualElapsed = Date.now() - playbackStart;
-        const delay = targetElapsed - actualElapsed;
-
-        if (delay > 1) {
-          await new Promise<void>((resolve) => {
-            timeoutId = setTimeout(resolve, delay);
-          });
-          if (cancelled) return;
-        }
-
-        await processPacket(packet);
-      }
-    } while (loop && !cancelled);
-
-    console.log("[ACC Replay] Playback complete");
-  }
-
-  playFrames();
-
-  return {
-    stop: () => {
-      cancelled = true;
-      if (timeoutId) clearTimeout(timeoutId);
-      console.log("[ACC Replay] Stopped");
-    },
-    frameCount: frames.length,
-  };
-}
 
 export const accRecorder = new AcRecorder();

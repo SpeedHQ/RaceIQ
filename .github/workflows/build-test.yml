@@ -23,22 +23,3 @@ jobs:
 
       - name: Run tests
         run: bun run test
-
-  ai-quality:
-    runs-on: blacksmith-2vcpu-ubuntu-2204
-    needs: build-test
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Run AI quality gate
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          EVALS_PROVIDER: gemini
-          EVALS_MODEL: gemini-flash-latest
-        run: bun run test:ai

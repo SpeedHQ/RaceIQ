@@ -14,6 +14,7 @@ import { accRoutes } from "./routes/acc-routes";
 import { acEvoRoutes } from "./routes/ac-evo-routes";
 import { f125Routes } from "./routes/f125-routes";
 import { miscRoutes } from "./routes/misc-routes";
+import { cacheRoutes } from "./routes/cache-routes";
 import { devRoutes } from "./routes/dev-routes";
 
 const app = new Hono()
@@ -29,7 +30,8 @@ const app = new Hono()
   .route("/", accRoutes)
   .route("/", acEvoRoutes)
   .route("/", f125Routes)
-  .route("/", miscRoutes);
+  .route("/", miscRoutes)
+  .route("/", cacheRoutes);
 
 // Dev-only routes (only in development)
 if (IS_DEV) {

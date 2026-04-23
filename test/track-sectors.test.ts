@@ -14,11 +14,33 @@ function makeLapPackets(
   trackLength: number,
   lapTime: number,
   gameId: string,
+  opts: { f1Sectors?: { s1: number; s2: number } } = {},
 ): TelemetryPacket[] {
   const count = 200;
   const packets: TelemetryPacket[] = [];
   for (let i = 0; i < count; i++) {
     const frac = i / (count - 1);
+    const isLast = i === count - 1;
+    const f1 = gameId === "f1-2025" && opts.f1Sectors
+      ? {
+          // SessionHistory exposes per-lap sector entries; the computation
+          // code looks up lapSectors[LapNumber]. Stamp the final packet
+          // with a populated entry.
+          lastS1: isLast ? opts.f1Sectors.s1 : 0,
+          lastS2: isLast ? opts.f1Sectors.s2 : 0,
+          lastS3: isLast ? lapTime - opts.f1Sectors.s1 - opts.f1Sectors.s2 : 0,
+          lapSectors: isLast
+            ? {
+                1: {
+                  s1: opts.f1Sectors.s1,
+                  s2: opts.f1Sectors.s2,
+                  s3: lapTime - opts.f1Sectors.s1 - opts.f1Sectors.s2,
+                  lapTime,
+                },
+              }
+            : undefined,
+        }
+      : undefined;
     packets.push({
       gameId: gameId as any,
       IsRaceOn: 1,
@@ -43,6 +65,7 @@ function makeLapPackets(
       Boost: 0,
       Fuel: 50,
       CurrentRaceTime: frac * lapTime,
+      ...(f1 ? { f1 } : {}),
     } as TelemetryPacket);
   }
   return packets;
@@ -81,23 +104,29 @@ describe("computeLapSectors — sector source priority", () => {
   const TRACK_LENGTH = 5891;
   const LAP_TIME = 85;
 
-  test("f1-2025 uses game-specific sector boundaries from JSON", async () => {
-    // Silverstone f1-2025: s1End=0.314, s2End=0.636
-    const packets = makeLapPackets(TRACK_LENGTH, LAP_TIME, "f1-2025");
-    const sectors = await computeLapSectors(3004 /* silverstone FM ordinal, but sharedName resolved via adapter */, "f1-2025", packets, LAP_TIME);
-    // With f1-2025 fractions: s1 ≈ 0.314 * 85 ≈ 26.7s, s2 ≈ (0.636-0.314)*85 ≈ 27.4s
-    // Just verify sectors are computed and non-zero
-    expect(sectors).not.toBeNull();
-    expect(sectors!.s1).toBeGreaterThan(0);
-    expect(sectors!.s2).toBeGreaterThan(0);
-    expect(sectors!.s3).toBeGreaterThan(0);
-    expect(sectors!.s1 + sectors!.s2 + sectors!.s3).toBeCloseTo(LAP_TIME, 0);
-  });
-
-  test("sector times sum to lap time", async () => {
-    const packets = makeLapPackets(TRACK_LENGTH, LAP_TIME, "f1-2025");
+  test("f1-2025 uses sector times from F1 SessionHistory packet", async () => {
+    const f1Sectors = { s1: 26.7, s2: 27.4 };
+    const packets = makeLapPackets(TRACK_LENGTH, LAP_TIME, "f1-2025", { f1Sectors });
     const sectors = await computeLapSectors(3004, "f1-2025", packets, LAP_TIME);
     expect(sectors).not.toBeNull();
-    expect(sectors!.s1 + sectors!.s2 + sectors!.s3).toBeCloseTo(LAP_TIME, 1);
+    expect(sectors!.s1).toBeCloseTo(f1Sectors.s1, 3);
+    expect(sectors!.s2).toBeCloseTo(f1Sectors.s2, 3);
+    expect(sectors!.s3).toBeCloseTo(LAP_TIME - f1Sectors.s1 - f1Sectors.s2, 3);
+  });
+
+  test("f1-2025 sector times sum to lap time", async () => {
+    const f1Sectors = { s1: 27.123, s2: 28.456 };
+    const packets = makeLapPackets(TRACK_LENGTH, LAP_TIME, "f1-2025", { f1Sectors });
+    const sectors = await computeLapSectors(3004, "f1-2025", packets, LAP_TIME);
+    expect(sectors).not.toBeNull();
+    expect(sectors!.s1 + sectors!.s2 + sectors!.s3).toBeCloseTo(LAP_TIME, 3);
+  });
+
+  test("f1-2025 returns null when F1 packets don't carry sector times", async () => {
+    // No opts.f1Sectors → no f1 sub-object. F1 must never fall back to
+    // distance-fraction — the game is the authority on its own splits.
+    const packets = makeLapPackets(TRACK_LENGTH, LAP_TIME, "f1-2025");
+    const sectors = await computeLapSectors(3004, "f1-2025", packets, LAP_TIME);
+    expect(sectors).toBeNull();
   });
 });

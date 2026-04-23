@@ -54,6 +54,8 @@ export const sessions = sqliteTable("sessions", {
   gameId: text("game_id").notNull(),
   sessionType: text("session_type"),
   notes: text("notes"),
+  rawFile: text("raw_file"),
+  lapDetectorVersion: text("lap_detector_version"),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),
@@ -78,7 +80,8 @@ export const laps = sqliteTable(
     s1Time: real("s1_time"),
     s2Time: real("s2_time"),
     s3Time: real("s3_time"),
-    telemetry: blob("telemetry", { mode: "buffer" }).notNull(),
+    rawByteOffset: integer("raw_byte_offset"),
+    rawFrameCount: integer("raw_frame_count"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`(datetime('now'))`),

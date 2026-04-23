@@ -66,14 +66,15 @@ class ImportCaptureAdapter implements DbAdapter {
     lapNumber: number,
     lapTime: number,
     isValid: boolean,
-    packets: TelemetryPacket[],
+    rawByteOffset: number | null,
+    rawFrameCount: number,
     profileId: number | null,
     tuneId: number | null,
     invalidReason: string | null,
     sectors: { s1: number; s2: number; s3: number } | null
   ): Promise<number> {
     const id = await this._inner.insertLap(
-      sessionId, lapNumber, lapTime, isValid, packets, profileId, tuneId, invalidReason, sectors
+      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors
     );
     const meta = this._sessionMeta.get(sessionId);
     this.laps.push({
@@ -94,6 +95,9 @@ class ImportCaptureAdapter implements DbAdapter {
   getTuneAssignment(carOrdinal: number, trackOrdinal: number) {
     return this._inner.getTuneAssignment(carOrdinal, trackOrdinal);
   }
+  updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
+    return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
+  }
 }
 
 function detectGameIdFromFilename(name: string): GameId | null {
@@ -104,7 +108,7 @@ function detectGameIdFromFilename(name: string): GameId | null {
   return null;
 }
 
-const ARTIFACTS_DIR = resolve(process.cwd(), "test/artifacts/laps");
+const ARTIFACTS_DIR = resolve(process.cwd(), "test/artifacts/sessions");
 
 // Initialize game adapters on module load
 initGameAdapters();
@@ -114,13 +118,13 @@ export const devRoutes = new Hono();
 
 /**
  * GET /api/dev/e2e-files
- * List all .bin recording files from test/artifacts/laps
+ * List all .bin recording files from test/artifacts/sessions
  */
 devRoutes.get("/api/dev/e2e-files", (c) => {
   try {
     const files: Array<{ name: string; path: string; size: number; modified: number }> = [];
 
-    // Scan test/artifacts/laps for .bin files
+    // Scan test/artifacts/sessions for .bin files
     const entries = readdirSync(ARTIFACTS_DIR, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isFile() || !entry.name.endsWith(".bin")) continue;

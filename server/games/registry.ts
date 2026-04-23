@@ -55,9 +55,12 @@ function refreshProcessCache(): void {
   );
 }
 
-// Seed immediately, then refresh every 5 seconds
+// Seed immediately, then refresh every second to sync with status broadcast.
+// `.unref()` so this module can be imported by `bun test` without keeping the
+// test runner's event loop alive after the suite completes.
 refreshProcessCache();
-setInterval(refreshProcessCache, 5000);
+const _processCacheInterval = setInterval(refreshProcessCache, 1000);
+_processCacheInterval.unref?.();
 
 /** Check if a specific game's process is running. */
 export function isGameRunning(gameId: string): boolean {

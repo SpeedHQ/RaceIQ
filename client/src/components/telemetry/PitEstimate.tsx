@@ -6,17 +6,13 @@ interface PitEstimateProps {
   packet: TelemetryPacket;
   pit: LivePitData | null;
   gameId: GameId | null;
-  /** Tire health thresholds (0–100 percentages) from display settings. */
-  healthThresholds: number[];
 }
 
 /**
  * PitEstimate — Displays server-computed fuel and tire estimates.
  * All computation happens server-side in PitTracker; this component just renders.
- * Pure: caller supplies pit + gameId + healthThresholds.
  */
-export function PitEstimate({ packet, pit, gameId, healthThresholds }: PitEstimateProps) {
-  const healthThresh = healthThresholds;
+export function PitEstimate({ packet, pit, gameId }: PitEstimateProps) {
 
   // Forza: Fuel is 0..1 fraction → percentage. ACC/AC Evo/F1: Fuel is in litres/kg.
   const fuelIsLitres = gameId === "acc" || gameId === "ac-evo" || gameId === "f1-2025";
@@ -37,8 +33,8 @@ export function PitEstimate({ packet, pit, gameId, healthThresholds }: PitEstima
     return {
       label,
       health,
-      healthClr: tireHealthTextClass(health, healthThresh),
-      healthBg: tireHealthBgClass(health, healthThresh),
+      healthClr: tireHealthTextClass(health),
+      healthBg: tireHealthBgClass(health),
       toCliff: pit?.tireEstimates?.toCliff[i] ?? null,
       toDead: pit?.tireEstimates?.toDead[i] ?? null,
       wearPerLap: wpl > 0 ? (wpl * 100).toFixed(1) : null,

@@ -21,7 +21,7 @@ describe("CapturingDbAdapter", () => {
   test("insertLap captures data and returns incrementing IDs", async () => {
     const db = new CapturingDbAdapter();
     await db.insertSession(1, 1, "f1-2025");
-    const id = await db.insertLap(1, 1, 90000, true, [], null, null, null, null);
+    const id = await db.insertLap(1, 1, 90000, true, null, 0, null, null, null, null);
     expect(id).toBe(1);
     expect(db.laps).toHaveLength(1);
     expect(db.laps[0]).toMatchObject({
@@ -35,7 +35,7 @@ describe("CapturingDbAdapter", () => {
   test("insertLap captures sectors", async () => {
     const db = new CapturingDbAdapter();
     await db.insertSession(1, 1, "f1-2025");
-    await db.insertLap(1, 1, 90000, true, [], null, null, null, { s1: 30000, s2: 30000, s3: 30000 });
+    await db.insertLap(1, 1, 90000, true, null, 0, null, null, null, { s1: 30000, s2: 30000, s3: 30000 });
     expect(db.laps[0].sectors).toEqual({ s1: 30000, s2: 30000, s3: 30000 });
   });
 

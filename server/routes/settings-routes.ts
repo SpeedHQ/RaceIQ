@@ -9,7 +9,7 @@ import { udpListener } from "../udp";
 import { wsManager } from "../ws";
 import { lapDetector } from "../pipeline";
 import { loadSettings, saveSettings, PartialSettingsSchema } from "../settings";
-import { getLaps } from "../db/queries";
+import { getLaps, setCacheMaxBytes } from "../db/queries";
 import { getRunningGame } from "../games/registry";
 import { getTrackOutlineByOrdinal } from "../../shared/track-data";
 
@@ -95,34 +95,15 @@ export const settingsRoutes = new Hono()
     }
     const merged = { ...current, ...provided };
 
-    if (provided.tireTempCelsiusThresholds) {
-      merged.tireTempCelsiusThresholds = {
-        ...current.tireTempCelsiusThresholds,
-        ...(provided.tireTempCelsiusThresholds as Record<string, unknown>),
-      };
-    }
-
-    const t = merged.tireTempCelsiusThresholds;
-    if (t.cold >= t.warm || t.warm >= t.hot) {
-      return c.json({ error: "Thresholds must be in order: cold < warm < hot" }, 400);
-    }
-
-    for (const [name, arr] of [
-      ["tireHealthThresholds", merged.tireHealthThresholds.values],
-      ["suspensionThresholds", merged.suspensionThresholds.values],
-    ] as const) {
-      for (let i = 1; i < arr.length; i++) {
-        if (arr[i] <= arr[i - 1])
-          return c.json({ error: `${name} must be in ascending order` }, 400);
-      }
-    }
-
     try {
       if (merged.udpPort !== udpListener.port) {
         await udpListener.restart(merged.udpPort);
       }
       if (merged.wsRefreshRate) {
         wsManager.setRefreshRate(merged.wsRefreshRate);
+      }
+      if (typeof merged.cacheMaxMB === "number") {
+        setCacheMaxBytes(merged.cacheMaxMB * 1024 * 1024);
       }
       saveSettings(merged);
       if (provided.onboardingComplete) {

@@ -5,10 +5,10 @@ import { useLaps, useSettings } from "../hooks/queries";
 import { formatLapTime } from "./LiveTelemetry";
 import { client } from "../lib/rpc";
 import type { LapMeta } from "@shared/types";
+import { RAW_STORAGE_VERSION } from "@shared/types";
 import { useGameId, getGameRoute } from "../stores/game";
 import { tryGetGame } from "@shared/games/registry";
 import { useUiStore } from "../stores/ui";
-import { PiBadge, PI_COLORS, piClass } from "./forza/PiBadge";
 import { Table, THead, TBody, TRow, TH, TD } from "./ui/AppTable";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 
@@ -32,8 +32,7 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
   gameId: string | null;
 }) {
   const showGame = !gameId; // show game column on global homepage
-  const showPi = !gameId || gameId === "fm-2023"; // PI is Forza-only
-  if (laps.length === 0) {
+    if (laps.length === 0) {
     return (
       <div className="p-6 text-center text-app-text/90-dim">
         No laps recorded yet. Start driving to see data here.
@@ -47,10 +46,8 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
         {showGame && <TH>Game</TH>}
         <TH>Track</TH>
         <TH>Car</TH>
-        {showPi && <TH className="text-center">PI</TH>}
         <TH>Lap</TH>
         <TH>Time</TH>
-        <TH className="text-center">Valid</TH>
         <TH className="text-right">When</TH>
       </THead>
       <TBody>
@@ -58,11 +55,15 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
           const track = lap.trackOrdinal != null ? trackNames[lap.trackOrdinal] ?? "" : "";
           const car = lap.carOrdinal != null ? carNames[lap.carOrdinal] ?? "" : "";
           const ago = formatTimeAgo(new Date(lap.createdAt));
+          const isLegacy = lap.isLegacy === true;
           return (
-            <TRow key={lap.id} onClick={() => {
-              if (!lap.gameId) return; // can't navigate without a game context
-              window.location.href = `${getGameRoute(lap.gameId)}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`;
-            }}>
+            <TRow
+              key={lap.id}
+              tooltip={isLegacy ? `Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable` : undefined}
+              onClick={isLegacy ? undefined : () => {
+                if (!lap.gameId) return;
+                window.location.href = `${getGameRoute(lap.gameId)}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`;
+              }}>
               {showGame && <TD>
                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${lap.gameId === "f1-2025" ? "bg-red-500/20 text-red-400" : lap.gameId === "acc" ? "bg-orange-500/20 text-orange-400" : lap.gameId === "ac-evo" ? "bg-green-500/20 text-green-400" : "bg-app-accent/20 text-app-accent"}`}>
                   {lap.gameId === "f1-2025" ? "F1" : lap.gameId === "acc" ? "ACC" : lap.gameId === "ac-evo" ? "ACE" : "FM"}
@@ -70,19 +71,14 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
               </TD>}
               <TD className="text-app-text/90 truncate max-w-[160px]" title={track}>{track || "—"}</TD>
               <TD className="text-app-text/90 truncate max-w-[140px]" title={car}>{car || "—"}</TD>
-              {showPi && <TD className="text-center">{lap.pi != null && lap.pi > 0 && (
-                <span className="inline-flex items-center gap-1">
-                  <PiBadge showNumber={false} pi={lap.pi} />
-                  <span className={`text-[10px] font-semibold ${PI_COLORS[piClass(lap.pi)]?.split(" ")[1] ?? "text-app-text/90-muted"}`}>{lap.pi}</span>
-                </span>
-              )}</TD>}
-              <TD className="font-mono text-app-text/90">L{lap.lapNumber}</TD>
-              <TD className="font-mono font-bold text-app-text/90 tabular-nums">{formatLapTime(lap.lapTime)}</TD>
-              <TD className="text-center">
-                <span className={lap.isValid ? "text-emerald-400" : "text-red-400"}>
-                  {lap.isValid ? "\u2713" : "\u2717"}
+              <TD className="font-mono text-app-text/90">{lap.lapNumber}</TD>
+              <TD className="font-mono font-bold text-app-text/90 tabular-nums whitespace-nowrap">
+                <span className="flex items-center gap-1">
+                  {formatLapTime(lap.lapTime)}
+                  <span className={`text-sm ${lap.isValid ? "text-emerald-400" : "text-red-400"}`}>{lap.isValid ? "\u2713" : "\u2717"}</span>
                 </span>
               </TD>
+
               <TD className="text-right text-xs text-app-text/90">{ago}</TD>
             </TRow>
           );

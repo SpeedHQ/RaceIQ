@@ -1,11 +1,14 @@
 ---
-name: prefer static imports
-description: acoop prefers static top-of-file imports over `await import()` in TS/JS files
+name: never use dynamic imports
+description: acoop: no `await import()` except for platform-specific switches (e.g. win32-only modules) — static top-of-file imports always
 type: feedback
-originSessionId: 1214772e-a1fb-4f98-b143-af171f1754c4
+originSessionId: d4edd7cd-63ff-4855-a3cd-166999020138
 ---
-Prefer static `import` statements at the top of the file. Avoid `await import(...)` inline.
+Never use dynamic `await import()`. Static imports at top of file only.
 
-**Why:** acoop finds dynamic imports in this codebase noisy and surprising. They scatter `await` boilerplate through route handlers and break the "all imports visible at the top" convention.
+**Why:** acoop wants all imports visible at the top of every file — no scattered `await` boilerplate, no per-call-site module loads that defer load cost into hot paths (in tests this showed up as a 234s `isNewer` case because the dynamic import pulled in ws/pipeline/db chains).
 
-**How to apply:** When adding a new dependency to a server or client module, add it to the import block at the top of the file. Do NOT use `await import("...")` unless there's a concrete reason (true circular dep, intentionally lazy code path that the user has approved). This applies even when copying from existing dynamic-import patterns in the same file — break the pattern and add static imports for new code.
+**How to apply:**
+- Add new deps to the import block at the top of the module. Do not copy existing dynamic-import patterns in the same file — break the pattern and use static imports.
+- **Only exception**: a literal platform-specific switch where the import target doesn't exist on the other platform (e.g. a Windows-only native module guarded by `if (process.platform === "win32")`). Document the reason inline when using this exception.
+- "Lazy load to avoid startup cost" and "break a circular dep" are NOT valid reasons — fix the architecture instead.

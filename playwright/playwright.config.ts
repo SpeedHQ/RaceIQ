@@ -47,6 +47,30 @@ export default defineConfig({
         viewport: { width: 1920, height: 1080 },
       },
     },
+    {
+      name: "record-demo",
+      testMatch: "record-demo.spec.ts",
+      timeout: 120_000,
+      use: {
+        baseURL: `http://localhost:${FRESH_INSTALL_PORT}`,
+        viewport: { width: 1920, height: 1080 },
+        actionTimeout: 120_000,
+        launchOptions: {
+          // Force GPU hardware acceleration even in headless — otherwise
+          // Chromium falls back to SwiftShader (software WebGL) and 1920×1080
+          // Three.js rendering becomes the bottleneck (~400ms/frame).
+          args: [
+            "--enable-gpu",
+            "--enable-gpu-rasterization",
+            "--enable-unsafe-webgpu",
+            "--enable-features=Vulkan,UseSkiaRenderer",
+            "--ignore-gpu-blocklist",
+            "--enable-webgl",
+            "--disable-software-rasterizer",
+          ],
+        },
+      },
+    },
   ],
 
   webServer: [

@@ -3,7 +3,9 @@ import type { TelemetryPacket } from "../../../shared/types";
 import { acEvoAdapter } from "../../../shared/games/ac-evo";
 import { getAcEvoCarName } from "../../../shared/ac-evo-car-data";
 import { getAcEvoTrackName, getAcEvoSharedTrackName } from "../../../shared/ac-evo-track-data";
-import { LapDetectorV2 } from "../../lap-detector-v2";
+import { LapDetectorAcEvo } from "../../lap-detector-ac-evo";
+import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
+import { ACEVO_PACKED_MAGIC, unpackTriplet } from "../shared/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 
 const AC_EVO_SYSTEM_PROMPT = `You are an expert motorsport engineer and data analyst specializing in Assetto Corsa Evo.
@@ -54,20 +56,22 @@ export const acEvoServerAdapter: ServerGameAdapter = {
     return getAcEvoSharedTrackName(ordinal);
   },
 
-  // AC Evo uses shared memory, not UDP
-  canHandle(_buf: Buffer): boolean {
-    return false;
+  canHandle(buf: Buffer): boolean {
+    return buf.length > 4 && buf.readUInt32LE(0) === ACEVO_PACKED_MAGIC;
   },
 
-  tryParse(_buf: Buffer, _state: unknown): TelemetryPacket | null {
-    return null;
+  tryParse(buf: Buffer, state: unknown): TelemetryPacket | null {
+    const triplet = unpackTriplet(buf);
+    if (!triplet) return null;
+    const cache = (state as ReturnType<typeof createAcEvoParserCache>) ?? createAcEvoParserCache();
+    return parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, cache);
   },
 
-  createParserState(): null {
-    return null;
+  createParserState(): ReturnType<typeof createAcEvoParserCache> {
+    return createAcEvoParserCache();
   },
 
-  createLapDetector: (opts) => new LapDetectorV2(opts),
+  createLapDetector: (opts) => new LapDetectorAcEvo(opts),
 
   aiSystemPrompt: AC_EVO_SYSTEM_PROMPT,
 

@@ -1,7 +1,7 @@
 // scripts/compare-lap-detectors.ts
 //
 // Manual comparison tool: runs both v1 and v2 lap detectors against every
-// .bin recording in test/artifacts/laps/ and prints a side-by-side summary.
+// .bin recording in test/artifacts/sessions/ and prints a side-by-side summary.
 //
 // Usage: bun run scripts/compare-lap-detectors.ts
 
@@ -11,7 +11,7 @@ import { parseDump } from "../test/helpers/parse-dump";
 import { parseDumpV2 } from "../test/helpers/parse-dump-v2";
 import type { GameId } from "../shared/types";
 
-const DIR = "test/artifacts/laps";
+const DIR = "test/artifacts/sessions";
 
 function formatLap(l: {
   lapNumber: number;

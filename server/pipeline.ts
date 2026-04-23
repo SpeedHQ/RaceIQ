@@ -1,5 +1,12 @@
 import type { TelemetryPacket, GameId, LapMeta } from "../shared/types";
-import { type DbAdapter, type WsAdapter, RealDbAdapter, RealWsAdapter } from "./pipeline-adapters";
+import {
+  type DbAdapter,
+  type WsAdapter,
+  type SessionRecorderAdapter,
+  RealDbAdapter,
+  RealWsAdapter,
+  RealSessionRecorderAdapter,
+} from "./pipeline-adapters";
 import type { ILapDetector, LapDetectorCallbacks } from "./lap-detector-interface";
 import { SectorTracker, PitTracker } from "./sector-tracker";
 import { feedPosition } from "./track-calibration";
@@ -7,6 +14,7 @@ import { getTrackOutlineByOrdinal } from "../shared/track-data";
 import { tryGetGame } from "../shared/games/registry";
 import { getServerGame } from "./games/registry";
 import { fillNormSuspension } from "./telemetry-utils";
+import { LAP_DETECTOR_ID } from "./lap-detector";
 
 export class Pipeline {
   private sectorTracker = new SectorTracker();
@@ -16,6 +24,7 @@ export class Pipeline {
   private _totalProcessed = 0;
   private db: DbAdapter;
   private ws: WsAdapter;
+  private recorder: SessionRecorderAdapter;
   private _bypassPacketRateFilter: boolean;
   private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
@@ -26,14 +35,29 @@ export class Pipeline {
     return this._lapDetector;
   }
 
+  /** True while a session is being recorded (session recorder is open). */
+  get isSessionActive(): boolean {
+    return this.recorder.active;
+  }
+
   /** In-memory session laps — sent to newly connected WS clients. */
   get sessionLaps(): readonly LapMeta[] {
     return this._sessionLaps;
   }
 
-  constructor(db: DbAdapter, ws: WsAdapter, options?: { bypassPacketRateFilter?: boolean; skipHistorySeeding?: boolean; skipDevState?: boolean }) {
+  constructor(
+    db: DbAdapter,
+    ws: WsAdapter,
+    options?: {
+      bypassPacketRateFilter?: boolean;
+      skipHistorySeeding?: boolean;
+      skipDevState?: boolean;
+      recorder?: SessionRecorderAdapter;
+    },
+  ) {
     this.db = db;
     this.ws = ws;
+    this.recorder = options?.recorder ?? new RealSessionRecorderAdapter();
     this._bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
     this._skipHistorySeeding = options?.skipHistorySeeding ?? false;
     this._skipDevState = options?.skipDevState ?? false;
@@ -42,6 +66,18 @@ export class Pipeline {
   private _buildCallbacks(): LapDetectorCallbacks {
     return {
       onSessionStart: async (session) => {
+        // Close previous session recording before opening a new one.
+        await this.recorder.stop();
+        this.recorder.start(session.gameId);
+        this.recorder.writeMetaFrame();
+        if (this.recorder.path) {
+          await this.db.updateSessionRawFile(
+            session.sessionId,
+            this.recorder.path,
+            this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
+          );
+        }
+
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
         this.pitTracker.reset();
         const adapter = tryGetGame(session.gameId);
@@ -143,8 +179,16 @@ export class Pipeline {
    *
    * Pipeline: normalize coords → lap detection → track calibration (~10Hz) → WebSocket broadcast (30Hz)
    */
-  async processPacket(packet: TelemetryPacket): Promise<void> {
+  async processPacket(packet: TelemetryPacket, rawBuf?: Buffer): Promise<void> {
     this._totalProcessed++;
+
+    // Snapshot byte offset BEFORE writing so it points to this packet's position
+    let rawByteOffset: number | undefined;
+    const epochBefore = this.recorder.epoch;
+    if (rawBuf && this.recorder.active) {
+      rawByteOffset = this.recorder.getCurrentByteOffset();
+      this.recorder.writePacket(rawBuf);
+    }
 
     // Normalize coordinates so all games use the same display convention.
     const adapter = tryGetGame(packet.gameId);
@@ -159,7 +203,18 @@ export class Pipeline {
     fillNormSuspension(packet);
 
     const detector = this._getOrCreateDetector(packet.gameId);
-    await detector.feed(packet);
+    await detector.feed(packet, rawByteOffset);
+
+    // If a new session was created during feed — either the very first
+    // session (recorder was null) or a rotation (car-changed, etc.) — the
+    // triggering packet was written to the PREVIOUS recorder (or not at all).
+    // Catch up: write it to the NEW recorder as lap 1's first frame and patch
+    // the detector's lap byte offset so the DB row points at the right place.
+    if (rawBuf && this.recorder.active && this.recorder.epoch !== epochBefore) {
+      const firstOffset = this.recorder.getCurrentByteOffset();
+      this.recorder.writePacket(rawBuf);
+      detector.setCurrentLapByteOffset?.(firstOffset);
+    }
 
     const sectors = this.sectorTracker.feed(packet);
 
@@ -203,6 +258,15 @@ export class Pipeline {
       });
     }
   }
+
+  async flushSessionRecorder(): Promise<void> {
+    await this.recorder.stop();
+  }
+
+  /** Flush buffered writes to disk without closing. */
+  flushSessionRecorderBuffer(): void {
+    this.recorder.flush();
+  }
 }
 
 // Backward-compatible singleton exports — unchanged for all callers
@@ -213,13 +277,14 @@ const _default = new Pipeline(new RealDbAdapter(), _defaultWs);
 import { wsManager } from "./ws";
 wsManager.setSessionLapsProvider(() => _default.sessionLaps);
 
-export const processPacket = (p: TelemetryPacket) => _default.processPacket(p);
+export const processPacket = (p: TelemetryPacket, rawBuf?: Buffer) => _default.processPacket(p, rawBuf);
 
 /** Returns the current lap detector (may be null before the first packet is processed). */
 export const lapDetector = {
   get session() { return _default.lapDetector?.session ?? null; },
   get fuelHistory() { return _default.lapDetector?.fuelHistory ?? []; },
   get tireWearHistory() { return _default.lapDetector?.tireWearHistory ?? []; },
+  async finalizeCurrentSession() { await _default.lapDetector?.finalizeCurrentSession?.(); },
 };
 
 /** In-memory session laps for the current session. */
@@ -227,10 +292,29 @@ export function getSessionLaps(): readonly LapMeta[] {
   return _default.sessionLaps;
 }
 
-// Periodic check: flush stale laps when packets stop (e.g. race ended, game closed)
+// Periodic check: flush stale laps when packets stop (e.g. race ended, game
+// closed). `.unref()` so bun test's event loop can exit once the tests are
+// done — without it every test that transitively imports this module hangs
+// the runner waiting for a never-arriving interval tick.
 const _maintenanceInterval = setInterval(() => _default.lapDetector?.flushStaleLap?.(), 5_000);
+_maintenanceInterval.unref?.();
 
 /** Stop the module-level maintenance interval. Call in test/bench contexts to allow clean exit. */
 export function stopMaintenanceTasks(): void {
   clearInterval(_maintenanceInterval);
+}
+
+/** True while a session is actively being recorded. */
+export function isSessionActive(): boolean {
+  return _default.isSessionActive;
+}
+
+/** Flush and close the active session recorder. Call on graceful shutdown. */
+export async function flushSessionRecorder(): Promise<void> {
+  await _default.flushSessionRecorder();
+}
+
+/** Flush buffered writes to disk. Call periodically so lap offsets stay consistent with file size. */
+export function flushSessionRecorderBuffer(): void {
+  _default.flushSessionRecorderBuffer();
 }

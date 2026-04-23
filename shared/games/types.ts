@@ -55,6 +55,12 @@ export interface GameAdapter {
   /** Tire temp thresholds in °C — blue < cold < green < warm < amber < hot < red */
   tireTempThresholds: { cold: number; warm: number; hot: number };
 
+  /** Suspension travel color thresholds — normalised 0–100 percent.
+   *  Bar colours step red → amber → green → blue as travel rises through
+   *  these values. Same shape for all games; per-car overrides can layer
+   *  on top later if needed. */
+  suspensionThresholds: { values: number[] };
+
   /** Optimal tire pressure range in PSI — shown green when in range, blue
    *  below, orange above. Games that need class-aware windows (e.g. ACC's
    *  GT3/GT4/TCX split) resolve this server-side via a game-specific API. */

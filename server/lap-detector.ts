@@ -56,6 +56,9 @@ export interface LapSavedNotification extends LapSavedEvent {
   type: "lap-saved";
 }
 
+/** Bump this whenever lap detection logic changes — triggers UI prompt to reprocess old sessions. */
+export const LAP_DETECTOR_ID = "lapdetector_v1";
+
 export interface LapCompleteEvent {
   packets: TelemetryPacket[];
   lapDistStart: number;
@@ -65,6 +68,7 @@ export interface LapCompleteEvent {
 }
 
 export class LapDetector implements ILapDetector {
+  readonly detectorId = LAP_DETECTOR_ID;
   private readonly bypassPacketRateFilter: boolean;
   private db: DbAdapter;
 
@@ -112,6 +116,9 @@ export class LapDetector implements ILapDetector {
   private accS1: number = 0;
   private accS2: number = 0;
   private accPrevSectorIdx: number = 0;
+  private _lapByteOffset: number | null = null;
+  private _lapFrameCount: number = 0;
+  private _currentRawByteOffset: number | null = null;
 
   get session(): SessionState | null {
     return this.currentSession;
@@ -126,10 +133,33 @@ export class LapDetector implements ILapDetector {
   }
 
   /**
+   * Overwrite the current lap's byte offset. Used by the pipeline when the
+   * session recorder is created mid-feed and the first packet is written
+   * retroactively — the detector itself never saw a valid offset for that
+   * packet, so lap 1 would otherwise start at null.
+   */
+  setCurrentLapByteOffset(offset: number): void {
+    this._lapByteOffset = offset;
+    this._currentRawByteOffset = offset;
+  }
+
+  /**
+   * Finalize the current session immediately (e.g., when game process disconnects).
+   * Clears session state without waiting for silence timeout.
+   */
+  async finalizeCurrentSession(): Promise<void> {
+    if (!this.currentSession) return;
+    console.log(`[Lap Detector] Finalizing session ${this.currentSession.sessionId} due to game disconnect`);
+    this.currentSession = null;
+    this.lapBuffer = [];
+  }
+
+  /**
    * Feed a parsed telemetry packet into the detector.
    * Handles session creation, lap boundary detection, and rewind detection.
    */
-  async feed(packet: TelemetryPacket): Promise<void> {
+  async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
+    this._currentRawByteOffset = rawByteOffset ?? null;
     // Debug: log if lap detector receives any packets
     if (!this._loggedFeedOnce) {
       console.log("[Lap Detector] Started receiving packets from pipeline");
@@ -215,6 +245,11 @@ export class LapDetector implements ILapDetector {
     if (this.currentLapNumber < 0) {
       this.currentLapNumber = packet.LapNumber;
       this._distanceAtLapStart = packet.DistanceTraveled;
+      // Seed byte offset from the current packet so lap 1 points to where
+      // it actually starts in the current session's .bin file (not the
+      // previous session's stale offset).
+      this._lapByteOffset = this._currentRawByteOffset;
+      this._lapFrameCount = 0;
       // Seed ACC sector index from actual position so we don't fire a false transition
       // if the car starts mid-track (grid box, pit exit) rather than at sector 0.
       if (packet.gameId === "acc" && packet.acc) {
@@ -235,6 +270,7 @@ export class LapDetector implements ILapDetector {
 
     // Buffer the packet for the current lap
     this.lapBuffer.push(packet);
+    this._lapFrameCount++;
     this.lastTimestampMS = packet.TimestampMS;
     this.lastPacketTime = now;
   }
@@ -281,6 +317,10 @@ export class LapDetector implements ILapDetector {
     this.invalidReason = null;
     this.lastTimestampMS = 0;
     this._distanceAtLapStart = packet.DistanceTraveled;
+    // Reset raw-file bookkeeping so lap 1 of this session doesn't inherit
+    // byte offsets/frame counts from the previous session's .bin file.
+    this._lapByteOffset = null;
+    this._lapFrameCount = 0;
 
     console.log(
       `[Session] New session #${sessionId} | Car: ${packet.CarOrdinal} | Class: ${packet.CarClass} | PI: ${packet.CarPerformanceIndex}${sessionType ? ` | Type: ${sessionType}` : ""}`
@@ -294,6 +334,7 @@ export class LapDetector implements ILapDetector {
       this.resetLapState(newLapFirstPacket);
       return;
     }
+
 
     // Record fuel usage
     const fuelEnd = this.lapBuffer[this.lapBuffer.length - 1].Fuel;
@@ -394,7 +435,8 @@ export class LapDetector implements ILapDetector {
         lapNum,
         lapTime,
         valid,
-        this.lapBuffer,
+        this._lapByteOffset,
+        this._lapFrameCount,
         null,
         tuneId,
         invalidReason,
@@ -450,7 +492,8 @@ export class LapDetector implements ILapDetector {
             this.currentLapNumber,
             lapTime,
             false,
-            this.lapBuffer,
+            this._lapByteOffset,
+            this._lapFrameCount,
             null,
             tuneAssignment?.tuneId ?? null,
             "incomplete",
@@ -505,7 +548,8 @@ export class LapDetector implements ILapDetector {
         lapNum,
         lapTime,
         isComplete && this.lapIsValid,
-        this.lapBuffer,
+        this._lapByteOffset,
+        this._lapFrameCount,
         null,
         tuneAssignment?.tuneId ?? null,
         isComplete ? this.invalidReason : "incomplete",
@@ -569,6 +613,8 @@ export class LapDetector implements ILapDetector {
     this.invalidReason = null;
     this.lastLastLap = newLapFirstPacket.LastLap;
     this._distanceAtLapStart = newLapFirstPacket.DistanceTraveled;
+    this._lapByteOffset = this._currentRawByteOffset;
+    this._lapFrameCount = 0;
     this.fuelAtLapStart = newLapFirstPacket.Fuel;
     this.tireWearAtLapStart = {
       fl: newLapFirstPacket.TireWearFL,

@@ -45,7 +45,7 @@ export interface TelemetryHistoryData {
 
 class WebSocketManager {
   private clients = new Set<ServerWebSocket<WSData>>();
-  private packetCount = 0;
+  private _packetCount = 0;
   private broadcastIntervalMs = 16; // default 60Hz
   private gripSampleCounter = 0; // Counts to 6 for 10Hz history sampling
   private gripHistory: GripHistoryData = { fl: [], fr: [], rl: [], rr: [] };
@@ -53,9 +53,15 @@ class WebSocketManager {
   private lastBroadcastJson: string | null = null;
   /** Injected getter for session laps — avoids circular import with pipeline */
   private _getSessionLaps: (() => readonly LapMeta[]) | null = null;
+  /** Stale lap detection notification — sent to each new client on connect */
+  private _staleSessionsNotification: Record<string, unknown> | null = null;
 
   setSessionLapsProvider(fn: () => readonly LapMeta[]): void {
     this._getSessionLaps = fn;
+  }
+
+  setStaleSessionsNotification(payload: Record<string, unknown> | null): void {
+    this._staleSessionsNotification = payload;
   }
   private telemetryHistory: TelemetryHistoryData = {
     grip: { fl: [], fr: [], rl: [], rr: [] },
@@ -71,6 +77,13 @@ class WebSocketManager {
 
   get connectedClients(): number {
     return this.clients.size;
+  }
+
+  /** Monotonic count of packets handed to broadcast() — used by status
+   *  interval to detect active pipeline flow regardless of source (UDP, ACC
+   *  SHM, AC Evo SHM). Reset never; consumers track deltas. */
+  get packetCount(): number {
+    return this._packetCount;
   }
 
   setRefreshRate(hz: string): void {
@@ -89,6 +102,10 @@ class WebSocketManager {
     const laps = this._getSessionLaps?.();
     if (laps && laps.length > 0) {
       try { ws.send(JSON.stringify({ type: "session-laps", laps })); } catch {}
+    }
+    // Send stale lap detection notification if any sessions need reprocessing
+    if (this._staleSessionsNotification) {
+      try { ws.send(JSON.stringify(this._staleSessionsNotification)); } catch {}
     }
     console.log(`[WS] Client connected. Active: ${this.clients.size}`);
     if (this.clients.size === 1) this.startBroadcastTimer(); // first client — start pushing
@@ -159,7 +176,7 @@ class WebSocketManager {
    * Does NOT send to clients — the broadcast timer handles that.
    */
   broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null): void {
-    this.packetCount++;
+    this._packetCount++;
     this._latestPacket = packet;
     if (sectors) this._latestSectors = sectors;
     if (pit) this._latestPit = pit;

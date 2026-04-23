@@ -355,6 +355,7 @@ export const fakeAccPacket: TelemetryPacket = {
       right: 0,
       centre: 0,
     },
+    isValidLap: true,
   },
 };
 

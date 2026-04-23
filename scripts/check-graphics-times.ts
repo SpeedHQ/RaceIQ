@@ -1,7 +1,7 @@
 import { readAccFrames } from "./server/games/acc/recorder";
 import { GRAPHICS } from "./server/games/acc/structs";
 
-const binPath = "test/artifacts/laps/acc-2026-04-09T18-56-49-633Z.bin";
+const binPath = "test/artifacts/sessions/acc-2026-04-09T18-56-49-633Z.bin";
 const frames = readAccFrames(binPath);
 
 console.log("Scanning graphics buffer for lap times...\n");

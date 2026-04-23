@@ -3,7 +3,9 @@ import type { TelemetryPacket } from "../../../shared/types";
 import { accAdapter } from "../../../shared/games/acc";
 import { getAccCarName } from "../../../shared/acc-car-data";
 import { getAccTrackName, getAccSharedTrackName } from "../../../shared/acc-track-data";
-import { LapDetectorV2 } from "../../lap-detector-v2";
+import { LapDetectorAcc } from "../../lap-detector-acc";
+import { parseAccBuffers } from "./parser";
+import { ACC_PACKED_MAGIC, unpackTriplet } from "../shared/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 
 const ACC_SYSTEM_PROMPT = `You are an expert GT racing engineer and data analyst specializing in Assetto Corsa Competizione.
@@ -57,19 +59,24 @@ export const accServerAdapter: ServerGameAdapter = {
 
   // ACC uses shared memory, not UDP — canHandle returns false since
   // ACC data doesn't go through the UDP parser dispatch.
-  canHandle(_buf: Buffer): boolean {
-    return false;
+  canHandle(buf: Buffer): boolean {
+    return buf.length > 4 && buf.readUInt32LE(0) === ACC_PACKED_MAGIC;
   },
 
-  tryParse(_buf: Buffer, _state: unknown): TelemetryPacket | null {
-    return null;
+  tryParse(buf: Buffer, _state: unknown): TelemetryPacket | null {
+    const triplet = unpackTriplet(buf);
+    if (!triplet) return null;
+    return parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData, {
+      carOrdinal: triplet.carOrdinal,
+      trackOrdinal: triplet.trackOrdinal,
+    });
   },
 
   createParserState(): null {
     return null;
   },
 
-  createLapDetector: (opts) => new LapDetectorV2(opts),
+  createLapDetector: (opts) => new LapDetectorAcc(opts),
 
   aiSystemPrompt: ACC_SYSTEM_PROMPT,
 

@@ -29,19 +29,34 @@ export function TRow({
   className = "",
   onClick,
   onContextMenu,
+  title,
+  style,
+  tooltip,
 }: {
   children: ReactNode;
   className?: string;
   onClick?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
+  title?: string;
+  style?: React.CSSProperties;
+  tooltip?: string;
 }) {
   return (
     <tr
-      className={`hover:bg-app-surface/50 transition-colors ${onClick ? "cursor-pointer" : ""} ${className}`}
+      className={`group/row relative hover:bg-app-surface/50 transition-colors ${onClick ? "cursor-pointer" : ""} ${className}`}
       onClick={onClick}
+      title={title}
+      style={style}
       onContextMenu={onContextMenu}
     >
       {children}
+      {tooltip && (
+        <td className="p-0 w-0 overflow-visible">
+          <span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 hidden group-hover/row:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[11px] text-app-text-secondary z-50 whitespace-nowrap">
+            {tooltip}
+          </span>
+        </td>
+      )}
     </tr>
   );
 }

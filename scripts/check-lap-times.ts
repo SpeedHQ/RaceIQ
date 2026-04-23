@@ -5,7 +5,7 @@ import { STATIC } from "./server/games/acc/structs";
 import { getAccCarByModel } from "./shared/acc-car-data";
 import { getAccTrackByName } from "./shared/acc-track-data";
 
-const binPath = "test/artifacts/laps/acc-2026-04-09T18-56-49-633Z.bin";
+const binPath = "test/artifacts/sessions/acc-2026-04-09T18-56-49-633Z.bin";
 const frames = readAccFrames(binPath);
 
 let carOrdinal = 0;

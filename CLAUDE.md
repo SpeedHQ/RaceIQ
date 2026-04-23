@@ -161,7 +161,7 @@ The AI system uses Mastra agents backed by Claude API with streaming and prompt 
 - Client uses TanStack React Query for server state management
 - 3D visualizations use React Three Fiber (Three.js wrapper for React)
 - **Never fall back to "fm-2023"** when gameId is missing — make gameId required
-- Prefer static `import` at top of file over `await import(...)` — don't copy existing dynamic-import patterns
+- ⚠️ **IMPORTANT — NO DYNAMIC IMPORTS.** `await import(...)` is **banned** in this repo. Static imports at the top of the file, always. The *only* exception is a literal platform-specific switch (e.g. a Windows-only native module guarded by `process.platform === "win32"`) where the target genuinely doesn't exist on other platforms — and even then, document the reason inline. "Lazy-load to avoid startup cost", "break a circular dep", or "match the pattern in this file" are **NOT** valid reasons — fix the architecture instead. This rule has repeatedly caused test hangs (234s `isNewer` case) and opaque module-load chains; it is non-negotiable.
 
 ### Custom Steering Wheels
 
@@ -260,7 +260,7 @@ Both commands require `GEMINI_API_KEY` (or `GOOGLE_GENERATIVE_AI_API_KEY`); they
 
 **Adding a fixture:** see `test/ai-fixtures/README.md`. In short: export a real lap via `bun run laps:export --ids <id> -o test/ai-fixtures/packets/<id>.zip`, then add a matching JSON under `test/ai-fixtures/laps/` with an `expected` block pinning _signals_ (corner names, faster lap, setup direction) — not a reference answer. Signals survive prompt iteration; reference answers do not.
 
-**CI:** a separate `ai-quality` job in `.github/workflows/build-test.yml` runs `bun run test:ai` after the main test job. Uses repo secret `GEMINI_API_KEY`; skips on forks where the secret is unavailable.
+**CI:** AI evals are local-dev only. Not gated in CI and not required before shipping.
 
 ### Testing
 

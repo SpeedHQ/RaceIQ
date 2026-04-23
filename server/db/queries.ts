@@ -1,9 +1,16 @@
-import { eq, desc, and, or, sql, inArray } from "drizzle-orm";
+import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
+import { getServerGame } from "../games/registry";
+import { tryGetGame } from "../../shared/games/registry";
+import { gunzip } from "zlib";
+import { promisify } from "util";
+import { existsSync, unlinkSync } from "fs";
+
+const gunzipAsync = promisify(gunzip);
 
 // Fixed column order for CSV telemetry storage
 const TELEMETRY_FIELDS: (keyof TelemetryPacket)[] = [
@@ -179,65 +186,33 @@ export async function updateLapValidity(id: number, isValid: boolean, invalidRea
 /**
  * Insert a completed lap with compressed telemetry.
  */
-/**
- * Insert a lap synchronously — used by import and when caller needs the ID immediately.
- */
-export async function insertLapSync(
-  sessionId: number,
-  lapNumber: number,
-  lapTime: number,
-  isValid: boolean,
-  telemetryPackets: TelemetryPacket[],
-  profileId: number | null = null,
-  tuneId: number | null = null,
-  invalidReason: string | null = null
-): Promise<number> {
-  const compressed = compressTelemetry(telemetryPackets);
-  return await doInsertLap(sessionId, lapNumber, lapTime, isValid, compressed, telemetryPackets[0], profileId, tuneId, invalidReason);
-}
-
-/**
- * Insert a lap asynchronously — defers compression to avoid blocking the UDP handler.
- * Returns a promise that resolves with the lap ID.
- */
 export function insertLap(
   sessionId: number,
   lapNumber: number,
   lapTime: number,
   isValid: boolean,
-  telemetryPackets: TelemetryPacket[],
+  rawByteOffset: number | null,
+  rawFrameCount: number,
   profileId: number | null = null,
   tuneId: number | null = null,
   invalidReason: string | null = null,
   sectors: { s1: number; s2: number; s3: number } | null = null
 ): Promise<number> {
-  // Take ownership of the packet array immediately (caller will clear their buffer)
-  const packets = telemetryPackets.slice();
-  const first = packets[0];
-  return new Promise((resolve) => {
-    setTimeout(async () => {
-      const compressed = compressTelemetry(packets);
-      const id = await doInsertLap(sessionId, lapNumber, lapTime, isValid, compressed, first, profileId, tuneId, invalidReason, sectors);
-      resolve(id);
-    }, 0);
-  });
+  return doInsertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors);
 }
-
 
 async function doInsertLap(
   sessionId: number,
   lapNumber: number,
   lapTime: number,
   isValid: boolean,
-  compressed: Buffer,
-  firstPacket: TelemetryPacket | undefined,
+  rawByteOffset: number | null,
+  rawFrameCount: number,
   profileId: number | null,
   tuneId: number | null,
   invalidReason: string | null,
   sectors: { s1: number; s2: number; s3: number } | null = null
 ): Promise<number> {
-  const pi = firstPacket?.CarPerformanceIndex ?? 0;
-  const f1 = firstPacket?.f1;
   const result = await db
     .insert(laps)
     .values({
@@ -245,12 +220,11 @@ async function doInsertLap(
       lapNumber,
       lapTime,
       isValid,
-      pi,
-      carSetup: f1?.setup ? JSON.stringify(f1.setup) : null,
+      rawByteOffset,
+      rawFrameCount,
       s1Time: sectors?.s1 ?? null,
       s2Time: sectors?.s2 ?? null,
       s3Time: sectors?.s3 ?? null,
-      telemetry: compressed,
       profileId,
       tuneId,
       invalidReason,
@@ -258,6 +232,10 @@ async function doInsertLap(
     .returning({ id: laps.id })
     .get();
   return result.id;
+}
+
+export async function updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
+  await db.update(sessions).set({ rawFile, lapDetectorVersion }).where(eq(sessions.id, sessionId)).run();
 }
 
 /**
@@ -285,6 +263,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       s1Time: laps.s1Time,
       s2Time: laps.s2Time,
       s3Time: laps.s3Time,
+      rawFile: sessions.rawFile,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -296,7 +275,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     ? await query.where(eq(sessions.gameId, gameId)).all()
     : await query.all();
 
-  return rows.map((r) => ({
+  return rows.map(({ rawFile, ...r }) => ({
     ...r,
     isValid: Boolean(r.isValid),
     invalidReason: r.invalidReason ?? undefined,
@@ -309,6 +288,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     s1Time: r.s1Time ?? undefined,
     s2Time: r.s2Time ?? undefined,
     s3Time: r.s3Time ?? undefined,
+    isLegacy: rawFile == null,
   }));
 }
 
@@ -326,6 +306,7 @@ export type LapSummary = {
   s3Time: number | null;
   isValid: boolean;
   invalidReason: string | null;
+  rawFile: string | null;
   notes: string | null;
 };
 
@@ -345,6 +326,7 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       s3Time: laps.s3Time,
       isValid: laps.isValid,
       invalidReason: laps.invalidReason,
+      rawFile: sessions.rawFile,
       notes: laps.notes,
     })
     .from(laps)
@@ -373,18 +355,263 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       s3Time: r.s3Time ?? null,
       isValid: Boolean(r.isValid),
       invalidReason: r.invalidReason ?? null,
+      rawFile: r.rawFile ?? null,
       notes: r.notes ?? null,
     }));
 }
 
-const telemetryCache = new Map<number, TelemetryPacket[]>();
+// Rough per-packet byte estimate. TelemetryPacket has ~50–80 numeric fields
+// plus optional game-specific extensions (f1/acc/setup). Sniffing the first
+// packet to pick a tighter estimate is precise enough for an eviction budget
+// that the user controls in settings.
+const BYTES_PER_PACKET_BASE = 500;
+const BYTES_PER_PACKET_F1 = 1100;
+const BYTES_PER_PACKET_ACC = 800;
+
+const DEFAULT_CACHE_MAX_BYTES = 256 * 1024 * 1024;
+
+interface CacheEntry {
+  packets: TelemetryPacket[];
+  bytes: number;
+}
+
+const telemetryCache = new Map<number, CacheEntry>();
+let cacheMaxBytes = DEFAULT_CACHE_MAX_BYTES;
+let cacheBytesUsed = 0;
+
+function estimateBytes(packets: TelemetryPacket[]): number {
+  if (packets.length === 0) return 0;
+  const sample = packets[0] as TelemetryPacket & { f1?: unknown; acc?: unknown };
+  const per = sample.f1 ? BYTES_PER_PACKET_F1
+    : sample.acc ? BYTES_PER_PACKET_ACC
+    : BYTES_PER_PACKET_BASE;
+  return packets.length * per;
+}
+
+function cacheGet(id: number): TelemetryPacket[] | undefined {
+  const entry = telemetryCache.get(id);
+  if (entry) {
+    telemetryCache.delete(id);
+    telemetryCache.set(id, entry);
+    return entry.packets;
+  }
+  return undefined;
+}
+
+function cacheSet(id: number, packets: TelemetryPacket[]): void {
+  const existing = telemetryCache.get(id);
+  if (existing) {
+    cacheBytesUsed -= existing.bytes;
+    telemetryCache.delete(id);
+  }
+  const bytes = estimateBytes(packets);
+  telemetryCache.set(id, { packets, bytes });
+  cacheBytesUsed += bytes;
+  evictUntilWithinBudget();
+}
+
+function cacheDelete(id: number): boolean {
+  const entry = telemetryCache.get(id);
+  if (!entry) return false;
+  cacheBytesUsed -= entry.bytes;
+  return telemetryCache.delete(id);
+}
+
+function evictUntilWithinBudget(): void {
+  while (cacheBytesUsed > cacheMaxBytes && telemetryCache.size > 0) {
+    const oldest = telemetryCache.keys().next().value;
+    if (oldest === undefined) break;
+    cacheDelete(oldest);
+  }
+}
+
+export function setCacheMaxBytes(bytes: number): void {
+  cacheMaxBytes = Math.max(0, Math.floor(bytes));
+  evictUntilWithinBudget();
+}
+
+export function getCacheStats(): { bytesUsed: number; maxBytes: number; entries: number } {
+  return { bytesUsed: cacheBytesUsed, maxBytes: cacheMaxBytes, entries: telemetryCache.size };
+}
+
+export const _telemetryCacheForTest = {
+  get: cacheGet,
+  set: cacheSet,
+  delete: cacheDelete,
+  clear: () => { telemetryCache.clear(); cacheBytesUsed = 0; },
+  size: () => telemetryCache.size,
+  bytesUsed: () => cacheBytesUsed,
+  maxBytes: () => cacheMaxBytes,
+  setMaxBytes: setCacheMaxBytes,
+  resetMaxBytes: () => { cacheMaxBytes = DEFAULT_CACHE_MAX_BYTES; },
+  keys: () => Array.from(telemetryCache.keys()),
+  estimateBytes,
+};
 
 /**
- * Get a single lap by ID with full decompressed telemetry.
+ * Re-parse raw UDP frames from a session .bin file for a specific lap.
+ * Frame 0 is a meta frame (magic-prefixed); lap frames start at rawByteOffset.
+ */
+export interface LapParseErrorDetails {
+  rawFile: string;
+  rawByteOffset: number;
+  rawFrameCount: number;
+  fileSize: number;
+  framesParsed: number;
+  reason: "offset-past-eof" | "truncated-frame" | "truncated-meta" | "no-packets-parsed";
+}
+
+export class LapParseError extends Error {
+  readonly details: LapParseErrorDetails;
+
+  constructor(message: string, details: LapParseErrorDetails) {
+    super(message);
+    this.name = "LapParseError";
+    this.details = details;
+  }
+}
+
+async function parseRawLapFrames(
+  rawFile: string,
+  rawByteOffset: number,
+  rawFrameCount: number,
+  gameId: GameId
+): Promise<TelemetryPacket[]> {
+  const serverGame = getServerGame(gameId);
+  const state = serverGame.createParserState?.() ?? null;
+
+  let buf = Buffer.from(await Bun.file(rawFile).arrayBuffer());
+  // Decompress if file is gzipped
+  if (rawFile.endsWith(".gz")) {
+    buf = await gunzipAsync(buf);
+  }
+
+  const fileSize = buf.length;
+
+  // rawByteOffset past EOF means the lap row was written before the
+  // corresponding bytes made it to disk (old bug), or something stomped
+  // the file. Fail loudly so the client can surface a useful message.
+  if (rawByteOffset >= fileSize) {
+    throw new LapParseError(
+      `Lap raw byte offset ${rawByteOffset} is past EOF (file is ${fileSize} bytes) in ${rawFile}`,
+      { rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "offset-past-eof" }
+    );
+  }
+
+  // Warm up stateful parsers (F1) by replaying frames from the start of the
+  // file. Without this the accumulator starts empty mid-file and drops the
+  // first ~1s of lap telemetry waiting for every sub-packet type to arrive.
+  // Start at 12 to skip the meta frame.
+  let warmupOffset = 12;
+  while (warmupOffset < rawByteOffset && warmupOffset + 4 <= buf.length) {
+    const wLen = buf.readUInt32LE(warmupOffset);
+    if (wLen <= 0 || warmupOffset + 4 + wLen > buf.length) break;
+    const wBuf = buf.subarray(warmupOffset + 4, warmupOffset + 4 + wLen);
+    warmupOffset += 4 + wLen;
+    try { serverGame.tryParse(wBuf, state); } catch { /* warmup best-effort */ }
+  }
+
+  let offset = rawByteOffset;
+  const packets: TelemetryPacket[] = [];
+  // Read one extra frame past the stored count so we can enrich the final
+  // in-lap packet with the lap-completion info carried on the next-lap
+  // trigger frame (LastLap, sector3Time, etc). The extra frame is NOT
+  // returned to the caller.
+  const readCount = rawFrameCount + 1;
+
+  for (let i = 0; i < readCount; i++) {
+    if (offset + 4 > buf.length) {
+      // Extra frame may legitimately not exist (end of file). Only complain
+      // about missing frames within rawFrameCount itself.
+      if (i >= rawFrameCount) break;
+      throw new LapParseError(
+        `Truncated frame header at offset ${offset} (file ${fileSize} bytes, wanted frame ${i + 1}/${rawFrameCount})`,
+        { rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-frame" }
+      );
+    }
+    const frameLen = buf.readUInt32LE(offset);
+    // NOTE: we do not check for META_FRAME_MAGIC here — the meta frame only
+    // exists at file offset 0, which laps never start at. Treating any
+    // mid-lap 0xFFFFFFFF as a meta frame would false-positive on legitimate
+    // packet data containing that byte pattern and drift the frame reader
+    // out of alignment.
+    offset += 4;
+    if (offset + frameLen > buf.length) {
+      if (i >= rawFrameCount) break;
+      throw new LapParseError(
+        `Frame ${i + 1}/${rawFrameCount} at offset ${offset} claims ${frameLen} bytes but only ${buf.length - offset} remain`,
+        { rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-frame" }
+      );
+    }
+    const frameBuf = buf.subarray(offset, offset + frameLen);
+    offset += frameLen;
+    try {
+      const packet = serverGame.tryParse(frameBuf, state);
+      if (!packet) continue;
+      // Apply coordinate normalization — same as processPacket does for live data.
+      // ACC uses right-handed coords in the raw buffer; flip X to match display convention.
+      const sharedAdapter = tryGetGame(packet.gameId);
+      if (sharedAdapter?.coordSystem === "standard-xyz") {
+        packet.PositionX = -packet.PositionX;
+        packet.VelocityX = -packet.VelocityX;
+        packet.AccelerationX = -packet.AccelerationX;
+      }
+      fillNormSuspension(packet);
+      if (i < rawFrameCount) {
+        packets.push(packet);
+      } else {
+        // Extra trailing frame = the next-lap trigger. It carries real
+        // speed/throttle/etc. values for the finish-line crossing, but its
+        // CurrentLap has already reset for the new lap. Append it as a
+        // synthesized "finish" packet with CurrentLap rewritten to this
+        // lap's time (from LastLap), and LapNumber patched back to the
+        // outgoing lap so consumers don't see a stray new-lap entry.
+        const last = packets[packets.length - 1];
+        const finishTime = packet.LastLap ?? 0;
+        if (last && finishTime > (last.CurrentLap ?? 0)) {
+          packets.push({
+            ...packet,
+            CurrentLap: finishTime,
+            LapNumber: last.LapNumber,
+            DistanceTraveled: Math.max(packet.DistanceTraveled, last.DistanceTraveled),
+          });
+        }
+      }
+    } catch (err) {
+      // A single malformed frame shouldn't kill the whole lap parse. Log
+      // once (first occurrence) with enough context to diagnose, then skip.
+      if (packets.length === 0 && i < 5) {
+        console.warn(
+          `[DB] tryParse threw on frame ${i + 1}/${rawFrameCount} of lap ` +
+          `(gameId=${gameId}, offset=${offset - frameLen}, len=${frameLen}): ` +
+          `${(err as Error).message}`
+        );
+      }
+    }
+  }
+
+  // Parsed every frame successfully but the game adapter rejected all of
+  // them — the state accumulator never built a complete packet. Surface it.
+  if (packets.length === 0 && rawFrameCount > 0) {
+    throw new LapParseError(
+      `Parsed ${rawFrameCount} frames but produced 0 telemetry packets (gameId=${gameId})`,
+      { rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: 0, reason: "no-packets-parsed" }
+    );
+  }
+
+  return packets;
+}
+
+/** Test-only export so integration tests can drive parseRawLapFrames directly. */
+export const parseRawLapFramesForTest = parseRawLapFrames;
+
+/**
+ * Get a single lap by ID, re-parsing telemetry from the raw session .bin file.
+ * Returns empty telemetry for pre-migration laps (rawByteOffset is null).
  */
 export async function getLapById(
   id: number
-): Promise<(LapMeta & { telemetry: TelemetryPacket[] }) | null> {
+): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string }) | null> {
   const row = await db
     .select({
       id: laps.id,
@@ -393,7 +620,9 @@ export async function getLapById(
       lapTime: laps.lapTime,
       isValid: laps.isValid,
       createdAt: laps.createdAt,
-      telemetry: laps.telemetry,
+      rawByteOffset: laps.rawByteOffset,
+      rawFrameCount: laps.rawFrameCount,
+      rawFile: sessions.rawFile,
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,
       tuneId: laps.tuneId,
@@ -409,44 +638,45 @@ export async function getLapById(
 
   if (!row) return null;
 
-  const telemetry = (() => {
-    if (telemetryCache.has(id)) return telemetryCache.get(id)!;
-    const parsed = decompressTelemetry(row.telemetry as Buffer);
-    const gid = row.gameId as GameId;
-    for (const p of parsed) {
-      // Stamp gameId from session if CSV meta didn't have it
-      if (!p.gameId) p.gameId = gid;
-      if (gid === "f1-2025") {
-        // Derive wheel rotation from speed if not recorded (Pirelli 18" radius 0.36m)
-        if (p.WheelRotationSpeedFL === 0 && p.Speed > 0) {
-          const wr = p.Speed / 0.36;
-          p.WheelRotationSpeedFL = wr;
-          p.WheelRotationSpeedFR = wr;
-          p.WheelRotationSpeedRL = wr;
-          p.WheelRotationSpeedRR = wr;
-        }
-        // Estimate slip angles if not recorded
-        if (p.TireSlipAngleFL === 0 && p.Speed > 2) {
-          const sy = Math.sin(-p.Yaw), cy = Math.cos(-p.Yaw);
-          const vLat = p.VelocityX * cy + p.VelocityZ * sy;
-          const vFwd = p.VelocityX * sy - p.VelocityZ * cy;
-          const fwd = Math.abs(vFwd) || 0.1;
-          const wb = 3.6;
-          const yawRate = p.AccelerationX / (p.Speed || 1);
-          const vLatF = vLat + yawRate * wb * 0.55;
-          const vLatR = vLat - yawRate * wb * 0.45;
-          const steerRad = (p.Steer / 127) * 0.35;
-          p.TireSlipAngleFL = Math.atan2(vLatF, fwd) - steerRad;
-          p.TireSlipAngleFR = Math.atan2(vLatF, fwd) - steerRad;
-          p.TireSlipAngleRL = Math.atan2(vLatR, fwd);
-          p.TireSlipAngleRR = Math.atan2(vLatR, fwd);
-        }
+  const cached = cacheGet(id);
+  if (cached) {
+    return buildLapResult(row, cached);
+  }
+
+  let telemetry: TelemetryPacket[] = [];
+  let parseError: string | undefined;
+  if (row.rawByteOffset != null && row.rawFrameCount && row.rawFile) {
+    try {
+      telemetry = await parseRawLapFrames(
+        row.rawFile,
+        row.rawByteOffset,
+        row.rawFrameCount,
+        row.gameId as GameId
+      );
+    } catch (err) {
+      if (err instanceof LapParseError) {
+        console.error(`[DB] Lap ${id} parse failed (${err.details.reason}): ${err.message}`, err.details);
+        parseError = err.message;
+      } else {
+        console.error(`[DB] Failed to parse raw frames for lap ${id}:`, err);
+        parseError = err instanceof Error ? err.message : String(err);
       }
     }
-    telemetryCache.set(id, parsed);
-    return parsed;
-  })();
+  }
 
+  // Only cache successful, non-empty parses. Empty/errored results are
+  // transient (often caused by a bug that gets fixed, or a buffer-flush
+  // race) and caching them would require a server restart to recover.
+  if (telemetry.length > 0) cacheSet(id, telemetry);
+  const result = buildLapResult(row, telemetry);
+  if (parseError) return { ...result, parseError };
+  return result;
+}
+
+function buildLapResult(
+  row: { id: number; sessionId: number; lapNumber: number; lapTime: number; isValid: number | boolean; createdAt: string; carOrdinal: number; trackOrdinal: number; tuneId: number | null; tuneName: string | null; gameId: string; carSetup: string | null; rawFile?: string | null },
+  telemetry: TelemetryPacket[]
+) {
   return {
     id: row.id,
     sessionId: row.sessionId,
@@ -460,9 +690,11 @@ export async function getLapById(
     tuneName: row.tuneName ?? undefined,
     gameId: row.gameId as GameId,
     carSetup: row.carSetup ?? undefined,
+    isLegacy: row.rawFile == null,
     telemetry,
   };
 }
+
 
 /**
  * Delete a lap by ID. Returns true if a row was deleted.
@@ -473,7 +705,7 @@ export async function deleteLap(id: number): Promise<boolean> {
   const lap = await db.select({ sessionId: laps.sessionId }).from(laps).where(eq(laps.id, id)).get();
   const result = await db.delete(laps).where(eq(laps.id, id)).returning().all();
   if (result.length > 0) {
-    telemetryCache.delete(id);
+    cacheDelete(id);
     // Clean up empty parent session
     if (lap) {
       const remaining = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, lap.sessionId)).limit(1).all();
@@ -483,6 +715,61 @@ export async function deleteLap(id: number): Promise<boolean> {
     }
   }
   return result.length > 0;
+}
+
+/**
+ * Count sessions with stale lap detector version that have a raw file (can be reprocessed).
+ */
+export async function countStaleSessions(currentIds: string | string[]): Promise<number> {
+  const ids = Array.isArray(currentIds) ? currentIds : [currentIds];
+  const rows = await db
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(
+      and(
+        sql`${sessions.rawFile} IS NOT NULL`,
+        or(isNull(sessions.lapDetectorVersion), notInArray(sessions.lapDetectorVersion, ids))
+      )
+    )
+    .all();
+  return rows.length;
+}
+
+/**
+ * Get IDs of sessions with stale lap detector version that have a raw file.
+ */
+export async function getStaleSessions(currentIds: string | string[]): Promise<number[]> {
+  const ids = Array.isArray(currentIds) ? currentIds : [currentIds];
+  const rows = await db
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(
+      and(
+        sql`${sessions.rawFile} IS NOT NULL`,
+        or(isNull(sessions.lapDetectorVersion), notInArray(sessions.lapDetectorVersion, ids))
+      )
+    )
+    .all();
+  return rows.map(r => r.id);
+}
+
+/**
+ * Get sessions with uncompressed raw files (.bin) older than the given age in ms.
+ */
+export async function getUncompressedSessions(olderThanMs: number): Promise<{ id: number; rawFile: string }[]> {
+  const cutoff = new Date(Date.now() - olderThanMs).toISOString();
+  const rows = await db
+    .select({ id: sessions.id, rawFile: sessions.rawFile })
+    .from(sessions)
+    .where(
+      and(
+        sql`${sessions.rawFile} IS NOT NULL`,
+        sql`${sessions.rawFile} NOT LIKE '%.gz'`,
+        sql`${sessions.createdAt} < ${cutoff}`
+      )
+    )
+    .all();
+  return rows.filter((r): r is { id: number; rawFile: string } => r.rawFile !== null);
 }
 
 /**
@@ -498,20 +785,116 @@ export async function deleteSession(sessionId: number): Promise<number> {
   return count;
 }
 
+/** Get all laps for a session, including notes/tuneId for reprocess preservation. */
+export async function getLapsForSession(sessionId: number): Promise<Array<{
+  id: number; lapNumber: number; lapTime: number; isValid: boolean;
+  notes: string | null; tuneId: number | null;
+  rawByteOffset: number | null; rawFrameCount: number | null;
+  s1Time: number | null; s2Time: number | null; s3Time: number | null;
+}>> {
+  const rows = await db
+    .select({
+      id: laps.id,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      notes: laps.notes,
+      tuneId: laps.tuneId,
+      rawByteOffset: laps.rawByteOffset,
+      rawFrameCount: laps.rawFrameCount,
+      s1Time: laps.s1Time,
+      s2Time: laps.s2Time,
+      s3Time: laps.s3Time,
+    })
+    .from(laps)
+    .where(eq(laps.sessionId, sessionId))
+    .orderBy(laps.lapNumber)
+    .all();
+  return rows.map(r => ({ ...r, isValid: Boolean(r.isValid) }));
+}
+
+/** Update lap frame index and metadata after reprocessing. */
+export async function updateLapRawIndex(
+  lapId: number,
+  rawByteOffset: number | null,
+  rawFrameCount: number,
+  lapTime: number,
+  isValid: boolean,
+  sectors: { s1: number; s2: number; s3: number } | null
+): Promise<void> {
+  cacheDelete(lapId);
+  await db.update(laps).set({
+    rawByteOffset,
+    rawFrameCount,
+    lapTime,
+    isValid,
+    s1Time: sectors?.s1 ?? null,
+    s2Time: sectors?.s2 ?? null,
+    s3Time: sectors?.s3 ?? null,
+  }).where(eq(laps.id, lapId));
+}
+
+/** Insert a lap during session reprocessing (preserves notes/tuneId from old lap). */
+export async function insertReprocessedLap(
+  sessionId: number,
+  lapNumber: number,
+  lapTime: number,
+  isValid: boolean,
+  rawByteOffset: number | null,
+  rawFrameCount: number,
+  tuneId: number | null,
+  notes: string | null,
+  invalidReason: string | null,
+  sectors: { s1: number; s2: number; s3: number } | null
+): Promise<number> {
+  const result = await db.insert(laps).values({
+    sessionId, lapNumber, lapTime, isValid,
+    rawByteOffset, rawFrameCount,
+    tuneId, notes, invalidReason,
+    s1Time: sectors?.s1 ?? null,
+    s2Time: sectors?.s2 ?? null,
+    s3Time: sectors?.s3 ?? null,
+  }).returning({ id: laps.id }).get();
+  return result.id;
+}
+
+/** Delete all laps for a session (used when reprocess finds different lap count). */
+export async function deleteLapsForSession(sessionId: number): Promise<void> {
+  const rows = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
+  for (const { id } of rows) cacheDelete(id);
+  await db.delete(laps).where(eq(laps.sessionId, sessionId));
+}
+
 /**
- * Delete all sessions that have zero laps.
+ * Delete all sessions that have zero laps, excluding `activeSessionId` if
+ * supplied. Also removes the associated raw .bin / .bin.gz file from disk —
+ * empty sessions have no replay value. Pass the current session id when
+ * calling outside of boot so a live recorder isn't yanked out from under
+ * itself (it has 0 laps until the first one completes).
+ *
  * Returns the number of sessions deleted.
  */
-export async function deleteEmptySessions(): Promise<number> {
+export async function deleteEmptySessions(activeSessionId?: number): Promise<number> {
   const empties = await db
-    .select({ id: sessions.id })
+    .select({ id: sessions.id, rawFile: sessions.rawFile })
     .from(sessions)
     .leftJoin(laps, eq(laps.sessionId, sessions.id))
     .groupBy(sessions.id)
     .having(sql`count(${laps.id}) = 0`)
     .all();
-  if (empties.length === 0) return 0;
-  const ids = empties.map(r => r.id);
+  const filtered = activeSessionId
+    ? empties.filter((e) => e.id !== activeSessionId)
+    : empties;
+  if (filtered.length === 0) return 0;
+  for (const { rawFile } of filtered) {
+    if (!rawFile) continue;
+    try {
+      if (existsSync(rawFile)) unlinkSync(rawFile);
+    } catch (err) {
+      console.warn(`[DB] Failed to unlink raw file ${rawFile}:`, err instanceof Error ? err.message : err);
+    }
+  }
+  const ids = filtered.map(r => r.id);
   await db.delete(sessions).where(inArray(sessions.id, ids)).run();
   return ids.length;
 }
@@ -951,7 +1334,8 @@ export async function deleteProfile(id: number): Promise<boolean> {
 }
 
 /**
- * Get raw lap data (with compressed telemetry blob) for zip export.
+ * Get lap data with raw frame index for zip export.
+ * Telemetry is no longer stored as a blob — consumers re-parse from session .bin file.
  */
 export async function getLapsRaw(ids?: number[]) {
   const base = db
@@ -962,7 +1346,9 @@ export async function getLapsRaw(ids?: number[]) {
       lapTime: laps.lapTime,
       isValid: laps.isValid,
       pi: laps.pi,
-      telemetry: laps.telemetry,
+      rawByteOffset: laps.rawByteOffset,
+      rawFrameCount: laps.rawFrameCount,
+      rawFile: sessions.rawFile,
       createdAt: laps.createdAt,
       carOrdinal: sessions.carOrdinal,
       trackOrdinal: sessions.trackOrdinal,

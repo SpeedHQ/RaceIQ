@@ -5,6 +5,8 @@ import { tmpdir } from "os";
 import { spawn } from "child_process";
 import pkg from "../package.json";
 import { wsManager } from "./ws";
+import { isNewer } from "./version-compare";
+export { isNewer };
 
 const VERSION = pkg.version;
 const GITHUB_REPO = "SpeedHQ/RaceIQ";
@@ -122,15 +124,6 @@ async function fetchReleases(currentVersion: string): Promise<{
   return { newReleases, currentReleaseNotes, currentReleaseDate };
 }
 
-/** Returns true if version string `a` is strictly newer than `b`. */
-export function isNewer(a: string, b: string): boolean {
-  const parse = (v: string) => v.replace(/^v/, "").split(".").map(Number);
-  const [am, an, ap] = parse(a);
-  const [bm, bn, bp] = parse(b);
-  if (am !== bm) return am > bm;
-  if (an !== bn) return an > bn;
-  return ap > bp;
-}
 
 export async function checkForUpdate(): Promise<UpdateState> {
   // Dev mode: fake an available update using a local installer, but fetch real release notes
@@ -187,10 +180,15 @@ export function startUpdateCheckSchedule(): void {
     // Dev mode: check immediately so release notes are available on first load
     checkForUpdate();
   } else {
-    // Delay startup check by 10s to not compete with server init
-    setTimeout(() => checkForUpdate(), 10_000);
+    // Delay startup check by 10s to not compete with server init. `.unref()`
+    // so `bun test` can exit — misc-routes.ts calls this at module load, and
+    // without unref every test that transitively imports routes hangs for 10s
+    // plus the GitHub fetch round-trip.
+    const t = setTimeout(() => checkForUpdate(), 10_000);
+    t.unref?.();
   }
-  setInterval(() => checkForUpdate(), FOUR_HOURS_MS);
+  const i = setInterval(() => checkForUpdate(), FOUR_HOURS_MS);
+  i.unref?.();
 }
 
 /** Downloads the Inno Setup installer and runs it silently. Inno handles process kill, file swap, registry update, and relaunch. */

@@ -235,4 +235,15 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_corners_track ON track_corners(track_ordinal)`,
     ],
   },
+  {
+    version: 19,
+    name: "raw binary lap storage",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN raw_file TEXT`,
+      `ALTER TABLE sessions ADD COLUMN lap_detector_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN raw_byte_offset INTEGER`,
+      `ALTER TABLE laps ADD COLUMN raw_frame_count INTEGER`,
+      `ALTER TABLE laps DROP COLUMN telemetry`,
+    ],
+  },
 ];

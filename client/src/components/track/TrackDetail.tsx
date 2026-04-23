@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { RAW_STORAGE_VERSION } from "@shared/types";
 import { isDevelopment } from "@/lib/env";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -15,7 +16,7 @@ import { TrackTunes } from "./TrackTunes";
 import { Button } from "@/components/ui/button";
 import { Table, THead, TH, TBody, TRow, TD } from "@/components/ui/AppTable";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";
-import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { InfoTooltip, Tooltip } from "@/components/ui/InfoTooltip";
 import type { TrackInfo, Point, TrackSegment, TrackSectors } from "./types";
 
 interface TrackLap {
@@ -33,6 +34,7 @@ interface TrackLap {
   s3Time?: number | null;
   isValid?: boolean;
   invalidReason?: string | null;
+  isLegacy?: boolean;
   division?: string | null;
   notes?: string | null;
 }
@@ -517,7 +519,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   const [confirmDelete, setConfirmDelete] = useState(false);
   const isF125 = gameId === "f1-2025";
   const isAcc = gameId === "acc";
-  const hideClassCol = isF125 || gameId === "ac-evo";
+  const hideClassCol = isF125 || isAcc || gameId === "ac-evo";
 
   const hasForzaTunes = gameId === "fm-2023";
   const allTabs = hasForzaTunes ? ["laps", "tunes", "debug"] as const
@@ -784,7 +786,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
     return vals.some(c => c > 1) && vals.some(c => c === 1);
   }, [isF125, sessionLapCounts]);
 
-  const hasSectorData = useMemo(() => trackLaps.some(l => l.s1Time != null), [trackLaps]);
+
 
   const toggleCar = useCallback((ord: number) => {
     setSelectedCars((prev) => {
@@ -1260,15 +1262,16 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                             <TH>Car</TH>
                             {!hideClassCol && <TH>Class</TH>}
                             {hasSessionTypes && <TH>Type</TH>}
-                            <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("lap")}>
+                            <TH className="cursor-pointer hover:text-app-text select-none w-px whitespace-nowrap" onClick={() => handleSort("lap")}>
                               Lap # {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
                             </TH>
-                            <TH className="cursor-pointer hover:text-app-text select-none text-right" onClick={() => handleSort("time")}>
+                            <TH className="cursor-pointer hover:text-app-text select-none text-right w-px whitespace-nowrap" onClick={() => handleSort("time")}>
                               Time {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
                             </TH>
-                            {hasSectorData && <TH className="font-mono text-app-text-dim">S1</TH>}
-                            {hasSectorData && <TH className="font-mono text-app-text-dim">S2</TH>}
-                            {hasSectorData && <TH className="font-mono text-app-text-dim">S3</TH>}
+                            <TH className="w-px" />
+                            <TH className="text-red-400">S1</TH>
+                            <TH className="text-blue-400">S2</TH>
+                            <TH className="text-yellow-400">S3</TH>
                             <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("date")}>
                               Date {sortBy === "date" ? (sortAsc ? "▲" : "▼") : ""}
                             </TH>
@@ -1300,14 +1303,24 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                     }
                                   </TD>
                                 )}
-                                <TD className="font-mono text-app-text-secondary">{lap.lapNumber}</TD>
-                                <TD className="text-right">
-                                  <div className="flex items-center justify-end gap-2">
+                                <TD className="font-mono text-app-text-secondary whitespace-nowrap">{lap.lapNumber}</TD>
+                                <TD className="text-right whitespace-nowrap">
+                                  <div className="flex items-center justify-end gap-1">
                                     <span className={`font-mono tabular-nums ${isFastest ? "text-purple-400 font-bold" : ""}`}>{formatLapTime(lap.lapTime)}</span>
                                     {lap.isValid === false
-                                      ? <span className="group/inv relative text-[10px] text-red-400 cursor-default">✕<span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">{lap.invalidReason ?? "Invalid lap"}</span></span>
-                                      : <span className="text-[10px] text-emerald-500/60">✓</span>
+                                      ? <span className="group/inv relative text-sm text-red-400 cursor-default">✕<span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">{lap.invalidReason ?? "Invalid lap"}</span></span>
+                                      : <span className="text-sm text-emerald-400">✓</span>
                                     }
+                                  </div>
+                                </TD>
+                                <TD className="w-px whitespace-nowrap">
+                                  {lap.isLegacy ? (
+                                    <Tooltip content={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
+                                      <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
+                                        Analyse
+                                      </Button>
+                                    </Tooltip>
+                                  ) : (
                                     <Button
                                       variant="app-outline"
                                       size="app-sm"
@@ -1319,11 +1332,11 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                     >
                                       Analyse
                                     </Button>
-                                  </div>
+                                  )}
                                 </TD>
-                                {hasSectorData && <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</TD>}
-                                {hasSectorData && <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</TD>}
-                                {hasSectorData && <TD className="font-mono text-[11px] tabular-nums text-app-text-secondary">{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</TD>}
+                                <TD className="font-mono tabular-nums text-app-text/90">{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</TD>
+                                <TD className="font-mono tabular-nums text-app-text/90">{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</TD>
+                                <TD className="font-mono tabular-nums text-app-text/90">{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</TD>
                                 <TD className="text-app-text-secondary whitespace-nowrap font-mono">
                                   {lap.createdAt ? `${new Date(lap.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} ${new Date(lap.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : "—"}
                                 </TD>
