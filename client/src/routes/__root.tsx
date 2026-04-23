@@ -1,5 +1,5 @@
 import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useTelemetryStore } from "../stores/telemetry";
@@ -11,7 +11,7 @@ import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
 import { OnboardingModal } from "../components/Onboarding";
 import { Button } from "@/components/ui/button";
-import { Settings2, RefreshCw, X } from "lucide-react";
+import { Settings2, RefreshCw, X, Menu } from "lucide-react";
 import { getAllGames } from "@shared/games/registry";
 
 import { queryClient } from "../lib/queryClient";
@@ -127,6 +127,7 @@ function AppShell() {
   const updateState = useUpdateCheck();
 
   const { settingsOpen: showSettings, settingsSection, openSettings, closeSettings, onboardingOpen, closeOnboarding } = useUiStore();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.has("update")) {
@@ -140,6 +141,11 @@ function AppShell() {
   });
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const location = useLocation();
+
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
 
   // Global nav tabs — filtered by user's hidden games preference
   const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
@@ -195,16 +201,26 @@ function AppShell() {
     <ThemeProvider>
         <div className="h-screen grid grid-rows-[auto_1fr] bg-app-bg text-app-text">
           <div className="flex items-center justify-between border-b border-app-border">
-            <div className="flex items-center">
+            <div className="flex items-center min-w-0 flex-1">
+              {/* Hamburger (mobile only) */}
+              <button
+                onClick={() => setMobileNavOpen(true)}
+                className="md:hidden p-2 text-app-text-secondary hover:text-app-text"
+                aria-label="Open navigation"
+              >
+                <Menu className="size-5" />
+              </button>
+
               <ConnectionStatus
                 connected={connected}
                 packetsPerSec={packetsPerSec}
                 forzaReceiving={packetsPerSec > 0}
               />
 
-              <div className="w-px h-4 bg-app-border mx-2" />
+              <div className="hidden md:block w-px h-4 bg-app-border mx-2" />
 
-              <div className="flex items-center gap-0">
+              {/* Desktop tabs */}
+              <div className="hidden md:flex items-center gap-0">
                 {globalTabs.map((tab) => (
                   <Link
                     key={tab.to}
@@ -246,14 +262,15 @@ function AppShell() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 mr-2">
+            <div className="flex items-center gap-2 mr-2 shrink-0">
               {updateState?.updateAvailable && (
                 <button
                   onClick={() => setShowUpdateModal(true)}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-400/15 text-yellow-400 border border-yellow-400/30 hover:bg-yellow-400/25 transition-colors"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-                  Update available
+                  <span className="hidden sm:inline">Update available</span>
+                  <span className="sm:hidden">Update</span>
                 </button>
               )}
               <Button
@@ -262,16 +279,82 @@ function AppShell() {
                 onClick={() => showSettings ? closeSettings() : openSettings()}
                 className="text-app-text-secondary hover:text-app-text flex items-center gap-1.5"
               >
-                {driverName || "Settings"}
+                <span className="hidden sm:inline">{driverName || "Settings"}</span>
                 <Settings2 className="size-3.5 text-app-text-muted" />
               </Button>
             </div>
           </div>
 
+          {/* Mobile nav drawer */}
+          {mobileNavOpen && (
+            <div
+              className="md:hidden fixed inset-0 z-50 flex"
+              onClick={() => setMobileNavOpen(false)}
+            >
+              <div className="absolute inset-0 bg-black/60" />
+              <nav
+                className="relative w-64 max-w-[80vw] h-full bg-app-bg border-r border-app-border flex flex-col overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
+                  <span className="text-sm font-semibold text-app-text">Navigation</span>
+                  <button
+                    onClick={() => setMobileNavOpen(false)}
+                    className="p-1 text-app-text-muted hover:text-app-text"
+                    aria-label="Close navigation"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+                <div className="py-2">
+                  {globalTabs.map((tab) => (
+                    <Link
+                      key={tab.to}
+                      to={tab.to}
+                      activeOptions={{ exact: tab.to === "/" }}
+                      className="block px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 transition-colors"
+                      activeProps={{
+                        className: "block px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 transition-colors border-app-accent text-app-accent bg-app-accent/10",
+                      }}
+                      inactiveProps={{
+                        className: "block px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 transition-colors border-transparent text-app-text-muted hover:text-app-text",
+                      }}
+                    >
+                      {tab.label}
+                    </Link>
+                  ))}
+
+                  {gameTabs.length > 0 && (
+                    <>
+                      <div className="mx-4 my-2 border-t border-app-border" />
+                      <div className="px-4 py-1 text-[10px] uppercase tracking-wider text-app-text-dim">This game</div>
+                      {gameTabs.map((tab) => (
+                        <Link
+                          key={tab.to}
+                          to={tab.to}
+                          activeOptions={{ exact: false }}
+                          className="block px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 transition-colors"
+                          activeProps={{
+                            className: "block px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 transition-colors border-app-accent text-app-accent bg-app-accent/10",
+                          }}
+                          inactiveProps={{
+                            className: "block px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 transition-colors border-transparent text-app-text-muted hover:text-app-text",
+                          }}
+                        >
+                          {tab.label}
+                        </Link>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </nav>
+            </div>
+          )}
+
           {showSettings && (
-            <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 pb-12 bg-black/60"
+            <div className="fixed inset-0 z-50 flex items-stretch md:items-start justify-center md:pt-12 md:pb-12 bg-black/60"
                  onClick={() => { closeSettings(); }}>
-              <div className="w-full max-w-2xl h-full rounded-lg border border-app-border bg-app-bg overflow-hidden shadow-2xl"
+              <div className="w-full md:max-w-2xl h-full md:rounded-lg md:border border-app-border bg-app-bg overflow-hidden shadow-2xl"
                    onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3 border-b border-app-border bg-app-surface">
                   <h1 className="text-sm font-semibold text-app-text">Settings</h1>

@@ -511,22 +511,22 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-app-bg p-4 z-50">
-      <div className="w-full max-w-3xl rounded-xl border border-app-border bg-app-surface shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 flex items-stretch md:items-center justify-center bg-app-bg md:p-4 z-50">
+      <div className="w-full md:max-w-3xl md:rounded-xl md:border border-app-border bg-app-surface shadow-2xl overflow-hidden flex flex-col max-h-screen">
         {/* Header — hidden on welcome */}
         {step > 0 && (
-          <div className="px-6 pt-6 pb-4">
-            <h1 className="text-lg font-semibold text-app-text">
+          <div className="px-4 md:px-6 pt-4 md:pt-6 pb-4 shrink-0">
+            <h1 className="text-base md:text-lg font-semibold text-app-text">
               Configure your telemetry dashboard
             </h1>
-            <div className="flex items-center gap-2 mt-4">
+            <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-1">
               {MODAL_STEPS.slice(1).map((s, idx) => {
                 const i = idx + 1;
                 return (
-                  <div key={s.label} className="flex items-center gap-2">
+                  <div key={s.label} className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => setStep(i)}
-                      className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${
+                      className={`flex items-center gap-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
                         i === step ? "text-app-accent" : i < step ? "text-app-text-secondary" : "text-app-text-muted/50"
                       }`}
                     >
@@ -558,12 +558,12 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
         )}
 
         {/* Content */}
-        <div className="px-6 py-5 min-h-[280px] border-t border-app-border">
+        <div className="px-4 md:px-6 py-5 min-h-[280px] border-t border-app-border flex-1 overflow-y-auto">
           <StepComponent />
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end px-6 py-4 border-t border-app-border bg-app-surface-alt/30">
+        <div className="flex items-center justify-end px-4 md:px-6 py-4 border-t border-app-border bg-app-surface-alt/30 shrink-0">
           <div className="flex items-center gap-2">
             {step > 0 && (
               <Button variant="outline" size="sm" onClick={() => setStep((s) => s - 1)}>

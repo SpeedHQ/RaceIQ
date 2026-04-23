@@ -85,9 +85,9 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
   const isUpdating = stage !== null && stage !== "complete";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={isUpdating ? undefined : onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={isUpdating ? undefined : onClose}>
       <div
-        className="w-full max-w-lg rounded-lg border border-app-border bg-app-bg shadow-2xl overflow-hidden"
+        className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg border border-app-border bg-app-bg shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

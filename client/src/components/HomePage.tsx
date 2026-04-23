@@ -217,7 +217,7 @@ export function HomePage() {
   }, [recentLaps, periodStats, gameId]);
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
+    <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
       {/* Header */}
       {gameId ? (() => {
         const themes: Record<string, { bg: string; border: string; glow: string; bar: string; line: string; accent: string; logo: ReactNode }> = {
@@ -303,10 +303,10 @@ export function HomePage() {
       )}
 
       {/* Game cards — only on global homepage */}
-      {!gameId && <div className="flex gap-3">
+      {!gameId && <div className="grid grid-cols-2 md:flex gap-3">
         {!hiddenGames.includes("fm-2023") && <Link
           to="/fm23"
-          className="group flex-1 relative overflow-hidden rounded-lg border border-cyan-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-cyan-500/35 hover:shadow-[0_8px_32px_rgba(0,212,255,0.1)]"
+          className="group md:flex-1 relative overflow-hidden rounded-lg border border-cyan-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-cyan-500/35 hover:shadow-[0_8px_32px_rgba(0,212,255,0.1)]"
           style={{ background: "linear-gradient(135deg, #060a14 0%, #0a1628 40%, #0d2040 100%)" }}
         >
           {/* Accent glow */}
@@ -340,7 +340,7 @@ export function HomePage() {
         </Link>}
         {!hiddenGames.includes("f1-2025") && <Link
           to="/f125"
-          className="group flex-1 relative overflow-hidden rounded-lg border border-red-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-red-500/35 hover:shadow-[0_8px_32px_rgba(255,26,26,0.1)]"
+          className="group md:flex-1 relative overflow-hidden rounded-lg border border-red-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-red-500/35 hover:shadow-[0_8px_32px_rgba(255,26,26,0.1)]"
           style={{ background: "linear-gradient(135deg, #0e0606 0%, #1a0808 40%, #2d0a0a 100%)" }}
         >
           {/* Accent glow */}
@@ -374,7 +374,7 @@ export function HomePage() {
         </Link>}
         {!hiddenGames.includes("acc") && <Link
           to="/acc"
-          className="group flex-1 relative overflow-hidden rounded-lg border border-orange-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-orange-500/35 hover:shadow-[0_8px_32px_rgba(255,140,0,0.1)]"
+          className="group md:flex-1 relative overflow-hidden rounded-lg border border-orange-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-orange-500/35 hover:shadow-[0_8px_32px_rgba(255,140,0,0.1)]"
           style={{ background: "linear-gradient(135deg, #0e0a04 0%, #1a1008 40%, #2d1a0a 100%)" }}
         >
           {/* Accent glow */}
@@ -408,7 +408,7 @@ export function HomePage() {
         </Link>}
         {!hiddenGames.includes("ac-evo") && <Link
           to="/ac-evo"
-          className="group flex-1 relative overflow-hidden rounded-lg border border-green-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-green-500/35 hover:shadow-[0_8px_32px_rgba(0,230,118,0.1)]"
+          className="group md:flex-1 relative overflow-hidden rounded-lg border border-green-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-green-500/35 hover:shadow-[0_8px_32px_rgba(0,230,118,0.1)]"
           style={{ background: "linear-gradient(135deg, #030e06 0%, #071a0c 40%, #0a2d14 100%)" }}
         >
           {/* Accent glow */}
@@ -447,7 +447,7 @@ export function HomePage() {
 
       {/* Period tabs + stats */}
       <div>
-        <div className="flex items-center gap-1 mb-3">
+        <div className="flex items-center flex-wrap gap-1 mb-3">
           {([["today", "Today"], ["week", "This Week"], ["month", "This Month"], ["year", "This Year"], ["allTime", "All Time"]] as const).map(([key, label]) => (
             <button
               key={key}

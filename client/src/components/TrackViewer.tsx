@@ -72,12 +72,12 @@ export function TrackViewer() {
 
   return (
     <div className="p-4 overflow-auto h-full">
-      <div className="flex items-center gap-3 mb-3">
+      <div className="flex items-center flex-wrap gap-3 mb-3">
         <AppInput
           placeholder="Search tracks..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full max-w-xs"
+          className="flex-1 min-w-[180px] sm:flex-none sm:max-w-xs"
         />
         <div className="flex items-center gap-1 text-app-label text-app-text-muted">
           <span className="uppercase tracking-wider">Sort:</span>

@@ -75,7 +75,7 @@ function CarDetail({ car, fmtSpeed, fmtBrake, fmtWeight, isMetric }: {
   if (!s) return <div className="px-4 py-3 text-xs text-app-text/90-muted">No detailed stats available for this car.</div>;
 
   return (
-    <div className="px-4 py-3 grid grid-cols-[200px_1fr] gap-4 bg-app-bg border-t border-app-border">
+    <div className="px-4 py-3 grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4 bg-app-bg border-t border-app-border">
       {/* Image */}
       <div className="flex flex-col gap-2">
         {s.imageUrl ? (
@@ -106,7 +106,7 @@ function CarDetail({ car, fmtSpeed, fmtBrake, fmtWeight, isMetric }: {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-x-6 gap-y-2 text-xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 text-xs">
         {/* Engine */}
         <div className="space-y-1">
           <div className="text-[10px] uppercase tracking-wider text-app-text/90-muted font-semibold">Engine</div>
@@ -379,10 +379,10 @@ export function CarsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name, division, engine..."
-          className="w-52"
+          className="flex-1 min-w-[180px] sm:flex-none sm:w-52"
         />
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center flex-wrap gap-1">
           {PI_CLASSES.map((cls) => (
             <button key={cls} onClick={() => setClassFilter(classFilter === cls ? null : cls)}
               className={`text-xs font-bold px-3 py-1.5 rounded transition-colors ${classFilter === cls ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90-muted hover:text-app-text/90 border border-app-border"}`}>
@@ -391,7 +391,7 @@ export function CarsPage() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center flex-wrap gap-1">
           {DRIVETRAINS.map((d) => (
             <button key={d} onClick={() => setDriveFilter(driveFilter === d ? null : d)}
               className={`text-xs font-semibold px-3 py-1.5 rounded transition-colors ${driveFilter === d ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90-muted hover:text-app-text/90 border border-app-border"}`}>

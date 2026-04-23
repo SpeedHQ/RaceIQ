@@ -150,23 +150,23 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
   ];
 
   return (
-    <div className="flex h-full">
-      {/* Left nav */}
-      <nav className="w-48 shrink-0 border-r border-app-border bg-app-surface-alt/50 py-2 flex flex-col">
+    <div className="flex flex-col md:flex-row h-full">
+      {/* Nav — horizontal tabs on mobile, sidebar on md+ */}
+      <nav className="md:w-48 shrink-0 md:border-r border-b md:border-b-0 border-app-border bg-app-surface-alt/50 py-2 flex md:flex-col overflow-x-auto md:overflow-x-visible">
         {NAV_ITEMS.filter((item) => !("devOnly" in item) || isDevelopment).map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveSection(item.id)}
-            className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+            className={`shrink-0 md:w-full text-left px-4 py-2 text-sm whitespace-nowrap transition-colors ${
               activeSection === item.id
-                ? "text-app-accent bg-app-accent/10 border-r-2 border-app-accent"
+                ? "text-app-accent bg-app-accent/10 border-b-2 md:border-b-0 md:border-r-2 border-app-accent"
                 : "text-app-text-muted hover:text-app-text hover:bg-app-surface-alt"
             }`}
           >
             {item.label}
           </button>
         ))}
-        <div className="mt-auto pt-2 border-t border-app-border mx-2">
+        <div className="hidden md:block mt-auto pt-2 border-t border-app-border mx-2">
           <button
             className="w-full text-left px-4 py-2 text-sm text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors"
             onClick={() => { onClose?.(); openOnboarding(); }}
@@ -174,10 +174,16 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             Setup Wizard
           </button>
         </div>
+        <button
+          className="md:hidden shrink-0 px-4 py-2 text-sm whitespace-nowrap text-app-text-muted hover:text-app-text transition-colors border-l border-app-border ml-auto"
+          onClick={() => { onClose?.(); openOnboarding(); }}
+        >
+          Setup Wizard
+        </button>
       </nav>
 
       {/* Right content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {activeSection === "games" && <GamesSection />}
 
         {activeSection === "theme" && (

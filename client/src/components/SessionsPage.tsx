@@ -376,13 +376,13 @@ const deleteSelected = useCallback(async () => {
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center flex-wrap gap-3">
         <AppInput
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search track, car, notes…"
-          className="w-64"
+          className="flex-1 min-w-[200px] sm:flex-none sm:w-64"
         />
         <h1 className="text-sm font-semibold text-app-text/90 shrink-0">
           Sessions
@@ -392,7 +392,7 @@ const deleteSelected = useCallback(async () => {
             </span>
           )}
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap gap-2">
           {selectedLaps.size === 2 && (() => {
             // Only show Compare when the two selected laps are from sessions
             // on the same track — the compare route expects a single track.

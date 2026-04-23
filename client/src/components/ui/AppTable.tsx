@@ -2,8 +2,8 @@ import type { ReactNode, TdHTMLAttributes, ThHTMLAttributes } from "react";
 
 export function Table({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-lg ${className}`}>
-      <table className="w-full text-sm">
+    <div className={`rounded-lg overflow-x-auto ${className}`}>
+      <table className="w-full min-w-max text-sm md:min-w-0">
         {children}
       </table>
     </div>
