@@ -162,7 +162,14 @@ export const PHYSICS = {
 // --- SPageFileGraphic ---
 // wchar_t[15] = 30 bytes, wchar_t[33] = 66 bytes + 2 pad before next int/float
 export const GRAPHICS = {
-  SIZE: 1320,
+  // SPageFileGraphic = 1588 bytes (ACC SDK v1.8.12). Earlier value of 1320
+  // truncated the tail of the struct (sessionIndex onward, including isValidLap).
+  // SIZE is what the reader allocates/copies for fresh data.
+  // MIN_SIZE is the smallest buffer the parser will accept — set to the legacy
+  // recorder size (1320) so V2 .bin recordings continue to parse. Tail fields
+  // (sessionIndex, isValidLap, etc.) are length-guarded at the read site.
+  SIZE: 1588,
+  MIN_SIZE: 1320,
   packetId:         { offset: 0, type: "i32" },
   status:           { offset: 4, type: "i32" },
   session:          { offset: 8, type: "i32" },
@@ -207,6 +214,19 @@ export const GRAPHICS = {
   // exhaustTemperature (1300), wiperLV (1304)
   // DriverStintTotalTimeLeft (1308), DriverStintTimeLeft (1312)
   rainTyres:        { offset: 1316, type: "i32" },
+  sessionIndex:     { offset: 1320, type: "i32" },
+  usedFuel:         { offset: 1324, type: "f32" },
+  // deltaLapTime wchar_t[15] at 1328 (30 bytes) + 2 pad → 1360
+  iDeltaLapTime:    { offset: 1360, type: "i32" },   // ms
+  // estimatedLapTime wchar_t[15] at 1364 (30 bytes) + 2 pad → 1396
+  iEstimatedLapTime:{ offset: 1396, type: "i32" },   // ms
+  isDeltaPositive:  { offset: 1400, type: "i32" },
+  iSplit:           { offset: 1404, type: "i32" },   // ms
+  isValidLap:       { offset: 1408, type: "i32" },   // 1 = valid, 0 = invalidated (cut/pit-speed)
+  fuelEstimatedLaps:{ offset: 1412, type: "f32" },
+  // trackStatus wchar_t[33] at 1416 (66 bytes) + 2 pad → 1484
+  missingMandatoryPits: { offset: 1484, type: "i32" },
+  clock:            { offset: 1488, type: "f32" },   // seconds
 } as const;
 
 // --- SPageFileStatic ---

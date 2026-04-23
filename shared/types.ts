@@ -240,6 +240,12 @@ export interface AccExtendedData {
   drsAvailable: boolean;
   drsEnabled: boolean;
   pitStatus: string;
+  /**
+   * ACC's own lap-validity flag (graphics struct, offset 1408).
+   * true = clean, false = invalidated (track cut / pit speed / etc).
+   * null = not available in source recording (legacy V2 bins, buffer truncated before offset 1408).
+   */
+  isValidLap: boolean | null;
 
   // Fuel
   fuelPerLap: number;
