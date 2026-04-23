@@ -37,6 +37,7 @@ class UdpListener {
   private _recordingGameId: GameId | null = null;
   private _lastDetectedGame: ReturnType<typeof getRunningGame> = null;
   private _lastRaceOn = false;
+  private _lastWsPacketCount = 0;
 
   get droppedPackets(): number {
     return this._droppedPackets;
@@ -124,6 +125,14 @@ class UdpListener {
         this._receiving = false;
       }
 
+      // Pipeline-wide activity: count packets handed to wsManager from any
+      // source (UDP, ACC SHM, AC Evo SHM). isRaceOn must reflect all sources,
+      // not just UDP — otherwise shared-memory games show "Waiting" forever.
+      const wsCount = wsManager.packetCount;
+      const streamPps = wsCount - this._lastWsPacketCount;
+      this._lastWsPacketCount = wsCount;
+      const raceOn = this._receiving || streamPps > 0;
+
       // Broadcast full server status to clients (replaces REST polling)
       const runningGame = getRunningGame();
       const session = lapDetector.session;
@@ -141,16 +150,16 @@ class UdpListener {
       this._lastDetectedGame = runningGame;
 
       // Log race state changes
-      if (!this._lastRaceOn && this._receiving) {
+      if (!this._lastRaceOn && raceOn) {
         console.log("[State] Race on");
-      } else if (this._lastRaceOn && !this._receiving) {
+      } else if (this._lastRaceOn && !raceOn) {
         console.log("[State] Race off");
       }
-      this._lastRaceOn = this._receiving;
+      this._lastRaceOn = raceOn;
 
       wsManager.broadcastStatus({
         udpPps: this._packetsPerSec,
-        isRaceOn: this._receiving,
+        isRaceOn: raceOn,
         droppedPackets: this._droppedPackets,
         udpPort: this._port,
         detectedGame: runningGame

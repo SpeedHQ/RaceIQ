@@ -45,7 +45,7 @@ export interface TelemetryHistoryData {
 
 class WebSocketManager {
   private clients = new Set<ServerWebSocket<WSData>>();
-  private packetCount = 0;
+  private _packetCount = 0;
   private broadcastIntervalMs = 16; // default 60Hz
   private gripSampleCounter = 0; // Counts to 6 for 10Hz history sampling
   private gripHistory: GripHistoryData = { fl: [], fr: [], rl: [], rr: [] };
@@ -77,6 +77,13 @@ class WebSocketManager {
 
   get connectedClients(): number {
     return this.clients.size;
+  }
+
+  /** Monotonic count of packets handed to broadcast() — used by status
+   *  interval to detect active pipeline flow regardless of source (UDP, ACC
+   *  SHM, AC Evo SHM). Reset never; consumers track deltas. */
+  get packetCount(): number {
+    return this._packetCount;
   }
 
   setRefreshRate(hz: string): void {
@@ -169,7 +176,7 @@ class WebSocketManager {
    * Does NOT send to clients — the broadcast timer handles that.
    */
   broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null): void {
-    this.packetCount++;
+    this._packetCount++;
     this._latestPacket = packet;
     if (sectors) this._latestSectors = sectors;
     if (pit) this._latestPit = pit;
