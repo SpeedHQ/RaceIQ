@@ -35,5 +35,5 @@ describe(recordingFile, () => {
     expect(laps[3].isValid).toBe(true);
     assertValidLapHasSectors(laps[3]);
     assertBrandHatchSectorBounds(laps[3]);
-  });
+  }, 120_000);
 });

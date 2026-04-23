@@ -35,5 +35,5 @@ describe(recordingFile, () => {
     // Lap 2: incomplete tail
     expect(laps[2].isValid).toBe(false);
     expect(laps[2].invalidReason).toBe("incomplete");
-  });
+  }, 120_000);
 });

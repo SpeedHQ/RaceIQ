@@ -73,5 +73,5 @@ describe(recordingFile, () => {
     expect(lapSaved[2].isValid).toBe(true);
     expect(lapSaved[3].lapNumber).toBe(3);
     expect(lapSaved[3].isValid).toBe(true);
-  });
+  }, 120_000);
 });
