@@ -88,18 +88,9 @@ function StaleLapButton() {
     <>
       {staleLapDetection && (
         <div className="fixed bottom-4 right-4 z-50 w-72 rounded-lg bg-app-surface border border-blue-500/30 shadow-xl p-4">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2">
-              <RefreshCw className="size-4 text-blue-400 shrink-0 mt-0.5" />
-              <span className="text-sm font-semibold text-app-text">Lap detection updated</span>
-            </div>
-            <button
-              onClick={() => setStaleLapDetection(null)}
-              className="text-app-text-muted hover:text-app-text-secondary transition-colors shrink-0"
-              aria-label="Dismiss"
-            >
-              <X className="size-4" />
-            </button>
+          <div className="flex items-center gap-2 mb-2">
+            <RefreshCw className="size-4 text-blue-400 shrink-0" />
+            <span className="text-sm font-semibold text-app-text">Lap detection updated</span>
           </div>
           <p className="text-xs text-app-text-muted mb-3">
             {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s were" : " was"} recorded with an older lap detector. Reparsing will improve lap boundaries and timing accuracy.
