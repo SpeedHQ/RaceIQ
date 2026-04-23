@@ -1,7 +1,11 @@
+import { resolve } from "path";
+import { mkdirSync } from "fs";
 import type { LapMeta, LiveSectorData, LivePitData, GameId, TelemetryPacket } from "../shared/types";
 import { insertSession, insertLap, getLaps, updateSessionRawFile } from "./db/queries";
 import { getTuneAssignment } from "./db/tune-queries";
 import { wsManager } from "./ws";
+import { UdpRecorder } from "./udp-recorder";
+import { resolveDataDir } from "./data-dir";
 
 export interface CapturedSession {
   carOrdinal: number;
@@ -50,6 +54,28 @@ export interface DbAdapter {
     carOrdinal: number,
     trackOrdinal: number
   ): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null>;
+}
+
+/**
+ * Pluggable session recorder — wraps the raw binary dump file pipeline uses
+ * to replay sessions later. Real impl writes to `<DATA_DIR>/sessions/<game>/`.
+ * Null impl no-ops so tests re-feeding dumps don't duplicate the recording
+ * back to disk.
+ *
+ * `epoch` bumps on each successful `start()` so the pipeline can detect a
+ * session rotation triggered inside `detector.feed` (packet landed on the
+ * old recorder, a new session opened, need to re-write the packet).
+ */
+export interface SessionRecorderAdapter {
+  readonly active: boolean;
+  readonly path: string | null;
+  readonly epoch: number;
+  start(gameId: GameId): void;
+  writeMetaFrame(): void;
+  writePacket(buf: Buffer): void;
+  getCurrentByteOffset(): number;
+  flush(): void;
+  stop(): Promise<void>;
 }
 
 export interface WsAdapter {
@@ -148,6 +174,50 @@ export class NullDbAdapter implements DbAdapter {
   getTuneAssignment(_carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
     return Promise.resolve(null);
   }
+}
+
+/** Real session recorder — writes raw UDP packets to `<DATA_DIR>/sessions/<game>/<timestamp>.bin`. */
+export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
+  private _inner: UdpRecorder | null = null;
+  private _epoch = 0;
+
+  get active(): boolean { return this._inner?.recording ?? false; }
+  get path(): string | null { return this._inner?.path ?? null; }
+  get epoch(): number { return this._epoch; }
+
+  start(gameId: GameId): void {
+    const dataDir = resolveDataDir();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const sessionDir = resolve(dataDir, "sessions", gameId);
+    mkdirSync(sessionDir, { recursive: true });
+    const filePath = resolve(sessionDir, `${timestamp}.bin`);
+    this._inner = new UdpRecorder();
+    this._inner.start(filePath);
+    this._epoch++;
+  }
+
+  writeMetaFrame(): void { this._inner?.writeMetaFrame(); }
+  writePacket(buf: Buffer): void { this._inner?.writePacket(buf); }
+  getCurrentByteOffset(): number { return this._inner?.getCurrentByteOffset() ?? 0; }
+  flush(): void { this._inner?.flush(); }
+  async stop(): Promise<void> {
+    const inner = this._inner;
+    this._inner = null;
+    if (inner) await inner.stop();
+  }
+}
+
+/** No-op session recorder — used in tests/benchmarks that re-feed recorded dumps. */
+export class NullSessionRecorderAdapter implements SessionRecorderAdapter {
+  get active(): boolean { return false; }
+  get path(): string | null { return null; }
+  get epoch(): number { return 0; }
+  start(_gameId: GameId): void {}
+  writeMetaFrame(): void {}
+  writePacket(_buf: Buffer): void {}
+  getCurrentByteOffset(): number { return 0; }
+  flush(): void {}
+  async stop(): Promise<void> {}
 }
 
 /** Capturing WebSocket adapter that records all events. Used in tests. */

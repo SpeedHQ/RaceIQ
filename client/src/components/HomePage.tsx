@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQueries } from "@tanstack/react-query";
 import { Settings2 } from "lucide-react";
 import { useLaps, useSettings } from "../hooks/queries";
 import { formatLapTime } from "./LiveTelemetry";
@@ -9,7 +10,6 @@ import { RAW_STORAGE_VERSION } from "@shared/types";
 import { useGameId, getGameRoute } from "../stores/game";
 import { tryGetGame } from "@shared/games/registry";
 import { useUiStore } from "../stores/ui";
-import { PiBadge, PI_COLORS, piClass } from "./forza/PiBadge";
 import { Table, THead, TBody, TRow, TH, TD } from "./ui/AppTable";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 
@@ -33,8 +33,7 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
   gameId: string | null;
 }) {
   const showGame = !gameId; // show game column on global homepage
-  const showPi = !gameId || gameId === "fm-2023"; // PI is Forza-only
-  if (laps.length === 0) {
+    if (laps.length === 0) {
     return (
       <div className="p-6 text-center text-app-text/90-dim">
         No laps recorded yet. Start driving to see data here.
@@ -48,10 +47,8 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
         {showGame && <TH>Game</TH>}
         <TH>Track</TH>
         <TH>Car</TH>
-        {showPi && <TH className="text-center">PI</TH>}
         <TH>Lap</TH>
         <TH>Time</TH>
-        <TH className="text-center">Valid</TH>
         <TH className="text-right">When</TH>
       </THead>
       <TBody>
@@ -75,19 +72,14 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: {
               </TD>}
               <TD className="text-app-text/90 truncate max-w-[160px]" title={track}>{track || "—"}</TD>
               <TD className="text-app-text/90 truncate max-w-[140px]" title={car}>{car || "—"}</TD>
-              {showPi && <TD className="text-center">{lap.pi != null && lap.pi > 0 && (
-                <span className="inline-flex items-center gap-1">
-                  <PiBadge showNumber={false} pi={lap.pi} />
-                  <span className={`text-[10px] font-semibold ${PI_COLORS[piClass(lap.pi)]?.split(" ")[1] ?? "text-app-text/90-muted"}`}>{lap.pi}</span>
-                </span>
-              )}</TD>}
-              <TD className="font-mono text-app-text/90">L{lap.lapNumber}</TD>
-              <TD className="font-mono font-bold text-app-text/90 tabular-nums">{formatLapTime(lap.lapTime)}</TD>
-              <TD className="text-center">
-                <span className={lap.isValid ? "text-emerald-400" : "text-red-400"}>
-                  {lap.isValid ? "\u2713" : "\u2717"}
+              <TD className="font-mono text-app-text/90">{lap.lapNumber}</TD>
+              <TD className="font-mono font-bold text-app-text/90 tabular-nums whitespace-nowrap">
+                <span className="flex items-center gap-1">
+                  {formatLapTime(lap.lapTime)}
+                  <span className={`text-sm ${lap.isValid ? "text-emerald-400" : "text-red-400"}`}>{lap.isValid ? "\u2713" : "\u2717"}</span>
                 </span>
               </TD>
+
               <TD className="text-right text-xs text-app-text/90">{ago}</TD>
             </TRow>
           );
@@ -123,26 +115,33 @@ export function HomePage() {
     [allLaps]
   );
 
-  // Per-game stats
+  // Per-game stats — fetched from /api/stats per game so counts aren't
+  // capped by useLaps()'s 200-row limit (home and /<gameId> used to
+  // disagree when total laps across games exceeded 200).
+  const gameQueries = useQueries({
+    queries: (["fm-2023", "f1-2025", "acc", "ac-evo"] as const).map((g) => ({
+      queryKey: ["stats", g],
+      queryFn: async () => {
+        const res = await client.api.stats.$get({ query: { gameId: g } });
+        if (!res.ok) throw new Error(res.statusText);
+        return res.json() as Promise<{ totalLaps: number; totalTimeSec: number }>;
+      },
+    })),
+  });
+
   const gameStats = useMemo(() => {
-    const fm = allLaps.filter((l) => l.gameId === "fm-2023");
-    const f1 = allLaps.filter((l) => l.gameId === "f1-2025");
-    const acc = allLaps.filter((l) => l.gameId === "acc");
-    const acEvo = allLaps.filter((l) => l.gameId === "ac-evo");
-    const totalTime = (laps: typeof fm) => laps.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
     const fmtTime = (sec: number) => {
       if (sec <= 0) return "—";
       const h = Math.floor(sec / 3600);
       const m = Math.floor((sec % 3600) / 60);
       return h > 0 ? `${h}h ${m}m` : `${m}m`;
     };
-    return {
-      fm: { laps: fm.length, time: fmtTime(totalTime(fm)) },
-      f1: { laps: f1.length, time: fmtTime(totalTime(f1)) },
-      acc: { laps: acc.length, time: fmtTime(totalTime(acc)) },
-      acEvo: { laps: acEvo.length, time: fmtTime(totalTime(acEvo)) },
+    const pick = (i: number) => {
+      const d = gameQueries[i].data;
+      return { laps: d?.totalLaps ?? 0, time: fmtTime(d?.totalTimeSec ?? 0) };
     };
-  }, [allLaps]);
+    return { fm: pick(0), f1: pick(1), acc: pick(2), acEvo: pick(3) };
+  }, [gameQueries]);
 
   // Period metrics
   const [periodTab, setPeriodTab] = useState<"today" | "week" | "month" | "year" | "allTime">("allTime");

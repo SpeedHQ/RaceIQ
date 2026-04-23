@@ -16,7 +16,6 @@ import { accRecorder } from "./recorder";
 import { BufferedAccMemoryReader } from "./buffered-memory-reader";
 import { TripletAssembler } from "./triplet-assembler";
 import { TripletPipeline, StatusCheckProcessor, DumpToBinProcessor, ParsingProcessor } from "./triplet-pipeline";
-import { accProcessChecker } from "./process-checker";
 
 // Re-export utilities so tests can import readWString from this module
 export { readWString, toWideString } from "./utils";
@@ -65,12 +64,10 @@ export class AccSharedMemoryReader {
     this._running = true;
     console.log("[ACC] Starting shared memory reader...");
 
-    // Listen for process detection events
-    accProcessChecker.on("acc-detected", () => this._onAccDetected());
-    accProcessChecker.on("acc-lost", () => this._onAccLost());
-
-    // Start the process checker
-    accProcessChecker.start();
+    // Process detection is handled by the central supervisor in server/index.ts.
+    // This reader is only instantiated once the ACC process is already running,
+    // so connect immediately instead of polling for the process ourselves.
+    this._onAccDetected();
   }
 
   async stop(): Promise<void> {
@@ -96,8 +93,11 @@ export class AccSharedMemoryReader {
     this._connected = true;
 
     // Register pipeline processors
-    // Chain: StatusCheckProcessor (validates AC_LIVE) → Mode-specific processor
-    this._pipeline.register(new StatusCheckProcessor(this._disconnect.bind(this)));
+    // Chain: StatusCheckProcessor (passes AC_LIVE + AC_PAUSE) → Mode-specific
+    // processor. StatusCheckProcessor halts the pipeline for AC_OFF/AC_REPLAY
+    // without tearing the reader down — the process supervisor in
+    // `server/index.ts` owns reader lifecycle.
+    this._pipeline.register(new StatusCheckProcessor("ACC"));
 
     if (this._recordingOnly) {
       this._pipeline.register(
@@ -118,19 +118,5 @@ export class AccSharedMemoryReader {
     console.log("[ACC] Connected - buffers reading and pipeline active");
   }
 
-
-  private async _disconnect(): Promise<void> {
-    if (this._connected) {
-      this._connected = false;
-      await this._tripletAssembler.stop();
-      await this._bufferedReader.stop();
-      console.log("[ACC] Disconnected from shared memory");
-    }
-  }
-
-  private _onAccLost(): void {
-    console.log("[ACC] ACC process lost, disconnecting...");
-    this._disconnect();
-  }
 
 }

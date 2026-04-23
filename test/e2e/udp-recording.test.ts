@@ -6,7 +6,7 @@ import { tmpdir } from "os";
 import { join, resolve } from "path";
 import { readUdpDump } from "../helpers/recording";
 
-const RECORDINGS_DIR = resolve(process.cwd(), "test", "artifacts", "laps");
+const RECORDINGS_DIR = resolve(process.cwd(), "test", "artifacts", "sessions");
 
 async function waitFor(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -27,13 +27,23 @@ describe("UDP recording integration", () => {
   let dataDir: string | null = null;
   let createdBin: string | null = null;
 
-  afterEach(() => {
+  afterEach(async () => {
     if (createdBin) {
       try { unlinkSync(createdBin); } catch {}
       createdBin = null;
     }
     if (dataDir) {
-      rmSync(dataDir, { recursive: true, force: true });
+      // Windows sometimes holds file handles briefly after the spawned server
+      // exits — retry rmSync with a short backoff to dodge transient EBUSY.
+      for (let attempt = 0; attempt < 10; attempt++) {
+        try {
+          rmSync(dataDir, { recursive: true, force: true });
+          break;
+        } catch (err) {
+          if (attempt === 9) throw err;
+          await new Promise((r) => setTimeout(r, 200));
+        }
+      }
       dataDir = null;
     }
   });

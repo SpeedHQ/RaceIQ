@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
-const binPath = resolve(process.cwd(), "test/artifacts/laps/acc-2026-04-10T02-59-28-972Z.bin");
+const binPath = resolve(process.cwd(), "test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin");
 const data = readFileSync(binPath);
 const V2_HEADER_SIZE = 16;
 const V2_FRAME_HEADER = 5;

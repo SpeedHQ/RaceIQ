@@ -63,7 +63,7 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
   );
 }
 
-function StaleLapBanner() {
+function StaleLapButton() {
   const staleLapDetection = useTelemetryStore((s) => s.staleLapDetection);
   const setStaleLapDetection = useTelemetryStore((s) => s.setStaleLapDetection);
   const reprocessProgress = useTelemetryStore((s) => s.reprocessProgress);
@@ -87,23 +87,20 @@ function StaleLapBanner() {
   return (
     <>
       {staleLapDetection && (
-        <div className="flex items-center gap-3 px-4 py-2 bg-blue-500/10 border-b border-blue-500/20 text-sm text-blue-300">
-          <span className="flex-1">
-            Lap detection updated — {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s" : ""} may have improved boundaries.
-          </span>
+        <div className="fixed bottom-4 right-4 z-50 w-72 rounded-lg bg-app-surface border border-blue-500/30 shadow-xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <RefreshCw className="size-4 text-blue-400 shrink-0" />
+            <span className="text-sm font-semibold text-app-text">Lap detection updated</span>
+          </div>
+          <p className="text-xs text-app-text-muted mb-3">
+            {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s were" : " was"} recorded with an older lap detector. Reparsing will improve lap boundaries and timing accuracy.
+          </p>
           <button
             onClick={handleReprocess}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 transition-colors"
           >
             <RefreshCw className="size-3" />
-            Reprocess
-          </button>
-          <button
-            onClick={() => setStaleLapDetection(null)}
-            className="text-blue-400/60 hover:text-blue-300 transition-colors"
-            aria-label="Dismiss"
-          >
-            <X className="size-3.5" />
+            Reparse {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s" : ""}
           </button>
         </div>
       )}
@@ -124,6 +121,7 @@ function AppShell() {
   const driverName = displaySettings.driverName || "";
   const connected = useTelemetryStore((s) => s.connected);
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
+  const isRaceOn = useTelemetryStore((s) => s.isRaceOn);
   const updateState = useUpdateCheck();
 
   const { settingsOpen: showSettings, settingsSection, openSettings, closeSettings, onboardingOpen, closeOnboarding } = useUiStore();
@@ -214,7 +212,7 @@ function AppShell() {
               <ConnectionStatus
                 connected={connected}
                 packetsPerSec={packetsPerSec}
-                forzaReceiving={packetsPerSec > 0}
+                forzaReceiving={isRaceOn && packetsPerSec > 0}
               />
 
               <div className="hidden md:block w-px h-4 bg-app-border mx-2" />
@@ -379,12 +377,11 @@ function AppShell() {
 
           {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
 
-          <StaleLapBanner />
-
           <div className="min-h-0 overflow-y-auto">
             <Outlet />
           </div>
         </div>
+        <StaleLapButton />
     </ThemeProvider>
   );
 }

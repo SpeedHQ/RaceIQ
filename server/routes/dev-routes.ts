@@ -108,7 +108,7 @@ function detectGameIdFromFilename(name: string): GameId | null {
   return null;
 }
 
-const ARTIFACTS_DIR = resolve(process.cwd(), "test/artifacts/laps");
+const ARTIFACTS_DIR = resolve(process.cwd(), "test/artifacts/sessions");
 
 // Initialize game adapters on module load
 initGameAdapters();
@@ -118,13 +118,13 @@ export const devRoutes = new Hono();
 
 /**
  * GET /api/dev/e2e-files
- * List all .bin recording files from test/artifacts/laps
+ * List all .bin recording files from test/artifacts/sessions
  */
 devRoutes.get("/api/dev/e2e-files", (c) => {
   try {
     const files: Array<{ name: string; path: string; size: number; modified: number }> = [];
 
-    // Scan test/artifacts/laps for .bin files
+    // Scan test/artifacts/sessions for .bin files
     const entries = readdirSync(ARTIFACTS_DIR, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isFile() || !entry.name.endsWith(".bin")) continue;

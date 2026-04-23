@@ -148,11 +148,19 @@ export const AnalyseChartsPanel = memo(forwardRef<ChartsPanelHandle, ChartsPanel
 
     const xFrac = timeFracs && idx < timeFracs.length ? timeFracs[idx] : (idx / (totalPackets - 1));
 
-    // All charts share the same padding constants
-    const leftPad = 40;
-    const rightPad = 8;
+    // Chart canvases live inside a parent with `p-3` padding (12px each
+    // side), so the overlay — which stretches edge-to-edge of the scroll
+    // container — must add that container padding to the chart's own
+    // leftPad/rightPad to land exactly where the chart data draws.
+    const CONTAINER_PAD = 12; // p-3
+    const CHART_LEFT_PAD = 40;
+    const CHART_RIGHT_PAD = 8;
+    const leftPad = CONTAINER_PAD + CHART_LEFT_PAD;
+    const rightPad = CONTAINER_PAD + CHART_RIGHT_PAD;
     const chartW = w - leftPad - rightPad;
-    const cx = leftPad + xFrac * chartW;
+    const MIN_INSET = 2;
+    const rawCx = leftPad + xFrac * chartW;
+    const cx = Math.max(rawCx, leftPad + MIN_INSET);
 
     // Draw a single vertical line spanning the full scroll height
     ctx.strokeStyle = "rgba(255,255,255,0.5)";

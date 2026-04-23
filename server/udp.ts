@@ -13,7 +13,7 @@
 import { resolve } from "path";
 import { parsePacket } from "./parser";
 import { wsManager } from "./ws";
-import { processPacket } from "./pipeline";
+import { processPacket, flushSessionRecorderBuffer } from "./pipeline";
 import { getRunningGame } from "./games/registry";
 import { lapDetector } from "./pipeline";
 import { UdpRecorder } from "./udp-recorder";
@@ -35,6 +35,9 @@ class UdpListener {
   private _hostname = "0.0.0.0";
   private _recorder: UdpRecorder | null = null;
   private _recordingGameId: GameId | null = null;
+  private _lastDetectedGame: ReturnType<typeof getRunningGame> = null;
+  private _lastRaceOn = false;
+  private _lastWsPacketCount = 0;
 
   get droppedPackets(): number {
     return this._droppedPackets;
@@ -62,7 +65,7 @@ class UdpListener {
 
   /**
    * Pin a recording gameId. When set, `start()` opens a timestamped .bin file
-   * under test/artifacts/laps/ and every incoming datagram is appended to it
+   * under test/artifacts/sessions/ and every incoming datagram is appended to it
    * (in addition to the normal parse → pipeline → DB/WS flow). Mirrors how the
    * AccSharedMemoryReader/AcEvoSharedMemoryReader constructors create their
    * .bin files when `recordingOnly=true`. Used by `dev:dump:fm` / `dev:dump:f1`.
@@ -77,7 +80,7 @@ class UdpListener {
     console.log(`[UDP] Starting listener on ${hostname}:${port}...`);
 
     if (this._recordingGameId && !this._recorder) {
-      const dir = resolve(process.cwd(), "test", "artifacts", "laps");
+      const dir = resolve(process.cwd(), "test", "artifacts", "sessions");
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const filePath = resolve(dir, `${this._recordingGameId}-${timestamp}.bin`);
       this._recorder = new UdpRecorder();
@@ -111,17 +114,52 @@ class UdpListener {
       this._packetsInWindow = 0;
       this._lastWindowStart = Date.now();
 
+      // Flush the session recorder's in-memory write buffer so rawByteOffset
+      // stored on lap rows always has corresponding bytes on disk. Without
+      // this, an abrupt termination leaves lap offsets pointing past EOF and
+      // telemetry disappears from the analyse view.
+      flushSessionRecorderBuffer();
+
       // Mark as not receiving if no packets in last second
       if (this._packetsPerSec === 0 && this._receiving) {
         this._receiving = false;
       }
 
+      // Pipeline-wide activity: count packets handed to wsManager from any
+      // source (UDP, ACC SHM, AC Evo SHM). isRaceOn must reflect all sources,
+      // not just UDP — otherwise shared-memory games show "Waiting" forever.
+      const wsCount = wsManager.packetCount;
+      const streamPps = wsCount - this._lastWsPacketCount;
+      this._lastWsPacketCount = wsCount;
+      const raceOn = this._receiving || streamPps > 0;
+
       // Broadcast full server status to clients (replaces REST polling)
       const runningGame = getRunningGame();
       const session = lapDetector.session;
+
+      // Log game detection changes and finalize session if game disconnects
+      if (this._lastDetectedGame?.id !== runningGame?.id) {
+        if (runningGame) {
+          console.log(`[Game] ${runningGame.displayName} detected (state: ${runningGame.id})`);
+        } else {
+          console.log("[Game] state change to null");
+          // Finalize session immediately when game disconnects
+          void lapDetector.finalizeCurrentSession();
+        }
+      }
+      this._lastDetectedGame = runningGame;
+
+      // Log race state changes
+      if (!this._lastRaceOn && raceOn) {
+        console.log("[State] Race on");
+      } else if (this._lastRaceOn && !raceOn) {
+        console.log("[State] Race off");
+      }
+      this._lastRaceOn = raceOn;
+
       wsManager.broadcastStatus({
         udpPps: this._packetsPerSec,
-        isRaceOn: this._receiving,
+        isRaceOn: raceOn,
         droppedPackets: this._droppedPackets,
         udpPort: this._port,
         detectedGame: runningGame

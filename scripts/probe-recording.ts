@@ -3,7 +3,7 @@
  *
  * If path is omitted, uses the latest recording for that game:
  *   bun scripts/probe-recording.ts acc
- *   bun scripts/probe-recording.ts f1-2025 test/artifacts/laps/dump.bin
+ *   bun scripts/probe-recording.ts f1-2025 test/artifacts/sessions/dump.bin
  */
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
@@ -20,12 +20,12 @@ if (!gameId) {
 
 function latestForGame(gameId: string): string | null {
   if (gameId === "acc") {
-    const dir = "test/artifacts/laps";
+    const dir = "test/artifacts/sessions";
     if (!existsSync(dir)) return null;
     const files = readdirSync(dir).filter((f) => f.endsWith(".bin")).sort().reverse();
     return files.length > 0 ? join(dir, files[0]) : null;
   }
-  const dir = "test/artifacts/laps";
+  const dir = "test/artifacts/sessions";
   if (!existsSync(dir)) return null;
   const sessions = readdirSync(dir).sort().reverse();
   for (const session of sessions) {

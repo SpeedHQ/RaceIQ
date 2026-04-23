@@ -1,4 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { resolveDataDir } from "../server/data-dir";
+import { isNewer } from "../server/version-compare";
 
 describe("resolveDataDir", () => {
   let originalDataDir: string | undefined;
@@ -15,43 +17,36 @@ describe("resolveDataDir", () => {
     }
   });
 
-  test("returns DATA_DIR env var when set", async () => {
+  test("returns DATA_DIR env var when set", () => {
     process.env.DATA_DIR = "/custom/path";
-    const { resolveDataDir } = await import("../server/data-dir");
     expect(resolveDataDir()).toBe("/custom/path");
   });
 
-  test("returns data dir when not in Program Files and no env var", async () => {
+  test("returns data dir when not in Program Files and no env var", () => {
     delete process.env.DATA_DIR;
-    const { resolveDataDir } = await import("../server/data-dir");
     // In test/dev, resolves to {project}/data
     expect(resolveDataDir()).toContain("data");
   });
 });
 
 describe("isNewer", () => {
-  test("1.2.3 is newer than 1.2.2", async () => {
-    const { isNewer } = await import("../server/update-check");
+  test("1.2.3 is newer than 1.2.2", () => {
     expect(isNewer("1.2.3", "1.2.2")).toBe(true);
   });
 
-  test("1.3.0 is newer than 1.2.9", async () => {
-    const { isNewer } = await import("../server/update-check");
+  test("1.3.0 is newer than 1.2.9", () => {
     expect(isNewer("1.3.0", "1.2.9")).toBe(true);
   });
 
-  test("2.0.0 is newer than 1.9.9", async () => {
-    const { isNewer } = await import("../server/update-check");
+  test("2.0.0 is newer than 1.9.9", () => {
     expect(isNewer("2.0.0", "1.9.9")).toBe(true);
   });
 
-  test("same version is not newer", async () => {
-    const { isNewer } = await import("../server/update-check");
+  test("same version is not newer", () => {
     expect(isNewer("1.2.3", "1.2.3")).toBe(false);
   });
 
-  test("older version is not newer", async () => {
-    const { isNewer } = await import("../server/update-check");
+  test("older version is not newer", () => {
     expect(isNewer("1.2.1", "1.2.3")).toBe(false);
   });
 });

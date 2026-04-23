@@ -1,6 +1,6 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { parseDump } from "./helpers/parse-dump";
-import { LapDetectorAc } from "../server/lap-detector-ac";
+import { LapDetectorAcc } from "../server/lap-detector-acc";
 import { stopMaintenanceTasks } from "../server/pipeline";
 
 afterAll(() => stopMaintenanceTasks());
@@ -58,7 +58,7 @@ describe("LapDetectorAc — reset detection", () => {
   test("emits a lap when CurrentLap resets from >30 to <2", async () => {
     const db = makeFakeDb();
     const saved: Array<{ lapNumber: number; lapTime: number }> = [];
-    const d = new LapDetectorAc({
+    const d = new LapDetectorAcc({
       db,
       callbacks: {
         onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
@@ -73,7 +73,7 @@ describe("LapDetectorAc — reset detection", () => {
     await d.feed(packet({ CurrentLap: 0.3, DistanceTraveled: 90 * 50 + 30, TimestampMS: 91 * 1000 }));
 
     expect(saved.length).toBe(1);
-    expect(saved[0].lapNumber).toBe(0);
+    expect(saved[0].lapNumber).toBe(1);
     expect(saved[0].lapTime).toBeCloseTo(90, 0);
   });
 
@@ -85,7 +85,7 @@ describe("LapDetectorAc — reset detection", () => {
       lapTime: number;
       isValid: boolean;
     }> = [];
-    const d = new LapDetectorAc({
+    const d = new LapDetectorAcc({
       db,
       callbacks: {
         onLapComplete: (e) =>
@@ -113,7 +113,7 @@ describe("LapDetectorAc — reset detection", () => {
   test("does not fire onLapComplete for silent incomplete-flush events", async () => {
     const db = makeFakeDb();
     let completeCount = 0;
-    const d = new LapDetectorAc({
+    const d = new LapDetectorAcc({
       db,
       callbacks: {
         onLapComplete: () => completeCount++,
@@ -131,7 +131,7 @@ describe("LapDetectorAc — reset detection", () => {
 
   test("saves partial initial lap as invalid outlap when recording starts in pit mid-lap", async () => {
     const db = makeFakeDb();
-    const d = new LapDetectorAc({ db });
+    const d = new LapDetectorAcc({ db });
 
     // Recording starts with the car in the pit lane, ~50s into some pre-recording lap
     for (let t = 50; t <= 70; t += 1) {
@@ -187,10 +187,10 @@ describe("LapDetectorAc — reset detection", () => {
 
     // Two laps: the partial initial lap (invalid outlap, first packet was in pit) and the full clean lap (valid)
     expect(db.inserted.length).toBe(2);
-    expect(db.inserted[0].lapNumber).toBe(0);
+    expect(db.inserted[0].lapNumber).toBe(1);
     expect(db.inserted[0].valid).toBe(false);
     expect(db.inserted[0].invalidReason).toBe("outlap");
-    expect(db.inserted[1].lapNumber).toBe(1);
+    expect(db.inserted[1].lapNumber).toBe(2);
     expect(db.inserted[1].valid).toBe(true);
     expect(db.inserted[1].lapTime).toBeCloseTo(85, 0);
   });
@@ -198,7 +198,7 @@ describe("LapDetectorAc — reset detection", () => {
   test("session restart (distance reset) discards in-progress lap and keeps new packet", async () => {
     const db = makeFakeDb();
     const saved: Array<{ lapNumber: number; lapTime: number }> = [];
-    const d = new LapDetectorAc({
+    const d = new LapDetectorAcc({
       db,
       callbacks: {
         onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime }),
@@ -223,14 +223,14 @@ describe("LapDetectorAc — reset detection", () => {
     await d.feed(packet({ CurrentLap: 0.2, DistanceTraveled: 80 * 50 + 30, TimestampMS: 200000 }));
 
     expect(saved.length).toBe(1);
-    expect(saved[0].lapNumber).toBe(0);
+    expect(saved[0].lapNumber).toBe(1);
     expect(saved[0].lapTime).toBeCloseTo(80, 0);
   });
 
   test("calls assessLapRecording and marks short-distance laps invalid", async () => {
     const db = makeFakeDb();
     const saved: Array<{ lapNumber: number; lapTime: number; isValid: boolean }> = [];
-    const d = new LapDetectorAc({
+    const d = new LapDetectorAcc({
       db,
       callbacks: {
         onLapSaved: (n) => saved.push({ lapNumber: n.lapNumber, lapTime: n.lapTime, isValid: n.isValid }),
@@ -250,7 +250,7 @@ describe("LapDetectorAc — reset detection", () => {
 
   test("marks ACC lap invalid with reason 'outlap' when it starts in the pit lane", async () => {
     const db = makeFakeDb();
-    const d = new LapDetectorAc({ db });
+    const d = new LapDetectorAcc({ db });
 
     // Out-lap: starts in pit lane, exits to track, drives a full clean lap
     // First packet: CurrentLap=0, pitStatus=pit_lane (car in pit exit)
@@ -301,7 +301,7 @@ describe("LapDetectorAc — reset detection", () => {
 
   test("marks ACC lap invalid with reason 'inlap' when it ends in the pit lane", async () => {
     const db = makeFakeDb();
-    const d = new LapDetectorAc({ db });
+    const d = new LapDetectorAcc({ db });
 
     // In-lap: drives most of the lap on track, enters pit lane near the finish
     for (let t = 0; t <= 60; t += 1) {
@@ -342,6 +342,15 @@ describe("LapDetectorAc — reset detection", () => {
 });
 
 test("parseDump runs against the problem recording without throwing", async () => {
-  const result = await parseDump("acc", "test/artifacts/laps/acc-2026-04-10T02-59-28-972Z.bin.gz");
+  const result = await parseDump("acc", "test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz");
   expect(result.laps.length).toBeGreaterThan(0);
 }, { timeout: 30000 });
+
+test("session bin: laps 1+2 have no isValidLap=false, laps 3+4 contain isValidLap=false frames", async () => {
+  const result = await parseDump("acc", "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz");
+  const byLap = new Map(result.laps.map((l) => [l.lapNumber, l]));
+  expect(byLap.get(1)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(false);
+  expect(byLap.get(2)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(false);
+  expect(byLap.get(3)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(true);
+  expect(byLap.get(4)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(true);
+}, { timeout: 60000 });

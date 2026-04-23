@@ -6,6 +6,10 @@ import { getServerGame } from "./games/registry";
 import { CapturingDbAdapter } from "./pipeline-adapters";
 import { META_FRAME_MAGIC } from "./udp-recorder";
 import type { GameId } from "../shared/types";
+import { gunzip } from "zlib";
+import { promisify } from "util";
+
+const gunzipAsync = promisify(gunzip);
 import {
   getLapsForSession,
   updateLapRawIndex,
@@ -47,8 +51,11 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   if (!(await rawFileHandle.exists())) {
     throw new Error(`Session ${sessionId} raw file not found: ${session.rawFile}`);
   }
-  const fileData = await rawFileHandle.arrayBuffer();
-  const buf = Buffer.from(fileData);
+  let buf = Buffer.from(await rawFileHandle.arrayBuffer());
+  // Decompress if file is gzipped
+  if (session.rawFile.endsWith(".gz")) {
+    buf = await gunzipAsync(buf);
+  }
 
   // Skip meta frame at offset 0: [0xFFFFFFFF][payload_len uint32][payload]
   let offset = 0;

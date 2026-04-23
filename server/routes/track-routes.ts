@@ -712,6 +712,7 @@ export const trackRoutes = new Hono()
           s3Time: lap.s3Time,
           isValid: lap.isValid,
           invalidReason: lap.invalidReason,
+          isLegacy: lap.rawFile == null,
           division: carSpecsMap.get(lap.carOrdinal)?.division ?? null,
           notes: lap.notes,
         };

@@ -7,10 +7,11 @@ import { IdParamSchema } from "../../shared/schemas";
 import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions } from "../db/queries";
 import { reprocessSession } from "../reprocess";
 import { LAP_DETECTOR_ID } from "../lap-detector";
-import { LAP_DETECTOR_V2_ID } from "../lap-detector-ac";
+import { LAP_DETECTOR_V2_ID } from "../lap-detector-acc";
+import { LAP_DETECTOR_AC_EVO_ID } from "../lap-detector-ac-evo";
 import { wsManager } from "../ws";
 
-const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_V2_ID];
+const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_V2_ID, LAP_DETECTOR_AC_EVO_ID];
 
 export const sessionRoutes = new Hono()
   // GET /api/sessions

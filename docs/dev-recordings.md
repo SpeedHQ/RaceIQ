@@ -1,6 +1,6 @@
 # Recording and importing telemetry dumps
 
-Telemetry dumps are raw packet captures saved to `test/artifacts/laps/`.
+Telemetry dumps are raw packet captures saved to `test/artifacts/sessions/`.
 They are useful for reproducing parser bugs, building test fixtures, and
 replaying a session through the pipeline without the game running.
 
@@ -22,10 +22,10 @@ so the file ends on a clean packet boundary. Recording files are
 timestamped:
 
 ```
-test/artifacts/laps/fm-2023-2026-04-18T17-32-09-418Z.bin
-test/artifacts/laps/f1-2025-2026-04-18T17-45-12-902Z.bin
-test/artifacts/laps/acc-2026-04-18T17-51-03-776Z.bin
-test/artifacts/laps/ac-evo-2026-04-18T17-59-44-112Z.bin
+test/artifacts/sessions/fm-2023-2026-04-18T17-32-09-418Z.bin
+test/artifacts/sessions/f1-2025-2026-04-18T17-45-12-902Z.bin
+test/artifacts/sessions/acc-2026-04-18T17-51-03-776Z.bin
+test/artifacts/sessions/ac-evo-2026-04-18T17-59-44-112Z.bin
 ```
 
 The filename prefix encodes the `gameId` — don't rename it, or the
@@ -55,8 +55,8 @@ Raw `.bin` dumps are gitignored — they're developer-local by default.
 To commit one as a regression fixture, **gzip it first**:
 
 ```sh
-bun run gzip:recording test/artifacts/laps/fm-2023-2026-04-18T17-28-14-420Z.bin
-git add test/artifacts/laps/fm-2023-2026-04-18T17-28-14-420Z.bin.gz
+bun run gzip:recording test/artifacts/sessions/fm-2023-2026-04-18T17-28-14-420Z.bin
+git add test/artifacts/sessions/fm-2023-2026-04-18T17-28-14-420Z.bin.gz
 ```
 
 The script keeps the raw `.bin` next to the `.bin.gz` so you can still
@@ -74,7 +74,7 @@ import { parseDump } from "../helpers/parse-dump";
 
 const result = await parseDump(
   "fm-2023",
-  "test/artifacts/laps/fm-2023-2026-04-18T17-28-14-420Z.bin.gz"
+  "test/artifacts/sessions/fm-2023-2026-04-18T17-28-14-420Z.bin.gz"
 );
 expect(result.laps).toHaveLength(3);
 ```
