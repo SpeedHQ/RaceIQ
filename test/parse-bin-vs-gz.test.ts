@@ -1,9 +1,6 @@
 /**
- * Verifies that parseRawLapFrames reads .bin and .bin.gz identically.
- *
- * Method: take a committed .bin.gz fixture, decompress into a sibling temp
- * .bin, then parse the same byte range out of both files and compare the
- * resulting packet arrays frame-for-frame.
+ * Verifies that parseRawLapFrames reads .bin and .bin.gz identically, and
+ * that coordinate normalization (X-flip for standard-xyz games) is applied.
  */
 import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync, writeFileSync, unlinkSync, mkdtempSync, rmSync } from "fs";
@@ -81,3 +78,4 @@ describe("parseRawLapFrames — .bin vs .bin.gz parity", () => {
     unlinkSync(binPath);
   });
 });
+

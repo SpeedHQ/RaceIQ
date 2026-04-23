@@ -35,6 +35,7 @@ export class LapDetectorAc implements ILapDetector {
   private _lapByteOffset: number | null = null;
   private _lapFrameCount = 0;
   private _currentRawByteOffset: number | null = null;
+  private _lastActivePacketTime = 0;
 
   constructor(opts: LapDetectorOptions) {
     this.db = opts.db;
@@ -55,6 +56,7 @@ export class LapDetectorAc implements ILapDetector {
   }
 
   async feed(packet: TelemetryPacket, rawByteOffset?: number): Promise<void> {
+    this._lastActivePacketTime = Date.now();
     if (rawByteOffset !== undefined) {
       if (this._currentRawByteOffset === null) {
         this._lapByteOffset = rawByteOffset;
@@ -78,9 +80,10 @@ export class LapDetectorAc implements ILapDetector {
         sessionUID: packet.sessionUID,
         bestLapTime: 0,
       };
-      // Use game-reported LapNumber so mid-race recordings match the game's
-      // lap counter (fresh session: packet.LapNumber=0 preserves legacy behaviour).
-      this.currentLapNumber = packet.LapNumber ?? 0;
+      // LapNumber = completedLaps+1 (1-indexed, matches game display).
+      // First packet with LapNumber=N means we're currently driving lap N.
+      // Use 1 as fallback when LapNumber is 0 or absent (stale/synthetic data).
+      this.currentLapNumber = (packet.LapNumber ?? 0) > 0 ? packet.LapNumber! : 1;
       this.firstLapIsPartial = accFirstPacketIsMidLap(packet);
       // Seed byte offset from the current packet so this session's first lap
       // points into the current .bin file, not the previous session's stale
@@ -154,6 +157,19 @@ export class LapDetectorAc implements ILapDetector {
     this.peakCurrentLap = 0;
   }
 
+  async flushStaleLap(): Promise<void> {
+    if (
+      !this.currentSession ||
+      this.lapBuffer.length < 10 ||
+      this._lastActivePacketTime === 0 ||
+      Date.now() - this._lastActivePacketTime < 10_000
+    ) return;
+    await this.emitLap("incomplete", { silent: true });
+    this.lapBuffer = [];
+    this.peakCurrentLap = 0;
+    this._lastActivePacketTime = 0;
+  }
+
   /** Emit the current lapBuffer as a saved lap. Callers clear state afterwards. */
   private async emitLap(
     forcedInvalidReason: string | null,
@@ -184,6 +200,8 @@ export class LapDetectorAc implements ILapDetector {
     // stopping at the last pre-reset packet.
     const packets = this.lapBuffer;
     if (opts?.trigger) packets.push(opts.trigger);
+    const lapByteOffset = this._lapByteOffset;
+    const lapFrameCount = this._lapFrameCount;
     this.lapBuffer = [];
     this.peakCurrentLap = 0;
     this.currentLapNumber = lapNum + 1;
@@ -201,6 +219,7 @@ export class LapDetectorAc implements ILapDetector {
         invalidReason = pitReason;
       }
     }
+
 
     const sectors = await computeLapSectors(
       this.currentSession!.trackOrdinal,
@@ -220,8 +239,8 @@ export class LapDetectorAc implements ILapDetector {
       lapNum,
       lapTime,
       isValid,
-      this._lapByteOffset,
-      this._lapFrameCount,
+      lapByteOffset,
+      lapFrameCount,
       null,
       null,
       invalidReason,

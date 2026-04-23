@@ -369,7 +369,7 @@ export function parseAccBuffers(
     CurrentLap: currentLap,
     CurrentRaceTime: currentLap,
 
-    LapNumber: completedLaps,
+    LapNumber: completedLaps + 1,
     RacePosition: position,
 
     Accel: accel,

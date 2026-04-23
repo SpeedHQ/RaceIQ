@@ -5,6 +5,7 @@ import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared
 import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
 import { getServerGame } from "../games/registry";
+import { tryGetGame } from "../../shared/games/registry";
 import { gunzip } from "zlib";
 import { promisify } from "util";
 import { existsSync, unlinkSync } from "fs";
@@ -547,6 +548,15 @@ async function parseRawLapFrames(
     try {
       const packet = serverGame.tryParse(frameBuf, state);
       if (!packet) continue;
+      // Apply coordinate normalization — same as processPacket does for live data.
+      // ACC uses right-handed coords in the raw buffer; flip X to match display convention.
+      const sharedAdapter = tryGetGame(packet.gameId);
+      if (sharedAdapter?.coordSystem === "standard-xyz") {
+        packet.PositionX = -packet.PositionX;
+        packet.VelocityX = -packet.VelocityX;
+        packet.AccelerationX = -packet.AccelerationX;
+      }
+      fillNormSuspension(packet);
       if (i < rawFrameCount) {
         packets.push(packet);
       } else {

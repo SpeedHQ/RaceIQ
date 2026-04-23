@@ -17,7 +17,11 @@ import { CapturingDbAdapter } from "../server/pipeline-adapters";
 import { LapDetectorAc } from "../server/lap-detector-ac";
 import { META_FRAME_MAGIC } from "../server/udp-recorder";
 import { stopMaintenanceTasks } from "../server/pipeline";
+import { parseRawLapFramesForTest } from "../server/db/queries";
 import type { TelemetryPacket } from "../shared/types";
+
+initGameAdapters();
+initServerGameAdapters();
 
 afterAll(() => stopMaintenanceTasks());
 
@@ -27,8 +31,6 @@ async function replaySessionBin(
   filePath: string,
   gameId: "ac-evo"
 ): Promise<{ packets: TelemetryPacket[]; laps: { lapNumber: number; lapTime: number; isValid: boolean }[] }> {
-  initGameAdapters();
-  initServerGameAdapters();
 
   const raw = readFileSync(filePath);
   const buf: Buffer = filePath.endsWith(".gz") ? Buffer.from(gunzipSync(raw)) : raw;
@@ -80,6 +82,40 @@ async function replaySessionBin(
   return { packets, laps };
 }
 
+describe("parseRawLapFrames — coordinate normalization (standard-xyz)", () => {
+  test("AC Evo PositionX/VelocityX/AccelerationX are X-flipped vs raw tryParse output", async () => {
+    const raw = Buffer.from(gunzipSync(readFileSync(FIXTURE)));
+    const startOffset = 8 + raw.readUInt32LE(4); // skip meta frame
+
+    const serverGame = getServerGame("ac-evo");
+    const rawPackets: ReturnType<typeof serverGame.tryParse>[] = [];
+    let off = startOffset;
+    const N = 20;
+    while (rawPackets.length < N && off + 4 <= raw.length) {
+      const frameLen = raw.readUInt32LE(off);
+      off += 4;
+      if (off + frameLen > raw.length) break;
+      const pkt = serverGame.tryParse(raw.subarray(off, off + frameLen), null);
+      off += frameLen;
+      if (pkt) rawPackets.push(pkt);
+    }
+    expect(rawPackets.length).toBe(N);
+
+    const normalized = await parseRawLapFramesForTest(FIXTURE, startOffset, N, "ac-evo");
+    expect(normalized.length).toBe(N);
+
+    for (let i = 0; i < N; i++) {
+      const r = rawPackets[i]!;
+      const n = normalized[i];
+      expect(n.PositionX).toBeCloseTo(-r.PositionX, 4);
+      expect(n.VelocityX).toBeCloseTo(-r.VelocityX, 4);
+      expect(n.AccelerationX).toBeCloseTo(-r.AccelerationX, 4);
+      expect(n.PositionY).toBeCloseTo(r.PositionY, 4);
+      expect(n.PositionZ).toBeCloseTo(r.PositionZ, 4);
+    }
+  }, { timeout: 60000 });
+});
+
 describe("AC Evo mid-session recording", () => {
   test("reads .bin.gz fixture and decodes packets", async () => {
     const { packets } = await replaySessionBin(FIXTURE, "ac-evo");
@@ -94,27 +130,25 @@ describe("AC Evo mid-session recording", () => {
     expect(maxGameLapNumber).toBeGreaterThan(0);
   }, { timeout: 60_000 });
 
-  test("lap detector assigns lap numbers starting from 0 (known quirk for mid-session recordings)", async () => {
-    const { laps } = await replaySessionBin(FIXTURE, "ac-evo");
-    // Even though the recording starts mid-session, the lap detector's first
-    // emitted lap is numbered 0 — it does not adopt the game-reported LapNumber.
-    // This is the behaviour the user flagged: captured laps start at 0 instead
-    // of matching the game's actual lap counter.
+  test("lap detector uses game-reported lap numbers (LapNumber = completedLaps + 1)", async () => {
+    const { packets, laps } = await replaySessionBin(FIXTURE, "ac-evo");
+    // Recording starts mid-session; game's first-packet LapNumber tells us how
+    // many laps were already completed. Detector should adopt that numbering.
     expect(laps.length).toBeGreaterThan(0);
-    expect(laps[0].lapNumber).toBe(0);
-    // Laps are numbered sequentially from 0
-    for (let i = 0; i < laps.length; i++) {
-      expect(laps[i].lapNumber).toBe(i);
+    const firstGameLapNumber = packets[0]?.LapNumber ?? 0;
+    // First emitted lap = the lap in progress when recording started.
+    // currentLapNumber init = firstGameLapNumber (already 1-indexed via completedLaps+1 in parser)
+    expect(laps[0].lapNumber).toBe(firstGameLapNumber);
+    // Laps are sequential from there
+    for (let i = 1; i < laps.length; i++) {
+      expect(laps[i].lapNumber).toBe(laps[i - 1].lapNumber + 1);
     }
   }, { timeout: 60_000 });
 
-  test("lap 0 is the partial mid-session start (outlap, short distance)", async () => {
+  test("first emitted lap is shorter than subsequent laps (partial mid-session start)", async () => {
     const { laps } = await replaySessionBin(FIXTURE, "ac-evo");
-    // Since recording began ~913m / 28.58s into the first lap, lap 0 only
-    // captures the remaining portion of that lap — it should be shorter than
-    // a full lap and ideally flagged invalid (partial outlap).
+    // Recording began mid-lap, so the first captured lap is shorter than a full lap.
     expect(laps.length).toBeGreaterThanOrEqual(2);
-    const firstFullLapTime = laps[1]?.lapTime ?? Infinity;
-    expect(laps[0].lapTime).toBeLessThan(firstFullLapTime);
+    expect(laps[0].lapTime).toBeLessThan(laps[1].lapTime);
   }, { timeout: 60_000 });
 });

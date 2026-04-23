@@ -73,7 +73,7 @@ describe("LapDetectorAc — reset detection", () => {
     await d.feed(packet({ CurrentLap: 0.3, DistanceTraveled: 90 * 50 + 30, TimestampMS: 91 * 1000 }));
 
     expect(saved.length).toBe(1);
-    expect(saved[0].lapNumber).toBe(0);
+    expect(saved[0].lapNumber).toBe(1);
     expect(saved[0].lapTime).toBeCloseTo(90, 0);
   });
 
@@ -187,10 +187,10 @@ describe("LapDetectorAc — reset detection", () => {
 
     // Two laps: the partial initial lap (invalid outlap, first packet was in pit) and the full clean lap (valid)
     expect(db.inserted.length).toBe(2);
-    expect(db.inserted[0].lapNumber).toBe(0);
+    expect(db.inserted[0].lapNumber).toBe(1);
     expect(db.inserted[0].valid).toBe(false);
     expect(db.inserted[0].invalidReason).toBe("outlap");
-    expect(db.inserted[1].lapNumber).toBe(1);
+    expect(db.inserted[1].lapNumber).toBe(2);
     expect(db.inserted[1].valid).toBe(true);
     expect(db.inserted[1].lapTime).toBeCloseTo(85, 0);
   });
@@ -223,7 +223,7 @@ describe("LapDetectorAc — reset detection", () => {
     await d.feed(packet({ CurrentLap: 0.2, DistanceTraveled: 80 * 50 + 30, TimestampMS: 200000 }));
 
     expect(saved.length).toBe(1);
-    expect(saved[0].lapNumber).toBe(0);
+    expect(saved[0].lapNumber).toBe(1);
     expect(saved[0].lapTime).toBeCloseTo(80, 0);
   });
 
@@ -345,3 +345,12 @@ test("parseDump runs against the problem recording without throwing", async () =
   const result = await parseDump("acc", "test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz");
   expect(result.laps.length).toBeGreaterThan(0);
 }, { timeout: 30000 });
+
+test("session bin: laps 1+2 have no isValidLap=false, laps 3+4 contain isValidLap=false frames", async () => {
+  const result = await parseDump("acc", "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz");
+  const byLap = new Map(result.laps.map((l) => [l.lapNumber, l]));
+  expect(byLap.get(1)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(false);
+  expect(byLap.get(2)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(false);
+  expect(byLap.get(3)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(true);
+  expect(byLap.get(4)?.packets?.some((p) => p.acc?.isValidLap === false)).toBe(true);
+}, { timeout: 60000 });

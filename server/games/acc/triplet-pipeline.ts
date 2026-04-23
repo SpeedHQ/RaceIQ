@@ -5,10 +5,13 @@
  * Can be composed and chained for different modes (recording, parsing, etc).
  */
 
-import { GRAPHICS, AC_STATUS } from "./structs";
+import { GRAPHICS, STATIC, AC_STATUS } from "./structs";
 import { parseAccBuffers } from "./parser";
 import { processPacket } from "../../pipeline";
 import { packTriplet, ACC_PACKED_MAGIC } from "../shared/pack-triplet";
+import { readWString } from "./utils";
+import { getAccCarByModel } from "../../../shared/acc-car-data";
+import { getAccTrackByName } from "../../../shared/acc-track-data";
 
 export interface TripletProcessor {
   /** Return false to halt the pipeline for this triplet (e.g. invalid status). */
@@ -96,6 +99,14 @@ export class ParsingProcessor implements TripletProcessor {
 
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<void> {
     try {
+      if (this.carOrdinal === 0 && triplet.staticData.length >= STATIC.SIZE) {
+        const cm = readWString(triplet.staticData, STATIC.carModel.offset, STATIC.carModel.size);
+        if (cm) this.carOrdinal = getAccCarByModel(cm)?.id ?? 0;
+      }
+      if (this.trackOrdinal === 0 && triplet.staticData.length >= STATIC.SIZE) {
+        const tn = readWString(triplet.staticData, STATIC.track.offset, STATIC.track.size);
+        if (tn) this.trackOrdinal = getAccTrackByName(tn)?.id ?? 0;
+      }
       const packet = parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData, {
         carOrdinal: this.carOrdinal,
         trackOrdinal: this.trackOrdinal,
