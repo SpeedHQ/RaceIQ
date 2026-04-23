@@ -1,8 +1,12 @@
-import { resolve } from "path";
-import { mkdirSync } from "fs";
-import { resolveDataDir } from "./data-dir";
 import type { TelemetryPacket, GameId, LapMeta } from "../shared/types";
-import { type DbAdapter, type WsAdapter, RealDbAdapter, RealWsAdapter } from "./pipeline-adapters";
+import {
+  type DbAdapter,
+  type WsAdapter,
+  type SessionRecorderAdapter,
+  RealDbAdapter,
+  RealWsAdapter,
+  RealSessionRecorderAdapter,
+} from "./pipeline-adapters";
 import type { ILapDetector, LapDetectorCallbacks } from "./lap-detector-interface";
 import { SectorTracker, PitTracker } from "./sector-tracker";
 import { feedPosition } from "./track-calibration";
@@ -10,7 +14,6 @@ import { getTrackOutlineByOrdinal } from "../shared/track-data";
 import { tryGetGame } from "../shared/games/registry";
 import { getServerGame } from "./games/registry";
 import { fillNormSuspension } from "./telemetry-utils";
-import { UdpRecorder } from "./udp-recorder";
 import { LAP_DETECTOR_ID } from "./lap-detector";
 
 export class Pipeline {
@@ -21,11 +24,11 @@ export class Pipeline {
   private _totalProcessed = 0;
   private db: DbAdapter;
   private ws: WsAdapter;
+  private recorder: SessionRecorderAdapter;
   private _bypassPacketRateFilter: boolean;
   private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
   private _sessionLaps: LapMeta[] = [];
-  private _sessionRecorder: UdpRecorder | null = null;
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
@@ -34,7 +37,7 @@ export class Pipeline {
 
   /** True while a session is being recorded (session recorder is open). */
   get isSessionActive(): boolean {
-    return this._sessionRecorder !== null;
+    return this.recorder.active;
   }
 
   /** In-memory session laps — sent to newly connected WS clients. */
@@ -42,9 +45,19 @@ export class Pipeline {
     return this._sessionLaps;
   }
 
-  constructor(db: DbAdapter, ws: WsAdapter, options?: { bypassPacketRateFilter?: boolean; skipHistorySeeding?: boolean; skipDevState?: boolean }) {
+  constructor(
+    db: DbAdapter,
+    ws: WsAdapter,
+    options?: {
+      bypassPacketRateFilter?: boolean;
+      skipHistorySeeding?: boolean;
+      skipDevState?: boolean;
+      recorder?: SessionRecorderAdapter;
+    },
+  ) {
     this.db = db;
     this.ws = ws;
+    this.recorder = options?.recorder ?? new RealSessionRecorderAdapter();
     this._bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
     this._skipHistorySeeding = options?.skipHistorySeeding ?? false;
     this._skipDevState = options?.skipDevState ?? false;
@@ -53,21 +66,17 @@ export class Pipeline {
   private _buildCallbacks(): LapDetectorCallbacks {
     return {
       onSessionStart: async (session) => {
-        // Close previous session recorder before opening a new one
-        if (this._sessionRecorder) {
-          await this._sessionRecorder.stop();
-          this._sessionRecorder = null;
+        // Close previous session recording before opening a new one.
+        await this.recorder.stop();
+        this.recorder.start(session.gameId);
+        this.recorder.writeMetaFrame();
+        if (this.recorder.path) {
+          await this.db.updateSessionRawFile(
+            session.sessionId,
+            this.recorder.path,
+            this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
+          );
         }
-        // Open append-only raw session file
-        const dataDir = resolveDataDir();
-        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const sessionDir = resolve(dataDir, "sessions", session.gameId);
-        mkdirSync(sessionDir, { recursive: true });
-        const filePath = resolve(sessionDir, `${timestamp}.bin`);
-        this._sessionRecorder = new UdpRecorder();
-        this._sessionRecorder.start(filePath);
-        this._sessionRecorder.writeMetaFrame(Buffer.alloc(0));
-        await this.db.updateSessionRawFile(session.sessionId, filePath, this._lapDetector?.detectorId ?? LAP_DETECTOR_ID);
 
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
         this.pitTracker.reset();
@@ -175,10 +184,10 @@ export class Pipeline {
 
     // Snapshot byte offset BEFORE writing so it points to this packet's position
     let rawByteOffset: number | undefined;
-    const recorderBefore = this._sessionRecorder;
-    if (rawBuf && this._sessionRecorder) {
-      rawByteOffset = this._sessionRecorder.getCurrentByteOffset();
-      this._sessionRecorder.writePacket(rawBuf);
+    const epochBefore = this.recorder.epoch;
+    if (rawBuf && this.recorder.active) {
+      rawByteOffset = this.recorder.getCurrentByteOffset();
+      this.recorder.writePacket(rawBuf);
     }
 
     // Normalize coordinates so all games use the same display convention.
@@ -201,9 +210,9 @@ export class Pipeline {
     // triggering packet was written to the PREVIOUS recorder (or not at all).
     // Catch up: write it to the NEW recorder as lap 1's first frame and patch
     // the detector's lap byte offset so the DB row points at the right place.
-    if (rawBuf && this._sessionRecorder && this._sessionRecorder !== recorderBefore) {
-      const firstOffset = this._sessionRecorder.getCurrentByteOffset();
-      this._sessionRecorder.writePacket(rawBuf);
+    if (rawBuf && this.recorder.active && this.recorder.epoch !== epochBefore) {
+      const firstOffset = this.recorder.getCurrentByteOffset();
+      this.recorder.writePacket(rawBuf);
       detector.setCurrentLapByteOffset?.(firstOffset);
     }
 
@@ -251,15 +260,12 @@ export class Pipeline {
   }
 
   async flushSessionRecorder(): Promise<void> {
-    if (this._sessionRecorder) {
-      await this._sessionRecorder.stop();
-      this._sessionRecorder = null;
-    }
+    await this.recorder.stop();
   }
 
   /** Flush buffered writes to disk without closing. */
   flushSessionRecorderBuffer(): void {
-    this._sessionRecorder?.flush();
+    this.recorder.flush();
   }
 }
 

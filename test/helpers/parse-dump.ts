@@ -1,7 +1,7 @@
 import type { GameId, TelemetryPacket } from "../../shared/types";
 import type { CapturedLap, CapturedSession } from "../../server/pipeline-adapters";
 import type { LapSavedNotification } from "../../server/lap-detector";
-import { CapturingDbAdapter, CapturingWsAdapter } from "../../server/pipeline-adapters";
+import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../server/pipeline-adapters";
 import { Pipeline } from "../../server/pipeline";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
@@ -130,7 +130,10 @@ export async function parseDump(
 
   const db = new CapturingDbAdapter();
   const ws = new CapturingWsAdapter();
-  const pipeline = new Pipeline(db, ws, { bypassPacketRateFilter: true });
+  const pipeline = new Pipeline(db, ws, {
+    bypassPacketRateFilter: true,
+    recorder: new NullSessionRecorderAdapter(),
+  });
 
   let carModel: string | null = null;
   let trackName: string | null = null;

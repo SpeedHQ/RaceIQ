@@ -34,7 +34,7 @@ import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getAllServerGames } from "../../server/games/registry";
 import { Pipeline, stopMaintenanceTasks } from "../../server/pipeline";
-import { NullDbAdapter, NullWsAdapter } from "../../server/pipeline-adapters";
+import { NullDbAdapter, NullWsAdapter, NullSessionRecorderAdapter } from "../../server/pipeline-adapters";
 import { readUdpDump } from "../helpers/recording";
 import { parseAccBuffers } from "../../server/games/acc/parser";
 import { readWString } from "../../server/games/acc/utils";
@@ -109,7 +109,7 @@ const acEvoPackets = acEvoFrames
 console.log(`[bench] ac-evo loaded — ${acEvoPackets.length} packets ${elapsed()}`);
 
 // --- Pre-warm pipelines with null adapters (no DB/WS IO) ---
-const pipelineOpts = { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true };
+const pipelineOpts = { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true, recorder: new NullSessionRecorderAdapter() };
 const fmPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
 const f1Pipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
 const accPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);

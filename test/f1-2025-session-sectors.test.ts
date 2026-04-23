@@ -16,7 +16,7 @@ import { gunzipSync } from "zlib";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
-import { CapturingDbAdapter, CapturingWsAdapter } from "../server/pipeline-adapters";
+import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../server/pipeline-adapters";
 import { Pipeline } from "../server/pipeline";
 import { computeLapSectors } from "../server/compute-lap-sectors";
 import { META_FRAME_MAGIC } from "../server/udp-recorder";
@@ -55,7 +55,7 @@ async function replay(): Promise<ReplayedLap[]> {
   const parserState = serverGame.createParserState?.() ?? null;
   const db = new CapturingDbAdapter();
   const ws = new CapturingWsAdapter();
-  const pipeline = new Pipeline(db, ws, { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true });
+  const pipeline = new Pipeline(db, ws, { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true, recorder: new NullSessionRecorderAdapter() });
 
   // Accumulate packets per (detected) lap number so we can rerun sector
   // computation against just the emitted-lap packets.
