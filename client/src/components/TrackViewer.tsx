@@ -79,13 +79,13 @@ export function TrackViewer() {
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 min-w-[180px] sm:flex-none sm:max-w-xs"
         />
-        <div className="flex items-center gap-1 text-app-label text-app-text-muted">
+        <div className="flex items-center gap-1.5 md:gap-1 text-sm md:text-app-label text-app-text-muted">
           <span className="uppercase tracking-wider">Sort:</span>
           {(["name", "laps"] as SortKey[]).map((key) => (
             <button
               key={key}
               onClick={() => setSortKey(key)}
-              className={`px-2 py-0.5 rounded capitalize ${sortKey === key ? "bg-app-surface-alt border border-app-border text-app-text" : "text-app-text-dim hover:text-app-text-muted"}`}
+              className={`px-3 py-2 md:px-2 md:py-0.5 rounded capitalize ${sortKey === key ? "bg-app-surface-alt border border-app-border text-app-text" : "text-app-text-dim hover:text-app-text-muted"}`}
             >
               {key}
             </button>

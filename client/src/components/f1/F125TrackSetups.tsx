@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { client } from "@/lib/rpc";
+import { Button } from "@/components/ui/button";
 
 function setupId(s: { author: string; provider: string; lapTime: string }): string {
   return btoa(`${s.provider}|${s.author}|${s.lapTime}`).replace(/=+$/, "");
@@ -144,6 +145,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
   const guides = trackData?.trackGuide ?? [];
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [contentTab, setContentTab] = useState<"guide" | "setup">("guide");
+  const [mobileView, setMobileView] = useState<"list" | "detail">("list");
   const activeGuide = guides.find(g => g.source === selectedSource) ?? guides[0];
 
   if (guides.length === 0) return (
@@ -153,12 +155,12 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
   return (
     <div className="flex h-full min-h-0 gap-3">
       {/* Source list */}
-      <div className="w-56 shrink-0 flex flex-col gap-1">
+      <div className={`w-full md:w-56 shrink-0 flex flex-col gap-1 ${mobileView === "detail" ? "hidden md:flex" : ""}`}>
         {guides.map(g => {
           const isActive = g.source === activeGuide?.source;
           const sectionCount = g.sections?.length ?? 0;
           return (
-            <button key={g.source} onClick={() => setSelectedSource(g.source)}
+            <button key={g.source} onClick={() => { setSelectedSource(g.source); setMobileView("detail"); }}
               className={`text-left px-2 py-2 rounded border transition-colors ${
                 isActive ? "border-app-accent/40 bg-app-accent/10" : "border-app-border hover:border-app-border-hover bg-app-surface-alt/30 hover:bg-app-surface-alt"
               }`}>
@@ -196,9 +198,18 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
 
       {/* Guide content */}
       {activeGuide && (
-        <div className="flex-1 min-w-0 flex flex-col min-h-0">
+        <div className={`flex-1 min-w-0 flex flex-col min-h-0 ${mobileView === "list" ? "hidden md:flex" : ""}`}>
+          {/* Back button (mobile only) */}
+          <Button
+            variant="app-outline"
+            size="default"
+            onClick={() => setMobileView("list")}
+            className="md:hidden self-start mb-3"
+          >
+            &larr; Back to guides
+          </Button>
           {/* Content tabs + source link */}
-          <div className="flex items-center gap-2 mb-2 shrink-0">
+          <div className="flex items-center gap-2 mb-2 shrink-0 flex-wrap">
             <button onClick={() => setContentTab("guide")}
               className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${contentTab === "guide" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}>
               Guide
@@ -220,7 +231,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
             {contentTab === "guide" && (
               <>
                 {activeGuide.videoUrl && (
-                  <div className="float-right ml-4 mb-4 rounded-lg overflow-hidden border border-app-border/30" style={{ width: "45%" }}>
+                  <div className="mb-4 md:float-right md:ml-4 md:mb-4 w-full md:w-[45%] rounded-lg overflow-hidden border border-app-border/30">
                     <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
                       <iframe src={toEmbedUrl(activeGuide.videoUrl)} title="Track Guide" className="absolute inset-0 w-full h-full"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
@@ -300,7 +311,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
   const selectSetup = (i: number) => {
     setSelectedIdx(i);
     const s = filteredSetups[i];
-    if (s) navigate({ search: ((prev: any) => ({ ...prev, setup: setupId(s) })) as any, replace: true });
+    if (s) navigate({ search: ((prev: Record<string, unknown>) => ({ ...prev, setup: setupId(s) })) as never, replace: true });
   };
 
   if (!trackSlug) return <div className="text-app-text-dim text-sm py-4 text-center">No community setups available for this track</div>;
