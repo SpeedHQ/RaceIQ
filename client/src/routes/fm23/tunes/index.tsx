@@ -1,14 +1,19 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "../../../components/ui/button";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { CATALOG_CARS, getCatalogCar } from "../../../data/tune-catalog";
 import {
 	useUserTunes,
 	useDeleteTune,
 	useTuneAssignments,
 	useDeleteTuneAssignment,
+	useCreateTune,
 } from "../../../hooks/queries";
-import { useAllCars, UserTuneCard } from "../../../components/TuneForm";
+import {
+	useAllCars,
+	UserTuneCard,
+	withDefaults,
+} from "../../../components/TuneForm";
 
 function MyTunesPage() {
 	const navigate = useNavigate();
@@ -16,6 +21,11 @@ function MyTunesPage() {
 	const [selectedCar, setSelectedCar] = useState<number | null>(null);
 	const [carSearch, setCarSearch] = useState("");
 	const [carDropdownOpen, setCarDropdownOpen] = useState(false);
+	const [importStatus, setImportStatus] = useState<
+		"idle" | "imported" | "error"
+	>("idle");
+	const [importError, setImportError] = useState("");
+	const importInputRef = useRef<HTMLInputElement>(null);
 
 	const { data: userTunes = [], isLoading } = useUserTunes();
 	const { data: assignments = [] } = useTuneAssignments();
@@ -27,6 +37,70 @@ function MyTunesPage() {
 	}, [allCarsForNames]);
 	const deleteTuneMut = useDeleteTune();
 	const deleteAssignment = useDeleteTuneAssignment();
+	const createTuneMut = useCreateTune();
+
+	const handleImportTuneFile = async (
+		e: React.ChangeEvent<HTMLInputElement>,
+	) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+		try {
+			const rawText = await file.text();
+			const parsed = JSON.parse(rawText);
+			const s = parsed.settings ?? parsed;
+			for (const key of [
+				"tires",
+				"gearing",
+				"alignment",
+				"antiRollBars",
+				"springs",
+				"damping",
+				"aero",
+				"differential",
+				"brakes",
+			]) {
+				if (!s?.[key]) throw new Error(`Missing section: ${key}`);
+			}
+			const normalizedSettings = {
+				...s,
+				springs: {
+					...s.springs,
+					...(parsed.unitSystem === "imperial"
+						? { unit: "lb/in" }
+						: parsed.unitSystem === "metric"
+							? { unit: "kgf/mm" }
+							: {}),
+				},
+				aero: {
+					...s.aero,
+					...(parsed.unitSystem === "imperial"
+						? { unit: "lb" }
+						: parsed.unitSystem === "metric"
+							? { unit: "kgf" }
+							: {}),
+				},
+			};
+			await createTuneMut.mutateAsync({
+				name:
+					parsed.name || file.name.replace(/\.json$/i, "") || "Imported Tune",
+				author: parsed.author || "Imported",
+				carOrdinal: Number(parsed.carOrdinal ?? 2860),
+				category: parsed.category || "circuit",
+				description: parsed.description || "Imported from JSON",
+				settings: withDefaults(normalizedSettings),
+				unitSystem: parsed.unitSystem === "imperial" ? "imperial" : "metric",
+			});
+			setImportError("");
+			setImportStatus("imported");
+			setTimeout(() => setImportStatus("idle"), 2000);
+		} catch (err: unknown) {
+			setImportError(
+				err instanceof Error ? err.message : "Failed to import JSON tune",
+			);
+			setImportStatus("error");
+		}
+		e.target.value = "";
+	};
 
 	const filteredCars = carSearch
 		? CATALOG_CARS.filter((c) =>
@@ -62,6 +136,25 @@ function MyTunesPage() {
 				</div>
 
 				<div className="flex items-center gap-2">
+					<input
+						ref={importInputRef}
+						type="file"
+						accept=".json,application/json"
+						onChange={handleImportTuneFile}
+						className="hidden"
+					/>
+					<Button
+						variant="app-outline"
+						size="app-sm"
+						onClick={() => importInputRef.current?.click()}
+						disabled={createTuneMut.isPending}
+					>
+						{createTuneMut.isPending
+							? "Importing..."
+							: importStatus === "imported"
+								? "Imported"
+								: "Import"}
+					</Button>
 					<Button
 						variant="app-outline"
 						size="app-sm"
@@ -137,6 +230,10 @@ function MyTunesPage() {
 					</div>
 				</div>
 			</div>
+
+			{importStatus === "error" && importError && (
+				<div className="text-xs text-red-400">Import failed: {importError}</div>
+			)}
 
 			{/* Tune list */}
 			<div className="space-y-2">

@@ -5,6 +5,7 @@ import type { TuneSettings } from "../data/tune-catalog";
 import type { TuneCategory } from "@shared/types";
 import { client } from "../lib/rpc";
 import { GearRatioChart } from "./tune/GearRatioChart";
+import { useSettings } from "../hooks/queries";
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -334,40 +335,68 @@ export function TuneSettingsPanel({
 		},
 	];
 
-	return (
-		<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 w-full">
-			{sections.map((section) => (
-				<div key={section.title} className="rounded-lg bg-app-bg p-3">
-					<h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">
-						{section.title}
-					</h4>
-					<div className="space-y-0">
-						{section.rows.map(([label, value]) => (
-							<div key={label} className="flex justify-between text-xs gap-2">
-								<span className="text-app-text-muted whitespace-nowrap">
-									{label}
-								</span>
-								<span className="text-app-text font-mono whitespace-nowrap">
-									{value}
-								</span>
-							</div>
-						))}
+	const tiresSection = sections.find((section) => section.title === "Tires");
+	const alignmentSection = sections.find(
+		(section) => section.title === "Alignment",
+	);
+	const gearingSection = sections.find(
+		(section) => section.title === "Gearing",
+	);
+	const remainingSections = sections.filter(
+		(section) =>
+			section.title !== "Tires" &&
+			section.title !== "Gearing" &&
+			section.title !== "Alignment",
+	);
+	const orderedSections = [
+		...(tiresSection ? [tiresSection] : []),
+		...(gearingSection ? [gearingSection] : []),
+		...(alignmentSection ? [alignmentSection] : []),
+		...remainingSections,
+	];
+
+	const renderSection = (section: {
+		title: string;
+		rows: [string, string][];
+	}) => (
+		<div
+			key={section.title}
+			className="mb-3 break-inside-avoid rounded-lg bg-app-bg p-3"
+		>
+			<h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">
+				{section.title}
+			</h4>
+			<div className="space-y-0">
+				{section.rows.map(([label, value]) => (
+					<div key={label} className="flex justify-between text-xs gap-2">
+						<span className="text-app-text-muted whitespace-nowrap">
+							{label}
+						</span>
+						<span className="text-app-text font-mono whitespace-nowrap">
+							{value}
+						</span>
 					</div>
-					{section.title === "Gearing" && ratios.length > 0 && (
-						<div className="mt-2 pt-2 border-t border-app-border/60">
-							<GearRatioChart
-								ratios={ratios}
-								finalDrive={settings.gearing.finalDrive}
-								topSpeedMph={
-									settings.gearing.topSpeedKph
-										? settings.gearing.topSpeedKph / 1.60934
-										: undefined
-								}
-							/>
-						</div>
-					)}
+				))}
+			</div>
+			{section.title === "Gearing" && ratios.length > 0 && (
+				<div className="mt-2 pt-2 border-t border-app-border/60">
+					<GearRatioChart
+						ratios={ratios}
+						finalDrive={settings.gearing.finalDrive}
+						topSpeedMph={
+							settings.gearing.topSpeedKph
+								? settings.gearing.topSpeedKph / 1.60934
+								: undefined
+						}
+					/>
 				</div>
-			))}
+			)}
+		</div>
+	);
+
+	return (
+		<div className="w-full columns-1 gap-3 md:columns-2 xl:columns-3">
+			{orderedSections.map((section) => renderSection(section))}
 		</div>
 	);
 }
@@ -401,6 +430,64 @@ export function UserTuneCard({
 	isDeleting: boolean;
 }) {
 	const [confirmDelete, setConfirmDelete] = useState(false);
+	const [shareOpen, setShareOpen] = useState(false);
+	const [shareStatus, setShareStatus] = useState<"idle" | "copied">("idle");
+
+	const exportedSettings = tune.settings ?? defaultTuneSettings();
+	const exportedUnitSystem =
+		exportedSettings.springs?.unit === "lb/in" ||
+		exportedSettings.aero?.unit === "lb"
+			? "imperial"
+			: "metric";
+	const payload = {
+		format: "raceiq-tune/v1",
+		exportedAt: new Date().toISOString(),
+		unitSystem: exportedUnitSystem,
+		name: tune.name,
+		author: tune.author,
+		carOrdinal: tune.carOrdinal,
+		category: tune.category,
+		description: tune.description,
+		settings: {
+			...exportedSettings,
+			springs: {
+				...exportedSettings.springs,
+				unit: undefined,
+			},
+			aero: {
+				...exportedSettings.aero,
+				unit: undefined,
+			},
+		},
+	};
+
+	const handleCopyShare = async (e: React.MouseEvent<HTMLButtonElement>) => {
+		e.stopPropagation();
+		try {
+			await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+			setShareStatus("copied");
+			setTimeout(() => setShareStatus("idle"), 2000);
+			setShareOpen(false);
+		} catch {
+			setShareStatus("idle");
+		}
+	};
+
+	const handleDownloadShare = (e: React.MouseEvent<HTMLButtonElement>) => {
+		e.stopPropagation();
+		const json = JSON.stringify(payload, null, 2);
+		const blob = new Blob([json], { type: "application/json" });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = `${tune.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || `tune-${tune.id}`}.raceiq-tune.json`;
+		document.body.appendChild(a);
+		a.click();
+		a.remove();
+		URL.revokeObjectURL(url);
+		setShareOpen(false);
+	};
+
 	return (
 		<div className="rounded-xl bg-app-surface ring-1 ring-app-border overflow-hidden">
 			<button
@@ -463,6 +550,35 @@ export function UserTuneCard({
 						>
 							Edit
 						</button>
+						<div className="relative">
+							<button
+								onClick={(e) => {
+									e.stopPropagation();
+									setShareOpen((v) => !v);
+								}}
+								className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors"
+							>
+								{shareStatus === "copied" ? "Copied" : "Share"}
+							</button>
+							{shareOpen && (
+								<div className="absolute left-0 top-full mt-1 z-20 min-w-40 rounded-md border border-app-border bg-app-surface p-1 shadow-lg">
+									<button
+										type="button"
+										onClick={handleCopyShare}
+										className="block w-full text-left text-[10px] px-2 py-1 rounded hover:bg-app-accent/20 text-app-text"
+									>
+										Copy to clipboard
+									</button>
+									<button
+										type="button"
+										onClick={handleDownloadShare}
+										className="block w-full text-left text-[10px] px-2 py-1 rounded hover:bg-app-accent/20 text-app-text"
+									>
+										Download JSON
+									</button>
+								</div>
+							)}
+						</div>
 						{!confirmDelete ? (
 							<button
 								onClick={(e) => {
@@ -539,10 +655,12 @@ export function TuneForm({
 	const [jsonMode, setJsonMode] = useState(false);
 	const [jsonText, setJsonText] = useState("");
 	const [jsonError, setJsonError] = useState("");
+	const { displaySettings } = useSettings();
 	const [isMetric, setIsMetric] = useState(() => {
 		const u = initialData?.settings?.springs?.unit;
 		const au = initialData?.settings?.aero?.unit;
-		return u !== "lb/in" && au !== "lb";
+		if (u || au) return u !== "lb/in" && au !== "lb";
+		return displaySettings.unit !== "imperial";
 	});
 	const [carSearchQuery, setCarSearchQuery] = useState("");
 	const [carDropOpen, setCarDropOpen] = useState(false);
@@ -574,8 +692,12 @@ export function TuneForm({
 		setJsonError("");
 		const u = initialData?.settings?.springs?.unit;
 		const au = initialData?.settings?.aero?.unit;
-		setIsMetric(u !== "lb/in" && au !== "lb");
-	}, [initialData]);
+		if (u || au) {
+			setIsMetric(u !== "lb/in" && au !== "lb");
+		} else {
+			setIsMetric(displaySettings.unit !== "imperial");
+		}
+	}, [initialData, displaySettings.unit]);
 
 	const updateSettings = <K extends keyof TuneSettings>(
 		group: K,
@@ -623,35 +745,78 @@ export function TuneForm({
 		setIsMetric(nextIsMetric);
 	};
 
+	const parseTuneJson = (rawText: string) => {
+		const parsed = JSON.parse(rawText);
+		const s = parsed.settings ?? parsed;
+		const required = [
+			"tires",
+			"gearing",
+			"alignment",
+			"antiRollBars",
+			"springs",
+			"damping",
+			"aero",
+			"differential",
+			"brakes",
+		];
+		for (const key of required) {
+			if (!s[key]) throw new Error(`Missing section: ${key}`);
+		}
+		const normalizedSettings = {
+			...s,
+			springs: {
+				...s.springs,
+				...(parsed.unitSystem === "imperial"
+					? { unit: "lb/in" }
+					: parsed.unitSystem === "metric"
+						? { unit: "kgf/mm" }
+						: {}),
+			},
+			aero: {
+				...s.aero,
+				...(parsed.unitSystem === "imperial"
+					? { unit: "lb" }
+					: parsed.unitSystem === "metric"
+						? { unit: "kgf" }
+						: {}),
+			},
+		};
+		setSettings(withDefaults(normalizedSettings));
+		const isImperialByPayload = parsed.unitSystem === "imperial";
+		setIsMetric(
+			isImperialByPayload
+				? false
+				: s.springs?.unit !== "lb/in" && s.aero?.unit !== "lb",
+		);
+		if (parsed.name) setName(parsed.name);
+		if (parsed.author) setAuthor(parsed.author);
+		if (parsed.category) setCategory(parsed.category);
+		if (parsed.description) setDescription(parsed.description);
+		setJsonError("");
+		setJsonMode(false);
+	};
+
 	const handleJsonParse = () => {
 		try {
-			const parsed = JSON.parse(jsonText);
-			const s = parsed.settings ?? parsed;
-			const required = [
-				"tires",
-				"gearing",
-				"alignment",
-				"antiRollBars",
-				"springs",
-				"damping",
-				"aero",
-				"differential",
-				"brakes",
-			];
-			for (const key of required) {
-				if (!s[key]) throw new Error(`Missing section: ${key}`);
-			}
-			setSettings(withDefaults(s));
-			setIsMetric(s.springs?.unit !== "lb/in" && s.aero?.unit !== "lb");
-			if (parsed.name) setName(parsed.name);
-			if (parsed.author) setAuthor(parsed.author);
-			if (parsed.category) setCategory(parsed.category);
-			if (parsed.description) setDescription(parsed.description);
-			setJsonError("");
-			setJsonMode(false);
+			parseTuneJson(jsonText);
 		} catch (err: unknown) {
 			setJsonError(err instanceof Error ? err.message : "Invalid JSON");
 		}
+	};
+
+	const handleJsonFileImport = async (
+		e: React.ChangeEvent<HTMLInputElement>,
+	) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+		try {
+			const text = await file.text();
+			setJsonText(text);
+			parseTuneJson(text);
+		} catch (err: unknown) {
+			setJsonError(err instanceof Error ? err.message : "Invalid JSON file");
+		}
+		e.target.value = "";
 	};
 
 	const handleSubmit = (e: React.FormEvent) => {
@@ -938,8 +1103,8 @@ export function TuneForm({
 						<div className="flex items-center gap-2">
 							<button
 								type="button"
-								onClick={() => setJsonMode(!jsonMode)}
-								className={`text-[10px] font-semibold uppercase px-2 py-1 rounded transition-colors ${jsonMode ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
+								onClick={() => setJsonMode(false)}
+								className="hidden"
 							>
 								JSON Import
 							</button>
@@ -966,6 +1131,17 @@ export function TuneForm({
 
 					{jsonMode ? (
 						<div className="space-y-2">
+							<div className="flex items-center gap-2">
+								<label className="text-xs px-3 py-1.5 rounded bg-app-surface ring-1 ring-app-border text-app-text cursor-pointer hover:bg-app-surface-alt transition-colors">
+									Import JSON File
+									<input
+										type="file"
+										accept=".json,application/json"
+										onChange={handleJsonFileImport}
+										className="hidden"
+									/>
+								</label>
+							</div>
 							<textarea
 								value={jsonText}
 								onChange={(e) => {

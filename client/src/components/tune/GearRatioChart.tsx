@@ -50,7 +50,7 @@ export function GearRatioChart({
 		<svg
 			width="100%"
 			viewBox={`0 0 ${width} ${height}`}
-			className="block max-w-[280px] text-app-text-muted"
+			className="block w-full text-app-text-muted"
 			aria-label="Gear ratio speed chart"
 		>
 			<defs>
