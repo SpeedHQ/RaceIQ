@@ -8,10 +8,10 @@ import { tryGetServerGame } from "../games/registry";
 import { buildTrackGuideContext } from "./track-guides";
 
 interface CornerDef {
-  index: number;
-  label: string;
-  distanceStart: number;
-  distanceEnd: number;
+	index: number;
+	label: string;
+	distanceStart: number;
+	distanceEnd: number;
 }
 
 /**
@@ -21,26 +21,31 @@ interface CornerDef {
  * "Bit-Kurve" at a track that doesn't have one.
  */
 function collectCornerLabels(
-  corners: CornerDef[],
-  segments?: { type: string; name: string; startFrac: number; endFrac: number }[],
+	corners: CornerDef[],
+	segments?: {
+		type: string;
+		name: string;
+		startFrac: number;
+		endFrac: number;
+	}[],
 ): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const c of corners) {
-    if (c.label && !seen.has(c.label)) {
-      seen.add(c.label);
-      out.push(c.label);
-    }
-  }
-  if (segments) {
-    for (const s of segments) {
-      if (s.type === "corner" && s.name && !seen.has(s.name)) {
-        seen.add(s.name);
-        out.push(s.name);
-      }
-    }
-  }
-  return out;
+	const seen = new Set<string>();
+	const out: string[] = [];
+	for (const c of corners) {
+		if (c.label && !seen.has(c.label)) {
+			seen.add(c.label);
+			out.push(c.label);
+		}
+	}
+	if (segments) {
+		for (const s of segments) {
+			if (s.type === "corner" && s.name && !seen.has(s.name)) {
+				seen.add(s.name);
+				out.push(s.name);
+			}
+		}
+	}
+	return out;
 }
 
 const FORZA_SYSTEM_PROMPT = `You are an expert Forza Motorsport racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
@@ -79,7 +84,7 @@ CATEGORY GUIDELINES:
 - "braking": Per-corner braking analysis for every corner in the corner data. Use corner label names exactly. "good" = no issues. If detail describes a problem, MUST be "warning" or "critical".
 - "throttle": Per-corner throttle analysis for every corner. Use corner label names exactly. "good" = clean application. If detail describes a problem, MUST be "warning" or "critical".
 - "coaching": 3-5 actionable driving tips. Reference specific telemetry values.
-- "setup": 4-8 component adjustments. Each item has the symptom (what telemetry shows), fix (what to do), AND concrete "current"/"target" numeric values with units (e.g. "750 lb/in" → "650 lb/in"). Cover: springs, dampers, anti-roll bars, aero, alignment, differential, tire pressure, gearing, brake bias as needed. If tune data is provided, reference actual tune values.
+- "setup": 4-8 component adjustments. Each item has the symptom (what telemetry shows), fix (what to do), AND concrete "current"/"target" numeric values with units (e.g. "750 lb/in" → "650 lb/in"). Cover: springs, dampers (Bump first, then Rebound), anti-roll bars, aero, alignment, differential, tire pressure, gearing, brake bias as needed. If tune data is provided, reference actual tune values.
 
 RULES:
 - Reference specific numbers from the data — don't be vague
@@ -88,123 +93,146 @@ RULES:
 - Address the driver as "you"
 - When tune settings are provided, correlate telemetry symptoms (e.g., understeer, tire temps, suspension bottoming) with specific setup values and recommend concrete adjustments with target numbers
 - Reference the actual tune values when suggesting changes (e.g., "Front springs at 750 lb/in are too stiff for this track — try 650-680 lb/in")
+- For Forza-style tune recommendations, adjustable tune values are front/rear axle settings only. Never recommend individual FL/FR/RL/RR tire pressure, damping, spring, anti-roll bar, ride-height, aero, or alignment changes. If per-tire telemetry differs, translate it into a front/rear axle adjustment or a driving/coaching note.
 - Output ONLY valid JSON, nothing else
 - Escape any special characters in string values (quotes, newlines)
 - Do not include trailing commas in arrays or objects`;
 
 function getSystemPrompt(gameId: GameId, unit: UnitSystem): string {
-  const units = unit === "metric" ? "km/h, °C, meters, kg, bar" : "mph, °F, feet, lb, psi";
-  const adapter = tryGetServerGame(gameId);
-  const base = adapter ? adapter.aiSystemPrompt : FORZA_SYSTEM_PROMPT;
-  return base.replace("{{UNITS}}", units);
+	const units =
+		unit === "metric" ? "km/h, °C, meters, kg, bar" : "mph, °F, feet, lb, psi";
+	const adapter = tryGetServerGame(gameId);
+	const base = adapter ? adapter.aiSystemPrompt : FORZA_SYSTEM_PROMPT;
+	return base.replace("{{UNITS}}", units);
 }
 
 export function buildAnalystPrompt(
-  lap: {
-    id?: number;
-    lapNumber: number;
-    lapTime: number;
-    isValid: boolean;
-    carOrdinal?: number;
-    trackOrdinal?: number;
-    gameId?: GameId;
-  },
-  packets: TelemetryPacket[],
-  corners: CornerDef[],
-  unit: UnitSystem = "metric",
-  tune?: Tune,
-  segments?: { type: string; name: string; startFrac: number; endFrac: number }[],
-  /** Pre-fetched track guide text. When provided, skips internal lookup. */
-  externalTrackGuide?: string,
+	lap: {
+		id?: number;
+		lapNumber: number;
+		lapTime: number;
+		isValid: boolean;
+		carOrdinal?: number;
+		trackOrdinal?: number;
+		gameId?: GameId;
+	},
+	packets: TelemetryPacket[],
+	corners: CornerDef[],
+	unit: UnitSystem = "metric",
+	tune?: Tune,
+	segments?: {
+		type: string;
+		name: string;
+		startFrac: number;
+		endFrac: number;
+	}[],
+	/** Pre-fetched track guide text. When provided, skips internal lookup. */
+	externalTrackGuide?: string,
 ): string {
-  const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
-  const trackName = getTrackName(lap.trackOrdinal ?? 0);
+	const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
+	const trackName = getTrackName(lap.trackOrdinal ?? 0);
 
-  const exportText = generateExport(lap, packets, unit);
-  const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
+	const exportText = generateExport(lap, packets, unit);
+	const cornerData = buildCornerData(
+		packets,
+		corners,
+		unit === "metric" ? "kmh" : "mph",
+	);
 
-  // Run precomputed insight analysis
-  const insights = analyzeLap(packets);
-  let insightsText = "";
-  if (insights.length > 0) {
-    insightsText = "\n--- Precomputed Insights (unverified — validate against raw data) ---\n";
-    insightsText += "These are automated detections that may contain false positives. Use them as hints, not facts.\n\n";
-    for (const insight of insights) {
-      // Convert frame index to approximate lap timestamp
-      const frameIdx = insight.frameIndices[0];
-      const pkt = packets[frameIdx];
-      const timestamp = pkt ? `${(pkt.DistanceTraveled).toFixed(0)}m` : "?";
-      const count = insight.frameIndices.length;
-      insightsText += `[${insight.severity.toUpperCase()}] ${insight.category}: ${insight.label}`;
-      insightsText += ` (at ${timestamp}${count > 1 ? `, ${count} occurrences` : ""})\n`;
-      insightsText += `  ${insight.detail}\n`;
-    }
-  }
+	// Run precomputed insight analysis
+	const insights = analyzeLap(packets);
+	let insightsText = "";
+	if (insights.length > 0) {
+		insightsText =
+			"\n--- Precomputed Insights (unverified — validate against raw data) ---\n";
+		insightsText +=
+			"These are automated detections that may contain false positives. Use them as hints, not facts.\n\n";
+		for (const insight of insights) {
+			// Convert frame index to approximate lap timestamp
+			const frameIdx = insight.frameIndices[0];
+			const pkt = packets[frameIdx];
+			const timestamp = pkt ? `${(pkt.DistanceTraveled).toFixed(0)}m` : "?";
+			const count = insight.frameIndices.length;
+			insightsText += `[${insight.severity.toUpperCase()}] ${insight.category}: ${insight.label}`;
+			insightsText += ` (at ${timestamp}${count > 1 ? `, ${count} occurrences` : ""})\n`;
+			insightsText += `  ${insight.detail}\n`;
+		}
+	}
 
-  let tuneText = "";
-  if (tune) {
-    tuneText = "\n" + formatTuneForPrompt({
-      name: tune.name,
-      author: tune.author,
-      category: tune.category,
-      settings: tune.settings,
-    }) + "\n";
-  }
-  // F1 setup comes from the `compare-f1-setup-to-catalog` tool — see the
-  // Lap Analyst system prompt. Not injected here.
+	let tuneText = "";
+	if (tune) {
+		tuneText =
+			"\n" +
+			formatTuneForPrompt({
+				name: tune.name,
+				author: tune.author,
+				category: tune.category,
+				settings: tune.settings,
+			}) +
+			"\n";
+	}
+	// F1 setup comes from the `compare-f1-setup-to-catalog` tool — see the
+	// Lap Analyst system prompt. Not injected here.
 
-  let segmentsList = "";
-  if (segments && segments.length > 0) {
-    segmentsList = "\n--- Track Segments (use these EXACT names in braking/throttle/corners) ---\n";
-    segmentsList += segments.map((s) => `${s.type === "corner" ? "🔶" : "🔷"} ${s.name} (${(s.startFrac * 100).toFixed(1)}%-${(s.endFrac * 100).toFixed(1)}%)`).join("\n");
-    segmentsList += "\n";
-  }
+	let segmentsList = "";
+	if (segments && segments.length > 0) {
+		segmentsList =
+			"\n--- Track Segments (use these EXACT names in braking/throttle/corners) ---\n";
+		segmentsList += segments
+			.map(
+				(s) =>
+					`${s.type === "corner" ? "🔶" : "🔷"} ${s.name} (${(s.startFrac * 100).toFixed(1)}%-${(s.endFrac * 100).toFixed(1)}%)`,
+			)
+			.join("\n");
+		segmentsList += "\n";
+	}
 
-  // Track grounding: the model invents corner names (e.g. "Bit-Kurve" at Lusail)
-  // when nothing else constrains it. Build a whitelist from whatever named
-  // sources we have; if none, force Tn numbering.
-  const cornerLabelWhitelist = collectCornerLabels(corners, segments);
-  const cornerGuardrail = cornerLabelWhitelist.length > 0
-    ? `\n--- Valid Corner Labels (the ONLY names you may use for corners in this output) ---\n${cornerLabelWhitelist.join(", ")}\n`
-    : `\n--- Corner Naming ---\nNo named corner data is available for this track. Refer to corners as "T1", "T2", … based on sequence. Do NOT invent corner names.\n`;
+	// Track grounding: the model invents corner names (e.g. "Bit-Kurve" at Lusail)
+	// when nothing else constrains it. Build a whitelist from whatever named
+	// sources we have; if none, force Tn numbering.
+	const cornerLabelWhitelist = collectCornerLabels(corners, segments);
+	const cornerGuardrail =
+		cornerLabelWhitelist.length > 0
+			? `\n--- Valid Corner Labels (the ONLY names you may use for corners in this output) ---\n${cornerLabelWhitelist.join(", ")}\n`
+			: `\n--- Corner Naming ---\nNo named corner data is available for this track. Refer to corners as "T1", "T2", … based on sequence. Do NOT invent corner names.\n`;
 
-  // Get car specs for additional context
-  const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
-  const specs = carSpecsMap.get(carOrdinal);
-  let carDetailsText = `Car: ${carName}`;
-  if (specs) {
-    carDetailsText += `\nClass: ${specs.division}`;
-    carDetailsText += `\nPerformance Index (PI): ${specs.pi}`;
-    carDetailsText += `\nDimensions: ${specs.weightKg}kg, ${specs.hp}hp, ${specs.drivetrain}`;
-  }
+	// Get car specs for additional context
+	const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
+	const specs = carSpecsMap.get(carOrdinal);
+	let carDetailsText = `Car: ${carName}`;
+	if (specs) {
+		carDetailsText += `\nClass: ${specs.division}`;
+		carDetailsText += `\nPerformance Index (PI): ${specs.pi}`;
+		carDetailsText += `\nDimensions: ${specs.weightKg}kg, ${specs.hp}hp, ${specs.drivetrain}`;
+	}
 
-  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName);
+	const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName);
 
-  const context = `${carDetailsText}
+	const context = `${carDetailsText}
 Track: ${trackName}
 ${tuneText}${segmentsList}${cornerGuardrail}${trackGuide}
 ${exportText}
 ${cornerData}
 ${insightsText}`;
 
-  const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
-  const systemPrompt = getSystemPrompt(gameId, unit);
+	const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
+	const systemPrompt = getSystemPrompt(gameId, unit);
 
-  // Build game-specific extended context via adapter
-  let f1ExtendedContext = "";
-  const serverAdapter = tryGetServerGame(gameId);
-  if (serverAdapter?.buildAiContext && packets.length > 0) {
-    f1ExtendedContext = serverAdapter.buildAiContext(packets);
-  }
+	// Build game-specific extended context via adapter
+	let f1ExtendedContext = "";
+	const serverAdapter = tryGetServerGame(gameId);
+	if (serverAdapter?.buildAiContext && packets.length > 0) {
+		f1ExtendedContext = serverAdapter.buildAiContext(packets);
+	}
 
-  const lapIdLine = lap.id !== undefined ? `Lap ID: ${lap.id}\n` : "";
-  // Session type affects how the model should interpret strategy-dependent
-  // signals (e.g. for F1 one-shot qualifying we expect ERS reserve near 0%
-  // at the line; in race trim the same reading would be a red flag).
-  const sessionType = packets[0]?.f1?.sessionType;
-  const sessionTypeLine = sessionType ? `Session Type: ${sessionType}\n` : "";
+	const lapIdLine = lap.id !== undefined ? `Lap ID: ${lap.id}\n` : "";
+	// Session type affects how the model should interpret strategy-dependent
+	// signals (e.g. for F1 one-shot qualifying we expect ERS reserve near 0%
+	// at the line; in race trim the same reading would be a red flag).
+	const sessionType = packets[0]?.f1?.sessionType;
+	const sessionTypeLine = sessionType ? `Session Type: ${sessionType}\n` : "";
 
-  return `${systemPrompt}
+	return `${systemPrompt}
 
 --- TELEMETRY DATA ---
 
