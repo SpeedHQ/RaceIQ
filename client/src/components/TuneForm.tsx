@@ -191,6 +191,7 @@ export function TuneSettingsPanel({
 		rollCenterHeight: raw.rollCenterHeight ?? { front: 0, rear: 0 },
 		antiGeometry: raw.antiGeometry ?? { antiDiveFront: 0, antiSquatRear: 0 },
 	};
+	const ratios = settings.gearing.ratios ?? [];
 	const sections: { title: string; rows: [string, string][] }[] = [
 		{
 			title: "Tires",
@@ -201,7 +202,16 @@ export function TuneSettingsPanel({
 		},
 		{
 			title: "Gearing",
-			rows: [["Final Drive", settings.gearing.finalDrive.toFixed(2)]],
+			rows: [
+				["Final Drive", settings.gearing.finalDrive.toFixed(2)],
+				...ratios.map(
+					(ratio, index) =>
+						[`Gear ${index + 1}`, ratio.toFixed(2)] as [string, string],
+				),
+				...(settings.gearing.description
+					? [["Notes", settings.gearing.description] as [string, string]]
+					: []),
+			],
 		},
 		{
 			title: "Alignment",
@@ -324,7 +334,7 @@ export function TuneSettingsPanel({
 	];
 
 	return (
-		<div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-w-2xl">
+		<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 w-full">
 			{sections.map((section) => (
 				<div key={section.title} className="rounded-lg bg-app-bg p-3">
 					<h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">
@@ -342,6 +352,19 @@ export function TuneSettingsPanel({
 							</div>
 						))}
 					</div>
+					{section.title === "Gearing" && ratios.length > 0 && (
+						<div className="mt-2 pt-2 border-t border-app-border/60">
+							<GearRatioChart
+								ratios={ratios}
+								finalDrive={settings.gearing.finalDrive}
+								topSpeedMph={
+									settings.gearing.topSpeedKph
+										? settings.gearing.topSpeedKph / 1.60934
+										: undefined
+								}
+							/>
+						</div>
+					)}
 				</div>
 			))}
 		</div>
@@ -393,6 +416,12 @@ export function UserTuneCard({
 							className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${CATEGORY_COLORS[tune.category] ?? "bg-gray-500/20 text-gray-400"}`}
 						>
 							{CATEGORY_LABELS[tune.category] ?? tune.category}
+						</span>
+						<span className="text-[10px] text-app-text-muted">
+							by {tune.author} &middot;{" "}
+							{tune.source === "catalog-clone"
+								? "cloned from catalog"
+								: "user created"}
 						</span>
 						{tune.source === "catalog-clone" && (
 							<span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
@@ -469,12 +498,6 @@ export function UserTuneCard({
 						)}
 					</div>
 					{tune.settings && <TuneSettingsPanel settings={tune.settings} />}
-					<div className="text-[10px] text-app-text-muted pt-1">
-						by {tune.author} &middot;{" "}
-						{tune.source === "catalog-clone"
-							? "cloned from catalog"
-							: "user created"}
-					</div>
 				</div>
 			)}
 		</div>
