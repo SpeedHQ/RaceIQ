@@ -34,6 +34,7 @@
     "gzip:recording": "bun scripts/gzip-recording.ts",
     "build:installer": "bun scripts/build-installer.ts",
     "mastra:dev": "DATA_DIR=\"$PWD/data\" npx mastra dev --dir mastra",
+    "mastra:migrate": "DATA_DIR=\"$PWD/data\" bunx --bun mastra migrate --dir mastra",
     "postinstall": "lefthook install",
     "record:demo": "cd playwright && DEMO_START_FRAME=28% DEMO_MAX_FRAMES=2700 bunx playwright test --project=record-demo",
     "render:demo": "ffmpeg -y -framerate 60 -i /tmp/raceiq-demo-frames/frame-%06d.jpg -vf scale=1280:720 -c:v libx264 -pix_fmt yuv420p -crf 30 assets/demo-render.mp4 && ffmpeg -y -framerate 60 -i /tmp/raceiq-demo-frames/frame-%06d.jpg -vf scale=1280:720 -c:v libvpx-vp9 -crf 32 -b:v 0 assets/demo-render.webm",
