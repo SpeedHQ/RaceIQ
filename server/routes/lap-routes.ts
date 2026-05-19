@@ -48,6 +48,8 @@ import { buildInputsComparePrompt, InputsCompareSchema } from "../ai/inputs-comp
 // Dev uses the full Mastra instance (so Studio sees traces); prod tree-shakes
 // the Mastra wrapper out. See `server/ai/agents.ts` for the switch.
 import { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent } from "../ai/agents";
+import { buildGoogleProviderOptions } from "../ai/google-provider-options";
+import { toClientAiError } from "../ai/provider-error";
 
 /** Parse a stored carSetup JSON blob, returning null on any error. */
 function safeParseJson(raw: string): Record<string, unknown> | null {
@@ -333,7 +335,12 @@ export const lapRoutes = new Hono()
     // to keep Bun's 255s idleTimeout alive for slow local models, then a
     // single `result` (or `error`) event at the end. The client doesn't
     // render intermediate status — it just waits for the result.
-    const modelLabel = settings.aiModel || (analystProvider === "openai" ? "gpt-4o-mini" : "gemini-flash-latest");
+    const modelLabel = settings.aiModel
+      || (analystProvider === "openai"
+        ? "gpt-4o-mini"
+        : analystProvider === "local"
+          ? "local-model"
+          : "gemini-flash-latest");
     const startedAt = Date.now();
     const encoder = new TextEncoder();
     const writeEvent = (c: ReadableStreamDefaultController, obj: unknown) => {
@@ -367,11 +374,7 @@ export const lapRoutes = new Hono()
                   },
                 } as never,
               },
-              google: {
-                thinkingConfig: { thinkingBudget: 2048, includeThoughts: false },
-                responseMimeType: "application/json",
-                responseSchema: getAnalystJsonSchema() as never,
-              },
+              google: buildGoogleProviderOptions(modelLabel, getAnalystJsonSchema() as Record<string, unknown>, settings.aiThinkingBudget) as never,
             },
           });
           const text = typeof result.text === "string" ? result.text : "";
@@ -410,9 +413,9 @@ export const lapRoutes = new Hono()
             });
           }
         } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
-          console.error("[AI] Analysis failed:", msg);
-          writeEvent(controller, { type: "error", message: msg });
+          const aiError = toClientAiError(err);
+          console.error("[AI] Analysis failed:", aiError.message);
+          writeEvent(controller, { type: "error", ...aiError });
         } finally {
           clearInterval(keepAlive);
           try {

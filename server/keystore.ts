@@ -9,6 +9,7 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { tmpdir } from "os";
 import { join } from "path";
+import { randomUUID } from "crypto";
 import { IS_COMPILED } from "./paths";
 
 const IS_MAC = process.platform === "darwin";
@@ -57,7 +58,7 @@ function macDelete(account: string): void {
 export async function getSecret(key: string): Promise<string> {
   try {
     if (IS_MAC) return macGet(key);
-    const tmpFile = join(tmpdir(), `raceiq-cred-${process.pid}`);
+    const tmpFile = join(tmpdir(), `raceiq-cred-${process.pid}-${key}-${randomUUID()}`);
     ps(`read "${SERVICE}:${key}" "" "${tmpFile}"`);
     const value = readFileSync(tmpFile, "utf-8");
     try { unlinkSync(tmpFile); } catch { /* ignore */ }

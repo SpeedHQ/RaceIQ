@@ -8,6 +8,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { SetupSection } from "./ai/analysis-display";
 import { readChatStream } from "../lib/chat-stream";
+import { isAiConfigured } from "../lib/is-ai-configured";
 import {
   Sparkles, RefreshCw, Gauge, Sliders, AlertTriangle,
   Lightbulb, Download,
@@ -22,6 +23,29 @@ interface AnalysisUsage {
   model: string;
 }
 
+type StreamErrorEvent = {
+  message: string;
+  retryable?: boolean;
+  statusCode?: number | null;
+  provider?: string | null;
+  modelId?: string | null;
+  upstream?: { code?: number; message?: string; status?: string } | null;
+};
+
+function formatStreamError(event: StreamErrorEvent): string {
+  const parts = [event.message];
+  const statusCode = typeof event.statusCode === "number" ? event.statusCode : event.upstream?.code;
+  const status = event.upstream?.status;
+  const model = event.modelId;
+  if (statusCode || status) parts.push(`(${statusCode ?? "error"}${status ? ` ${status}` : ""})`);
+  if (model) parts.push(`[${model}]`);
+  if (event.retryable) parts.push("Retryable: try again.");
+  return parts.join(" ");
+}
+
+function toErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : "Failed to fetch analysis";
+}
 function safeParseAnalysis(raw: string): unknown {
   try {
     return JSON.parse(raw);
@@ -167,7 +191,7 @@ export interface AiPanelHandle {
 export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel({ lapId, carName, trackName, segments, onAnalysisLoaded, onJumpToFrac, onHighlightsChange, panelOpen = false }, ref) {
   const { displaySettings } = useSettings();
   const openSettings = useUiStore((s) => s.openSettings);
-  const aiConfigured = !!(displaySettings.geminiApiKeySet || displaySettings.openaiApiKeySet);
+  const aiConfigured = isAiConfigured(displaySettings);
 
   // Analysis state
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
@@ -301,8 +325,10 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             case "ping":
             case "done":
               break;
-            case "error":
-              throw new Error((event as unknown as { message: string }).message);
+            case "error": {
+              const e = event as unknown as StreamErrorEvent;
+              throw new Error(formatStreamError(e));
+            }
             case "result": {
               const r = event as unknown as { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean };
               apply(r);
@@ -317,7 +343,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         apply(data);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to fetch analysis");
+      setError(toErrorMessage(err));
     } finally {
       setLoading(false);
       setAnalyseStatus(null);
@@ -445,9 +471,10 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             finalUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens };
             break;
           }
-          case "error":
-            throw new Error((event as unknown as { message: string }).message);
-          case "ping":
+          case "error": {
+            const e = event as unknown as StreamErrorEvent;
+            throw new Error(formatStreamError(e));
+          }
           case "done":
             break;
         }
@@ -456,7 +483,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       setMessages((prev) => [...prev, { role: "assistant", content: fullText }]);
       setChatUsage(finalUsage);
     } catch (err: unknown) {
-      setChatError(err instanceof Error ? err.message : "Chat failed");
+      setChatError(toErrorMessage(err));
     } finally {
       setChatLoading(false);
       setChatStatus(null);

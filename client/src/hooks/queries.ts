@@ -42,6 +42,10 @@ export function useSettings() {
       if (!res.ok) throw new Error(res.statusText);
       return res.json();
     },
+    staleTime: 1000 * 60 * 30,
+    gcTime: 1000 * 60 * 60,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
   return { displaySettings, settingsLoaded: isSuccess };
 }

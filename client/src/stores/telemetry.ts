@@ -7,6 +7,7 @@ export interface DisplaySettings {
   temperatureUnit: "C" | "F";
   aiProvider: "gemini" | "openai" | "local";
   aiModel: string;
+  aiThinkingBudget: number | null;
   chatProvider: "gemini" | "openai" | "local";
   chatModel: string;
   localEndpoint: string;
@@ -36,6 +37,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   temperatureUnit: "C",
   aiProvider: "gemini",
   aiModel: "",
+  aiThinkingBudget: null,
   chatProvider: "gemini",
   chatModel: "",
   localEndpoint: "http://localhost:1234/v1",

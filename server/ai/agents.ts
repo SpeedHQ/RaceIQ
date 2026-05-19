@@ -22,6 +22,7 @@
  * Mastra instance out of the prod bundle while still letting the dev server
  * emit traces.
  */
+import { resolve } from "path";
 import { lapAnalystAgent as rawLapAnalystAgent } from "../../mastra/agents/lap-analyst";
 import { lapChatAgent as rawLapChatAgent } from "../../mastra/agents/lap-chat";
 import { compareEngineerAgent as rawCompareEngineerAgent } from "../../mastra/agents/compare-engineer";
@@ -32,17 +33,37 @@ type LapChatAgent = typeof rawLapChatAgent;
 type CompareEngineerAgent = typeof rawCompareEngineerAgent;
 type CompareChatAgent = typeof rawCompareChatAgent;
 
+export function isMastraSignalMigrationRequiredError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return (
+    err.message.includes("MASTRA_STORAGE_DUCKDB_MIGRATION_REQUIRED_SIGNAL_TABLES") ||
+    err.message.includes("MIGRATION REQUIRED: DuckDB observability signal tables need signal IDs")
+  );
+}
+
 let lapAnalystAgent: LapAnalystAgent = rawLapAnalystAgent;
 let lapChatAgent: LapChatAgent = rawLapChatAgent;
 let compareEngineerAgent: CompareEngineerAgent = rawCompareEngineerAgent;
 let compareChatAgent: CompareChatAgent = rawCompareChatAgent;
 
 if (process.env.NODE_ENV !== "production") {
-  const { mastra } = await import("../../mastra");
-  lapAnalystAgent = mastra.getAgent("lap-analyst") as unknown as LapAnalystAgent;
-  lapChatAgent = mastra.getAgent("lap-chat") as unknown as LapChatAgent;
-  compareEngineerAgent = mastra.getAgent("compare-engineer") as unknown as CompareEngineerAgent;
-  compareChatAgent = mastra.getAgent("compare-chat") as unknown as CompareChatAgent;
+  try {
+    const { mastra } = await import("../../mastra");
+    lapAnalystAgent = mastra.getAgent("lap-analyst") as unknown as LapAnalystAgent;
+    lapChatAgent = mastra.getAgent("lap-chat") as unknown as LapChatAgent;
+    compareEngineerAgent = mastra.getAgent("compare-engineer") as unknown as CompareEngineerAgent;
+    compareChatAgent = mastra.getAgent("compare-chat") as unknown as CompareChatAgent;
+  } catch (err) {
+    if (isMastraSignalMigrationRequiredError(err)) {
+      const dataDir = process.env.DATA_DIR ?? resolve(process.cwd(), "data");
+      console.warn(
+        `[AI] Mastra observability migration required at ${dataDir}/mastra-observability.duckdb. ` +
+          `Run 'bun run mastra:migrate'. Falling back to non-observable agents for this process.`,
+      );
+    } else {
+      throw err;
+    }
+  }
 }
 
 export { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent };

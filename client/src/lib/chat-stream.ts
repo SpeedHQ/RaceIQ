@@ -13,7 +13,7 @@ export type ChatStreamEvent =
   | { type: "text"; delta: string }
   | { type: "usage"; inputTokens: number; outputTokens: number; costUsd?: number; durationMs?: number; model?: string; toolCalls?: number }
   | { type: "ping" }
-  | { type: "error"; message: string }
+  | { type: "error"; message: string; retryable?: boolean; statusCode?: number | null; provider?: string | null; modelId?: string | null; upstream?: { code?: number; message?: string; status?: string } | null }
   | { type: "done" }
   // Open-ended tail so analyse-specific events ("meta", "result") and any
   // future additions flow through without needing to widen the union here.

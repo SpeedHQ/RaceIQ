@@ -20,6 +20,7 @@ const AppSettingsSchema = z.object({
   temperatureUnit: z.enum(["C", "F"]).default("C"),
   aiProvider: AiProviderSchema.default("gemini"),
   aiModel: z.string().default("gemini-flash-latest"),
+  aiThinkingBudget: z.number().int().min(0).nullable().default(null),
   chatProvider: ChatProviderSchema.default("gemini"),
   chatModel: z.string().default("gemini-flash-latest"),
   localEndpoint: z.string().default("http://localhost:1234/v1"),
