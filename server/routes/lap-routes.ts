@@ -541,6 +541,7 @@ export const lapRoutes = new Hono()
             google: buildGoogleThinkingProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
           },
         }),
+        { provider: chatProvider, modelId: chatModelLabel },
       );
     } catch (err: any) {
       console.error("[Chat] Stream failed:", err.message);
@@ -990,6 +991,7 @@ export const lapRoutes = new Hono()
             google: buildGoogleThinkingProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
           },
         }),
+        { provider: chatProvider, modelId: chatModelLabel },
       );
     } catch (err: any) {
       console.error("[CompareChat] Stream failed:", err.message);

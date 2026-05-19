@@ -7,7 +7,7 @@
  * accurate token count at the end of the run.
  *
  * Event shapes emitted (one JSON object per line, `\n` terminated):
- *   { type: "status", state: "thinking" | "generating" }
+ *   { type: "status", state: "starting" | "thinking" | "generating" }
  *   { type: "tool",   state: "start" | "end", name }
  *   { type: "text",   delta }
  *   { type: "usage",  inputTokens, outputTokens }
@@ -22,13 +22,35 @@
  */
 import type { Agent } from "@mastra/core/agent";
 
+import { estimateTokenCostUsd } from "./chat-pricing";
 import { toClientAiError } from "./provider-error";
 
 type AgentStream = Awaited<ReturnType<Agent["stream"]>>;
+type AgentStreamPart = AgentStream["fullStream"] extends AsyncIterable<infer Part> ? Part : never;
 type StreamFactory = () => Promise<AgentStream> | AgentStream;
+function pickUsage(part: AgentStreamPart, payload: Record<string, unknown>): Record<string, unknown> {
+  const partObj = part as unknown as Record<string, unknown>;
+  const output = (payload.output ?? partObj.output ?? {}) as Record<string, unknown>;
+  const usage = (
+    output.usage
+    ?? output.usageMetadata
+    ?? payload.usage
+    ?? payload.usageMetadata
+    ?? partObj.usage
+    ?? partObj.usageMetadata
+    ?? {}
+  ) as Record<string, unknown>;
+  return usage;
+}
 
+
+type ChatStreamContext = {
+  provider: string | null;
+  modelId: string | null;
+};
 export function chatStreamResponse(
   streamSource: Promise<AgentStream> | AgentStream | StreamFactory,
+  context?: ChatStreamContext,
 ): Response {
   const encoder = new TextEncoder();
   const writeEvent = (c: ReadableStreamDefaultController, obj: unknown) => {
@@ -43,14 +65,16 @@ export function chatStreamResponse(
     ? streamSource
     : () => streamSource;
 
+  const provider = context?.provider ?? null;
+  const modelId = context?.modelId ?? null;
   const readable = new ReadableStream({
     async start(controller) {
       let firstTextArrived = false;
-      // Immediate status so the UI can show "Thinking…" without waiting for
-      // the model to warm up. Works around Bun / Vite / browser idle timers
-      // for slow local models (LM Studio, Ollama) where time-to-first-token
-      // can be 30-90s.
-      writeEvent(controller, { type: "status", state: "thinking" });
+      // "starting" means request is in-flight but model has not emitted any
+      // reasoning/text yet. We only emit "thinking" when reasoning parts
+      // actually arrive, so non-thinking models never show a fake thinking
+      // state in the UI.
+      writeEvent(controller, { type: "status", state: "starting" });
       const keepAlive = setInterval(() => {
         if (firstTextArrived) return;
         writeEvent(controller, { type: "ping" });
@@ -73,7 +97,13 @@ export function chatStreamResponse(
             // (plus start/step-start/raw/reasoning-* that we ignore here).
             for await (const part of stream.fullStream as AsyncIterable<AgentStreamPart>) {
               const p = (part as { payload?: Record<string, unknown> }).payload ?? {};
-              switch (part.type) {
+              const partType = (part as { type: string }).type;
+              switch (partType) {
+                case "reasoning-start":
+                case "reasoning-delta":
+                case "reasoning":
+                  writeEvent(controller, { type: "status", state: "thinking" });
+                  break;
                 case "text-delta": {
                   if (!firstTextArrived) {
                     firstTextArrived = true;
@@ -99,13 +129,16 @@ export function chatStreamResponse(
                   break;
                 case "finish":
                 case "step-finish": {
-                  const output = (p.output ?? {}) as Record<string, unknown>;
-                  const u = (output.usage ?? p.usage ?? {}) as Record<string, unknown>;
+                  const u = pickUsage(part, p);
                   const n = (k: string) => (typeof u[k] === "number" ? (u[k] as number) : 0);
+                  const inputTokens = n("inputTokens") || n("promptTokens") || n("promptTokenCount") || n("input_tokens");
+                  const outputTokens = n("outputTokens") || n("completionTokens") || n("candidatesTokenCount") || n("output_tokens");
                   writeEvent(controller, {
                     type: "usage",
-                    inputTokens: n("inputTokens") || n("promptTokens"),
-                    outputTokens: n("outputTokens") || n("completionTokens"),
+                    inputTokens,
+                    outputTokens,
+                    costUsd: estimateTokenCostUsd(inputTokens, outputTokens, provider, modelId),
+                    model: modelId,
                   });
                   break;
                 }
@@ -148,12 +181,4 @@ export function chatStreamResponse(
   });
 }
 
-/** Narrow subset of AI SDK stream part shapes we care about. */
-type AgentStreamPart =
-  | { type: "text-delta"; textDelta?: string; text?: string }
-  | { type: "tool-call"; toolName: string }
-  | { type: "tool-result"; toolName: string }
-  | { type: "finish"; usage?: Record<string, unknown>; finishReason?: string }
-  | { type: "step-finish"; usage?: Record<string, unknown> }
-  | { type: "error"; error: unknown }
-  | { type: string; [k: string]: unknown };
+/** Stream part type is inferred from Mastra Agent.stream(). */
