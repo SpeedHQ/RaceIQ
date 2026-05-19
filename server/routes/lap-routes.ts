@@ -532,7 +532,7 @@ export const lapRoutes = new Hono()
     try {
       const threadId = chatThreadId(id);
       return chatStreamResponse(
-        lapChatAgent.stream(message, {
+        () => lapChatAgent.stream(message, {
           instructions: systemPrompt,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
           modelSettings: { maxOutputTokens: 4096, temperature: 0.2 },
@@ -981,7 +981,7 @@ export const lapRoutes = new Hono()
       const threadId = compareChatThreadId(id1, id2);
 
       return chatStreamResponse(
-        compareChatAgent.stream(message, {
+        () => compareChatAgent.stream(message, {
           instructions: systemPrompt,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
           modelSettings: { maxOutputTokens: 4096, temperature: 0.2 },

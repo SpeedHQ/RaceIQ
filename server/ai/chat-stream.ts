@@ -22,13 +22,26 @@
  */
 import type { Agent } from "@mastra/core/agent";
 
-type AgentStream = Awaited<ReturnType<Agent["stream"]>>;
+import { toClientAiError } from "./provider-error";
 
-export function chatStreamResponse(streamPromise: Promise<AgentStream> | AgentStream): Response {
+type AgentStream = Awaited<ReturnType<Agent["stream"]>>;
+type StreamFactory = () => Promise<AgentStream> | AgentStream;
+
+export function chatStreamResponse(
+  streamSource: Promise<AgentStream> | AgentStream | StreamFactory,
+): Response {
   const encoder = new TextEncoder();
   const writeEvent = (c: ReadableStreamDefaultController, obj: unknown) => {
-    try { c.enqueue(encoder.encode(JSON.stringify(obj) + "\n")); } catch { /* closed */ }
+    try {
+      c.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
+    } catch {
+      /* closed */
+    }
   };
+
+  const createStream: StreamFactory = typeof streamSource === "function"
+    ? streamSource
+    : () => streamSource;
 
   const readable = new ReadableStream({
     async start(controller) {
@@ -43,69 +56,83 @@ export function chatStreamResponse(streamPromise: Promise<AgentStream> | AgentSt
         writeEvent(controller, { type: "ping" });
       }, 15_000);
 
+      let attempt = 0;
+      const maxAttempts = 2;
+
       try {
-        const stream = await streamPromise;
-        // Mastra's fullStream emits typed parts with a `payload` sub-object:
-        // { type: "text-delta",   payload: { text } }
-        // { type: "tool-call",    payload: { toolName, args, ... } }
-        // { type: "tool-result",  payload: { toolName, result, ... } }
-        // { type: "finish",       payload: { output: { usage } } }
-        // { type: "error",        payload: { error } }
-        // (plus start/step-start/raw/reasoning-* that we ignore here).
-        for await (const part of stream.fullStream as AsyncIterable<AgentStreamPart>) {
-          const p = (part as { payload?: Record<string, unknown> }).payload ?? {};
-          switch (part.type) {
-            case "text-delta": {
-              if (!firstTextArrived) {
-                firstTextArrived = true;
-                writeEvent(controller, { type: "status", state: "generating" });
+        while (attempt < maxAttempts) {
+          attempt += 1;
+          try {
+            const stream = await createStream();
+            // Mastra's fullStream emits typed parts with a `payload` sub-object:
+            // { type: "text-delta",   payload: { text } }
+            // { type: "tool-call",    payload: { toolName, args, ... } }
+            // { type: "tool-result",  payload: { toolName, result, ... } }
+            // { type: "finish",       payload: { output: { usage } } }
+            // { type: "error",        payload: { error } }
+            // (plus start/step-start/raw/reasoning-* that we ignore here).
+            for await (const part of stream.fullStream as AsyncIterable<AgentStreamPart>) {
+              const p = (part as { payload?: Record<string, unknown> }).payload ?? {};
+              switch (part.type) {
+                case "text-delta": {
+                  if (!firstTextArrived) {
+                    firstTextArrived = true;
+                    writeEvent(controller, { type: "status", state: "generating" });
+                  }
+                  const delta = typeof p.text === "string" ? p.text : "";
+                  if (delta) writeEvent(controller, { type: "text", delta });
+                  break;
+                }
+                case "tool-call":
+                  writeEvent(controller, {
+                    type: "tool",
+                    state: "start",
+                    name: typeof p.toolName === "string" ? p.toolName : "unknown",
+                  });
+                  break;
+                case "tool-result":
+                  writeEvent(controller, {
+                    type: "tool",
+                    state: "end",
+                    name: typeof p.toolName === "string" ? p.toolName : "unknown",
+                  });
+                  break;
+                case "finish":
+                case "step-finish": {
+                  const output = (p.output ?? {}) as Record<string, unknown>;
+                  const u = (output.usage ?? p.usage ?? {}) as Record<string, unknown>;
+                  const n = (k: string) => (typeof u[k] === "number" ? (u[k] as number) : 0);
+                  writeEvent(controller, {
+                    type: "usage",
+                    inputTokens: n("inputTokens") || n("promptTokens"),
+                    outputTokens: n("outputTokens") || n("completionTokens"),
+                  });
+                  break;
+                }
+                case "error": {
+                  const aiError = toClientAiError(p.error);
+                  writeEvent(controller, { type: "error", ...aiError });
+                  break;
+                }
               }
-              const delta = typeof p.text === "string" ? p.text : "";
-              if (delta) writeEvent(controller, { type: "text", delta });
-              break;
             }
-            case "tool-call":
-              writeEvent(controller, {
-                type: "tool",
-                state: "start",
-                name: typeof p.toolName === "string" ? p.toolName : "unknown",
-              });
-              break;
-            case "tool-result":
-              writeEvent(controller, {
-                type: "tool",
-                state: "end",
-                name: typeof p.toolName === "string" ? p.toolName : "unknown",
-              });
-              break;
-            case "finish":
-            case "step-finish": {
-              const output = (p.output ?? {}) as Record<string, unknown>;
-              const u = (output.usage ?? p.usage ?? {}) as Record<string, unknown>;
-              const n = (k: string) => (typeof u[k] === "number" ? (u[k] as number) : 0);
-              writeEvent(controller, {
-                type: "usage",
-                inputTokens: n("inputTokens") || n("promptTokens"),
-                outputTokens: n("outputTokens") || n("completionTokens"),
-              });
-              break;
+
+            writeEvent(controller, { type: "done" });
+            controller.close();
+            return;
+          } catch (err: unknown) {
+            const aiError = toClientAiError(err);
+            const shouldRetry = aiError.retryable && attempt < maxAttempts;
+            if (shouldRetry) continue;
+            writeEvent(controller, { type: "error", ...aiError });
+            try {
+              controller.close();
+            } catch {
+              /* already closed */
             }
-            case "error":
-              writeEvent(controller, {
-                type: "error",
-                message: p.error instanceof Error ? p.error.message : String(p.error ?? "unknown error"),
-              });
-              break;
+            return;
           }
         }
-        writeEvent(controller, { type: "done" });
-        controller.close();
-      } catch (err: unknown) {
-        writeEvent(controller, {
-          type: "error",
-          message: err instanceof Error ? err.message : String(err),
-        });
-        try { controller.close(); } catch { /* already closed */ }
       } finally {
         clearInterval(keepAlive);
       }
