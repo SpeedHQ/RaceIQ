@@ -23,6 +23,7 @@ const AppSettingsSchema = z.object({
   aiThinkingBudget: z.number().int().min(0).nullable().default(null),
   chatProvider: ChatProviderSchema.default("gemini"),
   chatModel: z.string().default("gemini-flash-latest"),
+  chatThinkingBudget: z.number().int().min(0).nullable().default(null),
   localEndpoint: z.string().default("http://localhost:1234/v1"),
   wsRefreshRate: z.enum(["60", "50", "40", "30"]).default("60"),
   // Max render rate for the 3D wireframe Canvas. Throttles gl.render

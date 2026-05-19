@@ -28,17 +28,26 @@ export function getProviders() {
 /** Fetch available Gemini models from the API. Filters to generateContent-capable models. */
 export async function getGeminiModels(apiKey: string): Promise<{ id: string; name: string }[]> {
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    if (!res.ok) return [];
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    console.info(`[AI] GET ${url}`);
+    const res = await fetch(url);
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.warn(`[AI] Gemini models list failed: ${res.status} ${res.statusText}${body ? ` — ${body.slice(0, 240)}` : ""}`);
+      return [];
+    }
+    console.info(`[AI] ${res.status} ${res.statusText} ${url}`);
     const data = await res.json() as any;
-    return (data.models ?? [])
+    const models = (data.models ?? [])
       .filter((m: any) => m.supportedGenerationMethods?.includes("generateContent"))
       .map((m: any) => ({
         id: m.name.replace("models/", ""),
         name: m.displayName ?? m.name.replace("models/", ""),
       }))
       .sort((a: any, b: any) => a.name.localeCompare(b.name));
-  } catch {
+    return models;
+  } catch (err) {
+    console.warn("[AI] Gemini models list request errored:", err instanceof Error ? err.message : String(err));
     return [];
   }
 }
@@ -361,14 +370,21 @@ export function getOpenAiModels() {
 export async function getLocalModels(endpoint: string): Promise<{ id: string; name: string }[]> {
   try {
     const url = endpoint.replace(/\/+$/, "") + "/models";
+    console.info(`[AI] GET ${url}`);
     const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
-    if (!res.ok) return [];
+    console.info(`[AI] ${res.status} ${res.statusText} ${url}`);
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.warn(`[AI] Local models list failed: ${res.status} ${res.statusText}${body ? ` — ${body.slice(0, 240)}` : ""}`);
+      return [];
+    }
     const data = await res.json() as any;
     return (data.data ?? []).map((m: any) => ({
       id: m.id,
       name: m.id,
     }));
-  } catch {
+  } catch (err) {
+    console.warn("[AI] Local models list request errored:", err instanceof Error ? err.message : String(err));
     return [];
   }
 }

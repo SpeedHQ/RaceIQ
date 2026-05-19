@@ -13,6 +13,11 @@ import { getLapStats, setCacheMaxBytes } from "../db/queries";
 import { getRunningGame } from "../games/registry";
 import { getTrackOutlineByOrdinal } from "../../shared/track-data";
 
+const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
+const MODELS_EMPTY_RETRY_MS = 10 * 1000;
+let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
+let cachedLocalModels: { endpoint: string; models: { id: string; name: string }[]; at: number } | null = null;
+let cachedLocalEmpty: { endpoint: string; at: number } | null = null;
 export const settingsRoutes = new Hono()
   // GET /api/status
   .get("/api/status", (c) => {
@@ -64,10 +69,73 @@ export const settingsRoutes = new Hono()
   .get("/api/ai-models", async (c) => {
     const { getGeminiModels, getOpenAiModels, getLocalModels } = await import("../ai/providers");
     const { getSecret } = await import("../keystore");
-    const geminiKey = await getSecret("gemini-api-key");
-    const geminiModels = geminiKey ? await getGeminiModels(geminiKey) : [];
+    const forceRefresh = c.req.query("refresh") === "1";
+    console.info(`[AI] ai-models request refresh=${forceRefresh ? "1" : "0"}`);
+
     const settings = loadSettings();
-    const localModels = await getLocalModels(settings.localEndpoint || "http://localhost:1234/v1");
+    const shouldFetchGemini = settings.aiProvider === "gemini" || settings.chatProvider === "gemini";
+    let geminiModels: { id: string; name: string }[] = [];
+    if (shouldFetchGemini) {
+      const geminiKey = await getSecret("gemini-api-key");
+      if (geminiKey) {
+        const geminiCacheHit = !forceRefresh
+          && cachedGeminiModels
+          && cachedGeminiModels.key === geminiKey
+          && (Date.now() - cachedGeminiModels.at) < MODELS_CACHE_TTL_MS;
+        if (geminiCacheHit && cachedGeminiModels) {
+          console.info("[AI] ai-models gemini cache hit");
+          geminiModels = cachedGeminiModels.models;
+        } else {
+          console.info("[AI] ai-models gemini cache miss");
+          const fetchedGeminiModels = await getGeminiModels(geminiKey);
+          if (fetchedGeminiModels.length > 0) {
+            geminiModels = fetchedGeminiModels;
+            cachedGeminiModels = { key: geminiKey, models: geminiModels, at: Date.now() };
+          } else if (cachedGeminiModels && cachedGeminiModels.key === geminiKey) {
+            console.warn("[AI] Gemini fetch returned empty; keeping last successful cached models");
+            geminiModels = cachedGeminiModels.models;
+          } else {
+            geminiModels = [];
+          }
+        }
+      } else {
+        console.warn("[AI] Gemini API key missing while fetching model list");
+        cachedGeminiModels = null;
+      }
+    } else {
+      console.info("[AI] ai-models gemini fetch skipped (provider not gemini)");
+    }
+
+    const shouldFetchLocal = settings.aiProvider === "local" || settings.chatProvider === "local";
+    let localModels: { id: string; name: string }[] = [];
+    if (shouldFetchLocal) {
+      const endpoint = settings.localEndpoint || "http://localhost:1234/v1";
+      const localCacheHit = !forceRefresh
+        && cachedLocalModels
+        && cachedLocalModels.endpoint === endpoint
+        && (Date.now() - cachedLocalModels.at) < MODELS_CACHE_TTL_MS;
+      const localEmptyRecent = !forceRefresh
+        && cachedLocalEmpty
+        && cachedLocalEmpty.endpoint === endpoint
+        && (Date.now() - cachedLocalEmpty.at) < MODELS_EMPTY_RETRY_MS;
+      const fetchedLocalModels = localCacheHit && cachedLocalModels
+        ? (console.info("[AI] ai-models local cache hit"), cachedLocalModels.models)
+        : localEmptyRecent
+          ? (console.info("[AI] ai-models local recent-empty cache hit"), [])
+          : (console.info("[AI] ai-models local cache miss"), await getLocalModels(endpoint));
+      localModels = fetchedLocalModels.length > 0
+        ? fetchedLocalModels
+        : (cachedLocalModels && cachedLocalModels.endpoint === endpoint ? cachedLocalModels.models : []);
+      if (fetchedLocalModels.length > 0) {
+        cachedLocalModels = { endpoint, models: localModels, at: Date.now() };
+        cachedLocalEmpty = null;
+      } else if (!localCacheHit) {
+        cachedLocalEmpty = { endpoint, at: Date.now() };
+      }
+    } else {
+      console.info("[AI] ai-models local fetch skipped (provider not local)");
+    }
+
     return c.json({
       "gemini": geminiModels,
       "openai": getOpenAiModels(),
@@ -79,8 +147,13 @@ export const settingsRoutes = new Hono()
   .put("/api/ai-key", async (c) => {
     const body = await c.req.json() as { provider: string; apiKey: string };
     const { setSecret } = await import("../keystore");
-    await setSecret(`${body.provider}-api-key`, body.apiKey ?? "");
-    return c.json({ ok: true });
+    try {
+      await setSecret(`${body.provider}-api-key`, body.apiKey ?? "");
+      return c.json({ ok: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to store API key";
+      return c.json({ ok: false, error: message }, 500);
+    }
   })
 
   // PUT /api/settings

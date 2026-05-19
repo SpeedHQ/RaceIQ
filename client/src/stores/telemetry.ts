@@ -10,6 +10,7 @@ export interface DisplaySettings {
   aiThinkingBudget: number | null;
   chatProvider: "gemini" | "openai" | "local";
   chatModel: string;
+  chatThinkingBudget: number | null;
   localEndpoint: string;
   wsRefreshRate: string;
   /** Max 3D Canvas render rate for the analyse wireframe (15–120 fps). */
@@ -40,6 +41,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   aiThinkingBudget: null,
   chatProvider: "gemini",
   chatModel: "",
+  chatThinkingBudget: null,
   localEndpoint: "http://localhost:1234/v1",
   wsRefreshRate: "60",
   renderFpsCap: 60,

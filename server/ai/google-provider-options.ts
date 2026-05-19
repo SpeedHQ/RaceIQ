@@ -28,3 +28,10 @@ export function buildGoogleProviderOptions(modelId: string, responseSchema: Json
     responseSchema,
   };
 }
+export function buildGoogleThinkingProviderOptions(modelId: string, thinkingBudget: number | null = null) {
+  if (!supportsGoogleThinkingBudget(modelId)) return {};
+  if (thinkingBudget == null || thinkingBudget <= 0) return {};
+  return {
+    thinkingConfig: { thinkingBudget, includeThoughts: DEFAULT_THINKING_CONFIG.includeThoughts },
+  };
+}

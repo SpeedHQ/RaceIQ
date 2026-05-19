@@ -48,7 +48,7 @@ import { buildInputsComparePrompt, InputsCompareSchema } from "../ai/inputs-comp
 // Dev uses the full Mastra instance (so Studio sees traces); prod tree-shakes
 // the Mastra wrapper out. See `server/ai/agents.ts` for the switch.
 import { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent } from "../ai/agents";
-import { buildGoogleProviderOptions } from "../ai/google-provider-options";
+import { buildGoogleProviderOptions, buildGoogleThinkingProviderOptions } from "../ai/google-provider-options";
 import { toClientAiError } from "../ai/provider-error";
 
 /** Parse a stored carSetup JSON blob, returning null on any error. */
@@ -523,12 +523,23 @@ export const lapRoutes = new Hono()
       process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
     }
 
+    const chatModelLabel = settings.chatModel
+      || (chatProvider === "openai"
+        ? "gpt-4o-mini"
+        : chatProvider === "local"
+          ? "local-model"
+          : "gemini-flash-latest");
     try {
       const threadId = chatThreadId(id);
       return chatStreamResponse(
         lapChatAgent.stream(message, {
           instructions: systemPrompt,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+          modelSettings: { maxOutputTokens: 4096, temperature: 0.2 },
+          providerOptions: {
+            openai: { reasoningEffort: chatProvider === "local" ? "none" : "low" },
+            google: buildGoogleThinkingProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+          },
         }),
       );
     } catch (err: any) {
@@ -960,6 +971,12 @@ export const lapRoutes = new Hono()
       process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
     }
 
+    const chatModelLabel = settings.chatModel
+      || (chatProvider === "openai"
+        ? "gpt-4o-mini"
+        : chatProvider === "local"
+          ? "local-model"
+          : "gemini-flash-latest");
     try {
       const threadId = compareChatThreadId(id1, id2);
 
@@ -967,6 +984,11 @@ export const lapRoutes = new Hono()
         compareChatAgent.stream(message, {
           instructions: systemPrompt,
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+          modelSettings: { maxOutputTokens: 4096, temperature: 0.2 },
+          providerOptions: {
+            openai: { reasoningEffort: chatProvider === "local" ? "none" : "low" },
+            google: buildGoogleThinkingProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+          },
         }),
       );
     } catch (err: any) {
