@@ -25,16 +25,23 @@ export function getProviders() {
   return AI_PROVIDERS;
 }
 
+export type ModelListResult = {
+  models: { id: string; name: string }[];
+  error: string | null;
+};
+
 /** Fetch available Gemini models from the API. Filters to generateContent-capable models. */
-export async function getGeminiModels(apiKey: string): Promise<{ id: string; name: string }[]> {
+/** Fetch available Gemini models from the API. Filters to generateContent-capable models. */
+export async function getGeminiModelsDetailed(apiKey: string): Promise<ModelListResult> {
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
     console.info(`[AI] GET ${url}`);
     const res = await fetch(url);
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      console.warn(`[AI] Gemini models list failed: ${res.status} ${res.statusText}${body ? ` — ${body.slice(0, 240)}` : ""}`);
-      return [];
+      const message = `Gemini models request failed (${res.status} ${res.statusText})${body ? `: ${body.slice(0, 240)}` : ""}`;
+      console.warn(`[AI] ${message}`);
+      return { models: [], error: message };
     }
     console.info(`[AI] ${res.status} ${res.statusText} ${url}`);
     const data = await res.json() as any;
@@ -45,11 +52,17 @@ export async function getGeminiModels(apiKey: string): Promise<{ id: string; nam
         name: m.displayName ?? m.name.replace("models/", ""),
       }))
       .sort((a: any, b: any) => a.name.localeCompare(b.name));
-    return models;
+    return { models, error: null };
   } catch (err) {
-    console.warn("[AI] Gemini models list request errored:", err instanceof Error ? err.message : String(err));
-    return [];
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("[AI] Gemini models list request errored:", message);
+    return { models: [], error: message };
   }
+}
+
+export async function getGeminiModels(apiKey: string): Promise<{ id: string; name: string }[]> {
+  const result = await getGeminiModelsDetailed(apiKey);
+  return result.models;
 }
 
 /** Run analysis via Claude CLI (pipe mode). */
@@ -367,7 +380,7 @@ export function getOpenAiModels() {
 }
 
 /** Fetch available models from an OpenAI-compatible local endpoint (LM Studio, Ollama, etc.). */
-export async function getLocalModels(endpoint: string): Promise<{ id: string; name: string }[]> {
+export async function getLocalModelsDetailed(endpoint: string): Promise<ModelListResult> {
   try {
     const url = endpoint.replace(/\/+$/, "") + "/models";
     console.info(`[AI] GET ${url}`);
@@ -375,16 +388,26 @@ export async function getLocalModels(endpoint: string): Promise<{ id: string; na
     console.info(`[AI] ${res.status} ${res.statusText} ${url}`);
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      console.warn(`[AI] Local models list failed: ${res.status} ${res.statusText}${body ? ` — ${body.slice(0, 240)}` : ""}`);
-      return [];
+      const message = `Local models request failed (${res.status} ${res.statusText})${body ? `: ${body.slice(0, 240)}` : ""}`;
+      console.warn(`[AI] ${message}`);
+      return { models: [], error: message };
     }
     const data = await res.json() as any;
-    return (data.data ?? []).map((m: any) => ({
-      id: m.id,
-      name: m.id,
-    }));
+    return {
+      models: (data.data ?? []).map((m: any) => ({
+        id: m.id,
+        name: m.id,
+      })),
+      error: null,
+    };
   } catch (err) {
-    console.warn("[AI] Local models list request errored:", err instanceof Error ? err.message : String(err));
-    return [];
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[AI] Local models list request errored:", message);
+    return { models: [], error: message };
   }
+}
+
+export async function getLocalModels(endpoint: string): Promise<{ id: string; name: string }[]> {
+  const result = await getLocalModelsDetailed(endpoint);
+  return result.models;
 }

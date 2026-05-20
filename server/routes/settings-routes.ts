@@ -67,14 +67,24 @@ export const settingsRoutes = new Hono()
 
   // GET /api/ai-models — available models per provider
   .get("/api/ai-models", async (c) => {
-    const { getGeminiModels, getOpenAiModels, getLocalModels } = await import("../ai/providers");
+    const { getGeminiModelsDetailed, getOpenAiModels, getLocalModelsDetailed } = await import("../ai/providers");
     const { getSecret } = await import("../keystore");
     const forceRefresh = c.req.query("refresh") === "1";
-    console.info(`[AI] ai-models request refresh=${forceRefresh ? "1" : "0"}`);
+    console.info(`[AI] ai-models request refresh=${forceRefresh ? "1" : "0"} providers=${c.req.query("providers") ?? "<settings>"}`);
 
     const settings = loadSettings();
-    const shouldFetchGemini = settings.aiProvider === "gemini" || settings.chatProvider === "gemini";
+    const requestedProviders = new Set(
+      (c.req.query("providers") ?? "")
+        .split(",")
+        .map((p) => p.trim())
+        .filter((p) => p === "gemini" || p === "openai" || p === "local"),
+    );
+    const useRequestedProviders = requestedProviders.size > 0;
+    const shouldFetchGemini = useRequestedProviders
+      ? requestedProviders.has("gemini")
+      : settings.aiProvider === "gemini" || settings.chatProvider === "gemini";
     let geminiModels: { id: string; name: string }[] = [];
+    let geminiError: string | null = null;
     if (shouldFetchGemini) {
       const geminiKey = await getSecret("gemini-api-key");
       if (geminiKey) {
@@ -87,7 +97,9 @@ export const settingsRoutes = new Hono()
           geminiModels = cachedGeminiModels.models;
         } else {
           console.info("[AI] ai-models gemini cache miss");
-          const fetchedGeminiModels = await getGeminiModels(geminiKey);
+          const fetchedGemini = await getGeminiModelsDetailed(geminiKey);
+          geminiError = fetchedGemini.error;
+          const fetchedGeminiModels = fetchedGemini.models;
           if (fetchedGeminiModels.length > 0) {
             geminiModels = fetchedGeminiModels;
             cachedGeminiModels = { key: geminiKey, models: geminiModels, at: Date.now() };
@@ -100,14 +112,18 @@ export const settingsRoutes = new Hono()
         }
       } else {
         console.warn("[AI] Gemini API key missing while fetching model list");
+        geminiError = "Gemini API key not set.";
         cachedGeminiModels = null;
       }
     } else {
       console.info("[AI] ai-models gemini fetch skipped (provider not gemini)");
     }
 
-    const shouldFetchLocal = settings.aiProvider === "local" || settings.chatProvider === "local";
+    const shouldFetchLocal = useRequestedProviders
+      ? requestedProviders.has("local")
+      : settings.aiProvider === "local" || settings.chatProvider === "local";
     let localModels: { id: string; name: string }[] = [];
+    let localError: string | null = null;
     if (shouldFetchLocal) {
       const endpoint = settings.localEndpoint || "http://localhost:1234/v1";
       const localCacheHit = !forceRefresh
@@ -118,11 +134,13 @@ export const settingsRoutes = new Hono()
         && cachedLocalEmpty
         && cachedLocalEmpty.endpoint === endpoint
         && (Date.now() - cachedLocalEmpty.at) < MODELS_EMPTY_RETRY_MS;
-      const fetchedLocalModels = localCacheHit && cachedLocalModels
-        ? (console.info("[AI] ai-models local cache hit"), cachedLocalModels.models)
+      const fetchedLocal = localCacheHit && cachedLocalModels
+        ? (console.info("[AI] ai-models local cache hit"), { models: cachedLocalModels.models, error: null as string | null })
         : localEmptyRecent
-          ? (console.info("[AI] ai-models local recent-empty cache hit"), [])
-          : (console.info("[AI] ai-models local cache miss"), await getLocalModels(endpoint));
+          ? (console.info("[AI] ai-models local recent-empty cache hit"), { models: [] as { id: string; name: string }[], error: localError })
+          : (console.info("[AI] ai-models local cache miss"), await getLocalModelsDetailed(endpoint));
+      localError = fetchedLocal.error;
+      const fetchedLocalModels = fetchedLocal.models;
       localModels = fetchedLocalModels.length > 0
         ? fetchedLocalModels
         : (cachedLocalModels && cachedLocalModels.endpoint === endpoint ? cachedLocalModels.models : []);
@@ -140,6 +158,7 @@ export const settingsRoutes = new Hono()
       "gemini": geminiModels,
       "openai": getOpenAiModels(),
       "local": localModels,
+      "_errors": { gemini: geminiError, openai: null, local: localError },
     });
   })
 
@@ -167,6 +186,7 @@ export const settingsRoutes = new Hono()
       if (key in parseResult) provided[key] = (parseResult as Record<string, unknown>)[key];
     }
     const merged = { ...current, ...provided };
+    const startedAt = performance.now();
 
     try {
       if (merged.udpPort !== udpListener.port) {
@@ -182,8 +202,12 @@ export const settingsRoutes = new Hono()
       if (provided.onboardingComplete) {
         wsManager.broadcastNotification({ type: "onboarding_complete" });
       }
+      const durationMs = Math.round(performance.now() - startedAt);
+      console.info(`[Settings] PUT /api/settings saved in ${durationMs}ms`);
       return c.json(merged);
-    } catch {
+    } catch (err) {
+      const durationMs = Math.round(performance.now() - startedAt);
+      console.error(`[Settings] PUT /api/settings failed in ${durationMs}ms`, err instanceof Error ? err.message : String(err));
       return c.json({ error: `Failed to bind to port ${merged.udpPort}` }, 500);
     }
   })
