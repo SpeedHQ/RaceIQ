@@ -1,8 +1,8 @@
 /**
  * Tests for isLegacy detection. A lap is "legacy" (pre-raw-bin-storage) only
  * when its session has no raw_file path. Per-lap rawByteOffset is NOT a
- * reliable signal — post-migration sessions can produce laps without a byte
- * offset (e.g. import-dump path feeds the pipeline without rawBuf).
+ * reliable signal — post-migration sessions can still produce laps without a byte
+ * offset in synthetic/test pipelines that don't pass rawBuf into processPacket().
  */
 import { describe, test, expect, afterEach } from "bun:test";
 import { db } from "../server/db/index";
