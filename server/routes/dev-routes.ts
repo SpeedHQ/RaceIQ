@@ -19,7 +19,7 @@ import { readCString } from "../games/ac-evo/utils";
 import { getAcEvoCarByDisplayName } from "../../shared/ac-evo-car-data";
 import { getAcEvoTrackByName } from "../../shared/ac-evo-track-data";
 import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC, packTriplet } from "../games/shared/pack-triplet";
-import { KNOWN_GAME_IDS, type GameId, type TelemetryPacket, type LapMeta } from "../../shared/types";
+import { KNOWN_GAME_IDS, type GameId, type LapMeta } from "../../shared/types";
 import { getGame } from "../../shared/games/registry";
 import { Pipeline } from "../pipeline";
 import { RealDbAdapter, type DbAdapter, type WsAdapter } from "../pipeline-adapters";
