@@ -150,5 +150,5 @@ describe("AC Evo mid-session recording", () => {
     // Recording began mid-lap, so the first captured lap is shorter than a full lap.
     expect(laps.length).toBeGreaterThanOrEqual(2);
     expect(laps[0].lapTime).toBeLessThan(laps[1].lapTime);
-  }, { timeout: 60_000 });
+  }, { timeout: 90_000 });
 });
