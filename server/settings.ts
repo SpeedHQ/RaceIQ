@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { z } from "zod";
 import { resolveDataDir } from "./data-dir";
+import { isLaunchOnLoginEnabled } from "./launch-on-login";
 
 const SETTINGS_DIR = resolveDataDir();
 const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
@@ -35,6 +36,7 @@ const AppSettingsSchema = z.object({
   // workflows. LRU eviction kicks in once the budget is exceeded.
   cacheMaxMB: z.number().int().min(16).max(2048).default(256),
   hiddenGames: z.array(z.string()).default([]),
+  launchOnLogin: z.boolean().default(false),
 });
 
 export type AppSettings = z.infer<typeof AppSettingsSchema>;
@@ -75,7 +77,10 @@ export function loadSettings(): AppSettings {
     delete parsed.tireHealthThresholds;
     delete parsed.suspensionThresholds;
 
-    return AppSettingsSchema.parse(parsed);
+    const result = AppSettingsSchema.parse(parsed);
+    // Always sync launchOnLogin from the actual registry state
+    result.launchOnLogin = isLaunchOnLoginEnabled();
+    return result;
   } catch (err) {
     console.error(`[Settings] Failed to load ${SETTINGS_PATH}:`, err instanceof Error ? err.message : err);
     console.warn(`[Settings] Falling back to defaults`);

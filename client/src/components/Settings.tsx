@@ -1,22 +1,22 @@
-import { useEffect, useState } from "react";
-import { isDevelopment } from "@/lib/env";
-import { useUiStore } from "../stores/ui";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { isDevelopment } from "@/lib/env";
+import { useEffect, useState } from "react";
+import { type Theme, useTheme } from "../context/theme";
+import { useSaveSettings, useSettings } from "../hooks/queries";
+import { useUiStore } from "../stores/ui";
 import { playBlip, preloadSound } from "./SectorTimes";
-import { useSettings, useSaveSettings } from "../hooks/queries";
-import { useTheme, type Theme } from "../context/theme";
 
-import { WheelPicker } from "./settings/WheelPicker";
-import { GamesSection } from "./settings/GamesSection";
+import { AboutSection } from "./settings/AboutSection";
 import { AiSection } from "./settings/AiSection";
-import { UpdatesSection } from "./settings/UpdatesSection";
+import { DiagnosticsSection } from "./settings/DiagnosticsSection";
 import { ExtractionSection } from "./settings/ExtractionSection";
 import { F1ExtractionSection } from "./settings/F1ExtractionSection";
-import { AboutSection } from "./settings/AboutSection";
-import { DiagnosticsSection } from "./settings/DiagnosticsSection";
+import { GamesSection } from "./settings/GamesSection";
 import { StorageSection } from "./settings/StorageSection";
+import { UpdatesSection } from "./settings/UpdatesSection";
+import { WheelPicker } from "./settings/WheelPicker";
 
 // Re-export localStorage utilities so existing importers don't break
 export {
@@ -35,19 +35,19 @@ export {
 } from "../lib/settings-storage";
 
 import {
-  getSteeringLock,
-  getWheelStyle,
-  getSoundEnabled,
-  setSoundEnabled,
-  getSoundVolume,
-  setSoundVolume,
-  getSoundType,
-  setSoundType,
-  getSoundUrl,
-  setSoundUrl,
   SOUND_PRESETS,
   STEER_LOCK_KEY,
   WHEEL_STYLE_KEY,
+  getSoundEnabled,
+  getSoundType,
+  getSoundUrl,
+  getSoundVolume,
+  getSteeringLock,
+  getWheelStyle,
+  setSoundEnabled,
+  setSoundType,
+  setSoundUrl,
+  setSoundVolume,
 } from "../lib/settings-storage";
 
 const NAV_ITEMS = [
@@ -107,11 +107,11 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
     }
   }, [settingsQuery.displaySettings]);
 
-  const port = parseInt(udpPort, 10);
+  const port = Number.parseInt(udpPort, 10);
   const hasChanges = savedPort === null || port !== savedPort;
 
   async function handleSave() {
-    const savePort = parseInt(udpPort, 10);
+    const savePort = Number.parseInt(udpPort, 10);
     if (isNaN(savePort) || savePort < 1024 || savePort > 65535) {
       setStatus("error");
       setErrorMsg("Port must be between 1024-65535");
@@ -280,6 +280,28 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
               </p>
             </div>
 
+            <div className="mt-4 max-w-xs">
+              <Label className="text-app-text-secondary">Launch on Login</Label>
+              <div className="flex items-center gap-3 mt-1.5">
+                <button
+                  role="switch"
+                  aria-checked={!!displaySettings.launchOnLogin}
+                  onClick={() => saveSettings.mutate({ launchOnLogin: !displaySettings.launchOnLogin })}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent ${
+                    displaySettings.launchOnLogin ? "bg-app-accent" : "bg-app-surface-alt border border-app-border-input"
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                      displaySettings.launchOnLogin ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+                <span className="text-sm text-app-text-muted">{displaySettings.launchOnLogin ? "Enabled" : "Disabled"}</span>
+              </div>
+              <p className="text-app-text-muted text-xs mt-1">Automatically start RaceIQ when you log into Windows.</p>
+            </div>
+
             <div className="mt-6 pt-6 border-t border-app-border">
               <button onClick={() => setShowSetupGuide(!showSetupGuide)} className="flex items-center gap-2 text-sm text-app-accent hover:text-app-accent/80 transition-colors">
                 <svg className={`w-4 h-4 transition-transform ${showSetupGuide ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -417,7 +439,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                   value={steerLock}
                   onChange={(e) => {
                     setSteerLock(e.target.value);
-                    const val = parseInt(e.target.value, 10);
+                    const val = Number.parseInt(e.target.value, 10);
                     if (!isNaN(val) && val >= 180 && val <= 1800) {
                       localStorage.setItem(STEER_LOCK_KEY, String(val));
                     }
@@ -551,7 +573,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                 max="100"
                 value={Math.round(soundVolume * 100)}
                 onChange={(e) => {
-                  const v = parseInt(e.target.value, 10) / 100;
+                  const v = Number.parseInt(e.target.value, 10) / 100;
                   setSoundVolumeState(v);
                   setSoundVolume(v);
                 }}

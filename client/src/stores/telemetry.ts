@@ -1,6 +1,6 @@
+import type { LapMeta, LivePitData, LiveSectorData, TelemetryPacket } from "@shared/types";
 import { create } from "zustand";
-import type { TelemetryPacket, LiveSectorData, LivePitData, LapMeta } from "@shared/types";
-import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
+import { type DisplayPacket, convertPacket } from "../lib/convert-packet";
 
 export interface DisplaySettings {
   unit: "metric" | "imperial";
@@ -31,6 +31,8 @@ export interface DisplaySettings {
   onboardingComplete?: boolean;
   /** Game IDs excluded from nav and home page */
   hiddenGames?: string[];
+  /** Whether to launch RaceIQ automatically on Windows login */
+  launchOnLogin?: boolean;
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {

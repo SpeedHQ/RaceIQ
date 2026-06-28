@@ -9,6 +9,7 @@ import { udpListener } from "../udp";
 import { wsManager } from "../ws";
 import { lapDetector } from "../pipeline";
 import { loadSettings, saveSettings, PartialSettingsSchema } from "../settings";
+import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } from "../launch-on-login";
 import { getLapStats, setCacheMaxBytes } from "../db/queries";
 import { getRunningGame } from "../games/registry";
 import { getTrackOutlineByOrdinal } from "../../shared/track-data";
@@ -197,6 +198,13 @@ export const settingsRoutes = new Hono()
       }
       if (typeof merged.cacheMaxMB === "number") {
         setCacheMaxBytes(merged.cacheMaxMB * 1024 * 1024);
+      }
+      if ("launchOnLogin" in provided) {
+        if (merged.launchOnLogin) {
+          enableLaunchOnLogin(getLaunchOnLoginExeDir());
+        } else {
+          disableLaunchOnLogin();
+        }
       }
       saveSettings(merged);
       if (provided.onboardingComplete) {
