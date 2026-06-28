@@ -86,7 +86,11 @@ test.describe.serial("fresh install", () => {
     await page.getByRole("button", { name: "Off" }).click();
     await page.getByRole("button", { name: "Next" }).click();
 
-    // Step 6: Community — final. Button reads "Next" when not receiving telemetry; clicking it finishes.
+    // Step 6: Startup (Launch on Login)
+    await expect(page.getByRole("heading", { name: "Launch on Login" })).toBeVisible();
+    await page.getByRole("button", { name: "Next" }).click();
+
+    // Step 7: Community — final. Button reads "Next" when not receiving telemetry; clicking it finishes.
     await expect(page.getByRole("heading", { name: "You're all set!" })).toBeVisible();
     await page.getByRole("button", { name: "Next" }).click();
 

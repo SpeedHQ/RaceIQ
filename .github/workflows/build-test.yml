@@ -23,3 +23,52 @@ jobs:
 
       - name: Run tests
         run: bun run test
+
+  build-windows:
+    runs-on: blacksmith-2vcpu-windows-2025
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build client
+        run: cd client && bun install && bun run build
+
+      - name: Prepare dist
+        shell: bash
+        run: mkdir -p dist
+
+      - name: Copy client assets
+        shell: bash
+        run: cp -r client/dist dist/public
+
+      - name: Copy shared data
+        run: bun scripts/copy-shared-data.ts
+
+      - name: Compile server binary
+        shell: bash
+        run: NODE_ENV=production bun build --compile --target=bun-windows-x64 --windows-icon=assets/raceiq.ico --define 'process.env.NODE_ENV="production"' server/bootstrap.ts --outfile dist/raceiq.exe
+
+      - name: Copy libsql native addon
+        shell: bash
+        run: |
+          mkdir -p dist/node_modules/@libsql/win32-x64-msvc
+          cp node_modules/@libsql/win32-x64-msvc/index.node dist/node_modules/@libsql/win32-x64-msvc/
+          cp node_modules/@libsql/win32-x64-msvc/package.json dist/node_modules/@libsql/win32-x64-msvc/
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: raceiq-dist-windows-pr
+          path: dist/
+          retention-days: 1
+
+  playwright:
+    needs: build-windows
+    uses: ./.github/workflows/playwright.yml
+    with:
+      dist-artifact: raceiq-dist-windows-pr
