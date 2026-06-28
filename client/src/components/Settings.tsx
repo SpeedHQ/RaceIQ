@@ -112,7 +112,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
   async function handleSave() {
     const savePort = Number.parseInt(udpPort, 10);
-    if (isNaN(savePort) || savePort < 1024 || savePort > 65535) {
+    if (Number.isNaN(savePort) || savePort < 1024 || savePort > 65535) {
       setStatus("error");
       setErrorMsg("Port must be between 1024-65535");
       return;
@@ -440,7 +440,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                   onChange={(e) => {
                     setSteerLock(e.target.value);
                     const val = Number.parseInt(e.target.value, 10);
-                    if (!isNaN(val) && val >= 180 && val <= 1800) {
+                    if (!Number.isNaN(val) && val >= 180 && val <= 1800) {
                       localStorage.setItem(STEER_LOCK_KEY, String(val));
                     }
                   }}
