@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.77",
-    "@hono/zod-validator": "^0.7.6",
+    "@hono/zod-validator": "^0.8.0",
     "@libsql/client": "^0.17.4",
     "@libsql/win32-x64-msvc": "^0.5.29",
     "@mastra/core": "^1.32.1",
@@ -57,7 +57,7 @@
     "hono": "^4.12.27",
     "libsql": "^0.5.29",
     "mitata": "^1.0.34",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
