@@ -89,7 +89,7 @@ jobs:
             --windows-icon=assets/raceiq.ico \
             --windows-title=RaceIQ \
             --windows-publisher=SpeedHQ \
-            --windows-description="RaceIQ Racing Telemetry" \
+            --windows-description="RaceIQ" \
             --windows-version=${VERSION} \
             --define 'process.env.NODE_ENV="production"' \
             server/bootstrap.ts --outfile dist/raceiq.exe
