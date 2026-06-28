@@ -104,6 +104,11 @@ Source: "..\dist\node_modules\@libsql\win32-x64-msvc\*"; DestDir: "{app}\node_mo
 Source: "..\server\credstore.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "raceiq-launcher.vbs"; DestDir: "{app}"; Flags: ignoreversion
 
+[Registry]
+; Create startup entry on install (enabled by default)
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "RaceIQ"; ValueData: """{app}\raceiq.exe"""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"; ValueType: binary; ValueName: "RaceIQ"; ValueData: 02 00 00 00 00 00 00 00 00 00 00 00; Flags: uninsdeletevalue
+
 [Icons]
 Name: "{userprograms}\{#MyAppName}"; Filename: "wscript.exe"; Parameters: """{app}\raceiq-launcher.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{userprograms}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
