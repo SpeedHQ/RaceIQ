@@ -45,7 +45,7 @@ export function useSettings() {
     staleTime: 1000 * 60 * 30,
     gcTime: 1000 * 60 * 60,
     refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   });
   return { displaySettings, settingsLoaded: isSuccess };
 }
