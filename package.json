@@ -15,7 +15,7 @@
     "dev:dump:f1": "bun run dev:proxy && concurrently \"bun --watch run server/index.ts --record=f1-2025\" \"cd client && portless raceiq bun run dev\"",
     "dev:dump:fm": "bun run dev:proxy && concurrently \"bun --watch run server/index.ts --record=fm-2023\" \"cd client && portless raceiq bun run dev\"",
     "dev:client": "bun run dev:proxy && cd client && portless raceiq bun run dev",
-    "build": "mkdir -p dist && rm -rf dist/* && cd client && bun vite build && cd .. && bun scripts/copy-shared-data.ts && bun scripts/copy-client-dist.ts && NODE_ENV=production bun build --compile --define 'process.env.NODE_ENV=\"production\"' server/bootstrap.ts --outfile dist/raceiq",
+    "build": "mkdir -p dist && rm -rf dist/* && cd client && bun vite build && cd .. && bun scripts/copy-shared-data.ts && bun scripts/copy-client-dist.ts && NODE_ENV=production bun build --compile --windows-icon=assets/raceiq.ico --windows-title=RaceIQ --windows-publisher=SpeedHQ --define 'process.env.NODE_ENV=\"production\"' server/bootstrap.ts --outfile dist/raceiq",
     "start": "NODE_ENV=production ./dist/raceiq",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",

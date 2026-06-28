@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { existsSync, readdirSync } from "fs";
 import { resolve } from "path";
-import { PUBLIC_DIR } from "../paths";
+import { PUBLIC_DIR, IS_COMPILED } from "../paths";
 
 import { GameIdQuerySchema } from "../../shared/schemas";
 import { udpListener } from "../udp";
@@ -57,6 +57,7 @@ export const settingsRoutes = new Hono()
       geminiApiKeySet: hasGeminiKey,
       openaiApiKeySet: hasOpenaiKey,
       anthropicApiKeySet: hasAnthropicKey,
+      isCompiled: IS_COMPILED,
     });
   })
 

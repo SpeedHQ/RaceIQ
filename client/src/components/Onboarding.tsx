@@ -502,6 +502,45 @@ export function StepSound() {
   );
 }
 
+/* ─── Startup ─── */
+
+export function StepStartup() {
+  const { displaySettings } = useSettings();
+  const saveSettings = useSaveSettings();
+  const enabled = !!displaySettings.isCompiled;
+
+  return (
+    <div>
+      <h2 className="text-sm font-semibold text-app-text mb-1">Launch on Login</h2>
+      <p className="text-sm text-app-text-muted mb-4">Start RaceIQ automatically when you log into Windows.</p>
+
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          role="switch"
+          disabled={!enabled}
+          aria-checked={!!displaySettings.launchOnLogin}
+          onClick={() => enabled && saveSettings.mutate({ launchOnLogin: !displaySettings.launchOnLogin })}
+          className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent ${
+            !enabled
+              ? "opacity-40 cursor-not-allowed bg-app-surface-alt border border-app-border-input"
+              : displaySettings.launchOnLogin
+                ? "cursor-pointer bg-app-accent"
+                : "cursor-pointer bg-app-surface-alt border border-app-border-input"
+          }`}
+        >
+          <span
+            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${
+              displaySettings.launchOnLogin ? "translate-x-4" : "translate-x-0"
+            }`}
+          />
+        </button>
+        <span className="text-sm text-app-text-muted">{!enabled ? "Only available in installed app" : displaySettings.launchOnLogin ? "Enabled" : "Disabled"}</span>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Onboarding Modal (state-managed, no routing) ─── */
 
 const MODAL_STEPS = [
@@ -510,8 +549,9 @@ const MODAL_STEPS = [
   { label: "Wheel", Component: StepWheel },
   { label: "Units", Component: StepUnits },
   { label: "Sound", Component: StepSound },
+  { label: "Startup", Component: StepStartup },
   { label: "Community", Component: StepCommunity },
-] as const;
+];
 
 export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
   const [step, setStep] = useState(0);

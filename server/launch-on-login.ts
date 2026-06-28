@@ -1,12 +1,12 @@
 import { spawnSync } from "child_process";
-import { join } from "path";
-import { dirname } from "path";
+import { dirname, join } from "path";
+import { IS_COMPILED } from "./paths";
 
 const REG_PATH = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 const VALUE_NAME = "RaceIQ";
 
 export function isLaunchOnLoginEnabled(): boolean {
-  if (process.platform !== "win32") return false;
+  if (process.platform !== "win32" || !IS_COMPILED) return false;
   try {
     const result = spawnSync(
       "powershell.exe",
@@ -20,18 +20,17 @@ export function isLaunchOnLoginEnabled(): boolean {
 }
 
 export function enableLaunchOnLogin(exeDir: string): void {
-  if (process.platform !== "win32") return;
-  const launcherPath = join(exeDir, "raceiq-launcher.vbs");
-  const value = `wscript "${launcherPath}"`;
+  if (process.platform !== "win32" || !IS_COMPILED) return;
+  const exePath = join(exeDir, "raceiq.exe");
   spawnSync(
     "powershell.exe",
-    ["-NoProfile", "-Command", `Set-ItemProperty -Path '${REG_PATH}' -Name '${VALUE_NAME}' -Value '${value.replace(/'/g, "''")}'`],
+    ["-NoProfile", "-Command", `Set-ItemProperty -Path '${REG_PATH}' -Name '${VALUE_NAME}' -Value '"${exePath}"'`],
     { encoding: "utf8" },
   );
 }
 
 export function disableLaunchOnLogin(): void {
-  if (process.platform !== "win32") return;
+  if (process.platform !== "win32" || !IS_COMPILED) return;
   spawnSync(
     "powershell.exe",
     ["-NoProfile", "-Command", `Remove-ItemProperty -Path '${REG_PATH}' -Name '${VALUE_NAME}' -ErrorAction SilentlyContinue`],

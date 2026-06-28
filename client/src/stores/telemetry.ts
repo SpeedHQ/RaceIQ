@@ -33,6 +33,8 @@ export interface DisplaySettings {
   hiddenGames?: string[];
   /** Whether to launch RaceIQ automatically on Windows login */
   launchOnLogin?: boolean;
+  /** True when running as compiled exe, false in dev (bun run dev) */
+  isCompiled?: boolean;
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
