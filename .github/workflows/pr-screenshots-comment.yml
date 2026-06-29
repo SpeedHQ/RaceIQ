@@ -18,6 +18,7 @@ permissions:
   contents: write # push preview images to the pr-previews branch
   pull-requests: write # post/update the comment + label
   issues: write # create the label on first use
+  actions: read # download the artifact from the triggering render run
 
 jobs:
   comment:
