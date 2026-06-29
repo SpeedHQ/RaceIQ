@@ -27,6 +27,9 @@ jobs:
           ref: main
           persist-credentials: true
 
+      - name: Mark workspace safe for git (container runs as root)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Install unzip (required by setup-bun in the container)
         run: apt-get update && apt-get install -y --no-install-recommends unzip
 
