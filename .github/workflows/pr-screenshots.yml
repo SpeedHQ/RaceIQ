@@ -1,38 +1,32 @@
-name: Render dashboard screenshots on PR
+name: Render dashboard screenshots
 
-# Re-renders the Storybook dashboard snapshots (assets/screenshots/*.png and the
-# client/src/stories/__snapshots__ baselines) on every PR and commits the result
-# back to the PR branch, so reviewers see UI changes as an image diff in the PR.
+# Renders the Storybook dashboard stories on every PR and compares them against
+# the committed baselines (client/src/stories/__snapshots__/snapshot-*.png).
+# Any dashboard whose render differs produces before/after/diff PNGs, which are
+# uploaded as an artifact. A companion workflow (pr-screenshots-comment.yml)
+# runs afterwards with a write token and posts them as a PR comment.
 #
-# The commit message carries [skip ci] so pushing the regenerated PNGs does not
-# retrigger this workflow (avoids an infinite loop on the `synchronize` event).
+# This workflow runs the PR's code, so it deliberately uses the read-only
+# `pull_request` token — it never gets write access. All writes (comment,
+# label, preview hosting) happen in the separate workflow_run job, which does
+# NOT execute PR code.
 
 on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
 
-# Only one render per PR branch; cancel superseded runs.
 concurrency:
   group: pr-screenshots-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  screenshots:
-    # Forked PRs get a read-only token and a detached head we can't push back to.
-    if: github.event.pull_request.head.repo.full_name == github.repository
+  render:
     runs-on: blacksmith-2vcpu-ubuntu-2204
     permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-
+      contents: read
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          # Keep the push token so the regenerated PNGs can be committed back.
-          persist-credentials: true
 
       - uses: oven-sh/setup-bun@v2
 
@@ -47,41 +41,45 @@ jobs:
         working-directory: client
         run: bunx playwright install --with-deps chromium
 
-      - name: Render dashboard snapshots
+      - name: Render and compare against committed baselines
         working-directory: client
-        # snapshot = playwright test --update-snapshots && bun scripts/copy-snapshots.ts
-        # (re-renders Storybook stories, then copies them into assets/screenshots/)
-        run: bun run snapshot
+        # snapshot:test = `playwright test` (no --update). Dashboards whose
+        # render differs from the committed baseline fail and emit
+        # <Name>-{actual,expected,diff}.png into the results dir.
+        run: bun run snapshot:test
+        # A visual change is expected, not a failure — keep going so we can
+        # collect and publish the diff.
+        continue-on-error: true
 
-      - name: Upload screenshots artifact
+      - name: Collect diffs
+        id: collect
+        working-directory: client
+        run: |
+          out="$GITHUB_WORKSPACE/pr-preview"
+          mkdir -p "$out"
+          # Always record the PR number so the comment job can find the PR even
+          # for fork PRs (workflow_run.pull_requests is empty for forks).
+          echo "${{ github.event.pull_request.number }}" > "$out/pr-number.txt"
+
+          results="src/stories/__snapshots__/results"
+          changed=0
+          if [ -d "$results" ]; then
+            while IFS= read -r diff; do
+              dir=$(dirname "$diff")
+              name=$(basename "$diff")
+              name=${name%-diff.png}
+              cp "$dir/$name-expected.png" "$out/$name-before.png" 2>/dev/null || continue
+              cp "$dir/$name-actual.png"   "$out/$name-after.png"  2>/dev/null || continue
+              cp "$dir/$name-diff.png"     "$out/$name-diff.png"   2>/dev/null || continue
+              echo "changed dashboard: $name"
+              changed=1
+            done < <(find "$results" -name '*-diff.png')
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+      - name: Upload preview artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dashboard-screenshots
-          path: assets/screenshots/*.png
+          name: pr-screenshot-preview
+          path: pr-preview/
           retention-days: 14
-
-      - name: Commit regenerated screenshots to PR branch
-        id: commit
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add assets/screenshots client/src/stories/__snapshots__
-          if git diff --cached --quiet; then
-            echo "No screenshot changes to commit."
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            git commit -m "chore(ci): update dashboard screenshots [skip ci]"
-            git push origin HEAD:${{ github.event.pull_request.head.ref }}
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Tag PR as a UI change
-        if: steps.commit.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-          LABEL: "ui change"
-        run: |
-          # Create the label if it doesn't exist yet (no-op if it does).
-          gh label create "$LABEL" --color FFC0CB --description "Pull request changes rendered dashboard UI" 2>/dev/null || true
-          gh pr edit "$PR" --add-label "$LABEL"
