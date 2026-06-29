@@ -115,5 +115,6 @@ jobs:
           PR: ${{ steps.meta.outputs.pr }}
           LABEL: "ui change"
         run: |
-          gh label create "$LABEL" --color FFC0CB --description "Pull request changes rendered dashboard UI" 2>/dev/null || true
-          gh pr edit "$PR" --add-label "$LABEL"
+          # No repo is checked out in this job, so gh needs an explicit --repo.
+          gh label create "$LABEL" --repo "$REPO" --color FFC0CB --description "Pull request changes rendered dashboard UI" 2>/dev/null || true
+          gh pr edit "$PR" --repo "$REPO" --add-label "$LABEL"
