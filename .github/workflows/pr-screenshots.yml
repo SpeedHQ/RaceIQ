@@ -15,9 +15,15 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to render (renders that PR's merge ref and comments on it)"
+        required: true
+        type: number
 
 concurrency:
-  group: pr-screenshots-${{ github.event.pull_request.number }}
+  group: pr-screenshots-${{ github.event.pull_request.number || inputs.pr }}
   cancel-in-progress: true
 
 jobs:
@@ -27,6 +33,10 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          # pull_request checks out the merge ref automatically; for a manual
+          # dispatch, point at the requested PR's merge ref instead.
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/pull/{0}/merge', inputs.pr) || '' }}
 
       - uses: oven-sh/setup-bun@v2
 
@@ -59,7 +69,7 @@ jobs:
           mkdir -p "$out"
           # Always record the PR number so the comment job can find the PR even
           # for fork PRs (workflow_run.pull_requests is empty for forks).
-          echo "${{ github.event.pull_request.number }}" > "$out/pr-number.txt"
+          echo "${{ github.event.pull_request.number || inputs.pr }}" > "$out/pr-number.txt"
 
           results="src/stories/__snapshots__/results"
           changed=0
