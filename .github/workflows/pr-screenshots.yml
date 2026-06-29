@@ -29,6 +29,12 @@ concurrency:
 jobs:
   render:
     runs-on: blacksmith-2vcpu-ubuntu-2204
+    # Pin the render environment so baselines are reproducible: the Playwright
+    # image ships the exact Chromium + system fonts, and software GL (SwiftShader)
+    # renders deterministically across machines. Run the SAME image locally
+    # (client `bun run snapshot:docker`) and baselines match byte-for-byte.
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-jammy
     permissions:
       contents: read
     steps:
@@ -46,10 +52,6 @@ jobs:
       - name: Install client dependencies
         working-directory: client
         run: bun install
-
-      - name: Install Playwright Chromium
-        working-directory: client
-        run: bunx playwright install --with-deps chromium
 
       - name: Render and compare against committed baselines
         working-directory: client
