@@ -72,6 +72,8 @@ jobs:
       - name: Collect diffs
         id: collect
         working-directory: client
+        # Container default shell is sh; this step uses bash process substitution.
+        shell: bash
         run: |
           out="$GITHUB_WORKSPACE/pr-preview"
           mkdir -p "$out"
