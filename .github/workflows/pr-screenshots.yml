@@ -44,6 +44,9 @@ jobs:
           # dispatch, point at the requested PR's merge ref instead.
           ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/pull/{0}/merge', inputs.pr) || '' }}
 
+      - name: Install unzip (required by setup-bun in the container)
+        run: apt-get update && apt-get install -y --no-install-recommends unzip
+
       - uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
