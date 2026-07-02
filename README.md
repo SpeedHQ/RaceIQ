@@ -27,7 +27,7 @@
 
 ---
 
-A free, open-source alternative to [Track Titan](https://tracktitan.io/), [Coach Dave Delta](https://coachdaveacademy.com/delta/), and [Racing View](https://www.racingview.app/).
+A free, open-source alternative to [Track Titan](https://tracktitan.io/), [Coach Dave Delta](https://coachdaveacademy.com/delta/), [Sim Racing Telemetry](https://www.simracingtelemetry.com/) and [Racing View](https://www.racingview.app/).
 
 RaceIQ is the most advanced sim racing telemetry app available to the public — and it's completely free. Whether you're chasing lap records, finding fast tunes, or just trying to understand why you're slow through turn 3, RaceIQ gives you tools that simply aren't available anywhere else.
 
