@@ -85,7 +85,7 @@ function getSectionsForGame(gameId: GameId): TuneSection[] {
   return [];
 }
 
-function getCategoriesForGame(gameId: GameId): CategoryOption[] {
+export function getCategoriesForGame(gameId: GameId): CategoryOption[] {
   if (gameId === "acc") return ACC_CATEGORIES;
   if (gameId === "ac-evo") return AC_EVO_CATEGORIES;
   return [{ value: "circuit", label: "Circuit" }];

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "../ui/button";
 import { useSetupFiles, useImportTuneFile } from "../../hooks/queries";
+import { getCategoriesForGame } from "./SetupTuneForm";
 
 /** Page for importing a setup file from the user's Documents folder.
  *  The server walks the game's Setups directory (/<car>/<track>/<name>.json)
@@ -27,6 +28,8 @@ export function ImportSetupFile({
   const [name, setName] = useState("");
   const [author, setAuthor] = useState("Me");
   const [carFilter, setCarFilter] = useState("");
+  const categories = useMemo(() => getCategoriesForGame(gameId), [gameId]);
+  const [category, setCategory] = useState<string>("race");
 
   const grouped = useMemo(() => {
     if (!data?.files) return new Map<string, { trackName: string; fileName: string; absolutePath: string }[]>();
@@ -49,7 +52,7 @@ export function ImportSetupFile({
     if (!selectedPath) return;
     const finalName = name || selectedPath.split(/[\\/]/).pop()?.replace(/\.json$/i, "") || "Imported";
     importMut.mutate(
-      { gameId, filePath: selectedPath, name: finalName, author, carOrdinal, category: "circuit" },
+      { gameId, filePath: selectedPath, name: finalName, author, carOrdinal, category },
       { onSuccess: () => navigate({ to: `${routePrefix}/tunes` }) },
     );
   };
@@ -157,6 +160,18 @@ export function ImportSetupFile({
                   >
                     {cars.map((c) => (
                       <option key={c.ordinal} value={c.ordinal}>{c.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1 block">
+                  <span className="text-xs font-medium text-app-text-muted">Category</span>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
+                  >
+                    {categories.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
                     ))}
                   </select>
                 </label>

@@ -1,8 +1,9 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { existsSync, readFileSync, readdirSync, statSync } from "fs";
-import { resolve } from "path";
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from "fs";
+import { homedir } from "os";
+import { resolve, sep } from "path";
 import { IdParamSchema } from "../../shared/schemas";
 import { GameIdSchema } from "../../shared/types";
 import {
@@ -123,7 +124,6 @@ function parseTuneRow(row: any): ParsedTune {
 
 /** Locations where ACC / AC-EVO store user setup files under the user's profile. */
 async function getSetupsBaseDir(gameId: "acc" | "ac-evo"): Promise<string | null> {
-  const { homedir } = await import("os");
   const home = homedir();
   const gameDir =
     gameId === "acc"
@@ -445,14 +445,27 @@ export const tuneRoutes = new Hono()
       if (!baseDir) return c.json({ error: "Setups folder not found" }, 404);
 
       // Guard: the provided absolute path must live under the setups base dir.
+      // Resolve symlinks on both sides so a symlink inside Setups can't point
+      // outside it, and compare with a trailing separator so a sibling dir
+      // with a shared prefix (e.g. "SetupsEvil") can't pass.
       const absPath = resolve(body.filePath);
-      if (!absPath.startsWith(resolve(baseDir))) {
-        return c.json({ error: "Path must be inside the Setups folder" }, 400);
-      }
       if (!existsSync(absPath)) return c.json({ error: "File not found" }, 404);
 
+      let realPath: string;
+      let realBase: string;
+      try {
+        realPath = realpathSync(absPath);
+        realBase = realpathSync(resolve(baseDir));
+      } catch (err: any) {
+        if (err?.code === "ENOENT") return c.json({ error: "File not found" }, 404);
+        return c.json({ error: `Read failed: ${err.message}` }, 500);
+      }
+      if (!(realPath + sep).startsWith(realBase + sep)) {
+        return c.json({ error: "Path must be inside the Setups folder" }, 400);
+      }
+
       let raw: string;
-      try { raw = readFileSync(absPath, "utf-8"); }
+      try { raw = readFileSync(realPath, "utf-8"); }
       catch (err: any) { return c.json({ error: `Read failed: ${err.message}` }, 500); }
 
       let parsed: any;
@@ -460,7 +473,7 @@ export const tuneRoutes = new Hono()
       catch (err: any) { return c.json({ error: `Invalid JSON: ${err.message}` }, 400); }
 
       // Default name: file stem; description notes origin.
-      const fileName = absPath.split(/[\\/]/).pop() ?? "imported";
+      const fileName = realPath.split(/[\\/]/).pop() ?? "imported";
       const name = body.name ?? fileName.replace(/\.json$/i, "");
 
       const id = await insertTune({
