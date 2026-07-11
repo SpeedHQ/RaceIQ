@@ -31,7 +31,11 @@ export function CatalogTuneCard({
                 {CATEGORY_ICONS[tune.category]}
                 {CATEGORY_LABELS[tune.category]}
               </span>
+              {tune.source === "community" && tune.sourceName && (
+                <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">{tune.sourceName}</span>
+              )}
             </div>
+            {tune.source === "community" && <div className="text-[10px] text-app-text-muted mt-0.5">by {tune.author}</div>}
             <p className={`text-xs text-app-text-muted mt-0.5 ${isExpanded ? "" : "line-clamp-1"}`}>{tune.description}</p>
           </div>
         </div>

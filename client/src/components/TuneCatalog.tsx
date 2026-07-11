@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { CATALOG_CARS, TUNE_CATALOG, getCatalogCar, type CatalogTune } from "../data/tune-catalog";
 import type { Tune } from "@shared/types";
-import { useUserTunes, useCatalogTunes, useCreateTune, useUpdateTune, useCloneCatalogTune } from "../hooks/queries";
+import { useUserTunes, useCatalogTunes, useCreateTune, useUpdateTune, useCloneCatalogTune, useRefreshCommunityTunes } from "../hooks/queries";
 import { CatalogTuneCard } from "./tune/CatalogTuneCard";
 import { TuneFormDialog, type TuneFormData } from "./tune/TuneFormDialog";
 import { CATEGORY_ICONS, CATEGORY_LABELS, CATEGORY_COLORS } from "./tune/tune-constants.tsx";
@@ -14,6 +14,7 @@ export function TuneCatalog() {
   const [selectedCar, setSelectedCar] = useState<number | null>(null);
   const [expandedTune, setExpandedTune] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<"all" | "builtin" | "community">("all");
   const [carSearch, setCarSearch] = useState("");
   const [carDropdownOpen, setCarDropdownOpen] = useState(false);
   const [trackSearch, setTrackSearch] = useState("");
@@ -31,6 +32,7 @@ export function TuneCatalog() {
   const createTune = useCreateTune();
   const updateTune = useUpdateTune();
   const cloneTune = useCloneCatalogTune();
+  const refreshCommunity = useRefreshCommunityTunes();
 
   // Use local catalog as fallback, API catalog when available
   const catalogTunes: CatalogTune[] = apiCatalogTunes.length > 0 ? apiCatalogTunes : TUNE_CATALOG;
@@ -45,6 +47,8 @@ export function TuneCatalog() {
   const trackQuery = trackSearch.toLowerCase();
   const filteredCatalogTunes = allCatalogTunes.filter((t) => {
     if (categoryFilter && t.category !== categoryFilter) return false;
+    if (sourceFilter === "builtin" && t.source === "community") return false;
+    if (sourceFilter === "community" && t.source !== "community") return false;
     if (trackQuery && !t.bestTracks?.some((tr) => tr.toLowerCase().includes(trackQuery))) return false;
     return true;
   });
@@ -200,6 +204,36 @@ export function TuneCatalog() {
             </span>
           </button>
         ))}
+
+        {/* Source filter + community refresh */}
+        <span className="mx-1 h-4 w-px bg-app-border" aria-hidden="true" />
+        {(["all", "builtin", "community"] as const).map((src) => (
+          <button
+            key={src}
+            type="button"
+            onClick={() => {
+              setSourceFilter(src);
+              setCatalogPage(0);
+            }}
+            className={`text-[10px] font-semibold uppercase px-2 py-1 rounded transition-colors ${
+              sourceFilter === src
+                ? src === "community"
+                  ? "bg-purple-500/20 text-purple-400"
+                  : "bg-app-accent/20 text-app-accent"
+                : "text-app-text-muted hover:text-app-text-secondary"
+            }`}
+          >
+            {src === "all" ? "All" : src === "builtin" ? "Built-in" : "Community"}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => refreshCommunity.mutate()}
+          disabled={refreshCommunity.isPending}
+          className="text-[10px] font-semibold uppercase px-2 py-1 rounded text-app-text-muted hover:text-app-text-secondary disabled:opacity-50 transition-colors"
+        >
+          {refreshCommunity.isPending ? "Refreshing..." : "Refresh"}
+        </button>
       </div>
 
       {/* Catalog Content */}

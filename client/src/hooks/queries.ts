@@ -352,9 +352,28 @@ export function useUserTunes() {
 }
 
 export function useCatalogTunes() {
+  const gameId = useGameId();
   return useQuery({
-    queryKey: queryKeys.catalogTunes,
-    queryFn: async () => rpcJson<CatalogTune[]>(await client.api.catalog.tunes.$get({ query: {} })),
+    queryKey: [...queryKeys.catalogTunes, gameId ?? null],
+    queryFn: async () =>
+      rpcJson<CatalogTune[]>(
+        await client.api.catalog.tunes.$get(
+          { query: {} },
+          { headers: gameId ? { "X-Game-Id": gameId } : undefined },
+        ),
+      ),
+  });
+}
+
+export function useRefreshCommunityTunes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await client.api.tunes.community.refresh.$post();
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return res.json() as Promise<{ synced: boolean; count: number; version: string | null }>;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.catalogTunes }),
   });
 }
 

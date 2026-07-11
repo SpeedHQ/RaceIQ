@@ -155,6 +155,31 @@ export const lapAnalyses = sqliteTable(
 );
 
 /**
+ * Community tunes synced from the SpeedHQ CDN (Cloudflare Pages).
+ * Populated by a replace-all sync per game_id — see server/community-tunes-sync.ts.
+ * The catalog endpoint merges these rows with the built-in JSON catalog.
+ * strengths/weaknesses/bestTracks/strategies are intentionally not persisted;
+ * community cards render from name/author/category/description/settings only.
+ */
+export const communityTunes = sqliteTable(
+	"community_tunes",
+	{
+		id: text("id").primaryKey(),
+		gameId: text("game_id").notNull(),
+		carOrdinal: integer("car_ordinal").notNull(),
+		trackOrdinal: integer("track_ordinal"),
+		name: text("name").notNull(),
+		author: text("author").notNull(),
+		category: text("category").notNull(),
+		description: text("description").notNull().default(""),
+		sourceName: text("source_name").notNull().default(""),
+		settings: text("settings").notNull(),
+		syncedAt: text("synced_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => [index("idx_community_tunes_game").on(table.gameId)],
+);
+
+/**
  * Cached AI comparison analyses keyed on a lap pair.
  * lapAId/lapBId are stored in canonical order (min, max).
  * `kind` discriminates the analysis type — currently only "inputs" but kept

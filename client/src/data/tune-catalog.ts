@@ -33,6 +33,10 @@ export interface CatalogTune {
   bestTracks?: string[];
   strategies?: RaceStrategy[];
   settings: TuneSettings;
+  /** Set on community-sourced tunes synced from the CDN; absent on built-ins. */
+  source?: "community";
+  sourceName?: string;
+  gameId?: string;
 }
 
 export const CATALOG_CARS: CatalogCar[] = carsJson as CatalogCar[];

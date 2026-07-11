@@ -246,4 +246,24 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE laps DROP COLUMN telemetry`,
     ],
   },
+  {
+    version: 20,
+    name: "community tunes",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS community_tunes (
+        id            TEXT PRIMARY KEY,
+        game_id       TEXT NOT NULL,
+        car_ordinal   INTEGER NOT NULL,
+        track_ordinal INTEGER,
+        name          TEXT NOT NULL,
+        author        TEXT NOT NULL,
+        category      TEXT NOT NULL,
+        description   TEXT NOT NULL DEFAULT '',
+        source_name   TEXT NOT NULL DEFAULT '',
+        settings      TEXT NOT NULL,
+        synced_at     TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_community_tunes_game ON community_tunes(game_id)`,
+    ],
+  },
 ];

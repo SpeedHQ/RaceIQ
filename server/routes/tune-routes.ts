@@ -23,7 +23,12 @@ import topSpeed from "../../shared/tunes/2860-amv-gt3-top-speed.json";
 import stableBeginner from "../../shared/tunes/2860-amv-gt3-stable-beginner.json";
 import nordschleife from "../../shared/tunes/2860-amv-gt3-nordschleife.json";
 import spa from "../../shared/tunes/2860-amv-gt3-spa.json";
-import type { TuneSettings, RaceStrategy } from "../../shared/types";
+import type { TuneSettings, RaceStrategy, GameId } from "../../shared/types";
+import {
+  getCommunityTunes,
+  getCommunityTuneById,
+} from "../db/community-tune-queries";
+import { syncCommunityTunes } from "../community-tunes-sync";
 
 interface CatalogTune {
   id: string;
@@ -38,6 +43,40 @@ interface CatalogTune {
   bestTracks?: string[];
   strategies?: RaceStrategy[];
   settings: TuneSettings;
+  /** Present on community-sourced tunes; absent on built-ins. */
+  source?: "community";
+  sourceName?: string;
+  gameId?: string;
+}
+
+/** Map a community_tunes DB row to the catalog shape the client renders. */
+function communityRowToCatalog(row: {
+  id: string;
+  gameId: string;
+  carOrdinal: number;
+  trackOrdinal: number | null;
+  name: string;
+  author: string;
+  category: string;
+  description: string;
+  sourceName: string;
+  settings: string;
+}): CatalogTune {
+  return {
+    id: row.id,
+    name: row.name,
+    author: row.author,
+    carOrdinal: row.carOrdinal,
+    category: row.category,
+    trackOrdinal: row.trackOrdinal ?? undefined,
+    description: row.description,
+    strengths: [],
+    weaknesses: [],
+    settings: JSON.parse(row.settings) as TuneSettings,
+    source: "community",
+    sourceName: row.sourceName,
+    gameId: row.gameId,
+  };
 }
 
 const TUNE_CATALOG: CatalogTune[] = [
@@ -268,7 +307,11 @@ export const tuneRoutes = new Hono()
   // POST /api/tunes/clone/:catalogId — clone a catalog tune into DB
   .post("/api/tunes/clone/:catalogId", async (c) => {
     const catalogId = c.req.param("catalogId");
-    const catalogTune = getCatalogTuneById(catalogId);
+    const catalogTune = catalogId.startsWith("community-")
+      ? await getCommunityTuneById(catalogId).then((row) =>
+          row ? communityRowToCatalog(row) : undefined,
+        )
+      : getCatalogTuneById(catalogId);
     if (!catalogTune) return c.json({ error: "Catalog tune not found" }, 404);
 
     const id = await insertTune({
@@ -294,17 +337,33 @@ export const tuneRoutes = new Hono()
 
   // ─── Catalog ─────────────────────────────────────────────────────────────────
 
-  // GET /api/catalog/tunes — return static TUNE_CATALOG
+  // GET /api/catalog/tunes — built-in JSON catalog merged with community tunes
+  // for the game named in the X-Game-Id header (no fm-2023 fallback: without a
+  // header only the built-in catalog is returned).
   .get("/api/catalog/tunes",
     zValidator("query", CarOrdinalQuerySchema),
-    (c) => {
+    async (c) => {
       const { carOrdinal } = c.req.valid("query");
-      if (carOrdinal !== undefined) {
-        return c.json(TUNE_CATALOG.filter((t) => t.carOrdinal === carOrdinal));
+      const gameId = c.req.header("x-game-id") as GameId | undefined;
+
+      let merged: CatalogTune[] = TUNE_CATALOG;
+      if (gameId) {
+        const communityRows = await getCommunityTunes(gameId);
+        merged = [...TUNE_CATALOG, ...communityRows.map(communityRowToCatalog)];
       }
-      return c.json(TUNE_CATALOG);
+
+      if (carOrdinal !== undefined) {
+        return c.json(merged.filter((t) => t.carOrdinal === carOrdinal));
+      }
+      return c.json(merged);
     }
   )
+
+  // POST /api/tunes/community/refresh — force a CDN sync now
+  .post("/api/tunes/community/refresh", async (c) => {
+    const result = await syncCommunityTunes();
+    return c.json(result);
+  })
 
   // ─── Assignments ─────────────────────────────────────────────────────────────
 
