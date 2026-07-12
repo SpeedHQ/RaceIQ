@@ -1,10 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Fm23TuneBrowser } from "../../../components/tune/fm23/Fm23TuneBrowser";
+import { Navigate, createFileRoute } from "@tanstack/react-router";
 
+// The catalog + user tunes are unified into the main tunes browser at /fm23/tunes.
 export const Route = createFileRoute("/fm23/tunes/catalog")({
-  component: () => (
-    <div className="flex-1 overflow-auto">
-      <Fm23TuneBrowser />
-    </div>
-  ),
+  component: () => <Navigate to="/fm23/tunes" replace />,
 });

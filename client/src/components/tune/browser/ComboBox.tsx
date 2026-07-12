@@ -27,10 +27,10 @@ export function ComboBox({ label, value, options, onChange, placeholder, variant
     setHi(-1);
   };
   return (
-    <div className={`tt-combo ${variant} ${open ? "open" : ""}`}>
-      <div className="tt-fieldlbl">{label}</div>
-      <div className="tt-field">
-        <span className="tt-ico">⌕</span>
+    <div className="relative flex-1 min-w-0">
+      <div className={`text-[9px] tracking-[0.14em] uppercase mb-1.5 ${variant === "track" ? "text-app-accent" : "text-app-text-muted"}`}>{label}</div>
+      <div className={`flex items-center gap-2.5 bg-app-surface border rounded-lg px-3.5 py-3 ${open ? "border-app-accent rounded-b-none" : "border-app-border-input"}`}>
+        <span className="text-app-accent text-sm leading-none">⌕</span>
         <input
           type="text"
           value={open ? query : current}
@@ -58,21 +58,30 @@ export function ComboBox({ label, value, options, onChange, placeholder, variant
               setOpen(false);
             }
           }}
+          className="flex-1 min-w-0 bg-transparent border-0 outline-none text-app-text text-[15px] font-semibold placeholder:text-app-text-dim placeholder:font-normal"
         />
       </div>
-      <div className="tt-menu">
-        {filtered.map((o, i) => (
-          <button key={o.value} type="button" className={`tt-opt ${i === hi ? "hi" : ""} ${o.value === value ? "sel" : ""}`} onMouseDown={(e) => e.preventDefault()} onClick={() => choose(o.value)}>
-            <span className="tt-optname">{o.label}</span>
-            {o.count != null && (
-              <span className="tt-cnt">
-                <b>{o.count}</b> tunes
-              </span>
-            )}
-          </button>
-        ))}
-        {filtered.length === 0 && <div className="tt-opt none">No match</div>}
-      </div>
+      {open && (
+        <div className="absolute top-full left-0 right-0 z-30 bg-app-surface border border-t-0 border-app-accent rounded-b-lg max-h-64 overflow-auto shadow-lg">
+          {filtered.map((o, i) => (
+            <button
+              key={o.value}
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => choose(o.value)}
+              className={`flex items-center gap-2.5 w-full text-left px-3.5 py-2.5 border-t border-app-border ${i === hi ? "bg-app-surface-alt" : "hover:bg-app-surface-alt"}`}
+            >
+              <span className={`flex-1 truncate text-sm font-semibold ${o.value === value ? "text-app-accent" : "text-app-text"}`}>{o.label}</span>
+              {o.count != null && (
+                <span className="text-[11px] text-app-text-muted whitespace-nowrap">
+                  <b className="text-app-text">{o.count}</b> tunes
+                </span>
+              )}
+            </button>
+          ))}
+          {filtered.length === 0 && <div className="px-3.5 py-2.5 text-xs text-app-text-dim">No match</div>}
+        </div>
+      )}
     </div>
   );
 }
