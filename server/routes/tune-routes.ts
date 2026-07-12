@@ -388,7 +388,7 @@ export const tuneRoutes = new Hono()
     if (!catalogTune) return c.json({ error: "Catalog tune not found" }, 404);
 
     const id = await insertTune({
-      gameId: "fm-2023",
+      gameId: catalogTune.gameId,
       name: `${catalogTune.name} (copy)`,
       author: catalogTune.author,
       carOrdinal: catalogTune.carOrdinal,

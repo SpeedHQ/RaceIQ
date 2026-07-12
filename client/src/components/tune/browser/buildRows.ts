@@ -1,5 +1,4 @@
 import type { CatalogTune } from "@/data/tune-catalog";
-import type { TuneSettings } from "@shared/types";
 import { parseLapTime } from "./parseLapTime";
 import type { TuneRow } from "./types";
 
@@ -11,7 +10,7 @@ export interface RawUserTune {
   carOrdinal: number;
   trackOrdinal: number | null;
   description: string;
-  settings: TuneSettings;
+  settings: unknown;
 }
 
 function lapFields(description: string) {

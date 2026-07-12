@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { ComboBox, type ComboOption } from "./ComboBox";
 import { TUNE_GRID, TuneBrowserRow } from "./TuneBrowserRow";
 import type { SourceTab, TuneRow } from "./types";
@@ -12,14 +12,20 @@ export interface TuneBrowserProps {
   trackOptions: ComboOption[];
   carOptions: ComboOption[];
   sources: SourceTab[];
+  renderSettings: (row: TuneRow) => ReactNode;
   onClone: (row: TuneRow) => void;
   onEdit: (row: TuneRow) => void;
   onDelete: (row: TuneRow) => void;
+  onDuplicate?: (row: TuneRow) => void;
+  isDuplicating?: boolean;
   onNewTune: () => void;
   onImportFile?: (file: File) => void;
   importing?: boolean;
   onRefresh?: () => void;
   refreshing?: boolean;
+  /** Extra header action rendered next to "+ New tune" — e.g. a link to a
+   *  dedicated import-from-file page instead of the built-in file picker. */
+  headerExtra?: ReactNode;
 }
 
 const PAGE_SIZE = 10;
@@ -88,6 +94,7 @@ export function TuneBrowser(props: TuneBrowserProps) {
           {props.subtitle && <div className="text-[11px] text-app-text-muted tracking-wide mt-1.5">{props.subtitle}</div>}
         </div>
         <div className="flex items-center gap-2">
+          {props.headerExtra}
           {props.onImportFile && (
             <>
               <input
@@ -183,6 +190,9 @@ export function TuneBrowser(props: TuneBrowserProps) {
             onClone={props.onClone}
             onEdit={props.onEdit}
             onDelete={props.onDelete}
+            onDuplicate={props.onDuplicate}
+            isDuplicating={props.isDuplicating}
+            renderSettings={props.renderSettings}
           />
         ))}
         {visible.length === 0 && <div className="text-center py-12 text-app-text-dim text-sm">No tunes match this filter.</div>}

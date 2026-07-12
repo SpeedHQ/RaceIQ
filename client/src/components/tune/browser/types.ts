@@ -1,5 +1,3 @@
-import type { TuneSettings } from "@shared/types";
-
 export type SourceKey = "community" | "user";
 
 export interface TuneRow {
@@ -16,7 +14,7 @@ export interface TuneRow {
   lapTimeRaw: string | null;
   lapTimeTrack: string | null;
   description: string;
-  settings: TuneSettings;
+  settings: unknown;
 }
 
 export interface SourceTab {

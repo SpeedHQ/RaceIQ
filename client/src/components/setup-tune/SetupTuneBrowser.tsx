@@ -1,15 +1,14 @@
-import { TuneSettingsPanel } from "@/components/tune/TuneSettingsPanel";
-import { withDefaults } from "@/components/TuneForm";
 import type { ComboOption } from "@/components/tune/browser/ComboBox";
-import { TuneBrowser } from "@/components/tune/browser/TuneBrowser";
 import { type RawUserTune, buildRows } from "@/components/tune/browser/buildRows";
+import { TuneBrowser } from "@/components/tune/browser/TuneBrowser";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
-import type { CatalogTune, TuneSettings } from "@/data/tune-catalog";
-import { useCatalogTunes, useCloneCatalogTune, useCreateTune, useDeleteTune, useDuplicateTune, useRefreshCommunityTunes, useResolveNames, useUserTunes } from "@/hooks/queries";
-import { useNavigate } from "@tanstack/react-router";
+import type { CatalogTune } from "@/data/tune-catalog";
+import { useCatalogTunes, useCloneCatalogTune, useDeleteTune, useDuplicateTune, useResolveNames, useUserTunes } from "@/hooks/queries";
+import type { GameId } from "@shared/types";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
-
-const REQUIRED_SECTIONS = ["tires", "gearing", "alignment", "antiRollBars", "springs", "damping", "aero", "differential", "brakes"] as const;
+import { SetupSettingsPanel } from "./SetupSettingsPanel";
+import type { GameCarOption } from "./use-game-cars";
 
 const SOURCES: SourceTab[] = [
   { key: "all", label: "All" },
@@ -17,44 +16,27 @@ const SOURCES: SourceTab[] = [
   { key: "user", label: "Yours" },
 ];
 
-export function Fm23TuneBrowser() {
+/** Timing-tower style tune browser for ACC / AC-EVO — same layout, filters,
+ *  and pagination as the FM browser, with a game-specific read-only settings
+ *  summary and an "Import from file" link instead of the built-in JSON
+ *  file-picker (ACC/AC-EVO import from the game's own Setups folder). */
+export function SetupTuneBrowser({
+  gameId,
+  routePrefix,
+  gameLabel,
+  cars,
+}: {
+  gameId: GameId;
+  routePrefix: string;
+  gameLabel: string;
+  cars: GameCarOption[];
+}) {
   const navigate = useNavigate();
-  const { data: userTunes = [] } = useUserTunes();
+  const { data: userTunes = [] } = useUserTunes(gameId);
   const { data: apiCatalog = [] } = useCatalogTunes();
   const clone = useCloneCatalogTune();
   const del = useDeleteTune();
   const duplicate = useDuplicateTune();
-  const refresh = useRefreshCommunityTunes();
-  const createTune = useCreateTune();
-
-  // Import a tune from a JSON file (same shape the tune editor exports).
-  const handleImportFile = async (file: File) => {
-    try {
-      // biome-ignore lint/suspicious/noExplicitAny: importing arbitrary user-provided tune JSON
-      const parsed: any = JSON.parse(await file.text());
-      const s = parsed.settings ?? parsed;
-      for (const key of REQUIRED_SECTIONS) {
-        if (!s?.[key]) throw new Error(`Missing section: ${key}`);
-      }
-      const normalizedSettings = {
-        ...s,
-        springs: { ...s.springs, ...(parsed.unitSystem === "imperial" ? { unit: "lb/in" } : parsed.unitSystem === "metric" ? { unit: "kgf/mm" } : {}) },
-        aero: { ...s.aero, ...(parsed.unitSystem === "imperial" ? { unit: "lb" } : parsed.unitSystem === "metric" ? { unit: "kgf" } : {}) },
-      };
-      await createTune.mutateAsync({
-        name: parsed.name || file.name.replace(/\.json$/i, "") || "Imported Tune",
-        author: parsed.author || "Imported",
-        carOrdinal: Number(parsed.carOrdinal ?? 2860),
-        category: parsed.category || "circuit",
-        description: parsed.description || "Imported from JSON",
-        settings: withDefaults(normalizedSettings),
-        unitSystem: parsed.unitSystem === "imperial" ? "imperial" : "metric",
-        // biome-ignore lint/suspicious/noExplicitAny: create-tune mutation accepts a loose payload
-      } as any);
-    } catch (err) {
-      console.error("[TuneImport] failed:", err);
-    }
-  };
 
   const catalog: CatalogTune[] = apiCatalog;
   const rows = useMemo(() => buildRows(catalog, userTunes as RawUserTune[]), [catalog, userTunes]);
@@ -63,11 +45,17 @@ export function Fm23TuneBrowser() {
   const carOrdinals = useMemo(() => [...new Set(rows.map((r) => r.carOrdinal))], [rows]);
   const { data: names } = useResolveNames(trackOrdinals, carOrdinals);
 
+  const carNameLookup = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const c of cars) m.set(c.ordinal, c.name);
+    return m;
+  }, [cars]);
+
   const carNames: Record<number, string> = useMemo(() => {
     const map: Record<number, string> = {};
-    for (const ord of carOrdinals) map[ord] = names?.carNames[String(ord)] ?? `Car #${ord}`;
+    for (const ord of carOrdinals) map[ord] = carNameLookup.get(ord) ?? names?.carNames[String(ord)] ?? `Car #${ord}`;
     return map;
-  }, [carOrdinals, names]);
+  }, [carOrdinals, carNameLookup, names]);
 
   const trackNames: Record<number, string> = useMemo(() => {
     const map: Record<number, string> = {};
@@ -91,17 +79,18 @@ export function Fm23TuneBrowser() {
 
   return (
     <TuneBrowser
-      title="Tunes"
+      title={`${gameLabel} Tunes`}
+      subtitle="Manage saved setups, duplicate, or import from your Documents folder."
       rows={rows}
       carNames={carNames}
       trackNames={trackNames}
       trackOptions={trackOptions}
       carOptions={carOptions}
       sources={SOURCES}
-      renderSettings={(row: TuneRow) => <TuneSettingsPanel settings={row.settings as TuneSettings} />}
+      renderSettings={(row: TuneRow) => <SetupSettingsPanel gameId={gameId} settings={row.settings as Record<string, unknown>} />}
       onClone={(row: TuneRow) => clone.mutate(row.id)}
       onEdit={(row: TuneRow) => {
-        if (row.dbId != null) navigate({ to: `/fm23/tunes/edit/${row.dbId}` });
+        if (row.dbId != null) navigate({ to: `${routePrefix}/tunes/edit/${row.dbId}` });
       }}
       onDelete={(row: TuneRow) => {
         if (row.dbId != null) del.mutate(row.dbId);
@@ -110,11 +99,15 @@ export function Fm23TuneBrowser() {
         if (row.dbId != null) duplicate.mutate(row.dbId);
       }}
       isDuplicating={duplicate.isPending}
-      onNewTune={() => navigate({ to: "/fm23/tunes/new" })}
-      onImportFile={handleImportFile}
-      importing={createTune.isPending}
-      onRefresh={() => refresh.mutate()}
-      refreshing={refresh.isPending}
+      onNewTune={() => navigate({ to: `${routePrefix}/tunes/new` })}
+      headerExtra={
+        <Link
+          to={`${routePrefix}/tunes/import` as string}
+          className="text-[11px] font-semibold uppercase tracking-wide border border-app-border text-app-text-secondary hover:text-app-text px-3.5 py-2 rounded no-underline"
+        >
+          Import from file
+        </Link>
+      }
     />
   );
 }

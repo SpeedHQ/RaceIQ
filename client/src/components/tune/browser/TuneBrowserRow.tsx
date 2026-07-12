@@ -1,5 +1,5 @@
-import { TuneSettingsPanel } from "@/components/tune/TuneSettingsPanel";
 import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/components/tune/tune-constants";
+import { useState, type ReactNode } from "react";
 import type { TuneRow } from "./types";
 
 const SOURCE_LABEL: Record<TuneRow["source"], string> = {
@@ -20,9 +20,13 @@ export interface TuneBrowserRowProps {
   onClone: (row: TuneRow) => void;
   onEdit: (row: TuneRow) => void;
   onDelete: (row: TuneRow) => void;
+  onDuplicate?: (row: TuneRow) => void;
+  isDuplicating?: boolean;
+  renderSettings: (row: TuneRow) => ReactNode;
 }
 
-export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle, onClone, onEdit, onDelete }: TuneBrowserRowProps) {
+export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle, onClone, onEdit, onDelete, onDuplicate, isDuplicating, renderSettings }: TuneBrowserRowProps) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const hasTime = row.lapTimeSec != null;
   const isUser = row.source === "user";
   const catLabel = CATEGORY_LABELS[row.category] ?? row.category;
@@ -54,16 +58,42 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
       {isOpen && (
         <div className="px-4 sm:pl-14 pb-4 pt-1">
           {row.description && <p className="text-xs text-app-text-muted leading-relaxed whitespace-pre-line mb-3.5 max-w-[70ch]">{row.description}</p>}
-          <TuneSettingsPanel settings={row.settings} />
+          {renderSettings(row)}
           <div className="flex gap-2 mt-3.5">
             {isUser ? (
               <>
                 <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold" onClick={() => onEdit(row)}>
                   Edit
                 </button>
-                <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-pink-400" onClick={() => onDelete(row)}>
-                  Delete
-                </button>
+                {onDuplicate && (
+                  <button
+                    type="button"
+                    className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-purple-400 disabled:opacity-50"
+                    onClick={() => onDuplicate(row)}
+                    disabled={isDuplicating}
+                  >
+                    {isDuplicating ? "…" : "Duplicate"}
+                  </button>
+                )}
+                {!confirmDelete ? (
+                  <button
+                    type="button"
+                    className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-pink-400"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    Delete
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-pink-400 uppercase">Sure?</span>
+                    <button type="button" className="text-[11px] uppercase tracking-wide px-3 py-2 rounded bg-pink-500/20 text-pink-300" onClick={() => onDelete(row)}>
+                      Yes
+                    </button>
+                    <button type="button" className="text-[11px] uppercase tracking-wide px-3 py-2 rounded text-app-text-muted hover:text-app-text" onClick={() => setConfirmDelete(false)}>
+                      No
+                    </button>
+                  </span>
+                )}
               </>
             ) : (
               <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold" onClick={() => onClone(row)}>

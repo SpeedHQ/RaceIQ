@@ -1,16 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { SetupTunesPage } from "../../../components/setup-tune/SetupTunesPage";
+import { SetupTuneBrowser } from "../../../components/setup-tune/SetupTuneBrowser";
 import { useAcEvoCars } from "../../../components/setup-tune/use-game-cars";
 
 function AcEvoTunesPage() {
   const { data: cars = [] } = useAcEvoCars();
   return (
-    <SetupTunesPage
-      gameId="ac-evo"
-      routePrefix="/ac-evo"
-      gameLabel="AC EVO"
-      cars={cars}
-    />
+    <div className="flex-1 overflow-auto">
+      <SetupTuneBrowser
+        gameId="ac-evo"
+        routePrefix="/ac-evo"
+        gameLabel="AC EVO"
+        cars={cars}
+      />
+    </div>
   );
 }
 

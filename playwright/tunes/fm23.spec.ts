@@ -37,7 +37,7 @@ test.describe("Forza Motorsport tunes", () => {
     expect(createRes.ok()).toBeTruthy();
 
     await page.goto("/fm23/tunes");
-    await waitForTunesList(page, "My Tunes");
+    await waitForTunesList(page, "Tunes");
 
     const card = page.getByText("E2E Forza Tune").first();
     await expect(card).toBeVisible();
