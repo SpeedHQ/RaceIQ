@@ -44,7 +44,6 @@ export function TrackTunes({ trackName, trackVariant }: { trackName: string; tra
                 <button type="button" onClick={() => setExpandedTune(isExpanded ? null : tune.id)} className="w-full text-left p-3 hover:bg-app-surface-alt/30 transition-colors">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-app-heading text-app-text">{tune.name}</span>
-                    <span className="text-app-body font-mono text-app-text-muted">{carName(tune.carOrdinal)}</span>
                     <span
                       className={`text-app-unit font-semibold uppercase px-1.5 py-0.5 rounded ${
                         tune.category === "circuit"

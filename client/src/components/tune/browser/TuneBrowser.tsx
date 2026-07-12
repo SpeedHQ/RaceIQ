@@ -164,6 +164,7 @@ export function TuneBrowser(props: TuneBrowserProps) {
           <span>Tune</span>
           <span className="hidden sm:block">Car</span>
           <span className="hidden sm:block">Track</span>
+          <span className="hidden sm:block">Category</span>
           <span className="hidden sm:block">Author</span>
           <button type="button" className="justify-self-end uppercase tracking-wider text-app-accent inline-flex items-center gap-1" onClick={() => setSortAsc((a) => !a)}>
             Lap time <span className="text-[8px]">{sortAsc ? "▲" : "▼"}</span>

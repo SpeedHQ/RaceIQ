@@ -1,5 +1,5 @@
 import { TuneSettingsPanel } from "@/components/tune/TuneSettingsPanel";
-import { CATEGORY_LABELS } from "@/components/tune/tune-constants";
+import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/components/tune/tune-constants";
 import type { TuneRow } from "./types";
 
 const SOURCE_LABEL: Record<TuneRow["source"], string> = {
@@ -7,8 +7,8 @@ const SOURCE_LABEL: Record<TuneRow["source"], string> = {
   user: "Yours",
 };
 
-// Shared responsive grid: mobile shows #, name, lap, chevron; sm+ adds car + track + author.
-export const TUNE_GRID = "grid grid-cols-[26px_1fr_66px_26px] sm:grid-cols-[34px_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(90px,120px)_84px_30px] items-center gap-2.5";
+// Shared responsive grid: mobile shows #, name, lap, chevron; sm+ adds car + track + category + author.
+export const TUNE_GRID = "grid grid-cols-[26px_1fr_66px_26px] sm:grid-cols-[34px_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.9fr)_88px_minmax(90px,120px)_84px_30px] items-center gap-2.5";
 
 export interface TuneBrowserRowProps {
   row: TuneRow;
@@ -33,13 +33,17 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
         <span className={`text-sm font-bold text-center ${rank === 1 && hasTime ? "text-app-accent" : "text-app-text-muted"}`}>{rank}</span>
         <span className="min-w-0">
           <span className="block text-[15px] font-semibold truncate">{row.name}</span>
-          <span className="block text-[10px] text-app-text-muted mt-1">
-            {SOURCE_LABEL[row.source]}
-            {row.category ? ` · ${catLabel}` : ""}
-          </span>
+          <span className="block text-[10px] text-app-text-muted mt-1">{SOURCE_LABEL[row.source]}</span>
         </span>
         <span className="hidden sm:block text-[13px] text-app-text-secondary min-w-0 truncate">{carName}</span>
         <span className={`hidden sm:block text-[13px] min-w-0 truncate ${trackName ? "text-app-accent" : "text-app-text-dim"}`}>{trackName ?? "—"}</span>
+        <span className="hidden sm:block min-w-0">
+          {row.category && (
+            <span className={`inline-block text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded truncate ${CATEGORY_COLORS[row.category] ?? "bg-app-surface-alt text-app-text-muted"}`}>
+              {catLabel}
+            </span>
+          )}
+        </span>
         <span className="hidden sm:block text-[13px] min-w-0 truncate">{row.author}</span>
         <span className={`justify-self-end font-mono text-[13px] tabular-nums text-right ${hasTime ? "text-amber-400" : "text-app-text-dim"}`}>
           {hasTime ? row.lapTimeRaw : "—"}
