@@ -63,8 +63,15 @@ export interface SyncResult {
 /**
  * Run one sync pass. Returns `{synced:false}` when the manifest version matches
  * the stored version (no work done) or when a failure keeps the existing cache.
+ *
+ * Pass `{ force: true }` to re-fetch and replace even when the manifest version
+ * is unchanged — used by the manual "Refresh" endpoint so it always pulls the
+ * latest, and to recover when the stored version drifts out of sync with the
+ * actually-persisted rows.
  */
-export async function syncCommunityTunes(): Promise<SyncResult> {
+export async function syncCommunityTunes(
+  options: { force?: boolean } = {},
+): Promise<SyncResult> {
   const stored = getCommunityTunesSyncState();
   try {
     const manifestRes = await fetch(`${baseUrl()}/manifest.json`);
@@ -76,7 +83,7 @@ export async function syncCommunityTunes(): Promise<SyncResult> {
     }
     const manifest = ManifestSchema.parse(await manifestRes.json());
 
-    if (manifest.version === stored.version) {
+    if (!options.force && manifest.version === stored.version) {
       return { synced: false, count: 0, version: stored.version };
     }
 

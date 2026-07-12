@@ -361,7 +361,7 @@ export const tuneRoutes = new Hono()
 
   // POST /api/tunes/community/refresh — force a CDN sync now
   .post("/api/tunes/community/refresh", async (c) => {
-    const result = await syncCommunityTunes();
+    const result = await syncCommunityTunes({ force: true });
     return c.json(result);
   })
 
