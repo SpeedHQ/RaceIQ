@@ -15,14 +15,6 @@ import {
   updateLapTune,
 } from "../db/tune-queries";
 
-// Static catalog data — loaded from shared JSON
-import balancedCircuit from "../../shared/tunes/2860-amv-gt3-balanced-circuit.json";
-import aggressiveCircuit from "../../shared/tunes/2860-amv-gt3-aggressive-circuit.json";
-import wetWeather from "../../shared/tunes/2860-amv-gt3-wet-weather.json";
-import topSpeed from "../../shared/tunes/2860-amv-gt3-top-speed.json";
-import stableBeginner from "../../shared/tunes/2860-amv-gt3-stable-beginner.json";
-import nordschleife from "../../shared/tunes/2860-amv-gt3-nordschleife.json";
-import spa from "../../shared/tunes/2860-amv-gt3-spa.json";
 import type { TuneSettings, RaceStrategy, GameId } from "../../shared/types";
 import {
   getCommunityTunes,
@@ -43,10 +35,9 @@ interface CatalogTune {
   bestTracks?: string[];
   strategies?: RaceStrategy[];
   settings: TuneSettings;
-  /** Present on community-sourced tunes; absent on built-ins. */
-  source?: "community";
-  sourceName?: string;
-  gameId?: string;
+  source: "community";
+  sourceName: string;
+  gameId: string;
 }
 
 /** Map a community_tunes DB row to the catalog shape the client renders. */
@@ -77,20 +68,6 @@ function communityRowToCatalog(row: {
     sourceName: row.sourceName,
     gameId: row.gameId,
   };
-}
-
-const TUNE_CATALOG: CatalogTune[] = [
-  balancedCircuit,
-  aggressiveCircuit,
-  wetWeather,
-  topSpeed,
-  stableBeginner,
-  nordschleife,
-  spa,
-] as CatalogTune[];
-
-function getCatalogTuneById(id: string): CatalogTune | undefined {
-  return TUNE_CATALOG.find((t) => t.id === id);
 }
 
 function validateTuneSettings(settings: any): boolean {
@@ -307,11 +284,9 @@ export const tuneRoutes = new Hono()
   // POST /api/tunes/clone/:catalogId — clone a catalog tune into DB
   .post("/api/tunes/clone/:catalogId", async (c) => {
     const catalogId = c.req.param("catalogId");
-    const catalogTune = catalogId.startsWith("community-")
-      ? await getCommunityTuneById(catalogId).then((row) =>
-          row ? communityRowToCatalog(row) : undefined,
-        )
-      : getCatalogTuneById(catalogId);
+    const catalogTune = await getCommunityTuneById(catalogId).then((row) =>
+      row ? communityRowToCatalog(row) : undefined,
+    );
     if (!catalogTune) return c.json({ error: "Catalog tune not found" }, 404);
 
     const id = await insertTune({
@@ -337,25 +312,21 @@ export const tuneRoutes = new Hono()
 
   // ─── Catalog ─────────────────────────────────────────────────────────────────
 
-  // GET /api/catalog/tunes — built-in JSON catalog merged with community tunes
-  // for the game named in the X-Game-Id header (no fm-2023 fallback: without a
-  // header only the built-in catalog is returned).
+  // GET /api/catalog/tunes — community tunes for the game named in the
+  // X-Game-Id header (no fm-2023 fallback: without a header, no tunes).
   .get("/api/catalog/tunes",
     zValidator("query", CarOrdinalQuerySchema),
     async (c) => {
       const { carOrdinal } = c.req.valid("query");
       const gameId = c.req.header("x-game-id") as GameId | undefined;
 
-      let merged: CatalogTune[] = TUNE_CATALOG;
-      if (gameId) {
-        const communityRows = await getCommunityTunes(gameId);
-        merged = [...TUNE_CATALOG, ...communityRows.map(communityRowToCatalog)];
-      }
+      const communityRows = gameId ? await getCommunityTunes(gameId) : [];
+      const tunes = communityRows.map(communityRowToCatalog);
 
       if (carOrdinal !== undefined) {
-        return c.json(merged.filter((t) => t.carOrdinal === carOrdinal));
+        return c.json(tunes.filter((t) => t.carOrdinal === carOrdinal));
       }
-      return c.json(merged);
+      return c.json(tunes);
     }
   )
 

@@ -25,12 +25,12 @@ function lapFields(description: string) {
 
 export function buildRows(catalog: CatalogTune[], userTunes: RawUserTune[]): TuneRow[] {
   const cat: TuneRow[] = catalog.map((t) => ({
-    key: `${t.source === "community" ? "community" : "builtin"}:${t.id}`,
+    key: `community:${t.id}`,
     id: t.id,
     dbId: null,
     name: t.name,
     author: t.author,
-    source: t.source === "community" ? "community" : "builtin",
+    source: "community",
     category: t.category,
     carOrdinal: t.carOrdinal,
     trackOrdinal: t.trackOrdinal ?? null,

@@ -27,7 +27,6 @@ const PAGE_SIZE = 10;
 // Active-tab colouring per source.
 const TAB_ACTIVE: Record<string, string> = {
   all: "border-app-accent text-app-accent",
-  builtin: "border-amber-500 text-amber-500",
   community: "border-pink-400 text-pink-400",
   user: "border-emerald-400 text-emerald-400",
 };
@@ -83,7 +82,7 @@ export function TuneBrowser(props: TuneBrowserProps) {
 
   return (
     <div className="w-full p-4 pb-20 text-app-text">
-      <div className="flex items-end justify-between gap-4 flex-wrap pb-4">
+      <div className="flex flex-col items-start gap-3 pb-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">{props.title}</h1>
           {props.subtitle && <div className="text-[11px] text-app-text-muted tracking-wide mt-1.5">{props.subtitle}</div>}

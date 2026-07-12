@@ -1,6 +1,6 @@
 import type { TuneSettings } from "@shared/types";
 
-export type SourceKey = "builtin" | "community" | "user";
+export type SourceKey = "community" | "user";
 
 export interface TuneRow {
   key: string;

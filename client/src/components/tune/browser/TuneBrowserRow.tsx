@@ -3,7 +3,6 @@ import { CATEGORY_LABELS } from "@/components/tune/tune-constants";
 import type { TuneRow } from "./types";
 
 const SOURCE_LABEL: Record<TuneRow["source"], string> = {
-  builtin: "Built-in",
   community: "Community",
   user: "Yours",
 };

@@ -3,7 +3,7 @@ import type { ComboOption } from "@/components/tune/browser/ComboBox";
 import { TuneBrowser } from "@/components/tune/browser/TuneBrowser";
 import { type RawUserTune, buildRows } from "@/components/tune/browser/buildRows";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
-import { type CatalogTune, TUNE_CATALOG, getCatalogCar } from "@/data/tune-catalog";
+import type { CatalogTune } from "@/data/tune-catalog";
 import { useCatalogTunes, useCloneCatalogTune, useCreateTune, useDeleteTune, useRefreshCommunityTunes, useResolveNames, useUserTunes } from "@/hooks/queries";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
@@ -12,7 +12,6 @@ const REQUIRED_SECTIONS = ["tires", "gearing", "alignment", "antiRollBars", "spr
 
 const SOURCES: SourceTab[] = [
   { key: "all", label: "All" },
-  { key: "builtin", label: "Built-in" },
   { key: "community", label: "Community" },
   { key: "user", label: "Yours" },
 ];
@@ -55,7 +54,7 @@ export function Fm23TuneBrowser() {
     }
   };
 
-  const catalog: CatalogTune[] = apiCatalog.length > 0 ? apiCatalog : TUNE_CATALOG;
+  const catalog: CatalogTune[] = apiCatalog;
   const rows = useMemo(() => buildRows(catalog, userTunes as RawUserTune[]), [catalog, userTunes]);
 
   const trackOrdinals = useMemo(() => [...new Set(rows.map((r) => r.trackOrdinal).filter((o): o is number => o != null))], [rows]);
@@ -64,7 +63,7 @@ export function Fm23TuneBrowser() {
 
   const carNames: Record<number, string> = useMemo(() => {
     const map: Record<number, string> = {};
-    for (const ord of carOrdinals) map[ord] = names?.carNames[String(ord)] ?? getCatalogCar(ord)?.name ?? `Car #${ord}`;
+    for (const ord of carOrdinals) map[ord] = names?.carNames[String(ord)] ?? `Car #${ord}`;
     return map;
   }, [carOrdinals, names]);
 

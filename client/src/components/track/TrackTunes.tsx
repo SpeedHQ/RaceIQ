@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { TUNE_CATALOG, getCatalogCar } from "@/data/tune-catalog";
 import { AppInput } from "@/components/ui/AppInput";
+import { useCatalogTunes, useResolveNames } from "@/hooks/queries";
+import { useMemo, useState } from "react";
 
 export function TrackTunes({ trackName, trackVariant }: { trackName: string; trackVariant: string }) {
   const fullName = trackVariant ? `${trackName} ${trackVariant}`.trim() : trackName;
@@ -9,7 +9,9 @@ export function TrackTunes({ trackName, trackVariant }: { trackName: string; tra
   const [carSearch, setCarSearch] = useState("");
   const [expandedTune, setExpandedTune] = useState<string | null>(null);
 
-  const allTunes = TUNE_CATALOG.filter(
+  const { data: catalog = [] } = useCatalogTunes();
+
+  const allTunes = catalog.filter(
     (t) =>
       t.bestTracks?.some((bt) => {
         const btl = bt.toLowerCase();
@@ -17,13 +19,12 @@ export function TrackTunes({ trackName, trackVariant }: { trackName: string; tra
       }) || t.category === "track-specific",
   );
 
+  const carOrdinals = useMemo(() => [...new Set(allTunes.map((t) => t.carOrdinal))], [allTunes]);
+  const { data: names } = useResolveNames([], carOrdinals);
+  const carName = (ordinal: number) => names?.carNames[String(ordinal)] ?? `Car ${ordinal}`;
+
   const carQuery = carSearch.toLowerCase();
-  const tunes = carQuery
-    ? allTunes.filter((t) => {
-        const carName = getCatalogCar(t.carOrdinal)?.name ?? "";
-        return carName.toLowerCase().includes(carQuery);
-      })
-    : allTunes;
+  const tunes = carQuery ? allTunes.filter((t) => carName(t.carOrdinal).toLowerCase().includes(carQuery)) : allTunes;
 
   return (
     <div>
@@ -40,10 +41,10 @@ export function TrackTunes({ trackName, trackVariant }: { trackName: string; tra
             const isExpanded = expandedTune === tune.id;
             return (
               <div key={tune.id} className="rounded-lg bg-app-surface border border-app-border overflow-hidden">
-                <button onClick={() => setExpandedTune(isExpanded ? null : tune.id)} className="w-full text-left p-3 hover:bg-app-surface-alt/30 transition-colors">
+                <button type="button" onClick={() => setExpandedTune(isExpanded ? null : tune.id)} className="w-full text-left p-3 hover:bg-app-surface-alt/30 transition-colors">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-app-heading text-app-text">{tune.name}</span>
-                    <span className="text-app-body font-mono text-app-text-muted">{getCatalogCar(tune.carOrdinal)?.name ?? `Car ${tune.carOrdinal}`}</span>
+                    <span className="text-app-body font-mono text-app-text-muted">{carName(tune.carOrdinal)}</span>
                     <span
                       className={`text-app-unit font-semibold uppercase px-1.5 py-0.5 rounded ${
                         tune.category === "circuit"
@@ -65,6 +66,8 @@ export function TrackTunes({ trackName, trackVariant }: { trackName: string; tra
                       viewBox="0 0 24 24"
                       stroke="currentColor"
                       strokeWidth={2}
+                      role="img"
+                      aria-label={isExpanded ? "Collapse" : "Expand"}
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                     </svg>
