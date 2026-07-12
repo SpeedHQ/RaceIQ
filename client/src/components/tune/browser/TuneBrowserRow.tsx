@@ -18,50 +18,55 @@ export interface TuneBrowserRowProps {
   onDelete: (row: TuneRow) => void;
 }
 
-function fmt(_sec: number | null, raw: string | null): string {
-  return raw ?? "—";
-}
-
 export function TuneBrowserRow({ row, rank, isOpen, onToggle, onClone, onEdit, onDelete }: TuneBrowserRowProps) {
   const hasTime = row.lapTimeSec != null;
   const isUser = row.source === "user";
+  const isTrackTune = row.trackOrdinal != null;
+  const catLabel = CATEGORY_LABELS[row.category] ?? row.category;
+
   return (
-    <div className={`rounded-lg border ${isOpen ? "border-app-accent/40 bg-app-surface-alt" : "border-app-border bg-app-surface"} transition-colors`}>
-      <button type="button" onClick={onToggle} className="w-full grid grid-cols-[28px_1fr_auto] sm:grid-cols-[32px_1fr_minmax(120px,150px)_96px_92px_20px] items-center gap-3 px-3 py-3 text-left">
-        <span className={`text-sm font-bold text-center ${rank === 1 && hasTime ? "text-app-accent" : "text-app-text-muted"}`}>{rank}</span>
-        <span className="min-w-0">
-          <span className="block text-[15px] font-semibold text-app-text truncate">{row.name}</span>
-          <span className="block text-[10px] text-app-text-muted mt-1">
-            {SOURCE_LABEL[row.source]}
-            {row.category ? ` · ${CATEGORY_LABELS[row.category] ?? row.category}` : ""}
+    <div className={`tt-rowwrap ${isOpen ? "open" : ""}`}>
+      <button type="button" className="tt-trow" onClick={onToggle}>
+        <span className={`tt-pos ${rank === 1 && hasTime ? "p1" : ""}`}>{rank}</span>
+        <span className="tt-namecell">
+          <span className="tt-nrow">
+            <span className={`tt-marker ${row.source}`} />
+            <span style={{ minWidth: 0 }}>
+              <span className="tt-nm">{row.name}</span>
+              <span className="tt-sub">
+                {SOURCE_LABEL[row.source]}
+                {row.category ? ` · ${catLabel}` : ""}
+              </span>
+            </span>
           </span>
         </span>
-        <span className="hidden sm:block text-[13px] text-app-text truncate">{row.author}</span>
-        <span className="hidden sm:block justify-self-end text-[9px] tracking-wide px-2 py-1 rounded border border-app-border text-app-text-muted uppercase">
-          {CATEGORY_LABELS[row.category] ?? row.category}
+        <span className={`tt-authcell tt-col-hide ${isUser ? "user" : ""}`}>
+          <span className="ah" />
+          <span>{row.author}</span>
         </span>
-        <span className={`justify-self-end font-mono text-[13px] tabular-nums ${hasTime ? "text-amber-400" : "text-app-text-muted"}`}>
-          {fmt(row.lapTimeSec, row.lapTimeRaw)}
-          {hasTime && row.lapTimeTrack && <span className="block text-[8px] tracking-wide text-app-text-muted">{row.lapTimeTrack}</span>}
+        <span className={`tt-catpill tt-col-hide ${isTrackTune ? "trk" : ""}`}>{isTrackTune && row.lapTimeTrack ? row.lapTimeTrack : catLabel}</span>
+        <span className={`tt-lapcol ${hasTime ? "" : "none"}`}>
+          {hasTime ? row.lapTimeRaw : "—"}
+          <span className="dl">{hasTime ? (row.lapTimeTrack ?? "LAP") : "NO TIME"}</span>
         </span>
-        <span className={`hidden sm:block text-app-text-muted transition-transform ${isOpen ? "rotate-90 text-app-accent" : ""}`}>›</span>
+        <span className="tt-chev tt-col-hide">›</span>
       </button>
       {isOpen && (
-        <div className="px-4 pb-4 pt-1 space-y-3">
-          {row.description && <p className="text-xs text-app-text-muted leading-relaxed whitespace-pre-line">{row.description}</p>}
+        <div className="tt-detail">
+          {row.description && <p className="tt-desc">{row.description}</p>}
           <TuneSettingsPanel settings={row.settings} />
-          <div className="flex gap-2">
+          <div className="tt-dact">
             {isUser ? (
               <>
-                <button type="button" onClick={() => onEdit(row)} className="text-xs px-4 py-2 rounded bg-app-accent text-white">
+                <button type="button" className="tt-dbtn p" onClick={() => onEdit(row)}>
                   Edit
                 </button>
-                <button type="button" onClick={() => onDelete(row)} className="text-xs px-4 py-2 rounded border border-app-border text-app-text-secondary">
+                <button type="button" className="tt-dbtn danger" onClick={() => onDelete(row)}>
                   Delete
                 </button>
               </>
             ) : (
-              <button type="button" onClick={() => onClone(row)} className="text-xs px-4 py-2 rounded bg-app-accent text-white">
+              <button type="button" className="tt-dbtn p" onClick={() => onClone(row)}>
                 Clone to garage
               </button>
             )}

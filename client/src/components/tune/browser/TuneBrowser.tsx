@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { ComboBox, type ComboOption } from "./ComboBox";
 import { TuneBrowserRow } from "./TuneBrowserRow";
+import "./tune-browser.css";
 import type { SourceTab, TuneRow } from "./types";
 
 export interface TuneBrowserProps {
   title: string;
+  subtitle?: string;
   rows: TuneRow[];
   trackOptions: ComboOption[];
   carOptions: ComboOption[];
@@ -17,6 +19,9 @@ export interface TuneBrowserProps {
   refreshing?: boolean;
 }
 
+const SOURCE_MOD: Record<string, string> = { community: "com", user: "you" };
+const PAGE_SIZE = 10;
+
 export function TuneBrowser(props: TuneBrowserProps) {
   const { rows, trackOptions, carOptions, sources } = props;
   const [track, setTrack] = useState("any");
@@ -24,6 +29,7 @@ export function TuneBrowser(props: TuneBrowserProps) {
   const [source, setSource] = useState<SourceTab["key"]>("all");
   const [sortAsc, setSortAsc] = useState(true);
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
 
   const visible = useMemo(() => {
     const filtered = rows.filter((r) => {
@@ -41,89 +47,99 @@ export function TuneBrowser(props: TuneBrowserProps) {
     return filtered;
   }, [rows, track, car, source, sortAsc]);
 
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageRows = visible.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  // Reset paging + open row whenever a filter narrows the list.
+  const resetView = () => {
+    setPage(0);
+    setOpenKey(null);
+  };
+  const pickTrack = (v: string) => {
+    setTrack(v);
+    resetView();
+  };
+  const pickCar = (v: string) => {
+    setCar(v);
+    resetView();
+  };
+  const pickSource = (v: SourceTab["key"]) => {
+    setSource(v);
+    resetView();
+  };
+
   return (
-    <div className="p-4 space-y-4 max-w-4xl mx-auto">
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <h1 className="text-xl font-bold text-app-text">{props.title}</h1>
-        <button type="button" onClick={props.onNewTune} className="text-xs font-semibold px-4 py-2 rounded bg-app-accent text-white">
-          + New tune
+    <div className="tt">
+      <div className="tt-title">
+        <div>
+          <h1>{props.title}</h1>
+          {props.subtitle && <div className="tt-car">{props.subtitle}</div>}
+        </div>
+        <button type="button" className="tt-add" onClick={props.onNewTune}>
+          + NEW TUNE
         </button>
       </div>
 
-      <div className="flex items-end gap-3">
-        <ComboBox
-          label="1 · Track"
-          value={track}
-          options={trackOptions}
-          onChange={(v) => {
-            setTrack(v);
-          }}
-          placeholder="Any track"
-        />
-        <span className="text-app-text-muted pb-3">→</span>
-        <ComboBox
-          label="2 · Car"
-          value={car}
-          options={carOptions}
-          onChange={(v) => {
-            setCar(v);
-          }}
-          placeholder="Any car"
-        />
+      <div className="tt-searchrow">
+        <ComboBox label="1 · Track" variant="track" value={track} options={trackOptions} onChange={pickTrack} placeholder="Any track" />
+        <span className="tt-arrow">→</span>
+        <ComboBox label="2 · Car" variant="car" value={car} options={carOptions} onChange={pickCar} placeholder="Any car" />
       </div>
 
-      <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="tt-ctrl">
         {sources.map((s) => (
-          <button
-            type="button"
-            key={s.key}
-            onClick={() => setSource(s.key)}
-            className={`text-[10px] font-semibold uppercase px-2.5 py-1.5 rounded border transition-colors ${source === s.key ? "border-app-accent text-app-accent" : "border-app-border text-app-text-muted hover:text-app-text-secondary"}`}
-          >
+          <button type="button" key={s.key} className={`tt-f ${source === s.key ? `on ${SOURCE_MOD[s.key] ?? ""}` : ""}`} onClick={() => pickSource(s.key)}>
             {s.label}
           </button>
         ))}
-        <div className="flex-1" />
+        <div className="tt-grow" />
         {props.onRefresh && (
-          <button
-            type="button"
-            onClick={props.onRefresh}
-            disabled={props.refreshing}
-            className="text-[10px] font-semibold uppercase px-2 py-1.5 text-app-text-muted hover:text-app-text-secondary disabled:opacity-50"
-          >
-            {props.refreshing ? "Refreshing…" : "Refresh"}
+          <button type="button" className="tt-refresh" onClick={props.onRefresh} disabled={props.refreshing}>
+            {props.refreshing ? "Refreshing…" : "↻ Refresh"}
           </button>
         )}
       </div>
 
-      <div className="rounded-lg overflow-hidden border border-app-border">
-        <div className="grid grid-cols-[32px_1fr_minmax(120px,150px)_96px_92px_20px] items-center gap-3 px-3 py-2.5 bg-app-bg text-[9px] tracking-wider text-app-text-muted uppercase">
+      <div className="tt-tower">
+        <div className="tt-thead">
           <span>#</span>
           <span>Tune</span>
-          <span>Author</span>
-          <span className="justify-self-end">Category</span>
-          <button type="button" onClick={() => setSortAsc((a) => !a)} className="justify-self-end uppercase text-app-accent">
-            Lap time {sortAsc ? "▲" : "▼"}
+          <span className="tt-col-hide">Author</span>
+          <span className="r tt-col-hide">Category</span>
+          <button type="button" className="tt-thsort" onClick={() => setSortAsc((a) => !a)}>
+            Lap time <span className="car">{sortAsc ? "▲" : "▼"}</span>
           </button>
           <span />
         </div>
-        <div className="space-y-2 p-2">
-          {visible.map((row, i) => (
-            <TuneBrowserRow
-              key={row.key}
-              row={row}
-              rank={i + 1}
-              isOpen={openKey === row.key}
-              onToggle={() => setOpenKey(openKey === row.key ? null : row.key)}
-              onClone={props.onClone}
-              onEdit={props.onEdit}
-              onDelete={props.onDelete}
-            />
-          ))}
-          {visible.length === 0 && <div className="text-center py-12 text-app-text-muted text-sm">No tunes match this filter.</div>}
-        </div>
+        {pageRows.map((row, i) => (
+          <TuneBrowserRow
+            key={row.key}
+            row={row}
+            rank={safePage * PAGE_SIZE + i + 1}
+            isOpen={openKey === row.key}
+            onToggle={() => setOpenKey(openKey === row.key ? null : row.key)}
+            onClone={props.onClone}
+            onEdit={props.onEdit}
+            onDelete={props.onDelete}
+          />
+        ))}
+        {visible.length === 0 && <div className="tt-empty">No tunes match this filter.</div>}
       </div>
-      <p className="text-[10px] text-app-text-muted">↕ Sort by lap time · pick a track to compare (times only compare within one track).</p>
+
+      {visible.length > 0 && (
+        <div className="tt-pager">
+          <button type="button" className="tt-pgbtn" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={safePage === 0}>
+            ← Prev
+          </button>
+          <span className="tt-pginfo">
+            {safePage * PAGE_SIZE + 1}–{Math.min(visible.length, (safePage + 1) * PAGE_SIZE)} of {visible.length} · page {safePage + 1}/{totalPages}
+          </span>
+          <button type="button" className="tt-pgbtn" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1}>
+            Next →
+          </button>
+        </div>
+      )}
+      <p className="tt-note">↕ Sort by lap time · pick a track to compare (times only compare within one track).</p>
     </div>
   );
 }
