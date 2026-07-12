@@ -45,6 +45,10 @@ test.describe("ACC tunes", () => {
     await page.getByRole("button", { name: /save tune/i }).click();
     await waitForTunesList(page, "ACC Tunes");
 
+    // Isolate user tunes so a populated community catalog can't push our
+    // fresh tune off page 1 of the browser.
+    await page.getByRole("button", { name: /^yours$/i }).click();
+
     await expect(page.getByText("E2E ACC Tune")).toBeVisible({ timeout: 10_000 });
 
     await page.getByText("E2E ACC Tune").first().click();

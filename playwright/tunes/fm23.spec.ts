@@ -39,6 +39,11 @@ test.describe("Forza Motorsport tunes", () => {
     await page.goto("/fm23/tunes");
     await waitForTunesList(page, "Tunes");
 
+    // FM23 shows community + user tunes together, sorted by lap time.
+    // The test tune has no lap time so it sinks to page 2+. Click the "Yours"
+    // source tab to isolate it before asserting visibility.
+    await page.getByRole("button", { name: /^yours$/i }).click();
+
     const card = page.getByText("E2E Forza Tune").first();
     await expect(card).toBeVisible();
     await card.click();
@@ -46,7 +51,7 @@ test.describe("Forza Motorsport tunes", () => {
     await page.getByRole("button", { name: /duplicate/i }).first().click();
     await expect(page.getByText("E2E Forza Tune (copy)")).toBeVisible({ timeout: 10_000 });
 
-    // Two cards present now — delete the copy via the card action.
+    // Two cards present now — delete the copy via the row action.
     await page.getByText("E2E Forza Tune (copy)").first().click();
     await page.getByRole("button", { name: /^delete$/i }).first().click();
     await page.getByRole("button", { name: /^yes$/i }).first().click();
