@@ -1,12 +1,14 @@
 import { useMemo, useRef, useState } from "react";
 import { ComboBox, type ComboOption } from "./ComboBox";
-import { TuneBrowserRow } from "./TuneBrowserRow";
+import { TUNE_GRID, TuneBrowserRow } from "./TuneBrowserRow";
 import type { SourceTab, TuneRow } from "./types";
 
 export interface TuneBrowserProps {
   title: string;
   subtitle?: string;
   rows: TuneRow[];
+  carNames: Record<number, string>;
+  trackNames: Record<number, string>;
   trackOptions: ComboOption[];
   carOptions: ComboOption[];
   sources: SourceTab[];
@@ -21,7 +23,6 @@ export interface TuneBrowserProps {
 }
 
 const PAGE_SIZE = 10;
-const GRID = "grid grid-cols-[26px_1fr_66px_26px] sm:grid-cols-[34px_1fr_minmax(120px,160px)_96px_92px_30px] items-center gap-2.5";
 
 // Active-tab colouring per source.
 const TAB_ACTIVE: Record<string, string> = {
@@ -81,7 +82,7 @@ export function TuneBrowser(props: TuneBrowserProps) {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-4 pb-20 text-app-text">
+    <div className="w-full p-4 pb-20 text-app-text">
       <div className="flex items-end justify-between gap-4 flex-wrap pb-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">{props.title}</h1>
@@ -159,11 +160,12 @@ export function TuneBrowser(props: TuneBrowserProps) {
       </div>
 
       <div className="border border-app-border rounded-b-lg overflow-hidden">
-        <div className={`${GRID} px-3 py-2.5 bg-app-bg text-[9px] uppercase tracking-wider text-app-text-dim`}>
+        <div className={`${TUNE_GRID} px-3 py-2.5 bg-app-bg text-[9px] uppercase tracking-wider text-app-text-dim`}>
           <span>#</span>
           <span>Tune</span>
+          <span className="hidden sm:block">Car</span>
+          <span className="hidden sm:block">Track</span>
           <span className="hidden sm:block">Author</span>
-          <span className="hidden sm:block justify-self-end">Category</span>
           <button type="button" className="justify-self-end uppercase tracking-wider text-app-accent inline-flex items-center gap-1" onClick={() => setSortAsc((a) => !a)}>
             Lap time <span className="text-[8px]">{sortAsc ? "▲" : "▼"}</span>
           </button>
@@ -174,6 +176,8 @@ export function TuneBrowser(props: TuneBrowserProps) {
             key={row.key}
             row={row}
             rank={safePage * PAGE_SIZE + i + 1}
+            carName={props.carNames[row.carOrdinal] ?? `Car #${row.carOrdinal}`}
+            trackName={row.trackOrdinal != null ? (props.trackNames[row.trackOrdinal] ?? `Track #${row.trackOrdinal}`) : null}
             isOpen={openKey === row.key}
             onToggle={() => setOpenKey(openKey === row.key ? null : row.key)}
             onClone={props.onClone}

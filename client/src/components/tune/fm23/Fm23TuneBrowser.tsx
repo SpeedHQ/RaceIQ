@@ -62,14 +62,24 @@ export function Fm23TuneBrowser() {
   const carOrdinals = useMemo(() => [...new Set(rows.map((r) => r.carOrdinal))], [rows]);
   const { data: names } = useResolveNames(trackOrdinals, carOrdinals);
 
+  const carNames: Record<number, string> = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (const ord of carOrdinals) map[ord] = names?.carNames[String(ord)] ?? getCatalogCar(ord)?.name ?? `Car #${ord}`;
+    return map;
+  }, [carOrdinals, names]);
+
+  const trackNames: Record<number, string> = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (const ord of trackOrdinals) map[ord] = names?.trackNames[String(ord)] ?? `Track #${ord}`;
+    return map;
+  }, [trackOrdinals, names]);
+
   const carOptions: ComboOption[] = useMemo(() => {
     const counts = new Map<number, number>();
     for (const r of rows) counts.set(r.carOrdinal, (counts.get(r.carOrdinal) ?? 0) + 1);
-    const opts = [...counts.entries()]
-      .map(([ord, count]) => ({ value: String(ord), label: names?.carNames[String(ord)] ?? getCatalogCar(ord)?.name ?? `Car ${ord}`, count }))
-      .sort((a, b) => b.count - a.count);
+    const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: carNames[ord] ?? `Car #${ord}`, count })).sort((a, b) => b.count - a.count);
     return [{ value: "any", label: "Any car", count: rows.length }, ...opts];
-  }, [rows, names]);
+  }, [rows, carNames]);
 
   const trackOptions: ComboOption[] = useMemo(() => {
     const counts = new Map<number, number>();
@@ -82,6 +92,8 @@ export function Fm23TuneBrowser() {
     <TuneBrowser
       title="Tunes"
       rows={rows}
+      carNames={carNames}
+      trackNames={trackNames}
       trackOptions={trackOptions}
       carOptions={carOptions}
       sources={SOURCES}

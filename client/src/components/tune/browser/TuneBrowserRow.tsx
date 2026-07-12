@@ -8,12 +8,14 @@ const SOURCE_LABEL: Record<TuneRow["source"], string> = {
   user: "Yours",
 };
 
-// Shared responsive grid: mobile shows #, name, lap, chevron; sm+ adds author + category.
-const GRID = "grid grid-cols-[26px_1fr_66px_26px] sm:grid-cols-[34px_1fr_minmax(120px,160px)_96px_92px_30px] items-center gap-2.5";
+// Shared responsive grid: mobile shows #, name, lap, chevron; sm+ adds car + track + author.
+export const TUNE_GRID = "grid grid-cols-[26px_1fr_66px_26px] sm:grid-cols-[34px_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(90px,120px)_84px_30px] items-center gap-2.5";
 
 export interface TuneBrowserRowProps {
   row: TuneRow;
   rank: number;
+  carName: string;
+  trackName: string | null;
   isOpen: boolean;
   onToggle: () => void;
   onClone: (row: TuneRow) => void;
@@ -21,15 +23,14 @@ export interface TuneBrowserRowProps {
   onDelete: (row: TuneRow) => void;
 }
 
-export function TuneBrowserRow({ row, rank, isOpen, onToggle, onClone, onEdit, onDelete }: TuneBrowserRowProps) {
+export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle, onClone, onEdit, onDelete }: TuneBrowserRowProps) {
   const hasTime = row.lapTimeSec != null;
   const isUser = row.source === "user";
-  const isTrackTune = row.trackOrdinal != null;
   const catLabel = CATEGORY_LABELS[row.category] ?? row.category;
 
   return (
     <div className={`border-b border-app-border ${isOpen ? "bg-app-surface-alt" : "bg-app-surface even:bg-app-surface-alt"}`}>
-      <button type="button" className={`${GRID} w-full text-left px-3 py-3`} onClick={onToggle}>
+      <button type="button" className={`${TUNE_GRID} w-full text-left px-3 py-3`} onClick={onToggle}>
         <span className={`text-sm font-bold text-center ${rank === 1 && hasTime ? "text-app-accent" : "text-app-text-muted"}`}>{rank}</span>
         <span className="min-w-0">
           <span className="block text-[15px] font-semibold truncate">{row.name}</span>
@@ -38,12 +39,9 @@ export function TuneBrowserRow({ row, rank, isOpen, onToggle, onClone, onEdit, o
             {row.category ? ` · ${catLabel}` : ""}
           </span>
         </span>
+        <span className="hidden sm:block text-[13px] text-app-text-secondary min-w-0 truncate">{carName}</span>
+        <span className={`hidden sm:block text-[13px] min-w-0 truncate ${trackName ? "text-app-accent" : "text-app-text-dim"}`}>{trackName ?? "—"}</span>
         <span className="hidden sm:block text-[13px] min-w-0 truncate">{row.author}</span>
-        <span
-          className={`hidden sm:block justify-self-end text-[9px] uppercase tracking-wide px-2 py-1 rounded border whitespace-nowrap ${isTrackTune ? "text-app-accent border-app-accent" : "text-app-text-muted border-app-border"}`}
-        >
-          {isTrackTune && row.lapTimeTrack ? row.lapTimeTrack : catLabel}
-        </span>
         <span className={`justify-self-end font-mono text-[13px] tabular-nums text-right ${hasTime ? "text-amber-400" : "text-app-text-dim"}`}>
           {hasTime ? row.lapTimeRaw : "—"}
           <span className="hidden sm:block text-[8px] uppercase tracking-wide text-app-text-dim mt-0.5">{hasTime ? (row.lapTimeTrack ?? "LAP") : "NO TIME"}</span>
