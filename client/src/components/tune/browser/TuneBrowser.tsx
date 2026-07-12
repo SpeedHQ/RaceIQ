@@ -36,16 +36,19 @@ export function TuneBrowser(props: TuneBrowserProps) {
   const [track, setTrack] = useState("any");
   const [car, setCar] = useState("any");
   const [source, setSource] = useState<SourceTab["key"]>("all");
+  const [author, setAuthor] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const visible = useMemo(() => {
+    const authorQuery = author.trim().toLowerCase();
     const filtered = rows.filter((r) => {
       if (track !== "any" && r.trackOrdinal !== Number(track)) return false;
       if (car !== "any" && r.carOrdinal !== Number(car)) return false;
       if (source !== "all" && r.source !== source) return false;
+      if (authorQuery && !r.author.toLowerCase().includes(authorQuery)) return false;
       return true;
     });
     filtered.sort((a, b) => {
@@ -55,7 +58,7 @@ export function TuneBrowser(props: TuneBrowserProps) {
       return sortAsc ? ta - tb : tb - ta;
     });
     return filtered;
-  }, [rows, track, car, source, sortAsc]);
+  }, [rows, track, car, source, author, sortAsc]);
 
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
@@ -131,6 +134,17 @@ export function TuneBrowser(props: TuneBrowserProps) {
             {s.label}
           </button>
         ))}
+        <input
+          type="text"
+          value={author}
+          placeholder="Search author…"
+          onChange={(e) => {
+            setAuthor(e.target.value);
+            setPage(0);
+            setOpenKey(null);
+          }}
+          className="text-[11px] bg-app-bg border border-app-border-input rounded px-2.5 py-1.5 text-app-text placeholder:text-app-text-dim outline-none focus:border-app-accent w-40"
+        />
         <div className="flex-1" />
         {props.onRefresh && (
           <button
