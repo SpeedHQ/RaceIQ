@@ -82,7 +82,7 @@ export function TuneBrowser(props: TuneBrowserProps) {
 
   return (
     <div className="w-full p-4 pb-20 text-app-text">
-      <div className="flex flex-col items-start gap-3 pb-4">
+      <div className="flex items-end justify-between gap-4 flex-wrap pb-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">{props.title}</h1>
           {props.subtitle && <div className="text-[11px] text-app-text-muted tracking-wide mt-1.5">{props.subtitle}</div>}
