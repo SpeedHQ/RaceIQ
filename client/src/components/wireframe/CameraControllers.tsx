@@ -21,11 +21,7 @@ export function AutoChaseCamera({ packet }: { packet: TelemetryPacket }) {
     const radius = 5;
     const height = 1.8;
     // Camera sits behind the car: car faces -Z in Forza coords, yaw=0 is forward
-    camera.position.set(
-      Math.sin(yaw) * radius,
-      height,
-      Math.cos(yaw) * radius,
-    );
+    camera.position.set(Math.sin(yaw) * radius, height, Math.cos(yaw) * radius);
     camera.lookAt(0, 0.3, 0);
   });
 
@@ -49,15 +45,5 @@ export function CameraController({ viewPreset }: { viewPreset: ViewPreset }) {
     }
   });
 
-  return (
-    <OrbitControls
-      ref={controlsRef}
-      enablePan={false}
-      enableZoom={true}
-      minDistance={3}
-      maxDistance={2000}
-      minPolarAngle={0}
-      maxPolarAngle={Math.PI}
-    />
-  );
+  return <OrbitControls ref={controlsRef} enablePan={false} enableZoom={true} minDistance={3} maxDistance={2000} minPolarAngle={0} maxPolarAngle={Math.PI} />;
 }

@@ -9,7 +9,10 @@ import { useDemoMode } from "../hooks/useDemoMode";
 import { NoDataView } from "./NoDataView";
 import { RaceInfo } from "./RaceInfo";
 
-function PageHeader({ dashMode, demo }: {
+function PageHeader({
+  dashMode,
+  demo,
+}: {
   dashMode: DashboardMode;
   demo: ReturnType<typeof useDemoMode>;
 }) {
@@ -26,11 +29,7 @@ function PageHeader({ dashMode, demo }: {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             `${prefix}/live/driver` as any
           }
-          className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors ${
-            dashMode === "driver"
-              ? "bg-app-accent/20 text-app-accent"
-              : "text-app-text-muted hover:text-app-text"
-          }`}
+          className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "driver" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
         >
           Driver
         </Link>
@@ -39,11 +38,7 @@ function PageHeader({ dashMode, demo }: {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             `${prefix}/live/pit` as any
           }
-          className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors ${
-            dashMode === "pitcrew"
-              ? "bg-app-accent/20 text-app-accent"
-              : "text-app-text-muted hover:text-app-text"
-          }`}
+          className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "pitcrew" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
         >
           Pit Crew
         </Link>

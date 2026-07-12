@@ -42,6 +42,10 @@ export function useSettings() {
       if (!res.ok) throw new Error(res.statusText);
       return res.json();
     },
+    staleTime: 1000 * 60 * 30,
+    gcTime: 1000 * 60 * 60,
+    refetchOnMount: false,
+    refetchOnWindowFocus: true,
   });
   return { displaySettings, settingsLoaded: isSuccess };
 }
@@ -53,7 +57,9 @@ export function useSaveSettings() {
       const res = await client.api.settings.$put({ json: settings });
       if (!res.ok) throw new Error(res.statusText);
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: queryKeys.settings }); },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.settings });
+    },
   });
 }
 
@@ -294,10 +300,7 @@ const ACC_PRESSURE_BY_CLASS: Record<string, { min: number; max: number }> = {
 
 /** Universal tire pressure window resolver. ACC is class-aware (fetches car
  *  class server-side), other games fall back to the static adapter value. */
-export function useTirePressureOptimal(
-  gameId: GameId,
-  ordinal: number | undefined,
-): { min: number; max: number } | undefined {
+export function useTirePressureOptimal(gameId: GameId, ordinal: number | undefined): { min: number; max: number } | undefined {
   const { data: accClass } = useAccCarClass(gameId === "acc" ? ordinal : undefined);
   if (gameId === "acc") {
     return accClass ? ACC_PRESSURE_BY_CLASS[accClass] : undefined;
@@ -351,9 +354,44 @@ export function useUserTunes(gameId?: GameId) {
 }
 
 export function useCatalogTunes() {
+  const gameId = useGameId();
   return useQuery({
-    queryKey: queryKeys.catalogTunes,
-    queryFn: async () => rpcJson<CatalogTune[]>(await client.api.catalog.tunes.$get({ query: {} })),
+    queryKey: [...queryKeys.catalogTunes, gameId ?? null],
+    queryFn: async () =>
+      rpcJson<CatalogTune[]>(
+        await client.api.catalog.tunes.$get(
+          { query: {} },
+          { headers: gameId ? { "X-Game-Id": gameId } : undefined },
+        ),
+      ),
+  });
+}
+
+export interface LaptimeEntry {
+  track: string;
+  carClass: string;
+  car: string;
+  driver: string;
+  laptime: string;
+}
+
+export function useLaptimes() {
+  return useQuery({
+    queryKey: ["laptimes"],
+    queryFn: async () => rpcJson<LaptimeEntry[]>(await client.api.laptimes.$get()),
+    staleTime: 1000 * 60 * 30,
+  });
+}
+
+export function useRefreshCommunityTunes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await client.api.tunes.community.refresh.$post();
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return res.json() as Promise<{ synced: boolean; count: number; version: string | null }>;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.catalogTunes }),
   });
 }
 
@@ -362,7 +400,7 @@ export function useCreateTune() {
   return useMutation({
     mutationFn: async (data: any) => {
       const res = await client.api.tunes.$post({ json: data });
-      if (!res.ok) throw new Error((await res.json() as any).error ?? res.statusText);
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -374,7 +412,7 @@ export function useUpdateTune() {
   return useMutation({
     mutationFn: async ({ id, ...data }: any) => {
       const res = await client.api.tunes[":id"].$put({ param: { id: String(id) }, json: data } as any);
-      if (!res.ok) throw new Error((await res.json() as any).error ?? res.statusText);
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -386,7 +424,7 @@ export function useDeleteTune() {
   return useMutation({
     mutationFn: async (id: number) => {
       const res = await client.api.tunes[":id"].$delete({ param: { id: String(id) } });
-      if (!res.ok) throw new Error((await res.json() as any).error ?? res.statusText);
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
   });
@@ -397,7 +435,7 @@ export function useCloneCatalogTune() {
   return useMutation({
     mutationFn: async (catalogId: string) => {
       const res = await client.api.tunes.clone[":catalogId"].$post({ param: { catalogId } });
-      if (!res.ok) throw new Error((await res.json() as any).error ?? res.statusText);
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -453,7 +491,7 @@ export function useSetTuneAssignment() {
   return useMutation({
     mutationFn: async (data: { carOrdinal: number; trackOrdinal: number; tuneId: number }) => {
       const res = await client.api["tune-assignments"].$put({ json: data });
-      if (!res.ok) throw new Error((await res.json() as any).error ?? res.statusText);
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.tuneAssignments }),

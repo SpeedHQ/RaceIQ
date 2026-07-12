@@ -11,25 +11,25 @@ import type { TelemetryPacket } from "@shared/types";
 
 // CSS var() references — use in inline styles and DOM SVG attributes
 export const COLOR_VARS = {
-  green:  "var(--dynamics-green)",
+  green: "var(--dynamics-green)",
   yellow: "var(--dynamics-yellow)",
-  amber:  "var(--dynamics-amber)",
+  amber: "var(--dynamics-amber)",
   orange: "var(--dynamics-orange)",
-  red:    "var(--dynamics-red)",
-  blue:   "var(--dynamics-blue)",
-  gray:   "var(--dynamics-gray)",
+  red: "var(--dynamics-red)",
+  blue: "var(--dynamics-blue)",
+  gray: "var(--dynamics-gray)",
 } as const;
 
 // Raw hex values — use in canvas, WebGL, Three.js, or anywhere
 // CSS var() can't be resolved. Keep in sync with index.css :root --dynamics-*.
 export const COLORS_HEX = {
-  green:  "#34d399",
+  green: "#34d399",
   yellow: "#fbbf24",
-  amber:  "#f59e0b",
+  amber: "#f59e0b",
   orange: "#fb923c",
-  red:    "#ef4444",
-  blue:   "#3b82f6",
-  gray:   "#94a3b8",
+  red: "#ef4444",
+  blue: "#3b82f6",
+  gray: "#94a3b8",
 } as const;
 
 // Default export uses CSS vars — works in React inline styles and SVG
@@ -37,13 +37,13 @@ export const COLORS = COLOR_VARS;
 
 // Tailwind utility classes using the theme tokens
 export const COLOR_CLASSES = {
-  green:  "text-dynamics-green",
+  green: "text-dynamics-green",
   yellow: "text-dynamics-yellow",
-  amber:  "text-dynamics-amber",
+  amber: "text-dynamics-amber",
   orange: "text-dynamics-orange",
-  red:    "text-dynamics-red",
-  blue:   "text-dynamics-blue",
-  gray:   "text-dynamics-gray",
+  red: "text-dynamics-red",
+  blue: "text-dynamics-blue",
+  gray: "text-dynamics-gray",
 } as const;
 
 // ── Slip Ratio (longitudinal) ──────────────────────────────────────
@@ -70,12 +70,7 @@ export function effectiveWheelRadius(pkt: TelemetryPacket): number {
   }
 
   const gs = pkt.Speed; // m/s
-  const rotSpeeds = [
-    Math.abs(pkt.WheelRotationSpeedFL),
-    Math.abs(pkt.WheelRotationSpeedFR),
-    Math.abs(pkt.WheelRotationSpeedRL),
-    Math.abs(pkt.WheelRotationSpeedRR),
-  ];
+  const rotSpeeds = [Math.abs(pkt.WheelRotationSpeedFL), Math.abs(pkt.WheelRotationSpeedFR), Math.abs(pkt.WheelRotationSpeedRL), Math.abs(pkt.WheelRotationSpeedRR)];
   // Use the two slowest wheels — spinning wheels inflate the average and
   // skew slip ratios, causing false lockup detection on non-driven axle
   const sorted = [...rotSpeeds].sort((a, b) => a - b);
@@ -111,7 +106,7 @@ export function wheelSlipRatios(pkt: TelemetryPacket): { fl: number; fr: number;
 // radians in all three games (FM/F1/ACC) so we use it directly.
 
 const SLIP_RATIO_PEAK = 0.12;
-const SLIP_ANGLE_PEAK_RAD = 8 * Math.PI / 180;  // 8°
+const SLIP_ANGLE_PEAK_RAD = (8 * Math.PI) / 180; // 8°
 
 export function frictionCircleUtil(slipRatio: number, slipAngleRad: number): number {
   const rNorm = Math.abs(slipRatio) / SLIP_RATIO_PEAK;
@@ -142,35 +137,30 @@ export function allFrictionCircle(pkt: TelemetryPacket): { fl: number; fr: numbe
 //
 // All other color derivations (hex, Three.js) must delegate to this.
 
-const GRIP_WARN_UTIL = 0.90;  // start warning at 90% of friction budget
+const GRIP_WARN_UTIL = 0.9; // start warning at 90% of friction budget
 
 export interface TireState {
   label: "LOCK" | "SPIN" | "IDLE" | "SLIDE" | "SLIP" | "GRIP";
-  color: string;   // CSS var — use in React inline styles / SVG
-  hex: string;     // Raw hex — use in canvas, WebGL, Three.js
+  color: string; // CSS var — use in React inline styles / SVG
+  hex: string; // Raw hex — use in canvas, WebGL, Three.js
 }
 
-export function tireState(
-  wheelStateLabel: string,
-  slipRatio: number,
-  slipAngleRad: number,
-): TireState {
-  if (wheelStateLabel === "lockup") return { label: "LOCK", color: COLORS.red,  hex: COLORS_HEX.red };
-  if (wheelStateLabel === "idle")   return { label: "IDLE", color: COLORS.gray, hex: COLORS_HEX.gray };
+export function tireState(wheelStateLabel: string, slipRatio: number, slipAngleRad: number): TireState {
+  if (wheelStateLabel === "lockup") return { label: "LOCK", color: COLORS.red, hex: COLORS_HEX.red };
+  if (wheelStateLabel === "idle") return { label: "IDLE", color: COLORS.gray, hex: COLORS_HEX.gray };
 
   const rNorm = Math.abs(slipRatio) / SLIP_RATIO_PEAK;
   const aNorm = Math.abs(slipAngleRad) / SLIP_ANGLE_PEAK_RAD;
   const util = Math.min(Math.hypot(rNorm, aNorm), 2.0);
 
-  if (util < GRIP_WARN_UTIL) return { label: "GRIP", color: COLORS.green,  hex: COLORS_HEX.green };
-  if (util < 1.0)            return { label: "SLIP", color: COLORS.yellow, hex: COLORS_HEX.yellow };
+  if (util < GRIP_WARN_UTIL) return { label: "GRIP", color: COLORS.green, hex: COLORS_HEX.green };
+  if (util < 1.0) return { label: "SLIP", color: COLORS.yellow, hex: COLORS_HEX.yellow };
 
   // Past peak — classify by which axis carries more of the saturation
-  if (wheelStateLabel === "spin") return { label: "SPIN",  color: COLORS.orange, hex: COLORS_HEX.orange };
-  if (aNorm >= rNorm)             return { label: "SLIDE", color: COLORS.red,    hex: COLORS_HEX.red };
-  return                                { label: "SPIN",  color: COLORS.orange, hex: COLORS_HEX.orange };
+  if (wheelStateLabel === "spin") return { label: "SPIN", color: COLORS.orange, hex: COLORS_HEX.orange };
+  if (aNorm >= rNorm) return { label: "SLIDE", color: COLORS.red, hex: COLORS_HEX.red };
+  return { label: "SPIN", color: COLORS.orange, hex: COLORS_HEX.orange };
 }
-
 
 // ── Understeer / Oversteer Detection ───────────────────────────────
 // Physics-based hybrid using two independent signals. Avoids the
@@ -198,35 +188,35 @@ export function tireState(
 // signals to agree (or one of them to be far past its threshold).
 
 const RAD2DEG = 180 / Math.PI;
-const G = 9.81;                      // m/s²
-const LAT_G_FLOOR = 0.25;            // g — below this, not really cornering
-const SPEED_FLOOR = 5;               // m/s (~18 km/h)
-const YAW_ERR_SCALE = 0.3;           // rad/s yaw-rate error that counts as "full" severity
-const SLIP_DELTA_SCALE = 6;          // degrees front-rear slip delta that counts as "full" severity
-const CLASSIFY_THRESHOLD = 0.3;      // combined-signal magnitude to leave "neutral"
+const G = 9.81; // m/s²
+const LAT_G_FLOOR = 0.25; // g — below this, not really cornering
+const SPEED_FLOOR = 5; // m/s (~18 km/h)
+const YAW_ERR_SCALE = 0.3; // rad/s yaw-rate error that counts as "full" severity
+const SLIP_DELTA_SCALE = 6; // degrees front-rear slip delta that counts as "full" severity
+const CLASSIFY_THRESHOLD = 0.3; // combined-signal magnitude to leave "neutral"
 
 export interface SteerBalance {
   // Physics signals
-  latG: number;            // g, signed (right-positive, matches existing convention)
-  yawRate: number;         // rad/s, raw body yaw rate
-  yawRatePath: number;     // rad/s, expected from |latG|·g / V
-  yawError: number;        // rad/s, |yawRate| − yawRatePath (>0 = over-rotating → oversteer)
-  frontSlipDeg: number;    // avg front slip angle magnitude (degrees)
-  rearSlipDeg: number;     // avg rear slip angle magnitude (degrees)
-  slipDelta: number;       // front − rear (degrees, >0 = understeer, <0 = oversteer)
+  latG: number; // g, signed (right-positive, matches existing convention)
+  yawRate: number; // rad/s, raw body yaw rate
+  yawRatePath: number; // rad/s, expected from |latG|·g / V
+  yawError: number; // rad/s, |yawRate| − yawRatePath (>0 = over-rotating → oversteer)
+  frontSlipDeg: number; // avg front slip angle magnitude (degrees)
+  rearSlipDeg: number; // avg rear slip angle magnitude (degrees)
+  slipDelta: number; // front − rear (degrees, >0 = understeer, <0 = oversteer)
   // Normalized component signals (both scaled so ±1 = "full" severity)
-  uSlip: number;           // slip-angle signal: + = understeer, − = oversteer
-  uYaw: number;            // yaw-rate signal:  + = understeer, − = oversteer
-  signalsAgree: boolean;   // false = conflict → slip angle used alone
+  uSlip: number; // slip-angle signal: + = understeer, − = oversteer
+  uYaw: number; // yaw-rate signal:  + = understeer, − = oversteer
+  signalsAgree: boolean; // false = conflict → slip angle used alone
   // Combined normalized balance
-  balance: number;         // [-1, +1], + = understeer, − = oversteer
+  balance: number; // [-1, +1], + = understeer, − = oversteer
   state: "understeer" | "oversteer" | "neutral";
-  severity: number;        // 0-1, magnitude of |balance| past threshold
+  severity: number; // 0-1, magnitude of |balance| past threshold
 }
 
 export function steerBalance(pkt: TelemetryPacket): SteerBalance {
-  const frontSlipDeg = (Math.abs(pkt.TireSlipAngleFL) + Math.abs(pkt.TireSlipAngleFR)) / 2 * RAD2DEG;
-  const rearSlipDeg  = (Math.abs(pkt.TireSlipAngleRL) + Math.abs(pkt.TireSlipAngleRR)) / 2 * RAD2DEG;
+  const frontSlipDeg = ((Math.abs(pkt.TireSlipAngleFL) + Math.abs(pkt.TireSlipAngleFR)) / 2) * RAD2DEG;
+  const rearSlipDeg = ((Math.abs(pkt.TireSlipAngleRL) + Math.abs(pkt.TireSlipAngleRR)) / 2) * RAD2DEG;
   const slipDelta = frontSlipDeg - rearSlipDeg;
 
   const latG = -pkt.AccelerationX / G;
@@ -242,8 +232,8 @@ export function steerBalance(pkt: TelemetryPacket): SteerBalance {
   const gated = Math.abs(latG) < LAT_G_FLOOR || speed < SPEED_FLOOR;
 
   // Normalize both signals so positive = understeer, negative = oversteer.
-  const uSlip = slipDelta / SLIP_DELTA_SCALE;       // front > rear → positive
-  const uYaw  = -yawError / YAW_ERR_SCALE;          // over-rotating → negative
+  const uSlip = slipDelta / SLIP_DELTA_SCALE; // front > rear → positive
+  const uYaw = -yawError / YAW_ERR_SCALE; // over-rotating → negative
 
   // Slip angle is lateral-only — unaffected by straight-line wheelspin, so
   // it doesn't need the latG gate. Gate only the yaw signal (which can
@@ -261,31 +251,39 @@ export function steerBalance(pkt: TelemetryPacket): SteerBalance {
   // direction — never reduce. If the blend moves the result closer to zero
   // than slip alone, discard it and use slip alone.
   const blended = 0.5 * uSlip + 0.5 * yawContrib;
-  const balanceRaw = speed < SPEED_FLOOR
-    ? 0
-    : !signalsAgree || !slipConfident
-      ? uSlip                                                         // conflict or slip neutral → slip only
-      : yawActive && Math.abs(blended) > Math.abs(uSlip)
-        ? blended                                                     // yaw amplifies → use blend
-        : uSlip;                                                      // yaw dilutes or silent → slip only
+  const balanceRaw =
+    speed < SPEED_FLOOR
+      ? 0
+      : !signalsAgree || !slipConfident
+        ? uSlip // conflict or slip neutral → slip only
+        : yawActive && Math.abs(blended) > Math.abs(uSlip)
+          ? blended // yaw amplifies → use blend
+          : uSlip; // yaw dilutes or silent → slip only
   const balance = Math.max(-1.5, Math.min(1.5, balanceRaw));
 
   const moving = speed >= SPEED_FLOOR;
   let state: SteerBalance["state"] = "neutral";
   if (moving) {
-    if (balance >  CLASSIFY_THRESHOLD) state = "understeer";
+    if (balance > CLASSIFY_THRESHOLD) state = "understeer";
     else if (balance < -CLASSIFY_THRESHOLD) state = "oversteer";
   }
 
-  const severity = moving
-    ? Math.min(1, Math.max(0, (Math.abs(balance) - CLASSIFY_THRESHOLD) / (1 - CLASSIFY_THRESHOLD)))
-    : 0;
+  const severity = moving ? Math.min(1, Math.max(0, (Math.abs(balance) - CLASSIFY_THRESHOLD) / (1 - CLASSIFY_THRESHOLD))) : 0;
 
   return {
-    latG, yawRate, yawRatePath, yawError,
-    frontSlipDeg, rearSlipDeg, slipDelta,
-    uSlip, uYaw, signalsAgree,
-    balance, state, severity,
+    latG,
+    yawRate,
+    yawRatePath,
+    yawError,
+    frontSlipDeg,
+    rearSlipDeg,
+    slipDelta,
+    uSlip,
+    uYaw,
+    signalsAgree,
+    balance,
+    state,
+    severity,
   };
 }
 
@@ -295,9 +293,12 @@ export function steerBalance(pkt: TelemetryPacket): SteerBalance {
 // Useful for detecting weight transfer during braking/cornering.
 
 export interface TireLoads {
-  fl: number; fr: number; rl: number; rr: number;
-  frontBias: number;  // 0-1: 0.5 = balanced, >0.5 = front-heavy (braking)
-  leftBias: number;   // 0-1: 0.5 = balanced, >0.5 = left-heavy (right turn)
+  fl: number;
+  fr: number;
+  rl: number;
+  rr: number;
+  frontBias: number; // 0-1: 0.5 = balanced, >0.5 = front-heavy (braking)
+  leftBias: number; // 0-1: 0.5 = balanced, >0.5 = left-heavy (right turn)
 }
 
 export function tireLoads(pkt: TelemetryPacket): TireLoads {
@@ -308,7 +309,10 @@ export function tireLoads(pkt: TelemetryPacket): TireLoads {
   const total = fl + fr + rl + rr || 1;
 
   return {
-    fl, fr, rl, rr,
+    fl,
+    fr,
+    rl,
+    rr,
     frontBias: (fl + fr) / total,
     leftBias: (fl + rl) / total,
   };
@@ -336,20 +340,23 @@ export function wheelState(
 
   // Lockup = full stop OR wheel rotating far slower than free-roll
   // (negative slip ratio past peak means tire is dragging, not rolling)
-  if (groundSpeed > 3 && (Math.abs(wheelRotSpeed) < 0.5 || sr < -0.20)) {
+  if (groundSpeed > 3 && (Math.abs(wheelRotSpeed) < 0.5 || sr < -0.2)) {
     return { state: "lockup", slipRatio: sr };
   }
 
   // In turns, inner wheels naturally rotate slower — widen the threshold
   const steerFactor = Math.abs(steerAngle) / 127; // 0-1
-  const spinThreshold = 0.10 + (isInnerWheel ? 0 : steerFactor * 0.05);
+  const spinThreshold = 0.1 + (isInnerWheel ? 0 : steerFactor * 0.05);
 
   if (sr > spinThreshold) return { state: "spin", slipRatio: sr };
   return { state: "grip", slipRatio: sr };
 }
 
 export function allWheelStates(pkt: TelemetryPacket): {
-  fl: WheelState; fr: WheelState; rl: WheelState; rr: WheelState;
+  fl: WheelState;
+  fr: WheelState;
+  rl: WheelState;
+  rr: WheelState;
 } {
   const r = effectiveWheelRadius(pkt);
   const gs = pkt.Speed;
@@ -372,10 +379,7 @@ export function allWheelStates(pkt: TelemetryPacket): {
 
 export function corneringEfficiency(pkt: TelemetryPacket): number {
   const latG = Math.abs(pkt.AccelerationX) / 9.81;
-  const avgCombinedSlip = (
-    Math.abs(pkt.TireCombinedSlipFL) + Math.abs(pkt.TireCombinedSlipFR) +
-    Math.abs(pkt.TireCombinedSlipRL) + Math.abs(pkt.TireCombinedSlipRR)
-  ) / 4;
+  const avgCombinedSlip = (Math.abs(pkt.TireCombinedSlipFL) + Math.abs(pkt.TireCombinedSlipFR) + Math.abs(pkt.TireCombinedSlipRL) + Math.abs(pkt.TireCombinedSlipRR)) / 4;
 
   if (avgCombinedSlip < 0.01) return 1; // not cornering
   return Math.min(2, latG / avgCombinedSlip);
@@ -456,7 +460,7 @@ export function tireTempLabel(temp: number, thresholds: TireTempThresholds): { l
 // Health = 1 - wear (0 = dead, 1 = new). Thresholds are game-specific.
 
 /** Color for tire health (wear is 0=new, 1=dead). Returns CSS var. */
-export function tireHealthColor(wear: number, thresholds = { green: 0.70, yellow: 0.40 }): string {
+export function tireHealthColor(wear: number, thresholds = { green: 0.7, yellow: 0.4 }): string {
   const health = 1 - wear;
   if (health >= thresholds.green) return COLORS.green;
   if (health >= thresholds.yellow) return COLORS.yellow;
@@ -494,32 +498,26 @@ export function wearRateColor(rate: number | null): string {
 
 export type BrakeTempThresholds = {
   front: { warm: number; hot: number };
-  rear:  { warm: number; hot: number };
+  rear: { warm: number; hot: number };
 };
 
 const DEFAULT_BRAKE_THRESHOLDS: BrakeTempThresholds = {
   front: { warm: 450, hot: 700 },
-  rear:  { warm: 450, hot: 700 },
+  rear: { warm: 450, hot: 700 },
 };
 
 export type BrakeColor = "red" | "orange" | "blue";
 
 export const BRAKE_COLOR_CLASSES: Record<BrakeColor, { text: string; bg: string }> = {
-  red:    { text: "text-red-400",    bg: "bg-red-500"    },
+  red: { text: "text-red-400", bg: "bg-red-500" },
   orange: { text: "text-orange-400", bg: "bg-orange-400" },
-  blue:   { text: "text-blue-400",   bg: "bg-blue-400"   },
+  blue: { text: "text-blue-400", bg: "bg-blue-400" },
 };
 
 /** Returns a color key for a brake temperature reading. Use with BRAKE_COLOR_CLASSES. */
-export function brakeTempColor(
-  temp: number,
-  isRear: boolean,
-  thresholds?: BrakeTempThresholds
-): BrakeColor {
-  const { warm, hot } = isRear
-    ? (thresholds ?? DEFAULT_BRAKE_THRESHOLDS).rear
-    : (thresholds ?? DEFAULT_BRAKE_THRESHOLDS).front;
-  if (temp > hot)  return "red";
+export function brakeTempColor(temp: number, isRear: boolean, thresholds?: BrakeTempThresholds): BrakeColor {
+  const { warm, hot } = isRear ? (thresholds ?? DEFAULT_BRAKE_THRESHOLDS).rear : (thresholds ?? DEFAULT_BRAKE_THRESHOLDS).front;
+  if (temp > hot) return "red";
   if (temp > warm) return "orange";
   return "blue";
 }
@@ -528,10 +526,7 @@ export type PressureColor = "green" | "blue" | "orange" | "gray";
 
 /** Tire pressure color key. Blue under-inflated, orange over-inflated,
  *  green in the optimal range, gray when no data or no thresholds. */
-export function tirePressureColor(
-  psi: number,
-  optimal?: { min: number; max: number },
-): PressureColor {
+export function tirePressureColor(psi: number, optimal?: { min: number; max: number }): PressureColor {
   if (psi <= 0) return "gray";
   if (!optimal) return "gray";
   if (psi < optimal.min) return "blue";

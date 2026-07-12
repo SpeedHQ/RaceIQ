@@ -33,7 +33,7 @@ run("bun scripts/copy-shared-data.ts", "Copying shared data");
 
 // 5. Compile server binary
 run(
-  'bun build --compile --target=bun-windows-x64 --windows-icon=assets/raceiq.ico server/bootstrap.ts --outfile dist/raceiq.exe',
+  `bun build --compile --target=bun-windows-x64 --windows-icon=assets/raceiq.ico --windows-title=RaceIQ --windows-publisher=SpeedHQ --windows-version=${version} --windows-description="RaceIQ" server/bootstrap.ts --outfile dist/raceiq.exe`,
   "Compiling server binary",
   { NODE_ENV: "production" },
 );

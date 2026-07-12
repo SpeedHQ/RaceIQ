@@ -69,9 +69,7 @@ export function useDemoMode(preferGameId?: string) {
 
       // Prefer requested gameId, then Spa (530), then any track — pick fastest valid lap
       const validLaps = (laps as any[]).filter((l: any) => l.isValid && l.lapTime > 0);
-      const preferredLaps = preferGameId
-        ? validLaps.filter((l: any) => l.gameId === preferGameId)
-        : [];
+      const preferredLaps = preferGameId ? validLaps.filter((l: any) => l.gameId === preferGameId) : [];
       const spaLaps = validLaps.filter((l: any) => l.trackOrdinal === 530);
       const pool = preferredLaps.length > 0 ? preferredLaps : spaLaps.length > 0 ? spaLaps : validLaps;
       const best = pool.sort((a: any, b: any) => a.lapTime - b.lapTime)[0];

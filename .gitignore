@@ -1,6 +1,7 @@
 node_modules/
 dist/
 /data/
+/.data-test/
 *.db
 *.db-journal
 *.db-wal
@@ -38,6 +39,10 @@ playwright/test-results/
 playwright/assets/
 demo-frames/
 
+# Mobile responsive screenshot captures
+playwright/screenshots/
+
 # Dev dump recordings — track gzipped fixtures only
 test/artifacts/sessions/*.bin
 .claude/scheduled_tasks.lock
+/.crew

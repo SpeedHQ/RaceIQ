@@ -185,12 +185,7 @@ export function WheelInfoCard({
   // in screen space when the camera is directly behind (or in front of) the car.
   const cardY = isRear ? 0.65 : 1.25;
   return (
-    <sprite
-      ref={spriteRef}
-      position={[0, cardY, side === "left" ? -0.95 : 0.95]}
-      scale={[BASE_SCALE, scaleY, 1]}
-      renderOrder={999}
-    >
+    <sprite ref={spriteRef} position={[0, cardY, side === "left" ? -0.95 : 0.95]} scale={[BASE_SCALE, scaleY, 1]} renderOrder={999}>
       <spriteMaterial map={texture} transparent depthTest={false} depthWrite={false} />
     </sprite>
   );

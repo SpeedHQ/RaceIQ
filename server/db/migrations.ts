@@ -246,14 +246,34 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE laps DROP COLUMN telemetry`,
     ],
   },
+  {
+    version: 20,
+    name: "community tunes",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS community_tunes (
+        id            TEXT PRIMARY KEY,
+        game_id       TEXT NOT NULL,
+        car_ordinal   INTEGER NOT NULL,
+        track_ordinal INTEGER,
+        name          TEXT NOT NULL,
+        author        TEXT NOT NULL,
+        category      TEXT NOT NULL,
+        description   TEXT NOT NULL DEFAULT '',
+        source_name   TEXT NOT NULL DEFAULT '',
+        settings      TEXT NOT NULL,
+        synced_at     TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_community_tunes_game ON community_tunes(game_id)`,
+    ],
+  },
 
-  // ── v20: add game_id to tunes ─────────────────────────────────────────
+  // ── v21: add game_id to tunes ─────────────────────────────────────────
   //
   // Tunes were previously Forza-only. Multi-game support (ACC, AC-EVO, F1 2025)
   // requires disambiguating which game a tune belongs to. Existing rows are
   // backfilled to 'fm-2023' since that was the only game with tune management.
   {
-    version: 20,
+    version: 21,
     name: "add game_id to tunes",
     sql: [
       `ALTER TABLE tunes ADD COLUMN game_id TEXT NOT NULL DEFAULT 'fm-2023'`,

@@ -19,9 +19,7 @@ if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true });
 
 const prefix = "snapshot-";
 const suffix = ".png";
-const entries = readdirSync(snapshotDir).filter(
-  (f) => f.startsWith(prefix) && f.endsWith(suffix),
-);
+const entries = readdirSync(snapshotDir).filter((f) => f.startsWith(prefix) && f.endsWith(suffix));
 
 if (entries.length === 0) {
   console.error(`No snapshots found in ${snapshotDir}`);

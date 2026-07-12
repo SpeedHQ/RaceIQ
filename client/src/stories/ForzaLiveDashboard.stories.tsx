@@ -4,13 +4,7 @@ import { createRouter, createMemoryHistory, RouterProvider, createRootRoute } fr
 import { useTelemetryStore } from "../stores/telemetry";
 import { useGameStore } from "../stores/game";
 import { ForzaLiveDashboard } from "../components/ForzaLiveDashboard";
-import {
-  fakeForzaPacket,
-  fakeForzaDisplayPacket,
-  fakeSectors,
-  fakePit,
-  fakeSessionLaps,
-} from "./fakeData";
+import { fakeForzaPacket, fakeForzaDisplayPacket, fakeSectors, fakePit, fakeSessionLaps } from "./fakeData";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -42,9 +36,7 @@ function StoryDecorator({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div style={{ height: "100vh", overflow: "auto", background: "var(--app-bg)" }}>
-        {children}
-      </div>
+      <div style={{ height: "100vh", overflow: "auto", background: "var(--app-bg)" }}>{children}</div>
     </QueryClientProvider>
   );
 }

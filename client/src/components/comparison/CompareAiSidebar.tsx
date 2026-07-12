@@ -23,24 +23,15 @@ export function CompareAiSidebar({ lapA, lapB, panelRef, onClose, segments, onJu
           <span className="text-[10px] uppercase tracking-wider font-semibold text-app-text">AI Compare</span>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => panelRef.current?.clearChat()}
-            className="text-[9px] text-app-text-muted hover:text-app-text"
-            title="Clear chat"
-          >
+          <button onClick={() => panelRef.current?.clearChat()} className="text-[9px] text-app-text-muted hover:text-app-text" title="Clear chat">
             Clear chat
           </button>
-          <Button variant="app-ghost" size="app-sm" onClick={onClose}>✕</Button>
+          <Button variant="app-ghost" size="app-sm" onClick={onClose}>
+            ✕
+          </Button>
         </div>
       </div>
-      <CompareAiPanel
-        ref={panelRef}
-        lapA={lapA}
-        lapB={lapB}
-        panelOpen={true}
-        segments={segments}
-        onJumpToFrac={onJumpToFrac}
-      />
+      <CompareAiPanel ref={panelRef} lapA={lapA} lapB={lapB} panelOpen={true} segments={segments} onJumpToFrac={onJumpToFrac} />
     </div>
   );
 }

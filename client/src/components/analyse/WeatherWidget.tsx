@@ -10,8 +10,12 @@ const WEATHER_ICONS: Record<number, string> = {
 };
 
 const WEATHER_LABELS: Record<number, string> = {
-  0: "Clear", 1: "Light Cloud", 2: "Overcast",
-  3: "Light Rain", 4: "Heavy Rain", 5: "Storm",
+  0: "Clear",
+  1: "Light Cloud",
+  2: "Overcast",
+  3: "Light Rain",
+  4: "Heavy Rain",
+  5: "Storm",
 };
 
 export function WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
@@ -21,9 +25,7 @@ export function WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
       <div className="flex items-center gap-1.5">
         <span className="text-sm leading-none">{WEATHER_ICONS[weather] ?? "\u2600\uFE0F"}</span>
         <span className="text-app-text font-medium">{WEATHER_LABELS[weather] ?? "Unknown"}</span>
-        {f1.rainPercentage > 0 && (
-          <span className="text-blue-400">{f1.rainPercentage}%</span>
-        )}
+        {f1.rainPercentage > 0 && <span className="text-blue-400">{f1.rainPercentage}%</span>}
       </div>
       <div className="flex gap-3 text-app-text-muted">
         <span>Track {f1.trackTemperature}°C</span>

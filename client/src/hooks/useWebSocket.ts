@@ -6,7 +6,8 @@ import { client } from "../lib/rpc";
 import { queryClient } from "../lib/queryClient";
 
 function fetchVersionInfo() {
-  client.api.version.$get()
+  client.api.version
+    .$get()
     .then((r) => r.json())
     .then((d) => useTelemetryStore.getState().setVersionInfo(d as unknown as VersionInfo))
     .catch(() => {});

@@ -6,7 +6,9 @@ export function useLocalStorage<T>(key: string, defaultValue: T): [T, React.Disp
     try {
       const stored = localStorage.getItem(key);
       if (stored) return JSON.parse(stored);
-    } catch { /* use default */ }
+    } catch {
+      /* use default */
+    }
     return defaultValue;
   });
   useEffect(() => {

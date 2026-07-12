@@ -13,7 +13,9 @@ function shortenGitHubLink(href: string, children: React.ReactNode) {
 
 export function ReleaseNotes({ notes, className }: { notes: string; className?: string }) {
   return (
-    <div className={`rounded border border-app-border bg-app-surface p-3 text-xs text-app-text-secondary leading-relaxed prose prose-sm prose-invert prose-headings:text-app-text prose-a:text-app-accent prose-a:underline ${className ?? ""}`}>
+    <div
+      className={`rounded border border-app-border bg-app-surface p-3 text-xs text-app-text-secondary leading-relaxed prose prose-sm prose-invert prose-headings:text-app-text prose-a:text-app-accent prose-a:underline ${className ?? ""}`}
+    >
       <Markdown
         remarkPlugins={[remarkGfm]}
         components={{

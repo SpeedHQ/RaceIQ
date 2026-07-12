@@ -6,7 +6,16 @@ import type { Point, TrackSectors } from "@/components/track/types";
  * Segment labels are offset perpendicular to the track direction so they don't overlap the line.
  * The perpendicular offset is computed from neighboring outline points' tangent vector.
  */
-export function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: boolean, sectors?: TrackSectors | null, zoom: number = 1, pan: { x: number; z: number } = { x: 0, z: 0 }, sectorOverride?: { s1End: number; s2End: number }, flipX?: boolean) {
+export function drawTrack(
+  canvas: HTMLCanvasElement,
+  outline: Point[],
+  large: boolean,
+  sectors?: TrackSectors | null,
+  zoom: number = 1,
+  pan: { x: number; z: number } = { x: 0, z: 0 },
+  sectorOverride?: { s1End: number; s2End: number },
+  flipX?: boolean,
+) {
   const ctx = canvas.getContext("2d");
   if (!ctx || outline.length < 2) return;
 
@@ -19,7 +28,10 @@ export function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: bo
   const h = rect.height;
   ctx.clearRect(0, 0, w, h);
 
-  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  let minX = Infinity,
+    maxX = -Infinity,
+    minZ = Infinity,
+    maxZ = -Infinity;
   for (const p of outline) {
     minX = Math.min(minX, p.x);
     maxX = Math.max(maxX, p.x);
@@ -27,8 +39,8 @@ export function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: bo
     maxZ = Math.max(maxZ, p.z);
   }
 
-  const rangeX = (maxX - minX) || 1;
-  const rangeZ = (maxZ - minZ) || 1;
+  const rangeX = maxX - minX || 1;
+  const rangeZ = maxZ - minZ || 1;
   const padding = large ? 20 : 12;
   const baseScale = Math.min((w - padding * 2) / rangeX, (h - padding * 2) / rangeZ);
   const scale = baseScale * zoom;
@@ -124,7 +136,8 @@ export function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: bo
 
   if (!sectorOverride && sectors && sectors.segments.length > 0) {
     const n = outline.length;
-    let cornerIdx = 0, straightIdx = 0;
+    let cornerIdx = 0,
+      straightIdx = 0;
 
     // Build display names: auto-number unnamed straights
     let sNum = 1;
@@ -139,9 +152,7 @@ export function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: bo
       const displayName = displayNames[segIdx++];
       const start = Math.round(seg.startFrac * n);
       const end = Math.min(Math.round(seg.endFrac * n), n - 1);
-      const color = seg.type === "corner"
-        ? cornerColors[cornerIdx++ % cornerColors.length]
-        : straightColors[straightIdx++ % straightColors.length];
+      const color = seg.type === "corner" ? cornerColors[cornerIdx++ % cornerColors.length] : straightColors[straightIdx++ % straightColors.length];
 
       ctx.beginPath();
       ctx.strokeStyle = color;
@@ -188,7 +199,8 @@ export function drawTrack(canvas: HTMLCanvasElement, outline: Point[], large: bo
         ctx.textAlign = "center";
         // Background pill behind label
         const textWidth = ctx.measureText(displayName).width;
-        const padX = 3, padY = 2;
+        const padX = 3,
+          padY = 2;
         ctx.globalAlpha = large ? 0.85 : 0.6;
         ctx.fillStyle = "#0f172a";
         ctx.beginPath();

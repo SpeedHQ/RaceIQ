@@ -12,10 +12,10 @@ export interface CarModelEnrichment {
   halfRearTrack: number;
   bodyLength: number;
   tireRadius: number;
-  frontTireWidth?: number;   // meters (default 0.30)
-  rearTireWidth?: number;    // meters (default 0.30)
-  frontTireRadius?: number;  // meters (overrides tireRadius for front)
-  rearTireRadius?: number;   // meters (overrides tireRadius for rear)
+  frontTireWidth?: number; // meters (default 0.30)
+  rearTireWidth?: number; // meters (default 0.30)
+  frontTireRadius?: number; // meters (overrides tireRadius for front)
+  rearTireRadius?: number; // meters (overrides tireRadius for rear)
   /** Full suspension travel range in metres (total stroke, compressed→extended). Optional — falls back to 0.08 default. */
   suspStroke?: number;
   glbWheelbase?: number;
@@ -38,17 +38,17 @@ export const DEFAULT_CAR: CarModelEnrichment = {
 /** F1 2025 car model — regulation dimensions (Pirelli 305/720-18 front, 405/720-18 rear) */
 export const F1_CAR: CarModelEnrichment & { hasModel: true } = {
   modelPath: "/models/f1_2025_mclaren_mcl39.glb",
-  halfWheelbase: 1.80,       // 3600mm wheelbase (regulation max)
-  halfFrontTrack: 0.80,      // ~1600mm front track (centre-to-centre)
-  halfRearTrack: 0.80,       // ~1600mm rear track (centre-to-centre)
-  bodyLength: 5.50,          // ~5500mm overall length
-  tireRadius: 0.36,          // 720mm overall diameter → 360mm radius
-  frontTireRadius: 0.36,     // 720mm diameter Pirelli
-  rearTireRadius: 0.36,      // 720mm diameter Pirelli
-  frontTireWidth: 0.305,     // 305mm front tire width
-  rearTireWidth: 0.405,      // 405mm rear tire width
-  glbOffsetY: -0.12,         // lower model to sit on ground plane
-  glbOffsetZ: 0.28,          // nudge model forward to align tires with wireframe wheels
+  halfWheelbase: 1.8, // 3600mm wheelbase (regulation max)
+  halfFrontTrack: 0.8, // ~1600mm front track (centre-to-centre)
+  halfRearTrack: 0.8, // ~1600mm rear track (centre-to-centre)
+  bodyLength: 5.5, // ~5500mm overall length
+  tireRadius: 0.36, // 720mm overall diameter → 360mm radius
+  frontTireRadius: 0.36, // 720mm diameter Pirelli
+  rearTireRadius: 0.36, // 720mm diameter Pirelli
+  frontTireWidth: 0.305, // 305mm front tire width
+  rearTireWidth: 0.405, // 405mm rear tire width
+  glbOffsetY: -0.12, // lower model to sit on ground plane
+  glbOffsetZ: 0.28, // nudge model forward to align tires with wireframe wheels
   glbRotationY: Math.PI / 2, // rotate 90° to align with wireframe axes
   hasModel: true,
 };

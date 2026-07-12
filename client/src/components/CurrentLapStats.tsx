@@ -51,7 +51,8 @@ export function CurrentLapStats({ packet }: Props) {
     };
 
     if (!gameId) return;
-    client.api["track-sectors"][":ordinal"].$get({ param: { ordinal: String(packet.TrackOrdinal) }, query: { gameId: gameId! } })
+    client.api["track-sectors"][":ordinal"]
+      .$get({ param: { ordinal: String(packet.TrackOrdinal) }, query: { gameId: gameId! } })
       .then((r) => r.json() as any)
       .then((data: any) => {
         if (data?.s1End) setSectors(data);
@@ -118,9 +119,7 @@ export function CurrentLapStats({ packet }: Props) {
       <div className="flex justify-between items-end mb-1">
         <div>
           <div className="text-xs text-app-text-muted uppercase tracking-wider">Current Lap</div>
-          <div className="text-xl font-mono font-semibold text-app-text tabular-nums">
-            {formatLapTime(packet.CurrentLap)}
-          </div>
+          <div className="text-xl font-mono font-semibold text-app-text tabular-nums">{formatLapTime(packet.CurrentLap)}</div>
         </div>
         <div className="text-right">
           <div className="text-xs text-app-text-muted">Lap {packet.LapNumber}</div>
@@ -130,9 +129,7 @@ export function CurrentLapStats({ packet }: Props) {
       {sectors ? (
         <div className="space-y-1.5 border-t border-app-border pt-2">
           {sectorNames.map((name, i) => {
-            const current = i === s.currentSector
-              ? packet.CurrentLap - s.sectorStartTime
-              : s.currentTimes[i];
+            const current = i === s.currentSector ? packet.CurrentLap - s.sectorStartTime : s.currentTimes[i];
             const best = s.bestTimes[i] < Infinity ? s.bestTimes[i] : 0;
             const last = s.lastTimes[i];
             const isActive = i === s.currentSector;
@@ -158,9 +155,7 @@ export function CurrentLapStats({ packet }: Props) {
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLORS[i] }} />
                     <span className="text-[10px] font-semibold text-app-text-secondary">{name}</span>
                   </div>
-                  <span className={`text-sm font-mono font-bold tabular-nums ${isActive ? "text-app-text" : "text-app-text"}`}>
-                    {current > 0 ? formatLapTime(current) : "--:--.---"}
-                  </span>
+                  <span className={`text-sm font-mono font-bold tabular-nums ${isActive ? "text-app-text" : "text-app-text"}`}>{current > 0 ? formatLapTime(current) : "--:--.---"}</span>
                 </div>
                 <div className="flex items-center justify-between mt-0.5">
                   <div className="flex gap-3">
@@ -184,21 +179,15 @@ export function CurrentLapStats({ packet }: Props) {
           {/* Last/Best total */}
           <div className="flex justify-between pt-1 border-t border-app-border/50">
             <span className="text-[9px] text-app-text-muted">
-              Last <span className="font-mono text-app-text-secondary">
-                {s.lastTimes[0] > 0 ? formatLapTime(s.lastTimes[0] + s.lastTimes[1] + s.lastTimes[2]) : "-"}
-              </span>
+              Last <span className="font-mono text-app-text-secondary">{s.lastTimes[0] > 0 ? formatLapTime(s.lastTimes[0] + s.lastTimes[1] + s.lastTimes[2]) : "-"}</span>
             </span>
             <span className="text-[9px] text-purple-400">
-              Best <span className="font-mono">
-                {s.bestTimes[0] < Infinity ? formatLapTime(s.bestTimes[0] + s.bestTimes[1] + s.bestTimes[2]) : "-"}
-              </span>
+              Best <span className="font-mono">{s.bestTimes[0] < Infinity ? formatLapTime(s.bestTimes[0] + s.bestTimes[1] + s.bestTimes[2]) : "-"}</span>
             </span>
           </div>
         </div>
       ) : (
-        <div className="border-t border-app-border pt-2 text-xs text-app-text-muted">
-          Complete a lap to see sector times
-        </div>
+        <div className="border-t border-app-border pt-2 text-xs text-app-text-muted">Complete a lap to see sector times</div>
       )}
     </div>
   );

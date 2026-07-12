@@ -7,7 +7,13 @@ import { client } from "@/lib/rpc";
  * Used for power, torque, and boost readouts. SVG arc path is computed
  * from polar coordinates converted to Cartesian for the arc endpoints.
  */
-export function ArcGauge({ value, max, label, unit, color }: {
+export function ArcGauge({
+  value,
+  max,
+  label,
+  unit,
+  color,
+}: {
   value: number;
   max: number;
   label: string;
@@ -15,7 +21,8 @@ export function ArcGauge({ value, max, label, unit, color }: {
   color: string;
 }) {
   const size = 70;
-  const cx = size / 2, cy = size / 2;
+  const cx = size / 2,
+    cy = size / 2;
   const r = 28;
   const startAngle = 135;
   const endAngle = 405;
@@ -39,9 +46,7 @@ export function ArcGauge({ value, max, label, unit, color }: {
         {/* Background arc */}
         <path d={arcPath(startAngle, endAngle)} fill="none" stroke="rgba(100,116,139,0.15)" strokeWidth={5} strokeLinecap="round" />
         {/* Value arc */}
-        {pct > 0.01 && (
-          <path d={arcPath(startAngle, valAngle)} fill="none" stroke={color} strokeWidth={5} strokeLinecap="round" />
-        )}
+        {pct > 0.01 && <path d={arcPath(startAngle, valAngle)} fill="none" stroke={color} strokeWidth={5} strokeLinecap="round" />}
         {/* Value text */}
         <text x={cx} y={cy - 1} textAnchor="middle" fill={color} fontSize={12} fontWeight="bold" fontFamily="monospace">
           {value.toFixed(0)}
@@ -66,7 +71,7 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
   const fuelRef = useRef<{
     lapStart: number;
     lastLap: number;
-    history: number[];  // fuel used per lap (all recorded)
+    history: number[]; // fuel used per lap (all recorded)
     avgPerLap: number | null;
   }>({
     lapStart: packet.Fuel,
@@ -81,7 +86,8 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
-    client.api["fuel-history"].$get()
+    client.api["fuel-history"]
+      .$get()
       .then((r) => r.json() as Promise<{ fuelUsed: number }[]>)
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -117,12 +123,18 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
   const fuelIsLitres = packet.gameId === "acc" || packet.gameId === "ac-evo" || packet.gameId === "f1-2025";
   const pct = fuelIsLitres ? Math.min(100, packet.Fuel) : packet.Fuel * 100;
   const fuelLabel = fuelIsLitres ? `${packet.Fuel.toFixed(1)}L` : `${pct.toFixed(0)}%`;
-  const fuelColor = fuelIsLitres
-    ? (packet.Fuel < 5 ? "bg-red-500" : packet.Fuel < 15 ? "bg-amber-400" : "bg-emerald-400")
-    : (pct < 20 ? "bg-red-500" : pct < 40 ? "bg-amber-400" : "bg-emerald-400");
+  const fuelColor = fuelIsLitres ? (packet.Fuel < 5 ? "bg-red-500" : packet.Fuel < 15 ? "bg-amber-400" : "bg-emerald-400") : pct < 20 ? "bg-red-500" : pct < 40 ? "bg-amber-400" : "bg-emerald-400";
   const textColor = fuelIsLitres
-    ? (packet.Fuel < 5 ? "text-red-400" : packet.Fuel < 15 ? "text-amber-400" : "text-emerald-400")
-    : (pct < 20 ? "text-red-400" : pct < 40 ? "text-amber-400" : "text-emerald-400");
+    ? packet.Fuel < 5
+      ? "text-red-400"
+      : packet.Fuel < 15
+        ? "text-amber-400"
+        : "text-emerald-400"
+    : pct < 20
+      ? "text-red-400"
+      : pct < 40
+        ? "text-amber-400"
+        : "text-emerald-400";
   const avg = fuelStats.avgPerLap;
   const lapsRemaining = avg && avg > 0 ? Math.floor(packet.Fuel / avg) : null;
 
@@ -134,23 +146,15 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
     <div className="flex-1">
       <div className="flex justify-between text-[10px] mb-0.5">
         <span className={`font-mono font-bold ${textColor}`}>Fuel {fuelLabel}</span>
-        {lapsRemaining != null && (
-          <span className="font-mono text-app-text-secondary">
-            ~{lapsRemaining} laps left
-          </span>
-        )}
+        {lapsRemaining != null && <span className="font-mono text-app-text-secondary">~{lapsRemaining} laps left</span>}
       </div>
       <div className="h-2 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${fuelColor} ${pct < 20 ? "animate-pulse" : ""}`} style={{ width: `${pct}%` }} />
       </div>
       {avg != null && (
         <div className="flex justify-between text-[9px] font-mono mt-0.5">
-          <span className="text-app-text-muted">
-            {(avg * 100).toFixed(1)}%/lap avg
-          </span>
-          <span className="text-app-text-muted">
-            This lap: {currentLapPct.toFixed(1)}%
-          </span>
+          <span className="text-app-text-muted">{(avg * 100).toFixed(1)}%/lap avg</span>
+          <span className="text-app-text-muted">This lap: {currentLapPct.toFixed(1)}%</span>
         </div>
       )}
     </div>

@@ -38,9 +38,7 @@ export function ExtractionSection() {
 
   const isRunning = status?.status === "running";
   const isDone = status?.status === "done";
-  const progress = status && status.total > 0
-    ? Math.round((status.extracted + status.failed) / status.total * 100)
-    : 0;
+  const progress = status && status.total > 0 ? Math.round(((status.extracted + status.failed) / status.total) * 100) : 0;
 
   return (
     <section>
@@ -48,9 +46,7 @@ export function ExtractionSection() {
 
       {!status?.installed && (
         <div className="rounded-md bg-yellow-500/10 border border-yellow-500/30 p-3 mb-4">
-          <p className="text-sm text-yellow-300">
-            Forza Motorsport 2023 not detected. Make sure it's installed via Steam.
-          </p>
+          <p className="text-sm text-yellow-300">Forza Motorsport 2023 not detected. Make sure it's installed via Steam.</p>
         </div>
       )}
 
@@ -73,10 +69,7 @@ export function ExtractionSection() {
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-2">
             <div className="h-2 flex-1 rounded-full bg-app-surface-alt overflow-hidden">
-              <div
-                className="h-full bg-app-accent transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
+              <div className="h-full bg-app-accent transition-all duration-300" style={{ width: `${progress}%` }} />
             </div>
             <span className="text-xs text-app-text-muted w-10 text-right">{progress}%</span>
           </div>
@@ -87,11 +80,7 @@ export function ExtractionSection() {
       )}
 
       <div className="flex gap-2">
-        <Button
-          onClick={handleExtract}
-          disabled={isRunning || !status?.installed}
-          variant={isDone ? "outline" : "default"}
-        >
+        <Button onClick={handleExtract} disabled={isRunning || !status?.installed} variant={isDone ? "outline" : "default"}>
           {isRunning ? "Extracting..." : isDone ? "Re-extract" : "Extract Track Data"}
         </Button>
         {isDone && status.extracted > 0 && (

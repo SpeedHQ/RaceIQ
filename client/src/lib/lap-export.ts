@@ -5,25 +5,14 @@ import { formatLapTime } from "./format";
 import { getSteeringLock } from "../components/Settings";
 
 /** Build a CSV string from lap telemetry for download. */
-export function buildExportCsv(
-  telemetry: TelemetryPacket[],
-  carName: string,
-  trackName: string,
-  selectedLap: LapMeta | undefined,
-  selectedLapId: number | null,
-  driverName?: string,
-): string {
+export function buildExportCsv(telemetry: TelemetryPacket[], carName: string, trackName: string, selectedLap: LapMeta | undefined, selectedLapId: number | null, driverName?: string): string {
   const header = [
     `# Driver: ${driverName || "Unknown"}`,
     `# Car: ${carName || `Ordinal ${telemetry[0].CarOrdinal}`} | CarOrdinal: ${selectedLap?.carOrdinal ?? telemetry[0].CarOrdinal}`,
     `# Track: ${trackName || `Ordinal ${telemetry[0].TrackOrdinal}`} | TrackOrdinal: ${selectedLap?.trackOrdinal ?? telemetry[0].TrackOrdinal}`,
     `# Lap: ${selectedLap?.lapNumber ?? "?"} | LapId: ${selectedLapId} | Time: ${selectedLap ? formatLapTime(selectedLap.lapTime) : "?"} | Session: ${selectedLap?.sessionId ?? "?"} | Game: ${selectedLap?.gameId ?? "?"} | PI: ${selectedLap?.pi ?? "?"} | Valid: ${selectedLap?.isValid ?? "?"}`,
   ].join("\n");
-  const csv = [
-    header,
-    Object.keys(telemetry[0]).join(","),
-    ...telemetry.map((p) => Object.values(p).join(",")),
-  ].join("\n");
+  const csv = [header, Object.keys(telemetry[0]).join(","), ...telemetry.map((p) => Object.values(p).join(","))].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -158,10 +147,10 @@ export function buildCopyMetricsText(opts: {
     ``,
     `Wheel Speed (rad/s): FL=${p.WheelRotationSpeedFL.toFixed(1)} FR=${p.WheelRotationSpeedFR.toFixed(1)} RL=${p.WheelRotationSpeedRL.toFixed(1)} RR=${p.WheelRotationSpeedRR.toFixed(1)}`,
     `Tire Temp (${units.tempLabel}): FL=${(currentDisplayPacket?.DisplayTireTempFL ?? convertTemp(p.TireTempFL, units.tempUnit, gameId === "fm-2023" ? "F" : "C")).toFixed(0)} FR=${(currentDisplayPacket?.DisplayTireTempFR ?? convertTemp(p.TireTempFR, units.tempUnit, gameId === "fm-2023" ? "F" : "C")).toFixed(0)} RL=${(currentDisplayPacket?.DisplayTireTempRL ?? convertTemp(p.TireTempRL, units.tempUnit, gameId === "fm-2023" ? "F" : "C")).toFixed(0)} RR=${(currentDisplayPacket?.DisplayTireTempRR ?? convertTemp(p.TireTempRR, units.tempUnit, gameId === "fm-2023" ? "F" : "C")).toFixed(0)}`,
-    `Tire Wear: FL=${(p.TireWearFL*100).toFixed(1)}% FR=${(p.TireWearFR*100).toFixed(1)}% RL=${(p.TireWearRL*100).toFixed(1)}% RR=${(p.TireWearRR*100).toFixed(1)}%`,
+    `Tire Wear: FL=${(p.TireWearFL * 100).toFixed(1)}% FR=${(p.TireWearFR * 100).toFixed(1)}% RL=${(p.TireWearRL * 100).toFixed(1)}% RR=${(p.TireWearRR * 100).toFixed(1)}%`,
     `Slip Combined: FL=${p.TireCombinedSlipFL.toFixed(2)} FR=${p.TireCombinedSlipFR.toFixed(2)} RL=${p.TireCombinedSlipRL.toFixed(2)} RR=${p.TireCombinedSlipRR.toFixed(2)}`,
-    `Slip Angle: FL=${(p.TireSlipAngleFL*180/Math.PI).toFixed(1)}° FR=${(p.TireSlipAngleFR*180/Math.PI).toFixed(1)}° RL=${(p.TireSlipAngleRL*180/Math.PI).toFixed(1)}° RR=${(p.TireSlipAngleRR*180/Math.PI).toFixed(1)}°`,
-    `Suspension: FL=${(p.NormSuspensionTravelFL*100).toFixed(0)}% FR=${(p.NormSuspensionTravelFR*100).toFixed(0)}% RL=${(p.NormSuspensionTravelRL*100).toFixed(0)}% RR=${(p.NormSuspensionTravelRR*100).toFixed(0)}%`,
+    `Slip Angle: FL=${((p.TireSlipAngleFL * 180) / Math.PI).toFixed(1)}° FR=${((p.TireSlipAngleFR * 180) / Math.PI).toFixed(1)}° RL=${((p.TireSlipAngleRL * 180) / Math.PI).toFixed(1)}° RR=${((p.TireSlipAngleRR * 180) / Math.PI).toFixed(1)}°`,
+    `Suspension: FL=${(p.NormSuspensionTravelFL * 100).toFixed(0)}% FR=${(p.NormSuspensionTravelFR * 100).toFixed(0)}% RL=${(p.NormSuspensionTravelRL * 100).toFixed(0)}% RR=${(p.NormSuspensionTravelRR * 100).toFixed(0)}%`,
   ];
   return lines.join("\n");
 }

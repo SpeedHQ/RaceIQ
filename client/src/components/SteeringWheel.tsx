@@ -23,7 +23,9 @@ export function SteeringWheel({ steer, rpm, maxRpm, size = 160 }: Props) {
         <div className="w-full">
           <div className="flex justify-between text-[10px] text-app-text-muted font-mono mb-0.5">
             <span>RPM</span>
-            <span className="tabular-nums">{rpm.toFixed(0)} / {maxRpm.toFixed(0)}</span>
+            <span className="tabular-nums">
+              {rpm.toFixed(0)} / {maxRpm.toFixed(0)}
+            </span>
           </div>
           <div className="flex gap-[2px] w-full">
             {Array.from({ length: 30 }, (_, i) => {
@@ -40,15 +42,14 @@ export function SteeringWheel({ steer, rpm, maxRpm, size = 160 }: Props) {
           </div>
         </div>
       )}
-      <div
-        className="relative flex items-center justify-center"
-        style={{ width: size, height: size, transform: `rotate(${degrees}deg)` }}
-      >
+      <div className="relative flex items-center justify-center" style={{ width: size, height: size, transform: `rotate(${degrees}deg)` }}>
         <img
           src={imgSrc}
           alt="steering wheel"
           className="w-full h-full object-contain"
-          onError={(e) => { (e.target as HTMLImageElement).src = "/wheels/Simple.svg"; }}
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = "/wheels/Simple.svg";
+          }}
         />
       </div>
     </div>

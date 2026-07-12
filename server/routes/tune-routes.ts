@@ -19,15 +19,13 @@ import {
   updateLapTune,
 } from "../db/tune-queries";
 
-// Static catalog data — loaded from shared JSON
-import balancedCircuit from "../../shared/tunes/2860-amv-gt3-balanced-circuit.json";
-import aggressiveCircuit from "../../shared/tunes/2860-amv-gt3-aggressive-circuit.json";
-import wetWeather from "../../shared/tunes/2860-amv-gt3-wet-weather.json";
-import topSpeed from "../../shared/tunes/2860-amv-gt3-top-speed.json";
-import stableBeginner from "../../shared/tunes/2860-amv-gt3-stable-beginner.json";
-import nordschleife from "../../shared/tunes/2860-amv-gt3-nordschleife.json";
-import spa from "../../shared/tunes/2860-amv-gt3-spa.json";
 import type { TuneSettings, RaceStrategy, GameId } from "../../shared/types";
+import {
+  getCommunityTunes,
+  getCommunityTuneById,
+} from "../db/community-tune-queries";
+import { syncCommunityTunes } from "../community-tunes-sync";
+import { getLaptimes, syncLaptimes } from "../laptimes-sync";
 
 interface CatalogTune {
   id: string;
@@ -42,20 +40,39 @@ interface CatalogTune {
   bestTracks?: string[];
   strategies?: RaceStrategy[];
   settings: TuneSettings;
+  source: "community";
+  sourceName: string;
+  gameId: string;
 }
 
-const TUNE_CATALOG: CatalogTune[] = [
-  balancedCircuit,
-  aggressiveCircuit,
-  wetWeather,
-  topSpeed,
-  stableBeginner,
-  nordschleife,
-  spa,
-] as CatalogTune[];
-
-function getCatalogTuneById(id: string): CatalogTune | undefined {
-  return TUNE_CATALOG.find((t) => t.id === id);
+/** Map a community_tunes DB row to the catalog shape the client renders. */
+function communityRowToCatalog(row: {
+  id: string;
+  gameId: string;
+  carOrdinal: number;
+  trackOrdinal: number | null;
+  name: string;
+  author: string;
+  category: string;
+  description: string;
+  sourceName: string;
+  settings: string;
+}): CatalogTune {
+  return {
+    id: row.id,
+    name: row.name,
+    author: row.author,
+    carOrdinal: row.carOrdinal,
+    category: row.category,
+    trackOrdinal: row.trackOrdinal ?? undefined,
+    description: row.description,
+    strengths: [],
+    weaknesses: [],
+    settings: JSON.parse(row.settings) as TuneSettings,
+    source: "community",
+    sourceName: row.sourceName,
+    gameId: row.gameId,
+  };
 }
 
 /** Forza's TuneSettings has a specific shape that the built-in Forza UI expects.
@@ -365,7 +382,9 @@ export const tuneRoutes = new Hono()
   // POST /api/tunes/clone/:catalogId — clone a catalog tune into DB (Forza only)
   .post("/api/tunes/clone/:catalogId", async (c) => {
     const catalogId = c.req.param("catalogId");
-    const catalogTune = getCatalogTuneById(catalogId);
+    const catalogTune = await getCommunityTuneById(catalogId).then((row) =>
+      row ? communityRowToCatalog(row) : undefined,
+    );
     if (!catalogTune) return c.json({ error: "Catalog tune not found" }, 404);
 
     const id = await insertTune({
@@ -494,17 +513,40 @@ export const tuneRoutes = new Hono()
 
   // ─── Catalog ─────────────────────────────────────────────────────────────────
 
-  // GET /api/catalog/tunes — return static TUNE_CATALOG (Forza only)
+  // GET /api/catalog/tunes — community tunes for the game named in the
+  // X-Game-Id header (no fm-2023 fallback: without a header, no tunes).
   .get("/api/catalog/tunes",
     zValidator("query", CarOrdinalQuerySchema),
-    (c) => {
+    async (c) => {
       const { carOrdinal } = c.req.valid("query");
+      const gameId = c.req.header("x-game-id") as GameId | undefined;
+
+      const communityRows = gameId ? await getCommunityTunes(gameId) : [];
+      const tunes = communityRows.map(communityRowToCatalog);
+
       if (carOrdinal !== undefined) {
-        return c.json(TUNE_CATALOG.filter((t) => t.carOrdinal === carOrdinal));
+        return c.json(tunes.filter((t) => t.carOrdinal === carOrdinal));
       }
-      return c.json(TUNE_CATALOG);
+      return c.json(tunes);
     }
   )
+
+  // POST /api/tunes/community/refresh — force a CDN sync now
+  .post("/api/tunes/community/refresh", async (c) => {
+    const result = await syncCommunityTunes({ force: true });
+    return c.json(result);
+  })
+
+  // GET /api/laptimes — community leaderboard reference lap times (all cars/tracks)
+  .get("/api/laptimes", async (c) => {
+    return c.json(getLaptimes());
+  })
+
+  // POST /api/laptimes/refresh — force a CDN sync now
+  .post("/api/laptimes/refresh", async (c) => {
+    const result = await syncLaptimes({ force: true });
+    return c.json(result);
+  })
 
   // ─── Assignments ─────────────────────────────────────────────────────────────
 

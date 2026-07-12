@@ -4,7 +4,16 @@ import { LiveTrackMap } from "./LiveTrackMap";
 import { LapTimes } from "./telemetry/LapTimes";
 import { SectorTimes } from "./SectorTimes";
 
-export function RaceInfo({ packet, sectors, trackName, carName, totalLaps, sessionType, showTrackMap = true, showSectors = true }: {
+export function RaceInfo({
+  packet,
+  sectors,
+  trackName,
+  carName,
+  totalLaps,
+  sessionType,
+  showTrackMap = true,
+  showSectors = true,
+}: {
   packet: DisplayPacket;
   sectors: LiveSectorData | null;
   trackName: string | undefined;
@@ -22,9 +31,7 @@ export function RaceInfo({ packet, sectors, trackName, carName, totalLaps, sessi
           <div className="p-2 border-b border-app-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Race</h2>
-              {sessionType && sessionType !== "unknown" && (
-                <span className="text-xs font-bold text-app-accent uppercase">{sessionType.replace(/-/g, " ")}</span>
-              )}
+              {sessionType && sessionType !== "unknown" && <span className="text-xs font-bold text-app-accent uppercase">{sessionType.replace(/-/g, " ")}</span>}
             </div>
             <div className="flex items-center gap-2 truncate ml-2">
               {carName && <span className="text-xs text-app-text-secondary truncate">{carName}</span>}
@@ -36,14 +43,13 @@ export function RaceInfo({ packet, sectors, trackName, carName, totalLaps, sessi
             <div className="flex items-baseline gap-4 mb-2">
               <div>
                 <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Position</div>
-                <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
-                  P{packet.RacePosition}
-                </div>
+                <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">P{packet.RacePosition}</div>
               </div>
               <div>
                 <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap</div>
                 <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
-                  {packet.LapNumber}{totalLaps && totalLaps > 0 ? `/${totalLaps}` : ""}
+                  {packet.LapNumber}
+                  {totalLaps && totalLaps > 0 ? `/${totalLaps}` : ""}
                 </div>
               </div>
             </div>
@@ -57,9 +63,7 @@ export function RaceInfo({ packet, sectors, trackName, carName, totalLaps, sessi
         {showTrackMap && (
           <div style={{ minHeight: 280 }}>
             <div className="p-2 border-b border-app-border">
-              <div className="text-xs font-semibold text-app-text-muted uppercase tracking-wider truncate">
-                {trackName || "Track Map"}
-              </div>
+              <div className="text-xs font-semibold text-app-text-muted uppercase tracking-wider truncate">{trackName || "Track Map"}</div>
             </div>
             <LiveTrackMap packet={packet} />
           </div>

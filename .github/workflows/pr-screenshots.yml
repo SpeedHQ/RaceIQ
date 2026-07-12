@@ -1,0 +1,117 @@
+name: Render dashboard screenshots
+
+# Renders the Storybook dashboard stories on every PR and compares them against
+# the committed baselines (client/src/stories/__snapshots__/snapshot-*.png).
+# Any dashboard whose render differs produces before/after/diff PNGs, which are
+# uploaded as an artifact. A companion workflow (pr-screenshots-comment.yml)
+# runs afterwards with a write token and posts them as a PR comment.
+#
+# This workflow runs the PR's code, so it deliberately uses the read-only
+# `pull_request` token — it never gets write access. All writes (comment,
+# label, preview hosting) happen in the separate workflow_run job, which does
+# NOT execute PR code.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to render (renders that PR's merge ref and comments on it)"
+        required: true
+        type: number
+
+concurrency:
+  group: pr-screenshots-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: blacksmith-2vcpu-ubuntu-2204
+    # Pin the render environment so baselines are reproducible: the Playwright
+    # image ships the exact Chromium + system fonts, and software GL (SwiftShader)
+    # renders deterministically across machines. Run the SAME image locally
+    # (client `bun run snapshot:docker`) and baselines match byte-for-byte.
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-jammy
+    permissions:
+      contents: read
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+    steps:
+      # Check out the PR HEAD (not refs/pull/N/merge): GitHub recomputes the
+      # merge ref lazily, so on workflow_dispatch it can be stale and render
+      # old code against old baselines. We merge current main ourselves below
+      # so the render is always "PR code + latest main (baselines + fixes)".
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
+          fetch-depth: 0
+
+      - name: Mark workspace safe for git (container runs as root)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Merge current main into the PR head
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git merge --no-edit origin/main
+
+      - name: Install unzip (required by setup-bun in the container)
+        run: apt-get update && apt-get install -y --no-install-recommends unzip
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install client dependencies
+        working-directory: client
+        run: bun install
+
+      - name: Render and compare against committed baselines
+        working-directory: client
+        # snapshot:test = `playwright test` (no --update). Dashboards whose
+        # render differs from the committed baseline fail and emit
+        # <Name>-{actual,expected,diff}.png into the results dir.
+        run: bun run snapshot:test
+        # A visual change is expected, not a failure — keep going so we can
+        # collect and publish the diff.
+        continue-on-error: true
+
+      - name: Collect diffs
+        id: collect
+        working-directory: client
+        # Container default shell is sh; this step uses bash process substitution.
+        shell: bash
+        run: |
+          out="$GITHUB_WORKSPACE/pr-preview"
+          mkdir -p "$out"
+          # Always record the PR number so the comment job can find the PR even
+          # for fork PRs (workflow_run.pull_requests is empty for forks).
+          echo "${{ github.event.pull_request.number || inputs.pr }}" > "$out/pr-number.txt"
+
+          results="src/stories/__snapshots__/results"
+          changed=0
+          if [ -d "$results" ]; then
+            while IFS= read -r diff; do
+              dir=$(dirname "$diff")
+              name=$(basename "$diff")
+              name=${name%-diff.png}
+              cp "$dir/$name-expected.png" "$out/$name-before.png" 2>/dev/null || continue
+              cp "$dir/$name-actual.png"   "$out/$name-after.png"  2>/dev/null || continue
+              cp "$dir/$name-diff.png"     "$out/$name-diff.png"   2>/dev/null || continue
+              echo "changed dashboard: $name"
+              changed=1
+            done < <(find "$results" -name '*-diff.png')
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+      - name: Upload preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-screenshot-preview
+          path: pr-preview/
+          retention-days: 14

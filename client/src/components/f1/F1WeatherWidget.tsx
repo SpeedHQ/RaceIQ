@@ -9,7 +9,6 @@ const WEATHER_LABELS: Record<number, string> = {
   5: "Storm",
 };
 
-
 export function F1WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
   const label = WEATHER_LABELS[f1.weather] ?? "Unknown";
 
@@ -19,9 +18,7 @@ export function F1WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm text-zinc-200 font-medium">{label}</div>
-          {f1.rainPercentage > 0 && (
-            <div className="text-[10px] text-blue-400">Rain: {f1.rainPercentage}%</div>
-          )}
+          {f1.rainPercentage > 0 && <div className="text-[10px] text-blue-400">Rain: {f1.rainPercentage}%</div>}
         </div>
         <div className="text-right">
           <div className="text-xs text-zinc-400">

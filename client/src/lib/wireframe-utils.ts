@@ -45,11 +45,11 @@ export function trailColorObj(slip: number, brake: number, isSmallScale?: boolea
 // Pre-allocated THREE.Color objects keyed by hex — sourced from vehicle-dynamics COLORS_HEX.
 // No threshold logic here: that lives solely in tireState() in vehicle-dynamics.ts.
 const TRACTION_COLORS = new Map<string, THREE.Color>([
-  [COLORS_HEX.green,  new THREE.Color(COLORS_HEX.green)],
+  [COLORS_HEX.green, new THREE.Color(COLORS_HEX.green)],
   [COLORS_HEX.yellow, new THREE.Color(COLORS_HEX.yellow)],
   [COLORS_HEX.orange, new THREE.Color(COLORS_HEX.orange)],
-  [COLORS_HEX.red,    new THREE.Color(COLORS_HEX.red)],
-  [COLORS_HEX.gray,   new THREE.Color(COLORS_HEX.gray)],
+  [COLORS_HEX.red, new THREE.Color(COLORS_HEX.red)],
+  [COLORS_HEX.gray, new THREE.Color(COLORS_HEX.gray)],
 ]);
 
 /** Returns a pre-allocated THREE.Color driven by tireState() — single source of truth. */
@@ -59,8 +59,8 @@ export function trailColorFromState(wheelStateLabel: string, slipRatio: number, 
 
 // ── Input overlay colors ─────────────────────────────────────────────
 
-export const THROTTLE_COLOR = new THREE.Color("#34d399").convertSRGBToLinear();  // emerald-400 sRGB → linear
-export const BRAKE_COLOR = new THREE.Color("#ef4444").convertSRGBToLinear();     // red-500 sRGB → linear
+export const THROTTLE_COLOR = new THREE.Color("#34d399").convertSRGBToLinear(); // emerald-400 sRGB → linear
+export const BRAKE_COLOR = new THREE.Color("#ef4444").convertSRGBToLinear(); // red-500 sRGB → linear
 
 export const SUSP_HEX_COLORS = ["#3b82f6", "#34d399", "#facc15", "#ef4444"];
 
@@ -74,8 +74,8 @@ export function suspHexColor(suspTravel: number, thresholds: number[]): string {
 
 // ── Geometry filtering ────────────────────────────────────────────────
 
-export const DIST_AHEAD = 80;   // meters ahead of car
-export const DIST_BEHIND = 20;  // meters behind car
+export const DIST_AHEAD = 80; // meters ahead of car
+export const DIST_BEHIND = 20; // meters behind car
 export const DIST_LATERAL = 30; // meters to the side
 
 /**
@@ -106,9 +106,7 @@ export function filterByDistance(
     const localLat = dx * c - dz * s;
     const dist2 = dx * dx + dz * dz;
     const maxDist = ahead * ahead; // cap total straight-line distance
-    const inRange = dist2 <= maxDist &&
-                    localFwd >= -behind && localFwd <= ahead &&
-                    Math.abs(localLat) <= lateral;
+    const inRange = dist2 <= maxDist && localFwd >= -behind && localFwd <= ahead && Math.abs(localLat) <= lateral;
     if (inRange) {
       current.push([localFwd, y, localLat]);
     } else if (current.length > 1) {
@@ -141,13 +139,8 @@ const MAX_WALL_INDICES = MAX_WALL_VERTICES * 3;
  */
 export function createWallGeometry(): THREE.BufferGeometry {
   const geom = new THREE.BufferGeometry();
-  geom.setAttribute(
-    "position",
-    new THREE.BufferAttribute(new Float32Array(MAX_WALL_VERTICES * 3), 3),
-  );
-  geom.setIndex(
-    new THREE.BufferAttribute(new Uint16Array(MAX_WALL_INDICES), 1),
-  );
+  geom.setAttribute("position", new THREE.BufferAttribute(new Float32Array(MAX_WALL_VERTICES * 3), 3));
+  geom.setIndex(new THREE.BufferAttribute(new Uint16Array(MAX_WALL_INDICES), 1));
   // Start empty — updateWallGeometry will bump drawRange as segments arrive.
   geom.setDrawRange(0, 0);
   return geom;
@@ -158,11 +151,7 @@ export function createWallGeometry(): THREE.BufferGeometry {
  * list of ground-plane segments. Each segment is extruded upward by
  * `wallHeight`. Marks the buffers dirty and updates the draw range.
  */
-export function updateWallGeometry(
-  geom: THREE.BufferGeometry,
-  segments: [number, number, number][][],
-  wallHeight: number,
-): void {
+export function updateWallGeometry(geom: THREE.BufferGeometry, segments: [number, number, number][][], wallHeight: number): void {
   const positions = geom.attributes.position.array as Float32Array;
   const indexAttr = geom.index;
   if (!indexAttr) return;
@@ -218,8 +207,8 @@ export function updateWallGeometry(
 // still works unchanged.
 
 interface TrackChunk {
-  start: number;   // inclusive index into pts
-  end: number;     // exclusive
+  start: number; // inclusive index into pts
+  end: number; // exclusive
   minX: number;
   maxX: number;
   minZ: number;
@@ -241,10 +230,7 @@ export interface TrackIndex {
  * = more points scanned inside). 64 is a good default for track-scale
  * data sampled every few meters.
  */
-export function buildTrackIndex(
-  pts: ReadonlyArray<{ x: number; z: number }>,
-  chunkSize = 64,
-): TrackIndex {
+export function buildTrackIndex(pts: ReadonlyArray<{ x: number; z: number }>, chunkSize = 64): TrackIndex {
   const chunks: TrackChunk[] = [];
   if (!Array.isArray(pts) || pts.length === 0) return { pts, chunks };
   const size = Math.max(1, chunkSize);
@@ -308,10 +294,7 @@ export function filterByDistanceIndexed(
     // A skipped chunk is equivalent to a run of out-of-range points, so
     // any open segment must be closed here (mirroring the per-point
     // "else" branches below).
-    if (
-      chunk.maxX < qMinX || chunk.minX > qMaxX ||
-      chunk.maxZ < qMinZ || chunk.minZ > qMaxZ
-    ) {
+    if (chunk.maxX < qMinX || chunk.minX > qMaxX || chunk.maxZ < qMinZ || chunk.minZ > qMaxZ) {
       if (current.length > 1) segments.push(current);
       current = [];
       continue;
@@ -324,9 +307,7 @@ export function filterByDistanceIndexed(
       const localFwd = dx * s + dz * c;
       const localLat = dx * c - dz * s;
       const dist2 = dx * dx + dz * dz;
-      const inRange = dist2 <= maxDist &&
-                      localFwd >= -behind && localFwd <= ahead &&
-                      Math.abs(localLat) <= lateral;
+      const inRange = dist2 <= maxDist && localFwd >= -behind && localFwd <= ahead && Math.abs(localLat) <= lateral;
       if (inRange) {
         current.push([localFwd, y, localLat]);
       } else if (current.length > 1) {
@@ -345,9 +326,9 @@ import type { CarModelEnrichment } from "../data/car-models";
 
 export function getWheelOffsets(m: CarModelEnrichment): [number, number][] {
   return [
-    [m.halfWheelbase, -m.halfFrontTrack],   // FL
-    [m.halfWheelbase, m.halfFrontTrack],     // FR
-    [-m.halfWheelbase, -m.halfRearTrack],    // RL
-    [-m.halfWheelbase, m.halfRearTrack],     // RR
+    [m.halfWheelbase, -m.halfFrontTrack], // FL
+    [m.halfWheelbase, m.halfFrontTrack], // FR
+    [-m.halfWheelbase, -m.halfRearTrack], // RL
+    [-m.halfWheelbase, m.halfRearTrack], // RR
   ];
 }

@@ -22,17 +22,17 @@ const DEFAULT_TIRE_TEMP = { cold: 75, warm: 115, hot: 150 };
  */
 export function useUnits() {
   const { displaySettings } = useSettings();
-  const setUnitSystem = useTelemetryStore((s) => s.setUnitSystem);
+  const setDisplayUnits = useTelemetryStore((s) => s.setDisplayUnits);
   const gameId = useGameId();
 
   const unit = displaySettings.unit;
-  const su = unit === "metric" ? "kmh" as const : "mph" as const;
-  const tu = unit === "metric" ? "C" as const : "F" as const;
+  const su = unit === "metric" ? ("kmh" as const) : ("mph" as const);
+  const tu = displaySettings.temperatureUnit;
 
   // Sync unit settings to telemetry store whenever they change
   useEffect(() => {
-    setUnitSystem(unit);
-  }, [unit, setUnitSystem]);
+    setDisplayUnits(unit, tu);
+  }, [unit, tu, setDisplayUnits]);
 
   return useMemo(() => {
     // Game-specific tire temp thresholds (°C) from adapter
@@ -41,14 +41,14 @@ export function useUnits() {
     // Forza sends °F, F1/ACC send °C — convert raw packet temp to °C for threshold comparison
     const isForza = gameId === "fm-2023";
     /** Convert raw packet temp to °C for threshold comparisons */
-    const toTempC = (rawTemp: number) => isForza ? fahrenheitToCelsius(rawTemp) : rawTemp;
+    const toTempC = (rawTemp: number) => (isForza ? fahrenheitToCelsius(rawTemp) : rawTemp);
 
     return {
       // ── Speed / distance (for non-telemetry data) ──────────────
       /** Convert m/s → user speed unit */
       speed: (ms: number) => convertSpeed(ms, su),
       /** Convert mph → user speed unit (for server data already in mph) */
-      fromMph: (mph: number) => su === "kmh" ? mph * 1.60934 : mph,
+      fromMph: (mph: number) => (su === "kmh" ? mph * 1.60934 : mph),
       /** Convert metres → user distance unit */
       distance: (m: number) => convertDistance(m, su),
       /** Display label for speed, e.g. "mph" or "km/h" */

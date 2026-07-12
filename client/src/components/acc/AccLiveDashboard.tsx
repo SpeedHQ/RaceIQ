@@ -36,10 +36,16 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
         <div className="border-b border-app-border">
           <TireGrid
             fl={{ tempC: packet.TireTempFL, wear: packet.TireWearFL, brakeTemp: packet.BrakeTempFrontLeft ?? 0, brakePadMm: packet.acc?.brakePadWear[0], pressure: packet.TirePressureFrontLeft ?? 0 }}
-            fr={{ tempC: packet.TireTempFR, wear: packet.TireWearFR, brakeTemp: packet.BrakeTempFrontRight ?? 0, brakePadMm: packet.acc?.brakePadWear[1], pressure: packet.TirePressureFrontRight ?? 0 }}
+            fr={{
+              tempC: packet.TireTempFR,
+              wear: packet.TireWearFR,
+              brakeTemp: packet.BrakeTempFrontRight ?? 0,
+              brakePadMm: packet.acc?.brakePadWear[1],
+              pressure: packet.TirePressureFrontRight ?? 0,
+            }}
             rl={{ tempC: packet.TireTempRL, wear: packet.TireWearRL, brakeTemp: packet.BrakeTempRearLeft ?? 0, brakePadMm: packet.acc?.brakePadWear[2], pressure: packet.TirePressureRearLeft ?? 0 }}
             rr={{ tempC: packet.TireTempRR, wear: packet.TireWearRR, brakeTemp: packet.BrakeTempRearRight ?? 0, brakePadMm: packet.acc?.brakePadWear[3], pressure: packet.TirePressureRearRight ?? 0 }}
-            healthThresholds={tryGetGame(gameId)?.tireHealthThresholds ?? { green: 0.85, yellow: 0.70 }}
+            healthThresholds={tryGetGame(gameId)?.tireHealthThresholds ?? { green: 0.85, yellow: 0.7 }}
             tempThresholds={{ blue: 70, orange: 100, red: 110 }}
             pressureOptimal={pressureOptimal}
             brakeTempThresholds={tryGetGame(gameId)?.brakeTempThresholds}

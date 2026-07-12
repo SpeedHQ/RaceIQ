@@ -47,7 +47,9 @@ export function preloadSound(url: string) {
 function playSample(url: string, pitch = 1) {
   const buf = audioBufferCache.get(url);
   if (!buf) {
-    loadAudioBuffer(url).then((b) => { if (b) playBuffer(b, pitch); });
+    loadAudioBuffer(url).then((b) => {
+      if (b) playBuffer(b, pitch);
+    });
     return;
   }
   playBuffer(buf, pitch);
@@ -71,7 +73,10 @@ export function playBlip(pitch = 1) {
     const type = getSoundType();
     if (type === "url") {
       const url = getSoundUrl();
-      if (url) { playSample(url, pitch); return; }
+      if (url) {
+        playSample(url, pitch);
+        return;
+      }
       playSample("/sounds/beep-2.mp3", pitch);
     } else {
       playSample(`/sounds/${type}.mp3`, pitch);
@@ -135,16 +140,15 @@ export function SectorTimes({ sectors }: { sectors: LiveSectorData | null }) {
           }
 
           return (
-            <div key={name} className={`rounded p-2.5 ${isActive ? "ring-1" : ""}`} style={isActive ? { "--tw-ring-color": sectorColors[i] } as React.CSSProperties : {}}>
+            <div key={name} className={`rounded p-2.5 ${isActive ? "ring-1" : ""}`} style={isActive ? ({ "--tw-ring-color": sectorColors[i] } as React.CSSProperties) : {}}>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: sectorColors[i] }} />
                 <span className="text-xs font-bold text-app-text-secondary">{name}</span>
-                <span className={`text-xl font-mono font-bold tabular-nums leading-none ml-auto ${timeColor}`}>
-                  {current > 0 ? formatLapTime(current) : "--:--.---"}
-                </span>
+                <span className={`text-xl font-mono font-bold tabular-nums leading-none ml-auto ${timeColor}`}>{current > 0 ? formatLapTime(current) : "--:--.---"}</span>
                 {showDelta && (
                   <span className={`text-xs font-mono font-bold ${delta <= 0 ? "text-emerald-400" : "text-orange-400"}`}>
-                    {delta <= 0 ? "" : "+"}{delta.toFixed(3)}
+                    {delta <= 0 ? "" : "+"}
+                    {delta.toFixed(3)}
                   </span>
                 )}
               </div>

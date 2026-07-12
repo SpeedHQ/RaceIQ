@@ -19,46 +19,44 @@ export interface TrackHighlight {
   label: string;
 }
 
-
 const HIGHLIGHT_COLORS = {
-  good: { stroke: "rgba(52, 211, 153, 0.7)", width: 6 },       // green
-  warning: { stroke: "rgba(251, 191, 36, 0.7)", width: 6 },     // amber
-  critical: { stroke: "rgba(239, 68, 68, 0.7)", width: 6 },     // red
+  good: { stroke: "rgba(52, 211, 153, 0.7)", width: 6 }, // green
+  warning: { stroke: "rgba(251, 191, 36, 0.7)", width: 6 }, // amber
+  critical: { stroke: "rgba(239, 68, 68, 0.7)", width: 6 }, // red
 };
 
-export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
-  telemetry: TelemetryPacket[];
-  cursorIdx: number;
-  outline: Point[] | null;
-  boundaries: { leftEdge: Point[]; rightEdge: Point[]; centerLine: Point[]; pitLane: Point[] | null; coordSystem: string } | null;
-  sectors: { s1End: number; s2End: number } | null;
-  segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
-  highlights?: TrackHighlight[] | null;
-  showInputs?: boolean;
-  rotateWithCar: boolean;
-  zoom?: number;
-  containerHeight?: number;
-}>(function AnalyseTrackMap({
-  telemetry,
-  cursorIdx,
-  outline,
-  boundaries,
-  sectors,
-  segments,
-  highlights,
-  showInputs,
-  rotateWithCar,
-  zoom = 1,
-  containerHeight,
-}, ref) {
+export const AnalyseTrackMap = forwardRef<
+  TrackMapHandle,
+  {
+    telemetry: TelemetryPacket[];
+    cursorIdx: number;
+    outline: Point[] | null;
+    boundaries: { leftEdge: Point[]; rightEdge: Point[]; centerLine: Point[]; pitLane: Point[] | null; coordSystem: string } | null;
+    sectors: { s1End: number; s2End: number } | null;
+    segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
+    highlights?: TrackHighlight[] | null;
+    showInputs?: boolean;
+    rotateWithCar: boolean;
+    zoom?: number;
+    containerHeight?: number;
+  }
+>(function AnalyseTrackMap({ telemetry, cursorIdx, outline, boundaries, sectors, segments, highlights, showInputs, rotateWithCar, zoom = 1, containerHeight }, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const carCanvasRef = useRef<HTMLCanvasElement>(null);
   const pulseRef = useRef<HTMLCanvasElement>(null);
   const carPosRef = useRef<{ x: number; y: number; w: number; h: number; angle?: number } | null>(null);
   // Store transform info so car overlay can draw without redrawing everything
   const transformRef = useRef<{
-    w: number; h: number; offsetX: number; offsetZ: number; scale: number; maxX: number; minZ: number;
-    displayOutline: Point[]; offW: number; offH: number;
+    w: number;
+    h: number;
+    offsetX: number;
+    offsetZ: number;
+    scale: number;
+    maxX: number;
+    minZ: number;
+    displayOutline: Point[];
+    offW: number;
+    offH: number;
   } | null>(null);
   // Offscreen canvas caching the static track drawing (boundaries, segments, sectors, labels)
   const offscreenRef = useRef<OffscreenCanvas | null>(null);
@@ -76,9 +74,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     const w = rect.width;
     const h = rect.height;
 
-    const telemetryPointsWithIdx = telemetry
-      .map((p, idx) => ({ x: p.PositionX, z: p.PositionZ, idx }))
-      .filter((p) => p.x !== 0 || p.z !== 0);
+    const telemetryPointsWithIdx = telemetry.map((p, idx) => ({ x: p.PositionX, z: p.PositionZ, idx })).filter((p) => p.x !== 0 || p.z !== 0);
     const telemetryPoints = telemetryPointsWithIdx as { x: number; z: number }[];
     const displayOutline: Point[] = telemetryPoints.length > 2 ? telemetryPoints : (outline ?? []);
 
@@ -92,7 +88,10 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     const flippedLeft = flip && boundaries?.leftEdge ? flipPoints(boundaries.leftEdge) : boundaries?.leftEdge;
     const flippedRight = flip && boundaries?.rightEdge ? flipPoints(boundaries.rightEdge) : boundaries?.rightEdge;
     const hasBounds = boundaries?.coordSystem && flippedLeft && flippedLeft.length > 2;
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minZ = Infinity,
+      maxZ = -Infinity;
     const allBoundsPts: Point[][] = [displayOutline];
     if (hasBounds) allBoundsPts.push(flippedLeft!, flippedRight!);
     for (const pts of allBoundsPts) {
@@ -103,13 +102,10 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
         maxZ = Math.max(maxZ, p.z);
       }
     }
-    const rangeX = (maxX - minX) || 1;
-    const rangeZ = (maxZ - minZ) || 1;
+    const rangeX = maxX - minX || 1;
+    const rangeZ = maxZ - minZ || 1;
     const padding = 40;
-    const baseScale = Math.min(
-      (w - padding * 2) / rangeX,
-      (h - padding * 2) / rangeZ
-    );
+    const baseScale = Math.min((w - padding * 2) / rangeX, (h - padding * 2) / rangeZ);
     const followZoom = rotateWithCar ? 3 : 1;
     const scale = baseScale * zoom * followZoom;
 
@@ -189,14 +185,15 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     const totalDist = cumDist[n - 1] || 1;
     function fracToIdx(frac: number): number {
       const targetDist = frac * totalDist;
-      let lo = 0, hi = n - 1;
+      let lo = 0,
+        hi = n - 1;
       while (lo < hi) {
         const mid = (lo + hi) >> 1;
-        if (cumDist[mid] < targetDist) lo = mid + 1; else hi = mid;
+        if (cumDist[mid] < targetDist) lo = mid + 1;
+        else hi = mid;
       }
       return lo;
     }
-
 
     // Sector-colored driving line (S1=red, S2=blue, S3=yellow)
     if (sectors && displayOutline.length > 10 && !showInputs) {
@@ -218,7 +215,7 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
         }
         ctx.stroke();
       }
-    // Colored segments (no labels — keeps the map clean; hidden when inputs overlay is active)
+      // Colored segments (no labels — keeps the map clean; hidden when inputs overlay is active)
     } else if (segments && segments.length > 0 && !showInputs) {
       for (let si = 0; si < segments.length; si++) {
         const seg = segments[si];
@@ -401,50 +398,110 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
         }
       }
     }
-  // containerHeight triggers redraw on resize (not used directly but signals layout change)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // containerHeight triggers redraw on resize (not used directly but signals layout change)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [telemetry, outline, boundaries, sectors, segments, rotateWithCar, zoom, highlights, showInputs, containerHeight]);
 
   // Composite the cached offscreen track onto the main canvas with rotation for follow view.
-  const compositeTrack = useCallback((idx: number) => {
-    const canvas = canvasRef.current;
-    const offscreen = offscreenRef.current;
-    const t = transformRef.current;
-    if (!canvas || !offscreen || !t) return;
+  const compositeTrack = useCallback(
+    (idx: number) => {
+      const canvas = canvasRef.current;
+      const offscreen = offscreenRef.current;
+      const t = transformRef.current;
+      if (!canvas || !offscreen || !t) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const dpr = window.devicePixelRatio || 1;
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.restore();
-    ctx.save();
-    ctx.scale(dpr, dpr);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const dpr = window.devicePixelRatio || 1;
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+      ctx.save();
+      ctx.scale(dpr, dpr);
 
-    const pkt = telemetry[idx];
-    const game = pkt ? tryGetGame(pkt.gameId) : undefined;
-    if (pkt && (pkt.PositionX !== 0 || pkt.PositionZ !== 0)) {
-      const carCx = t.offsetX + (t.maxX - pkt.PositionX) * t.scale;
-      const carCy = t.offsetZ + (pkt.PositionZ - t.minZ) * t.scale;
-      ctx.translate(t.w / 2, t.h / 2);
-      ctx.rotate(game?.followViewRotation(pkt.Yaw) ?? Math.PI - pkt.Yaw);
-      ctx.translate(-carCx, -carCy);
-    }
+      const pkt = telemetry[idx];
+      const game = pkt ? tryGetGame(pkt.gameId) : undefined;
+      if (pkt && (pkt.PositionX !== 0 || pkt.PositionZ !== 0)) {
+        const carCx = t.offsetX + (t.maxX - pkt.PositionX) * t.scale;
+        const carCy = t.offsetZ + (pkt.PositionZ - t.minZ) * t.scale;
+        ctx.translate(t.w / 2, t.h / 2);
+        ctx.rotate(game?.followViewRotation(pkt.Yaw) ?? Math.PI - pkt.Yaw);
+        ctx.translate(-carCx, -carCy);
+      }
 
-    ctx.drawImage(offscreen, 0, 0, t.offW, t.offH);
+      ctx.drawImage(offscreen, 0, 0, t.offW, t.offH);
 
-    const pkt2 = telemetry[idx];
-    if (pkt2 && (pkt2.PositionX !== 0 || pkt2.PositionZ !== 0)) {
-      const cx = t.offsetX + (t.maxX - pkt2.PositionX) * t.scale;
-      const cy = t.offsetZ + (pkt2.PositionZ - t.minZ) * t.scale;
-      const [dx, dz] = game?.carForwardOffset(pkt2.Yaw) ?? [Math.sin(pkt2.Yaw), Math.cos(pkt2.Yaw)];
-      const fwdX = pkt2.PositionX + dx;
-      const fwdZ = pkt2.PositionZ + dz;
-      const fx = t.offsetX + (t.maxX - fwdX) * t.scale;
-      const fy = t.offsetZ + (fwdZ - t.minZ) * t.scale;
-      const angle = Math.atan2(fy - cy, fx - cx);
+      const pkt2 = telemetry[idx];
+      if (pkt2 && (pkt2.PositionX !== 0 || pkt2.PositionZ !== 0)) {
+        const cx = t.offsetX + (t.maxX - pkt2.PositionX) * t.scale;
+        const cy = t.offsetZ + (pkt2.PositionZ - t.minZ) * t.scale;
+        const [dx, dz] = game?.carForwardOffset(pkt2.Yaw) ?? [Math.sin(pkt2.Yaw), Math.cos(pkt2.Yaw)];
+        const fwdX = pkt2.PositionX + dx;
+        const fwdZ = pkt2.PositionZ + dz;
+        const fx = t.offsetX + (t.maxX - fwdX) * t.scale;
+        const fy = t.offsetZ + (fwdZ - t.minZ) * t.scale;
+        const angle = Math.atan2(fy - cy, fx - cx);
+        const triSize = 8;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(triSize, 0);
+        ctx.lineTo(-triSize * 0.6, -triSize * 0.6);
+        ctx.lineTo(-triSize * 0.6, triSize * 0.6);
+        ctx.closePath();
+        ctx.fillStyle = "#22d3ee";
+        ctx.fill();
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+        carPosRef.current = { x: t.w / 2, y: t.h / 2, w: t.w, h: t.h, angle: -Math.PI / 2 };
+      }
+
+      ctx.restore();
+    },
+    [telemetry, rotateWithCar],
+  );
+
+  // Draw car dot on overlay canvas (fixed view only — avoids full redraw)
+  const drawCarOverlay = useCallback(
+    (idx: number) => {
+      const carCanvas = carCanvasRef.current;
+      const t = transformRef.current;
+      if (!carCanvas || !t) return;
+      const dpr = window.devicePixelRatio || 1;
+      carCanvas.width = t.w * dpr;
+      carCanvas.height = t.h * dpr;
+      carCanvas.style.width = `${t.w}px`;
+      carCanvas.style.height = `${t.h}px`;
+      const ctx = carCanvas.getContext("2d");
+      if (!ctx) return;
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, t.w, t.h);
+
+      const pkt = telemetry[idx];
+      if (!pkt || (pkt.PositionX === 0 && pkt.PositionZ === 0)) return;
+
+      // The offscreen is blitted to the canvas scaled to fit: drawImage(offscreen, 0, 0, w, h).
+      // When offW > w (e.g. wide tracks where Z dimension is the limiting scale), coordinates
+      // must be scaled to match the displayed track position.
+      const scaleX = t.w / t.offW;
+      const scaleY = t.h / t.offH;
+
+      function toCanvas(x: number, z: number): [number, number] {
+        return [(t!.offsetX + (t!.maxX - x) * t!.scale) * scaleX, (t!.offsetZ + (z - t!.minZ) * t!.scale) * scaleY];
+      }
+
+      const [cx, cy] = toCanvas(pkt.PositionX, pkt.PositionZ);
       const triSize = 8;
+      const game = tryGetGame(pkt.gameId);
+      const [dx, dz] = game?.carForwardOffset(pkt.Yaw) ?? [Math.sin(pkt.Yaw), Math.cos(pkt.Yaw)];
+      const fwdX = pkt.PositionX + dx;
+      const fwdZ = pkt.PositionZ + dz;
+      const [fx, fy] = toCanvas(fwdX, fwdZ);
+      const angle = Math.atan2(fy - cy, fx - cx);
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(angle);
@@ -459,78 +516,24 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
       ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.restore();
-      carPosRef.current = { x: t.w / 2, y: t.h / 2, w: t.w, h: t.h, angle: -Math.PI / 2 };
-    }
-
-    ctx.restore();
-  }, [telemetry, rotateWithCar]);
-
-  // Draw car dot on overlay canvas (fixed view only — avoids full redraw)
-  const drawCarOverlay = useCallback((idx: number) => {
-    const carCanvas = carCanvasRef.current;
-    const t = transformRef.current;
-    if (!carCanvas || !t) return;
-    const dpr = window.devicePixelRatio || 1;
-    carCanvas.width = t.w * dpr;
-    carCanvas.height = t.h * dpr;
-    carCanvas.style.width = `${t.w}px`;
-    carCanvas.style.height = `${t.h}px`;
-    const ctx = carCanvas.getContext("2d");
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, t.w, t.h);
-
-    const pkt = telemetry[idx];
-    if (!pkt || (pkt.PositionX === 0 && pkt.PositionZ === 0)) return;
-
-    // The offscreen is blitted to the canvas scaled to fit: drawImage(offscreen, 0, 0, w, h).
-    // When offW > w (e.g. wide tracks where Z dimension is the limiting scale), coordinates
-    // must be scaled to match the displayed track position.
-    const scaleX = t.w / t.offW;
-    const scaleY = t.h / t.offH;
-
-    function toCanvas(x: number, z: number): [number, number] {
-      return [
-        (t!.offsetX + (t!.maxX - x) * t!.scale) * scaleX,
-        (t!.offsetZ + (z - t!.minZ) * t!.scale) * scaleY,
-      ];
-    }
-
-    const [cx, cy] = toCanvas(pkt.PositionX, pkt.PositionZ);
-    const triSize = 8;
-    const game = tryGetGame(pkt.gameId);
-    const [dx, dz] = game?.carForwardOffset(pkt.Yaw) ?? [Math.sin(pkt.Yaw), Math.cos(pkt.Yaw)];
-    const fwdX = pkt.PositionX + dx;
-    const fwdZ = pkt.PositionZ + dz;
-    const [fx, fy] = toCanvas(fwdX, fwdZ);
-    const angle = Math.atan2(fy - cy, fx - cx);
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(angle);
-    ctx.beginPath();
-    ctx.moveTo(triSize, 0);
-    ctx.lineTo(-triSize * 0.6, -triSize * 0.6);
-    ctx.lineTo(-triSize * 0.6, triSize * 0.6);
-    ctx.closePath();
-    ctx.fillStyle = "#22d3ee";
-    ctx.fill();
-    ctx.strokeStyle = "#0f172a";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.restore();
-    carPosRef.current = { x: cx, y: cy, w: t.w, h: t.h, angle };
-  }, [telemetry]);
+      carPosRef.current = { x: cx, y: cy, w: t.w, h: t.h, angle };
+    },
+    [telemetry],
+  );
 
   // Imperative cursor update — called from animation loop without React re-render
-  const updateCursor = useCallback((idx: number) => {
-    if (rotateWithCar) {
-      // Car-view: composite cached track with rotation + draw car on main canvas
-      compositeTrack(idx);
-    } else {
-      // Fixed view: car drawn on separate overlay canvas only
-      drawCarOverlay(idx);
-    }
-  }, [rotateWithCar, compositeTrack, drawCarOverlay]);
+  const updateCursor = useCallback(
+    (idx: number) => {
+      if (rotateWithCar) {
+        // Car-view: composite cached track with rotation + draw car on main canvas
+        compositeTrack(idx);
+      } else {
+        // Fixed view: car drawn on separate overlay canvas only
+        drawCarOverlay(idx);
+      }
+    },
+    [rotateWithCar, compositeTrack, drawCarOverlay],
+  );
 
   useImperativeHandle(ref, () => ({ updateCursor }), [updateCursor]);
 
@@ -548,7 +551,9 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
   // dimensions change (window resize, pane drag, layout toggles, etc).
   // containerHeight prop only catches some of these; this catches all of them.
   const cursorRef = useRef(cursorIdx);
-  useEffect(() => { cursorRef.current = cursorIdx; }, [cursorIdx]);
+  useEffect(() => {
+    cursorRef.current = cursorIdx;
+  }, [cursorIdx]);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -582,7 +587,10 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
     const draw = () => {
       const pos = carPosRef.current;
       const ctx2 = pulse.getContext("2d");
-      if (!ctx2 || !pos) { animId = requestAnimationFrame(draw); return; }
+      if (!ctx2 || !pos) {
+        animId = requestAnimationFrame(draw);
+        return;
+      }
       const dpr = window.devicePixelRatio || 1;
       pulse.width = pos.w * dpr;
       pulse.height = pos.h * dpr;
@@ -591,7 +599,11 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
       ctx2.scale(dpr, dpr);
       ctx2.clearRect(0, 0, pos.w, pos.h);
       const cycle = Date.now() % 2500;
-      if (cycle > 1000) { ctx2.restore(); animId = requestAnimationFrame(draw); return; }
+      if (cycle > 1000) {
+        ctx2.restore();
+        animId = requestAnimationFrame(draw);
+        return;
+      }
       const t = cycle / 1000;
       const eased = 1 - Math.pow(1 - t, 3);
       const s = 10 + eased * 6;
@@ -616,18 +628,9 @@ export const AnalyseTrackMap = forwardRef<TrackMapHandle, {
 
   return (
     <div className="relative w-full h-full" style={{ minHeight: 220 }}>
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 w-full h-full"
-      />
-      <canvas
-        ref={carCanvasRef}
-        className="absolute inset-0 w-full h-full pointer-events-none"
-      />
-      <canvas
-        ref={pulseRef}
-        className="absolute inset-0 w-full h-full pointer-events-none"
-      />
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+      <canvas ref={carCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+      <canvas ref={pulseRef} className="absolute inset-0 w-full h-full pointer-events-none" />
     </div>
   );
 });

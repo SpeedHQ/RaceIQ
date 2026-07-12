@@ -9,6 +9,7 @@ import { useGameId, getGameRoute } from "@/stores/game";
 import { client } from "@/lib/rpc";
 import { drawTrack } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
+import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
 import { F125SetupsWithGuide, F125TrackGuide } from "@/components/f1/F125TrackSetups";
 import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
 import { AccTrackSetups, AccTrackGuide } from "@/components/acc/AccTrackSetups";
@@ -50,19 +51,18 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
       if (l.sessionId != null) sessionCounts.set(l.sessionId, (sessionCounts.get(l.sessionId) ?? 0) + 1);
     }
   }
-  const hasRaceFilter = showSessionFilter && [...sessionCounts.values()].some(c => c > 1);
-  const filteredLaps = showSessionFilter && lapFilter === "race"
-    ? laps.filter(l => l.sessionId != null && (sessionCounts.get(l.sessionId) ?? 0) > 1)
-    : showSessionFilter && lapFilter === "quali"
-    ? laps.filter(l => l.sessionId == null || (sessionCounts.get(l.sessionId) ?? 0) === 1)
-    : laps;
+  const hasRaceFilter = showSessionFilter && [...sessionCounts.values()].some((c) => c > 1);
+  const filteredLaps =
+    showSessionFilter && lapFilter === "race"
+      ? laps.filter((l) => l.sessionId != null && (sessionCounts.get(l.sessionId) ?? 0) > 1)
+      : showSessionFilter && lapFilter === "quali"
+        ? laps.filter((l) => l.sessionId == null || (sessionCounts.get(l.sessionId) ?? 0) === 1)
+        : laps;
 
   // All stats use the most recent 100 valid laps (chronological)
-  const chronoLaps = [...filteredLaps.filter(l => l.isValid !== false)]
-    .sort((a, b) => a.lapId - b.lapId)
-    .slice(-100);
+  const chronoLaps = [...filteredLaps.filter((l) => l.isValid !== false)].sort((a, b) => a.lapId - b.lapId).slice(-100);
 
-  const times = [...chronoLaps.map(l => l.lapTime)].sort((a, b) => a - b);
+  const times = [...chronoLaps.map((l) => l.lapTime)].sort((a, b) => a - b);
   const minT = times[0];
   const maxT = times[times.length - 1];
   const mid = Math.floor(times.length / 2);
@@ -80,9 +80,7 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
   const avgLast = chronoLaps.slice(-trendN).reduce((s, l) => s + l.lapTime, 0) / trendN;
   const trendDelta = avgLast - avgFirst; // negative = getting faster
   const trendThreshold = avgFirst * 0.005; // 0.5% of avg lap time
-  const trendDir = chronoLaps.length >= 4
-    ? trendDelta < -trendThreshold ? "faster" : trendDelta > trendThreshold ? "slower" : "neutral"
-    : "neutral";
+  const trendDir = chronoLaps.length >= 4 ? (trendDelta < -trendThreshold ? "faster" : trendDelta > trendThreshold ? "slower" : "neutral") : "neutral";
 
   const vbW = 400;
   const vbH = 120;
@@ -97,9 +95,9 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
     const y = padT + plotH - ((l.lapTime - minT) / range) * plotH;
     return { x, y, lapTime: l.lapTime };
   });
-  const polyline = sparkPoints.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-  const bestPoint = sparkPoints.reduce((b, p) => p.y > b.y ? p : b, sparkPoints[0]);
-  const worstPoint = sparkPoints.reduce((b, p) => p.y < b.y ? p : b, sparkPoints[0]);
+  const polyline = sparkPoints.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const bestPoint = sparkPoints.reduce((b, p) => (p.y > b.y ? p : b), sparkPoints[0]);
+  const worstPoint = sparkPoints.reduce((b, p) => (p.y < b.y ? p : b), sparkPoints[0]);
   // Linear regression trend line
   const n = sparkPoints.length;
   const sumX = sparkPoints.reduce((s, p) => s + p.x, 0);
@@ -116,34 +114,38 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
   const lastDate = chronoLaps[chronoLaps.length - 1]?.createdAt ? new Date(chronoLaps[chronoLaps.length - 1].createdAt!).toLocaleDateString([], { month: "short", day: "numeric" }) : "Recent";
 
   // Theoretical best sectors
-  const lapsWithSectors = chronoLaps.filter(l => l.s1Time != null && l.s2Time != null && l.s3Time != null);
+  const lapsWithSectors = chronoLaps.filter((l) => l.s1Time != null && l.s2Time != null && l.s3Time != null);
   const hasSectors = lapsWithSectors.length > 0;
-  const bestS1 = hasSectors ? Math.min(...lapsWithSectors.map(l => l.s1Time!)) : null;
-  const bestS2 = hasSectors ? Math.min(...lapsWithSectors.map(l => l.s2Time!)) : null;
-  const bestS3 = hasSectors ? Math.min(...lapsWithSectors.map(l => l.s3Time!)) : null;
+  const bestS1 = hasSectors ? Math.min(...lapsWithSectors.map((l) => l.s1Time!)) : null;
+  const bestS2 = hasSectors ? Math.min(...lapsWithSectors.map((l) => l.s2Time!)) : null;
+  const bestS3 = hasSectors ? Math.min(...lapsWithSectors.map((l) => l.s3Time!)) : null;
   const theoretical = hasSectors ? bestS1! + bestS2! + bestS3! : null;
   const sectorGap = theoretical != null ? minT - theoretical : null;
 
   // Sector range stats for mini range bars
-  const sectorStats = hasSectors ? ([1, 2, 3] as const).map(s => {
-    const key = `s${s}Time` as "s1Time" | "s2Time" | "s3Time";
-    const vals = lapsWithSectors.map(l => l[key]!).sort((a, b) => a - b);
-    const mn = vals[0];
-    const mx = vals[vals.length - 1];
-    const rng = mx - mn || 1;
-    const midI = Math.floor(vals.length / 2);
-    const med = vals.length % 2 === 0 ? (vals[midI - 1] + vals[midI]) / 2 : vals[midI];
-    const p25v = vals[Math.floor((vals.length - 1) * 0.25)];
-    const p75v = vals[Math.floor((vals.length - 1) * 0.75)];
-    return {
-      label: `S${s}`,
-      min: mn, max: mx, med,
-      range: mx - mn,
-      medPct: ((med - mn) / rng) * 100,
-      p25Pct: ((p25v - mn) / rng) * 100,
-      p75Pct: ((p75v - mn) / rng) * 100,
-    };
-  }) : null;
+  const sectorStats = hasSectors
+    ? ([1, 2, 3] as const).map((s) => {
+        const key = `s${s}Time` as "s1Time" | "s2Time" | "s3Time";
+        const vals = lapsWithSectors.map((l) => l[key]!).sort((a, b) => a - b);
+        const mn = vals[0];
+        const mx = vals[vals.length - 1];
+        const rng = mx - mn || 1;
+        const midI = Math.floor(vals.length / 2);
+        const med = vals.length % 2 === 0 ? (vals[midI - 1] + vals[midI]) / 2 : vals[midI];
+        const p25v = vals[Math.floor((vals.length - 1) * 0.25)];
+        const p75v = vals[Math.floor((vals.length - 1) * 0.75)];
+        return {
+          label: `S${s}`,
+          min: mn,
+          max: mx,
+          med,
+          range: mx - mn,
+          medPct: ((med - mn) / rng) * 100,
+          p25Pct: ((p25v - mn) / rng) * 100,
+          p75Pct: ((p75v - mn) / rng) * 100,
+        };
+      })
+    : null;
 
   // Per-car best times
   const carBests = new Map<number, { carName: string; bestTime: number }>();
@@ -174,20 +176,20 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
     .slice(0, 10)
     .map(([lapNum, { bestTime, count }]) => ({ lapNum, bestTime, count }))
     .sort((a, b) => a.lapNum - b.lapNum);
-  const lapNumWorst = lapNumData.length > 0 ? Math.max(...lapNumData.map(d => d.bestTime)) : maxT;
-  const lapNumBest = lapNumData.length > 0 ? Math.min(...lapNumData.map(d => d.bestTime)) : minT;
+  const lapNumWorst = lapNumData.length > 0 ? Math.max(...lapNumData.map((d) => d.bestTime)) : maxT;
+  const lapNumBest = lapNumData.length > 0 ? Math.min(...lapNumData.map((d) => d.bestTime)) : minT;
   const lapNumRange = lapNumWorst - lapNumBest || 1;
   const showLapNumBreakdown = lapNumData.length > 1;
 
   return (
-    <div className="w-2/5 min-w-0 bg-app-surface/50 border border-app-border rounded-lg flex flex-col overflow-hidden">
+    <div className="w-full md:w-2/5 min-w-0 bg-app-surface/50 border border-app-border rounded-lg flex flex-col md:overflow-hidden">
       {/* Fixed header — outside scroll container */}
       <div className="flex justify-between items-center px-3 py-2 border-b border-app-border shrink-0">
         <div className="flex items-center gap-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider">Stats</div>
           {hasRaceFilter && (
             <div className="flex rounded overflow-hidden border border-app-border text-xs">
-              {(["race", "quali"] as const).map(f => (
+              {(["race", "quali"] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setLapFilter(lapFilter === f ? null : f)}
@@ -208,272 +210,284 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
         <div className="text-[11px] text-app-text-dim font-mono">last 100</div>
       </div>
       {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
-        {[
-          { label: "Best", value: minT, color: "text-purple-400" },
-          { label: "Median", value: medT, color: "text-app-text" },
-          { label: "Worst", value: maxT, color: "text-app-text" },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="flex items-baseline gap-1.5">
-            <div className="text-xs text-app-text-dim uppercase tracking-wider">{label}</div>
-            <div className={`font-mono text-app-body tabular-nums ${color}`}>{formatLapTime(value)}</div>
-          </div>
-        ))}
-      </div>
-      {/* Range bar */}
-      <div className="flex flex-col gap-1">
-        <div className="relative h-2 bg-app-surface-alt rounded-full overflow-visible">
-          <div className="absolute inset-0 rounded-full" style={{ background: `linear-gradient(to right, rgb(255 255 255 / 0.08) 0%, rgb(255 255 255 / 0.08) ${p25Pct}%, rgb(52 211 153 / 0.25) ${p25Pct}%, rgb(52 211 153 / 0.65) ${(p25Pct + p75Pct) / 2}%, rgb(52 211 153 / 0.25) ${p75Pct}%, rgb(255 255 255 / 0.08) ${p75Pct}%, rgb(255 255 255 / 0.08) 100%)` }} />
-          <div
-            className="absolute top-1/2 -translate-y-1/2 w-2 h-3 bg-white/80 rounded-sm shadow"
-            style={{ left: `calc(${medPct}% - 4px)` }}
-          />
+      <div className="flex-1 md:overflow-y-auto p-3 flex flex-col gap-3">
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {[
+            { label: "Best", value: minT, color: "text-purple-400" },
+            { label: "Median", value: medT, color: "text-app-text" },
+            { label: "Worst", value: maxT, color: "text-app-text" },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="flex items-baseline gap-1.5">
+              <div className="text-xs text-app-text-dim uppercase tracking-wider">{label}</div>
+              <div className={`font-mono text-app-body tabular-nums ${color}`}>{formatLapTime(value)}</div>
+            </div>
+          ))}
         </div>
-        <div className="flex justify-between items-center text-[11px] text-app-text-secondary font-mono">
-          <span>{formatLapTime(minT)}</span>
-          <span className="flex items-center gap-1 text-[10px] text-app-text-dim font-sans">
-            <span className="inline-block w-2.5 h-1.5 rounded-sm bg-emerald-300/70" />
-            typical range
-          </span>
-          <span>{formatLapTime(maxT)}</span>
-        </div>
-      </div>
-      {/* Lap time trend sparkline */}
-      {chronoLaps.length >= 2 && (
-        <div className="flex flex-col gap-0.5 border-t border-app-border pt-2.5">
-          <div className="flex items-center gap-1.5 mb-1">
-            <div className="text-xs text-app-text-dim uppercase tracking-wider">Trend</div>
-            {trendDir === "faster" && <span className="text-xs text-emerald-400 font-medium">↓ Faster</span>}
-            {trendDir === "slower" && <span className="text-xs text-red-400 font-medium">↑ Slower</span>}
-            {trendDir === "neutral" && chronoLaps.length >= 4 && <span className="text-xs text-app-text-secondary font-medium">→ Keeping pace</span>}
-          </div>
-          <div className="relative">
-            <svg
-              width="100%"
-              viewBox={`0 0 ${vbW} ${vbH}`}
-              className="overflow-visible"
-              onMouseLeave={() => setHoveredIdx(null)}
-              onMouseMove={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const svgX = ((e.clientX - rect.left) / rect.width) * vbW;
-                let closest = 0;
-                let minDist = Infinity;
-                sparkPoints.forEach((p, i) => {
-                  const d = Math.abs(p.x - svgX);
-                  if (d < minDist) { minDist = d; closest = i; }
-                });
-                setHoveredIdx(closest);
+        {/* Range bar */}
+        <div className="flex flex-col gap-1">
+          <div className="relative h-2 bg-app-surface-alt rounded-full overflow-visible">
+            <div
+              className="absolute inset-0 rounded-full"
+              style={{
+                background: `linear-gradient(to right, rgb(255 255 255 / 0.08) 0%, rgb(255 255 255 / 0.08) ${p25Pct}%, rgb(52 211 153 / 0.25) ${p25Pct}%, rgb(52 211 153 / 0.65) ${(p25Pct + p75Pct) / 2}%, rgb(52 211 153 / 0.25) ${p75Pct}%, rgb(255 255 255 / 0.08) ${p75Pct}%, rgb(255 255 255 / 0.08) 100%)`,
               }}
-            >
-              <defs>
-                <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={trendDir === "faster" ? "rgb(52 211 153)" : trendDir === "slower" ? "rgb(248 113 113)" : "rgb(255 255 255)"} stopOpacity="0.15" />
-                  <stop offset="100%" stopColor={trendDir === "faster" ? "rgb(52 211 153)" : trendDir === "slower" ? "rgb(248 113 113)" : "rgb(255 255 255)"} stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              {/* Grid lines */}
-              <line x1={padL} y1={padT} x2={padL + plotW} y2={padT} stroke="rgb(255 255 255 / 0.06)" strokeWidth="0.5" />
-              <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="rgb(255 255 255 / 0.06)" strokeWidth="0.5" />
-              {/* Axis lines */}
-              <line x1={padL} y1={padT} x2={padL} y2={padT + plotH} stroke="rgb(255 255 255 / 0.08)" strokeWidth="0.5" />
-              <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="rgb(255 255 255 / 0.08)" strokeWidth="0.5" />
-              {/* Area fill */}
-              <polygon
-                points={`${polyline} ${(padL + plotW).toFixed(1)},${(padT + plotH).toFixed(1)} ${padL},${(padT + plotH).toFixed(1)}`}
-                fill="url(#areaFill)"
-              />
-              {/* Axis labels */}
-              <text x={padL} y={vbH - 2} fontSize="8" fill="rgb(255 255 255 / 0.3)" fontFamily="sans-serif">Older</text>
-              <text x={padL + plotW - 30} y={vbH - 2} fontSize="8" fill="rgb(255 255 255 / 0.3)" fontFamily="sans-serif">{lastDate}</text>
-              {/* Trend line */}
-              <line
-                x1={trendX1.toFixed(1)} y1={trendY1.toFixed(1)}
-                x2={trendX2.toFixed(1)} y2={trendY2.toFixed(1)}
-                stroke={trendDir === "faster" ? "rgb(52 211 153 / 0.6)" : trendDir === "slower" ? "rgb(248 113 113 / 0.6)" : "rgb(255 255 255 / 0.2)"}
-                strokeWidth="1"
-                strokeDasharray="3 2"
-              />
-              {/* Sparkline */}
-              <polyline points={polyline} fill="none" stroke="rgb(192 132 252 / 0.5)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-              {/* Visible dots */}
-              {sparkPoints.map((p, i) => (
-                <circle
-                  key={`dot-${i}`}
-                  cx={p.x}
-                  cy={p.y}
-                  r={hoveredIdx === i ? 3 : 1.5}
-                  fill={hoveredIdx === i ? "rgb(255 255 255)" : "rgb(192 132 252 / 0.4)"}
-                  style={{ pointerEvents: "none" }}
-                />
-              ))}
-              {/* Worst point */}
-              <circle cx={worstPoint.x} cy={worstPoint.y} r="4" fill="rgb(248 113 113 / 0.7)" style={{ pointerEvents: "none" }} />
-              <line x1={worstPoint.x} y1={worstPoint.y - 4} x2={worstPoint.x} y2={worstPoint.y - 14} stroke="rgb(248 113 113 / 0.5)" strokeWidth="0.5" />
-              <text
-                x={worstPoint.x > vbW / 2 ? worstPoint.x - 4 : worstPoint.x + 4}
-                y={worstPoint.y - 16}
-                fontSize="8"
-                fill="rgb(248 113 113 / 0.8)"
-                fontFamily="sans-serif"
-                textAnchor={worstPoint.x > vbW / 2 ? "end" : "start"}
-                style={{ pointerEvents: "none" }}
-              >Worst</text>
-              {/* Best point + callout */}
-              <circle cx={bestPoint.x} cy={bestPoint.y} r="4" fill="rgb(192 132 252)" style={{ pointerEvents: "none" }} />
-              <line x1={bestPoint.x} y1={bestPoint.y - 4} x2={bestPoint.x} y2={bestPoint.y - 14} stroke="rgb(192 132 252 / 0.5)" strokeWidth="0.5" />
-              <text
-                x={bestPoint.x > vbW / 2 ? bestPoint.x - 4 : bestPoint.x + 4}
-                y={bestPoint.y - 16}
-                fontSize="8"
-                fill="rgb(192 132 252)"
-                fontFamily="sans-serif"
-                textAnchor={bestPoint.x > vbW / 2 ? "end" : "start"}
-                style={{ pointerEvents: "none" }}
-              >Best</text>
-              {/* Hover vertical line */}
-              {hoveredIdx !== null && (
+            />
+            <div className="absolute top-1/2 -translate-y-1/2 w-2 h-3 bg-white/80 rounded-sm shadow" style={{ left: `calc(${medPct}% - 4px)` }} />
+          </div>
+          <div className="flex justify-between items-center text-[11px] text-app-text-secondary font-mono">
+            <span>{formatLapTime(minT)}</span>
+            <span className="flex items-center gap-1 text-[10px] text-app-text-dim font-sans">
+              <span className="inline-block w-2.5 h-1.5 rounded-sm bg-emerald-300/70" />
+              typical range
+            </span>
+            <span>{formatLapTime(maxT)}</span>
+          </div>
+        </div>
+        {/* Lap time trend sparkline */}
+        {chronoLaps.length >= 2 && (
+          <div className="flex flex-col gap-0.5 border-t border-app-border pt-2.5">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="text-xs text-app-text-dim uppercase tracking-wider">Trend</div>
+              {trendDir === "faster" && <span className="text-xs text-emerald-400 font-medium">↓ Faster</span>}
+              {trendDir === "slower" && <span className="text-xs text-red-400 font-medium">↑ Slower</span>}
+              {trendDir === "neutral" && chronoLaps.length >= 4 && <span className="text-xs text-app-text-secondary font-medium">→ Keeping pace</span>}
+            </div>
+            <div className="relative">
+              <svg
+                width="100%"
+                viewBox={`0 0 ${vbW} ${vbH}`}
+                className="overflow-visible"
+                onMouseLeave={() => setHoveredIdx(null)}
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const svgX = ((e.clientX - rect.left) / rect.width) * vbW;
+                  let closest = 0;
+                  let minDist = Infinity;
+                  sparkPoints.forEach((p, i) => {
+                    const d = Math.abs(p.x - svgX);
+                    if (d < minDist) {
+                      minDist = d;
+                      closest = i;
+                    }
+                  });
+                  setHoveredIdx(closest);
+                }}
+              >
+                <defs>
+                  <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={trendDir === "faster" ? "rgb(52 211 153)" : trendDir === "slower" ? "rgb(248 113 113)" : "rgb(255 255 255)"} stopOpacity="0.15" />
+                    <stop offset="100%" stopColor={trendDir === "faster" ? "rgb(52 211 153)" : trendDir === "slower" ? "rgb(248 113 113)" : "rgb(255 255 255)"} stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                {/* Grid lines */}
+                <line x1={padL} y1={padT} x2={padL + plotW} y2={padT} stroke="rgb(255 255 255 / 0.06)" strokeWidth="0.5" />
+                <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="rgb(255 255 255 / 0.06)" strokeWidth="0.5" />
+                {/* Axis lines */}
+                <line x1={padL} y1={padT} x2={padL} y2={padT + plotH} stroke="rgb(255 255 255 / 0.08)" strokeWidth="0.5" />
+                <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="rgb(255 255 255 / 0.08)" strokeWidth="0.5" />
+                {/* Area fill */}
+                <polygon points={`${polyline} ${(padL + plotW).toFixed(1)},${(padT + plotH).toFixed(1)} ${padL},${(padT + plotH).toFixed(1)}`} fill="url(#areaFill)" />
+                {/* Axis labels */}
+                <text x={padL} y={vbH - 2} fontSize="8" fill="rgb(255 255 255 / 0.3)" fontFamily="sans-serif">
+                  Older
+                </text>
+                <text x={padL + plotW - 30} y={vbH - 2} fontSize="8" fill="rgb(255 255 255 / 0.3)" fontFamily="sans-serif">
+                  {lastDate}
+                </text>
+                {/* Trend line */}
                 <line
-                  x1={sparkPoints[hoveredIdx].x}
-                  y1={padT}
-                  x2={sparkPoints[hoveredIdx].x}
-                  y2={padT + plotH}
-                  stroke="rgb(255 255 255 / 0.15)"
-                  strokeWidth="0.5"
-                  strokeDasharray="2 2"
-                  style={{ pointerEvents: "none" }}
+                  x1={trendX1.toFixed(1)}
+                  y1={trendY1.toFixed(1)}
+                  x2={trendX2.toFixed(1)}
+                  y2={trendY2.toFixed(1)}
+                  stroke={trendDir === "faster" ? "rgb(52 211 153 / 0.6)" : trendDir === "slower" ? "rgb(248 113 113 / 0.6)" : "rgb(255 255 255 / 0.2)"}
+                  strokeWidth="1"
+                  strokeDasharray="3 2"
                 />
-              )}
-            </svg>
-            {/* Hover tooltip */}
-            {hoveredIdx !== null && (() => {
-              const p = sparkPoints[hoveredIdx];
-              const lap = chronoLaps[hoveredIdx];
-              const pctX = p.x / vbW;
-              return (
-                <div
-                  className="absolute pointer-events-none z-10 bg-app-surface border border-app-border rounded px-2 py-1 text-[11px] font-mono text-app-text shadow-lg -translate-y-full"
-                  style={{
-                    left: `${Math.min(Math.max(pctX * 100, 5), 85)}%`,
-                    top: `${(p.y / vbH) * 100}%`,
-                    transform: "translate(-50%, -120%)",
-                  }}
+                {/* Sparkline */}
+                <polyline points={polyline} fill="none" stroke="rgb(192 132 252 / 0.5)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+                {/* Visible dots */}
+                {sparkPoints.map((p, i) => (
+                  <circle key={`dot-${i}`} cx={p.x} cy={p.y} r={hoveredIdx === i ? 3 : 1.5} fill={hoveredIdx === i ? "rgb(255 255 255)" : "rgb(192 132 252 / 0.4)"} style={{ pointerEvents: "none" }} />
+                ))}
+                {/* Worst point */}
+                <circle cx={worstPoint.x} cy={worstPoint.y} r="4" fill="rgb(248 113 113 / 0.7)" style={{ pointerEvents: "none" }} />
+                <line x1={worstPoint.x} y1={worstPoint.y - 4} x2={worstPoint.x} y2={worstPoint.y - 14} stroke="rgb(248 113 113 / 0.5)" strokeWidth="0.5" />
+                <text
+                  x={worstPoint.x > vbW / 2 ? worstPoint.x - 4 : worstPoint.x + 4}
+                  y={worstPoint.y - 16}
+                  fontSize="8"
+                  fill="rgb(248 113 113 / 0.8)"
+                  fontFamily="sans-serif"
+                  textAnchor={worstPoint.x > vbW / 2 ? "end" : "start"}
+                  style={{ pointerEvents: "none" }}
                 >
-                  <div className="text-purple-400">{formatLapTime(lap.lapTime)}</div>
-                  {lap.createdAt && (
-                    <div className="text-app-text-dim">{new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}</div>
+                  Worst
+                </text>
+                {/* Best point + callout */}
+                <circle cx={bestPoint.x} cy={bestPoint.y} r="4" fill="rgb(192 132 252)" style={{ pointerEvents: "none" }} />
+                <line x1={bestPoint.x} y1={bestPoint.y - 4} x2={bestPoint.x} y2={bestPoint.y - 14} stroke="rgb(192 132 252 / 0.5)" strokeWidth="0.5" />
+                <text
+                  x={bestPoint.x > vbW / 2 ? bestPoint.x - 4 : bestPoint.x + 4}
+                  y={bestPoint.y - 16}
+                  fontSize="8"
+                  fill="rgb(192 132 252)"
+                  fontFamily="sans-serif"
+                  textAnchor={bestPoint.x > vbW / 2 ? "end" : "start"}
+                  style={{ pointerEvents: "none" }}
+                >
+                  Best
+                </text>
+                {/* Hover vertical line */}
+                {hoveredIdx !== null && (
+                  <line
+                    x1={sparkPoints[hoveredIdx].x}
+                    y1={padT}
+                    x2={sparkPoints[hoveredIdx].x}
+                    y2={padT + plotH}
+                    stroke="rgb(255 255 255 / 0.15)"
+                    strokeWidth="0.5"
+                    strokeDasharray="2 2"
+                    style={{ pointerEvents: "none" }}
+                  />
+                )}
+              </svg>
+              {/* Hover tooltip */}
+              {hoveredIdx !== null &&
+                (() => {
+                  const p = sparkPoints[hoveredIdx];
+                  const lap = chronoLaps[hoveredIdx];
+                  const pctX = p.x / vbW;
+                  return (
+                    <div
+                      className="absolute pointer-events-none z-10 bg-app-surface border border-app-border rounded px-2 py-1 text-[11px] font-mono text-app-text shadow-lg -translate-y-full"
+                      style={{
+                        left: `${Math.min(Math.max(pctX * 100, 5), 85)}%`,
+                        top: `${(p.y / vbH) * 100}%`,
+                        transform: "translate(-50%, -120%)",
+                      }}
+                    >
+                      <div className="text-purple-400">{formatLapTime(lap.lapTime)}</div>
+                      {lap.createdAt && <div className="text-app-text-dim">{new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}</div>}
+                    </div>
+                  );
+                })()}
+            </div>
+          </div>
+        )}
+
+        {/* Theoretical best sectors */}
+        {hasSectors && theoretical != null && (
+          <div className="flex flex-col gap-2 border-t border-app-border pt-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs text-app-text-dim uppercase tracking-wider">
+                Sectors
+                <InfoTooltip position="bottom">Theoretical best = best S1 + best S2 + best S3 across all laps. Gap = time between your best lap and theoretical best.</InfoTooltip>
+              </div>
+              {theoretical != null && (
+                <div className="flex items-baseline gap-2 text-[11px] font-mono tabular-nums">
+                  <span className="text-cyan-400">{formatLapTime(theoretical)}</span>
+                  {sectorGap != null && sectorGap > 0.001 && (
+                    <>
+                      <span className="text-app-text-dim">·</span>
+                      <span className="text-amber-400">+{formatLapTime(sectorGap)}</span>
+                    </>
                   )}
                 </div>
-              );
-            })()}
-          </div>
-        </div>
-      )}
-
-      {/* Theoretical best sectors */}
-      {hasSectors && theoretical != null && (
-        <div className="flex flex-col gap-2 border-t border-app-border pt-2.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-xs text-app-text-dim uppercase tracking-wider">
-              Sectors
-              <InfoTooltip position="bottom">Theoretical best = best S1 + best S2 + best S3 across all laps. Gap = time between your best lap and theoretical best.</InfoTooltip>
+              )}
             </div>
-            {theoretical != null && (
-              <div className="flex items-baseline gap-2 text-[11px] font-mono tabular-nums">
-                <span className="text-cyan-400">{formatLapTime(theoretical)}</span>
-                {sectorGap != null && sectorGap > 0.001 && <><span className="text-app-text-dim">·</span><span className="text-amber-400">+{formatLapTime(sectorGap)}</span></>}
-              </div>
-            )}
+            {/* Sector range bars */}
+            {sectorStats &&
+              (() => {
+                const maxVarianceRange = Math.max(...sectorStats.map((s) => s.range));
+                const bestSectorTimes = [bestS1, bestS2, bestS3];
+                return sectorStats.map(({ label, min, max, med, range, medPct, p25Pct, p75Pct }, i) => {
+                  const isWorstVariance = range === maxVarianceRange && sectorStats.length > 1;
+                  const pctOfTheoretical = theoretical ? ((bestSectorTimes[i]! / theoretical) * 100).toFixed(0) : null;
+                  return (
+                    <div key={label} className="flex flex-col gap-0.5">
+                      <div className="flex justify-between items-baseline">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-app-text-dim">{label}</span>
+                          {pctOfTheoretical && <span className="text-[10px] text-app-text-muted">{pctOfTheoretical}%</span>}
+                          {isWorstVariance && (
+                            <span className="group/tip relative inline-flex items-center shrink-0 cursor-help">
+                              <span className="text-[9px] text-amber-400/80">↔</span>
+                              <span className="absolute left-0 top-full mt-2 w-max max-w-[200px] hidden group-hover/tip:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">
+                                Most variance — largest time spread across laps. Most time lost/gained here.
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-baseline gap-2 text-[11px] font-mono tabular-nums">
+                          <span className="text-purple-400">{formatLapTime(min)}</span>
+                          <span className="text-app-text-dim">·</span>
+                          <span className="text-app-text-secondary">{formatLapTime(med)}</span>
+                          <span className="text-app-text-dim">·</span>
+                          <span className="text-app-text-dim">{formatLapTime(max)}</span>
+                        </div>
+                      </div>
+                      <div className="relative h-1.5 bg-app-surface-alt rounded-full overflow-visible">
+                        <div
+                          className="absolute inset-0 rounded-full"
+                          style={{
+                            background: `linear-gradient(to right, rgb(255 255 255 / 0.06) 0%, rgb(255 255 255 / 0.06) ${p25Pct}%, rgb(52 211 153 / 0.2) ${p25Pct}%, rgb(52 211 153 / 0.55) ${(p25Pct + p75Pct) / 2}%, rgb(52 211 153 / 0.2) ${p75Pct}%, rgb(255 255 255 / 0.06) ${p75Pct}%, rgb(255 255 255 / 0.06) 100%)`,
+                          }}
+                        />
+                        <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-2.5 bg-white/70 rounded-sm shadow" style={{ left: `calc(${medPct}% - 3px)` }} />
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
           </div>
-          {/* Sector range bars */}
-          {sectorStats && (() => {
-            const maxVarianceRange = Math.max(...sectorStats.map(s => s.range));
-            const bestSectorTimes = [bestS1, bestS2, bestS3];
-            return sectorStats.map(({ label, min, max, med, range, medPct, p25Pct, p75Pct }, i) => {
-              const isWorstVariance = range === maxVarianceRange && sectorStats.length > 1;
-              const pctOfTheoretical = theoretical ? ((bestSectorTimes[i]! / theoretical) * 100).toFixed(0) : null;
+        )}
+
+        {/* Per-car best times */}
+        {showCarBreakdown && (
+          <div className="flex flex-col gap-1.5 border-t border-app-border pt-2.5">
+            <div className="text-xs text-app-text-dim uppercase tracking-wider">By Car</div>
+            {carList.map((car, i) => {
+              const barPct = 100 - ((car.bestTime - minT) / carRange) * 100;
               return (
-                <div key={label} className="flex flex-col gap-0.5">
+                <div key={i} className="flex flex-col gap-0.5">
                   <div className="flex justify-between items-baseline">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-app-text-dim">{label}</span>
-                      {pctOfTheoretical && <span className="text-[10px] text-app-text-muted">{pctOfTheoretical}%</span>}
-                      {isWorstVariance && (
-                        <span className="group/tip relative inline-flex items-center shrink-0 cursor-help">
-                          <span className="text-[9px] text-amber-400/80">↔</span>
-                          <span className="absolute left-0 top-full mt-2 w-max max-w-[200px] hidden group-hover/tip:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">
-                            Most variance — largest time spread across laps. Most time lost/gained here.
-                          </span>
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-baseline gap-2 text-[11px] font-mono tabular-nums">
-                      <span className="text-purple-400">{formatLapTime(min)}</span>
-                      <span className="text-app-text-dim">·</span>
-                      <span className="text-app-text-secondary">{formatLapTime(med)}</span>
-                      <span className="text-app-text-dim">·</span>
-                      <span className="text-app-text-dim">{formatLapTime(max)}</span>
-                    </div>
+                    <span className="text-xs text-app-text truncate max-w-[160px]" title={car.carName}>
+                      {car.carName}
+                    </span>
+                    <span className={`font-mono text-xs tabular-nums ${i === 0 ? "text-purple-400" : "text-app-text"}`}>{formatLapTime(car.bestTime)}</span>
                   </div>
-                  <div className="relative h-1.5 bg-app-surface-alt rounded-full overflow-visible">
-                    <div
-                      className="absolute inset-0 rounded-full"
-                      style={{ background: `linear-gradient(to right, rgb(255 255 255 / 0.06) 0%, rgb(255 255 255 / 0.06) ${p25Pct}%, rgb(52 211 153 / 0.2) ${p25Pct}%, rgb(52 211 153 / 0.55) ${(p25Pct + p75Pct) / 2}%, rgb(52 211 153 / 0.2) ${p75Pct}%, rgb(255 255 255 / 0.06) ${p75Pct}%, rgb(255 255 255 / 0.06) 100%)` }}
-                    />
-                    <div
-                      className="absolute top-1/2 -translate-y-1/2 w-1.5 h-2.5 bg-white/70 rounded-sm shadow"
-                      style={{ left: `calc(${medPct}% - 3px)` }}
-                    />
+                  <div className="h-1 bg-app-surface-alt rounded-full overflow-hidden">
+                    <div className="h-full bg-cyan-400/40 rounded-full" style={{ width: `${barPct}%` }} />
                   </div>
                 </div>
               );
-            });
-          })()}
-        </div>
-      )}
+            })}
+          </div>
+        )}
 
-      {/* Per-car best times */}
-      {showCarBreakdown && (
-        <div className="flex flex-col gap-1.5 border-t border-app-border pt-2.5">
-          <div className="text-xs text-app-text-dim uppercase tracking-wider">By Car</div>
-          {carList.map((car, i) => {
-            const barPct = 100 - ((car.bestTime - minT) / carRange) * 100;
-            return (
-              <div key={i} className="flex flex-col gap-0.5">
-                <div className="flex justify-between items-baseline">
-                  <span className="text-xs text-app-text truncate max-w-[160px]" title={car.carName}>{car.carName}</span>
-                  <span className={`font-mono text-xs tabular-nums ${i === 0 ? "text-purple-400" : "text-app-text"}`}>{formatLapTime(car.bestTime)}</span>
+        {/* By lap number */}
+        {showLapNumBreakdown && (
+          <div className="flex flex-col gap-1.5 border-t border-app-border pt-2.5">
+            <div className="text-xs text-app-text-dim uppercase tracking-wider">By Lap #</div>
+            {lapNumData.map(({ lapNum, bestTime, count }) => {
+              const barPct = 100 - ((bestTime - lapNumBest) / lapNumRange) * 100;
+              const isFastest = bestTime === lapNumBest;
+              return (
+                <div key={lapNum} className="flex items-center gap-2">
+                  <span className="text-xs text-app-text-secondary font-mono w-6 shrink-0 text-right">#{lapNum}</span>
+                  <div className="flex-1 h-1.5 bg-app-surface-alt rounded-full overflow-hidden">
+                    <div className="h-full bg-cyan-400/40 rounded-full" style={{ width: `${barPct}%` }} />
+                  </div>
+                  <span className={`font-mono text-xs tabular-nums shrink-0 ${isFastest ? "text-purple-400" : "text-app-text"}`}>{formatLapTime(bestTime)}</span>
+                  <span className="text-[11px] text-app-text-secondary shrink-0">×{count}</span>
                 </div>
-                <div className="h-1 bg-app-surface-alt rounded-full overflow-hidden">
-                  <div className="h-full bg-cyan-400/40 rounded-full" style={{ width: `${barPct}%` }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* By lap number */}
-      {showLapNumBreakdown && (
-        <div className="flex flex-col gap-1.5 border-t border-app-border pt-2.5">
-          <div className="text-xs text-app-text-dim uppercase tracking-wider">By Lap #</div>
-          {lapNumData.map(({ lapNum, bestTime, count }) => {
-            const barPct = 100 - ((bestTime - lapNumBest) / lapNumRange) * 100;
-            const isFastest = bestTime === lapNumBest;
-            return (
-              <div key={lapNum} className="flex items-center gap-2">
-                <span className="text-xs text-app-text-secondary font-mono w-6 shrink-0 text-right">#{lapNum}</span>
-                <div className="flex-1 h-1.5 bg-app-surface-alt rounded-full overflow-hidden">
-                  <div className="h-full bg-cyan-400/40 rounded-full" style={{ width: `${barPct}%` }} />
-                </div>
-                <span className={`font-mono text-xs tabular-nums shrink-0 ${isFastest ? "text-purple-400" : "text-app-text"}`}>{formatLapTime(bestTime)}</span>
-                <span className="text-[11px] text-app-text-secondary shrink-0">×{count}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      </div>{/* end scrollable body */}
+              );
+            })}
+          </div>
+        )}
+      </div>
+      {/* end scrollable body */}
     </div>
   );
 }
@@ -509,41 +523,79 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   const [savingSectors, setSavingSectors] = useState(false);
   const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
   const [selectedCars, setSelectedCars] = useState<Set<number>>(new Set());
-  const [carSearch, setCarSearch] = useState("");
-  const [carDropdownOpen, setCarDropdownOpen] = useState(false);
-  const carDropdownRef = useRef<HTMLDivElement>(null);
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
   const [sortBy, setSortBy] = useState<"time" | "lap" | "date">("time");
   const [sortAsc, setSortAsc] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [carouselEl, setCarouselEl] = useState<HTMLDivElement | null>(null);
+  const [carouselPage, setCarouselPage] = useState(0);
+  const [carouselHeight, setCarouselHeight] = useState<number | null>(null);
+  const gotoCarouselPage = useCallback(
+    (i: number) => {
+      if (!carouselEl) return;
+      carouselEl.scrollTo({ left: carouselEl.clientWidth * i, behavior: "smooth" });
+      setCarouselPage(i);
+    },
+    [carouselEl],
+  );
+  useEffect(() => {
+    if (!carouselEl) return;
+    const page = carouselEl.children[carouselPage] as HTMLElement | undefined;
+    if (!page) return;
+    const update = () => setCarouselHeight(page.scrollHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(page);
+    return () => ro.disconnect();
+  }, [carouselEl, carouselPage]);
+  useEffect(() => {
+    if (!carouselEl) return;
+    const onScroll = () => {
+      const idx = Math.round(carouselEl.scrollLeft / carouselEl.clientWidth);
+      setCarouselPage(idx);
+    };
+    carouselEl.addEventListener("scroll", onScroll, { passive: true });
+    return () => carouselEl.removeEventListener("scroll", onScroll);
+  }, [carouselEl]);
   const isF125 = gameId === "f1-2025";
   const isAcc = gameId === "acc";
   const hideClassCol = isF125 || isAcc || gameId === "ac-evo";
 
   const hasForzaTunes = gameId === "fm-2023";
-  const allTabs = hasForzaTunes ? ["laps", "tunes", "debug"] as const
-    : isF125 ? ["laps", "setups", "guide", "debug"] as const
-    : isAcc ? ["laps", "setups", "guide", "debug"] as const
-    : ["laps", "debug"] as const;
-  type Tab = typeof allTabs[number];
+  const allTabs = hasForzaTunes
+    ? (["laps", "tunes", "debug"] as const)
+    : isF125
+      ? (["laps", "setups", "guide", "debug"] as const)
+      : isAcc
+        ? (["laps", "setups", "guide", "debug"] as const)
+        : (["laps", "debug"] as const);
+  type Tab = (typeof allTabs)[number];
   const validTabs = allTabs;
-  const [activeTab, setActiveTabState] = useState<Tab>(
-    (validTabs as readonly string[]).includes(initialTab as string) ? (initialTab as Tab) : "laps"
+  const [activeTab, setActiveTabState] = useState<Tab>((validTabs as readonly string[]).includes(initialTab as string) ? (initialTab as Tab) : "laps");
+  const setActiveTab = useCallback(
+    (tab: Tab) => {
+      setActiveTabState(tab);
+      navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, tab: tab === "laps" ? undefined : tab }) as never, replace: true });
+    },
+    [navigate],
   );
-  const setActiveTab = useCallback((tab: Tab) => {
-    setActiveTabState(tab);
-    navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, tab: tab === "laps" ? undefined : tab }) as never, replace: true });
-  }, [navigate]);
   const navTo = useNavigate();
 
   const { data: trackMapData } = useQuery({
     queryKey: ["track-map", track.ordinal, gameId ?? null],
-    queryFn: () => Promise.all([
-      client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid ?? undefined } }).then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
-      client.api["track-sectors"][":ordinal"].$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } }).then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
-      client.api["track-sector-boundaries"][":ordinal"].$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } }).then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
-    ]).then(([outlineData, sectorData, boundsData]) => ({ outlineData, sectorData, boundsData })),
+    queryFn: () =>
+      Promise.all([
+        client.api["track-outline"][":ordinal"]
+          .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid ?? undefined } })
+          .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[]),
+        client.api["track-sectors"][":ordinal"]
+          .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } })
+          .then((r) => r.json() as unknown as (TrackSectors & { source?: string }) | null),
+        client.api["track-sector-boundaries"][":ordinal"]
+          .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid! } })
+          .then((r) => r.json() as unknown as { s1End: number; s2End: number } | null),
+      ]).then(([outlineData, sectorData, boundsData]) => ({ outlineData, sectorData, boundsData })),
     enabled: track.hasOutline && !!gameId,
     staleTime: 5 * 60 * 1000,
   });
@@ -567,26 +619,23 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   // Fetch all laps for this track
   const { data: trackLapsData = [], refetch: refetchLaps } = useQuery<TrackLap[]>({
     queryKey: ["track-laps", track.ordinal, gameId ?? null],
-    queryFn: () => client.api.tracks[":trackOrdinal"]["all-laps"].$get({ param: { trackOrdinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } } as never)
-      .then((r) => r.json() as unknown as TrackLap[] | null)
-      .then((data) => data ?? []),
+    queryFn: () =>
+      client.api.tracks[":trackOrdinal"]["all-laps"]
+        .$get({ param: { trackOrdinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } } as never)
+        .then((r) => r.json() as unknown as TrackLap[] | null)
+        .then((data) => data ?? []),
     staleTime: 30 * 1000,
   });
 
   const trackLaps = trackLapsData;
 
-
   // Use edit segments for preview when editing, otherwise use fetched sectors
-  const displaySectors = editing && editSegments.length > 0
-    ? { segments: editSegments, totalDist: sectors?.totalDist ?? 0 }
-    : sectors;
+  const displaySectors = editing && editSegments.length > 0 ? { segments: editSegments, totalDist: sectors?.totalDist ?? 0 } : sectors;
 
   useEffect(() => {
     if (!outline || !canvasRef.current) return;
     const showSectors = editingSectors || mapDisplayMode === "sectors";
-    const sectorBoundsForDraw = editingSectors
-      ? { s1End: editS1 / 100, s2End: editS2 / 100 }
-      : sectorBounds ?? undefined;
+    const sectorBoundsForDraw = editingSectors ? { s1End: editS1 / 100, s2End: editS2 / 100 } : (sectorBounds ?? undefined);
     const sectorOverride = showSectors ? sectorBoundsForDraw : undefined;
     drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX);
   }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX]);
@@ -723,7 +772,11 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   const saveSectorBounds = useCallback(async () => {
     setSavingSectors(true);
     try {
-      const res = await client.api["track-sector-boundaries"][":ordinal"].$put({ param: { ordinal: String(track.ordinal) }, query: { gameId: gid }, json: { s1End: editS1 / 100, s2End: editS2 / 100 } } as never);
+      const res = await client.api["track-sector-boundaries"][":ordinal"].$put({
+        param: { ordinal: String(track.ordinal) },
+        query: { gameId: gid },
+        json: { s1End: editS1 / 100, s2End: editS2 / 100 },
+      } as never);
       if (res.ok) {
         setSectorBounds({ s1End: editS1 / 100, s2End: editS2 / 100 });
         setEditingSectors(false);
@@ -758,7 +811,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   }, [trackLaps]);
 
   const uniqueDivisions = useMemo(() => {
-    const divs = new Set(trackLaps.map(l => l.division).filter((d): d is string => !!d));
+    const divs = new Set(trackLaps.map((l) => l.division).filter((d): d is string => !!d));
     return [...divs].sort();
   }, [trackLaps]);
 
@@ -767,7 +820,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
       .filter((l) => selectedCars.size === 0 || selectedCars.has(l.carOrdinal))
       .filter((l) => !selectedDivision || l.division === selectedDivision)
       .sort((a, b) => {
-        const cmp = sortBy === "time" ? a.lapTime - b.lapTime : sortBy === "date" ? (new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime()) : a.lapNumber - b.lapNumber;
+        const cmp = sortBy === "time" ? a.lapTime - b.lapTime : sortBy === "date" ? new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime() : a.lapNumber - b.lapNumber;
         return sortAsc ? cmp : -cmp;
       });
   }, [trackLaps, selectedCars, selectedDivision, sortBy, sortAsc]);
@@ -783,36 +836,24 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   const hasSessionTypes = useMemo(() => {
     if (!isF125) return false;
     const vals = [...sessionLapCounts.values()];
-    return vals.some(c => c > 1) && vals.some(c => c === 1);
+    return vals.some((c) => c > 1) && vals.some((c) => c === 1);
   }, [isF125, sessionLapCounts]);
-
-
 
   const toggleCar = useCallback((ord: number) => {
     setSelectedCars((prev) => {
       const next = new Set(prev);
-      if (next.has(ord)) next.delete(ord); else next.add(ord);
+      if (next.has(ord)) next.delete(ord);
+      else next.add(ord);
       return next;
     });
     setSelectedLaps(new Set());
   }, []);
 
-  useEffect(() => {
-    if (!carDropdownOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (carDropdownRef.current && !carDropdownRef.current.contains(e.target as Node)) {
-        setCarDropdownOpen(false);
-        setCarSearch("");
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [carDropdownOpen]);
-
   const toggleLapSelect = useCallback((lapId: number) => {
     setSelectedLaps((prev) => {
       const next = new Set(prev);
-      if (next.has(lapId)) next.delete(lapId); else next.add(lapId);
+      if (next.has(lapId)) next.delete(lapId);
+      else next.add(lapId);
       return next;
     });
   }, []);
@@ -835,43 +876,56 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
     setDeleting(false);
   }, [selectedLaps, refetchLaps, bulkDelete]);
 
-  const handleSort = useCallback((col: "time" | "lap" | "date") => {
-    if (sortBy === col) setSortAsc((a) => !a);
-    else { setSortBy(col); setSortAsc(true); }
-  }, [sortBy]);
+  const handleSort = useCallback(
+    (col: "time" | "lap" | "date") => {
+      if (sortBy === col) setSortAsc((a) => !a);
+      else {
+        setSortBy(col);
+        setSortAsc(true);
+      }
+    },
+    [sortBy],
+  );
 
   const classTextColors: Record<string, string> = {
-    X: "text-green-700", P: "text-green-400", R: "text-blue-400",
-    S: "text-purple-400", A: "text-red-400",
-    B: "text-orange-400", C: "text-yellow-400", D: "text-cyan-400", E: "text-pink-400",
+    X: "text-green-700",
+    P: "text-green-400",
+    R: "text-blue-400",
+    S: "text-purple-400",
+    A: "text-red-400",
+    B: "text-orange-400",
+    C: "text-yellow-400",
+    D: "text-cyan-400",
+    E: "text-pink-400",
   };
 
   return (
     <div className="p-4 overflow-auto h-full">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
-        <button
-          onClick={onBack}
-          className="text-app-label text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-border-input transition-colors"
-        >
-          &larr; Back
-        </button>
-        <div>
-          <div className="text-app-heading font-semibold text-app-text">{track.name}</div>
-          <div className="text-app-label text-app-text-muted">
-            {track.variant} · {track.location}, {countryName(track.country)}
-            {track.lengthKm > 0 && ` · ${track.lengthKm} km`}
+      <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <button onClick={onBack} className="shrink-0 text-app-label text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-border-input transition-colors">
+            &larr; Back
+          </button>
+          <div className="min-w-0 flex-1">
+            <div className="text-app-heading font-semibold text-app-text">{track.name}</div>
+            <div className="text-app-label text-app-text-muted">
+              {track.variant} · {track.location}, {countryName(track.country)}
+              {track.lengthKm > 0 && ` · ${track.lengthKm} km`}
+            </div>
           </div>
         </div>
         {/* View mode tabs */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
           {validTabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`text-app-label uppercase tracking-wider px-3 py-1.5 rounded transition-colors ${
                 activeTab === tab
-                  ? tab === "debug" ? "bg-amber-500/15 text-amber-500" : "bg-app-accent/15 text-app-accent"
+                  ? tab === "debug"
+                    ? "bg-amber-500/15 text-amber-500"
+                    : "bg-app-accent/15 text-app-accent"
                   : "text-app-text-muted hover:text-app-text-secondary hover:bg-app-surface-alt"
               }`}
             >
@@ -906,20 +960,30 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-app-label text-app-text-muted uppercase tracking-wider">Segments</span>
-                    {segSource && (
-                      <span className="text-[9px] font-mono text-app-text-dim px-1 py-0.5 rounded bg-app-surface-alt border border-app-border-input">
-                        {segSource}
-                      </span>
-                    )}
+                    {segSource && <span className="text-[9px] font-mono text-app-text-dim px-1 py-0.5 rounded bg-app-surface-alt border border-app-border-input">{segSource}</span>}
                   </div>
-                  {isDevelopment && (!editing ? (
-                    <button onClick={startEditing} className="text-app-unit text-cyan-400 hover:text-cyan-300 px-2 py-0.5 rounded bg-cyan-900/30 border border-cyan-800/50">Edit</button>
-                  ) : (
-                    <div className="flex gap-1">
-                      <button onClick={saveSegments} disabled={saving} className="text-app-unit text-emerald-400 hover:text-emerald-300 px-2 py-0.5 rounded bg-emerald-900/30 border border-emerald-800/50 disabled:opacity-50">{saving ? "..." : "Save"}</button>
-                      <button onClick={() => setEditing(false)} className="text-app-unit text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input">Cancel</button>
-                    </div>
-                  ))}
+                  {isDevelopment &&
+                    (!editing ? (
+                      <button onClick={startEditing} className="text-app-unit text-cyan-400 hover:text-cyan-300 px-2 py-0.5 rounded bg-cyan-900/30 border border-cyan-800/50">
+                        Edit
+                      </button>
+                    ) : (
+                      <div className="flex gap-1">
+                        <button
+                          onClick={saveSegments}
+                          disabled={saving}
+                          className="text-app-unit text-emerald-400 hover:text-emerald-300 px-2 py-0.5 rounded bg-emerald-900/30 border border-emerald-800/50 disabled:opacity-50"
+                        >
+                          {saving ? "..." : "Save"}
+                        </button>
+                        <button
+                          onClick={() => setEditing(false)}
+                          className="text-app-unit text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ))}
                 </div>
                 <div className="flex flex-col gap-0.5 max-h-[300px] overflow-auto">
                   {(editing ? editSegments : displaySectors.segments).map((seg, i) => {
@@ -944,15 +1008,42 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                     return (
                       <div key={i} className={`px-2 py-1.5 rounded ${bg} space-y-1`}>
                         <div className="flex items-center gap-1">
-                          <button onClick={() => toggleSegType(i)} className={`text-app-unit font-bold px-1 rounded ${isCorner ? "bg-red-500/20 text-red-400" : "bg-blue-500/20 text-blue-400"}`}>{isCorner ? "T" : "S"}</button>
-                          <input value={seg.name} placeholder={segDisplayNames[i]} onChange={(e) => updateSegName(i, e.target.value)} className="flex-1 text-app-label font-mono bg-transparent border-b border-app-border-input text-app-text outline-none px-1 placeholder:text-app-text-dim" />
-                          <button onClick={() => addSegment(i)} className="text-app-unit text-app-text-muted hover:text-app-text px-1" title="Split segment">+</button>
-                          <button onClick={() => removeSegment(i)} className="text-app-unit text-app-text-muted hover:text-red-400 px-1" title="Remove segment">x</button>
+                          <button onClick={() => toggleSegType(i)} className={`text-app-unit font-bold px-1 rounded ${isCorner ? "bg-red-500/20 text-red-400" : "bg-blue-500/20 text-blue-400"}`}>
+                            {isCorner ? "T" : "S"}
+                          </button>
+                          <input
+                            value={seg.name}
+                            placeholder={segDisplayNames[i]}
+                            onChange={(e) => updateSegName(i, e.target.value)}
+                            className="flex-1 text-app-label font-mono bg-transparent border-b border-app-border-input text-app-text outline-none px-1 placeholder:text-app-text-dim"
+                          />
+                          <button onClick={() => addSegment(i)} className="text-app-unit text-app-text-muted hover:text-app-text px-1" title="Split segment">
+                            +
+                          </button>
+                          <button onClick={() => removeSegment(i)} className="text-app-unit text-app-text-muted hover:text-red-400 px-1" title="Remove segment">
+                            x
+                          </button>
                         </div>
                         <div className="flex items-center gap-2 text-app-label font-mono text-app-text-secondary">
-                          <input type="number" step="0.1" min="0" max="100" value={(seg.startFrac * 100).toFixed(1)} onChange={(e) => updateSegFrac(i, "startFrac", Number(e.target.value) / 100)} className="w-14 bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center" />
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={(seg.startFrac * 100).toFixed(1)}
+                            onChange={(e) => updateSegFrac(i, "startFrac", Number(e.target.value) / 100)}
+                            className="w-14 bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
+                          />
                           <span>-</span>
-                          <input type="number" step="0.1" min="0" max="100" value={(seg.endFrac * 100).toFixed(1)} onChange={(e) => updateSegFrac(i, "endFrac", Number(e.target.value) / 100)} className="w-14 bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center" />
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={(seg.endFrac * 100).toFixed(1)}
+                            onChange={(e) => updateSegFrac(i, "endFrac", Number(e.target.value) / 100)}
+                            className="w-14 bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
+                          />
                           <span className="text-app-text-dim">({pct}%)</span>
                         </div>
                       </div>
@@ -965,14 +1056,32 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
             <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-app-label text-app-text-muted uppercase tracking-wider">Sector Boundaries</div>
-                {isDevelopment && (!editingSectors ? (
-                  <button onClick={startEditingSectors} disabled={!sectorBounds} className="text-app-unit text-cyan-400 hover:text-cyan-300 px-2 py-0.5 rounded bg-cyan-900/30 border border-cyan-800/50 disabled:opacity-50">Edit</button>
-                ) : (
-                  <div className="flex gap-1">
-                    <button onClick={saveSectorBounds} disabled={savingSectors} className="text-app-unit text-emerald-400 hover:text-emerald-300 px-2 py-0.5 rounded bg-emerald-900/30 border border-emerald-800/50 disabled:opacity-50">{savingSectors ? "..." : "Save"}</button>
-                    <button onClick={() => setEditingSectors(false)} className="text-app-unit text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input">Cancel</button>
-                  </div>
-                ))}
+                {isDevelopment &&
+                  (!editingSectors ? (
+                    <button
+                      onClick={startEditingSectors}
+                      disabled={!sectorBounds}
+                      className="text-app-unit text-cyan-400 hover:text-cyan-300 px-2 py-0.5 rounded bg-cyan-900/30 border border-cyan-800/50 disabled:opacity-50"
+                    >
+                      Edit
+                    </button>
+                  ) : (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={saveSectorBounds}
+                        disabled={savingSectors}
+                        className="text-app-unit text-emerald-400 hover:text-emerald-300 px-2 py-0.5 rounded bg-emerald-900/30 border border-emerald-800/50 disabled:opacity-50"
+                      >
+                        {savingSectors ? "..." : "Save"}
+                      </button>
+                      <button
+                        onClick={() => setEditingSectors(false)}
+                        className="text-app-unit text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ))}
               </div>
               {sectorBounds ? (
                 editingSectors ? (
@@ -980,13 +1089,29 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-red-500" />
                       <span className="text-app-label text-app-text-muted w-16">S1 End</span>
-                      <input type="number" step="0.1" min="1" max={editS2 - 1} value={editS1.toFixed(1)} onChange={(e) => setEditS1(Number(e.target.value))} className="w-16 text-app-label font-mono bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center" />
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="1"
+                        max={editS2 - 1}
+                        value={editS1.toFixed(1)}
+                        onChange={(e) => setEditS1(Number(e.target.value))}
+                        className="w-16 text-app-label font-mono bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
+                      />
                       <span className="text-app-label text-app-text-dim">%</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-blue-500" />
                       <span className="text-app-label text-app-text-muted w-16">S2 End</span>
-                      <input type="number" step="0.1" min={editS1 + 1} max="99" value={editS2.toFixed(1)} onChange={(e) => setEditS2(Number(e.target.value))} className="w-16 text-app-label font-mono bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center" />
+                      <input
+                        type="number"
+                        step="0.1"
+                        min={editS1 + 1}
+                        max="99"
+                        value={editS2.toFixed(1)}
+                        onChange={(e) => setEditS2(Number(e.target.value))}
+                        className="w-16 text-app-label font-mono bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
+                      />
                       <span className="text-app-label text-app-text-dim">%</span>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
@@ -1011,9 +1136,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                       <div key={s.name} className="flex items-center gap-2 px-2 py-1 rounded bg-app-surface-alt/30">
                         <div className={`w-2 h-2 rounded-full ${s.color}`} />
                         <span className="text-app-label font-mono font-bold text-app-text">{s.name}</span>
-                        {track.lengthKm > 0 && (
-                          <span className="text-app-label font-mono text-app-text-dim">{(s.frac * track.lengthKm).toFixed(2)} km</span>
-                        )}
+                        {track.lengthKm > 0 && <span className="text-app-label font-mono text-app-text-dim">{(s.frac * track.lengthKm).toFixed(2)} km</span>}
                         <span className="text-app-label font-mono text-app-text-secondary ml-auto">{(s.frac * 100).toFixed(1)}%</span>
                       </div>
                     ))}
@@ -1031,339 +1154,474 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
           </div>
         </div>
       ) : (
-      <div className="flex flex-col gap-4 h-[calc(100vh-160px)] overflow-hidden">
-        <div className="flex flex-col gap-4 min-h-0 overflow-hidden flex-1">
-          {/* Track map */}
-          <div className="shrink-0 flex gap-3" style={{ height: activeTab === "guide" && isF125 ? 160 : 320 }}>
-          {/* Leaderboard left of map on laps tab */}
-          {activeTab === "laps" && (
-            <div className="w-[420px] shrink-0 overflow-hidden flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3">
-              {isF125 ? (
-                <F125Leaderboard trackOrdinal={track.ordinal} />
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm text-center px-4">
-                  No leaderboard yet
+        <div className="flex flex-col gap-4 lg:h-[calc(100vh-160px)] lg:overflow-hidden">
+          <div className="flex flex-col gap-4 min-h-0 md:overflow-hidden flex-1">
+            {/* Track map */}
+            <div className={`shrink-0 flex flex-col md:flex-row gap-3 ${activeTab === "guide" && isF125 ? "md:h-[160px]" : "md:h-[320px]"}`}>
+              {/* Leaderboard left of map on laps tab */}
+              {activeTab === "laps" && (
+                <div className="order-2 md:order-1 w-full md:w-[420px] shrink-0 overflow-hidden flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
+                  {isF125 ? (
+                    <F125Leaderboard trackOrdinal={track.ordinal} />
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm text-center px-4">No leaderboard yet</div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-          <div className="bg-app-bg rounded-lg border border-app-border relative flex-1 min-w-0">
-            {track.hasOutline ? (
-              <canvas
-                ref={canvasRef}
-                className="w-full h-full cursor-grab active:cursor-grabbing"
-                onMouseDown={(e) => {
-                  dragging.current = { startX: e.clientX, startY: e.clientY, startPanX: pan.x, startPanZ: pan.z };
-                }}
-                onMouseMove={(e) => {
-                  if (!dragging.current) return;
-                  const dx = e.clientX - dragging.current.startX;
-                  const dy = e.clientY - dragging.current.startY;
-                  setPan({ x: dragging.current.startPanX + dx, z: dragging.current.startPanZ + dy });
-                }}
-                onMouseUp={() => { dragging.current = null; }}
-                onMouseLeave={() => { dragging.current = null; }}
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">
-                No outline available
-              </div>
-            )}
-            <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
-              <button
-                onClick={() => setZoom((z) => Math.min(z + 0.25, 4))}
-                className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-              >+</button>
-              <button
-                onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
-                className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-              >-</button>
-              {zoom !== 1 && (
-                <button
-                  onClick={() => { setZoom(1); setPan({ x: 0, z: 0 }); }}
-                  className="px-1.5 py-1 text-[9px] font-mono bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded"
-                >{zoom % 1 === 0 ? `${zoom}x` : `${zoom.toFixed(2)}x`}</button>
-              )}
-              {(sectorBounds || displaySectors) && (
-                <>
-                  <div className="h-px" />
+              <div className="order-1 md:order-2 bg-app-bg rounded-lg border border-app-border relative flex-1 min-w-0 h-[260px] md:h-auto">
+                {track.hasOutline ? (
+                  <canvas
+                    ref={canvasRef}
+                    className="w-full h-full cursor-grab active:cursor-grabbing"
+                    onMouseDown={(e) => {
+                      dragging.current = { startX: e.clientX, startY: e.clientY, startPanX: pan.x, startPanZ: pan.z };
+                    }}
+                    onMouseMove={(e) => {
+                      if (!dragging.current) return;
+                      const dx = e.clientX - dragging.current.startX;
+                      const dy = e.clientY - dragging.current.startY;
+                      setPan({ x: dragging.current.startPanX + dx, z: dragging.current.startPanZ + dy });
+                    }}
+                    onMouseUp={() => {
+                      dragging.current = null;
+                    }}
+                    onMouseLeave={() => {
+                      dragging.current = null;
+                    }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">No outline available</div>
+                )}
+                <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
                   <button
-                    onClick={() => setMapDisplayMode((m) => m === "segments" ? "sectors" : "segments")}
-                    className={`px-1.5 py-1 text-[9px] font-mono rounded border transition-colors ${
-                      mapDisplayMode === "sectors"
-                        ? "bg-amber-900/50 border-amber-700 text-amber-400"
-                        : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
-                    }`}
-                    title={mapDisplayMode === "sectors" ? "Show segments" : "Show sectors"}
+                    onClick={() => setZoom((z) => Math.min(z + 0.25, 4))}
+                    className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
                   >
-                    {mapDisplayMode === "sectors" ? "Sectors" : "Segments"}
+                    +
                   </button>
-                </>
-              )}
-            </div>
-            {/* Track info overlay — bottom left */}
-            <div className="absolute bottom-2 left-2 flex items-center gap-2.5 text-[10px] font-mono text-app-text-dim bg-app-surface/70 backdrop-blur-sm rounded px-2 py-1 pointer-events-none">
-              {track.lengthKm > 0 && <span>{track.lengthKm} km</span>}
-              {corners.length > 0 && <><span className="text-app-text-dim/40">·</span><span>{corners.length} corners</span></>}
-              {straights.length > 0 && <><span className="text-app-text-dim/40">·</span><span>{straights.length} straights</span></>}
-              {track.createdAt && <><span className="text-app-text-dim/40">·</span><span>{new Date(track.createdAt).toLocaleDateString()}</span></>}
-            </div>
-          </div>
-
-          </div>
-
-          {/* Tab content */}
-          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            {/* Setups tab — no outer scroll, component handles its own */}
-            {activeTab === "setups" && (
-              <div className="flex-1 min-h-0">
-                {isF125 && <F125SetupsWithGuide trackOrdinal={track.ordinal} trackName={track.name} />}
-                {isAcc && <AccTrackSetups trackOrdinal={track.ordinal} />}
-              </div>
-            )}
-
-            {activeTab === "guide" && isAcc && (
-              <div className="flex-1 min-h-0">
-                <AccTrackGuide trackOrdinal={track.ordinal} trackName={track.name} />
-              </div>
-            )}
-            {activeTab === "guide" && isF125 && (
-              <div className="flex-1 min-h-0 p-2">
-                <F125TrackGuide trackOrdinal={track.ordinal} />
-              </div>
-            )}
-
-            <div className={`flex-1 min-h-0 ${activeTab === "laps" ? "overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
-
-              {/* Tunes tab (Forza) */}
-              {activeTab === "tunes" && (
-                <TrackTunes trackName={track.name} trackVariant={track.variant} />
-              )}
-
-              {/* Laps tab */}
-              {activeTab === "laps" && (
-                <div className="flex flex-col gap-3 h-full overflow-hidden">
-                  {/* Own laps */}
-                  <div className="flex flex-col gap-3 h-full overflow-hidden">
-                  {trackLaps.length === 0 ? (
-                    <div className="text-app-subtext text-app-text-dim py-4 text-center">No laps recorded for this track</div>
-                  ) : (
+                  <button
+                    onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
+                    className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
+                  >
+                    -
+                  </button>
+                  {zoom !== 1 && (
+                    <button
+                      onClick={() => {
+                        setZoom(1);
+                        setPan({ x: 0, z: 0 });
+                      }}
+                      className="px-1.5 py-1 text-[9px] font-mono bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded"
+                    >
+                      {zoom % 1 === 0 ? `${zoom}x` : `${zoom.toFixed(2)}x`}
+                    </button>
+                  )}
+                  {(sectorBounds || displaySectors) && (
                     <>
-                      {/* Car filter + selection actions */}
-                      <div className="flex items-center gap-3">
-                        <div className="text-app-label text-app-text-muted uppercase tracking-wider">Laps ({filteredLaps.length})</div>
-                        {/* Division filter — Forza only */}
-                        {hasForzaTunes && uniqueDivisions.length > 1 && (
-                          <div className="flex items-center gap-1">
-                            <select
-                              value={selectedDivision ?? ""}
-                              onChange={e => setSelectedDivision(e.target.value || null)}
-                              className="text-app-unit px-2 py-0.5 rounded border border-app-border-input text-app-text-secondary bg-app-surface hover:text-app-text focus:outline-none"
-                            >
-                              <option value="">All divisions</option>
-                              {uniqueDivisions.map(d => <option key={d} value={d}>{d}</option>)}
-                            </select>
-                            {selectedDivision && (
-                              <button onClick={() => setSelectedDivision(null)} className="text-app-unit text-app-text-dim hover:text-app-text px-1 py-0.5">✕</button>
-                            )}
-                          </div>
-                        )}
-                        <div className="relative" ref={carDropdownRef}>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => { setCarDropdownOpen(o => !o); setCarSearch(""); }}
-                              className="text-app-unit px-2 py-0.5 rounded border border-app-border-input text-app-text-secondary hover:text-app-text flex items-center gap-1.5"
-                            >
-                              {selectedCars.size === 0 ? "All cars" : `${selectedCars.size} car${selectedCars.size > 1 ? "s" : ""}`}
-                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                            </button>
-                            {selectedCars.size > 0 && (
-                              <button onClick={() => { setSelectedCars(new Set()); setSelectedLaps(new Set()); }} className="text-app-unit text-app-text-dim hover:text-app-text px-1 py-0.5">✕</button>
-                            )}
-                          </div>
-                          {carDropdownOpen && (
-                            <div className="absolute left-0 top-full mt-1 w-64 bg-app-surface-alt border border-app-border-input rounded-lg shadow-lg z-50">
-                              <div className="p-1.5 border-b border-app-border-input">
-                                <input
-                                  autoFocus
-                                  type="text"
-                                  value={carSearch}
-                                  onChange={e => setCarSearch(e.target.value)}
-                                  placeholder="Search cars..."
-                                  className="w-full bg-app-surface border border-app-border-input rounded px-2 py-1 text-app-label text-app-text placeholder:text-app-text-dim focus:outline-none"
-                                />
-                              </div>
-                              <div className="max-h-48 overflow-y-auto">
-                                {uniqueCars
-                                  .filter(c => c.carName.toLowerCase().includes(carSearch.toLowerCase()))
-                                  .map(car => {
-                                    const active = selectedCars.has(car.carOrdinal);
-                                    return (
-                                      <button
-                                        key={car.carOrdinal}
-                                        onClick={() => toggleCar(car.carOrdinal)}
-                                        className={`w-full text-left flex items-center gap-2 px-3 py-1.5 text-app-label transition-colors hover:bg-app-surface ${active ? "text-app-text" : "text-app-text-secondary"}`}
-                                      >
-                                        <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${active ? "bg-app-accent border-app-accent" : "border-app-border-input"}`}>
-                                          {active && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-                                        </span>
-                                        {!hideClassCol && <span className={`font-bold font-mono text-[10px] flex-shrink-0 ${classTextColors[car.carClass] ?? "text-app-text-secondary"}`}>{car.carClass}</span>}
-                                        <span className="truncate">{car.carName}</span>
-                                      </button>
-                                    );
-                                  })}
-                                {uniqueCars.filter(c => c.carName.toLowerCase().includes(carSearch.toLowerCase())).length === 0 && (
-                                  <div className="px-3 py-2 text-app-label text-app-text-dim">No results</div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                        </div>
-                        {/* Selection actions — inline in header row */}
-                        {selectedLaps.size > 0 && (
-                          <div className="flex items-center gap-2 ml-auto">
-                            <span className="text-app-unit text-app-text-dim">{selectedLaps.size} selected</span>
-                            {selectedLaps.size === 2 && (() => {
-                              const [lapA, lapB] = Array.from(selectedLaps);
-                              return (
-                                <button
-                                  onClick={() => navTo({ to: "/fm23/compare", search: { track: track.ordinal, lapA, lapB, carA: trackLaps.find((l) => l.lapId === lapA)?.carOrdinal, carB: trackLaps.find((l) => l.lapId === lapB)?.carOrdinal } })}
-                                  className="text-app-unit px-2 py-0.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-medium"
-                                >Compare</button>
-                              );
-                            })()}
-                            {!confirmDelete ? (
-                              <button onClick={() => setConfirmDelete(true)} className="text-app-unit px-2 py-0.5 rounded bg-red-600/80 hover:bg-red-600 text-white font-medium">
-                                Delete ({selectedLaps.size})
-                              </button>
-                            ) : (
-                              <div className="flex items-center gap-1">
-                                <span className="text-app-unit text-red-400">Confirm?</span>
-                                <button onClick={handleBulkDelete} disabled={deleting} className="text-app-unit px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white font-medium disabled:opacity-50">{deleting ? "..." : "Yes"}</button>
-                                <button onClick={() => setConfirmDelete(false)} className="text-app-unit px-2 py-0.5 rounded bg-app-surface-alt text-app-text-secondary hover:text-app-text">Cancel</button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Lap stats sidebar + table */}
-                      <div className="flex gap-3 flex-1 min-h-0 overflow-hidden">
-                      {/* LapStatsPanel */}
-                      <LapStatsPanel laps={filteredLaps.filter(l => l.isValid !== false)} showSessionFilter={isF125} />
-                      {/* Lap table */}
-                      <div className="flex-1 min-w-0 overflow-y-auto bg-app-surface/50 border border-app-border rounded-lg">
-                        <Table>
-                          <THead>
-                            <TH className="w-8 px-3">
-                              <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-cyan-400" />
-                            </TH>
-                            <TH>Car</TH>
-                            {!hideClassCol && <TH>Class</TH>}
-                            {hasSessionTypes && <TH>Type</TH>}
-                            <TH className="cursor-pointer hover:text-app-text select-none w-px whitespace-nowrap" onClick={() => handleSort("lap")}>
-                              Lap # {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
-                            </TH>
-                            <TH className="cursor-pointer hover:text-app-text select-none text-right w-px whitespace-nowrap" onClick={() => handleSort("time")}>
-                              Time {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
-                            </TH>
-                            <TH className="w-px" />
-                            <TH className="text-red-400">S1</TH>
-                            <TH className="text-blue-400">S2</TH>
-                            <TH className="text-yellow-400">S3</TH>
-                            <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("date")}>
-                              Date {sortBy === "date" ? (sortAsc ? "▲" : "▼") : ""}
-                            </TH>
-                            <TH>Notes</TH>
-                          </THead>
-                          <TBody>
-                            {(() => {
-                              const validLaps = filteredLaps.filter(l => l.isValid !== false);
-                              const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map(l => l.lapTime)) : null;
-                              return filteredLaps.map((lap) => {
-                              const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
-                              return (
-                              <TRow key={lap.lapId} className={selectedLaps.has(lap.lapId) ? "bg-cyan-500/5" : ""}>
-                                <TD className="px-3">
-                                  <input type="checkbox" checked={selectedLaps.has(lap.lapId)} onChange={() => toggleLapSelect(lap.lapId)} className="accent-cyan-400" />
-                                </TD>
-                                <TD className="truncate max-w-[200px]">{lap.carName}</TD>
-                                {!hideClassCol && (
-                                  <TD>
-                                    <span className={`font-bold font-mono ${classTextColors[lap.carClass] ?? "text-app-text-secondary"}`}>{lap.carClass}</span>
-                                    <span className="text-app-text-secondary ml-1">PI {lap.pi}</span>
-                                  </TD>
-                                )}
-                                {hasSessionTypes && (
-                                  <TD>
-                                    {lap.sessionId != null && (sessionLapCounts.get(lap.sessionId) ?? 0) > 1
-                                      ? <span className="text-[10px] text-emerald-400 font-medium">Race</span>
-                                      : <span className="text-[10px] text-amber-400 font-medium">Quali</span>
-                                    }
-                                  </TD>
-                                )}
-                                <TD className="font-mono text-app-text-secondary whitespace-nowrap">{lap.lapNumber}</TD>
-                                <TD className="text-right whitespace-nowrap">
-                                  <div className="flex items-center justify-end gap-1">
-                                    <span className={`font-mono tabular-nums ${isFastest ? "text-purple-400 font-bold" : ""}`}>{formatLapTime(lap.lapTime)}</span>
-                                    {lap.isValid === false
-                                      ? <span className="group/inv relative text-sm text-red-400 cursor-default">✕<span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">{lap.invalidReason ?? "Invalid lap"}</span></span>
-                                      : <span className="text-sm text-emerald-400">✓</span>
-                                    }
-                                  </div>
-                                </TD>
-                                <TD className="w-px whitespace-nowrap">
-                                  {lap.isLegacy ? (
-                                    <Tooltip content={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
-                                      <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
-                                        Analyse
-                                      </Button>
-                                    </Tooltip>
-                                  ) : (
-                                    <Button
-                                      variant="app-outline"
-                                      size="app-sm"
-                                      className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
-                                      onClick={() => {
-                                        if (!gameId) return;
-                                        navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
-                                      }}
-                                    >
-                                      Analyse
-                                    </Button>
-                                  )}
-                                </TD>
-                                <TD className="font-mono tabular-nums text-app-text/90">{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</TD>
-                                <TD className="font-mono tabular-nums text-app-text/90">{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</TD>
-                                <TD className="font-mono tabular-nums text-app-text/90">{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</TD>
-                                <TD className="text-app-text-secondary whitespace-nowrap font-mono">
-                                  {lap.createdAt ? `${new Date(lap.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} ${new Date(lap.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : "—"}
-                                </TD>
-                                <TD className="text-app-text-secondary max-w-[200px] truncate" title={lap.notes ?? undefined}>
-                                  {lap.notes ?? ""}
-                                </TD>
-                              </TRow>
-                            );});})()}
-                            {filteredLaps.length === 0 && (
-                              <tr><td colSpan={6} className="px-3 py-4 text-center text-sm text-app-text-dim">No laps match the selected filters</td></tr>
-                            )}
-                          </TBody>
-                        </Table>
-                      </div>
-                      </div>{/* end stats+table flex */}
-
+                      <div className="h-px" />
+                      <button
+                        onClick={() => setMapDisplayMode((m) => (m === "segments" ? "sectors" : "segments"))}
+                        className={`px-1.5 py-1 text-[9px] font-mono rounded border transition-colors ${
+                          mapDisplayMode === "sectors" ? "bg-amber-900/50 border-amber-700 text-amber-400" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
+                        }`}
+                        title={mapDisplayMode === "sectors" ? "Show segments" : "Show sectors"}
+                      >
+                        {mapDisplayMode === "sectors" ? "Sectors" : "Segments"}
+                      </button>
                     </>
                   )}
-                  </div>
+                </div>
+                {/* Track info overlay — bottom left */}
+                <div className="absolute bottom-2 left-2 flex items-center gap-2.5 text-[10px] font-mono text-app-text-dim bg-app-surface/70 backdrop-blur-sm rounded px-2 py-1 pointer-events-none">
+                  {track.lengthKm > 0 && <span>{track.lengthKm} km</span>}
+                  {corners.length > 0 && (
+                    <>
+                      <span className="text-app-text-dim/40">·</span>
+                      <span>{corners.length} corners</span>
+                    </>
+                  )}
+                  {straights.length > 0 && (
+                    <>
+                      <span className="text-app-text-dim/40">·</span>
+                      <span>{straights.length} straights</span>
+                    </>
+                  )}
+                  {track.createdAt && (
+                    <>
+                      <span className="text-app-text-dim/40">·</span>
+                      <span>{new Date(track.createdAt).toLocaleDateString()}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Tab content */}
+            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Setups tab — no outer scroll, component handles its own */}
+              {activeTab === "setups" && (
+                <div className="flex-1 min-h-0">
+                  {isF125 && <F125SetupsWithGuide trackOrdinal={track.ordinal} trackName={track.name} />}
+                  {isAcc && <AccTrackSetups trackOrdinal={track.ordinal} />}
                 </div>
               )}
 
+              {activeTab === "guide" && isAcc && (
+                <div className="flex-1 min-h-0">
+                  <AccTrackGuide trackOrdinal={track.ordinal} trackName={track.name} />
+                </div>
+              )}
+              {activeTab === "guide" && isF125 && (
+                <div className="flex-1 min-h-0 p-2">
+                  <F125TrackGuide trackOrdinal={track.ordinal} />
+                </div>
+              )}
+
+              <div className={`flex-1 min-h-0 ${activeTab === "laps" ? "md:overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
+                {/* Tunes tab (Forza) */}
+                {activeTab === "tunes" && <TrackTunes trackName={track.name} trackVariant={track.variant} />}
+
+                {/* Laps tab */}
+                {activeTab === "laps" && (
+                  <div className="flex flex-col gap-3 lg:h-full lg:overflow-hidden">
+                    {/* Own laps */}
+                    <div className="flex flex-col gap-3 lg:h-full lg:overflow-hidden">
+                      {trackLaps.length === 0 ? (
+                        <div className="text-app-subtext text-app-text-dim py-4 text-center">No laps recorded for this track</div>
+                      ) : (
+                        (() => {
+                          const filterRow = (
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <div className="text-app-label text-app-text-muted uppercase tracking-wider">Laps ({filteredLaps.length})</div>
+                              {/* Division filter — Forza only */}
+                              {hasForzaTunes && uniqueDivisions.length > 1 && (
+                                <SearchMultiSelect<string>
+                                  mode="single"
+                                  buttonLabel={selectedDivision ?? "All divisions"}
+                                  options={uniqueDivisions.map((d) => ({ key: d, label: d }))}
+                                  isSelected={(k) => selectedDivision === k}
+                                  onSelect={(k) => setSelectedDivision(k)}
+                                  onClear={selectedDivision ? () => setSelectedDivision(null) : undefined}
+                                  searchPlaceholder="Search divisions..."
+                                  menuWidthClass="w-56"
+                                />
+                              )}
+                              <SearchMultiSelect<number>
+                                buttonLabel={selectedCars.size === 0 ? "All cars" : `${selectedCars.size} car${selectedCars.size > 1 ? "s" : ""}`}
+                                options={uniqueCars.map((c) => ({ key: c.carOrdinal, label: c.carName, search: c.carName }))}
+                                isSelected={(k) => selectedCars.has(k)}
+                                onSelect={(k) => toggleCar(k)}
+                                onClear={
+                                  selectedCars.size > 0
+                                    ? () => {
+                                        setSelectedCars(new Set());
+                                        setSelectedLaps(new Set());
+                                      }
+                                    : undefined
+                                }
+                                searchPlaceholder="Search cars..."
+                                menuAlign="right"
+                                renderItem={(opt) => {
+                                  const car = uniqueCars.find((c) => c.carOrdinal === opt.key);
+                                  return (
+                                    <>
+                                      {!hideClassCol && car && (
+                                        <span className={`font-bold font-mono text-[10px] flex-shrink-0 ${classTextColors[car.carClass] ?? "text-app-text-secondary"}`}>{car.carClass}</span>
+                                      )}
+                                      <span className="truncate">{opt.label}</span>
+                                    </>
+                                  );
+                                }}
+                              />
+                              {/* Selection actions — inline in header row */}
+                              {selectedLaps.size > 0 && (
+                                <div className="flex items-center gap-2 ml-auto">
+                                  <span className="text-app-unit text-app-text-dim">{selectedLaps.size} selected</span>
+                                  {selectedLaps.size === 2 &&
+                                    (() => {
+                                      const [lapA, lapB] = Array.from(selectedLaps);
+                                      return (
+                                        <button
+                                          onClick={() =>
+                                            navTo({
+                                              to: "/fm23/compare",
+                                              search: {
+                                                track: track.ordinal,
+                                                lapA,
+                                                lapB,
+                                                carA: trackLaps.find((l) => l.lapId === lapA)?.carOrdinal,
+                                                carB: trackLaps.find((l) => l.lapId === lapB)?.carOrdinal,
+                                              },
+                                            })
+                                          }
+                                          className="text-app-unit px-2 py-0.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-medium"
+                                        >
+                                          Compare
+                                        </button>
+                                      );
+                                    })()}
+                                  {!confirmDelete ? (
+                                    <button onClick={() => setConfirmDelete(true)} className="text-app-unit px-2 py-0.5 rounded bg-red-600/80 hover:bg-red-600 text-white font-medium">
+                                      Delete ({selectedLaps.size})
+                                    </button>
+                                  ) : (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-app-unit text-red-400">Confirm?</span>
+                                      <button
+                                        onClick={handleBulkDelete}
+                                        disabled={deleting}
+                                        className="text-app-unit px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white font-medium disabled:opacity-50"
+                                      >
+                                        {deleting ? "..." : "Yes"}
+                                      </button>
+                                      <button onClick={() => setConfirmDelete(false)} className="text-app-unit px-2 py-0.5 rounded bg-app-surface-alt text-app-text-secondary hover:text-app-text">
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                          return (
+                            <>
+                              {/* Desktop filter row */}
+                              <div className="hidden md:block">{filterRow}</div>
+
+                              {/* Mobile: filter + 2-page carousel (stats / laps) */}
+                              <div className="md:hidden flex flex-col gap-2">
+                                {filterRow}
+                                <div className="flex items-center gap-1 border-b border-app-border">
+                                  {["Stats", "Laps"].map((label, i) => (
+                                    <button
+                                      key={label}
+                                      onClick={() => gotoCarouselPage(i)}
+                                      className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${carouselPage === i ? "border-app-accent text-app-accent" : "border-transparent text-app-text-muted"}`}
+                                    >
+                                      {label}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div
+                                  ref={setCarouselEl}
+                                  className="overflow-x-auto overflow-y-hidden snap-x snap-mandatory flex scroll-smooth items-start"
+                                  style={carouselHeight ? { height: carouselHeight } : undefined}
+                                >
+                                  <div className="snap-center shrink-0 w-full">
+                                    <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} showSessionFilter={isF125} />
+                                  </div>
+                                  <div className="snap-center shrink-0 w-full flex flex-col gap-2">
+                                    {(() => {
+                                      const validLaps = filteredLaps.filter((l) => l.isValid !== false);
+                                      const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
+                                      if (filteredLaps.length === 0) {
+                                        return <div className="px-3 py-6 text-center text-sm text-app-text-dim">No laps match the selected filters</div>;
+                                      }
+                                      return filteredLaps.map((lap) => {
+                                        const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
+                                        const selected = selectedLaps.has(lap.lapId);
+                                        return (
+                                          <div key={lap.lapId} className={`rounded-lg border border-app-border p-3 ${selected ? "bg-cyan-500/5 border-cyan-500/30" : ""}`}>
+                                            <div className="flex items-start gap-3">
+                                              <input type="checkbox" checked={selected} onChange={() => toggleLapSelect(lap.lapId)} className="accent-cyan-400 w-5 h-5 mt-0.5 shrink-0" />
+                                              <div className="flex-1 min-w-0">
+                                                <div className="flex items-start justify-between gap-3">
+                                                  <div className="min-w-0 flex-1">
+                                                    <div className="text-sm font-semibold text-app-text break-words">{lap.carName}</div>
+                                                    <div className="mt-0.5 flex items-center gap-2 text-xs text-app-text-muted">
+                                                      {!hideClassCol && (
+                                                        <span>
+                                                          <span className={`font-bold font-mono ${classTextColors[lap.carClass] ?? "text-app-text-secondary"}`}>{lap.carClass}</span>
+                                                          <span className="ml-1">PI {lap.pi}</span>
+                                                        </span>
+                                                      )}
+                                                      <span className="font-mono">Lap {lap.lapNumber}</span>
+                                                      {hasSessionTypes &&
+                                                        lap.sessionId != null &&
+                                                        ((sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
+                                                          <span className="text-[10px] text-emerald-400 font-medium">Race</span>
+                                                        ) : (
+                                                          <span className="text-[10px] text-amber-400 font-medium">Quali</span>
+                                                        ))}
+                                                    </div>
+                                                    {lap.createdAt && (
+                                                      <div className="mt-1 text-[11px] text-app-text-dim font-mono">
+                                                        {new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
+                                                        {new Date(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                                      </div>
+                                                    )}
+                                                    {lap.notes && <div className="mt-1 text-xs text-app-text-secondary truncate">{lap.notes}</div>}
+                                                  </div>
+                                                  <div className="shrink-0 flex flex-col items-end gap-1 font-mono tabular-nums text-sm leading-tight">
+                                                    <div className="flex items-center gap-1">
+                                                      <span className={isFastest ? "text-purple-400 font-bold" : "text-app-text"}>{formatLapTime(lap.lapTime)}</span>
+                                                      {lap.isValid === false ? (
+                                                        <span className="text-red-400 w-6 text-center" title={lap.invalidReason ?? "Invalid lap"}>
+                                                          ✕
+                                                        </span>
+                                                      ) : (
+                                                        <span className="text-emerald-400 w-6 text-center">✓</span>
+                                                      )}
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                      <span>{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</span>
+                                                      <span className="text-red-400 w-6 text-center">S1</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                      <span>{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</span>
+                                                      <span className="text-blue-400 w-6 text-center">S2</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                      <span>{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</span>
+                                                      <span className="text-yellow-400 w-6 text-center">S3</span>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      });
+                                    })()}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Desktop: stats + table side-by-side */}
+                              <div className="hidden md:flex gap-3 flex-1 min-h-0 overflow-hidden">
+                                <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} showSessionFilter={isF125} />
+                                {/* Lap table (md+) */}
+                                <div className="flex-1 min-w-0 overflow-y-auto bg-app-surface/50 border border-app-border rounded-lg">
+                                  <Table>
+                                    <THead>
+                                      <TH className="w-8 px-3">
+                                        <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-cyan-400" />
+                                      </TH>
+                                      <TH>Car</TH>
+                                      {!hideClassCol && <TH>Class</TH>}
+                                      {hasSessionTypes && <TH>Type</TH>}
+                                      <TH className="cursor-pointer hover:text-app-text select-none w-px whitespace-nowrap" onClick={() => handleSort("lap")}>
+                                        Lap # {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
+                                      </TH>
+                                      <TH className="cursor-pointer hover:text-app-text select-none text-right w-px whitespace-nowrap" onClick={() => handleSort("time")}>
+                                        Time {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
+                                      </TH>
+                                      <TH className="w-px" />
+                                      <TH className="text-red-400">S1</TH>
+                                      <TH className="text-blue-400">S2</TH>
+                                      <TH className="text-yellow-400">S3</TH>
+                                      <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("date")}>
+                                        Date {sortBy === "date" ? (sortAsc ? "▲" : "▼") : ""}
+                                      </TH>
+                                      <TH>Notes</TH>
+                                    </THead>
+                                    <TBody>
+                                      {(() => {
+                                        const validLaps = filteredLaps.filter((l) => l.isValid !== false);
+                                        const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
+                                        return filteredLaps.map((lap) => {
+                                          const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
+                                          return (
+                                            <TRow key={lap.lapId} className={selectedLaps.has(lap.lapId) ? "bg-cyan-500/5" : ""}>
+                                              <TD className="px-3">
+                                                <input type="checkbox" checked={selectedLaps.has(lap.lapId)} onChange={() => toggleLapSelect(lap.lapId)} className="accent-cyan-400" />
+                                              </TD>
+                                              <TD className="truncate max-w-[200px]">{lap.carName}</TD>
+                                              {!hideClassCol && (
+                                                <TD>
+                                                  <span className={`font-bold font-mono ${classTextColors[lap.carClass] ?? "text-app-text-secondary"}`}>{lap.carClass}</span>
+                                                  <span className="text-app-text-secondary ml-1">PI {lap.pi}</span>
+                                                </TD>
+                                              )}
+                                              {hasSessionTypes && (
+                                                <TD>
+                                                  {lap.sessionId != null && (sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
+                                                    <span className="text-[10px] text-emerald-400 font-medium">Race</span>
+                                                  ) : (
+                                                    <span className="text-[10px] text-amber-400 font-medium">Quali</span>
+                                                  )}
+                                                </TD>
+                                              )}
+                                              <TD className="font-mono text-app-text-secondary whitespace-nowrap">{lap.lapNumber}</TD>
+                                              <TD className="text-right whitespace-nowrap">
+                                                <div className="flex items-center justify-end gap-1">
+                                                  <span className={`font-mono tabular-nums ${isFastest ? "text-purple-400 font-bold" : ""}`}>{formatLapTime(lap.lapTime)}</span>
+                                                  {lap.isValid === false ? (
+                                                    <span className="group/inv relative text-sm text-red-400 cursor-default">
+                                                      ✕
+                                                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">
+                                                        {lap.invalidReason ?? "Invalid lap"}
+                                                      </span>
+                                                    </span>
+                                                  ) : (
+                                                    <span className="text-sm text-emerald-400">✓</span>
+                                                  )}
+                                                </div>
+                                              </TD>
+                                              <TD className="w-px whitespace-nowrap">
+                                                {lap.isLegacy ? (
+                                                  <Tooltip content={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
+                                                    <Button
+                                                      variant="app-outline"
+                                                      size="app-sm"
+                                                      disabled
+                                                      className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40"
+                                                    >
+                                                      Analyse
+                                                    </Button>
+                                                  </Tooltip>
+                                                ) : (
+                                                  <Button
+                                                    variant="app-outline"
+                                                    size="app-sm"
+                                                    className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
+                                                    onClick={() => {
+                                                      if (!gameId) return;
+                                                      navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
+                                                    }}
+                                                  >
+                                                    Analyse
+                                                  </Button>
+                                                )}
+                                              </TD>
+                                              <TD className="font-mono tabular-nums text-app-text/90">{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</TD>
+                                              <TD className="font-mono tabular-nums text-app-text/90">{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</TD>
+                                              <TD className="font-mono tabular-nums text-app-text/90">{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</TD>
+                                              <TD className="text-app-text-secondary whitespace-nowrap font-mono">
+                                                {lap.createdAt
+                                                  ? `${new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })} ${new Date(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                                                  : "—"}
+                                              </TD>
+                                              <TD className="text-app-text-secondary max-w-[200px] truncate" title={lap.notes ?? undefined}>
+                                                {lap.notes ?? ""}
+                                              </TD>
+                                            </TRow>
+                                          );
+                                        });
+                                      })()}
+                                      {filteredLaps.length === 0 && (
+                                        <tr>
+                                          <td colSpan={6} className="px-3 py-4 text-center text-sm text-app-text-dim">
+                                            No laps match the selected filters
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </TBody>
+                                  </Table>
+                                </div>
+                              </div>
+                              {/* end stats+table flex */}
+                            </>
+                          );
+                        })()
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
-
-      </div>
       )}
     </div>
   );

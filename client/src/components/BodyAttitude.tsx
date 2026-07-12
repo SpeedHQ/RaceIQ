@@ -21,7 +21,9 @@ export function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
       <div className="flex flex-col items-center">
         <svg viewBox="0 -6 50 56" width={130} height={143}>
           <defs>
-            <clipPath id="ati-clip"><rect x={8} y={4} width={34} height={36} rx={4} /></clipPath>
+            <clipPath id="ati-clip">
+              <rect x={8} y={4} width={34} height={36} rx={4} />
+            </clipPath>
           </defs>
           <g clipPath="url(#ati-clip)">
             <g transform={`rotate(${clampRoll}, 25, 22)`}>
@@ -32,12 +34,20 @@ export function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
               {/* Horizon line */}
               <line x1={-10} y1={22 + clampPitch * 1.2} x2={60} y2={22 + clampPitch * 1.2} stroke="rgba(255,255,255,0.6)" strokeWidth={0.5} />
               {/* Pitch ladder lines — every 2.5° */}
-              {[-10, -7.5, -5, -2.5, 2.5, 5, 7.5, 10].map(d => {
+              {[-10, -7.5, -5, -2.5, 2.5, 5, 7.5, 10].map((d) => {
                 const major = d % 5 === 0;
                 const x1 = major ? 17 : 20;
                 const x2 = major ? 33 : 30;
                 return (
-                  <line key={d} x1={x1} y1={22 + clampPitch * 1.2 - d * 1.2} x2={x2} y2={22 + clampPitch * 1.2 - d * 1.2} stroke={`rgba(255,255,255,${major ? 0.35 : 0.18})`} strokeWidth={major ? 0.5 : 0.3} />
+                  <line
+                    key={d}
+                    x1={x1}
+                    y1={22 + clampPitch * 1.2 - d * 1.2}
+                    x2={x2}
+                    y2={22 + clampPitch * 1.2 - d * 1.2}
+                    stroke={`rgba(255,255,255,${major ? 0.35 : 0.18})`}
+                    strokeWidth={major ? 0.5 : 0.3}
+                  />
                 );
               })}
             </g>
@@ -45,7 +55,7 @@ export function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
           {/* Bezel */}
           <rect x={8} y={4} width={34} height={36} rx={4} fill="none" stroke="rgba(100,116,139,0.4)" strokeWidth={1} />
           {/* Bank angle tick marks — every 5° */}
-          {[-30, -25, -20, -15, -10, -5, 5, 10, 15, 20, 25, 30].map(a => {
+          {[-30, -25, -20, -15, -10, -5, 5, 10, 15, 20, 25, 30].map((a) => {
             const major = a % 10 === 0;
             return (
               <line key={a} x1={25} y1={4.5} x2={25} y2={major ? 8.5 : 7} stroke={`rgba(255,255,255,${major ? 0.5 : 0.25})`} strokeWidth={major ? 0.6 : 0.35} transform={`rotate(${a}, 25, 22)`} />
@@ -58,8 +68,12 @@ export function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
           {/* Roll pointer at top */}
           <polygon points="25,3 23,6 27,6" fill="rgba(255,255,255,0.5)" />
           {/* Yaw heading at top */}
-          <text x={25} y={2.5} textAnchor="middle" fill="#94a3b8" fontSize={5} fontFamily="monospace">{yaw.toFixed(0)}°</text>
-          <text x={25} y={48} textAnchor="middle" fill="#64748b" fontSize={7} fontFamily="monospace">R{roll.toFixed(0)}° P{pitch.toFixed(0)}°</text>
+          <text x={25} y={2.5} textAnchor="middle" fill="#94a3b8" fontSize={5} fontFamily="monospace">
+            {yaw.toFixed(0)}°
+          </text>
+          <text x={25} y={48} textAnchor="middle" fill="#64748b" fontSize={7} fontFamily="monospace">
+            R{roll.toFixed(0)}° P{pitch.toFixed(0)}°
+          </text>
         </svg>
       </div>
     </div>

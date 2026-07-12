@@ -22,19 +22,17 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
   const deleteLap = useDeleteLap();
 
   // Filter by track if provided, otherwise use all
-  const filteredLaps = trackOrdinal != null
-    ? laps.filter((l) => l.trackOrdinal === trackOrdinal)
-    : laps;
+  const filteredLaps = trackOrdinal != null ? laps.filter((l) => l.trackOrdinal === trackOrdinal) : laps;
 
-  const sorted = [...filteredLaps]
-    .sort((a, b) => b.lapNumber - a.lapNumber)
-    .slice(0, maxLaps);
+  const sorted = [...filteredLaps].sort((a, b) => b.lapNumber - a.lapNumber).slice(0, maxLaps);
 
-  const allTimes = filteredLaps.map(l => l.lapTime);
+  const allTimes = filteredLaps.map((l) => l.lapTime);
   const best = allTimes.length > 0 ? Math.min(...allTimes) : 0;
 
   // Collect best sectors from lap data
-  const allS1: number[] = [], allS2: number[] = [], allS3: number[] = [];
+  const allS1: number[] = [],
+    allS2: number[] = [],
+    allS3: number[] = [];
   for (const l of filteredLaps) {
     if (l.s1Time && l.s1Time > 0) allS1.push(l.s1Time);
     if (l.s2Time && l.s2Time > 0) allS2.push(l.s2Time);
@@ -87,21 +85,11 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                     {!l.isValid && <span className="text-red-400 leading-none">✕</span>}
                     {l.lapNumber}
                   </span>
-                  <span className={`text-sm font-mono tabular-nums text-right ${sectorColor(s1, bestS1)}`}>
-                    {s1 > 0 ? s1.toFixed(3) : "—"}
-                  </span>
-                  <span className={`text-sm font-mono tabular-nums text-right ${sectorColor(s2, bestS2)}`}>
-                    {s2 > 0 ? s2.toFixed(3) : "—"}
-                  </span>
-                  <span className={`text-sm font-mono tabular-nums text-right ${sectorColor(s3, bestS3)}`}>
-                    {s3 > 0 ? s3.toFixed(3) : "—"}
-                  </span>
-                  <span className={`text-base font-mono font-bold tabular-nums text-right ${timeColor}`}>
-                    {formatLapTime(l.lapTime)}
-                  </span>
-                  <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">
-                    {isBest ? "PB" : `+${delta.toFixed(3)}`}
-                  </span>
+                  <span className={`text-sm font-mono tabular-nums text-right ${sectorColor(s1, bestS1)}`}>{s1 > 0 ? s1.toFixed(3) : "—"}</span>
+                  <span className={`text-sm font-mono tabular-nums text-right ${sectorColor(s2, bestS2)}`}>{s2 > 0 ? s2.toFixed(3) : "—"}</span>
+                  <span className={`text-sm font-mono tabular-nums text-right ${sectorColor(s3, bestS3)}`}>{s3 > 0 ? s3.toFixed(3) : "—"}</span>
+                  <span className={`text-base font-mono font-bold tabular-nums text-right ${timeColor}`}>{formatLapTime(l.lapTime)}</span>
+                  <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">{isBest ? "PB" : `+${delta.toFixed(3)}`}</span>
                   <div className="flex items-center gap-1 w-16 justify-end">
                     <button
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -110,10 +98,7 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                     >
                       Analyse
                     </button>
-                    <button
-                      onClick={() => deleteLap.mutate(l.id)}
-                      className="px-1 py-0.5 text-[10px] rounded bg-slate-700 hover:bg-red-600 text-app-text"
-                    >
+                    <button onClick={() => deleteLap.mutate(l.id)} className="px-1 py-0.5 text-[10px] rounded bg-slate-700 hover:bg-red-600 text-app-text">
                       ×
                     </button>
                   </div>

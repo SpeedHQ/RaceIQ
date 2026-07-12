@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from "react";
 import { createPortal } from "react-dom";
 import Markdown from "react-markdown";
-import { readChatStream } from "../../lib/chat-stream";
+import { readChatStream, type ChatUsage, type ChatStreamStatus, type ChatStreamError } from "../../lib/chat-stream";
 import remarkGfm from "remark-gfm";
 import { Sparkles, RefreshCw, Send, Trash2, Eye, X } from "lucide-react";
 import { client } from "../../lib/rpc";
@@ -9,6 +9,7 @@ import { useSettings } from "../../hooks/queries";
 import { useUiStore } from "../../stores/ui";
 import { Button } from "../ui/button";
 import { AnalysisDisplay, type AnalysisData } from "../ai/analysis-display";
+import { isAiConfigured } from "../../lib/is-ai-configured";
 
 type ParsedAnalysis = Partial<AnalysisData>;
 
@@ -61,7 +62,11 @@ interface AnalysisSummary {
   raw: ParsedAnalysis;
 }
 
-interface ChatMessage { role: string; content: string; }
+interface ChatMessage {
+  role: string;
+  content: string;
+  usage?: ChatUsage;
+}
 
 function summarize(parsed: ParsedAnalysis): AnalysisSummary {
   return {
@@ -87,34 +92,39 @@ function useLapAnalysis(lapId: number, panelOpen: boolean) {
         query: { cacheOnly: "true" },
       });
       if (!res.ok) return;
-      const data = await res.json() as { analysis: string | object | null; cached: boolean };
+      const data = (await res.json()) as { analysis: string | object | null; cached: boolean };
       if (!data.cached || !data.analysis) return;
       const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
       setSummary(summarize(parsed));
-    } catch { /* ignore */ }
-  }, [lapId]);
-
-  const run = useCallback(async (regenerate = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await client.api.laps[":id"].analyse.$post({
-        param: { id: String(lapId) },
-        query: regenerate ? { regenerate: "true" } : {},
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: "Unknown error" })) as { error?: string };
-        throw new Error(data.error || `HTTP ${res.status}`);
-      }
-      const data = await res.json() as { analysis: string | object | null };
-      const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis as string) : data.analysis;
-      setSummary(summarize(parsed));
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to analyse");
-    } finally {
-      setLoading(false);
+    } catch {
+      /* ignore */
     }
   }, [lapId]);
+
+  const run = useCallback(
+    async (regenerate = false) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await client.api.laps[":id"].analyse.$post({
+          param: { id: String(lapId) },
+          query: regenerate ? { regenerate: "true" } : {},
+        });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({ error: "Unknown error" }))) as { error?: string };
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        const data = (await res.json()) as { analysis: string | object | null };
+        const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis as string) : data.analysis;
+        setSummary(summarize(parsed));
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to analyse");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [lapId],
+  );
 
   useEffect(() => {
     if (!panelOpen) return;
@@ -139,32 +149,37 @@ function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boolean) {
     try {
       const res = await fetch(`/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse?cacheOnly=true`, { method: "POST" });
       if (!res.ok) return;
-      const data = await res.json() as { analysis: string | object | null; cached: boolean };
+      const data = (await res.json()) as { analysis: string | object | null; cached: boolean };
       if (!data.cached || !data.analysis) return;
       const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
       setAnalysis(parsed);
-    } catch { /* ignore */ }
-  }, [lapAId, lapBId]);
-
-  const run = useCallback(async (regenerate = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const url = `/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse${regenerate ? "?regenerate=true" : ""}`;
-      const res = await fetch(url, { method: "POST" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: "Unknown error" })) as { error?: string };
-        throw new Error(data.error || `HTTP ${res.status}`);
-      }
-      const data = await res.json() as { analysis: string | object | null };
-      const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis as string) : data.analysis;
-      setAnalysis(parsed);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to analyse inputs");
-    } finally {
-      setLoading(false);
+    } catch {
+      /* ignore */
     }
   }, [lapAId, lapBId]);
+
+  const run = useCallback(
+    async (regenerate = false) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const url = `/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse${regenerate ? "?regenerate=true" : ""}`;
+        const res = await fetch(url, { method: "POST" });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({ error: "Unknown error" }))) as { error?: string };
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+        const data = (await res.json()) as { analysis: string | object | null };
+        const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis as string) : data.analysis;
+        setAnalysis(parsed);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to analyse inputs");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [lapAId, lapBId],
+  );
 
   useEffect(() => {
     if (!panelOpen) return;
@@ -198,22 +213,14 @@ function InputsSection({
         <span className="w-2 h-2 rounded-full bg-gradient-to-r from-orange-500 to-blue-500" />
         <span className="text-[11px] font-semibold text-app-text truncate flex-1">Inputs Comparison (A vs B)</span>
         {analysis && (
-          <button
-            onClick={() => run(true)}
-            disabled={loading}
-            className="text-app-text-muted hover:text-app-text disabled:opacity-40"
-            title="Regenerate"
-          >
+          <button onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title="Regenerate">
             <RefreshCw className="size-3" />
           </button>
         )}
       </div>
 
       {!analysis && !loading && !error && (
-        <button
-          onClick={() => run(false)}
-          className="w-full flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors"
-        >
+        <button onClick={() => run(false)} className="w-full flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
           <Sparkles className="size-3" />
           Compare Inputs
         </button>
@@ -229,7 +236,9 @@ function InputsSection({
       {error && (
         <div className="text-[10px] text-red-400 mb-1">
           {error}
-          <Button variant="app-outline" size="app-sm" onClick={() => run(false)} className="ml-2">Retry</Button>
+          <Button variant="app-outline" size="app-sm" onClick={() => run(false)} className="ml-2">
+            Retry
+          </Button>
         </div>
       )}
 
@@ -279,22 +288,14 @@ function LapSection({
         <span className={`w-2 h-2 rounded-full ${dotClass}`} />
         <span className="text-[11px] font-semibold text-app-text truncate flex-1">{lap.label}</span>
         {summary && (
-          <button
-            onClick={() => run(true)}
-            disabled={loading}
-            className="text-app-text-muted hover:text-app-text disabled:opacity-40"
-            title="Regenerate"
-          >
+          <button onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title="Regenerate">
             <RefreshCw className="size-3" />
           </button>
         )}
       </div>
 
       {!summary && !loading && !error && (
-        <button
-          onClick={() => run(false)}
-          className="w-full flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors"
-        >
+        <button onClick={() => run(false)} className="w-full flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
           <Sparkles className="size-3" />
           Analyse Lap
         </button>
@@ -310,7 +311,9 @@ function LapSection({
       {error && (
         <div className="text-[10px] text-red-400 mb-1">
           {error}
-          <Button variant="app-outline" size="app-sm" onClick={() => run(false)} className="ml-2">Retry</Button>
+          <Button variant="app-outline" size="app-sm" onClick={() => run(false)} className="ml-2">
+            Retry
+          </Button>
         </div>
       )}
 
@@ -355,7 +358,9 @@ function InputsModal({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[720px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-app-border shrink-0">
@@ -368,9 +373,7 @@ function InputsModal({
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-          {analysis.verdict && (
-            <p className="text-[12px] text-app-text leading-relaxed">{analysis.verdict}</p>
-          )}
+          {analysis.verdict && <p className="text-[12px] text-app-text leading-relaxed">{analysis.verdict}</p>}
 
           {analysis.segments?.length > 0 && (
             <div className="space-y-2">
@@ -384,39 +387,40 @@ function InputsModal({
                 });
                 const clickable = !!(match && onJumpToFrac);
                 return (
-                <div
-                  key={i}
-                  onClick={() => match && onJumpToFrac?.((match.startFrac + match.endFrac) / 2)}
-                  className={`rounded-lg border border-app-border-input/40 bg-app-surface-alt/40 px-2.5 py-2 ${clickable ? "cursor-pointer hover:border-cyan-400/40 hover:bg-app-surface-alt/60 transition-colors" : ""}`}
-                >
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className={`size-1.5 rounded-full ${SEVERITY_DOT[seg.severity] ?? SEVERITY_DOT.minor}`} />
-                    <span className="text-[11px] font-semibold text-app-text">{seg.name}</span>
-                    {seg.type && (
-                      <span className="text-[9px] uppercase tracking-wider text-app-text-muted">{seg.type}</span>
-                    )}
-                    {typeof seg.deltaSeconds === "number" && (
-                      <span className={`ml-auto text-[10px] font-mono ${
-                        seg.deltaSeconds > 0.05 ? "text-red-400"
-                        : seg.deltaSeconds < -0.05 ? "text-emerald-400"
-                        : "text-app-text-muted"
-                      }`}>
-                        {seg.deltaSeconds >= 0 ? "+" : ""}{seg.deltaSeconds.toFixed(3)}s
-                      </span>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 gap-1 text-[11px] text-app-text-secondary">
-                    <div><span className="text-emerald-400/70 font-medium">Throttle:</span> {seg.throttle}</div>
-                    <div><span className="text-red-400/70 font-medium">Brake:</span> {seg.brake}</div>
-                    <div><span className="text-cyan-400/70 font-medium">Steering:</span> {seg.steering}</div>
-                  </div>
-                  {seg.action && (
-                    <div className="mt-1.5 flex items-start gap-1.5 rounded bg-amber-500/10 border border-amber-500/30 px-2 py-1.5">
-                      <Sparkles className="size-3 text-amber-400 shrink-0 mt-0.5" />
-                      <span className="text-[11px] text-amber-200 leading-snug">{seg.action}</span>
+                  <div
+                    key={i}
+                    onClick={() => match && onJumpToFrac?.((match.startFrac + match.endFrac) / 2)}
+                    className={`rounded-lg border border-app-border-input/40 bg-app-surface-alt/40 px-2.5 py-2 ${clickable ? "cursor-pointer hover:border-cyan-400/40 hover:bg-app-surface-alt/60 transition-colors" : ""}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className={`size-1.5 rounded-full ${SEVERITY_DOT[seg.severity] ?? SEVERITY_DOT.minor}`} />
+                      <span className="text-[11px] font-semibold text-app-text">{seg.name}</span>
+                      {seg.type && <span className="text-[9px] uppercase tracking-wider text-app-text-muted">{seg.type}</span>}
+                      {typeof seg.deltaSeconds === "number" && (
+                        <span className={`ml-auto text-[10px] font-mono ${seg.deltaSeconds > 0.05 ? "text-red-400" : seg.deltaSeconds < -0.05 ? "text-emerald-400" : "text-app-text-muted"}`}>
+                          {seg.deltaSeconds >= 0 ? "+" : ""}
+                          {seg.deltaSeconds.toFixed(3)}s
+                        </span>
+                      )}
                     </div>
-                  )}
-                </div>
+                    <div className="grid grid-cols-1 gap-1 text-[11px] text-app-text-secondary">
+                      <div>
+                        <span className="text-emerald-400/70 font-medium">Throttle:</span> {seg.throttle}
+                      </div>
+                      <div>
+                        <span className="text-red-400/70 font-medium">Brake:</span> {seg.brake}
+                      </div>
+                      <div>
+                        <span className="text-cyan-400/70 font-medium">Steering:</span> {seg.steering}
+                      </div>
+                    </div>
+                    {seg.action && (
+                      <div className="mt-1.5 flex items-start gap-1.5 rounded bg-amber-500/10 border border-amber-500/30 px-2 py-1.5">
+                        <Sparkles className="size-3 text-amber-400 shrink-0 mt-0.5" />
+                        <span className="text-[11px] text-amber-200 leading-snug">{seg.action}</span>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -429,11 +433,13 @@ function InputsModal({
                 {analysis.coaching.map((c, i) => (
                   <div key={i} className="rounded border border-app-border-input/40 bg-app-surface-alt/30 px-2 py-1.5">
                     <div className="flex items-baseline gap-2">
-                      <span className={`text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded ${
-                        c.targetLap === "A"
-                          ? "bg-orange-500/15 text-orange-300 border border-orange-500/30"
-                          : "bg-blue-500/15 text-blue-300 border border-blue-500/30"
-                      }`}>Lap {c.targetLap}</span>
+                      <span
+                        className={`text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded ${
+                          c.targetLap === "A" ? "bg-orange-500/15 text-orange-300 border border-orange-500/30" : "bg-blue-500/15 text-blue-300 border border-blue-500/30"
+                        }`}
+                      >
+                        Lap {c.targetLap}
+                      </span>
                       <span className="text-[11px] font-medium text-app-text">{c.tip}</span>
                     </div>
                     {c.detail && <p className="text-[10px] text-app-text-muted mt-0.5 ml-1">{c.detail}</p>}
@@ -462,7 +468,9 @@ function AnalysisModal({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[640px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-app-border shrink-0">
@@ -484,21 +492,14 @@ function AnalysisModal({
   );
 }
 
-export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelProps>(function CompareAiPanel(
-  { lapA, lapB, panelOpen = false, segments: trackSegments, onJumpToFrac },
-  ref,
-) {
+export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelProps>(function CompareAiPanel({ lapA, lapB, panelOpen = false, segments: trackSegments, onJumpToFrac }, ref) {
   const { displaySettings } = useSettings();
   const openSettings = useUiStore((s) => s.openSettings);
-  const aiConfigured = !!(displaySettings.geminiApiKeySet || displaySettings.openaiApiKeySet);
+  const aiConfigured = isAiConfigured(displaySettings);
 
   const [hasA, setHasA] = useState(false);
   const [hasB, setHasB] = useState(false);
-  const [viewing, setViewing] = useState<
-    | { kind: "lap"; label: string; summary: AnalysisSummary }
-    | { kind: "inputs"; analysis: InputsAnalysis }
-    | null
-  >(null);
+  const [viewing, setViewing] = useState<{ kind: "lap"; label: string; summary: AnalysisSummary } | { kind: "inputs"; analysis: InputsAnalysis } | null>(null);
 
   // Chat
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -506,9 +507,9 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
   const [chatLoading, setChatLoading] = useState(false);
   const [streaming, setStreaming] = useState("");
   const [chatError, setChatError] = useState<string | null>(null);
-  const [chatStatus, setChatStatus] = useState<"thinking" | "generating" | null>(null);
+  const [chatStatus, setChatStatus] = useState<ChatStreamStatus | null>(null);
   const [chatTool, setChatTool] = useState<string | null>(null);
-  const [chatUsage, setChatUsage] = useState<{ inputTokens: number; outputTokens: number } | null>(null);
+  const [chatUsage, setChatUsage] = useState<ChatUsage | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const loadChat = useCallback(async () => {
@@ -518,7 +519,9 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
         const data = await res.json();
         setMessages(data.messages ?? []);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [lapA.id, lapB.id]);
 
   useEffect(() => {
@@ -550,7 +553,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
     setMessages((prev) => [...prev, { role: "user", content: msg }]);
     setChatInput("");
     let fullText = "";
-    let finalUsage: { inputTokens: number; outputTokens: number } | null = null;
+    let finalUsage: ChatUsage | null = null;
     try {
       const res = await fetch(`/api/laps/${lapA.id}/compare/${lapB.id}/chat`, {
         method: "POST",
@@ -558,13 +561,13 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
         body: JSON.stringify({ message: msg }),
       });
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({ error: "Request failed" })) as { error?: string };
+        const errData = (await res.json().catch(() => ({ error: "Request failed" }))) as { error?: string };
         throw new Error(errData.error || `HTTP ${res.status}`);
       }
       await readChatStream(res, (event) => {
         switch (event.type) {
           case "status":
-            setChatStatus((event as unknown as { state: "thinking" | "generating" }).state);
+            setChatStatus((event as unknown as { state: ChatStreamStatus }).state);
             break;
           case "tool": {
             const t = event as unknown as { state: "start" | "end"; name: string };
@@ -576,19 +579,19 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
             setStreaming(fullText);
             break;
           case "usage": {
-            const u = event as unknown as { inputTokens: number; outputTokens: number };
-            finalUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens };
+            const u = event as unknown as { inputTokens: number; outputTokens: number; costUsd?: number };
+            finalUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens, costUsd: u.costUsd ?? 0 };
             break;
           }
           case "error":
-            throw new Error((event as unknown as { message: string }).message);
+            throw new Error((event as ChatStreamError).message);
           case "ping":
           case "done":
             break;
         }
       });
       setStreaming("");
-      setMessages((prev) => [...prev, { role: "assistant", content: fullText }]);
+      setMessages((prev) => [...prev, { role: "assistant", content: fullText, usage: finalUsage ?? undefined }]);
       setChatUsage(finalUsage);
     } catch (err: unknown) {
       setChatError(err instanceof Error ? err.message : "Chat failed");
@@ -602,16 +605,22 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
   const clearChat = useCallback(async () => {
     try {
       await fetch(`/api/laps/${lapA.id}/compare/${lapB.id}/chat`, { method: "DELETE" });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setMessages([]);
     setStreaming("");
     setChatError(null);
   }, [lapA.id, lapB.id]);
 
-  useImperativeHandle(ref, () => ({
-    clearChat,
-    clearAll: clearChat,
-  }), [clearChat]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      clearChat,
+      clearAll: clearChat,
+    }),
+    [clearChat],
+  );
 
   if (!aiConfigured) {
     return (
@@ -621,10 +630,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
           <p className="text-[11px] text-app-text-secondary font-medium">AI not set up</p>
           <p className="text-[10px] text-app-text-muted mt-0.5">Add an API key to start analysing laps</p>
         </div>
-        <button
-          onClick={() => openSettings("ai")}
-          className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors"
-        >
+        <button onClick={() => openSettings("ai")} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors">
           Set up AI
         </button>
       </div>
@@ -640,11 +646,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
         <LapSection lap={lapB} dotClass="bg-blue-500" panelOpen={panelOpen} onAnalysisChange={setHasB} onView={(label, s) => setViewing({ kind: "lap", label, summary: s })} />
         <InputsSection lapAId={lapA.id} lapBId={lapB.id} panelOpen={panelOpen} onView={(a) => setViewing({ kind: "inputs", analysis: a })} />
 
-        {!bothReady && (
-          <div className="text-[10px] text-app-text-muted text-center py-2 border border-dashed border-app-border-input/40 rounded">
-            Analyse both laps to start a comparison chat
-          </div>
-        )}
+        {!bothReady && <div className="text-[10px] text-app-text-muted text-center py-2 border border-dashed border-app-border-input/40 rounded">Analyse both laps to start a comparison chat</div>}
 
         {bothReady && (
           <>
@@ -658,12 +660,21 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
 
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[90%] rounded-lg px-2.5 py-1.5 text-[11px] leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-cyan-600/20 border border-cyan-500/30 text-app-text"
-                    : "bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary"
-                }`}>
-                  <div className="prose-chat"><Markdown remarkPlugins={[remarkGfm]}>{msg.content}</Markdown></div>
+                <div className="max-w-[90%]">
+                  <div
+                    className={`rounded-lg px-2.5 py-1.5 text-[11px] leading-relaxed ${
+                      msg.role === "user" ? "bg-cyan-600/20 border border-cyan-500/30 text-app-text" : "bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary"
+                    }`}
+                  >
+                    <div className="prose-chat">
+                      <Markdown remarkPlugins={[remarkGfm]}>{msg.content}</Markdown>
+                    </div>
+                  </div>
+                  {msg.role === "assistant" && msg.usage && (
+                    <div className="pl-1 pt-0.5 text-[9px] text-app-text-muted font-mono">
+                      {msg.usage.inputTokens.toLocaleString()}↓ {msg.usage.outputTokens.toLocaleString()}↑ ${msg.usage.costUsd.toFixed(4)}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -671,11 +682,11 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
             {streaming && (
               <div className="flex flex-col items-start gap-0.5">
                 <div className="max-w-[90%] rounded-lg px-2.5 py-1.5 text-[11px] leading-relaxed bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary">
-                  <div className="prose-chat"><Markdown remarkPlugins={[remarkGfm]}>{streaming}</Markdown></div>
+                  <div className="prose-chat">
+                    <Markdown remarkPlugins={[remarkGfm]}>{streaming}</Markdown>
+                  </div>
                 </div>
-                {chatStatus === "generating" && (
-                  <span className="text-[9px] text-app-text-muted font-mono pl-1">Generating…</span>
-                )}
+                {chatStatus === "generating" && <span className="text-[9px] text-app-text-muted font-mono pl-1">Generating…</span>}
               </div>
             )}
 
@@ -684,9 +695,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
                 <div className="rounded-lg px-2.5 py-1.5 bg-app-surface-alt/60 border border-app-border-input/40">
                   <div className="flex items-center gap-1.5">
                     <div className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    <span className="text-[10px] text-app-text-secondary">
-                      {chatTool ? `Using tool: ${chatTool}` : "Thinking…"}
-                    </span>
+                    <span className="text-[10px] text-app-text-secondary">{chatTool ? `Using tool: ${chatTool}` : chatStatus === "thinking" ? "Thinking…" : "Waiting for model…"}</span>
                   </div>
                 </div>
               </div>
@@ -695,7 +704,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
             {chatUsage && !streaming && !chatLoading && (
               <div className="flex justify-start pl-1">
                 <span className="text-[9px] text-app-text-muted font-mono">
-                  {chatUsage.inputTokens.toLocaleString()}↓ {chatUsage.outputTokens.toLocaleString()}↑ tokens
+                  {chatUsage.inputTokens.toLocaleString()}↓ {chatUsage.outputTokens.toLocaleString()}↑ ${chatUsage.costUsd.toFixed(4)}
                 </span>
               </div>
             )}
@@ -718,16 +727,21 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
           <textarea
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendChat();
+              }
+            }}
             placeholder="Ask about the comparison..."
             disabled={chatLoading}
             rows={1}
-            style={{ height: 'auto', maxHeight: '9.375rem' }}
+            style={{ height: "auto", maxHeight: "9.375rem" }}
             className="flex-1 bg-app-surface border border-app-border-input rounded px-3 py-2.5 text-[12px] text-app-text placeholder:text-app-text-muted focus:outline-none focus:border-cyan-500/50 disabled:opacity-50 resize-none overflow-y-auto"
             onInput={(e) => {
               const target = e.target as HTMLTextAreaElement;
-              target.style.height = 'auto';
-              target.style.height = target.scrollHeight + 'px';
+              target.style.height = "auto";
+              target.style.height = target.scrollHeight + "px";
             }}
           />
           <button
@@ -740,22 +754,8 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
         </div>
       )}
 
-      {viewing?.kind === "lap" && (
-        <AnalysisModal
-          label={viewing.label}
-          summary={viewing.summary}
-          onClose={() => setViewing(null)}
-        />
-      )}
-      {viewing?.kind === "inputs" && (
-        <InputsModal
-          analysis={viewing.analysis}
-          onClose={() => setViewing(null)}
-          trackSegments={trackSegments}
-          onJumpToFrac={onJumpToFrac}
-        />
-      )}
+      {viewing?.kind === "lap" && <AnalysisModal label={viewing.label} summary={viewing.summary} onClose={() => setViewing(null)} />}
+      {viewing?.kind === "inputs" && <InputsModal analysis={viewing.analysis} onClose={() => setViewing(null)} trackSegments={trackSegments} onJumpToFrac={onJumpToFrac} />}
     </div>
   );
 });
-

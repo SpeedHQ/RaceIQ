@@ -18,7 +18,7 @@ export function needsTrackFlip(gameId: GameId | null | undefined): boolean {
 }
 
 export function flipPoints<T extends Pt>(pts: T[]): T[] {
-  return pts.map(p => ({ ...p, x: -p.x }));
+  return pts.map((p) => ({ ...p, x: -p.x }));
 }
 
 export function flipBoundaries<T extends { leftEdge: Pt[]; rightEdge: Pt[] }>(b: T): T {

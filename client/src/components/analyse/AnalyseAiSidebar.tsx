@@ -16,16 +16,7 @@ interface AnalyseAiSidebarProps {
   onHighlightsChange: (highlights: AnalysisHighlight[] | null) => void;
 }
 
-export function AnalyseAiSidebar({
-  lapId,
-  carName,
-  trackName,
-  segments,
-  aiPanelRef,
-  onClose,
-  onJumpToFrac,
-  onHighlightsChange,
-}: AnalyseAiSidebarProps) {
+export function AnalyseAiSidebar({ lapId, carName, trackName, segments, aiPanelRef, onClose, onJumpToFrac, onHighlightsChange }: AnalyseAiSidebarProps) {
   return (
     <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2 border-b border-app-border shrink-0">
@@ -34,24 +25,13 @@ export function AnalyseAiSidebar({
           <span className="text-[10px] uppercase tracking-wider font-semibold text-app-text">AI Analysis</span>
         </div>
         <div className="flex items-center gap-2">
-          <AiPanelMenu
-            onClearChat={() => aiPanelRef.current?.clearChat()}
-            onClearAnalysis={() => aiPanelRef.current?.clearAnalysis()}
-            onClearAll={() => aiPanelRef.current?.clearAll()}
-          />
-          <Button variant="app-ghost" size="app-sm" onClick={onClose}>✕</Button>
+          <AiPanelMenu onClearChat={() => aiPanelRef.current?.clearChat()} onClearAnalysis={() => aiPanelRef.current?.clearAnalysis()} onClearAll={() => aiPanelRef.current?.clearAll()} />
+          <Button variant="app-ghost" size="app-sm" onClick={onClose}>
+            ✕
+          </Button>
         </div>
       </div>
-      <AiPanel
-        ref={aiPanelRef}
-        lapId={lapId}
-        carName={carName}
-        trackName={trackName}
-        segments={segments}
-        panelOpen={true}
-        onJumpToFrac={onJumpToFrac}
-        onHighlightsChange={onHighlightsChange}
-      />
+      <AiPanel ref={aiPanelRef} lapId={lapId} carName={carName} trackName={trackName} segments={segments} panelOpen={true} onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} />
     </div>
   );
 }

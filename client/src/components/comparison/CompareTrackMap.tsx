@@ -2,17 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { TelemetryPacket, GameId } from "@shared/types";
 import { client } from "../../lib/rpc";
 import { needsTrackFlip, flipPoints, flipBoundaries } from "../../lib/track-coords";
-import {
-  COLOR_A,
-  COLOR_B,
-  drawTrackCanvas,
-  drawInputsHUD,
-  computeZoom,
-  formatSectionTime,
-  findTelemetryAtDistance,
-  type Point,
-  type BoundaryData,
-} from "../../lib/comparison-utils";
+import { COLOR_A, COLOR_B, drawTrackCanvas, drawInputsHUD, computeZoom, formatSectionTime, findTelemetryAtDistance, type Point, type BoundaryData } from "../../lib/comparison-utils";
 
 export interface SegmentTiming {
   name: string;
@@ -39,16 +29,7 @@ interface CompareTrackMapProps {
 }
 
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
-export function CompareTrackMap({
-  outline,
-  telemetryA,
-  telemetryB,
-  segments,
-  hoveredDistanceRef,
-  redrawRef,
-  trackOrdinal,
-  gameId,
-}: CompareTrackMapProps) {
+export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hoveredDistanceRef, redrawRef, trackOrdinal, gameId }: CompareTrackMapProps) {
   const overviewCanvasRef = useRef<HTMLCanvasElement>(null);
   const zoomCanvasRef = useRef<HTMLCanvasElement>(null);
   const overviewContainerRef = useRef<HTMLDivElement>(null);
@@ -59,13 +40,19 @@ export function CompareTrackMap({
   const [boundaries, setBoundaries] = useState<BoundaryData | null>(null);
   const [followCar, setFollowCar] = useState(false);
   const followCarRef = useRef(false);
-  useEffect(() => { followCarRef.current = followCar; }, [followCar]);
+  useEffect(() => {
+    followCarRef.current = followCar;
+  }, [followCar]);
 
   // Fetch track boundaries
   useEffect(() => {
-    if (!trackOrdinal) { setBoundaries(null); return; }
+    if (!trackOrdinal) {
+      setBoundaries(null);
+      return;
+    }
     if (!gameId) return;
-    client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gameId ?? undefined } })
+    client.api["track-boundaries"][":ordinal"]
+      .$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as unknown as BoundaryData)
       .then((data) => setBoundaries(data))
       .catch(() => setBoundaries(null));
@@ -77,9 +64,7 @@ export function CompareTrackMap({
   // bounding box overlap, and if needed apply Procrustes (translate + rotate + scale).
   // Pre-flip outline/boundary X so they render correctly against telemetry.
   const flip = needsTrackFlip(gameId);
-  const displayOutline = useMemo(() =>
-    flip ? flipPoints(outline) : outline,
-  [outline, flip]);
+  const displayOutline = useMemo(() => (flip ? flipPoints(outline) : outline), [outline, flip]);
   const displayBoundaries = useMemo(() => {
     if (!flip || !boundaries) return boundaries;
     return flipBoundaries(boundaries);
@@ -91,9 +76,17 @@ export function CompareTrackMap({
     const identity = (x: number) => x;
 
     const computeRange = (pts: Point[]) => {
-      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-      for (const p of pts) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); }
-      return Math.max((maxX - minX) || 1, (maxZ - minZ) || 1);
+      let minX = Infinity,
+        maxX = -Infinity,
+        minZ = Infinity,
+        maxZ = -Infinity;
+      for (const p of pts) {
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x);
+        minZ = Math.min(minZ, p.z);
+        maxZ = Math.max(maxZ, p.z);
+      }
+      return Math.max(maxX - minX || 1, maxZ - minZ || 1);
     };
 
     // Extract telemetry positions from lap A
@@ -106,13 +99,31 @@ export function CompareTrackMap({
     }
 
     // Check bounding box overlap between outline and telemetry
-    let oMinX = Infinity, oMaxX = -Infinity, oMinZ = Infinity, oMaxZ = -Infinity;
-    for (const p of outline) { oMinX = Math.min(oMinX, p.x); oMaxX = Math.max(oMaxX, p.x); oMinZ = Math.min(oMinZ, p.z); oMaxZ = Math.max(oMaxZ, p.z); }
-    let tMinX = Infinity, tMaxX = -Infinity, tMinZ = Infinity, tMaxZ = -Infinity;
-    for (const p of telPts) { tMinX = Math.min(tMinX, p.x); tMaxX = Math.max(tMaxX, p.x); tMinZ = Math.min(tMinZ, p.z); tMaxZ = Math.max(tMaxZ, p.z); }
+    let oMinX = Infinity,
+      oMaxX = -Infinity,
+      oMinZ = Infinity,
+      oMaxZ = -Infinity;
+    for (const p of outline) {
+      oMinX = Math.min(oMinX, p.x);
+      oMaxX = Math.max(oMaxX, p.x);
+      oMinZ = Math.min(oMinZ, p.z);
+      oMaxZ = Math.max(oMaxZ, p.z);
+    }
+    let tMinX = Infinity,
+      tMaxX = -Infinity,
+      tMinZ = Infinity,
+      tMaxZ = -Infinity;
+    for (const p of telPts) {
+      tMinX = Math.min(tMinX, p.x);
+      tMaxX = Math.max(tMaxX, p.x);
+      tMinZ = Math.min(tMinZ, p.z);
+      tMaxZ = Math.max(tMaxZ, p.z);
+    }
 
-    const oRangeX = oMaxX - oMinX, oRangeZ = oMaxZ - oMinZ;
-    const tRangeX = tMaxX - tMinX, tRangeZ = tMaxZ - tMinZ;
+    const oRangeX = oMaxX - oMinX,
+      oRangeZ = oMaxZ - oMinZ;
+    const tRangeX = tMaxX - tMinX,
+      tRangeZ = tMaxZ - tMinZ;
     const oCx = (oMinX + oMaxX) / 2;
     const tCx = (tMinX + tMaxX) / 2;
 
@@ -143,46 +154,60 @@ export function CompareTrackMap({
     };
     const N = 100;
     const src = ds(outline, N); // outline points (source)
-    const tgt = ds(telPts, N);  // telemetry points (target)
+    const tgt = ds(telPts, N); // telemetry points (target)
 
     const centroid = (pts: Point[]) => {
-      let sx = 0, sz = 0;
-      for (const p of pts) { sx += p.x; sz += p.z; }
+      let sx = 0,
+        sz = 0;
+      for (const p of pts) {
+        sx += p.x;
+        sz += p.z;
+      }
       return { x: sx / pts.length, z: sz / pts.length };
     };
 
     // ICP: iteratively find closest points and compute rigid+scale transform
-    let scale = 1, rotation = 0, tx = 0, tz = 0;
-    let transformed = src.map(p => ({ ...p }));
+    let scale = 1,
+      rotation = 0,
+      tx = 0,
+      tz = 0;
+    let transformed = src.map((p) => ({ ...p }));
 
     for (let iter = 0; iter < 30; iter++) {
       // Find closest target point for each transformed source point
       const pairs: { s: Point; t: Point }[] = [];
       for (const sp of transformed) {
-        let bestD = Infinity, bestT = tgt[0];
+        let bestD = Infinity,
+          bestT = tgt[0];
         for (const tp of tgt) {
           const d = (sp.x - tp.x) ** 2 + (sp.z - tp.z) ** 2;
-          if (d < bestD) { bestD = d; bestT = tp; }
+          if (d < bestD) {
+            bestD = d;
+            bestT = tp;
+          }
         }
         pairs.push({ s: sp, t: bestT });
       }
 
       // Procrustes on original source → paired targets
       const srcPaired = pairs.map((_, i) => src[i]);
-      const tgtPaired = pairs.map(p => p.t);
+      const tgtPaired = pairs.map((p) => p.t);
       const cSrc = centroid(srcPaired);
       const cTgt = centroid(tgtPaired);
-      const srcC = srcPaired.map(p => ({ x: p.x - cSrc.x, z: p.z - cSrc.z }));
-      const tgtC = tgtPaired.map(p => ({ x: p.x - cTgt.x, z: p.z - cTgt.z }));
+      const srcC = srcPaired.map((p) => ({ x: p.x - cSrc.x, z: p.z - cSrc.z }));
+      const tgtC = tgtPaired.map((p) => ({ x: p.x - cTgt.x, z: p.z - cTgt.z }));
 
-      let num = 0, den = 0, srcSq = 0;
+      let num = 0,
+        den = 0,
+        srcSq = 0;
       for (let i = 0; i < srcC.length; i++) {
         num += srcC[i].x * tgtC[i].z - srcC[i].z * tgtC[i].x;
         den += srcC[i].x * tgtC[i].x + srcC[i].z * tgtC[i].z;
         srcSq += srcC[i].x ** 2 + srcC[i].z ** 2;
       }
       const newRot = Math.atan2(num, den);
-      const cosR = Math.cos(newRot), sinR = Math.sin(newRot);
+      const cosR = Math.cos(newRot),
+        sinR = Math.sin(newRot);
       let tgtSq = 0;
       for (const p of tgtC) tgtSq += p.x ** 2 + p.z ** 2;
       const newScale = srcSq > 0 ? Math.sqrt(tgtSq / srcSq) : 1;
@@ -191,11 +216,15 @@ export function CompareTrackMap({
 
       const dScale = Math.abs(newScale - scale);
       const dRot = Math.abs(newRot - rotation);
-      scale = newScale; rotation = newRot; tx = newTx; tz = newTz;
+      scale = newScale;
+      rotation = newRot;
+      tx = newTx;
+      tz = newTz;
 
       // Apply transform
-      const cosA = Math.cos(rotation), sinA = Math.sin(rotation);
-      transformed = src.map(p => ({
+      const cosA = Math.cos(rotation),
+        sinA = Math.sin(rotation);
+      transformed = src.map((p) => ({
         x: scale * (cosA * p.x - sinA * p.z) + tx,
         z: scale * (sinA * p.x + cosA * p.z) + tz,
       }));
@@ -204,7 +233,8 @@ export function CompareTrackMap({
     }
 
     // Apply final transform to full outline
-    const cosA = Math.cos(rotation), sinA = Math.sin(rotation);
+    const cosA = Math.cos(rotation),
+      sinA = Math.sin(rotation);
     const applyTransform = (p: Point): Point => ({
       x: scale * (cosA * p.x - sinA * p.z) + tx,
       z: scale * (sinA * p.x + cosA * p.z) + tz,
@@ -243,13 +273,16 @@ export function CompareTrackMap({
       const ctx = oc.getContext("2d");
       if (ctx) {
         ctx.scale(dpr, dpr);
-        const segPts = segments.length > 0 && telemetryA.length >= 2
-          ? segments.map(s => {
-              const idx = Math.round(s.startFrac * (telemetryA.length - 1));
-              const p = telemetryA[idx];
-              return { x: telXFn(p.PositionX), z: p.PositionZ, type: s.type, label: s.name };
-            }).filter(sp => sp.x !== 0 || sp.z !== 0)
-          : undefined;
+        const segPts =
+          segments.length > 0 && telemetryA.length >= 2
+            ? segments
+                .map((s) => {
+                  const idx = Math.round(s.startFrac * (telemetryA.length - 1));
+                  const p = telemetryA[idx];
+                  return { x: telXFn(p.PositionX), z: p.PositionZ, type: s.type, label: s.name };
+                })
+                .filter((sp) => sp.x !== 0 || sp.z !== 0)
+            : undefined;
         drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, telemetryA, telemetryB, hd, null, segPts, undefined, alignedBoundaries, telXFn);
       }
     }
@@ -267,9 +300,7 @@ export function CompareTrackMap({
       const ctx = zc.getContext("2d");
       if (ctx) {
         ctx.scale(dpr, dpr);
-        const zoom = hd != null
-          ? computeZoom(telemetryA, telemetryB, hd, trackRange, telXFn)
-          : null;
+        const zoom = hd != null ? computeZoom(telemetryA, telemetryB, hd, trackRange, telXFn) : null;
         drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, telemetryA, telemetryB, hd, zoom, undefined, followCarRef.current, alignedBoundaries, telXFn, true);
 
         // Draw input HUDs when zoomed
@@ -287,7 +318,7 @@ export function CompareTrackMap({
         const totalDist = telemetryA[telemetryA.length - 1].DistanceTraveled - telemetryA[0].DistanceTraveled;
         if (totalDist > 0) {
           const frac = hd / totalDist;
-          activeIdx = segments.findIndex(s => frac >= s.startFrac && frac < s.endFrac);
+          activeIdx = segments.findIndex((s) => frac >= s.startFrac && frac < s.endFrac);
         }
       }
       if (activeIdx !== prevActiveSegRef.current) {
@@ -307,7 +338,9 @@ export function CompareTrackMap({
   // Register redraw function so parent can trigger canvas updates without React re-render
   useEffect(() => {
     redrawRef.current = drawBoth;
-    return () => { redrawRef.current = null; };
+    return () => {
+      redrawRef.current = null;
+    };
   }, [drawBoth, redrawRef]);
 
   useEffect(() => {
@@ -320,74 +353,74 @@ export function CompareTrackMap({
 
   return (
     <div className="bg-app-surface rounded-lg border border-app-border overflow-hidden h-full flex flex-col">
-
-        {/* Overview — full track, static */}
-        <div ref={overviewContainerRef} className="relative border-b border-app-border h-[220px] shrink-0">
-          <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">Overview</span>
-          {alignedOutline.length < 2 ? (
-            <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No track outline</div>
-          ) : (
-            <canvas ref={overviewCanvasRef} className="absolute inset-0" />
-          )}
+      {/* Overview — full track, static */}
+      <div ref={overviewContainerRef} className="relative border-b border-app-border h-[220px] shrink-0">
+        <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">Overview</span>
+        {alignedOutline.length < 2 ? (
+          <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No track outline</div>
+        ) : (
+          <canvas ref={overviewCanvasRef} className="absolute inset-0" />
+        )}
+      </div>
+      {/* Zoomed — follows cursor position */}
+      <div ref={zoomContainerRef} className="relative border-b border-app-border h-[320px] shrink-0">
+        <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">Zoomed</span>
+        <button
+          onClick={() => {
+            const next = !followCarRef.current;
+            followCarRef.current = next;
+            setFollowCar(next);
+            drawBoth();
+          }}
+          className={`absolute top-2 right-2 z-10 px-2 py-1 text-[10px] rounded border transition-colors ${
+            followCar ? "bg-cyan-900/50 border-cyan-700 text-cyan-400" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
+          }`}
+        >
+          {followCar ? "Follow View" : "Fixed View"}
+        </button>
+        {alignedOutline.length < 2 ? (
+          <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No track outline</div>
+        ) : (
+          <canvas ref={zoomCanvasRef} className="absolute inset-0" />
+        )}
+      </div>
+      {/* Segment Times Table */}
+      {segments.length > 0 ? (
+        <div className="overflow-auto flex-1 min-h-0">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 z-10 bg-[#0f172a]">
+              <tr className="text-[10px] text-app-text-muted uppercase tracking-wider border-b border-app-border">
+                <th className="text-left px-2 py-1.5">Segment</th>
+                <th className="text-right px-2 py-1.5" style={{ color: COLOR_A }}>
+                  A
+                </th>
+                <th className="text-right px-2 py-1.5" style={{ color: COLOR_B }}>
+                  B
+                </th>
+                <th className="text-right px-2 py-1.5">+/-</th>
+              </tr>
+            </thead>
+            <tbody ref={segmentTableRef}>
+              {segments.map((s) => {
+                const fasterA = s.timeA > 0 && s.timeB > 0 && s.timeA < s.timeB;
+                const fasterB = s.timeA > 0 && s.timeB > 0 && s.timeB < s.timeA;
+                const delta = s.timeA - s.timeB;
+                const isNeutral = Math.abs(delta) < 0.005;
+                const deltaColor = isNeutral ? "text-app-text-secondary" : delta < 0 ? "text-emerald-400" : "text-red-400";
+                const sign = delta > 0 ? "+" : "";
+                return (
+                  <tr key={s.name} className="border-b border-app-border/50 hover:bg-app-surface-alt/30">
+                    <td className="px-2 py-1 font-mono text-app-text whitespace-nowrap">{s.name}</td>
+                    <td className={`px-2 py-1 font-mono text-right ${fasterA ? "text-emerald-400" : "text-app-text-secondary"}`}>{formatSectionTime(s.timeA)}</td>
+                    <td className={`px-2 py-1 font-mono text-right ${fasterB ? "text-emerald-400" : "text-app-text-secondary"}`}>{formatSectionTime(s.timeB)}</td>
+                    <td className={`px-2 py-1 font-mono text-right ${deltaColor}`}>{s.timeA > 0 && s.timeB > 0 ? `${sign}${delta.toFixed(3)}` : "-"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-        {/* Zoomed — follows cursor position */}
-        <div ref={zoomContainerRef} className="relative border-b border-app-border h-[320px] shrink-0">
-          <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">Zoomed</span>
-          <button
-            onClick={() => { const next = !followCarRef.current; followCarRef.current = next; setFollowCar(next); drawBoth(); }}
-            className={`absolute top-2 right-2 z-10 px-2 py-1 text-[10px] rounded border transition-colors ${
-              followCar
-                ? "bg-cyan-900/50 border-cyan-700 text-cyan-400"
-                : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
-            }`}
-          >
-            {followCar ? "Follow View" : "Fixed View"}
-          </button>
-          {alignedOutline.length < 2 ? (
-            <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No track outline</div>
-          ) : (
-            <canvas ref={zoomCanvasRef} className="absolute inset-0" />
-          )}
-        </div>
-        {/* Segment Times Table */}
-        {segments.length > 0 ? (
-          <div className="overflow-auto flex-1 min-h-0">
-            <table className="w-full text-xs">
-              <thead className="sticky top-0 z-10 bg-[#0f172a]">
-                <tr className="text-[10px] text-app-text-muted uppercase tracking-wider border-b border-app-border">
-                  <th className="text-left px-2 py-1.5">Segment</th>
-                  <th className="text-right px-2 py-1.5" style={{ color: COLOR_A }}>A</th>
-                  <th className="text-right px-2 py-1.5" style={{ color: COLOR_B }}>B</th>
-                  <th className="text-right px-2 py-1.5">+/-</th>
-                </tr>
-              </thead>
-              <tbody ref={segmentTableRef}>
-                {segments.map((s) => {
-                  const fasterA = s.timeA > 0 && s.timeB > 0 && s.timeA < s.timeB;
-                  const fasterB = s.timeA > 0 && s.timeB > 0 && s.timeB < s.timeA;
-                  const delta = s.timeA - s.timeB;
-                  const isNeutral = Math.abs(delta) < 0.005;
-                  const deltaColor = isNeutral ? "text-app-text-secondary" : delta < 0 ? "text-emerald-400" : "text-red-400";
-                  const sign = delta > 0 ? "+" : "";
-                  return (
-                    <tr key={s.name} className="border-b border-app-border/50 hover:bg-app-surface-alt/30">
-                      <td className="px-2 py-1 font-mono text-app-text whitespace-nowrap">{s.name}</td>
-                      <td className={`px-2 py-1 font-mono text-right ${fasterA ? "text-emerald-400" : "text-app-text-secondary"}`}>
-                        {formatSectionTime(s.timeA)}
-                      </td>
-                      <td className={`px-2 py-1 font-mono text-right ${fasterB ? "text-emerald-400" : "text-app-text-secondary"}`}>
-                        {formatSectionTime(s.timeB)}
-                      </td>
-                      <td className={`px-2 py-1 font-mono text-right ${deltaColor}`}>
-                        {s.timeA > 0 && s.timeB > 0 ? `${sign}${delta.toFixed(3)}` : "-"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
+      ) : null}
     </div>
   );
 }

@@ -56,9 +56,7 @@ export function F1SetupModal({ setup, onClose }: { setup: F1CarSetup; onClose: (
     },
     {
       title: "Fuel",
-      items: [
-        { label: "Fuel Load", value: `${setup.fuelLoad.toFixed(1)} kg` },
-      ],
+      items: [{ label: "Fuel Load", value: `${setup.fuelLoad.toFixed(1)} kg` }],
     },
   ];
 
@@ -67,7 +65,9 @@ export function F1SetupModal({ setup, onClose }: { setup: F1CarSetup; onClose: (
       <div className="bg-app-surface border border-app-border rounded-xl w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3 border-b border-app-border">
           <h2 className="text-sm font-semibold text-app-text">Car Setup</h2>
-          <Button variant="app-ghost" size="app-sm" onClick={onClose}>&times;</Button>
+          <Button variant="app-ghost" size="app-sm" onClick={onClose}>
+            &times;
+          </Button>
         </div>
         <div className="px-5 py-4 space-y-4">
           {sections.map((section) => (

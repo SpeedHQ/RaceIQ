@@ -7,20 +7,16 @@ interface Props {
 }
 
 export function AnalyseF1ErsPanel({ currentPacket }: Props) {
-  const ersPct = (currentPacket.ErsStoreEnergy ?? 0) / 4_000_000 * 100;
+  const ersPct = ((currentPacket.ErsStoreEnergy ?? 0) / 4_000_000) * 100;
   const ersBarColor = ersPct < 20 ? "bg-red-500" : ersPct < 50 ? "bg-yellow-500" : "bg-green-500";
 
   return (
     <>
-      <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 pt-2 border-t border-app-border font-semibold">
-        DRS / ERS
-      </h3>
+      <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 pt-2 border-t border-app-border font-semibold">DRS / ERS</h3>
       <div className="text-[11px] font-mono space-y-1.5 mb-3">
         <div className="flex justify-between">
           <span className="text-app-text-muted">DRS</span>
-          <span className={`font-bold ${currentPacket.DrsActive ? "text-green-400" : "text-app-text-dim"}`}>
-            {currentPacket.DrsActive ? "OPEN" : "OFF"}
-          </span>
+          <span className={`font-bold ${currentPacket.DrsActive ? "text-green-400" : "text-app-text-dim"}`}>{currentPacket.DrsActive ? "OPEN" : "OFF"}</span>
         </div>
         <div>
           <div className="flex justify-between mb-0.5">
@@ -33,18 +29,17 @@ export function AnalyseF1ErsPanel({ currentPacket }: Props) {
         </div>
         <div className="flex justify-between">
           <span className="text-app-text-muted">Deployed</span>
-          <span className="tabular-nums text-amber-400">{((currentPacket.ErsDeployed ?? 0) / 4_000_000 * 100).toFixed(1)}%</span>
+          <span className="tabular-nums text-amber-400">{(((currentPacket.ErsDeployed ?? 0) / 4_000_000) * 100).toFixed(1)}%</span>
         </div>
         <div className="flex justify-between">
           <span className="text-app-text-muted">Harvested</span>
-          <span className="tabular-nums text-emerald-400">{((currentPacket.ErsHarvested ?? 0) / 4_000_000 * 100).toFixed(1)}%</span>
+          <span className="tabular-nums text-emerald-400">{(((currentPacket.ErsHarvested ?? 0) / 4_000_000) * 100).toFixed(1)}%</span>
         </div>
         <div className="flex justify-between">
           <span className="text-app-text-muted">Mode</span>
           <span className="tabular-nums text-app-text">{ERS_MODES[currentPacket.ErsDeployMode ?? 0] ?? "Unknown"}</span>
         </div>
       </div>
-
     </>
   );
 }

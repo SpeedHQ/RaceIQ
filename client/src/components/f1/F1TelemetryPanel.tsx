@@ -36,9 +36,7 @@ export function F1TelemetryPanel({
       {/* Speed + Gear + RPM */}
       <div className="flex items-end gap-4">
         <div>
-          <div className="text-4xl font-black text-white tabular-nums">
-            {formatSpeed(packet.Speed, unitSystem)}
-          </div>
+          <div className="text-4xl font-black text-white tabular-nums">{formatSpeed(packet.Speed, unitSystem)}</div>
           <div className="text-xs text-zinc-500 mt-0.5">
             Lap {packet.LapNumber} &middot; P{packet.RacePosition}
           </div>
@@ -63,19 +61,13 @@ export function F1TelemetryPanel({
         <div>
           <div className="text-[10px] text-zinc-500 mb-1">Throttle</div>
           <div className="h-5 bg-zinc-800 rounded overflow-hidden">
-            <div
-              className="h-full bg-green-600 rounded transition-all"
-              style={{ width: `${throttlePct}%` }}
-            />
+            <div className="h-full bg-green-600 rounded transition-all" style={{ width: `${throttlePct}%` }} />
           </div>
         </div>
         <div>
           <div className="text-[10px] text-zinc-500 mb-1">Brake</div>
           <div className="h-5 bg-zinc-800 rounded overflow-hidden">
-            <div
-              className="h-full bg-red-600 rounded transition-all"
-              style={{ width: `${brakePct}%` }}
-            />
+            <div className="h-full bg-red-600 rounded transition-all" style={{ width: `${brakePct}%` }} />
           </div>
         </div>
       </div>
@@ -99,9 +91,7 @@ export function F1TelemetryPanel({
       {/* Tyre info */}
       <div className="flex items-center justify-between">
         <F1TyreCompound f1={f1} />
-        <div className="text-xs text-zinc-500">
-          Fuel: {packet.Fuel.toFixed(1)} laps
-        </div>
+        <div className="text-xs text-zinc-500">Fuel: {packet.Fuel.toFixed(1)} laps</div>
       </div>
 
       {/* Tyre temps (display in Celsius for F1) */}

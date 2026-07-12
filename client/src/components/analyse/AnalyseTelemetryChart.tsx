@@ -57,7 +57,6 @@ export function TelemetryChart({
     const chartW = w - leftPad - rightPad;
     const chartH = h - topPad - botPad;
 
-
     if (totalPackets < 2) return;
 
     // Compute global min/max across all series
@@ -113,11 +112,13 @@ export function TelemetryChart({
         if (i > 0 && times && times[i] - times[i - 1] > 0.1) {
           drawing = false;
         }
-        const xFrac = timeFracs ? timeFracs[i] : (i / (n - 1));
+        const xFrac = timeFracs ? timeFracs[i] : i / (n - 1);
         const x = leftPad + xFrac * chartW;
         const y = topPad + chartH - ((s.data[i] - gMin) / range) * chartH;
-        if (!drawing) { ctx.moveTo(x, y); drawing = true; }
-        else ctx.lineTo(x, y);
+        if (!drawing) {
+          ctx.moveTo(x, y);
+          drawing = true;
+        } else ctx.lineTo(x, y);
       }
       ctx.stroke();
     }
@@ -149,7 +150,8 @@ export function TelemetryChart({
         const idx = Math.round(clickFrac * (totalPackets - 1));
         return idx >= 0 && idx < totalPackets ? idx : null;
       }
-      let lo = 0, hi = timeFracs.length - 1;
+      let lo = 0,
+        hi = timeFracs.length - 1;
       while (lo < hi) {
         const mid = (lo + hi) >> 1;
         if (timeFracs[mid] < clickFrac) lo = mid + 1;
@@ -158,7 +160,7 @@ export function TelemetryChart({
       if (lo > 0 && Math.abs(timeFracs[lo - 1] - clickFrac) < Math.abs(timeFracs[lo] - clickFrac)) lo--;
       return lo >= 0 && lo < totalPackets ? lo : null;
     },
-    [totalPackets, timeFracs]
+    [totalPackets, timeFracs],
   );
 
   const fracFromEvent = useCallback((clientX: number): number => {
@@ -191,17 +193,12 @@ export function TelemetryChart({
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     },
-    [idxFromEvent, fracFromEvent, onClickIndex, onScrubStart, onVisualFracChange]
+    [idxFromEvent, fracFromEvent, onClickIndex, onScrubStart, onVisualFracChange],
   );
 
   return (
-    <div ref={containerRef} className="w-full relative" style={{ height }}
-      onMouseDown={handleMouseDown}
-    >
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 w-full h-full cursor-crosshair rounded bg-app-surface/40"
-      />
+    <div ref={containerRef} className="w-full relative" style={{ height }} onMouseDown={handleMouseDown}>
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full cursor-crosshair rounded bg-app-surface/40" />
     </div>
   );
 }

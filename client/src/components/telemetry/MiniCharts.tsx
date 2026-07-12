@@ -10,7 +10,13 @@ export const TIRE_LABELS = ["FL", "FR", "RL", "RR"];
  * X-axis is a fixed-width sliding window (GRIP_MAX_SAMPLES); new data enters from the right.
  * Re-renders on a 200ms interval timer rather than per-packet to avoid excessive repaints.
  */
-export function FourLineChart({ data, label, maxY, unit, height = 50 }: {
+export function FourLineChart({
+  data,
+  label,
+  maxY,
+  unit,
+  height = 50,
+}: {
   data: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
   label: string;
   maxY?: number;
@@ -78,13 +84,12 @@ export function FourLineChart({ data, label, maxY, unit, height = 50 }: {
       ctx.globalAlpha = 0.7;
       ctx.stroke();
       ctx.globalAlpha = 1;
-
     }
   }, [renderTick, data, maxY, height]);
 
   void renderTick;
   const arrays = [data.fl, data.fr, data.rl, data.rr];
-  const currentVals = arrays.map((a) => a.length > 0 ? a[a.length - 1] : 0);
+  const currentVals = arrays.map((a) => (a.length > 0 ? a[a.length - 1] : 0));
 
   return (
     <div>
@@ -92,7 +97,9 @@ export function FourLineChart({ data, label, maxY, unit, height = 50 }: {
         <span className="text-[9px] text-app-text-muted font-semibold uppercase">{label}</span>
         <div className="flex gap-2">
           {TIRE_LABELS.map((l, i) => (
-            <span key={l} className="text-[8px] font-mono" style={{ color: TIRE_COLORS[i] }}>{l}</span>
+            <span key={l} className="text-[8px] font-mono" style={{ color: TIRE_COLORS[i] }}>
+              {l}
+            </span>
           ))}
         </div>
       </div>
@@ -113,7 +120,13 @@ export function FourLineChart({ data, label, maxY, unit, height = 50 }: {
 }
 
 /** SingleLineChart — Same sliding-window canvas approach as FourLineChart but for a single metric. */
-export function SingleLineChart({ data, label, color, maxY, height = 50 }: {
+export function SingleLineChart({
+  data,
+  label,
+  color,
+  maxY,
+  height = 50,
+}: {
   data: number[];
   label: string;
   color: string;
@@ -163,7 +176,6 @@ export function SingleLineChart({ data, label, color, maxY, height = 50 }: {
     ctx.globalAlpha = 0.8;
     ctx.stroke();
     ctx.globalAlpha = 1;
-
   }, [renderTick, data, maxY, height, color]);
 
   // Force read current value on each tick
@@ -178,7 +190,9 @@ export function SingleLineChart({ data, label, color, maxY, height = 50 }: {
           <canvas ref={canvasRef} style={{ width: "100%", height }} className="rounded bg-app-surface/40" />
         </div>
         <div className="flex items-center w-12 shrink-0">
-          <span className="text-[10px] font-mono font-bold tabular-nums text-right w-full" style={{ color }}>{currentVal.toFixed(0)}</span>
+          <span className="text-[10px] font-mono font-bold tabular-nums text-right w-full" style={{ color }}>
+            {currentVal.toFixed(0)}
+          </span>
         </div>
       </div>
     </div>
@@ -186,7 +200,17 @@ export function SingleLineChart({ data, label, color, maxY, height = 50 }: {
 }
 
 /** DualLineChart — Two overlaid lines sharing one Y-axis (e.g., throttle vs brake trace). */
-export function DualLineChart({ data1, data2, label1, label2, color1, color2, label, maxY, height = 50 }: {
+export function DualLineChart({
+  data1,
+  data2,
+  label1,
+  label2,
+  color1,
+  color2,
+  label,
+  maxY,
+  height = 50,
+}: {
   data1: number[];
   data2: number[];
   label1: string;
@@ -241,7 +265,6 @@ export function DualLineChart({ data1, data2, label1, label2, color1, color2, la
       ctx.globalAlpha = 0.8;
       ctx.stroke();
       ctx.globalAlpha = 1;
-
     };
 
     drawLine(data1, color1);
@@ -256,8 +279,12 @@ export function DualLineChart({ data1, data2, label1, label2, color1, color2, la
       <div className="flex items-center justify-between mb-0.5">
         <span className="text-[9px] text-app-text-muted font-semibold uppercase">{label}</span>
         <div className="flex gap-2">
-          <span className="text-[8px] font-mono" style={{ color: color1 }}>{label1}</span>
-          <span className="text-[8px] font-mono" style={{ color: color2 }}>{label2}</span>
+          <span className="text-[8px] font-mono" style={{ color: color1 }}>
+            {label1}
+          </span>
+          <span className="text-[8px] font-mono" style={{ color: color2 }}>
+            {label2}
+          </span>
         </div>
       </div>
       <div className="flex gap-1.5">
@@ -265,8 +292,12 @@ export function DualLineChart({ data1, data2, label1, label2, color1, color2, la
           <canvas ref={canvasRef} style={{ width: "100%", height }} className="rounded bg-app-surface/40" />
         </div>
         <div className="flex flex-col justify-between w-10 shrink-0" style={{ height }}>
-          <span className="text-[10px] font-mono font-bold tabular-nums text-right" style={{ color: color1 }}>{val1.toFixed(0)}</span>
-          <span className="text-[10px] font-mono font-bold tabular-nums text-right" style={{ color: color2 }}>{val2.toFixed(0)}</span>
+          <span className="text-[10px] font-mono font-bold tabular-nums text-right" style={{ color: color1 }}>
+            {val1.toFixed(0)}
+          </span>
+          <span className="text-[10px] font-mono font-bold tabular-nums text-right" style={{ color: color2 }}>
+            {val2.toFixed(0)}
+          </span>
         </div>
       </div>
     </div>

@@ -38,14 +38,17 @@ export function useLapPlayback({
   setCursorIdx,
   setPlaying,
 }: UseLapPlaybackOptions) {
-  const updateOverlays = useCallback((idx: number) => {
-    trackMapRef.current?.updateCursor(idx);
-    chartsPanelRef.current?.updateCursor(idx);
-    const tf = chartsPanelRef.current?.timeFracs;
-    const pct = tf ? `${(tf[idx] ?? 0) * 100}%` : `${(idx / Math.max(1, (telemetry.length - 1))) * 100}%`;
-    if (thumbRef.current) thumbRef.current.style.left = pct;
-    if (progressRef.current) progressRef.current.style.width = pct;
-  }, [telemetry.length, trackMapRef, chartsPanelRef, thumbRef, progressRef]);
+  const updateOverlays = useCallback(
+    (idx: number) => {
+      trackMapRef.current?.updateCursor(idx);
+      chartsPanelRef.current?.updateCursor(idx);
+      const tf = chartsPanelRef.current?.timeFracs;
+      const pct = tf ? `${(tf[idx] ?? 0) * 100}%` : `${(idx / Math.max(1, telemetry.length - 1)) * 100}%`;
+      if (thumbRef.current) thumbRef.current.style.left = pct;
+      if (progressRef.current) progressRef.current.style.width = pct;
+    },
+    [telemetry.length, trackMapRef, chartsPanelRef, thumbRef, progressRef],
+  );
 
   // Play/pause animation — uses CurrentLap timer for accurate real-time playback
   useEffect(() => {

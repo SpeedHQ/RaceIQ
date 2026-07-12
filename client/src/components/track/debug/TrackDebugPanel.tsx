@@ -8,7 +8,31 @@ import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../types";
  * TrackDebugPanel — Full-page debug visualization for track boundary data.
  * Shows outline + boundaries on a large canvas with drag/zoom and diagnostic info sidebar.
  */
-export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displaySectors, sectorBounds, editingSegments, editingSectors, trackLengthKm, trackCreatedAt, corners, straights }: { trackOrdinal: number; outline: Point[] | null; flipX?: boolean; displaySectors?: TrackSectors | null; sectorBounds?: { s1End: number; s2End: number } | null; editingSegments?: boolean; editingSectors?: boolean; trackLengthKm?: number; trackCreatedAt?: string; corners?: number; straights?: number }) {
+export function TrackDebugPanel({
+  trackOrdinal,
+  outline,
+  flipX = false,
+  displaySectors,
+  sectorBounds,
+  editingSegments,
+  editingSectors,
+  trackLengthKm,
+  trackCreatedAt,
+  corners,
+  straights,
+}: {
+  trackOrdinal: number;
+  outline: Point[] | null;
+  flipX?: boolean;
+  displaySectors?: TrackSectors | null;
+  sectorBounds?: { s1End: number; s2End: number } | null;
+  editingSegments?: boolean;
+  editingSectors?: boolean;
+  trackLengthKm?: number;
+  trackCreatedAt?: string;
+  corners?: number;
+  straights?: number;
+}) {
   const [overlayMode, setOverlayMode] = useState<"segments" | "sectors">("segments");
 
   useEffect(() => {
@@ -24,16 +48,26 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
   const [pan, setPan] = useState({ x: 0, z: 0 });
   const zoomRef = useRef(1);
   const panRef = useRef({ x: 0, z: 0 });
-  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
-  useEffect(() => { panRef.current = pan; }, [pan]);
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+  useEffect(() => {
+    panRef.current = pan;
+  }, [pan]);
   const dragging = useRef<{ startX: number; startY: number; startPanX: number; startPanZ: number } | null>(null);
 
   useEffect(() => {
     if (!gid) return;
     setLoading(true);
     Promise.all([
-      client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } }).then((r) => r.ok ? r.json() as unknown as TrackBoundaries : null).catch(() => null),
-      client.api["track-curbs"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } }).then((r) => r.ok ? r.json() as unknown as TrackCurb[] : null).catch(() => null),
+      client.api["track-boundaries"][":ordinal"]
+        .$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } })
+        .then((r) => (r.ok ? (r.json() as unknown as TrackBoundaries) : null))
+        .catch(() => null),
+      client.api["track-curbs"][":ordinal"]
+        .$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } })
+        .then((r) => (r.ok ? (r.json() as unknown as TrackCurb[]) : null))
+        .catch(() => null),
     ]).then(([b, c]) => {
       setBoundaries(b);
       setCurbs(c);
@@ -93,7 +127,10 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
     ctx.clearRect(0, 0, w, h);
 
     // Compute bounding box including boundaries
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minZ = Infinity,
+      maxZ = -Infinity;
     const allPts: Point[][] = [outline];
     if (boundaries) {
       allPts.push(boundaries.leftEdge, boundaries.rightEdge);
@@ -107,8 +144,8 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
       }
     }
 
-    const rangeX = (maxX - minX) || 1;
-    const rangeZ = (maxZ - minZ) || 1;
+    const rangeX = maxX - minX || 1;
+    const rangeZ = maxZ - minZ || 1;
     const padding = 20;
     const baseScale = Math.min((w - padding * 2) / rangeX, (h - padding * 2) / rangeZ);
     const scale = baseScale * zoom;
@@ -140,7 +177,7 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
 
       // Edge lines — color each edge span by the segment it belongs to.
       const SEG_COLORS = ["#f87171", "#60a5fa", "#34d399", "#fbbf24", "#a78bfa", "#f472b6", "#2dd4bf", "#fb923c"];
-      const segList = (overlayMode === "segments" && displaySectors?.segments.length) ? displaySectors.segments : null;
+      const segList = overlayMode === "segments" && displaySectors?.segments.length ? displaySectors.segments : null;
       const drawEdge = (edge: Point[]) => {
         if (!segList) {
           ctx.beginPath();
@@ -342,16 +379,26 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
     ctx.font = "11px monospace";
     ctx.textAlign = "left";
     const legendY = h - 10;
-    ctx.fillStyle = "#94a3b8"; ctx.fillRect(10, legendY - 5, 14, 2); ctx.fillText("Center", 28, legendY);
+    ctx.fillStyle = "#94a3b8";
+    ctx.fillRect(10, legendY - 5, 14, 2);
+    ctx.fillText("Center", 28, legendY);
     if (boundaries) {
-      ctx.fillStyle = "#ef4444"; ctx.fillRect(82, legendY - 5, 14, 2); ctx.fillText("Left edge", 100, legendY);
-      ctx.fillStyle = "#3b82f6"; ctx.fillRect(172, legendY - 5, 14, 2); ctx.fillText("Right edge", 190, legendY);
+      ctx.fillStyle = "#ef4444";
+      ctx.fillRect(82, legendY - 5, 14, 2);
+      ctx.fillText("Left edge", 100, legendY);
+      ctx.fillStyle = "#3b82f6";
+      ctx.fillRect(172, legendY - 5, 14, 2);
+      ctx.fillText("Right edge", 190, legendY);
     }
     if (curbs && curbs.length > 0) {
-      ctx.fillStyle = "#f97316"; ctx.fillRect(272, legendY - 5, 14, 2); ctx.fillText("Curbs", 290, legendY);
+      ctx.fillStyle = "#f97316";
+      ctx.fillRect(272, legendY - 5, 14, 2);
+      ctx.fillText("Curbs", 290, legendY);
     }
     if (boundaries?.pitLane) {
-      ctx.fillStyle = "#22d3ee"; ctx.fillRect(340, legendY - 5, 14, 2); ctx.fillText("Pit lane", 358, legendY);
+      ctx.fillStyle = "#22d3ee";
+      ctx.fillRect(340, legendY - 5, 14, 2);
+      ctx.fillText("Pit lane", 358, legendY);
     }
   }, [outline, boundaries, curbs, zoom, pan, flipX, displaySectors, sectorBounds, overlayMode, editingSegments, editingSectors]);
 
@@ -375,45 +422,73 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
             const dy = e.clientY - dragging.current.startY;
             setPan({ x: dragging.current.startPanX + dx, z: dragging.current.startPanZ + dy });
           }}
-          onMouseUp={() => { dragging.current = null; }}
-          onMouseLeave={() => { dragging.current = null; }}
+          onMouseUp={() => {
+            dragging.current = null;
+          }}
+          onMouseLeave={() => {
+            dragging.current = null;
+          }}
         />
         {/* Zoom controls */}
         <div className="absolute top-2 right-2 flex flex-col gap-1">
           <button
-            onClick={() => setZoom(z => Math.min(z + 0.25, 8))}
+            onClick={() => setZoom((z) => Math.min(z + 0.25, 8))}
             className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-          >+</button>
+          >
+            +
+          </button>
           <button
-            onClick={() => setZoom(z => Math.max(z - 0.25, 0.5))}
+            onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
             className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-          >-</button>
+          >
+            -
+          </button>
           {zoom !== 1 && (
             <button
-              onClick={() => { setZoom(1); setPan({ x: 0, z: 0 }); }}
+              onClick={() => {
+                setZoom(1);
+                setPan({ x: 0, z: 0 });
+              }}
               className="w-7 h-7 text-app-unit bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-            >{zoom % 1 === 0 ? `${zoom}x` : zoom.toFixed(1) + "x"}</button>
+            >
+              {zoom % 1 === 0 ? `${zoom}x` : zoom.toFixed(1) + "x"}
+            </button>
           )}
           {(displaySectors || sectorBounds) && (
             <>
               <div className="h-px" />
               <button
-                onClick={() => setOverlayMode(m => m === "segments" ? "sectors" : "segments")}
+                onClick={() => setOverlayMode((m) => (m === "segments" ? "sectors" : "segments"))}
                 className={`px-1.5 py-1 text-[9px] font-mono rounded border transition-colors ${
-                  overlayMode === "sectors"
-                    ? "bg-amber-900/50 border-amber-700 text-amber-400"
-                    : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
+                  overlayMode === "sectors" ? "bg-amber-900/50 border-amber-700 text-amber-400" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
                 }`}
-              >{overlayMode === "sectors" ? "Sectors" : "Segments"}</button>
+              >
+                {overlayMode === "sectors" ? "Sectors" : "Segments"}
+              </button>
             </>
           )}
         </div>
         {(trackLengthKm || corners || straights || trackCreatedAt) && (
           <div className="absolute bottom-2 left-2 flex items-center gap-2.5 text-[10px] font-mono text-app-text-dim bg-app-surface/70 backdrop-blur-sm rounded px-2 py-1 pointer-events-none">
             {(trackLengthKm ?? 0) > 0 && <span>{trackLengthKm} km</span>}
-            {(corners ?? 0) > 0 && <><span className="text-app-text-dim/40">·</span><span>{corners} corners</span></>}
-            {(straights ?? 0) > 0 && <><span className="text-app-text-dim/40">·</span><span>{straights} straights</span></>}
-            {trackCreatedAt && <><span className="text-app-text-dim/40">·</span><span>{new Date(trackCreatedAt).toLocaleDateString()}</span></>}
+            {(corners ?? 0) > 0 && (
+              <>
+                <span className="text-app-text-dim/40">·</span>
+                <span>{corners} corners</span>
+              </>
+            )}
+            {(straights ?? 0) > 0 && (
+              <>
+                <span className="text-app-text-dim/40">·</span>
+                <span>{straights} straights</span>
+              </>
+            )}
+            {trackCreatedAt && (
+              <>
+                <span className="text-app-text-dim/40">·</span>
+                <span>{new Date(trackCreatedAt).toLocaleDateString()}</span>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -435,9 +510,7 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
           <div className="space-y-1 text-app-body">
             <div className="flex justify-between">
               <span className="text-app-text-muted">Available</span>
-              <span className={`font-mono ${boundaries ? "text-green-400" : "text-red-400"}`}>
-                {boundaries ? "Yes" : "No"}
-              </span>
+              <span className={`font-mono ${boundaries ? "text-green-400" : "text-red-400"}`}>{boundaries ? "Yes" : "No"}</span>
             </div>
             {boundaries && (
               <>
@@ -455,9 +528,7 @@ export function TrackDebugPanel({ trackOrdinal, outline, flipX = false, displayS
                 </div>
                 <div className="flex justify-between">
                   <span className="text-app-text-muted">Pit lane</span>
-                  <span className={`font-mono ${boundaries.pitLane ? "text-green-400" : "text-app-text-dim"}`}>
-                    {boundaries.pitLane ? `${boundaries.pitLane.length} pts` : "None"}
-                  </span>
+                  <span className={`font-mono ${boundaries.pitLane ? "text-green-400" : "text-app-text-dim"}`}>{boundaries.pitLane ? `${boundaries.pitLane.length} pts` : "None"}</span>
                 </div>
               </>
             )}

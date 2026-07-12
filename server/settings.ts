@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { z } from "zod";
 import { resolveDataDir } from "./data-dir";
+import { isLaunchOnLoginEnabled } from "./launch-on-login";
 
 const SETTINGS_DIR = resolveDataDir();
 const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
@@ -17,10 +18,13 @@ const AppSettingsSchema = z.object({
   driverName: z.string().default(""),
   udpPort: z.number().int().min(1024).max(65535).default(5301),
   unit: z.enum(["metric", "imperial"]).default("metric"),
+  temperatureUnit: z.enum(["C", "F"]).default("C"),
   aiProvider: AiProviderSchema.default("gemini"),
   aiModel: z.string().default("gemini-flash-latest"),
+  aiThinkingBudget: z.number().int().min(0).nullable().default(null),
   chatProvider: ChatProviderSchema.default("gemini"),
   chatModel: z.string().default("gemini-flash-latest"),
+  chatThinkingBudget: z.number().int().min(0).nullable().default(null),
   localEndpoint: z.string().default("http://localhost:1234/v1"),
   wsRefreshRate: z.enum(["60", "50", "40", "30"]).default("60"),
   // Max render rate for the 3D wireframe Canvas. Throttles gl.render
@@ -32,6 +36,11 @@ const AppSettingsSchema = z.object({
   // workflows. LRU eviction kicks in once the budget is exceeded.
   cacheMaxMB: z.number().int().min(16).max(2048).default(256),
   hiddenGames: z.array(z.string()).default([]),
+  launchOnLogin: z.boolean().default(false),
+  // Community-tunes CDN sync bookkeeping. Not user-facing; written by the
+  // sync job (server/community-tunes-sync.ts) to skip unchanged manifests.
+  communityTunesVersion: z.string().nullable().default(null),
+  communityTunesSyncedAt: z.string().nullable().default(null),
 });
 
 export type AppSettings = z.infer<typeof AppSettingsSchema>;
@@ -55,9 +64,12 @@ export function loadSettings(): AppSettings {
     const raw = readFileSync(SETTINGS_PATH, "utf-8");
     const parsed = JSON.parse(raw);
 
-    // Migrate legacy speedUnit/temperatureUnit → unit
+    // Migrate legacy speedUnit/temperatureUnit → unit + temperatureUnit
     if (!parsed.unit && parsed.speedUnit) {
       parsed.unit = parsed.speedUnit === "mph" ? "imperial" : "metric";
+    }
+    if (parsed.temperatureUnit !== "C" && parsed.temperatureUnit !== "F") {
+      parsed.temperatureUnit = parsed.unit === "imperial" ? "F" : "C";
     }
     // Migrate legacy claude-cli provider → gemini
     if (parsed.aiProvider === "claude-cli") {
@@ -69,7 +81,10 @@ export function loadSettings(): AppSettings {
     delete parsed.tireHealthThresholds;
     delete parsed.suspensionThresholds;
 
-    return AppSettingsSchema.parse(parsed);
+    const result = AppSettingsSchema.parse(parsed);
+    // Always sync launchOnLogin from the actual registry state
+    result.launchOnLogin = isLaunchOnLoginEnabled();
+    return result;
   } catch (err) {
     console.error(`[Settings] Failed to load ${SETTINGS_PATH}:`, err instanceof Error ? err.message : err);
     console.warn(`[Settings] Falling back to defaults`);
@@ -84,6 +99,26 @@ export function saveSettings(settings: AppSettings): void {
   // Validate before writing
   const validated = AppSettingsSchema.parse(settings);
   writeFileSync(SETTINGS_PATH, JSON.stringify(validated, null, 2) + "\n");
+}
+
+/** Persisted community-tunes sync state (manifest version + last sync time). */
+export function getCommunityTunesSyncState(): {
+  version: string | null;
+  syncedAt: string | null;
+} {
+  const s = loadSettings();
+  return {
+    version: s.communityTunesVersion,
+    syncedAt: s.communityTunesSyncedAt,
+  };
+}
+
+/** Persist the manifest version and sync timestamp after a successful sync. */
+export function setCommunityTunesSyncState(version: string): void {
+  const s = loadSettings();
+  s.communityTunesVersion = version;
+  s.communityTunesSyncedAt = new Date().toISOString();
+  saveSettings(s);
 }
 
 /** Schema for partial updates from the API */

@@ -4,7 +4,10 @@ import { useGameStore } from "../stores/game";
 
 function Fm23Layout() {
   const setGameId = useGameStore((s) => s.setGameId);
-  useEffect(() => { setGameId("fm-2023"); return () => setGameId(null); }, [setGameId]);
+  useEffect(() => {
+    setGameId("fm-2023");
+    return () => setGameId(null);
+  }, [setGameId]);
   return <Outlet />;
 }
 

@@ -25,10 +25,18 @@ interface Props {
 }
 
 export function AnalyseVizPanel({
-  vizMode, onVizModeChange, width,
-  currentPacket, currentDisplayPacket, displayTelemetry,
-  cursorRef, displayTelemetryRef, cursorIdx,
-  lapLine, boundaries, units,
+  vizMode,
+  onVizModeChange,
+  width,
+  currentPacket,
+  currentDisplayPacket,
+  displayTelemetry,
+  cursorRef,
+  displayTelemetryRef,
+  cursorIdx,
+  lapLine,
+  boundaries,
+  units,
 }: Props) {
   return (
     <div className="border-r border-app-border flex flex-col items-center justify-start overflow-y-auto shrink-0" style={{ width }}>
@@ -37,9 +45,7 @@ export function AnalyseVizPanel({
         <button
           onClick={() => onVizModeChange("2d")}
           className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
-            vizMode === "2d"
-              ? "text-app-text border-b-2 border-app-accent"
-              : "text-app-text-muted hover:text-app-text"
+            vizMode === "2d" ? "text-app-text border-b-2 border-app-accent" : "text-app-text-muted hover:text-app-text"
           }`}
         >
           2D
@@ -47,9 +53,7 @@ export function AnalyseVizPanel({
         <button
           onClick={() => onVizModeChange("3d")}
           className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
-            vizMode === "3d"
-              ? "text-app-text border-b-2 border-app-accent"
-              : "text-app-text-muted hover:text-app-text"
+            vizMode === "3d" ? "text-app-text border-b-2 border-app-accent" : "text-app-text-muted hover:text-app-text"
           }`}
         >
           3D
@@ -62,7 +66,9 @@ export function AnalyseVizPanel({
             {currentPacket && (
               <div className="flex items-center justify-center gap-2">
                 <span className="text-lg font-mono font-bold text-app-accent">{currentPacket.Gear === 0 ? "R" : currentPacket.Gear === 11 ? "N" : currentPacket.Gear}</span>
-                <span className="text-xl font-mono font-bold tabular-nums text-app-text">{(currentDisplayPacket?.DisplaySpeed ?? units.speed(currentPacket.Speed)).toFixed(0)} <span className="text-[10px] text-app-text-muted">{units.speedLabel}</span></span>
+                <span className="text-xl font-mono font-bold tabular-nums text-app-text">
+                  {(currentDisplayPacket?.DisplaySpeed ?? units.speed(currentPacket.Speed)).toFixed(0)} <span className="text-[10px] text-app-text-muted">{units.speedLabel}</span>
+                </span>
               </div>
             )}
             {currentPacket && (

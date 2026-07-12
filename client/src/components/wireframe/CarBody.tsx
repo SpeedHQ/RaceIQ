@@ -7,7 +7,12 @@ import { classifyMesh, DEFAULT_HIDDEN_MESHES } from "./classify-mesh";
 // Re-export so existing importers don't break.
 export { classifyMesh, DEFAULT_HIDDEN_MESHES };
 
-export function CarBody({ solid, carModel, modelOffsetX, hideModelWheels }: { solid: "wire" | "solid" | "hidden"; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; hideModelWheels?: boolean }) {
+export function CarBody({
+  solid,
+  carModel,
+  modelOffsetX,
+  hideModelWheels,
+}: { solid: "wire" | "solid" | "hidden"; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; hideModelWheels?: boolean }) {
   const { scene } = useGLTF(carModel.modelPath);
 
   const model = useMemo(() => {
@@ -67,22 +72,25 @@ export function CarBody({ solid, carModel, modelOffsetX, hideModelWheels }: { so
 
   const [highlightedMesh, setHighlightedMesh] = useState<string | null>(null);
 
-  const handleDoubleClick = useCallback((e: { stopPropagation?: () => void; object?: THREE.Mesh }) => {
-    e.stopPropagation?.();
-    const mesh = e.object as THREE.Mesh | undefined;
-    if (!mesh?.isMesh) return;
-    const num = parseInt(mesh.name.replace(/\D/g, ""), 10);
-    const box = new THREE.Box3().setFromObject(mesh);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    console.log(`[CarBody] Clicked: ${mesh.name} (#${num}) [${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}]`);
+  const handleDoubleClick = useCallback(
+    (e: { stopPropagation?: () => void; object?: THREE.Mesh }) => {
+      e.stopPropagation?.();
+      const mesh = e.object as THREE.Mesh | undefined;
+      if (!mesh?.isMesh) return;
+      const num = parseInt(mesh.name.replace(/\D/g, ""), 10);
+      const box = new THREE.Box3().setFromObject(mesh);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      console.log(`[CarBody] Clicked: ${mesh.name} (#${num}) [${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}]`);
 
-    if (highlightedMesh === mesh.name) {
-      setHighlightedMesh(null);
-    } else {
-      setHighlightedMesh(mesh.name);
-    }
-  }, [highlightedMesh]);
+      if (highlightedMesh === mesh.name) {
+        setHighlightedMesh(null);
+      } else {
+        setHighlightedMesh(mesh.name);
+      }
+    },
+    [highlightedMesh],
+  );
 
   // Apply highlight overlay
   useEffect(() => {

@@ -155,9 +155,7 @@ export function AnalyseTopSection({
           <button
             onClick={onRotateWithCarToggle}
             className={`px-2 py-1 text-[9px] uppercase tracking-wider font-semibold rounded border transition-colors ${
-              rotateWithCar
-                ? "bg-cyan-900/50 border-cyan-700 text-app-accent"
-                : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
+              rotateWithCar ? "bg-cyan-900/50 border-cyan-700 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
             }`}
           >
             {rotateWithCar ? "Follow" : "Fixed"}
@@ -165,9 +163,7 @@ export function AnalyseTopSection({
           <button
             onClick={onTrackOverlayCycle}
             className={`px-2 py-1 text-[9px] uppercase tracking-wider font-semibold rounded border transition-colors ${
-              trackOverlay !== "none"
-                ? "bg-cyan-900/50 border-cyan-700 text-app-accent"
-                : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
+              trackOverlay !== "none" ? "bg-cyan-900/50 border-cyan-700 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
             }`}
           >
             {trackOverlay === "none" ? "Overlay" : trackOverlay === "inputs" ? "Inputs" : trackOverlay === "segments" ? "Segments" : "Sectors"}
@@ -181,11 +177,15 @@ export function AnalyseTopSection({
               <button
                 onClick={() => onMapZoomChange((z) => Math.min(z + 0.25, 4))}
                 className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-              >+</button>
+              >
+                +
+              </button>
               <button
                 onClick={() => onMapZoomChange((z) => Math.max(z - 0.25, 0.5))}
                 className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-              >-</button>
+              >
+                -
+              </button>
             </div>
           )}
           {currentPacket && <Compass yaw={currentPacket.Yaw} />}

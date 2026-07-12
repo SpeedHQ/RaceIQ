@@ -52,32 +52,17 @@ export function F1GridTable({ f1, playerCarIndex }: { f1: F1ExtendedData; player
               const isPlayer = entry.name !== "" && playerCarIndex !== undefined;
               const dotColor = COMPOUND_DOT[entry.tyreCompound] ?? COMPOUND_DOT.unknown;
               return (
-                <tr
-                  key={entry.position}
-                  className={`border-b border-zinc-800/50 hover:bg-zinc-800/50 ${
-                    isPlayer ? "" : ""
-                  }`}
-                >
+                <tr key={entry.position} className={`border-b border-zinc-800/50 hover:bg-zinc-800/50 ${isPlayer ? "" : ""}`}>
                   <td className="px-2 py-1 font-bold text-zinc-300">{entry.position}</td>
-                  <td className="px-2 py-1 text-zinc-200 truncate max-w-[120px]">
-                    {entry.name || `Car ${entry.position}`}
-                  </td>
-                  <td className="px-2 py-1 text-right text-zinc-400 tabular-nums">
-                    {entry.position === 1 ? "LEADER" : formatGap(entry.gapToLeader)}
-                  </td>
-                  <td className="px-2 py-1 text-right text-zinc-400 tabular-nums">
-                    {formatGap(entry.gapToCarAhead)}
-                  </td>
-                  <td className="px-2 py-1 text-right text-zinc-300 tabular-nums">
-                    {formatTime(entry.bestLapTime)}
-                  </td>
+                  <td className="px-2 py-1 text-zinc-200 truncate max-w-[120px]">{entry.name || `Car ${entry.position}`}</td>
+                  <td className="px-2 py-1 text-right text-zinc-400 tabular-nums">{entry.position === 1 ? "LEADER" : formatGap(entry.gapToLeader)}</td>
+                  <td className="px-2 py-1 text-right text-zinc-400 tabular-nums">{formatGap(entry.gapToCarAhead)}</td>
+                  <td className="px-2 py-1 text-right text-zinc-300 tabular-nums">{formatTime(entry.bestLapTime)}</td>
                   <td className="px-2 py-1 text-center">
                     <span className={`inline-block w-2.5 h-2.5 rounded-full ${dotColor}`} />
                   </td>
                   <td className="px-2 py-1 text-right text-zinc-500 tabular-nums">{entry.tyreAge}</td>
-                  <td className="px-2 py-1 text-center text-zinc-500">
-                    {entry.pitStatus === 1 ? "IN" : entry.pitStatus === 2 ? "PIT" : entry.numPitStops > 0 ? entry.numPitStops : ""}
-                  </td>
+                  <td className="px-2 py-1 text-center text-zinc-500">{entry.pitStatus === 1 ? "IN" : entry.pitStatus === 2 ? "PIT" : entry.numPitStops > 0 ? entry.numPitStops : ""}</td>
                 </tr>
               );
             })}

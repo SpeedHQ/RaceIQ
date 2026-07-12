@@ -239,6 +239,63 @@ export async function updateSessionRawFile(sessionId: number, rawFile: string, l
 }
 
 /**
+ * Aggregate lap stats scoped to an optional game. Uses SQL COUNT/SUM so
+ * totals don't get capped by getLaps()'s 200-row limit — home-page game
+ * cards and per-game pages now both report the full picture.
+ */
+export interface LapStats {
+  totalLaps: number;
+  validLaps: number;
+  totalTimeSec: number;
+  uniqueCars: number;
+  uniqueTracks: number;
+  lapsByTrack: { trackOrdinal: number; count: number }[];
+}
+
+export async function getLapStats(gameId?: GameId): Promise<LapStats> {
+  const whereClause = gameId ? sql`WHERE sessions.game_id = ${gameId}` : sql``;
+  const whereClauseByTrack = gameId
+    ? sql`WHERE sessions.game_id = ${gameId} AND laps.lap_time > 0 AND sessions.track_ordinal IS NOT NULL`
+    : sql`WHERE laps.lap_time > 0 AND sessions.track_ordinal IS NOT NULL`;
+
+  const totals = await db.all<{
+    totalLaps: number;
+    validLaps: number;
+    totalTimeSec: number;
+    uniqueCars: number;
+    uniqueTracks: number;
+  }>(sql`
+    SELECT
+      COUNT(*) as totalLaps,
+      SUM(CASE WHEN laps.is_valid AND laps.lap_time > 0 THEN 1 ELSE 0 END) as validLaps,
+      COALESCE(SUM(CASE WHEN laps.lap_time > 0 THEN laps.lap_time ELSE 0 END), 0) as totalTimeSec,
+      COUNT(DISTINCT sessions.car_ordinal) as uniqueCars,
+      COUNT(DISTINCT sessions.track_ordinal) as uniqueTracks
+    FROM laps
+    INNER JOIN sessions ON laps.session_id = sessions.id
+    ${whereClause}
+  `);
+
+  const byTrack = await db.all<{ trackOrdinal: number; count: number }>(sql`
+    SELECT sessions.track_ordinal as trackOrdinal, COUNT(*) as count
+    FROM laps
+    INNER JOIN sessions ON laps.session_id = sessions.id
+    ${whereClauseByTrack}
+    GROUP BY sessions.track_ordinal
+  `);
+
+  const row = totals[0] ?? { totalLaps: 0, validLaps: 0, totalTimeSec: 0, uniqueCars: 0, uniqueTracks: 0 };
+  return {
+    totalLaps: Number(row.totalLaps),
+    validLaps: Number(row.validLaps),
+    totalTimeSec: Number(row.totalTimeSec),
+    uniqueCars: Number(row.uniqueCars),
+    uniqueTracks: Number(row.uniqueTracks),
+    lapsByTrack: byTrack.map((r) => ({ trackOrdinal: r.trackOrdinal, count: Number(r.count) })),
+  };
+}
+
+/**
  * Get all laps with session metadata, newest first.
  * Optionally filter by profileId.
  */

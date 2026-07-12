@@ -14,10 +14,7 @@ function ComboDash1Route() {
   const sectors = useTelemetryStore((s) => s.sectors);
   const pit = useTelemetryStore((s) => s.pit);
   const unitSystem = useTelemetryStore((s) => s.unitSystem);
-  const detectedGameId = useTelemetryStore((s) => s.serverStatus?.detectedGame?.id) as
-    | GameId
-    | null
-    | undefined;
+  const detectedGameId = useTelemetryStore((s) => s.serverStatus?.detectedGame?.id) as GameId | null | undefined;
   const units = useUnits();
   const game = detectedGameId ? tryGetGame(detectedGameId) : null;
 
@@ -26,17 +23,7 @@ function ComboDash1Route() {
     return () => setGameId(null);
   }, [detectedGameId, setGameId]);
 
-  return (
-    <ComboDash
-      rawPacket={rawPacket}
-      packet={packet}
-      sectors={sectors}
-      pit={pit}
-      unitSystem={unitSystem}
-      tireHealthThresholds={game?.tireHealthThresholds}
-      toTempC={units.toTempC}
-    />
-  );
+  return <ComboDash rawPacket={rawPacket} packet={packet} sectors={sectors} pit={pit} unitSystem={unitSystem} tireHealthThresholds={game?.tireHealthThresholds} toTempC={units.toTempC} />;
 }
 
 export const Route = createFileRoute("/dash/combo-1")({

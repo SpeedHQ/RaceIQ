@@ -202,6 +202,14 @@ process.on("SIGTERM", () => void gracefulShutdown("SIGTERM"));
 const udpPort = settings.udpPort ?? (Number(process.env.UDP_PORT) || 5301);
 udpListener.start(udpPort);
 
+// Sync community tunes from the CDN (non-blocking) and schedule the 6h refresh.
+import { startCommunityTunesSync } from "./community-tunes-sync";
+startCommunityTunesSync();
+
+// Sync the community leaderboard (reference lap times) from the CDN.
+import { startLaptimesSync } from "./laptimes-sync";
+startLaptimesSync();
+
 // Check for sessions recorded with an older lap detector version.
 // Stores the notification in wsManager so it's sent to each client on connect.
 import { countStaleSessions } from "./db/queries";

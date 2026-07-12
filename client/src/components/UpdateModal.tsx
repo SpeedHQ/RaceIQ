@@ -7,7 +7,7 @@ import { client } from "@/lib/rpc";
 
 const STEPS = ["downloading", "installing", "reconnecting", "complete"] as const;
 
-function StepIndicator({ step, current }: { step: typeof STEPS[number]; current: typeof STEPS[number] | null }) {
+function StepIndicator({ step, current }: { step: (typeof STEPS)[number]; current: (typeof STEPS)[number] | null }) {
   const stepIdx = current ? STEPS.indexOf(current) : -1;
   const thisIdx = STEPS.indexOf(step);
   const isActive = step === current;
@@ -24,18 +24,12 @@ function StepIndicator({ step, current }: { step: typeof STEPS[number]; current:
     <div className="flex items-center gap-2">
       <div
         className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-          isDone
-            ? "bg-green-500 text-black"
-            : isActive
-              ? "bg-app-accent text-black"
-              : "bg-app-surface-2 text-app-text-muted"
+          isDone ? "bg-green-500 text-black" : isActive ? "bg-app-accent text-black" : "bg-app-surface-2 text-app-text-muted"
         }`}
       >
         {isDone ? "✓" : thisIdx + 1}
       </div>
-      <span className={`text-xs font-medium ${isActive ? "text-app-text" : isDone ? "text-green-400" : "text-app-text-muted"}`}>
-        {labels[step]}
-      </span>
+      <span className={`text-xs font-medium ${isActive ? "text-app-text" : isDone ? "text-green-400" : "text-app-text-muted"}`}>{labels[step]}</span>
     </div>
   );
 }
@@ -54,7 +48,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
     try {
       const res = await client.api.update.apply.$post();
       if (!res.ok) {
-        const body = await res.json().catch(() => null) as { error?: string } | null;
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
         throw new Error(body?.error ?? `Failed (${res.status})`);
       }
     } catch (e: unknown) {
@@ -85,16 +79,11 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
   const isUpdating = stage !== null && stage !== "complete";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={isUpdating ? undefined : onClose}>
-      <div
-        className="w-full max-w-lg rounded-lg border border-app-border bg-app-bg shadow-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={isUpdating ? undefined : onClose}>
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg border border-app-border bg-app-bg shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-app-border">
-          <h2 className="text-sm font-semibold text-app-text">
-            {stage === "complete" ? "Update Complete" : stage ? "Updating RaceIQ" : "Update Available"}
-          </h2>
+          <h2 className="text-sm font-semibold text-app-text">{stage === "complete" ? "Update Complete" : stage ? "Updating RaceIQ" : "Update Available"}</h2>
           {!isUpdating && (
             <button onClick={onClose} className="p-1.5 rounded hover:bg-app-surface-alt transition-colors text-app-text-muted hover:text-app-text">
               <X className="size-4" />
@@ -110,41 +99,38 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
               <p className="text-sm text-app-text-secondary">
                 RaceIQ <span className="font-mono text-app-accent">v{version}</span> is ready to install.
               </p>
-              {newReleases.length > 0 && (() => {
-                const [latest, ...older] = newReleases;
-                return (
-                  <div className="max-h-52 overflow-y-auto space-y-3">
-                    <div>
-                      <div className="flex items-baseline justify-between mb-1">
-                        <span className="text-xs font-medium text-app-text">v{latest.version}</span>
-                        {latest.date && (
-                          <span className="text-xs text-app-text-muted">{new Date(latest.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
-                        )}
-                      </div>
-                      <ReleaseNotes notes={latest.notes} />
-                    </div>
-                    {older.length > 0 && !showAllReleases && (
-                      <button
-                        onClick={() => setShowAllReleases(true)}
-                        className="text-xs text-app-accent hover:underline"
-                      >
-                        Show {older.length} earlier release{older.length > 1 ? "s" : ""}
-                      </button>
-                    )}
-                    {showAllReleases && older.map((r) => (
-                      <div key={r.version}>
+              {newReleases.length > 0 &&
+                (() => {
+                  const [latest, ...older] = newReleases;
+                  return (
+                    <div className="max-h-52 overflow-y-auto space-y-3">
+                      <div>
                         <div className="flex items-baseline justify-between mb-1">
-                          <span className="text-xs font-medium text-app-text">v{r.version}</span>
-                          {r.date && (
-                            <span className="text-xs text-app-text-muted">{new Date(r.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
+                          <span className="text-xs font-medium text-app-text">v{latest.version}</span>
+                          {latest.date && (
+                            <span className="text-xs text-app-text-muted">{new Date(latest.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
                           )}
                         </div>
-                        <ReleaseNotes notes={r.notes} />
+                        <ReleaseNotes notes={latest.notes} />
                       </div>
-                    ))}
-                  </div>
-                );
-              })()}
+                      {older.length > 0 && !showAllReleases && (
+                        <button onClick={() => setShowAllReleases(true)} className="text-xs text-app-accent hover:underline">
+                          Show {older.length} earlier release{older.length > 1 ? "s" : ""}
+                        </button>
+                      )}
+                      {showAllReleases &&
+                        older.map((r) => (
+                          <div key={r.version}>
+                            <div className="flex items-baseline justify-between mb-1">
+                              <span className="text-xs font-medium text-app-text">v{r.version}</span>
+                              {r.date && <span className="text-xs text-app-text-muted">{new Date(r.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>}
+                            </div>
+                            <ReleaseNotes notes={r.notes} />
+                          </div>
+                        ))}
+                    </div>
+                  );
+                })()}
               <div className="flex justify-end gap-3">
                 <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
                   Install Update
@@ -179,9 +165,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
                 {STEPS.map((s, i) => (
                   <div key={s} className="flex items-center">
                     <StepIndicator step={s} current={stage} />
-                    {i < STEPS.length - 1 && (
-                      <div className={`w-8 h-px mx-2 ${STEPS.indexOf(stage) > i ? "bg-green-500" : "bg-app-border"}`} />
-                    )}
+                    {i < STEPS.length - 1 && <div className={`w-8 h-px mx-2 ${STEPS.indexOf(stage) > i ? "bg-green-500" : "bg-app-border"}`} />}
                   </div>
                 ))}
               </div>
@@ -190,30 +174,17 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
               {stage === "downloading" && (
                 <div className="space-y-2">
                   <div className="h-2 rounded-full bg-app-surface-2 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-app-accent transition-all duration-300"
-                      style={{ width: `${percent}%` }}
-                    />
+                    <div className="h-full rounded-full bg-app-accent transition-all duration-300" style={{ width: `${percent}%` }} />
                   </div>
-                  <p className="text-xs text-app-text-muted text-center">
-                    Downloading installer... {percent}%
-                  </p>
+                  <p className="text-xs text-app-text-muted text-center">Downloading installer... {percent}%</p>
                 </div>
               )}
 
               {/* Installing */}
-              {stage === "installing" && (
-                <p className="text-xs text-app-text-muted text-center animate-pulse">
-                  Running installer...
-                </p>
-              )}
+              {stage === "installing" && <p className="text-xs text-app-text-muted text-center animate-pulse">Running installer...</p>}
 
               {/* Reconnecting */}
-              {stage === "reconnecting" && (
-                <p className="text-xs text-app-text-muted text-center animate-pulse">
-                  Waiting for RaceIQ to restart...
-                </p>
-              )}
+              {stage === "reconnecting" && <p className="text-xs text-app-text-muted text-center animate-pulse">Waiting for RaceIQ to restart...</p>}
 
               {/* Complete */}
               {stage === "complete" && (

@@ -3,13 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, createMemoryHistory, RouterProvider, createRootRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { ComboDash2 } from "../../components/dashes/ComboDash2";
-import {
-  fakeForzaPacket,
-  fakeF1Packet,
-  fakeAccPacket,
-  fakeAcEvoPacket,
-  generateFakeSessionLaps,
-} from "../fakeData";
+import { fakeForzaPacket, fakeF1Packet, fakeAccPacket, fakeAcEvoPacket, generateFakeSessionLaps } from "../fakeData";
 import type { TelemetryPacket, GameId } from "@shared/types";
 import { useGameStore } from "../../stores/game";
 
@@ -67,12 +61,7 @@ function render({ game, lapCount }: Args) {
           transform: "translateZ(0)",
         }}
       >
-        {withRouter(
-          <ComboDash2
-            rawPacket={rawPacket}
-            sessionLaps={laps}
-          />,
-        )}
+        {withRouter(<ComboDash2 rawPacket={rawPacket} sessionLaps={laps} />)}
       </div>
     </QueryClientProvider>
   );

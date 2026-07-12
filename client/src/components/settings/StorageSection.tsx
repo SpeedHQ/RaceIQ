@@ -65,17 +65,11 @@ function DonutChart({ binCount, gzCount }: { binCount: number; gzCount: number }
   return (
     <div className="flex items-center gap-6">
       <svg width="120" height="120" viewBox="0 0 120 120">
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#3b82f6" strokeWidth="16" strokeDasharray={`${gzDash} ${circumference - gzDash}`} strokeDashoffset={circumference / 4} strokeLinecap="butt" />
         <circle
-          cx={cx} cy={cy} r={r}
-          fill="none"
-          stroke="#3b82f6"
-          strokeWidth="16"
-          strokeDasharray={`${gzDash} ${circumference - gzDash}`}
-          strokeDashoffset={circumference / 4}
-          strokeLinecap="butt"
-        />
-        <circle
-          cx={cx} cy={cy} r={r}
+          cx={cx}
+          cy={cy}
+          r={r}
           fill="none"
           stroke="#ffffff22"
           strokeWidth="16"
@@ -83,8 +77,12 @@ function DonutChart({ binCount, gzCount }: { binCount: number; gzCount: number }
           strokeDashoffset={circumference / 4 + binOffset}
           strokeLinecap="butt"
         />
-        <text x={cx} y={cy - 6} textAnchor="middle" fill="white" fontSize="18" fontWeight="600">{total}</text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="10">files</text>
+        <text x={cx} y={cy - 6} textAnchor="middle" fill="white" fontSize="18" fontWeight="600">
+          {total}
+        </text>
+        <text x={cx} y={cy + 10} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="10">
+          files
+        </text>
       </svg>
       <div className="space-y-2">
         <div className="flex items-center gap-2">
@@ -109,25 +107,23 @@ function GameBreakdown({ gameId, stats }: { gameId: string; stats: GameStorageSt
     <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 space-y-1">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-white uppercase tracking-wide">{gameId}</span>
-        <span className="text-xs text-white/40">{total} file{total !== 1 ? "s" : ""} — {fmt(totalBytes)}</span>
+        <span className="text-xs text-white/40">
+          {total} file{total !== 1 ? "s" : ""} — {fmt(totalBytes)}
+        </span>
       </div>
       <div className="flex items-center justify-between">
         <span className="text-xs text-white/50 flex items-center gap-1.5">
           <span className="size-2 rounded-sm bg-white/20 inline-block" />
           Uncompressed
         </span>
-        <span className="text-xs text-white/70">
-          {stats.binCount > 0 ? `${stats.binCount} — ${fmt(stats.binBytes)}` : "—"}
-        </span>
+        <span className="text-xs text-white/70">{stats.binCount > 0 ? `${stats.binCount} — ${fmt(stats.binBytes)}` : "—"}</span>
       </div>
       <div className="flex items-center justify-between">
         <span className="text-xs text-white/50 flex items-center gap-1.5">
           <span className="size-2 rounded-sm bg-blue-500 inline-block" />
           Compressed
         </span>
-        <span className="text-xs text-white/70">
-          {stats.gzCount > 0 ? `${stats.gzCount} — ${fmt(stats.gzBytes)}` : "—"}
-        </span>
+        <span className="text-xs text-white/70">{stats.gzCount > 0 ? `${stats.gzCount} — ${fmt(stats.gzBytes)}` : "—"}</span>
       </div>
     </div>
   );
@@ -173,7 +169,7 @@ function CacheSection() {
           setStatus("error");
           setErrorMsg(e instanceof Error ? e.message : "Save failed");
         },
-      }
+      },
     );
   };
 
@@ -183,9 +179,7 @@ function CacheSection() {
         <Database className="size-4 text-white/40" />
         Telemetry Cache
       </h3>
-      <p className="text-xs text-white/40 mb-4">
-        In-memory cache of parsed lap telemetry used by analyse, compare, and chat. LRU eviction when the budget is exceeded.
-      </p>
+      <p className="text-xs text-white/40 mb-4">In-memory cache of parsed lap telemetry used by analyse, compare, and chat. LRU eviction when the budget is exceeded.</p>
 
       {cache && (
         <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 mb-4 space-y-3">
@@ -196,13 +190,12 @@ function CacheSection() {
             </span>
           </div>
           <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-            <div
-              className="h-full bg-blue-500 transition-all"
-              style={{ width: `${usedFraction * 100}%` }}
-            />
+            <div className="h-full bg-blue-500 transition-all" style={{ width: `${usedFraction * 100}%` }} />
           </div>
           <div className="flex items-center justify-between pt-1 text-xs text-white/50">
-            <span>{cache.entries} cached lap{cache.entries === 1 ? "" : "s"}</span>
+            <span>
+              {cache.entries} cached lap{cache.entries === 1 ? "" : "s"}
+            </span>
           </div>
         </div>
       )}
@@ -210,19 +203,8 @@ function CacheSection() {
       <div className="max-w-xs">
         <Label className="text-app-text-secondary">Cache size limit (MB)</Label>
         <div className="mt-1.5 flex items-center gap-2">
-          <Input
-            type="number"
-            min={16}
-            max={2048}
-            value={draftMB}
-            onChange={(e) => setDraftMB(e.target.value)}
-            className="bg-app-surface border border-app-border-input"
-          />
-          <Button
-            onClick={onSave}
-            disabled={status === "saving" || draftMB === String(displaySettings.cacheMaxMB)}
-            size="sm"
-          >
+          <Input type="number" min={16} max={2048} value={draftMB} onChange={(e) => setDraftMB(e.target.value)} className="bg-app-surface border border-app-border-input" />
+          <Button onClick={onSave} disabled={status === "saving" || draftMB === String(displaySettings.cacheMaxMB)} size="sm">
             {status === "saving" ? "Saving…" : "Save"}
           </Button>
         </div>
@@ -257,8 +239,7 @@ export function StorageSection() {
           Recording Files
         </h3>
         <p className="text-xs text-white/40 mb-4">
-          Raw session recordings stored in <code className="font-mono">data/sessions/</code>.
-          Files older than 24 hours are automatically compressed in the background.
+          Raw session recordings stored in <code className="font-mono">data/sessions/</code>. Files older than 24 hours are automatically compressed in the background.
         </p>
         {isLoading && <p className="text-sm text-white/40">Loading…</p>}
         {isError && <p className="text-sm text-red-400">Failed to load storage stats.</p>}
@@ -270,20 +251,9 @@ export function StorageSection() {
         {data && (
           <div className="rounded-lg border border-white/10 bg-white/5 px-4 divide-y divide-white/5 mb-4">
             <StatRow label="Total size" value={fmt(data.totalBytes)} />
-            <StatRow
-              label="Uncompressed (.bin)"
-              value={data.binCount > 0 ? `${data.binCount} file${data.binCount !== 1 ? "s" : ""} — ${fmt(data.binBytes)}` : "None"}
-            />
-            <StatRow
-              label="Compressed (.bin.gz)"
-              value={data.gzCount > 0 ? `${data.gzCount} file${data.gzCount !== 1 ? "s" : ""} — ${fmt(data.gzBytes)}` : "None"}
-            />
-            {data.binCount > 0 && data.gzCount > 0 && (
-              <StatRow
-                label="Space saved"
-                value={`${((1 - data.gzBytes / (data.gzBytes + data.binBytes)) * 100).toFixed(0)}%`}
-              />
-            )}
+            <StatRow label="Uncompressed (.bin)" value={data.binCount > 0 ? `${data.binCount} file${data.binCount !== 1 ? "s" : ""} — ${fmt(data.binBytes)}` : "None"} />
+            <StatRow label="Compressed (.bin.gz)" value={data.gzCount > 0 ? `${data.gzCount} file${data.gzCount !== 1 ? "s" : ""} — ${fmt(data.gzBytes)}` : "None"} />
+            {data.binCount > 0 && data.gzCount > 0 && <StatRow label="Space saved" value={`${((1 - data.gzBytes / (data.gzBytes + data.binBytes)) * 100).toFixed(0)}%`} />}
             {data.diskTotal > 0 && (
               <>
                 <StatRow label="Disk total" value={fmt(data.diskTotal)} />
@@ -300,9 +270,7 @@ export function StorageSection() {
             ))}
           </div>
         )}
-        {data && data.total === 0 && (
-          <p className="text-sm text-white/40">No recording files yet.</p>
-        )}
+        {data && data.total === 0 && <p className="text-sm text-white/40">No recording files yet.</p>}
         {data && data.binCount > 0 && (
           <div className="mt-4">
             <button

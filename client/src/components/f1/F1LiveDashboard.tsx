@@ -12,28 +12,35 @@ import { useTrackName, useCarName } from "../../hooks/queries";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-
 function fToC(f: number): number {
   return (f - 32) / 1.8;
 }
 
 const WEATHER_LABELS: Record<number, string> = {
-  0: "Clear", 1: "Light Cloud", 2: "Overcast",
-  3: "Light Rain", 4: "Heavy Rain", 5: "Storm",
+  0: "Clear",
+  1: "Light Cloud",
+  2: "Overcast",
+  3: "Light Rain",
+  4: "Heavy Rain",
+  5: "Storm",
 };
 
 const COMPOUND_COLORS: Record<string, { bg: string; text: string }> = {
-  soft:    { bg: "bg-red-600",    text: "text-white" },
-  medium:  { bg: "bg-yellow-500", text: "text-black" },
-  hard:    { bg: "bg-white",      text: "text-black" },
-  inter:   { bg: "bg-green-500",  text: "text-white" },
-  wet:     { bg: "bg-blue-500",   text: "text-white" },
+  soft: { bg: "bg-red-600", text: "text-white" },
+  medium: { bg: "bg-yellow-500", text: "text-black" },
+  hard: { bg: "bg-white", text: "text-black" },
+  inter: { bg: "bg-green-500", text: "text-white" },
+  wet: { bg: "bg-blue-500", text: "text-white" },
   unknown: { bg: "", text: "text-app-text-muted" },
 };
 
 const COMPOUND_DOT: Record<string, string> = {
-  soft: "bg-red-500", medium: "bg-yellow-400", hard: "bg-white",
-  inter: "bg-green-500", wet: "bg-blue-500", unknown: "bg-app-text-dim",
+  soft: "bg-red-500",
+  medium: "bg-yellow-400",
+  hard: "bg-white",
+  inter: "bg-green-500",
+  wet: "bg-blue-500",
+  unknown: "bg-app-text-dim",
 };
 
 const ERS_MAX_ENERGY = 4_000_000;
@@ -98,7 +105,7 @@ export function F1LiveDashboard() {
               fr={{ tempC: Math.round(fToC(rawPacket!.TireTempFR)), wear: rawPacket!.TireWearFR, brakeTemp: rawPacket!.f1?.brakeTempFR ?? 0, pressure: rawPacket!.f1?.tyrePressureFR ?? 0 }}
               rl={{ tempC: Math.round(fToC(rawPacket!.TireTempRL)), wear: rawPacket!.TireWearRL, brakeTemp: rawPacket!.f1?.brakeTempRL ?? 0, pressure: rawPacket!.f1?.tyrePressureRL ?? 0 }}
               rr={{ tempC: Math.round(fToC(rawPacket!.TireTempRR)), wear: rawPacket!.TireWearRR, brakeTemp: rawPacket!.f1?.brakeTempRR ?? 0, pressure: rawPacket!.f1?.tyrePressureRR ?? 0 }}
-              healthThresholds={tryGetGame("f1-2025")?.tireHealthThresholds ?? { green: 0.70, yellow: 0.50 }}
+              healthThresholds={tryGetGame("f1-2025")?.tireHealthThresholds ?? { green: 0.7, yellow: 0.5 }}
               tempThresholds={{ blue: 80, orange: 105, red: 115 }}
               compound={rawPacket!.f1?.tyreCompound ?? "unknown"}
               compoundStyle={COMPOUND_COLORS[rawPacket!.f1?.tyreCompound ?? "unknown"] ?? COMPOUND_COLORS.unknown}
@@ -155,7 +162,6 @@ function DrsIndicator({ f1 }: { f1: F1ExtendedData }) {
   );
 }
 
-
 // ── Car Damage Section ──────────────────────────────────────────────────────
 
 function CarDamageSection({ f1 }: { f1: F1ExtendedData }) {
@@ -169,8 +175,8 @@ function CarDamageSection({ f1 }: { f1: F1ExtendedData }) {
   ];
 
   const hasDamage = parts.some((p) => p.value > 0);
-  const dmgColor = (v: number) => v === 0 ? "#22c55e" : v < 30 ? "#eab308" : v < 60 ? "#f97316" : "#ef4444";
-  const dmgText = (v: number) => v === 0 ? "text-emerald-400" : v < 30 ? "text-yellow-400" : v < 60 ? "text-orange-400" : "text-red-400";
+  const dmgColor = (v: number) => (v === 0 ? "#22c55e" : v < 30 ? "#eab308" : v < 60 ? "#f97316" : "#ef4444");
+  const dmgText = (v: number) => (v === 0 ? "text-emerald-400" : v < 30 ? "text-yellow-400" : v < 60 ? "text-orange-400" : "text-red-400");
 
   return (
     <div className="border-b border-app-border">
@@ -182,8 +188,12 @@ function CarDamageSection({ f1 }: { f1: F1ExtendedData }) {
         {/* SVG top-down F1 car */}
         <svg viewBox="0 0 100 200" className="w-16 h-32 flex-shrink-0">
           {/* Body */}
-          <path d="M40,30 L35,15 L40,5 L60,5 L65,15 L60,30 L62,50 L65,70 L65,140 L62,160 L60,175 L58,190 L42,190 L40,175 L38,160 L35,140 L35,70 L38,50 Z"
-            fill="#1e293b" stroke="#475569" strokeWidth="1.5" />
+          <path
+            d="M40,30 L35,15 L40,5 L60,5 L65,15 L60,30 L62,50 L65,70 L65,140 L62,160 L60,175 L58,190 L42,190 L40,175 L38,160 L35,140 L35,70 L38,50 Z"
+            fill="#1e293b"
+            stroke="#475569"
+            strokeWidth="1.5"
+          />
           {/* Front wing */}
           <rect x="15" y="8" width="22" height="6" rx="1" fill={dmgColor(f1.frontLeftWingDamage)} opacity="0.8" />
           <rect x="63" y="8" width="22" height="6" rx="1" fill={dmgColor(f1.frontRightWingDamage)} opacity="0.8" />
@@ -213,9 +223,7 @@ function CarDamageSection({ f1 }: { f1: F1ExtendedData }) {
           {parts.map((p) => (
             <div key={p.label} className="flex items-center justify-between">
               <span className="text-xs text-app-text-muted">{p.label}</span>
-              <span className={`text-sm font-mono font-bold tabular-nums ${dmgText(p.value)}`}>
-                {p.value === 0 ? "OK" : `${p.value}%`}
-              </span>
+              <span className={`text-sm font-mono font-bold tabular-nums ${dmgText(p.value)}`}>{p.value === 0 ? "OK" : `${p.value}%`}</span>
             </div>
           ))}
         </div>
@@ -236,8 +244,13 @@ function ErsSection({ f1 }: { f1: F1ExtendedData }) {
 
   let barColor = "bg-green-500";
   let barTextColor = "text-green-500";
-  if (pct < 20) { barColor = "bg-red-500"; barTextColor = "text-red-500"; }
-  else if (pct < 50) { barColor = "bg-yellow-500"; barTextColor = "text-yellow-500"; }
+  if (pct < 20) {
+    barColor = "bg-red-500";
+    barTextColor = "text-red-500";
+  } else if (pct < 50) {
+    barColor = "bg-yellow-500";
+    barTextColor = "text-yellow-500";
+  }
 
   return (
     <div>
@@ -268,7 +281,12 @@ function ErsSection({ f1 }: { f1: F1ExtendedData }) {
 // ── Weather Section ──────────────────────────────────────────────────────────
 
 const WEATHER_ICONS: Record<number, string> = {
-  0: "☀️", 1: "⛅", 2: "☁️", 3: "🌧️", 4: "🌧️", 5: "⛈️",
+  0: "☀️",
+  1: "⛅",
+  2: "☁️",
+  3: "🌧️",
+  4: "🌧️",
+  5: "⛈️",
 };
 
 function WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
@@ -306,7 +324,6 @@ function WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
 
 // ── Sector Times ─────────────────────────────────────────────────────────────
 
-
 // ── Grid Section (focused: leader + nearby drivers) ──────────────────────────
 
 function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPosition: number }) {
@@ -321,7 +338,7 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
     // Always show P1
     indices.add(0);
     // Show 2 ahead, player, 2 behind
-    const playerIdx = sorted.findIndex(e => e.position === playerPosition);
+    const playerIdx = sorted.findIndex((e) => e.position === playerPosition);
     if (playerIdx >= 0) {
       for (let i = Math.max(0, playerIdx - 2); i <= Math.min(sorted.length - 1, playerIdx + 2); i++) {
         indices.add(i);
@@ -329,7 +346,7 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
     }
 
     type SeparatorEntry = { separator: true; position: number };
-    type GridEntry = typeof sorted[0] | SeparatorEntry;
+    type GridEntry = (typeof sorted)[0] | SeparatorEntry;
     const result: GridEntry[] = [];
     let lastIdx = -1;
     for (const idx of [...indices].sort((a, b) => a - b)) {
@@ -349,10 +366,7 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
     <div className="flex flex-col flex-1">
       <div className="h-8 px-2 border-b border-app-border flex items-center justify-between">
         <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Live Standings</h2>
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="text-xs text-app-accent hover:text-app-accent/80 font-semibold"
-        >
+        <button onClick={() => setExpanded(!expanded)} className="text-xs text-app-accent hover:text-app-accent/80 font-semibold">
           {expanded ? "Focus" : "Show All"}
         </button>
       </div>
@@ -377,38 +391,23 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
               if ("separator" in entry) {
                 return (
                   <tr key={`sep-${entry.position}`}>
-                    <td colSpan={10} className="text-center text-xs text-app-text-dim py-0.5">···</td>
+                    <td colSpan={10} className="text-center text-xs text-app-text-dim py-0.5">
+                      ···
+                    </td>
                   </tr>
                 );
               }
               const isPlayer = entry.position === playerPosition;
               const dotColor = COMPOUND_DOT[entry.tyreCompound] ?? COMPOUND_DOT.unknown;
               return (
-                <tr
-                  key={entry.position}
-                  className={`border-b border-app-border/50 ${
-                    isPlayer ? "bg-app-accent/10" : ""
-                  }`}
-                >
+                <tr key={entry.position} className={`border-b border-app-border/50 ${isPlayer ? "bg-app-accent/10" : ""}`}>
                   <td className="px-2 py-1.5 font-bold text-app-text tabular-nums">{entry.position}</td>
-                  <td className={`px-2 py-1.5 truncate max-w-[140px] ${isPlayer ? "text-app-accent font-semibold" : "text-app-text-secondary"}`}>
-                    {entry.name || `Car ${entry.position}`}
-                  </td>
-                  <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">
-                    {entry.lastS1 > 0 ? entry.lastS1.toFixed(3) : "—"}
-                  </td>
-                  <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">
-                    {entry.lastS2 > 0 ? entry.lastS2.toFixed(3) : "—"}
-                  </td>
-                  <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">
-                    {entry.lastS3 > 0 ? entry.lastS3.toFixed(3) : "—"}
-                  </td>
-                  <td className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">
-                    {entry.position === 1 ? "LEADER" : formatGap(entry.gapToLeader)}
-                  </td>
-                  <td className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">
-                    {formatGap(entry.gapToCarAhead)}
-                  </td>
+                  <td className={`px-2 py-1.5 truncate max-w-[140px] ${isPlayer ? "text-app-accent font-semibold" : "text-app-text-secondary"}`}>{entry.name || `Car ${entry.position}`}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS1 > 0 ? entry.lastS1.toFixed(3) : "—"}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS2 > 0 ? entry.lastS2.toFixed(3) : "—"}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS3 > 0 ? entry.lastS3.toFixed(3) : "—"}</td>
+                  <td className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">{entry.position === 1 ? "LEADER" : formatGap(entry.gapToLeader)}</td>
+                  <td className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">{formatGap(entry.gapToCarAhead)}</td>
                   <td className="px-2 py-1.5 text-center">
                     <span className={`inline-block w-2.5 h-2.5 rounded-full ${dotColor}`} />
                   </td>
@@ -420,7 +419,9 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
                       <span className="text-yellow-400">PIT</span>
                     ) : entry.numPitStops > 0 ? (
                       entry.numPitStops
-                    ) : ""}
+                    ) : (
+                      ""
+                    )}
                   </td>
                 </tr>
               );

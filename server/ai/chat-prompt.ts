@@ -4,7 +4,7 @@
  * plus the original analysis as reference.
  */
 import type { TelemetryPacket, Tune, GameId } from "../../shared/types";
-import { generateExport, type UnitSystem } from "../export";
+import { generateExport, type UnitSystem, type TemperatureUnit } from "../export";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../client/src/lib/lap-insights";
@@ -18,11 +18,12 @@ interface CornerDef {
   distanceEnd: number;
 }
 
-function chatSystemPrompt(unit: UnitSystem) {
-  const units = unit === "metric" ? "km/h, °C, meters, bar" : "mph, °F, feet, psi";
+function chatSystemPrompt(unit: UnitSystem, temperatureUnit: TemperatureUnit) {
+  const baseUnits = unit === "metric" ? "km/h, meters, bar" : "mph, feet, psi";
+  const units = `${baseUnits}, °${temperatureUnit}`;
   return `You are a racing engineer. Answer the driver's questions about their lap using the telemetry data below.
 
-Be brief. Use bullet points. Cite specific numbers in ${units}. Address them as "you". No JSON output.`;
+Be brief. Use bullet points. Cite specific numbers in ${units}. Address them as "you". Temperature unit for this session is °${temperatureUnit}. No JSON output.`;
 }
 
 export function buildChatSystemPrompt(
@@ -37,13 +38,14 @@ export function buildChatSystemPrompt(
   packets: TelemetryPacket[],
   corners: CornerDef[],
   unit: UnitSystem = "metric",
+  temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
   tune?: Tune,
   analysisJson?: string,
 ): string {
   const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
   const trackName = getTrackName(lap.trackOrdinal ?? 0);
 
-  const exportText = generateExport(lap, packets, unit);
+  const exportText = generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
   // Precomputed insights
@@ -62,12 +64,15 @@ export function buildChatSystemPrompt(
 
   let tuneText = "";
   if (tune) {
-    tuneText = "\n" + formatTuneForPrompt({
-      name: tune.name,
-      author: tune.author,
-      category: tune.category,
-      settings: tune.settings,
-    }) + "\n";
+    tuneText =
+      "\n" +
+      formatTuneForPrompt({
+        name: tune.name,
+        author: tune.author,
+        category: tune.category,
+        settings: tune.settings,
+      }) +
+      "\n";
   }
 
   let analysisContext = "";
@@ -100,11 +105,9 @@ export function buildChatSystemPrompt(
   }
 
   // Game-specific system prompt override (use chat version, not analysis JSON version)
-  const gameSystemNote = serverAdapter?.aiSystemPrompt
-    ? `\nGame-specific notes: This is ${serverAdapter.aiSystemPrompt.split("\n")[0]}\n`
-    : "";
+  const gameSystemNote = serverAdapter?.aiSystemPrompt ? `\nGame-specific notes: This is ${serverAdapter.aiSystemPrompt.split("\n")[0]}\n` : "";
 
-  return `${chatSystemPrompt(unit)}
+  return `${chatSystemPrompt(unit, temperatureUnit)}
 ${gameSystemNote}
 --- LAP CONTEXT ---
 Car: ${carName}

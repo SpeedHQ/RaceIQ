@@ -80,15 +80,23 @@ function HexViewer({ bytes, prev, page }: { bytes: Uint8Array; prev: Uint8Array 
       <div className="text-xs text-app-text-muted mb-2">
         {page}: {bytes.length} bytes — {nonZeroCount} non-zero, {changedCount} changed since last poll
       </div>
-      <div className="overflow-auto max-h-[60vh] border border-app-border rounded bg-black/40 p-2">
-        {rows}
-      </div>
+      <div className="overflow-auto max-h-[60vh] border border-app-border rounded bg-black/40 p-2">{rows}</div>
     </div>
   );
 }
 
-interface VerifyRow { field: string; offset: number; type: string; hex: string; value: number | string }
-interface VerifyResp { physics: VerifyRow[]; graphics: VerifyRow[]; static: VerifyRow[] }
+interface VerifyRow {
+  field: string;
+  offset: number;
+  type: string;
+  hex: string;
+  value: number | string;
+}
+interface VerifyResp {
+  physics: VerifyRow[];
+  graphics: VerifyRow[];
+  static: VerifyRow[];
+}
 
 function RawPage() {
   const { packet } = useTelemetryStore();
@@ -148,7 +156,10 @@ function RawPage() {
     };
     tick();
     const interval = setInterval(tick, 500);
-    return () => { cancelled = true; clearInterval(interval); };
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [view, hex]);
 
   const pollAgeMs = lastPollAt ? Date.now() - lastPollAt : null;
@@ -156,49 +167,29 @@ function RawPage() {
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
       <div className="flex gap-2 p-2 border-b border-app-border items-center">
-        <button
-          className={`px-3 py-1 rounded text-xs ${view === "parsed" ? "bg-app-accent text-white" : "bg-app-surface"}`}
-          onClick={() => setView("parsed")}
-        >
+        <button className={`px-3 py-1 rounded text-xs ${view === "parsed" ? "bg-app-accent text-white" : "bg-app-surface"}`} onClick={() => setView("parsed")}>
           Parsed Packet
         </button>
-        <button
-          className={`px-3 py-1 rounded text-xs ${view === "fields" ? "bg-app-accent text-white" : "bg-app-surface"}`}
-          onClick={() => setView("fields")}
-        >
+        <button className={`px-3 py-1 rounded text-xs ${view === "fields" ? "bg-app-accent text-white" : "bg-app-surface"}`} onClick={() => setView("fields")}>
           Struct Fields (v0.6)
         </button>
-        <button
-          className={`px-3 py-1 rounded text-xs ${view === "verify" ? "bg-app-accent text-white" : "bg-app-surface"}`}
-          onClick={() => setView("verify")}
-        >
+        <button className={`px-3 py-1 rounded text-xs ${view === "verify" ? "bg-app-accent text-white" : "bg-app-surface"}`} onClick={() => setView("verify")}>
           Verify (bytes + interp)
         </button>
-        <button
-          className={`px-3 py-1 rounded text-xs ${view === "hex" ? "bg-app-accent text-white" : "bg-app-surface"}`}
-          onClick={() => setView("hex")}
-        >
+        <button className={`px-3 py-1 rounded text-xs ${view === "hex" ? "bg-app-accent text-white" : "bg-app-surface"}`} onClick={() => setView("hex")}>
           Raw Hex
         </button>
         {view === "hex" && (
           <div className="flex gap-1 ml-4">
             {(["physics", "graphics", "staticData"] as PageKey[]).map((p) => (
-              <button
-                key={p}
-                className={`px-2 py-1 rounded text-xs ${page === p ? "bg-app-surface-hover" : "bg-app-surface"}`}
-                onClick={() => setPage(p)}
-              >
+              <button key={p} className={`px-2 py-1 rounded text-xs ${page === p ? "bg-app-surface-hover" : "bg-app-surface"}`} onClick={() => setPage(p)}>
                 {p}
               </button>
             ))}
           </div>
         )}
         <div className="ml-auto text-xs text-app-text-muted font-mono">
-          {view === "parsed"
-            ? "source: WebSocket (live)"
-            : lastPollAt == null
-              ? "no poll yet"
-              : `polls: ${pollCount} · last ${pollAgeMs}ms ago (${new Date(lastPollAt).toLocaleTimeString()})`}
+          {view === "parsed" ? "source: WebSocket (live)" : lastPollAt == null ? "no poll yet" : `polls: ${pollCount} · last ${pollAgeMs}ms ago (${new Date(lastPollAt).toLocaleTimeString()})`}
         </div>
       </div>
       {err && <div className="p-2 text-red-400 text-xs">Error: {err}</div>}
@@ -226,8 +217,7 @@ function RawPage() {
       {view === "verify" && verify && (
         <div className="flex-1 overflow-auto p-4 text-xs">
           <div className="mb-3 text-app-text-muted">
-            Every field: our expected offset + raw hex bytes at that offset + interpreted value.
-            If you see non-zero hex but zero interpretation, that's a wrong offset/type.
+            Every field: our expected offset + raw hex bytes at that offset + interpreted value. If you see non-zero hex but zero interpretation, that's a wrong offset/type.
           </div>
           <VerifyTable title="graphics (SPageFileGraphicEvo, v0.6)" rows={verify.graphics} />
           <VerifyTable title="static (SPageFileStaticEvo, v0.6)" rows={verify.static} />
@@ -255,18 +245,13 @@ function VerifyTable({ title, rows }: { title: string; rows: VerifyRow[] }) {
           const valueZero = typeof r.value === "number" ? r.value === 0 : r.value === "";
           const mismatch = hexNonZero && valueZero;
           return (
-            <div
-              key={`${r.offset}-${r.field}`}
-              className={`grid grid-cols-[50px_1fr_60px_220px_1fr] gap-x-2 py-0.5 border-b border-app-border/30 ${mismatch ? "bg-red-900/30" : ""}`}
-            >
+            <div key={`${r.offset}-${r.field}`} className={`grid grid-cols-[50px_1fr_60px_220px_1fr] gap-x-2 py-0.5 border-b border-app-border/30 ${mismatch ? "bg-red-900/30" : ""}`}>
               <span className="text-app-text-muted">{r.offset}</span>
               <span className="text-app-text-secondary truncate">{r.field}</span>
               <span className="text-app-text-muted">{r.type}</span>
               <span className={hexNonZero ? "text-green-400" : "text-app-text-muted/50"}>{r.hex || "—"}</span>
               <span className={valueZero ? "text-app-text-muted/50" : "text-app-text"}>
-                {typeof r.value === "number"
-                  ? Number.isInteger(r.value) ? r.value : r.value.toFixed(3)
-                  : `"${r.value}"`}
+                {typeof r.value === "number" ? (Number.isInteger(r.value) ? r.value : r.value.toFixed(3)) : `"${r.value}"`}
               </span>
             </div>
           );
@@ -285,9 +270,7 @@ function FieldTable({ title, obj }: { title: string; obj: Record<string, unknown
         {entries.map(([k, v]) => (
           <div key={k} className="flex justify-between border-b border-app-border/30 py-0.5">
             <span className="text-app-text-secondary">{k}</span>
-            <span className={typeof v === "number" && v === 0 ? "text-app-text-muted/50" : "text-app-text"}>
-              {typeof v === "number" ? (Number.isInteger(v) ? v : v.toFixed(3)) : `"${String(v)}"`}
-            </span>
+            <span className={typeof v === "number" && v === 0 ? "text-app-text-muted/50" : "text-app-text"}>{typeof v === "number" ? (Number.isInteger(v) ? v : v.toFixed(3)) : `"${String(v)}"`}</span>
           </div>
         ))}
       </div>

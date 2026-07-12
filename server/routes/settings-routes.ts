@@ -2,17 +2,23 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { existsSync, readdirSync } from "fs";
 import { resolve } from "path";
-import { PUBLIC_DIR } from "../paths";
+import { PUBLIC_DIR, IS_COMPILED } from "../paths";
 
 import { GameIdQuerySchema } from "../../shared/schemas";
 import { udpListener } from "../udp";
 import { wsManager } from "../ws";
 import { lapDetector } from "../pipeline";
 import { loadSettings, saveSettings, PartialSettingsSchema } from "../settings";
-import { getLaps, setCacheMaxBytes } from "../db/queries";
+import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } from "../launch-on-login";
+import { getLapStats, setCacheMaxBytes } from "../db/queries";
 import { getRunningGame } from "../games/registry";
 import { getTrackOutlineByOrdinal } from "../../shared/track-data";
 
+const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
+const MODELS_EMPTY_RETRY_MS = 10 * 1000;
+let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
+let cachedLocalModels: { endpoint: string; models: { id: string; name: string }[]; at: number } | null = null;
+let cachedLocalEmpty: { endpoint: string; at: number } | null = null;
 export const settingsRoutes = new Hono()
   // GET /api/status
   .get("/api/status", (c) => {
@@ -51,6 +57,7 @@ export const settingsRoutes = new Hono()
       geminiApiKeySet: hasGeminiKey,
       openaiApiKeySet: hasOpenaiKey,
       anthropicApiKeySet: hasAnthropicKey,
+      isCompiled: IS_COMPILED,
     });
   })
 
@@ -62,16 +69,98 @@ export const settingsRoutes = new Hono()
 
   // GET /api/ai-models — available models per provider
   .get("/api/ai-models", async (c) => {
-    const { getGeminiModels, getOpenAiModels, getLocalModels } = await import("../ai/providers");
+    const { getGeminiModelsDetailed, getOpenAiModels, getLocalModelsDetailed } = await import("../ai/providers");
     const { getSecret } = await import("../keystore");
-    const geminiKey = await getSecret("gemini-api-key");
-    const geminiModels = geminiKey ? await getGeminiModels(geminiKey) : [];
+    const forceRefresh = c.req.query("refresh") === "1";
+    console.info(`[AI] ai-models request refresh=${forceRefresh ? "1" : "0"} providers=${c.req.query("providers") ?? "<settings>"}`);
+
     const settings = loadSettings();
-    const localModels = await getLocalModels(settings.localEndpoint || "http://localhost:1234/v1");
+    const requestedProviders = new Set(
+      (c.req.query("providers") ?? "")
+        .split(",")
+        .map((p) => p.trim())
+        .filter((p) => p === "gemini" || p === "openai" || p === "local"),
+    );
+    const useRequestedProviders = requestedProviders.size > 0;
+    const shouldFetchGemini = useRequestedProviders
+      ? requestedProviders.has("gemini")
+      : settings.aiProvider === "gemini" || settings.chatProvider === "gemini";
+    let geminiModels: { id: string; name: string }[] = [];
+    let geminiError: string | null = null;
+    if (shouldFetchGemini) {
+      const geminiKey = await getSecret("gemini-api-key");
+      if (geminiKey) {
+        const geminiCacheHit = !forceRefresh
+          && cachedGeminiModels
+          && cachedGeminiModels.key === geminiKey
+          && (Date.now() - cachedGeminiModels.at) < MODELS_CACHE_TTL_MS;
+        if (geminiCacheHit && cachedGeminiModels) {
+          console.info("[AI] ai-models gemini cache hit");
+          geminiModels = cachedGeminiModels.models;
+        } else {
+          console.info("[AI] ai-models gemini cache miss");
+          const fetchedGemini = await getGeminiModelsDetailed(geminiKey);
+          geminiError = fetchedGemini.error;
+          const fetchedGeminiModels = fetchedGemini.models;
+          if (fetchedGeminiModels.length > 0) {
+            geminiModels = fetchedGeminiModels;
+            cachedGeminiModels = { key: geminiKey, models: geminiModels, at: Date.now() };
+          } else if (cachedGeminiModels && cachedGeminiModels.key === geminiKey) {
+            console.warn("[AI] Gemini fetch returned empty; keeping last successful cached models");
+            geminiModels = cachedGeminiModels.models;
+          } else {
+            geminiModels = [];
+          }
+        }
+      } else {
+        console.warn("[AI] Gemini API key missing while fetching model list");
+        geminiError = "Gemini API key not set.";
+        cachedGeminiModels = null;
+      }
+    } else {
+      console.info("[AI] ai-models gemini fetch skipped (provider not gemini)");
+    }
+
+    const shouldFetchLocal = useRequestedProviders
+      ? requestedProviders.has("local")
+      : settings.aiProvider === "local" || settings.chatProvider === "local";
+    let localModels: { id: string; name: string }[] = [];
+    let localError: string | null = null;
+    if (shouldFetchLocal) {
+      const endpoint = settings.localEndpoint || "http://localhost:1234/v1";
+      const localCacheHit = !forceRefresh
+        && cachedLocalModels
+        && cachedLocalModels.endpoint === endpoint
+        && (Date.now() - cachedLocalModels.at) < MODELS_CACHE_TTL_MS;
+      const localEmptyRecent = !forceRefresh
+        && cachedLocalEmpty
+        && cachedLocalEmpty.endpoint === endpoint
+        && (Date.now() - cachedLocalEmpty.at) < MODELS_EMPTY_RETRY_MS;
+      const fetchedLocal = localCacheHit && cachedLocalModels
+        ? (console.info("[AI] ai-models local cache hit"), { models: cachedLocalModels.models, error: null as string | null })
+        : localEmptyRecent
+          ? (console.info("[AI] ai-models local recent-empty cache hit"), { models: [] as { id: string; name: string }[], error: localError })
+          : (console.info("[AI] ai-models local cache miss"), await getLocalModelsDetailed(endpoint));
+      localError = fetchedLocal.error;
+      const fetchedLocalModels = fetchedLocal.models;
+      localModels = fetchedLocalModels.length > 0
+        ? fetchedLocalModels
+        : (cachedLocalModels && cachedLocalModels.endpoint === endpoint ? cachedLocalModels.models : []);
+      if (fetchedLocalModels.length > 0) {
+        cachedLocalModels = { endpoint, models: localModels, at: Date.now() };
+        cachedLocalEmpty = null;
+      } else if (!localCacheHit) {
+        cachedLocalEmpty = { endpoint, at: Date.now() };
+      }
+    } else {
+      console.info("[AI] ai-models local fetch skipped (provider not local)");
+    }
+
     return c.json({
       "gemini": geminiModels,
       "openai": getOpenAiModels(),
       "local": localModels,
+      "_errors": { gemini: geminiError, openai: null, local: localError },
     });
   })
 
@@ -79,8 +168,13 @@ export const settingsRoutes = new Hono()
   .put("/api/ai-key", async (c) => {
     const body = await c.req.json() as { provider: string; apiKey: string };
     const { setSecret } = await import("../keystore");
-    await setSecret(`${body.provider}-api-key`, body.apiKey ?? "");
-    return c.json({ ok: true });
+    try {
+      await setSecret(`${body.provider}-api-key`, body.apiKey ?? "");
+      return c.json({ ok: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to store API key";
+      return c.json({ ok: false, error: message }, 500);
+    }
   })
 
   // PUT /api/settings
@@ -94,6 +188,7 @@ export const settingsRoutes = new Hono()
       if (key in parseResult) provided[key] = (parseResult as Record<string, unknown>)[key];
     }
     const merged = { ...current, ...provided };
+    const startedAt = performance.now();
 
     try {
       if (merged.udpPort !== udpListener.port) {
@@ -105,12 +200,23 @@ export const settingsRoutes = new Hono()
       if (typeof merged.cacheMaxMB === "number") {
         setCacheMaxBytes(merged.cacheMaxMB * 1024 * 1024);
       }
+      if ("launchOnLogin" in provided) {
+        if (merged.launchOnLogin) {
+          enableLaunchOnLogin(getLaunchOnLoginExeDir());
+        } else {
+          disableLaunchOnLogin();
+        }
+      }
       saveSettings(merged);
       if (provided.onboardingComplete) {
         wsManager.broadcastNotification({ type: "onboarding_complete" });
       }
+      const durationMs = Math.round(performance.now() - startedAt);
+      console.info(`[Settings] PUT /api/settings saved in ${durationMs}ms`);
       return c.json(merged);
-    } catch {
+    } catch (err) {
+      const durationMs = Math.round(performance.now() - startedAt);
+      console.error(`[Settings] PUT /api/settings failed in ${durationMs}ms`, err instanceof Error ? err.message : String(err));
       return c.json({ error: `Failed to bind to port ${merged.udpPort}` }, 500);
     }
   })
@@ -140,23 +246,12 @@ export const settingsRoutes = new Hono()
   // GET /api/stats
   .get("/api/stats", zValidator("query", GameIdQuerySchema), async (c) => {
     const { gameId } = c.req.valid("query");
-    const allLaps = await getLaps(gameId);
-    const validLaps = allLaps.filter((l) => l.isValid && l.lapTime > 0);
-
-    const lapsByTrack = new Map<number, number>();
-    for (const lap of allLaps) {
-      if (lap.trackOrdinal && lap.lapTime > 0) {
-        lapsByTrack.set(
-          lap.trackOrdinal,
-          (lapsByTrack.get(lap.trackOrdinal) ?? 0) + 1,
-        );
-      }
-    }
+    const stats = await getLapStats(gameId);
 
     let totalDistanceMeters = 0;
-    for (const [trackOrd, count] of lapsByTrack) {
+    for (const { trackOrdinal, count } of stats.lapsByTrack) {
       const outline = gameId
-        ? getTrackOutlineByOrdinal(trackOrd, gameId)
+        ? getTrackOutlineByOrdinal(trackOrdinal, gameId)
         : null;
       if (outline && outline.length > 1) {
         let trackLen = 0;
@@ -169,18 +264,12 @@ export const settingsRoutes = new Hono()
       }
     }
 
-    const totalTime = allLaps.reduce(
-      (s, l) => s + (l.lapTime > 0 ? l.lapTime : 0),
-      0,
-    );
-
     return c.json({
-      totalLaps: allLaps.length,
-      validLaps: validLaps.length,
+      totalLaps: stats.totalLaps,
+      validLaps: stats.validLaps,
       totalDistanceMeters,
-      totalTimeSec: totalTime,
-      uniqueTracks: lapsByTrack.size,
-      uniqueCars: new Set(allLaps.map((l) => l.carOrdinal).filter(Boolean))
-        .size,
+      totalTimeSec: stats.totalTimeSec,
+      uniqueTracks: stats.uniqueTracks,
+      uniqueCars: stats.uniqueCars,
     });
   });

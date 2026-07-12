@@ -69,20 +69,28 @@ export function LiveTrackMap({ packet }: Props) {
     if (!gameId) return;
 
     // Fetch sector boundaries
-    client.api["track-sector-boundaries"][":ordinal"].$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId! } })
+    client.api["track-sector-boundaries"][":ordinal"]
+      .$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId! } })
       .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-      .then((data: any) => { if (data?.s1End) setSectors(data); }) // eslint-disable-line @typescript-eslint/no-explicit-any
+      .then((data: any) => {
+        if (data?.s1End) setSectors(data);
+      }) // eslint-disable-line @typescript-eslint/no-explicit-any
       .catch(() => {});
 
     // Fetch track boundaries (edges)
-    client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
+    client.api["track-boundaries"][":ordinal"]
+      .$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-      .then((data: any) => { if (data) setBoundaries(data); }) // eslint-disable-line @typescript-eslint/no-explicit-any
+      .then((data: any) => {
+        if (data) setBoundaries(data);
+      }) // eslint-disable-line @typescript-eslint/no-explicit-any
       .catch(() => {});
 
-    client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
+    client.api["track-outline"][":ordinal"]
+      .$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-      .then((data: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+      .then((data: any) => {
+        // eslint-disable-line @typescript-eslint/no-explicit-any
         // New format: { points, recorded, startYaw } or legacy array format
         if (data.points && Array.isArray(data.points)) {
           setOutline(data.points);
@@ -115,9 +123,11 @@ export function LiveTrackMap({ packet }: Props) {
 
     if (!gameId) return;
     if (!isRecorded) {
-      client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
+      client.api["track-outline"][":ordinal"]
+        .$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
         .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-        .then((data: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        .then((data: any) => {
+          // eslint-disable-line @typescript-eslint/no-explicit-any
           if (data?.points && data.recorded) {
             setOutline(data.points);
             setIsRecorded(true);
@@ -129,9 +139,12 @@ export function LiveTrackMap({ packet }: Props) {
 
     // Re-fetch boundaries — calibration may now provide game-space coords
     if (!boundaries || (boundaries.coordSystem !== "forza" && boundaries.coordSystem !== "f1-2025")) {
-      client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
+      client.api["track-boundaries"][":ordinal"]
+        .$get({ param: { ordinal: String(trackOrd) }, query: { gameId: gameId ?? undefined } })
         .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
-        .then((data: any) => { if (data) setBoundaries(data); }) // eslint-disable-line @typescript-eslint/no-explicit-any
+        .then((data: any) => {
+          if (data) setBoundaries(data);
+        }) // eslint-disable-line @typescript-eslint/no-explicit-any
         .catch(() => {});
     }
   }, [packet?.LapNumber, gameId]);
@@ -152,7 +165,6 @@ export function LiveTrackMap({ packet }: Props) {
       d.lastLap = packet.LapNumber;
     }
   }, [packet?.LapNumber, packet?.DistanceTraveled]);
-
 
   // Always collect Forza positions — used for live trace (no outline) and
   // for nearest-point mapping (pre-made outline where coords don't match)
@@ -202,8 +214,7 @@ export function LiveTrackMap({ packet }: Props) {
 
     // Prefer boundary-derived center-line (geometric track center) over recorded driving line
     const isGameCoords = boundaries?.coordSystem === "forza" || boundaries?.coordSystem === "f1-2025";
-    const boundaryCenter = isGameCoords && boundaries!.centerLine?.length > 2
-      ? boundaries!.centerLine : null;
+    const boundaryCenter = isGameCoords && boundaries!.centerLine?.length > 2 ? boundaries!.centerLine : null;
     const displayOutline = boundaryCenter ?? outline ?? (liveTraceRef.current.length >= 5 ? liveTraceRef.current : null);
 
     if (!displayOutline || displayOutline.length < 2) {
@@ -220,7 +231,10 @@ export function LiveTrackMap({ packet }: Props) {
 
     // Fit-to-canvas: compute bounding box, then uniform scale to preserve aspect ratio
     // Include boundary edges in bounding box so they don't clip
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minZ = Infinity,
+      maxZ = -Infinity;
     const allPoints = [displayOutline];
     if (boundaries) {
       if (boundaries.leftEdge) allPoints.push(boundaries.leftEdge);
@@ -235,8 +249,8 @@ export function LiveTrackMap({ packet }: Props) {
       }
     }
 
-    const rangeX = (maxX - minX) || 1;
-    const rangeZ = (maxZ - minZ) || 1;
+    const rangeX = maxX - minX || 1;
+    const rangeZ = maxZ - minZ || 1;
     const padding = 20;
     const scaleX = (w - padding * 2) / rangeX;
     const scaleZ = (h - padding * 2) / rangeZ;
@@ -247,10 +261,7 @@ export function LiveTrackMap({ packet }: Props) {
     // Transform world-space to canvas pixels. Coords normalized server-side.
     // X is flipped so right in-game = right on screen.
     function toCanvas(x: number, z: number): [number, number] {
-      return [
-        offsetX + (maxX - x) * scale,
-        offsetZ + (z - minZ) * scale,
-      ];
+      return [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
     }
 
     // Compute jump threshold: skip segments where world-space distance is abnormally large.
@@ -425,7 +436,8 @@ export function LiveTrackMap({ packet }: Props) {
       ctx.stroke();
 
       // Direction arrow: use Yaw from telemetry if available, else fallback to outline geometry
-      let nx: number = 0, ny: number = 0;
+      let nx: number = 0,
+        ny: number = 0;
       let hasDirection = false;
 
       if (startYaw != null) {
@@ -434,7 +446,11 @@ export function LiveTrackMap({ packet }: Props) {
         nx = -Math.sin(startYaw);
         ny = Math.cos(startYaw);
         const len = Math.sqrt(nx * nx + ny * ny);
-        if (len > 0) { nx /= len; ny /= len; hasDirection = true; }
+        if (len > 0) {
+          nx /= len;
+          ny /= len;
+          hasDirection = true;
+        }
       }
 
       if (!hasDirection) {
@@ -444,8 +460,14 @@ export function LiveTrackMap({ packet }: Props) {
         const adx = aheadX - sx;
         const ady = aheadY - sy;
         const alen = Math.sqrt(adx * adx + ady * ady);
-        if (alen > 3) { nx = adx / alen; ny = ady / alen; hasDirection = true; }
-        else { nx = 0; ny = 0; }
+        if (alen > 3) {
+          nx = adx / alen;
+          ny = ady / alen;
+          hasDirection = true;
+        } else {
+          nx = 0;
+          ny = 0;
+        }
       }
 
       if (hasDirection) {
@@ -591,11 +613,7 @@ export function LiveTrackMap({ packet }: Props) {
 
   return (
     <div className="relative">
-      <canvas
-        ref={canvasRef}
-        className="w-full"
-        style={{ height: 250 }}
-      />
+      <canvas ref={canvasRef} className="w-full" style={{ height: 250 }} />
       {isRecorded && (
         <button
           onClick={handleDeleteMap}

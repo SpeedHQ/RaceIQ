@@ -29,24 +29,24 @@ function classColor(cls: string) {
 }
 
 const BRAND_COLORS: Record<string, string> = {
-  "Porsche": "#c4a035",
+  Porsche: "#c4a035",
   "Mercedes-AMG": "#00d2be",
-  "Ferrari": "#dc0000",
-  "Audi": "#bb0a30",
-  "Lamborghini": "#ddb321",
-  "McLaren": "#ff8000",
-  "Nissan": "#c3002f",
-  "BMW": "#0066b1",
-  "Bentley": "#333333",
-  "Aston": "#006f62",
-  "Emil": "#1a1a2e",
-  "Lexus": "#1a1a1a",
-  "Honda": "#cc0000",
-  "Alpine": "#0090ff",
-  "Chevrolet": "#d4af37",
-  "Ginetta": "#003399",
-  "KTM": "#ff6600",
-  "Maserati": "#00205b",
+  Ferrari: "#dc0000",
+  Audi: "#bb0a30",
+  Lamborghini: "#ddb321",
+  McLaren: "#ff8000",
+  Nissan: "#c3002f",
+  BMW: "#0066b1",
+  Bentley: "#333333",
+  Aston: "#006f62",
+  Emil: "#1a1a2e",
+  Lexus: "#1a1a1a",
+  Honda: "#cc0000",
+  Alpine: "#0090ff",
+  Chevrolet: "#d4af37",
+  Ginetta: "#003399",
+  KTM: "#ff6600",
+  Maserati: "#00205b",
 };
 
 function getBrandColor(name: string): string {
@@ -65,19 +65,24 @@ function getManufacturer(name: string): string {
 
 function BrandBadge({ brand }: { brand: string }) {
   const color = getBrandColor(brand);
-  const abbr = brand === "Mercedes-AMG" ? "AMG"
-    : brand === "Aston Martin" ? "AM"
-    : brand === "Lamborghini" ? "LAM"
-    : brand === "Emil Frey" ? "EF"
-    : brand === "Chevrolet" ? "CHV"
-    : brand.slice(0, 3).toUpperCase();
+  const abbr =
+    brand === "Mercedes-AMG"
+      ? "AMG"
+      : brand === "Aston Martin"
+        ? "AM"
+        : brand === "Lamborghini"
+          ? "LAM"
+          : brand === "Emil Frey"
+            ? "EF"
+            : brand === "Chevrolet"
+              ? "CHV"
+              : brand.slice(0, 3).toUpperCase();
 
   return (
-    <div
-      className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-      style={{ backgroundColor: color + "20", borderColor: color + "40", borderWidth: 1 }}
-    >
-      <span className="text-[9px] font-black tracking-tight" style={{ color }}>{abbr}</span>
+    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: color + "20", borderColor: color + "40", borderWidth: 1 }}>
+      <span className="text-[9px] font-black tracking-tight" style={{ color }}>
+        {abbr}
+      </span>
     </div>
   );
 }
@@ -120,13 +125,8 @@ export function AccCars() {
     return map;
   }, [filtered]);
 
-
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full text-app-text-dim">
-        Loading cars...
-      </div>
-    );
+    return <div className="flex items-center justify-center h-full text-app-text-dim">Loading cars...</div>;
   }
 
   return (
@@ -135,9 +135,7 @@ export function AccCars() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1">
           <button
-            className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${
-              !filterClass ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"
-            }`}
+            className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${!filterClass ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
             onClick={() => setFilterClass(null)}
           >
             All
@@ -148,9 +146,7 @@ export function AccCars() {
             return (
               <button
                 key={cls}
-                className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${
-                  filterClass === cls ? `${c.bg} ${c.text}` : "text-app-text-muted hover:text-app-text-secondary"
-                }`}
+                className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${filterClass === cls ? `${c.bg} ${c.text}` : "text-app-text-muted hover:text-app-text-secondary"}`}
                 onClick={() => setFilterClass(filterClass === cls ? null : cls)}
               >
                 {cls} ({count})
@@ -175,10 +171,7 @@ export function AccCars() {
                 const brandColor = getBrandColor(car.name);
                 const specs = car.specs;
                 return (
-                  <div
-                    key={car.id}
-                    className="group relative bg-app-surface-alt/20 rounded-lg border border-app-border/10 overflow-hidden hover:border-app-border/30 transition-all"
-                  >
+                  <div key={car.id} className="group relative bg-app-surface-alt/20 rounded-lg border border-app-border/10 overflow-hidden hover:border-app-border/30 transition-all">
                     <div className="h-0.5" style={{ backgroundColor: brandColor }} />
                     {/* Car image */}
                     <div className="relative w-full h-48 overflow-hidden bg-app-surface-alt/10">
@@ -186,12 +179,12 @@ export function AccCars() {
                         src={`/car-images/acc-${car.id}.jpg`}
                         alt={car.name}
                         className="w-full h-full object-cover object-center"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                      <span className={`absolute bottom-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded ${c.bg} ${c.text}`}>
-                        {car.class}
-                      </span>
+                      <span className={`absolute bottom-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded ${c.bg} ${c.text}`}>{car.class}</span>
                     </div>
                     <div className="p-3">
                       <div className="flex items-center gap-3 mb-2">
@@ -218,11 +211,7 @@ export function AccCars() {
         );
       })}
 
-      {filtered.length === 0 && (
-        <div className="text-center text-app-text-dim py-8">
-          No cars match your filters.
-        </div>
-      )}
+      {filtered.length === 0 && <div className="text-center text-app-text-dim py-8">No cars match your filters.</div>}
     </div>
   );
 }

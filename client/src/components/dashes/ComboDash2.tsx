@@ -24,9 +24,7 @@ export function ComboDash2({ rawPacket, sessionLaps }: ComboDash2Props) {
               <RecordedLaps laps={sessionLaps} trackOrdinal={trackOrdinal} maxLaps={30} />
             </div>
           ) : (
-            <div className="h-full flex items-center justify-center text-white/40 text-sm tracking-widest uppercase">
-              Waiting for track…
-            </div>
+            <div className="h-full flex items-center justify-center text-white/40 text-sm tracking-widest uppercase">Waiting for track…</div>
           )}
         </div>
       </div>

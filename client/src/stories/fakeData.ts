@@ -54,8 +54,8 @@ const basePacket = {
   Fuel: 42.5, // litres remaining (F1/ACC treat as litres; Forza overrides below)
   DistanceTraveled: 3240,
   BestLap: 92.341,
-  LastLap: 92.341,     // lap 4
-  CurrentLap: 61.645,  // S1 29.845 + S2 31.8 elapsed so far
+  LastLap: 92.341, // lap 4
+  CurrentLap: 61.645, // S1 29.845 + S2 31.8 elapsed so far
   CurrentRaceTime: 445.2,
   LapNumber: 5,
   RacePosition: 3,
@@ -149,9 +149,9 @@ export const fakeF1Packet: TelemetryPacket = {
     rainPercentage: 15,
     sessionType: "Race",
     totalLaps: 57,
-    currentSector: 2,   // in sector 2 (1-indexed)
+    currentSector: 2, // in sector 2 (1-indexed)
     sector1Time: 29.845,
-    sector2Time: 0,     // not yet completed
+    sector2Time: 0, // not yet completed
     brakeTempFL: 580,
     brakeTempFR: 575,
     brakeTempRL: 420,
@@ -230,11 +230,116 @@ export const fakeF1Packet: TelemetryPacket = {
     lastS2: 0,
     lastS3: 0,
     grid: [
-      { position: 1, driverId: 1, teamId: 1, name: "M. VERSTAPPEN", currentLapTime: 28.1, lastLapTime: 92.841, bestLapTime: 92.341, gapToLeader: 0, gapToCarAhead: 0, pitStatus: 0, numPitStops: 0, tyreCompound: "medium", tyreAge: 12, penalties: 0, bestS1: 28.4, bestS2: 32.1, bestS3: 31.8, lastS1: 28.6, lastS2: 32.3, lastS3: 31.9 },
-      { position: 2, driverId: 4, teamId: 6, name: "C. LECLERC", currentLapTime: 28.4, lastLapTime: 92.905, bestLapTime: 92.680, gapToLeader: 0.3, gapToCarAhead: 0.3, pitStatus: 0, numPitStops: 0, tyreCompound: "medium", tyreAge: 12, penalties: 0, bestS1: 28.5, bestS2: 32.2, bestS3: 32.0, lastS1: 28.7, lastS2: 32.4, lastS3: 31.8 },
-      { position: 3, driverId: 44, teamId: 1, name: "L. HAMILTON", currentLapTime: 28.5, lastLapTime: 93.105, bestLapTime: 92.990, gapToLeader: 0.8, gapToCarAhead: 0.5, pitStatus: 0, numPitStops: 0, tyreCompound: "soft", tyreAge: 8, penalties: 0, bestS1: 29.8, bestS2: 32.4, bestS3: 31.7, lastS1: 29.8, lastS2: 32.4, lastS3: 30.9 },
-      { position: 4, driverId: 16, teamId: 6, name: "G. RUSSELL", currentLapTime: 29.1, lastLapTime: 93.421, bestLapTime: 93.100, gapToLeader: 1.4, gapToCarAhead: 0.6, pitStatus: 0, numPitStops: 0, tyreCompound: "soft", tyreAge: 8, penalties: 0, bestS1: 29.5, bestS2: 32.5, bestS3: 31.1, lastS1: 29.8, lastS2: 32.6, lastS3: 31.0 },
-      { position: 5, driverId: 55, teamId: 3, name: "C. SAINZ", currentLapTime: 29.3, lastLapTime: 93.812, bestLapTime: 93.400, gapToLeader: 2.1, gapToCarAhead: 0.7, pitStatus: 0, numPitStops: 1, tyreCompound: "hard", tyreAge: 4, penalties: 0, bestS1: 29.7, bestS2: 32.7, bestS3: 31.0, lastS1: 30.0, lastS2: 32.8, lastS3: 31.0 },
+      {
+        position: 1,
+        driverId: 1,
+        teamId: 1,
+        name: "M. VERSTAPPEN",
+        currentLapTime: 28.1,
+        lastLapTime: 92.841,
+        bestLapTime: 92.341,
+        gapToLeader: 0,
+        gapToCarAhead: 0,
+        pitStatus: 0,
+        numPitStops: 0,
+        tyreCompound: "medium",
+        tyreAge: 12,
+        penalties: 0,
+        bestS1: 28.4,
+        bestS2: 32.1,
+        bestS3: 31.8,
+        lastS1: 28.6,
+        lastS2: 32.3,
+        lastS3: 31.9,
+      },
+      {
+        position: 2,
+        driverId: 4,
+        teamId: 6,
+        name: "C. LECLERC",
+        currentLapTime: 28.4,
+        lastLapTime: 92.905,
+        bestLapTime: 92.68,
+        gapToLeader: 0.3,
+        gapToCarAhead: 0.3,
+        pitStatus: 0,
+        numPitStops: 0,
+        tyreCompound: "medium",
+        tyreAge: 12,
+        penalties: 0,
+        bestS1: 28.5,
+        bestS2: 32.2,
+        bestS3: 32.0,
+        lastS1: 28.7,
+        lastS2: 32.4,
+        lastS3: 31.8,
+      },
+      {
+        position: 3,
+        driverId: 44,
+        teamId: 1,
+        name: "L. HAMILTON",
+        currentLapTime: 28.5,
+        lastLapTime: 93.105,
+        bestLapTime: 92.99,
+        gapToLeader: 0.8,
+        gapToCarAhead: 0.5,
+        pitStatus: 0,
+        numPitStops: 0,
+        tyreCompound: "soft",
+        tyreAge: 8,
+        penalties: 0,
+        bestS1: 29.8,
+        bestS2: 32.4,
+        bestS3: 31.7,
+        lastS1: 29.8,
+        lastS2: 32.4,
+        lastS3: 30.9,
+      },
+      {
+        position: 4,
+        driverId: 16,
+        teamId: 6,
+        name: "G. RUSSELL",
+        currentLapTime: 29.1,
+        lastLapTime: 93.421,
+        bestLapTime: 93.1,
+        gapToLeader: 1.4,
+        gapToCarAhead: 0.6,
+        pitStatus: 0,
+        numPitStops: 0,
+        tyreCompound: "soft",
+        tyreAge: 8,
+        penalties: 0,
+        bestS1: 29.5,
+        bestS2: 32.5,
+        bestS3: 31.1,
+        lastS1: 29.8,
+        lastS2: 32.6,
+        lastS3: 31.0,
+      },
+      {
+        position: 5,
+        driverId: 55,
+        teamId: 3,
+        name: "C. SAINZ",
+        currentLapTime: 29.3,
+        lastLapTime: 93.812,
+        bestLapTime: 93.4,
+        gapToLeader: 2.1,
+        gapToCarAhead: 0.7,
+        pitStatus: 0,
+        numPitStops: 1,
+        tyreCompound: "hard",
+        tyreAge: 4,
+        penalties: 0,
+        bestS1: 29.7,
+        bestS2: 32.7,
+        bestS3: 31.0,
+        lastS1: 30.0,
+        lastS2: 32.8,
+        lastS3: 31.0,
+      },
     ],
   },
 };
@@ -309,7 +414,7 @@ export const fakeAccPacket: TelemetryPacket = {
   RacePosition: 2,
   TireWearFL: 0.25,
   TireWearFR: 0.26,
-  TireWearRL: 0.30,
+  TireWearRL: 0.3,
   TireWearRR: 0.29,
   acc: {
     tireCompound: "DHF",
@@ -317,7 +422,7 @@ export const fakeAccPacket: TelemetryPacket = {
     tireInnerTemp: [92, 95, 90, 93],
     tireOuterTemp: [84, 87, 82, 85],
     tireCamber: [-0.052, -0.052, -0.035, -0.035],
-    tireRadius: [0.330, 0.330, 0.330, 0.330],
+    tireRadius: [0.33, 0.33, 0.33, 0.33],
     tireContactHeading: [
       [0.0, 0.0, 1.0],
       [0.0, 0.0, 1.0],
@@ -390,23 +495,23 @@ export const fakeAcEvoDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAcEvo
 // Current lap: S1=29.845 done, S2 running at ~31.8 (on pace for purple)
 
 export const fakeSectors: LiveSectorData = {
-  currentSector: 1,          // 0-indexed: in sector 2
-  currentSectorTime: 31.8,   // elapsed time in current sector (S2)
-  currentTimes: [29.845, 31.8, 0],          // S1 done, S2 in progress
-  lastTimes: [29.845, 32.210, 30.286],      // lap 4 sectors (sum = 92.341)
-  bestTimes: [29.800, 32.210, 30.286],      // best S1 from lap3, S2+S3 from lap4
-  lastLapTime: 92.341,                      // lap 4
-  bestLapTime: 92.341,                      // lap 4 is best
-  estimatedLap: 92.686,                     // S1=29.845 + S2~31.8 + bestS3=30.286 est → ≈91.9 optimistic; use 92.686
-  deltaToBest: 0.345,                       // on track for +0.345 vs best
-  deltaToLast: 0.345,                       // same as best this session
+  currentSector: 1, // 0-indexed: in sector 2
+  currentSectorTime: 31.8, // elapsed time in current sector (S2)
+  currentTimes: [29.845, 31.8, 0], // S1 done, S2 in progress
+  lastTimes: [29.845, 32.21, 30.286], // lap 4 sectors (sum = 92.341)
+  bestTimes: [29.8, 32.21, 30.286], // best S1 from lap3, S2+S3 from lap4
+  lastLapTime: 92.341, // lap 4
+  bestLapTime: 92.341, // lap 4 is best
+  estimatedLap: 92.686, // S1=29.845 + S2~31.8 + bestS3=30.286 est → ≈91.9 optimistic; use 92.686
+  deltaToBest: 0.345, // on track for +0.345 vs best
+  deltaToLast: 0.345, // same as best this session
 };
 
 // ── Pit Data ─────────────────────────────────────────────────────────────────
 
 export const fakePit: LivePitData = {
   fuelPerLap: 2.8,
-  fuelLapsRemaining: 15.2,  // 42.5L ÷ 2.8L/lap
+  fuelLapsRemaining: 15.2, // 42.5L ÷ 2.8L/lap
   currentLapFuelUsed: 1.4,
   tireLapsToBad: 12,
   tireLapsToCritical: 22,
@@ -428,16 +533,16 @@ export const fakePit: LivePitData = {
 // ── Session Laps ─────────────────────────────────────────────────────────────
 
 export const fakeSessionLaps: LapMeta[] = [
-  { id: 1, sessionId: 1, lapNumber: 1, lapTime: 95.420, isValid: true, createdAt: "2026-04-13T10:00:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 30.1, s2Time: 33.5, s3Time: 31.82 },
+  { id: 1, sessionId: 1, lapNumber: 1, lapTime: 95.42, isValid: true, createdAt: "2026-04-13T10:00:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 30.1, s2Time: 33.5, s3Time: 31.82 },
   { id: 2, sessionId: 1, lapNumber: 2, lapTime: 93.841, isValid: true, createdAt: "2026-04-13T10:02:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.9, s2Time: 32.6, s3Time: 31.34 },
   { id: 3, sessionId: 1, lapNumber: 3, lapTime: 93.105, isValid: true, createdAt: "2026-04-13T10:04:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.8, s2Time: 32.4, s3Time: 30.9 },
   { id: 4, sessionId: 1, lapNumber: 4, lapTime: 92.341, isValid: true, createdAt: "2026-04-13T10:06:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.845, s2Time: 32.21, s3Time: 30.286 },
   { id: 5, sessionId: 1, lapNumber: 5, lapTime: 92.655, isValid: true, createdAt: "2026-04-13T10:08:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.88, s2Time: 32.34, s3Time: 30.435 },
-  { id: 6, sessionId: 1, lapNumber: 6, lapTime: 92.580, isValid: true, createdAt: "2026-04-13T10:10:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.86, s2Time: 32.31, s3Time: 30.41 },
-  { id: 7, sessionId: 1, lapNumber: 7, lapTime: 93.020, isValid: true, createdAt: "2026-04-13T10:12:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.95, s2Time: 32.55, s3Time: 30.52 },
-  { id: 8, sessionId: 1, lapNumber: 8, lapTime: 92.401, isValid: true, createdAt: "2026-04-13T10:14:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.80, s2Time: 32.22, s3Time: 30.381 },
+  { id: 6, sessionId: 1, lapNumber: 6, lapTime: 92.58, isValid: true, createdAt: "2026-04-13T10:10:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.86, s2Time: 32.31, s3Time: 30.41 },
+  { id: 7, sessionId: 1, lapNumber: 7, lapTime: 93.02, isValid: true, createdAt: "2026-04-13T10:12:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.95, s2Time: 32.55, s3Time: 30.52 },
+  { id: 8, sessionId: 1, lapNumber: 8, lapTime: 92.401, isValid: true, createdAt: "2026-04-13T10:14:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.8, s2Time: 32.22, s3Time: 30.381 },
   { id: 9, sessionId: 1, lapNumber: 9, lapTime: 92.278, isValid: true, createdAt: "2026-04-13T10:16:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.81, s2Time: 32.19, s3Time: 30.278 },
-  { id: 10, sessionId: 1, lapNumber: 10, lapTime: 91.980, isValid: true, createdAt: "2026-04-13T10:18:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.68, s2Time: 32.05, s3Time: 30.25 },
+  { id: 10, sessionId: 1, lapNumber: 10, lapTime: 91.98, isValid: true, createdAt: "2026-04-13T10:18:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.68, s2Time: 32.05, s3Time: 30.25 },
 ];
 
 // Deterministic PRNG (mulberry32) so generated laps stay stable across renders.

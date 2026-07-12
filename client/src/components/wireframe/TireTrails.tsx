@@ -37,12 +37,7 @@ export function TireTrails({
   // allWheelStates (rot-speed-derived SAE ratio, not the game's raw
   // TireSlipRatio field which uses per-game scaling).
   const angleFns = useMemo(
-    () => [
-      (p: TelemetryPacket) => p.TireSlipAngleFL,
-      (p: TelemetryPacket) => p.TireSlipAngleFR,
-      (p: TelemetryPacket) => p.TireSlipAngleRL,
-      (p: TelemetryPacket) => p.TireSlipAngleRR,
-    ],
+    () => [(p: TelemetryPacket) => p.TireSlipAngleFL, (p: TelemetryPacket) => p.TireSlipAngleFR, (p: TelemetryPacket) => p.TireSlipAngleRL, (p: TelemetryPacket) => p.TireSlipAngleRR],
     [],
   );
   const wheelKeys = useMemo(() => ["fl", "fr", "rl", "rr"] as const, []);
@@ -77,8 +72,10 @@ export function TireTrails({
     const overshoot = acc - trailLengthM;
     const tailFrac = overshoot > 0 && lastSegLen > 1e-6 ? overshoot / lastSegLen : 0;
 
-    const cx = cur.PositionX, cz = cur.PositionZ;
-    const s = Math.sin(cur.Yaw), c = Math.cos(cur.Yaw);
+    const cx = cur.PositionX,
+      cz = cur.PositionZ;
+    const s = Math.sin(cur.Yaw),
+      c = Math.cos(cur.Yaw);
 
     return WHEEL_OFFSETS.map((off, w) => {
       const pts = new Float32Array((cursorIdx - startIdx + 1) * 3);
@@ -94,7 +91,8 @@ export function TireTrails({
           px += (next.PositionX - px) * tailFrac;
           pz += (next.PositionZ - pz) * tailFrac;
         }
-        const dx = px - cx, dz = pz - cz;
+        const dx = px - cx,
+          dz = pz - cz;
         pts[j * 3] = dx * s + dz * c + off[0];
         pts[j * 3 + 1] = -0.42;
         pts[j * 3 + 2] = dx * c - dz * s + off[1];

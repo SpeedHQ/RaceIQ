@@ -25,7 +25,6 @@ interface ImportResult {
   laps: ImportedLap[];
 }
 
-
 export function ImportDumpPanel() {
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
@@ -87,9 +86,8 @@ export function ImportDumpPanel() {
     <div className="h-full overflow-y-auto p-6 max-w-2xl">
       <h2 className="text-lg font-semibold mb-1">Import Dump to Database</h2>
       <p className="text-sm text-app-text-muted mb-4">
-        Upload a recorded <code className="text-xs bg-app-surface-alt px-1 py-0.5 rounded">.bin</code> or <code className="text-xs bg-app-surface-alt px-1 py-0.5 rounded">.bin.gz</code> dump.
-        It's fed through the full pipeline so detected laps are saved to the
-        database just like a live session.
+        Upload a recorded <code className="text-xs bg-app-surface-alt px-1 py-0.5 rounded">.bin</code> or <code className="text-xs bg-app-surface-alt px-1 py-0.5 rounded">.bin.gz</code> dump. It's fed
+        through the full pipeline so detected laps are saved to the database just like a live session.
       </p>
 
       <label
@@ -102,27 +100,17 @@ export function ImportDumpPanel() {
           if (f) handleSelect(f);
         }}
       >
-        <input
-          id="dump-file-input"
-          ref={inputRef}
-          type="file"
-          accept=".bin,.bin.gz"
-          className="hidden"
-          onChange={(e) => handleSelect(e.target.files?.[0] ?? null)}
-        />
+        <input id="dump-file-input" ref={inputRef} type="file" accept=".bin,.bin.gz" className="hidden" onChange={(e) => handleSelect(e.target.files?.[0] ?? null)} />
         {file ? (
           <div className="text-center">
             <div className="text-sm font-medium">{file.name}</div>
-            <div className="text-xs text-app-text-muted mt-1">
-              {(file.size / 1024).toFixed(1)} KB
-            </div>
+            <div className="text-xs text-app-text-muted mt-1">{(file.size / 1024).toFixed(1)} KB</div>
           </div>
         ) : (
           <>
             <div className="text-sm">Drop a .bin or .bin.gz file here, or click to browse</div>
             <div className="text-xs text-app-text-muted">
-              Filename must start with <code className="bg-app-surface-alt px-1 rounded">acc-</code>,{" "}
-              <code className="bg-app-surface-alt px-1 rounded">fm-2023-</code>, or{" "}
+              Filename must start with <code className="bg-app-surface-alt px-1 rounded">acc-</code>, <code className="bg-app-surface-alt px-1 rounded">fm-2023-</code>, or{" "}
               <code className="bg-app-surface-alt px-1 rounded">f1-2025-</code>
             </div>
           </>
@@ -139,11 +127,7 @@ export function ImportDumpPanel() {
           {importing ? "Importing..." : "Import to Database"}
         </button>
         {file && !importing && (
-          <button
-            type="button"
-            onClick={() => handleSelect(null)}
-            className="px-4 py-2 rounded bg-app-surface-alt text-app-text hover:bg-app-surface transition-colors"
-          >
+          <button type="button" onClick={() => handleSelect(null)} className="px-4 py-2 rounded bg-app-surface-alt text-app-text hover:bg-app-surface transition-colors">
             Clear
           </button>
         )}
@@ -189,24 +173,12 @@ export function ImportDumpPanel() {
               <div className="text-xs text-app-text-muted mb-2">Imported laps</div>
               <div className="space-y-1">
                 {result.laps.map((lap) => (
-                  <div
-                    key={lap.lapId}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded bg-app-surface-alt text-app-text"
-                  >
+                  <div key={lap.lapId} className="flex items-center gap-2 px-2 py-1.5 rounded bg-app-surface-alt text-app-text">
                     <div className="flex-1 min-w-0 text-xs font-mono">
-                      <span className="text-app-text-muted">#{lap.lapNumber}</span>{" "}
-                      <span>{formatLapTime(lap.lapTime)}</span>
-                      {!lap.isValid && (
-                        <span className="ml-2 px-1.5 py-0.5 rounded bg-red-950 text-red-400 text-[10px]">
-                          invalid
-                        </span>
-                      )}
+                      <span className="text-app-text-muted">#{lap.lapNumber}</span> <span>{formatLapTime(lap.lapTime)}</span>
+                      {!lap.isValid && <span className="ml-2 px-1.5 py-0.5 rounded bg-red-950 text-red-400 text-[10px]">invalid</span>}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => openInAnalyse(lap)}
-                      className="px-2.5 py-1 text-xs rounded bg-app-accent text-white hover:opacity-90 transition-opacity"
-                    >
+                    <button type="button" onClick={() => openInAnalyse(lap)} className="px-2.5 py-1 text-xs rounded bg-app-accent text-white hover:opacity-90 transition-opacity">
                       Open in Analyse
                     </button>
                   </div>

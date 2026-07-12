@@ -46,17 +46,11 @@ export function Compass({ yaw }: Props) {
         <rect x="2" y="4" width="96" height="16" rx="2" fill="#0f172a" fillOpacity="0.5" stroke="#334155" strokeWidth="0.5" />
 
         {/* Ticks — skip where cardinals are */}
-        {ticks.filter(t => !visibleMarkers.some(m => Math.abs(toX(m.offset) - toX(t.offset)) < 4)).map((t) => (
-          <line
-            key={t.deg}
-            x1={toX(t.offset)}
-            y1={t.major ? 6 : 8}
-            x2={toX(t.offset)}
-            y2={t.major ? 18 : 16}
-            stroke={t.major ? "#64748b" : "#334155"}
-            strokeWidth={t.major ? 0.8 : 0.4}
-          />
-        ))}
+        {ticks
+          .filter((t) => !visibleMarkers.some((m) => Math.abs(toX(m.offset) - toX(t.offset)) < 4))
+          .map((t) => (
+            <line key={t.deg} x1={toX(t.offset)} y1={t.major ? 6 : 8} x2={toX(t.offset)} y2={t.major ? 18 : 16} stroke={t.major ? "#64748b" : "#334155"} strokeWidth={t.major ? 0.8 : 0.4} />
+          ))}
 
         {/* Cardinal labels */}
         {visibleMarkers.map(({ label, offset }) => (
@@ -79,9 +73,7 @@ export function Compass({ yaw }: Props) {
         <polygon points="50,3 48,0 52,0" fill="#22d3ee" />
         <line x1="50" y1="3" x2="50" y2="5" stroke="#22d3ee" strokeWidth="1" />
       </svg>
-      <div className="text-[10px] font-mono text-app-text-secondary tabular-nums -mt-0.5">
-        {headingDeg.toFixed(0)}°
-      </div>
+      <div className="text-[10px] font-mono text-app-text-secondary tabular-nums -mt-0.5">{headingDeg.toFixed(0)}°</div>
     </div>
   );
 }

@@ -88,7 +88,10 @@ function detectSuspensionImbalance(telemetry: TelemetryPacket[]): LapInsight | n
 function detectTireOverheat(telemetry: TelemetryPacket[]): LapInsight[] {
   const wheels = ["FL", "FR", "RL", "RR"] as const;
   const fields = {
-    FL: "TireTempFL", FR: "TireTempFR", RL: "TireTempRL", RR: "TireTempRR",
+    FL: "TireTempFL",
+    FR: "TireTempFR",
+    RL: "TireTempRL",
+    RR: "TireTempRR",
   } as const;
 
   const insights: LapInsight[] = [];
@@ -186,8 +189,7 @@ function detectBrakeTractionLoss(telemetry: TelemetryPacket[]): LapInsight | nul
   const flags = telemetry.map((p) => {
     if (p.Brake < 30) return false; // must be braking
     const ws = allWheelStates(p);
-    return ws.fl.state === "lockup" || ws.fr.state === "lockup" ||
-           ws.rl.state === "lockup" || ws.rr.state === "lockup";
+    return ws.fl.state === "lockup" || ws.fr.state === "lockup" || ws.rl.state === "lockup" || ws.rr.state === "lockup";
   });
   const events = groupEvents(flags, 3);
   if (events.length === 0) return null;
@@ -219,9 +221,7 @@ function detectRevLimiter(telemetry: TelemetryPacket[]): LapInsight | null {
 }
 
 function detectCoasting(telemetry: TelemetryPacket[]): LapInsight | null {
-  const flags = telemetry.map(
-    (p) => p.Accel < 5 && p.Brake < 5 && p.Speed * 2.23694 > 20,
-  );
+  const flags = telemetry.map((p) => p.Accel < 5 && p.Brake < 5 && p.Speed * 2.23694 > 20);
   const events = groupEvents(flags, 30);
   if (events.length === 0) return null;
   const totalFrames = events.reduce((s, [a, b]) => s + (b - a + 1), 0);
@@ -311,8 +311,7 @@ function detectCounterSteer(telemetry: TelemetryPacket[]): LapInsight | null {
     const yawRate = p.AngularVelocityY;
     const steer = p.Steer;
     // Both must be significant, and in opposite directions
-    return Math.abs(yawRate) > 0.3 && Math.abs(steer) > 20 &&
-           Math.sign(yawRate) !== Math.sign(steer);
+    return Math.abs(yawRate) > 0.3 && Math.abs(steer) > 20 && Math.sign(yawRate) !== Math.sign(steer);
   });
   const events = groupEvents(flags, 3);
   if (events.length === 0) return null;
@@ -331,8 +330,7 @@ function detectThrottleTractionLoss(telemetry: TelemetryPacket[]): LapInsight | 
   const flags = telemetry.map((p) => {
     if (p.Accel < 150) return false;
     const ws = allWheelStates(p);
-    return ws.fl.state === "spin" || ws.fr.state === "spin" ||
-           ws.rl.state === "spin" || ws.rr.state === "spin";
+    return ws.fl.state === "spin" || ws.fr.state === "spin" || ws.rl.state === "spin" || ws.rr.state === "spin";
   });
   const events = groupEvents(flags, 3);
   if (events.length === 0) return null;
@@ -439,11 +437,7 @@ function detectBoostAnomaly(telemetry: TelemetryPacket[]): LapInsight | null {
         rollingPeak = Math.max(rollingPeak, telemetry[j].Boost);
       }
     }
-    if (
-      telemetry[i].Accel > 240 &&
-      rollingPeak > 0 &&
-      telemetry[i].Boost < rollingPeak * 0.5
-    ) {
+    if (telemetry[i].Accel > 240 && rollingPeak > 0 && telemetry[i].Boost < rollingPeak * 0.5) {
       flags[i] = true;
     }
   }
@@ -466,7 +460,7 @@ function detectBoostAnomaly(telemetry: TelemetryPacket[]): LapInsight | null {
  */
 function detectBrakeDrag(telemetry: TelemetryPacket[]): LapInsight | null {
   // Flag frames where throttle is applied AND brake is lightly applied simultaneously
-  const flags = telemetry.map(p => {
+  const flags = telemetry.map((p) => {
     const throttle = p.Accel / 255;
     const brake = p.Brake / 255;
     // Throttle > 50% with light brake (0.5-25%) — not intentional trail braking or hard braking

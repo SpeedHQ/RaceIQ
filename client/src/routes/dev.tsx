@@ -21,11 +21,7 @@ function DevPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === tab.id
-                ? "text-app-accent border-b-2 border-app-accent -mb-2"
-                : "text-app-text-muted hover:text-app-text"
-            }`}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === tab.id ? "text-app-accent border-b-2 border-app-accent -mb-2" : "text-app-text-muted hover:text-app-text"}`}
           >
             {tab.label}
           </button>

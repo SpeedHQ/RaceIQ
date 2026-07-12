@@ -1,7 +1,9 @@
 import { Hono } from "hono";
-import { readFileSync, readdirSync, statSync } from "fs";
+import { readFileSync, readdirSync, statSync, writeFileSync, unlinkSync } from "fs";
 import { resolve } from "path";
 import { parsePacket } from "../parsers/index";
+import { tmpdir } from "os";
+import { gunzipSync } from "zlib";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../games/init";
 import { getAllServerGames } from "../games/registry";
@@ -16,7 +18,8 @@ import { GRAPHICS_EVO, STATIC_EVO } from "../games/ac-evo/structs";
 import { readCString } from "../games/ac-evo/utils";
 import { getAcEvoCarByDisplayName } from "../../shared/ac-evo-car-data";
 import { getAcEvoTrackByName } from "../../shared/ac-evo-track-data";
-import { KNOWN_GAME_IDS, type GameId, type TelemetryPacket, type LapMeta } from "../../shared/types";
+import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC, packTriplet } from "../games/shared/pack-triplet";
+import { KNOWN_GAME_IDS, type GameId, type LapMeta } from "../../shared/types";
 import { getGame } from "../../shared/games/registry";
 import { Pipeline } from "../pipeline";
 import { RealDbAdapter, type DbAdapter, type WsAdapter } from "../pipeline-adapters";
@@ -494,11 +497,8 @@ devRoutes.post("/api/dev/import-dump", async (c) => {
     }
 
     // Write to temp file — readAccFrames and the UDP reader both take a path
-    const os = await import("os");
-    const { gunzipSync } = await import("zlib");
-    const { writeFileSync, unlinkSync } = await import("fs");
     tmpPath = resolve(
-      os.tmpdir(),
+      tmpdir(),
       `raceiq-dump-${Date.now()}-${Math.random().toString(36).slice(2)}.bin`
     );
     const arrayBuf = await file.arrayBuffer();
@@ -509,9 +509,16 @@ devRoutes.post("/api/dev/import-dump", async (c) => {
     }
     writeFileSync(tmpPath, bytes);
 
-    const packets: TelemetryPacket[] = [];
+    let packetCount = 0;
     let carModel: string | null = null;
     let trackName: string | null = null;
+
+    // Fresh pipeline per import so lap-detector state doesn't leak
+    const db = new ImportCaptureAdapter();
+    const pipeline = new Pipeline(db, new NoopWsAdapter(), {
+      bypassPacketRateFilter: true,
+    });
+    const start = Date.now();
 
     if (gameId === "acc") {
       let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
@@ -530,7 +537,17 @@ devRoutes.post("/api/dev/import-dump", async (c) => {
           if (tn) { trackName = tn; trackOrdinal = getAccTrackByName(tn)?.id ?? 0; }
         }
         const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal });
-        if (packet) packets.push(packet);
+        if (!packet) continue;
+        const rawBuf = packTriplet(
+          ACC_PACKED_MAGIC,
+          packet.CarOrdinal,
+          packet.TrackOrdinal ?? 0,
+          frame.physics,
+          frame.graphics,
+          frame.staticData
+        );
+        await pipeline.processPacket(packet, rawBuf);
+        packetCount++;
       }
     } else if (gameId === "ac-evo") {
       let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
@@ -559,7 +576,17 @@ devRoutes.post("/api/dev/import-dump", async (c) => {
           }
         }
         const packet = parseAcEvoBuffers(frame.physics, frame.graphics, frame.staticData, cache);
-        if (packet) packets.push(packet);
+        if (!packet) continue;
+        const rawBuf = packTriplet(
+          ACEVO_PACKED_MAGIC,
+          packet.CarOrdinal,
+          packet.TrackOrdinal ?? 0,
+          frame.physics,
+          frame.graphics,
+          frame.staticData
+        );
+        await pipeline.processPacket(packet, rawBuf);
+        packetCount++;
       }
     } else {
       // UDP dump — use fresh per-import parser state so we don't collide with
@@ -577,24 +604,18 @@ devRoutes.post("/api/dev/import-dump", async (c) => {
         if (offset + len > buffer.length) break;
         const chunk = buffer.slice(offset, offset + len);
         const packet = serverAdapter.tryParse(chunk, parserState);
-        if (packet) packets.push(packet);
+        if (packet) {
+          await pipeline.processPacket(packet, chunk);
+          packetCount++;
+        }
         offset += len;
       }
     }
 
-    if (packets.length === 0) {
+    if (packetCount === 0) {
       return c.json({ error: "No packets found in dump" }, 400);
     }
 
-    // Fresh pipeline per import so lap-detector state doesn't leak
-    const db = new ImportCaptureAdapter();
-    const pipeline = new Pipeline(db, new NoopWsAdapter(), {
-      bypassPacketRateFilter: true,
-    });
-    const start = Date.now();
-    for (const packet of packets) {
-      await pipeline.processPacket(packet);
-    }
     await pipeline.flushIncompleteLap();
     // Lap-detector uses setTimeout(..., 0) for deferred insertLap calls
     await new Promise<void>((r) => setTimeout(r, 100));
@@ -610,7 +631,7 @@ devRoutes.post("/api/dev/import-dump", async (c) => {
       filename: uploadName,
       gameId,
       routePrefix,
-      packetCount: packets.length,
+      packetCount,
       carModel,
       trackName,
       elapsedMs,
@@ -619,7 +640,7 @@ devRoutes.post("/api/dev/import-dump", async (c) => {
   } catch (e) {
     console.error("[dev] import-dump failed:", e);
     if (tmpPath) {
-      try { (await import("fs")).unlinkSync(tmpPath); } catch { /* ignore */ }
+      try { unlinkSync(tmpPath); } catch { /* ignore */ }
     }
     return c.json({ error: "Import failed", details: String(e) }, 500);
   }

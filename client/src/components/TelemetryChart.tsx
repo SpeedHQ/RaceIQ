@@ -89,7 +89,10 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
             (upl: uPlot) => {
               // Style title and legend via direct DOM (reliable across Tailwind versions)
               const titleEl = upl.root.querySelector(".u-title") as HTMLElement | null;
-              if (titleEl) { titleEl.style.fontSize = "10px"; titleEl.style.fontWeight = "600"; }
+              if (titleEl) {
+                titleEl.style.fontSize = "10px";
+                titleEl.style.fontWeight = "600";
+              }
 
               const legendEl = upl.root.querySelector(".u-legend") as HTMLElement | null;
               if (legendEl) legendEl.style.fontSize = "10px";
@@ -117,7 +120,10 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
               };
 
               const onUp = () => {
-                if (dragging) { dragging = false; setDragSel(null); }
+                if (dragging) {
+                  dragging = false;
+                  setDragSel(null);
+                }
               };
 
               over.addEventListener("pointerdown", onDown);
@@ -143,7 +149,7 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
 
       return opts;
     },
-    [data.labels, data.colors, syncKey, height, title, fillColors, data.distance]
+    [data.labels, data.colors, syncKey, height, title, fillColors, data.distance],
   );
 
   useEffect(() => {

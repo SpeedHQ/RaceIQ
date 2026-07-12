@@ -2,13 +2,7 @@ import { useEffect, useLayoutEffect, useMemo } from "react";
 import { Line } from "@react-three/drei";
 import * as THREE from "three";
 import type { TelemetryPacket } from "@shared/types";
-import {
-  buildTrackIndex,
-  filterByDistanceIndexed,
-  createWallGeometry,
-  updateWallGeometry,
-  DIST_AHEAD,
-} from "../../lib/wireframe-utils";
+import { buildTrackIndex, filterByDistanceIndexed, createWallGeometry, updateWallGeometry, DIST_AHEAD } from "../../lib/wireframe-utils";
 
 export function TrackOutline({
   outline,
@@ -23,10 +17,7 @@ export function TrackOutline({
   // One-time index build per outline — stable while the reference is stable
   // (React Query returns the same object until refetch).
   const index = useMemo(() => buildTrackIndex(outline), [outline]);
-  const segments = useMemo(() =>
-    filterByDistanceIndexed(index, packet.PositionX, packet.PositionZ, packet.Yaw, -0.44, ahead),
-    [index, packet.PositionX, packet.PositionZ, packet.Yaw, ahead]
-  );
+  const segments = useMemo(() => filterByDistanceIndexed(index, packet.PositionX, packet.PositionZ, packet.Yaw, -0.44, ahead), [index, packet.PositionX, packet.PositionZ, packet.Yaw, ahead]);
 
   if (segments.length === 0) return null;
 
@@ -75,8 +66,14 @@ export function TrackBoundaryEdges({
 
   // Filter by distance, then fill the pre-allocated buffers in place.
   // useLayoutEffect so geometry updates land before the next paint.
-  const leftSegsGround = useMemo(() => filterByDistanceIndexed(leftIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead), [leftIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead]);
-  const rightSegsGround = useMemo(() => filterByDistanceIndexed(rightIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead), [rightIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead]);
+  const leftSegsGround = useMemo(
+    () => filterByDistanceIndexed(leftIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead),
+    [leftIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead],
+  );
+  const rightSegsGround = useMemo(
+    () => filterByDistanceIndexed(rightIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead),
+    [rightIndex, packet.PositionX, packet.PositionZ, packet.Yaw, GROUND_Y, ahead],
+  );
 
   useLayoutEffect(() => {
     updateWallGeometry(leftGeom, leftSegsGround, WALL_HEIGHT);

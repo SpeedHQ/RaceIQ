@@ -10,7 +10,13 @@ export const GRIP_MAX_SAMPLES = GRIP_HISTORY_SECONDS * GRIP_SAMPLE_RATE;
  * Y-axis is inverted: 0 (top) = perfect grip, 3 (bottom) = total loss.
  * Color zones provide at-a-glance severity bands (green/yellow/orange/red).
  */
-export function GripSparkline({ data, label, renderKey, width = 140, height = 40 }: {
+export function GripSparkline({
+  data,
+  label,
+  renderKey,
+  width = 140,
+  height = 40,
+}: {
   data: number[];
   label: string;
   renderKey: number;
@@ -84,14 +90,8 @@ export function GripSparkline({ data, label, renderKey, width = 140, height = 40
     <div className="flex flex-col gap-0.5">
       <span className="text-[9px] font-semibold text-app-text-muted uppercase">{label}</span>
       <div className="flex items-center gap-1.5">
-        <canvas
-          ref={canvasRef}
-          style={{ width, height }}
-          className="rounded bg-app-surface/40"
-        />
-        <span className={`text-xs font-mono font-bold tabular-nums ${valColor}`}>
-          {gripPct}%
-        </span>
+        <canvas ref={canvasRef} style={{ width, height }} className="rounded bg-app-surface/40" />
+        <span className={`text-xs font-mono font-bold tabular-nums ${valColor}`}>{gripPct}%</span>
       </div>
     </div>
   );

@@ -1,8 +1,15 @@
 import { test, expect, type Page } from "@playwright/test";
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 const SETTINGS_PATH = resolve(__dirname, "test-data", "settings.json");
+
+// Reset settings.json to the same seed start-server.ts writes at boot, so the
+// wizard test is idempotent across retries (server re-reads settings on every
+// GET /api/settings, so a file reset is enough — no server restart needed).
+function resetSettingsFile() {
+  writeFileSync(SETTINGS_PATH, JSON.stringify({ udpPort: 15318 }));
+}
 const GAME_ROUTE_PREFIXES = ["fm23", "f125", "acc", "ac-evo"] as const;
 
 // Known benign noise: three's GLTFLoader logs texture-load failures for the
@@ -46,6 +53,7 @@ function collectErrors(page: Page) {
 // so later tests can navigate straight to game routes without the modal.
 test.describe.serial("fresh install", () => {
   test("user steps through wizard and lands on home page", async ({ page }) => {
+    resetSettingsFile();
     const errors = collectErrors(page);
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -78,7 +86,11 @@ test.describe.serial("fresh install", () => {
     await page.getByRole("button", { name: "Off" }).click();
     await page.getByRole("button", { name: "Next" }).click();
 
-    // Step 6: Community — final. Button reads "Next" when not receiving telemetry; clicking it finishes.
+    // Step 6: Startup (Launch on Login)
+    await expect(page.getByRole("heading", { name: "Launch on Login" })).toBeVisible();
+    await page.getByRole("button", { name: "Next" }).click();
+
+    // Step 7: Community — final. Button reads "Next" when not receiving telemetry; clicking it finishes.
     await expect(page.getByRole("heading", { name: "You're all set!" })).toBeVisible();
     await page.getByRole("button", { name: "Next" }).click();
 

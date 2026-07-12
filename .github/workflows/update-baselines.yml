@@ -1,0 +1,62 @@
+name: Update screenshot baselines
+
+# Regenerates the committed dashboard snapshot baselines IN the CI environment,
+# then commits them to main. Run this once so the baselines match how CI's
+# headless Chromium renders (local GPU renders drift on font/antialiasing and
+# make every PR diff noisy). Manual only.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: update-baselines
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: blacksmith-2vcpu-ubuntu-2204
+    # Same pinned image as the PR render job, so the baselines committed here
+    # match exactly what PRs (and local `bun run snapshot:docker`) produce.
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-jammy
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: Mark workspace safe for git (container runs as root)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install unzip (required by setup-bun in the container)
+        run: apt-get update && apt-get install -y --no-install-recommends unzip
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install client dependencies
+        working-directory: client
+        run: bun install
+
+      - name: Regenerate baselines
+        working-directory: client
+        # snapshot = playwright test --update-snapshots && copy to assets/screenshots
+        run: bun run snapshot
+
+      - name: Commit regenerated baselines to main
+        run: |
+          # The container runs as root; mark the checkout safe for git.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add client/src/stories/__snapshots__/snapshot-*.png assets/screenshots
+          if git diff --cached --quiet; then
+            echo "Baselines already match CI render."
+          else
+            git commit -m "chore(ci): regenerate dashboard baselines in CI env [skip ci]"
+            git push origin HEAD:main
+          fi

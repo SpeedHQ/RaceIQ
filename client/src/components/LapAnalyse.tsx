@@ -6,7 +6,18 @@ import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUnits } from "../hooks/useUnits";
 import { useConvertedTelemetry } from "../hooks/useConvertedTelemetry";
-import { useLaps as useLapsQuery, useLapTelemetry, useTrackName, useCarName, useResolveNames, useTrackOutline, useTrackBoundaries, useTrackSectorBoundaries, useTrackSectors, useSettings } from "../hooks/queries";
+import {
+  useLaps as useLapsQuery,
+  useLapTelemetry,
+  useTrackName,
+  useCarName,
+  useResolveNames,
+  useTrackOutline,
+  useTrackBoundaries,
+  useTrackSectorBoundaries,
+  useTrackSectors,
+  useSettings,
+} from "../hooks/queries";
 import { client } from "../lib/rpc";
 import { useRequiredGameId } from "../stores/game";
 import { analyzeLap } from "../lib/lap-insights";
@@ -22,13 +33,34 @@ import { AnalyseDataPanel } from "./analyse/AnalyseDataPanel";
 import { AnalyseTopSection } from "./analyse/AnalyseTopSection";
 import { AnalyseAiSidebar } from "./analyse/AnalyseAiSidebar";
 import { buildExportCsv } from "../lib/lap-export";
+import { MobileNotSupported } from "../routes/__root";
 
 // Stable empty array to avoid re-renders when no telemetry loaded
 const emptyTelemetry: TelemetryPacket[] = [];
 
 // ── Main Component ───────────────────────────────────────────────────
 
+function useIsPhoneViewport() {
+  const [isPhone, setIsPhone] = useState(() => typeof window !== "undefined" && Math.min(window.innerWidth, window.innerHeight) <= 768);
+  useEffect(() => {
+    const check = () => setIsPhone(Math.min(window.innerWidth, window.innerHeight) <= 768);
+    window.addEventListener("resize", check);
+    window.addEventListener("orientationchange", check);
+    return () => {
+      window.removeEventListener("resize", check);
+      window.removeEventListener("orientationchange", check);
+    };
+  }, []);
+  return isPhone;
+}
+
 export function LapAnalyse() {
+  const isPhone = useIsPhoneViewport();
+  if (isPhone) return <MobileNotSupported feature="Lap analyse" />;
+  return <LapAnalyseInner />;
+}
+
+function LapAnalyseInner() {
   const search = useSearch({ strict: false }) as { track?: number; car?: number; lap?: number };
   const navigate = useNavigate();
   const units = useUnits();
@@ -67,7 +99,7 @@ export function LapAnalyse() {
   const sectors = useMemo(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = sectorsRaw as any;
-    return s?.s1End ? s as { s1End: number; s2End: number } : null;
+    return s?.s1End ? (s as { s1End: number; s2End: number }) : null;
   }, [sectorsRaw]);
   const { data: segmentsRaw } = useTrackSectors(trackOrd ?? undefined);
   const segments = useMemo(() => {
@@ -128,7 +160,9 @@ export function LapAnalyse() {
   const speedRef = useRef(1);
   const cursorRef = useRef(0);
   const displayTelemetryRef = useRef(displayTelemetry);
-  useEffect(() => { displayTelemetryRef.current = displayTelemetry; }, [displayTelemetry]);
+  useEffect(() => {
+    displayTelemetryRef.current = displayTelemetry;
+  }, [displayTelemetry]);
   const seekRef = useRef(0);
 
   // Imperative refs for smooth animation without React re-renders
@@ -147,7 +181,9 @@ export function LapAnalyse() {
   const { data: allLaps = [] } = useLapsQuery();
   const fetchedLaps = useMemo(() => allLaps.filter((l) => l.lapTime > 0), [allLaps]);
   // Merge fetched laps with local optimistic updates
-  useEffect(() => { setLaps(fetchedLaps); }, [fetchedLaps]);
+  useEffect(() => {
+    setLaps(fetchedLaps);
+  }, [fetchedLaps]);
 
   // Derive unique tracks from laps
   const tracks = useMemo(() => {
@@ -155,8 +191,7 @@ export function LapAnalyse() {
     for (const l of laps) {
       if (l.trackOrdinal != null) seen.set(l.trackOrdinal, (seen.get(l.trackOrdinal) ?? 0) + 1);
     }
-    return Array.from(seen.entries())
-      .sort((a, b) => (trackNames[a[0]] ?? `Track ${a[0]}`).localeCompare(trackNames[b[0]] ?? `Track ${b[0]}`));
+    return Array.from(seen.entries()).sort((a, b) => (trackNames[a[0]] ?? `Track ${a[0]}`).localeCompare(trackNames[b[0]] ?? `Track ${b[0]}`));
   }, [laps, trackNames]);
 
   // Derive unique cars for the selected track
@@ -168,8 +203,7 @@ export function LapAnalyse() {
         seen.set(l.carOrdinal, (seen.get(l.carOrdinal) ?? 0) + 1);
       }
     }
-    return Array.from(seen.entries())
-      .sort((a, b) => (carNames[a[0]] ?? `Car ${a[0]}`).localeCompare(carNames[b[0]] ?? `Car ${b[0]}`));
+    return Array.from(seen.entries()).sort((a, b) => (carNames[a[0]] ?? `Car ${a[0]}`).localeCompare(carNames[b[0]] ?? `Car ${b[0]}`));
   }, [laps, selectedTrack, carNames]);
 
   // Derive laps for the selected track + car
@@ -182,15 +216,15 @@ export function LapAnalyse() {
   const { data: initialTrackName } = useTrackName(selectedTrack ?? undefined);
   const { data: initialCarName } = useCarName(selectedCar ?? undefined);
   useEffect(() => {
-    if (initialTrackName && selectedTrack != null) setTrackNames((prev) => prev[selectedTrack] === initialTrackName ? prev : { ...prev, [selectedTrack]: initialTrackName });
+    if (initialTrackName && selectedTrack != null) setTrackNames((prev) => (prev[selectedTrack] === initialTrackName ? prev : { ...prev, [selectedTrack]: initialTrackName }));
   }, [initialTrackName, selectedTrack]);
   useEffect(() => {
-    if (initialCarName && selectedCar != null) setCarNames((prev) => prev[selectedCar] === initialCarName ? prev : { ...prev, [selectedCar]: initialCarName });
+    if (initialCarName && selectedCar != null) setCarNames((prev) => (prev[selectedCar] === initialCarName ? prev : { ...prev, [selectedCar]: initialCarName }));
   }, [initialCarName, selectedCar]);
 
   // Batch-resolve track/car names for display via query hook
-  const missingTrackOrds = useMemo(() => [...new Set(laps.filter(l => l.trackOrdinal != null && !trackNames[l.trackOrdinal!]).map(l => l.trackOrdinal!))], [laps, trackNames]);
-  const missingCarOrds = useMemo(() => [...new Set(laps.filter(l => l.carOrdinal != null && !carNames[l.carOrdinal!]).map(l => l.carOrdinal!))], [laps, carNames]);
+  const missingTrackOrds = useMemo(() => [...new Set(laps.filter((l) => l.trackOrdinal != null && !trackNames[l.trackOrdinal!]).map((l) => l.trackOrdinal!))], [laps, trackNames]);
+  const missingCarOrds = useMemo(() => [...new Set(laps.filter((l) => l.carOrdinal != null && !carNames[l.carOrdinal!]).map((l) => l.carOrdinal!))], [laps, carNames]);
   const { data: resolvedNames } = useResolveNames(missingTrackOrds, missingCarOrds);
   useEffect(() => {
     if (!resolvedNames) return;
@@ -205,12 +239,13 @@ export function LapAnalyse() {
   // Sync selections to URL (preserve cursor/viz params)
   useEffect(() => {
     navigate({
-      search: (prev: Record<string, unknown>) => ({
-        ...prev,
-        track: selectedTrack ?? undefined,
-        car: selectedCar ?? undefined,
-        lap: selectedLapId ?? undefined,
-      }) as never,
+      search: (prev: Record<string, unknown>) =>
+        ({
+          ...prev,
+          track: selectedTrack ?? undefined,
+          car: selectedCar ?? undefined,
+          lap: selectedLapId ?? undefined,
+        }) as never,
       replace: true,
     });
   }, [selectedTrack, selectedCar, selectedLapId, navigate]);
@@ -296,28 +331,26 @@ export function LapAnalyse() {
     setPlaying,
   });
 
-
-
   // Sector data from server response
   const sectorData = lapData?.sectorTimes ?? null;
 
   // Derive cursor sector cheaply from precomputed server data
   const sectorTimes = useMemo(() => {
     if (!sectorData || !sectors) return null;
-    const cursorFrac = telemetry.length > 1
-      ? (telemetry[cursorIdx]?.DistanceTraveled - sectorData.firstDist) / sectorData.lapDist
-      : 0;
+    const cursorFrac = telemetry.length > 1 ? (telemetry[cursorIdx]?.DistanceTraveled - sectorData.firstDist) / sectorData.lapDist : 0;
     const cursorSector = cursorFrac < sectors.s1End ? 0 : cursorFrac < sectors.s2End ? 1 : 2;
     return { ...sectorData, cursorSector };
   }, [sectorData, sectors, telemetry, cursorIdx]);
 
-
-  const handleChartClick = useCallback((idx: number) => {
-    setCursorIdx(idx);
-    cursorRef.current = idx;
-    seekRef.current++;
-    updateOverlays(idx);
-  }, [updateOverlays]);
+  const handleChartClick = useCallback(
+    (idx: number) => {
+      setCursorIdx(idx);
+      cursorRef.current = idx;
+      seekRef.current++;
+      updateOverlays(idx);
+    },
+    [updateOverlays],
+  );
 
   const handleScrubStart = useCallback(() => {
     setPlaying(false);
@@ -354,7 +387,7 @@ export function LapAnalyse() {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [playing]);
-  const currentTime = playing ? displayTime : (currentPacket ? currentPacket.CurrentLap : 0);
+  const currentTime = playing ? displayTime : currentPacket ? currentPacket.CurrentLap : 0;
   const selectedLap = laps.find((l) => l.id === selectedLapId);
   const totalTime = selectedLap?.lapTime ?? 0;
 
@@ -369,15 +402,13 @@ export function LapAnalyse() {
   const updateLapTune = useMutation({
     mutationFn: (tuneId: number | null) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      client.api.laps[":id"].tune.$patch({ param: { id: String(selectedLapId) }, json: { tuneId } }).then((r) => r.json() as any),
+      client.api.laps[":id"].tune
+        .$patch({ param: { id: String(selectedLapId) }, json: { tuneId } })
+        .then((r) => r.json() as any),
     onMutate: (tuneId) => {
       // Optimistically update local laps state so dropdown doesn't reset
       setLaps((prev) =>
-        prev.map((l) =>
-          l.id === selectedLapId
-            ? { ...l, tuneId: tuneId ?? undefined, tuneName: availableTunes?.find((t: { id: number; name: string }) => t.id === tuneId)?.name }
-            : l
-        )
+        prev.map((l) => (l.id === selectedLapId ? { ...l, tuneId: tuneId ?? undefined, tuneName: availableTunes?.find((t: { id: number; name: string }) => t.id === tuneId)?.name } : l)),
       );
     },
     onSuccess: () => {
@@ -388,11 +419,11 @@ export function LapAnalyse() {
   const updateLapNotesMutation = useMutation({
     mutationFn: (notes: string) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      client.api.laps[":id"].notes.$patch({ param: { id: String(selectedLapId) }, json: { notes: notes || null } }).then((r) => r.json() as any),
+      client.api.laps[":id"].notes
+        .$patch({ param: { id: String(selectedLapId) }, json: { notes: notes || null } })
+        .then((r) => r.json() as any),
     onMutate: (notes) => {
-      setLaps((prev) =>
-        prev.map((l) => l.id === selectedLapId ? { ...l, notes: notes || undefined } : l)
-      );
+      setLaps((prev) => prev.map((l) => (l.id === selectedLapId ? { ...l, notes: notes || undefined } : l)));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["laps"] });
@@ -402,7 +433,9 @@ export function LapAnalyse() {
   const deleteLapMutation = useMutation({
     mutationFn: (lapId: number) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      client.api.laps[":id"].$delete({ param: { id: String(lapId) } }).then((r) => r.json() as any),
+      client.api.laps[":id"]
+        .$delete({ param: { id: String(lapId) } })
+        .then((r) => r.json() as any),
     onSuccess: () => {
       setSelectedLapId(null);
       queryClient.invalidateQueries({ queryKey: ["laps"] });
@@ -477,96 +510,96 @@ export function LapAnalyse() {
         <div className="flex flex-1 overflow-hidden">
           {/* Left: main content (map, charts, scrubber) */}
           <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
-          {/* Top section: Track Map + Metrics */}
-          <AnalyseTopSection
-            topHeight={topHeight}
-            leftColWidth={leftColWidth}
-            rightColWidth={rightColWidth}
-            onLeftResize={setLeftColWidth}
-            onRightResize={setRightColWidth}
-            telemetry={telemetry}
-            cursorIdx={cursorIdx}
-            outline={outline}
-            boundaries={boundaries}
-            sectors={sectors}
-            segments={segments}
-            currentPacket={currentPacket}
-            currentDisplayPacket={currentDisplayPacket}
-            displayTelemetry={displayTelemetry}
-            lapLine={lapLine}
-            units={units}
-            aiPanelOpen={aiPanelOpen}
-            aiHighlights={aiHighlights}
-            rotateWithCar={rotateWithCar}
-            trackOverlay={trackOverlay}
-            mapZoom={mapZoom}
-            onRotateWithCarToggle={() => setRotateWithCar((r) => !r)}
-            onTrackOverlayCycle={() => setTrackOverlay((v) => v === "none" ? "inputs" : v === "inputs" ? "segments" : v === "segments" ? "sectors" : "none")}
-            onMapZoomChange={setMapZoom}
-            vizMode={vizMode}
-            onVizModeChange={setWheelTab}
-            trackMapRef={trackMapRef}
-            cursorRef={cursorRef}
-            displayTelemetryRef={displayTelemetryRef}
-          />
+            {/* Top section: Track Map + Metrics */}
+            <AnalyseTopSection
+              topHeight={topHeight}
+              leftColWidth={leftColWidth}
+              rightColWidth={rightColWidth}
+              onLeftResize={setLeftColWidth}
+              onRightResize={setRightColWidth}
+              telemetry={telemetry}
+              cursorIdx={cursorIdx}
+              outline={outline}
+              boundaries={boundaries}
+              sectors={sectors}
+              segments={segments}
+              currentPacket={currentPacket}
+              currentDisplayPacket={currentDisplayPacket}
+              displayTelemetry={displayTelemetry}
+              lapLine={lapLine}
+              units={units}
+              aiPanelOpen={aiPanelOpen}
+              aiHighlights={aiHighlights}
+              rotateWithCar={rotateWithCar}
+              trackOverlay={trackOverlay}
+              mapZoom={mapZoom}
+              onRotateWithCarToggle={() => setRotateWithCar((r) => !r)}
+              onTrackOverlayCycle={() => setTrackOverlay((v) => (v === "none" ? "inputs" : v === "inputs" ? "segments" : v === "segments" ? "sectors" : "none"))}
+              onMapZoomChange={setMapZoom}
+              vizMode={vizMode}
+              onVizModeChange={setWheelTab}
+              trackMapRef={trackMapRef}
+              cursorRef={cursorRef}
+              displayTelemetryRef={displayTelemetryRef}
+            />
 
-          {/* Resize handle */}
-          <div
-            className="h-3 cursor-row-resize border-y border-app-border bg-app-surface-alt/80 hover:bg-app-accent/30 transition-colors shrink-0 flex items-center justify-center"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              const startY = e.clientY;
-              const startH = topHeight;
-              const onMove = (ev: MouseEvent) => {
-                const newH = Math.max(250, Math.min(800, startH + ev.clientY - startY));
-                setTopHeight(newH);
-              };
-              const onUp = () => {
-                window.removeEventListener("mousemove", onMove);
-                window.removeEventListener("mouseup", onUp);
-              };
-              window.addEventListener("mousemove", onMove);
-              window.addEventListener("mouseup", onUp);
-            }}
-          >
-            <div className="w-10 h-1 rounded-full bg-app-text-muted/60" />
-          </div>
+            {/* Resize handle */}
+            <div
+              className="h-3 cursor-row-resize border-y border-app-border bg-app-surface-alt/80 hover:bg-app-accent/30 transition-colors shrink-0 flex items-center justify-center"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const startY = e.clientY;
+                const startH = topHeight;
+                const onMove = (ev: MouseEvent) => {
+                  const newH = Math.max(250, Math.min(800, startH + ev.clientY - startY));
+                  setTopHeight(newH);
+                };
+                const onUp = () => {
+                  window.removeEventListener("mousemove", onMove);
+                  window.removeEventListener("mouseup", onUp);
+                };
+                window.addEventListener("mousemove", onMove);
+                window.addEventListener("mouseup", onUp);
+              }}
+            >
+              <div className="w-10 h-1 rounded-full bg-app-text-muted/60" />
+            </div>
 
-          {/* Lap time + Timeline scrubber */}
-          <AnalyseTimelineScrubber
-            displayTelemetry={displayTelemetry}
-            cursorIdx={cursorIdx}
-            totalPackets={telemetry.length}
-            currentTime={currentTime}
-            totalTime={totalTime}
-            lapNumber={selectedLap?.lapNumber ?? "?"}
-            sectorTimes={sectorTimes}
-            playing={playing}
-            playbackSpeed={playbackSpeed}
-            visualTimeFrac={visualTimeFrac}
-            progressRef={progressRef}
-            thumbRef={thumbRef}
-            onTogglePlay={() => setPlaying((p) => !p)}
-            onSpeedChange={setPlaybackSpeed}
-            onSeek={handleChartClick}
-            onVisualFracChange={setVisualTimeFrac}
-          />
-
-          {/* Stacked charts — with own scroll */}
-          {displayTelemetry.length > 0 && (
-            <AnalyseChartsPanel
-              ref={chartsPanelRef}
+            {/* Lap time + Timeline scrubber */}
+            <AnalyseTimelineScrubber
               displayTelemetry={displayTelemetry}
               cursorIdx={cursorIdx}
               totalPackets={telemetry.length}
+              currentTime={currentTime}
+              totalTime={totalTime}
+              lapNumber={selectedLap?.lapNumber ?? "?"}
+              sectorTimes={sectorTimes}
+              playing={playing}
+              playbackSpeed={playbackSpeed}
               visualTimeFrac={visualTimeFrac}
+              progressRef={progressRef}
+              thumbRef={thumbRef}
+              onTogglePlay={() => setPlaying((p) => !p)}
+              onSpeedChange={setPlaybackSpeed}
+              onSeek={handleChartClick}
               onVisualFracChange={setVisualTimeFrac}
-              onClickIndex={handleChartClick}
-              onScrubStart={handleScrubStart}
-              speedLabel={units.speedLabel}
-              tempLabel={units.tempLabel}
             />
-          )}
+
+            {/* Stacked charts — with own scroll */}
+            {displayTelemetry.length > 0 && (
+              <AnalyseChartsPanel
+                ref={chartsPanelRef}
+                displayTelemetry={displayTelemetry}
+                cursorIdx={cursorIdx}
+                totalPackets={telemetry.length}
+                visualTimeFrac={visualTimeFrac}
+                onVisualFracChange={setVisualTimeFrac}
+                onClickIndex={handleChartClick}
+                onScrubStart={handleScrubStart}
+                speedLabel={units.speedLabel}
+                tempLabel={units.tempLabel}
+              />
+            )}
           </div>
 
           {/* Right panel – full height */}
@@ -609,14 +642,10 @@ export function LapAnalyse() {
         </div>
       )}
       {/* Tune viewer modal */}
-      {viewingTuneId && (
-        <TuneViewModal tuneId={viewingTuneId} onClose={() => setViewingTuneId(null)} />
-      )}
+      {viewingTuneId && <TuneViewModal tuneId={viewingTuneId} onClose={() => setViewingTuneId(null)} />}
 
       {/* F1 Car Setup modal */}
-      {showSetup && telemetry[0]?.f1?.setup && (
-        <F1SetupModal setup={telemetry[0].f1.setup} onClose={() => setShowSetup(false)} />
-      )}
+      {showSetup && telemetry[0]?.f1?.setup && <F1SetupModal setup={telemetry[0].f1.setup} onClose={() => setShowSetup(false)} />}
     </div>
   );
 }

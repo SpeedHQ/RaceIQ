@@ -7,22 +7,31 @@
  *   await readChatStream(res, (event) => { ... });
  */
 
+export type ChatStreamStatus = "starting" | "thinking" | "generating";
+export type ChatUsage = { inputTokens: number; outputTokens: number; costUsd: number };
+export type ChatStreamError = {
+  type: "error";
+  message: string;
+  retryable?: boolean;
+  statusCode?: number | null;
+  provider?: string | null;
+  modelId?: string | null;
+  upstream?: { code?: number; message?: string; status?: string } | null;
+};
+
 export type ChatStreamEvent =
-  | { type: "status"; state: "thinking" | "generating" }
+  | { type: "status"; state: ChatStreamStatus }
   | { type: "tool"; state: "start" | "end"; name: string }
   | { type: "text"; delta: string }
   | { type: "usage"; inputTokens: number; outputTokens: number; costUsd?: number; durationMs?: number; model?: string; toolCalls?: number }
   | { type: "ping" }
-  | { type: "error"; message: string }
+  | ChatStreamError
   | { type: "done" }
   // Open-ended tail so analyse-specific events ("meta", "result") and any
   // future additions flow through without needing to widen the union here.
   | { type: string; [key: string]: unknown };
 
-export async function readChatStream(
-  res: Response,
-  onEvent: (event: ChatStreamEvent) => void,
-): Promise<void> {
+export async function readChatStream(res: Response, onEvent: (event: ChatStreamEvent) => void): Promise<void> {
   const reader = res.body?.getReader();
   if (!reader) throw new Error("No response body");
   const decoder = new TextDecoder();
@@ -33,22 +42,30 @@ export async function readChatStream(
     const { done, value } = await reader.read();
     if (done) break;
     buf += decoder.decode(value, { stream: true });
-    let idx: number;
-    while ((idx = buf.indexOf("\n")) >= 0) {
+    let idx = buf.indexOf("\n");
+    while (idx >= 0) {
       const line = buf.slice(0, idx).trim();
       buf = buf.slice(idx + 1);
-      if (!line) continue;
+      if (!line) {
+        idx = buf.indexOf("\n");
+        continue;
+      }
       try {
         onEvent(JSON.parse(line) as ChatStreamEvent);
       } catch {
         // Skip malformed lines — protocol is best-effort; keep the reader
         // alive so later well-formed events still arrive.
       }
+      idx = buf.indexOf("\n");
     }
   }
   // Flush any trailing line (no \n) — rare, usually the `done` already fired.
   const tail = buf.trim();
   if (tail) {
-    try { onEvent(JSON.parse(tail) as ChatStreamEvent); } catch { /* ignore */ }
+    try {
+      onEvent(JSON.parse(tail) as ChatStreamEvent);
+    } catch {
+      /* ignore */
+    }
   }
 }

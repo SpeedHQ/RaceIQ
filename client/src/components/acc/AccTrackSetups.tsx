@@ -86,11 +86,18 @@ function SetupVideo({ url }: { url: string }) {
     if (!vid) return null;
     return (
       <div className="rounded-lg overflow-hidden border border-app-border/20">
-        <iframe src={`https://www.youtube.com/embed/${vid}`} title="Hotlap" className="w-full aspect-video"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+        <iframe
+          src={`https://www.youtube.com/embed/${vid}`}
+          title="Hotlap"
+          className="w-full aspect-video"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
       </div>
     );
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
@@ -101,7 +108,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
 
   const { data: setups = [] } = useQuery<AccSetup[]>({
     queryKey: ["acc-setups-by-track", trackOrdinal],
-    queryFn: () => client.api.acc["setups-by-track"].$get({ query: { ordinal: String(trackOrdinal) } }).then(r => r.json() as any),
+    queryFn: () => client.api.acc["setups-by-track"].$get({ query: { ordinal: String(trackOrdinal) } }).then((r) => r.json() as any),
   });
 
   const { data: cars = [] } = useQuery<AccCar[]>({
@@ -117,7 +124,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
 
   const filteredSetups = useMemo(() => {
     let s = setups;
-    if (filterCar) s = s.filter(x => x.carModel === filterCar);
+    if (filterCar) s = s.filter((x) => x.carModel === filterCar);
     return [...s].sort((a, b) => {
       if (!a.lapTime) return 1;
       if (!b.lapTime) return -1;
@@ -125,12 +132,12 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
     });
   }, [setups, filterCar]);
 
-  const uniqueCars = useMemo(() => [...new Set(setups.map(s => s.carModel))].sort(), [setups]);
+  const uniqueCars = useMemo(() => [...new Set(setups.map((s) => s.carModel))].sort(), [setups]);
 
   // Resolve setup from URL param
   useEffect(() => {
     if (!search.setup || filteredSetups.length === 0) return;
-    const idx = filteredSetups.findIndex(s => setupId(s) === search.setup);
+    const idx = filteredSetups.findIndex((s) => setupId(s) === search.setup);
     if (idx >= 0 && idx !== selectedIdx) setSelectedIdx(idx);
   }, [search.setup, filteredSetups]);
 
@@ -141,7 +148,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
   };
 
   const installMutation = useMutation({
-    mutationFn: (s: AccSetup) => client.api.acc.setups.install.$post({ json: { carModel: s.carModel, trackName: s.trackName, setupFile: s.setupFile! } }).then(r => r.json() as any),
+    mutationFn: (s: AccSetup) => client.api.acc.setups.install.$post({ json: { carModel: s.carModel, trackName: s.trackName, setupFile: s.setupFile! } }).then((r) => r.json() as any),
   });
 
   // Fetch YouTube metadata for the selected setup (cached server-side)
@@ -159,7 +166,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
       if (cached) return JSON.parse(cached) as { uploadDate: string; downloadUrl: string };
       const res = await fetch(`/api/acc/yt-meta?videoId=${ytVideoId}`);
       if (!res.ok) return null;
-      const data = await res.json() as { uploadDate: string; downloadUrl: string };
+      const data = (await res.json()) as { uploadDate: string; downloadUrl: string };
       localStorage.setItem(cacheKey, JSON.stringify(data));
       return data;
     },
@@ -169,11 +176,13 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
   });
 
   // Merge YouTube metadata into the selected setup
-  const setup: AccSetup | undefined = selectedSetup ? {
-    ...selectedSetup,
-    date: ytMeta?.uploadDate || selectedSetup.date,
-    downloadUrl: ytMeta?.downloadUrl || selectedSetup.downloadUrl,
-  } : undefined;
+  const setup: AccSetup | undefined = selectedSetup
+    ? {
+        ...selectedSetup,
+        date: ytMeta?.uploadDate || selectedSetup.date,
+        downloadUrl: ytMeta?.downloadUrl || selectedSetup.downloadUrl,
+      }
+    : undefined;
 
   return (
     <div className="flex gap-3 h-full overflow-hidden">
@@ -181,16 +190,17 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
       <div className="w-[420px] shrink-0 flex flex-col min-h-0">
         {/* Filters */}
         <div className="flex items-center gap-2 mb-1.5">
-          <div className="text-app-label text-app-text-muted uppercase tracking-wider shrink-0">
-            Setups ({filteredSetups.length})
-          </div>
+          <div className="text-app-label text-app-text-muted uppercase tracking-wider shrink-0">Setups ({filteredSetups.length})</div>
           {uniqueCars.length > 1 && (
             <SearchSelect
               className="ml-auto w-48"
               value={filterCar}
-              onChange={(v) => { setFilterCar(v); selectSetup(0); }}
+              onChange={(v) => {
+                setFilterCar(v);
+                selectSetup(0);
+              }}
               placeholder="Search cars..."
-              options={[{ value: "", label: "All cars" }, ...uniqueCars.map(car => ({ value: car, label: carNameMap.get(car) ?? car }))]}
+              options={[{ value: "", label: "All cars" }, ...uniqueCars.map((car) => ({ value: car, label: carNameMap.get(car) ?? car }))]}
             />
           )}
         </div>
@@ -218,11 +228,31 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
                 <span className="text-[9px] text-app-text-dim truncate">({carNameMap.get(s.carModel) ?? s.carModel})</span>
               </div>
               <div className="flex items-center gap-0.5 shrink-0 justify-center">
-                {s.hasRace && <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold" title="Race setup">R</span>}
-                {s.hasQuali && <span className="text-[8px] px-1 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold" title="Qualifying setup">Q</span>}
-                {s.hasWet && <span className="text-[8px] px-1 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold" title="Wet setup">W</span>}
-                {s.videoUrl && <span className="text-[9px] text-red-400 ml-0.5" title="Has hotlap video">▶</span>}
-                {(s.downloadUrl || s.setupFile) && <span className="text-[8px] px-1 py-0.5 rounded bg-green-500/20 text-green-300 font-bold" title="Has setup file">FILE</span>}
+                {s.hasRace && (
+                  <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold" title="Race setup">
+                    R
+                  </span>
+                )}
+                {s.hasQuali && (
+                  <span className="text-[8px] px-1 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold" title="Qualifying setup">
+                    Q
+                  </span>
+                )}
+                {s.hasWet && (
+                  <span className="text-[8px] px-1 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold" title="Wet setup">
+                    W
+                  </span>
+                )}
+                {s.videoUrl && (
+                  <span className="text-[9px] text-red-400 ml-0.5" title="Has hotlap video">
+                    ▶
+                  </span>
+                )}
+                {(s.downloadUrl || s.setupFile) && (
+                  <span className="text-[8px] px-1 py-0.5 rounded bg-green-500/20 text-green-300 font-bold" title="Has setup file">
+                    FILE
+                  </span>
+                )}
               </div>
               <span className="text-app-unit font-mono text-emerald-400 shrink-0 w-16 text-right">{s.lapTime || "—"}</span>
             </div>
@@ -269,8 +299,12 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
                 const platform = detectPlatform(dlUrl);
                 const isVideo = platform === "youtube";
                 return (
-                  <a href={dlUrl} target="_blank" rel="noopener noreferrer"
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-app-unit font-semibold rounded transition-colors ${isVideo ? "bg-red-500/15 text-red-400 hover:bg-red-500/25" : "bg-blue-500/15 text-blue-400 hover:bg-blue-500/25"}`}>
+                  <a
+                    href={dlUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-app-unit font-semibold rounded transition-colors ${isVideo ? "bg-red-500/15 text-red-400 hover:bg-red-500/25" : "bg-blue-500/15 text-blue-400 hover:bg-blue-500/25"}`}
+                  >
                     <PlatformIcon platform={platform} />
                     {PLATFORM_LABEL[platform]}
                   </a>
@@ -286,15 +320,23 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
                 </button>
               )}
               {setup.videoUrl && setup.videoUrl !== setup.downloadUrl && (
-                <a href={setup.videoUrl} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-app-unit font-semibold bg-red-500/15 text-red-400 rounded hover:bg-red-500/25 transition-colors">
+                <a
+                  href={setup.videoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-app-unit font-semibold bg-red-500/15 text-red-400 rounded hover:bg-red-500/25 transition-colors"
+                >
                   <PlatformIcon platform="youtube" />
                   Hotlap
                 </a>
               )}
               {setup.pageUrl && (
-                <a href={setup.pageUrl} target="_blank" rel="noopener noreferrer"
-                  className="px-3 py-1.5 text-app-unit font-semibold bg-app-surface-alt text-app-text-secondary rounded hover:text-app-text transition-colors border border-app-border">
+                <a
+                  href={setup.pageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 text-app-unit font-semibold bg-app-surface-alt text-app-text-secondary rounded hover:text-app-text transition-colors border border-app-border"
+                >
                   accsetups.com
                 </a>
               )}
@@ -302,9 +344,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
           </div>
 
           {/* Video column */}
-          <div className="w-1/2 shrink-0 overflow-hidden">
-            {setup.videoUrl && <SetupVideo url={setup.videoUrl} />}
-          </div>
+          <div className="w-1/2 shrink-0 overflow-hidden">{setup.videoUrl && <SetupVideo url={setup.videoUrl} />}</div>
         </div>
       )}
     </div>

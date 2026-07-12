@@ -38,8 +38,9 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
     if (ord === lastCarOrdRef.current) return;
     lastCarOrdRef.current = ord;
 
-    client.api["car-name"][":ordinal"].$get({ param: { ordinal: String(ord) }, query: { gameId: gameId! } })
-      .then((r) => r.ok ? r.text() : `Car #${ord}`)
+    client.api["car-name"][":ordinal"]
+      .$get({ param: { ordinal: String(ord) }, query: { gameId: gameId! } })
+      .then((r) => (r.ok ? r.text() : `Car #${ord}`))
       .then((name) => setCarName(name))
       .catch(() => setCarName(`Car #${ord}`));
   }, [packet, gameId]);
@@ -47,11 +48,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
   const units = useUnits();
 
   if (!packet) {
-    return (
-      <div className="flex items-center justify-center h-full text-app-text-dim">
-        Waiting for telemetry data...
-      </div>
-    );
+    return <div className="flex items-center justify-center h-full text-app-text-dim">Waiting for telemetry data...</div>;
   }
 
   const speed = packet.DisplaySpeed;
@@ -68,18 +65,15 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs font-semibold text-app-text truncate">{carName}</span>
           <span className="text-[10px] font-mono font-semibold px-1.5 py-px rounded text-app-accent shrink-0">
-            {(gameId && tryGetGame(gameId)?.carClassNames?.[packet.CarClass]) ?? "?"}{packet.CarPerformanceIndex}
+            {(gameId && tryGetGame(gameId)?.carClassNames?.[packet.CarClass]) ?? "?"}
+            {packet.CarPerformanceIndex}
           </span>
-          <span className="text-[10px] text-app-text-dim shrink-0">
-            {(gameId && tryGetGame(gameId)?.drivetrainNames?.[packet.DrivetrainType]) ?? "?"}
-          </span>
+          <span className="text-[10px] text-app-text-dim shrink-0">{(gameId && tryGetGame(gameId)?.drivetrainNames?.[packet.DrivetrainType]) ?? "?"}</span>
         </div>
       )}
       <div className="flex items-end justify-between mb-1">
         <div className="flex items-baseline gap-1">
-          <span className="text-5xl font-mono font-black text-app-text tabular-nums leading-none tracking-tighter">
-            {speed.toFixed(0)}
-          </span>
+          <span className="text-5xl font-mono font-black text-app-text tabular-nums leading-none tracking-tighter">{speed.toFixed(0)}</span>
           <span className="text-sm text-app-text-muted font-mono">{units.speedLabel}</span>
         </div>
         <div className="flex items-baseline gap-2">
@@ -97,9 +91,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
           if (segPct <= 60) color = lit ? "bg-cyan-400" : "bg-cyan-400/8";
           else if (segPct <= 80) color = lit ? "bg-amber-400" : "bg-amber-400/8";
           else color = lit ? "bg-red-500" : "bg-red-500/8";
-          return (
-            <div key={i} className={`flex-1 h-4 rounded-sm ${color} ${lit && segPct > 90 ? "animate-pulse" : ""}`} />
-          );
+          return <div key={i} className={`flex-1 h-4 rounded-sm ${color} ${lit && segPct > 90 ? "animate-pulse" : ""}`} />;
         })}
       </div>
       <div className="flex justify-between text-[9px] text-app-text-dim font-mono tabular-nums">
@@ -121,7 +113,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
             fr={{ tempC: units.toTempC(packet.TireTempFR), wear: packet.TireWearFR }}
             rl={{ tempC: units.toTempC(packet.TireTempRL), wear: packet.TireWearRL }}
             rr={{ tempC: units.toTempC(packet.TireTempRR), wear: packet.TireWearRR }}
-            healthThresholds={(gameId ? tryGetGame(gameId) : null)?.tireHealthThresholds ?? { green: 0.70, yellow: 0.40 }}
+            healthThresholds={(gameId ? tryGetGame(gameId) : null)?.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 }}
             tempThresholds={{ blue: 60, orange: 85, red: 100 }}
           />
         </div>
@@ -135,7 +127,6 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
             <PitEstimate packet={packet} pit={pit} gameId={gameId} />
           </div>
         </div>
-
       </div>
     );
   }

@@ -59,6 +59,14 @@ export default defineConfig({
       },
     },
     {
+      name: "mobile-screenshots",
+      testMatch: "mobile-responsive.spec.ts",
+      use: {
+        baseURL: `http://localhost:${FRESH_INSTALL_PORT}`,
+        // Viewport is overridden per-describe-block in the spec.
+      },
+    },
+    {
       name: "tunes",
       testMatch: "tunes/*.spec.ts",
       use: {

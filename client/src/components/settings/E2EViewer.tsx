@@ -25,7 +25,7 @@ function generateTrackSVG(
   packets: Array<{ x: number; y: number }>,
   allPackets: Array<{ x: number; y: number }>,
   currentPacket?: { x: number; y: number },
-  boundPackets?: Array<{ x: number; y: number }> // Use these packets for bounds calculation
+  boundPackets?: Array<{ x: number; y: number }>, // Use these packets for bounds calculation
 ): string {
   if (packets.length === 0) {
     return '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><text x="10" y="30" fill="#999">No packets</text></svg>';
@@ -121,16 +121,12 @@ export function E2EViewer() {
 
     try {
       // Load packets
-      const packetsRes = await fetch(
-        `/api/dev/e2e-packets/${encodeURIComponent(filename)}`
-      );
+      const packetsRes = await fetch(`/api/dev/e2e-packets/${encodeURIComponent(filename)}`);
       const packetsData = await packetsRes.json();
       setMetadata(packetsData);
 
       // Load detected laps
-      const lapsRes = await fetch(
-        `/api/dev/e2e-laps/${encodeURIComponent(filename)}`
-      );
+      const lapsRes = await fetch(`/api/dev/e2e-laps/${encodeURIComponent(filename)}`);
       const lapsData = await lapsRes.json();
       setLaps(lapsData.laps || []);
 
@@ -171,7 +167,7 @@ export function E2EViewer() {
       displayIndex = packetIndex - 1;
     }
 
-    return laps.find(lap => displayIndex >= lap.startPacketIndex && displayIndex <= lap.endPacketIndex) || null;
+    return laps.find((lap) => displayIndex >= lap.startPacketIndex && displayIndex <= lap.endPacketIndex) || null;
   };
 
   // Update speed/position and regenerate SVG when packet index changes
@@ -191,10 +187,7 @@ export function E2EViewer() {
       if (packetIndex === 0) {
         displayIndex = selectedLap.endPacketIndex; // Show all lap packets
       } else {
-        displayIndex = Math.min(
-          selectedLap.startPacketIndex + packetIndex - 1,
-          selectedLap.endPacketIndex
-        );
+        displayIndex = Math.min(selectedLap.startPacketIndex + packetIndex - 1, selectedLap.endPacketIndex);
       }
     } else {
       // Full recording mode
@@ -210,17 +203,13 @@ export function E2EViewer() {
     if (selectedLap) {
       // Lap view: only show packets within this lap
       const lapPackets = metadata.packets.slice(selectedLap.startPacketIndex, selectedLap.endPacketIndex + 1);
-      const visiblePackets = packetIndex === 0
-        ? lapPackets
-        : lapPackets.slice(0, displayIndex - selectedLap.startPacketIndex + 1);
+      const visiblePackets = packetIndex === 0 ? lapPackets : lapPackets.slice(0, displayIndex - selectedLap.startPacketIndex + 1);
       // For lap view, both allPackets and boundPackets are the lap packets only
       const dynamicSvg = generateTrackSVG(visiblePackets, lapPackets, packet, lapPackets);
       setSvgContent(dynamicSvg);
     } else {
       // Raw view: show all packets
-      const visiblePackets = packetIndex === 0
-        ? metadata.packets
-        : metadata.packets.slice(0, displayIndex + 1);
+      const visiblePackets = packetIndex === 0 ? metadata.packets : metadata.packets.slice(0, displayIndex + 1);
       // For raw view, show all packets with no specific bounds constraint
       const dynamicSvg = generateTrackSVG(visiblePackets, metadata.packets, packet, undefined);
       setSvgContent(dynamicSvg);
@@ -232,9 +221,7 @@ export function E2EViewer() {
       {/* Header */}
       <div className="pb-4 border-b border-app-border mb-4">
         <h3 className="text-lg font-semibold text-app-text">E2E Test Viewer</h3>
-        <p className="text-sm text-app-text-muted mt-1">
-          View test recordings with packet scrubber for debugging
-        </p>
+        <p className="text-sm text-app-text-muted mt-1">View test recordings with packet scrubber for debugging</p>
       </div>
 
       {/* Left/Right split */}
@@ -251,15 +238,11 @@ export function E2EViewer() {
                   key={file.name}
                   onClick={() => handleSelectFile(file.name)}
                   className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
-                    selectedFile === file.name
-                      ? "bg-app-accent text-app-surface"
-                      : "bg-app-surface text-app-text hover:bg-app-surface-alt"
+                    selectedFile === file.name ? "bg-app-accent text-app-surface" : "bg-app-surface text-app-text hover:bg-app-surface-alt"
                   }`}
                 >
                   <div className="font-mono truncate">{file.name}</div>
-                  <div className="text-app-text-muted text-xs">
-                    {(file.size / 1024 / 1024).toFixed(1)} MB
-                  </div>
+                  <div className="text-app-text-muted text-xs">{(file.size / 1024 / 1024).toFixed(1)} MB</div>
                 </button>
               ))
             )}
@@ -272,9 +255,7 @@ export function E2EViewer() {
             {/* SVG display */}
             <div className="flex-1 border border-app-border rounded bg-app-surface-alt p-4 overflow-hidden mb-4 flex flex-col min-h-0">
               {loading ? (
-                <div className="h-full flex items-center justify-center text-app-text-muted">
-                  Loading...
-                </div>
+                <div className="h-full flex items-center justify-center text-app-text-muted">Loading...</div>
               ) : svgContent ? (
                 <>
                   {selectedLap && (
@@ -282,20 +263,11 @@ export function E2EViewer() {
                       Lap {selectedLap.lapNumber} • {selectedLap.lapTime.toFixed(2)}s
                     </div>
                   )}
-                  {!selectedLap && laps.length > 0 && (
-                    <div className="text-xs text-app-text-muted mb-2 pb-2 border-b border-app-border shrink-0">
-                      Raw recording
-                    </div>
-                  )}
-                  <div
-                    className="flex-1 flex items-center justify-center w-full min-h-0 overflow-hidden"
-                    dangerouslySetInnerHTML={{ __html: svgContent }}
-                  />
+                  {!selectedLap && laps.length > 0 && <div className="text-xs text-app-text-muted mb-2 pb-2 border-b border-app-border shrink-0">Raw recording</div>}
+                  <div className="flex-1 flex items-center justify-center w-full min-h-0 overflow-hidden" dangerouslySetInnerHTML={{ __html: svgContent }} />
                 </>
               ) : (
-                <div className="h-full flex items-center justify-center text-app-text-muted">
-                  No SVG loaded
-                </div>
+                <div className="h-full flex items-center justify-center text-app-text-muted">No SVG loaded</div>
               )}
             </div>
 
@@ -304,34 +276,50 @@ export function E2EViewer() {
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
                   Packet: <span className="text-app-accent font-mono">{packetIndex === 0 ? "all" : packetIndex}</span>
-                  {metadata && (
-                    <span className="text-app-text-muted ml-2">
-                      / {selectedLap ? (selectedLap.endPacketIndex - selectedLap.startPacketIndex + 1) : (metadata.packetCount)}
-                    </span>
-                  )}
+                  {metadata && <span className="text-app-text-muted ml-2">/ {selectedLap ? selectedLap.endPacketIndex - selectedLap.startPacketIndex + 1 : metadata.packetCount}</span>}
                 </Label>
                 <input
                   type="range"
                   min="0"
-                  max={selectedLap ? (selectedLap.endPacketIndex - selectedLap.startPacketIndex + 1) : (metadata?.packetCount ?? 3000)}
+                  max={selectedLap ? selectedLap.endPacketIndex - selectedLap.startPacketIndex + 1 : (metadata?.packetCount ?? 3000)}
                   value={packetIndex}
                   onChange={(e) => setPacketIndex(Number(e.target.value))}
                   className="w-full"
                 />
                 <div className="flex gap-4 text-xs text-app-text-muted flex-wrap">
-                  <span>Speed: <span className="text-app-text">{speed.toFixed(1)}</span></span>
-                  <span>Position: <span className="text-app-text">({position.x.toFixed(0)}, {position.y.toFixed(0)})</span></span>
+                  <span>
+                    Speed: <span className="text-app-text">{speed.toFixed(1)}</span>
+                  </span>
+                  <span>
+                    Position:{" "}
+                    <span className="text-app-text">
+                      ({position.x.toFixed(0)}, {position.y.toFixed(0)})
+                    </span>
+                  </span>
                   {selectedLap && (
                     <>
-                      <span>Lap: <span className="text-app-text">{selectedLap.lapNumber}</span></span>
-                      <span>Elapsed: <span className="text-app-text">{selectedLap.lapTime > 0 ? ((packetIndex / (selectedLap.endPacketIndex - selectedLap.startPacketIndex + 1)) * selectedLap.lapTime).toFixed(2) : "0.00"}s</span></span>
-                      <span>Total: <span className="text-app-text">{selectedLap.lapTime.toFixed(2)}s</span></span>
+                      <span>
+                        Lap: <span className="text-app-text">{selectedLap.lapNumber}</span>
+                      </span>
+                      <span>
+                        Elapsed:{" "}
+                        <span className="text-app-text">
+                          {selectedLap.lapTime > 0 ? ((packetIndex / (selectedLap.endPacketIndex - selectedLap.startPacketIndex + 1)) * selectedLap.lapTime).toFixed(2) : "0.00"}s
+                        </span>
+                      </span>
+                      <span>
+                        Total: <span className="text-app-text">{selectedLap.lapTime.toFixed(2)}s</span>
+                      </span>
                     </>
                   )}
                   {!selectedLap && getCurrentLapInRawView() && (
                     <>
-                      <span>Lap: <span className="text-app-text">{getCurrentLapInRawView()?.lapNumber}</span></span>
-                      <span>Lap Time: <span className="text-app-text">{(getCurrentLapInRawView()?.lapTime ?? 0).toFixed(2)}s</span></span>
+                      <span>
+                        Lap: <span className="text-app-text">{getCurrentLapInRawView()?.lapNumber}</span>
+                      </span>
+                      <span>
+                        Lap Time: <span className="text-app-text">{(getCurrentLapInRawView()?.lapTime ?? 0).toFixed(2)}s</span>
+                      </span>
                     </>
                   )}
                 </div>
@@ -345,9 +333,7 @@ export function E2EViewer() {
                     <button
                       onClick={() => setSelectedLap(null)}
                       className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                        selectedLap === null
-                          ? "bg-app-accent text-app-surface"
-                          : "bg-app-surface text-app-text hover:bg-app-surface-alt border border-app-border"
+                        selectedLap === null ? "bg-app-accent text-app-surface" : "bg-app-surface text-app-text hover:bg-app-surface-alt border border-app-border"
                       }`}
                     >
                       Raw
@@ -357,9 +343,7 @@ export function E2EViewer() {
                         key={lap.lapNumber}
                         onClick={() => handleSelectLap(lap)}
                         className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                          selectedLap?.lapNumber === lap.lapNumber
-                            ? "bg-app-accent text-app-surface"
-                            : "bg-app-surface text-app-text hover:bg-app-surface-alt border border-app-border"
+                          selectedLap?.lapNumber === lap.lapNumber ? "bg-app-accent text-app-surface" : "bg-app-surface text-app-text hover:bg-app-surface-alt border border-app-border"
                         } ${!lap.isValid ? "opacity-60" : ""}`}
                         title={`Lap ${lap.lapNumber}: ${lap.lapTime.toFixed(2)}s`}
                       >
@@ -379,9 +363,7 @@ export function E2EViewer() {
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-app-text-muted">
-            Select a recording to view
-          </div>
+          <div className="flex-1 flex items-center justify-center text-app-text-muted">Select a recording to view</div>
         )}
       </div>
     </div>

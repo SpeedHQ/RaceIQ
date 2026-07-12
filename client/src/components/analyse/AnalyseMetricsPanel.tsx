@@ -50,14 +50,24 @@ export function WearValue({ label, value }: { label: string; value: number }) {
   const pct = (health * 100).toFixed(1);
   const color = health > 0.7 ? "#34d399" : health > 0.4 ? "#fbbf24" : "#ef4444";
   return (
-    <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{pct}%</span></span>
+    <span className="text-app-text-secondary">
+      {label}:{" "}
+      <span className="tabular-nums" style={{ color }}>
+        {pct}%
+      </span>
+    </span>
   );
 }
 
 export function SlipValue({ label, value }: { label: string; value: number }) {
   const color = Math.abs(value) < 0.5 ? "#34d399" : Math.abs(value) < 1.5 ? "#fbbf24" : "#ef4444";
   return (
-    <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{value.toFixed(2)}</span></span>
+    <span className="text-app-text-secondary">
+      {label}:{" "}
+      <span className="tabular-nums" style={{ color }}>
+        {value.toFixed(2)}
+      </span>
+    </span>
   );
 }
 
@@ -66,18 +76,25 @@ export function SlipAngleValue({ label, value, speedMph }: { label: string; valu
   const a = Math.abs(deg);
   // Scale thresholds by speed — high slip angles are normal at low speed
   const speedFactor = speedMph != null ? Math.max(0.3, Math.min(1, speedMph / 80)) : 1;
-  const t1 = 4 / speedFactor;  // green->yellow: 4° at 80mph, ~13° at 25mph
-  const t2 = 8 / speedFactor;  // yellow->orange
+  const t1 = 4 / speedFactor; // green->yellow: 4° at 80mph, ~13° at 25mph
+  const t2 = 8 / speedFactor; // yellow->orange
   const t3 = 14 / speedFactor; // orange->red
   const color = a < t1 ? "#34d399" : a < t2 ? "#fbbf24" : a < t3 ? "#fb923c" : "#ef4444";
   return (
-    <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{deg.toFixed(1)}°</span></span>
+    <span className="text-app-text-secondary">
+      {label}:{" "}
+      <span className="tabular-nums" style={{ color }}>
+        {deg.toFixed(1)}°
+      </span>
+    </span>
   );
 }
 
 export function WheelSpeedValue({ label, value }: { label: string; value: number }) {
   return (
-    <span className="text-app-text-secondary">{label}: <span className="tabular-nums">{value.toFixed(1)}</span></span>
+    <span className="text-app-text-secondary">
+      {label}: <span className="tabular-nums">{value.toFixed(1)}</span>
+    </span>
   );
 }
 
@@ -94,6 +111,11 @@ export function SuspValue({ label, value }: { label: string; value: number }) {
   const pct = (value * 100).toFixed(0);
   const color = value < 0.25 ? "#3b82f6" : value < 0.65 ? "#34d399" : value < 0.85 ? "#fbbf24" : "#ef4444";
   return (
-    <span className="text-app-text-secondary">{label}: <span className="tabular-nums" style={{ color }}>{pct}%</span></span>
+    <span className="text-app-text-secondary">
+      {label}:{" "}
+      <span className="tabular-nums" style={{ color }}>
+        {pct}%
+      </span>
+    </span>
   );
 }

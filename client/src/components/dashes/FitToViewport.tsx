@@ -31,14 +31,7 @@ const Y_MAP = {
 const ORIGIN_X = { start: "left", center: "center", end: "right" } as const;
 const ORIGIN_Y = { start: "top", center: "center", end: "bottom" } as const;
 
-export function FitToViewport({
-  children,
-  padding = 8,
-  maxScale = 3,
-  alignX = "center",
-  alignY = "center",
-  className = "",
-}: FitToViewportProps) {
+export function FitToViewport({ children, padding = 8, maxScale = 3, alignX = "center", alignY = "center", className = "" }: FitToViewportProps) {
   const outerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -80,11 +73,7 @@ export function FitToViewport({
   }, [padding, maxScale]);
 
   return (
-    <div
-      ref={outerRef}
-      className={`w-full h-full flex ${X_MAP[alignX]} ${Y_MAP[alignY]} overflow-hidden ${className}`}
-      style={{ padding }}
-    >
+    <div ref={outerRef} className={`w-full h-full flex ${X_MAP[alignX]} ${Y_MAP[alignY]} overflow-hidden ${className}`} style={{ padding }}>
       <div
         ref={innerRef}
         style={{

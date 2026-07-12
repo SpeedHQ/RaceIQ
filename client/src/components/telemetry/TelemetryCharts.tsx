@@ -39,7 +39,8 @@ export function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
-    client.api["telemetry-history"].$get()
+    client.api["telemetry-history"]
+      .$get()
       .then((r) => r.json() as Promise<typeof histRef.current>)
       .then((data) => {
         if (data && Array.isArray(data.grip?.fl)) {
@@ -56,7 +57,9 @@ export function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
     slipAngle: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
     slipRatio: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
     suspension: { fl: [] as number[], fr: [] as number[], rl: [] as number[], rr: [] as number[] },
-    throttle: [] as number[], brake: [] as number[], speed: [] as number[],
+    throttle: [] as number[],
+    brake: [] as number[],
+    speed: [] as number[],
   });
 
   // Sample at ~10Hz
@@ -66,8 +69,16 @@ export function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
 
     const h = histRef.current;
     const push4 = (t: { fl: number[]; fr: number[]; rl: number[]; rr: number[] }, fl: number, fr: number, rl: number, rr: number) => {
-      t.fl.push(fl); t.fr.push(fr); t.rl.push(rl); t.rr.push(rr);
-      if (t.fl.length > GRIP_MAX_SAMPLES) { t.fl.shift(); t.fr.shift(); t.rl.shift(); t.rr.shift(); }
+      t.fl.push(fl);
+      t.fr.push(fr);
+      t.rl.push(rl);
+      t.rr.push(rr);
+      if (t.fl.length > GRIP_MAX_SAMPLES) {
+        t.fl.shift();
+        t.fr.shift();
+        t.rl.shift();
+        t.rr.shift();
+      }
     };
     push4(h.grip, Math.abs(packet.TireCombinedSlipFL), Math.abs(packet.TireCombinedSlipFR), Math.abs(packet.TireCombinedSlipRL), Math.abs(packet.TireCombinedSlipRR));
     push4(h.temp, packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR);
@@ -75,10 +86,14 @@ export function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
     push4(h.slipAngle, packet.TireSlipAngleFL * (180 / Math.PI), packet.TireSlipAngleFR * (180 / Math.PI), packet.TireSlipAngleRL * (180 / Math.PI), packet.TireSlipAngleRR * (180 / Math.PI));
     push4(h.slipRatio, Math.abs(packet.TireSlipRatioFL), Math.abs(packet.TireSlipRatioFR), Math.abs(packet.TireSlipRatioRL), Math.abs(packet.TireSlipRatioRR));
     push4(h.suspension, packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR);
-    h.throttle.push(packet.Accel / 255 * 100);
-    h.brake.push(packet.Brake / 255 * 100);
+    h.throttle.push((packet.Accel / 255) * 100);
+    h.brake.push((packet.Brake / 255) * 100);
     h.speed.push(packet.DisplaySpeed);
-    if (h.throttle.length > GRIP_MAX_SAMPLES) { h.throttle.shift(); h.brake.shift(); h.speed.shift(); }
+    if (h.throttle.length > GRIP_MAX_SAMPLES) {
+      h.throttle.shift();
+      h.brake.shift();
+      h.speed.shift();
+    }
     setChartData({ ...h });
   }, [packet]);
 

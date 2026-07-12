@@ -83,7 +83,23 @@ jobs:
 
       - name: Compile server binary
         shell: bash
-        run: NODE_ENV=production bun build --compile --target=bun-windows-x64 --windows-icon=assets/raceiq.ico --define 'process.env.NODE_ENV="production"' server/bootstrap.ts --outfile dist/raceiq.exe
+        run: |
+          VERSION=${{ needs.compute-version.outputs.version }}
+          NODE_ENV=production bun build --compile --target=bun-windows-x64 \
+            --windows-icon=assets/raceiq.ico \
+            --windows-title=RaceIQ \
+            --windows-publisher=SpeedHQ \
+            --windows-description="RaceIQ" \
+            --windows-version=${VERSION} \
+            --define 'process.env.NODE_ENV="production"' \
+            server/bootstrap.ts --outfile dist/raceiq.exe
+
+      - name: Patch PE version info (ProductName)
+        shell: pwsh
+        run: |
+          $rcedit = "$env:TEMP\rcedit.exe"
+          Invoke-WebRequest -Uri "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe" -OutFile $rcedit
+          & $rcedit dist\raceiq.exe --set-version-string "ProductName" "RaceIQ" --set-version-string "InternalName" "RaceIQ"
 
       - name: Copy libsql native addon
         shell: bash

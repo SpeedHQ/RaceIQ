@@ -108,14 +108,7 @@ function render({ game, rpm, gear, unitSystem }: Args) {
           transform: "translateZ(0)",
         }}
       >
-        <ComboDash
-          rawPacket={raw}
-          packet={display}
-          sectors={fakeSectors}
-          pit={fakePit}
-          unitSystem={unitSystem}
-          toTempC={fx.tempUnit === "F" ? fToC : idC}
-        />
+        <ComboDash rawPacket={raw} packet={display} sectors={fakeSectors} pit={fakePit} unitSystem={unitSystem} toTempC={fx.tempUnit === "F" ? fToC : idC} />
       </div>
     </QueryClientProvider>
   );
@@ -189,14 +182,7 @@ export const NoData: Story = {
   render: () => (
     <QueryClientProvider client={queryClient}>
       <div style={{ width: "100vw", height: "100vh", background: "#000" }}>
-        <ComboDash
-          rawPacket={null}
-          packet={null}
-          sectors={null}
-          pit={null}
-          unitSystem="metric"
-          toTempC={fToC}
-        />
+        <ComboDash rawPacket={null} packet={null} sectors={null} pit={null} unitSystem="metric" toTempC={fToC} />
       </div>
     </QueryClientProvider>
   ),

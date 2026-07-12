@@ -12,6 +12,7 @@ import { NoteModal } from "./ui/NoteModal";
 import { AppInput } from "./ui/AppInput";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Tooltip } from "./ui/InfoTooltip";
+import { RotatePrompt } from "../routes/__root";
 
 const PAGE_SIZE = 25;
 
@@ -23,7 +24,6 @@ function fuzzyToken(token: string, field: string): boolean {
   return normalize(field).includes(normalize(token));
 }
 
-
 function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => void }) {
   const [open, setOpen] = useState(false);
   return (
@@ -31,15 +31,18 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
       {open && <NoteModal value={value} onSave={onSave} onClose={() => setOpen(false)} />}
       <span
         className="relative cursor-pointer group block w-full"
-        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
       >
         <span className={`text-xs break-words whitespace-pre-wrap transition-opacity group-hover:opacity-30 ${value ? "text-app-text/90" : "text-app-text/90-dim italic"}`}>
           {value || "Add note…"}
         </span>
         <span className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity text-app-text/90 text-[10px] font-medium">
           <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
           </svg>
           Edit
         </span>
@@ -50,7 +53,15 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
 
 type LapSortKey = "lap" | "time";
 
-function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort, selectedLaps, toggleLapSelection }: {
+function SessionLapTable({
+  session,
+  laps,
+  lapSortKey,
+  lapSortDir,
+  toggleLapSort,
+  selectedLaps,
+  toggleLapSelection,
+}: {
   session: SessionMeta;
   laps: LapMeta[];
   lapSortKey: LapSortKey;
@@ -67,7 +78,9 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
   const bestSectors = useMemo(() => {
     const best = { s1: Infinity, s2: Infinity, s3: Infinity };
     for (const lap of laps) {
-      const s1 = lap.s1Time ?? 0, s2 = lap.s2Time ?? 0, s3 = lap.s3Time ?? 0;
+      const s1 = lap.s1Time ?? 0,
+        s2 = lap.s2Time ?? 0,
+        s3 = lap.s3Time ?? 0;
       if (s1 > 0 && s1 < best.s1) best.s1 = s1;
       if (s2 > 0 && s2 < best.s2) best.s2 = s2;
       if (s3 > 0 && s3 < best.s3) best.s3 = s3;
@@ -75,10 +88,14 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
     return best;
   }, [laps]);
 
-  const sortedLaps = useMemo(() => [...laps].sort((a, b) => {
-    if (lapSortKey === "lap") return lapSortDir === "asc" ? a.lapNumber - b.lapNumber : b.lapNumber - a.lapNumber;
-    return lapSortDir === "asc" ? a.lapTime - b.lapTime : b.lapTime - a.lapTime;
-  }), [laps, lapSortKey, lapSortDir]);
+  const sortedLaps = useMemo(
+    () =>
+      [...laps].sort((a, b) => {
+        if (lapSortKey === "lap") return lapSortDir === "asc" ? a.lapNumber - b.lapNumber : b.lapNumber - a.lapNumber;
+        return lapSortDir === "asc" ? a.lapTime - b.lapTime : b.lapTime - a.lapTime;
+      }),
+    [laps, lapSortKey, lapSortDir],
+  );
 
   function sectorColor(time: number, best: number): string {
     if (best === Infinity || time <= 0) return "text-app-text/90";
@@ -87,87 +104,121 @@ function SessionLapTable({ session, laps, lapSortKey, lapSortDir, toggleLapSort,
   }
 
   return (
-    <><Table>
-      <THead>
-        <TH className="w-10 px-2" />
-        <TH />
-        {(["lap", "time"] as const).map((f) => (
-          <TH key={f} className="cursor-pointer select-none hover:text-app-text/90" onClick={() => toggleLapSort(f)}>
-            {f === "lap" ? "Lap" : "Time"}
-            {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
-          </TH>
-        ))}
-        <TH className="text-red-400">S1</TH>
-        <TH className="text-blue-400">S2</TH>
-        <TH className="text-yellow-400">S3</TH>
-        <TH className="w-[40%]">Notes</TH>
-      </THead>
-      <TBody>
-        {sortedLaps.map((lap) => {
-          const best = session.bestLapTime ?? 0;
-          const isBest = best > 0 && Math.abs(lap.lapTime - best) < 0.001;
-          return (
-            <TRow key={lap.id} onContextMenu={(e: React.MouseEvent) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, lapId: lap.id }); }}>
-              <TD className="px-2 text-center">
-                <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-cyan-400 w-4 h-4" />
-              </TD>
-              <TD />
-              <TD className="font-mono text-app-text/90">{lap.lapNumber}</TD>
-              <TD>
-                <div className="flex items-center gap-2">
-                  <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
-                  {lap.isValid ? <span className="text-emerald-400 text-sm">&#10003;</span> : <span className="text-red-400 text-sm" title={lap.invalidReason}>&#10007;</span>}
-                  {lap.isLegacy ? (
-                    <Tooltip content={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
-                      <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
+    <>
+      <Table>
+        <THead>
+          <TH className="w-10 px-2" />
+          <TH />
+          {(["lap", "time"] as const).map((f) => (
+            <TH key={f} className="cursor-pointer select-none hover:text-app-text/90" onClick={() => toggleLapSort(f)}>
+              {f === "lap" ? "Lap" : "Time"}
+              {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
+            </TH>
+          ))}
+          <TH className="text-red-400">S1</TH>
+          <TH className="text-blue-400">S2</TH>
+          <TH className="text-yellow-400">S3</TH>
+          <TH className="w-[40%]">Notes</TH>
+        </THead>
+        <TBody>
+          {sortedLaps.map((lap) => {
+            const best = session.bestLapTime ?? 0;
+            const isBest = best > 0 && Math.abs(lap.lapTime - best) < 0.001;
+            return (
+              <TRow
+                key={lap.id}
+                onContextMenu={(e: React.MouseEvent) => {
+                  e.preventDefault();
+                  setContextMenu({ x: e.clientX, y: e.clientY, lapId: lap.id });
+                }}
+              >
+                <TD className="px-2 text-center">
+                  <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-cyan-400 w-4 h-4" />
+                </TD>
+                <TD />
+                <TD className="font-mono text-app-text/90">{lap.lapNumber}</TD>
+                <TD>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
+                    {lap.isValid ? (
+                      <span className="text-emerald-400 text-sm">&#10003;</span>
+                    ) : (
+                      <span className="text-red-400 text-sm" title={lap.invalidReason}>
+                        &#10007;
+                      </span>
+                    )}
+                    {lap.isLegacy ? (
+                      <Tooltip content={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
+                        <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
+                          Analyse
+                        </Button>
+                      </Tooltip>
+                    ) : (
+                      <Button
+                        variant="app-outline"
+                        size="app-sm"
+                        className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate({ to: `${gameRoute}/analyse` as any, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } as any });
+                        }}
+                      >
                         Analyse
                       </Button>
-                    </Tooltip>
-                  ) : (
-                    <Button variant="app-outline" size="app-sm" className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      onClick={(e) => { e.stopPropagation(); navigate({ to: `${gameRoute}/analyse` as any, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } as any }); }}>
-                      Analyse
-                    </Button>
-                  )}
-                </div>
-              </TD>
-              {(["s1", "s2", "s3"] as const).map((s) => {
-                const val = s === "s1" ? (lap.s1Time ?? 0) : s === "s2" ? (lap.s2Time ?? 0) : (lap.s3Time ?? 0);
-                return <TD key={s} className={`font-mono ${sectorColor(val, bestSectors[s])}`}>{val > 0 ? formatLapTime(val) : "—"}</TD>;
-              })}
-              <TD>
-                <NoteCell value={lap.notes ?? undefined} onSave={(notes) => {
-                  client.api.laps[":id"].notes.$patch({ param: { id: String(lap.id) }, json: { notes: notes || null } });
-                  qc.invalidateQueries({ queryKey: queryKeys.laps });
-                }} />
-              </TD>
-            </TRow>
-          );
-        })}
-      </TBody>
-    </Table>
+                    )}
+                  </div>
+                </TD>
+                {(["s1", "s2", "s3"] as const).map((s) => {
+                  const val = s === "s1" ? (lap.s1Time ?? 0) : s === "s2" ? (lap.s2Time ?? 0) : (lap.s3Time ?? 0);
+                  return (
+                    <TD key={s} className={`font-mono ${sectorColor(val, bestSectors[s])}`}>
+                      {val > 0 ? formatLapTime(val) : "—"}
+                    </TD>
+                  );
+                })}
+                <TD>
+                  <NoteCell
+                    value={lap.notes ?? undefined}
+                    onSave={(notes) => {
+                      client.api.laps[":id"].notes.$patch({ param: { id: String(lap.id) }, json: { notes: notes || null } });
+                      qc.invalidateQueries({ queryKey: queryKeys.laps });
+                    }}
+                  />
+                </TD>
+              </TRow>
+            );
+          })}
+        </TBody>
+      </Table>
 
-    {/* Dev context menu */}
-    {contextMenu && (
-      <>
-        <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }} />
-        <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
-          <button
-            className="w-full px-3 py-1.5 text-left hover:bg-app-surface-alt text-app-text"
-            onClick={async () => {
-              const res = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
-              const data = await res.json();
-              console.log("[Recheck]", data);
-              qc.invalidateQueries({ queryKey: queryKeys.laps });
+      {/* Dev context menu */}
+      {contextMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setContextMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
               setContextMenu(null);
             }}
-          >
-            Recheck validity
-          </button>
-        </div>
-      </>
-    )}
+          />
+          <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
+            <button
+              className="w-full px-3 py-1.5 text-left hover:bg-app-surface-alt text-app-text"
+              onClick={async () => {
+                const res = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
+                const data = await res.json();
+                console.log("[Recheck]", data);
+                qc.invalidateQueries({ queryKey: queryKeys.laps });
+                setContextMenu(null);
+              }}
+            >
+              Recheck validity
+            </button>
+          </div>
+        </>
+      )}
     </>
   );
 }
@@ -180,9 +231,18 @@ function formatSessionType(type?: string): string {
   return type.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function SortHeader({ label, field, sortKey, sortDir, toggleSort }: {
-  label: string; field: SortKey;
-  sortKey: SortKey; sortDir: SortDir; toggleSort: (f: SortKey) => void;
+function SortHeader({
+  label,
+  field,
+  sortKey,
+  sortDir,
+  toggleSort,
+}: {
+  label: string;
+  field: SortKey;
+  sortKey: SortKey;
+  sortDir: SortDir;
+  toggleSort: (f: SortKey) => void;
 }) {
   return (
     <TH className="cursor-pointer select-none hover:text-app-text/90" onClick={() => toggleSort(field)}>
@@ -207,7 +267,10 @@ export function SessionsPage() {
   const [lapSortDir, setLapSortDir] = useState<SortDir>("asc");
   const toggleLapSort = (key: LapSortKey) => {
     if (lapSortKey === key) setLapSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setLapSortKey(key); setLapSortDir("asc"); }
+    else {
+      setLapSortKey(key);
+      setLapSortDir("asc");
+    }
   };
   const [trackNames, setTrackNames] = useState<Record<number, string>>({});
   const [carNames, setCarNames] = useState<Record<number, string>>({});
@@ -237,17 +300,23 @@ export function SessionsPage() {
     }
     for (const ord of trackOrds) {
       if (!trackNames[ord]) {
-        client.api["track-name"][":ordinal"].$get({ param: { ordinal: String(ord) }, query: { gameId: gameId! } })
-          .then((r) => r.ok ? r.text() : "")
-          .then((name) => { if (name) setTrackNames((prev) => ({ ...prev, [ord]: name })); })
+        client.api["track-name"][":ordinal"]
+          .$get({ param: { ordinal: String(ord) }, query: { gameId: gameId! } })
+          .then((r) => (r.ok ? r.text() : ""))
+          .then((name) => {
+            if (name) setTrackNames((prev) => ({ ...prev, [ord]: name }));
+          })
           .catch(() => {});
       }
     }
     for (const ord of carOrds) {
       if (!carNames[ord]) {
-        client.api["car-name"][":ordinal"].$get({ param: { ordinal: String(ord) }, query: { gameId: gameId! } })
-          .then((r) => r.ok ? r.text() : "")
-          .then((name) => { if (name) setCarNames((prev) => ({ ...prev, [ord]: name })); })
+        client.api["car-name"][":ordinal"]
+          .$get({ param: { ordinal: String(ord) }, query: { gameId: gameId! } })
+          .then((r) => (r.ok ? r.text() : ""))
+          .then((name) => {
+            if (name) setCarNames((prev) => ({ ...prev, [ord]: name }));
+          })
           .catch(() => {});
       }
     }
@@ -310,8 +379,7 @@ export function SessionsPage() {
         const car = (carNames[s.carOrdinal] ?? "").toLowerCase();
         const notes = (s.notes ?? "").toLowerCase();
         const tokens = q.split(/\s+/).filter(Boolean);
-        const anyFieldMatches = (token: string) =>
-          fuzzyToken(token, track) || fuzzyToken(token, car) || fuzzyToken(token, notes);
+        const anyFieldMatches = (token: string) => fuzzyToken(token, track) || fuzzyToken(token, car) || fuzzyToken(token, notes);
         if (!tokens.every(anyFieldMatches)) return false;
       }
       return true;
@@ -321,28 +389,33 @@ export function SessionsPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  useEffect(() => { setPage(0); }, [sessions.length, search]);
+  useEffect(() => {
+    setPage(0);
+  }, [sessions.length, search]);
 
-  const toggleSessionSelection = useCallback((sessionId: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setSelectedSessions((prev) => {
-      const next = new Set(prev);
-      const adding = !next.has(sessionId);
-      if (adding) next.add(sessionId);
-      else next.delete(sessionId);
-      // Also select/deselect all laps in this session
-      const laps = lapsBySession.get(sessionId) ?? [];
-      setSelectedLaps((prevLaps) => {
-        const nextLaps = new Set(prevLaps);
-        for (const lap of laps) {
-          if (adding) nextLaps.add(lap.id);
-          else nextLaps.delete(lap.id);
-        }
-        return nextLaps;
+  const toggleSessionSelection = useCallback(
+    (sessionId: number, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setSelectedSessions((prev) => {
+        const next = new Set(prev);
+        const adding = !next.has(sessionId);
+        if (adding) next.add(sessionId);
+        else next.delete(sessionId);
+        // Also select/deselect all laps in this session
+        const laps = lapsBySession.get(sessionId) ?? [];
+        setSelectedLaps((prevLaps) => {
+          const nextLaps = new Set(prevLaps);
+          for (const lap of laps) {
+            if (adding) nextLaps.add(lap.id);
+            else nextLaps.delete(lap.id);
+          }
+          return nextLaps;
+        });
+        return next;
       });
-      return next;
-    });
-  }, [lapsBySession]);
+    },
+    [lapsBySession],
+  );
 
   const toggleExpand = useCallback((sessionId: number) => {
     setExpandedSessions((prev) => {
@@ -362,7 +435,7 @@ export function SessionsPage() {
     });
   }, []);
 
-const deleteSelected = useCallback(async () => {
+  const deleteSelected = useCallback(async () => {
     if (selectedSessions.size > 0) {
       await client.api.sessions["bulk-delete"].$post({ json: { ids: [...selectedSessions] } });
     }
@@ -380,77 +453,145 @@ const deleteSelected = useCallback(async () => {
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
-      <div className="flex items-center gap-3">
-        <AppInput
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search track, car, notes…"
-          className="w-64"
-        />
+      <RotatePrompt />
+      <div className="flex items-center flex-wrap gap-3">
+        <AppInput type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search track, car, notes…" className="flex-1 min-w-[200px] sm:flex-none sm:w-64" />
         <h1 className="text-sm font-semibold text-app-text/90 shrink-0">
           Sessions
           {!isLoading && (
-            <span className="text-app-text/90-muted font-normal ml-2">
-              {filtered.length === sessions.length ? `${sessions.length} total` : `${filtered.length} of ${sessions.length}`}
-            </span>
+            <span className="text-app-text/90-muted font-normal ml-2">{filtered.length === sessions.length ? `${sessions.length} total` : `${filtered.length} of ${sessions.length}`}</span>
           )}
         </h1>
-        <div className="flex items-center gap-2">
-          {selectedLaps.size === 2 && (() => {
-            // Only show Compare when the two selected laps are from sessions
-            // on the same track — the compare route expects a single track.
-            const ids = [...selectedLaps];
-            const lapA = allLaps.find((l) => l.id === ids[0]);
-            const lapB = allLaps.find((l) => l.id === ids[1]);
-            if (!lapA || !lapB) return null;
-            if (lapA.isLegacy || lapB.isLegacy) return (
-              <Tooltip content={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
-                <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none">Compare</Button>
-              </Tooltip>
-            );
-            const sessA = sessions.find((s) => s.id === lapA.sessionId);
-            const sessB = sessions.find((s) => s.id === lapB.sessionId);
-            if (!sessA || !sessB) return null;
-            if (sessA.trackOrdinal !== sessB.trackOrdinal) return null;
-            return (
-              <button
-                onClick={() => {
-                  // Route shape is per-game (fm23/compare, f125/compare, …).
-                  // TanStack Router types don't know about the dynamic gameRoute
-                  // template; the existing per-lap navigate at ~line 121 uses
-                  // the same escape hatch.
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  const args: any = {
-                    to: `${gameRoute}/compare`,
-                    search: {
-                      track: sessA.trackOrdinal,
-                      carA: sessA.carOrdinal,
-                      carB: sessB.carOrdinal,
-                      lapA: lapA.id,
-                      lapB: lapB.id,
-                    },
-                  };
-                  navigate(args);
-                }}
-                className="px-3 py-1.5 text-sm rounded bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors"
-              >
-                Compare 2 laps
-              </button>
-            );
-          })()}
+        <div className="flex items-center flex-wrap gap-2">
+          {selectedLaps.size === 2 &&
+            (() => {
+              // Only show Compare when the two selected laps are from sessions
+              // on the same track — the compare route expects a single track.
+              const ids = [...selectedLaps];
+              const lapA = allLaps.find((l) => l.id === ids[0]);
+              const lapB = allLaps.find((l) => l.id === ids[1]);
+              if (!lapA || !lapB) return null;
+              if (lapA.isLegacy || lapB.isLegacy)
+                return (
+                  <Tooltip content={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
+                    <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none">
+                      Compare
+                    </Button>
+                  </Tooltip>
+                );
+              const sessA = sessions.find((s) => s.id === lapA.sessionId);
+              const sessB = sessions.find((s) => s.id === lapB.sessionId);
+              if (!sessA || !sessB) return null;
+              if (sessA.trackOrdinal !== sessB.trackOrdinal) return null;
+              return (
+                <button
+                  onClick={() => {
+                    // Route shape is per-game (fm23/compare, f125/compare, …).
+                    // TanStack Router types don't know about the dynamic gameRoute
+                    // template; the existing per-lap navigate at ~line 121 uses
+                    // the same escape hatch.
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const args: any = {
+                      to: `${gameRoute}/compare`,
+                      search: {
+                        track: sessA.trackOrdinal,
+                        carA: sessA.carOrdinal,
+                        carB: sessB.carOrdinal,
+                        lapA: lapA.id,
+                        lapB: lapB.id,
+                      },
+                    };
+                    navigate(args);
+                  }}
+                  className="px-3 py-1.5 text-sm rounded bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors"
+                >
+                  Compare 2 laps
+                </button>
+              );
+            })()}
           {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
-            <button
-              onClick={deleteSelected}
-              className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors"
-            >
-              Delete {selectedSessions.size > 0 ? `${selectedSessions.size} session${selectedSessions.size > 1 ? "s" : ""}` : ""}{selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}{selectedLaps.size > 0 ? `${selectedLaps.size} lap${selectedLaps.size > 1 ? "s" : ""}` : ""}
+            <button onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors">
+              Delete {selectedSessions.size > 0 ? `${selectedSessions.size} session${selectedSessions.size > 1 ? "s" : ""}` : ""}
+              {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
+              {selectedLaps.size > 0 ? `${selectedLaps.size} lap${selectedLaps.size > 1 ? "s" : ""}` : ""}
             </button>
           )}
         </div>
       </div>
 
-      <Table className="flex-1 overflow-auto">
+      {/* Mobile card list */}
+      <div className="md:hidden flex-1 overflow-auto flex flex-col gap-2">
+        {isLoading ? (
+          <div className="px-3 py-8 text-center text-app-text/90-muted">Loading...</div>
+        ) : pageItems.length === 0 ? (
+          <div className="px-3 py-8 text-center text-app-text/90-muted">No sessions recorded yet</div>
+        ) : (
+          pageItems.map((session) => {
+            const isExpanded = expandedSessions.has(session.id);
+            const sessionLaps = lapsBySession.get(session.id) ?? [];
+            const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((l) => l.lapTime)) : 0);
+            return (
+              <div key={session.id} className={`rounded-lg border border-app-border bg-app-surface ${isExpanded ? "bg-app-surface-alt/40" : ""}`}>
+                <div className="flex items-start gap-3 p-3 cursor-pointer" onClick={() => toggleExpand(session.id)}>
+                  <input
+                    type="checkbox"
+                    checked={selectedSessions.has(session.id)}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    onChange={(e) => toggleSessionSelection(session.id, e as any)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="accent-cyan-400 w-5 h-5 mt-0.5 shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <div className="text-sm font-semibold text-app-text truncate">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</div>
+                      <div className="text-[11px] text-app-text/90-dim shrink-0">
+                        {new Date(session.createdAt).toLocaleDateString()} {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                    </div>
+                    <div className="text-xs text-app-text/90-muted truncate mt-0.5">
+                      {carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}
+                      {isF1 && session.sessionType && session.sessionType !== "unknown" && <> · {formatSessionType(session.sessionType)}</>}
+                    </div>
+                    <div className="flex items-center gap-4 mt-2 text-xs">
+                      <span className="text-app-text/90-muted">
+                        Laps <span className="text-app-text font-mono tabular-nums">{session.lapCount ?? 0}</span>
+                      </span>
+                      <span className="text-app-text/90-muted">
+                        Best <span className="text-app-text font-mono tabular-nums">{bestTime ? formatLapTime(bestTime) : "—"}</span>
+                      </span>
+                      <span className="ml-auto text-app-text/90-dim">{isExpanded ? "▾" : "▸"}</span>
+                    </div>
+                    <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                      <NoteCell
+                        value={session.notes ?? undefined}
+                        onSave={(notes) => {
+                          client.api.sessions[":id"].notes.$patch({ param: { id: String(session.id) }, json: { notes: notes || null } });
+                          qc.invalidateQueries({ queryKey: queryKeys.sessions });
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                {isExpanded && sessionLaps.length > 0 && (
+                  <div className="border-t border-app-border overflow-x-auto">
+                    <SessionLapTable
+                      session={session}
+                      laps={sessionLaps}
+                      lapSortKey={lapSortKey}
+                      lapSortDir={lapSortDir}
+                      toggleLapSort={toggleLapSort}
+                      selectedLaps={selectedLaps}
+                      toggleLapSelection={toggleLapSelection}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <Table className="hidden md:table flex-1 overflow-auto">
         <THead>
           <TH className="w-10 px-2">
             <input
@@ -480,9 +621,17 @@ const deleteSelected = useCallback(async () => {
         </THead>
         <TBody>
           {isLoading ? (
-            <tr><td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90-muted">Loading...</td></tr>
+            <tr>
+              <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90-muted">
+                Loading...
+              </td>
+            </tr>
           ) : pageItems.length === 0 ? (
-            <tr><td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90-muted">No sessions recorded yet</td></tr>
+            <tr>
+              <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90-muted">
+                No sessions recorded yet
+              </td>
+            </tr>
           ) : (
             pageItems.map((session) => {
               const isExpanded = expandedSessions.has(session.id);
@@ -496,11 +645,7 @@ const deleteSelected = useCallback(async () => {
               });
               return (
                 <>
-                  <TRow
-                    key={session.id}
-                    onClick={() => toggleExpand(session.id)}
-                    className={isExpanded ? "bg-app-surface-alt/30" : ""}
-                  >
+                  <TRow key={session.id} onClick={() => toggleExpand(session.id)} className={isExpanded ? "bg-app-surface-alt/30" : ""}>
                     <TD className="px-2 text-center" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
@@ -512,9 +657,7 @@ const deleteSelected = useCallback(async () => {
                     </TD>
                     <TD className="text-app-text/90 whitespace-nowrap">
                       {new Date(session.createdAt).toLocaleDateString()}{" "}
-                      <span className="text-app-text/90-dim">
-                        {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
+                      <span className="text-app-text/90-dim">{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                     </TD>
                     <TD className="text-app-text/90 tabular-nums">{session.lapCount ?? 0}</TD>
                     <TD className="text-app-text/90 tabular-nums">

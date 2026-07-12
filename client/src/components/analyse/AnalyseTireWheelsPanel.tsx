@@ -28,9 +28,9 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
   const rr = currentDisplayPacket?.DisplayTireTempRR ?? currentPacket.TireTempRR;
   const healths = [currentPacket.TireWearFL, currentPacket.TireWearFR, currentPacket.TireWearRL, currentPacket.TireWearRR];
   const speeds = [currentPacket.WheelRotationSpeedFL, currentPacket.WheelRotationSpeedFR, currentPacket.WheelRotationSpeedRL, currentPacket.WheelRotationSpeedRR];
-  const wearRates = (["FL", "FR", "RL", "RR"] as const).map(w => wearRate ? wearRate[w] * 100 : null);
+  const wearRates = (["FL", "FR", "RL", "RR"] as const).map((w) => (wearRate ? wearRate[w] * 100 : null));
   const adapter = tryGetGame(gameId);
-  const hThresh = adapter?.tireHealthThresholds ?? { green: 0.70, yellow: 0.40 };
+  const hThresh = adapter?.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
   const pressureOptimal = useTirePressureOptimal(gameId, currentPacket.CarOrdinal);
 
   const brakeFL = currentPacket.BrakeTempFrontLeft ?? currentPacket.f1?.brakeTempFL ?? 0;
@@ -54,11 +54,49 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
 
   const rows = [
     { label: "Rotation /s", fl: speeds[0].toFixed(1), fr: speeds[1].toFixed(1), rl: speeds[2].toFixed(1), rr: speeds[3].toFixed(1) },
-    { label: "Temp", fl: C(`${fl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFL), units.thresholds)), fr: C(`${fr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFR), units.thresholds)), rl: C(`${rl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRL), units.thresholds)), rr: C(`${rr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRR), units.thresholds)) },
-    { label: "Health", fl: C(`${((1 - healths[0]) * 100).toFixed(1)}%`, tireHealthColor(healths[0], hThresh)), fr: C(`${((1 - healths[1]) * 100).toFixed(1)}%`, tireHealthColor(healths[1], hThresh)), rl: C(`${((1 - healths[2]) * 100).toFixed(1)}%`, tireHealthColor(healths[2], hThresh)), rr: C(`${((1 - healths[3]) * 100).toFixed(1)}%`, tireHealthColor(healths[3], hThresh)) },
-    { label: "Wear /s", fl: C(wearRates[0] != null ? wearRates[0].toFixed(3) + "%" : "—", wearRateColor(wearRates[0])), fr: C(wearRates[1] != null ? wearRates[1].toFixed(3) + "%" : "—", wearRateColor(wearRates[1])), rl: C(wearRates[2] != null ? wearRates[2].toFixed(3) + "%" : "—", wearRateColor(wearRates[2])), rr: C(wearRates[3] != null ? wearRates[3].toFixed(3) + "%" : "—", wearRateColor(wearRates[3])) },
-    ...(hasBrakes ? [{ label: "Brake", fl: C(`${brakeFL.toFixed(0)}°C`, COLORS[brakeTempColor(brakeFL, false)]), fr: C(`${brakeFR.toFixed(0)}°C`, COLORS[brakeTempColor(brakeFR, false)]), rl: C(`${brakeRL.toFixed(0)}°C`, COLORS[brakeTempColor(brakeRL, true)]), rr: C(`${brakeRR.toFixed(0)}°C`, COLORS[brakeTempColor(brakeRR, true)]) }] : []),
-    ...(hasPressure ? [{ label: "Pressure", fl: C(`${pressFL.toFixed(1)} psi`, COLORS[tirePressureColor(pressFL, pressureOptimal)]), fr: C(`${pressFR.toFixed(1)} psi`, COLORS[tirePressureColor(pressFR, pressureOptimal)]), rl: C(`${pressRL.toFixed(1)} psi`, COLORS[tirePressureColor(pressRL, pressureOptimal)]), rr: C(`${pressRR.toFixed(1)} psi`, COLORS[tirePressureColor(pressRR, pressureOptimal)]) }] : []),
+    {
+      label: "Temp",
+      fl: C(`${fl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFL), units.thresholds)),
+      fr: C(`${fr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFR), units.thresholds)),
+      rl: C(`${rl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRL), units.thresholds)),
+      rr: C(`${rr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRR), units.thresholds)),
+    },
+    {
+      label: "Health",
+      fl: C(`${((1 - healths[0]) * 100).toFixed(1)}%`, tireHealthColor(healths[0], hThresh)),
+      fr: C(`${((1 - healths[1]) * 100).toFixed(1)}%`, tireHealthColor(healths[1], hThresh)),
+      rl: C(`${((1 - healths[2]) * 100).toFixed(1)}%`, tireHealthColor(healths[2], hThresh)),
+      rr: C(`${((1 - healths[3]) * 100).toFixed(1)}%`, tireHealthColor(healths[3], hThresh)),
+    },
+    {
+      label: "Wear /s",
+      fl: C(wearRates[0] != null ? wearRates[0].toFixed(3) + "%" : "—", wearRateColor(wearRates[0])),
+      fr: C(wearRates[1] != null ? wearRates[1].toFixed(3) + "%" : "—", wearRateColor(wearRates[1])),
+      rl: C(wearRates[2] != null ? wearRates[2].toFixed(3) + "%" : "—", wearRateColor(wearRates[2])),
+      rr: C(wearRates[3] != null ? wearRates[3].toFixed(3) + "%" : "—", wearRateColor(wearRates[3])),
+    },
+    ...(hasBrakes
+      ? [
+          {
+            label: "Brake",
+            fl: C(`${brakeFL.toFixed(0)}°C`, COLORS[brakeTempColor(brakeFL, false)]),
+            fr: C(`${brakeFR.toFixed(0)}°C`, COLORS[brakeTempColor(brakeFR, false)]),
+            rl: C(`${brakeRL.toFixed(0)}°C`, COLORS[brakeTempColor(brakeRL, true)]),
+            rr: C(`${brakeRR.toFixed(0)}°C`, COLORS[brakeTempColor(brakeRR, true)]),
+          },
+        ]
+      : []),
+    ...(hasPressure
+      ? [
+          {
+            label: "Pressure",
+            fl: C(`${pressFL.toFixed(1)} psi`, COLORS[tirePressureColor(pressFL, pressureOptimal)]),
+            fr: C(`${pressFR.toFixed(1)} psi`, COLORS[tirePressureColor(pressFR, pressureOptimal)]),
+            rl: C(`${pressRL.toFixed(1)} psi`, COLORS[tirePressureColor(pressRL, pressureOptimal)]),
+            rr: C(`${pressRR.toFixed(1)} psi`, COLORS[tirePressureColor(pressRR, pressureOptimal)]),
+          },
+        ]
+      : []),
   ];
 
   return (

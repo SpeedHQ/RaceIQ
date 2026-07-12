@@ -55,7 +55,9 @@ export const CarWireframe = React.memo(function CarWireframe({
   onModelOffset?: (offset: { x: number; y: number; z: number }) => void;
 }) {
   const [configsLoaded, setConfigsLoaded] = useState(false);
-  useEffect(() => { loadCarModelConfigs().then(() => setConfigsLoaded(true)); }, []);
+  useEffect(() => {
+    loadCarModelConfigs().then(() => setConfigsLoaded(true));
+  }, []);
   const storeGameId = useGameId();
   const gameId = gameIdProp ?? storeGameId;
   if (!gameId) {
@@ -106,8 +108,7 @@ export const CarWireframe = React.memo(function CarWireframe({
     return needsTrackFlip(gameId) ? flipBoundaries(boundaries) : boundaries;
   }, [boundaries, gameId]);
 
-  const toggle = (key: keyof ViewToggles) =>
-    setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggle = (key: keyof ViewToggles) => setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const fpsRef = useRef<HTMLSpanElement>(null);
   const fpsFrames = useRef(0);
@@ -171,47 +172,68 @@ export const CarWireframe = React.memo(function CarWireframe({
           };
         }}
       >
-        <CarScene gameId={gameId} packet={packet} telemetry={telemetry} cursorIdx={cursorIdx} outline={outline} boundaries={flippedBoundaries} toggles={toggles} viewPreset={viewPreset} carModel={carModel} modelOffsetX={modelOffsetX} fmtTemp={fmtTemp} hideModelWheels={!minimal} suspThresholds={suspThresholds} autoOrbit={autoOrbit} tireColors={[
-          tireTempColorHex(units.toTempC(packet.TireTempFL), units.thresholds),
-          tireTempColorHex(units.toTempC(packet.TireTempFR), units.thresholds),
-          tireTempColorHex(units.toTempC(packet.TireTempRL), units.thresholds),
-          tireTempColorHex(units.toTempC(packet.TireTempRR), units.thresholds),
-        ]} />
+        <CarScene
+          gameId={gameId}
+          packet={packet}
+          telemetry={telemetry}
+          cursorIdx={cursorIdx}
+          outline={outline}
+          boundaries={flippedBoundaries}
+          toggles={toggles}
+          viewPreset={viewPreset}
+          carModel={carModel}
+          modelOffsetX={modelOffsetX}
+          fmtTemp={fmtTemp}
+          hideModelWheels={!minimal}
+          suspThresholds={suspThresholds}
+          autoOrbit={autoOrbit}
+          tireColors={[
+            tireTempColorHex(units.toTempC(packet.TireTempFL), units.thresholds),
+            tireTempColorHex(units.toTempC(packet.TireTempFR), units.thresholds),
+            tireTempColorHex(units.toTempC(packet.TireTempRL), units.thresholds),
+            tireTempColorHex(units.toTempC(packet.TireTempRR), units.thresholds),
+          ]}
+        />
       </Canvas>
       <span ref={fpsRef} className="absolute bottom-1 right-24 text-sm font-mono text-app-text-dim/50 px-1 py-0.5" />
 
       {/* View toggles */}
-      {!hideControls && <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[65%]">
-        <ToggleButton
-          label={toggles.solid === "solid" ? "Solid" : toggles.solid === "hidden" ? "Hidden" : "Wire"}
-          active={toggles.solid !== "wire"}
-          onClick={() => setToggles((prev) => ({
-            ...prev,
-            solid: prev.solid === "wire" ? "solid" : prev.solid === "solid" ? "hidden" : "wire",
-          }))}
-        />
-        {!minimal && <ToggleButton label="Springs" active={toggles.springs} onClick={() => toggle("springs")} />}
-        {!minimal && <ToggleButton label="Trails" active={toggles.trails} onClick={() => toggle("trails")} />}
-        {!minimal && <ToggleButton label="Inputs" active={toggles.inputs} onClick={() => toggle("inputs")} />}
-        {!minimal && <ToggleButton label="Track" active={toggles.track} onClick={() => toggle("track")} />}
-        {!minimal && <ToggleButton label="Grid" active={toggles.grid} onClick={() => toggle("grid")} />}
-        {!minimal && <ToggleButton label="Drive" active={toggles.drivetrain} onClick={() => toggle("drivetrain")} />}
-        {!minimal && <ToggleButton label="Tire Info" active={toggles.wheelInfo} onClick={() => toggle("wheelInfo")} />}
-        {/* Camber toggle intentionally not rendered: ACC is the only game
+      {!hideControls && (
+        <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[65%]">
+          <ToggleButton
+            label={toggles.solid === "solid" ? "Solid" : toggles.solid === "hidden" ? "Hidden" : "Wire"}
+            active={toggles.solid !== "wire"}
+            onClick={() =>
+              setToggles((prev) => ({
+                ...prev,
+                solid: prev.solid === "wire" ? "solid" : prev.solid === "solid" ? "hidden" : "wire",
+              }))
+            }
+          />
+          {!minimal && <ToggleButton label="Springs" active={toggles.springs} onClick={() => toggle("springs")} />}
+          {!minimal && <ToggleButton label="Trails" active={toggles.trails} onClick={() => toggle("trails")} />}
+          {!minimal && <ToggleButton label="Inputs" active={toggles.inputs} onClick={() => toggle("inputs")} />}
+          {!minimal && <ToggleButton label="Track" active={toggles.track} onClick={() => toggle("track")} />}
+          {!minimal && <ToggleButton label="Grid" active={toggles.grid} onClick={() => toggle("grid")} />}
+          {!minimal && <ToggleButton label="Drive" active={toggles.drivetrain} onClick={() => toggle("drivetrain")} />}
+          {!minimal && <ToggleButton label="Tire Info" active={toggles.wheelInfo} onClick={() => toggle("wheelInfo")} />}
+          {/* Camber toggle intentionally not rendered: ACC is the only game
             with camber in telemetry and Kunos currently ships camberRAD[4]
             as a zeroed stub. Re-enable when the game writes real values. */}
-        {minimal && <ToggleButton label="Dims" active={toggles.dimensions} onClick={() => toggle("dimensions")} />}
-      </div>}
+          {minimal && <ToggleButton label="Dims" active={toggles.dimensions} onClick={() => toggle("dimensions")} />}
+        </div>
+      )}
 
       {/* Camera presets + steering indicator */}
-      {!hideControls && <div className="absolute top-2 right-2 flex flex-col gap-2 items-end">
-        <div className="flex flex-col gap-1">
-          {(Object.keys(VIEW_PRESETS) as ViewPreset[]).map((key) => (
-            <ToggleButton key={key} label={key} active={viewPreset === key} onClick={() => setViewPreset(key)} />
-          ))}
+      {!hideControls && (
+        <div className="absolute top-2 right-2 flex flex-col gap-2 items-end">
+          <div className="flex flex-col gap-1">
+            {(Object.keys(VIEW_PRESETS) as ViewPreset[]).map((key) => (
+              <ToggleButton key={key} label={key} active={viewPreset === key} onClick={() => setViewPreset(key)} />
+            ))}
+          </div>
         </div>
-
-      </div>}
+      )}
 
       {/* Model edit controls (minimal/car viewer mode) */}
       {!hideControls && minimal && !editMode && carModel.hasModel && (
@@ -237,7 +259,10 @@ export const CarWireframe = React.memo(function CarWireframe({
                     });
                     if (res.ok) {
                       setSaveStatus("saved");
-                      setTimeout(() => { setSaveStatus(""); setEditMode(false); }, 1000);
+                      setTimeout(() => {
+                        setSaveStatus("");
+                        setEditMode(false);
+                      }, 1000);
                     } else {
                       setSaveStatus("");
                     }
@@ -246,15 +271,16 @@ export const CarWireframe = React.memo(function CarWireframe({
                   }
                 }}
                 className={`px-1.5 py-0.5 rounded border transition-colors ${
-                  saveStatus === "saved"
-                    ? "bg-green-600 text-white border-green-400"
-                    : "bg-green-700/80 hover:bg-green-600 text-white border-green-500/30"
+                  saveStatus === "saved" ? "bg-green-600 text-white border-green-400" : "bg-green-700/80 hover:bg-green-600 text-white border-green-500/30"
                 }`}
               >
                 {saveStatus === "saving" ? "..." : saveStatus === "saved" ? "Saved" : "Save"}
               </button>
               <button
-                onClick={() => { setEditMode(false); setModelOffsetX(carModel.glbOffsetX ?? 0); }}
+                onClick={() => {
+                  setEditMode(false);
+                  setModelOffsetX(carModel.glbOffsetX ?? 0);
+                }}
                 className="px-1.5 py-0.5 rounded bg-app-surface-alt border border-app-border-input text-app-text-muted hover:text-app-text transition-colors"
               >
                 Cancel
@@ -263,15 +289,7 @@ export const CarWireframe = React.memo(function CarWireframe({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-app-text-muted w-8">X</span>
-            <input
-              type="range"
-              min={-0.5}
-              max={0.5}
-              step={0.01}
-              value={modelOffsetX}
-              onChange={(e) => setModelOffsetX(parseFloat(e.target.value))}
-              className="flex-1 accent-app-accent"
-            />
+            <input type="range" min={-0.5} max={0.5} step={0.01} value={modelOffsetX} onChange={(e) => setModelOffsetX(parseFloat(e.target.value))} className="flex-1 accent-app-accent" />
             <span className="text-app-text w-14 text-right">{(modelOffsetX * 1000).toFixed(0)}mm</span>
           </div>
         </div>

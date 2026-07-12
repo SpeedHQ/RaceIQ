@@ -32,12 +32,7 @@ interface Props {
   onJumpToFrame: (idx: number) => void;
 }
 
-export function AnalyseDataPanel({
-  sidebarTab, onSidebarTabChange,
-  currentPacket, currentDisplayPacket, startFuel,
-  gameId, units, wearRate,
-  lapInsights, onJumpToFrame,
-}: Props) {
+export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket, currentDisplayPacket, startFuel, gameId, units, wearRate, lapInsights, onJumpToFrame }: Props) {
   const [copied, setCopied] = useState(false);
   const handleCopyValues = useCallback(() => {
     if (!currentPacket) return;
@@ -99,9 +94,7 @@ export function AnalyseDataPanel({
         <button
           onClick={() => onSidebarTabChange("live")}
           className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
-            sidebarTab === "live"
-              ? "text-app-text border-b-2 border-app-accent"
-              : "text-app-text-muted hover:text-app-text"
+            sidebarTab === "live" ? "text-app-text border-b-2 border-app-accent" : "text-app-text-muted hover:text-app-text"
           }`}
         >
           Data
@@ -109,31 +102,19 @@ export function AnalyseDataPanel({
         <button
           onClick={() => onSidebarTabChange("insights")}
           className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
-            sidebarTab === "insights"
-              ? "text-app-text border-b-2 border-app-accent"
-              : "text-app-text-muted hover:text-app-text"
+            sidebarTab === "insights" ? "text-app-text border-b-2 border-app-accent" : "text-app-text-muted hover:text-app-text"
           }`}
         >
           Insights
-          {lapInsights.length > 0 && (
-            <span className="ml-1 text-[9px] bg-app-border-input text-app-text rounded-full px-1.5">
-              {lapInsights.length}
-            </span>
-          )}
+          {lapInsights.length > 0 && <span className="ml-1 text-[9px] bg-app-border-input text-app-text rounded-full px-1.5">{lapInsights.length}</span>}
         </button>
       </div>
 
       {sidebarTab === "live" && (
         <div className="px-3 pt-3 pb-1 shrink-0 flex items-center justify-between">
-          <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-0 font-semibold">
-            Metrics at Cursor
-          </h3>
+          <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-0 font-semibold">Metrics at Cursor</h3>
           {currentPacket && (
-            <button
-              onClick={handleCopyValues}
-              title="Copy values at cursor"
-              className="text-app-text-muted hover:text-app-text transition-colors"
-            >
+            <button onClick={handleCopyValues} title="Copy values at cursor" className="text-app-text-muted hover:text-app-text transition-colors">
               {copied ? <Check className="size-3.5 text-green-400" /> : <Copy className="size-3.5" />}
             </button>
           )}
@@ -150,25 +131,13 @@ export function AnalyseDataPanel({
                 <div className="mb-2 mt-3 pt-2 border-t border-app-border">
                   <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold">Dynamics</h3>
                 </div>
-                <AnalyseDynamicsPanel
-                  currentPacket={currentPacket}
-                  gameId={gameId}
-                  units={units}
-                />
+                <AnalyseDynamicsPanel currentPacket={currentPacket} gameId={gameId} units={units} />
 
-                <AnalyseTireWheelsPanel
-                  currentPacket={currentPacket}
-                  currentDisplayPacket={currentDisplayPacket}
-                  gameId={gameId}
-                  units={units}
-                  wearRate={wearRate}
-                />
+                <AnalyseTireWheelsPanel currentPacket={currentPacket} currentDisplayPacket={currentDisplayPacket} gameId={gameId} units={units} wearRate={wearRate} />
 
                 <AnalyseSuspensionPanel currentPacket={currentPacket} />
 
-                {gameId === "f1-2025" && (
-                  <AnalyseF1ErsPanel currentPacket={currentPacket} />
-                )}
+                {gameId === "f1-2025" && <AnalyseF1ErsPanel currentPacket={currentPacket} />}
               </>
             )}
           </>

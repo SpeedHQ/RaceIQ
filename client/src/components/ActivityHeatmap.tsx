@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { LapMeta } from "@shared/types";
 
 const CELL = 11;
@@ -34,18 +34,12 @@ function fmtDuration(sec: number): string {
   return `${s}s`;
 }
 
-const LEVEL_COLORS = [
-  "var(--color-app-surface-alt, #1a1d26)",
-  "rgba(139, 92, 246, 0.25)",
-  "rgba(139, 92, 246, 0.5)",
-  "rgba(139, 92, 246, 0.75)",
-  "rgba(139, 92, 246, 1)",
-];
+const LEVEL_COLORS = ["var(--color-app-surface-alt, #1a1d26)", "rgba(139, 92, 246, 0.25)", "rgba(139, 92, 246, 0.5)", "rgba(139, 92, 246, 0.75)", "rgba(139, 92, 246, 1)"];
 
 export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
   const [hover, setHover] = useState<{ date: string; seconds: number; x: number; y: number } | null>(null);
 
-  const { cells, max, totalDays, totalSeconds, monthMarkers } = useMemo(() => {
+  const { cells, max, totalDays, totalSeconds, monthMarkers, longestStreak, bestDaySeconds, bestDayKey } = useMemo(() => {
     const secs = new Map<string, number>();
     for (const lap of laps) {
       if (lap.lapTime <= 0) continue;
@@ -63,8 +57,11 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
     const months: { week: number; label: string }[] = [];
     let lastMonth = -1;
     let maxSec = 0;
+    let maxSecKey: string | null = null;
     let daysActive = 0;
     let totalSec = 0;
+    let currentStreak = 0;
+    let bestStreak = 0;
 
     for (let w = 0; w < WEEKS; w++) {
       const col: { date: Date; key: string; seconds: number }[] = [];
@@ -75,10 +72,17 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
         const seconds = secs.get(key) ?? 0;
         col.push({ date, key, seconds });
         if (date > today) continue;
-        if (seconds > maxSec) maxSec = seconds;
+        if (seconds > maxSec) {
+          maxSec = seconds;
+          maxSecKey = key;
+        }
         if (seconds > 0) {
           daysActive++;
           totalSec += seconds;
+          currentStreak++;
+          if (currentStreak > bestStreak) bestStreak = currentStreak;
+        } else {
+          currentStreak = 0;
         }
         if (d === 0 && date.getMonth() !== lastMonth) {
           months.push({ week: w, label: MONTH_LABELS[date.getMonth()] });
@@ -88,38 +92,50 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
       grid.push(col);
     }
 
-    return { cells: grid, max: maxSec, totalDays: daysActive, totalSeconds: totalSec, monthMarkers: months };
+    return {
+      cells: grid,
+      max: maxSec,
+      totalDays: daysActive,
+      totalSeconds: totalSec,
+      monthMarkers: months,
+      longestStreak: bestStreak,
+      bestDaySeconds: maxSec,
+      bestDayKey: maxSecKey,
+    };
   }, [laps]);
 
   const width = WEEKS * (CELL + GAP);
   const height = DAYS * (CELL + GAP);
   const todayKey = dayKey(new Date());
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollLeft = el.scrollWidth;
+  }, [cells]);
 
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2">
-        <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">
-          Activity — Last 12 Months
-        </h2>
+        <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">Activity — Last 12 Months</h2>
         <div className="text-[11px] text-app-text/90-dim">
-          {fmtDuration(totalSeconds)} · {totalDays} active days
+          {fmtDuration(totalSeconds)} · {totalDays} active days · longest streak {longestStreak} day{longestStreak === 1 ? "" : "s"} · longest day {fmtDuration(bestDaySeconds)}
         </div>
       </div>
-      <div className="rounded-lg p-4 overflow-x-auto relative">
+      <div ref={scrollRef} className="rounded-lg p-4 overflow-x-auto relative">
         <div className="flex gap-2 w-max mx-auto">
           <div className="flex flex-col justify-between py-[14px] pr-1 text-[9px] text-app-text/90-dim leading-none select-none">
             {DAY_LABELS.map((l, i) => (
-              <div key={i} style={{ height: CELL }}>{l}</div>
+              <div key={i} style={{ height: CELL }}>
+                {l}
+              </div>
             ))}
           </div>
           <div>
             <div className="relative" style={{ height: 14, width }}>
               {monthMarkers.map((m, i) => (
-                <div
-                  key={i}
-                  className="absolute text-[9px] text-app-text/90-dim uppercase tracking-wider"
-                  style={{ left: m.week * (CELL + GAP) }}
-                >
+                <div key={i} className="absolute text-[9px] text-app-text/90-dim uppercase tracking-wider" style={{ left: m.week * (CELL + GAP) }}>
                   {m.label}
                 </div>
               ))}
@@ -130,6 +146,9 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
                   const future = date > new Date();
                   const lvl = intensity(seconds, max);
                   const isToday = key === todayKey;
+                  const isBestDay = key === bestDayKey;
+                  const stroke = isBestDay ? "rgba(34, 211, 238, 1)" : isToday ? "rgba(139, 92, 246, 0.9)" : "rgba(255,255,255,0.04)";
+                  const strokeWidth = isBestDay ? 1.5 : isToday ? 1 : 0.5;
                   return (
                     <rect
                       key={`${w}-${d}`}
@@ -139,8 +158,8 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
                       height={CELL}
                       rx={2}
                       fill={future ? "transparent" : LEVEL_COLORS[lvl]}
-                      stroke={isToday ? "rgba(139, 92, 246, 0.9)" : "rgba(255,255,255,0.04)"}
-                      strokeWidth={isToday ? 1 : 0.5}
+                      stroke={stroke}
+                      strokeWidth={strokeWidth}
                       onMouseEnter={(e) => {
                         if (future) return;
                         const rect = (e.currentTarget.ownerSVGElement as SVGSVGElement).getBoundingClientRect();
@@ -154,23 +173,30 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
                       onMouseLeave={() => setHover(null)}
                     />
                   );
-                })
+                }),
               )}
             </svg>
-            <div
-              className="flex items-center justify-end gap-1.5 mt-2 text-[10px] text-app-text/90-dim"
-              style={{ width }}
-            >
-              <span>Less</span>
-              {LEVEL_COLORS.map((c, i) => (
-                <span
-                  key={i}
-                  className="inline-block rounded-sm"
-                  style={{ width: CELL, height: CELL, background: c, border: "0.5px solid rgba(255,255,255,0.04)" }}
-                />
-              ))}
-              <span>More</span>
-            </div>
+          </div>
+        </div>
+        <div className="sticky left-0 right-0 flex flex-wrap items-center justify-end gap-3 mt-2 px-1 text-[10px] text-app-text/90-dim">
+          <span className="flex items-center gap-1.5">
+            <span
+              className="inline-block rounded-sm"
+              style={{
+                width: CELL,
+                height: CELL,
+                background: LEVEL_COLORS[4],
+                border: "1.5px solid rgba(34, 211, 238, 1)",
+              }}
+            />
+            Longest day
+          </span>
+          <div className="flex items-center gap-1.5">
+            <span>Less</span>
+            {LEVEL_COLORS.map((c, i) => (
+              <span key={i} className="inline-block rounded-sm" style={{ width: CELL, height: CELL, background: c, border: "0.5px solid rgba(255,255,255,0.04)" }} />
+            ))}
+            <span>More</span>
           </div>
         </div>
         {hover && (

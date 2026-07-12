@@ -5,7 +5,7 @@
  */
 import type { GameId } from "../../shared/types";
 import type { ComparisonResult } from "../comparison";
-import type { UnitSystem } from "../export";
+import type { UnitSystem, TemperatureUnit } from "../export";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import { compareEngineerPersona, compareLapHeader } from "./compare-engineer";
 
@@ -60,15 +60,19 @@ function summarizeComparison(comp: ComparisonResult): string {
   let maxAheadIdx = 0;
   let maxBehindIdx = 0;
   for (let i = 0; i < td.length; i++) {
-    if (td[i] < maxAhead) { maxAhead = td[i]; maxAheadIdx = i; }
-    if (td[i] > maxBehind) { maxBehind = td[i]; maxBehindIdx = i; }
+    if (td[i] < maxAhead) {
+      maxAhead = td[i];
+      maxAheadIdx = i;
+    }
+    if (td[i] > maxBehind) {
+      maxBehind = td[i];
+      maxBehindIdx = i;
+    }
   }
   const distAtAhead = comp.distances[maxAheadIdx];
   const distAtBehind = comp.distances[maxBehindIdx];
 
-  const corners = [...comp.cornerDeltas]
-    .sort((a, b) => Math.abs(b.deltaSeconds) - Math.abs(a.deltaSeconds))
-    .slice(0, 8);
+  const corners = [...comp.cornerDeltas].sort((a, b) => Math.abs(b.deltaSeconds) - Math.abs(a.deltaSeconds)).slice(0, 8);
 
   let out = `--- COMPARISON SUMMARY ---\n`;
   out += `Final time delta (A − B): ${final >= 0 ? "+" : ""}${final.toFixed(3)}s `;
@@ -92,13 +96,14 @@ export function buildCompareChatSystemPrompt(
   analysisJsonA: string | null | undefined,
   analysisJsonB: string | null | undefined,
   unit: UnitSystem = "metric",
+  temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
 ): string {
   const carA = getCarName(lapA.carOrdinal ?? 0);
   const carB = getCarName(lapB.carOrdinal ?? 0);
   const trackName = getTrackName(lapA.trackOrdinal ?? 0);
-  const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? (lapA.lapTime - lapB.lapTime);
+  const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? lapA.lapTime - lapB.lapTime;
 
-  return `${compareEngineerPersona(unit)}
+  return `${compareEngineerPersona(unit, temperatureUnit)}
 
 This task: free-form chat. The driver will ask you questions about how the two laps compare. Be brief and use bullet points where helpful. NO JSON output — write conversational answers.
 

@@ -80,9 +80,7 @@ export function LapTimeChart({
 
     const sorted = [...times].sort((a, b) => a - b);
     const top5 = sorted.slice(0, Math.min(5, sorted.length));
-    const optimum = top5.length % 2 === 0
-      ? (top5[top5.length / 2 - 1] + top5[top5.length / 2]) / 2
-      : top5[Math.floor(top5.length / 2)];
+    const optimum = top5.length % 2 === 0 ? (top5[top5.length / 2 - 1] + top5[top5.length / 2]) / 2 : top5[Math.floor(top5.length / 2)];
     const optimumY = yOf(optimum);
 
     const recent4 = times.slice(-4);
@@ -168,11 +166,7 @@ export function LapTimeChart({
         <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Lap Times</h2>
       </div>
       <div className="flex-1 min-h-0 relative p-2" ref={containerRef} style={height ? { height: height + 16 } : undefined}>
-        {laps.length === 0 && (
-          <div className="absolute inset-2 flex items-center justify-center rounded bg-app-surface/40 text-app-text-dim text-sm">
-            Complete a lap to see lap times
-          </div>
-        )}
+        {laps.length === 0 && <div className="absolute inset-2 flex items-center justify-center rounded bg-app-surface/40 text-app-text-dim text-sm">Complete a lap to see lap times</div>}
         <canvas
           ref={canvasRef}
           style={{

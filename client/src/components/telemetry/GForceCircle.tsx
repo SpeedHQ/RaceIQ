@@ -39,8 +39,10 @@ export function GForceCircle({ packet }: { packet: TelemetryPacket }) {
 
     // Crosshairs
     ctx.beginPath();
-    ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy);
-    ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r);
+    ctx.moveTo(cx - r, cy);
+    ctx.lineTo(cx + r, cy);
+    ctx.moveTo(cx, cy - r);
+    ctx.lineTo(cx, cy + r);
     ctx.strokeStyle = "rgba(100,116,139,0.1)";
     ctx.stroke();
 
@@ -68,8 +70,14 @@ export function GForceCircle({ packet }: { packet: TelemetryPacket }) {
       <div className="text-[8px] font-mono text-app-text-muted uppercase tracking-wider font-semibold">G-Force</div>
       <canvas ref={canvasRef} style={{ width: size, height: size }} className="rounded bg-app-surface/40" />
       <div className="flex gap-2 text-[8px] font-mono text-app-text-secondary tabular-nums">
-        <span className="w-6 text-right">{latG >= 0 ? " " : ""}{latG.toFixed(1)}</span>
-        <span className="w-6 text-right">{lonG >= 0 ? " " : ""}{lonG.toFixed(1)}</span>
+        <span className="w-6 text-right">
+          {latG >= 0 ? " " : ""}
+          {latG.toFixed(1)}
+        </span>
+        <span className="w-6 text-right">
+          {lonG >= 0 ? " " : ""}
+          {lonG.toFixed(1)}
+        </span>
       </div>
     </div>
   );

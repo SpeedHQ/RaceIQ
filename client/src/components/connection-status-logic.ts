@@ -16,9 +16,7 @@ export interface ConnectionStatusView {
   dotColor: "green" | "red" | "cyan" | "amber" | "dim";
 }
 
-export function deriveConnectionStatusView(
-  inputs: ConnectionStatusInputs
-): ConnectionStatusView {
+export function deriveConnectionStatusView(inputs: ConnectionStatusInputs): ConnectionStatusView {
   const { connected, forzaReceiving, detectedGame } = inputs;
 
   const gameLabel = detectedGame?.name ?? null;

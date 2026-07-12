@@ -1,6 +1,5 @@
 import { useState } from "react";
 import fanatec15nm from "@shared/setup/fanatec-15nm.json";
-import { Link } from "@tanstack/react-router";
 
 interface Setting {
   name: string;
@@ -112,9 +111,7 @@ export function WheelCatalogue({ onSelect }: { onSelect: (profileId: string) => 
     <div className="flex-1 overflow-auto p-4 max-w-3xl mx-auto">
       <div className="mb-6">
         <h1 className="text-app-title font-bold text-app-text">Wheel Catalogue</h1>
-        <p className="text-app-subtext text-app-text-muted mt-1">
-          Select your wheel to view recommended FFB settings
-        </p>
+        <p className="text-app-subtext text-app-text-muted mt-1">Select your wheel to view recommended FFB settings</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -125,21 +122,14 @@ export function WheelCatalogue({ onSelect }: { onSelect: (profileId: string) => 
             className="group rounded-xl bg-app-surface/40 ring-1 ring-app-border hover:ring-app-accent/50 transition-all overflow-hidden text-left"
           >
             <div className="aspect-[16/10] bg-app-bg/60 flex items-center justify-center overflow-hidden">
-              <img
-                src={wheel.image}
-                alt={wheel.name}
-                className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300"
-              />
+              <img src={wheel.image} alt={wheel.name} className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300" />
             </div>
             <div className="p-4">
               <h3 className="text-app-heading font-semibold text-app-text">{wheel.name}</h3>
               <p className="text-app-subtext text-app-text-muted mt-0.5">{wheel.subtitle}</p>
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {wheel.specs.map((spec) => (
-                  <span
-                    key={spec}
-                    className="text-app-label font-medium px-2 py-0.5 rounded-full bg-app-accent/10 text-app-accent ring-1 ring-app-accent/20"
-                  >
+                  <span key={spec} className="text-app-label font-medium px-2 py-0.5 rounded-full bg-app-accent/10 text-app-accent ring-1 ring-app-accent/20">
                     {spec}
                   </span>
                 ))}
@@ -160,7 +150,7 @@ export function WheelCatalogue({ onSelect }: { onSelect: (profileId: string) => 
 
 type DetailTab = "wheel" | "ingame";
 
-export function HardwareSetupDetail({ profileId }: { profileId: string; onBack?: () => void }) {
+export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; onBack?: () => void }) {
   const profile = PROFILES.find((p) => p.id === profileId) ?? PROFILES[0];
   const [activeTab, setActiveTab] = useState<DetailTab>("wheel");
   const [activePreset, setActivePreset] = useState(profile.inGamePresets[0].id);
@@ -171,36 +161,32 @@ export function HardwareSetupDetail({ profileId }: { profileId: string; onBack?:
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <Link
-              to={"/setup" as any}
-              className="text-app-text-muted hover:text-app-text transition-colors"
-              title="Back to catalogue"
-            >
+            <button type="button" onClick={onBack} className="text-app-text-muted hover:text-app-text transition-colors" title="Back to catalogue">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                <path fillRule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z"
+                  clipRule="evenodd"
+                />
               </svg>
-            </Link>
+            </button>
             <h1 className="text-app-title font-bold text-app-text">Hardware Setup</h1>
-            <span className="text-app-unit font-semibold uppercase px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">
-              {profile.wheelBase.maxTorque}
-            </span>
+            <span className="text-app-unit font-semibold uppercase px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">{profile.wheelBase.maxTorque}</span>
           </div>
           <p className="text-app-subtext text-app-text-muted">{profile.description}</p>
         </div>
       </div>
 
       <div className="flex gap-2">
-        {([
+        {[
           { id: "wheel" as const, label: "Wheel Base" },
           { id: "ingame" as const, label: "In-Game FFB" },
-        ]).map((tab) => (
+        ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`text-app-label font-semibold uppercase px-3 py-1.5 rounded-lg transition-colors ${
-              activeTab === tab.id
-                ? "bg-app-accent/20 text-app-accent ring-1 ring-app-accent/30"
-                : "bg-app-surface/40 text-app-text-muted hover:text-app-text-secondary ring-1 ring-app-border"
+              activeTab === tab.id ? "bg-app-accent/20 text-app-accent ring-1 ring-app-accent/30" : "bg-app-surface/40 text-app-text-muted hover:text-app-text-secondary ring-1 ring-app-border"
             }`}
           >
             {tab.label}
@@ -240,9 +226,7 @@ export function HardwareSetupDetail({ profileId }: { profileId: string; onBack?:
                 key={p.id}
                 onClick={() => setActivePreset(p.id)}
                 className={`text-app-label font-semibold uppercase px-2.5 py-1.5 rounded-lg transition-colors ${
-                  activePreset === p.id
-                    ? "bg-app-accent/20 text-app-accent ring-1 ring-app-accent/30"
-                    : "bg-app-surface/40 text-app-text-muted hover:text-app-text-secondary ring-1 ring-app-border"
+                  activePreset === p.id ? "bg-app-accent/20 text-app-accent ring-1 ring-app-accent/30" : "bg-app-surface/40 text-app-text-muted hover:text-app-text-secondary ring-1 ring-app-border"
                 }`}
               >
                 {p.name}
@@ -271,7 +255,8 @@ export function HardwareSetupDetail({ profileId }: { profileId: string; onBack?:
                       <div key={o.name} className="flex items-center justify-between py-1">
                         <span className="text-app-body text-app-text-secondary">{o.name}</span>
                         <span className="text-app-body font-bold font-mono text-app-accent">
-                          {o.value}{o.unit && <span className="text-app-text-muted ml-0.5">{o.unit}</span>}
+                          {o.value}
+                          {o.unit && <span className="text-app-text-muted ml-0.5">{o.unit}</span>}
                         </span>
                       </div>
                     ))}

@@ -3,7 +3,10 @@ import type { TelemetryPacket } from "@shared/types";
 export const COLOR_A = "#f97316"; // orange
 export const COLOR_B = "#3b82f6"; // blue
 
-export interface Point { x: number; z: number }
+export interface Point {
+  x: number;
+  z: number;
+}
 
 export interface BoundaryData {
   leftEdge: Point[];
@@ -19,8 +22,11 @@ export function findTelemetryAtDistance(telemetry: TelemetryPacket[], distance: 
   let closest = 0;
   let closestDelta = Infinity;
   for (let i = 0; i < telemetry.length; i++) {
-    const d = Math.abs((telemetry[i].DistanceTraveled - distStart) - distance);
-    if (d < closestDelta) { closestDelta = d; closest = i; }
+    const d = Math.abs(telemetry[i].DistanceTraveled - distStart - distance);
+    if (d < closestDelta) {
+      closestDelta = d;
+      closest = i;
+    }
   }
   return closest;
 }
@@ -28,7 +34,8 @@ export function findTelemetryAtDistance(telemetry: TelemetryPacket[], distance: 
 /** Shared drawing logic for track outline + racing lines + position dots */
 export function drawTrackCanvas(
   ctx: CanvasRenderingContext2D,
-  w: number, h: number,
+  w: number,
+  h: number,
   outline: Point[],
   telemetryA: TelemetryPacket[],
   telemetryB: TelemetryPacket[],
@@ -44,20 +51,25 @@ export function drawTrackCanvas(
   ctx.clearRect(0, 0, w, h);
 
   // Bounding box of outline (include boundary edges if available)
-  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  let minX = Infinity,
+    maxX = -Infinity,
+    minZ = Infinity,
+    maxZ = -Infinity;
   const allBoundSets: Point[][] = [outline];
   if (boundaries && (boundaries.coordSystem === "forza" || boundaries.coordSystem === "f1-2025" || boundaries.coordSystem === "acc")) {
     allBoundSets.push(boundaries.leftEdge, boundaries.rightEdge);
   }
   for (const pts of allBoundSets) {
     for (const p of pts) {
-      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
-      minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minZ = Math.min(minZ, p.z);
+      maxZ = Math.max(maxZ, p.z);
     }
   }
 
-  const trackRangeX = (maxX - minX) || 1;
-  const trackRangeZ = (maxZ - minZ) || 1;
+  const trackRangeX = maxX - minX || 1;
+  const trackRangeZ = maxZ - minZ || 1;
   const padding = 24;
 
   let viewCenterX: number, viewCenterZ: number, viewRangeX: number, viewRangeZ: number;
@@ -77,10 +89,7 @@ export function drawTrackCanvas(
   const scaleZ = (h - padding * 2) / viewRangeZ;
   const sc = Math.min(scaleX, scaleZ);
 
-  const toCanvas = (x: number, z: number): [number, number] => [
-    w / 2 + (viewCenterX - x) * sc,
-    h / 2 + (z - viewCenterZ) * sc,
-  ];
+  const toCanvas = (x: number, z: number): [number, number] => [w / 2 + (viewCenterX - x) * sc, h / 2 + (z - viewCenterZ) * sc];
 
   // Car view: rotate map so car A always points up
   let needsRestore = false;
@@ -190,7 +199,7 @@ export function drawTrackCanvas(
   // Racing lines
   const drawRacingLine = (telemetry: TelemetryPacket[], color: string) => {
     if (telemetry.length < 2) return;
-    const hasPos = telemetry.some(p => p.PositionX !== 0 || p.PositionZ !== 0);
+    const hasPos = telemetry.some((p) => p.PositionX !== 0 || p.PositionZ !== 0);
     if (!hasPos) return;
     ctx.lineWidth = zoom ? 3 : 2;
     ctx.lineCap = "round";
@@ -203,8 +212,10 @@ export function drawTrackCanvas(
       const p = telemetry[i];
       if (p.PositionX === 0 && p.PositionZ === 0) continue;
       const [cx, cy] = toCanvas(telX!(p.PositionX), p.PositionZ);
-      if (!moved) { ctx.moveTo(cx, cy); moved = true; }
-      else ctx.lineTo(cx, cy);
+      if (!moved) {
+        ctx.moveTo(cx, cy);
+        moved = true;
+      } else ctx.lineTo(cx, cy);
     }
     ctx.stroke();
     ctx.globalAlpha = 1;
@@ -275,12 +286,7 @@ export function drawTrackCanvas(
  * Draw combined input HUD for both laps:
  * Layout: [Brake A][Brake B] — [Wheel A / Gear] — [Wheel B / Gear] — [Throttle A][Throttle B]
  */
-export function drawInputsHUD(
-  ctx: CanvasRenderingContext2D,
-  w: number, h: number,
-  pA: TelemetryPacket | null,
-  pB: TelemetryPacket | null,
-) {
+export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: number, pA: TelemetryPacket | null, pB: TelemetryPacket | null) {
   const barW = 14;
   const barH = 80;
   const wheelR = 28;
@@ -290,7 +296,7 @@ export function drawInputsHUD(
   const y0 = h - hudH - 10;
 
   // Semi-transparent backdrop
-  const totalW = (barW * 2 + barGap) * 2 + (wheelR * 2) * 2 + sectionGap * 4;
+  const totalW = (barW * 2 + barGap) * 2 + wheelR * 2 * 2 + sectionGap * 4;
   const bx0 = (w - totalW) / 2;
   ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
   ctx.beginPath();
@@ -415,9 +421,11 @@ export function computeZoom(
     cx = (telX(posA.PositionX) + telX(posB.PositionX)) / 2;
     cz = (posA.PositionZ + posB.PositionZ) / 2;
   } else if (validA) {
-    cx = telX(posA.PositionX); cz = posA.PositionZ;
+    cx = telX(posA.PositionX);
+    cz = posA.PositionZ;
   } else {
-    cx = telX(posB!.PositionX); cz = posB!.PositionZ;
+    cx = telX(posB!.PositionX);
+    cz = posB!.PositionZ;
   }
 
   const zoomRange = trackRange * 0.02;

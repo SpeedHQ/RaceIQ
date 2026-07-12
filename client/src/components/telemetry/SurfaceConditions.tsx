@@ -17,15 +17,11 @@ export function SurfaceConditions({ packet }: { packet: DisplayPacket | Telemetr
     <div>
       <div className="text-xs text-app-text-muted uppercase tracking-wider mb-2">Surface</div>
       <div className="grid grid-cols-2 gap-1.5 max-w-[200px] mx-auto">
-        {wheels.map(w => (
+        {wheels.map((w) => (
           <div
             key={w.label}
             className={`flex items-center justify-between px-2 py-1 rounded text-[10px] font-mono border ${
-              w.rumble
-                ? "border-orange-500/50 bg-orange-950/30"
-                : w.puddle > 0
-                  ? "border-blue-500/50 bg-blue-950/30"
-                  : "border-app-border"
+              w.rumble ? "border-orange-500/50 bg-orange-950/30" : w.puddle > 0 ? "border-blue-500/50 bg-blue-950/30" : "border-app-border"
             }`}
           >
             <span className="text-app-text-muted font-bold">{w.label}</span>

@@ -36,19 +36,82 @@ export function DimensionLines({ carModel }: { carModel: CarModelEnrichment }) {
   return (
     <group>
       {/* Front track width */}
-      <Line points={[[wb, y, -ft], [wb, y, ft]]} color="#22d3ee" lineWidth={2} />
-      <Line points={[[wb, y - 0.05, -ft], [wb, y + 0.05, -ft]]} color="#22d3ee" lineWidth={2} />
-      <Line points={[[wb, y - 0.05, ft], [wb, y + 0.05, ft]]} color="#22d3ee" lineWidth={2} />
+      <Line
+        points={[
+          [wb, y, -ft],
+          [wb, y, ft],
+        ]}
+        color="#22d3ee"
+        lineWidth={2}
+      />
+      <Line
+        points={[
+          [wb, y - 0.05, -ft],
+          [wb, y + 0.05, -ft],
+        ]}
+        color="#22d3ee"
+        lineWidth={2}
+      />
+      <Line
+        points={[
+          [wb, y - 0.05, ft],
+          [wb, y + 0.05, ft],
+        ]}
+        color="#22d3ee"
+        lineWidth={2}
+      />
 
       {/* Rear track width */}
-      <Line points={[[-wb, y, -rt], [-wb, y, rt]]} color="#22d3ee" lineWidth={2} />
-      <Line points={[[-wb, y - 0.05, -rt], [-wb, y + 0.05, -rt]]} color="#22d3ee" lineWidth={2} />
-      <Line points={[[-wb, y - 0.05, rt], [-wb, y + 0.05, rt]]} color="#22d3ee" lineWidth={2} />
+      <Line
+        points={[
+          [-wb, y, -rt],
+          [-wb, y, rt],
+        ]}
+        color="#22d3ee"
+        lineWidth={2}
+      />
+      <Line
+        points={[
+          [-wb, y - 0.05, -rt],
+          [-wb, y + 0.05, -rt],
+        ]}
+        color="#22d3ee"
+        lineWidth={2}
+      />
+      <Line
+        points={[
+          [-wb, y - 0.05, rt],
+          [-wb, y + 0.05, rt],
+        ]}
+        color="#22d3ee"
+        lineWidth={2}
+      />
 
       {/* Wheelbase (left side) */}
-      <Line points={[[wb, y, -ft], [-wb, y, -rt]]} color="#a78bfa" lineWidth={2} />
-      <Line points={[[wb, y - 0.05, -ft], [wb, y + 0.05, -ft]]} color="#a78bfa" lineWidth={2} />
-      <Line points={[[-wb, y - 0.05, -rt], [-wb, y + 0.05, -rt]]} color="#a78bfa" lineWidth={2} />
+      <Line
+        points={[
+          [wb, y, -ft],
+          [-wb, y, -rt],
+        ]}
+        color="#a78bfa"
+        lineWidth={2}
+      />
+      <Line
+        points={[
+          [wb, y - 0.05, -ft],
+          [wb, y + 0.05, -ft],
+        ]}
+        color="#a78bfa"
+        lineWidth={2}
+      />
+      <Line
+        points={[
+          [-wb, y - 0.05, -rt],
+          [-wb, y + 0.05, -rt],
+        ]}
+        color="#a78bfa"
+        lineWidth={2}
+      />
 
       {/* Labels using sprite-based text */}
       <DimensionLabel position={[wb, y + 0.15, 0]} text={`${(ft * 2 * 1000).toFixed(0)}mm`} color="#22d3ee" />

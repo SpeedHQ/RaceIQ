@@ -2,13 +2,18 @@ import type { TelemetryPacket } from "../shared/types";
 import { tryGetGame } from "../shared/games/registry";
 
 export type UnitSystem = "metric" | "imperial";
+export type TemperatureUnit = "C" | "F";
 
-function unitToSpeed(unit: UnitSystem) { return unit === "metric" ? "kmh" as const : "mph" as const; }
-function unitToTemp(unit: UnitSystem) { return unit === "metric" ? "C" as const : "F" as const; }
+function unitToSpeed(unit: UnitSystem) {
+  return unit === "metric" ? ("kmh" as const) : ("mph" as const);
+}
+function unitToTemp(unit: UnitSystem): TemperatureUnit {
+  return unit === "metric" ? "C" : "F";
+}
 
 function convertTemp(value: number, unit: "F" | "C", source: "F" | "C" = "F"): number {
   if (source === unit) return value;
-  return source === "F" ? (value - 32) * 5 / 9 : (value * 9 / 5) + 32;
+  return source === "F" ? ((value - 32) * 5) / 9 : (value * 9) / 5 + 32;
 }
 
 /**
@@ -23,7 +28,8 @@ export function generateExport(
     trackOrdinal?: number;
   },
   packets: TelemetryPacket[],
-  unit: UnitSystem = "metric"
+  unit: UnitSystem = "metric",
+  temperatureUnit?: TemperatureUnit,
 ): string {
   const first = packets[0];
   const adapter = first.gameId ? tryGetGame(first.gameId) : undefined;
@@ -31,18 +37,14 @@ export function generateExport(
   const drivetrainName = adapter?.drivetrainNames?.[first.DrivetrainType] ?? String(first.DrivetrainType);
 
   const speedUnit = unitToSpeed(unit);
-  const tempUnit = unitToTemp(unit);
-  const srcTemp = first.gameId === "fm-2023" ? "F" as const : "C" as const;
+  const tempUnit = temperatureUnit ?? unitToTemp(unit);
+  const srcTemp = first.gameId === "fm-2023" ? ("F" as const) : ("C" as const);
   const speedFactor = speedUnit === "kmh" ? 3.6 : 2.237;
   const speedLabel = speedUnit === "kmh" ? "km/h" : "mph";
   const tempLabel = tempUnit === "C" ? "C" : "F";
 
   // Speed calculations
-  const speeds = packets.map(
-    (p) =>
-      Math.sqrt(p.VelocityX ** 2 + p.VelocityY ** 2 + p.VelocityZ ** 2) *
-      speedFactor
-  );
+  const speeds = packets.map((p) => Math.sqrt(p.VelocityX ** 2 + p.VelocityY ** 2 + p.VelocityZ ** 2) * speedFactor);
   const minSpeed = Math.min(...speeds);
   const maxSpeed = Math.max(...speeds);
   const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
@@ -56,22 +58,17 @@ export function generateExport(
   // Throttle/Brake (0-255 -> percentage)
   const throttles = packets.map((p) => p.Accel / 255);
   const avgThrottle = throttles.reduce((a, b) => a + b, 0) / throttles.length;
-  const fullThrottle =
-    throttles.filter((t) => t > 0.95).length / throttles.length;
+  const fullThrottle = throttles.filter((t) => t > 0.95).length / throttles.length;
 
   const brakes = packets.map((p) => p.Brake / 255);
   const avgBrake = brakes.reduce((a, b) => a + b, 0) / brakes.length;
   const fullBrake = brakes.filter((b) => b > 0.95).length / brakes.length;
 
   // Tire temps — Forza sends Fahrenheit, F1/ACC send Celsius
-  const avgTireTempFL = convertTemp(
-    packets.reduce((a, p) => a + p.TireTempFL, 0) / packets.length, tempUnit, srcTemp);
-  const avgTireTempFR = convertTemp(
-    packets.reduce((a, p) => a + p.TireTempFR, 0) / packets.length, tempUnit, srcTemp);
-  const avgTireTempRL = convertTemp(
-    packets.reduce((a, p) => a + p.TireTempRL, 0) / packets.length, tempUnit, srcTemp);
-  const avgTireTempRR = convertTemp(
-    packets.reduce((a, p) => a + p.TireTempRR, 0) / packets.length, tempUnit, srcTemp);
+  const avgTireTempFL = convertTemp(packets.reduce((a, p) => a + p.TireTempFL, 0) / packets.length, tempUnit, srcTemp);
+  const avgTireTempFR = convertTemp(packets.reduce((a, p) => a + p.TireTempFR, 0) / packets.length, tempUnit, srcTemp);
+  const avgTireTempRL = convertTemp(packets.reduce((a, p) => a + p.TireTempRL, 0) / packets.length, tempUnit, srcTemp);
+  const avgTireTempRR = convertTemp(packets.reduce((a, p) => a + p.TireTempRR, 0) / packets.length, tempUnit, srcTemp);
 
   // Gear distribution
   const gearCounts = new Map<number, number>();
@@ -92,18 +89,10 @@ export function generateExport(
   const brakingZones = findBrakingZones(packets, speeds);
 
   // Suspension travel
-  const avgSuspFL =
-    packets.reduce((a, p) => a + p.SuspensionTravelMFL, 0) /
-    packets.length;
-  const avgSuspFR =
-    packets.reduce((a, p) => a + p.SuspensionTravelMFR, 0) /
-    packets.length;
-  const avgSuspRL =
-    packets.reduce((a, p) => a + p.SuspensionTravelMRL, 0) /
-    packets.length;
-  const avgSuspRR =
-    packets.reduce((a, p) => a + p.SuspensionTravelMRR, 0) /
-    packets.length;
+  const avgSuspFL = packets.reduce((a, p) => a + p.SuspensionTravelMFL, 0) / packets.length;
+  const avgSuspFR = packets.reduce((a, p) => a + p.SuspensionTravelMFR, 0) / packets.length;
+  const avgSuspRL = packets.reduce((a, p) => a + p.SuspensionTravelMRL, 0) / packets.length;
+  const avgSuspRR = packets.reduce((a, p) => a + p.SuspensionTravelMRR, 0) / packets.length;
 
   // Tire wear (use last packet values)
   const last = packets[packets.length - 1];
@@ -155,10 +144,7 @@ export interface BrakingZone {
   distance: number; // DistanceTraveled at brake point
 }
 
-export function findBrakingZones(
-  packets: TelemetryPacket[],
-  speeds: number[]
-): BrakingZone[] {
+export function findBrakingZones(packets: TelemetryPacket[], speeds: number[]): BrakingZone[] {
   const zones: BrakingZone[] = [];
   let inBraking = false;
   let brakeStartIdx = 0;
@@ -175,9 +161,7 @@ export function findBrakingZones(
     } else if (!braking && inBraking) {
       // End of braking zone
       inBraking = false;
-      const minSpeedInZone = Math.min(
-        ...speeds.slice(brakeStartIdx, i)
-      );
+      const minSpeedInZone = Math.min(...speeds.slice(brakeStartIdx, i));
       const delta = peakSpeed - minSpeedInZone;
       if (delta > 10) {
         // Only record significant braking
@@ -191,9 +175,6 @@ export function findBrakingZones(
   }
 
   // Sort by speed delta descending
-  zones.sort(
-    (a, b) =>
-      b.startSpeed - b.endSpeed - (a.startSpeed - a.endSpeed)
-  );
+  zones.sort((a, b) => b.startSpeed - b.endSpeed - (a.startSpeed - a.endSpeed));
   return zones.slice(0, 5);
 }

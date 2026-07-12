@@ -1,13 +1,21 @@
 import { useEffect, useState } from "react";
 import { client } from "@/lib/rpc";
 
-interface WheelOption { id: string; name: string; src: string }
+interface WheelOption {
+  id: string;
+  name: string;
+  src: string;
+}
 
 export function WheelPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [wheels, setWheels] = useState<WheelOption[]>([]);
 
   useEffect(() => {
-    client.api.wheels.$get().then(r => r.json()).then(setWheels).catch(() => {});
+    client.api.wheels
+      .$get()
+      .then((r) => r.json())
+      .then(setWheels)
+      .catch(() => {});
   }, []);
 
   const currentSrc = value;
@@ -19,9 +27,7 @@ export function WheelPicker({ value, onChange }: { value: string; onChange: (v: 
           key={w.id}
           onClick={() => onChange(w.src)}
           className={`relative rounded-lg border p-3 text-left transition-all ${
-            currentSrc === w.src
-              ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30"
-              : "border-app-border bg-app-surface-alt hover:border-app-border-input"
+            currentSrc === w.src ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-input"
           }`}
         >
           <div className="text-sm font-medium text-app-text truncate">{w.name}</div>
@@ -30,9 +36,7 @@ export function WheelPicker({ value, onChange }: { value: string; onChange: (v: 
           </div>
         </button>
       ))}
-      {wheels.length === 0 && (
-        <p className="text-sm text-app-text-muted col-span-3">No wheel images found in client/public/wheels/</p>
-      )}
+      {wheels.length === 0 && <p className="text-sm text-app-text-muted col-span-3">No wheel images found in client/public/wheels/</p>}
     </div>
   );
 }

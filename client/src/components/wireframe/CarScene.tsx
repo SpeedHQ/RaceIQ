@@ -23,12 +23,7 @@ import { AutoChaseCamera, CameraController } from "./CameraControllers";
 // normalized compression (how hard that corner is loaded). Dot reaches a
 // corner edge only when that corner is at 100% compression AND the others
 // are at the baseline.
-function computeLoadDotXZ(
-  susp: [number, number, number, number],
-  wb: number,
-  ft: number,
-  rt: number,
-): { x: number; z: number } | null {
+function computeLoadDotXZ(susp: [number, number, number, number], wb: number, ft: number, rt: number): { x: number; z: number } | null {
   const base = Math.min(susp[0], susp[1], susp[2], susp[3]);
   const maxC = Math.max(susp[0], susp[1], susp[2], susp[3]);
   const w0 = susp[0] - base;
@@ -45,13 +40,47 @@ function computeLoadDotXZ(
   return { x: dirX * scale, z: dirZ * scale };
 }
 
-export function CarScene({ gameId, packet: packetProp, telemetry, cursorIdx, outline, boundaries, toggles, viewPreset, carModel, modelOffsetX, fmtTemp, hideModelWheels, suspThresholds, autoOrbit, tireColors }: { gameId: GameId; packet: TelemetryPacket; telemetry: TelemetryPacket[]; cursorIdx: number; outline: { x: number; z: number }[] | null; boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null; toggles: ViewToggles; viewPreset: ViewPreset; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; fmtTemp: (f: number) => string; hideModelWheels?: boolean; suspThresholds: number[]; autoOrbit?: boolean; tireColors: [string, string, string, string] }) {
+export function CarScene({
+  gameId,
+  packet: packetProp,
+  telemetry,
+  cursorIdx,
+  outline,
+  boundaries,
+  toggles,
+  viewPreset,
+  carModel,
+  modelOffsetX,
+  fmtTemp,
+  hideModelWheels,
+  suspThresholds,
+  autoOrbit,
+  tireColors,
+}: {
+  gameId: GameId;
+  packet: TelemetryPacket;
+  telemetry: TelemetryPacket[];
+  cursorIdx: number;
+  outline: { x: number; z: number }[] | null;
+  boundaries: { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[] } | null;
+  toggles: ViewToggles;
+  viewPreset: ViewPreset;
+  carModel: CarModelEnrichment & { hasModel: boolean };
+  modelOffsetX: number;
+  fmtTemp: (f: number) => string;
+  hideModelWheels?: boolean;
+  suspThresholds: number[];
+  autoOrbit?: boolean;
+  tireColors: [string, string, string, string];
+}) {
   const [colorFL, colorFR, colorRL, colorRR] = tireColors;
   const pressureOptimal = useTirePressureOptimal(gameId, packetProp.CarOrdinal);
 
   // Keep packet in a ref so useFrame reads latest without triggering re-render
   const packetRef = useRef(packetProp);
-  useEffect(() => { packetRef.current = packetProp; });
+  useEffect(() => {
+    packetRef.current = packetProp;
+  });
   const packet = packetProp; // still use prop for JSX (re-renders at 10fps)
   const carGroupRef = useRef<THREE.Group>(null);
   const prevTimeRef = useRef(packet.TimestampMS);
@@ -91,12 +120,7 @@ export function CarScene({ gameId, packet: packetProp, telemetry, cursorIdx, out
   useFrame(() => {
     if (carGroupRef.current) {
       carGroupRef.current.position.set(posOffset, bodyDrop, 0);
-      carGroupRef.current.rotation.set(
-        bodyRoll,
-        0,
-        bodyPitch,
-        "YXZ"
-      );
+      carGroupRef.current.rotation.set(bodyRoll, 0, bodyPitch, "YXZ");
     }
   });
 
@@ -106,7 +130,7 @@ export function CarScene({ gameId, packet: packetProp, telemetry, cursorIdx, out
     prevTimeRef.current = packet.TimestampMS;
     const currentWear = [packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR];
     if (dt > 0 && dt < 1) {
-      setWearRatesVal(prev => {
+      setWearRatesVal((prev) => {
         const next = [...prev];
         for (let i = 0; i < 4; i++) {
           const rawRate = (prevWear.current[i] - currentWear[i]) / dt;
@@ -153,17 +177,85 @@ export function CarScene({ gameId, packet: packetProp, telemetry, cursorIdx, out
   const rt = carModel.halfRearTrack;
   const fTireR = carModel.frontTireRadius ?? carModel.tireRadius;
   const rTireR = carModel.rearTireRadius ?? carModel.tireRadius;
-  const fTireW = carModel.frontTireWidth ?? 0.30;
-  const rTireW = carModel.rearTireWidth ?? 0.30;
+  const fTireW = carModel.frontTireWidth ?? 0.3;
+  const rTireW = carModel.rearTireWidth ?? 0.3;
   const pressFL = packet.TirePressureFrontLeft ?? packet.f1?.tyrePressureFL ?? 0;
   const pressFR = packet.TirePressureFrontRight ?? packet.f1?.tyrePressureFR ?? 0;
   const pressRL = packet.TirePressureRearLeft ?? packet.f1?.tyrePressureRL ?? 0;
   const pressRR = packet.TirePressureRearRight ?? packet.f1?.tyrePressureRR ?? 0;
   const wheelData = [
-    { pos: [wb, 0, -ft] as [number, number, number], steer: steerFL, camber: cambFL, susp: packet.NormSuspensionTravelFL, drop: dropFL, traction: tireState(ws.fl.state, ws.fl.slipRatio, packet.TireSlipAngleFL).hex, rimColor: colorFL, brakeTemp: packet.BrakeTempFrontLeft ?? packet.f1?.brakeTempFL ?? 0, pressure: pressFL, onRumble: packet.WheelOnRumbleStripFL !== 0, puddle: packet.WheelInPuddleDepthFL, wearRate: wearRatesVal[0], wear: packet.TireWearFL, rotSpeed: rotFL, tireRadius: fTireR, tireWidth: fTireW },
-    { pos: [wb, 0, ft] as [number, number, number], steer: steerFR, camber: cambFR, susp: packet.NormSuspensionTravelFR, drop: dropFR, traction: tireState(ws.fr.state, ws.fr.slipRatio, packet.TireSlipAngleFR).hex, rimColor: colorFR, brakeTemp: packet.BrakeTempFrontRight ?? packet.f1?.brakeTempFR ?? 0, pressure: pressFR, onRumble: packet.WheelOnRumbleStripFR !== 0, puddle: packet.WheelInPuddleDepthFR, wearRate: wearRatesVal[1], wear: packet.TireWearFR, rotSpeed: rotFR, tireRadius: fTireR, tireWidth: fTireW },
-    { pos: [-wb, 0, -rt] as [number, number, number], steer: steerRL, camber: cambRL, susp: packet.NormSuspensionTravelRL, drop: dropRL, traction: tireState(ws.rl.state, ws.rl.slipRatio, packet.TireSlipAngleRL).hex, rimColor: colorRL, brakeTemp: packet.BrakeTempRearLeft ?? packet.f1?.brakeTempRL ?? 0, pressure: pressRL, onRumble: packet.WheelOnRumbleStripRL !== 0, puddle: packet.WheelInPuddleDepthRL, wearRate: wearRatesVal[2], wear: packet.TireWearRL, rotSpeed: rotRL, tireRadius: rTireR, tireWidth: rTireW },
-    { pos: [-wb, 0, rt] as [number, number, number], steer: steerRR, camber: cambRR, susp: packet.NormSuspensionTravelRR, drop: dropRR, traction: tireState(ws.rr.state, ws.rr.slipRatio, packet.TireSlipAngleRR).hex, rimColor: colorRR, brakeTemp: packet.BrakeTempRearRight ?? packet.f1?.brakeTempRR ?? 0, pressure: pressRR, onRumble: packet.WheelOnRumbleStripRR !== 0, puddle: packet.WheelInPuddleDepthRR, wearRate: wearRatesVal[3], wear: packet.TireWearRR, rotSpeed: rotRR, tireRadius: rTireR, tireWidth: rTireW },
+    {
+      pos: [wb, 0, -ft] as [number, number, number],
+      steer: steerFL,
+      camber: cambFL,
+      susp: packet.NormSuspensionTravelFL,
+      drop: dropFL,
+      traction: tireState(ws.fl.state, ws.fl.slipRatio, packet.TireSlipAngleFL).hex,
+      rimColor: colorFL,
+      brakeTemp: packet.BrakeTempFrontLeft ?? packet.f1?.brakeTempFL ?? 0,
+      pressure: pressFL,
+      onRumble: packet.WheelOnRumbleStripFL !== 0,
+      puddle: packet.WheelInPuddleDepthFL,
+      wearRate: wearRatesVal[0],
+      wear: packet.TireWearFL,
+      rotSpeed: rotFL,
+      tireRadius: fTireR,
+      tireWidth: fTireW,
+    },
+    {
+      pos: [wb, 0, ft] as [number, number, number],
+      steer: steerFR,
+      camber: cambFR,
+      susp: packet.NormSuspensionTravelFR,
+      drop: dropFR,
+      traction: tireState(ws.fr.state, ws.fr.slipRatio, packet.TireSlipAngleFR).hex,
+      rimColor: colorFR,
+      brakeTemp: packet.BrakeTempFrontRight ?? packet.f1?.brakeTempFR ?? 0,
+      pressure: pressFR,
+      onRumble: packet.WheelOnRumbleStripFR !== 0,
+      puddle: packet.WheelInPuddleDepthFR,
+      wearRate: wearRatesVal[1],
+      wear: packet.TireWearFR,
+      rotSpeed: rotFR,
+      tireRadius: fTireR,
+      tireWidth: fTireW,
+    },
+    {
+      pos: [-wb, 0, -rt] as [number, number, number],
+      steer: steerRL,
+      camber: cambRL,
+      susp: packet.NormSuspensionTravelRL,
+      drop: dropRL,
+      traction: tireState(ws.rl.state, ws.rl.slipRatio, packet.TireSlipAngleRL).hex,
+      rimColor: colorRL,
+      brakeTemp: packet.BrakeTempRearLeft ?? packet.f1?.brakeTempRL ?? 0,
+      pressure: pressRL,
+      onRumble: packet.WheelOnRumbleStripRL !== 0,
+      puddle: packet.WheelInPuddleDepthRL,
+      wearRate: wearRatesVal[2],
+      wear: packet.TireWearRL,
+      rotSpeed: rotRL,
+      tireRadius: rTireR,
+      tireWidth: rTireW,
+    },
+    {
+      pos: [-wb, 0, rt] as [number, number, number],
+      steer: steerRR,
+      camber: cambRR,
+      susp: packet.NormSuspensionTravelRR,
+      drop: dropRR,
+      traction: tireState(ws.rr.state, ws.rr.slipRatio, packet.TireSlipAngleRR).hex,
+      rimColor: colorRR,
+      brakeTemp: packet.BrakeTempRearRight ?? packet.f1?.brakeTempRR ?? 0,
+      pressure: pressRR,
+      onRumble: packet.WheelOnRumbleStripRR !== 0,
+      puddle: packet.WheelInPuddleDepthRR,
+      wearRate: wearRatesVal[3],
+      wear: packet.TireWearRR,
+      rotSpeed: rotRR,
+      tireRadius: rTireR,
+      tireWidth: rTireW,
+    },
   ];
 
   // Load distribution — weighted centroid of excess-compression per corner.
@@ -192,17 +284,7 @@ export function CarScene({ gameId, packet: packetProp, telemetry, cursorIdx, out
       // (lap time reset on crossing the line).
       if (p.CurrentLap > endLap) break;
       if (endLap - p.CurrentLap > 1) break;
-      const xz = computeLoadDotXZ(
-        [
-          p.NormSuspensionTravelFL,
-          p.NormSuspensionTravelFR,
-          p.NormSuspensionTravelRL,
-          p.NormSuspensionTravelRR,
-        ],
-        wb,
-        ft,
-        rt,
-      );
+      const xz = computeLoadDotXZ([p.NormSuspensionTravelFL, p.NormSuspensionTravelFR, p.NormSuspensionTravelRL, p.NormSuspensionTravelRR], wb, ft, rt);
       if (xz) pts.push([xz.x, xz.z]);
     }
     // Oldest first → newest last, matching the drawing direction of the Line.
@@ -220,36 +302,31 @@ export function CarScene({ gameId, packet: packetProp, telemetry, cursorIdx, out
           Scroll phase is taken in the car-local frame so section lines pass
           under the car along its forward/lateral axes, matching the same
           yaw transform used by TireTrails / TrackOutline / CurbMarkers. */}
-      {toggles.grid && (() => {
-        const gs = Math.sin(packet.Yaw);
-        const gc = Math.cos(packet.Yaw);
-        const gLocalX = packet.PositionX * gs + packet.PositionZ * gc;
-        const gLocalZ = packet.PositionX * gc - packet.PositionZ * gs;
-        return (
-        <Grid
-          args={[10, 10]}
-          position={[
-            -(gLocalX % 2),
-            -0.45,
-            -(gLocalZ % 2),
-          ]}
-          cellSize={0.5}
-          cellThickness={0.5}
-          cellColor="#1e293b"
-          sectionSize={2}
-          sectionThickness={1}
-          sectionColor="#334155"
-          fadeDistance={8}
-          infiniteGrid
-        />
-        );
-      })()}
+      {toggles.grid &&
+        (() => {
+          const gs = Math.sin(packet.Yaw);
+          const gc = Math.cos(packet.Yaw);
+          const gLocalX = packet.PositionX * gs + packet.PositionZ * gc;
+          const gLocalZ = packet.PositionX * gc - packet.PositionZ * gs;
+          return (
+            <Grid
+              args={[10, 10]}
+              position={[-(gLocalX % 2), -0.45, -(gLocalZ % 2)]}
+              cellSize={0.5}
+              cellThickness={0.5}
+              cellColor="#1e293b"
+              sectionSize={2}
+              sectionThickness={1}
+              sectionColor="#334155"
+              fadeDistance={8}
+              infiniteGrid
+            />
+          );
+        })()}
 
       {/* Body — rolls with pitch/roll */}
       <group ref={carGroupRef}>
-        <Suspense fallback={null}>
-          {carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} />}
-        </Suspense>
+        <Suspense fallback={null}>{carModel.hasModel && <CarBody solid={toggles.solid} carModel={carModel} modelOffsetX={modelOffsetX} hideModelWheels={hideModelWheels} />}</Suspense>
       </group>
 
       {/* Running gear — positioned by suspension */}
@@ -281,35 +358,34 @@ export function CarScene({ gameId, packet: packetProp, telemetry, cursorIdx, out
         ))}
 
         {/* Suspension springs — connect dropped body to grounded wheels */}
-        {toggles.springs && wheelData.map((w, i) => {
-          const inboardZ = w.pos[2] > 0 ? w.pos[2] - 0.35 : w.pos[2] + 0.35;
-          return (
-            <SuspensionSpring
-              key={`susp-${i}`}
-              bodyPos={[w.pos[0], 0.23 + w.drop, inboardZ]}
-              wheelPos={[w.pos[0], 0, inboardZ]}
-              suspTravel={w.susp}
-              suspThresholds={suspThresholds}
-            />
-          );
-        })}
+        {toggles.springs &&
+          wheelData.map((w, i) => {
+            const inboardZ = w.pos[2] > 0 ? w.pos[2] - 0.35 : w.pos[2] + 0.35;
+            return <SuspensionSpring key={`susp-${i}`} bodyPos={[w.pos[0], 0.23 + w.drop, inboardZ]} wheelPos={[w.pos[0], 0, inboardZ]} suspTravel={w.susp} suspThresholds={suspThresholds} />;
+          })}
 
         {/* Load distribution — weighted centroid dot between springs with 1s trail */}
         {toggles.springs && loadDot && (
           <group>
             {/* Crosshairs */}
-            <Line points={[[-wb, loadDot.y, 0], [wb, loadDot.y, 0]]} color="#475569" lineWidth={0.5} />
-            <Line points={[[0, loadDot.y, -loadDot.springZMax], [0, loadDot.y, loadDot.springZMax]]} color="#475569" lineWidth={0.5} />
+            <Line
+              points={[
+                [-wb, loadDot.y, 0],
+                [wb, loadDot.y, 0],
+              ]}
+              color="#475569"
+              lineWidth={0.5}
+            />
+            <Line
+              points={[
+                [0, loadDot.y, -loadDot.springZMax],
+                [0, loadDot.y, loadDot.springZMax],
+              ]}
+              color="#475569"
+              lineWidth={0.5}
+            />
             {/* 1 second trail — derived from packet history */}
-            {loadTrail.length > 1 && (
-              <Line
-                points={loadTrail.map(([x, z]) => [x, loadDot.y, z] as [number, number, number])}
-                color={loadDot.color}
-                lineWidth={1.2}
-                transparent
-                opacity={0.55}
-              />
-            )}
+            {loadTrail.length > 1 && <Line points={loadTrail.map(([x, z]) => [x, loadDot.y, z] as [number, number, number])} color={loadDot.color} lineWidth={1.2} transparent opacity={0.55} />}
             {/* Load dot */}
             <mesh position={[loadDot.x, loadDot.y, loadDot.z]}>
               <sphereGeometry args={[0.04, 8, 8]} />
@@ -323,19 +399,28 @@ export function CarScene({ gameId, packet: packetProp, telemetry, cursorIdx, out
           <>
             {/* Front axle */}
             <Line
-              points={[[wb, 0, -ft], [wb, 0, ft]]}
+              points={[
+                [wb, 0, -ft],
+                [wb, 0, ft],
+              ]}
               color="#64748b"
               lineWidth={2}
             />
             {/* Rear axle */}
             <Line
-              points={[[-wb, 0, -rt], [-wb, 0, rt]]}
+              points={[
+                [-wb, 0, -rt],
+                [-wb, 0, rt],
+              ]}
               color="#64748b"
               lineWidth={2}
             />
             {/* Driveshaft */}
             <Line
-              points={[[wb, 0, 0], [-wb, 0, 0]]}
+              points={[
+                [wb, 0, 0],
+                [-wb, 0, 0],
+              ]}
               color="#94a3b8"
               lineWidth={1.5}
             />

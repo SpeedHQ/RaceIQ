@@ -9,7 +9,21 @@ import { tireTempColor, slipAngleColor, tireState } from "@/lib/vehicle-dynamics
  * the angle between tire heading and actual travel direction.
  * Spin/lockup detection uses animated glow rings and X/arrow overlays.
  */
-export function WheelCard({ label, temp, wear, slipAngle, outerSide, wheelState, steerAngle, thresholds, tempFn, tempUnit, onRumble, puddleDepth, brakeTemp }: {
+export function WheelCard({
+  label,
+  temp,
+  wear,
+  slipAngle,
+  outerSide,
+  wheelState,
+  steerAngle,
+  thresholds,
+  tempFn,
+  tempUnit,
+  onRumble,
+  puddleDepth,
+  brakeTemp,
+}: {
   label: string;
   temp: number;
   wear: number;
@@ -40,53 +54,36 @@ export function WheelCard({ label, temp, wear, slipAngle, outerSide, wheelState,
   const spinPct = wheelState.slipRatio * 100;
 
   // Tire dimensions in SVG units
-  const tW = 28, tH = 50, cx = 40, cy = 55;
+  const tW = 28,
+    tH = 50,
+    cx = 40,
+    cy = 55;
   const wearTop = tH * (1 - wearPct);
 
   return (
     <div className="flex flex-col items-center">
       <svg viewBox="0 0 80 145" width={80} height={145}>
         {/* Label */}
-        <text x={cx} y={8} textAnchor="middle" fill="#94a3b8" fontSize={8} fontWeight="bold" fontFamily="monospace">{label}</text>
+        <text x={cx} y={8} textAnchor="middle" fill="#94a3b8" fontSize={8} fontWeight="bold" fontFamily="monospace">
+          {label}
+        </text>
 
         {/* Spin/Lock glow ring */}
         {spinColor && (
-          <rect
-            x={cx - tW / 2 - 3} y={cy - tH / 2 - 3}
-            width={tW + 6} height={tH + 6}
-            rx={8}
-            fill="none"
-            stroke={spinColor}
-            strokeWidth={1.5}
-            opacity={0.6}
-          >
+          <rect x={cx - tW / 2 - 3} y={cy - tH / 2 - 3} width={tW + 6} height={tH + 6} rx={8} fill="none" stroke={spinColor} strokeWidth={1.5} opacity={0.6}>
             <animate attributeName="opacity" values="0.6;0.2;0.6" dur="0.6s" repeatCount="indefinite" />
           </rect>
         )}
 
         {/* Tire outline — rotates with steering for front wheels */}
         <g transform={steerAngle !== 0 ? `rotate(${Math.max(-20, Math.min(20, steerAngle))}, ${cx}, ${cy})` : undefined}>
-          <rect
-            x={cx - tW / 2} y={cy - tH / 2}
-            width={tW} height={tH}
-            rx={6}
-            fill="rgba(15,23,42,0.6)"
-            stroke={spinColor ?? stroke}
-            strokeWidth={2}
-          />
+          <rect x={cx - tW / 2} y={cy - tH / 2} width={tW} height={tH} rx={6} fill="rgba(15,23,42,0.6)" stroke={spinColor ?? stroke} strokeWidth={2} />
 
           {/* Wear fill (from bottom) */}
           <clipPath id={`wear-${label}`}>
             <rect x={cx - tW / 2 + 1} y={cy - tH / 2 + wearTop} width={tW - 2} height={tH - wearTop} rx={5} />
           </clipPath>
-          <rect
-            x={cx - tW / 2 + 1} y={cy - tH / 2}
-            width={tW - 2} height={tH}
-            rx={5}
-            fill={fill}
-            fillOpacity={0.2}
-            clipPath={`url(#wear-${label})`}
-          />
+          <rect x={cx - tW / 2 + 1} y={cy - tH / 2} width={tW - 2} height={tH} rx={5} fill={fill} fillOpacity={0.2} clipPath={`url(#wear-${label})`} />
 
           {/* Tread marks */}
           {[-12, -4, 4, 12].map((dy) => (
@@ -118,9 +115,10 @@ export function WheelCard({ label, temp, wear, slipAngle, outerSide, wheelState,
 
         {/* Slip angle line — shows direction of slip force */}
         <line
-          x1={cx} y1={cy}
-          x2={cx + Math.sin(clampedAngle * Math.PI / 180) * 35}
-          y2={cy + Math.cos(clampedAngle * Math.PI / 180) * 35}
+          x1={cx}
+          y1={cy}
+          x2={cx + Math.sin((clampedAngle * Math.PI) / 180) * 35}
+          y2={cy + Math.cos((clampedAngle * Math.PI) / 180) * 35}
           stroke={slipCol}
           strokeWidth={1.5}
           strokeDasharray="3 2"
@@ -151,7 +149,9 @@ export function WheelCard({ label, temp, wear, slipAngle, outerSide, wheelState,
           fontWeight={spinLabel ? "bold" : "normal"}
           fontFamily="monospace"
         >
-          {spinLabel ? `${spinLabel} ` : ""}{spinPct > 0 ? "+" : ""}{spinPct.toFixed(0)}%
+          {spinLabel ? `${spinLabel} ` : ""}
+          {spinPct > 0 ? "+" : ""}
+          {spinPct.toFixed(0)}%
         </text>
 
         {/* Below tire: temp, wear, traction */}
@@ -162,7 +162,7 @@ export function WheelCard({ label, temp, wear, slipAngle, outerSide, wheelState,
           Health {((1 - wearPct) * 100).toFixed(0)}%
         </text>
         {(() => {
-          const ts = tireState(wheelState.state, wheelState.slipRatio, slipAngle * Math.PI / 180);
+          const ts = tireState(wheelState.state, wheelState.slipRatio, (slipAngle * Math.PI) / 180);
           return (
             <text x={cx} y={117} textAnchor="middle" fill={ts.color} fontSize={8} fontWeight="bold" fontFamily="monospace">
               {ts.label}

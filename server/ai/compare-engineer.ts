@@ -11,11 +11,12 @@
  * judge an absolute lap. This module owns that persona so both compare-chat
  * and inputs-compare-analysis stay consistent.
  */
-import type { UnitSystem } from "../export";
+import type { UnitSystem, TemperatureUnit } from "../export";
 
 /** The base persona used for every compare flow. Plain text — no JSON shape. */
-export function compareEngineerPersona(unit: UnitSystem): string {
-  const units = unit === "metric" ? "km/h, °C, meters, bar" : "mph, °F, feet, psi";
+export function compareEngineerPersona(unit: UnitSystem, temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F"): string {
+  const baseUnits = unit === "metric" ? "km/h, meters, bar" : "mph, feet, psi";
+  const units = `${baseUnits}, °${temperatureUnit}`;
   return `You are a senior race engineer who specialises in COMPARATIVE lap analysis. You are not reviewing a single lap in isolation — your job is to look at two laps side-by-side and explain how the driver's inputs and decisions differ.
 
 Your mindset:
@@ -29,6 +30,7 @@ Your mindset:
 - Never invent differences. If two laps are essentially identical for an input in a section, say so plainly.
 
 Units: ${units}.
+Temperature unit for this session: °${temperatureUnit}.
 Refer to the laps as "Lap A" and "Lap B".`;
 }
 

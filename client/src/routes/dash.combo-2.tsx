@@ -9,10 +9,7 @@ function ComboDash2Route() {
   const setGameId = useGameStore((s) => s.setGameId);
   const rawPacket = useTelemetryStore((s) => s.rawPacket);
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
-  const detectedGameId = useTelemetryStore((s) => s.serverStatus?.detectedGame?.id) as
-    | GameId
-    | null
-    | undefined;
+  const detectedGameId = useTelemetryStore((s) => s.serverStatus?.detectedGame?.id) as GameId | null | undefined;
 
   useEffect(() => {
     if (detectedGameId) setGameId(detectedGameId);

@@ -30,10 +30,7 @@ export function F1ErsBar({ f1 }: { f1: F1ExtendedData }) {
 
       {/* Battery bar */}
       <div className="h-3 bg-zinc-800 rounded-full overflow-hidden mb-2">
-        <div
-          className={`h-full ${barColor} rounded-full transition-all`}
-          style={{ width: `${pct}%` }}
-        />
+        <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
       </div>
 
       {/* Deploy / Harvest stats */}

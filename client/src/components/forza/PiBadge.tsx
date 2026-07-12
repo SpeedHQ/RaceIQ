@@ -27,7 +27,8 @@ export function PiBadge({ pi, showNumber = true }: { pi: number; showNumber?: bo
   const cls = piClass(pi);
   return (
     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${PI_COLORS[cls] ?? "bg-app-surface text-app-text-muted"}`}>
-      {cls}{showNumber ? pi : ""}
+      {cls}
+      {showNumber ? pi : ""}
     </span>
   );
 }

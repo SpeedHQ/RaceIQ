@@ -26,7 +26,10 @@ export function WheelTable({ title, showHeaders = true, borderTop = false, rows 
     <table className="w-full tabular-nums table-fixed text-[11px] font-mono">
       <colgroup>
         <col className="w-[85px]" />
-        <col /><col /><col /><col />
+        <col />
+        <col />
+        <col />
+        <col />
       </colgroup>
       {showHeaders && (
         <thead>
@@ -45,8 +48,12 @@ export function WheelTable({ title, showHeaders = true, borderTop = false, rows 
             <td className="text-app-text-muted text-left">{row.label}</td>
             {row.span2 ? (
               <>
-                <td colSpan={2} className="text-right">{row.fl}</td>
-                <td colSpan={2} className="text-right">{row.rl}</td>
+                <td colSpan={2} className="text-right">
+                  {row.fl}
+                </td>
+                <td colSpan={2} className="text-right">
+                  {row.rl}
+                </td>
               </>
             ) : (
               <>

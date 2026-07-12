@@ -18,7 +18,7 @@ export function InputOverlay({
     const s = Math.sin(yaw);
     const c = Math.cos(yaw);
     const Y = -0.44; // match TrackOutline race-line Y
-    const OFFSET = 0.10; // lateral offset from center in meters
+    const OFFSET = 0.1; // lateral offset from center in meters
     const AHEAD = 60;
     const BEHIND = 20;
     const maxDist2 = AHEAD * AHEAD;
@@ -33,7 +33,8 @@ export function InputOverlay({
       const dx = p.PositionX - cx;
       const dz = p.PositionZ - cz;
       let inRange = dx * dx + dz * dz <= maxDist2;
-      let localFwd = 0, localLat = 0;
+      let localFwd = 0,
+        localLat = 0;
       if (inRange) {
         localFwd = dx * s + dz * c;
         localLat = dx * c - dz * s;
@@ -72,11 +73,7 @@ export function InputOverlay({
       }
       // Split into sub-runs covering only frames where the pedal is on,
       // so off-pedal stretches stay invisible instead of drawing a black line.
-      const flush = (
-        bucket: { pts: [number, number, number][]; cols: THREE.Color[] }[],
-        ptsBuf: [number, number, number][],
-        colsBuf: THREE.Color[],
-      ) => {
+      const flush = (bucket: { pts: [number, number, number][]; cols: THREE.Color[] }[], ptsBuf: [number, number, number][], colsBuf: THREE.Color[]) => {
         if (ptsBuf.length >= 5) bucket.push({ pts: ptsBuf.slice(), cols: colsBuf.slice() });
         ptsBuf.length = 0;
         colsBuf.length = 0;

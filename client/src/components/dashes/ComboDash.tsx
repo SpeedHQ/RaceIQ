@@ -24,15 +24,7 @@ function gearLabel(gear: number): string {
   return String(gear - 1);
 }
 
-export function ComboDash({
-  rawPacket,
-  packet,
-  sectors,
-  pit,
-  unitSystem,
-  tireHealthThresholds,
-  toTempC,
-}: ComboDashProps) {
+export function ComboDash({ rawPacket, packet, sectors, pit, unitSystem, tireHealthThresholds, toTempC }: ComboDashProps) {
   const fuelLaps = pit?.fuelLapsRemaining ?? null;
   const tireCliffs = pit?.tireEstimates?.toCliff ?? [];
   const tireLabels = ["FL", "FR", "RL", "RR"] as const;
@@ -64,9 +56,7 @@ export function ComboDash({
           <div className="flex-1 h-full">
             <RevBar rpm={rpm} idle={idle} max={max} segments={80} />
           </div>
-          <div className="text-white/90 font-mono text-sm tabular-nums whitespace-nowrap">
-            {Math.round(rpm).toLocaleString()} RPM
-          </div>
+          <div className="text-white/90 font-mono text-sm tabular-nums whitespace-nowrap">{Math.round(rpm).toLocaleString()} RPM</div>
         </div>
 
         <div className="row-span-2 min-h-0">
@@ -76,29 +66,13 @@ export function ComboDash({
                 label="FUEL"
                 value={fuelLaps != null ? fuelLaps.toFixed(1) : "—"}
                 suffix="laps"
-                color={
-                  fuelLaps == null
-                    ? "text-white/40"
-                    : fuelLaps < 3
-                      ? "text-red-400"
-                      : fuelLaps < 8
-                        ? "text-amber-400"
-                        : "text-emerald-400"
-                }
+                color={fuelLaps == null ? "text-white/40" : fuelLaps < 3 ? "text-red-400" : fuelLaps < 8 ? "text-amber-400" : "text-emerald-400"}
               />
               <PitRow
                 label={weakestLabel ? `TYRE (${weakestLabel})` : "TYRE"}
                 value={weakestLaps != null ? weakestLaps.toFixed(1) : "—"}
                 suffix="laps"
-                color={
-                  weakestLaps == null
-                    ? "text-white/40"
-                    : weakestLaps < 3
-                      ? "text-red-400"
-                      : weakestLaps < 8
-                        ? "text-amber-400"
-                        : "text-emerald-400"
-                }
+                color={weakestLaps == null ? "text-white/40" : weakestLaps < 3 ? "text-red-400" : weakestLaps < 8 ? "text-amber-400" : "text-emerald-400"}
               />
             </div>
           </Tile>
@@ -107,34 +81,23 @@ export function ComboDash({
         <div className="grid grid-cols-3 gap-3 min-h-0">
           <div className="min-w-0 min-h-0">
             <Tile label="GEAR">
-              <div
-                className="font-black leading-none"
-                style={{ fontSize: "clamp(3rem, 14vh, 8rem)" }}
-              >
+              <div className="font-black leading-none" style={{ fontSize: "clamp(3rem, 14vh, 8rem)" }}>
                 {gearLabel(gear)}
               </div>
             </Tile>
           </div>
           <div className="min-w-0 min-h-0">
             <Tile label={unit.toUpperCase()}>
-              <div
-                className="font-black leading-none"
-                style={{ fontSize: "clamp(2.5rem, 13vh, 7rem)" }}
-              >
+              <div className="font-black leading-none" style={{ fontSize: "clamp(2.5rem, 13vh, 7rem)" }}>
                 {Math.round(speed)}
               </div>
             </Tile>
           </div>
           <div className="min-w-0 min-h-0">
             <Tile label="LAP">
-              <div
-                className="font-black leading-none tabular-nums"
-                style={{ fontSize: "clamp(2.5rem, 13vh, 7rem)" }}
-              >
+              <div className="font-black leading-none tabular-nums" style={{ fontSize: "clamp(2.5rem, 13vh, 7rem)" }}>
                 {lapNumber > 0 ? lapNumber : "-"}
-                {totalLaps && totalLaps > 0 ? (
-                  <span className="text-white/40">/{totalLaps}</span>
-                ) : null}
+                {totalLaps && totalLaps > 0 ? <span className="text-white/40">/{totalLaps}</span> : null}
               </div>
             </Tile>
           </div>
@@ -223,9 +186,7 @@ function PitRow({
 function Tile({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="relative rounded-md border border-white/10 bg-white/[0.02] flex flex-col overflow-hidden min-w-0 min-h-0 h-full">
-      <div className="shrink-0 text-white/40 text-xs tracking-widest uppercase px-3 pt-2">
-        {label}
-      </div>
+      <div className="shrink-0 text-white/40 text-xs tracking-widest uppercase px-3 pt-2">{label}</div>
       <div className="flex-1 min-h-0">
         <FitToViewport padding={6}>{children}</FitToViewport>
       </div>

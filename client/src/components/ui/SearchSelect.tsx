@@ -17,16 +17,7 @@ interface SearchSelectProps {
   fallbackLabel?: string; // shown when value is set but no option matches
 }
 
-export function SearchSelect({
-  value,
-  onChange,
-  options,
-  placeholder = "Search...",
-  disabled = false,
-  className = "",
-  focusColor,
-  fallbackLabel,
-}: SearchSelectProps) {
+export function SearchSelect({ value, onChange, options, placeholder = "Search...", disabled = false, className = "", focusColor, fallbackLabel }: SearchSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -34,9 +25,7 @@ export function SearchSelect({
 
   const selectedLabel = options.find((o) => o.value === value)?.label ?? fallbackLabel ?? "";
 
-  const filtered = search
-    ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase()))
-    : options;
+  const filtered = search ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase())) : options;
 
   const handleSelect = useCallback(
     (val: string) => {
@@ -84,10 +73,7 @@ export function SearchSelect({
     }
   };
 
-  const focusBorderClass = focusColor
-    ? `focus:border-${focusColor}`
-    : "focus:ring-1 focus:ring-app-border-input";
-
+  const focusBorderClass = focusColor ? `focus:border-${focusColor}` : "focus:ring-1 focus:ring-app-border-input";
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
@@ -109,13 +95,7 @@ export function SearchSelect({
         className={`w-full bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text placeholder:text-app-text-dim focus:outline-none disabled:opacity-50 text-ellipsis ${focusBorderClass}`}
       />
       {/* Chevron indicator */}
-      <svg
-        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-app-text-muted"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
+      <svg className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-app-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
       </svg>
       {open && !disabled && (
@@ -124,20 +104,12 @@ export function SearchSelect({
             const showGroup = o.group && (i === 0 || filtered[i - 1]?.group !== o.group);
             return (
               <div key={o.value}>
-                {showGroup && (
-                  <div className="px-3 py-1 text-xs font-medium text-app-text-muted bg-app-surface border-t border-app-border-input first:border-t-0">
-                    {o.group}
-                  </div>
-                )}
+                {showGroup && <div className="px-3 py-1 text-xs font-medium text-app-text-muted bg-app-surface border-t border-app-border-input first:border-t-0">{o.group}</div>}
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleSelect(o.value)}
                   className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
-                    i === highlightIdx
-                      ? "bg-app-accent/20 text-app-text"
-                      : o.value === value
-                        ? "text-app-accent"
-                        : "text-app-text hover:bg-app-accent/10"
+                    i === highlightIdx ? "bg-app-accent/20 text-app-text" : o.value === value ? "text-app-accent" : "text-app-text hover:bg-app-accent/10"
                   }`}
                 >
                   {o.label}
@@ -145,9 +117,7 @@ export function SearchSelect({
               </div>
             );
           })}
-          {filtered.length === 0 && (
-            <div className="px-3 py-2 text-sm text-app-text-muted">No results</div>
-          )}
+          {filtered.length === 0 && <div className="px-3 py-2 text-sm text-app-text-muted">No results</div>}
         </div>
       )}
     </div>

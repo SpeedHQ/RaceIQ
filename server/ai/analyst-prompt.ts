@@ -1,5 +1,5 @@
 import type { TelemetryPacket, Tune, GameId } from "../../shared/types";
-import { generateExport, type UnitSystem } from "../export";
+import { generateExport, type UnitSystem, type TemperatureUnit } from "../export";
 import { getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../client/src/lib/lap-insights";
@@ -22,7 +22,12 @@ interface CornerDef {
  */
 function collectCornerLabels(
   corners: CornerDef[],
-  segments?: { type: string; name: string; startFrac: number; endFrac: number }[],
+  segments?: {
+    type: string;
+    name: string;
+    startFrac: number;
+    endFrac: number;
+  }[],
 ): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -79,7 +84,7 @@ CATEGORY GUIDELINES:
 - "braking": Per-corner braking analysis for every corner in the corner data. Use corner label names exactly. "good" = no issues. If detail describes a problem, MUST be "warning" or "critical".
 - "throttle": Per-corner throttle analysis for every corner. Use corner label names exactly. "good" = clean application. If detail describes a problem, MUST be "warning" or "critical".
 - "coaching": 3-5 actionable driving tips. Reference specific telemetry values.
-- "setup": 4-8 component adjustments. Each item has the symptom (what telemetry shows), fix (what to do), AND concrete "current"/"target" numeric values with units (e.g. "750 lb/in" → "650 lb/in"). Cover: springs, dampers, anti-roll bars, aero, alignment, differential, tire pressure, gearing, brake bias as needed. If tune data is provided, reference actual tune values.
+- "setup": 4-8 component adjustments. Each item has the symptom (what telemetry shows), fix (what to do), AND concrete "current"/"target" numeric values with units (e.g. "750 lb/in" → "650 lb/in"). Cover: springs, dampers (Bump first, then Rebound), anti-roll bars, aero, alignment, differential, tire pressure, gearing, brake bias as needed. If tune data is provided, reference actual tune values.
 
 RULES:
 - Reference specific numbers from the data — don't be vague
@@ -88,15 +93,17 @@ RULES:
 - Address the driver as "you"
 - When tune settings are provided, correlate telemetry symptoms (e.g., understeer, tire temps, suspension bottoming) with specific setup values and recommend concrete adjustments with target numbers
 - Reference the actual tune values when suggesting changes (e.g., "Front springs at 750 lb/in are too stiff for this track — try 650-680 lb/in")
+- For Forza-style tune recommendations, adjustable tune values are front/rear axle settings only. Never recommend individual FL/FR/RL/RR tire pressure, damping, spring, anti-roll bar, ride-height, aero, or alignment changes. If per-tire telemetry differs, translate it into a front/rear axle adjustment or a driving/coaching note.
 - Output ONLY valid JSON, nothing else
 - Escape any special characters in string values (quotes, newlines)
 - Do not include trailing commas in arrays or objects`;
 
-function getSystemPrompt(gameId: GameId, unit: UnitSystem): string {
-  const units = unit === "metric" ? "km/h, °C, meters, kg, bar" : "mph, °F, feet, lb, psi";
+function getSystemPrompt(gameId: GameId, unit: UnitSystem, temperatureUnit: TemperatureUnit): string {
+  const speedDistanceWeight = unit === "metric" ? "km/h, meters, kg, bar" : "mph, feet, lb, psi";
+  const units = `${speedDistanceWeight}, °${temperatureUnit}`;
   const adapter = tryGetServerGame(gameId);
   const base = adapter ? adapter.aiSystemPrompt : FORZA_SYSTEM_PROMPT;
-  return base.replace("{{UNITS}}", units);
+  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}`;
 }
 
 export function buildAnalystPrompt(
@@ -112,15 +119,21 @@ export function buildAnalystPrompt(
   packets: TelemetryPacket[],
   corners: CornerDef[],
   unit: UnitSystem = "metric",
+  temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
   tune?: Tune,
-  segments?: { type: string; name: string; startFrac: number; endFrac: number }[],
+  segments?: {
+    type: string;
+    name: string;
+    startFrac: number;
+    endFrac: number;
+  }[],
   /** Pre-fetched track guide text. When provided, skips internal lookup. */
   externalTrackGuide?: string,
 ): string {
   const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
   const trackName = getTrackName(lap.trackOrdinal ?? 0);
 
-  const exportText = generateExport(lap, packets, unit);
+  const exportText = generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
   // Run precomputed insight analysis
@@ -143,12 +156,15 @@ export function buildAnalystPrompt(
 
   let tuneText = "";
   if (tune) {
-    tuneText = "\n" + formatTuneForPrompt({
-      name: tune.name,
-      author: tune.author,
-      category: tune.category,
-      settings: tune.settings,
-    }) + "\n";
+    tuneText =
+      "\n" +
+      formatTuneForPrompt({
+        name: tune.name,
+        author: tune.author,
+        category: tune.category,
+        settings: tune.settings,
+      }) +
+      "\n";
   }
   // F1 setup comes from the `compare-f1-setup-to-catalog` tool — see the
   // Lap Analyst system prompt. Not injected here.
@@ -164,9 +180,10 @@ export function buildAnalystPrompt(
   // when nothing else constrains it. Build a whitelist from whatever named
   // sources we have; if none, force Tn numbering.
   const cornerLabelWhitelist = collectCornerLabels(corners, segments);
-  const cornerGuardrail = cornerLabelWhitelist.length > 0
-    ? `\n--- Valid Corner Labels (the ONLY names you may use for corners in this output) ---\n${cornerLabelWhitelist.join(", ")}\n`
-    : `\n--- Corner Naming ---\nNo named corner data is available for this track. Refer to corners as "T1", "T2", … based on sequence. Do NOT invent corner names.\n`;
+  const cornerGuardrail =
+    cornerLabelWhitelist.length > 0
+      ? `\n--- Valid Corner Labels (the ONLY names you may use for corners in this output) ---\n${cornerLabelWhitelist.join(", ")}\n`
+      : `\n--- Corner Naming ---\nNo named corner data is available for this track. Refer to corners as "T1", "T2", … based on sequence. Do NOT invent corner names.\n`;
 
   // Get car specs for additional context
   const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
@@ -188,7 +205,7 @@ ${cornerData}
 ${insightsText}`;
 
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
-  const systemPrompt = getSystemPrompt(gameId, unit);
+  const systemPrompt = getSystemPrompt(gameId, unit, temperatureUnit);
 
   // Build game-specific extended context via adapter
   let f1ExtendedContext = "";

@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import type { ComparisonResult } from "../comparison";
-import type { UnitSystem } from "../export";
+import type { UnitSystem, TemperatureUnit } from "../export";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import type { GameId } from "../../shared/types";
 import { compareEngineerPersona, compareLapHeader } from "./compare-engineer";
@@ -20,17 +20,24 @@ import { buildTrackGuideContext } from "./track-guides";
  */
 export const InputsCompareSchema = z.object({
   verdict: z.string().describe("1-2 sentence top-line summary of input differences across the lap."),
-  segments: z.array(
-    z.object({
-      name: z.string().describe("Segment name from the prompt's segment list."),
-      deltaSeconds: z.number().describe("Lap A time minus Lap B time for this segment, in seconds. Positive = A slower."),
-      throttle: z.string().describe("1 sentence on throttle input differences."),
-      brake: z.string().describe("1 sentence on brake input differences."),
-      steering: z.string().describe("1 sentence on steering input differences."),
-      action: z.string().describe("1 short imperative sentence telling the slower driver what to change in this segment. MUST include at least one concrete numeric value (meters, km/h, %, seconds, or gear). Examples: 'Brake 10m later and release 0.2s earlier into the apex.', 'Carry 4 km/h more minimum corner speed.', 'Hit 100% throttle 15m earlier on exit.' Target the slower lap."),
-      severity: z.enum(["minor", "moderate", "major"]),
-    }),
-  ).min(1).describe("ONE entry per track segment, in the order given by the prompt. MUST NOT be empty."),
+  segments: z
+    .array(
+      z.object({
+        name: z.string().describe("Segment name from the prompt's segment list."),
+        deltaSeconds: z.number().describe("Lap A time minus Lap B time for this segment, in seconds. Positive = A slower."),
+        throttle: z.string().describe("1 sentence on throttle input differences."),
+        brake: z.string().describe("1 sentence on brake input differences."),
+        steering: z.string().describe("1 sentence on steering input differences."),
+        action: z
+          .string()
+          .describe(
+            "1 short imperative sentence telling the slower driver what to change in this segment. MUST include at least one concrete numeric value (meters, km/h, %, seconds, or gear). Examples: 'Brake 10m later and release 0.2s earlier into the apex.', 'Carry 4 km/h more minimum corner speed.', 'Hit 100% throttle 15m earlier on exit.' Target the slower lap.",
+          ),
+        severity: z.enum(["minor", "moderate", "major"]),
+      }),
+    )
+    .min(1)
+    .describe("ONE entry per track segment, in the order given by the prompt. MUST NOT be empty."),
   coaching: z.array(
     z.object({
       tip: z.string(),
@@ -71,48 +78,64 @@ interface InputStats {
   steerAbsMax: number;
   steeringSmoothness: number;
   // Event points — distances are meters from the start of the LAP (not segment)
-  brakeOnDist: number | null;        // first sample where brake crosses >5%
-  brakeOffDist: number | null;       // last sample where brake was >5%
-  peakBrakeValue: number;            // 0..1
-  peakBrakeDist: number | null;      // distance where peak brake occurred
-  fullThrottleDist: number | null;   // first sample where throttle reaches >=95%
+  brakeOnDist: number | null; // first sample where brake crosses >5%
+  brakeOffDist: number | null; // last sample where brake was >5%
+  peakBrakeValue: number; // 0..1
+  peakBrakeDist: number | null; // distance where peak brake occurred
+  fullThrottleDist: number | null; // first sample where throttle reaches >=95%
   liftOffThrottleDist: number | null; // first sample (after any full throttle) where throttle drops below 80%
-  minSpeed: number;                  // km/h equivalent from the raw mph trace
+  minSpeed: number; // km/h equivalent from the raw mph trace
   minSpeedDist: number | null;
   maxSpeed: number;
   maxSpeedDist: number | null;
 }
 
-function pct(n: number) { return (n * 100).toFixed(1) + "%"; }
+function pct(n: number) {
+  return (n * 100).toFixed(1) + "%";
+}
 
 const MPH_TO_KMH = 1.609344;
 
-function computeStatsRange(
-  throttle: number[],
-  brake: number[],
-  steer: number[],
-  speedMph: number[],
-  distances: number[],
-  startIdx: number,
-  endIdx: number,
-): InputStats {
+function computeStatsRange(throttle: number[], brake: number[], steer: number[], speedMph: number[], distances: number[], startIdx: number, endIdx: number): InputStats {
   const lo = Math.max(0, Math.min(startIdx, throttle.length - 1));
   const hi = Math.max(lo + 1, Math.min(endIdx, throttle.length));
   const n = hi - lo;
   const empty: InputStats = {
-    throttleAvg: 0, throttleMax: 0, fullThrottlePctDist: 0,
-    brakeAvg: 0, brakeMax: 0, brakingPctDist: 0, brakeApplications: 0,
-    steerAbsAvg: 0, steerAbsMax: 0, steeringSmoothness: 0,
-    brakeOnDist: null, brakeOffDist: null, peakBrakeValue: 0, peakBrakeDist: null,
-    fullThrottleDist: null, liftOffThrottleDist: null,
-    minSpeed: 0, minSpeedDist: null, maxSpeed: 0, maxSpeedDist: null,
+    throttleAvg: 0,
+    throttleMax: 0,
+    fullThrottlePctDist: 0,
+    brakeAvg: 0,
+    brakeMax: 0,
+    brakingPctDist: 0,
+    brakeApplications: 0,
+    steerAbsAvg: 0,
+    steerAbsMax: 0,
+    steeringSmoothness: 0,
+    brakeOnDist: null,
+    brakeOffDist: null,
+    peakBrakeValue: 0,
+    peakBrakeDist: null,
+    fullThrottleDist: null,
+    liftOffThrottleDist: null,
+    minSpeed: 0,
+    minSpeedDist: null,
+    maxSpeed: 0,
+    maxSpeedDist: null,
   };
   if (n === 0) return empty;
 
-  let tSum = 0, tMax = 0, tFull = 0;
-  let bSum = 0, bMax = 0, bOn = 0, bEvents = 0, prevBrake = false;
-  let sAbsSum = 0, sAbsMax = 0;
-  let smoothSum = 0, prev = 0;
+  let tSum = 0,
+    tMax = 0,
+    tFull = 0;
+  let bSum = 0,
+    bMax = 0,
+    bOn = 0,
+    bEvents = 0,
+    prevBrake = false;
+  let sAbsSum = 0,
+    sAbsMax = 0;
+  let smoothSum = 0,
+    prev = 0;
 
   let brakeOnDist: number | null = null;
   let brakeOffDist: number | null = null;
@@ -121,8 +144,10 @@ function computeStatsRange(
   let fullThrottleDist: number | null = null;
   let liftOffThrottleDist: number | null = null;
   let sawFullThrottle = false;
-  let minSpeed = Infinity, minSpeedDist: number | null = null;
-  let maxSpeed = -Infinity, maxSpeedDist: number | null = null;
+  let minSpeed = Infinity,
+    minSpeedDist: number | null = null;
+  let maxSpeed = -Infinity,
+    maxSpeedDist: number | null = null;
 
   for (let i = lo; i < hi; i++) {
     const t = throttle[i];
@@ -160,8 +185,14 @@ function computeStatsRange(
     prev = norm;
 
     const speedKmh = speedMph[i] * MPH_TO_KMH;
-    if (speedKmh < minSpeed) { minSpeed = speedKmh; minSpeedDist = distances[i]; }
-    if (speedKmh > maxSpeed) { maxSpeed = speedKmh; maxSpeedDist = distances[i]; }
+    if (speedKmh < minSpeed) {
+      minSpeed = speedKmh;
+      minSpeedDist = distances[i];
+    }
+    if (speedKmh > maxSpeed) {
+      maxSpeed = speedKmh;
+      maxSpeedDist = distances[i];
+    }
   }
 
   return {
@@ -202,7 +233,15 @@ function statsLine(label: string, s: InputStats): string {
 }
 
 /** Render a clean tabular view of per-segment timings + delta. */
-function formatSegmentTable(rows: { name: string; type: string; timeA: number; timeB: number; delta: number }[]): string {
+function formatSegmentTable(
+  rows: {
+    name: string;
+    type: string;
+    timeA: number;
+    timeB: number;
+    delta: number;
+  }[],
+): string {
   if (rows.length === 0) return "(no segments)";
   const nameW = Math.max(8, ...rows.map((r) => r.name.length + (r.type === "corner" ? 2 : 0)));
   const header = `${"Segment".padEnd(nameW)}  ${"A".padStart(8)}  ${"B".padStart(8)}  ${"+/-".padStart(8)}`;
@@ -238,6 +277,7 @@ export function buildInputsComparePrompt(
   comparison: ComparisonResult,
   segments: PromptSegment[] | null,
   unit: UnitSystem = "metric",
+  temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
   /** Pre-fetched track guide text. When provided, skips internal lookup. */
   externalTrackGuide?: string,
 ): string {
@@ -247,9 +287,7 @@ export function buildInputsComparePrompt(
   const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName);
   const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? 0;
 
-  const useSegs = (segments && segments.length > 0)
-    ? segments
-    : fallbackSegments(8);
+  const useSegs = segments && segments.length > 0 ? segments : fallbackSegments(8);
 
   const distances = comparison.distances;
   const totalDist = distances[distances.length - 1] - distances[0] || 1;
@@ -258,7 +296,13 @@ export function buildInputsComparePrompt(
   // For each segment, compute per-lap stats + segment time delta
   // Also build a clean tabular row so the model sees segment timing as concrete data.
   const segLines: string[] = [];
-  const tableRows: { name: string; type: string; timeA: number; timeB: number; delta: number }[] = [];
+  const tableRows: {
+    name: string;
+    type: string;
+    timeA: number;
+    timeB: number;
+    delta: number;
+  }[] = [];
   for (const seg of useSegs) {
     const startD = startDist + seg.startFrac * totalDist;
     const endD = startDist + seg.endFrac * totalDist;
@@ -275,24 +319,18 @@ export function buildInputsComparePrompt(
     const segTimeB = (elB[hi - 1] ?? 0) - (elB[lo] ?? 0);
     const segDelta = segTimeA - segTimeB;
 
-    const sA = computeStatsRange(
-      comparison.lapA.throttle, comparison.lapA.brake, comparison.lapA.steer,
-      comparison.lapA.speed, distances, lo, hi,
-    );
-    const sB = computeStatsRange(
-      comparison.lapB.throttle, comparison.lapB.brake, comparison.lapB.steer,
-      comparison.lapB.speed, distances, lo, hi,
-    );
+    const sA = computeStatsRange(comparison.lapA.throttle, comparison.lapA.brake, comparison.lapA.steer, comparison.lapA.speed, distances, lo, hi);
+    const sB = computeStatsRange(comparison.lapB.throttle, comparison.lapB.brake, comparison.lapB.steer, comparison.lapB.speed, distances, lo, hi);
 
     // Fuel + tire health snapshot at segment start/end (tire health = 1 - wear)
     const fuelStartA = comparison.lapA.fuel[lo] ?? 0;
-    const fuelEndA   = comparison.lapA.fuel[hi - 1] ?? 0;
+    const fuelEndA = comparison.lapA.fuel[hi - 1] ?? 0;
     const fuelStartB = comparison.lapB.fuel[lo] ?? 0;
-    const fuelEndB   = comparison.lapB.fuel[hi - 1] ?? 0;
+    const fuelEndB = comparison.lapB.fuel[hi - 1] ?? 0;
     const tireStartA = 1 - (comparison.lapA.tireWear[lo] ?? 0);
-    const tireEndA   = 1 - (comparison.lapA.tireWear[hi - 1] ?? 0);
+    const tireEndA = 1 - (comparison.lapA.tireWear[hi - 1] ?? 0);
     const tireStartB = 1 - (comparison.lapB.tireWear[lo] ?? 0);
-    const tireEndB   = 1 - (comparison.lapB.tireWear[hi - 1] ?? 0);
+    const tireEndB = 1 - (comparison.lapB.tireWear[hi - 1] ?? 0);
 
     tableRows.push({
       name: seg.name,
@@ -318,7 +356,7 @@ export function buildInputsComparePrompt(
   const segNames = useSegs.map((s) => `"${s.name}"`).join(", ");
   const expectedCount = useSegs.length;
 
-  return `${compareEngineerPersona(unit)}
+  return `${compareEngineerPersona(unit, temperatureUnit)}
 
 This task: produce a structured per-segment comparison of driver inputs (throttle, brake, steering) plus coaching for the slower lap.
 

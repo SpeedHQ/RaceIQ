@@ -33,8 +33,14 @@ export function CurbDebugSection({
 
         // Refresh curb data and boundaries
         const [newCurbs, newBoundaries] = await Promise.all([
-          client.api["track-curbs"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } }).then((r) => r.ok ? r.json() as unknown as TrackCurb[] : null).catch(() => null),
-          client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } }).then((r) => r.ok ? r.json() as unknown as TrackBoundaries : null).catch(() => null),
+          client.api["track-curbs"][":ordinal"]
+            .$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } })
+            .then((r) => (r.ok ? (r.json() as unknown as TrackCurb[]) : null))
+            .catch(() => null),
+          client.api["track-boundaries"][":ordinal"]
+            .$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gid ?? undefined } })
+            .then((r) => (r.ok ? (r.json() as unknown as TrackBoundaries) : null))
+            .catch(() => null),
         ]);
         setCurbs(newCurbs);
         setBoundaries(newBoundaries);
@@ -58,11 +64,11 @@ export function CurbDebugSection({
           <>
             <div className="flex justify-between">
               <span className="text-app-text-muted">Left</span>
-              <span className="font-mono text-app-text">{curbs.filter(c => c.side === "left").length}</span>
+              <span className="font-mono text-app-text">{curbs.filter((c) => c.side === "left").length}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-app-text-muted">Right</span>
-              <span className="font-mono text-app-text">{curbs.filter(c => c.side === "right").length}</span>
+              <span className="font-mono text-app-text">{curbs.filter((c) => c.side === "right").length}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-app-text-muted">Total pts</span>
@@ -79,16 +85,22 @@ export function CurbDebugSection({
       >
         {extracting ? "Extracting..." : "Extract Curbs from Laps"}
       </button>
-      <p className="text-[9px] text-app-text-dim mt-1">
-        Scans all stored laps for rumble strip data and recalibrates track boundaries.
-      </p>
+      <p className="text-[9px] text-app-text-dim mt-1">Scans all stored laps for rumble strip data and recalibrates track boundaries.</p>
 
       {result && (
         <div className="mt-2 p-2 rounded bg-app-bg/80 border border-app-border text-[10px] font-mono space-y-0.5">
-          <div>Laps scanned: <span className="text-app-text">{result.lapsScanned}</span></div>
-          <div>Laps with curbs: <span className="text-orange-400">{result.lapsWithCurbs}</span></div>
-          <div>Curb segments: <span className="text-orange-400">{result.curbSegments}</span></div>
-          <div>Calibrated: <span className={result.calibrated ? "text-green-400" : "text-amber-400"}>{result.calibrated ? "Yes" : "No"}</span></div>
+          <div>
+            Laps scanned: <span className="text-app-text">{result.lapsScanned}</span>
+          </div>
+          <div>
+            Laps with curbs: <span className="text-orange-400">{result.lapsWithCurbs}</span>
+          </div>
+          <div>
+            Curb segments: <span className="text-orange-400">{result.curbSegments}</span>
+          </div>
+          <div>
+            Calibrated: <span className={result.calibrated ? "text-green-400" : "text-amber-400"}>{result.calibrated ? "Yes" : "No"}</span>
+          </div>
         </div>
       )}
     </div>

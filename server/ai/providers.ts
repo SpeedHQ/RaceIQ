@@ -2,6 +2,7 @@
  * AI provider abstraction — supports Claude CLI and Gemini API.
  */
 
+import { extractJson } from "./extract-json";
 export interface AiResult {
   analysis: string;
   usage: {
@@ -25,22 +26,44 @@ export function getProviders() {
   return AI_PROVIDERS;
 }
 
+export type ModelListResult = {
+  models: { id: string; name: string }[];
+  error: string | null;
+};
+
 /** Fetch available Gemini models from the API. Filters to generateContent-capable models. */
-export async function getGeminiModels(apiKey: string): Promise<{ id: string; name: string }[]> {
+/** Fetch available Gemini models from the API. Filters to generateContent-capable models. */
+export async function getGeminiModelsDetailed(apiKey: string): Promise<ModelListResult> {
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    if (!res.ok) return [];
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    console.info(`[AI] GET ${url}`);
+    const res = await fetch(url);
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      const message = `Gemini models request failed (${res.status} ${res.statusText})${body ? `: ${body.slice(0, 240)}` : ""}`;
+      console.warn(`[AI] ${message}`);
+      return { models: [], error: message };
+    }
+    console.info(`[AI] ${res.status} ${res.statusText} ${url}`);
     const data = await res.json() as any;
-    return (data.models ?? [])
+    const models = (data.models ?? [])
       .filter((m: any) => m.supportedGenerationMethods?.includes("generateContent"))
       .map((m: any) => ({
         id: m.name.replace("models/", ""),
         name: m.displayName ?? m.name.replace("models/", ""),
       }))
       .sort((a: any, b: any) => a.name.localeCompare(b.name));
-  } catch {
-    return [];
+    return { models, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("[AI] Gemini models list request errored:", message);
+    return { models: [], error: message };
   }
+}
+
+export async function getGeminiModels(apiKey: string): Promise<{ id: string; name: string }[]> {
+  const result = await getGeminiModelsDetailed(apiKey);
+  return result.models;
 }
 
 /** Run analysis via Claude CLI (pipe mode). */
@@ -287,14 +310,6 @@ export async function runGemini(
   };
 }
 
-/** Extract and validate JSON from an AI response (strips markdown fences if present). */
-function extractJson(text: string): string {
-  let jsonStr = text.trim();
-  const fenceMatch = jsonStr.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
-  if (fenceMatch) jsonStr = fenceMatch[1].trim();
-  JSON.parse(jsonStr); // validate — throws if invalid
-  return jsonStr;
-}
 
 /** Run analysis via OpenAI API. */
 export async function runOpenAi(
@@ -358,17 +373,34 @@ export function getOpenAiModels() {
 }
 
 /** Fetch available models from an OpenAI-compatible local endpoint (LM Studio, Ollama, etc.). */
-export async function getLocalModels(endpoint: string): Promise<{ id: string; name: string }[]> {
+export async function getLocalModelsDetailed(endpoint: string): Promise<ModelListResult> {
   try {
     const url = endpoint.replace(/\/+$/, "") + "/models";
+    console.info(`[AI] GET ${url}`);
     const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
-    if (!res.ok) return [];
+    console.info(`[AI] ${res.status} ${res.statusText} ${url}`);
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      const message = `Local models request failed (${res.status} ${res.statusText})${body ? `: ${body.slice(0, 240)}` : ""}`;
+      console.warn(`[AI] ${message}`);
+      return { models: [], error: message };
+    }
     const data = await res.json() as any;
-    return (data.data ?? []).map((m: any) => ({
-      id: m.id,
-      name: m.id,
-    }));
-  } catch {
-    return [];
+    return {
+      models: (data.data ?? []).map((m: any) => ({
+        id: m.id,
+        name: m.id,
+      })),
+      error: null,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[AI] Local models list request errored:", message);
+    return { models: [], error: message };
   }
+}
+
+export async function getLocalModels(endpoint: string): Promise<{ id: string; name: string }[]> {
+  const result = await getLocalModelsDetailed(endpoint);
+  return result.models;
 }

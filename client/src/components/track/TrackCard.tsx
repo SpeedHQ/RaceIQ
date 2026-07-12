@@ -6,14 +6,22 @@ import { countryName } from "@/lib/country-names";
 import type { TrackInfo, Point } from "./types";
 
 /** TrackCard — Gallery thumbnail: fetches outline by ordinal and renders a small static track map. */
-export function TrackCard({ track, onSelect, gameId, setupCount, guideCount, hasGuide }: { track: TrackInfo; onSelect: (t: TrackInfo) => void; gameId?: GameId | null; setupCount?: number; guideCount?: number; hasGuide?: boolean }) {
+export function TrackCard({
+  track,
+  onSelect,
+  gameId,
+  setupCount,
+  guideCount,
+  hasGuide,
+}: { track: TrackInfo; onSelect: (t: TrackInfo) => void; gameId?: GameId | null; setupCount?: number; guideCount?: number; hasGuide?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [flipX, setFlipX] = useState(false);
 
   useEffect(() => {
     if (!track.hasOutline) return;
-    client.api["track-outline"][":ordinal"].$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } })
+    client.api["track-outline"][":ordinal"]
+      .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as unknown as { points?: Point[]; flipX?: boolean } | Point[])
       .then((data) => {
         if (!Array.isArray(data) && data?.points && Array.isArray(data.points)) {
@@ -54,9 +62,7 @@ export function TrackCard({ track, onSelect, gameId, setupCount, guideCount, has
         {track.hasOutline ? (
           <canvas ref={canvasRef} className="w-full h-full" />
         ) : (
-          <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">
-            No outline available
-          </div>
+          <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">No outline available</div>
         )}
         {(setupCount !== undefined || hasGuide !== undefined) && (
           <div className="absolute bottom-1.5 right-1.5 flex flex-col items-end gap-1 pointer-events-none">
@@ -71,9 +77,7 @@ export function TrackCard({ track, onSelect, gameId, setupCount, guideCount, has
               </span>
             )}
             {hasGuide && (guideCount ?? 0) === 0 && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-900/70 border border-orange-700/50 text-orange-300 font-mono leading-none">
-                guide
-              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-900/70 border border-orange-700/50 text-orange-300 font-mono leading-none">guide</span>
             )}
           </div>
         )}

@@ -5,8 +5,7 @@ import { makeWheelGeometries } from "../../lib/wireframe-utils";
 import { brakeTempColor, COLORS_HEX } from "../../lib/vehicle-dynamics";
 import { WheelInfoCard } from "./WheelLabels";
 
-const useWheelGeometries = (radius = 0.34, width = 0.30) =>
-  useMemo(() => makeWheelGeometries(radius, width), [radius, width]);
+const useWheelGeometries = (radius = 0.34, width = 0.3) => useMemo(() => makeWheelGeometries(radius, width), [radius, width]);
 
 export function Wheel({
   position,
@@ -27,7 +26,7 @@ export function Wheel({
   onCurb,
   puddleDepth,
   tireRadius = 0.34,
-  tireWidth = 0.30,
+  tireWidth = 0.3,
 }: {
   position: [number, number, number];
   steerAngle: number;
@@ -76,11 +75,7 @@ export function Wheel({
         </group>
         {/* Brake disc — vertical, inboard of wheel (between wheel and spring) */}
         {brakeTemp > 0 && (
-          <mesh
-            position={[0, 0, side === "left" ? tireWidth * 0.6 : -tireWidth * 0.6]}
-            rotation={[Math.PI / 2, 0, 0]}
-            renderOrder={10}
-          >
+          <mesh position={[0, 0, side === "left" ? tireWidth * 0.6 : -tireWidth * 0.6]} rotation={[Math.PI / 2, 0, 0]} renderOrder={10}>
             <cylinderGeometry args={[tireRadius * 0.5, tireRadius * 0.5, 0.02, 24]} />
             <meshBasicMaterial color={COLORS_HEX[brakeTempColor(brakeTemp, isRear)]} transparent opacity={0.7} side={THREE.DoubleSide} depthTest={false} />
           </mesh>
@@ -103,7 +98,7 @@ export function Wheel({
       {/* Curb indicator — orange ring under tire when on rumble strip */}
       {onCurb && (
         <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -tireRadius, 0]}>
-          <ringGeometry args={[tireRadius + 0.02, tireRadius + 0.10, 16]} />
+          <ringGeometry args={[tireRadius + 0.02, tireRadius + 0.1, 16]} />
           <meshBasicMaterial color="#ff8800" transparent opacity={0.7} side={THREE.DoubleSide} />
         </mesh>
       )}

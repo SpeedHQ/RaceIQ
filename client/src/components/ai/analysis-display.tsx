@@ -1,8 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
-import {
-  Sparkles, RefreshCw, Gauge, Sliders, AlertTriangle,
-  Lightbulb, Wrench, Download, Trash2, CircleDot, Zap, X, ChevronRight,
-} from "lucide-react";
+import { Sparkles, RefreshCw, Gauge, Sliders, AlertTriangle, Lightbulb, Wrench, Download, Trash2, CircleDot, Zap, X, ChevronRight } from "lucide-react";
 
 export interface AnalysisHighlight {
   startFrac: number;
@@ -11,13 +8,48 @@ export interface AnalysisHighlight {
   label: string;
 }
 
-export interface PaceItem { label: string; value: string; assessment: "good" | "warning" | "critical"; detail: string }
-export interface HandlingItem { label: string; value: string; assessment: "good" | "warning" | "critical"; detail: string }
-export interface CornerItem { name: string; issue: string; fix: string; severity: "minor" | "moderate" | "major" }
-export interface CornerBrakingItem { corner: string; assessment: "good" | "warning" | "critical"; brakePoint: string; detail: string }
-export interface CornerThrottleItem { corner: string; assessment: "good" | "warning" | "critical"; throttlePoint: string; detail: string }
-export interface CoachingItem { tip: string; detail: string }
-export interface SetupItem { component: string; symptom: string; fix: string; current: string; target: string; direction: "increase" | "decrease" | "adjust" }
+export interface PaceItem {
+  label: string;
+  value: string;
+  assessment: "good" | "warning" | "critical";
+  detail: string;
+}
+export interface HandlingItem {
+  label: string;
+  value: string;
+  assessment: "good" | "warning" | "critical";
+  detail: string;
+}
+export interface CornerItem {
+  name: string;
+  issue: string;
+  fix: string;
+  severity: "minor" | "moderate" | "major";
+}
+export interface CornerBrakingItem {
+  corner: string;
+  assessment: "good" | "warning" | "critical";
+  brakePoint: string;
+  detail: string;
+}
+export interface CornerThrottleItem {
+  corner: string;
+  assessment: "good" | "warning" | "critical";
+  throttlePoint: string;
+  detail: string;
+}
+export interface CoachingItem {
+  tip: string;
+  detail: string;
+}
+export interface SetupItem {
+  component: string;
+  symptom: string;
+  fix: string;
+  current: string;
+  target: string;
+  direction: "increase" | "decrease" | "adjust";
+}
 
 export interface AnalysisData {
   verdict: string;
@@ -174,7 +206,12 @@ export function TuneBar({ current, target, component }: { current: number; targe
 
 /** Wrapper that makes a card clickable to highlight a track zone. */
 export function TrackCard({
-  seg, color, onJumpToFrac, onHighlightsChange, className, children,
+  seg,
+  color,
+  onJumpToFrac,
+  onHighlightsChange,
+  className,
+  children,
 }: {
   seg: Segment | null;
   color: "good" | "warning" | "critical";
@@ -237,63 +274,56 @@ export function SetupSection({
         <Wrench className="size-3.5 text-app-text-secondary" />
         <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">Setup</span>
         <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{setup.length}</span>
-        {!hasTune && (
-          <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">
-            Best Guess
-          </span>
-        )}
+        {!hasTune && <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">Best Guess</span>}
         <ChevronRight className="ml-auto size-3.5 text-app-text-muted" />
       </button>
 
       {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setOpen(false)}
-        >
-          <div
-            className="relative w-full max-w-2xl max-h-[85vh] bg-app-surface border border-app-border-input rounded-lg shadow-xl flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setOpen(false)}>
+          <div className="relative w-full max-w-2xl max-h-[85vh] bg-app-surface border border-app-border-input rounded-lg shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 px-4 py-3 border-b border-app-border-input/50 rounded-t-lg shrink-0">
               <Wrench className="size-4 text-app-text-secondary" />
               <h2 className="text-sm font-semibold text-app-text">Setup Recommendations</h2>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{setup.length}</span>
-              {!hasTune && (
-                <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">
-                  Best Guess
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="ml-auto p-1 rounded hover:bg-app-border-input/30 text-app-text-muted hover:text-app-text"
-                aria-label="Close setup modal"
-              >
+              {!hasTune && <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">Best Guess</span>}
+              <button type="button" onClick={() => setOpen(false)} className="ml-auto p-1 rounded hover:bg-app-border-input/30 text-app-text-muted hover:text-app-text" aria-label="Close setup modal">
                 <X className="size-4" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-              {!hasTune && (
-                <p className="text-[10px] text-amber-400/70 leading-snug">
-                  No tune data linked — values are estimated from telemetry. Link a tune for accurate setup suggestions.
-                </p>
-              )}
+              {!hasTune && <p className="text-[10px] text-amber-400/70 leading-snug">No tune data linked — values are estimated from telemetry. Link a tune for accurate setup suggestions.</p>}
               {setup.map((item, i) => {
-                const extractNum = (s?: string) => { const m = s?.match(/-?\d+\.?\d*/); return m ? parseFloat(m[0]) : NaN; };
+                const extractNum = (s?: string) => {
+                  const m = s?.match(/-?\d+\.?\d*/);
+                  return m ? parseFloat(m[0]) : NaN;
+                };
                 const currentNum = extractNum(item.current);
                 const targetNum = extractNum(item.target);
                 const hasBoth = !isNaN(currentNum) && !isNaN(targetNum) && currentNum !== targetNum;
                 return (
-                  <TrackCard key={i} seg={findSegment(lookupSegs, item.symptom, item.fix)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-3 py-2.5">
+                  <TrackCard
+                    key={i}
+                    seg={findSegment(lookupSegs, item.symptom, item.fix)}
+                    color="warning"
+                    onJumpToFrac={onJumpToFrac}
+                    onHighlightsChange={onHighlightsChange}
+                    className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-3 py-2.5"
+                  >
                     <span className="text-[12px] font-semibold text-app-text block mb-1">{item.component}</span>
-                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                      item.direction === "increase" ? "bg-emerald-400/10 text-emerald-400" :
-                      item.direction === "decrease" ? "bg-red-400/10 text-red-400" :
-                      "bg-amber-400/10 text-amber-400"
-                    }`}>{item.current} → {item.target}</span>
+                    <span
+                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                        item.direction === "increase" ? "bg-emerald-400/10 text-emerald-400" : item.direction === "decrease" ? "bg-red-400/10 text-red-400" : "bg-amber-400/10 text-amber-400"
+                      }`}
+                    >
+                      {item.current} → {item.target}
+                    </span>
                     {hasBoth && <TuneBar current={currentNum} target={targetNum} component={item.component} />}
-                    <p className="text-[11px] text-app-text-secondary mt-1.5"><span className="text-red-400/70">Symptom:</span> {item.symptom}</p>
-                    <p className="text-[11px] text-app-text-secondary mt-0.5"><span className="text-emerald-400/70">Fix:</span> {item.fix}</p>
+                    <p className="text-[11px] text-app-text-secondary mt-1.5">
+                      <span className="text-red-400/70">Symptom:</span> {item.symptom}
+                    </p>
+                    <p className="text-[11px] text-app-text-secondary mt-0.5">
+                      <span className="text-emerald-400/70">Fix:</span> {item.fix}
+                    </p>
                   </TrackCard>
                 );
               })}
@@ -339,7 +369,7 @@ export function AnalysisDisplay({
 }) {
   const internalRef = useRef<HTMLDivElement>(null);
   const ref = containerRef ?? internalRef;
-  const lookupSegs = (cornerFracs && cornerFracs.length > 0) ? cornerFracs : (segments ?? null);
+  const lookupSegs = cornerFracs && cornerFracs.length > 0 ? cornerFracs : (segments ?? null);
 
   return (
     <div ref={ref} className="max-w-full rounded-lg px-2.5 py-2 bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary space-y-3">
@@ -350,7 +380,11 @@ export function AnalysisDisplay({
       {analysis.pace?.length > 0 && (
         <div>
           <SectionHeader icon={<Gauge className="size-3" />} title="Pace" />
-          <div className="grid grid-cols-1 gap-1.5">{analysis.pace.map((item, i) => <MetricCard key={i} item={item} />)}</div>
+          <div className="grid grid-cols-1 gap-1.5">
+            {analysis.pace.map((item, i) => (
+              <MetricCard key={i} item={item} />
+            ))}
+          </div>
         </div>
       )}
 
@@ -358,7 +392,11 @@ export function AnalysisDisplay({
       {analysis.handling?.length > 0 && (
         <div>
           <SectionHeader icon={<Sliders className="size-3" />} title="Handling" />
-          <div className="grid grid-cols-1 gap-1.5">{analysis.handling.map((item, i) => <MetricCard key={i} item={item} />)}</div>
+          <div className="grid grid-cols-1 gap-1.5">
+            {analysis.handling.map((item, i) => (
+              <MetricCard key={i} item={item} />
+            ))}
+          </div>
         </div>
       )}
 
@@ -368,7 +406,14 @@ export function AnalysisDisplay({
           <SectionHeader icon={<AlertTriangle className="size-3" />} title="Problem Corners" />
           <div className="space-y-1.5">
             {analysis.corners.map((corner, i) => (
-              <TrackCard key={i} seg={findSegment(lookupSegs, corner.name)} color={corner.severity === "major" ? "critical" : corner.severity === "moderate" ? "warning" : "good"} onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-2.5 py-2">
+              <TrackCard
+                key={i}
+                seg={findSegment(lookupSegs, corner.name)}
+                color={corner.severity === "major" ? "critical" : corner.severity === "moderate" ? "warning" : "good"}
+                onJumpToFrac={onJumpToFrac}
+                onHighlightsChange={onHighlightsChange}
+                className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-2.5 py-2"
+              >
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span className={`size-1.5 rounded-full ${SEVERITY_COLORS[corner.severity]}`} />
                   <span className="text-[11px] font-semibold text-app-text">{corner.name}</span>
@@ -387,7 +432,14 @@ export function AnalysisDisplay({
           <SectionHeader icon={<CircleDot className="size-3" />} title="Braking Points" />
           <div className="space-y-1.5">
             {analysis.braking.map((item, i) => (
-              <TrackCard key={i} seg={findSegment(lookupSegs, item.corner)} color={item.assessment} onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className={`rounded-lg border px-2.5 py-1.5 ${ASSESSMENT_BG[item.assessment]}`}>
+              <TrackCard
+                key={i}
+                seg={findSegment(lookupSegs, item.corner)}
+                color={item.assessment}
+                onJumpToFrac={onJumpToFrac}
+                onHighlightsChange={onHighlightsChange}
+                className={`rounded-lg border px-2.5 py-1.5 ${ASSESSMENT_BG[item.assessment]}`}
+              >
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-[11px] font-semibold text-app-text">{item.corner}</span>
                   <span className={`text-[10px] font-mono ${ASSESSMENT_COLORS[item.assessment]}`}>{item.brakePoint}</span>
@@ -405,7 +457,14 @@ export function AnalysisDisplay({
           <SectionHeader icon={<Zap className="size-3" />} title="Throttle Application" />
           <div className="space-y-1.5">
             {analysis.throttle.map((item, i) => (
-              <TrackCard key={i} seg={findSegment(lookupSegs, item.corner)} color={item.assessment} onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className={`rounded-lg border px-2.5 py-1.5 ${ASSESSMENT_BG[item.assessment]}`}>
+              <TrackCard
+                key={i}
+                seg={findSegment(lookupSegs, item.corner)}
+                color={item.assessment}
+                onJumpToFrac={onJumpToFrac}
+                onHighlightsChange={onHighlightsChange}
+                className={`rounded-lg border px-2.5 py-1.5 ${ASSESSMENT_BG[item.assessment]}`}
+              >
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-[11px] font-semibold text-app-text">{item.corner}</span>
                   <span className={`text-[10px] font-mono ${ASSESSMENT_COLORS[item.assessment]}`}>{item.throttlePoint}</span>
@@ -436,15 +495,7 @@ export function AnalysisDisplay({
       )}
 
       {/* Setup — compact button, details in a modal */}
-      {analysis.setup?.length > 0 && (
-        <SetupSection
-          setup={analysis.setup}
-          hasTune={hasTune}
-          lookupSegs={lookupSegs}
-          onJumpToFrac={onJumpToFrac}
-          onHighlightsChange={onHighlightsChange}
-        />
-      )}
+      {analysis.setup?.length > 0 && <SetupSection setup={analysis.setup} hasTune={hasTune} lookupSegs={lookupSegs} onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} />}
 
       {/* Actions bar */}
       {(usage || onExport || onRegenerate || onClear) && (
@@ -455,17 +506,30 @@ export function AnalysisDisplay({
             </span>
           )}
           {onExport && (
-            <button onClick={onExport} className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors" title="Export as image">
+            <button
+              onClick={onExport}
+              className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
+              title="Export as image"
+            >
               <Download className="size-3" /> Export
             </button>
           )}
           {onRegenerate && (
-            <button onClick={onRegenerate} disabled={loading} className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors disabled:opacity-50" title="Regenerate analysis">
+            <button
+              onClick={onRegenerate}
+              disabled={loading}
+              className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors disabled:opacity-50"
+              title="Regenerate analysis"
+            >
               <RefreshCw className="size-3" /> Regenerate
             </button>
           )}
           {onClear && (
-            <button onClick={onClear} className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-red-400 px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors" title="Clear analysis and chat">
+            <button
+              onClick={onClear}
+              className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-red-400 px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
+              title="Clear analysis and chat"
+            >
               <Trash2 className="size-3" /> Clear
             </button>
           )}

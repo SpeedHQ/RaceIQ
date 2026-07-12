@@ -35,9 +35,7 @@ let lastGpuSnapshot: GpuSnapshot | null = null;
  * crash leaves visible evidence (runaway geometry/texture/program counts)
  * even though it won't show up in performance.memory.
  */
-export function recordGpuSnapshot(
-  info: { memory: { geometries: number; textures: number }; programs: { length: number } | null; render: { calls: number; triangles: number } },
-): void {
+export function recordGpuSnapshot(info: { memory: { geometries: number; textures: number }; programs: { length: number } | null; render: { calls: number; triangles: number } }): void {
   lastGpuSnapshot = {
     geometries: info.memory.geometries,
     textures: info.memory.textures,
@@ -116,8 +114,8 @@ function installGlobalErrorHandlers(): void {
   window.addEventListener("unhandledrejection", (ev) => {
     const reason = ev.reason as { message?: string; stack?: string } | string | undefined;
     persist(LAST_REJECTION_KEY, {
-      reason: typeof reason === "string" ? reason : reason?.message ?? String(reason),
-      stack: typeof reason === "object" && reason ? reason.stack ?? null : null,
+      reason: typeof reason === "string" ? reason : (reason?.message ?? String(reason)),
+      stack: typeof reason === "object" && reason ? (reason.stack ?? null) : null,
       ts: Date.now(),
       url: location.href,
     });
@@ -148,8 +146,8 @@ function startHeapMonitor(): void {
       warned = true;
       console.warn(
         `[RaceIQ] JS heap pressure: ${(ratio * 100).toFixed(1)}% ` +
-        `(${(usedJSHeapSize / 1048576).toFixed(0)} MB / ${(jsHeapSizeLimit / 1048576).toFixed(0)} MB). ` +
-        `An OOM crash (Aw Snap, error 5) may be imminent.`
+          `(${(usedJSHeapSize / 1048576).toFixed(0)} MB / ${(jsHeapSizeLimit / 1048576).toFixed(0)} MB). ` +
+          `An OOM crash (Aw Snap, error 5) may be imminent.`,
       );
     } else if (ratio < WARN_RATIO * 0.9) {
       warned = false; // re-arm if heap recovers

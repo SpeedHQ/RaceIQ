@@ -40,9 +40,9 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
 
     // Corner positions in canvas space: FL, FR, RL, RR
     const corners = [
-      { x: carX + 4, y: carY + 6 },             // FL
-      { x: carX + carW - 4, y: carY + 6 },       // FR
-      { x: carX + 4, y: carY + carH - 6 },       // RL
+      { x: carX + 4, y: carY + 6 }, // FL
+      { x: carX + carW - 4, y: carY + 6 }, // FR
+      { x: carX + 4, y: carY + carH - 6 }, // RL
       { x: carX + carW - 4, y: carY + carH - 6 }, // RR
     ];
     for (const c of corners) {
@@ -62,12 +62,7 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     ctx.stroke();
 
     // Suspension loads (0-1 normalized, higher = more compressed = more load)
-    const loads = [
-      packet.NormSuspensionTravelFL,
-      packet.NormSuspensionTravelFR,
-      packet.NormSuspensionTravelRL,
-      packet.NormSuspensionTravelRR,
-    ];
+    const loads = [packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR];
 
     const totalLoad = loads[0] + loads[1] + loads[2] + loads[3];
 
@@ -96,7 +91,7 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     const dx = dotX - cx;
     const dy = dotY - cy;
     const maxDist = Math.sqrt((carW / 2) ** 2 + (carH / 2) ** 2);
-    const magnitude = Math.min(1, Math.sqrt(dx * dx + dy * dy) / maxDist * 2);
+    const magnitude = Math.min(1, (Math.sqrt(dx * dx + dy * dy) / maxDist) * 2);
     const dotColor = magnitude < 0.3 ? "#34d399" : magnitude < 0.6 ? "#facc15" : magnitude < 0.85 ? "#fb923c" : "#ef4444";
 
     // Weight dot
@@ -116,7 +111,11 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
   return (
     <div className="relative flex flex-col items-center">
       <canvas ref={canvasRef} style={{ width: size, height: size }} className="rounded" />
-      <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[9px] font-mono text-app-text-muted text-center leading-tight">Load<br />Distribution</span>
+      <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[9px] font-mono text-app-text-muted text-center leading-tight">
+        Load
+        <br />
+        Distribution
+      </span>
     </div>
   );
 }

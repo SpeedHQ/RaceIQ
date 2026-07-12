@@ -19,12 +19,15 @@ export function CurbMarkers({
   // Forza PositionX/Z is ~0.065m ahead of geometric center (measured from
   // front→rear curb entry timing vs extracted wheelbase), so shift wheels back
   const posOffset = 0.065;
-  const wheelOffsets = useMemo(() => ({
-    FL: { fwd: carModel.halfWheelbase - posOffset, rgt: -carModel.halfFrontTrack },
-    FR: { fwd: carModel.halfWheelbase - posOffset, rgt: carModel.halfFrontTrack },
-    RL: { fwd: -carModel.halfWheelbase - posOffset, rgt: -carModel.halfRearTrack },
-    RR: { fwd: -carModel.halfWheelbase - posOffset, rgt: carModel.halfRearTrack },
-  }), [carModel]);
+  const wheelOffsets = useMemo(
+    () => ({
+      FL: { fwd: carModel.halfWheelbase - posOffset, rgt: -carModel.halfFrontTrack },
+      FR: { fwd: carModel.halfWheelbase - posOffset, rgt: carModel.halfFrontTrack },
+      RL: { fwd: -carModel.halfWheelbase - posOffset, rgt: -carModel.halfRearTrack },
+      RR: { fwd: -carModel.halfWheelbase - posOffset, rgt: carModel.halfRearTrack },
+    }),
+    [carModel],
+  );
 
   // Compute world-space wheel position
   const wheelWorld = (p: TelemetryPacket, off: { fwd: number; rgt: number }) => {
@@ -81,8 +84,8 @@ export function CurbMarkers({
   const puddleSegs = useMemo(() => filterByDistanceIndexed(puddleIndex, cx, cz, yaw, GROUND_Y), [puddleIndex, cx, cz, yaw, GROUND_Y]);
 
   // Flatten segments into individual points for rendering as instance positions
-  const curbPts = useMemo(() => curbSegs.flatMap(seg => seg), [curbSegs]);
-  const puddlePts = useMemo(() => puddleSegs.flatMap(seg => seg), [puddleSegs]);
+  const curbPts = useMemo(() => curbSegs.flatMap((seg) => seg), [curbSegs]);
+  const puddlePts = useMemo(() => puddleSegs.flatMap((seg) => seg), [puddleSegs]);
 
   // Instanced mesh refs — one draw call per marker type instead of one
   // `<mesh>` per point. Capacity sized to the total per-lap curb/puddle

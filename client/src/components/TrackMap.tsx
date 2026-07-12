@@ -48,7 +48,7 @@ function channelToColor(value: number, min: number, max: number): string {
 function hasWorldPositions(telemetry: TelemetryPacket[]): boolean {
   // Check a sample of packets for non-zero positions
   for (let i = 0; i < Math.min(telemetry.length, 20); i++) {
-    const idx = Math.floor(i * telemetry.length / 20);
+    const idx = Math.floor((i * telemetry.length) / 20);
     if (telemetry[idx].PositionX !== 0 || telemetry[idx].PositionZ !== 0) return true;
   }
   return false;
@@ -81,9 +81,13 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
 
   // Fetch boundaries when trackOrdinal is provided
   useEffect(() => {
-    if (!trackOrdinal) { setBoundaries(null); return; }
+    if (!trackOrdinal) {
+      setBoundaries(null);
+      return;
+    }
     if (!gameId) return;
-    client.api["track-boundaries"][":ordinal"].$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gameId ?? undefined } })
+    client.api["track-boundaries"][":ordinal"]
+      .$get({ param: { ordinal: String(trackOrdinal) }, query: { gameId: gameId ?? undefined } })
       .then((r) => r.json() as unknown as BoundaryData)
       .then((data) => setBoundaries(data))
       .catch(() => setBoundaries(null));
@@ -113,8 +117,8 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
     const useWorld = hasWorldPositions(telemetry);
     let x: number[], z: number[];
     if (useWorld) {
-      x = telemetry.map(p => p.PositionX);
-      z = telemetry.map(p => p.PositionZ);
+      x = telemetry.map((p) => p.PositionX);
+      z = telemetry.map((p) => p.PositionZ);
     } else {
       const integrated = integratePositions(telemetry);
       x = integrated.x;
@@ -123,11 +127,12 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
 
     // Compute bounds — include boundary edges if in same coord system
     const hasBounds = boundaries && (boundaries.coordSystem === "forza" || boundaries.coordSystem === "f1-2025" || boundaries.coordSystem === "acc") && useWorld;
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minZ = Infinity,
+      maxZ = -Infinity;
 
-    const allPointSets: { x: number; z: number }[][] = [
-      x.map((xi, i) => ({ x: xi, z: z[i] })),
-    ];
+    const allPointSets: { x: number; z: number }[][] = [x.map((xi, i) => ({ x: xi, z: z[i] }))];
     if (hasBounds) {
       allPointSets.push(boundaries!.leftEdge, boundaries!.rightEdge);
     }
@@ -152,9 +157,7 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
 
     // All games normalized to same coord convention server-side.
     // X is flipped for display so right in-game = right on screen.
-    const toScreenX = useWorld
-      ? (px: number) => offsetX + (maxX - px) * scale
-      : (px: number) => (px - minX) * scale + offsetX;
+    const toScreenX = useWorld ? (px: number) => offsetX + (maxX - px) * scale : (px: number) => (px - minX) * scale + offsetX;
     const toScreenZ = (pz: number) => (pz - minZ) * scale + offsetZ;
 
     // Draw boundary surface
@@ -235,7 +238,7 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
       let closestIdx = 0;
       let closestDist = Infinity;
       for (let i = 0; i < telemetry.length; i++) {
-        const d = Math.abs((telemetry[i].DistanceTraveled - distStart) - highlightDistance);
+        const d = Math.abs(telemetry[i].DistanceTraveled - distStart - highlightDistance);
         if (d < closestDist) {
           closestDist = d;
           closestIdx = i;
@@ -269,9 +272,7 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
   return (
     <div ref={containerRef} className={`relative w-full h-full min-h-[200px] ${className ?? ""}`}>
       {telemetry.length < 2 ? (
-        <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">
-          No position data
-        </div>
+        <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No position data</div>
       ) : (
         <canvas ref={canvasRef} className="absolute inset-0" />
       )}

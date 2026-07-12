@@ -10,7 +10,10 @@ import { GripSparkline, GRIP_MAX_SAMPLES } from "./GripSparkline";
  */
 export function GripHistory({ packet }: { packet: TelemetryPacket }) {
   const historyRef = useRef<{ fl: number[]; fr: number[]; rl: number[]; rr: number[] }>({
-    fl: [], fr: [], rl: [], rr: [],
+    fl: [],
+    fr: [],
+    rl: [],
+    rr: [],
   });
   const [gripData, setGripData] = useState<{ fl: number[]; fr: number[]; rl: number[]; rr: number[] }>({ fl: [], fr: [], rl: [], rr: [] });
   const [renderKey, setRenderKey] = useState(0);
@@ -21,7 +24,8 @@ export function GripHistory({ packet }: { packet: TelemetryPacket }) {
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
-    client.api["grip-history"].$get()
+    client.api["grip-history"]
+      .$get()
       .then((r) => r.json() as Promise<{ fl: number[]; fr: number[]; rl: number[]; rr: number[] }>)
       .then((data) => {
         if (data && Array.isArray(data.fl) && data.fl.length > 0) {
@@ -50,7 +54,10 @@ export function GripHistory({ packet }: { packet: TelemetryPacket }) {
     h.rr.push(Math.abs(packet.TireCombinedSlipRR));
 
     if (h.fl.length > GRIP_MAX_SAMPLES) {
-      h.fl.shift(); h.fr.shift(); h.rl.shift(); h.rr.shift();
+      h.fl.shift();
+      h.fr.shift();
+      h.rl.shift();
+      h.rr.shift();
     }
 
     setGripData({ fl: h.fl, fr: h.fr, rl: h.rl, rr: h.rr });

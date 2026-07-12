@@ -19,13 +19,9 @@ export interface DisplayPacket extends TelemetryPacket {
  *
  * Forza sends temps in °F, F1/ACC send in °C — source unit is game-aware.
  */
-export function convertPacket(
-  raw: TelemetryPacket,
-  speedUnit: "mph" | "kmh",
-  tempUnit: "F" | "C"
-): DisplayPacket {
+export function convertPacket(raw: TelemetryPacket, speedUnit: "mph" | "kmh", tempUnit: "F" | "C"): DisplayPacket {
   // Forza temps are Fahrenheit, F1 and ACC are Celsius
-  const srcTemp = raw.gameId === "fm-2023" ? "F" as const : "C" as const;
+  const srcTemp = raw.gameId === "fm-2023" ? ("F" as const) : ("C" as const);
   return {
     ...raw,
     DisplaySpeed: convertSpeed(raw.Speed, speedUnit),
@@ -39,10 +35,6 @@ export function convertPacket(
 /**
  * Convert an array of telemetry packets (for historical lap data).
  */
-export function convertPackets(
-  packets: TelemetryPacket[],
-  speedUnit: "mph" | "kmh",
-  tempUnit: "F" | "C"
-): DisplayPacket[] {
+export function convertPackets(packets: TelemetryPacket[], speedUnit: "mph" | "kmh", tempUnit: "F" | "C"): DisplayPacket[] {
   return packets.map((p) => convertPacket(p, speedUnit, tempUnit));
 }

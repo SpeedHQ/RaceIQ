@@ -6,7 +6,9 @@ export function useCookieState<T>(key: string, defaultValue: T): [T, React.Dispa
     try {
       const match = document.cookie.match(new RegExp(`(?:^|; )${key}=([^;]*)`));
       if (match) return JSON.parse(decodeURIComponent(match[1]));
-    } catch { /* use default */ }
+    } catch {
+      /* use default */
+    }
     return defaultValue;
   });
   useEffect(() => {

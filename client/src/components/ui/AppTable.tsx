@@ -1,11 +1,9 @@
 import type { ReactNode, TdHTMLAttributes, ThHTMLAttributes } from "react";
 
-export function Table({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function Table({ children, className = "", fit = false }: { children: ReactNode; className?: string; fit?: boolean }) {
   return (
-    <div className={`rounded-lg ${className}`}>
-      <table className="w-full text-sm">
-        {children}
-      </table>
+    <div className={`rounded-lg ${fit ? "" : "overflow-x-auto"} ${className}`}>
+      <table className={`w-full text-sm ${fit ? "min-w-0" : "min-w-max md:min-w-0"}`}>{children}</table>
     </div>
   );
 }
@@ -13,9 +11,7 @@ export function Table({ children, className = "" }: { children: ReactNode; class
 export function THead({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <thead className={`bg-app-surface sticky top-0 z-10 ${className}`}>
-      <tr className="text-[10px] uppercase tracking-wider text-app-text-muted border-b border-app-border">
-        {children}
-      </tr>
+      <tr className="text-[10px] uppercase tracking-wider text-app-text-muted border-b border-app-border">{children}</tr>
     </thead>
   );
 }
@@ -61,11 +57,7 @@ export function TRow({
   );
 }
 
-export function TH({
-  children,
-  className = "",
-  ...props
-}: { children?: ReactNode; className?: string } & ThHTMLAttributes<HTMLTableCellElement>) {
+export function TH({ children, className = "", ...props }: { children?: ReactNode; className?: string } & ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th className={`px-3 py-2 text-left ${className}`} {...props}>
       {children}
@@ -73,11 +65,7 @@ export function TH({
   );
 }
 
-export function TD({
-  children,
-  className = "",
-  ...props
-}: { children?: ReactNode; className?: string } & TdHTMLAttributes<HTMLTableCellElement>) {
+export function TD({ children, className = "", ...props }: { children?: ReactNode; className?: string } & TdHTMLAttributes<HTMLTableCellElement>) {
   return (
     <td className={`px-3 py-2 ${className}`} {...props}>
       {children}

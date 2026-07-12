@@ -15,11 +15,18 @@ function barColor(pct: number): string {
   return "#22d172";
 }
 
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+}
+
 /** Toggle rapidly while redlining for a strobe effect. */
 function useRedlineStrobe(active: boolean, intervalMs = 90): boolean {
   const [on, setOn] = useState(true);
   useEffect(() => {
-    if (!active) {
+    // Skip the strobe when the user prefers reduced motion. This also keeps
+    // the bar deterministic for snapshot tests (otherwise the captured frame
+    // lands on a random strobe phase → red/orange flicker in the diff).
+    if (!active || prefersReducedMotion()) {
       setOn(true);
       return;
     }
@@ -48,6 +55,7 @@ export function RevBar({ rpm, idle, max, segments = 100, className = "" }: RevBa
         const lit = i < litCount;
         return (
           <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length static segment list, never reordered
             key={i}
             className="flex-1 rounded-[2px] transition-colors duration-75"
             style={{

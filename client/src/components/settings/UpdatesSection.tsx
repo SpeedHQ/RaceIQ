@@ -18,7 +18,8 @@ export function UpdatesSection() {
       const res = await client.api.version.$get();
       const data = await res.json();
       useTelemetryStore.getState().setVersionInfo(data as unknown as import("@/stores/telemetry").VersionInfo);
-    } catch {} finally {
+    } catch {
+    } finally {
       setChecking(false);
     }
   };
@@ -50,11 +51,11 @@ export function UpdatesSection() {
       </div>
       <div className="text-sm text-app-text-muted mb-4 space-y-0.5">
         {currentVersion && (
-          <p>Current version: <span className="text-app-text font-mono">{currentVersion}</span></p>
+          <p>
+            Current version: <span className="text-app-text font-mono">{currentVersion}</span>
+          </p>
         )}
-        {versionInfo?.lastChecked && (
-          <p>Last checked: {new Date(versionInfo.lastChecked).toLocaleString()}</p>
-        )}
+        {versionInfo?.lastChecked && <p>Last checked: {new Date(versionInfo.lastChecked).toLocaleString()}</p>}
       </div>
 
       {/* Update progress */}
@@ -68,24 +69,16 @@ export function UpdatesSection() {
               </div>
             </>
           )}
-          {stage === "installing" && (
-            <p className="text-sm font-medium text-app-accent animate-pulse">Running installer...</p>
-          )}
-          {stage === "reconnecting" && (
-            <p className="text-sm font-medium text-app-accent animate-pulse">Waiting for RaceIQ to restart...</p>
-          )}
-          {stage === "complete" && (
-            <p className="text-sm font-medium text-green-400">Update installed successfully!</p>
-          )}
+          {stage === "installing" && <p className="text-sm font-medium text-app-accent animate-pulse">Running installer...</p>}
+          {stage === "reconnecting" && <p className="text-sm font-medium text-app-accent animate-pulse">Waiting for RaceIQ to restart...</p>}
+          {stage === "complete" && <p className="text-sm font-medium text-green-400">Update installed successfully!</p>}
         </div>
       )}
 
       {/* Update available (not currently updating) */}
       {!stage && showUpdate && latestVersion && (
         <div className="rounded-lg border border-app-accent/30 bg-app-accent/5 p-4 space-y-3 mb-4">
-          <p className="text-sm font-medium text-app-accent">
-            Update available: v{latestVersion}
-          </p>
+          <p className="text-sm font-medium text-app-accent">Update available: v{latestVersion}</p>
           <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
             Install Update
           </Button>
@@ -93,11 +86,7 @@ export function UpdatesSection() {
       )}
 
       {/* Up to date */}
-      {!stage && versionInfo?.checked && !showUpdate && (
-        <p className="text-sm text-app-text-muted mb-4">
-          You&apos;re on the latest version.
-        </p>
-      )}
+      {!stage && versionInfo?.checked && !showUpdate && <p className="text-sm text-app-text-muted mb-4">You&apos;re on the latest version.</p>}
 
       {/* Release notes for versions between current and latest */}
       {!stage && versionInfo?.newReleases && versionInfo.newReleases.length > 0 && (
@@ -106,9 +95,7 @@ export function UpdatesSection() {
             <div key={r.version}>
               <div className="flex items-baseline justify-between mb-2">
                 <h3 className="text-sm font-medium text-app-text">v{r.version}</h3>
-                {r.date && (
-                  <span className="text-xs text-app-text-muted">Released {new Date(r.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
-                )}
+                {r.date && <span className="text-xs text-app-text-muted">Released {new Date(r.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>}
               </div>
               <ReleaseNotes notes={r.notes} />
             </div>
@@ -122,13 +109,14 @@ export function UpdatesSection() {
           <div className="flex items-baseline justify-between mb-2">
             <h3 className="text-sm font-medium text-app-text">Current Release (v{versionInfo.current})</h3>
             {versionInfo.currentReleaseDate && (
-              <span className="text-xs text-app-text-muted">Released {new Date(versionInfo.currentReleaseDate).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
+              <span className="text-xs text-app-text-muted">
+                Released {new Date(versionInfo.currentReleaseDate).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+              </span>
             )}
           </div>
           <ReleaseNotes notes={versionInfo.currentReleaseNotes} />
         </div>
       )}
-
     </section>
   );
 }
