@@ -100,7 +100,7 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-w-2xl">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
       {sections
         .filter((section) => section.rows.length > 0)
         .map((section) => (
