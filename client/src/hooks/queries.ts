@@ -365,6 +365,22 @@ export function useCatalogTunes() {
   });
 }
 
+export interface LaptimeEntry {
+  track: string;
+  carClass: string;
+  car: string;
+  driver: string;
+  laptime: string;
+}
+
+export function useLaptimes() {
+  return useQuery({
+    queryKey: ["laptimes"],
+    queryFn: async () => rpcJson<LaptimeEntry[]>(await client.api.laptimes.$get()),
+    staleTime: 1000 * 60 * 30,
+  });
+}
+
 export function useRefreshCommunityTunes() {
   const qc = useQueryClient();
   return useMutation({

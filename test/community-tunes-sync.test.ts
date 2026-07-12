@@ -10,7 +10,9 @@ import {
 import { setCommunityTunesSyncState } from "../server/settings";
 import { syncCommunityTunes } from "../server/community-tunes-sync";
 
-const SETTINGS_PATH = "./data/settings.json";
+// Follows DATA_DIR so this never mutates the real dev database/settings —
+// `bun run test` isolates DATA_DIR to a throwaway directory (see package.json).
+const SETTINGS_PATH = `${process.env.DATA_DIR ?? "./data"}/settings.json`;
 
 const SETTINGS = {
   tires: { frontPressure: 30, rearPressure: 31 },

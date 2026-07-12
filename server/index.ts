@@ -206,6 +206,10 @@ udpListener.start(udpPort);
 import { startCommunityTunesSync } from "./community-tunes-sync";
 startCommunityTunesSync();
 
+// Sync the community leaderboard (reference lap times) from the CDN.
+import { startLaptimesSync } from "./laptimes-sync";
+startLaptimesSync();
+
 // Check for sessions recorded with an older lap detector version.
 // Stores the notification in wsManager so it's sent to each client on connect.
 import { countStaleSessions } from "./db/queries";

@@ -1,6 +1,12 @@
 import { AppInput } from "@/components/ui/AppInput";
-import { useCatalogTunes, useResolveNames } from "@/hooks/queries";
+import { useCatalogTunes, useLaptimes, useResolveNames } from "@/hooks/queries";
 import { useMemo, useState } from "react";
+
+// Loose match: lowercase, collapse whitespace, drop trailing "*" (the
+// community leaderboard sheet marks short/reverse variants this way).
+function normalizeTrack(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, " ").replace(/\*$/, "").trim();
+}
 
 export function TrackTunes({ trackName, trackVariant }: { trackName: string; trackVariant: string }) {
   const fullName = trackVariant ? `${trackName} ${trackVariant}`.trim() : trackName;
@@ -10,6 +16,7 @@ export function TrackTunes({ trackName, trackVariant }: { trackName: string; tra
   const [expandedTune, setExpandedTune] = useState<string | null>(null);
 
   const { data: catalog = [] } = useCatalogTunes();
+  const { data: laptimes = [] } = useLaptimes();
 
   const allTunes = catalog.filter(
     (t) =>
@@ -25,6 +32,18 @@ export function TrackTunes({ trackName, trackVariant }: { trackName: string; tra
 
   const carQuery = carSearch.toLowerCase();
   const tunes = carQuery ? allTunes.filter((t) => carName(t.carOrdinal).toLowerCase().includes(carQuery)) : allTunes;
+
+  // Reference-only leaderboard for this track — never joined onto a specific
+  // tune, just shown alongside for context (car/track matching between the
+  // scraped tune data and the leaderboard sheet isn't reliable enough for
+  // a per-tune attribution).
+  const trackNorm = normalizeTrack(fullName);
+  const trackNorm2 = normalizeTrack(trackName);
+  const leaderboard = laptimes.filter((e) => {
+    const t = normalizeTrack(e.track);
+    return t.includes(trackNorm) || trackNorm.includes(t) || t.includes(trackNorm2) || trackNorm2.includes(t);
+  });
+  const leaderboardRows = carQuery ? leaderboard.filter((e) => e.car.toLowerCase().includes(carQuery)) : leaderboard;
 
   return (
     <div>
@@ -141,6 +160,26 @@ export function TrackTunes({ trackName, trackVariant }: { trackName: string; tra
               </div>
             );
           })}
+        </div>
+      )}
+
+      {leaderboardRows.length > 0 && (
+        <div className="mt-6">
+          <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-2">Community Leaderboard ({leaderboardRows.length})</div>
+          <div className="rounded-lg bg-app-surface border border-app-border overflow-hidden">
+            <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 text-app-label text-app-text-dim uppercase tracking-wider border-b border-app-border">
+              <span>Car</span>
+              <span>Driver</span>
+              <span className="text-right">Time</span>
+            </div>
+            {leaderboardRows.map((e, i) => (
+              <div key={`${e.car}-${e.driver}-${e.laptime}-${i}`} className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 text-app-body border-b border-app-border last:border-b-0 even:bg-app-surface-alt">
+                <span className="min-w-0 truncate text-app-text-secondary">{e.car}</span>
+                <span className="text-app-text-muted">{e.driver || "—"}</span>
+                <span className="font-mono text-amber-400 text-right">{e.laptime}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

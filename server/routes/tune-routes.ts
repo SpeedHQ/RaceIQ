@@ -21,6 +21,7 @@ import {
   getCommunityTuneById,
 } from "../db/community-tune-queries";
 import { syncCommunityTunes } from "../community-tunes-sync";
+import { getLaptimes, syncLaptimes } from "../laptimes-sync";
 
 interface CatalogTune {
   id: string;
@@ -333,6 +334,17 @@ export const tuneRoutes = new Hono()
   // POST /api/tunes/community/refresh — force a CDN sync now
   .post("/api/tunes/community/refresh", async (c) => {
     const result = await syncCommunityTunes({ force: true });
+    return c.json(result);
+  })
+
+  // GET /api/laptimes — community leaderboard reference lap times (all cars/tracks)
+  .get("/api/laptimes", async (c) => {
+    return c.json(getLaptimes());
+  })
+
+  // POST /api/laptimes/refresh — force a CDN sync now
+  .post("/api/laptimes/refresh", async (c) => {
+    const result = await syncLaptimes({ force: true });
     return c.json(result);
   })
 
