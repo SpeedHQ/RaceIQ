@@ -22,6 +22,16 @@ const dir = process.env.DATA_DIR
   ? resolve(process.env.DATA_DIR)
   : resolve(__dirname, "test-data");
 const udpPort = Number(process.env.UDP_PORT ?? 15318);
+
+// Guard against a misconfigured DATA_DIR pointing at real user data — this
+// directory gets wiped unconditionally on every run.
+const dirSegments = dir.split(/[\\/]+/);
+if (!dirSegments.some((segment) => segment.includes("test-data"))) {
+  throw new Error(
+    `Refusing to wipe DATA_DIR "${dir}": path must contain a "test-data" segment.`,
+  );
+}
+
 rmSync(dir, { recursive: true, force: true });
 mkdirSync(dir, { recursive: true });
 writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort }));

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import { z } from "zod";
 import { resolveDataDir } from "./data-dir";
 import { isLaunchOnLoginEnabled } from "./launch-on-login";
@@ -98,7 +98,9 @@ export function saveSettings(settings: AppSettings): void {
   }
   // Validate before writing
   const validated = AppSettingsSchema.parse(settings);
-  writeFileSync(SETTINGS_PATH, JSON.stringify(validated, null, 2) + "\n");
+  const tmpPath = `${SETTINGS_PATH}.tmp`;
+  writeFileSync(tmpPath, JSON.stringify(validated, null, 2) + "\n");
+  renameSync(tmpPath, SETTINGS_PATH);
 }
 
 /** Persisted community-tunes sync state (manifest version + last sync time). */

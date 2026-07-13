@@ -60,6 +60,8 @@ export interface SyncResult {
   version: string | null;
 }
 
+let syncInProgress = false;
+
 /**
  * Run one sync pass. Returns `{synced:false}` when the manifest version matches
  * the stored version (no work done) or when a failure keeps the existing cache.
@@ -73,6 +75,10 @@ export async function syncCommunityTunes(
   options: { force?: boolean } = {},
 ): Promise<SyncResult> {
   const stored = getCommunityTunesSyncState();
+  if (syncInProgress) {
+    return { synced: false, count: 0, version: stored.version };
+  }
+  syncInProgress = true;
   try {
     const manifestRes = await fetch(`${baseUrl()}/manifest.json`);
     if (!manifestRes.ok) {
@@ -165,6 +171,8 @@ export async function syncCommunityTunes(
       err instanceof Error ? err.message : err,
     );
     return { synced: false, count: 0, version: stored.version };
+  } finally {
+    syncInProgress = false;
   }
 }
 

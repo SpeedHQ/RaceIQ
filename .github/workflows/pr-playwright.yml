@@ -18,8 +18,6 @@ on:
       # Tune-flow code exercised by playwright/tunes/*.spec.ts
       - 'server/routes/tune-routes.ts'
       - 'server/db/tune-queries.ts'
-      - 'server/db/schema.ts'
-      - 'server/db/migrations.ts'
       - 'client/src/components/setup-tune/**'
       - 'client/src/components/TuneForm.tsx'
       - 'client/src/routes/*/tunes/**'
@@ -57,12 +55,13 @@ jobs:
         # so it bypasses the package's os={win32} check and avoids the
         # workspace-wide resolution bug that `npm install --force --os=win32`
         # triggers. Ships the native addon alongside the cross-compiled
-        # raceiq.exe.
+        # raceiq.exe. Version pinned to the one resolved in bun.lock — bump
+        # this alongside the libsql dependency bump.
         run: |
           mkdir -p dist/node_modules/@libsql/win32-x64-msvc
           tmp=$(mktemp -d)
           cd "$tmp"
-          npm pack @libsql/win32-x64-msvc
+          npm pack @libsql/win32-x64-msvc@0.5.29
           tar -xzf libsql-win32-x64-msvc-*.tgz
           cp package/index.node package/package.json \
             "$GITHUB_WORKSPACE/dist/node_modules/@libsql/win32-x64-msvc/"

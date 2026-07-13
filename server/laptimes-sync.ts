@@ -40,6 +40,7 @@ export type LaptimeEntry = z.infer<typeof LaptimeEntrySchema>;
 
 let cache: LaptimeEntry[] = [];
 let cachedVersion: string | null = null;
+let syncInProgress = false;
 
 export function getLaptimes(): LaptimeEntry[] {
   return cache;
@@ -58,6 +59,10 @@ export interface LaptimeSyncResult {
 export async function syncLaptimes(
   options: { force?: boolean } = {},
 ): Promise<LaptimeSyncResult> {
+  if (syncInProgress) {
+    return { synced: false, count: cache.length, version: cachedVersion };
+  }
+  syncInProgress = true;
   try {
     const manifestRes = await fetch(`${baseUrl()}/manifest.json`);
     if (!manifestRes.ok) {
@@ -110,6 +115,8 @@ export async function syncLaptimes(
   } catch (err) {
     console.warn("[Laptimes] sync failed; keeping existing cache:", err instanceof Error ? err.message : err);
     return { synced: false, count: cache.length, version: cachedVersion };
+  } finally {
+    syncInProgress = false;
   }
 }
 

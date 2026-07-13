@@ -89,6 +89,7 @@ export const tuneAssignments = sqliteTable(
 	"tune_assignments",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
+		gameId: text("game_id").notNull(),
 		carOrdinal: integer("car_ordinal").notNull(),
 		trackOrdinal: integer("track_ordinal").notNull(),
 		tuneId: integer("tune_id")
@@ -96,7 +97,7 @@ export const tuneAssignments = sqliteTable(
 			.references(() => tunes.id, { onDelete: "cascade" }),
 	},
 	(table) => ({
-		carTrackUnique: unique().on(table.carOrdinal, table.trackOrdinal),
+		gameCarTrackUnique: unique().on(table.gameId, table.carOrdinal, table.trackOrdinal),
 		tuneIdx: index("idx_assignments_tune").on(table.tuneId),
 	}),
 );

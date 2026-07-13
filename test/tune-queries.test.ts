@@ -86,8 +86,8 @@ describe("tune CRUD", () => {
 describe("tune assignments", () => {
   test("setTuneAssignment creates assignment", async () => {
     const tuneId = await insertTune({ gameId: "fm-2023", name: "T", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    await setTuneAssignment(100, 500, tuneId);
-    const assignment = await getTuneAssignment(100, 500);
+    await setTuneAssignment("fm-2023", 100, 500, tuneId);
+    const assignment = await getTuneAssignment("fm-2023", 100, 500);
     expect(assignment).not.toBeNull();
     expect(assignment!.tuneId).toBe(tuneId);
   });
@@ -95,28 +95,47 @@ describe("tune assignments", () => {
   test("setTuneAssignment upserts on same car+track", async () => {
     const id1 = await insertTune({ gameId: "fm-2023", name: "T1", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
     const id2 = await insertTune({ gameId: "fm-2023", name: "T2", author: "t", carOrdinal: 100, category: "wet", description: "", settings: TEST_SETTINGS });
-    await setTuneAssignment(100, 500, id1);
-    await setTuneAssignment(100, 500, id2);
-    const assignment = await getTuneAssignment(100, 500);
+    await setTuneAssignment("fm-2023", 100, 500, id1);
+    await setTuneAssignment("fm-2023", 100, 500, id2);
+    const assignment = await getTuneAssignment("fm-2023", 100, 500);
     expect(assignment!.tuneId).toBe(id2);
+  });
+
+  test("setTuneAssignment scopes by gameId — same car+track, different games coexist", async () => {
+    const id1 = await insertTune({ gameId: "fm-2023", name: "T1", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
+    const id2 = await insertTune({ gameId: "acc", name: "T2", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
+    await setTuneAssignment("fm-2023", 100, 500, id1);
+    await setTuneAssignment("acc", 100, 500, id2);
+    expect((await getTuneAssignment("fm-2023", 100, 500))!.tuneId).toBe(id1);
+    expect((await getTuneAssignment("acc", 100, 500))!.tuneId).toBe(id2);
   });
 
   test("deleteTuneAssignment removes assignment", async () => {
     const tuneId = await insertTune({ gameId: "fm-2023", name: "T", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
-    await setTuneAssignment(100, 500, tuneId);
-    expect(await deleteTuneAssignment(100, 500)).toBe(true);
-    expect(await getTuneAssignment(100, 500)).toBeNull();
+    await setTuneAssignment("fm-2023", 100, 500, tuneId);
+    expect(await deleteTuneAssignment("fm-2023", 100, 500)).toBe(true);
+    expect(await getTuneAssignment("fm-2023", 100, 500)).toBeNull();
   });
 
   test("getTuneAssignments filters by carOrdinal", async () => {
     const id1 = await insertTune({ gameId: "fm-2023", name: "T1", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
     const id2 = await insertTune({ gameId: "fm-2023", name: "T2", author: "t", carOrdinal: 200, category: "circuit", description: "", settings: TEST_SETTINGS });
-    await setTuneAssignment(100, 500, id1);
-    await setTuneAssignment(200, 600, id2);
+    await setTuneAssignment("fm-2023", 100, 500, id1);
+    await setTuneAssignment("fm-2023", 200, 600, id2);
     const all = await getTuneAssignments();
     expect(all.length).toBe(2);
     const filtered = await getTuneAssignments({ carOrdinal: 100 });
     expect(filtered.length).toBe(1);
     expect(filtered[0].tuneName).toBe("T1");
+  });
+
+  test("getTuneAssignments filters by gameId", async () => {
+    const id1 = await insertTune({ gameId: "fm-2023", name: "T1", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
+    const id2 = await insertTune({ gameId: "acc", name: "T2", author: "t", carOrdinal: 100, category: "circuit", description: "", settings: TEST_SETTINGS });
+    await setTuneAssignment("fm-2023", 100, 500, id1);
+    await setTuneAssignment("acc", 100, 500, id2);
+    const filtered = await getTuneAssignments({ gameId: "acc" });
+    expect(filtered.length).toBe(1);
+    expect(filtered[0].tuneName).toBe("T2");
   });
 });

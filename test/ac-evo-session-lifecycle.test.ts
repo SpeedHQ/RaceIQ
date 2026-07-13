@@ -31,18 +31,27 @@ afterAll(() => stopMaintenanceTasks());
 
 const FIXTURE = "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz";
 
-function readFirstTriplet(): { physics: Buffer; graphics: Buffer; staticData: Buffer } {
+// Gunzip the 109MB fixture once — re-decompressing it per test starved the
+// 60s test timeout under CI/agent contention (flaky "timed out" reports).
+const firstFrame = (() => {
   const raw = Buffer.from(gunzipSync(readFileSync(FIXTURE)));
   const startOffset = 8 + raw.readUInt32LE(4);
   const frameLen = raw.readUInt32LE(startOffset);
-  const frame = raw.subarray(startOffset + 4, startOffset + 4 + frameLen);
-  const triplet = unpackTriplet(frame);
+  return Buffer.from(raw.subarray(startOffset + 4, startOffset + 4 + frameLen));
+})();
+
+const firstTriplet = (() => {
+  const triplet = unpackTriplet(firstFrame);
   if (!triplet) throw new Error("failed to unpack fixture triplet");
+  return triplet;
+})();
+
+function readFirstTriplet(): { physics: Buffer; graphics: Buffer; staticData: Buffer } {
   // clone so overwriting status on one copy doesn't affect the next test
   return {
-    physics: Buffer.from(triplet.physics),
-    graphics: Buffer.from(triplet.graphics),
-    staticData: Buffer.from(triplet.staticData),
+    physics: Buffer.from(firstTriplet.physics),
+    graphics: Buffer.from(firstTriplet.graphics),
+    staticData: Buffer.from(firstTriplet.staticData),
   };
 }
 
@@ -89,11 +98,7 @@ describe("AC Evo lap detector — session lifecycle", () => {
     const serverGame = getServerGame("ac-evo");
     const parserState = serverGame.createParserState?.() ?? null;
 
-    const raw = Buffer.from(gunzipSync(readFileSync(FIXTURE)));
-    const startOffset = 8 + raw.readUInt32LE(4);
-    const frameLen = raw.readUInt32LE(startOffset);
-    const frame = raw.subarray(startOffset + 4, startOffset + 4 + frameLen);
-    const packet = serverGame.tryParse(frame, parserState);
+    const packet = serverGame.tryParse(firstFrame, parserState);
     expect(packet).not.toBeNull();
 
     const db = new CapturingDbAdapter();

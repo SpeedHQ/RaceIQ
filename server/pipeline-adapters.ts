@@ -51,6 +51,7 @@ export interface DbAdapter {
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]>;
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void>;
   getTuneAssignment(
+    gameId: GameId,
     carOrdinal: number,
     trackOrdinal: number
   ): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null>;
@@ -102,8 +103,8 @@ export class RealDbAdapter implements DbAdapter {
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
     return updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
   }
-  getTuneAssignment(carOrdinal: number, trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
-    return getTuneAssignment(carOrdinal, trackOrdinal);
+  getTuneAssignment(gameId: GameId, carOrdinal: number, trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
+    return getTuneAssignment(gameId, carOrdinal, trackOrdinal);
   }
 }
 
@@ -145,7 +146,7 @@ export class CapturingDbAdapter implements DbAdapter {
     return Promise.resolve();
   }
 
-  getTuneAssignment(_carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
+  getTuneAssignment(_gameId: GameId, _carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
     return Promise.resolve(null);
   }
 }
@@ -171,7 +172,7 @@ export class NullDbAdapter implements DbAdapter {
   updateSessionRawFile(_sessionId: number, _rawFile: string, _lapDetectorVersion: string): Promise<void> {
     return Promise.resolve();
   }
-  getTuneAssignment(_carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
+  getTuneAssignment(_gameId: GameId, _carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
     return Promise.resolve(null);
   }
 }

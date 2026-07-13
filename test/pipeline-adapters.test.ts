@@ -46,7 +46,7 @@ describe("CapturingDbAdapter", () => {
 
   test("getTuneAssignment returns null", async () => {
     const db = new CapturingDbAdapter();
-    expect(await db.getTuneAssignment(1, 1)).toBeNull();
+    expect(await db.getTuneAssignment("f1-2025", 1, 1)).toBeNull();
   });
 });
 

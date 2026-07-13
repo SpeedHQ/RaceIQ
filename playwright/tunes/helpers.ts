@@ -6,7 +6,9 @@ import { expect } from "@playwright/test";
  *  temporary DATA_DIR, so this only affects the test database. */
 export async function resetTunes(page: Page) {
   const list = await page.request.get(`/api/tunes`);
-  if (!list.ok()) return;
+  if (!list.ok()) {
+    throw new Error(`resetTunes: GET ${list.url()} failed with status ${list.status()}`);
+  }
   const rows = (await list.json()) as { id: number }[];
   for (const t of rows) {
     await page.request.delete(`/api/tunes/${t.id}`);
@@ -20,7 +22,9 @@ export async function completeOnboarding(page: Page) {
   // Fastest path: write settings directly rather than clicking through the
   // onboarding UI (which varies between wheel pickers, units, etc.).
   const res = await page.request.get(`/api/settings`);
-  if (!res.ok()) return;
+  if (!res.ok()) {
+    throw new Error(`completeOnboarding: GET ${res.url()} failed with status ${res.status()}`);
+  }
   const settings = await res.json();
   if (settings.onboardingComplete) return;
   await page.request.put(`/api/settings`, {

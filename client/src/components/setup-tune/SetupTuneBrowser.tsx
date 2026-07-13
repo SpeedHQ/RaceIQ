@@ -1,6 +1,6 @@
 import type { ComboOption } from "@/components/tune/browser/ComboBox";
-import { type RawUserTune, buildRows } from "@/components/tune/browser/buildRows";
 import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
+import { type RawUserTune, buildRows } from "@/components/tune/browser/buildRows";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
 import type { CatalogTune } from "@/data/tune-catalog";
 import { useCatalogTunes, useCloneCatalogTune, useDeleteTune, useDuplicateTune, useResolveNames, useUserTunes } from "@/hooks/queries";
@@ -27,7 +27,6 @@ export function SetupTuneBrowser({
 }: {
   gameId: GameId;
   routePrefix: string;
-  gameLabel?: string;
   cars: GameCarOption[];
 }) {
   const navigate = useNavigate();

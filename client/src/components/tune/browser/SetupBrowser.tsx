@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import { ComboBox, type ComboOption } from "./ComboBox";
 import { TUNE_GRID, TuneBrowserRow } from "./TuneBrowserRow";
 import type { SourceTab, TuneRow } from "./types";
@@ -86,34 +86,38 @@ export function SetupBrowser(props: SetupBrowserProps) {
     setSource(v);
     resetView();
   };
+  const pickAuthor = (v: string) => {
+    setAuthor(v);
+    resetView();
+  };
 
   return (
     <div className="w-full p-4 pb-20 text-app-text">
       <div className="flex items-center gap-2 flex-wrap pb-4">
         {props.headerExtra}
-          {props.onImportFile && (
-            <>
-              <input
-                ref={importInputRef}
-                type="file"
-                accept=".json,application/json"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) props.onImportFile?.(file);
-                  e.target.value = "";
-                }}
-              />
-              <button
-                type="button"
-                className="text-[11px] font-semibold uppercase tracking-wide border border-app-border text-app-text-secondary hover:text-app-text px-3.5 py-2 rounded disabled:opacity-50"
-                onClick={() => importInputRef.current?.click()}
-                disabled={props.importing}
-              >
-                {props.importing ? "Importing…" : "Import"}
-              </button>
-            </>
-          )}
+        {props.onImportFile && (
+          <>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) props.onImportFile?.(file);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              className="text-[11px] font-semibold uppercase tracking-wide border border-app-border text-app-text-secondary hover:text-app-text px-3.5 py-2 rounded disabled:opacity-50"
+              onClick={() => importInputRef.current?.click()}
+              disabled={props.importing}
+            >
+              {props.importing ? "Importing…" : "Import"}
+            </button>
+          </>
+        )}
         {props.onNewTune && (
           <button type="button" className="text-[11px] font-bold uppercase tracking-wide bg-app-accent text-app-bg px-3.5 py-2 rounded" onClick={props.onNewTune}>
             + New tune
@@ -142,11 +146,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
           type="text"
           value={author}
           placeholder="Search author…"
-          onChange={(e) => {
-            setAuthor(e.target.value);
-            setPage(0);
-            setOpenKey(null);
-          }}
+          onChange={(e) => pickAuthor(e.target.value)}
           className="text-[11px] bg-app-bg border border-app-border-input rounded px-2.5 py-1.5 text-app-text placeholder:text-app-text-dim outline-none focus:border-app-accent w-40"
         />
         <div className="flex-1" />

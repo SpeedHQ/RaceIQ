@@ -233,14 +233,23 @@ const AssignmentParamsSchema = z.object({
 });
 
 const SetAssignmentSchema = z.object({
+  gameId: GameIdSchema,
   carOrdinal: z.number().int(),
   trackOrdinal: z.number().int(),
   tuneId: z.number().int(),
 });
 
+const AssignmentQuerySchema = z.object({
+  gameId: GameIdSchema,
+});
+
 const LapTuneSchema = z.object({
   tuneId: z.number().int().nullable(),
 });
+
+// All CreateTuneSchema fields optional, minus gameId — a tune's game must not
+// be changeable via update.
+const UpdateTuneSchema = CreateTuneSchema.omit({ gameId: true }).partial();
 
 const ImportFileSchema = z.object({
   gameId: z.enum(["acc", "ac-evo"]),
@@ -308,12 +317,13 @@ export const tuneRoutes = new Hono()
   // PUT /api/tunes/:id — update tune
   .put("/api/tunes/:id",
     zValidator("param", IdParamSchema),
+    zValidator("json", UpdateTuneSchema),
     async (c) => {
       const { id } = c.req.valid("param");
       const existing = await getTuneById(id);
       if (!existing) return c.json({ error: "Tune not found" }, 404);
 
-      const body = await c.req.json();
+      const body = c.req.valid("json");
       if (body.settings && !validateSettingsForGame(existing.gameId as GameId, body.settings)) {
         return c.json({ error: "Invalid settings structure" }, 400);
       }
@@ -482,6 +492,9 @@ export const tuneRoutes = new Hono()
       if (!(realPath + sep).startsWith(realBase + sep)) {
         return c.json({ error: "Path must be inside the Setups folder" }, 400);
       }
+      if (!realPath.toLowerCase().endsWith(".json")) {
+        return c.json({ error: "Only .json setup files can be imported" }, 400);
+      }
 
       let raw: string;
       try { raw = readFileSync(realPath, "utf-8"); }
@@ -562,9 +575,11 @@ export const tuneRoutes = new Hono()
   // GET /api/tune-assignments/:carOrdinal/:trackOrdinal — get specific assignment
   .get("/api/tune-assignments/:carOrdinal/:trackOrdinal",
     zValidator("param", AssignmentParamsSchema),
+    zValidator("query", AssignmentQuerySchema),
     async (c) => {
       const { carOrdinal, trackOrdinal } = c.req.valid("param");
-      const assignment = await getTuneAssignment(carOrdinal, trackOrdinal);
+      const { gameId } = c.req.valid("query");
+      const assignment = await getTuneAssignment(gameId, carOrdinal, trackOrdinal);
       if (!assignment) return c.json({ error: "Assignment not found" }, 404);
       return c.json(assignment);
     }
@@ -574,9 +589,9 @@ export const tuneRoutes = new Hono()
   .put("/api/tune-assignments",
     zValidator("json", SetAssignmentSchema),
     async (c) => {
-      const { carOrdinal, trackOrdinal, tuneId } = c.req.valid("json");
-      await setTuneAssignment(carOrdinal, trackOrdinal, tuneId);
-      const assignment = await getTuneAssignment(carOrdinal, trackOrdinal);
+      const { gameId, carOrdinal, trackOrdinal, tuneId } = c.req.valid("json");
+      await setTuneAssignment(gameId, carOrdinal, trackOrdinal, tuneId);
+      const assignment = await getTuneAssignment(gameId, carOrdinal, trackOrdinal);
       return c.json(assignment);
     }
   )
@@ -584,9 +599,11 @@ export const tuneRoutes = new Hono()
   // DELETE /api/tune-assignments/:carOrdinal/:trackOrdinal — remove assignment
   .delete("/api/tune-assignments/:carOrdinal/:trackOrdinal",
     zValidator("param", AssignmentParamsSchema),
+    zValidator("query", AssignmentQuerySchema),
     async (c) => {
       const { carOrdinal, trackOrdinal } = c.req.valid("param");
-      const deleted = await deleteTuneAssignment(carOrdinal, trackOrdinal);
+      const { gameId } = c.req.valid("query");
+      const deleted = await deleteTuneAssignment(gameId, carOrdinal, trackOrdinal);
       if (!deleted) return c.json({ error: "Assignment not found" }, 404);
       return c.json({ success: true });
     }

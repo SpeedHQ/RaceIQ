@@ -280,4 +280,30 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_tunes_game_car ON tunes(game_id, car_ordinal)`,
     ],
   },
+
+  // ── v22: scope tune_assignments by game_id ────────────────────────────
+  //
+  // Assignments were previously Forza-only (unique on car+track). Multi-game
+  // tune management means the same car/track ordinal pair can exist under
+  // different games, so game_id joins the unique key. Existing rows are
+  // backfilled to 'fm-2023', the only game with assignments so far.
+  {
+    version: 22,
+    name: "scope tune_assignments by game_id",
+    sql: [
+      `CREATE TABLE tune_assignments_new (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_id       TEXT NOT NULL DEFAULT 'fm-2023',
+        car_ordinal   INTEGER NOT NULL,
+        track_ordinal INTEGER NOT NULL,
+        tune_id       INTEGER NOT NULL REFERENCES tunes(id) ON DELETE CASCADE,
+        UNIQUE(game_id, car_ordinal, track_ordinal)
+      )`,
+      `INSERT INTO tune_assignments_new (id, game_id, car_ordinal, track_ordinal, tune_id)
+         SELECT id, 'fm-2023', car_ordinal, track_ordinal, tune_id FROM tune_assignments`,
+      `DROP TABLE tune_assignments`,
+      `ALTER TABLE tune_assignments_new RENAME TO tune_assignments`,
+      `CREATE INDEX IF NOT EXISTS idx_assignments_tune ON tune_assignments(tune_id)`,
+    ],
+  },
 ];

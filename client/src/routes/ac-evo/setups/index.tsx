@@ -6,12 +6,7 @@ function AcEvoTunesPage() {
   const { data: cars = [] } = useAcEvoCars();
   return (
     <div className="flex-1 overflow-auto">
-      <SetupTuneBrowser
-        gameId="ac-evo"
-        routePrefix="/ac-evo"
-        gameLabel="AC EVO"
-        cars={cars}
-      />
+      <SetupTuneBrowser gameId="ac-evo" routePrefix="/ac-evo" cars={cars} />
     </div>
   );
 }

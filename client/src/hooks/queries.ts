@@ -446,7 +446,7 @@ export function useDuplicateTune() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      const res = await (client.api.tunes[":id"] as any).duplicate.$post({ param: { id: String(id) } });
+      const res = await client.api.tunes[":id"].duplicate.$post({ param: { id: String(id) } });
       if (!res.ok) throw new Error((await res.json() as any).error ?? res.statusText);
       return res.json();
     },
@@ -489,7 +489,7 @@ export function useTuneAssignments() {
 export function useSetTuneAssignment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { carOrdinal: number; trackOrdinal: number; tuneId: number }) => {
+    mutationFn: async (data: { gameId: GameId; carOrdinal: number; trackOrdinal: number; tuneId: number }) => {
       const res = await client.api["tune-assignments"].$put({ json: data });
       if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
       return res.json();
@@ -501,9 +501,10 @@ export function useSetTuneAssignment() {
 export function useDeleteTuneAssignment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ carOrdinal, trackOrdinal }: { carOrdinal: number; trackOrdinal: number }) => {
+    mutationFn: async ({ gameId, carOrdinal, trackOrdinal }: { gameId: GameId; carOrdinal: number; trackOrdinal: number }) => {
       await client.api["tune-assignments"][":carOrdinal"][":trackOrdinal"].$delete({
         param: { carOrdinal: String(carOrdinal), trackOrdinal: String(trackOrdinal) },
+        query: { gameId },
       });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.tuneAssignments }),

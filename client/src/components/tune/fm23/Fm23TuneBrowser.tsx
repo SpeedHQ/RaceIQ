@@ -1,5 +1,5 @@
-import { TuneSettingsPanel } from "@/components/tune/TuneSettingsPanel";
 import { withDefaults } from "@/components/TuneForm";
+import { TuneSettingsPanel } from "@/components/tune/TuneSettingsPanel";
 import type { ComboOption } from "@/components/tune/browser/ComboBox";
 import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
 import { type RawUserTune, buildRows } from "@/components/tune/browser/buildRows";
@@ -42,6 +42,7 @@ export function Fm23TuneBrowser() {
         aero: { ...s.aero, ...(parsed.unitSystem === "imperial" ? { unit: "lb" } : parsed.unitSystem === "metric" ? { unit: "kgf" } : {}) },
       };
       await createTune.mutateAsync({
+        gameId: "fm-2023",
         name: parsed.name || file.name.replace(/\.json$/i, "") || "Imported Tune",
         author: parsed.author || "Imported",
         carOrdinal: Number(parsed.carOrdinal ?? 2860),
