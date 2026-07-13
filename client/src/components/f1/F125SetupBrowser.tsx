@@ -2,6 +2,8 @@ import { F125SetupValues } from "@/components/f1/f125-setup-groups";
 import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
 import type { ComboOption } from "@/components/tune/browser/ComboBox";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
+import { m } from "@/paraglide/messages";
+import { useUiStore } from "@/stores/ui";
 import { client } from "@/lib/rpc";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
@@ -24,7 +26,11 @@ interface F125TrackSetups {
   setups: F125Setup[];
 }
 
-const SOURCES: SourceTab[] = [{ key: "all", label: "All" }];
+const SOURCE_KEYS: Pick<SourceTab, "key">[] = [{ key: "all" }];
+
+const SOURCE_LABELS: Record<string, () => string> = {
+  all: m.browser_all,
+};
 
 // "1:23.456" | "83.456" -> seconds
 function parseLap(raw: string | undefined): number | null {
@@ -35,6 +41,7 @@ function parseLap(raw: string | undefined): number | null {
 }
 
 export function F125SetupBrowser() {
+  const { uiLocale } = useUiStore((s) => ({ uiLocale: s.uiLocale }));
   const { data: tracks = [] } = useQuery<F125TrackSetups[]>({
     queryKey: ["f125-setups", "all"],
     queryFn: () => client.api["f1-25"].setups.$get({ query: {} }).then((r) => r.json() as unknown as F125TrackSetups[]),
@@ -81,15 +88,17 @@ export function F125SetupBrowser() {
     const counts = new Map<number, number>();
     for (const r of rows) if (r.trackOrdinal != null) counts.set(r.trackOrdinal, (counts.get(r.trackOrdinal) ?? 0) + 1);
     const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: trackNames[ord] ?? `Track ${ord}`, count })).sort((a, b) => b.count - a.count);
-    return [{ value: "any", label: "Any track", count: rows.length }, ...opts];
-  }, [rows, trackNames]);
+    return [{ value: "any", label: m.setup_any_track(), count: rows.length }, ...opts];
+  }, [rows, trackNames, uiLocale]);
 
   const carOptions: ComboOption[] = useMemo(() => {
     const counts = new Map<number, number>();
     for (const r of rows) counts.set(r.carOrdinal, (counts.get(r.carOrdinal) ?? 0) + 1);
     const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: carNames[ord] ?? `Team ${ord}`, count })).sort((a, b) => b.count - a.count);
-    return [{ value: "any", label: "Any team", count: rows.length }, ...opts];
-  }, [rows, carNames]);
+    return [{ value: "any", label: m.setup_any_car(), count: rows.length }, ...opts];
+  }, [rows, carNames, uiLocale]);
+
+  const sources: SourceTab[] = useMemo(() => SOURCE_KEYS.map((s) => ({ ...s, label: SOURCE_LABELS[s.key]() })), [uiLocale]);
 
   return (
     <SetupBrowser
@@ -98,7 +107,7 @@ export function F125SetupBrowser() {
       trackNames={trackNames}
       trackOptions={trackOptions}
       carOptions={carOptions}
-      sources={SOURCES}
+      sources={sources}
       renderSettings={(row: TuneRow) => <F125SetupValues setup={row.settings as Record<string, number | null>} />}
       readOnly
     />

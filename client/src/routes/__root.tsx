@@ -53,7 +53,7 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
       <div className="w-96 rounded-xl border border-white/10 bg-[#1a1a1a] p-6 shadow-2xl">
         <div className="flex items-center gap-3 mb-4">
           <RefreshCw className={`size-5 text-blue-400 ${complete ? "" : "animate-spin"}`} />
-          <h2 className="text-sm font-semibold text-white flex-1">{complete ? "Reprocessing complete" : "Reprocessing sessions…"}</h2>
+          <h2 className="text-sm font-semibold text-white flex-1">{complete ? m.root_reprocessing_complete() : m.root_reprocessing()}</h2>
           {complete && (
             <button onClick={onClose} className="text-white/40 hover:text-white/70 transition-colors" aria-label="Close">
               <X className="size-4" />
@@ -69,7 +69,7 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
           </span>
           <span>{percent}%</span>
         </div>
-        {complete && <p className="mt-3 text-xs text-green-400 text-center">All sessions updated.</p>}
+        {complete && <p className="mt-3 text-xs text-green-400 text-center">{m.root_all_sessions_updated()}</p>}
       </div>
     </div>
   );
@@ -102,7 +102,7 @@ function StaleLapButton() {
         <div className="fixed bottom-4 right-4 z-50 w-72 rounded-lg bg-app-surface border border-blue-500/30 shadow-xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <RefreshCw className="size-4 text-blue-400 shrink-0" />
-            <span className="text-sm font-semibold text-app-text">Lap detection updated</span>
+            <span className="text-sm font-semibold text-app-text">{m.root_lap_detection_updated()}</span>
           </div>
           <p className="text-xs text-app-text-muted mb-3">
             {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s were" : " was"} recorded with an older lap detector. Reparsing will improve lap boundaries and timing
@@ -149,8 +149,8 @@ export function MobileNotSupported({ feature = "This view" }: { feature?: string
           <rect x="3" y="4" width="18" height="14" rx="2" />
           <path d="M8 20h8" />
         </svg>
-        <div className="text-base font-semibold text-app-text">Desktop required</div>
-        <div className="text-sm text-app-text-muted">{feature} isn't supported on mobile yet. Open RaceIQ on a tablet or desktop to use it.</div>
+        <div className="text-base font-semibold text-app-text">{m.root_desktop_required()}</div>
+        <div className="text-sm text-app-text-muted">{m.root_mobile_not_supported({ feature })}</div>
       </div>
     </div>
   );
@@ -411,8 +411,8 @@ function AppShell() {
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-400/15 text-yellow-400 border border-yellow-400/30 hover:bg-yellow-400/25 transition-colors"
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-                <span className="hidden sm:inline">Update available</span>
-                <span className="sm:hidden">Update</span>
+                <span className="hidden sm:inline">{m.root_update_available()}</span>
+                <span className="sm:hidden">{m.root_update_short()}</span>
               </button>
             )}
             <Button

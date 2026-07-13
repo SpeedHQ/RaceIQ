@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearch, useNavigate } from "@tanstack/react-router";
+import { m } from "@/paraglide/messages";
+import { useUiStore } from "@/stores/ui";
 import { client } from "@/lib/rpc";
 import { Button } from "@/components/ui/button";
 import { SETUP_GROUPS } from "@/components/f1/f125-setup-groups";
@@ -94,7 +96,8 @@ export function F125SetupsWithGuide({ trackOrdinal, trackName }: { trackOrdinal:
     navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, subtab: tab === "setups" ? undefined : tab }) as never, replace: true });
   };
 
-  const tabLabels = { setups: "Setups", ranges: "Compare" } as const;
+  const { uiLocale } = useUiStore((s) => ({ uiLocale: s.uiLocale }));
+  const tabLabels = useMemo(() => ({ setups: m.f1setup_setups(), ranges: m.f1setup_compare() }), [uiLocale]);
 
   return (
     <div className="flex flex-col gap-2 h-full">
@@ -423,7 +426,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
         <div className={`flex-1 min-w-0 flex flex-col md:flex-row gap-3 md:h-full md:overflow-hidden ${mobileView === "list" ? "hidden md:flex" : ""}`}>
           {/* Back button (mobile only) */}
           <Button variant="app-outline" size="default" onClick={() => setMobileView("list")} className="md:hidden self-start">
-            &larr; Back to setups
+            &larr; {m.f1setup_back_to_setups()}
           </Button>
           {/* Setup detail column */}
           <div className="flex-1 min-w-0 md:overflow-y-auto space-y-2">
@@ -434,13 +437,13 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
               <span className="text-app-unit text-app-text-secondary">
                 {setup.team && `${setup.team} · `}
                 {setup.lapTime}
-                {setup.inputDevice && ` · ${setup.inputDevice === "wheel" ? "Wheel" : "Controller"}`}
+                {setup.inputDevice && ` · ${setup.inputDevice === "wheel" ? m.label_wheel() : m.f1setup_controller()}`}
                 {setup.weather === "Wet" && " · Wet"}
                 {setup.sessionType && ` · ${setup.sessionType}`}
               </span>
               {setup.source && (
                 <a href={setup.source} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-app-unit bg-blue-500/15 text-blue-400 rounded hover:bg-blue-500/25 transition-colors">
-                  View Source
+                  {m.f1setup_view_source()}
                 </a>
               )}
             </div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { m } from "@/paraglide/messages";
 
 export interface SearchMultiSelectOption<K extends string | number = string | number> {
   key: K;
@@ -116,7 +117,7 @@ export function SearchMultiSelect<K extends string | number>({
                 </button>
               );
             })}
-            {filtered.length === 0 && <div className="px-3 py-2 text-sm text-app-text-muted">No results</div>}
+            {filtered.length === 0 && <div className="px-3 py-2 text-sm text-app-text-muted">{m.common_no_results()}</div>}
           </div>
         </div>
       )}

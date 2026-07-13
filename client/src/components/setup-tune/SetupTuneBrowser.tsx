@@ -7,14 +7,22 @@ import { useCatalogTunes, useCloneCatalogTune, useDeleteTune, useDuplicateTune, 
 import type { GameId } from "@shared/types";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { m } from "@/paraglide/messages";
+import { useUiStore } from "@/stores/ui";
 import { SetupSettingsPanel } from "./SetupSettingsPanel";
 import type { GameCarOption } from "./use-game-cars";
 
-const SOURCES: SourceTab[] = [
-  { key: "all", label: "All" },
-  { key: "community", label: "Community" },
-  { key: "user", label: "Yours" },
+const SOURCE_KEYS: Pick<SourceTab, "key">[] = [
+  { key: "all" },
+  { key: "community" },
+  { key: "user" },
 ];
+
+const SOURCE_LABELS: Record<string, () => string> = {
+  all: m.browser_all,
+  community: m.browser_community,
+  user: m.browser_yours,
+};
 
 /** Timing-tower style tune browser for ACC / AC-EVO — same layout, filters,
  *  and pagination as the FM browser, with a game-specific read-only settings
@@ -35,6 +43,7 @@ export function SetupTuneBrowser({
   const clone = useCloneCatalogTune();
   const del = useDeleteTune();
   const duplicate = useDuplicateTune();
+  const { uiLocale } = useUiStore((s) => ({ uiLocale: s.uiLocale }));
 
   const catalog: CatalogTune[] = apiCatalog;
   const rows = useMemo(() => buildRows(catalog, userTunes as RawUserTune[]), [catalog, userTunes]);
@@ -65,15 +74,17 @@ export function SetupTuneBrowser({
     const counts = new Map<number, number>();
     for (const r of rows) counts.set(r.carOrdinal, (counts.get(r.carOrdinal) ?? 0) + 1);
     const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: carNames[ord] ?? `Car #${ord}`, count })).sort((a, b) => b.count - a.count);
-    return [{ value: "any", label: "Any car", count: rows.length }, ...opts];
-  }, [rows, carNames]);
+    return [{ value: "any", label: m.setup_any_car(), count: rows.length }, ...opts];
+  }, [rows, carNames, uiLocale]);
 
   const trackOptions: ComboOption[] = useMemo(() => {
     const counts = new Map<number, number>();
     for (const r of rows) if (r.trackOrdinal != null) counts.set(r.trackOrdinal, (counts.get(r.trackOrdinal) ?? 0) + 1);
     const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: names?.trackNames[String(ord)] ?? `Track ${ord}`, count })).sort((a, b) => b.count - a.count);
-    return [{ value: "any", label: "Any track", count: rows.length }, ...opts];
-  }, [rows, names]);
+    return [{ value: "any", label: m.setup_any_track(), count: rows.length }, ...opts];
+  }, [rows, names, uiLocale]);
+
+  const sources: SourceTab[] = useMemo(() => SOURCE_KEYS.map((s) => ({ ...s, label: SOURCE_LABELS[s.key]() })), [uiLocale]);
 
   return (
     <SetupBrowser
@@ -82,7 +93,7 @@ export function SetupTuneBrowser({
       trackNames={trackNames}
       trackOptions={trackOptions}
       carOptions={carOptions}
-      sources={SOURCES}
+      sources={sources}
       renderSettings={(row: TuneRow) => <SetupSettingsPanel gameId={gameId} settings={row.settings as Record<string, unknown>} />}
       onClone={(row: TuneRow) => clone.mutate(row.id)}
       onEdit={(row: TuneRow) => {

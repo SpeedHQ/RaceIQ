@@ -66,7 +66,7 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
             ))}
           </div>
           <div className="relative h-2 bg-app-surface-alt rounded-full overflow-visible" />
-          <div className="text-app-subtext text-app-text-dim py-4 text-center">No laps recorded yet</div>
+          <div className="text-app-subtext text-app-text-dim py-4 text-center">{m.track_detail_no_laps_recorded()}</div>
         </div>
       </div>
     );
@@ -1251,9 +1251,9 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                         className={`px-1.5 py-1 text-[9px] font-mono rounded border transition-colors ${
                           mapDisplayMode === "sectors" ? "bg-amber-900/50 border-amber-700 text-amber-400" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
                         }`}
-                        title={mapDisplayMode === "sectors" ? "Show segments" : "Show sectors"}
+                        title={mapDisplayMode === "sectors" ? m.track_detail_show_segments() : m.track_detail_show_sectors()}
                       >
-                        {mapDisplayMode === "sectors" ? "Sectors" : "Segments"}
+                        {mapDisplayMode === "sectors" ? m.overlay_sectors() : m.overlay_segments()}
                       </button>
                     </>
                   )}
@@ -1330,7 +1330,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                 />
                               )}
                               <SearchMultiSelect<number>
-                                buttonLabel={selectedCars.size === 0 ? "All cars" : `${selectedCars.size} car${selectedCars.size > 1 ? "s" : ""}`}
+                                buttonLabel={selectedCars.size === 0 ? m.track_detail_all_cars() : `${selectedCars.size} ${selectedCars.size > 1 ? m.label_cars() : m.label_car()}`}
                                 options={uniqueCars.map((c) => ({ key: c.carOrdinal, label: c.carName, search: c.carName }))}
                                 isSelected={(k) => selectedCars.has(k)}
                                 onSelect={(k) => toggleCar(k)}
@@ -1438,7 +1438,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                       const validLaps = filteredLaps.filter((l) => l.isValid !== false);
                                       const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
                                       if (filteredLaps.length === 0) {
-                                        return <div className="px-3 py-6 text-center text-sm text-app-text-dim">No laps match the selected filters</div>;
+                                        return <div className="px-3 py-6 text-center text-sm text-app-text-dim">{m.track_detail_no_laps_match_filters()}</div>;
                                       }
                                       return filteredLaps.map((lap) => {
                                         const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
@@ -1520,23 +1520,23 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                       <TH className="w-8 px-3">
                                         <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-cyan-400" />
                                       </TH>
-                                      <TH>Car</TH>
-                                      {!hideClassCol && <TH>Class</TH>}
-                                      {hasSessionTypes && <TH>Type</TH>}
+                                      <TH>{m.label_car()}</TH>
+                                      {!hideClassCol && <TH>{m.track_detail_class()}</TH>}
+                                      {hasSessionTypes && <TH>{m.label_type()}</TH>}
                                       <TH className="cursor-pointer hover:text-app-text select-none w-px whitespace-nowrap" onClick={() => handleSort("lap")}>
-                                        Lap # {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
+                                        {m.track_detail_lap_num()} {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
                                       </TH>
                                       <TH className="cursor-pointer hover:text-app-text select-none text-right w-px whitespace-nowrap" onClick={() => handleSort("time")}>
-                                        Time {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
+                                        {m.label_time()} {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
                                       </TH>
                                       <TH className="w-px" />
                                       <TH className="text-red-400">S1</TH>
                                       <TH className="text-blue-400">S2</TH>
                                       <TH className="text-yellow-400">S3</TH>
                                       <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("date")}>
-                                        Date {sortBy === "date" ? (sortAsc ? "▲" : "▼") : ""}
+                                        {m.sessions_col_date()} {sortBy === "date" ? (sortAsc ? "▲" : "▼") : ""}
                                       </TH>
-                                      <TH>Notes</TH>
+                                      <TH>{m.sessions_col_notes()}</TH>
                                     </THead>
                                     <TBody>
                                       {(() => {
@@ -1625,7 +1625,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                       {filteredLaps.length === 0 && (
                                         <tr>
                                           <td colSpan={6} className="px-3 py-4 text-center text-sm text-app-text-dim">
-                                            No laps match the selected filters
+                                            {m.track_detail_no_laps_match_filters()}
                                           </td>
                                         </tr>
                                       )}
