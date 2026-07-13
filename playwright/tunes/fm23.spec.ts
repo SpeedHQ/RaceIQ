@@ -37,7 +37,7 @@ test.describe("Forza Motorsport tunes", () => {
     expect(createRes.ok()).toBeTruthy();
 
     await page.goto("/fm23/setups");
-    await waitForTunesList(page, "Setups");
+    await waitForTunesList(page);
 
     // FM23 shows community + user tunes together, sorted by lap time.
     // The test tune has no lap time so it sinks to page 2+. Click the "Yours"

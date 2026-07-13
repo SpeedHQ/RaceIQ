@@ -13,7 +13,7 @@ test.describe("ACC tunes", () => {
 
   test("create via form, see covered sections, duplicate, delete", async ({ page }) => {
     await page.goto("/acc/setups");
-    await waitForTunesList(page, "ACC Setups");
+    await waitForTunesList(page);
 
     await page.getByRole("button", { name: /\+ New Tune/i }).click();
     await expect(page.getByRole("heading", { name: /create new acc tune/i })).toBeVisible();
@@ -43,7 +43,7 @@ test.describe("ACC tunes", () => {
     await expect(page.getByText(/8 \/ 8 covered/)).toBeVisible();
 
     await page.getByRole("button", { name: /save tune/i }).click();
-    await waitForTunesList(page, "ACC Setups");
+    await waitForTunesList(page);
 
     // Isolate user tunes so a populated community catalog can't push our
     // fresh tune off page 1 of the browser.

@@ -28,9 +28,10 @@ export async function completeOnboarding(page: Page) {
   });
 }
 
-/** Common guard used by each game's spec — waits for the "My Tunes" list to
- *  render (loaded or empty), never the loading spinner. */
-export async function waitForTunesList(page: Page, label: string) {
-  const heading = page.getByRole("heading", { name: label });
-  await expect(heading).toBeVisible({ timeout: 15_000 });
+/** Common guard used by each game's spec — waits for the SetupBrowser to
+ *  render (loaded or empty). Anchors on the "+ New tune" button since the
+ *  page title heading was dropped in the SetupBrowser rewrite; the button is
+ *  present for FM23 / ACC / AC-EVO alike. */
+export async function waitForTunesList(page: Page) {
+  await expect(page.getByRole("button", { name: /\+ New tune/i })).toBeVisible({ timeout: 15_000 });
 }
