@@ -663,5 +663,11 @@
   "track_detail_all_cars": "Alle Fahrzeuge",
   "track_detail_show_segments": "Segmente anzeigen",
   "track_detail_show_sectors": "Sektoren anzeigen",
-  "common_no_results": "Keine Ergebnisse"
+  "common_no_results": "Keine Ergebnisse",
+  "dash_page_title": "Dashboards",
+  "dash_page_intro": "Zweckgebundene Dashboards für ein Handy oder Tablet im Cockpit. Scanne den QR-Code auf dem Gerät, um es über dein LAN zu öffnen.",
+  "dash_serving_at": "erreichbar unter",
+  "dash_lan_unavailable": "LAN-IP nicht verfügbar — das Gerät muss im selben WLAN wie dieser PC sein.",
+  "dash_combo1_desc": "Drehzahlbalken + Gang-/Geschwindigkeits-/Rundenkacheln, verbleibende Runden für Kraftstoff & Reifen, Runden- + Sektoranzeige und ein Live-Reifenraster. Für Tablets im Querformat.",
+  "dash_combo2_desc": "Rundenzeit-Übersicht oben, großes Rundenzeit-Trenddiagramm mit Optimum- und Durchschnitts-Pace-Linien, plus Live-Sektorzeiten und letzte Runden an der Seite."
 }
