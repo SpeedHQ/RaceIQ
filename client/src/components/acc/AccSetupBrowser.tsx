@@ -149,7 +149,27 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
       return (await res.json()) as unknown as AccSetupFile;
     },
   });
-  const downloadUrl = setup.downloadUrl || setup.driveUrl || setup.pageUrl;
+  const isVideo = (u?: string) => !!u && /youtube\.com|youtu\.be|vimeo\.com/.test(u);
+  // Many ACC setups are YouTube guides whose real file link (Google Drive, etc.)
+  // lives in the video description — resolve it via yt-meta, same as track detail.
+  const ytVideoId = useMemo(() => {
+    const url = setup.downloadUrl || setup.videoUrl || "";
+    return url.match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/)?.[1] ?? null;
+  }, [setup.downloadUrl, setup.videoUrl]);
+  const { data: ytMeta } = useQuery<{ uploadDate?: string; downloadUrl?: string } | null>({
+    queryKey: ["acc-yt-meta", ytVideoId],
+    enabled: !!ytVideoId,
+    staleTime: Infinity,
+    queryFn: async () => {
+      const res = await client.api.acc["yt-meta"].$get({ query: { videoId: ytVideoId! } });
+      if (!res.ok) return null;
+      return (await res.json()) as { uploadDate?: string; downloadUrl?: string };
+    },
+  });
+  // downloadUrl often duplicates the video link for guide-only setups — only
+  // treat a non-video URL, a Drive link, or the yt-meta-resolved link as a file.
+  const videoUrl = setup.videoUrl || (isVideo(setup.downloadUrl) ? setup.downloadUrl : undefined);
+  const fileUrl = setup.driveUrl || ytMeta?.downloadUrl || (setup.downloadUrl && !isVideo(setup.downloadUrl) ? setup.downloadUrl : undefined);
 
   return (
     <div className="space-y-2.5">
@@ -171,9 +191,9 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
             {install.isSuccess ? "Installed ✓" : install.isPending ? "Installing…" : "Install to ACC"}
           </button>
         )}
-        {downloadUrl && (
+        {fileUrl && (
           <a
-            href={downloadUrl}
+            href={fileUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-app-text-secondary hover:text-app-text no-underline"
@@ -181,14 +201,24 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
             Download
           </a>
         )}
-        {setup.videoUrl && (
+        {videoUrl && (
           <a
-            href={setup.videoUrl}
+            href={videoUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-red-400 hover:text-red-300 no-underline"
           >
             ▶ Video
+          </a>
+        )}
+        {setup.pageUrl && (
+          <a
+            href={setup.pageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-app-text-muted hover:text-app-text no-underline"
+          >
+            Source
           </a>
         )}
       </div>
