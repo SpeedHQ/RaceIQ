@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { isDevelopment } from "@/lib/env";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
+import { SearchSelect } from "@/components/ui/SearchSelect";
 import { LOCALES } from "@shared/locales";
 import { useEffect, useState } from "react";
 import { type Theme, useTheme } from "../context/theme";
@@ -222,24 +223,21 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
             <div className="max-w-xs mb-6">
               <Label className="text-app-text-secondary">{m.settings_language_label()}</Label>
-              <select
-                value={displaySettings.language ?? "en"}
-                onChange={async (e) => {
-                  const code = e.target.value;
-                  await saveSettings.mutateAsync({ language: code });
-                  // Switch language in place (no page reload — keeps the live
-                  // WebSocket/telemetry alive). Re-renders all m.* via the
-                  // uiLocale remount key in __root.tsx.
-                  applyLocale(code);
-                }}
-                className="mt-1.5 w-full bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text"
-              >
-                {LOCALES.map((loc) => (
-                  <option key={loc.code} value={loc.code}>
-                    {loc.label}
-                  </option>
-                ))}
-              </select>
+              <div className="mt-1.5">
+                <SearchSelect
+                  value={displaySettings.language ?? "en"}
+                  onChange={async (code) => {
+                    await saveSettings.mutateAsync({ language: code });
+                    // Switch language in place (no page reload — keeps the live
+                    // WebSocket/telemetry alive). Re-renders all m.* via the
+                    // uiLocale remount key in __root.tsx.
+                    applyLocale(code);
+                  }}
+                  options={LOCALES.map((loc) => ({ value: loc.code, label: `${loc.label} (${loc.code})` }))}
+                  placeholder="Search language..."
+                  focusColor="app-accent"
+                />
+              </div>
               <p className="text-app-text-muted text-xs mt-1">{m.settings_language_desc()}</p>
             </div>
 
