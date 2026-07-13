@@ -550,9 +550,11 @@ export const tuneRoutes = new Hono()
     return c.json(result);
   })
 
-  // GET /api/laptimes — community leaderboard reference lap times (all cars/tracks)
+  // GET /api/laptimes — community leaderboard reference lap times for the game
+  // named in the X-Game-Id header (no fallback: without a header, no times).
   .get("/api/laptimes", async (c) => {
-    return c.json(getLaptimes());
+    const gameId = c.req.header("x-game-id") as GameId | undefined;
+    return c.json(gameId ? getLaptimes(gameId) : []);
   })
 
   // POST /api/laptimes/refresh — force a CDN sync now

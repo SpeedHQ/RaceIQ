@@ -34,7 +34,10 @@ export function CommunityLeaderboard({ trackName, trackVariant }: { trackName: s
 
   return (
     <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
-      <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-2 shrink-0">Community Leaderboard ({rows.length})</div>
+      <div className="mb-2 shrink-0">
+        <div className="text-app-label text-app-text-muted uppercase tracking-wider">Community Leaderboard ({rows.length})</div>
+        <div className="text-xs text-app-text-dim">Unverified</div>
+      </div>
       <div className="overflow-y-auto flex-1">
         <Table fit>
           <THead>

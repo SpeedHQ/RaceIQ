@@ -376,9 +376,16 @@ export interface LaptimeEntry {
 }
 
 export function useLaptimes() {
+  const gameId = useGameId();
   return useQuery({
-    queryKey: ["laptimes"],
-    queryFn: async () => rpcJson<LaptimeEntry[]>(await client.api.laptimes.$get()),
+    queryKey: ["laptimes", gameId ?? null],
+    queryFn: async () =>
+      rpcJson<LaptimeEntry[]>(
+        await client.api.laptimes.$get(
+          {},
+          { headers: gameId ? { "X-Game-Id": gameId } : undefined },
+        ),
+      ),
     staleTime: 1000 * 60 * 30,
   });
 }
