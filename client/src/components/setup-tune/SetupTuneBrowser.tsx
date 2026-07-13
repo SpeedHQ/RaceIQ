@@ -43,7 +43,7 @@ export function SetupTuneBrowser({
   const clone = useCloneCatalogTune();
   const del = useDeleteTune();
   const duplicate = useDuplicateTune();
-  const { uiLocale } = useUiStore((s) => ({ uiLocale: s.uiLocale }));
+  const uiLocale = useUiStore((s) => s.uiLocale);
 
   const catalog: CatalogTune[] = apiCatalog;
   const rows = useMemo(() => buildRows(catalog, userTunes as RawUserTune[]), [catalog, userTunes]);

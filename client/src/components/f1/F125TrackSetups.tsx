@@ -96,7 +96,7 @@ export function F125SetupsWithGuide({ trackOrdinal, trackName }: { trackOrdinal:
     navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, subtab: tab === "setups" ? undefined : tab }) as never, replace: true });
   };
 
-  const { uiLocale } = useUiStore((s) => ({ uiLocale: s.uiLocale }));
+  const uiLocale = useUiStore((s) => s.uiLocale);
   const tabLabels = useMemo(() => ({ setups: m.f1setup_setups(), ranges: m.f1setup_compare() }), [uiLocale]);
 
   return (

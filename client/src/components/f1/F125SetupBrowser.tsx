@@ -41,7 +41,7 @@ function parseLap(raw: string | undefined): number | null {
 }
 
 export function F125SetupBrowser() {
-  const { uiLocale } = useUiStore((s) => ({ uiLocale: s.uiLocale }));
+  const uiLocale = useUiStore((s) => s.uiLocale);
   const { data: tracks = [] } = useQuery<F125TrackSetups[]>({
     queryKey: ["f125-setups", "all"],
     queryFn: () => client.api["f1-25"].setups.$get({ query: {} }).then((r) => r.json() as unknown as F125TrackSetups[]),

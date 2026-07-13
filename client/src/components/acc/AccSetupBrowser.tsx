@@ -243,7 +243,7 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
 }
 
 export function AccSetupBrowser() {
-  const { uiLocale } = useUiStore((s) => ({ uiLocale: s.uiLocale }));
+  const uiLocale = useUiStore((s) => s.uiLocale);
   const { data: setups = [] } = useQuery<AccSetup[]>({
     queryKey: ["acc-setups", "all"],
     queryFn: () => client.api.acc.setups.$get({ query: {} }).then((r) => r.json() as unknown as AccSetup[]),
