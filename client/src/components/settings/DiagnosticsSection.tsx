@@ -2,6 +2,7 @@ import { useState } from "react";
 import { client } from "@/lib/rpc";
 import { detectBrowser } from "@/lib/browser-detect";
 import { Button } from "@/components/ui/button";
+import { m } from "@/paraglide/messages";
 
 export function DiagnosticsSection() {
   const [status, setStatus] = useState<"idle" | "downloading" | "error">("idle");
@@ -40,36 +41,34 @@ export function DiagnosticsSection() {
       setStatus("idle");
     } catch (err) {
       setStatus("error");
-      setErrorMsg(err instanceof Error ? err.message : "Failed to download diagnostics");
+      setErrorMsg(err instanceof Error ? err.message : m.diag_download_failed());
     }
   }
 
   return (
     <section className="space-y-6">
       <div>
-        <h2 className="text-sm font-semibold text-app-text mb-1">Diagnostics</h2>
+        <h2 className="text-sm font-semibold text-app-text mb-1">{m.diag_title()}</h2>
         <p className="text-xs text-app-text-muted mb-4">
-          Download a diagnostics bundle to share with developers when reporting issues. Includes server logs, system info, browser details, memory usage, database stats, user profiles, AI settings,
-          recent chat history, and app version.
+          {m.diag_desc()}
         </p>
       </div>
 
       <div className="space-y-3">
         <div className="rounded-lg border border-app-border bg-app-surface-alt/50 p-4 space-y-2 text-xs text-app-text-secondary">
-          <p>The zip contains two files:</p>
+          <p>{m.diag_zip_contains()}</p>
           <ul className="list-disc list-inside space-y-1 ml-1">
             <li>
-              <span className="font-mono">diagnostics.json</span> — app version, browser details, memory usage (browser & server), database stats (size, sessions, laps), AI Analysis provider/model, AI
-              Chat provider/model, recent chat history, platform, OS, server status (no API keys)
+              <span className="font-mono">diagnostics.json</span> {m.diag_json_desc()}
             </li>
             <li>
-              <span className="font-mono">logs.txt</span> — server log from current session
+              <span className="font-mono">logs.txt</span> {m.diag_logs_desc()}
             </li>
           </ul>
         </div>
 
         <Button onClick={handleDownload} disabled={status === "downloading"} className="w-full">
-          {status === "downloading" ? "Collecting data..." : "Download Diagnostics"}
+          {status === "downloading" ? m.diag_collecting() : m.diag_download_button()}
         </Button>
 
         {status === "error" && <p className="text-xs text-red-400">{errorMsg}</p>}

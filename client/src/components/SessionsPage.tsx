@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { m } from "@/paraglide/messages";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import type { LapMeta, SessionMeta } from "@shared/types";
@@ -37,14 +38,14 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
         }}
       >
         <span className={`text-xs break-words whitespace-pre-wrap transition-opacity group-hover:opacity-30 ${value ? "text-app-text/90" : "text-app-text/90-dim italic"}`}>
-          {value || "Add note…"}
+          {value || m.sessions_add_note()}
         </span>
         <span className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity text-app-text/90 text-[10px] font-medium">
           <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
           </svg>
-          Edit
+          {m.common_edit()}
         </span>
       </span>
     </>
@@ -111,14 +112,14 @@ function SessionLapTable({
           <TH />
           {(["lap", "time"] as const).map((f) => (
             <TH key={f} className="cursor-pointer select-none hover:text-app-text/90" onClick={() => toggleLapSort(f)}>
-              {f === "lap" ? "Lap" : "Time"}
+              {f === "lap" ? m.sessions_col_lap() : m.sessions_col_time()}
               {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
             </TH>
           ))}
           <TH className="text-red-400">S1</TH>
           <TH className="text-blue-400">S2</TH>
           <TH className="text-yellow-400">S3</TH>
-          <TH className="w-[40%]">Notes</TH>
+          <TH className="w-[40%]">{m.sessions_col_notes()}</TH>
         </THead>
         <TBody>
           {sortedLaps.map((lap) => {
@@ -148,9 +149,9 @@ function SessionLapTable({
                       </span>
                     )}
                     {lap.isLegacy ? (
-                      <Tooltip content={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
+                      <Tooltip content={m.sessions_legacy_tooltip({ version: RAW_STORAGE_VERSION })}>
                         <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
-                          Analyse
+                          {m.sessions_analyse()}
                         </Button>
                       </Tooltip>
                     ) : (
@@ -164,7 +165,7 @@ function SessionLapTable({
                           navigate({ to: `${gameRoute}/analyse` as any, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } as any });
                         }}
                       >
-                        Analyse
+                        {m.sessions_analyse()}
                       </Button>
                     )}
                   </div>
@@ -214,7 +215,7 @@ function SessionLapTable({
                 setContextMenu(null);
               }}
             >
-              Recheck validity
+              {m.sessions_recheck_validity()}
             </button>
           </div>
         </>
@@ -455,11 +456,13 @@ export function SessionsPage() {
     <div className="h-full flex flex-col p-4 gap-3">
       <RotatePrompt />
       <div className="flex items-center flex-wrap gap-3">
-        <AppInput type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search track, car, notes…" className="flex-1 min-w-[200px] sm:flex-none sm:w-64" />
+        <AppInput type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={m.sessions_search_placeholder()} className="flex-1 min-w-[200px] sm:flex-none sm:w-64" />
         <h1 className="text-sm font-semibold text-app-text/90 shrink-0">
-          Sessions
+          {m.sessions_title()}
           {!isLoading && (
-            <span className="text-app-text/90-muted font-normal ml-2">{filtered.length === sessions.length ? `${sessions.length} total` : `${filtered.length} of ${sessions.length}`}</span>
+            <span className="text-app-text/90-muted font-normal ml-2">
+              {filtered.length === sessions.length ? m.sessions_total({ count: sessions.length }) : m.sessions_filtered_count({ shown: filtered.length, total: sessions.length })}
+            </span>
           )}
         </h1>
         <div className="flex items-center flex-wrap gap-2">
@@ -473,9 +476,9 @@ export function SessionsPage() {
               if (!lapA || !lapB) return null;
               if (lapA.isLegacy || lapB.isLegacy)
                 return (
-                  <Tooltip content={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
+                  <Tooltip content={m.sessions_legacy_tooltip({ version: RAW_STORAGE_VERSION })}>
                     <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none">
-                      Compare
+                      {m.sessions_compare()}
                     </Button>
                   </Tooltip>
                 );
@@ -505,15 +508,16 @@ export function SessionsPage() {
                   }}
                   className="px-3 py-1.5 text-sm rounded bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors"
                 >
-                  Compare 2 laps
+                  {m.sessions_compare_two()}
                 </button>
               );
             })()}
           {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
             <button onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors">
-              Delete {selectedSessions.size > 0 ? `${selectedSessions.size} session${selectedSessions.size > 1 ? "s" : ""}` : ""}
+              {m.common_delete()}{" "}
+              {selectedSessions.size > 0 ? m.sessions_count_sessions({ count: selectedSessions.size }) : ""}
               {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
-              {selectedLaps.size > 0 ? `${selectedLaps.size} lap${selectedLaps.size > 1 ? "s" : ""}` : ""}
+              {selectedLaps.size > 0 ? m.sessions_count_laps({ count: selectedLaps.size }) : ""}
             </button>
           )}
         </div>
@@ -522,9 +526,9 @@ export function SessionsPage() {
       {/* Mobile card list */}
       <div className="md:hidden flex-1 overflow-auto flex flex-col gap-2">
         {isLoading ? (
-          <div className="px-3 py-8 text-center text-app-text/90-muted">Loading...</div>
+          <div className="px-3 py-8 text-center text-app-text/90-muted">{m.common_loading()}</div>
         ) : pageItems.length === 0 ? (
-          <div className="px-3 py-8 text-center text-app-text/90-muted">No sessions recorded yet</div>
+          <div className="px-3 py-8 text-center text-app-text/90-muted">{m.sessions_none()}</div>
         ) : (
           pageItems.map((session) => {
             const isExpanded = expandedSessions.has(session.id);
@@ -554,10 +558,10 @@ export function SessionsPage() {
                     </div>
                     <div className="flex items-center gap-4 mt-2 text-xs">
                       <span className="text-app-text/90-muted">
-                        Laps <span className="text-app-text font-mono tabular-nums">{session.lapCount ?? 0}</span>
+                        {m.sessions_laps_label()} <span className="text-app-text font-mono tabular-nums">{session.lapCount ?? 0}</span>
                       </span>
                       <span className="text-app-text/90-muted">
-                        Best <span className="text-app-text font-mono tabular-nums">{bestTime ? formatLapTime(bestTime) : "—"}</span>
+                        {m.sessions_best_label()} <span className="text-app-text font-mono tabular-nums">{bestTime ? formatLapTime(bestTime) : "—"}</span>
                       </span>
                       <span className="ml-auto text-app-text/90-dim">{isExpanded ? "▾" : "▸"}</span>
                     </div>
@@ -611,25 +615,25 @@ export function SessionsPage() {
               className="accent-cyan-400 w-4 h-4"
             />
           </TH>
-          <SortHeader label="Date" field="date" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-          <SortHeader label="Laps" field="laps" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-          <SortHeader label="Best Lap" field="best" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-          <SortHeader label="Track" field="track" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-          <SortHeader label="Car" field="car" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-          {isF1 && <SortHeader label="Type" field="type" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />}
-          <TH className="w-[40%]">Notes</TH>
+          <SortHeader label={m.sessions_col_date()} field="date" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+          <SortHeader label={m.sessions_col_laps()} field="laps" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+          <SortHeader label={m.sessions_col_best_lap()} field="best" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+          <SortHeader label={m.sessions_col_track()} field="track" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+          <SortHeader label={m.sessions_col_car()} field="car" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+          {isF1 && <SortHeader label={m.sessions_col_type()} field="type" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />}
+          <TH className="w-[40%]">{m.sessions_col_notes()}</TH>
         </THead>
         <TBody>
           {isLoading ? (
             <tr>
               <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90-muted">
-                Loading...
+                {m.common_loading()}
               </td>
             </tr>
           ) : pageItems.length === 0 ? (
             <tr>
               <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90-muted">
-                No sessions recorded yet
+                {m.sessions_none()}
               </td>
             </tr>
           ) : (
@@ -706,7 +710,7 @@ export function SessionsPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs text-app-text/90-muted">
           <span>
-            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+            {m.sessions_showing({ from: page * PAGE_SIZE + 1, to: Math.min((page + 1) * PAGE_SIZE, filtered.length), total: filtered.length })}
           </span>
           <div className="flex gap-1">
             <button
@@ -714,14 +718,14 @@ export function SessionsPage() {
               disabled={page === 0}
               className="px-2 py-1 rounded bg-app-surface border border-app-border hover:bg-app-accent/10 disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              Prev
+              {m.sessions_prev()}
             </button>
             <button
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
               className="px-2 py-1 rounded bg-app-surface border border-app-border hover:bg-app-accent/10 disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              Next
+              {m.common_next()}
             </button>
           </div>
         </div>

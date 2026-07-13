@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { m } from "@/paraglide/messages";
 import { useGameId } from "../stores/game";
 import { useSettings } from "../hooks/queries";
 
@@ -117,7 +118,7 @@ export function NoDataView() {
   const { displaySettings } = useSettings();
   const port = String((displaySettings as any).udpPort ?? "5300");
 
-  const guideLabel = gameId === "f1-2025" ? "How to enable UDP Telemetry in F1 2025" : gameId === "acc" ? "How to connect Assetto Corsa Competizione" : "How to enable Data Out in Forza Motorsport";
+  const guideLabel = gameId === "f1-2025" ? m.nodata_guide_f1() : gameId === "acc" ? m.nodata_guide_acc() : m.nodata_guide_forza();
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
@@ -132,8 +133,8 @@ export function NoDataView() {
       </div>
 
       <div className="text-center">
-        <div className="text-sm font-semibold text-app-text">Waiting for telemetry</div>
-        <div className="text-xs text-app-text-muted mt-1">Start a session in-game to begin receiving data</div>
+        <div className="text-sm font-semibold text-app-text">{m.nodata_waiting_title()}</div>
+        <div className="text-xs text-app-text-muted mt-1">{m.nodata_waiting_desc()}</div>
       </div>
 
       <div>

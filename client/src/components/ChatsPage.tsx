@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { m } from "@/paraglide/messages";
 import { useNavigate } from "@tanstack/react-router";
 import { Sparkles, MessageSquare, Trash2, ExternalLink } from "lucide-react";
 import { useGameId } from "../stores/game";
@@ -34,13 +35,13 @@ function formatRelative(iso: string): string {
   if (!Number.isFinite(ts)) return "—";
   const diff = Date.now() - ts;
   const sec = Math.floor(diff / 1000);
-  if (sec < 60) return `${sec}s ago`;
+  if (sec < 60) return m.chats_seconds_ago({ count: sec });
   const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
+  if (min < 60) return m.chats_minutes_ago({ count: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
+  if (hr < 24) return m.chats_hours_ago({ count: hr });
   const day = Math.floor(hr / 24);
-  if (day < 30) return `${day}d ago`;
+  if (day < 30) return m.chats_days_ago({ count: day });
   return new Date(iso).toLocaleDateString();
 }
 
@@ -61,7 +62,7 @@ export function ChatsPage() {
       const data = (await res.json()) as { chats: ChatRow[] };
       setRows(data.chats ?? []);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load chats");
+      setError(err instanceof Error ? err.message : m.chats_load_failed());
       setRows([]);
     } finally {
       setLoading(false);
@@ -73,7 +74,7 @@ export function ChatsPage() {
   }, [load]);
 
   const handleDelete = useCallback(async (threadId: string) => {
-    if (!confirm("Delete this chat session? Cached analysis is preserved.")) return;
+    if (!confirm(m.chats_delete_confirm())) return;
     try {
       await fetch(`/api/chats/${encodeURIComponent(threadId)}`, { method: "DELETE" });
       setRows((prev) => prev.filter((r) => r.threadId !== threadId));
@@ -114,18 +115,18 @@ export function ChatsPage() {
     <div className="flex flex-col gap-4 p-4 h-full overflow-hidden">
       <div className="flex items-center gap-2 shrink-0">
         <MessageSquare className="size-4 text-app-text-secondary" />
-        <h1 className="text-sm font-semibold text-app-text uppercase tracking-wider">Chat Sessions</h1>
+        <h1 className="text-sm font-semibold text-app-text uppercase tracking-wider">{m.chats_title()}</h1>
         <span className="text-[10px] text-app-text-muted">({rows.length})</span>
       </div>
 
-      {loading && <div className="text-app-text-muted text-sm">Loading…</div>}
+      {loading && <div className="text-app-text-muted text-sm">{m.common_loading()}</div>}
       {error && <div className="text-red-400 text-sm">{error}</div>}
 
       {!loading && !error && rows.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-app-text-dim">
           <Sparkles className="size-6 text-app-text-dim" />
-          <p className="text-sm">No chat sessions yet</p>
-          <p className="text-[11px] text-app-text-muted">Run an AI analysis on a lap or compare two laps to start a chat.</p>
+          <p className="text-sm">{m.chats_empty_title()}</p>
+          <p className="text-[11px] text-app-text-muted">{m.chats_empty_desc()}</p>
         </div>
       )}
 
@@ -134,12 +135,12 @@ export function ChatsPage() {
           <table className="w-full min-w-max md:min-w-0 text-[12px]">
             <thead className="sticky top-0 bg-app-surface-alt/80 backdrop-blur z-10 border-b border-app-border">
               <tr className="text-left text-[10px] uppercase tracking-wider text-app-text-muted">
-                <th className="px-3 py-2 font-semibold">Type</th>
-                <th className="px-3 py-2 font-semibold">Track</th>
-                <th className="px-3 py-2 font-semibold">Car(s)</th>
-                <th className="px-3 py-2 font-semibold">Lap(s)</th>
-                <th className="px-3 py-2 font-semibold">Updated</th>
-                <th className="px-3 py-2 font-semibold text-right">Actions</th>
+                <th className="px-3 py-2 font-semibold">{m.chats_col_type()}</th>
+                <th className="px-3 py-2 font-semibold">{m.chats_col_track()}</th>
+                <th className="px-3 py-2 font-semibold">{m.chats_col_cars()}</th>
+                <th className="px-3 py-2 font-semibold">{m.chats_col_laps()}</th>
+                <th className="px-3 py-2 font-semibold">{m.chats_col_updated()}</th>
+                <th className="px-3 py-2 font-semibold text-right">{m.chats_col_actions()}</th>
               </tr>
             </thead>
             <tbody>
@@ -166,7 +167,7 @@ export function ChatsPage() {
                   <td className="px-3 py-2 text-app-text-secondary font-mono text-[11px]">
                     {row.laps.map((l, i) => (
                       <div key={i}>
-                        Lap {l.lapNumber} — {formatLapTime(l.lapTime)}
+                        {m.chats_lap_number({ number: l.lapNumber })} — {formatLapTime(l.lapTime)}
                         {!l.isValid && <span className="text-red-400 ml-1">(inv)</span>}
                       </div>
                     ))}
@@ -177,14 +178,14 @@ export function ChatsPage() {
                       <button
                         onClick={() => handleOpen(row)}
                         className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-app-surface-alt text-app-text-secondary hover:text-app-text"
-                        title="Open"
+                        title={m.chats_open()}
                       >
-                        <ExternalLink className="size-3" /> Open
+                        <ExternalLink className="size-3" /> {m.chats_open()}
                       </button>
                       <button
                         onClick={() => handleDelete(row.threadId)}
                         className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-red-500/15 text-app-text-muted hover:text-red-400"
-                        title="Delete chat"
+                        title={m.chats_delete_title()}
                       >
                         <Trash2 className="size-3" />
                       </button>

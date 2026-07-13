@@ -137,7 +137,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
     const savePort = Number.parseInt(udpPort, 10);
     if (Number.isNaN(savePort) || savePort < 1024 || savePort > 65535) {
       setStatus("error");
-      setErrorMsg("Port must be between 1024-65535");
+      setErrorMsg(m.settings_port_range_error());
       return;
     }
 
@@ -150,7 +150,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       setTimeout(() => setStatus("idle"), 2000);
     } catch (err) {
       setStatus("error");
-      setErrorMsg(err instanceof Error ? err.message : "Failed to save");
+      setErrorMsg(err instanceof Error ? err.message : m.settings_save_failed());
     }
   }
 
@@ -166,7 +166,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       setTimeout(() => setUnitStatus("idle"), 2000);
     } catch (err) {
       setUnitStatus("error");
-      setUnitError(err instanceof Error ? err.message : "Failed to save");
+      setUnitError(err instanceof Error ? err.message : m.settings_save_failed());
     }
   }
 
@@ -199,7 +199,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
               openOnboarding();
             }}
           >
-            Setup Wizard
+            {m.settings_setup_wizard()}
           </button>
         </div>
         <button
@@ -210,7 +210,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             openOnboarding();
           }}
         >
-          Setup Wizard
+          {m.settings_setup_wizard()}
         </button>
       </nav>
 
@@ -234,7 +234,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                     applyLocale(code);
                   }}
                   options={LOCALES.map((loc) => ({ value: loc.code, label: `${loc.label} (${loc.code})` }))}
-                  placeholder="Search language..."
+                  placeholder={m.settings_language_search_placeholder()}
                   focusColor="app-accent"
                 />
               </div>
@@ -242,7 +242,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             </div>
 
             <div className="max-w-xs">
-              <Label className={`${displaySettings.isCompiled ? "text-app-text-secondary" : "text-app-text-muted"}`}>Launch on Login</Label>
+              <Label className={`${displaySettings.isCompiled ? "text-app-text-secondary" : "text-app-text-muted"}`}>{m.settings_launch_on_login()}</Label>
               <div className="flex items-center gap-3 mt-1.5">
                 <button
                   type="button"
@@ -264,9 +264,9 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                     }`}
                   />
                 </button>
-                <span className="text-sm text-app-text-muted">{!displaySettings.isCompiled ? "Only available in installed app" : displaySettings.launchOnLogin ? "Enabled" : "Disabled"}</span>
+                <span className="text-sm text-app-text-muted">{!displaySettings.isCompiled ? m.settings_launch_installed_only() : displaySettings.launchOnLogin ? m.common_enabled() : m.common_disabled()}</span>
               </div>
-              <p className="text-app-text-muted text-xs mt-1">Automatically start RaceIQ when you log into Windows.</p>
+              <p className="text-app-text-muted text-xs mt-1">{m.settings_launch_on_login_desc()}</p>
             </div>
           </section>
         )}
@@ -275,8 +275,8 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
         {activeSection === "theme" && (
           <section>
-            <h2 className="text-lg font-semibold text-app-text mb-1">Theme</h2>
-            <p className="text-sm text-app-text-muted mb-4">Choose the visual style for the interface.</p>
+            <h2 className="text-lg font-semibold text-app-text mb-1">{m.settings_theme_title()}</h2>
+            <p className="text-sm text-app-text-muted mb-4">{m.settings_theme_desc()}</p>
             <div className="grid grid-cols-2 gap-3 max-w-sm">
               {themes.map((t) => (
                 <button
@@ -298,13 +298,13 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
         {activeSection === "connection" && (
           <section>
-            <h2 className="text-lg font-semibold text-app-text mb-1">Forza Connection</h2>
-            <p className="text-sm text-app-text-muted mb-4">Set the UDP port to listen on. In Forza: Settings &gt; Gameplay &gt; Data Out &gt; set IP to this machine's address and the port below.</p>
+            <h2 className="text-lg font-semibold text-app-text mb-1">{m.settings_connection_title()}</h2>
+            <p className="text-sm text-app-text-muted mb-4">{m.settings_connection_desc()}</p>
 
             <div className="flex items-end gap-3 max-w-xs">
               <div className="flex-1">
                 <Label htmlFor="udp-port" className="text-app-text-secondary">
-                  UDP Port
+                  {m.settings_udp_port_label()}
                 </Label>
                 <Input
                   id="udp-port"
@@ -322,14 +322,14 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                 />
               </div>
               <Button onClick={handleSave} disabled={status === "saving" || !hasChanges} variant={status === "saved" ? "secondary" : "default"} className="shrink-0">
-                {status === "saving" ? "Saving..." : status === "saved" ? "Saved" : "Save"}
+                {status === "saving" ? m.common_saving() : status === "saved" ? m.common_saved() : m.common_save()}
               </Button>
             </div>
             {status === "error" && <p className="text-red-400 text-sm mt-2">{errorMsg}</p>}
-            {savedPort && <p className="text-app-text-muted text-xs mt-3">Listening on 0.0.0.0:{savedPort}</p>}
+            {savedPort && <p className="text-app-text-muted text-xs mt-3">{m.settings_listening_on({ port: savedPort })}</p>}
 
             <div className="mt-4 max-w-xs">
-              <Label className="text-app-text-secondary">Live Refresh Rate</Label>
+              <Label className="text-app-text-secondary">{m.settings_live_refresh_rate()}</Label>
               <select
                 value={displaySettings.wsRefreshRate ?? "60"}
                 onChange={(e) => saveSettings.mutate({ wsRefreshRate: e.target.value })}
@@ -340,11 +340,11 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                 <option value="40">40 Hz</option>
                 <option value="30">30 Hz</option>
               </select>
-              <p className="text-app-text-muted text-xs mt-1">WebSocket refresh rate for live telemetry. Lower values reduce CPU usage.</p>
+              <p className="text-app-text-muted text-xs mt-1">{m.settings_live_refresh_rate_desc()}</p>
             </div>
 
             <div className="mt-4 max-w-xs">
-              <Label className="text-app-text-secondary">3D Render Frame Cap</Label>
+              <Label className="text-app-text-secondary">{m.settings_render_frame_cap()}</Label>
               <select
                 value={String(displaySettings.renderFpsCap ?? 60)}
                 onChange={(e) => saveSettings.mutate({ renderFpsCap: Number(e.target.value) })}
@@ -358,7 +358,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                 <option value="15">15 fps</option>
               </select>
               <p className="text-app-text-muted text-xs mt-1">
-                Maximum frame rate for the 3D wireframe scene in analyse. Lower values reduce GPU/CPU load; higher is smoother. Does not affect playback speed.
+                {m.settings_render_frame_cap_desc()}
               </p>
             </div>
 
@@ -367,12 +367,12 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                 <svg aria-hidden="true" className={`w-4 h-4 transition-transform ${showSetupGuide ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
-                How to enable Data Out in Forza Motorsport
+                {m.settings_forza_guide_toggle()}
               </button>
 
               {showSetupGuide && (
                 <div className="mt-4 rounded-lg border border-app-border bg-app-surface-alt p-4 max-w-lg">
-                  <h3 className="text-sm font-semibold text-app-text mb-3">Forza Motorsport (2023) — Data Out Setup</h3>
+                  <h3 className="text-sm font-semibold text-app-text mb-3">{m.settings_forza_guide_title()}</h3>
                   <ol className="space-y-2.5 text-sm text-app-text-muted list-decimal list-inside">
                     <li>
                       Open <span className="text-app-text">Forza Motorsport</span> and go to <span className="text-app-text">Settings</span>.
@@ -418,12 +418,12 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                 <svg aria-hidden="true" className={`w-4 h-4 transition-transform ${showF1SetupGuide ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
-                How to enable UDP Telemetry in F1 2025
+                {m.settings_f1_guide_toggle()}
               </button>
 
               {showF1SetupGuide && (
                 <div className="mt-4 rounded-lg border border-app-border bg-app-surface-alt p-4 max-w-lg">
-                  <h3 className="text-sm font-semibold text-app-text mb-3">EA Sports F1 2025 — UDP Telemetry Setup</h3>
+                  <h3 className="text-sm font-semibold text-app-text mb-3">{m.settings_f1_guide_title()}</h3>
                   <ol className="space-y-2.5 text-sm text-app-text-muted list-decimal list-inside">
                     <li>
                       Open <span className="text-app-text">F1 2025</span> and go to <span className="text-app-text">Settings</span> (main menu).
@@ -471,9 +471,9 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
         {activeSection === "wheel" && (
           <section>
-            <h2 className="text-lg font-semibold text-app-text mb-1">Steering Wheel</h2>
+            <h2 className="text-lg font-semibold text-app-text mb-1">{m.settings_wheel_title()}</h2>
             <p className="text-sm text-app-text-muted mb-4">
-              Choose the steering wheel style displayed during live telemetry. Add your own by placing images in{" "}
+              {m.settings_wheel_desc()}{" "}
               <code className="text-xs bg-app-surface-alt px-1 py-0.5 rounded">client/public/wheels/</code>
             </p>
             <WheelPicker
@@ -486,9 +486,9 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
             <div className="mt-6 pt-6 border-t border-app-border max-w-xs">
               <Label htmlFor="steer-lock" className="text-app-text-secondary">
-                Steering Wheel Rotation (degrees)
+                {m.settings_steer_rotation_label()}
               </Label>
-              <p className="text-xs text-app-text-muted mb-1.5">Full lock-to-lock rotation of your wheel. Common: 900° (default), 540°, 360°, 270°</p>
+              <p className="text-xs text-app-text-muted mb-1.5">{m.settings_steer_rotation_desc()}</p>
               <div className="flex items-end gap-3">
                 <Input
                   id="steer-lock"
@@ -514,25 +514,25 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
         {activeSection === "speed" && (
           <section>
-            <h2 className="text-lg font-semibold text-app-text mb-1">Units</h2>
-            <p className="text-sm text-app-text-muted mb-4">Choose between Imperial and Metric units for speed, distance, and weight.</p>
+            <h2 className="text-lg font-semibold text-app-text mb-1">{m.settings_units_title()}</h2>
+            <p className="text-sm text-app-text-muted mb-4">{m.settings_units_desc()}</p>
 
             <div className="flex items-center gap-2">
-              <Label className="text-app-text-secondary mr-2">System</Label>
+              <Label className="text-app-text-secondary mr-2">{m.settings_units_system_label()}</Label>
               <Button size="sm" variant={unitSystem === "imperial" ? "default" : "outline"} onClick={() => setUnitSystem("imperial")}>
-                Imperial (mph, ft, lb)
+                {m.settings_units_imperial()}
               </Button>
               <Button size="sm" variant={unitSystem === "metric" ? "default" : "outline"} onClick={() => setUnitSystem("metric")}>
-                Metric (km/h, m, kg)
+                {m.settings_units_metric()}
               </Button>
             </div>
 
             <div className="mt-5 pt-5 border-t border-app-border">
-              <h3 className="text-sm font-semibold text-app-text mb-1">Temperature</h3>
-              <p className="text-xs text-app-text-muted mb-3">Moved here from separate Settings section. Tire temperature color thresholds stay game-controlled.</p>
+              <h3 className="text-sm font-semibold text-app-text mb-1">{m.settings_temperature_title()}</h3>
+              <p className="text-xs text-app-text-muted mb-3">{m.settings_temperature_desc()}</p>
 
               <div className="flex items-center gap-2">
-                <Label className="text-app-text-secondary mr-2">Unit</Label>
+                <Label className="text-app-text-secondary mr-2">{m.settings_temperature_unit_label()}</Label>
                 <Button size="sm" variant={temperatureUnit === "F" ? "default" : "outline"} onClick={() => setTemperatureUnit("F")} className="w-12">
                   °F
                 </Button>
@@ -544,7 +544,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
             <div className="mt-4">
               <Button onClick={handleUnitSave} disabled={unitStatus === "saving"}>
-                {unitStatus === "saving" ? "Saving..." : unitStatus === "saved" ? "Saved" : "Save"}
+                {unitStatus === "saving" ? m.common_saving() : unitStatus === "saved" ? m.common_saved() : m.common_save()}
               </Button>
             </div>
 
@@ -554,11 +554,11 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
         {activeSection === "sound" && (
           <section>
-            <h2 className="text-lg font-semibold text-app-text mb-1">Sound</h2>
-            <p className="text-sm text-app-text-muted mb-4">Audio feedback for sector changes and other events.</p>
+            <h2 className="text-lg font-semibold text-app-text mb-1">{m.settings_sound_title()}</h2>
+            <p className="text-sm text-app-text-muted mb-4">{m.settings_sound_desc()}</p>
 
             <div className="flex items-center gap-3 mb-4">
-              <Label className="text-app-text-secondary">Sector blip sounds</Label>
+              <Label className="text-app-text-secondary">{m.settings_sound_sector_blip()}</Label>
               <Button
                 size="sm"
                 variant={soundEnabled ? "default" : "outline"}
@@ -567,7 +567,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                   setSoundEnabled(true);
                 }}
               >
-                On
+                {m.common_on()}
               </Button>
               <Button
                 size="sm"
@@ -577,12 +577,12 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                   setSoundEnabled(false);
                 }}
               >
-                Off
+                {m.common_off()}
               </Button>
             </div>
 
             <div className="mb-4">
-              <Label className="text-app-text-secondary mb-2 block">Sound preset</Label>
+              <Label className="text-app-text-secondary mb-2 block">{m.settings_sound_preset()}</Label>
               <div className="flex flex-wrap gap-1.5">
                 {SOUND_PRESETS.map((p) => (
                   <Button
@@ -608,8 +608,8 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
             {soundType === "url" && (
               <div className="mb-4">
-                <Label className="text-app-text-secondary mb-2 block">Sound URL</Label>
-                <p className="text-xs text-app-text-muted mb-2">Paste a direct link to an .mp3 or .wav file. Short clips (&lt;1s) work best.</p>
+                <Label className="text-app-text-secondary mb-2 block">{m.settings_sound_url_label()}</Label>
+                <p className="text-xs text-app-text-muted mb-2">{m.settings_sound_url_desc()}</p>
                 <div className="flex gap-2">
                   <Input value={soundUrl} onChange={(e) => setSoundUrlState(e.target.value)} placeholder="https://example.com/beep.mp3" className="flex-1" />
                   <Button
@@ -619,14 +619,14 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                       if (soundUrl) preloadSound(soundUrl);
                     }}
                   >
-                    Save
+                    {m.common_save()}
                   </Button>
                 </div>
               </div>
             )}
 
             <div className="mb-4">
-              <Label className="text-app-text-secondary mb-2 block">Volume — {Math.round(soundVolume * 100)}%</Label>
+              <Label className="text-app-text-secondary mb-2 block">{m.settings_sound_volume()} — {Math.round(soundVolume * 100)}%</Label>
               <input
                 type="range"
                 min="0"
@@ -642,9 +642,9 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             </div>
 
             <div>
-              <Label className="text-app-text-secondary mb-2 block">Preview</Label>
+              <Label className="text-app-text-secondary mb-2 block">{m.settings_sound_preview()}</Label>
               <Button size="sm" variant="outline" onClick={() => playBlip(1.25)}>
-                Play
+                {m.settings_sound_play()}
               </Button>
             </div>
           </section>

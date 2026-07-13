@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { tryGetGame } from "@shared/games/registry";
 import type { DisplayPacket } from "../lib/convert-packet";
 import { SteeringWheel } from "./SteeringWheel";
@@ -48,7 +49,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
   const units = useUnits();
 
   if (!packet) {
-    return <div className="flex items-center justify-center h-full text-app-text-dim">Waiting for telemetry data...</div>;
+    return <div className="flex items-center justify-center h-full text-app-text-dim">{m.live_waiting_data()}</div>;
   }
 
   const speed = packet.DisplaySpeed;
@@ -121,7 +122,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
         {/* Pit Window */}
         <div className="border-b border-app-border">
           <div className="p-2 border-b border-app-border">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Pit Window</h2>
+            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.live_pit_window()}</h2>
           </div>
           <div className="p-3">
             <PitEstimate packet={packet} pit={pit} gameId={gameId} />
@@ -155,7 +156,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
           </div>
           <div className="flex gap-1 shrink-0">
             <PowerTorque packet={packet} />
-            <ArcGauge value={boostVal} max={30} label="Boost" unit="psi" color="#22d3ee" />
+            <ArcGauge value={boostVal} max={30} label={m.live_boost()} unit="psi" color="#22d3ee" />
           </div>
         </div>
       </div>
@@ -173,7 +174,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
 
       {/* Full tire diagram with suspension */}
       <div className="px-3 py-2 border-b border-app-border/50">
-        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">Tires</div>
+        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_tires()}</div>
         <TireDiagram packet={packet} />
       </div>
 
@@ -184,13 +185,13 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
 
       {/* Grip history */}
       <div className="px-3 py-2 border-b border-app-border/50">
-        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">Grip (60s)</div>
+        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_grip()} (60s)</div>
         <GripHistory packet={packet} />
       </div>
 
       {/* Telemetry charts */}
       <div className="px-3 py-2">
-        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">Telemetry (60s)</div>
+        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_telemetry()} (60s)</div>
         <TelemetryCharts packet={packet} />
       </div>
     </div>

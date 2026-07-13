@@ -1,5 +1,6 @@
 import { useState } from "react";
 import fanatec15nm from "@shared/setup/fanatec-15nm.json";
+import { m } from "@/paraglide/messages";
 
 interface Setting {
   name: string;
@@ -110,8 +111,8 @@ export function WheelCatalogue({ onSelect }: { onSelect: (profileId: string) => 
   return (
     <div className="flex-1 overflow-auto p-4 max-w-3xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-app-title font-bold text-app-text">Wheel Catalogue</h1>
-        <p className="text-app-subtext text-app-text-muted mt-1">Select your wheel to view recommended FFB settings</p>
+        <h1 className="text-app-title font-bold text-app-text">{m.hw_catalogue_title()}</h1>
+        <p className="text-app-subtext text-app-text-muted mt-1">{m.hw_catalogue_subtitle()}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -140,7 +141,7 @@ export function WheelCatalogue({ onSelect }: { onSelect: (profileId: string) => 
 
         <div className="rounded-xl border-2 border-dashed border-app-border/50 flex items-center justify-center min-h-[200px] opacity-50">
           <div className="text-center p-4">
-            <p className="text-app-body text-app-text-muted font-medium">More wheels coming soon</p>
+            <p className="text-app-body text-app-text-muted font-medium">{m.hw_more_wheels_soon()}</p>
           </div>
         </div>
       </div>
@@ -161,7 +162,7 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={onBack} className="text-app-text-muted hover:text-app-text transition-colors" title="Back to catalogue">
+            <button type="button" onClick={onBack} className="text-app-text-muted hover:text-app-text transition-colors" title={m.hw_back_to_catalogue()}>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
                 <path
                   fillRule="evenodd"
@@ -170,7 +171,7 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
                 />
               </svg>
             </button>
-            <h1 className="text-app-title font-bold text-app-text">Hardware Setup</h1>
+            <h1 className="text-app-title font-bold text-app-text">{m.hw_setup_title()}</h1>
             <span className="text-app-unit font-semibold uppercase px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">{profile.wheelBase.maxTorque}</span>
           </div>
           <p className="text-app-subtext text-app-text-muted">{profile.description}</p>
@@ -179,8 +180,8 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
 
       <div className="flex gap-2">
         {[
-          { id: "wheel" as const, label: "Wheel Base" },
-          { id: "ingame" as const, label: "In-Game FFB" },
+          { id: "wheel" as const, label: m.hw_tab_wheel_base() },
+          { id: "ingame" as const, label: m.hw_tab_ingame_ffb() },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -204,7 +205,7 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
 
           <div className="rounded-xl bg-app-surface/40 ring-1 ring-app-border overflow-hidden">
             <div className="px-4 py-3 border-b border-app-border">
-              <h3 className="text-app-heading font-semibold text-app-text">Tips</h3>
+              <h3 className="text-app-heading font-semibold text-app-text">{m.hw_tips_title()}</h3>
             </div>
             <ul className="px-4 py-3 space-y-2">
               {profile.tips.map((tip, i) => (
@@ -243,8 +244,8 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
           {profile.perCarOverrides.length > 0 && (
             <div className="rounded-xl bg-app-surface/40 ring-1 ring-app-border overflow-hidden">
               <div className="px-4 py-3 border-b border-app-border">
-                <h3 className="text-app-heading font-semibold text-app-text">Per-Car Overrides</h3>
-                <p className="text-app-subtext text-app-text-muted mt-0.5">Adjustments for specific cars</p>
+                <h3 className="text-app-heading font-semibold text-app-text">{m.hw_per_car_overrides()}</h3>
+                <p className="text-app-subtext text-app-text-muted mt-0.5">{m.hw_per_car_overrides_desc()}</p>
               </div>
               <div className="divide-y divide-app-border">
                 {profile.perCarOverrides.map((car) => (
@@ -270,7 +271,7 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
 
       {profile.sources.length > 0 && (
         <div className="text-app-label text-app-text-muted space-y-0.5">
-          <div className="font-semibold uppercase tracking-wider">Sources</div>
+          <div className="font-semibold uppercase tracking-wider">{m.hw_sources()}</div>
           {profile.sources.map((src) => (
             <a key={src} href={src} target="_blank" rel="noopener noreferrer" className="block hover:text-app-text-secondary truncate">
               {src}

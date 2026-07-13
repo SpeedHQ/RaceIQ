@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, type ReactNode } from "react";
+import { m } from "@/paraglide/messages";
 import { Link } from "@tanstack/react-router";
 import { useQueries } from "@tanstack/react-query";
 import { Settings2 } from "lucide-react";
@@ -36,18 +37,18 @@ function RecentLapsTable({
 }) {
   const showGame = !gameId; // show game column on global homepage
   if (laps.length === 0) {
-    return <div className="p-6 text-center text-app-text/90-dim">No laps recorded yet. Start driving to see data here.</div>;
+    return <div className="p-6 text-center text-app-text/90-dim">{m.home_no_laps()}</div>;
   }
 
   return (
     <Table>
       <THead>
-        {showGame && <TH>Game</TH>}
-        <TH>Track</TH>
-        <TH>Car</TH>
-        <TH>Lap</TH>
-        <TH>Time</TH>
-        <TH className="text-right">When</TH>
+        {showGame && <TH>{m.home_col_game()}</TH>}
+        <TH>{m.home_col_track()}</TH>
+        <TH>{m.home_col_car()}</TH>
+        <TH>{m.home_col_lap()}</TH>
+        <TH>{m.home_col_time()}</TH>
+        <TH className="text-right">{m.home_col_when()}</TH>
       </THead>
       <TBody>
         {laps.map((lap) => {
@@ -102,10 +103,10 @@ function RecentLapsTable({
 
 function formatTimeAgo(date: Date): string {
   const sec = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (sec < 60) return "just now";
-  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
-  if (sec < 604800) return `${Math.floor(sec / 86400)}d ago`;
+  if (sec < 60) return m.home_just_now();
+  if (sec < 3600) return m.home_minutes_ago({ count: Math.floor(sec / 60) });
+  if (sec < 86400) return m.home_hours_ago({ count: Math.floor(sec / 3600) });
+  if (sec < 604800) return m.home_days_ago({ count: Math.floor(sec / 86400) });
   return date.toLocaleDateString();
 }
 
@@ -321,10 +322,10 @@ export function HomePage() {
       ) : (
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-app-text/90">{displaySettings.driverName ? `Hello, ${displaySettings.driverName}` : "RaceIQ"}</h1>
-            <p className="text-sm text-app-text/90-muted mt-0.5">Dashboard overview</p>
+            <h1 className="text-2xl font-bold text-app-text/90">{displaySettings.driverName ? m.home_hello({ name: displaySettings.driverName }) : "RaceIQ"}</h1>
+            <p className="text-sm text-app-text/90-muted mt-0.5">{m.home_dashboard_overview()}</p>
           </div>
-          <button onClick={() => openSettings("games")} className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors" title="Manage games">
+          <button onClick={() => openSettings("games")} className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors" title={m.home_manage_games()}>
             <Settings2 className="size-4" />
           </button>
         </div>
@@ -370,11 +371,11 @@ export function HomePage() {
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">Laps</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_laps()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-cyan-400">{gameStats.fm.laps}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">Time</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_time()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.fm.time}</div>
                 </div>
               </div>
@@ -417,11 +418,11 @@ export function HomePage() {
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">Laps</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_laps()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-red-500">{gameStats.f1.laps}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">Time</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_time()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.f1.time}</div>
                 </div>
               </div>
@@ -459,11 +460,11 @@ export function HomePage() {
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">Laps</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_laps()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-orange-400">{gameStats.acc.laps}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">Time</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_time()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.acc.time}</div>
                 </div>
               </div>
@@ -501,11 +502,11 @@ export function HomePage() {
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">Laps</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_laps()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-green-400">{gameStats.acEvo.laps}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">Time</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_time()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.acEvo.time}</div>
                 </div>
               </div>
@@ -522,11 +523,11 @@ export function HomePage() {
         <div className="flex items-center flex-wrap gap-1 mb-3">
           {(
             [
-              ["today", "Today"],
-              ["week", "This Week"],
-              ["month", "This Month"],
-              ["year", "This Year"],
-              ["allTime", "All Time"],
+              ["today", m.home_period_today()],
+              ["week", m.home_period_week()],
+              ["month", m.home_period_month()],
+              ["year", m.home_period_year()],
+              ["allTime", m.home_period_all_time()],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -548,11 +549,11 @@ export function HomePage() {
           };
           return (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <StatCard label="Sessions" value={`${data.sessions}`} />
-              <StatCard label="Laps" value={`${data.laps}`} />
-              <StatCard label="Tracks" value={`${data.tracks}`} />
-              <StatCard label="Cars" value={`${data.cars}`} />
-              {timeSec > 0 && <StatCard label="Time Driven" value={fmtTime(timeSec)} color="text-violet-400" />}
+              <StatCard label={m.home_stat_sessions()} value={`${data.sessions}`} />
+              <StatCard label={m.home_stat_laps()} value={`${data.laps}`} />
+              <StatCard label={m.home_stat_tracks()} value={`${data.tracks}`} />
+              <StatCard label={m.home_stat_cars()} value={`${data.cars}`} />
+              {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-violet-400" />}
             </div>
           );
         })()}
@@ -561,7 +562,7 @@ export function HomePage() {
       {/* Recent laps */}
       <div>
         <div className="mb-2">
-          <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">Recent Laps</h2>
+          <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">{m.home_recent_laps()}</h2>
         </div>
         <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} />
       </div>
