@@ -1,12 +1,7 @@
 import { AppInput } from "@/components/ui/AppInput";
 import { useCatalogTunes, useLaptimes, useResolveNames } from "@/hooks/queries";
+import { tracksMatch } from "@/lib/track-match";
 import { useMemo, useState } from "react";
-
-// Loose match: lowercase, collapse whitespace, drop trailing "*" (the
-// community leaderboard sheet marks short/reverse variants this way).
-function normalizeTrack(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, " ").replace(/\*$/, "").trim();
-}
 
 export function TrackTunes({ trackName, trackVariant }: { trackName: string; trackVariant: string }) {
   const fullName = trackVariant ? `${trackName} ${trackVariant}`.trim() : trackName;
@@ -37,12 +32,7 @@ export function TrackTunes({ trackName, trackVariant }: { trackName: string; tra
   // tune, just shown alongside for context (car/track matching between the
   // scraped tune data and the leaderboard sheet isn't reliable enough for
   // a per-tune attribution).
-  const trackNorm = normalizeTrack(fullName);
-  const trackNorm2 = normalizeTrack(trackName);
-  const leaderboard = laptimes.filter((e) => {
-    const t = normalizeTrack(e.track);
-    return t.includes(trackNorm) || trackNorm.includes(t) || t.includes(trackNorm2) || trackNorm2.includes(t);
-  });
+  const leaderboard = laptimes.filter((e) => tracksMatch(e.track, trackName, trackVariant));
   const leaderboardRows = carQuery ? leaderboard.filter((e) => e.car.toLowerCase().includes(carQuery)) : leaderboard;
 
   return (
@@ -173,7 +163,10 @@ export function TrackTunes({ trackName, trackVariant }: { trackName: string; tra
               <span className="text-right">Time</span>
             </div>
             {leaderboardRows.map((e, i) => (
-              <div key={`${e.car}-${e.driver}-${e.laptime}-${i}`} className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 text-app-body border-b border-app-border last:border-b-0 even:bg-app-surface-alt">
+              <div
+                key={`${e.car}-${e.driver}-${e.laptime}-${i}`}
+                className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 text-app-body border-b border-app-border last:border-b-0 even:bg-app-surface-alt"
+              >
                 <span className="min-w-0 truncate text-app-text-secondary">{e.car}</span>
                 <span className="text-app-text-muted">{e.driver || "—"}</span>
                 <span className="font-mono text-amber-400 text-right">{e.laptime}</span>
