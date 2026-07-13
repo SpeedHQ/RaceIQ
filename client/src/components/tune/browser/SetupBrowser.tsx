@@ -3,9 +3,7 @@ import { ComboBox, type ComboOption } from "./ComboBox";
 import { TUNE_GRID, TuneBrowserRow } from "./TuneBrowserRow";
 import type { SourceTab, TuneRow } from "./types";
 
-export interface TuneBrowserProps {
-  title: string;
-  subtitle?: string;
+export interface SetupBrowserProps {
   rows: TuneRow[];
   carNames: Record<number, string>;
   trackNames: Record<number, string>;
@@ -13,12 +11,15 @@ export interface TuneBrowserProps {
   carOptions: ComboOption[];
   sources: SourceTab[];
   renderSettings: (row: TuneRow) => ReactNode;
-  onClone: (row: TuneRow) => void;
-  onEdit: (row: TuneRow) => void;
-  onDelete: (row: TuneRow) => void;
+  onClone?: (row: TuneRow) => void;
+  onEdit?: (row: TuneRow) => void;
+  onDelete?: (row: TuneRow) => void;
   onDuplicate?: (row: TuneRow) => void;
   isDuplicating?: boolean;
-  onNewTune: () => void;
+  onNewTune?: () => void;
+  /** Read-only browse mode: hides create/import and per-row owner actions
+   *  (used for game sources that surface community setups you can't edit). */
+  readOnly?: boolean;
   onImportFile?: (file: File) => void;
   importing?: boolean;
   onRefresh?: () => void;
@@ -37,7 +38,7 @@ const TAB_ACTIVE: Record<string, string> = {
   user: "border-emerald-400 text-emerald-400",
 };
 
-export function TuneBrowser(props: TuneBrowserProps) {
+export function SetupBrowser(props: SetupBrowserProps) {
   const { rows, trackOptions, carOptions, sources } = props;
   const [track, setTrack] = useState("any");
   const [car, setCar] = useState("any");
@@ -88,13 +89,8 @@ export function TuneBrowser(props: TuneBrowserProps) {
 
   return (
     <div className="w-full p-4 pb-20 text-app-text">
-      <div className="flex items-end justify-between gap-4 flex-wrap pb-4">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">{props.title}</h1>
-          {props.subtitle && <div className="text-[11px] text-app-text-muted tracking-wide mt-1.5">{props.subtitle}</div>}
-        </div>
-        <div className="flex items-center gap-2">
-          {props.headerExtra}
+      <div className="flex items-center gap-2 flex-wrap pb-4">
+        {props.headerExtra}
           {props.onImportFile && (
             <>
               <input
@@ -118,10 +114,11 @@ export function TuneBrowser(props: TuneBrowserProps) {
               </button>
             </>
           )}
+        {props.onNewTune && (
           <button type="button" className="text-[11px] font-bold uppercase tracking-wide bg-app-accent text-app-bg px-3.5 py-2 rounded" onClick={props.onNewTune}>
             + New tune
           </button>
-        </div>
+        )}
       </div>
 
       <div className="flex items-end gap-2.5 mb-3">
@@ -193,9 +190,10 @@ export function TuneBrowser(props: TuneBrowserProps) {
             onDuplicate={props.onDuplicate}
             isDuplicating={props.isDuplicating}
             renderSettings={props.renderSettings}
+            readOnly={props.readOnly}
           />
         ))}
-        {visible.length === 0 && <div className="text-center py-12 text-app-text-dim text-sm">No tunes match this filter.</div>}
+        {visible.length === 0 && <div className="text-center py-12 text-app-text-dim text-sm">No setups match this filter.</div>}
       </div>
 
       {visible.length > 0 && (

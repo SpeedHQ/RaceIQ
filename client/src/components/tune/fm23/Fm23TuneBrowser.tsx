@@ -1,7 +1,7 @@
 import { TuneSettingsPanel } from "@/components/tune/TuneSettingsPanel";
 import { withDefaults } from "@/components/TuneForm";
 import type { ComboOption } from "@/components/tune/browser/ComboBox";
-import { TuneBrowser } from "@/components/tune/browser/TuneBrowser";
+import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
 import { type RawUserTune, buildRows } from "@/components/tune/browser/buildRows";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
 import type { CatalogTune, TuneSettings } from "@/data/tune-catalog";
@@ -90,8 +90,7 @@ export function Fm23TuneBrowser() {
   }, [rows, names]);
 
   return (
-    <TuneBrowser
-      title="Setups"
+    <SetupBrowser
       rows={rows}
       carNames={carNames}
       trackNames={trackNames}

@@ -1,6 +1,6 @@
 import type { ComboOption } from "@/components/tune/browser/ComboBox";
 import { type RawUserTune, buildRows } from "@/components/tune/browser/buildRows";
-import { TuneBrowser } from "@/components/tune/browser/TuneBrowser";
+import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
 import type { CatalogTune } from "@/data/tune-catalog";
 import { useCatalogTunes, useCloneCatalogTune, useDeleteTune, useDuplicateTune, useResolveNames, useUserTunes } from "@/hooks/queries";
@@ -23,12 +23,11 @@ const SOURCES: SourceTab[] = [
 export function SetupTuneBrowser({
   gameId,
   routePrefix,
-  gameLabel,
   cars,
 }: {
   gameId: GameId;
   routePrefix: string;
-  gameLabel: string;
+  gameLabel?: string;
   cars: GameCarOption[];
 }) {
   const navigate = useNavigate();
@@ -78,9 +77,7 @@ export function SetupTuneBrowser({
   }, [rows, names]);
 
   return (
-    <TuneBrowser
-      title={`${gameLabel} Setups`}
-      subtitle="Manage saved setups, duplicate, or import from your Documents folder."
+    <SetupBrowser
       rows={rows}
       carNames={carNames}
       trackNames={trackNames}

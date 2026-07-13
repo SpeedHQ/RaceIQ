@@ -17,15 +17,17 @@ export interface TuneBrowserRowProps {
   trackName: string | null;
   isOpen: boolean;
   onToggle: () => void;
-  onClone: (row: TuneRow) => void;
-  onEdit: (row: TuneRow) => void;
-  onDelete: (row: TuneRow) => void;
+  onClone?: (row: TuneRow) => void;
+  onEdit?: (row: TuneRow) => void;
+  onDelete?: (row: TuneRow) => void;
   onDuplicate?: (row: TuneRow) => void;
   isDuplicating?: boolean;
   renderSettings: (row: TuneRow) => ReactNode;
+  /** Read-only mode hides the per-row owner/clone actions. */
+  readOnly?: boolean;
 }
 
-export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle, onClone, onEdit, onDelete, onDuplicate, isDuplicating, renderSettings }: TuneBrowserRowProps) {
+export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle, onClone, onEdit, onDelete, onDuplicate, isDuplicating, renderSettings, readOnly }: TuneBrowserRowProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const hasTime = row.lapTimeSec != null;
   const isUser = row.source === "user";
@@ -59,10 +61,11 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
         <div className="px-4 sm:pl-14 pb-4 pt-1">
           {row.description && <p className="text-xs text-app-text-muted leading-relaxed whitespace-pre-line mb-3.5 max-w-[70ch]">{row.description}</p>}
           {renderSettings(row)}
+          {!readOnly && (
           <div className="flex gap-2 mt-3.5">
             {isUser ? (
               <>
-                <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold" onClick={() => onEdit(row)}>
+                <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold" onClick={() => onEdit?.(row)}>
                   Edit
                 </button>
                 {onDuplicate && (
@@ -86,7 +89,7 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
                 ) : (
                   <span className="flex items-center gap-1.5">
                     <span className="text-[11px] text-pink-400 uppercase">Sure?</span>
-                    <button type="button" className="text-[11px] uppercase tracking-wide px-3 py-2 rounded bg-pink-500/20 text-pink-300" onClick={() => onDelete(row)}>
+                    <button type="button" className="text-[11px] uppercase tracking-wide px-3 py-2 rounded bg-pink-500/20 text-pink-300" onClick={() => onDelete?.(row)}>
                       Yes
                     </button>
                     <button type="button" className="text-[11px] uppercase tracking-wide px-3 py-2 rounded text-app-text-muted hover:text-app-text" onClick={() => setConfirmDelete(false)}>
@@ -96,11 +99,12 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
                 )}
               </>
             ) : (
-              <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold" onClick={() => onClone(row)}>
+              <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold" onClick={() => onClone?.(row)}>
                 Clone to garage
               </button>
             )}
           </div>
+          )}
         </div>
       )}
     </div>
