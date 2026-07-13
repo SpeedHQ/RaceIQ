@@ -58,7 +58,7 @@ export const SETUP_GROUPS: { title: string; fields: [string, string, string?][] 
 /** Grouped F1 setup values, matching the track-detail setups layout. */
 export function F125SetupValues({ setup }: { setup: Record<string, number | null> }) {
   return (
-    <div className="grid grid-cols-2 gap-x-6 content-start">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-6 content-start">
       {SETUP_GROUPS.map((group) => (
         <div key={group.title}>
           <div className="text-xs text-app-accent uppercase tracking-wider font-bold mt-2 mb-1 border-b border-app-border/20 pb-0.5">{group.title}</div>

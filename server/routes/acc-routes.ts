@@ -229,6 +229,26 @@ export const accRoutes = new Hono()
     }
   )
 
+  // GET /api/acc/setup-file?file=NAME.json — raw ACC setup JSON, fetched when a
+  // setup row is expanded in the browser.
+  .get("/api/acc/setup-file",
+    zValidator("query", z.object({ file: z.string() })),
+    (c) => {
+      const { file } = c.req.valid("query");
+      const path = resolve(ACC_SETUP_FILES_DIR, file);
+      // Guard against path traversal outside the setup-files dir.
+      if (path !== ACC_SETUP_FILES_DIR && !path.startsWith(ACC_SETUP_FILES_DIR + "/")) {
+        return c.json({ error: "Invalid file path" }, 400);
+      }
+      if (!existsSync(path)) return c.json({ error: "Setup file not found" }, 404);
+      try {
+        return c.json(JSON.parse(readFileSync(path, "utf-8")));
+      } catch {
+        return c.json({ error: "Failed to read setup file" }, 500);
+      }
+    }
+  )
+
   .post("/api/acc/setups",
     zValidator("json", CreateSetupSchema),
     (c) => {
