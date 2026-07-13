@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import { TBody, TD, TH, THead, TRow, Table } from "@/components/ui/AppTable";
 import { useLaptimes } from "@/hooks/queries";
 import { tracksMatch } from "@/lib/track-match";
@@ -29,14 +30,14 @@ export function CommunityLeaderboard({ trackName, trackVariant }: { trackName: s
   }, [laptimes, trackName, trackVariant]);
 
   if (rows.length === 0) {
-    return <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm text-center px-4">No leaderboard yet</div>;
+    return <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm text-center px-4">{m.leaderboard_no_data()}</div>;
   }
 
   return (
     <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
       <div className="mb-2 shrink-0">
-        <div className="text-app-label text-app-text-muted uppercase tracking-wider">Community Leaderboard ({rows.length})</div>
-        <div className="text-xs text-app-text-dim">Unverified</div>
+        <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.leaderboard_community()} ({rows.length})</div>
+        <div className="text-xs text-app-text-dim">{m.leaderboard_unverified()}</div>
       </div>
       <div className="overflow-y-auto flex-1">
         <Table fit>

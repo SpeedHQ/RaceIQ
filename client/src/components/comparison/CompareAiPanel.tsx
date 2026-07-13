@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from "react";
+import { m } from "../../paraglide/messages";
 import { createPortal } from "react-dom";
 import Markdown from "react-markdown";
 import { readChatStream, type ChatUsage, type ChatStreamStatus, type ChatStreamError } from "../../lib/chat-stream";
@@ -211,9 +212,9 @@ function InputsSection({
     <div className="rounded-lg border border-app-border-input/40 bg-app-surface-alt/30 px-2.5 py-2">
       <div className="flex items-center gap-2 mb-1.5">
         <span className="w-2 h-2 rounded-full bg-gradient-to-r from-orange-500 to-blue-500" />
-        <span className="text-[11px] font-semibold text-app-text truncate flex-1">Inputs Comparison (A vs B)</span>
+        <span className="text-[11px] font-semibold text-app-text truncate flex-1">{m.compare_inputs_comparison_ab()}</span>
         {analysis && (
-          <button onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title="Regenerate">
+          <button onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.compare_regenerate()}>
             <RefreshCw className="size-3" />
           </button>
         )}
@@ -249,7 +250,7 @@ function InputsSection({
         >
           <Sparkles className="size-3 text-emerald-400 shrink-0" />
           <div className="flex-1 min-w-0">
-            <div className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">Inputs analysed</div>
+            <div className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">{m.compare_inputs_analysed()}</div>
             <div className="text-[9px] text-app-text-muted font-mono">
               {analysis.segments?.length ?? 0} segments · {analysis.coaching?.length ?? 0} tips
             </div>
@@ -324,7 +325,7 @@ function LapSection({
         >
           <Sparkles className="size-3 text-emerald-400 shrink-0" />
           <div className="flex-1 min-w-0">
-            <div className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">Analysis complete</div>
+            <div className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">{m.compare_analysis_complete()}</div>
             <div className="text-[9px] text-app-text-muted font-mono">
               {summary.cornerCount} corners · {summary.coachingCount} tips · {summary.setupCount} setup
             </div>
@@ -366,7 +367,7 @@ function InputsModal({
         <div className="flex items-center justify-between px-4 py-3 border-b border-app-border shrink-0">
           <div className="flex items-center gap-2">
             <Sparkles className="size-3.5 text-amber-400" />
-            <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">Inputs Comparison</span>
+            <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">{m.compare_inputs_comparison()}</span>
           </div>
           <button onClick={onClose} className="text-app-text-muted hover:text-app-text">
             <X className="size-4" />
@@ -405,13 +406,13 @@ function InputsModal({
                     </div>
                     <div className="grid grid-cols-1 gap-1 text-[11px] text-app-text-secondary">
                       <div>
-                        <span className="text-emerald-400/70 font-medium">Throttle:</span> {seg.throttle}
+                        <span className="text-emerald-400/70 font-medium">{m.compare_throttle()}</span> {seg.throttle}
                       </div>
                       <div>
-                        <span className="text-red-400/70 font-medium">Brake:</span> {seg.brake}
+                        <span className="text-red-400/70 font-medium">{m.compare_brake()}</span> {seg.brake}
                       </div>
                       <div>
-                        <span className="text-cyan-400/70 font-medium">Steering:</span> {seg.steering}
+                        <span className="text-cyan-400/70 font-medium">{m.compare_steering()}</span> {seg.steering}
                       </div>
                     </div>
                     {seg.action && (
@@ -428,7 +429,7 @@ function InputsModal({
 
           {analysis.coaching?.length > 0 && (
             <div>
-              <div className="text-[10px] font-semibold text-app-text uppercase tracking-wider mb-1">Coaching</div>
+              <div className="text-[10px] font-semibold text-app-text uppercase tracking-wider mb-1">{m.compare_coaching()}</div>
               <div className="space-y-1.5">
                 {analysis.coaching.map((c, i) => (
                   <div key={i} className="rounded border border-app-border-input/40 bg-app-surface-alt/30 px-2 py-1.5">
@@ -476,7 +477,7 @@ function AnalysisModal({
         <div className="flex items-center justify-between px-4 py-3 border-b border-app-border shrink-0">
           <div className="flex items-center gap-2">
             <Sparkles className="size-3.5 text-amber-400" />
-            <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">AI Analysis</span>
+            <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">{m.compare_ai_analysis()}</span>
             <span className="text-[11px] text-app-text-secondary truncate max-w-[300px]">{label}</span>
           </div>
           <button onClick={onClose} className="text-app-text-muted hover:text-app-text">
@@ -627,8 +628,8 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
       <div className="flex flex-col items-center justify-center py-12 gap-3 text-center px-3">
         <Sparkles className="size-5 text-app-text-dim" />
         <div>
-          <p className="text-[11px] text-app-text-secondary font-medium">AI not set up</p>
-          <p className="text-[10px] text-app-text-muted mt-0.5">Add an API key to start analysing laps</p>
+          <p className="text-[11px] text-app-text-secondary font-medium">{m.compare_ai_not_setup()}</p>
+          <p className="text-[10px] text-app-text-muted mt-0.5">{m.compare_ai_add_key()}</p>
         </div>
         <button onClick={() => openSettings("ai")} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors">
           Set up AI
@@ -646,7 +647,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
         <LapSection lap={lapB} dotClass="bg-blue-500" panelOpen={panelOpen} onAnalysisChange={setHasB} onView={(label, s) => setViewing({ kind: "lap", label, summary: s })} />
         <InputsSection lapAId={lapA.id} lapBId={lapB.id} panelOpen={panelOpen} onView={(a) => setViewing({ kind: "inputs", analysis: a })} />
 
-        {!bothReady && <div className="text-[10px] text-app-text-muted text-center py-2 border border-dashed border-app-border-input/40 rounded">Analyse both laps to start a comparison chat</div>}
+        {!bothReady && <div className="text-[10px] text-app-text-muted text-center py-2 border border-dashed border-app-border-input/40 rounded">{m.compare_analyse_both_laps()}</div>}
 
         {bothReady && (
           <>
@@ -686,7 +687,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
                     <Markdown remarkPlugins={[remarkGfm]}>{streaming}</Markdown>
                   </div>
                 </div>
-                {chatStatus === "generating" && <span className="text-[9px] text-app-text-muted font-mono pl-1">Generating…</span>}
+                {chatStatus === "generating" && <span className="text-[9px] text-app-text-muted font-mono pl-1">{m.compare_generating()}</span>}
               </div>
             )}
 

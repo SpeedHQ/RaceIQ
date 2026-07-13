@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { m } from "../../paraglide/messages";
 import type { TelemetryPacket } from "@shared/types";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { Compass } from "../Compass";
@@ -93,11 +94,11 @@ export function AnalyseTopSection({
         <div className="flex flex-wrap items-center gap-3 mb-2 pb-2 border-b border-app-border">
           <div className="flex items-center gap-1">
             <div className="w-3 h-1.5 rounded-sm bg-amber-500" />
-            <span className="text-[9px] text-app-text-muted">Corner</span>
+            <span className="text-[9px] text-app-text-muted">{m.analyse_corner()}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-1.5 rounded-sm bg-blue-500" />
-            <span className="text-[9px] text-app-text-muted">Straight</span>
+            <span className="text-[9px] text-app-text-muted">{m.analyse_straight()}</span>
           </div>
         </div>
         {/* Segment list */}

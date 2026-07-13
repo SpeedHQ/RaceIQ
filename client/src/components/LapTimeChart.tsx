@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from "react";
+import { m } from "../paraglide/messages";
 import type { LapMeta } from "@shared/types";
 import { formatLapTime } from "./LiveTelemetry";
 
@@ -163,10 +164,10 @@ export function LapTimeChart({
   return (
     <div className="h-full flex flex-col border-b border-app-border">
       <div className="shrink-0 p-2 border-b border-app-border flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Lap Times</h2>
+        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.laptime_title()}</h2>
       </div>
       <div className="flex-1 min-h-0 relative p-2" ref={containerRef} style={height ? { height: height + 16 } : undefined}>
-        {laps.length === 0 && <div className="absolute inset-2 flex items-center justify-center rounded bg-app-surface/40 text-app-text-dim text-sm">Complete a lap to see lap times</div>}
+        {laps.length === 0 && <div className="absolute inset-2 flex items-center justify-center rounded bg-app-surface/40 text-app-text-dim text-sm">{m.laptime_empty_state()}</div>}
         <canvas
           ref={canvasRef}
           style={{
@@ -183,27 +184,27 @@ export function LapTimeChart({
         <div className="flex gap-3 flex-wrap">
           <div className="flex items-center gap-1">
             <div className="w-3 h-0.5 bg-cyan-400 rounded" />
-            <span className="text-xs text-app-text-muted">Lap time</span>
+            <span className="text-xs text-app-text-muted">{m.laptime_legend_laptime()}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-0.5 bg-purple-500 rounded border-dashed" style={{ borderTop: "1px dashed #a855f7", height: 0 }} />
-            <span className="text-xs text-app-text-muted">Optimum (top 5 median)</span>
+            <span className="text-xs text-app-text-muted">{m.laptime_legend_optimum()}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3" style={{ borderTop: "1px dashed #fbbf24", height: 0 }} />
-            <span className="text-xs text-app-text-muted">Avg (last 4)</span>
+            <span className="text-xs text-app-text-muted">{m.laptime_legend_avg()}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full bg-purple-500" />
-            <span className="text-xs text-app-text-muted">Best</span>
+            <span className="text-xs text-app-text-muted">{m.laptime_legend_best()}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="text-xs text-app-text-muted">On pace</span>
+            <span className="text-xs text-app-text-muted">{m.laptime_legend_on_pace()}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full bg-orange-400" />
-            <span className="text-xs text-app-text-muted">Off pace</span>
+            <span className="text-xs text-app-text-muted">{m.laptime_legend_off_pace()}</span>
           </div>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { m } from "../../paraglide/messages";
 import type { TelemetryPacket, GameId } from "@shared/types";
 import { client } from "../../lib/rpc";
 import { needsTrackFlip, flipPoints, flipBoundaries } from "../../lib/track-coords";
@@ -355,16 +356,16 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
     <div className="bg-app-surface rounded-lg border border-app-border overflow-hidden h-full flex flex-col">
       {/* Overview — full track, static */}
       <div ref={overviewContainerRef} className="relative border-b border-app-border h-[220px] shrink-0">
-        <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">Overview</span>
+        <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
         {alignedOutline.length < 2 ? (
-          <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No track outline</div>
+          <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
         ) : (
           <canvas ref={overviewCanvasRef} className="absolute inset-0" />
         )}
       </div>
       {/* Zoomed — follows cursor position */}
       <div ref={zoomContainerRef} className="relative border-b border-app-border h-[320px] shrink-0">
-        <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">Zoomed</span>
+        <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">{m.compare_zoomed()}</span>
         <button
           onClick={() => {
             const next = !followCarRef.current;
@@ -379,7 +380,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
           {followCar ? "Follow View" : "Fixed View"}
         </button>
         {alignedOutline.length < 2 ? (
-          <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No track outline</div>
+          <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
         ) : (
           <canvas ref={zoomCanvasRef} className="absolute inset-0" />
         )}
@@ -390,7 +391,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
           <table className="w-full text-xs">
             <thead className="sticky top-0 z-10 bg-[#0f172a]">
               <tr className="text-[10px] text-app-text-muted uppercase tracking-wider border-b border-app-border">
-                <th className="text-left px-2 py-1.5">Segment</th>
+                <th className="text-left px-2 py-1.5">{m.compare_segment()}</th>
                 <th className="text-right px-2 py-1.5" style={{ color: COLOR_A }}>
                   A
                 </th>

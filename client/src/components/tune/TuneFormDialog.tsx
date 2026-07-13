@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from "react";
+import { m } from "@/paraglide/messages";
 import { client } from "../../lib/rpc";
 import { useQuery } from "@tanstack/react-query";
 import { type TuneSettings } from "../../data/tune-catalog";
@@ -211,7 +212,7 @@ export function TuneFormDialog({
             {/* Metadata */}
             <div className="grid grid-cols-2 gap-3">
               <label className="col-span-2 space-y-1">
-                <span className="text-xs font-medium text-app-text-muted">Name</span>
+                <span className="text-xs font-medium text-app-text-muted">{m.tune_form_name()}</span>
                 <input
                   type="text"
                   value={name}
@@ -221,7 +222,7 @@ export function TuneFormDialog({
                 />
               </label>
               <label className="space-y-1">
-                <span className="text-xs font-medium text-app-text-muted">Author</span>
+                <span className="text-xs font-medium text-app-text-muted">{m.tune_form_author()}</span>
                 <input
                   type="text"
                   value={author}
@@ -231,7 +232,7 @@ export function TuneFormDialog({
                 />
               </label>
               <div className="space-y-1 relative">
-                <span className="text-xs font-medium text-app-text-muted">Car</span>
+                <span className="text-xs font-medium text-app-text-muted">{m.tune_form_car()}</span>
                 <input
                   type="text"
                   value={carDropOpen ? carSearchQuery : selectedCarName}
@@ -244,7 +245,7 @@ export function TuneFormDialog({
                     setCarSearchQuery("");
                   }}
                   onBlur={() => setTimeout(() => setCarDropOpen(false), 150)}
-                  placeholder="Search car..."
+                  placeholder={m.tune_search_car_placeholder()}
                   className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
                 />
                 {carDropOpen && (
@@ -264,12 +265,12 @@ export function TuneFormDialog({
                         {c.name}
                       </button>
                     ))}
-                    {filteredFormCars.length === 0 && <div className="px-3 py-2 text-xs text-app-text-muted">No cars found</div>}
+                    {filteredFormCars.length === 0 && <div className="px-3 py-2 text-xs text-app-text-muted">{m.tune_no_cars_found()}</div>}
                   </div>
                 )}
               </div>
               <label className="space-y-1">
-                <span className="text-xs font-medium text-app-text-muted">Category</span>
+                <span className="text-xs font-medium text-app-text-muted">{m.tune_form_category()}</span>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as TuneCategory)}
@@ -283,7 +284,7 @@ export function TuneFormDialog({
                 </select>
               </label>
               <label className="space-y-1">
-                <span className="text-xs font-medium text-app-text-muted">Description</span>
+                <span className="text-xs font-medium text-app-text-muted">{m.tune_form_description()}</span>
                 <input
                   type="text"
                   value={description}
@@ -302,9 +303,9 @@ export function TuneFormDialog({
                   jsonMode ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"
                 }`}
               >
-                JSON Import
+                {m.tune_json_import()}
               </button>
-              {!jsonMode && <span className="text-[10px] text-app-text-muted">Or fill in sections below</span>}
+              {!jsonMode && <span className="text-[10px] text-app-text-muted">{m.tune_or_fill_sections()}</span>}
             </div>
 
             {jsonMode ? (
@@ -315,13 +316,13 @@ export function TuneFormDialog({
                     setJsonText(e.target.value);
                     setJsonError("");
                   }}
-                  placeholder="Paste tune JSON (full tune object or just settings)..."
+                  placeholder={m.tune_json_placeholder()}
                   rows={10}
                   className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-xs text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent resize-y"
                 />
                 {jsonError && <p className="text-xs text-red-400">{jsonError}</p>}
                 <button type="button" onClick={handleJsonParse} className="text-xs px-3 py-1.5 rounded bg-app-accent/20 text-app-accent hover:bg-app-accent/30 transition-colors">
-                  Parse & Populate
+                  {m.tune_parse_populate()}
                 </button>
               </div>
             ) : (
@@ -394,14 +395,14 @@ export function TuneFormDialog({
 
           <div className="sticky bottom-0 bg-app-surface px-4 py-3 border-t border-app-border flex justify-end gap-2">
             <button type="button" onClick={onClose} className="text-xs px-3 py-1.5 rounded border border-app-border text-app-text-secondary hover:text-app-text transition-colors">
-              Cancel
+              {m.common_cancel()}
             </button>
             <button
               type="submit"
               disabled={!name || isSubmitting}
               className="text-xs px-3 py-1.5 rounded bg-app-accent text-white hover:bg-app-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {isSubmitting ? "Saving..." : "Save"}
+              {isSubmitting ? m.common_saving() : m.common_save()}
             </button>
           </div>
         </form>

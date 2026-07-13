@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
+import { m } from "../paraglide/messages";
 import type { LapMeta, ComparisonData } from "@shared/types";
 import { TelemetryChart } from "./TelemetryChart";
 import { TimeDelta } from "./TimeDelta";
@@ -319,7 +320,7 @@ function LapComparisonInner() {
       <div className="flex items-start gap-3 shrink-0">
         {/* Track selector */}
         <div className="flex flex-col gap-1 flex-1 min-w-[140px] max-w-[260px]">
-          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Track</label>
+          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_track()}</label>
           <SearchSelect
             value={selectedTrack != null ? String(selectedTrack) : ""}
             onChange={(v) => setSelectedTrack(v ? Number(v) : null)}
@@ -332,7 +333,7 @@ function LapComparisonInner() {
         <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[220px]">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-            <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Car A</label>
+            <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_car_a()}</label>
           </div>
           <SearchSelect
             value={carAOrd != null ? String(carAOrd) : ""}
@@ -346,7 +347,7 @@ function LapComparisonInner() {
 
         {/* Lap A */}
         <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[200px]">
-          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap A</label>
+          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_lap_a()}</label>
           <SearchSelect
             value={lapAId != null ? String(lapAId) : ""}
             onChange={(v) => setLapAId(v ? Number(v) : null)}
@@ -361,7 +362,7 @@ function LapComparisonInner() {
         <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[220px]">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-            <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Car B</label>
+            <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_car_b()}</label>
           </div>
           <SearchSelect
             value={carBOrd != null ? String(carBOrd) : ""}
@@ -375,7 +376,7 @@ function LapComparisonInner() {
 
         {/* Lap B */}
         <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[200px]">
-          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap B</label>
+          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_lap_b()}</label>
           <SearchSelect
             value={lapBId != null ? String(lapBId) : ""}
             onChange={(v) => setLapBId(v ? Number(v) : null)}
@@ -393,11 +394,11 @@ function LapComparisonInner() {
             size="app-lg"
             onClick={toggleAiPanel}
             disabled={!comparison}
-            title="Toggle AI compare panel"
+            title={m.compare_toggle_ai()}
             className={aiPanelOpen ? "text-app-accent border-app-accent/40 bg-app-accent/10" : "hover:text-app-accent"}
           >
             <Sparkles className="size-3.5" />
-            AI Analysis
+            {m.compare_ai_analysis()}
           </Button>
         </div>
       </div>
@@ -412,9 +413,9 @@ function LapComparisonInner() {
 
       {/* No selection prompt */}
       {!lapAId || !lapBId ? (
-        <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">Select two laps above to compare</div>
+        <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_two_laps()}</div>
       ) : lapAId === lapBId ? (
-        <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">Select two different laps to compare</div>
+        <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_different_laps()}</div>
       ) : comparison?.traces?.distance ? (
         <div className="flex gap-4 flex-1 min-h-0 overflow-hidden">
           {/* Left: track map */}
@@ -456,7 +457,7 @@ function LapComparisonInner() {
                     }}
                     syncKey={SYNC_KEY}
                     height={200}
-                    title="Speed"
+                    title={m.compare_speed()}
                     onCursorMove={handleCursorMove}
                   />
                 </div>
@@ -472,7 +473,7 @@ function LapComparisonInner() {
                     }}
                     syncKey={SYNC_KEY}
                     height={180}
-                    title="Throttle & Brake"
+                    title={m.compare_throttle_brake()}
                     onCursorMove={handleCursorMove}
                   />
                 </div>
@@ -488,7 +489,7 @@ function LapComparisonInner() {
                     }}
                     syncKey={SYNC_KEY}
                     height={180}
-                    title="RPM"
+                    title={m.compare_rpm()}
                     onCursorMove={handleCursorMove}
                   />
                 </div>
@@ -505,7 +506,7 @@ function LapComparisonInner() {
                       }}
                       syncKey={SYNC_KEY}
                       height={160}
-                      title="Tire Wear (avg all 4)"
+                      title={m.compare_tire_wear()}
                       onCursorMove={handleCursorMove}
                     />
                   </div>

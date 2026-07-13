@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
+import { m } from "../paraglide/messages";
 import type { TelemetryPacket, LapMeta } from "@shared/types";
 import { useCookieState } from "../hooks/useCookieState";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -495,7 +496,7 @@ function LapAnalyseInner() {
             <span>This lap was recorded before raw telemetry storage. Lap times and metadata are preserved but telemetry charts are unavailable.</span>
           ) : parseError ? (
             <div className="flex flex-col items-center gap-2 max-w-xl text-center">
-              <span className="text-app-danger font-medium">Failed to parse lap telemetry</span>
+              <span className="text-app-danger font-medium">{m.analyse_parse_error()}</span>
               <code className="text-xs text-app-text-muted whitespace-pre-wrap break-words">{parseError}</code>
             </div>
           ) : selectedLapId ? (

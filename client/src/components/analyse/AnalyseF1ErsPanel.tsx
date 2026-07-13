@@ -1,3 +1,4 @@
+import { m } from "../../paraglide/messages";
 import type { TelemetryPacket } from "@shared/types";
 
 const ERS_MODES = ["None", "Low", "Medium", "High", "Overtake"];
@@ -12,15 +13,15 @@ export function AnalyseF1ErsPanel({ currentPacket }: Props) {
 
   return (
     <>
-      <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 pt-2 border-t border-app-border font-semibold">DRS / ERS</h3>
+      <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 pt-2 border-t border-app-border font-semibold">{m.analyse_drs_ers()}</h3>
       <div className="text-[11px] font-mono space-y-1.5 mb-3">
         <div className="flex justify-between">
-          <span className="text-app-text-muted">DRS</span>
+          <span className="text-app-text-muted">{m.analyse_drs()}</span>
           <span className={`font-bold ${currentPacket.DrsActive ? "text-green-400" : "text-app-text-dim"}`}>{currentPacket.DrsActive ? "OPEN" : "OFF"}</span>
         </div>
         <div>
           <div className="flex justify-between mb-0.5">
-            <span className="text-app-text-muted">ERS Store</span>
+            <span className="text-app-text-muted">{m.analyse_ers_store()}</span>
             <span className="tabular-nums text-blue-400">{ersPct.toFixed(1)}%</span>
           </div>
           <div className="h-1.5 bg-app-surface-alt rounded-full overflow-hidden">
@@ -28,15 +29,15 @@ export function AnalyseF1ErsPanel({ currentPacket }: Props) {
           </div>
         </div>
         <div className="flex justify-between">
-          <span className="text-app-text-muted">Deployed</span>
+          <span className="text-app-text-muted">{m.analyse_deployed()}</span>
           <span className="tabular-nums text-amber-400">{(((currentPacket.ErsDeployed ?? 0) / 4_000_000) * 100).toFixed(1)}%</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-app-text-muted">Harvested</span>
+          <span className="text-app-text-muted">{m.analyse_harvested()}</span>
           <span className="tabular-nums text-emerald-400">{(((currentPacket.ErsHarvested ?? 0) / 4_000_000) * 100).toFixed(1)}%</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-app-text-muted">Mode</span>
+          <span className="text-app-text-muted">{m.analyse_mode()}</span>
           <span className="tabular-nums text-app-text">{ERS_MODES[currentPacket.ErsDeployMode ?? 0] ?? "Unknown"}</span>
         </div>
       </div>

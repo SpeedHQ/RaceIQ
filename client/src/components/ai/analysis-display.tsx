@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
+import { m } from "@/paraglide/messages";
 import { Sparkles, RefreshCw, Gauge, Sliders, AlertTriangle, Lightbulb, Wrench, Download, Trash2, CircleDot, Zap, X, ChevronRight } from "lucide-react";
 
 export interface AnalysisHighlight {
@@ -272,9 +273,9 @@ export function SetupSection({
         className="w-full flex items-center gap-2 rounded-lg border border-app-border-input/60 bg-app-surface-alt/40 hover:border-app-border-input hover:bg-app-surface-alt/70 transition-colors px-3 py-2 text-left"
       >
         <Wrench className="size-3.5 text-app-text-secondary" />
-        <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">Setup</span>
+        <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">{m.aidisplay_setup()}</span>
         <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{setup.length}</span>
-        {!hasTune && <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">Best Guess</span>}
+        {!hasTune && <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">{m.aidisplay_best_guess()}</span>}
         <ChevronRight className="ml-auto size-3.5 text-app-text-muted" />
       </button>
 
@@ -283,10 +284,10 @@ export function SetupSection({
           <div className="relative w-full max-w-2xl max-h-[85vh] bg-app-surface border border-app-border-input rounded-lg shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 px-4 py-3 border-b border-app-border-input/50 rounded-t-lg shrink-0">
               <Wrench className="size-4 text-app-text-secondary" />
-              <h2 className="text-sm font-semibold text-app-text">Setup Recommendations</h2>
+              <h2 className="text-sm font-semibold text-app-text">{m.aidisplay_setup_recommendations()}</h2>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{setup.length}</span>
-              {!hasTune && <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">Best Guess</span>}
-              <button type="button" onClick={() => setOpen(false)} className="ml-auto p-1 rounded hover:bg-app-border-input/30 text-app-text-muted hover:text-app-text" aria-label="Close setup modal">
+              {!hasTune && <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">{m.aidisplay_best_guess()}</span>}
+              <button type="button" onClick={() => setOpen(false)} className="ml-auto p-1 rounded hover:bg-app-border-input/30 text-app-text-muted hover:text-app-text" aria-label={m.aidisplay_close_setup()}>
                 <X className="size-4" />
               </button>
             </div>
@@ -319,10 +320,10 @@ export function SetupSection({
                     </span>
                     {hasBoth && <TuneBar current={currentNum} target={targetNum} component={item.component} />}
                     <p className="text-[11px] text-app-text-secondary mt-1.5">
-                      <span className="text-red-400/70">Symptom:</span> {item.symptom}
+                      <span className="text-red-400/70">{m.aidisplay_symptom()}</span> {item.symptom}
                     </p>
                     <p className="text-[11px] text-app-text-secondary mt-0.5">
-                      <span className="text-emerald-400/70">Fix:</span> {item.fix}
+                      <span className="text-emerald-400/70">{m.aidisplay_fix()}</span> {item.fix}
                     </p>
                   </TrackCard>
                 );
@@ -379,7 +380,7 @@ export function AnalysisDisplay({
       {/* Pace */}
       {analysis.pace?.length > 0 && (
         <div>
-          <SectionHeader icon={<Gauge className="size-3" />} title="Pace" />
+          <SectionHeader icon={<Gauge className="size-3" />} title={m.aidisplay_pace()} />
           <div className="grid grid-cols-1 gap-1.5">
             {analysis.pace.map((item, i) => (
               <MetricCard key={i} item={item} />
@@ -391,7 +392,7 @@ export function AnalysisDisplay({
       {/* Handling */}
       {analysis.handling?.length > 0 && (
         <div>
-          <SectionHeader icon={<Sliders className="size-3" />} title="Handling" />
+          <SectionHeader icon={<Sliders className="size-3" />} title={m.aidisplay_handling()} />
           <div className="grid grid-cols-1 gap-1.5">
             {analysis.handling.map((item, i) => (
               <MetricCard key={i} item={item} />
@@ -403,7 +404,7 @@ export function AnalysisDisplay({
       {/* Problem Corners */}
       {analysis.corners?.length > 0 && (
         <div>
-          <SectionHeader icon={<AlertTriangle className="size-3" />} title="Problem Corners" />
+          <SectionHeader icon={<AlertTriangle className="size-3" />} title={m.aidisplay_problem_corners()} />
           <div className="space-y-1.5">
             {analysis.corners.map((corner, i) => (
               <TrackCard
@@ -429,7 +430,7 @@ export function AnalysisDisplay({
       {/* Braking per corner */}
       {analysis.braking?.length > 0 && (
         <div>
-          <SectionHeader icon={<CircleDot className="size-3" />} title="Braking Points" />
+          <SectionHeader icon={<CircleDot className="size-3" />} title={m.aidisplay_braking_points()} />
           <div className="space-y-1.5">
             {analysis.braking.map((item, i) => (
               <TrackCard
@@ -454,7 +455,7 @@ export function AnalysisDisplay({
       {/* Throttle per corner */}
       {analysis.throttle?.length > 0 && (
         <div>
-          <SectionHeader icon={<Zap className="size-3" />} title="Throttle Application" />
+          <SectionHeader icon={<Zap className="size-3" />} title={m.aidisplay_throttle_application()} />
           <div className="space-y-1.5">
             {analysis.throttle.map((item, i) => (
               <TrackCard
@@ -479,7 +480,7 @@ export function AnalysisDisplay({
       {/* Coaching */}
       {analysis.coaching?.length > 0 && (
         <div>
-          <SectionHeader icon={<Lightbulb className="size-3" />} title="Coaching" />
+          <SectionHeader icon={<Lightbulb className="size-3" />} title={m.aidisplay_coaching()} />
           <div className="space-y-1.5">
             {analysis.coaching.map((item, i) => (
               <TrackCard key={i} seg={findSegment(lookupSegs, item.tip, item.detail)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="flex gap-2">
@@ -509,7 +510,7 @@ export function AnalysisDisplay({
             <button
               onClick={onExport}
               className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
-              title="Export as image"
+              title={m.aidisplay_export_image()}
             >
               <Download className="size-3" /> Export
             </button>
@@ -519,7 +520,7 @@ export function AnalysisDisplay({
               onClick={onRegenerate}
               disabled={loading}
               className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors disabled:opacity-50"
-              title="Regenerate analysis"
+              title={m.aidisplay_regenerate()}
             >
               <RefreshCw className="size-3" /> Regenerate
             </button>
@@ -528,7 +529,7 @@ export function AnalysisDisplay({
             <button
               onClick={onClear}
               className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-red-400 px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
-              title="Clear analysis and chat"
+              title={m.aidisplay_clear_all()}
             >
               <Trash2 className="size-3" /> Clear
             </button>

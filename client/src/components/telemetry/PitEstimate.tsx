@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import type { TelemetryPacket, LivePitData, GameId } from "@shared/types";
 import { tireHealthTextClass, tireHealthBgClass } from "@/lib/vehicle-dynamics";
 import { PitWindow } from "./PitWindow";
@@ -66,7 +67,7 @@ export function PitEstimate({ packet, pit, gameId }: PitEstimateProps) {
         {/* Fuel row */}
         <div className="py-1">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-app-text-muted uppercase tracking-wider font-semibold">Fuel</div>
+            <div className="text-xs text-app-text-muted uppercase tracking-wider font-semibold">{m.telemetry_fuel()}</div>
             <div className={`text-lg font-mono font-bold tabular-nums ${fuelLaps != null ? fuelColor : "text-app-text-dim"}`}>{fuelLaps != null ? `~${fuelLaps.toFixed(1)} laps` : "—"}</div>
           </div>
           <div className="flex items-center gap-3">
@@ -79,7 +80,7 @@ export function PitEstimate({ packet, pit, gameId }: PitEstimateProps) {
 
         {/* Tire section */}
         <div className="py-1">
-          <div className="text-xs text-app-text-muted uppercase tracking-wider font-semibold mb-2">Tires</div>
+          <div className="text-xs text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.telemetry_tires()}</div>
 
           {/* Column headers */}
           <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-x-2 items-center mb-1 px-0.5">

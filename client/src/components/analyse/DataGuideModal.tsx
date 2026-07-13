@@ -1,3 +1,4 @@
+import { m } from "../../paraglide/messages";
 import { X } from "lucide-react";
 import { Button } from "../ui/button";
 
@@ -39,7 +40,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
       <div className="bg-app-surface border border-app-border rounded-xl shadow-2xl w-[560px] max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-app-border shrink-0">
-          <h2 className="text-sm font-semibold text-app-text">Data Panel Guide</h2>
+          <h2 className="text-sm font-semibold text-app-text">{m.analyse_data_guide_title()}</h2>
           <Button variant="app-ghost" size="app-sm" onClick={onClose}>
             <X className="w-4 h-4" />
           </Button>

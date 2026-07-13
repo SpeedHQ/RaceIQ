@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { Button } from "../ui/button";
 import type { GameId } from "@shared/types";
 import { FillForm } from "./FillForm";
@@ -226,9 +227,9 @@ export function SetupTuneForm({
         <Button type="button" variant="app-ghost" size="app-sm" onClick={onCancel}>&larr;</Button>
         <h2 className="text-sm font-semibold text-app-text">{title}</h2>
         <div className="flex items-center gap-2 ml-auto">
-          <Button type="button" variant="app-outline" size="app-sm" onClick={onCancel}>Cancel</Button>
+          <Button type="button" variant="app-outline" size="app-sm" onClick={onCancel}>{m.common_cancel()}</Button>
           <Button type="submit" variant="app-primary" size="app-sm" disabled={!name || isSubmitting}>
-            {isSubmitting ? "Saving..." : "Save Tune"}
+            {isSubmitting ? m.common_saving() : m.setupform_save_tune()}
           </Button>
         </div>
       </div>
@@ -237,7 +238,7 @@ export function SetupTuneForm({
         {/* Mode picker — first thing the user sees. Determines whether the
             settings come from the structured form or a pasted JSON blob. */}
         <div className="col-span-2 flex items-center gap-2" role="radiogroup" aria-label="Input mode">
-          <span className="text-xs font-medium text-app-text-muted mr-1">Input:</span>
+          <span className="text-xs font-medium text-app-text-muted mr-1">{m.setupform_input_label()}</span>
           <button
             type="button"
             role="radio"
@@ -249,7 +250,7 @@ export function SetupTuneForm({
                 : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text"
             }`}
           >
-            Fill form
+            {m.setupform_fill_form()}
           </button>
           <button
             type="button"
@@ -262,13 +263,13 @@ export function SetupTuneForm({
                 : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text"
             }`}
           >
-            Paste JSON
+            {m.setupform_paste_json()}
           </button>
           {jsonError && <span className="text-[10px] text-red-400 ml-2">{jsonError}</span>}
         </div>
 
         <label className="col-span-2 space-y-1">
-          <span className="text-xs font-medium text-app-text-muted">Name</span>
+          <span className="text-xs font-medium text-app-text-muted">{m.tune_form_name()}</span>
           <input
             type="text"
             value={name}
@@ -279,7 +280,7 @@ export function SetupTuneForm({
         </label>
 
         <label className="space-y-1">
-          <span className="text-xs font-medium text-app-text-muted">Author</span>
+          <span className="text-xs font-medium text-app-text-muted">{m.tune_form_author()}</span>
           <input
             type="text"
             value={author}
@@ -290,7 +291,7 @@ export function SetupTuneForm({
         </label>
 
         <label className="space-y-1">
-          <span className="text-xs font-medium text-app-text-muted">Car</span>
+          <span className="text-xs font-medium text-app-text-muted">{m.tune_form_car()}</span>
           <select
             value={carOrdinal}
             onChange={(e) => setCarOrdinal(Number(e.target.value))}
@@ -303,7 +304,7 @@ export function SetupTuneForm({
         </label>
 
         <label className="space-y-1">
-          <span className="text-xs font-medium text-app-text-muted">Category</span>
+          <span className="text-xs font-medium text-app-text-muted">{m.tune_form_category()}</span>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
@@ -316,7 +317,7 @@ export function SetupTuneForm({
         </label>
 
         <label className="col-span-2 space-y-1">
-          <span className="text-xs font-medium text-app-text-muted">Description</span>
+          <span className="text-xs font-medium text-app-text-muted">{m.tune_form_description()}</span>
           <input
             type="text"
             value={description}
@@ -327,9 +328,9 @@ export function SetupTuneForm({
 
         {sections.length > 0 && (
           <div className="col-span-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-app-text-muted">Tunable sections</span>
+            <span className="text-xs font-medium text-app-text-muted">{m.setupform_tunable_sections()}</span>
             <span className="text-[10px] text-app-text-muted">
-              {coveredSections.size} / {sections.length} covered
+              {coveredSections.size} / {sections.length} {m.setupform_covered()}
             </span>
           </div>
         )}
@@ -341,7 +342,7 @@ export function SetupTuneForm({
         {mode === "json" && (
           <label className="col-span-2 space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-app-text-muted">Setup JSON</span>
+              <span className="text-xs font-medium text-app-text-muted">{m.setupform_setup_json()}</span>
               {jsonError && <span className="text-[10px] text-red-400">{jsonError}</span>}
             </div>
             <textarea

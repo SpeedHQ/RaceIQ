@@ -1,3 +1,5 @@
+import { m } from "../paraglide/messages";
+
 interface CornerDelta {
   label: string;
   deltaSeconds: number;
@@ -19,8 +21,8 @@ export function CornerTable({ corners }: Props) {
       <table className="w-full text-sm">
         <thead>
           <tr className="text-xs text-app-text-muted uppercase tracking-wider border-b border-app-border">
-            <th className="text-left p-2">Corner</th>
-            <th className="text-right p-2">Delta</th>
+            <th className="text-left p-2">{m.corner_header()}</th>
+            <th className="text-right p-2">{m.corner_delta()}</th>
           </tr>
         </thead>
         <tbody>

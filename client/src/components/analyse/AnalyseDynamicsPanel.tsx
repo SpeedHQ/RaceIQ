@@ -1,4 +1,5 @@
 import type { TelemetryPacket, GameId } from "@shared/types";
+import { m } from "../../paraglide/messages";
 import { Info } from "lucide-react";
 import { allWheelStates, allFrictionCircle, steerBalance, tireState, slipRatioColor, frictionUtilColor, balanceColor, tireTempLabel } from "../../lib/vehicle-dynamics";
 import type { useUnits } from "../../hooks/useUnits";
@@ -172,7 +173,7 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
 
       {/* G-Force */}
       <div className="flex justify-between">
-        <span className="text-app-text-muted">G-Force</span>
+        <span className="text-app-text-muted">{m.analyse_g_force()}</span>
         <span className="tabular-nums text-app-text">
           Lat {latG > 0 ? "+" : ""}
           {latG.toFixed(2)}g<span className="text-app-text-dim"> </span>
@@ -184,7 +185,7 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
       {/* Brake Bias (ACC) */}
       {currentPacket.acc && (
         <div className="flex justify-between">
-          <span className="text-app-text-muted">Brake Bias</span>
+          <span className="text-app-text-muted">{m.analyse_brake_bias()}</span>
           <span className="tabular-nums text-app-text">{(currentPacket.acc.brakeBias * 100).toFixed(1)}%F</span>
         </div>
       )}

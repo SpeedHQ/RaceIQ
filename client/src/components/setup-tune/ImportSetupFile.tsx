@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "../ui/button";
 import { useSetupFiles, useImportTuneFile } from "../../hooks/queries";
@@ -61,29 +62,29 @@ export function ImportSetupFile({
     <div className="flex-1 overflow-auto p-4 max-w-3xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-app-text">Import {gameLabel} Setup</h1>
+          <h1 className="text-lg font-bold text-app-text">{m.import_title({ gameLabel })}</h1>
           <p className="text-xs text-app-text-muted">
-            Pick a setup from your Documents folder. {data?.baseDir ? <span className="font-mono text-[10px]">{data.baseDir}</span> : null}
+            {m.import_pick_setup()} {data?.baseDir ? <span className="font-mono text-[10px]">{data.baseDir}</span> : null}
           </p>
         </div>
         <Button type="button" variant="app-outline" size="app-sm" onClick={() => navigate({ to: `${routePrefix}/setups` })}>
-          Cancel
+          {m.common_cancel()}
         </Button>
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-app-text-muted text-sm">Scanning setups...</div>
+        <div className="text-center py-12 text-app-text-muted text-sm">{m.import_scanning()}</div>
       ) : !data?.baseDir ? (
         <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-4 text-sm text-app-text-muted">
-          <p>Could not find your {gameLabel} Setups folder.</p>
+          <p>{m.import_folder_not_found({ gameLabel })}</p>
           <p className="mt-2 text-[11px]">
-            Expected under <code className="font-mono">Documents/{gameId === "acc" ? "Assetto Corsa Competizione" : "Assetto Corsa EVO"}/Setups</code>.
-            Launch the game once to have it created, then try again.
+            {m.import_expected_path()} <code className="font-mono">Documents/{gameId === "acc" ? "Assetto Corsa Competizione" : "Assetto Corsa EVO"}/Setups</code>.
+            {m.import_launch_game()}
           </p>
         </div>
       ) : filteredCarEntries.length === 0 ? (
         <div className="text-center py-12 text-app-text-muted text-sm">
-          No setup files found.
+          {m.import_no_files()}
         </div>
       ) : (
         <div className="grid grid-cols-[1fr_1fr] gap-4">
@@ -91,7 +92,7 @@ export function ImportSetupFile({
             <div className="px-3 py-2 border-b border-app-border">
               <input
                 type="text"
-                placeholder="Filter car model..."
+                placeholder={m.import_filter_car()}
                 value={carFilter}
                 onChange={(e) => setCarFilter(e.target.value)}
                 className="w-full bg-app-bg border border-app-border rounded px-2 py-1 text-xs text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
@@ -130,11 +131,11 @@ export function ImportSetupFile({
             {selectedPath ? (
               <>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-semibold uppercase text-app-text-muted">Selected</span>
+                  <span className="text-[10px] font-semibold uppercase text-app-text-muted">{m.import_selected()}</span>
                   <div className="text-[11px] font-mono text-app-text-secondary break-all">{selectedPath}</div>
                 </div>
                 <label className="space-y-1 block">
-                  <span className="text-xs font-medium text-app-text-muted">Name</span>
+                  <span className="text-xs font-medium text-app-text-muted">{m.tune_form_name()}</span>
                   <input
                     type="text"
                     value={name}
@@ -143,7 +144,7 @@ export function ImportSetupFile({
                   />
                 </label>
                 <label className="space-y-1 block">
-                  <span className="text-xs font-medium text-app-text-muted">Author</span>
+                  <span className="text-xs font-medium text-app-text-muted">{m.tune_form_author()}</span>
                   <input
                     type="text"
                     value={author}
@@ -152,7 +153,7 @@ export function ImportSetupFile({
                   />
                 </label>
                 <label className="space-y-1 block">
-                  <span className="text-xs font-medium text-app-text-muted">Car</span>
+                  <span className="text-xs font-medium text-app-text-muted">{m.tune_form_car()}</span>
                   <select
                     value={carOrdinal}
                     onChange={(e) => setCarOrdinal(Number(e.target.value))}
@@ -164,7 +165,7 @@ export function ImportSetupFile({
                   </select>
                 </label>
                 <label className="space-y-1 block">
-                  <span className="text-xs font-medium text-app-text-muted">Category</span>
+                  <span className="text-xs font-medium text-app-text-muted">{m.tune_form_category()}</span>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
@@ -188,12 +189,12 @@ export function ImportSetupFile({
                     onClick={doImport}
                     disabled={!selectedPath || importMut.isPending}
                   >
-                    {importMut.isPending ? "Importing..." : "Import Setup"}
+                    {importMut.isPending ? m.import_importing() : m.import_import_setup()}
                   </Button>
                 </div>
               </>
             ) : (
-              <p className="text-sm text-app-text-muted">Select a setup file to continue.</p>
+              <p className="text-sm text-app-text-muted">{m.import_select_continue()}</p>
             )}
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { m } from "../../paraglide/messages";
 import type { LapMeta } from "@shared/types";
 import { Sparkles, Trash2, NotebookPen } from "lucide-react";
 import { SearchSelect } from "../ui/SearchSelect";
@@ -123,7 +124,7 @@ export function AnalyseLapHeader({
               </Button>
             ) : (
               <>
-                <span className="text-app-text-muted">Tune:</span>
+                <span className="text-app-text-muted">{m.analyse_tune_label()}</span>
                 <select
                   value={selectedLap?.tuneId ?? ""}
                   onChange={(e) => {
@@ -133,7 +134,7 @@ export function AnalyseLapHeader({
                   disabled={tunePending}
                   className="bg-app-surface border border-app-border-input rounded px-2 py-1 text-sm text-app-text"
                 >
-                  <option value="">No tune</option>
+                  <option value="">{m.analyse_no_tune()}</option>
                   {availableTunes?.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
