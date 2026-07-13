@@ -16,6 +16,6 @@ function AcEvoTunesPage() {
   );
 }
 
-export const Route = createFileRoute("/ac-evo/tunes/")({
+export const Route = createFileRoute("/ac-evo/setups/")({
   component: AcEvoTunesPage,
 });

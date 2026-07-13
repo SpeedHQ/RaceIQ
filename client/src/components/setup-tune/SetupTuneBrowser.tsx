@@ -79,7 +79,7 @@ export function SetupTuneBrowser({
 
   return (
     <TuneBrowser
-      title={`${gameLabel} Tunes`}
+      title={`${gameLabel} Setups`}
       subtitle="Manage saved setups, duplicate, or import from your Documents folder."
       rows={rows}
       carNames={carNames}
@@ -90,7 +90,7 @@ export function SetupTuneBrowser({
       renderSettings={(row: TuneRow) => <SetupSettingsPanel gameId={gameId} settings={row.settings as Record<string, unknown>} />}
       onClone={(row: TuneRow) => clone.mutate(row.id)}
       onEdit={(row: TuneRow) => {
-        if (row.dbId != null) navigate({ to: `${routePrefix}/tunes/edit/${row.dbId}` });
+        if (row.dbId != null) navigate({ to: `${routePrefix}/setups/edit/${row.dbId}` });
       }}
       onDelete={(row: TuneRow) => {
         if (row.dbId != null) del.mutate(row.dbId);
@@ -99,10 +99,10 @@ export function SetupTuneBrowser({
         if (row.dbId != null) duplicate.mutate(row.dbId);
       }}
       isDuplicating={duplicate.isPending}
-      onNewTune={() => navigate({ to: `${routePrefix}/tunes/new` })}
+      onNewTune={() => navigate({ to: `${routePrefix}/setups/new` })}
       headerExtra={
         <Link
-          to={`${routePrefix}/tunes/import` as string}
+          to={`${routePrefix}/setups/import` as string}
           className="text-[11px] font-semibold uppercase tracking-wide border border-app-border text-app-text-secondary hover:text-app-text px-3.5 py-2 rounded no-underline"
         >
           Import from file

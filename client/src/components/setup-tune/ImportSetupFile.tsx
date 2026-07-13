@@ -53,7 +53,7 @@ export function ImportSetupFile({
     const finalName = name || selectedPath.split(/[\\/]/).pop()?.replace(/\.json$/i, "") || "Imported";
     importMut.mutate(
       { gameId, filePath: selectedPath, name: finalName, author, carOrdinal, category },
-      { onSuccess: () => navigate({ to: `${routePrefix}/tunes` }) },
+      { onSuccess: () => navigate({ to: `${routePrefix}/setups` }) },
     );
   };
 
@@ -66,7 +66,7 @@ export function ImportSetupFile({
             Pick a setup from your Documents folder. {data?.baseDir ? <span className="font-mono text-[10px]">{data.baseDir}</span> : null}
           </p>
         </div>
-        <Button type="button" variant="app-outline" size="app-sm" onClick={() => navigate({ to: `${routePrefix}/tunes` })}>
+        <Button type="button" variant="app-outline" size="app-sm" onClick={() => navigate({ to: `${routePrefix}/setups` })}>
           Cancel
         </Button>
       </div>

@@ -15,10 +15,10 @@ function NewAcEvoTunePage() {
           gameId="ac-evo"
           cars={cars}
           title="Create New AC EVO Tune"
-          onCancel={() => navigate({ to: "/ac-evo/tunes" })}
+          onCancel={() => navigate({ to: "/ac-evo/setups" })}
           onSubmit={(data) =>
             createTune.mutate(data, {
-              onSuccess: () => navigate({ to: "/ac-evo/tunes" }),
+              onSuccess: () => navigate({ to: "/ac-evo/setups" }),
             })
           }
           isSubmitting={createTune.isPending}
@@ -28,6 +28,6 @@ function NewAcEvoTunePage() {
   );
 }
 
-export const Route = createFileRoute("/ac-evo/tunes/new")({
+export const Route = createFileRoute("/ac-evo/setups/new")({
   component: NewAcEvoTunePage,
 });

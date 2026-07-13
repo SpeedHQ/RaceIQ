@@ -44,11 +44,11 @@ function EditAcEvoTunePage() {
             description: tune.description,
             settings: tune.settings,
           }}
-          onCancel={() => navigate({ to: "/ac-evo/tunes" })}
+          onCancel={() => navigate({ to: "/ac-evo/setups" })}
           onSubmit={(data) =>
             updateTune.mutate(
               { id: parseInt(tuneId), ...data },
-              { onSuccess: () => navigate({ to: "/ac-evo/tunes" }) },
+              { onSuccess: () => navigate({ to: "/ac-evo/setups" }) },
             )
           }
           isSubmitting={updateTune.isPending}
@@ -58,6 +58,6 @@ function EditAcEvoTunePage() {
   );
 }
 
-export const Route = createFileRoute("/ac-evo/tunes/edit/$tuneId")({
+export const Route = createFileRoute("/ac-evo/setups/edit/$tuneId")({
   component: EditAcEvoTunePage,
 });

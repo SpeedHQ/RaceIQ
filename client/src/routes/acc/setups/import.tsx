@@ -16,6 +16,6 @@ function ImportAccSetupPage() {
   );
 }
 
-export const Route = createFileRoute("/acc/tunes/import")({
+export const Route = createFileRoute("/acc/setups/import")({
   component: ImportAccSetupPage,
 });

@@ -16,6 +16,6 @@ function AccTunesPage() {
   );
 }
 
-export const Route = createFileRoute("/acc/tunes/")({
+export const Route = createFileRoute("/acc/setups/")({
   component: AccTunesPage,
 });

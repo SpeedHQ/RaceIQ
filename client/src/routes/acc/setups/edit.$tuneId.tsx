@@ -44,11 +44,11 @@ function EditAccTunePage() {
             description: tune.description,
             settings: tune.settings,
           }}
-          onCancel={() => navigate({ to: "/acc/tunes" })}
+          onCancel={() => navigate({ to: "/acc/setups" })}
           onSubmit={(data) =>
             updateTune.mutate(
               { id: parseInt(tuneId), ...data },
-              { onSuccess: () => navigate({ to: "/acc/tunes" }) },
+              { onSuccess: () => navigate({ to: "/acc/setups" }) },
             )
           }
           isSubmitting={updateTune.isPending}
@@ -58,6 +58,6 @@ function EditAccTunePage() {
   );
 }
 
-export const Route = createFileRoute("/acc/tunes/edit/$tuneId")({
+export const Route = createFileRoute("/acc/setups/edit/$tuneId")({
   component: EditAccTunePage,
 });

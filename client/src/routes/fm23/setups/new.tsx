@@ -11,8 +11,8 @@ function NewTunePage() {
       <div className="max-w-3xl mx-auto">
         <TuneForm
           title="Create New Tune"
-          onCancel={() => navigate({ to: "/fm23/tunes" })}
-          onSubmit={(data) => createTune.mutate(data as any, { onSuccess: () => navigate({ to: "/fm23/tunes" }) })}
+          onCancel={() => navigate({ to: "/fm23/setups" })}
+          onSubmit={(data) => createTune.mutate(data as any, { onSuccess: () => navigate({ to: "/fm23/setups" }) })}
           isSubmitting={createTune.isPending}
         />
       </div>
@@ -20,6 +20,6 @@ function NewTunePage() {
   );
 }
 
-export const Route = createFileRoute("/fm23/tunes/new")({
+export const Route = createFileRoute("/fm23/setups/new")({
   component: NewTunePage,
 });

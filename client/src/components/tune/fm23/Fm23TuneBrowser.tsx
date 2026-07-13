@@ -91,7 +91,7 @@ export function Fm23TuneBrowser() {
 
   return (
     <TuneBrowser
-      title="Tunes"
+      title="Setups"
       rows={rows}
       carNames={carNames}
       trackNames={trackNames}
@@ -101,7 +101,7 @@ export function Fm23TuneBrowser() {
       renderSettings={(row: TuneRow) => <TuneSettingsPanel settings={row.settings as TuneSettings} />}
       onClone={(row: TuneRow) => clone.mutate(row.id)}
       onEdit={(row: TuneRow) => {
-        if (row.dbId != null) navigate({ to: `/fm23/tunes/edit/${row.dbId}` });
+        if (row.dbId != null) navigate({ to: `/fm23/setups/edit/${row.dbId}` });
       }}
       onDelete={(row: TuneRow) => {
         if (row.dbId != null) del.mutate(row.dbId);
@@ -110,7 +110,7 @@ export function Fm23TuneBrowser() {
         if (row.dbId != null) duplicate.mutate(row.dbId);
       }}
       isDuplicating={duplicate.isPending}
-      onNewTune={() => navigate({ to: "/fm23/tunes/new" })}
+      onNewTune={() => navigate({ to: "/fm23/setups/new" })}
       onImportFile={handleImportFile}
       importing={createTune.isPending}
       onRefresh={() => refresh.mutate()}

@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/fm23/tunes")({
+export const Route = createFileRoute("/acc/setups")({
   component: () => <Outlet />,
 });

@@ -44,10 +44,10 @@ function EditTunePage() {
         <TuneForm
           title={`Edit: ${tune.name}`}
           initialData={initialData}
-          onCancel={() => navigate({ to: "/fm23/tunes" })}
+          onCancel={() => navigate({ to: "/fm23/setups" })}
           onSubmit={(data) =>
             updateTune.mutate({ id: parseInt(tuneId), ...data } as Parameters<typeof updateTune.mutate>[0], {
-              onSuccess: () => navigate({ to: "/fm23/tunes" }),
+              onSuccess: () => navigate({ to: "/fm23/setups" }),
             })
           }
           isSubmitting={updateTune.isPending}
@@ -57,6 +57,6 @@ function EditTunePage() {
   );
 }
 
-export const Route = createFileRoute("/fm23/tunes/edit/$tuneId")({
+export const Route = createFileRoute("/fm23/setups/edit/$tuneId")({
   component: EditTunePage,
 });

@@ -11,6 +11,6 @@ function F125SetupPage() {
   );
 }
 
-export const Route = createFileRoute("/f125/setup/")({
+export const Route = createFileRoute("/f125/setups/")({
   component: F125SetupPage,
 });

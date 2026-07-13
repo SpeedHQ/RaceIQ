@@ -15,10 +15,10 @@ function NewAccTunePage() {
           gameId="acc"
           cars={cars}
           title="Create New ACC Tune"
-          onCancel={() => navigate({ to: "/acc/tunes" })}
+          onCancel={() => navigate({ to: "/acc/setups" })}
           onSubmit={(data) =>
             createTune.mutate(data, {
-              onSuccess: () => navigate({ to: "/acc/tunes" }),
+              onSuccess: () => navigate({ to: "/acc/setups" }),
             })
           }
           isSubmitting={createTune.isPending}
@@ -28,6 +28,6 @@ function NewAccTunePage() {
   );
 }
 
-export const Route = createFileRoute("/acc/tunes/new")({
+export const Route = createFileRoute("/acc/setups/new")({
   component: NewAccTunePage,
 });

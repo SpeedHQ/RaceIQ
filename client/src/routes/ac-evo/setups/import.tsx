@@ -16,6 +16,6 @@ function ImportAcEvoSetupPage() {
   );
 }
 
-export const Route = createFileRoute("/ac-evo/tunes/import")({
+export const Route = createFileRoute("/ac-evo/setups/import")({
   component: ImportAcEvoSetupPage,
 });
