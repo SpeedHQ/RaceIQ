@@ -43,7 +43,28 @@ interface TrackLap {
 function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSessionFilter?: boolean }) {
   const [lapFilter, setLapFilter] = useState<null | "race" | "quali">(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  if (laps.length === 0) return null;
+  if (laps.length === 0) {
+    return (
+      <div className="w-full md:w-2/5 min-w-0 bg-app-surface/50 border border-app-border rounded-lg flex flex-col md:overflow-hidden">
+        <div className="flex justify-between items-center px-3 py-2 border-b border-app-border shrink-0">
+          <div className="text-app-label text-app-text-muted uppercase tracking-wider">Stats</div>
+          <div className="text-[11px] text-app-text-dim font-mono">last 100</div>
+        </div>
+        <div className="flex-1 p-3 flex flex-col gap-3">
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {["Best", "Median", "Worst"].map((label) => (
+              <div key={label} className="flex items-baseline gap-1.5">
+                <div className="text-xs text-app-text-dim uppercase tracking-wider">{label}</div>
+                <div className="font-mono text-app-body tabular-nums text-app-text-dim">—:—.—</div>
+              </div>
+            ))}
+          </div>
+          <div className="relative h-2 bg-app-surface-alt rounded-full overflow-visible" />
+          <div className="text-app-subtext text-app-text-dim py-4 text-center">No laps recorded yet</div>
+        </div>
+      </div>
+    );
+  }
 
   const sessionCounts = new Map<number, number>();
   if (showSessionFilter) {
@@ -903,11 +924,11 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
     <div className="p-4 overflow-auto h-full">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="flex items-center gap-3 min-w-0">
           <button onClick={onBack} className="shrink-0 text-app-label text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-border-input transition-colors">
             &larr; Back
           </button>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0">
             <div className="text-app-heading font-semibold text-app-text">{track.name}</div>
             <div className="text-app-label text-app-text-muted">
               {track.variant} · {track.location}, {countryName(track.country)}
@@ -1286,10 +1307,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                   <div className="flex flex-col gap-3 lg:h-full lg:overflow-hidden">
                     {/* Own laps */}
                     <div className="flex flex-col gap-3 lg:h-full lg:overflow-hidden">
-                      {trackLaps.length === 0 ? (
-                        <div className="text-app-subtext text-app-text-dim py-4 text-center">No laps recorded for this track</div>
-                      ) : (
-                        (() => {
+                      {(() => {
                           const filterRow = (
                             <div className="flex items-center gap-3 flex-wrap">
                               <div className="text-app-label text-app-text-muted uppercase tracking-wider">Laps ({filteredLaps.length})</div>
@@ -1613,8 +1631,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                               {/* end stats+table flex */}
                             </>
                           );
-                        })()
-                      )}
+                        })()}
                     </div>
                   </div>
                 )}
