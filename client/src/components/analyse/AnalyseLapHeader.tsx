@@ -77,7 +77,7 @@ export function AnalyseLapHeader({
           value={selectedTrack != null ? String(selectedTrack) : ""}
           onChange={(v) => onTrackChange(v ? Number(v) : null)}
           options={tracks.map(([ord, count]) => ({ value: String(ord), label: `${trackNames[ord] || `Track ${ord}`} (${count})` }))}
-          placeholder="Search tracks..."
+          placeholder={m.analyse_search_tracks_placeholder()}
           className="min-w-[200px]"
           fallbackLabel={selectedTrack != null ? trackNames[selectedTrack] || `Track ${selectedTrack}` : undefined}
         />
@@ -87,7 +87,7 @@ export function AnalyseLapHeader({
           value={selectedCar != null ? String(selectedCar) : ""}
           onChange={(v) => onCarChange(v ? Number(v) : null)}
           options={carsForTrack.map(([ord, count]) => ({ value: String(ord), label: `${carNames[ord] || `Car ${ord}`} (${count})` }))}
-          placeholder="Search cars..."
+          placeholder={m.analyse_search_cars_placeholder()}
           disabled={selectedTrack == null}
           className="min-w-[200px]"
           fallbackLabel={selectedCar != null ? carNames[selectedCar] || `Car ${selectedCar}` : undefined}
@@ -107,7 +107,7 @@ export function AnalyseLapHeader({
               group: sessionLabel,
             };
           })}
-          placeholder="Search laps..."
+          placeholder={m.analyse_search_laps_placeholder()}
           disabled={selectedCar == null}
           fallbackLabel={selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
         />
@@ -120,7 +120,7 @@ export function AnalyseLapHeader({
           <div className="flex items-center gap-2 text-sm">
             {hasF1Setup ? (
               <Button variant="app-outline" size="app-sm" onClick={onShowSetup}>
-                Car Setup
+                {m.analyse_car_setup_button()}
               </Button>
             ) : (
               <>
@@ -146,7 +146,7 @@ export function AnalyseLapHeader({
                     View
                   </Button>
                 )}
-                {tunePending && <span className="text-xs text-app-text-muted animate-pulse">Saving...</span>}
+                {tunePending && <span className="text-xs text-app-text-muted animate-pulse">{m.common_saving()}</span>}
               </>
             )}
           </div>
@@ -169,35 +169,35 @@ export function AnalyseLapHeader({
               size="app-md"
               onClick={() => setNoteOpen(true)}
               className={selectedLap?.notes ? "text-app-accent border-app-accent/40" : ""}
-              title={selectedLap?.notes || "Add note"}
+              title={selectedLap?.notes || m.analyse_add_notes_button()}
             >
               <NotebookPen className="size-3.5" />
-              {selectedLap?.notes ? "Notes" : "Add Notes"}
+              {selectedLap?.notes ? m.analyse_notes_button() : m.analyse_add_notes_button()}
             </Button>
           )}
           {selectedLapId != null && (
             <Button variant="app-outline" size="app-md" onClick={onDeleteLap} className="text-red-400 border-red-400/30 hover:bg-red-400/10">
               <Trash2 className="size-3.5" />
-              Delete
+              {m.common_delete()}
             </Button>
           )}
           {hasTelemetry && (
             <Button variant="app-outline" size="app-md" onClick={() => setGuideOpen(true)}>
-              Guide
+              {m.analyse_guide_button()}
             </Button>
           )}
           {hasTelemetry && (
             <Button variant="app-outline" size="app-md" onClick={onExport}>
-              Export CSV
+              {m.analyse_export_csv_button()}
             </Button>
           )}
           {hasTelemetry && (
             <Button variant="app-outline" size="app-lg" onClick={onToggleAi} className={aiPanelOpen ? "text-app-accent border-app-accent/40 bg-app-accent/10" : "hover:text-app-accent"}>
               <Sparkles className="size-3.5" />
-              AI Analysis
+              {m.label_ai_analysis()}
             </Button>
           )}
-          {loading && <span className="text-xs text-app-text-muted animate-pulse">Loading...</span>}
+          {loading && <span className="text-xs text-app-text-muted animate-pulse">{m.common_loading()}</span>}
         </div>
       </div>
       {guideOpen && <DataGuideModal onClose={() => setGuideOpen(false)} />}

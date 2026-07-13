@@ -1,5 +1,6 @@
 import { countryName } from "@/lib/country-names";
 import { client } from "@/lib/rpc";
+import { m } from "@/paraglide/messages";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
@@ -81,7 +82,7 @@ export function TrackViewer() {
   }, [navigate]);
 
   if (loading) {
-    return <div className="p-4 text-app-text-dim">Loading tracks...</div>;
+    return <div className="p-4 text-app-text-dim">{m.trackviewer_loading()}</div>;
   }
 
   if (selectedTrack) {
@@ -111,9 +112,9 @@ export function TrackViewer() {
   return (
     <div className="p-4 overflow-auto h-full">
       <div className="flex items-center flex-wrap gap-3 mb-3">
-        <AppInput placeholder="Search tracks..." value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 min-w-[180px] sm:flex-none sm:max-w-xs" />
+        <AppInput placeholder={m.trackviewer_search_placeholder()} value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 min-w-[180px] sm:flex-none sm:max-w-xs" />
         <div className="flex items-center gap-1.5 md:gap-1 text-sm md:text-app-label text-app-text-muted">
-          <span className="uppercase tracking-wider">Sort:</span>
+          <span className="uppercase tracking-wider">{m.trackviewer_sort_label()}</span>
           {(["name", "laps"] as SortKey[]).map((key) => (
             <button
               key={key}
@@ -148,7 +149,7 @@ export function TrackViewer() {
 
       {withoutOutline.length > 0 && (
         <>
-          <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-3 mt-4">Tracks Without Outlines</div>
+          <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-3 mt-4">{m.trackviewer_without_outlines_title()}</div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
             {withoutOutline.map((t) => (
               <div key={t.ordinal} className="border border-app-border rounded-lg p-3 bg-app-surface/30 cursor-pointer hover:border-app-border-input" onClick={() => handleSelectTrack(t)}>

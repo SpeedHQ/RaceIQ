@@ -174,6 +174,20 @@ export function StepWelcome() {
   const telemetry = demoTelemetry ?? [];
   const hasTelemetry = telemetry.length > 0;
 
+  const { displaySettings } = useSettings();
+  const saveSettings = useSaveSettings();
+  const currentLang = displaySettings.language ?? "en";
+  const langOptions = LOCALES.map((loc) => ({ value: loc.code, label: `${loc.label} (${loc.code})` }));
+  async function selectLanguage(code: string) {
+    if (code === currentLang) return;
+    try {
+      await saveSettings.mutateAsync({ language: code });
+    } catch {
+      // best-effort persist; still switch the UI locale below
+    }
+    applyLocale(code);
+  }
+
   return (
     <div className="flex flex-col items-center justify-center text-center py-6">
       {isLoading ? (
@@ -218,6 +232,10 @@ export function StepWelcome() {
         <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">{m.ob_welcome_feature_live()}</span>
         <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">{m.ob_welcome_feature_compare()}</span>
         <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">{m.ob_welcome_feature_ai()}</span>
+      </div>
+      <div className="mt-6 w-full max-w-[220px] text-left">
+        <div className="text-xs text-app-text-muted mb-1.5 text-center">{m.label_language()}</div>
+        <SearchSelect value={currentLang} onChange={selectLanguage} options={langOptions} placeholder={m.settings_language_search_placeholder()} focusColor="app-accent" />
       </div>
     </div>
   );
@@ -286,38 +304,6 @@ export function StepProfile() {
           className="max-w-xs"
           autoFocus
         />
-      </div>
-    </div>
-  );
-}
-
-/* ─── Language ─── */
-
-export function StepLanguage() {
-  const { displaySettings } = useSettings();
-  const saveSettings = useSaveSettings();
-  const current = displaySettings.language ?? "en";
-
-  async function selectLanguage(code: string) {
-    if (code === current) return;
-    try {
-      await saveSettings.mutateAsync({ language: code });
-    } catch {
-      // best-effort persist; still switch the UI locale below
-    }
-    // Apply in place — no reload — so the wizard stays open and re-renders in
-    // the newly chosen language.
-    applyLocale(code);
-  }
-
-  const options = LOCALES.map((loc) => ({ value: loc.code, label: `${loc.label} (${loc.code})` }));
-
-  return (
-    <div>
-      <h2 className="text-sm font-semibold text-app-text mb-1">{m.label_language()}</h2>
-      <p className="text-sm text-app-text-muted mb-4">{m.ob_language_desc()}</p>
-      <div className="max-w-xs">
-        <SearchSelect value={current} onChange={selectLanguage} options={options} placeholder="Search language..." focusColor="app-accent" />
       </div>
     </div>
   );
@@ -583,7 +569,6 @@ export function StepStartup() {
 // stepper caption.
 const MODAL_STEPS = [
   { id: "welcome", label: m.step_welcome, Component: StepWelcome },
-  { id: "language", label: m.label_language, Component: StepLanguage },
   { id: "profile", label: m.step_profile, Component: StepProfile },
   { id: "wheel", label: m.label_wheel, Component: StepWheel },
   { id: "units", label: m.label_units, Component: StepUnits },

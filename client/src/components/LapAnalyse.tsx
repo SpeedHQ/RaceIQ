@@ -491,7 +491,7 @@ function LapAnalyseInner() {
       {telemetry.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-app-text-muted text-sm">
           {loading ? (
-            <span>Loading lap telemetry...</span>
+            <span>{m.analyse_loading_telemetry()}</span>
           ) : isLegacyLap ? (
             <span>This lap was recorded before raw telemetry storage. Lap times and metadata are preserved but telemetry charts are unavailable.</span>
           ) : parseError ? (
@@ -500,9 +500,9 @@ function LapAnalyseInner() {
               <code className="text-xs text-app-text-muted whitespace-pre-wrap break-words">{parseError}</code>
             </div>
           ) : selectedLapId ? (
-            <span>No telemetry data for this lap.</span>
+            <span>{m.analyse_no_telemetry_data()}</span>
           ) : (
-            <span>Select a track, car, and lap to analyse.</span>
+            <span>{m.analyse_select_to_start()}</span>
           )}
         </div>
       )}
