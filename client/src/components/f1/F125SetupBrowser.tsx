@@ -1,3 +1,4 @@
+import { F125SetupValues } from "@/components/f1/f125-setup-groups";
 import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
 import type { ComboOption } from "@/components/tune/browser/ComboBox";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
@@ -31,27 +32,6 @@ function parseLap(raw: string | undefined): number | null {
   const m = raw.match(/^(?:(\d+):)?(\d+(?:\.\d+)?)$/);
   if (!m) return null;
   return (m[1] ? Number(m[1]) : 0) * 60 + Number(m[2]);
-}
-
-function humanize(key: string): string {
-  return key
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/^./, (c) => c.toUpperCase());
-}
-
-function F125SettingsPanel({ settings }: { settings: Record<string, number | null> }) {
-  const entries = Object.entries(settings).filter(([, v]) => v != null);
-  if (entries.length === 0) return <div className="text-app-text-dim text-xs">No setup values.</div>;
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5">
-      {entries.map(([k, v]) => (
-        <div key={k} className="flex items-center justify-between gap-2 border-b border-app-border py-1">
-          <span className="text-[12px] text-app-text-muted truncate">{humanize(k)}</span>
-          <span className="text-[12px] font-mono font-semibold text-app-accent tabular-nums">{v}</span>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 export function F125SetupBrowser() {
@@ -119,7 +99,7 @@ export function F125SetupBrowser() {
       trackOptions={trackOptions}
       carOptions={carOptions}
       sources={SOURCES}
-      renderSettings={(row: TuneRow) => <F125SettingsPanel settings={row.settings as Record<string, number | null>} />}
+      renderSettings={(row: TuneRow) => <F125SetupValues setup={row.settings as Record<string, number | null>} />}
       readOnly
     />
   );
