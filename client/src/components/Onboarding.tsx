@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
+import { SearchSelect } from "@/components/ui/SearchSelect";
 import { LOCALES } from "@shared/locales";
 import type { TelemetryPacket } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
@@ -309,24 +310,14 @@ export function StepLanguage() {
     applyLocale(code);
   }
 
+  const options = LOCALES.map((loc) => ({ value: loc.code, label: `${loc.label} (${loc.code})` }));
+
   return (
     <div>
       <h2 className="text-sm font-semibold text-app-text mb-1">{m.ob_language_title()}</h2>
       <p className="text-sm text-app-text-muted mb-4">{m.ob_language_desc()}</p>
-      <div className="grid grid-cols-2 gap-3">
-        {LOCALES.map((loc) => (
-          <button
-            type="button"
-            key={loc.code}
-            onClick={() => selectLanguage(loc.code)}
-            className={`rounded-lg border p-4 text-left transition-all ${
-              current === loc.code ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-input"
-            }`}
-          >
-            <div className="text-sm font-medium text-app-text">{loc.label}</div>
-            <div className="text-xs text-app-text-muted mt-1 uppercase">{loc.code}</div>
-          </button>
-        ))}
+      <div className="max-w-xs">
+        <SearchSelect value={current} onChange={selectLanguage} options={options} placeholder="Search language..." focusColor="app-accent" />
       </div>
     </div>
   );
