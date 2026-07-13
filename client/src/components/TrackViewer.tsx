@@ -49,10 +49,17 @@ export function TrackViewer() {
     enabled: gameId === "acc",
   });
 
+  // Supported games always report a count (0 shows a "0 setups/guides" badge);
+  // unsupported games return undefined so no badge renders at all.
   const setupCountFor = (ordinal: number): number | undefined => {
-    if (gameId === "f1-2025") return f125ByOrdinal[ordinal]?.setupCount;
-    if (gameId === "acc") return accCounts[ordinal];
-    if (isCatalogGame) return catalogCounts[ordinal];
+    if (gameId === "f1-2025") return f125ByOrdinal[ordinal]?.setupCount ?? 0;
+    if (gameId === "acc") return accCounts[ordinal] ?? 0;
+    if (isCatalogGame) return catalogCounts[ordinal] ?? 0;
+    return undefined;
+  };
+  const guideCountFor = (ordinal: number): number | undefined => {
+    if (gameId === "f1-2025") return f125ByOrdinal[ordinal]?.guideCount ?? 0;
+    if (gameId === "acc" || isCatalogGame) return 0;
     return undefined;
   };
 
@@ -133,8 +140,7 @@ export function TrackViewer() {
               onSelect={handleSelectTrack}
               gameId={gameId}
               setupCount={setupCountFor(t.ordinal)}
-              guideCount={gameId === "f1-2025" ? f125ByOrdinal[t.ordinal]?.guideCount : undefined}
-              hasGuide={gameId === "f1-2025" ? !!f125ByOrdinal[t.ordinal]?.guideUrl : undefined}
+              guideCount={guideCountFor(t.ordinal)}
             />
           ))}
         </div>
