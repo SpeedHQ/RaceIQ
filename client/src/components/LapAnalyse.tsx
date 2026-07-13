@@ -1,39 +1,39 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useSearch, useNavigate } from "@tanstack/react-router";
-import type { TelemetryPacket, LapMeta } from "@shared/types";
-import { useCookieState } from "../hooks/useCookieState";
-import { useLocalStorage } from "../hooks/useLocalStorage";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useUnits } from "../hooks/useUnits";
-import { useConvertedTelemetry } from "../hooks/useConvertedTelemetry";
+import type { LapMeta, TelemetryPacket } from "@shared/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  useLaps as useLapsQuery,
-  useLapTelemetry,
-  useTrackName,
   useCarName,
+  useLapTelemetry,
+  useLaps as useLapsQuery,
   useResolveNames,
-  useTrackOutline,
+  useSettings,
   useTrackBoundaries,
+  useTrackName,
+  useTrackOutline,
   useTrackSectorBoundaries,
   useTrackSectors,
-  useSettings,
 } from "../hooks/queries";
-import { client } from "../lib/rpc";
-import { useRequiredGameId } from "../stores/game";
-import { analyzeLap } from "../lib/lap-insights";
+import { useConvertedTelemetry } from "../hooks/useConvertedTelemetry";
+import { useCookieState } from "../hooks/useCookieState";
 import { useLapPlayback } from "../hooks/useLapPlayback";
-import { type AnalysisHighlight, type AiPanelHandle } from "./AiPanel";
-import { F1SetupModal } from "./analyse/F1SetupModal";
-import { type TrackMapHandle, type Point } from "./analyse/AnalyseTrackMap";
-import { AnalyseChartsPanel, type ChartsPanelHandle } from "./analyse/AnalyseChartsPanel";
-import { AnalyseTimelineScrubber } from "./analyse/AnalyseTimelineScrubber";
-import { TuneViewModal } from "./analyse/TuneViewModal";
-import { AnalyseLapHeader } from "./analyse/AnalyseLapHeader";
-import { AnalyseDataPanel } from "./analyse/AnalyseDataPanel";
-import { AnalyseTopSection } from "./analyse/AnalyseTopSection";
-import { AnalyseAiSidebar } from "./analyse/AnalyseAiSidebar";
+import { useLocalStorage } from "../hooks/useLocalStorage";
+import { useUnits } from "../hooks/useUnits";
 import { buildExportCsv } from "../lib/lap-export";
+import { analyzeLap } from "../lib/lap-insights";
+import { client } from "../lib/rpc";
 import { MobileNotSupported } from "../routes/__root";
+import { useRequiredGameId } from "../stores/game";
+import type { AiPanelHandle, AnalysisHighlight } from "./AiPanel";
+import { AnalyseAiSidebar } from "./analyse/AnalyseAiSidebar";
+import { AnalyseChartsPanel, type ChartsPanelHandle } from "./analyse/AnalyseChartsPanel";
+import { AnalyseDataPanel } from "./analyse/AnalyseDataPanel";
+import { AnalyseLapHeader } from "./analyse/AnalyseLapHeader";
+import { AnalyseTimelineScrubber } from "./analyse/AnalyseTimelineScrubber";
+import { AnalyseTopSection } from "./analyse/AnalyseTopSection";
+import type { Point, TrackMapHandle } from "./analyse/AnalyseTrackMap";
+import { F1SetupModal } from "./analyse/F1SetupModal";
+import { TuneViewModal } from "./analyse/TuneViewModal";
 
 // Stable empty array to avoid re-renders when no telemetry loaded
 const emptyTelemetry: TelemetryPacket[] = [];
@@ -456,6 +456,63 @@ function LapAnalyseInner() {
     buildExportCsv(telemetry, carName, trackName, selectedLap, selectedLapId, displaySettings.driverName);
   }, [telemetry, selectedLapId, selectedLap, carName, trackName]);
 
+  // Export raw session capture (.bin) for the selected lap
+  const [exportingBin, setExportingBin] = useState(false);
+  const handleExportBin = useCallback(async () => {
+    if (selectedLapId == null) return;
+    setExportingBin(true);
+    try {
+      const res = await fetch(`/api/laps/${selectedLapId}/export-bin`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        window.alert(err?.error ?? `Export failed (${res.status})`);
+        return;
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get("Content-Disposition") ?? "";
+      const match = cd.match(/filename="?([^"]+)"?/);
+      const filename = match?.[1] ?? `lap-${selectedLapId}.bin`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      window.alert(`Export failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setExportingBin(false);
+    }
+  }, [selectedLapId]);
+
+  // Import a raw session capture (.bin) — re-runs the pipeline server-side
+  const [importingBin, setImportingBin] = useState(false);
+  const handleImportBin = useCallback(
+    async (file: File) => {
+      setImportingBin(true);
+      try {
+        const body = new FormData();
+        body.append("file", file);
+        const res = await fetch(`/api/laps/import`, { method: "POST", body });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          window.alert(data?.error ?? `Import failed (${res.status})`);
+          return;
+        }
+        queryClient.invalidateQueries({ queryKey: ["laps"] });
+        const n = data?.imported ?? 0;
+        window.alert(`Imported ${n} lap${n === 1 ? "" : "s"} from ${file.name}.`);
+      } catch (e) {
+        window.alert(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
+      } finally {
+        setImportingBin(false);
+      }
+    },
+    [queryClient],
+  );
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header: cascading selectors + export */}
@@ -482,6 +539,10 @@ function LapAnalyseInner() {
         onViewTune={setViewingTuneId}
         onShowSetup={() => setShowSetup(true)}
         onExport={handleExport}
+        onExportBin={handleExportBin}
+        onImportBin={handleImportBin}
+        exportingBin={exportingBin}
+        importingBin={importingBin}
         onToggleAi={() => setAiPanelOpen((v) => !v)}
         onDeleteLap={handleDeleteLap}
         onNotesChange={(notes) => updateLapNotesMutation.mutate(notes)}
