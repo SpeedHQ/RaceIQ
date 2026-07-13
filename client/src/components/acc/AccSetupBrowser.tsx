@@ -156,7 +156,7 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
     const url = setup.downloadUrl || setup.videoUrl || "";
     return url.match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/)?.[1] ?? null;
   }, [setup.downloadUrl, setup.videoUrl]);
-  const { data: ytMeta } = useQuery<{ uploadDate?: string; downloadUrl?: string } | null>({
+  const { data: ytMeta, isLoading: ytLoading } = useQuery<{ uploadDate?: string; downloadUrl?: string } | null>({
     queryKey: ["acc-yt-meta", ytVideoId],
     enabled: !!ytVideoId,
     staleTime: Infinity,
@@ -191,7 +191,7 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
             {install.isSuccess ? "Installed ✓" : install.isPending ? "Installing…" : "Install to ACC"}
           </button>
         )}
-        {fileUrl && (
+        {fileUrl ? (
           <a
             href={fileUrl}
             target="_blank"
@@ -200,6 +200,14 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
           >
             Download
           </a>
+        ) : (
+          ytVideoId &&
+          ytLoading && (
+            <span className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-app-text-muted inline-flex items-center gap-1.5 cursor-wait" aria-busy="true">
+              <span className="w-3 h-3 rounded-full border-2 border-app-border border-t-app-accent animate-spin" />
+              Download
+            </span>
+          )
         )}
         {videoUrl && (
           <a
