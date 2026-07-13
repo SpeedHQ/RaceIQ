@@ -2,6 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isDevelopment } from "@/lib/env";
+import { applyLocale } from "@/lib/locale";
+import { m } from "@/paraglide/messages";
+import { LOCALES } from "@shared/locales";
 import { useEffect, useState } from "react";
 import { type Theme, useTheme } from "../context/theme";
 import { useSaveSettings, useSettings } from "../hooks/queries";
@@ -67,6 +70,24 @@ const NAV_ITEMS = [
 ] as const;
 
 type SectionId = (typeof NAV_ITEMS)[number]["id"];
+
+// Localized display label per section id. Falls back to the English NAV_ITEMS
+// label if a key is somehow missing.
+const NAV_LABELS: Record<SectionId, () => string> = {
+  general: m.settings_nav_general,
+  theme: m.settings_nav_theme,
+  games: m.settings_nav_games,
+  connection: m.settings_nav_connection,
+  wheel: m.settings_nav_wheel,
+  speed: m.settings_nav_speed,
+  sound: m.settings_nav_sound,
+  storage: m.settings_nav_storage,
+  ai: m.settings_nav_ai,
+  developer: m.settings_nav_developer,
+  diagnostics: m.settings_nav_diagnostics,
+  updates: m.settings_nav_updates,
+  about: m.settings_nav_about,
+};
 
 export function Settings({ initialSection, onClose }: { initialSection?: SectionId; onClose?: () => void } = {}) {
   const { openOnboarding } = useUiStore();
@@ -165,7 +186,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                 : "text-app-text-muted hover:text-app-text hover:bg-app-surface-alt"
             }`}
           >
-            {item.label}
+            {(NAV_LABELS[item.id] ?? (() => item.label))()}
           </button>
         ))}
         <div className="hidden md:block mt-auto pt-2 border-t border-app-border mx-2">
@@ -196,8 +217,31 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {activeSection === "general" && (
           <section>
-            <h2 className="text-lg font-semibold text-app-text mb-1">General</h2>
-            <p className="text-sm text-app-text-muted mb-4">App-wide settings.</p>
+            <h2 className="text-lg font-semibold text-app-text mb-1">{m.settings_general_title()}</h2>
+            <p className="text-sm text-app-text-muted mb-4">{m.settings_general_desc()}</p>
+
+            <div className="max-w-xs mb-6">
+              <Label className="text-app-text-secondary">{m.settings_language_label()}</Label>
+              <select
+                value={displaySettings.language ?? "en"}
+                onChange={async (e) => {
+                  const code = e.target.value;
+                  await saveSettings.mutateAsync({ language: code });
+                  // Switch language in place (no page reload — keeps the live
+                  // WebSocket/telemetry alive). Re-renders all m.* via the
+                  // uiLocale remount key in __root.tsx.
+                  applyLocale(code);
+                }}
+                className="mt-1.5 w-full bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text"
+              >
+                {LOCALES.map((loc) => (
+                  <option key={loc.code} value={loc.code}>
+                    {loc.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-app-text-muted text-xs mt-1">{m.settings_language_desc()}</p>
+            </div>
 
             <div className="max-w-xs">
               <Label className={`${displaySettings.isCompiled ? "text-app-text-secondary" : "text-app-text-muted"}`}>Launch on Login</Label>

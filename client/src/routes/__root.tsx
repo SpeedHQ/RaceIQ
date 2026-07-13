@@ -1,22 +1,39 @@
-import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { m } from "@/paraglide/messages";
+import { getLocale, isLocale } from "@/paraglide/runtime";
+import { applyLocale } from "@/lib/locale";
+import { getAllGames } from "@shared/games/registry";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { Link, Outlet, createRootRoute, useLocation } from "@tanstack/react-router";
+import { Menu, RefreshCw, Settings2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ConnectionStatus } from "../components/ConnectionStatus";
+import { OnboardingModal } from "../components/Onboarding";
+import { Settings } from "../components/Settings";
+import { UpdateModal } from "../components/UpdateModal";
+import { ThemeProvider } from "../context/theme";
+import { useSettings } from "../hooks/queries";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useTelemetryStore } from "../stores/telemetry";
 import { useUiStore } from "../stores/ui";
-import { useSettings } from "../hooks/queries";
-import { ThemeProvider } from "../context/theme";
-import { ConnectionStatus } from "../components/ConnectionStatus";
-import { Settings } from "../components/Settings";
-import { UpdateModal } from "../components/UpdateModal";
-import { OnboardingModal } from "../components/Onboarding";
-import { Button } from "@/components/ui/button";
-import { Settings2, RefreshCw, X, Menu } from "lucide-react";
-import { getAllGames } from "@shared/games/registry";
 
 import { queryClient } from "../lib/queryClient";
 
+// Canonical (English, path-stable) game sub-tab keys. The URL segment is always
+// the lowercased English key; only the *display* label is localized.
 const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Chats", "Tracks", "Cars", "Setups", "Raw"] as const;
+
+const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {
+  Live: m.tab_live,
+  Sessions: m.tab_sessions,
+  Compare: m.tab_compare,
+  Analyse: m.tab_analyse,
+  Chats: m.tab_chats,
+  Tracks: m.tab_tracks,
+  Cars: m.tab_cars,
+  Setups: m.tab_setups,
+  Raw: m.tab_raw,
+};
 
 let _gamePrefixes: string[] | null = null;
 function getGamePrefixes() {
@@ -185,6 +202,17 @@ function AppShell() {
   useWebSocket();
   const { displaySettings, settingsLoaded } = useSettings();
   const driverName = displaySettings.driverName || "";
+
+  // Bootstrap the Paraglide UI locale from the server-persisted `language`
+  // setting (the source of truth — the AI needs it server-side anyway). No
+  // reload here: this only runs when the stored language differs from the
+  // runtime locale (first load / cross-device), and the picker itself reloads.
+  const settingsLanguage = displaySettings.language;
+  const uiLocale = useUiStore((s) => s.uiLocale);
+  useEffect(() => {
+    if (!settingsLoaded || !settingsLanguage || !isLocale(settingsLanguage)) return;
+    if (getLocale() !== settingsLanguage) applyLocale(settingsLanguage);
+  }, [settingsLoaded, settingsLanguage]);
   const connected = useTelemetryStore((s) => s.connected);
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const isRaceOn = useTelemetryStore((s) => s.isRaceOn);
@@ -231,26 +259,28 @@ function AppShell() {
   const hiddenGamesKey = hiddenGames.join(",");
   const globalTabs = useMemo(
     () => [
-      { to: "/", label: "Home" },
+      { to: "/", label: m.nav_home() },
       ...getAllGames()
         .filter((g) => !hiddenGames.includes(g.id))
         .map((g) => ({ to: `/${g.routePrefix}`, label: g.shortName })),
-      { to: "/dash", label: "Dash" },
-      ...(import.meta.env.DEV ? [{ to: "/dev", label: "Dev" }] : []),
+      { to: "/dash", label: m.nav_dash() },
+      ...(import.meta.env.DEV ? [{ to: "/dev", label: m.nav_dev() }] : []),
       // eslint-disable-next-line react-hooks/exhaustive-deps
     ],
-    [hiddenGamesKey],
+    // uiLocale: recompute labels when the language changes (no reload).
+    [hiddenGamesKey, uiLocale],
   );
 
   // Determine which game-specific tabs to show based on current route
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const gameTabs = useMemo(() => {
     const prefix = getGamePrefixes().find((p) => location.pathname.startsWith(p));
     if (!prefix) return [];
     // Every game exposes a "Setups" tab: fm23/acc/ac-evo show the tune browser
     // (Forza also folds its wheel/FFB catalogue in as a sub-tab), f125 shows a
     // placeholder. No per-game gating needed.
-    return GAME_SUB_TABS.map((label) => ({ to: `${prefix}/${label.toLowerCase()}`, label }));
-  }, [location.pathname]);
+    return GAME_SUB_TABS.map((key) => ({ to: `${prefix}/${key.toLowerCase()}`, label: SUB_TAB_LABELS[key]() }));
+  }, [location.pathname, uiLocale]);
 
   // Active game sub-tab (for the tablet <select> dropdown)
   const activeGameTab = useMemo(() => {
@@ -284,7 +314,7 @@ function AppShell() {
     return (
       <ThemeProvider>
         <div className="h-screen bg-black text-app-text">
-          <Outlet />
+          <Outlet key={uiLocale} />
         </div>
       </ThemeProvider>
     );
@@ -389,10 +419,10 @@ function AppShell() {
               variant="ghost"
               size="sm"
               onClick={() => (showSettings ? closeSettings() : openSettings())}
-              aria-label={driverName ? `Settings (${driverName})` : "Settings"}
+              aria-label={driverName ? `${m.nav_settings()} (${driverName})` : m.nav_settings()}
               className="hidden md:flex text-app-text-secondary hover:text-app-text items-center gap-1.5"
             >
-              <span className="hidden sm:inline">{driverName || "Settings"}</span>
+              <span className="hidden sm:inline">{driverName || m.nav_settings()}</span>
               <Settings2 className="size-3.5 text-app-text-muted" />
             </Button>
 
@@ -409,7 +439,7 @@ function AppShell() {
             <div className="absolute inset-0 bg-black/60" />
             <nav className="relative w-64 max-w-[80vw] h-full bg-app-bg border-l border-app-border flex flex-col overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
-                <span className="text-sm font-semibold text-app-text">Navigation</span>
+                <span className="text-sm font-semibold text-app-text">{m.nav_navigation()}</span>
                 <button onClick={() => setMobileNavOpen(false)} className="p-1 text-app-text-muted hover:text-app-text" aria-label="Close navigation">
                   <X className="size-4" />
                 </button>
@@ -435,7 +465,7 @@ function AppShell() {
                 {gameTabs.length > 0 && (
                   <>
                     <div className="mx-4 my-2 border-t border-app-border" />
-                    <div className="px-4 py-1 text-[10px] uppercase tracking-wider text-app-text-dim">This game</div>
+                    <div className="px-4 py-1 text-[10px] uppercase tracking-wider text-app-text-dim">{m.nav_this_game()}</div>
                     {gameTabs.map((tab) => (
                       <Link
                         key={tab.to}
@@ -464,7 +494,7 @@ function AppShell() {
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 border-transparent text-app-text-muted hover:text-app-text"
                 >
                   <Settings2 className="size-4" />
-                  <span>{driverName || "Settings"}</span>
+                  <span>{driverName || m.nav_settings()}</span>
                 </button>
               </div>
             </nav>
@@ -507,7 +537,7 @@ function AppShell() {
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
 
         <div className="min-h-0 overflow-y-auto">
-          <Outlet />
+          <Outlet key={uiLocale} />
         </div>
       </div>
       <StaleLapButton />

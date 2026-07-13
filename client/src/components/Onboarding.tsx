@@ -1,6 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { applyLocale } from "@/lib/locale";
+import { m } from "@/paraglide/messages";
+import { LOCALES } from "@shared/locales";
 import type { TelemetryPacket } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -209,11 +212,11 @@ export function StepWelcome() {
 
       <h2 className="text-2xl font-bold text-app-text mb-1 tracking-tight">RaceIQ</h2>
       {versionInfo?.current && <div className="text-xs font-mono text-app-text-muted mb-2">v{versionInfo.current}</div>}
-      <p className="text-sm text-app-text-muted max-w-sm leading-relaxed">The most advanced sim racing telemetry dashboard.</p>
+      <p className="text-sm text-app-text-muted max-w-sm leading-relaxed">{m.ob_welcome_tagline()}</p>
       <div className="flex items-center gap-2 mt-5">
-        <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">Live telemetry</span>
-        <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">Lap comparison</span>
-        <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">AI analysis</span>
+        <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">{m.ob_welcome_feature_live()}</span>
+        <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">{m.ob_welcome_feature_compare()}</span>
+        <span className="px-2.5 py-1 rounded-full border border-app-border bg-app-surface-alt text-xs text-app-text-secondary">{m.ob_welcome_feature_ai()}</span>
       </div>
     </div>
   );
@@ -282,6 +285,48 @@ export function StepProfile() {
           className="max-w-xs"
           autoFocus
         />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Language ─── */
+
+export function StepLanguage() {
+  const { displaySettings } = useSettings();
+  const saveSettings = useSaveSettings();
+  const current = displaySettings.language ?? "en";
+
+  async function selectLanguage(code: string) {
+    if (code === current) return;
+    try {
+      await saveSettings.mutateAsync({ language: code });
+    } catch {
+      // best-effort persist; still switch the UI locale below
+    }
+    // Apply in place — no reload — so the wizard stays open and re-renders in
+    // the newly chosen language.
+    applyLocale(code);
+  }
+
+  return (
+    <div>
+      <h2 className="text-sm font-semibold text-app-text mb-1">{m.ob_language_title()}</h2>
+      <p className="text-sm text-app-text-muted mb-4">{m.ob_language_desc()}</p>
+      <div className="grid grid-cols-2 gap-3">
+        {LOCALES.map((loc) => (
+          <button
+            type="button"
+            key={loc.code}
+            onClick={() => selectLanguage(loc.code)}
+            className={`rounded-lg border p-4 text-left transition-all ${
+              current === loc.code ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-input"
+            }`}
+          >
+            <div className="text-sm font-medium text-app-text">{loc.label}</div>
+            <div className="text-xs text-app-text-muted mt-1 uppercase">{loc.code}</div>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -363,8 +408,8 @@ export function StepUnits() {
 
   return (
     <div>
-      <h2 className="text-sm font-semibold text-app-text mb-1">Units</h2>
-      <p className="text-sm text-app-text-muted mb-4">Choose between Imperial and Metric for speed, distance, and weight.</p>
+      <h2 className="text-sm font-semibold text-app-text mb-1">{m.ob_units_title()}</h2>
+      <p className="text-sm text-app-text-muted mb-4">{m.ob_units_desc()}</p>
       <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
@@ -373,7 +418,7 @@ export function StepUnits() {
             unitSystem === "imperial" ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-input"
           }`}
         >
-          <div className="text-sm font-medium text-app-text">Imperial</div>
+          <div className="text-sm font-medium text-app-text">{m.ob_units_imperial()}</div>
           <div className="text-xs text-app-text-muted mt-1">mph, ft, lb</div>
         </button>
         <button
@@ -383,14 +428,14 @@ export function StepUnits() {
             unitSystem === "metric" ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-input"
           }`}
         >
-          <div className="text-sm font-medium text-app-text">Metric</div>
+          <div className="text-sm font-medium text-app-text">{m.ob_units_metric()}</div>
           <div className="text-xs text-app-text-muted mt-1">km/h, m, kg</div>
         </button>
       </div>
 
       <div className="mt-5 pt-5 border-t border-app-border">
-        <h3 className="text-sm font-semibold text-app-text mb-1">Temperature</h3>
-        <p className="text-xs text-app-text-muted mb-3">Set tire and fluid temperature display unit.</p>
+        <h3 className="text-sm font-semibold text-app-text mb-1">{m.ob_units_temperature()}</h3>
+        <p className="text-xs text-app-text-muted mb-3">{m.ob_units_temperature_desc()}</p>
 
         <div className="flex items-center gap-2">
           <button
@@ -543,14 +588,17 @@ export function StepStartup() {
 
 /* ─── Onboarding Modal (state-managed, no routing) ─── */
 
+// `id` is a stable React key (never localized); `label` renders the localized
+// stepper caption.
 const MODAL_STEPS = [
-  { label: "Welcome", Component: StepWelcome },
-  { label: "Profile", Component: StepProfile },
-  { label: "Wheel", Component: StepWheel },
-  { label: "Units", Component: StepUnits },
-  { label: "Sound", Component: StepSound },
-  { label: "Startup", Component: StepStartup },
-  { label: "Community", Component: StepCommunity },
+  { id: "welcome", label: m.step_welcome, Component: StepWelcome },
+  { id: "language", label: m.step_language, Component: StepLanguage },
+  { id: "profile", label: m.step_profile, Component: StepProfile },
+  { id: "wheel", label: m.step_wheel, Component: StepWheel },
+  { id: "units", label: m.step_units, Component: StepUnits },
+  { id: "sound", label: m.step_sound, Component: StepSound },
+  { id: "startup", label: m.step_startup, Component: StepStartup },
+  { id: "community", label: m.step_community, Component: StepCommunity },
 ];
 
 export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
@@ -576,12 +624,12 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
         {/* Header — hidden on welcome */}
         {step > 0 && (
           <div className="px-4 md:px-6 pt-4 md:pt-6 pb-4 shrink-0">
-            <h1 className="text-base md:text-lg font-semibold text-app-text">Configure your telemetry dashboard</h1>
+            <h1 className="text-base md:text-lg font-semibold text-app-text">{m.ob_configure_title()}</h1>
             <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-1">
               {MODAL_STEPS.slice(1).map((s, idx) => {
                 const i = idx + 1;
                 return (
-                  <div key={s.label} className="flex items-center gap-2 shrink-0">
+                  <div key={s.id} className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
                       onClick={() => setStep(i)}
@@ -606,7 +654,7 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
                           idx + 1
                         )}
                       </span>
-                      {s.label}
+                      {s.label()}
                     </button>
                     {idx < MODAL_STEPS.length - 2 && <div className={`w-8 h-px ${i < step ? "bg-emerald-500/50" : "bg-app-border"}`} />}
                   </div>
@@ -626,16 +674,16 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
           <div className="flex items-center gap-2">
             {step > 0 && (
               <Button variant="outline" size="sm" onClick={() => setStep((s) => s - 1)}>
-                Back
+                {m.common_back()}
               </Button>
             )}
             {step < MODAL_STEPS.length - 1 ? (
               <Button size="sm" onClick={() => setStep((s) => s + 1)}>
-                {step === 0 ? "Get Started" : "Next"}
+                {step === 0 ? m.common_get_started() : m.common_next()}
               </Button>
             ) : (
               <Button size="sm" variant={receiving ? "default" : "outline"} onClick={handleFinish} disabled={saveSettings.isPending}>
-                {receiving ? "Finish" : "Next"}
+                {receiving ? m.common_finish() : m.common_next()}
               </Button>
             )}
           </div>
@@ -650,11 +698,8 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
 export function StepCommunity() {
   return (
     <div className="flex flex-col items-center justify-center text-center py-6">
-      <h2 className="text-2xl font-bold text-app-text mb-2 tracking-tight">You're all set!</h2>
-      <p className="text-sm text-app-text-muted max-w-md leading-relaxed mt-2">
-        RaceIQ is an open-source project that depends on its community. Whether it's spreading the word, submitting feature requests or bug reports, or contributing to the source code — every bit
-        helps make the app better for everyone.
-      </p>
+      <h2 className="text-2xl font-bold text-app-text mb-2 tracking-tight">{m.ob_community_title()}</h2>
+      <p className="text-sm text-app-text-muted max-w-md leading-relaxed mt-2">{m.ob_community_body()}</p>
       <div className="flex items-center gap-4 mt-5">
         <a
           href="https://discord.gg/ZNXKyYPumT"
