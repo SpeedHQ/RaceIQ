@@ -1177,8 +1177,9 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
       ) : (
         <div className="flex flex-col gap-4 lg:h-[calc(100vh-160px)] lg:overflow-hidden">
           <div className="flex flex-col gap-4 min-h-0 md:overflow-hidden flex-1">
-            {/* Track map */}
-            <div className={`shrink-0 flex flex-col md:flex-row gap-3 ${activeTab === "guide" && isF125 ? "md:h-[160px]" : "md:h-[320px]"}`}>
+            {/* Track map — hidden on setups tab so the setups panel can take the full left column */}
+            {activeTab !== "setups" && (
+              <div className={`shrink-0 flex flex-col md:flex-row gap-3 ${activeTab === "guide" && isF125 ? "md:h-[160px]" : "md:h-[320px]"}`}>
               {/* Leaderboard left of map on laps tab */}
               {activeTab === "laps" && (
                 <div className="order-2 md:order-1 w-full md:w-[420px] shrink-0 overflow-hidden flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
@@ -1275,7 +1276,8 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                   )}
                 </div>
               </div>
-            </div>
+              </div>
+            )}
 
             {/* Tab content */}
             <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
