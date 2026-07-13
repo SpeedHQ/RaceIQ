@@ -11,8 +11,8 @@ test.describe("AC EVO tunes", () => {
   });
 
   test("create via form with EVO-specific section and category, duplicate, delete", async ({ page }) => {
-    await page.goto("/ac-evo/tunes");
-    await waitForTunesList(page, "AC EVO Tunes");
+    await page.goto("/ac-evo/setups");
+    await waitForTunesList(page, "AC EVO Setups");
 
     await page.getByRole("button", { name: /\+ New Tune/i }).click();
     await expect(page.getByRole("heading", { name: /create new ac evo tune/i })).toBeVisible();
@@ -40,7 +40,7 @@ test.describe("AC EVO tunes", () => {
     await expect(page.getByText(/\d+ \/ 9 covered/)).toBeVisible();
 
     await page.getByRole("button", { name: /save tune/i }).click();
-    await waitForTunesList(page, "AC EVO Tunes");
+    await waitForTunesList(page, "AC EVO Setups");
 
     // Isolate user tunes so a populated community catalog can't push our
     // fresh tune off page 1 of the browser.
@@ -59,7 +59,7 @@ test.describe("AC EVO tunes", () => {
   });
 
   test("import page renders empty state when Documents folder absent", async ({ page }) => {
-    await page.goto("/ac-evo/tunes/import");
+    await page.goto("/ac-evo/setups/import");
     await expect(page.getByText(/could not find your ac evo setups folder/i)).toBeVisible({
       timeout: 10_000,
     });

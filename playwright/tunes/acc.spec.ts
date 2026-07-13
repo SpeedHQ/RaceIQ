@@ -12,8 +12,8 @@ test.describe("ACC tunes", () => {
   });
 
   test("create via form, see covered sections, duplicate, delete", async ({ page }) => {
-    await page.goto("/acc/tunes");
-    await waitForTunesList(page, "ACC Tunes");
+    await page.goto("/acc/setups");
+    await waitForTunesList(page, "ACC Setups");
 
     await page.getByRole("button", { name: /\+ New Tune/i }).click();
     await expect(page.getByRole("heading", { name: /create new acc tune/i })).toBeVisible();
@@ -43,7 +43,7 @@ test.describe("ACC tunes", () => {
     await expect(page.getByText(/8 \/ 8 covered/)).toBeVisible();
 
     await page.getByRole("button", { name: /save tune/i }).click();
-    await waitForTunesList(page, "ACC Tunes");
+    await waitForTunesList(page, "ACC Setups");
 
     // Isolate user tunes so a populated community catalog can't push our
     // fresh tune off page 1 of the browser.
@@ -62,7 +62,7 @@ test.describe("ACC tunes", () => {
   });
 
   test("import page renders empty state when Documents folder absent", async ({ page }) => {
-    await page.goto("/acc/tunes/import");
+    await page.goto("/acc/setups/import");
     // Test DB has no mocked Documents folder — we expect the "not found" UI.
     await expect(page.getByText(/could not find your acc setups folder/i)).toBeVisible({
       timeout: 10_000,
