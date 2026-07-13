@@ -1,0 +1,25 @@
+{
+  "circuit": "Brands Hatch",
+  "source": "Official circuit map (3.916 km Grand Prix layout)",
+  "corners": [
+    { "number": 1, "name": "Paddock Hill Bend", "direction": "right" },
+    { "number": 2, "name": "Druids", "direction": "right" },
+    { "number": 3, "name": "Graham Hill Bend", "direction": "left" },
+    { "number": 4, "name": "Surtees", "direction": "left" },
+    { "number": 5, "name": "Hawthorn Bend", "direction": "right" },
+    { "number": 6, "name": "Westfield Bend", "direction": "right" },
+    { "number": 7, "name": "Dingle Dell", "direction": "right", "optional": true },
+    { "number": 8, "name": "Sheene Curve", "direction": "right" },
+    { "number": 9, "name": "Stirling's Bend", "direction": "left" },
+    { "number": 10, "name": "Clark Curve", "direction": "right" }
+  ],
+  "straights": [
+    { "after": 3, "name": "Cooper Straight" },
+    { "after": 10, "name": "Brabham Straight" }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 4,
+    "s2EndAfterCorner": 6,
+    "s2OffsetM": 130
+  }
+}

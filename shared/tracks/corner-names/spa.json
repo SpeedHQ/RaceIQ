@@ -1,0 +1,30 @@
+{
+  "circuit": "Circuit de Spa-Francorchamps",
+  "source": "Official circuit map / FIA F1 track guide (7.004 km GP layout)",
+  "corners": [
+    { "number": 1, "name": "La Source", "direction": "right" },
+    { "number": 2, "name": "Eau Rouge", "direction": "left", "group": "Eau Rouge/Raidillon" },
+    { "number": 3, "name": "Raidillon", "direction": "right", "group": "Eau Rouge/Raidillon" },
+    { "number": 5, "name": "Les Combes", "direction": "right" },
+    { "number": 6, "name": "", "direction": "left" },
+    { "number": 7, "name": "Malmedy", "direction": "right" },
+    { "number": 8, "name": "Rivage", "direction": "right" },
+    { "number": 9, "name": "", "direction": "left" },
+    { "number": 10, "name": "Pouhon", "direction": "left", "spans": 2 },
+    { "number": 12, "name": "Les Fagnes", "direction": "right" },
+    { "number": 13, "name": "", "direction": "left" },
+    { "number": 14, "name": "Campus", "direction": "right" },
+    { "number": 15, "name": "Stavelot", "direction": "right" },
+    { "number": 17, "name": "Blanchimont", "direction": "left" },
+    { "number": 18, "name": "Bus Stop", "direction": "right", "group": "Bus Stop" },
+    { "number": 19, "name": "", "direction": "left", "group": "Bus Stop" }
+  ],
+  "straights": [
+    { "after": 3, "name": "Kemmel" }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 3,
+    "s1OffsetM": 1100,
+    "s2EndAfterCorner": 15
+  }
+}

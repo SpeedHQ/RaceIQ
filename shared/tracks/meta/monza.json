@@ -1,15 +1,422 @@
 {
   "name": "Autodromo Nazionale Monza",
   "sectors": {
-    "s1End": 0.312,
-    "s2End": 0.647
+    "s1End": 0.3234,
+    "s2End": 0.722,
+    "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.311,
-        "s2End": 0.642
+        "s1End": 0.3234,
+        "s2End": 0.722,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.1587
+        },
+        {
+          "type": "corner",
+          "name": "Variante del Rettifilo",
+          "direction": "right",
+          "startFrac": 0.1587,
+          "endFrac": 0.1631
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "left",
+          "startFrac": 0.1648,
+          "endFrac": 0.1718
+        },
+        {
+          "type": "straight",
+          "name": "Curva Grande approach",
+          "startFrac": 0.1718,
+          "endFrac": 0.224
+        },
+        {
+          "type": "corner",
+          "name": "Curva Grande",
+          "direction": "right",
+          "startFrac": 0.224,
+          "endFrac": 0.263
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.263,
+          "endFrac": 0.3675
+        },
+        {
+          "type": "corner",
+          "name": "Variante della Roggia",
+          "direction": "left",
+          "startFrac": 0.3675,
+          "endFrac": 0.3736
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3736,
+          "endFrac": 0.3763
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "right",
+          "startFrac": 0.3763,
+          "endFrac": 0.3798
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3798,
+          "endFrac": 0.43
+        },
+        {
+          "type": "corner",
+          "name": "Lesmo 1",
+          "direction": "right",
+          "startFrac": 0.43,
+          "endFrac": 0.4548
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4548,
+          "endFrac": 0.4933
+        },
+        {
+          "type": "corner",
+          "name": "Lesmo 2",
+          "direction": "right",
+          "startFrac": 0.4933,
+          "endFrac": 0.5021
+        },
+        {
+          "type": "straight",
+          "name": "Serraglio",
+          "startFrac": 0.5021,
+          "endFrac": 0.6799
+        },
+        {
+          "type": "corner",
+          "name": "Variante Ascari",
+          "direction": "left",
+          "startFrac": 0.6799,
+          "endFrac": 0.686
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.686,
+          "endFrac": 0.6904
+        },
+        {
+          "type": "corner",
+          "name": "T9",
+          "direction": "right",
+          "startFrac": 0.6904,
+          "endFrac": 0.7114
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "direction": "left",
+          "startFrac": 0.7132,
+          "endFrac": 0.722
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.722,
+          "endFrac": 0.8839
+        },
+        {
+          "type": "corner",
+          "name": "Parabolica",
+          "direction": "right",
+          "startFrac": 0.8839,
+          "endFrac": 0.945
+        },
+        {
+          "type": "straight",
+          "name": "Start/Finish",
+          "startFrac": 0.945,
+          "endFrac": 1
+        }
+      ]
+    },
+    "acc": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.1564
+        },
+        {
+          "type": "corner",
+          "name": "Variante del Rettifilo",
+          "direction": "right",
+          "startFrac": 0.1564,
+          "endFrac": 0.1633
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "left",
+          "startFrac": 0.1651,
+          "endFrac": 0.1746
+        },
+        {
+          "type": "straight",
+          "name": "Curva Grande approach",
+          "startFrac": 0.1746,
+          "endFrac": 0.3658
+        },
+        {
+          "type": "corner",
+          "name": "Variante della Roggia",
+          "direction": "left",
+          "startFrac": 0.3658,
+          "endFrac": 0.3736
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "right",
+          "startFrac": 0.3744,
+          "endFrac": 0.3849
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3849,
+          "endFrac": 0.4274
+        },
+        {
+          "type": "corner",
+          "name": "Lesmo 1",
+          "direction": "right",
+          "startFrac": 0.4274,
+          "endFrac": 0.4613
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4613,
+          "endFrac": 0.49
+        },
+        {
+          "type": "corner",
+          "name": "Lesmo 2",
+          "direction": "right",
+          "startFrac": 0.49,
+          "endFrac": 0.5065
+        },
+        {
+          "type": "straight",
+          "name": "Serraglio",
+          "startFrac": 0.5065,
+          "endFrac": 0.675
+        },
+        {
+          "type": "corner",
+          "name": "Variante Ascari",
+          "direction": "left",
+          "startFrac": 0.675,
+          "endFrac": 0.6907
+        },
+        {
+          "type": "corner",
+          "name": "T9",
+          "direction": "right",
+          "startFrac": 0.6915,
+          "endFrac": 0.7081
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7081,
+          "endFrac": 0.7133
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "direction": "left",
+          "startFrac": 0.7133,
+          "endFrac": 0.7289
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7289,
+          "endFrac": 0.8801
+        },
+        {
+          "type": "corner",
+          "name": "Parabolica",
+          "direction": "right",
+          "startFrac": 0.8801,
+          "endFrac": 0.9418
+        },
+        {
+          "type": "straight",
+          "name": "Start/Finish",
+          "startFrac": 0.9418,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.33,
+        "s2End": 0.7289,
+        "source": "hand-researched"
       }
     }
-  }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.1587
+    },
+    {
+      "type": "corner",
+      "name": "Variante del Rettifilo",
+      "direction": "right",
+      "startFrac": 0.1587,
+      "endFrac": 0.1631
+    },
+    {
+      "type": "corner",
+      "name": "T2",
+      "direction": "left",
+      "startFrac": 0.1648,
+      "endFrac": 0.1718
+    },
+    {
+      "type": "straight",
+      "name": "Curva Grande approach",
+      "startFrac": 0.1718,
+      "endFrac": 0.224
+    },
+    {
+      "type": "corner",
+      "name": "Curva Grande",
+      "direction": "right",
+      "startFrac": 0.224,
+      "endFrac": 0.263
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.263,
+      "endFrac": 0.3675
+    },
+    {
+      "type": "corner",
+      "name": "Variante della Roggia",
+      "direction": "left",
+      "startFrac": 0.3675,
+      "endFrac": 0.3736
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3736,
+      "endFrac": 0.3763
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "right",
+      "startFrac": 0.3763,
+      "endFrac": 0.3798
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3798,
+      "endFrac": 0.43
+    },
+    {
+      "type": "corner",
+      "name": "Lesmo 1",
+      "direction": "right",
+      "startFrac": 0.43,
+      "endFrac": 0.4548
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4548,
+      "endFrac": 0.4933
+    },
+    {
+      "type": "corner",
+      "name": "Lesmo 2",
+      "direction": "right",
+      "startFrac": 0.4933,
+      "endFrac": 0.5021
+    },
+    {
+      "type": "straight",
+      "name": "Serraglio",
+      "startFrac": 0.5021,
+      "endFrac": 0.6799
+    },
+    {
+      "type": "corner",
+      "name": "Variante Ascari",
+      "direction": "left",
+      "startFrac": 0.6799,
+      "endFrac": 0.686
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.686,
+      "endFrac": 0.6904
+    },
+    {
+      "type": "corner",
+      "name": "T9",
+      "direction": "right",
+      "startFrac": 0.6904,
+      "endFrac": 0.7114
+    },
+    {
+      "type": "corner",
+      "name": "T10",
+      "direction": "left",
+      "startFrac": 0.7132,
+      "endFrac": 0.722
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.722,
+      "endFrac": 0.8839
+    },
+    {
+      "type": "corner",
+      "name": "Parabolica",
+      "direction": "right",
+      "startFrac": 0.8839,
+      "endFrac": 0.945
+    },
+    {
+      "type": "straight",
+      "name": "Start/Finish",
+      "startFrac": 0.945,
+      "endFrac": 1
+    }
+  ]
 }

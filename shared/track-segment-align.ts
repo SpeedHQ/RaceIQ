@@ -1,0 +1,542 @@
+/**
+ * Alignment of curvature-detected corners against curated corner-name lists.
+ *
+ * The geometry (extracted from game files) is authoritative for WHERE corners
+ * are; the curated name list (from official circuit maps) is authoritative for
+ * WHAT they are called. This module matches the two ordered sequences and
+ * produces named segments, refusing to guess when they disagree.
+ *
+ * Locale note: proper nouns ("Eau Rouge") are canonical and never translated.
+ * Corners without a real name get the machine token "T<number>" and straights
+ * get "" — the client localizes those generically via Paraglide.
+ */
+
+import type { NamedSegment } from "./track-named-segments";
+
+/** A single detected corner region on the centerline. */
+export interface CornerRegion {
+  startFrac: number;
+  endFrac: number;
+  apexFrac: number;
+  direction: "left" | "right";
+  /** Peak |curvature| (1/m) at the apex. */
+  peakKappa: number;
+  lengthM: number;
+  /** Integrated turn angle across the region (radians). */
+  turnRad: number;
+}
+
+interface Pt { x: number; z: number }
+
+/**
+ * Fine-grained corner detection from a centerline (unlike detectSegments,
+ * which groups corners into coarse "sections" for the map overlay UI).
+ *
+ * A corner is a contiguous run where smoothed |κ| exceeds a radius threshold,
+ * with hysteresis, split at direction changes, and merged across short
+ * same-direction gaps (double-apex corners stay whole).
+ */
+export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; totalDist: number } {
+  const n = outline.length;
+  if (n < 20) return { corners: [], totalDist: 0 };
+
+  const dists: number[] = [0];
+  for (let i = 1; i < n; i++) {
+    const dx = outline[i].x - outline[i - 1].x;
+    const dz = outline[i].z - outline[i - 1].z;
+    dists.push(dists[i - 1] + Math.sqrt(dx * dx + dz * dz));
+  }
+  const totalDist = dists[n - 1];
+  const meanSpacing = totalDist / n;
+
+  const CURV_WINDOW_M = 12;
+  // Enter/leave thresholds are deliberately loose (fast corners like
+  // Blanchimont have ~250-400 m radii); kinks are rejected afterwards by
+  // MIN_TURN_RAD — a real corner changes heading, a kink doesn't.
+  const K_IN = 1 / 450;
+  const K_OUT = 1 / 700;
+  const MIN_CORNER_M = 15;
+  const MIN_TURN_RAD = 0.20;   // ~11.5° of heading change required
+  const MERGE_GAP_M = 50;      // same-direction regions closer than this merge
+  const SIGN_RUN_M = 25;       // sustained opposite sign for this long = split
+
+  const winIdx = Math.max(2, Math.round(CURV_WINDOW_M / meanSpacing));
+  const kappa: number[] = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const a = (i - winIdx + n) % n;
+    const b = (i + winIdx) % n;
+    const a1 = Math.atan2(outline[i].z - outline[a].z, outline[i].x - outline[a].x);
+    const a2 = Math.atan2(outline[b].z - outline[i].z, outline[b].x - outline[i].x);
+    let dTheta = a2 - a1;
+    while (dTheta > Math.PI) dTheta -= 2 * Math.PI;
+    while (dTheta < -Math.PI) dTheta += 2 * Math.PI;
+    const arc = (dists[b] >= dists[a] ? dists[b] - dists[a] : dists[b] + totalDist - dists[a]) || 1;
+    kappa[i] = dTheta / arc;
+  }
+
+  // Raw above-threshold runs with hysteresis
+  type Run = { start: number; end: number };
+  const runs: Run[] = [];
+  let inCorner = false;
+  let runStart = 0;
+  for (let i = 0; i < n; i++) {
+    const k = Math.abs(kappa[i]);
+    if (!inCorner && k >= K_IN) { inCorner = true; runStart = i; }
+    else if (inCorner && k < K_OUT) { inCorner = false; runs.push({ start: runStart, end: i - 1 }); }
+  }
+  if (inCorner) runs.push({ start: runStart, end: n - 1 });
+
+  // Split runs at sustained direction changes
+  const split: Run[] = [];
+  const signRunIdx = Math.max(2, Math.round(SIGN_RUN_M / meanSpacing));
+  for (const r of runs) {
+    let segStart = r.start;
+    let currentSign = 0;
+    let flipStart = -1;
+    for (let i = r.start; i <= r.end; i++) {
+      const s = Math.sign(kappa[i]);
+      if (s === 0) continue;
+      if (currentSign === 0) { currentSign = s; continue; }
+      if (s !== currentSign) {
+        if (flipStart < 0) flipStart = i;
+        if (i - flipStart + 1 >= signRunIdx) {
+          split.push({ start: segStart, end: flipStart - 1 });
+          segStart = flipStart;
+          currentSign = s;
+          flipStart = -1;
+        }
+      } else {
+        flipStart = -1;
+      }
+    }
+    split.push({ start: segStart, end: r.end });
+  }
+
+  // Direction + peak per run
+  const regions = split.map((r) => {
+    let sum = 0;
+    let peak = 0;
+    let apexIdx = r.start;
+    for (let i = r.start; i <= r.end; i++) {
+      sum += kappa[i];
+      if (Math.abs(kappa[i]) > peak) { peak = Math.abs(kappa[i]); apexIdx = i; }
+    }
+    return {
+      start: r.start,
+      end: r.end,
+      direction: (sum >= 0 ? "right" : "left") as "left" | "right",
+      peak,
+      apexIdx,
+    };
+  });
+
+  // Merge same-direction neighbours across short gaps (double-apex corners)
+  const mergedRegions: typeof regions = [];
+  for (const r of regions) {
+    const prev = mergedRegions[mergedRegions.length - 1];
+    if (prev && prev.direction === r.direction && dists[r.start] - dists[prev.end] <= MERGE_GAP_M) {
+      prev.end = r.end;
+      if (r.peak > prev.peak) { prev.peak = r.peak; prev.apexIdx = r.apexIdx; }
+    } else {
+      mergedRegions.push({ ...r });
+    }
+  }
+
+  const corners: CornerRegion[] = mergedRegions
+    .map((r) => {
+      let turn = 0;
+      for (let i = r.start; i <= r.end; i++) turn += Math.abs(kappa[i]) * meanSpacing;
+      return {
+        startFrac: dists[r.start] / totalDist,
+        endFrac: dists[r.end] / totalDist,
+        apexFrac: dists[r.apexIdx] / totalDist,
+        direction: r.direction,
+        peakKappa: r.peak,
+        lengthM: dists[r.end] - dists[r.start],
+        turnRad: turn,
+      };
+    })
+    .filter((c) => c.lengthM >= MIN_CORNER_M && c.turnRad >= MIN_TURN_RAD);
+
+  return { corners, totalDist };
+}
+
+// ─── Name-list types ─────────────────────────────────────────────────────────
+
+export interface CornerNameEntry {
+  /** Official turn number (1-based, in racing order). */
+  number: number;
+  /** Canonical proper name; "" if the corner has no real name (renders as T<number>). */
+  name: string;
+  direction?: "left" | "right";
+  /**
+   * Corners sharing a group label form a complex (e.g. a chicane) that the
+   * detector may merge into a single region. When merged, the region is named
+   * after the group.
+   */
+  group?: string;
+  /**
+   * Max detected regions this corner alone may span (default 1). Long
+   * multi-apex corners occasionally split in two.
+   */
+  spans?: number;
+  /**
+   * A shallow/fast corner (big radius, small heading change) that some games'
+   * centerlines don't register as a corner at all. May match zero regions.
+   */
+  optional?: boolean;
+}
+
+export interface StraightNameEntry {
+  /** The straight directly after this corner number gets this name. */
+  after: number;
+  name: string;
+}
+
+export interface SectorAnchors {
+  /** Sector 1 ends at the exit of this corner number. */
+  s1EndAfterCorner?: number;
+  /** Sector 2 ends at the exit of this corner number. */
+  s2EndAfterCorner?: number;
+  /** Optional meters past the anchored corner exit. */
+  s1OffsetM?: number;
+  s2OffsetM?: number;
+  /** Explicit researched fractions — used verbatim when anchors are absent. */
+  s1End?: number;
+  s2End?: number;
+}
+
+export interface CornerNameList {
+  circuit: string;
+  /** Provenance of the naming/sector data (circuit map, wiki, FIA doc). */
+  source?: string;
+  corners: CornerNameEntry[];
+  straights?: StraightNameEntry[];
+  sectors?: SectorAnchors;
+}
+
+// ─── Alignment ───────────────────────────────────────────────────────────────
+
+/** One name-list "unit" to match: a single corner or a grouped complex. */
+interface Unit {
+  members: CornerNameEntry[];
+  group?: string;
+  maxSpan: number;
+}
+
+export interface AlignmentIssue {
+  severity: "error" | "warning";
+  message: string;
+}
+
+export interface AlignedCorner {
+  /** Index into the detected corner-region list. */
+  regionIndex: number;
+  /** Corner numbers covered by this region. */
+  numbers: number[];
+  name: string;
+  direction: "left" | "right";
+  startFrac: number;
+  endFrac: number;
+}
+
+export interface AlignmentResult {
+  ok: boolean;
+  /** Total fuzz cost — 0 means detector and name list agree exactly. */
+  cost: number;
+  issues: AlignmentIssue[];
+  /** Final named segments (corners + straights) covering the whole lap in order. */
+  segments: NamedSegment[];
+  corners: AlignedCorner[];
+}
+
+function displayName(entry: CornerNameEntry): string {
+  return entry.name || `T${entry.number}`;
+}
+
+/** Collapse consecutive same-group corner entries into matchable units. */
+function buildUnits(corners: CornerNameEntry[]): Unit[] {
+  const units: Unit[] = [];
+  for (const entry of corners) {
+    const prev = units[units.length - 1];
+    if (entry.group && prev?.group === entry.group) {
+      prev.members.push(entry);
+      prev.maxSpan = Math.max(prev.maxSpan + 1, entry.spans ?? 1);
+    } else {
+      units.push({ members: [entry], group: entry.group, maxSpan: entry.spans ?? 1 });
+    }
+  }
+  for (const u of units) {
+    if (u.members.length > 1) u.maxSpan = Math.max(u.maxSpan, u.members.length);
+  }
+  return units;
+}
+
+const HARD_FAIL = Number.POSITIVE_INFINITY;
+
+/**
+ * Cost of unit `u` consuming detected regions `segs` (in order).
+ * Direction conflicts are hard failures; span mismatches are soft cost.
+ */
+function unitCost(u: Unit, segs: CornerRegion[]): number {
+  const expected = u.members.length;
+
+  // Deviations from a 1:1 mapping that the name list explicitly sanctions
+  // (groups may merge, spans may split) carry only a tie-break cost so the
+  // DP still prefers 1:1 when both are possible. Costs < 1 therefore mean
+  // "aligned exactly as annotated"; costs >= 1 mean unsanctioned fuzz.
+  const TIE_BREAK = 0.01;
+
+  if (segs.length === expected) {
+    // 1:1 member-to-region — check each direction pair
+    for (let i = 0; i < expected; i++) {
+      const want = u.members[i].direction;
+      if (want && want !== segs[i].direction) return HARD_FAIL;
+    }
+    return 0;
+  }
+
+  if (expected === 1) {
+    // One corner split into several regions — all must match its direction
+    const want = u.members[0].direction;
+    if (want) {
+      for (const s of segs) {
+        if (s.direction !== want) return HARD_FAIL;
+      }
+    }
+    return segs.length <= u.maxSpan ? (segs.length - 1) * TIE_BREAK : segs.length - 1;
+  }
+
+  // Complex merged into fewer regions than members — mixed directions are
+  // expected (chicanes), so only enforce direction on single-direction complexes.
+  const dirs = new Set(u.members.map((m) => m.direction).filter(Boolean));
+  if (dirs.size === 1) {
+    const want = u.members[0].direction!;
+    for (const s of segs) {
+      if (s.direction !== want) return HARD_FAIL;
+    }
+  }
+  return Math.abs(expected - segs.length) * TIE_BREAK;
+}
+
+/**
+ * Match ordered name-list units onto ordered detected regions via DP.
+ * Both sequences must be fully consumed.
+ */
+function matchUnits(units: Unit[], detected: CornerRegion[]):
+  { cost: number; spansPerUnit: number[] } | null {
+  const nU = units.length;
+  const nD = detected.length;
+  const dp: number[][] = Array.from({ length: nU + 1 }, () => new Array(nD + 1).fill(HARD_FAIL));
+  const choice: number[][] = Array.from({ length: nU + 1 }, () => new Array(nD + 1).fill(0));
+  dp[0][0] = 0;
+  for (let i = 0; i < nU; i++) {
+    for (let j = 0; j <= nD; j++) {
+      if (dp[i][j] === HARD_FAIL) continue;
+      // Optional corners (too shallow for some games' centerlines) may match nothing
+      if (units[i].members.length === 1 && units[i].members[0].optional) {
+        const total = dp[i][j] + 0.01;
+        if (total < dp[i + 1][j]) {
+          dp[i + 1][j] = total;
+          choice[i + 1][j] = 0;
+        }
+      }
+      const maxTake = Math.min(units[i].maxSpan + 1, nD - j); // allow one over maxSpan at extra cost
+      for (let take = 1; take <= maxTake; take++) {
+        const c = unitCost(units[i], detected.slice(j, j + take));
+        if (c === HARD_FAIL) continue;
+        const over = take > units[i].maxSpan ? 2 : 0;
+        const total = dp[i][j] + c + over;
+        if (total < dp[i + 1][j + take]) {
+          dp[i + 1][j + take] = total;
+          choice[i + 1][j + take] = take;
+        }
+      }
+    }
+  }
+  if (dp[nU][nD] === HARD_FAIL) return null;
+  const spansPerUnit: number[] = new Array(nU);
+  let j = nD;
+  for (let i = nU; i > 0; i--) {
+    const take = choice[i][j];
+    spansPerUnit[i - 1] = take;
+    j -= take;
+  }
+  return { cost: dp[nU][nD], spansPerUnit };
+}
+
+function round4(v: number): number {
+  return Math.round(v * 10000) / 10000;
+}
+
+/**
+ * Align detected corner regions (in lap order) against a curated name list
+ * and build the full named segment sequence (corners + connecting straights).
+ *
+ * Handedness is auto-detected: some games' coordinate systems mirror the
+ * track (a right hairpin reads as "left"), so both polarities are tried and
+ * the better-scoring one wins. Output directions are always real-world.
+ */
+export function alignSegments(
+  detected: CornerRegion[],
+  nameList: CornerNameList,
+): AlignmentResult {
+  const flip = (c: CornerRegion): CornerRegion => ({
+    ...c,
+    direction: c.direction === "left" ? "right" : "left",
+  });
+  const normal = alignOnePolarity(detected, nameList);
+  const mirrored = alignOnePolarity(detected.map(flip), nameList);
+  if (!normal.ok || (mirrored.ok && mirrored.cost < normal.cost)) {
+    if (mirrored.ok) {
+      mirrored.issues.push({ severity: "warning", message: "mirrored coordinate system detected — directions flipped to real-world" });
+      return mirrored;
+    }
+  }
+  return normal;
+}
+
+function alignOnePolarity(
+  detected: CornerRegion[],
+  nameList: CornerNameList,
+): AlignmentResult {
+  const issues: AlignmentIssue[] = [];
+  const units = buildUnits(nameList.corners);
+
+  if (units.length === 0 || detected.length === 0) {
+    issues.push({ severity: "error", message: `nothing to align: ${units.length} units vs ${detected.length} detected corners` });
+    return { ok: false, cost: HARD_FAIL, issues, segments: [], corners: [] };
+  }
+
+  const match = matchUnits(units, detected);
+  if (!match) {
+    issues.push({
+      severity: "error",
+      message: `no valid alignment: ${nameList.corners.length} named corners (${units.length} units) vs ${detected.length} detected regions — check direction fields and grouping`,
+    });
+    return { ok: false, cost: HARD_FAIL, issues, segments: [], corners: [] };
+  }
+  if (match.cost >= 1) {
+    issues.push({ severity: "warning", message: `fuzzy alignment (cost ${match.cost}): detector segmentation differs from name-list expectation` });
+  }
+
+  const corners: AlignedCorner[] = [];
+  const lastRegionIdxByCorner = new Map<number, number>();
+  let cursor = 0;
+  for (let ui = 0; ui < units.length; ui++) {
+    const u = units[ui];
+    const take = match.spansPerUnit[ui];
+    if (take === 0) {
+      issues.push({ severity: "warning", message: `corner ${u.members[0].number} (${displayName(u.members[0])}) not detected on this centerline — omitted` });
+      continue;
+    }
+    const consumed = detected.slice(cursor, cursor + take);
+    const baseIdx = cursor;
+    cursor += take;
+    const oneToOne = take === u.members.length;
+    for (let k = 0; k < consumed.length; k++) {
+      const member = oneToOne ? u.members[k] : null;
+      const name = member ? displayName(member) : (u.group ?? displayName(u.members[0]));
+      const numbers = member ? [member.number] : u.members.map((m) => m.number);
+      corners.push({
+        regionIndex: baseIdx + k,
+        numbers,
+        name,
+        direction: consumed[k].direction,
+        startFrac: round4(consumed[k].startFrac),
+        endFrac: round4(consumed[k].endFrac),
+      });
+      for (const num of numbers) lastRegionIdxByCorner.set(num, baseIdx + k);
+    }
+  }
+
+  // Straight names anchor to the corner they follow
+  const straightNameAfterRegion = new Map<number, string>();
+  for (const s of nameList.straights ?? []) {
+    const idx = lastRegionIdxByCorner.get(s.after);
+    if (idx === undefined) {
+      issues.push({ severity: "warning", message: `straight "${s.name}" anchored after unknown corner ${s.after}` });
+      continue;
+    }
+    straightNameAfterRegion.set(idx, s.name);
+  }
+
+  // Build the full lap: straights fill the gaps between corner regions.
+  const segments: NamedSegment[] = [];
+  const pushStraight = (startFrac: number, endFrac: number, afterRegion: number | null) => {
+    if (endFrac - startFrac < 0.002) return; // skip slivers between chicane elements
+    segments.push({
+      type: "straight",
+      name: afterRegion !== null ? (straightNameAfterRegion.get(afterRegion) ?? "") : "",
+      startFrac: round4(startFrac),
+      endFrac: round4(endFrac),
+    });
+  };
+
+  if (corners[0].startFrac > 0) pushStraight(0, corners[0].startFrac, null);
+  for (let i = 0; i < corners.length; i++) {
+    const c = corners[i];
+    segments.push({
+      type: "corner",
+      name: c.name,
+      direction: c.direction,
+      startFrac: c.startFrac,
+      endFrac: c.endFrac,
+    });
+    const nextStart = i + 1 < corners.length ? corners[i + 1].startFrac : 1;
+    pushStraight(c.endFrac, nextStart, c.regionIndex);
+  }
+
+  return { ok: true, cost: match.cost, issues, segments, corners };
+}
+
+export interface ResolvedSectors {
+  s1End: number;
+  s2End: number;
+  source: "corner-anchored" | "hand-researched";
+}
+
+/**
+ * Resolve sector boundaries from anchors ("S1 ends after corner N") against
+ * aligned corner geometry, or pass through explicit researched fractions.
+ */
+export function resolveSectors(
+  anchors: SectorAnchors,
+  corners: AlignedCorner[],
+  totalDist: number,
+): { sectors: ResolvedSectors | null; issues: AlignmentIssue[] } {
+  const issues: AlignmentIssue[] = [];
+
+  const anchored = (cornerNum: number | undefined, offsetM: number | undefined, label: string): number | null => {
+    if (cornerNum === undefined) return null;
+    const hits = corners.filter((c) => c.numbers.includes(cornerNum));
+    if (hits.length === 0) {
+      // Not fatal: explicit s1End/s2End fractions may still cover this boundary
+      issues.push({ severity: "warning", message: `${label} anchor corner ${cornerNum} not present — falling back to explicit fraction if provided` });
+      return null;
+    }
+    const exit = Math.max(...hits.map((c) => c.endFrac));
+    const frac = exit + (offsetM && totalDist > 0 ? offsetM / totalDist : 0);
+    return Math.min(0.999, Math.max(0.001, round4(frac)));
+  };
+
+  const s1Anchored = anchored(anchors.s1EndAfterCorner, anchors.s1OffsetM, "s1End");
+  const s2Anchored = anchored(anchors.s2EndAfterCorner, anchors.s2OffsetM, "s2End");
+
+  const s1 = s1Anchored ?? anchors.s1End ?? null;
+  const s2 = s2Anchored ?? anchors.s2End ?? null;
+  if (s1 === null || s2 === null) {
+    if (anchors.s1EndAfterCorner !== undefined || anchors.s2EndAfterCorner !== undefined
+      || anchors.s1End !== undefined || anchors.s2End !== undefined) {
+      issues.push({ severity: "error", message: "incomplete sector definition: need both s1 and s2 (anchor or explicit)" });
+    }
+    return { sectors: null, issues };
+  }
+  if (!(s1 > 0 && s1 < s2 && s2 < 1)) {
+    issues.push({ severity: "error", message: `invalid resolved sectors: s1End=${s1}, s2End=${s2}` });
+    return { sectors: null, issues };
+  }
+  const source: ResolvedSectors["source"] =
+    s1Anchored !== null && s2Anchored !== null ? "corner-anchored" : "hand-researched";
+  return { sectors: { s1End: s1, s2End: s2, source }, issues };
+}

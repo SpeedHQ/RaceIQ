@@ -28,6 +28,7 @@ import {
   loadSharedOutline,
   loadSharedBoundary,
   loadSharedTrackMeta,
+  saveSharedTrackMeta,
   recordLapTrace,
   getTrackAltitudeByOrdinal,
 } from "../../shared/track-data";
@@ -309,9 +310,7 @@ export const trackRoutes = new Hono()
         } else {
           (meta as any).sectors = { s1End, s2End };
         }
-        const metaDir = resolve(SHARED_DIR, "tracks", "meta");
-        if (!existsSync(metaDir)) mkdirSync(metaDir, { recursive: true });
-        writeFileSync(resolve(metaDir, `${sharedName}.json`), JSON.stringify(meta, null, 2));
+        saveSharedTrackMeta(sharedName, meta);
       }
 
       return c.json({ success: true, s1End, s2End });
@@ -448,9 +447,7 @@ export const trackRoutes = new Hono()
       } else {
         (meta as any).segments = body.segments;
       }
-      const metaDir = resolve(SHARED_DIR, "tracks", "meta");
-      if (!existsSync(metaDir)) mkdirSync(metaDir, { recursive: true });
-      writeFileSync(resolve(metaDir, `${sharedName}.json`), JSON.stringify(meta, null, 2));
+      saveSharedTrackMeta(sharedName, meta);
       console.log(`[Track] Saved segments for ${sharedName}${gameId ? ` (${gameId})` : ""} (${body.segments.length} segments)`);
 
       return c.json({ success: true, count: body.segments.length });

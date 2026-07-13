@@ -1,0 +1,29 @@
+{
+  "circuit": "Autodromo Nazionale Monza",
+  "source": "Official circuit map / FIA F1 track guide (5.793 km GP layout)",
+  "corners": [
+    { "number": 1, "name": "Variante del Rettifilo", "direction": "right", "group": "Variante del Rettifilo" },
+    { "number": 2, "name": "", "direction": "left", "group": "Variante del Rettifilo" },
+    { "number": 3, "name": "Curva Grande", "direction": "right", "optional": true },
+    { "number": 4, "name": "Variante della Roggia", "direction": "left", "group": "Variante della Roggia" },
+    { "number": 5, "name": "", "direction": "right", "group": "Variante della Roggia" },
+    { "number": 6, "name": "Lesmo 1", "direction": "right" },
+    { "number": 7, "name": "Lesmo 2", "direction": "right" },
+    { "number": 8, "name": "Variante Ascari", "direction": "left", "group": "Variante Ascari" },
+    { "number": 9, "name": "", "direction": "right", "group": "Variante Ascari" },
+    { "number": 10, "name": "", "direction": "left", "group": "Variante Ascari" },
+    { "number": 11, "name": "Parabolica", "direction": "right" }
+  ],
+  "straights": [
+    { "after": 2, "name": "Curva Grande approach" },
+    { "after": 7, "name": "Serraglio" },
+    { "after": 11, "name": "Start/Finish" }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 3,
+    "s1OffsetM": 350,
+    "s1End": 0.33,
+    "s2EndAfterCorner": 10,
+    "s2End": 0.72
+  }
+}
