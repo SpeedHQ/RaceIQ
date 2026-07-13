@@ -1,24 +1,25 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { RAW_STORAGE_VERSION } from "@shared/types";
-import { isDevelopment } from "@/lib/env";
-import { useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { formatLapTime } from "@/lib/format";
+import { AccTrackGuide, AccTrackSetups } from "@/components/acc/AccTrackSetups";
+import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
+import { F125SetupsWithGuide, F125TrackGuide } from "@/components/f1/F125TrackSetups";
+import { TBody, TD, TH, THead, TRow, Table } from "@/components/ui/AppTable";
+import { InfoTooltip, Tooltip } from "@/components/ui/InfoTooltip";
+import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
+import { Button } from "@/components/ui/button";
 import { useBulkDeleteLaps } from "@/hooks/queries";
-import { useGameId, getGameRoute } from "@/stores/game";
-import { client } from "@/lib/rpc";
 import { drawTrack } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
-import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
-import { F125SetupsWithGuide, F125TrackGuide } from "@/components/f1/F125TrackSetups";
-import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
-import { AccTrackSetups, AccTrackGuide } from "@/components/acc/AccTrackSetups";
-import { TrackTunes } from "./TrackTunes";
-import { Button } from "@/components/ui/button";
-import { Table, THead, TH, TBody, TRow, TD } from "@/components/ui/AppTable";
+import { isDevelopment } from "@/lib/env";
+import { formatLapTime } from "@/lib/format";
+import { client } from "@/lib/rpc";
+import { getGameRoute, useGameId } from "@/stores/game";
+import { RAW_STORAGE_VERSION } from "@shared/types";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CatalogTrackSetups } from "./CatalogTrackSetups";
+import { CommunityLeaderboard } from "./CommunityLeaderboard";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";
-import { InfoTooltip, Tooltip } from "@/components/ui/InfoTooltip";
-import type { TrackInfo, Point, TrackSegment, TrackSectors } from "./types";
+import type { Point, TrackInfo, TrackSectors, TrackSegment } from "./types";
 
 interface TrackLap {
   lapId: number;
@@ -283,7 +284,7 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
                   const rect = e.currentTarget.getBoundingClientRect();
                   const svgX = ((e.clientX - rect.left) / rect.width) * vbW;
                   let closest = 0;
-                  let minDist = Infinity;
+                  let minDist = Number.POSITIVE_INFINITY;
                   sparkPoints.forEach((p, i) => {
                     const d = Math.abs(p.x - svgX);
                     if (d < minDist) {
@@ -581,11 +582,14 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   }, [carouselEl]);
   const isF125 = gameId === "f1-2025";
   const isAcc = gameId === "acc";
-  const hideClassCol = isF125 || isAcc || gameId === "ac-evo";
+  const isAcEvo = gameId === "ac-evo";
+  const hideClassCol = isF125 || isAcc || isAcEvo;
 
   const hasForzaTunes = gameId === "fm-2023";
-  const allTabs = hasForzaTunes
-    ? (["laps", "tunes", "debug"] as const)
+  // Forza + AC-EVO share the catalog-driven master-detail setups panel.
+  const hasCatalogSetups = hasForzaTunes || isAcEvo;
+  const allTabs = hasCatalogSetups
+    ? (["laps", "setups", "debug"] as const)
     : isF125
       ? (["laps", "setups", "guide", "debug"] as const)
       : isAcc
@@ -1182,12 +1186,8 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
               <div className={`shrink-0 flex flex-col md:flex-row gap-3 ${activeTab === "guide" && isF125 ? "md:h-[160px]" : "md:h-[320px]"}`}>
               {/* Leaderboard left of map on laps tab */}
               {activeTab === "laps" && (
-                <div className="order-2 md:order-1 w-full md:w-[420px] shrink-0 overflow-hidden flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
-                  {isF125 ? (
-                    <F125Leaderboard trackOrdinal={track.ordinal} />
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm text-center px-4">No leaderboard yet</div>
-                  )}
+                <div className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-hidden flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
+                  {isF125 ? <F125Leaderboard trackOrdinal={track.ordinal} /> : <CommunityLeaderboard trackName={track.name} trackVariant={track.variant} />}
                 </div>
               )}
               <div className="order-1 md:order-2 bg-app-bg rounded-lg border border-app-border relative flex-1 min-w-0 h-[260px] md:h-auto">
@@ -1286,6 +1286,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                 <div className="flex-1 min-h-0">
                   {isF125 && <F125SetupsWithGuide trackOrdinal={track.ordinal} trackName={track.name} />}
                   {isAcc && <AccTrackSetups trackOrdinal={track.ordinal} />}
+                  {hasCatalogSetups && gameId && <CatalogTrackSetups gameId={gameId} trackName={track.name} trackVariant={track.variant} trackOrdinal={track.ordinal} />}
                 </div>
               )}
 
@@ -1301,9 +1302,6 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
               )}
 
               <div className={`flex-1 min-h-0 ${activeTab === "laps" ? "md:overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
-                {/* Tunes tab (Forza) */}
-                {activeTab === "tunes" && <TrackTunes trackName={track.name} trackVariant={track.variant} />}
-
                 {/* Laps tab */}
                 {activeTab === "laps" && (
                   <div className="flex flex-col gap-3 lg:h-full lg:overflow-hidden">

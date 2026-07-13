@@ -11,7 +11,7 @@ import { getAccCarSpecs } from "../../shared/acc-car-specs";
 import { accReader } from "../index";
 import { PHYSICS, GRAPHICS, STATIC } from "../games/acc/structs";
 import { readWString } from "../games/acc/utils";
-import { getAccSharedTrackName } from "../../shared/acc-track-data";
+import { getAccSharedTrackName, getAccTracks } from "../../shared/acc-track-data";
 
 let accReplayHandle: { stop: () => void; frameCount: number } | null = null;
 
@@ -204,6 +204,18 @@ export const accRoutes = new Hono()
       return c.json(setups);
     }
   )
+
+  // GET /api/acc/setup-counts — { [ordinal]: count } for track-card badges
+  .get("/api/acc/setup-counts", (c) => {
+    const counts: Record<number, number> = {};
+    for (const [id, track] of getAccTracks()) {
+      const slug = track.commonTrackName;
+      if (!slug) continue;
+      const n = loadAccSetupsByTrack(slug).length;
+      if (n > 0) counts[id] = n;
+    }
+    return c.json(counts);
+  })
 
   // GET /api/acc/setups-by-track?ordinal=123 — match track ordinal to setup slugs
   .get("/api/acc/setups-by-track",
