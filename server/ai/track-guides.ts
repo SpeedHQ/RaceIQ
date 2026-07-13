@@ -5,7 +5,11 @@
  * derived from telemetry alone: corner characteristics, ideal techniques,
  * common traps, and priority corners for lap time.
  *
- * Sources: Driver61, Coach Dave Academy, DIY Sim Studio, Track Titan
+ * Sources: Driver61, Coach Dave Academy, DIY Sim Studio, Track Titan, official F1 circuit
+ * guides, Wikipedia (corner naming cross-reference). Where a corner's official/common name
+ * could not be independently verified, entries use generic "Turn N" labels rather than
+ * inventing a name — see individual guide comments for tracks with layout-verification caveats
+ * (e.g. Singapore, Las Vegas, Lusail).
  */
 
 interface CornerGuide {
@@ -234,6 +238,360 @@ const guides: TrackGuide[] = [
     ],
     priorityCorners: ["Forrest Elbow", "The Chase", "Murray's Corner", "The Esses"],
   },
+
+  // ─── Bahrain International Circuit ───
+  {
+    id: "bahrain",
+    character: "Desert circuit with abrasive, high-degradation surface and long straights broken by heavy braking zones. Rewards traction out of slow corners and good brake stability under floodlights.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking right-hander", technique: "Brake hard from top speed, late apex to open the exit for the run to Turn 2-3", trap: "Locking the front under the long straight-line braking zone" },
+      { name: "Turn 4", type: "tight hairpin", technique: "Patient trail brake, prioritise a clean, early exit over apex speed", trap: "Carrying too much entry speed and running wide on exit, losing drive" },
+      { name: "Turn 8", type: "long double-apex right", technique: "Progressive throttle through the second apex, use full exit width", trap: "Getting on power too early and sliding wide before the second apex" },
+      { name: "Turn 10", type: "medium-speed left", technique: "Late apex, good exit feeds the run to the final sector", trap: "Understeer on entry from too much speed carried in" },
+      { name: "Turn 11", type: "tight hairpin", technique: "Heavy braking, low gear, prioritise exit traction for the following straight", trap: "Wheelspin on exit on the abrasive, low-grip surface" },
+      { name: "Turn 14", type: "final medium-speed right", technique: "Late apex, clean exit onto the start/finish straight is the priority", trap: "Compromised exit here costs time down the entire straight" },
+    ],
+    priorityCorners: ["Turn 4", "Turn 8", "Turn 11", "Turn 14"],
+  },
+
+  // ─── Jeddah Corniche Circuit ───
+  {
+    id: "jeddah",
+    character: "Fastest street circuit on the calendar — high average speed, narrow track, and unforgiving concrete walls. Demands commitment through blind, high-speed corners with little room for error.",
+    corners: [
+      { name: "Turn 1", type: "fast right-hander", technique: "Light lift, smooth turn-in, commit to the wall proximity", trap: "Lifting too much and losing momentum into the following sequence" },
+      { name: "Turn 13", type: "fast, blind left-hander", technique: "High commitment corner — trust the line, smooth steering only", trap: "Any hesitation or correction near the wall is costly and dangerous" },
+      { name: "Turn 22", type: "tight final-sector corner", technique: "Brake in a straight line before turn-in, prioritise a clean exit", trap: "Late braking near the wall leaving no margin for error" },
+      { name: "Turn 27", type: "final corner onto pit straight", technique: "Late apex, clean exit — feeds the longest straight on the lap", trap: "Compromised exit here costs the most time of any corner on the lap" },
+    ],
+    priorityCorners: ["Turn 13", "Turn 22", "Turn 27"],
+  },
+
+  // ─── Albert Park (Melbourne) ───
+  {
+    id: "melbourne",
+    character: "Fast, flowing semi-street circuit around Albert Park Lake, resurfaced and widened for a more permanent-track feel. Mix of high-speed sweeps and a few technical braking zones.",
+    corners: [
+      { name: "Turn 1", type: "medium-speed right", technique: "Firm braking from the straight, late apex to set up Turn 3", trap: "Over-braking and getting passed on the inside at the first-lap pinch point" },
+      { name: "Turn 6", type: "fast, high-commitment left", technique: "Minimal lift, smooth steering, trust the grip through this quick section", trap: "Lifting or correcting mid-corner scrubs significant speed" },
+      { name: "Turn 9-10", type: "fast, flowing left-right combination", technique: "Carry momentum through both parts with smooth direction changes", trap: "Over-driving the first part compromises the second apex" },
+      { name: "Turn 11", type: "medium-speed corner leading to the lake section", technique: "Late apex, prioritise a strong exit onto the following straight", trap: "Early apex kills exit speed onto the straight" },
+      { name: "Turn 13", type: "tight, technical final-sector corner", technique: "Hard braking, patient entry, clean exit onto the pit straight", trap: "Braking too late and running wide, losing drive onto the straight" },
+    ],
+    priorityCorners: ["Turn 1", "Turn 9-10", "Turn 13"],
+  },
+
+  // ─── Shanghai International Circuit ───
+  {
+    id: "shanghai",
+    character: "Unique 'snail' shaped opening corner sequence with a very long back straight. Wide, sweeping corners test a car's mid-corner balance and aero efficiency.",
+    corners: [
+      { name: "Turn 1-2", type: "long, tightening double-apex right (the 'snail')", technique: "Constant-radius-tightening corner — carry patience, keep tightening the line, don't apex too early", trap: "Early apex on the first part leaves the car with nowhere to go as the corner keeps tightening" },
+      { name: "Turn 6", type: "fast, uphill left-hander", technique: "Commit with minimal lift, smooth steering through the elevation change", trap: "Lifting unnecessarily on the uphill entry" },
+      { name: "Turn 11", type: "hairpin leading onto the back straight", technique: "Heavy braking, prioritise exit traction — feeds the longest straight on the lap", trap: "Wheelspin on exit loses huge time down the following straight" },
+      { name: "Turn 14", type: "final, medium-speed corner", technique: "Late apex, clean exit onto the pit straight", trap: "Compromised exit costs time all the way to the line" },
+    ],
+    priorityCorners: ["Turn 1-2", "Turn 11", "Turn 14"],
+  },
+
+  // ─── Miami International Autodrome ───
+  {
+    id: "miami",
+    character: "Modern street-style circuit around Hard Rock Stadium with a mix of tight, technical sections and a long back straight. Bumpy surface and limited grip evolution demand a forgiving driving style.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking right-hander", technique: "Brake hard from the highest speed on the lap, late apex", trap: "Locking the front under the heaviest braking zone on the circuit" },
+      { name: "Turn 7-10", type: "tight, technical stadium section", technique: "Patient, precise inputs — this low-speed section rewards mechanical grip over outright commitment", trap: "Over-driving any single corner in this sequence upsets the whole section" },
+      { name: "Turn 13-14", type: "medium-speed chicane", technique: "Smooth direction change, use the exit kerb carefully to set up the following straight", trap: "Carrying too much speed in and running wide on exit" },
+      { name: "Turn 17", type: "final corner onto pit straight", technique: "Late apex, clean exit is critical — feeds the main straight", trap: "Compromised exit here costs time down the entire straight" },
+    ],
+    priorityCorners: ["Turn 1", "Turn 7-10", "Turn 17"],
+  },
+
+  // ─── Circuit de Monaco ───
+  {
+    id: "monaco",
+    character: "The ultimate test of precision — narrow, unforgiving street circuit with barriers inches from the racing line. Track position and error-free driving matter more than outright pace. Slowest average speed on the calendar.",
+    corners: [
+      { name: "Sainte Devote", type: "tight right-hander (T1)", technique: "Hard braking from the start/finish straight, clean early apex to set up the climb to Massenet", trap: "Contact-prone on the opening lap; running wide costs the run up the hill" },
+      { name: "Massenet", type: "fast uphill left", technique: "Commit through the blind crest, smooth steering, trust the line to Casino Square", trap: "Lifting on the blind crest loses momentum into Casino Square" },
+      { name: "Casino Square", type: "fast, undulating right", technique: "Ride the crest and camber changes with minimal steering correction", trap: "Bumps unsettle the car — over-correcting here compounds the problem" },
+      { name: "Mirabeau", type: "tight downhill right", technique: "Firm braking on the downhill approach, late apex", trap: "Braking too late on the downhill and missing the apex" },
+      { name: "Grand Hotel Hairpin", type: "slowest corner on the F1 calendar", technique: "Full steering lock, very low speed, precise placement to avoid the barriers", trap: "Clipping the barrier on entry or exit — almost zero margin for error" },
+      { name: "Portier", type: "tight right before the tunnel", technique: "Late apex, clean exit is essential before entering the tunnel at speed", trap: "Poor exit here compromises tunnel entry speed" },
+      { name: "Nouvelle Chicane", type: "heavy-braking chicane after the tunnel", technique: "Hard braking from tunnel speed, precise through the direction change", trap: "Braking too late after the tunnel — a common overtaking-crash point" },
+      { name: "Tabac", type: "fast left-hander", technique: "Smooth commitment along the harbour wall", trap: "Any correction near the wall is highly costly" },
+      { name: "Swimming Pool", type: "fast left-right-left chicane complex", technique: "Precise, rhythmic direction changes through the barriers with no margin", trap: "Overdriving any part of the complex risks wall contact" },
+      { name: "Rascasse", type: "very tight, slow right-hander", technique: "Low speed, full commitment to the apex, patient throttle", trap: "Running wide on exit compromises the run to Antony Noghes" },
+      { name: "Antony Noghes", type: "final corner onto the pit straight", technique: "Late apex, clean exit is critical — feeds the start/finish straight", trap: "Compromised exit costs time all the way to the line" },
+    ],
+    priorityCorners: ["Grand Hotel Hairpin", "Nouvelle Chicane", "Swimming Pool", "Antony Noghes"],
+  },
+
+  // ─── Circuit Gilles Villeneuve (Montreal) ───
+  {
+    id: "montreal",
+    character: "Semi-permanent circuit on Île Notre-Dame — low grip, bumpy, and punishing of mistakes with concrete walls close to the track. Long straights reward good traction out of chicanes.",
+    corners: [
+      { name: "Turn 1-2", type: "fast right-left chicane", technique: "Firm braking, smooth direction change, prioritise a clean exit for the run to the hairpin", trap: "Over-driving the entry and running wide on the T2 exit" },
+      { name: "Senna Esses", type: "flowing left-right-left sequence", technique: "Rhythm and smooth inputs through the direction changes, carry momentum", trap: "Fighting the car with big corrections instead of flowing through" },
+      { name: "Wall of Champions", type: "final chicane before the pit straight", technique: "Precise, late braking, keep the car tight through the chicane with the wall right on exit", trap: "The exit wall has ended many races — any excess speed or wide line risks contact" },
+    ],
+    priorityCorners: ["Senna Esses", "Wall of Champions"],
+  },
+
+  // ─── Red Bull Ring (Spielberg) ───
+  {
+    id: "spielberg",
+    character: "Short, high-elevation-change circuit in the Styrian mountains with only a handful of corners but big speed differentials. Traction out of the tight corners is everything given the short lap.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking uphill hairpin", technique: "Hard braking on the uphill approach, prioritise exit traction over entry speed", trap: "Wheelspin on the uphill exit loses time all the way up the following straight" },
+      { name: "Turn 3", type: "tight, off-camber right", technique: "Patient trail brake, late apex, smooth throttle application on the tricky camber", trap: "Getting on power too early causes a snap on the off-camber exit" },
+      { name: "Turn 4", type: "medium-speed uphill right", technique: "Carry speed from Turn 3 exit, commit through the uphill section", trap: "Under-committing here costs speed all the way to Turn 6" },
+      { name: "Turn 6-7", type: "downhill right-left combination", technique: "Trust the downhill grip, smooth direction change, prioritise the exit onto the final straight", trap: "Braking too hard on the downhill entry and missing the ideal line" },
+    ],
+    priorityCorners: ["Turn 1", "Turn 3", "Turn 6-7"],
+  },
+
+  // ─── Hungaroring ───
+  {
+    id: "budapest",
+    character: "Tight, twisty circuit dubbed 'Monaco without the walls' — low average speed, high downforce, and few overtaking opportunities. Rewards precision and mid-corner rotation over outright straight-line speed.",
+    corners: [
+      { name: "Turn 1", type: "uphill medium-speed right", technique: "Firm braking on the uphill approach, late apex to set up Turn 2", trap: "Running wide compromises the tight Turn 2 entry" },
+      { name: "Turn 4", type: "tight, technical right", technique: "Patient trail brake, low speed, precise placement", trap: "Carrying too much speed and running wide on exit" },
+      { name: "Turn 11-12", type: "fast, flowing esses", technique: "Smooth, rhythmic direction changes, carry momentum through both parts", trap: "Over-driving the first part upsets the whole sequence" },
+      { name: "Turn 13-14", type: "final medium-speed chicane", technique: "Late apex, clean exit is critical — feeds the pit straight", trap: "Compromised exit costs time down the entire straight" },
+    ],
+    priorityCorners: ["Turn 4", "Turn 11-12", "Turn 13-14"],
+  },
+
+  // ─── Baku City Circuit ───
+  {
+    id: "baku",
+    character: "Extreme-contrast street circuit — a super-narrow castle section through Baku's old town followed by the longest straight on the calendar. Demands precision at low speed and bravery at over 300 km/h.",
+    corners: [
+      { name: "Turn 1-3", type: "heavy-braking right-left-right complex", technique: "Firm braking from the start/finish straight, precise through the direction changes", trap: "Over-driving the entry and compromising the run through T2-T3" },
+      { name: "Castle Section", type: "extremely narrow, low-speed section by the old city walls", technique: "Precision over speed — the track narrows dramatically, patient and exact placement", trap: "Any misjudgement here risks wall contact on both sides" },
+      { name: "Turn 8", type: "tight corner exiting the castle section", technique: "Prioritise a clean exit — feeds the run back to the long back straight", trap: "Poor exit here costs time all the way down the straight" },
+      { name: "Turn 15-16", type: "final chicane before the pit straight", technique: "Late, hard braking from very high speed, precise through the chicane", trap: "Braking too late from the highest straight-line speed on the calendar" },
+    ],
+    priorityCorners: ["Castle Section", "Turn 15-16"],
+  },
+
+  // ─── Circuit of the Americas (Austin) ───
+  {
+    id: "austin",
+    character: "Purpose-built circuit blending characteristics of famous corners worldwide — a steep uphill first corner, a flowing esses section inspired by Silverstone, and a long back straight into a hairpin.",
+    corners: [
+      { name: "Turn 1", type: "steep uphill hairpin", technique: "Brake hard on the blind uphill approach, commit to the apex without full visibility of the exit", trap: "Misjudging the uphill braking distance and running wide" },
+      { name: "Esses (Turns 2-9)", type: "fast, flowing left-right sequence", technique: "Rhythm and smooth inputs through the direction changes, carry maximum speed", trap: "Over-driving any single apex disrupts the whole sequence" },
+      { name: "Turn 11", type: "heavy-braking corner onto the back straight", technique: "Prioritise a clean exit to maximise speed down the following long straight", trap: "Compromised exit costs time over the entire back straight" },
+      { name: "Turn 12", type: "tight hairpin at the end of the back straight", technique: "Hard braking from top speed, late apex, patient throttle on exit", trap: "Locking the front from the high braking speed" },
+      { name: "Turn 15-18", type: "technical, tightening final-sector sequence", technique: "Patient, precise inputs through the tightening radius", trap: "Carrying too much speed into the sequence and running out of track" },
+      { name: "Turn 19-20", type: "final corners onto the pit straight", technique: "Late apex, clean exit is critical for the run to the line", trap: "Poor exit here costs time down the entire pit straight" },
+    ],
+    priorityCorners: ["Turn 1", "Turn 11", "Turn 12", "Turn 19-20"],
+  },
+
+  // ─── Autódromo Hermanos Rodríguez (Mexico City) ───
+  {
+    id: "mexico-city",
+    character: "High-altitude circuit (2,200m) with thin air reducing aero and engine performance. Long back straight leads into a tight stadium section through the Foro Sol, surrounded by a packed grandstand.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking right-hander", technique: "Brake early to compensate for reduced aero grip at altitude, late apex", trap: "Misjudging braking distance due to thinner air reducing downforce and drag" },
+      { name: "Turn 4-6", type: "fast, flowing esses", technique: "Smooth, rhythmic direction changes, trust the grip despite the altitude", trap: "Over-driving the reduced-grip conditions at altitude" },
+      { name: "Stadium Section", type: "tight, technical corners through the Foro Sol baseball stadium", technique: "Patient, precise low-speed inputs, use the atmosphere but stay focused on the tightening line", trap: "Getting distracted by the stadium crowd and missing braking points" },
+      { name: "Final Corner", type: "long, tightening corner onto the pit straight", technique: "Progressive throttle as the corner opens, clean exit is critical", trap: "Early throttle application before the corner fully opens causes a slide" },
+    ],
+    priorityCorners: ["Turn 1", "Stadium Section", "Final Corner"],
+  },
+
+  // ─── Autódromo José Carlos Pace (Interlagos) ───
+  {
+    id: "interlagos",
+    character: "Anti-clockwise circuit with dramatic elevation changes packed into a short lap. Bumpy surface and unpredictable weather make it a driver favourite. Flows well but punishes hesitation.",
+    corners: [
+      { name: "Senna S", type: "steep downhill left-right (T1-T2)", technique: "Brake on the downhill approach, commit through the direction change without over-slowing", trap: "Braking too late on the downhill and running wide at the second part" },
+      { name: "Descida do Lago", type: "fast downhill sweeping left", technique: "Carry speed downhill with smooth steering, trust the grip", trap: "Lifting unnecessarily on the downhill kills momentum" },
+      { name: "Ferradura", type: "long, tightening left-hander", technique: "Patient, progressive line as the corner tightens, don't apex too early", trap: "Early apex leaves nowhere to go as the corner keeps tightening" },
+      { name: "Junção", type: "tight, technical right-hander", technique: "Firm braking, late apex, prioritise a strong exit onto the following straight", trap: "Poor exit here costs significant time on the run back to the start/finish" },
+      { name: "Subida dos Boxes", type: "final uphill corner onto the pit straight", technique: "Late apex, progressive throttle up the hill", trap: "Early throttle on the uphill exit causes wheelspin" },
+    ],
+    priorityCorners: ["Senna S", "Ferradura", "Junção", "Subida dos Boxes"],
+  },
+
+  // ─── Yas Marina Circuit ───
+  {
+    id: "yas-marina",
+    character: "Modern circuit combining long straights, a technical marina section, and a hotel-adjacent corner sequence. Wide, smooth surface with good grip levels; final sector rewards precision for a strong run to the line.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking right-hander", technique: "Brake hard from the main straight, late apex to open the following sequence", trap: "Over-braking and losing momentum into the following corners" },
+      { name: "Turn 5-7", type: "fast, flowing sequence", technique: "Smooth, rhythmic direction changes, carry as much speed as possible", trap: "Over-driving any single apex disrupts the whole sequence" },
+      { name: "Turn 9", type: "medium-speed corner leading toward the hotel section", technique: "Late apex, prioritise a strong exit", trap: "Early apex costs speed through the following corners" },
+      { name: "Hotel Corners", type: "technical sequence beneath the Yas Viceroy hotel", technique: "Patient, precise inputs through the tightening, visually distracting section", trap: "Losing focus under the hotel and missing braking or turn-in points" },
+      { name: "Marina Section", type: "tight, technical final-sector corners", technique: "Prioritise clean, low-speed precision over outright commitment", trap: "Carrying too much speed into the marina section and running wide" },
+    ],
+    priorityCorners: ["Hotel Corners", "Marina Section"],
+  },
+
+  // ─── Circuit Paul Ricard ───
+  {
+    id: "paul-ricard",
+    character: "Wide, modern circuit with extensive run-off (blue/red asphalt in place of gravel) and the very long Mistral Straight bisected by an optional chicane. Rewards aero efficiency and braking stability.",
+    corners: [
+      { name: "Turn 1", type: "medium-speed right-hander", technique: "Firm braking, late apex to set up the run through the following corners", trap: "Using too much of the wide run-off and carrying an unrealistic entry speed" },
+      { name: "Signes-Beausset", type: "fast, high-commitment right-left combination", technique: "Minimal lift, smooth steering, trust the grip through this high-speed section", trap: "Lifting or correcting mid-corner scrubs significant speed before the Mistral straight" },
+      { name: "Mistral Straight Chicane", type: "chicane bisecting the long straight (variant-dependent)", technique: "Hard, late braking from top speed if the chicane is in use, precise through the direction change", trap: "Misjudging braking distance from the very high straight-line speed" },
+      { name: "Turn 8", type: "final chicane before the pit straight", technique: "Late apex, clean exit is critical — feeds the start/finish straight", trap: "Compromised exit costs time down the entire straight" },
+    ],
+    priorityCorners: ["Signes-Beausset", "Turn 8"],
+  },
+
+  // ─── Misano World Circuit ───
+  {
+    id: "misano",
+    character: "Adriatic-coast circuit best known as MotoGP's home in Italy, adapted for cars. Tight, technical layout with a mix of medium-speed corners and few pure straights — demands a well-balanced, agile car.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking right-hander", technique: "Brake hard from the front straight, late apex to open the following sequence", trap: "Over-braking and losing momentum into the technical section that follows" },
+      { name: "Curvone", type: "long, fast right-hander", technique: "Commit with smooth steering, carry speed through the long radius", trap: "Lifting mid-corner kills momentum through this key speed section" },
+      { name: "Quercia", type: "medium-speed technical corner", technique: "Late apex, patient throttle application on exit", trap: "Early throttle causes a slide on the tightening exit" },
+      { name: "Tramonto", type: "final-sector corner leading to the last complex", technique: "Prioritise a clean, well-placed line to set up the run to the finish", trap: "Carrying too much speed in and running wide, compromising the final corners" },
+    ],
+    priorityCorners: ["Curvone", "Quercia"],
+  },
+
+  // ─── Kyalami Grand Prix Circuit ───
+  {
+    id: "kyalami",
+    character: "High-altitude South African circuit with a fast, flowing layout and dramatic elevation changes. Thinner air reduces aero and engine performance, similar to Mexico City.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking right-hander", technique: "Brake early to account for reduced aero grip at altitude, late apex", trap: "Misjudging braking distance due to the thinner air" },
+      { name: "Crowthorne", type: "fast, sweeping corner", technique: "Commit with smooth steering, trust the grip despite the altitude", trap: "Lifting unnecessarily and losing momentum" },
+      { name: "The Kink", type: "high-speed direction change", technique: "Minimal steering input, stay smooth through the fast section", trap: "Any correction at speed here is costly" },
+      { name: "Final Corner", type: "medium-speed corner onto the pit straight", technique: "Late apex, clean exit is critical for the run to the line", trap: "Poor exit here costs time down the entire straight" },
+    ],
+    priorityCorners: ["Turn 1", "Final Corner"],
+  },
+
+  // ─── Donington Park ───
+  {
+    id: "donington",
+    character: "Historic, undulating British circuit with dramatic elevation change through the Craner Curves. Technical and flowing in equal measure — rewards precision and confidence over blind crests.",
+    corners: [
+      { name: "Redgate", type: "medium-speed right-hander (T1)", technique: "Firm braking from the start/finish straight, late apex to set up the downhill run", trap: "Running wide compromises the entry to the Craner Curves" },
+      { name: "Craner Curves", type: "fast, downhill sweeping sequence", technique: "Commit through the downhill esses with smooth, minimal steering", trap: "Braking or lifting mid-sequence unsettles the car on the downhill camber" },
+      { name: "Old Hairpin", type: "tight, slow corner at the bottom of the hill", technique: "Hard braking after the fast downhill section, patient throttle on exit", trap: "Carrying too much speed from Craner Curves and missing the braking point" },
+      { name: "McLeans", type: "fast, uphill left-hander", technique: "Commit through the uphill corner, smooth steering", trap: "Lifting on the uphill entry kills exit speed" },
+      { name: "Coppice", type: "medium-speed final corner", technique: "Late apex, clean exit is critical — feeds the run to the line", trap: "Poor exit here costs time down the entire straight" },
+    ],
+    priorityCorners: ["Craner Curves", "Old Hairpin", "Coppice"],
+  },
+
+  // ─── Oulton Park ───
+  {
+    id: "oulton-park",
+    character: "Undulating, tree-lined British circuit through parkland with blind crests and off-camber corners. Technical and demanding — rewards local knowledge of the many blind sections.",
+    corners: [
+      { name: "Old Hall", type: "medium-speed right-hander", technique: "Firm braking, late apex, prioritise a clean line through the technical opening corner", trap: "Running wide costs momentum into the following section" },
+      { name: "Cascades", type: "fast, downhill, blind left-hander", technique: "Commit through the blind crest, trust the line and carry speed downhill", trap: "Lifting on the blind entry loses significant momentum" },
+      { name: "Island Bend", type: "fast right-hander", technique: "Smooth, committed steering, carry speed through the sweeping radius", trap: "Any correction mid-corner scrubs speed" },
+      { name: "Lodge Corner", type: "final tight corner onto the pit straight", technique: "Late apex, clean exit is critical — feeds the run to the line", trap: "Poor exit here costs time down the entire straight" },
+    ],
+    priorityCorners: ["Cascades", "Lodge Corner"],
+  },
+
+  // ─── Snetterton Circuit ───
+  {
+    id: "snetterton",
+    character: "Fast, flat, flowing former airfield circuit in Norfolk. High-speed corners dominate — momentum and smooth inputs matter more than heavy braking.",
+    corners: [
+      { name: "Riches", type: "fast, sweeping right-hander", technique: "Commit with smooth steering, carry maximum speed through the long radius", trap: "Lifting mid-corner kills momentum through this key speed section" },
+      { name: "Wilson", type: "medium-speed technical corner", technique: "Late apex, patient throttle application on exit", trap: "Early throttle causes a slide on the tightening exit" },
+      { name: "Coram", type: "long, fast sweeping right-hander", technique: "Commit through the long radius with smooth, minimal steering correction", trap: "Any correction at speed here scrubs significant time" },
+      { name: "Palmer", type: "final corner onto the pit straight", technique: "Late apex, clean exit is critical — feeds the run to the line", trap: "Poor exit here costs time down the entire straight" },
+    ],
+    priorityCorners: ["Riches", "Coram", "Palmer"],
+  },
+
+  // ─── Watkins Glen International ───
+  {
+    id: "watkins-glen",
+    character: "Historic, high-speed American road course with dramatic elevation changes and the famous Esses sequence. Rewards commitment and smooth inputs through fast, flowing corners.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking right-hander", technique: "Brake hard from the front straight, late apex to set up the Esses", trap: "Over-braking and losing the momentum needed for the following section" },
+      { name: "The Esses", type: "fast, flowing left-right sequence", technique: "Rhythm and smooth inputs through the direction changes, carry maximum speed", trap: "Over-driving any single apex disrupts the whole sequence" },
+      { name: "The Boot", type: "long, tightening back-straight corner", technique: "Patient, progressive line as the corner tightens", trap: "Early apex leaves nowhere to go as the corner keeps tightening" },
+      { name: "Bus Stop Chicane", type: "tight chicane before the final corner", technique: "Hard, late braking, precise through the direction change", trap: "Carrying too much speed in and running out of track on exit" },
+      { name: "Inner Loop", type: "final tight corner onto the pit straight", technique: "Late apex, clean exit is critical — feeds the start/finish straight", trap: "Poor exit here costs time down the entire straight" },
+    ],
+    priorityCorners: ["The Esses", "Bus Stop Chicane", "Inner Loop"],
+  },
+
+  // ─── Nürburgring Nordschleife ───
+  {
+    id: "nordschleife",
+    character: "The 'Green Hell' — a 20.8km, 73-corner ribbon through the Eifel forest with extreme elevation changes and blind crests. Demands memorisation and bravery; mistakes are severely punished by close barriers.",
+    corners: [
+      { name: "Hatzenbach", type: "fast, flowing forest section", technique: "Commit through the blind, undulating corners with smooth steering", trap: "Lifting unnecessarily on the blind crests loses significant time" },
+      { name: "Flugplatz", type: "fast crest where the car goes light", technique: "Stay smooth as the car unloads over the crest, minimal steering correction", trap: "Aggressive inputs while the car is light causes a snap" },
+      { name: "Adenauer Forst", type: "tight, technical double corner", technique: "Firm braking, patient double-apex line", trap: "Carrying too much speed into the tightening second part" },
+      { name: "Fuchsröhre", type: "very fast, dipping section", technique: "Commit through the compression at high speed, trust the car", trap: "Braking or lifting in the dip unsettles the car badly" },
+      { name: "Bergwerk", type: "slow, tight right-hander after a fast section", technique: "Hard braking from very high speed, patient entry", trap: "Misjudging the braking point after the fast approach — a notorious accident site" },
+      { name: "Karussell", type: "banked, off-camber left-hander", technique: "Use the banked concrete gutter to carry speed through the corner", trap: "Missing the banking and taking the corner conventionally loses significant time" },
+      { name: "Pflanzgarten", type: "fast, undulating jump section", technique: "Commit through the compressions and crests with smooth inputs", trap: "The car can become airborne here — excess speed or poor line risks a big moment" },
+      { name: "Döttinger Höhe", type: "long flat-out straight before the final corners", technique: "Full commitment, prepare early for the braking zone at the end", trap: "Not preparing early enough for the heavy braking after the flat-out section" },
+    ],
+    priorityCorners: ["Bergwerk", "Karussell", "Pflanzgarten"],
+  },
+
+  // ─── Marina Bay Street Circuit (Singapore) ───
+  // Corner names/numbers omitted deliberately — layout has changed materially between seasons
+  // (notably the 2023 removal of the Turn 16-19 chicane); only generic T# labels used here
+  // to avoid citing a sequence that may no longer exist. Character description sourced from
+  // widely-reported circuit characteristics (Driver61, F1 official circuit guide).
+  {
+    id: "singapore",
+    character: "Longest, most physically demanding street circuit on the calendar, raced at night under floodlights. Bumpy, narrow, and wall-lined — high downforce and total concentration are essential; the safety-car rate here is the highest on the calendar.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking corner off the front straight", technique: "Brake hard, late apex, prioritise a clean exit for the technical section that follows", trap: "Over-braking and getting out of position for the tight sequence ahead" },
+      { name: "Turn 7", type: "tight, technical street corner", technique: "Patient, precise inputs — mechanical grip matters more than commitment here", trap: "Clipping a wall from an over-ambitious line" },
+      { name: "Turn 14", type: "medium-speed corner in the middle sector", technique: "Late apex, smooth throttle application on the bumpy surface", trap: "Bumps unsettling the car mid-corner and causing a wide exit" },
+      { name: "Turn 18", type: "final-sector corner onto the run to the line", technique: "Prioritise a clean exit — feeds the final part of the lap", trap: "Compromised exit here costs time over the remainder of the lap" },
+    ],
+    priorityCorners: ["Turn 1", "Turn 7", "Turn 18"],
+  },
+
+  // ─── Las Vegas Street Circuit ───
+  // Corner numbers kept generic — this is a newer addition to the calendar with limited
+  // independently-verified corner-name sourcing; only the well-documented circuit character
+  // (long Strip straight, very high top speed, cold-track grip) is asserted with confidence.
+  {
+    id: "las-vegas",
+    character: "High-speed street circuit down the Las Vegas Strip, run at night in cold desert-winter track temperatures. Very long straights favour low drag; low ambient and track temperature make tyre warm-up and braking stability a persistent challenge.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking corner off the main straight", technique: "Brake early to account for cold-track grip levels, late apex", trap: "Locking a cold front tyre under braking" },
+      { name: "Turn 5", type: "fast street corner", technique: "Commit smoothly, respect the reduced grip from low track temperature", trap: "Overdriving the entry on a cold tyre and sliding wide" },
+      { name: "Turn 12-14", type: "technical street section", technique: "Patient, precise inputs through the tighter sequence", trap: "Wall contact from an overly ambitious line in the tight section" },
+      { name: "Final Corner", type: "corner onto the long Strip straight", technique: "Clean exit is critical — feeds the longest straight on the lap", trap: "Compromised exit costs significant time down the following straight" },
+    ],
+    priorityCorners: ["Turn 1", "Final Corner"],
+  },
+
+  // ─── Lusail International Circuit (Qatar) ───
+  // Corner numbers only — deliberately avoids naming any corner ("Bit-Kurve" style errors
+  // have previously been hallucinated for this track). Character sourced from well-documented
+  // circuit facts (long, sweeping MotoGP-derived layout, desert night race).
+  {
+    id: "lusail",
+    character: "Long, flowing former MotoGP circuit with a mix of high-speed sweeps and tighter technical corners, raced at night in the desert. Abrasive surface and sustained high-speed corners put a premium on tyre management.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking corner off the main straight", technique: "Brake hard, late apex to set up the following sequence", trap: "Over-braking and losing momentum into the technical section" },
+      { name: "Turn 6", type: "fast, sweeping corner", technique: "Commit with smooth steering, manage tyre load through the sustained load", trap: "Overloading the tyre through a long high-speed corner and sliding wide late" },
+      { name: "Turn 12", type: "technical, medium-speed corner", technique: "Late apex, patient throttle application on exit", trap: "Early throttle causing a slide on the tightening exit" },
+      { name: "Turn 16", type: "final corner onto the pit straight", technique: "Clean exit is critical — feeds the run to the line", trap: "Compromised exit costs time down the entire straight" },
+    ],
+    priorityCorners: ["Turn 1", "Turn 6", "Turn 16"],
+  },
 ];
 
 // ─── Lookup logic ───
@@ -256,6 +614,9 @@ const TRACK_KEYWORDS: [string[], string][] = [
   [["mount panorama", "bathurst"], "mount-panorama"],
   [["brands hatch"], "brands-hatch"],
   [["laguna seca", "weathertech"], "laguna-seca"],
+  // Nordschleife must be checked before the generic Nürburgring GP match below,
+  // since "nürburgring nordschleife" / "nürburgring 24h" both contain "nurburgring".
+  [["nordschleife", "nurburgring 24", "24h"], "nordschleife"],
   [["nürburgring", "nurburgring", "nuerburgring"], "nurburgring"],
   [["spa", "francorchamps"], "spa"],
   [["silverstone"], "silverstone"],
@@ -264,6 +625,30 @@ const TRACK_KEYWORDS: [string[], string][] = [
   [["imola", "enzo e dino"], "imola"],
   [["barcelona", "catalunya", "catalonia", "montmeló", "montmelo"], "catalunya"],
   [["zandvoort"], "zandvoort"],
+  [["bahrain", "sakhir"], "bahrain"],
+  [["jeddah"], "jeddah"],
+  [["melbourne", "albert park"], "melbourne"],
+  [["shanghai"], "shanghai"],
+  [["miami"], "miami"],
+  [["monaco", "monte carlo"], "monaco"],
+  [["gilles villeneuve", "montreal"], "montreal"],
+  [["red bull ring", "spielberg"], "spielberg"],
+  [["hungaroring", "budapest"], "budapest"],
+  [["baku"], "baku"],
+  [["circuit of the americas", "cota", "austin"], "austin"],
+  [["hermanos rodriguez", "hermanos rodríguez", "mexico city", "mexico"], "mexico-city"],
+  [["interlagos", "jose carlos pace", "josé carlos pace", "sao paulo", "são paulo"], "interlagos"],
+  [["yas marina", "abu dhabi"], "yas-marina"],
+  [["paul ricard"], "paul-ricard"],
+  [["misano"], "misano"],
+  [["kyalami"], "kyalami"],
+  [["donington"], "donington"],
+  [["oulton park"], "oulton-park"],
+  [["snetterton"], "snetterton"],
+  [["watkins glen"], "watkins-glen"],
+  [["marina bay", "singapore"], "singapore"],
+  [["las vegas"], "las-vegas"],
+  [["lusail"], "lusail"],
 ];
 
 /** Look up a guide by track meta ID (e.g., "spa") or display name */
