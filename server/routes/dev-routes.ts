@@ -19,97 +19,10 @@ import { readCString } from "../games/ac-evo/utils";
 import { getAcEvoCarByDisplayName } from "../../shared/ac-evo-car-data";
 import { getAcEvoTrackByName } from "../../shared/ac-evo-track-data";
 import { ACC_PACKED_MAGIC, ACEVO_PACKED_MAGIC, packTriplet } from "../games/shared/pack-triplet";
-import { KNOWN_GAME_IDS, type GameId, type LapMeta } from "../../shared/types";
+import { KNOWN_GAME_IDS, type GameId } from "../../shared/types";
 import { getGame } from "../../shared/games/registry";
 import { Pipeline } from "../pipeline";
-import { RealDbAdapter, type DbAdapter, type WsAdapter } from "../pipeline-adapters";
-
-class NoopWsAdapter implements WsAdapter {
-  broadcast(): void {}
-  broadcastNotification(): void {}
-  broadcastDevState(): void {}
-}
-
-interface ImportedLap {
-  lapId: number;
-  sessionId: number;
-  lapNumber: number;
-  lapTime: number;
-  isValid: boolean;
-  carOrdinal: number;
-  trackOrdinal: number;
-}
-
-/**
- * Delegates to RealDbAdapter but captures the returned lap IDs + session
- * metadata so the import endpoint can tell the UI what got inserted and
- * build deep links into the analyse page.
- */
-class ImportCaptureAdapter implements DbAdapter {
-  private readonly _inner = new RealDbAdapter();
-  readonly laps: ImportedLap[] = [];
-  private readonly _sessionMeta = new Map<
-    number,
-    { carOrdinal: number; trackOrdinal: number }
-  >();
-
-  async insertSession(
-    carOrdinal: number,
-    trackOrdinal: number,
-    gameId: GameId,
-    sessionType?: string
-  ): Promise<number> {
-    const id = await this._inner.insertSession(carOrdinal, trackOrdinal, gameId, sessionType);
-    this._sessionMeta.set(id, { carOrdinal, trackOrdinal });
-    return id;
-  }
-
-  async insertLap(
-    sessionId: number,
-    lapNumber: number,
-    lapTime: number,
-    isValid: boolean,
-    rawByteOffset: number | null,
-    rawFrameCount: number,
-    profileId: number | null,
-    tuneId: number | null,
-    invalidReason: string | null,
-    sectors: { s1: number; s2: number; s3: number } | null
-  ): Promise<number> {
-    const id = await this._inner.insertLap(
-      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors
-    );
-    const meta = this._sessionMeta.get(sessionId);
-    this.laps.push({
-      lapId: id,
-      sessionId,
-      lapNumber,
-      lapTime,
-      isValid,
-      carOrdinal: meta?.carOrdinal ?? 0,
-      trackOrdinal: meta?.trackOrdinal ?? 0,
-    });
-    return id;
-  }
-
-  getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
-    return this._inner.getLaps(gameId, limit);
-  }
-  getTuneAssignment(gameId: GameId, carOrdinal: number, trackOrdinal: number) {
-    return this._inner.getTuneAssignment(gameId, carOrdinal, trackOrdinal);
-  }
-  updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
-    return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
-  }
-}
-
-function detectGameIdFromFilename(name: string): GameId | null {
-  const sorted = [...KNOWN_GAME_IDS].sort((a, b) => b.length - a.length);
-  for (const id of sorted) {
-    if (name.startsWith(`${id}-`) || name.startsWith(`${id}_`)) return id;
-  }
-  return null;
-}
+import { ImportCaptureAdapter, NoopWsAdapter, detectGameIdFromFilename } from "../import-session-bin";
 
 const ARTIFACTS_DIR = resolve(process.cwd(), "test/artifacts/sessions");
 
