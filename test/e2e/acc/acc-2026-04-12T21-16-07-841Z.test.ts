@@ -16,5 +16,5 @@ describe(recordingFile, () => {
 
     for (const l of laps) console.log(lapSummary(l));
     console.log(`lap-saved notifications: ${lapSaved.map((n: any) => `lap${n.lapNumber}`).join(", ")}`);
-  });
+  }, 120_000); // replays a full recorded UDP session through the pipeline; slow on CI
 });

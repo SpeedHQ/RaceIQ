@@ -95,8 +95,8 @@ class ImportCaptureAdapter implements DbAdapter {
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
     return this._inner.getLaps(gameId, limit);
   }
-  getTuneAssignment(carOrdinal: number, trackOrdinal: number) {
-    return this._inner.getTuneAssignment(carOrdinal, trackOrdinal);
+  getTuneAssignment(gameId: GameId, carOrdinal: number, trackOrdinal: number) {
+    return this._inner.getTuneAssignment(gameId, carOrdinal, trackOrdinal);
   }
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
     return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);

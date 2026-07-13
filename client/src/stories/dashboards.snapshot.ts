@@ -26,6 +26,14 @@ const stories: StoryCase[] = [
     id: "dashboards-acclivedashboard--default",
   },
   {
+    name: "SetupBrowser",
+    id: "setups-setupbrowser--default",
+  },
+  {
+    name: "SetupBrowserReadOnly",
+    id: "setups-setupbrowser--read-only",
+  },
+  {
     name: "ComboDash1",
     id: "dashes-combo-combo-dash-1--fm-2023",
     viewport: IPHONE_16_PRO_LANDSCAPE,

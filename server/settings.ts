@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import { z } from "zod";
 import { resolveDataDir } from "./data-dir";
 import { isLaunchOnLoginEnabled } from "./launch-on-login";
@@ -37,6 +37,10 @@ const AppSettingsSchema = z.object({
   cacheMaxMB: z.number().int().min(16).max(2048).default(256),
   hiddenGames: z.array(z.string()).default([]),
   launchOnLogin: z.boolean().default(false),
+  // Community-tunes CDN sync bookkeeping. Not user-facing; written by the
+  // sync job (server/community-tunes-sync.ts) to skip unchanged manifests.
+  communityTunesVersion: z.string().nullable().default(null),
+  communityTunesSyncedAt: z.string().nullable().default(null),
 });
 
 export type AppSettings = z.infer<typeof AppSettingsSchema>;
@@ -94,7 +98,29 @@ export function saveSettings(settings: AppSettings): void {
   }
   // Validate before writing
   const validated = AppSettingsSchema.parse(settings);
-  writeFileSync(SETTINGS_PATH, JSON.stringify(validated, null, 2) + "\n");
+  const tmpPath = `${SETTINGS_PATH}.tmp`;
+  writeFileSync(tmpPath, JSON.stringify(validated, null, 2) + "\n");
+  renameSync(tmpPath, SETTINGS_PATH);
+}
+
+/** Persisted community-tunes sync state (manifest version + last sync time). */
+export function getCommunityTunesSyncState(): {
+  version: string | null;
+  syncedAt: string | null;
+} {
+  const s = loadSettings();
+  return {
+    version: s.communityTunesVersion,
+    syncedAt: s.communityTunesSyncedAt,
+  };
+}
+
+/** Persist the manifest version and sync timestamp after a successful sync. */
+export function setCommunityTunesSyncState(version: string): void {
+  const s = loadSettings();
+  s.communityTunesVersion = version;
+  s.communityTunesSyncedAt = new Date().toISOString();
+  saveSettings(s);
 }
 
 /** Schema for partial updates from the API */

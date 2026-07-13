@@ -20,15 +20,18 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 echo "Regenerating baselines in $IMAGE ..."
 docker run --rm --ipc=host \
   -v "$REPO_ROOT":/work \
+  -v /work/node_modules \
+  -v /work/client/node_modules \
   -w /work \
   "$IMAGE" \
   bash -c '
     set -euo pipefail
     export HOME=/tmp
+    apt-get update -qq && apt-get install -y -qq --no-install-recommends unzip
     curl -fsSL https://bun.sh/install | bash
     export PATH="$HOME/.bun/bin:$PATH"
-    bun install
-    cd client && bun install && bun run snapshot
+    bun install --ignore-scripts
+    cd client && bun install --ignore-scripts && bun run snapshot
   '
 
 echo "Done. Review and commit client/src/stories/__snapshots__/snapshot-*.png and assets/screenshots/."

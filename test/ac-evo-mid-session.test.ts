@@ -27,6 +27,15 @@ afterAll(() => stopMaintenanceTasks());
 
 const FIXTURE = "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz";
 
+// Replay the 109MB fixture once and share the result — each replay takes tens
+// of seconds and repeating it per test flaked the 60s timeout under load.
+// Tests only read from the result, never mutate it.
+let fixtureReplayPromise: ReturnType<typeof replaySessionBin> | null = null;
+function replayFixture() {
+  fixtureReplayPromise ??= replaySessionBin(FIXTURE, "ac-evo");
+  return fixtureReplayPromise;
+}
+
 async function replaySessionBin(
   filePath: string,
   gameId: "ac-evo"
@@ -118,12 +127,12 @@ describe("parseRawLapFrames — coordinate normalization (standard-xyz)", () => 
 
 describe("AC Evo mid-session recording", () => {
   test("reads .bin.gz fixture and decodes packets", async () => {
-    const { packets } = await replaySessionBin(FIXTURE, "ac-evo");
+    const { packets } = await replayFixture();
     expect(packets.length).toBeGreaterThan(0);
   }, { timeout: 60_000 });
 
   test("recorded packets contain an in-progress lap number from the game", async () => {
-    const { packets } = await replaySessionBin(FIXTURE, "ac-evo");
+    const { packets } = await replayFixture();
     // The user started recording mid-session; the game should report a non-zero
     // LapNumber (completed laps count) on at least some packets.
     const maxGameLapNumber = Math.max(...packets.map((p) => p.LapNumber ?? 0));
@@ -131,7 +140,7 @@ describe("AC Evo mid-session recording", () => {
   }, { timeout: 60_000 });
 
   test("lap detector uses game-reported lap numbers (LapNumber = completedLaps + 1)", async () => {
-    const { packets, laps } = await replaySessionBin(FIXTURE, "ac-evo");
+    const { packets, laps } = await replayFixture();
     // Recording starts mid-session; game's first-packet LapNumber tells us how
     // many laps were already completed. Detector should adopt that numbering.
     expect(laps.length).toBeGreaterThan(0);
@@ -146,7 +155,7 @@ describe("AC Evo mid-session recording", () => {
   }, { timeout: 60_000 });
 
   test("first emitted lap is shorter than subsequent laps (partial mid-session start)", async () => {
-    const { laps } = await replaySessionBin(FIXTURE, "ac-evo");
+    const { laps } = await replayFixture();
     // Recording began mid-lap, so the first captured lap is shorter than a full lap.
     expect(laps.length).toBeGreaterThanOrEqual(2);
     expect(laps[0].lapTime).toBeLessThan(laps[1].lapTime);

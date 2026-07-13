@@ -1,0 +1,80 @@
+name: PR Playwright
+
+# Runs the end-to-end Playwright suites (fresh-install + tunes) against the
+# compiled raceiq binary on PRs that touch the Playwright specs themselves
+# or any of the server/client code they exercise.
+#
+# The build job cross-compiles raceiq.exe on a blacksmith Ubuntu runner; the
+# downstream playwright job then spins up the binary on a blacksmith Windows
+# runner (delegated via the reusable playwright.yml workflow) and runs both
+# Playwright projects against it.
+
+on:
+  pull_request:
+    paths:
+      - 'playwright/**'
+      - '.github/workflows/playwright.yml'
+      - '.github/workflows/pr-playwright.yml'
+      # Tune-flow code exercised by playwright/tunes/*.spec.ts
+      - 'server/routes/tune-routes.ts'
+      - 'server/db/tune-queries.ts'
+      - 'client/src/components/setup-tune/**'
+      - 'client/src/components/TuneForm.tsx'
+      - 'client/src/routes/*/tunes/**'
+      - 'client/src/routes/*/tunes.tsx'
+
+jobs:
+  build:
+    # Blacksmith Ubuntu — the Windows binary is cross-compiled via
+    # `bun build --compile --target=bun-windows-x64`, so no Windows host
+    # needed for the build itself. Only the downstream test run has to be
+    # Windows (it executes the compiled raceiq.exe).
+    runs-on: blacksmith-2vcpu-ubuntu-2204
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build client
+        run: cd client && bun install && bun run build
+
+      - name: Prepare dist
+        run: mkdir -p dist && cp -r client/dist dist/public
+
+      - name: Copy shared data
+        run: bun scripts/copy-shared-data.ts
+
+      - name: Compile server binary (cross-compile to Windows)
+        run: NODE_ENV=production bun build --compile --target=bun-windows-x64 --define 'process.env.NODE_ENV="production"' server/bootstrap.ts --outfile dist/raceiq.exe
+
+      - name: Fetch Windows libsql native addon
+        # `npm pack` downloads the tarball directly without resolving a tree,
+        # so it bypasses the package's os={win32} check and avoids the
+        # workspace-wide resolution bug that `npm install --force --os=win32`
+        # triggers. Ships the native addon alongside the cross-compiled
+        # raceiq.exe. Version pinned to the one resolved in bun.lock — bump
+        # this alongside the libsql dependency bump.
+        run: |
+          mkdir -p dist/node_modules/@libsql/win32-x64-msvc
+          tmp=$(mktemp -d)
+          cd "$tmp"
+          npm pack @libsql/win32-x64-msvc@0.5.29
+          tar -xzf libsql-win32-x64-msvc-*.tgz
+          cp package/index.node package/package.json \
+            "$GITHUB_WORKSPACE/dist/node_modules/@libsql/win32-x64-msvc/"
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: raceiq-dist-pr
+          path: dist/
+          retention-days: 1
+
+  playwright:
+    needs: build
+    uses: ./.github/workflows/playwright.yml
+    with:
+      dist-artifact: raceiq-dist-pr

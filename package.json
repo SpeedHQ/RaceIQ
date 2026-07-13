@@ -19,7 +19,7 @@
     "start": "NODE_ENV=production ./dist/raceiq",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
-    "test": "bun test --timeout 60000",
+    "test": "DATA_DIR=\"$PWD/.data-test\" bun test --timeout 60000",
     "lint": "cd client && bun run lint",
     "format": "cd client && bun run format",
     "test:ai": "bun test test/ai-quality.ai-eval.ts --timeout 120000",

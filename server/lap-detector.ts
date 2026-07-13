@@ -400,6 +400,7 @@ export class LapDetector implements ILapDetector {
 
     {
       const tuneAssignment = await this.db.getTuneAssignment(
+        this.currentSession.gameId,
         this.currentSession.carOrdinal,
         this.currentSession.trackOrdinal
       );
@@ -484,6 +485,7 @@ export class LapDetector implements ILapDetector {
       const lapTime = lastPacket.CurrentLap;
       if (lapTime >= 10) {
           const tuneAssignment = await this.db.getTuneAssignment(
+            this.currentSession.gameId,
             this.currentSession.carOrdinal,
             this.currentSession.trackOrdinal
           );
@@ -538,6 +540,7 @@ export class LapDetector implements ILapDetector {
 
     {
       const tuneAssignment = await this.db.getTuneAssignment(
+        this.currentSession.gameId,
         this.currentSession.carOrdinal,
         this.currentSession.trackOrdinal
       );

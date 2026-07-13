@@ -43,7 +43,7 @@ function loadSetupsByTrack(trackSlug: string): any[] {
     if (!existsSync(trackDir)) continue;
     for (const f of readdirSync(trackDir).filter((f) => f.endsWith(".json") && !f.startsWith("_"))) {
       const setups: any[] = JSON.parse(readFileSync(resolve(trackDir, f), "utf-8"));
-      all.push(...setups.map((s) => ({ ...s, source: sourceSlug })));
+      all.push(...setups.map((s) => ({ ...s, provider: s.provider ?? sourceSlug })));
     }
   }
   return all;

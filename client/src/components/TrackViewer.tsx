@@ -1,14 +1,15 @@
-import { useState, useCallback, useMemo } from "react";
-import { useSearch, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useTracks } from "../hooks/queries";
-import { useGameId } from "../stores/game";
-import { AppInput } from "./ui/AppInput";
 import { countryName } from "@/lib/country-names";
+import { client } from "@/lib/rpc";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useCallback, useMemo, useState } from "react";
+import { useCatalogTunes, useTracks, useUserTunes } from "../hooks/queries";
+import { useGameId } from "../stores/game";
+import { tuneMatchesTrack } from "./track/CatalogTrackSetups";
 import { TrackCard } from "./track/TrackCard";
 import { TrackDetail } from "./track/TrackDetail";
-import { client } from "@/lib/rpc";
 import type { TrackInfo } from "./track/types";
+import { AppInput } from "./ui/AppInput";
 
 type SortKey = "name" | "laps";
 
@@ -25,6 +26,43 @@ export function TrackViewer() {
     enabled: gameId === "f1-2025",
   });
   const f125ByOrdinal = Object.fromEntries(f125Tracks.map((t) => [t.trackOrdinal, t]));
+
+  // Forza + AC-EVO: setup counts derived client-side from the community catalog.
+  const isCatalogGame = gameId === "fm-2023" || gameId === "ac-evo";
+  const { data: catalog = [] } = useCatalogTunes();
+  const { data: userTunes = [] } = useUserTunes(gameId ?? undefined);
+  const catalogCounts = useMemo(() => {
+    if (!isCatalogGame || !gameId) return {} as Record<number, number>;
+    const all = [...catalog, ...(userTunes as { trackOrdinal?: number | null; bestTracks?: string[] }[])];
+    const m: Record<number, number> = {};
+    for (const t of tracks) {
+      const n = all.filter((tune) => tuneMatchesTrack(tune, t)).length;
+      if (n > 0) m[t.ordinal] = n;
+    }
+    return m;
+  }, [isCatalogGame, gameId, tracks, catalog, userTunes]);
+
+  // ACC: setup counts from the dedicated per-track endpoint.
+  const { data: accCounts = {} } = useQuery<Record<number, number>>({
+    queryKey: ["acc-setup-counts"],
+    queryFn: () => client.api.acc["setup-counts"].$get().then((r) => r.json() as Promise<Record<number, number>>),
+    enabled: gameId === "acc",
+  });
+
+  // Supported games always report a count (0 shows a "0 setups/guides" badge);
+  // unsupported games return undefined so no badge renders at all.
+  const setupCountFor = (ordinal: number): number | undefined => {
+    if (gameId === "f1-2025") return f125ByOrdinal[ordinal]?.setupCount ?? 0;
+    if (gameId === "acc") return accCounts[ordinal] ?? 0;
+    if (isCatalogGame) return catalogCounts[ordinal] ?? 0;
+    return undefined;
+  };
+  const guideCountFor = (ordinal: number): number | undefined => {
+    if (gameId === "f1-2025") return f125ByOrdinal[ordinal]?.guideCount ?? 0;
+    if (gameId === "acc" || isCatalogGame) return 0;
+    return undefined;
+  };
+
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
 
@@ -101,9 +139,8 @@ export function TrackViewer() {
               track={t}
               onSelect={handleSelectTrack}
               gameId={gameId}
-              setupCount={gameId === "f1-2025" ? f125ByOrdinal[t.ordinal]?.setupCount : undefined}
-              guideCount={gameId === "f1-2025" ? f125ByOrdinal[t.ordinal]?.guideCount : undefined}
-              hasGuide={gameId === "f1-2025" ? !!f125ByOrdinal[t.ordinal]?.guideUrl : undefined}
+              setupCount={setupCountFor(t.ordinal)}
+              guideCount={guideCountFor(t.ordinal)}
             />
           ))}
         </div>

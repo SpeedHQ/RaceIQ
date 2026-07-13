@@ -19,3 +19,6 @@
 - [feedback_bunx_over_npx.md](feedback_bunx_over_npx.md) — Always use bunx instead of npx for CLI tools (project uses Bun)
 - [feedback_ai_eval_provider.md](feedback_ai_eval_provider.md) — Default AI provider = Gemini, model = `gemini-flash-latest` (not OpenAI/GPT)
 - [project_game_id_in_request_header.md](project_game_id_in_request_header.md) — gameId should travel via X-Game-Id header, not query params or effect-populated store
+- [project_community_tunes_cdn.md](project_community_tunes_cdn.md) — Community tunes synced from SpeedHQ Cloudflare Pages CDN into FM catalog (branch feat/community-tunes-cdn)
+- [project_tune_browser_ui.md](project_tune_browser_ui.md) — Timing-tower tune browse UI: reusable presentational + per-game container (FM only), Track→Car search, lap-time column
+- [errors_test_suite_wiped_dev_db.md](errors_test_suite_wiped_dev_db.md) — bun run test lacked DATA_DIR isolation, wiped real community_tunes; fixed via .data-test override

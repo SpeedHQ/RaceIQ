@@ -1,6 +1,7 @@
 node_modules/
 dist/
 /data/
+/.data-test/
 *.db
 *.db-journal
 *.db-wal
@@ -31,6 +32,8 @@ client/storybook-static/
 .superset/
 
 playwright/test-data/
+playwright/test-data-tunes/
+playwright/test-results/
 
 # Demo render output
 playwright/assets/

@@ -344,17 +344,61 @@ export function useExportLap() {
 }
 
 // ── Tunes ────────────────────────────────────────────────────────────────────
-export function useUserTunes() {
+export function useUserTunes(gameId?: GameId) {
   return useQuery({
-    queryKey: queryKeys.userTunes,
-    queryFn: async () => rpcJson<any[]>(await client.api.tunes.$get({ query: {} })),
+    queryKey: [...queryKeys.userTunes, gameId ?? null],
+    queryFn: async () => rpcJson<any[]>(
+      await client.api.tunes.$get({ query: gameId ? { gameId } : {} }),
+    ),
   });
 }
 
 export function useCatalogTunes() {
+  const gameId = useGameId();
   return useQuery({
-    queryKey: queryKeys.catalogTunes,
-    queryFn: async () => rpcJson<CatalogTune[]>(await client.api.catalog.tunes.$get({ query: {} })),
+    queryKey: [...queryKeys.catalogTunes, gameId ?? null],
+    queryFn: async () =>
+      rpcJson<CatalogTune[]>(
+        await client.api.catalog.tunes.$get(
+          { query: {} },
+          { headers: gameId ? { "X-Game-Id": gameId } : undefined },
+        ),
+      ),
+  });
+}
+
+export interface LaptimeEntry {
+  track: string;
+  carClass: string;
+  car: string;
+  driver: string;
+  laptime: string;
+}
+
+export function useLaptimes() {
+  const gameId = useGameId();
+  return useQuery({
+    queryKey: ["laptimes", gameId ?? null],
+    queryFn: async () =>
+      rpcJson<LaptimeEntry[]>(
+        await client.api.laptimes.$get(
+          {},
+          { headers: gameId ? { "X-Game-Id": gameId } : undefined },
+        ),
+      ),
+    staleTime: 1000 * 60 * 30,
+  });
+}
+
+export function useRefreshCommunityTunes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await client.api.tunes.community.refresh.$post();
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return res.json() as Promise<{ synced: boolean; count: number; version: string | null }>;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.catalogTunes }),
   });
 }
 
@@ -405,6 +449,42 @@ export function useCloneCatalogTune() {
   });
 }
 
+export function useDuplicateTune() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await client.api.tunes[":id"].duplicate.$post({ param: { id: String(id) } });
+      if (!res.ok) throw new Error((await res.json() as any).error ?? res.statusText);
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
+  });
+}
+
+export function useSetupFiles(gameId: "acc" | "ac-evo" | null) {
+  return useQuery({
+    queryKey: ["setup-files", gameId],
+    queryFn: async () => {
+      const res = await (client.api.tunes as any)["setup-files"].$get({ query: { gameId } });
+      return rpcJson<{ baseDir: string | null; files: { carModel: string; trackName: string; fileName: string; absolutePath: string }[]; error?: string }>(res);
+    },
+    enabled: gameId != null,
+    staleTime: 30_000,
+  });
+}
+
+export function useImportTuneFile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { gameId: "acc" | "ac-evo"; filePath: string; name?: string; author?: string; carOrdinal: number; category?: string }) => {
+      const res = await (client.api.tunes as any)["import-file"].$post({ json: data });
+      if (!res.ok) throw new Error((await res.json() as any).error ?? res.statusText);
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
+  });
+}
+
 // ── Tune Assignments ─────────────────────────────────────────────────────────
 export function useTuneAssignments() {
   return useQuery({
@@ -416,7 +496,7 @@ export function useTuneAssignments() {
 export function useSetTuneAssignment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { carOrdinal: number; trackOrdinal: number; tuneId: number }) => {
+    mutationFn: async (data: { gameId: GameId; carOrdinal: number; trackOrdinal: number; tuneId: number }) => {
       const res = await client.api["tune-assignments"].$put({ json: data });
       if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
       return res.json();
@@ -428,9 +508,10 @@ export function useSetTuneAssignment() {
 export function useDeleteTuneAssignment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ carOrdinal, trackOrdinal }: { carOrdinal: number; trackOrdinal: number }) => {
+    mutationFn: async ({ gameId, carOrdinal, trackOrdinal }: { gameId: GameId; carOrdinal: number; trackOrdinal: number }) => {
       await client.api["tune-assignments"][":carOrdinal"][":trackOrdinal"].$delete({
         param: { carOrdinal: String(carOrdinal), trackOrdinal: String(trackOrdinal) },
+        query: { gameId },
       });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.tuneAssignments }),

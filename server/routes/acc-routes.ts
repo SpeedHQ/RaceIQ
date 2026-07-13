@@ -11,7 +11,7 @@ import { getAccCarSpecs } from "../../shared/acc-car-specs";
 import { accReader } from "../index";
 import { PHYSICS, GRAPHICS, STATIC } from "../games/acc/structs";
 import { readWString } from "../games/acc/utils";
-import { getAccSharedTrackName } from "../../shared/acc-track-data";
+import { getAccSharedTrackName, getAccTracks } from "../../shared/acc-track-data";
 
 let accReplayHandle: { stop: () => void; frameCount: number } | null = null;
 
@@ -205,6 +205,18 @@ export const accRoutes = new Hono()
     }
   )
 
+  // GET /api/acc/setup-counts — { [ordinal]: count } for track-card badges
+  .get("/api/acc/setup-counts", (c) => {
+    const counts: Record<number, number> = {};
+    for (const [id, track] of getAccTracks()) {
+      const slug = track.commonTrackName;
+      if (!slug) continue;
+      const n = loadAccSetupsByTrack(slug).length;
+      if (n > 0) counts[id] = n;
+    }
+    return c.json(counts);
+  })
+
   // GET /api/acc/setups-by-track?ordinal=123 — match track ordinal to setup slugs
   .get("/api/acc/setups-by-track",
     zValidator("query", z.object({ ordinal: z.string() })),
@@ -214,6 +226,26 @@ export const accRoutes = new Hono()
       const slug = getAccSharedTrackName(ordinal);
       if (!slug) return c.json([]);
       return c.json(loadAccSetupsByTrack(slug));
+    }
+  )
+
+  // GET /api/acc/setup-file?file=NAME.json — raw ACC setup JSON, fetched when a
+  // setup row is expanded in the browser.
+  .get("/api/acc/setup-file",
+    zValidator("query", z.object({ file: z.string() })),
+    (c) => {
+      const { file } = c.req.valid("query");
+      const path = resolve(ACC_SETUP_FILES_DIR, file);
+      // Guard against path traversal outside the setup-files dir.
+      if (path !== ACC_SETUP_FILES_DIR && !path.startsWith(ACC_SETUP_FILES_DIR + "/")) {
+        return c.json({ error: "Invalid file path" }, 400);
+      }
+      if (!existsSync(path)) return c.json({ error: "Setup file not found" }, 404);
+      try {
+        return c.json(JSON.parse(readFileSync(path, "utf-8")));
+      } catch {
+        return c.json({ error: "Failed to read setup file" }, 500);
+      }
     }
   )
 

@@ -2,110 +2,127 @@ import type { TuneSettings } from "../../data/tune-catalog";
 import { GearRatioChart } from "./GearRatioChart";
 
 function storedHeightUnit(settings: TuneSettings): "cm" | "in" {
-  return settings.springs.unit === "lb/in" ? "in" : "cm";
+  return settings.springs?.unit === "lb/in" ? "in" : "cm";
+}
+
+type Row = [string, string];
+
+/** Build a row only when the value is present; community tunes ship partial settings. */
+function row(label: string, value: number | null | undefined, render: (v: number) => string): Row | null {
+  return value == null ? null : [label, render(value)];
+}
+
+function rows(...items: (Row | null)[]): Row[] {
+  return items.filter((r): r is Row => r != null);
 }
 
 export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
-  const ratios = settings.gearing.ratios ?? [];
-  const sections: { title: string; rows: [string, string][] }[] = [
+  const ratios = settings.gearing?.ratios ?? [];
+  const heightUnit = storedHeightUnit(settings);
+  const springUnit = settings.springs?.unit ?? "kgf/mm";
+  const aeroUnit = settings.aero?.unit ?? "kgf";
+
+  const sections: { title: string; rows: Row[] }[] = [
     {
       title: "Tires",
-      rows: [
-        ["Front Pressure", `${settings.tires.frontPressure.toFixed(2)} bar`],
-        ["Rear Pressure", `${settings.tires.rearPressure.toFixed(2)} bar`],
-      ],
+      rows: rows(
+        row("Front Pressure", settings.tires?.frontPressure, (v) => `${v.toFixed(2)} bar`),
+        row("Rear Pressure", settings.tires?.rearPressure, (v) => `${v.toFixed(2)} bar`),
+      ),
     },
     {
       title: "Gearing",
       rows: [
-        ["Final Drive", settings.gearing.finalDrive.toFixed(2)],
-        ...ratios.map((ratio, index) => [`Gear ${index + 1}`, ratio.toFixed(2)] as [string, string]),
-        ...(settings.gearing.description ? [["Notes", settings.gearing.description] as [string, string]] : []),
+        ...rows(row("Final Drive", settings.gearing?.finalDrive, (v) => v.toFixed(2))),
+        ...ratios.map((ratio, index) => [`Gear ${index + 1}`, ratio.toFixed(2)] as Row),
+        ...(settings.gearing?.description ? [["Notes", settings.gearing.description] as Row] : []),
       ],
     },
     {
       title: "Alignment",
-      rows: [
-        ["Front Camber", `${settings.alignment.frontCamber.toFixed(1)}\u00B0`],
-        ["Rear Camber", `${settings.alignment.rearCamber.toFixed(1)}\u00B0`],
-        ["Front Toe", `${settings.alignment.frontToe.toFixed(1)}\u00B0`],
-        ["Rear Toe", `${settings.alignment.rearToe.toFixed(1)}\u00B0`],
-        ...(settings.alignment.frontCaster != null ? [["Front Caster", `${settings.alignment.frontCaster.toFixed(1)}\u00B0`] as [string, string]] : []),
-      ],
+      rows: rows(
+        row("Front Camber", settings.alignment?.frontCamber, (v) => `${v.toFixed(1)}°`),
+        row("Rear Camber", settings.alignment?.rearCamber, (v) => `${v.toFixed(1)}°`),
+        row("Front Toe", settings.alignment?.frontToe, (v) => `${v.toFixed(1)}°`),
+        row("Rear Toe", settings.alignment?.rearToe, (v) => `${v.toFixed(1)}°`),
+        row("Front Caster", settings.alignment?.frontCaster, (v) => `${v.toFixed(1)}°`),
+      ),
     },
     {
       title: "Anti-Roll Bars",
-      rows: [
-        ["Front", settings.antiRollBars.front.toFixed(1)],
-        ["Rear", settings.antiRollBars.rear.toFixed(1)],
-      ],
+      rows: rows(
+        row("Front", settings.antiRollBars?.front, (v) => v.toFixed(1)),
+        row("Rear", settings.antiRollBars?.rear, (v) => v.toFixed(1)),
+      ),
     },
     {
       title: "Springs",
-      rows: [
-        ["Front Rate", `${settings.springs.frontRate.toFixed(1)} ${settings.springs.unit ?? "kgf/mm"}`],
-        ["Rear Rate", `${settings.springs.rearRate.toFixed(1)} ${settings.springs.unit ?? "kgf/mm"}`],
-        ["Front Height", `${settings.springs.frontHeight.toFixed(1)} ${storedHeightUnit(settings)}`],
-        ["Rear Height", `${settings.springs.rearHeight.toFixed(1)} ${storedHeightUnit(settings)}`],
-      ],
+      rows: rows(
+        row("Front Rate", settings.springs?.frontRate, (v) => `${v.toFixed(1)} ${springUnit}`),
+        row("Rear Rate", settings.springs?.rearRate, (v) => `${v.toFixed(1)} ${springUnit}`),
+        row("Front Height", settings.springs?.frontHeight, (v) => `${v.toFixed(1)} ${heightUnit}`),
+        row("Rear Height", settings.springs?.rearHeight, (v) => `${v.toFixed(1)} ${heightUnit}`),
+      ),
     },
     {
       title: "Damping",
-      rows: [
-        ["Front Bump", settings.damping.frontBump.toFixed(1)],
-        ["Rear Bump", settings.damping.rearBump.toFixed(1)],
-        ["Front Rebound", settings.damping.frontRebound.toFixed(1)],
-        ["Rear Rebound", settings.damping.rearRebound.toFixed(1)],
-      ],
+      rows: rows(
+        row("Front Bump", settings.damping?.frontBump, (v) => v.toFixed(1)),
+        row("Rear Bump", settings.damping?.rearBump, (v) => v.toFixed(1)),
+        row("Front Rebound", settings.damping?.frontRebound, (v) => v.toFixed(1)),
+        row("Rear Rebound", settings.damping?.rearRebound, (v) => v.toFixed(1)),
+      ),
     },
     {
       title: "Aero",
-      rows: [
-        ["Front Downforce", `${settings.aero.frontDownforce} ${settings.aero.unit ?? "kgf"}`],
-        ["Rear Downforce", `${settings.aero.rearDownforce} ${settings.aero.unit ?? "kgf"}`],
-      ],
+      rows: rows(
+        row("Front Downforce", settings.aero?.frontDownforce, (v) => `${v} ${aeroUnit}`),
+        row("Rear Downforce", settings.aero?.rearDownforce, (v) => `${v} ${aeroUnit}`),
+      ),
     },
     {
       title: "Differential",
-      rows: [
-        ["Rear Accel", `${settings.differential.rearAccel}%`],
-        ["Rear Decel", `${settings.differential.rearDecel}%`],
-        ...(settings.differential.frontAccel != null ? [["Front Accel", `${settings.differential.frontAccel}%`] as [string, string]] : []),
-        ...(settings.differential.frontDecel != null ? [["Front Decel", `${settings.differential.frontDecel}%`] as [string, string]] : []),
-        ...(settings.differential.center != null ? [["Center", `${settings.differential.center}%`] as [string, string]] : []),
-      ],
+      rows: rows(
+        row("Rear Accel", settings.differential?.rearAccel, (v) => `${v}%`),
+        row("Rear Decel", settings.differential?.rearDecel, (v) => `${v}%`),
+        row("Front Accel", settings.differential?.frontAccel, (v) => `${v}%`),
+        row("Front Decel", settings.differential?.frontDecel, (v) => `${v}%`),
+        row("Center", settings.differential?.center, (v) => `${v}%`),
+      ),
     },
     {
       title: "Brakes",
-      rows: [
-        ["Balance", `${settings.brakes.balance}%`],
-        ["Pressure", `${settings.brakes.pressure}%`],
-      ],
+      rows: rows(
+        row("Balance", settings.brakes?.balance, (v) => `${v}%`),
+        row("Pressure", settings.brakes?.pressure, (v) => `${v}%`),
+      ),
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-w-2xl">
-      {sections.map((section) => (
-        <div key={section.title} className="rounded-lg bg-app-bg/85 p-3">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{section.title}</h4>
-          <div className="space-y-0">
-            {section.rows.map(([label, value]) => (
-              <div key={label} className="flex justify-between text-xs gap-2">
-                <span className="text-app-text-muted whitespace-nowrap">{label}</span>
-                <span className="text-app-text font-mono whitespace-nowrap" style={label === "Notes" ? { whiteSpace: "normal", textAlign: "right" } : undefined}>
-                  {value}
-                </span>
-              </div>
-            ))}
-          </div>
-          {section.title === "Gearing" && ratios.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-app-border/60">
-              <GearRatioChart ratios={ratios} finalDrive={settings.gearing.finalDrive} topSpeedKph={settings.gearing.topSpeedKph} />
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
+      {sections
+        .filter((section) => section.rows.length > 0)
+        .map((section) => (
+          <div key={section.title} className="rounded-lg bg-app-bg/85 p-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{section.title}</h4>
+            <div className="space-y-0">
+              {section.rows.map(([label, value]) => (
+                <div key={label} className="flex justify-between text-xs gap-2">
+                  <span className="text-app-text-muted whitespace-nowrap">{label}</span>
+                  <span className="text-app-text font-mono whitespace-nowrap" style={label === "Notes" ? { whiteSpace: "normal", textAlign: "right" } : undefined}>
+                    {value}
+                  </span>
+                </div>
+              ))}
             </div>
-          )}
-        </div>
-      ))}
+            {section.title === "Gearing" && ratios.length > 0 && settings.gearing?.finalDrive != null && (
+              <div className="mt-2 pt-2 border-t border-app-border/60">
+                <GearRatioChart ratios={ratios} finalDrive={settings.gearing.finalDrive} topSpeedKph={settings.gearing?.topSpeedKph} />
+              </div>
+            )}
+          </div>
+        ))}
     </div>
   );
 }

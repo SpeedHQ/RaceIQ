@@ -122,6 +122,7 @@ export function withDefaults(s?: TuneSettings): TuneSettings {
 // ── TuneFormData interface ───────────────────────────────────────────────────
 
 export interface TuneFormData {
+  gameId: "fm-2023";
   name: string;
   author: string;
   carOrdinal: number;
@@ -305,8 +306,10 @@ export function UserTuneCard({
   isExpanded,
   onToggle,
   onEdit,
+  onDuplicate,
   onDelete,
   isDeleting,
+  isDuplicating,
 }: {
   tune: {
     id: number;
@@ -322,8 +325,10 @@ export function UserTuneCard({
   isExpanded: boolean;
   onToggle: () => void;
   onEdit: () => void;
+  onDuplicate?: () => void;
   onDelete: () => void;
   isDeleting: boolean;
+  isDuplicating?: boolean;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -404,7 +409,7 @@ export function UserTuneCard({
 
       {isExpanded && (
         <div className="px-4 pb-4 space-y-4 border-t border-app-border">
-          <div className="flex items-center gap-2 pt-3">
+          <div className="flex items-center gap-2 pt-3 flex-wrap">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -414,6 +419,15 @@ export function UserTuneCard({
             >
               Edit
             </button>
+            {onDuplicate && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+                disabled={isDuplicating}
+                className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-50 transition-colors"
+              >
+                {isDuplicating ? "..." : "Duplicate"}
+              </button>
+            )}
             <div className="relative">
               <button
                 onClick={(e) => {
@@ -637,6 +651,7 @@ export function TuneForm({
       aero: { ...settings.aero, unit: unitLabel("aero", isMetric) },
     };
     onSubmit({
+      gameId: "fm-2023",
       name,
       author,
       carOrdinal,

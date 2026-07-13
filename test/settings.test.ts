@@ -3,7 +3,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 
 import { loadSettings } from "../server/settings";
 
-const SETTINGS_DIR = "./data";
+// Follows DATA_DIR so this never mutates the real dev settings.json —
+// `bun run test` isolates DATA_DIR to a throwaway directory (see package.json).
+const SETTINGS_DIR = process.env.DATA_DIR ?? "./data";
 const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 
 describe("settings with unit system", () => {

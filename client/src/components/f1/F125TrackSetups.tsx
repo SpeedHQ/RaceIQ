@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { client } from "@/lib/rpc";
 import { Button } from "@/components/ui/button";
+import { SETUP_GROUPS } from "@/components/f1/f125-setup-groups";
 
 function setupId(s: { author: string; provider: string; lapTime: string }): string {
   return btoa(`${s.provider}|${s.author}|${s.lapTime}`).replace(/=+$/, "");
@@ -49,58 +50,6 @@ interface F125TrackSummary {
   setupCount: number;
 }
 
-const SETUP_GROUPS: { title: string; fields: [string, string, string?][] }[] = [
-  {
-    title: "Aero",
-    fields: [
-      ["frontWing", "Front Wing"],
-      ["rearWing", "Rear Wing"],
-    ],
-  },
-  {
-    title: "Transmission",
-    fields: [
-      ["diffOnThrottle", "On Throttle", "%"],
-      ["diffOffThrottle", "Off Throttle", "%"],
-    ],
-  },
-  {
-    title: "Geometry",
-    fields: [
-      ["frontCamber", "F Camber", "°"],
-      ["rearCamber", "R Camber", "°"],
-      ["frontToe", "F Toe", "°"],
-      ["rearToe", "R Toe", "°"],
-    ],
-  },
-  {
-    title: "Suspension",
-    fields: [
-      ["frontSuspension", "F Susp"],
-      ["rearSuspension", "R Susp"],
-      ["frontAntiRollBar", "F ARB"],
-      ["rearAntiRollBar", "R ARB"],
-      ["frontRideHeight", "F Height"],
-      ["rearRideHeight", "R Height"],
-    ],
-  },
-  {
-    title: "Brakes",
-    fields: [
-      ["brakePressure", "Pressure"],
-      ["frontBrakeBias", "Bias"],
-    ],
-  },
-  {
-    title: "Tires",
-    fields: [
-      ["frontLeftTyrePressure", "FL", " psi"],
-      ["frontRightTyrePressure", "FR", " psi"],
-      ["rearLeftTyrePressure", "RL", " psi"],
-      ["rearRightTyrePressure", "RR", " psi"],
-    ],
-  },
-];
 
 function ProviderBadge({ provider }: { provider: string }) {
   if (provider === "f1laps") return <span className="px-1 py-0.5 text-[8px] font-bold uppercase rounded bg-blue-500/20 text-blue-400 shrink-0">F1L</span>;

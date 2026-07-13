@@ -16,7 +16,7 @@ import { getAllGames } from "@shared/games/registry";
 
 import { queryClient } from "../lib/queryClient";
 
-const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Chats", "Tracks", "Cars", "Tunes", "Setup", "Raw"] as const;
+const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Chats", "Tracks", "Cars", "Setups", "Raw"] as const;
 
 let _gamePrefixes: string[] | null = null;
 function getGamePrefixes() {
@@ -246,11 +246,10 @@ function AppShell() {
   const gameTabs = useMemo(() => {
     const prefix = getGamePrefixes().find((p) => location.pathname.startsWith(p));
     if (!prefix) return [];
-    const hideTunes = prefix !== "/fm23"; // only fm23 has a Tunes tab; other games put setups in the Tracks tab
-    const hideSetup = prefix === "/ac-evo";
-    return GAME_SUB_TABS.filter((label) => !(hideTunes && label === "Tunes"))
-      .filter((label) => !(hideSetup && label === "Setup"))
-      .map((label) => ({ to: `${prefix}/${label.toLowerCase()}`, label }));
+    // Every game exposes a "Setups" tab: fm23/acc/ac-evo show the tune browser
+    // (Forza also folds its wheel/FFB catalogue in as a sub-tab), f125 shows a
+    // placeholder. No per-game gating needed.
+    return GAME_SUB_TABS.map((label) => ({ to: `${prefix}/${label.toLowerCase()}`, label }));
   }, [location.pathname]);
 
   // Active game sub-tab (for the tablet <select> dropdown)

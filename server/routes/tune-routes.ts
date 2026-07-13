@@ -1,7 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from "fs";
+import { homedir } from "os";
+import { resolve, sep } from "path";
 import { IdParamSchema } from "../../shared/schemas";
+import { GameIdSchema } from "../../shared/types";
 import {
   insertTune,
   getTunes,
@@ -15,15 +19,13 @@ import {
   updateLapTune,
 } from "../db/tune-queries";
 
-// Static catalog data — loaded from shared JSON
-import balancedCircuit from "../../shared/tunes/2860-amv-gt3-balanced-circuit.json";
-import aggressiveCircuit from "../../shared/tunes/2860-amv-gt3-aggressive-circuit.json";
-import wetWeather from "../../shared/tunes/2860-amv-gt3-wet-weather.json";
-import topSpeed from "../../shared/tunes/2860-amv-gt3-top-speed.json";
-import stableBeginner from "../../shared/tunes/2860-amv-gt3-stable-beginner.json";
-import nordschleife from "../../shared/tunes/2860-amv-gt3-nordschleife.json";
-import spa from "../../shared/tunes/2860-amv-gt3-spa.json";
-import type { TuneSettings, RaceStrategy } from "../../shared/types";
+import type { TuneSettings, RaceStrategy, GameId } from "../../shared/types";
+import {
+  getCommunityTunes,
+  getCommunityTuneById,
+} from "../db/community-tune-queries";
+import { syncCommunityTunes } from "../community-tunes-sync";
+import { getLaptimes, syncLaptimes } from "../laptimes-sync";
 
 interface CatalogTune {
   id: string;
@@ -38,23 +40,45 @@ interface CatalogTune {
   bestTracks?: string[];
   strategies?: RaceStrategy[];
   settings: TuneSettings;
+  source: "community";
+  sourceName: string;
+  gameId: string;
 }
 
-const TUNE_CATALOG: CatalogTune[] = [
-  balancedCircuit,
-  aggressiveCircuit,
-  wetWeather,
-  topSpeed,
-  stableBeginner,
-  nordschleife,
-  spa,
-] as CatalogTune[];
-
-function getCatalogTuneById(id: string): CatalogTune | undefined {
-  return TUNE_CATALOG.find((t) => t.id === id);
+/** Map a community_tunes DB row to the catalog shape the client renders. */
+function communityRowToCatalog(row: {
+  id: string;
+  gameId: string;
+  carOrdinal: number;
+  trackOrdinal: number | null;
+  name: string;
+  author: string;
+  category: string;
+  description: string;
+  sourceName: string;
+  settings: string;
+}): CatalogTune {
+  return {
+    id: row.id,
+    name: row.name,
+    author: row.author,
+    carOrdinal: row.carOrdinal,
+    category: row.category,
+    trackOrdinal: row.trackOrdinal ?? undefined,
+    description: row.description,
+    strengths: [],
+    weaknesses: [],
+    settings: JSON.parse(row.settings) as TuneSettings,
+    source: "community",
+    sourceName: row.sourceName,
+    gameId: row.gameId,
+  };
 }
 
-function validateTuneSettings(settings: any): boolean {
+/** Forza's TuneSettings has a specific shape that the built-in Forza UI expects.
+ *  ACC / AC-EVO / F1 save raw game-specific JSON blobs instead, so validation
+ *  is skipped for those games — any object shape is accepted. */
+function validateForzaTuneSettings(settings: any): boolean {
   if (!settings || typeof settings !== "object") return false;
   const required = [
     "tires", "gearing", "alignment", "antiRollBars", "springs",
@@ -75,9 +99,15 @@ function validateTuneSettings(settings: any): boolean {
   return true;
 }
 
+function validateSettingsForGame(gameId: GameId, settings: any): boolean {
+  if (gameId === "fm-2023") return validateForzaTuneSettings(settings);
+  return settings != null && typeof settings === "object";
+}
+
 /** Parse JSON text columns from a DB tune row into proper arrays/objects */
 interface ParsedTune {
   id: number;
+  gameId: string;
   name: string;
   author: string;
   carOrdinal: number;
@@ -107,11 +137,80 @@ function parseTuneRow(row: any): ParsedTune {
   };
 }
 
+// ── Setup-file import helpers (ACC & AC-EVO) ─────────────────────────────────
+
+/** Locations where ACC / AC-EVO store user setup files under the user's profile. */
+async function getSetupsBaseDir(gameId: "acc" | "ac-evo"): Promise<string | null> {
+  const home = homedir();
+  const gameDir =
+    gameId === "acc"
+      ? "Assetto Corsa Competizione"
+      : "Assetto Corsa EVO";
+  const candidates = [
+    resolve(home, "Documents", gameDir, "Setups"),
+    resolve(home, "OneDrive", "Documents", gameDir, "Setups"),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
+
+interface SetupFileListing {
+  carModel: string;
+  trackName: string;
+  fileName: string;
+  absolutePath: string;
+}
+
+function listSetupFiles(baseDir: string): SetupFileListing[] {
+  const out: SetupFileListing[] = [];
+  let carDirs: string[];
+  try {
+    carDirs = readdirSync(baseDir).filter((d) =>
+      statSync(resolve(baseDir, d)).isDirectory(),
+    );
+  } catch {
+    return out;
+  }
+  for (const carModel of carDirs) {
+    const carPath = resolve(baseDir, carModel);
+    let trackDirs: string[];
+    try {
+      trackDirs = readdirSync(carPath).filter((d) =>
+        statSync(resolve(carPath, d)).isDirectory(),
+      );
+    } catch {
+      continue;
+    }
+    for (const trackName of trackDirs) {
+      const trackPath = resolve(carPath, trackName);
+      let files: string[];
+      try {
+        files = readdirSync(trackPath).filter((f) => f.toLowerCase().endsWith(".json"));
+      } catch {
+        continue;
+      }
+      for (const fileName of files) {
+        out.push({
+          carModel,
+          trackName,
+          fileName,
+          absolutePath: resolve(trackPath, fileName),
+        });
+      }
+    }
+  }
+  return out;
+}
+
 const CarOrdinalQuerySchema = z.object({
+  gameId: GameIdSchema.optional(),
   carOrdinal: z.coerce.number().int().optional(),
 });
 
 const CreateTuneSchema = z.object({
+  gameId: GameIdSchema,
   name: z.string().min(1),
   author: z.string().min(1),
   carOrdinal: z.number().int(),
@@ -124,7 +223,7 @@ const CreateTuneSchema = z.object({
   bestTracks: z.array(z.string()).optional(),
   strategies: z.array(z.unknown()).optional(),
   unitSystem: z.enum(["metric", "imperial"]).optional().default("metric"),
-  source: z.enum(["user", "catalog-clone"]).optional().default("user"),
+  source: z.enum(["user", "catalog-clone", "imported-file"]).optional().default("user"),
   catalogId: z.string().optional(),
 });
 
@@ -134,24 +233,42 @@ const AssignmentParamsSchema = z.object({
 });
 
 const SetAssignmentSchema = z.object({
+  gameId: GameIdSchema,
   carOrdinal: z.number().int(),
   trackOrdinal: z.number().int(),
   tuneId: z.number().int(),
+});
+
+const AssignmentQuerySchema = z.object({
+  gameId: GameIdSchema,
 });
 
 const LapTuneSchema = z.object({
   tuneId: z.number().int().nullable(),
 });
 
+// All CreateTuneSchema fields optional, minus gameId — a tune's game must not
+// be changeable via update.
+const UpdateTuneSchema = CreateTuneSchema.omit({ gameId: true }).partial();
+
+const ImportFileSchema = z.object({
+  gameId: z.enum(["acc", "ac-evo"]),
+  filePath: z.string().min(1),
+  name: z.string().optional(),
+  author: z.string().optional(),
+  carOrdinal: z.number().int(),
+  category: z.string().optional().default("circuit"),
+});
+
 export const tuneRoutes = new Hono()
   // ─── Tune CRUD ───────────────────────────────────────────────────────────────
 
-  // GET /api/tunes — list user tunes, optional ?carOrdinal= filter
+  // GET /api/tunes — list user tunes, optional ?gameId= and ?carOrdinal= filters
   .get("/api/tunes",
     zValidator("query", CarOrdinalQuerySchema),
     async (c) => {
-      const { carOrdinal } = c.req.valid("query");
-      const rows = await getTunes(carOrdinal);
+      const { gameId, carOrdinal } = c.req.valid("query");
+      const rows = await getTunes({ gameId, carOrdinal });
       return c.json(rows.map(parseTuneRow));
     }
   )
@@ -172,10 +289,11 @@ export const tuneRoutes = new Hono()
     zValidator("json", CreateTuneSchema),
     async (c) => {
       const body = c.req.valid("json");
-      if (!validateTuneSettings(body.settings)) {
+      if (!validateSettingsForGame(body.gameId, body.settings)) {
         return c.json({ error: "Invalid settings structure" }, 400);
       }
       const id = await insertTune({
+        gameId: body.gameId,
         name: body.name,
         author: body.author,
         carOrdinal: body.carOrdinal,
@@ -199,10 +317,14 @@ export const tuneRoutes = new Hono()
   // PUT /api/tunes/:id — update tune
   .put("/api/tunes/:id",
     zValidator("param", IdParamSchema),
+    zValidator("json", UpdateTuneSchema),
     async (c) => {
       const { id } = c.req.valid("param");
-      const body = await c.req.json();
-      if (body.settings && !validateTuneSettings(body.settings)) {
+      const existing = await getTuneById(id);
+      if (!existing) return c.json({ error: "Tune not found" }, 404);
+
+      const body = c.req.valid("json");
+      if (body.settings && !validateSettingsForGame(existing.gameId as GameId, body.settings)) {
         return c.json({ error: "Invalid settings structure" }, 400);
       }
       const data: Record<string, any> = {};
@@ -236,15 +358,17 @@ export const tuneRoutes = new Hono()
     }
   )
 
-  // POST /api/tunes/import — same as POST /api/tunes
+  // POST /api/tunes/import — same as POST /api/tunes (batch-ish helper, kept for
+  // compatibility with the JSON paste flow in TuneForm)
   .post("/api/tunes/import",
     zValidator("json", CreateTuneSchema),
     async (c) => {
       const body = c.req.valid("json");
-      if (!validateTuneSettings(body.settings)) {
+      if (!validateSettingsForGame(body.gameId, body.settings)) {
         return c.json({ error: "Invalid settings structure" }, 400);
       }
       const id = await insertTune({
+        gameId: body.gameId,
         name: body.name,
         author: body.author,
         carOrdinal: body.carOrdinal,
@@ -265,13 +389,16 @@ export const tuneRoutes = new Hono()
     }
   )
 
-  // POST /api/tunes/clone/:catalogId — clone a catalog tune into DB
+  // POST /api/tunes/clone/:catalogId — clone a catalog tune into DB (Forza only)
   .post("/api/tunes/clone/:catalogId", async (c) => {
     const catalogId = c.req.param("catalogId");
-    const catalogTune = getCatalogTuneById(catalogId);
+    const catalogTune = await getCommunityTuneById(catalogId).then((row) =>
+      row ? communityRowToCatalog(row) : undefined,
+    );
     if (!catalogTune) return c.json({ error: "Catalog tune not found" }, 404);
 
     const id = await insertTune({
+      gameId: catalogTune.gameId,
       name: `${catalogTune.name} (copy)`,
       author: catalogTune.author,
       carOrdinal: catalogTune.carOrdinal,
@@ -292,37 +419,169 @@ export const tuneRoutes = new Hono()
     return c.json(parseTuneRow(created), 201);
   })
 
-  // ─── Catalog ─────────────────────────────────────────────────────────────────
+  // POST /api/tunes/:id/duplicate — clone an existing user tune into a fresh row
+  .post("/api/tunes/:id/duplicate",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const existing = await getTuneById(id);
+      if (!existing) return c.json({ error: "Tune not found" }, 404);
 
-  // GET /api/catalog/tunes — return static TUNE_CATALOG
-  .get("/api/catalog/tunes",
-    zValidator("query", CarOrdinalQuerySchema),
-    (c) => {
-      const { carOrdinal } = c.req.valid("query");
-      if (carOrdinal !== undefined) {
-        return c.json(TUNE_CATALOG.filter((t) => t.carOrdinal === carOrdinal));
-      }
-      return c.json(TUNE_CATALOG);
+      const newId = await insertTune({
+        gameId: existing.gameId,
+        name: `${existing.name} (copy)`,
+        author: existing.author,
+        carOrdinal: existing.carOrdinal,
+        category: existing.category,
+        trackOrdinal: existing.trackOrdinal ?? undefined,
+        description: existing.description,
+        strengths: existing.strengths ?? undefined,
+        weaknesses: existing.weaknesses ?? undefined,
+        bestTracks: existing.bestTracks ?? undefined,
+        strategies: existing.strategies ?? undefined,
+        settings: existing.settings,
+        unitSystem: existing.unitSystem,
+        source: existing.source,
+        catalogId: existing.catalogId ?? undefined,
+      });
+      const created = await getTuneById(newId);
+      return c.json(parseTuneRow(created), 201);
     }
   )
 
-  // ─── Assignments ─────────────────────────────────────────────────────────────
+  // ─── Setup-file discovery (ACC & AC-EVO) ─────────────────────────────────────
 
-  // GET /api/tune-assignments — list all, optional ?carOrdinal= filter
-  .get("/api/tune-assignments",
+  // GET /api/tunes/setup-files?gameId=acc — list setup .json files found
+  // under the user's Documents/Assetto Corsa Competizione/Setups (or AC EVO)
+  .get("/api/tunes/setup-files",
+    zValidator("query", z.object({ gameId: z.enum(["acc", "ac-evo"]) })),
+    async (c) => {
+      const { gameId } = c.req.valid("query");
+      const baseDir = await getSetupsBaseDir(gameId);
+      if (!baseDir) {
+        return c.json({ baseDir: null, files: [], error: "Setups folder not found" });
+      }
+      return c.json({ baseDir, files: listSetupFiles(baseDir) });
+    }
+  )
+
+  // POST /api/tunes/import-file — read a setup file from disk, save as tune
+  .post("/api/tunes/import-file",
+    zValidator("json", ImportFileSchema),
+    async (c) => {
+      const body = c.req.valid("json");
+      const baseDir = await getSetupsBaseDir(body.gameId);
+      if (!baseDir) return c.json({ error: "Setups folder not found" }, 404);
+
+      // Guard: the provided absolute path must live under the setups base dir.
+      // Resolve symlinks on both sides so a symlink inside Setups can't point
+      // outside it, and compare with a trailing separator so a sibling dir
+      // with a shared prefix (e.g. "SetupsEvil") can't pass.
+      const absPath = resolve(body.filePath);
+      if (!existsSync(absPath)) return c.json({ error: "File not found" }, 404);
+
+      let realPath: string;
+      let realBase: string;
+      try {
+        realPath = realpathSync(absPath);
+        realBase = realpathSync(resolve(baseDir));
+      } catch (err: any) {
+        if (err?.code === "ENOENT") return c.json({ error: "File not found" }, 404);
+        return c.json({ error: `Read failed: ${err.message}` }, 500);
+      }
+      if (!(realPath + sep).startsWith(realBase + sep)) {
+        return c.json({ error: "Path must be inside the Setups folder" }, 400);
+      }
+      if (!realPath.toLowerCase().endsWith(".json")) {
+        return c.json({ error: "Only .json setup files can be imported" }, 400);
+      }
+
+      let raw: string;
+      try { raw = readFileSync(realPath, "utf-8"); }
+      catch (err: any) { return c.json({ error: `Read failed: ${err.message}` }, 500); }
+
+      let parsed: any;
+      try { parsed = JSON.parse(raw); }
+      catch (err: any) { return c.json({ error: `Invalid JSON: ${err.message}` }, 400); }
+
+      // Default name: file stem; description notes origin.
+      const fileName = realPath.split(/[\\/]/).pop() ?? "imported";
+      const name = body.name ?? fileName.replace(/\.json$/i, "");
+
+      const id = await insertTune({
+        gameId: body.gameId,
+        name,
+        author: body.author ?? "Imported",
+        carOrdinal: body.carOrdinal,
+        category: body.category,
+        description: `Imported from ${fileName}`,
+        settings: JSON.stringify(parsed),
+        unitSystem: "metric",
+        source: "imported-file",
+      });
+      const created = await getTuneById(id);
+      return c.json(parseTuneRow(created), 201);
+    }
+  )
+
+  // ─── Catalog ─────────────────────────────────────────────────────────────────
+
+  // GET /api/catalog/tunes — community tunes for the game named in the
+  // X-Game-Id header (no fm-2023 fallback: without a header, no tunes).
+  .get("/api/catalog/tunes",
     zValidator("query", CarOrdinalQuerySchema),
     async (c) => {
       const { carOrdinal } = c.req.valid("query");
-      return c.json(await getTuneAssignments(carOrdinal));
+      const gameId = c.req.header("x-game-id") as GameId | undefined;
+
+      const communityRows = gameId ? await getCommunityTunes(gameId) : [];
+      const tunes = communityRows.map(communityRowToCatalog);
+
+      if (carOrdinal !== undefined) {
+        return c.json(tunes.filter((t) => t.carOrdinal === carOrdinal));
+      }
+      return c.json(tunes);
+    }
+  )
+
+  // POST /api/tunes/community/refresh — force a CDN sync now
+  .post("/api/tunes/community/refresh", async (c) => {
+    const result = await syncCommunityTunes({ force: true });
+    return c.json(result);
+  })
+
+  // GET /api/laptimes — community leaderboard reference lap times for the game
+  // named in the X-Game-Id header (no fallback: without a header, no times).
+  .get("/api/laptimes", async (c) => {
+    const gameId = c.req.header("x-game-id") as GameId | undefined;
+    return c.json(gameId ? getLaptimes(gameId) : []);
+  })
+
+  // POST /api/laptimes/refresh — force a CDN sync now
+  .post("/api/laptimes/refresh", async (c) => {
+    const result = await syncLaptimes({ force: true });
+    return c.json(result);
+  })
+
+  // ─── Assignments ─────────────────────────────────────────────────────────────
+
+  // GET /api/tune-assignments — list all, optional ?gameId= and ?carOrdinal= filter
+  .get("/api/tune-assignments",
+    zValidator("query", CarOrdinalQuerySchema),
+    async (c) => {
+      const { gameId, carOrdinal } = c.req.valid("query");
+      return c.json(await getTuneAssignments({ gameId, carOrdinal }));
     }
   )
 
   // GET /api/tune-assignments/:carOrdinal/:trackOrdinal — get specific assignment
   .get("/api/tune-assignments/:carOrdinal/:trackOrdinal",
     zValidator("param", AssignmentParamsSchema),
+    zValidator("query", AssignmentQuerySchema),
     async (c) => {
       const { carOrdinal, trackOrdinal } = c.req.valid("param");
-      const assignment = await getTuneAssignment(carOrdinal, trackOrdinal);
+      const { gameId } = c.req.valid("query");
+      const assignment = await getTuneAssignment(gameId, carOrdinal, trackOrdinal);
       if (!assignment) return c.json({ error: "Assignment not found" }, 404);
       return c.json(assignment);
     }
@@ -332,9 +591,9 @@ export const tuneRoutes = new Hono()
   .put("/api/tune-assignments",
     zValidator("json", SetAssignmentSchema),
     async (c) => {
-      const { carOrdinal, trackOrdinal, tuneId } = c.req.valid("json");
-      await setTuneAssignment(carOrdinal, trackOrdinal, tuneId);
-      const assignment = await getTuneAssignment(carOrdinal, trackOrdinal);
+      const { gameId, carOrdinal, trackOrdinal, tuneId } = c.req.valid("json");
+      await setTuneAssignment(gameId, carOrdinal, trackOrdinal, tuneId);
+      const assignment = await getTuneAssignment(gameId, carOrdinal, trackOrdinal);
       return c.json(assignment);
     }
   )
@@ -342,9 +601,11 @@ export const tuneRoutes = new Hono()
   // DELETE /api/tune-assignments/:carOrdinal/:trackOrdinal — remove assignment
   .delete("/api/tune-assignments/:carOrdinal/:trackOrdinal",
     zValidator("param", AssignmentParamsSchema),
+    zValidator("query", AssignmentQuerySchema),
     async (c) => {
       const { carOrdinal, trackOrdinal } = c.req.valid("param");
-      const deleted = await deleteTuneAssignment(carOrdinal, trackOrdinal);
+      const { gameId } = c.req.valid("query");
+      const deleted = await deleteTuneAssignment(gameId, carOrdinal, trackOrdinal);
       if (!deleted) return c.json({ error: "Assignment not found" }, 404);
       return c.json({ success: true });
     }
@@ -364,3 +625,4 @@ export const tuneRoutes = new Hono()
       return c.json({ success: true });
     }
   );
+

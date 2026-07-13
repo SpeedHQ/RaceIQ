@@ -12,8 +12,7 @@ export function TrackCard({
   gameId,
   setupCount,
   guideCount,
-  hasGuide,
-}: { track: TrackInfo; onSelect: (t: TrackInfo) => void; gameId?: GameId | null; setupCount?: number; guideCount?: number; hasGuide?: boolean }) {
+}: { track: TrackInfo; onSelect: (t: TrackInfo) => void; gameId?: GameId | null; setupCount?: number; guideCount?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [flipX, setFlipX] = useState(false);
@@ -64,20 +63,25 @@ export function TrackCard({
         ) : (
           <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">No outline available</div>
         )}
-        {(setupCount !== undefined || hasGuide !== undefined) && (
+        {(setupCount !== undefined || guideCount !== undefined) && (
           <div className="absolute bottom-1.5 right-1.5 flex flex-col items-end gap-1 pointer-events-none">
-            {(setupCount ?? 0) > 0 && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-900/70 border border-green-700/50 text-green-300 font-mono leading-none">
+            {setupCount !== undefined && (
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded border font-mono leading-none ${
+                  setupCount > 0 ? "bg-green-900/70 border-green-700/50 text-green-300" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"
+                }`}
+              >
                 {setupCount} setup{setupCount !== 1 ? "s" : ""}
               </span>
             )}
-            {(guideCount ?? 0) > 0 && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-900/70 border border-orange-700/50 text-orange-300 font-mono leading-none">
+            {guideCount !== undefined && (
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded border font-mono leading-none ${
+                  guideCount > 0 ? "bg-orange-900/70 border-orange-700/50 text-orange-300" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"
+                }`}
+              >
                 {guideCount} guide{guideCount !== 1 ? "s" : ""}
               </span>
-            )}
-            {hasGuide && (guideCount ?? 0) === 0 && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-900/70 border border-orange-700/50 text-orange-300 font-mono leading-none">guide</span>
             )}
           </div>
         )}

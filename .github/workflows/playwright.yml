@@ -29,9 +29,9 @@ jobs:
         working-directory: playwright
         run: bunx playwright install chromium
 
-      - name: Run fresh-install E2E test
+      - name: Run fresh-install + tunes E2E tests
         working-directory: playwright
-        run: bunx playwright test --project=fresh-install
+        run: bunx playwright test --project=fresh-install --project=tunes
 
       - name: Upload traces on failure
         if: failure()
