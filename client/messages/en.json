@@ -669,5 +669,10 @@
   "dash_serving_at": "serving at",
   "dash_lan_unavailable": "LAN IP unavailable — device must be on the same Wi-Fi as this PC.",
   "dash_combo1_desc": "Rev bar + gear/speed/lap tiles, fuel & tire laps-remaining, lap + sector readout, and a live tire grid. Landscape tablet-friendly.",
-  "dash_combo2_desc": "Lap timing summary across the top, big lap-time trend chart with optimum and average pace lines, plus live sector splits and recent laps on the side."
+  "dash_combo2_desc": "Lap timing summary across the top, big lap-time trend chart with optimum and average pace lines, plus live sector splits and recent laps on the side.",
+  "heatmap_title": "Activity — Last 12 Months",
+  "heatmap_longest_day": "Longest day",
+  "heatmap_less": "Less",
+  "heatmap_more": "More",
+  "heatmap_no_activity": "No activity"
 }

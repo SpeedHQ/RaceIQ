@@ -669,5 +669,10 @@
   "dash_serving_at": "erreichbar unter",
   "dash_lan_unavailable": "LAN-IP nicht verfügbar — das Gerät muss im selben WLAN wie dieser PC sein.",
   "dash_combo1_desc": "Drehzahlbalken + Gang-/Geschwindigkeits-/Rundenkacheln, verbleibende Runden für Kraftstoff & Reifen, Runden- + Sektoranzeige und ein Live-Reifenraster. Für Tablets im Querformat.",
-  "dash_combo2_desc": "Rundenzeit-Übersicht oben, großes Rundenzeit-Trenddiagramm mit Optimum- und Durchschnitts-Pace-Linien, plus Live-Sektorzeiten und letzte Runden an der Seite."
+  "dash_combo2_desc": "Rundenzeit-Übersicht oben, großes Rundenzeit-Trenddiagramm mit Optimum- und Durchschnitts-Pace-Linien, plus Live-Sektorzeiten und letzte Runden an der Seite.",
+  "heatmap_title": "Aktivität — Letzte 12 Monate",
+  "heatmap_longest_day": "Längster Tag",
+  "heatmap_less": "Weniger",
+  "heatmap_more": "Mehr",
+  "heatmap_no_activity": "Keine Aktivität"
 }

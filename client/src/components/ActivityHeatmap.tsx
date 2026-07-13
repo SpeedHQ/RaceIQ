@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { m } from "@/paraglide/messages";
 import type { LapMeta } from "@shared/types";
 
 const CELL = 11;
@@ -118,7 +119,7 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2">
-        <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">Activity — Last 12 Months</h2>
+        <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">{m.heatmap_title()}</h2>
         <div className="text-[11px] text-app-text/90-dim">
           {fmtDuration(totalSeconds)} · {totalDays} active days · longest streak {longestStreak} day{longestStreak === 1 ? "" : "s"} · longest day {fmtDuration(bestDaySeconds)}
         </div>
@@ -189,14 +190,14 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
                 border: "1.5px solid rgba(34, 211, 238, 1)",
               }}
             />
-            Longest day
+            {m.heatmap_longest_day()}
           </span>
           <div className="flex items-center gap-1.5">
-            <span>Less</span>
+            <span>{m.heatmap_less()}</span>
             {LEVEL_COLORS.map((c, i) => (
               <span key={i} className="inline-block rounded-sm" style={{ width: CELL, height: CELL, background: c, border: "0.5px solid rgba(255,255,255,0.04)" }} />
             ))}
-            <span>More</span>
+            <span>{m.heatmap_more()}</span>
           </div>
         </div>
         {hover && (
@@ -204,7 +205,7 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
             className="fixed z-50 pointer-events-none px-2 py-1 rounded bg-app-surface border border-app-border text-[11px] text-app-text shadow-lg"
             style={{ left: hover.x, top: hover.y - 8, transform: "translate(-50%, -100%)" }}
           >
-            <div className="font-mono font-bold">{hover.seconds > 0 ? fmtDuration(hover.seconds) : "No activity"}</div>
+            <div className="font-mono font-bold">{hover.seconds > 0 ? fmtDuration(hover.seconds) : m.heatmap_no_activity()}</div>
             <div className="text-app-text/90-dim">{hover.date}</div>
           </div>
         )}
