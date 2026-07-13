@@ -75,19 +75,19 @@ type SectionId = (typeof NAV_ITEMS)[number]["id"];
 // Localized display label per section id. Falls back to the English NAV_ITEMS
 // label if a key is somehow missing.
 const NAV_LABELS: Record<SectionId, () => string> = {
-  general: m.settings_nav_general,
-  theme: m.settings_nav_theme,
-  games: m.settings_nav_games,
-  connection: m.settings_nav_connection,
-  wheel: m.settings_nav_wheel,
-  speed: m.settings_nav_speed,
-  sound: m.settings_nav_sound,
+  general: m.label_general,
+  theme: m.label_theme,
+  games: m.label_games,
+  connection: m.label_connection,
+  wheel: m.label_wheel,
+  speed: m.label_units,
+  sound: m.label_sound,
   storage: m.settings_nav_storage,
-  ai: m.settings_nav_ai,
+  ai: m.label_ai_analysis,
   developer: m.settings_nav_developer,
-  diagnostics: m.settings_nav_diagnostics,
-  updates: m.settings_nav_updates,
-  about: m.settings_nav_about,
+  diagnostics: m.label_diagnostics,
+  updates: m.label_updates,
+  about: m.label_about,
 };
 
 export function Settings({ initialSection, onClose }: { initialSection?: SectionId; onClose?: () => void } = {}) {
@@ -150,7 +150,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       setTimeout(() => setStatus("idle"), 2000);
     } catch (err) {
       setStatus("error");
-      setErrorMsg(err instanceof Error ? err.message : m.settings_save_failed());
+      setErrorMsg(err instanceof Error ? err.message : m.label_failed_to_save());
     }
   }
 
@@ -166,7 +166,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       setTimeout(() => setUnitStatus("idle"), 2000);
     } catch (err) {
       setUnitStatus("error");
-      setUnitError(err instanceof Error ? err.message : m.settings_save_failed());
+      setUnitError(err instanceof Error ? err.message : m.label_failed_to_save());
     }
   }
 
@@ -218,11 +218,11 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {activeSection === "general" && (
           <section>
-            <h2 className="text-lg font-semibold text-app-text mb-1">{m.settings_general_title()}</h2>
+            <h2 className="text-lg font-semibold text-app-text mb-1">{m.label_general()}</h2>
             <p className="text-sm text-app-text-muted mb-4">{m.settings_general_desc()}</p>
 
             <div className="max-w-xs mb-6">
-              <Label className="text-app-text-secondary">{m.settings_language_label()}</Label>
+              <Label className="text-app-text-secondary">{m.label_language()}</Label>
               <div className="mt-1.5">
                 <SearchSelect
                   value={displaySettings.language ?? "en"}
@@ -242,7 +242,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             </div>
 
             <div className="max-w-xs">
-              <Label className={`${displaySettings.isCompiled ? "text-app-text-secondary" : "text-app-text-muted"}`}>{m.settings_launch_on_login()}</Label>
+              <Label className={`${displaySettings.isCompiled ? "text-app-text-secondary" : "text-app-text-muted"}`}>{m.label_launch_on_login()}</Label>
               <div className="flex items-center gap-3 mt-1.5">
                 <button
                   type="button"
@@ -275,7 +275,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
         {activeSection === "theme" && (
           <section>
-            <h2 className="text-lg font-semibold text-app-text mb-1">{m.settings_theme_title()}</h2>
+            <h2 className="text-lg font-semibold text-app-text mb-1">{m.label_theme()}</h2>
             <p className="text-sm text-app-text-muted mb-4">{m.settings_theme_desc()}</p>
             <div className="grid grid-cols-2 gap-3 max-w-sm">
               {themes.map((t) => (
@@ -304,7 +304,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             <div className="flex items-end gap-3 max-w-xs">
               <div className="flex-1">
                 <Label htmlFor="udp-port" className="text-app-text-secondary">
-                  {m.settings_udp_port_label()}
+                  {m.label_udp_port()}
                 </Label>
                 <Input
                   id="udp-port"
@@ -514,7 +514,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
         {activeSection === "speed" && (
           <section>
-            <h2 className="text-lg font-semibold text-app-text mb-1">{m.settings_units_title()}</h2>
+            <h2 className="text-lg font-semibold text-app-text mb-1">{m.label_units()}</h2>
             <p className="text-sm text-app-text-muted mb-4">{m.settings_units_desc()}</p>
 
             <div className="flex items-center gap-2">
@@ -528,7 +528,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             </div>
 
             <div className="mt-5 pt-5 border-t border-app-border">
-              <h3 className="text-sm font-semibold text-app-text mb-1">{m.settings_temperature_title()}</h3>
+              <h3 className="text-sm font-semibold text-app-text mb-1">{m.label_temperature()}</h3>
               <p className="text-xs text-app-text-muted mb-3">{m.settings_temperature_desc()}</p>
 
               <div className="flex items-center gap-2">
@@ -554,7 +554,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
         {activeSection === "sound" && (
           <section>
-            <h2 className="text-lg font-semibold text-app-text mb-1">{m.settings_sound_title()}</h2>
+            <h2 className="text-lg font-semibold text-app-text mb-1">{m.label_sound()}</h2>
             <p className="text-sm text-app-text-muted mb-4">{m.settings_sound_desc()}</p>
 
             <div className="flex items-center gap-3 mb-4">
@@ -626,7 +626,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             )}
 
             <div className="mb-4">
-              <Label className="text-app-text-secondary mb-2 block">{m.settings_sound_volume()} — {Math.round(soundVolume * 100)}%</Label>
+              <Label className="text-app-text-secondary mb-2 block">{m.label_volume()} — {Math.round(soundVolume * 100)}%</Label>
               <input
                 type="range"
                 min="0"
@@ -642,7 +642,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             </div>
 
             <div>
-              <Label className="text-app-text-secondary mb-2 block">{m.settings_sound_preview()}</Label>
+              <Label className="text-app-text-secondary mb-2 block">{m.label_preview()}</Label>
               <Button size="sm" variant="outline" onClick={() => playBlip(1.25)}>
                 {m.settings_sound_play()}
               </Button>

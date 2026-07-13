@@ -43,10 +43,10 @@ export function UpdatesSection() {
   return (
     <section>
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-lg font-semibold text-app-text">{m.updates_title()}</h2>
+        <h2 className="text-lg font-semibold text-app-text">{m.label_updates()}</h2>
         {!stage && (
           <Button onClick={handleCheck} disabled={checking} variant="outline" size="sm">
-            {checking ? m.updates_checking() : m.updates_check_button()}
+            {checking ? m.label_checking() : m.updates_check_button()}
           </Button>
         )}
       </div>
@@ -70,7 +70,7 @@ export function UpdatesSection() {
               </div>
             </>
           )}
-          {stage === "installing" && <p className="text-sm font-medium text-app-accent animate-pulse">{m.updates_installing()}</p>}
+          {stage === "installing" && <p className="text-sm font-medium text-app-accent animate-pulse">{m.label_running_installer()}</p>}
           {stage === "reconnecting" && <p className="text-sm font-medium text-app-accent animate-pulse">{m.updates_reconnecting()}</p>}
           {stage === "complete" && <p className="text-sm font-medium text-green-400">{m.updates_complete()}</p>}
         </div>
@@ -81,7 +81,7 @@ export function UpdatesSection() {
         <div className="rounded-lg border border-app-accent/30 bg-app-accent/5 p-4 space-y-3 mb-4">
           <p className="text-sm font-medium text-app-accent">{m.updates_available()} v{latestVersion}</p>
           <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
-            {m.updates_install_button()}
+            {m.label_install_update()}
           </Button>
         </div>
       )}

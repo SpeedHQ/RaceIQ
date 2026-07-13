@@ -144,7 +144,7 @@ export function ImportSetupFile({
                   />
                 </label>
                 <label className="space-y-1 block">
-                  <span className="text-xs font-medium text-app-text-muted">{m.tune_form_author()}</span>
+                  <span className="text-xs font-medium text-app-text-muted">{m.label_author()}</span>
                   <input
                     type="text"
                     value={author}
@@ -153,7 +153,7 @@ export function ImportSetupFile({
                   />
                 </label>
                 <label className="space-y-1 block">
-                  <span className="text-xs font-medium text-app-text-muted">{m.tune_form_car()}</span>
+                  <span className="text-xs font-medium text-app-text-muted">{m.label_car()}</span>
                   <select
                     value={carOrdinal}
                     onChange={(e) => setCarOrdinal(Number(e.target.value))}
@@ -165,7 +165,7 @@ export function ImportSetupFile({
                   </select>
                 </label>
                 <label className="space-y-1 block">
-                  <span className="text-xs font-medium text-app-text-muted">{m.tune_form_category()}</span>
+                  <span className="text-xs font-medium text-app-text-muted">{m.label_category()}</span>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
@@ -189,7 +189,7 @@ export function ImportSetupFile({
                     onClick={doImport}
                     disabled={!selectedPath || importMut.isPending}
                   >
-                    {importMut.isPending ? m.import_importing() : m.import_import_setup()}
+                    {importMut.isPending ? m.label_importing() : m.import_import_setup()}
                   </Button>
                 </div>
               </>

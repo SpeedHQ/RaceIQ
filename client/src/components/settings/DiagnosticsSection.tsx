@@ -48,7 +48,7 @@ export function DiagnosticsSection() {
   return (
     <section className="space-y-6">
       <div>
-        <h2 className="text-sm font-semibold text-app-text mb-1">{m.diag_title()}</h2>
+        <h2 className="text-sm font-semibold text-app-text mb-1">{m.label_diagnostics()}</h2>
         <p className="text-xs text-app-text-muted mb-4">
           {m.diag_desc()}
         </p>

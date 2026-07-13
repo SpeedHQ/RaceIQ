@@ -112,7 +112,7 @@ function SessionLapTable({
           <TH />
           {(["lap", "time"] as const).map((f) => (
             <TH key={f} className="cursor-pointer select-none hover:text-app-text/90" onClick={() => toggleLapSort(f)}>
-              {f === "lap" ? m.sessions_col_lap() : m.sessions_col_time()}
+              {f === "lap" ? m.label_lap() : m.label_time()}
               {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
             </TH>
           ))}
@@ -151,7 +151,7 @@ function SessionLapTable({
                     {lap.isLegacy ? (
                       <Tooltip content={m.sessions_legacy_tooltip({ version: RAW_STORAGE_VERSION })}>
                         <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
-                          {m.sessions_analyse()}
+                          {m.label_analyse()}
                         </Button>
                       </Tooltip>
                     ) : (
@@ -165,7 +165,7 @@ function SessionLapTable({
                           navigate({ to: `${gameRoute}/analyse` as any, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } as any });
                         }}
                       >
-                        {m.sessions_analyse()}
+                        {m.label_analyse()}
                       </Button>
                     )}
                   </div>
@@ -458,7 +458,7 @@ export function SessionsPage() {
       <div className="flex items-center flex-wrap gap-3">
         <AppInput type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={m.sessions_search_placeholder()} className="flex-1 min-w-[200px] sm:flex-none sm:w-64" />
         <h1 className="text-sm font-semibold text-app-text/90 shrink-0">
-          {m.sessions_title()}
+          {m.label_sessions()}
           {!isLoading && (
             <span className="text-app-text/90-muted font-normal ml-2">
               {filtered.length === sessions.length ? m.sessions_total({ count: sessions.length }) : m.sessions_filtered_count({ shown: filtered.length, total: sessions.length })}
@@ -478,7 +478,7 @@ export function SessionsPage() {
                 return (
                   <Tooltip content={m.sessions_legacy_tooltip({ version: RAW_STORAGE_VERSION })}>
                     <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none">
-                      {m.sessions_compare()}
+                      {m.label_compare()}
                     </Button>
                   </Tooltip>
                 );
@@ -558,10 +558,10 @@ export function SessionsPage() {
                     </div>
                     <div className="flex items-center gap-4 mt-2 text-xs">
                       <span className="text-app-text/90-muted">
-                        {m.sessions_laps_label()} <span className="text-app-text font-mono tabular-nums">{session.lapCount ?? 0}</span>
+                        {m.label_laps()} <span className="text-app-text font-mono tabular-nums">{session.lapCount ?? 0}</span>
                       </span>
                       <span className="text-app-text/90-muted">
-                        {m.sessions_best_label()} <span className="text-app-text font-mono tabular-nums">{bestTime ? formatLapTime(bestTime) : "—"}</span>
+                        {m.label_best()} <span className="text-app-text font-mono tabular-nums">{bestTime ? formatLapTime(bestTime) : "—"}</span>
                       </span>
                       <span className="ml-auto text-app-text/90-dim">{isExpanded ? "▾" : "▸"}</span>
                     </div>
@@ -616,11 +616,11 @@ export function SessionsPage() {
             />
           </TH>
           <SortHeader label={m.sessions_col_date()} field="date" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-          <SortHeader label={m.sessions_col_laps()} field="laps" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+          <SortHeader label={m.label_laps()} field="laps" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
           <SortHeader label={m.sessions_col_best_lap()} field="best" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-          <SortHeader label={m.sessions_col_track()} field="track" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-          <SortHeader label={m.sessions_col_car()} field="car" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-          {isF1 && <SortHeader label={m.sessions_col_type()} field="type" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />}
+          <SortHeader label={m.label_track()} field="track" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+          <SortHeader label={m.label_car()} field="car" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
+          {isF1 && <SortHeader label={m.label_type()} field="type" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />}
           <TH className="w-[40%]">{m.sessions_col_notes()}</TH>
         </THead>
         <TBody>

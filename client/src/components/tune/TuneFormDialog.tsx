@@ -222,7 +222,7 @@ export function TuneFormDialog({
                 />
               </label>
               <label className="space-y-1">
-                <span className="text-xs font-medium text-app-text-muted">{m.tune_form_author()}</span>
+                <span className="text-xs font-medium text-app-text-muted">{m.label_author()}</span>
                 <input
                   type="text"
                   value={author}
@@ -232,7 +232,7 @@ export function TuneFormDialog({
                 />
               </label>
               <div className="space-y-1 relative">
-                <span className="text-xs font-medium text-app-text-muted">{m.tune_form_car()}</span>
+                <span className="text-xs font-medium text-app-text-muted">{m.label_car()}</span>
                 <input
                   type="text"
                   value={carDropOpen ? carSearchQuery : selectedCarName}
@@ -270,7 +270,7 @@ export function TuneFormDialog({
                 )}
               </div>
               <label className="space-y-1">
-                <span className="text-xs font-medium text-app-text-muted">{m.tune_form_category()}</span>
+                <span className="text-xs font-medium text-app-text-muted">{m.label_category()}</span>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value as TuneCategory)}

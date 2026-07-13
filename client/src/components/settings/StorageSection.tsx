@@ -252,8 +252,8 @@ export function StorageSection() {
         {data && (
           <div className="rounded-lg border border-white/10 bg-white/5 px-4 divide-y divide-white/5 mb-4">
             <StatRow label={m.storage_total_size()} value={fmt(data.totalBytes)} />
-            <StatRow label={m.storage_uncompressed_bin()} value={data.binCount > 0 ? `${m.storage_file_count({ count: data.binCount })} — ${fmt(data.binBytes)}` : m.storage_none()} />
-            <StatRow label={m.storage_compressed_gz()} value={data.gzCount > 0 ? `${m.storage_file_count({ count: data.gzCount })} — ${fmt(data.gzBytes)}` : m.storage_none()} />
+            <StatRow label={m.storage_uncompressed_bin()} value={data.binCount > 0 ? `${m.storage_file_count({ count: data.binCount })} — ${fmt(data.binBytes)}` : m.label_none()} />
+            <StatRow label={m.storage_compressed_gz()} value={data.gzCount > 0 ? `${m.storage_file_count({ count: data.gzCount })} — ${fmt(data.gzBytes)}` : m.label_none()} />
             {data.binCount > 0 && data.gzCount > 0 && <StatRow label={m.storage_space_saved()} value={`${((1 - data.gzBytes / (data.gzBytes + data.binBytes)) * 100).toFixed(0)}%`} />}
             {data.diskTotal > 0 && (
               <>

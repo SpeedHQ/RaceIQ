@@ -174,7 +174,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
 
       {/* Full tire diagram with suspension */}
       <div className="px-3 py-2 border-b border-app-border/50">
-        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_tires()}</div>
+        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.label_tires()}</div>
         <TireDiagram packet={packet} />
       </div>
 

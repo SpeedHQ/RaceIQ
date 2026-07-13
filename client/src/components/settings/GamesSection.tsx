@@ -15,7 +15,7 @@ export function GamesSection() {
 
   return (
     <section>
-      <h2 className="text-lg font-semibold text-app-text mb-1">{m.games_title()}</h2>
+      <h2 className="text-lg font-semibold text-app-text mb-1">{m.label_games()}</h2>
       <p className="text-sm text-app-text-muted mb-4">{m.games_desc()}</p>
       <div className="space-y-2 max-w-sm">
         {games.map((game) => {

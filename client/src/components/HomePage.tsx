@@ -44,10 +44,10 @@ function RecentLapsTable({
     <Table>
       <THead>
         {showGame && <TH>{m.home_col_game()}</TH>}
-        <TH>{m.home_col_track()}</TH>
-        <TH>{m.home_col_car()}</TH>
-        <TH>{m.home_col_lap()}</TH>
-        <TH>{m.home_col_time()}</TH>
+        <TH>{m.label_track()}</TH>
+        <TH>{m.label_car()}</TH>
+        <TH>{m.label_lap()}</TH>
+        <TH>{m.label_time()}</TH>
         <TH className="text-right">{m.home_col_when()}</TH>
       </THead>
       <TBody>
@@ -371,11 +371,11 @@ export function HomePage() {
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_laps()}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-cyan-400">{gameStats.fm.laps}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_time()}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.fm.time}</div>
                 </div>
               </div>
@@ -418,11 +418,11 @@ export function HomePage() {
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_laps()}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-red-500">{gameStats.f1.laps}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_time()}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.f1.time}</div>
                 </div>
               </div>
@@ -460,11 +460,11 @@ export function HomePage() {
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_laps()}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-orange-400">{gameStats.acc.laps}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_time()}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.acc.time}</div>
                 </div>
               </div>
@@ -502,11 +502,11 @@ export function HomePage() {
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_laps()}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-green-400">{gameStats.acEvo.laps}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.home_stat_time()}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.acEvo.time}</div>
                 </div>
               </div>
@@ -549,10 +549,10 @@ export function HomePage() {
           };
           return (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <StatCard label={m.home_stat_sessions()} value={`${data.sessions}`} />
-              <StatCard label={m.home_stat_laps()} value={`${data.laps}`} />
-              <StatCard label={m.home_stat_tracks()} value={`${data.tracks}`} />
-              <StatCard label={m.home_stat_cars()} value={`${data.cars}`} />
+              <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
+              <StatCard label={m.label_laps()} value={`${data.laps}`} />
+              <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
+              <StatCard label={m.label_cars()} value={`${data.cars}`} />
               {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-violet-400" />}
             </div>
           );

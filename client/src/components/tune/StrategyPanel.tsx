@@ -34,7 +34,7 @@ export function StrategyPanel({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-2">
         <div className="text-center">
           <div className="text-sm font-bold text-app-text font-mono leading-tight">{strategy.totalLaps}</div>
-          <div className="text-[10px] text-app-text-muted uppercase leading-tight">{m.tune_laps()}</div>
+          <div className="text-[10px] text-app-text-muted uppercase leading-tight">{m.label_laps()}</div>
         </div>
         <div className="text-center">
           <div className="text-sm font-bold text-app-text font-mono leading-tight">{strategy.fuelLoadPercent}%</div>

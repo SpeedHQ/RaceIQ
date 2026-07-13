@@ -80,7 +80,7 @@ export function PitEstimate({ packet, pit, gameId }: PitEstimateProps) {
 
         {/* Tire section */}
         <div className="py-1">
-          <div className="text-xs text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.telemetry_tires()}</div>
+          <div className="text-xs text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.label_tires()}</div>
 
           {/* Column headers */}
           <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-x-2 items-center mb-1 px-0.5">

@@ -280,7 +280,7 @@ export function SetupTuneForm({
         </label>
 
         <label className="space-y-1">
-          <span className="text-xs font-medium text-app-text-muted">{m.tune_form_author()}</span>
+          <span className="text-xs font-medium text-app-text-muted">{m.label_author()}</span>
           <input
             type="text"
             value={author}
@@ -291,7 +291,7 @@ export function SetupTuneForm({
         </label>
 
         <label className="space-y-1">
-          <span className="text-xs font-medium text-app-text-muted">{m.tune_form_car()}</span>
+          <span className="text-xs font-medium text-app-text-muted">{m.label_car()}</span>
           <select
             value={carOrdinal}
             onChange={(e) => setCarOrdinal(Number(e.target.value))}
@@ -304,7 +304,7 @@ export function SetupTuneForm({
         </label>
 
         <label className="space-y-1">
-          <span className="text-xs font-medium text-app-text-muted">{m.tune_form_category()}</span>
+          <span className="text-xs font-medium text-app-text-muted">{m.label_category()}</span>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}

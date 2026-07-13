@@ -37,11 +37,11 @@ function formatRelative(iso: string): string {
   const sec = Math.floor(diff / 1000);
   if (sec < 60) return m.chats_seconds_ago({ count: sec });
   const min = Math.floor(sec / 60);
-  if (min < 60) return m.chats_minutes_ago({ count: min });
+  if (min < 60) return m.home_minutes_ago({ count: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return m.chats_hours_ago({ count: hr });
+  if (hr < 24) return m.home_hours_ago({ count: hr });
   const day = Math.floor(hr / 24);
-  if (day < 30) return m.chats_days_ago({ count: day });
+  if (day < 30) return m.home_days_ago({ count: day });
   return new Date(iso).toLocaleDateString();
 }
 
@@ -135,12 +135,12 @@ export function ChatsPage() {
           <table className="w-full min-w-max md:min-w-0 text-[12px]">
             <thead className="sticky top-0 bg-app-surface-alt/80 backdrop-blur z-10 border-b border-app-border">
               <tr className="text-left text-[10px] uppercase tracking-wider text-app-text-muted">
-                <th className="px-3 py-2 font-semibold">{m.chats_col_type()}</th>
-                <th className="px-3 py-2 font-semibold">{m.chats_col_track()}</th>
+                <th className="px-3 py-2 font-semibold">{m.label_type()}</th>
+                <th className="px-3 py-2 font-semibold">{m.label_track()}</th>
                 <th className="px-3 py-2 font-semibold">{m.chats_col_cars()}</th>
                 <th className="px-3 py-2 font-semibold">{m.chats_col_laps()}</th>
                 <th className="px-3 py-2 font-semibold">{m.chats_col_updated()}</th>
-                <th className="px-3 py-2 font-semibold text-right">{m.chats_col_actions()}</th>
+                <th className="px-3 py-2 font-semibold text-right">{m.label_actions()}</th>
               </tr>
             </thead>
             <tbody>

@@ -165,15 +165,15 @@ function CarDetail({
         <div className="space-y-1">
           <div className="text-[10px] uppercase tracking-wider text-app-text/90-muted font-semibold">{m.cars_ratings()}</div>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-app-text/90-muted w-16">{m.cars_rating_speed()}</span>
+            <span className="text-app-text/90-muted w-16">{m.label_speed()}</span>
             <RatingBar value={s.speedRating} />
           </div>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-app-text/90-muted w-16">{m.cars_rating_braking()}</span>
+            <span className="text-app-text/90-muted w-16">{m.label_braking()}</span>
             <RatingBar value={s.brakingRating} />
           </div>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-app-text/90-muted w-16">{m.cars_rating_handling()}</span>
+            <span className="text-app-text/90-muted w-16">{m.label_handling()}</span>
             <RatingBar value={s.handlingRating} />
           </div>
           <div className="flex items-center justify-between gap-2">
@@ -423,7 +423,7 @@ export function CarsPage() {
         <div className="flex items-center rounded-lg border border-app-border overflow-hidden">
           <button
             onClick={() => setViewMode("table")}
-            title={m.cars_table_view()}
+            title={m.label_table_view()}
             className={`px-2.5 py-1.5 transition-colors ${viewMode === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90-muted hover:text-app-text/90"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -433,7 +433,7 @@ export function CarsPage() {
           </button>
           <button
             onClick={() => setViewMode("grid")}
-            title={m.cars_grid_view()}
+            title={m.label_grid_view()}
             className={`px-2.5 py-1.5 transition-colors ${viewMode === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90-muted hover:text-app-text/90"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

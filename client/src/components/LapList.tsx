@@ -93,11 +93,11 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
         <thead>
           <tr className="text-xs text-app-text-muted uppercase tracking-wider border-b border-app-border">
             <th className="text-left p-2 cursor-pointer hover:text-app-text select-none" onClick={() => toggleSort("lap")}>
-              {m.laps_col_lap()}
+              {m.label_lap()}
               {arrow("lap")}
             </th>
             <th className="text-left p-2 cursor-pointer hover:text-app-text select-none" onClick={() => toggleSort("time")}>
-              {m.laps_col_time()}
+              {m.label_time()}
               {arrow("time")}
             </th>
             <th className="text-left p-2">
@@ -110,7 +110,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
               <span className="text-yellow-400">S3</span>
             </th>
             <th className="text-center p-2">{m.laps_col_valid()}</th>
-            <th className="text-right p-2">{m.laps_col_actions()}</th>
+            <th className="text-right p-2">{m.label_actions()}</th>
           </tr>
         </thead>
         <tbody>
@@ -153,7 +153,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
                         });
                       }}
                     >
-                      {m.laps_analyse()}
+                      {m.label_analyse()}
                     </Button>
                     <Button variant="app-ghost" size="app-sm" className="hover:text-red-400" onClick={() => deleteLap.mutate(lap.id)}>
                       {m.common_delete()}

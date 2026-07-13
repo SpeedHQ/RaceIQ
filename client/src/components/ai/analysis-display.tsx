@@ -380,7 +380,7 @@ export function AnalysisDisplay({
       {/* Pace */}
       {analysis.pace?.length > 0 && (
         <div>
-          <SectionHeader icon={<Gauge className="size-3" />} title={m.aidisplay_pace()} />
+          <SectionHeader icon={<Gauge className="size-3" />} title={m.label_pace()} />
           <div className="grid grid-cols-1 gap-1.5">
             {analysis.pace.map((item, i) => (
               <MetricCard key={i} item={item} />
@@ -392,7 +392,7 @@ export function AnalysisDisplay({
       {/* Handling */}
       {analysis.handling?.length > 0 && (
         <div>
-          <SectionHeader icon={<Sliders className="size-3" />} title={m.aidisplay_handling()} />
+          <SectionHeader icon={<Sliders className="size-3" />} title={m.label_handling()} />
           <div className="grid grid-cols-1 gap-1.5">
             {analysis.handling.map((item, i) => (
               <MetricCard key={i} item={item} />
@@ -404,7 +404,7 @@ export function AnalysisDisplay({
       {/* Problem Corners */}
       {analysis.corners?.length > 0 && (
         <div>
-          <SectionHeader icon={<AlertTriangle className="size-3" />} title={m.aidisplay_problem_corners()} />
+          <SectionHeader icon={<AlertTriangle className="size-3" />} title={m.label_problem_corners()} />
           <div className="space-y-1.5">
             {analysis.corners.map((corner, i) => (
               <TrackCard
@@ -430,7 +430,7 @@ export function AnalysisDisplay({
       {/* Braking per corner */}
       {analysis.braking?.length > 0 && (
         <div>
-          <SectionHeader icon={<CircleDot className="size-3" />} title={m.aidisplay_braking_points()} />
+          <SectionHeader icon={<CircleDot className="size-3" />} title={m.label_braking_points()} />
           <div className="space-y-1.5">
             {analysis.braking.map((item, i) => (
               <TrackCard
@@ -455,7 +455,7 @@ export function AnalysisDisplay({
       {/* Throttle per corner */}
       {analysis.throttle?.length > 0 && (
         <div>
-          <SectionHeader icon={<Zap className="size-3" />} title={m.aidisplay_throttle_application()} />
+          <SectionHeader icon={<Zap className="size-3" />} title={m.label_throttle_application()} />
           <div className="space-y-1.5">
             {analysis.throttle.map((item, i) => (
               <TrackCard
@@ -480,7 +480,7 @@ export function AnalysisDisplay({
       {/* Coaching */}
       {analysis.coaching?.length > 0 && (
         <div>
-          <SectionHeader icon={<Lightbulb className="size-3" />} title={m.aidisplay_coaching()} />
+          <SectionHeader icon={<Lightbulb className="size-3" />} title={m.label_coaching()} />
           <div className="space-y-1.5">
             {analysis.coaching.map((item, i) => (
               <TrackCard key={i} seg={findSegment(lookupSegs, item.tip, item.detail)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="flex gap-2">
@@ -510,7 +510,7 @@ export function AnalysisDisplay({
             <button
               onClick={onExport}
               className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
-              title={m.aidisplay_export_image()}
+              title={m.label_export_as_image()}
             >
               <Download className="size-3" /> Export
             </button>
@@ -529,7 +529,7 @@ export function AnalysisDisplay({
             <button
               onClick={onClear}
               className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-red-400 px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
-              title={m.aidisplay_clear_all()}
+              title={m.aipanel_clear_title()}
             >
               <Trash2 className="size-3" /> Clear
             </button>

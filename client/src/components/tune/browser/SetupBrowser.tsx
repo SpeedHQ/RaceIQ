@@ -167,12 +167,12 @@ export function SetupBrowser(props: SetupBrowserProps) {
         <div className={`${TUNE_GRID} px-3 py-2.5 bg-app-bg text-[9px] uppercase tracking-wider text-app-text-dim`}>
           <span>{m.setup_table_rank()}</span>
           <span>{m.setup_table_tune()}</span>
-          <span className="hidden sm:block">{m.setup_table_car()}</span>
-          <span className="hidden sm:block">{m.setup_table_track()}</span>
-          <span className="hidden sm:block">{m.setup_table_category()}</span>
-          <span className="hidden sm:block">{m.setup_table_author()}</span>
+          <span className="hidden sm:block">{m.label_car()}</span>
+          <span className="hidden sm:block">{m.label_track()}</span>
+          <span className="hidden sm:block">{m.label_category()}</span>
+          <span className="hidden sm:block">{m.label_author()}</span>
           <button type="button" className="justify-self-end uppercase tracking-wider text-app-accent inline-flex items-center gap-1" onClick={() => setSortAsc((a) => !a)}>
-            {m.setup_table_laptime()} <span className="text-[8px]">{sortAsc ? "▲" : "▼"}</span>
+            {m.label_lap_time()} <span className="text-[8px]">{sortAsc ? "▲" : "▼"}</span>
           </button>
           <span className="hidden sm:block" />
         </div>

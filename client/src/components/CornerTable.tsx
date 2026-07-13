@@ -21,8 +21,8 @@ export function CornerTable({ corners }: Props) {
       <table className="w-full text-sm">
         <thead>
           <tr className="text-xs text-app-text-muted uppercase tracking-wider border-b border-app-border">
-            <th className="text-left p-2">{m.corner_header()}</th>
-            <th className="text-right p-2">{m.corner_delta()}</th>
+            <th className="text-left p-2">{m.label_corner()}</th>
+            <th className="text-right p-2">{m.label_delta()}</th>
           </tr>
         </thead>
         <tbody>

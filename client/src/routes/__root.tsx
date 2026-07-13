@@ -25,12 +25,12 @@ const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Chats", "Track
 
 const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {
   Live: m.tab_live,
-  Sessions: m.tab_sessions,
-  Compare: m.tab_compare,
-  Analyse: m.tab_analyse,
+  Sessions: m.label_sessions,
+  Compare: m.label_compare,
+  Analyse: m.label_analyse,
   Chats: m.tab_chats,
-  Tracks: m.tab_tracks,
-  Cars: m.tab_cars,
+  Tracks: m.label_tracks,
+  Cars: m.label_cars,
   Setups: m.tab_setups,
   Raw: m.tab_raw,
 };

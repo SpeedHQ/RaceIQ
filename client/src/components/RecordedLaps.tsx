@@ -61,12 +61,12 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
       ) : (
         <>
           <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_auto_auto] gap-x-2 px-3 py-1 text-xs text-app-text-dim uppercase tracking-wider border-b border-app-border/50">
-            <div className="w-10">{m.laps_col_lap()}</div>
+            <div className="w-10">{m.label_lap()}</div>
             <div className="text-right">S1</div>
             <div className="text-right">S2</div>
             <div className="text-right">S3</div>
-            <div className="text-right">{m.laps_col_time()}</div>
-            <div className="text-right w-14">{m.laps_col_delta()}</div>
+            <div className="text-right">{m.label_time()}</div>
+            <div className="text-right w-14">{m.label_delta()}</div>
             <div className="w-16"></div>
           </div>
           <div className="divide-y divide-app-border/30">
@@ -97,7 +97,7 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                       onClick={() => navigate({ to: `${gameRoute}/analyse` as any, search: { track: l.trackOrdinal, car: l.carOrdinal, lap: l.id } as any })}
                       className="px-1.5 py-0.5 text-[10px] rounded bg-purple-600 hover:bg-purple-500 text-white"
                     >
-                      {m.laps_analyse()}
+                      {m.label_analyse()}
                     </button>
                     <button onClick={() => deleteLap.mutate(l.id)} className="px-1 py-0.5 text-[10px] rounded bg-slate-700 hover:bg-red-600 text-app-text">
                       ×

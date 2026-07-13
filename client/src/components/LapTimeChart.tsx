@@ -184,7 +184,7 @@ export function LapTimeChart({
         <div className="flex gap-3 flex-wrap">
           <div className="flex items-center gap-1">
             <div className="w-3 h-0.5 bg-cyan-400 rounded" />
-            <span className="text-xs text-app-text-muted">{m.laptime_legend_laptime()}</span>
+            <span className="text-xs text-app-text-muted">{m.label_lap_time()}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-0.5 bg-purple-500 rounded border-dashed" style={{ borderTop: "1px dashed #a855f7", height: 0 }} />
@@ -196,7 +196,7 @@ export function LapTimeChart({
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full bg-purple-500" />
-            <span className="text-xs text-app-text-muted">{m.laptime_legend_best()}</span>
+            <span className="text-xs text-app-text-muted">{m.label_best()}</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full bg-emerald-400" />

@@ -15,7 +15,7 @@ function StepIndicator({ step, current }: { step: (typeof STEPS)[number]; curren
   const isDone = stepIdx > thisIdx;
 
   const labels: Record<string, string> = {
-    downloading: m.update_step_download(),
+    downloading: m.label_download(),
     installing: m.update_step_install(),
     reconnecting: m.update_step_restart(),
     complete: m.update_step_done(),
@@ -134,7 +134,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
                 })()}
               <div className="flex justify-end gap-3">
                 <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
-                  {m.update_install()}
+                  {m.label_install_update()}
                 </Button>
                 <Button variant="outline" onClick={onClose}>
                   {m.update_later()}
@@ -149,7 +149,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
               <p className="text-sm text-red-400">{error}</p>
               <div className="flex justify-end gap-3">
                 <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
-                  {m.update_retry()}
+                  {m.label_retry()}
                 </Button>
                 <Button variant="outline" onClick={onClose}>
                   {m.common_close()}
@@ -182,15 +182,15 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
               )}
 
               {/* Installing */}
-              {stage === "installing" && <p className="text-xs text-app-text-muted text-center animate-pulse">{m.update_installing()}</p>}
+              {stage === "installing" && <p className="text-xs text-app-text-muted text-center animate-pulse">{m.label_running_installer()}</p>}
 
               {/* Reconnecting */}
-              {stage === "reconnecting" && <p className="text-xs text-app-text-muted text-center animate-pulse">{m.update_reconnecting()}</p>}
+              {stage === "reconnecting" && <p className="text-xs text-app-text-muted text-center animate-pulse">{m.updates_reconnecting()}</p>}
 
               {/* Complete */}
               {stage === "complete" && (
                 <div className="text-center space-y-2">
-                  <p className="text-sm text-green-400 font-medium">{m.update_success()}</p>
+                  <p className="text-sm text-green-400 font-medium">{m.updates_complete()}</p>
                   <p className="text-xs text-app-text-muted">{m.update_refreshing({ count: countdown ?? 0 })}</p>
                 </div>
               )}

@@ -314,7 +314,7 @@ export function StepLanguage() {
 
   return (
     <div>
-      <h2 className="text-sm font-semibold text-app-text mb-1">{m.ob_language_title()}</h2>
+      <h2 className="text-sm font-semibold text-app-text mb-1">{m.label_language()}</h2>
       <p className="text-sm text-app-text-muted mb-4">{m.ob_language_desc()}</p>
       <div className="max-w-xs">
         <SearchSelect value={current} onChange={selectLanguage} options={options} placeholder="Search language..." focusColor="app-accent" />
@@ -399,7 +399,7 @@ export function StepUnits() {
 
   return (
     <div>
-      <h2 className="text-sm font-semibold text-app-text mb-1">{m.ob_units_title()}</h2>
+      <h2 className="text-sm font-semibold text-app-text mb-1">{m.label_units()}</h2>
       <p className="text-sm text-app-text-muted mb-4">{m.ob_units_desc()}</p>
       <div className="grid grid-cols-2 gap-3">
         <button
@@ -425,7 +425,7 @@ export function StepUnits() {
       </div>
 
       <div className="mt-5 pt-5 border-t border-app-border">
-        <h3 className="text-sm font-semibold text-app-text mb-1">{m.ob_units_temperature()}</h3>
+        <h3 className="text-sm font-semibold text-app-text mb-1">{m.label_temperature()}</h3>
         <p className="text-xs text-app-text-muted mb-3">{m.ob_units_temperature_desc()}</p>
 
         <div className="flex items-center gap-2">
@@ -462,7 +462,7 @@ export function StepSound() {
 
   return (
     <div>
-      <h2 className="text-sm font-semibold text-app-text mb-1">{m.ob_sound_title()}</h2>
+      <h2 className="text-sm font-semibold text-app-text mb-1">{m.label_sound()}</h2>
       <p className="text-sm text-app-text-muted mb-4">{m.ob_sound_desc()}</p>
 
       <div className="flex items-center gap-3 mb-4">
@@ -514,7 +514,7 @@ export function StepSound() {
           </div>
 
           <div className="mb-4">
-            <Label className="text-app-text-secondary text-xs mb-2 block">{m.ob_sound_volume()} — {Math.round(volume * 100)}%</Label>
+            <Label className="text-app-text-secondary text-xs mb-2 block">{m.label_volume()} — {Math.round(volume * 100)}%</Label>
             <input
               type="range"
               min="0"
@@ -530,7 +530,7 @@ export function StepSound() {
           </div>
 
           <Button size="sm" variant="outline" onClick={() => playBlip(1.25)}>
-            {m.ob_sound_preview()}
+            {m.label_preview()}
           </Button>
         </>
       )}
@@ -547,7 +547,7 @@ export function StepStartup() {
 
   return (
     <div>
-      <h2 className="text-sm font-semibold text-app-text mb-1">{m.ob_startup_title()}</h2>
+      <h2 className="text-sm font-semibold text-app-text mb-1">{m.label_launch_on_login()}</h2>
       <p className="text-sm text-app-text-muted mb-4">{m.ob_startup_desc()}</p>
 
       <div className="flex items-center gap-3">
@@ -571,7 +571,7 @@ export function StepStartup() {
             }`}
           />
         </button>
-        <span className="text-sm text-app-text-muted">{!enabled ? m.ob_startup_unavailable() : displaySettings.launchOnLogin ? m.common_enabled() : m.common_disabled()}</span>
+        <span className="text-sm text-app-text-muted">{!enabled ? m.settings_launch_installed_only() : displaySettings.launchOnLogin ? m.common_enabled() : m.common_disabled()}</span>
       </div>
     </div>
   );
@@ -583,11 +583,11 @@ export function StepStartup() {
 // stepper caption.
 const MODAL_STEPS = [
   { id: "welcome", label: m.step_welcome, Component: StepWelcome },
-  { id: "language", label: m.step_language, Component: StepLanguage },
+  { id: "language", label: m.label_language, Component: StepLanguage },
   { id: "profile", label: m.step_profile, Component: StepProfile },
-  { id: "wheel", label: m.step_wheel, Component: StepWheel },
-  { id: "units", label: m.step_units, Component: StepUnits },
-  { id: "sound", label: m.step_sound, Component: StepSound },
+  { id: "wheel", label: m.label_wheel, Component: StepWheel },
+  { id: "units", label: m.label_units, Component: StepUnits },
+  { id: "sound", label: m.label_sound, Component: StepSound },
   { id: "startup", label: m.step_startup, Component: StepStartup },
   { id: "community", label: m.step_community, Component: StepCommunity },
 ];
@@ -735,7 +735,7 @@ export function StepConnection() {
   async function handleSavePort() {
     const port = Number.parseInt(udpPort, 10);
     if (Number.isNaN(port) || port < 1024 || port > 65535) {
-      setPortError(m.ob_connection_port_range_error());
+      setPortError(m.settings_port_range_error());
       return;
     }
     setPortError("");
@@ -744,19 +744,19 @@ export function StepConnection() {
       setPortSaved(true);
       setTimeout(() => setPortSaved(false), 2000);
     } catch {
-      setPortError(m.ob_connection_save_failed());
+      setPortError(m.label_failed_to_save());
     }
   }
 
   return (
     <div>
-      <h2 className="text-sm font-semibold text-app-text mb-1">{m.ob_connection_title()}</h2>
+      <h2 className="text-sm font-semibold text-app-text mb-1">{m.label_connection()}</h2>
       <p className="text-sm text-app-text-muted mb-4">{m.ob_connection_desc()}</p>
 
       <div className="flex items-end gap-2 mb-4">
         <div>
           <Label htmlFor="onboard-port" className="text-app-text-secondary text-xs">
-            {m.ob_connection_udp_port()}
+            {m.label_udp_port()}
           </Label>
           <Input
             id="onboard-port"
@@ -779,7 +779,7 @@ export function StepConnection() {
       {portError && <p className="text-red-400 text-xs mb-3">{portError}</p>}
 
       <details className="mb-4 group">
-        <summary className="text-xs text-app-accent cursor-pointer hover:text-app-accent/80 transition-colors">{m.ob_connection_forza_guide_summary()}</summary>
+        <summary className="text-xs text-app-accent cursor-pointer hover:text-app-accent/80 transition-colors">{m.settings_forza_guide_toggle()}</summary>
         <div className="mt-3 rounded-lg border border-app-border bg-app-surface-alt p-3">
           <ol className="space-y-1.5 text-xs text-app-text-muted list-decimal list-inside">
             <li>
@@ -809,7 +809,7 @@ export function StepConnection() {
       </details>
 
       <details className="mb-4 group">
-        <summary className="text-xs text-app-accent cursor-pointer hover:text-app-accent/80 transition-colors">{m.ob_connection_f1_guide_summary()}</summary>
+        <summary className="text-xs text-app-accent cursor-pointer hover:text-app-accent/80 transition-colors">{m.settings_f1_guide_toggle()}</summary>
         <div className="mt-3 rounded-lg border border-app-border bg-app-surface-alt p-3">
           <ol className="space-y-1.5 text-xs text-app-text-muted list-decimal list-inside">
             <li>

@@ -569,7 +569,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
             <Sparkles className="size-5 text-app-text-dim" />
             <div>
-              <p className="text-[11px] text-app-text-secondary font-medium">{m.aipanel_ai_not_set_up()}</p>
+              <p className="text-[11px] text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
               <p className="text-[10px] text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
             </div>
             <button onClick={() => openSettings("ai")} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors">
@@ -619,7 +619,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             <div className="rounded-lg px-2.5 py-2 bg-red-400/10 border border-red-400/20">
               <p className="text-[11px] text-red-400">{error}</p>
               <Button variant="app-outline" size="app-sm" onClick={() => fetchAnalysis(false)} className="mt-1">
-                {m.aipanel_retry()}
+                {m.label_retry()}
               </Button>
             </div>
           </div>
@@ -635,7 +635,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               {/* Pace */}
               {analysis.pace?.length > 0 && (
                 <div>
-                  <SectionHeader icon={<Gauge className="size-3" />} title={m.aipanel_section_pace()} />
+                  <SectionHeader icon={<Gauge className="size-3" />} title={m.label_pace()} />
                   <div className="grid grid-cols-1 gap-1.5">
                     {analysis.pace.map((item, i) => (
                       <MetricCard key={i} item={item} />
@@ -647,7 +647,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               {/* Handling */}
               {analysis.handling?.length > 0 && (
                 <div>
-                  <SectionHeader icon={<Sliders className="size-3" />} title={m.aipanel_section_handling()} />
+                  <SectionHeader icon={<Sliders className="size-3" />} title={m.label_handling()} />
                   <div className="grid grid-cols-1 gap-1.5">
                     {analysis.handling.map((item, i) => (
                       <MetricCard key={i} item={item} />
@@ -659,7 +659,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               {/* Problem Corners */}
               {analysis.corners?.length > 0 && (
                 <div>
-                  <SectionHeader icon={<AlertTriangle className="size-3" />} title={m.aipanel_section_problem_corners()} />
+                  <SectionHeader icon={<AlertTriangle className="size-3" />} title={m.label_problem_corners()} />
                   <div className="space-y-1.5">
                     {analysis.corners.map((corner, i) => (
                       <TrackCard
@@ -685,7 +685,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               {/* Braking per corner */}
               {analysis.braking?.length > 0 && (
                 <div>
-                  <SectionHeader icon={<CircleDot className="size-3" />} title={m.aipanel_section_braking()} />
+                  <SectionHeader icon={<CircleDot className="size-3" />} title={m.label_braking_points()} />
                   <div className="space-y-1.5">
                     {analysis.braking.map((item, i) => (
                       <TrackCard
@@ -710,7 +710,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               {/* Throttle per corner */}
               {analysis.throttle?.length > 0 && (
                 <div>
-                  <SectionHeader icon={<Zap className="size-3" />} title={m.aipanel_section_throttle()} />
+                  <SectionHeader icon={<Zap className="size-3" />} title={m.label_throttle_application()} />
                   <div className="space-y-1.5">
                     {analysis.throttle.map((item, i) => (
                       <TrackCard
@@ -735,7 +735,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               {/* Coaching */}
               {analysis.coaching?.length > 0 && (
                 <div>
-                  <SectionHeader icon={<Lightbulb className="size-3" />} title={m.aipanel_section_coaching()} />
+                  <SectionHeader icon={<Lightbulb className="size-3" />} title={m.label_coaching()} />
                   <div className="space-y-1.5">
                     {analysis.coaching.map((item, i) => (
                       <TrackCard
@@ -778,7 +778,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 <button
                   onClick={handleExport}
                   className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
-                  title={m.aipanel_export_title()}
+                  title={m.label_export_as_image()}
                 >
                   <Download className="size-3" /> {m.aipanel_export()}
                 </button>
@@ -791,7 +791,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                   className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors disabled:opacity-50"
                   title={m.aipanel_regenerate_title()}
                 >
-                  <RefreshCw className="size-3" /> {m.aipanel_regenerate()}
+                  <RefreshCw className="size-3" /> {m.label_regenerate()}
                 </button>
                 <button
                   onClick={() => {
@@ -803,7 +803,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                   className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-red-400 px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
                   title={m.aipanel_clear_title()}
                 >
-                  <Trash2 className="size-3" /> {m.aipanel_clear()}
+                  <Trash2 className="size-3" /> {m.common_clear()}
                 </button>
               </div>
             </div>
@@ -887,7 +887,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                     }}
                     className="mt-1"
                   >
-                    {m.aipanel_retry()}
+                    {m.label_retry()}
                   </Button>
                 </div>
               </div>

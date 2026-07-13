@@ -320,7 +320,7 @@ function LapComparisonInner() {
       <div className="flex items-start gap-3 shrink-0">
         {/* Track selector */}
         <div className="flex flex-col gap-1 flex-1 min-w-[140px] max-w-[260px]">
-          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_track()}</label>
+          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.label_track()}</label>
           <SearchSelect
             value={selectedTrack != null ? String(selectedTrack) : ""}
             onChange={(v) => setSelectedTrack(v ? Number(v) : null)}
@@ -398,7 +398,7 @@ function LapComparisonInner() {
             className={aiPanelOpen ? "text-app-accent border-app-accent/40 bg-app-accent/10" : "hover:text-app-accent"}
           >
             <Sparkles className="size-3.5" />
-            {m.compare_ai_analysis()}
+            {m.label_ai_analysis()}
           </Button>
         </div>
       </div>
@@ -457,7 +457,7 @@ function LapComparisonInner() {
                     }}
                     syncKey={SYNC_KEY}
                     height={200}
-                    title={m.compare_speed()}
+                    title={m.label_speed()}
                     onCursorMove={handleCursorMove}
                   />
                 </div>

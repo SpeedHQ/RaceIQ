@@ -125,7 +125,7 @@ export function ImportDumpPanel() {
           disabled={!file || importing}
           className="flex-1 px-4 py-2 rounded bg-app-accent text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
         >
-          {importing ? m.dev_importing() : m.dev_import_button()}
+          {importing ? m.label_importing() : m.dev_import_button()}
         </button>
         {file && !importing && (
           <button type="button" onClick={() => handleSelect(null)} className="px-4 py-2 rounded bg-app-surface-alt text-app-text hover:bg-app-surface transition-colors">

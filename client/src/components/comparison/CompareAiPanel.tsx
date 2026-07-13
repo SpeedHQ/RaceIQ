@@ -214,7 +214,7 @@ function InputsSection({
         <span className="w-2 h-2 rounded-full bg-gradient-to-r from-orange-500 to-blue-500" />
         <span className="text-[11px] font-semibold text-app-text truncate flex-1">{m.compare_inputs_comparison_ab()}</span>
         {analysis && (
-          <button onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.compare_regenerate()}>
+          <button onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()}>
             <RefreshCw className="size-3" />
           </button>
         )}
@@ -429,7 +429,7 @@ function InputsModal({
 
           {analysis.coaching?.length > 0 && (
             <div>
-              <div className="text-[10px] font-semibold text-app-text uppercase tracking-wider mb-1">{m.compare_coaching()}</div>
+              <div className="text-[10px] font-semibold text-app-text uppercase tracking-wider mb-1">{m.label_coaching()}</div>
               <div className="space-y-1.5">
                 {analysis.coaching.map((c, i) => (
                   <div key={i} className="rounded border border-app-border-input/40 bg-app-surface-alt/30 px-2 py-1.5">
@@ -477,7 +477,7 @@ function AnalysisModal({
         <div className="flex items-center justify-between px-4 py-3 border-b border-app-border shrink-0">
           <div className="flex items-center gap-2">
             <Sparkles className="size-3.5 text-amber-400" />
-            <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">{m.compare_ai_analysis()}</span>
+            <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">{m.label_ai_analysis()}</span>
             <span className="text-[11px] text-app-text-secondary truncate max-w-[300px]">{label}</span>
           </div>
           <button onClick={onClose} className="text-app-text-muted hover:text-app-text">
@@ -628,8 +628,8 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
       <div className="flex flex-col items-center justify-center py-12 gap-3 text-center px-3">
         <Sparkles className="size-5 text-app-text-dim" />
         <div>
-          <p className="text-[11px] text-app-text-secondary font-medium">{m.compare_ai_not_setup()}</p>
-          <p className="text-[10px] text-app-text-muted mt-0.5">{m.compare_ai_add_key()}</p>
+          <p className="text-[11px] text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
+          <p className="text-[10px] text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
         </div>
         <button onClick={() => openSettings("ai")} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors">
           Set up AI
@@ -687,7 +687,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
                     <Markdown remarkPlugins={[remarkGfm]}>{streaming}</Markdown>
                   </div>
                 </div>
-                {chatStatus === "generating" && <span className="text-[9px] text-app-text-muted font-mono pl-1">{m.compare_generating()}</span>}
+                {chatStatus === "generating" && <span className="text-[9px] text-app-text-muted font-mono pl-1">{m.aipanel_generating()}</span>}
               </div>
             )}
 

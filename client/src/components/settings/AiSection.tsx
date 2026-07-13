@@ -401,7 +401,7 @@ export function AiSection() {
                 onChange={(e) => setThinkingBudget(e.target.value ? Number(e.target.value) : null)}
                 className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
               >
-                <option value="">{m.ai_thinking_none()}</option>
+                <option value="">{m.label_none()}</option>
                 {GEMINI_THINKING_BUDGET_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -528,7 +528,7 @@ export function AiSection() {
                 onChange={(e) => setChatThinkingBudget(e.target.value ? Number(e.target.value) : null)}
                 className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
               >
-                <option value="">{m.ai_thinking_none()}</option>
+                <option value="">{m.label_none()}</option>
                 {GEMINI_THINKING_BUDGET_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
