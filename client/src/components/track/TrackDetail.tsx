@@ -10,6 +10,7 @@ import { drawTrack } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
 import { isDevelopment } from "@/lib/env";
 import { formatLapTime } from "@/lib/format";
+import { m } from "@/paraglide/messages";
 import { client } from "@/lib/rpc";
 import { getGameRoute, useGameId } from "@/stores/game";
 import { RAW_STORAGE_VERSION } from "@shared/types";
@@ -48,13 +49,17 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
     return (
       <div className="w-full md:w-2/5 min-w-0 bg-app-surface/50 border border-app-border rounded-lg flex flex-col md:overflow-hidden">
         <div className="flex justify-between items-center px-3 py-2 border-b border-app-border shrink-0">
-          <div className="text-app-label text-app-text-muted uppercase tracking-wider">Stats</div>
-          <div className="text-[11px] text-app-text-dim font-mono">last 100</div>
+          <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
+          <div className="text-[11px] text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
         </div>
         <div className="flex-1 p-3 flex flex-col gap-3">
           <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {["Best", "Median", "Worst"].map((label) => (
-              <div key={label} className="flex items-baseline gap-1.5">
+            {[
+              { key: "best", label: m.label_best() },
+              { key: "median", label: m.track_detail_median() },
+              { key: "worst", label: m.track_detail_worst() },
+            ].map(({ key, label }) => (
+              <div key={key} className="flex items-baseline gap-1.5">
                 <div className="text-xs text-app-text-dim uppercase tracking-wider">{label}</div>
                 <div className="font-mono text-app-body tabular-nums text-app-text-dim">—:—.—</div>
               </div>
@@ -208,7 +213,7 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
       {/* Fixed header — outside scroll container */}
       <div className="flex justify-between items-center px-3 py-2 border-b border-app-border shrink-0">
         <div className="flex items-center gap-2">
-          <div className="text-app-label text-app-text-muted uppercase tracking-wider">Stats</div>
+          <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
           {hasRaceFilter && (
             <div className="flex rounded overflow-hidden border border-app-border text-xs">
               {(["race", "quali"] as const).map((f) => (
@@ -223,23 +228,23 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
                       : "text-app-text-dim hover:text-app-text-secondary" + (f === "race" ? " border-r border-app-border" : "")
                   }`}
                 >
-                  {f === "race" ? "Race" : "Quali"}
+                  {f === "race" ? m.track_detail_race() : m.track_detail_quali()}
                 </button>
               ))}
             </div>
           )}
         </div>
-        <div className="text-[11px] text-app-text-dim font-mono">last 100</div>
+        <div className="text-[11px] text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
       </div>
       {/* Scrollable body */}
       <div className="flex-1 md:overflow-y-auto p-3 flex flex-col gap-3">
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {[
-            { label: "Best", value: minT, color: "text-purple-400" },
-            { label: "Median", value: medT, color: "text-app-text" },
-            { label: "Worst", value: maxT, color: "text-app-text" },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="flex items-baseline gap-1.5">
+            { key: "best", label: m.label_best(), value: minT, color: "text-purple-400" },
+            { key: "median", label: m.track_detail_median(), value: medT, color: "text-app-text" },
+            { key: "worst", label: m.track_detail_worst(), value: maxT, color: "text-app-text" },
+          ].map(({ key, label, value, color }) => (
+            <div key={key} className="flex items-baseline gap-1.5">
               <div className="text-xs text-app-text-dim uppercase tracking-wider">{label}</div>
               <div className={`font-mono text-app-body tabular-nums ${color}`}>{formatLapTime(value)}</div>
             </div>
@@ -260,7 +265,7 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
             <span>{formatLapTime(minT)}</span>
             <span className="flex items-center gap-1 text-[10px] text-app-text-dim font-sans">
               <span className="inline-block w-2.5 h-1.5 rounded-sm bg-emerald-300/70" />
-              typical range
+              {m.track_detail_typical_range()}
             </span>
             <span>{formatLapTime(maxT)}</span>
           </div>
@@ -930,7 +935,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
       <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
         <div className="flex items-center gap-3 min-w-0">
           <button onClick={onBack} className="shrink-0 text-app-label text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-border-input transition-colors">
-            &larr; Back
+            &larr; {m.common_back()}
           </button>
           <div className="min-w-0">
             <div className="text-app-heading font-semibold text-app-text">{track.name}</div>
@@ -954,7 +959,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                   : "text-app-text-muted hover:text-app-text-secondary hover:bg-app-surface-alt"
               }`}
             >
-              {tab === "laps" && trackLaps.length > 0 ? `Laps (${trackLaps.length})` : tab === "guide" ? "Guides" : tab === "setups" ? "Setup" : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === "laps" && trackLaps.length > 0 ? `${m.label_laps()} (${trackLaps.length})` : tab === "guide" ? m.track_detail_guides_tab() : tab === "setups" ? m.track_detail_setup_tab() : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
@@ -984,13 +989,13 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
               <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-app-label text-app-text-muted uppercase tracking-wider">Segments</span>
+                    <span className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_segments()}</span>
                     {segSource && <span className="text-[9px] font-mono text-app-text-dim px-1 py-0.5 rounded bg-app-surface-alt border border-app-border-input">{segSource}</span>}
                   </div>
                   {isDevelopment &&
                     (!editing ? (
                       <button onClick={startEditing} className="text-app-unit text-cyan-400 hover:text-cyan-300 px-2 py-0.5 rounded bg-cyan-900/30 border border-cyan-800/50">
-                        Edit
+                        {m.common_edit()}
                       </button>
                     ) : (
                       <div className="flex gap-1">
@@ -999,13 +1004,13 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                           disabled={saving}
                           className="text-app-unit text-emerald-400 hover:text-emerald-300 px-2 py-0.5 rounded bg-emerald-900/30 border border-emerald-800/50 disabled:opacity-50"
                         >
-                          {saving ? "..." : "Save"}
+                          {saving ? "..." : m.common_save()}
                         </button>
                         <button
                           onClick={() => setEditing(false)}
                           className="text-app-unit text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
                         >
-                          Cancel
+                          {m.common_cancel()}
                         </button>
                       </div>
                     ))}

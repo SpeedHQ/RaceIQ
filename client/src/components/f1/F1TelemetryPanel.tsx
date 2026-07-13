@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import type { TelemetryPacket, F1ExtendedData } from "@shared/types";
 import { F1TyreCompound } from "./F1TyreCompound";
 
@@ -43,7 +44,7 @@ export function F1TelemetryPanel({
         </div>
         <div className="text-6xl font-black text-zinc-300 leading-none">{gear}</div>
         <div className="flex-1">
-          <div className="text-xs text-zinc-500 mb-1">RPM</div>
+          <div className="text-xs text-zinc-500 mb-1">{m.f1tele_rpm_label()}</div>
           <div className="h-3 bg-zinc-800 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-green-600 via-yellow-500 to-red-500 rounded-full transition-all"
@@ -59,13 +60,13 @@ export function F1TelemetryPanel({
       {/* Throttle + Brake bars */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <div className="text-[10px] text-zinc-500 mb-1">Throttle</div>
+          <div className="text-[10px] text-zinc-500 mb-1">{m.f1tele_throttle()}</div>
           <div className="h-5 bg-zinc-800 rounded overflow-hidden">
             <div className="h-full bg-green-600 rounded transition-all" style={{ width: `${throttlePct}%` }} />
           </div>
         </div>
         <div>
-          <div className="text-[10px] text-zinc-500 mb-1">Brake</div>
+          <div className="text-[10px] text-zinc-500 mb-1">{m.label_braking()}</div>
           <div className="h-5 bg-zinc-800 rounded overflow-hidden">
             <div className="h-full bg-red-600 rounded transition-all" style={{ width: `${brakePct}%` }} />
           </div>
@@ -75,15 +76,15 @@ export function F1TelemetryPanel({
       {/* Lap times */}
       <div className="grid grid-cols-3 gap-2 text-center">
         <div>
-          <div className="text-[10px] text-zinc-500">Current</div>
+          <div className="text-[10px] text-zinc-500">{m.f1tele_lap_current()}</div>
           <div className="text-sm text-zinc-200 tabular-nums">{formatLapTime(packet.CurrentLap)}</div>
         </div>
         <div>
-          <div className="text-[10px] text-zinc-500">Last</div>
+          <div className="text-[10px] text-zinc-500">{m.f1tele_lap_last()}</div>
           <div className="text-sm text-zinc-200 tabular-nums">{formatLapTime(packet.LastLap)}</div>
         </div>
         <div>
-          <div className="text-[10px] text-zinc-500">Best</div>
+          <div className="text-[10px] text-zinc-500">{m.label_best()}</div>
           <div className="text-sm text-purple-400 tabular-nums">{formatLapTime(packet.BestLap)}</div>
         </div>
       </div>
@@ -91,12 +92,12 @@ export function F1TelemetryPanel({
       {/* Tyre info */}
       <div className="flex items-center justify-between">
         <F1TyreCompound f1={f1} />
-        <div className="text-xs text-zinc-500">Fuel: {packet.Fuel.toFixed(1)} laps</div>
+        <div className="text-xs text-zinc-500">{m.f1tele_fuel()}: {packet.Fuel.toFixed(1)} {m.f1tele_fuel_unit()}</div>
       </div>
 
       {/* Tyre temps (display in Celsius for F1) */}
       <div>
-        <div className="text-[10px] text-zinc-500 mb-1">Tyre Surface Temps</div>
+        <div className="text-[10px] text-zinc-500 mb-1">{m.f1tele_tyre_surface_temps()}</div>
         <div className="grid grid-cols-4 gap-1 text-center">
           {(["FL", "FR", "RL", "RR"] as const).map((pos) => {
             const key = `TireTemp${pos}` as keyof TelemetryPacket;
@@ -113,7 +114,7 @@ export function F1TelemetryPanel({
 
       {/* Tyre wear */}
       <div>
-        <div className="text-[10px] text-zinc-500 mb-1">Tyre Wear</div>
+        <div className="text-[10px] text-zinc-500 mb-1">{m.f1tele_tyre_wear()}</div>
         <div className="grid grid-cols-4 gap-1">
           {(["FL", "FR", "RL", "RR"] as const).map((pos) => {
             const key = `TireWear${pos}` as keyof TelemetryPacket;

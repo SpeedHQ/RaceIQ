@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { m } from "@/paraglide/messages";
 import { useTelemetryStore } from "../../stores/telemetry";
 import type { F1ExtendedData } from "@shared/types";
 import { tryGetGame } from "@shared/games/registry";
@@ -17,12 +18,12 @@ function fToC(f: number): number {
 }
 
 const WEATHER_LABELS: Record<number, string> = {
-  0: "Clear",
-  1: "Light Cloud",
-  2: "Overcast",
-  3: "Light Rain",
-  4: "Heavy Rain",
-  5: "Storm",
+  0: m.f1live_weather_clear(),
+  1: m.f1live_weather_light_cloud(),
+  2: m.f1live_weather_overcast(),
+  3: m.f1live_weather_light_rain(),
+  4: m.f1live_weather_heavy_rain(),
+  5: m.f1live_weather_storm(),
 };
 
 const COMPOUND_COLORS: Record<string, { bg: string; text: string }> = {
@@ -46,10 +47,10 @@ const COMPOUND_DOT: Record<string, string> = {
 const ERS_MAX_ENERGY = 4_000_000;
 
 const DEPLOY_MODES: Record<number, { label: string; color: string }> = {
-  0: { label: "NONE", color: "text-app-text-muted" },
-  1: { label: "MEDIUM", color: "text-blue-400" },
-  2: { label: "HOTLAP", color: "text-purple-400" },
-  3: { label: "OVERTAKE", color: "text-red-400" },
+  0: { label: m.f1live_ers_mode_none(), color: "text-app-text-muted" },
+  1: { label: m.f1live_ers_mode_medium(), color: "text-blue-400" },
+  2: { label: m.f1live_ers_mode_hotlap(), color: "text-purple-400" },
+  3: { label: m.f1live_ers_mode_overtake(), color: "text-red-400" },
 };
 
 function formatGap(gap: number): string {
@@ -86,7 +87,7 @@ export function F1LiveDashboard() {
         <div className="border-b border-app-border grid grid-cols-2">
           <div className="border-r border-app-border">
             <div className="h-8 px-2 border-b border-app-border flex items-center">
-              <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Weather</h2>
+              <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_weather()}</h2>
             </div>
             <WeatherWidget f1={f1} />
           </div>
@@ -115,7 +116,7 @@ export function F1LiveDashboard() {
         {/* Pit Window */}
         <div className="border-b border-app-border">
           <div className="h-8 px-2 border-b border-app-border flex items-center">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Pit Window</h2>
+            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_pit_window()}</h2>
           </div>
           <div className="p-3">
             <PitEstimate packet={rawPacket!} pit={pit} gameId="f1-2025" />
@@ -143,16 +144,16 @@ export function F1LiveDashboard() {
 function DrsIndicator({ f1 }: { f1: F1ExtendedData }) {
   let bg = "bg-zinc-700";
   let text = "text-app-text-muted";
-  let label = "DRS";
+  let label = m.f1live_drs_closed();
 
   if (f1.drsActivated) {
     bg = "bg-green-600";
     text = "text-white";
-    label = "DRS OPEN";
+    label = m.f1live_drs_open();
   } else if (f1.drsAllowed) {
     bg = "bg-green-900";
     text = "text-green-300";
-    label = "DRS READY";
+    label = m.f1live_drs_ready();
   }
 
   return (
@@ -166,12 +167,12 @@ function DrsIndicator({ f1 }: { f1: F1ExtendedData }) {
 
 function CarDamageSection({ f1 }: { f1: F1ExtendedData }) {
   const parts = [
-    { label: "FL Wing", value: f1.frontLeftWingDamage },
-    { label: "FR Wing", value: f1.frontRightWingDamage },
-    { label: "Rear Wing", value: f1.rearWingDamage },
-    { label: "Floor", value: f1.floorDamage },
-    { label: "Diffuser", value: f1.diffuserDamage },
-    { label: "Sidepod", value: f1.sidepodDamage },
+    { label: m.f1live_damage_fl_wing(), value: f1.frontLeftWingDamage },
+    { label: m.f1live_damage_fr_wing(), value: f1.frontRightWingDamage },
+    { label: m.f1live_damage_rear_wing(), value: f1.rearWingDamage },
+    { label: m.f1live_damage_floor(), value: f1.floorDamage },
+    { label: m.f1live_damage_diffuser(), value: f1.diffuserDamage },
+    { label: m.f1live_damage_sidepod(), value: f1.sidepodDamage },
   ];
 
   const hasDamage = parts.some((p) => p.value > 0);
@@ -181,8 +182,8 @@ function CarDamageSection({ f1 }: { f1: F1ExtendedData }) {
   return (
     <div className="border-b border-app-border">
       <div className="h-8 px-2 border-b border-app-border flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Damage</h2>
-        {!hasDamage && <span className="text-xs text-emerald-400">All Clear</span>}
+        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_damage()}</h2>
+        {!hasDamage && <span className="text-xs text-emerald-400">{m.f1live_damage_all_clear()}</span>}
       </div>
       <div className="p-3 flex items-center gap-4">
         {/* SVG top-down F1 car */}
@@ -223,7 +224,7 @@ function CarDamageSection({ f1 }: { f1: F1ExtendedData }) {
           {parts.map((p) => (
             <div key={p.label} className="flex items-center justify-between">
               <span className="text-xs text-app-text-muted">{p.label}</span>
-              <span className={`text-sm font-mono font-bold tabular-nums ${dmgText(p.value)}`}>{p.value === 0 ? "OK" : `${p.value}%`}</span>
+              <span className={`text-sm font-mono font-bold tabular-nums ${dmgText(p.value)}`}>{p.value === 0 ? m.f1live_damage_ok() : `${p.value}%`}</span>
             </div>
           ))}
         </div>
@@ -255,12 +256,12 @@ function ErsSection({ f1 }: { f1: F1ExtendedData }) {
   return (
     <div>
       <div className="h-8 px-2 border-b border-app-border flex items-center justify-between">
-        <h2 className="text-[10px] font-semibold text-app-text-muted uppercase tracking-wider">Electronics</h2>
+        <h2 className="text-[10px] font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_electronics()}</h2>
       </div>
       <div className="p-3 space-y-2">
         <DrsIndicator f1={f1} />
         <div className="flex items-center justify-between gap-2 mt-1">
-          <span className="text-[10px] text-app-text-muted uppercase tracking-wider">ERS</span>
+          <span className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.f1live_ers_label()}</span>
           <div className="flex items-center gap-1.5">
             <span className={`text-sm font-bold px-2 py-0.5 rounded bg-zinc-700 tabular-nums ${barTextColor}`}>{pct.toFixed(0)}%</span>
             <span className={`text-sm font-bold px-2 py-0.5 rounded bg-zinc-700 ${mode.color}`}>{mode.label}</span>
@@ -310,11 +311,11 @@ function WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
       )}
       <div className="flex gap-3">
         <div>
-          <div className="text-[9px] text-app-text-muted uppercase">Track</div>
+          <div className="text-[9px] text-app-text-muted uppercase">{m.label_track()}</div>
           <div className="text-base font-mono font-bold text-orange-400 tabular-nums leading-none">{f1.trackTemperature}&deg;</div>
         </div>
         <div>
-          <div className="text-[9px] text-app-text-muted uppercase">Air</div>
+          <div className="text-[9px] text-app-text-muted uppercase">{m.f1live_weather_air()}</div>
           <div className="text-base font-mono font-bold text-cyan-400 tabular-nums leading-none">{f1.airTemperature}&deg;</div>
         </div>
       </div>
@@ -365,25 +366,25 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
   return (
     <div className="flex flex-col flex-1">
       <div className="h-8 px-2 border-b border-app-border flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Live Standings</h2>
+        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_standings()}</h2>
         <button onClick={() => setExpanded(!expanded)} className="text-xs text-app-accent hover:text-app-accent/80 font-semibold">
-          {expanded ? "Focus" : "Show All"}
+          {expanded ? m.f1live_standings_focus() : m.f1live_standings_show_all()}
         </button>
       </div>
       <div className="flex-1 overflow-y-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-app-surface">
             <tr className="text-app-text-muted border-b border-app-border">
-              <th className="px-2 py-1.5 text-left w-8 font-semibold">P</th>
-              <th className="px-2 py-1.5 text-left font-semibold">Driver</th>
-              <th className="px-2 py-1.5 text-right font-semibold">S1</th>
-              <th className="px-2 py-1.5 text-right font-semibold">S2</th>
-              <th className="px-2 py-1.5 text-right font-semibold">S3</th>
-              <th className="px-2 py-1.5 text-right font-semibold">Gap</th>
-              <th className="px-2 py-1.5 text-right font-semibold">Ahead</th>
-              <th className="px-2 py-1.5 text-center w-6 font-semibold">T</th>
-              <th className="px-2 py-1.5 text-right w-8 font-semibold">Age</th>
-              <th className="px-2 py-1.5 text-center w-8 font-semibold">Pit</th>
+              <th className="px-2 py-1.5 text-left w-8 font-semibold">{m.f1grid_header_position()}</th>
+              <th className="px-2 py-1.5 text-left font-semibold">{m.f1grid_header_driver()}</th>
+              <th className="px-2 py-1.5 text-right font-semibold">{m.f1grid_header_s1()}</th>
+              <th className="px-2 py-1.5 text-right font-semibold">{m.f1grid_header_s2()}</th>
+              <th className="px-2 py-1.5 text-right font-semibold">{m.f1grid_header_s3()}</th>
+              <th className="px-2 py-1.5 text-right font-semibold">{m.label_delta()}</th>
+              <th className="px-2 py-1.5 text-right font-semibold">{m.f1grid_header_ahead()}</th>
+              <th className="px-2 py-1.5 text-center w-6 font-semibold">{m.label_tires()}</th>
+              <th className="px-2 py-1.5 text-right w-8 font-semibold">{m.f1grid_header_age()}</th>
+              <th className="px-2 py-1.5 text-center w-8 font-semibold">{m.f1grid_header_pit()}</th>
             </tr>
           </thead>
           <tbody>
@@ -392,7 +393,7 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
                 return (
                   <tr key={`sep-${entry.position}`}>
                     <td colSpan={10} className="text-center text-xs text-app-text-dim py-0.5">
-                      ···
+                      {m.f1grid_separator()}
                     </td>
                   </tr>
                 );
@@ -402,11 +403,11 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
               return (
                 <tr key={entry.position} className={`border-b border-app-border/50 ${isPlayer ? "bg-app-accent/10" : ""}`}>
                   <td className="px-2 py-1.5 font-bold text-app-text tabular-nums">{entry.position}</td>
-                  <td className={`px-2 py-1.5 truncate max-w-[140px] ${isPlayer ? "text-app-accent font-semibold" : "text-app-text-secondary"}`}>{entry.name || `Car ${entry.position}`}</td>
+                  <td className={`px-2 py-1.5 truncate max-w-[140px] ${isPlayer ? "text-app-accent font-semibold" : "text-app-text-secondary"}`}>{entry.name || `${m.label_car()} ${entry.position}`}</td>
                   <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS1 > 0 ? entry.lastS1.toFixed(3) : "—"}</td>
                   <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS2 > 0 ? entry.lastS2.toFixed(3) : "—"}</td>
                   <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS3 > 0 ? entry.lastS3.toFixed(3) : "—"}</td>
-                  <td className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">{entry.position === 1 ? "LEADER" : formatGap(entry.gapToLeader)}</td>
+                  <td className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">{entry.position === 1 ? m.f1grid_leader() : formatGap(entry.gapToLeader)}</td>
                   <td className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">{formatGap(entry.gapToCarAhead)}</td>
                   <td className="px-2 py-1.5 text-center">
                     <span className={`inline-block w-2.5 h-2.5 rounded-full ${dotColor}`} />

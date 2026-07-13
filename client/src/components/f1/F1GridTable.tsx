@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import type { F1ExtendedData } from "@shared/types";
 
 const COMPOUND_DOT: Record<string, string> = {
@@ -29,22 +30,22 @@ export function F1GridTable({ f1, playerCarIndex }: { f1: F1ExtendedData; player
     <div className="rounded-lg bg-zinc-900 overflow-hidden">
       <div className="px-3 py-2 border-b border-zinc-800">
         <span className="text-xs text-zinc-400 font-medium">
-          Live Standings &mdash; {f1.sessionType?.replace("-", " ").toUpperCase() ?? "SESSION"}
-          {f1.totalLaps > 0 && ` (${f1.totalLaps} laps)`}
+          {m.f1grid_section_standings()} &mdash; {f1.sessionType?.replace("-", " ").toUpperCase() ?? m.f1grid_session_fallback()}
+          {f1.totalLaps > 0 && ` (${f1.totalLaps} ${m.label_laps()})`}
         </span>
       </div>
       <div className="overflow-y-auto max-h-[400px]">
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-zinc-900">
             <tr className="text-zinc-500 border-b border-zinc-800">
-              <th className="px-2 py-1 text-left w-8">P</th>
-              <th className="px-2 py-1 text-left">Driver</th>
-              <th className="px-2 py-1 text-right">Gap</th>
-              <th className="px-2 py-1 text-right">Int</th>
-              <th className="px-2 py-1 text-right">Best</th>
-              <th className="px-2 py-1 text-center w-6">T</th>
-              <th className="px-2 py-1 text-right w-8">Age</th>
-              <th className="px-2 py-1 text-center w-8">Pit</th>
+              <th className="px-2 py-1 text-left w-8">{m.f1grid_header_position()}</th>
+              <th className="px-2 py-1 text-left">{m.f1grid_header_driver()}</th>
+              <th className="px-2 py-1 text-right">{m.label_delta()}</th>
+              <th className="px-2 py-1 text-right">{m.f1grid_header_interval()}</th>
+              <th className="px-2 py-1 text-right">{m.label_best()}</th>
+              <th className="px-2 py-1 text-center w-6">{m.label_tires()}</th>
+              <th className="px-2 py-1 text-right w-8">{m.f1grid_header_age()}</th>
+              <th className="px-2 py-1 text-center w-8">{m.f1grid_header_pit()}</th>
             </tr>
           </thead>
           <tbody>
@@ -54,15 +55,15 @@ export function F1GridTable({ f1, playerCarIndex }: { f1: F1ExtendedData; player
               return (
                 <tr key={entry.position} className={`border-b border-zinc-800/50 hover:bg-zinc-800/50 ${isPlayer ? "" : ""}`}>
                   <td className="px-2 py-1 font-bold text-zinc-300">{entry.position}</td>
-                  <td className="px-2 py-1 text-zinc-200 truncate max-w-[120px]">{entry.name || `Car ${entry.position}`}</td>
-                  <td className="px-2 py-1 text-right text-zinc-400 tabular-nums">{entry.position === 1 ? "LEADER" : formatGap(entry.gapToLeader)}</td>
+                  <td className="px-2 py-1 text-zinc-200 truncate max-w-[120px]">{entry.name || `${m.label_car()} ${entry.position}`}</td>
+                  <td className="px-2 py-1 text-right text-zinc-400 tabular-nums">{entry.position === 1 ? m.f1grid_leader() : formatGap(entry.gapToLeader)}</td>
                   <td className="px-2 py-1 text-right text-zinc-400 tabular-nums">{formatGap(entry.gapToCarAhead)}</td>
                   <td className="px-2 py-1 text-right text-zinc-300 tabular-nums">{formatTime(entry.bestLapTime)}</td>
                   <td className="px-2 py-1 text-center">
                     <span className={`inline-block w-2.5 h-2.5 rounded-full ${dotColor}`} />
                   </td>
                   <td className="px-2 py-1 text-right text-zinc-500 tabular-nums">{entry.tyreAge}</td>
-                  <td className="px-2 py-1 text-center text-zinc-500">{entry.pitStatus === 1 ? "IN" : entry.pitStatus === 2 ? "PIT" : entry.numPitStops > 0 ? entry.numPitStops : ""}</td>
+                  <td className="px-2 py-1 text-center text-zinc-500">{entry.pitStatus === 1 ? m.f1grid_pit_in() : entry.pitStatus === 2 ? m.f1grid_pit_pitting() : entry.numPitStops > 0 ? entry.numPitStops : ""}</td>
                 </tr>
               );
             })}
