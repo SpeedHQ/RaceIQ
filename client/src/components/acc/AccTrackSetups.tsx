@@ -3,8 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { client } from "../../lib/rpc";
 import { SearchSelect } from "../ui/SearchSelect";
-import { SiGoogledrive, SiDropbox, SiMega, SiYoutube } from "react-icons/si";
-import { Download, Cloud } from "lucide-react";
+import { PLATFORM_LABEL, PlatformIcon, detectPlatform } from "@/components/acc/acc-links";
 
 interface AccSetup {
   name: string;
@@ -27,37 +26,6 @@ interface AccSetup {
   source?: string;
 }
 
-type LinkPlatform = "youtube" | "google-drive" | "onedrive" | "dropbox" | "mega" | "generic";
-
-function detectPlatform(url: string): LinkPlatform {
-  try {
-    const h = new URL(url).hostname;
-    if (h.includes("youtube.com") || h.includes("youtu.be")) return "youtube";
-    if (h.includes("drive.google.com") || h.includes("docs.google.com")) return "google-drive";
-    if (h.includes("onedrive.live.com") || h.includes("1drv.ms") || h.includes("sharepoint.com")) return "onedrive";
-    if (h.includes("dropbox.com")) return "dropbox";
-    if (h.includes("mega.nz") || h.includes("mega.co.nz")) return "mega";
-  } catch {}
-  return "generic";
-}
-
-function PlatformIcon({ platform, className = "w-3.5 h-3.5" }: { platform: LinkPlatform; className?: string }) {
-  if (platform === "youtube") return <SiYoutube className={className} />;
-  if (platform === "google-drive") return <SiGoogledrive className={className} />;
-  if (platform === "onedrive") return <Cloud className={className} />;
-  if (platform === "dropbox") return <SiDropbox className={className} />;
-  if (platform === "mega") return <SiMega className={className} />;
-  return <Download className={className} />;
-}
-
-const PLATFORM_LABEL: Record<LinkPlatform, string> = {
-  youtube: "YouTube",
-  "google-drive": "Google Drive",
-  onedrive: "OneDrive",
-  dropbox: "Dropbox",
-  mega: "MEGA",
-  generic: "Download",
-};
 
 interface AccCar {
   id: number;

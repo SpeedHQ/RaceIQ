@@ -1,3 +1,4 @@
+import { PLATFORM_LABEL, PlatformIcon, detectPlatform } from "@/components/acc/acc-links";
 import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
 import type { ComboOption } from "@/components/tune/browser/ComboBox";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
@@ -196,9 +197,10 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
             href={fileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-app-text-secondary hover:text-app-text no-underline"
+            className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-app-text-secondary hover:text-app-text no-underline inline-flex items-center gap-1.5"
           >
-            Download
+            <PlatformIcon platform={detectPlatform(fileUrl)} />
+            {PLATFORM_LABEL[detectPlatform(fileUrl)]}
           </a>
         ) : (
           ytVideoId &&
