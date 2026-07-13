@@ -674,5 +674,6 @@
   "heatmap_longest_day": "Längster Tag",
   "heatmap_less": "Weniger",
   "heatmap_more": "Mehr",
-  "heatmap_no_activity": "Keine Aktivität"
+  "heatmap_no_activity": "Keine Aktivität",
+  "heatmap_summary": "{total} · {days} aktive Tage · längste Serie {streak} Tage · längster Tag {best}"
 }
