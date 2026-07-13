@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { m } from "@/paraglide/messages";
 import type { TelemetryPacket } from "@shared/types";
 
 /**
@@ -67,7 +68,7 @@ export function GForceCircle({ packet }: { packet: TelemetryPacket }) {
 
   return (
     <div className="flex flex-col items-center gap-0.5 shrink-0" style={{ width: size }}>
-      <div className="text-[8px] font-mono text-app-text-muted uppercase tracking-wider font-semibold">G-Force</div>
+      <div className="text-[8px] font-mono text-app-text-muted uppercase tracking-wider font-semibold">{m.gforce_title()}</div>
       <canvas ref={canvasRef} style={{ width: size, height: size }} className="rounded bg-app-surface/40" />
       <div className="flex gap-2 text-[8px] font-mono text-app-text-secondary tabular-nums">
         <span className="w-6 text-right">

@@ -6,6 +6,7 @@ import { tracksMatch } from "@/lib/track-match";
 import type { GameId, TuneSettings } from "@shared/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { m } from "@/paraglide/messages";
 
 // Normalised community-or-user setup row for the panel list.
 interface SetupRow {
@@ -232,8 +233,8 @@ export function CatalogTrackSetups({
               className="ml-auto w-48"
               value={filterCar}
               onChange={setFilterCar}
-              placeholder="Search cars..."
-              options={[{ value: "", label: "All cars" }, ...uniqueCars.map((o) => ({ value: String(o), label: carName(o) }))]}
+              placeholder={m.catalog_search_cars_placeholder()}
+              options={[{ value: "", label: m.catalog_filter_all_cars() }, ...uniqueCars.map((o) => ({ value: String(o), label: carName(o) }))]}
             />
           )}
         </div>

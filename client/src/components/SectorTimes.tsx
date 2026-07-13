@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { m } from "@/paraglide/messages";
 import { formatLapTime } from "@/lib/format";
 import { getSoundEnabled, getSoundVolume, getSoundType, getSoundUrl } from "./Settings";
 import type { LiveSectorData } from "@shared/types";
@@ -116,7 +117,7 @@ export function SectorTimes({ sectors }: { sectors: LiveSectorData | null }) {
 
   if (!sectors) return null;
 
-  const sectorNames = ["S1", "S2", "S3"];
+  const sectorNames = [m.sectortimes_s1(), m.sectortimes_s2(), m.sectortimes_s3()];
   const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
 
   return (

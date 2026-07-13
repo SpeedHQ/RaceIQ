@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { m } from "@/paraglide/messages";
 import { createPortal } from "react-dom";
 import { Button } from "./button";
 
@@ -20,7 +21,7 @@ export function NoteModal({ value, onSave, onClose }: { value?: string; onSave: 
       }}
     >
       <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[480px] max-w-[90vw] flex flex-col gap-3 p-4">
-        <p className="text-xs font-medium text-app-text/90 uppercase tracking-wider">Note</p>
+        <p className="text-xs font-medium text-app-text/90 uppercase tracking-wider">{m.note_title()}</p>
         <textarea
           ref={ref}
           rows={5}
@@ -31,7 +32,7 @@ export function NoteModal({ value, onSave, onClose }: { value?: string; onSave: 
             if (e.key === "Escape") onClose();
             if (e.key === "Enter" && e.metaKey) commit();
           }}
-          placeholder="Add a note…"
+          placeholder={m.note_placeholder()}
         />
         <div className="flex justify-end gap-2">
           <Button variant="app-ghost" size="app-sm" onClick={onClose}>

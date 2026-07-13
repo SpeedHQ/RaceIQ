@@ -6,6 +6,7 @@ import type { TuneCategory } from "@shared/types";
 import { client } from "../lib/rpc";
 import { GearRatioChart } from "./tune/GearRatioChart";
 import { useSettings } from "../hooks/queries";
+import { m } from "@/paraglide/messages";
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -507,7 +508,7 @@ export function TuneForm({
   isSubmitting: boolean;
 }) {
   const [name, setName] = useState(initialData?.name ?? "");
-  const [author, setAuthor] = useState(initialData?.author ?? "Me");
+  const [author, setAuthor] = useState(initialData?.author ?? m.tune_me());
   const [carOrdinal, setCarOrdinal] = useState(initialData?.carOrdinal ?? 2860);
   const [category, setCategory] = useState<TuneCategory>(initialData?.category ?? "circuit");
   const [description, setDescription] = useState(initialData?.description ?? "");
@@ -530,11 +531,11 @@ export function TuneForm({
 
   const filteredFormCars = carSearchQuery ? allCars.filter((c) => c.name.toLowerCase().includes(carSearchQuery.toLowerCase())).slice(0, 20) : allCars.slice(0, 20);
 
-  const selectedCarName = allCars.find((c) => c.ordinal === carOrdinal)?.name ?? (carOrdinal ? `Car #${carOrdinal}` : "Select car...");
+  const selectedCarName = allCars.find((c) => c.ordinal === carOrdinal)?.name ?? (carOrdinal ? `Car #${carOrdinal}` : "");
 
   useEffect(() => {
     setName(initialData?.name ?? "");
-    setAuthor(initialData?.author ?? "Me");
+    setAuthor(initialData?.author ?? m.tune_me());
     setCarOrdinal(initialData?.carOrdinal ?? 2860);
     setCategory(initialData?.category ?? "circuit");
     setDescription(initialData?.description ?? "");
@@ -625,7 +626,7 @@ export function TuneForm({
     try {
       parseTuneJson(jsonText);
     } catch (err: unknown) {
-      setJsonError(err instanceof Error ? err.message : "Invalid JSON");
+      setJsonError(err instanceof Error ? err.message : m.tune_form_error_invalid_json());
     }
   };
 
@@ -637,7 +638,7 @@ export function TuneForm({
       setJsonText(text);
       parseTuneJson(text);
     } catch (err: unknown) {
-      setJsonError(err instanceof Error ? err.message : "Invalid JSON file");
+      setJsonError(err instanceof Error ? err.message : m.tune_form_error_invalid_json_file());
     }
     e.target.value = "";
   };
@@ -675,18 +676,18 @@ export function TuneForm({
         <h2 className="text-sm font-semibold text-app-text">{title}</h2>
         <div className="flex items-center gap-1 ml-2">
           <button type="button" className={tabCls("info")} onClick={() => setActiveTab("info")}>
-            Info
+            {m.tune_form_tab_info()}
           </button>
           <button type="button" className={tabCls("settings")} onClick={() => setActiveTab("settings")}>
-            Settings
+            {m.tune_form_tab_settings()}
           </button>
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <Button type="button" variant="app-outline" size="app-sm" onClick={onCancel}>
-            Cancel
+            {m.common_cancel()}
           </Button>
           <Button type="submit" variant="app-primary" size="app-sm" disabled={!name || isSubmitting}>
-            {isSubmitting ? "Saving..." : "Save Tune"}
+            {isSubmitting ? m.common_saving() : m.tune_form_button_save_tune()}
           </Button>
         </div>
       </div>
@@ -695,7 +696,7 @@ export function TuneForm({
       {activeTab === "info" && (
         <div className="p-6 grid grid-cols-2 gap-4 max-w-2xl">
           <label className="col-span-2 space-y-1">
-            <span className="text-xs font-medium text-app-text-muted">Name</span>
+            <span className="text-xs font-medium text-app-text-muted">{m.tune_form_name()}</span>
             <input
               type="text"
               value={name}
@@ -705,7 +706,7 @@ export function TuneForm({
             />
           </label>
           <label className="space-y-1">
-            <span className="text-xs font-medium text-app-text-muted">Author</span>
+            <span className="text-xs font-medium text-app-text-muted">{m.label_author()}</span>
             <input
               type="text"
               value={author}
@@ -715,10 +716,10 @@ export function TuneForm({
             />
           </label>
           <div className="space-y-1 relative">
-            <span className="text-xs font-medium text-app-text-muted">Car</span>
+            <span className="text-xs font-medium text-app-text-muted">{m.label_car()}</span>
             <input
               type="text"
-              value={carDropOpen ? carSearchQuery : selectedCarName}
+              value={carDropOpen ? carSearchQuery : (selectedCarName || m.tune_form_select_car_placeholder())}
               onChange={(e) => {
                 setCarSearchQuery(e.target.value);
                 setCarDropOpen(true);
@@ -728,7 +729,7 @@ export function TuneForm({
                 setCarSearchQuery("");
               }}
               onBlur={() => setTimeout(() => setCarDropOpen(false), 150)}
-              placeholder="Search car..."
+              placeholder={m.tune_form_search_car_placeholder()}
               className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
             />
             {carDropOpen && (
@@ -748,12 +749,12 @@ export function TuneForm({
                     {c.name}
                   </button>
                 ))}
-                {filteredFormCars.length === 0 && <div className="px-3 py-2 text-xs text-app-text-muted">No cars found</div>}
+                {filteredFormCars.length === 0 && <div className="px-3 py-2 text-xs text-app-text-muted">{m.tune_no_cars_found()}</div>}
               </div>
             )}
           </div>
           <label className="space-y-1">
-            <span className="text-xs font-medium text-app-text-muted">Category</span>
+            <span className="text-xs font-medium text-app-text-muted">{m.label_category()}</span>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as TuneCategory)}
@@ -779,7 +780,7 @@ export function TuneForm({
             </select>
           </label>
           <label className="col-span-2 space-y-1">
-            <span className="text-xs font-medium text-app-text-muted">Description</span>
+            <span className="text-xs font-medium text-app-text-muted">{m.tune_form_description()}</span>
             <input
               type="text"
               value={description}
@@ -857,7 +858,7 @@ export function TuneForm({
             <h3 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted">Tune Parameters</h3>
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => setJsonMode(false)} className="hidden">
-                JSON Import
+                {m.tune_json_import()}
               </button>
               {!jsonMode && (
                 <div className="flex rounded-md ring-1 ring-app-border overflow-hidden">
@@ -866,14 +867,14 @@ export function TuneForm({
                     onClick={() => switchUnitSystem(true)}
                     className={`text-[10px] font-semibold px-2.5 py-1 transition-colors ${isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
                   >
-                    Metric
+                    {m.tune_metric()}
                   </button>
                   <button
                     type="button"
                     onClick={() => switchUnitSystem(false)}
                     className={`text-[10px] font-semibold px-2.5 py-1 transition-colors ${!isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
                   >
-                    Imperial
+                    {m.tune_imperial()}
                   </button>
                 </div>
               )}
@@ -894,19 +895,19 @@ export function TuneForm({
                   setJsonText(e.target.value);
                   setJsonError("");
                 }}
-                placeholder="Paste tune JSON..."
+                placeholder={m.tune_form_paste_json_placeholder()}
                 rows={10}
                 className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent resize-y"
               />
               {jsonError && <p className="text-xs text-red-400">{jsonError}</p>}
               <button type="button" onClick={handleJsonParse} className="text-xs px-3 py-1.5 rounded bg-app-accent/20 text-app-accent hover:bg-app-accent/30 transition-colors">
-                Parse & Populate
+                {m.tune_parse_populate()}
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Tires</h4>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_tires()}</h4>
                 <NumberField
                   label="Front Pressure"
                   value={settings.tires.frontPressure}
@@ -924,7 +925,7 @@ export function TuneForm({
               </div>
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Gearing</h4>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_gearing()}</h4>
                 <NumberField label="Final Drive" value={settings.gearing.finalDrive} onChange={(v) => updateSettings("gearing", "finalDrive", v)} step={0.01} unit=":1" />
                 <NumberField
                   label="Top Speed"
@@ -999,7 +1000,7 @@ export function TuneForm({
               </div>
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Alignment</h4>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_alignment()}</h4>
                 <NumberField label="Front Camber" value={settings.alignment.frontCamber} onChange={(v) => updateSettings("alignment", "frontCamber", v)} unit="°" />
                 <NumberField label="Rear Camber" value={settings.alignment.rearCamber} onChange={(v) => updateSettings("alignment", "rearCamber", v)} unit="°" />
                 <NumberField label="Front Toe" value={settings.alignment.frontToe} onChange={(v) => updateSettings("alignment", "frontToe", v)} unit="°" />
@@ -1009,7 +1010,7 @@ export function TuneForm({
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">Anti-Roll Bars</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">{m.tune_section_anti_roll_bars()}</h4>
                   <span className="text-[10px] text-app-text-muted">soft → stiff</span>
                 </div>
                 <NumberField label="Front" value={settings.antiRollBars.front} onChange={(v) => updateSettings("antiRollBars", "front", v)} />
@@ -1017,7 +1018,7 @@ export function TuneForm({
               </div>
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Springs</h4>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_springs()}</h4>
                 <NumberField
                   label="Front Rate"
                   value={settings.springs.frontRate}
@@ -1038,7 +1039,7 @@ export function TuneForm({
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">Damping</h4>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">{m.tune_section_damping()}</h4>
                   <span className="text-[10px] text-app-text-muted">soft → stiff</span>
                 </div>
                 <NumberField label="Front Bump" value={settings.damping.frontBump} onChange={(v) => updateSettings("damping", "frontBump", v)} />
@@ -1048,7 +1049,7 @@ export function TuneForm({
               </div>
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Roll Center Height</h4>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_roll_center_height()}</h4>
                 <NumberField
                   label="Front"
                   value={settings.rollCenterHeight.front}
@@ -1074,7 +1075,7 @@ export function TuneForm({
               </div>
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Anti-Geometry</h4>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_anti_geometry()}</h4>
                 <NumberField
                   label="Anti-dive (front)"
                   value={settings.antiGeometry.antiDiveFront}
@@ -1100,13 +1101,13 @@ export function TuneForm({
               </div>
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Aero</h4>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_aero()}</h4>
                 <NumberField label="Front Downforce" value={settings.aero.frontDownforce} onChange={(v) => updateSettings("aero", "frontDownforce", v)} step={1} unit={unitLabel("aero", isMetric)} />
                 <NumberField label="Rear Downforce" value={settings.aero.rearDownforce} onChange={(v) => updateSettings("aero", "rearDownforce", v)} step={1} unit={unitLabel("aero", isMetric)} />
               </div>
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Differential</h4>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_differential()}</h4>
                 {(drivetrain === "rwd" || drivetrain === "awd") && (
                   <>
                     <NumberField label="Rear Accel" value={settings.differential.rearAccel} onChange={(v) => updateSettings("differential", "rearAccel", v)} step={1} unit="%" />
@@ -1123,7 +1124,7 @@ export function TuneForm({
               </div>
 
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">Brakes</h4>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_brakes()}</h4>
                 <NumberField label="Balance" value={settings.brakes.balance} onChange={(v) => updateSettings("brakes", "balance", v)} step={1} unit="%" />
                 <NumberField label="Pressure" value={settings.brakes.pressure} onChange={(v) => updateSettings("brakes", "pressure", v)} step={1} unit="%" />
               </div>

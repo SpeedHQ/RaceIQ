@@ -194,15 +194,15 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
       <WheelTable
         rows={[
           {
-            label: "Grip Ask",
+            label: m.analyse_dynamics_grip_ask(),
             fl: C(`${(fc.fl * 100).toFixed(0)}%`, frictionUtilColor(fc.fl)),
             fr: C(`${(fc.fr * 100).toFixed(0)}%`, frictionUtilColor(fc.fr)),
             rl: C(`${(fc.rl * 100).toFixed(0)}%`, frictionUtilColor(fc.rl)),
             rr: C(`${(fc.rr * 100).toFixed(0)}%`, frictionUtilColor(fc.rr)),
           },
-          { label: "Traction", fl: C(states[0].label, states[0].color), fr: C(states[1].label, states[1].color), rl: C(states[2].label, states[2].color), rr: C(states[3].label, states[3].color) },
+          { label: m.analyse_dynamics_traction(), fl: C(states[0].label, states[0].color), fr: C(states[1].label, states[1].color), rl: C(states[2].label, states[2].color), rr: C(states[3].label, states[3].color) },
           {
-            label: "Temp",
+            label: m.analyse_dynamics_temp(),
             fl: C(states[0].temp.label, states[0].temp.color),
             fr: C(states[1].temp.label, states[1].temp.color),
             rl: C(states[2].temp.label, states[2].temp.color),
@@ -211,40 +211,40 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
           ...(!isF1
             ? [
                 {
-                  label: "Surface",
+                  label: m.analyse_dynamics_surface(),
                   fl: (
                     <span className="text-app-text-dim">
                       {currentPacket.WheelOnRumbleStripFL !== 0
-                        ? C("CURB", "#fb923c")
+                        ? C(m.analyse_dynamics_curb(), "#fb923c")
                         : currentPacket.WheelInPuddleDepthFL > 0
-                          ? C(`WET ${(currentPacket.WheelInPuddleDepthFL * 100).toFixed(0)}%`, "#3b82f6")
+                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthFL * 100).toFixed(0)}%`, "#3b82f6")
                           : "—"}
                     </span>
                   ),
                   fr: (
                     <span className="text-app-text-dim">
                       {currentPacket.WheelOnRumbleStripFR !== 0
-                        ? C("CURB", "#fb923c")
+                        ? C(m.analyse_dynamics_curb(), "#fb923c")
                         : currentPacket.WheelInPuddleDepthFR > 0
-                          ? C(`WET ${(currentPacket.WheelInPuddleDepthFR * 100).toFixed(0)}%`, "#3b82f6")
+                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthFR * 100).toFixed(0)}%`, "#3b82f6")
                           : "—"}
                     </span>
                   ),
                   rl: (
                     <span className="text-app-text-dim">
                       {currentPacket.WheelOnRumbleStripRL !== 0
-                        ? C("CURB", "#fb923c")
+                        ? C(m.analyse_dynamics_curb(), "#fb923c")
                         : currentPacket.WheelInPuddleDepthRL > 0
-                          ? C(`WET ${(currentPacket.WheelInPuddleDepthRL * 100).toFixed(0)}%`, "#3b82f6")
+                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthRL * 100).toFixed(0)}%`, "#3b82f6")
                           : "—"}
                     </span>
                   ),
                   rr: (
                     <span className="text-app-text-dim">
                       {currentPacket.WheelOnRumbleStripRR !== 0
-                        ? C("CURB", "#fb923c")
+                        ? C(m.analyse_dynamics_curb(), "#fb923c")
                         : currentPacket.WheelInPuddleDepthRR > 0
-                          ? C(`WET ${(currentPacket.WheelInPuddleDepthRR * 100).toFixed(0)}%`, "#3b82f6")
+                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthRR * 100).toFixed(0)}%`, "#3b82f6")
                           : "—"}
                     </span>
                   ),
@@ -260,14 +260,14 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
         borderTop
         rows={[
           {
-            label: "Ratio",
+            label: m.analyse_dynamics_ratio(),
             fl: C(`${(ws.fl.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.fl.slipRatio)),
             fr: C(`${(ws.fr.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.fr.slipRatio)),
             rl: C(`${(ws.rl.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.rl.slipRatio)),
             rr: C(`${(ws.rr.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.rr.slipRatio)),
           },
           {
-            label: "Angle",
+            label: m.analyse_dynamics_angle(),
             fl: C(`${fmt(currentPacket.TireSlipAngleFL)}°`, angleColor(currentPacket.TireSlipAngleFL)),
             fr: C(`${fmt(currentPacket.TireSlipAngleFR)}°`, angleColor(currentPacket.TireSlipAngleFR)),
             rl: C(`${fmt(currentPacket.TireSlipAngleRL)}°`, angleColor(currentPacket.TireSlipAngleRL)),

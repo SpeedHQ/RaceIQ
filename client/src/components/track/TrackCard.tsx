@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { m } from "@/paraglide/messages";
 import type { GameId } from "@shared/types";
 import { client } from "@/lib/rpc";
 import { drawTrack } from "@/lib/canvas/draw-track";
@@ -49,7 +50,7 @@ export function TrackCard({
         <div className="flex items-start justify-between gap-2">
           <div className="text-app-body font-medium text-app-text">{track.name}</div>
           <span className="shrink-0 text-app-label px-1.5 py-0.5 rounded bg-app-surface-alt border border-app-border text-app-text-muted">
-            {track.lapCount ?? 0} {(track.lapCount ?? 0) === 1 ? "lap" : "laps"}
+            {track.lapCount ?? 0} {(track.lapCount ?? 0) === 1 ? "lap" : m.pitwindow_laps()}
           </span>
         </div>
         <div className="text-app-label text-app-text-muted">
@@ -61,7 +62,7 @@ export function TrackCard({
         {track.hasOutline ? (
           <canvas ref={canvasRef} className="w-full h-full" />
         ) : (
-          <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">No outline available</div>
+          <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackcard_no_outline()}</div>
         )}
         {(setupCount !== undefined || guideCount !== undefined) && (
           <div className="absolute bottom-1.5 right-1.5 flex flex-col items-end gap-1 pointer-events-none">

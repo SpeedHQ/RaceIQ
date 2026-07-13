@@ -4,6 +4,7 @@ import { useSearch, useNavigate } from "@tanstack/react-router";
 import { client } from "../../lib/rpc";
 import { SearchSelect } from "../ui/SearchSelect";
 import { PLATFORM_LABEL, PlatformIcon, detectPlatform } from "@/components/acc/acc-links";
+import { m } from "@/paraglide/messages";
 
 interface AccSetup {
   name: string;
@@ -167,8 +168,8 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
                 setFilterCar(v);
                 selectSetup(0);
               }}
-              placeholder="Search cars..."
-              options={[{ value: "", label: "All cars" }, ...uniqueCars.map((car) => ({ value: car, label: carNameMap.get(car) ?? car }))]}
+              placeholder={m.catalog_search_cars_placeholder()}
+              options={[{ value: "", label: m.catalog_filter_all_cars() }, ...uniqueCars.map((car) => ({ value: car, label: carNameMap.get(car) ?? car }))]}
             />
           )}
         </div>
@@ -197,27 +198,27 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
               </div>
               <div className="flex items-center gap-0.5 shrink-0 justify-center">
                 {s.hasRace && (
-                  <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold" title="Race setup">
+                  <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold" title={m.accsetup_setup_type_race_title()}>
                     R
                   </span>
                 )}
                 {s.hasQuali && (
-                  <span className="text-[8px] px-1 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold" title="Qualifying setup">
+                  <span className="text-[8px] px-1 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold" title={m.accsetup_setup_type_qualifying_title()}>
                     Q
                   </span>
                 )}
                 {s.hasWet && (
-                  <span className="text-[8px] px-1 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold" title="Wet setup">
+                  <span className="text-[8px] px-1 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold" title={m.accsetup_setup_type_wet_title()}>
                     W
                   </span>
                 )}
                 {s.videoUrl && (
-                  <span className="text-[9px] text-red-400 ml-0.5" title="Has hotlap video">
+                  <span className="text-[9px] text-red-400 ml-0.5" title={m.accsetup_setup_type_has_video_title()}>
                     ▶
                   </span>
                 )}
                 {(s.downloadUrl || s.setupFile) && (
-                  <span className="text-[8px] px-1 py-0.5 rounded bg-green-500/20 text-green-300 font-bold" title="Has setup file">
+                  <span className="text-[8px] px-1 py-0.5 rounded bg-green-500/20 text-green-300 font-bold" title={m.accsetup_setup_type_has_file_title()}>
                     FILE
                   </span>
                 )}
@@ -253,9 +254,9 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
             {(setup.hasRace || setup.hasQuali || setup.hasSafe || setup.hasWet) && (
               <div className="flex items-center gap-1.5 flex-wrap">
                 {setup.hasRace && <span className="text-[10px] px-2 py-0.5 rounded-full border border-blue-500/40 bg-blue-500/10 text-blue-300 font-medium">Race</span>}
-                {setup.hasQuali && <span className="text-[10px] px-2 py-0.5 rounded-full border border-purple-500/40 bg-purple-500/10 text-purple-300 font-medium">Qualify</span>}
-                {setup.hasSafe && <span className="text-[10px] px-2 py-0.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 font-medium">Safe</span>}
-                {setup.hasWet && <span className="text-[10px] px-2 py-0.5 rounded-full border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 font-medium">Wet</span>}
+                {setup.hasQuali && <span className="text-[10px] px-2 py-0.5 rounded-full border border-purple-500/40 bg-purple-500/10 text-purple-300 font-medium">{m.accsetup_badge_qualify()}</span>}
+                {setup.hasSafe && <span className="text-[10px] px-2 py-0.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 font-medium">{m.accsetup_badge_safe()}</span>}
+                {setup.hasWet && <span className="text-[10px] px-2 py-0.5 rounded-full border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 font-medium">{m.accsetup_badge_wet()}</span>}
               </div>
             )}
 

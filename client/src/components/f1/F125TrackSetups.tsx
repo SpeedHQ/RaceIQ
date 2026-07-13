@@ -237,7 +237,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
                     <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
                       <iframe
                         src={toEmbedUrl(activeGuide.videoUrl)}
-                        title="Track Guide"
+                        title={m.f1setup_track_guide()}
                         className="absolute inset-0 w-full h-full"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
@@ -409,7 +409,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
               </div>
               <div className="flex items-center gap-1 shrink-0 w-12 justify-center">
                 {s.videoUrl && (
-                  <span className="text-[9px] text-red-400" title="Has hotlap video">
+                  <span className="text-[9px] text-red-400" title={m.accsetup_setup_type_has_video_title()}>
                     ▶
                   </span>
                 )}
@@ -854,7 +854,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                     </div>
                     <div className="flex items-center gap-1 shrink-0 w-12 justify-center">
                       {s.videoUrl && (
-                        <span className="text-[9px] text-red-400" title="Has hotlap video">
+                        <span className="text-[9px] text-red-400" title={m.accsetup_setup_type_has_video_title()}>
                           ▶
                         </span>
                       )}

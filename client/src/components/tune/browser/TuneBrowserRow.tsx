@@ -1,10 +1,12 @@
 import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/components/tune/tune-constants";
 import { useState, type ReactNode } from "react";
 import type { TuneRow } from "./types";
+import { m } from "@/paraglide/messages";
 
-const SOURCE_LABEL: Record<TuneRow["source"], string> = {
-  community: "Community",
-  user: "Yours",
+// Resolve at render time — calling m.*() at module scope would freeze the locale.
+const SOURCE_LABEL: Record<TuneRow["source"], () => string> = {
+  community: () => m.browser_community(),
+  user: () => m.tune_source_yours(),
 };
 
 // Shared responsive grid: mobile shows #, name, lap, chevron; sm+ adds car + track + category + author.
@@ -39,7 +41,7 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
         <span className={`text-sm font-bold text-center ${rank === 1 && hasTime ? "text-app-accent" : "text-app-text-muted"}`}>{rank}</span>
         <span className="min-w-0">
           <span className="block text-[15px] font-semibold truncate">{row.name}</span>
-          <span className="block text-[10px] text-app-text-muted mt-1">{SOURCE_LABEL[row.source]}</span>
+          <span className="block text-[10px] text-app-text-muted mt-1">{SOURCE_LABEL[row.source]()}</span>
         </span>
         <span className="hidden sm:block text-[13px] text-app-text-secondary min-w-0 truncate">{carName}</span>
         <span className={`hidden sm:block text-[13px] min-w-0 truncate ${trackName ? "text-app-accent" : "text-app-text-dim"}`}>{trackName ?? "—"}</span>

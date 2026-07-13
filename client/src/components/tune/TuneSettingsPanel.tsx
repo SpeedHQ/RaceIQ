@@ -1,5 +1,6 @@
 import type { TuneSettings } from "../../data/tune-catalog";
 import { GearRatioChart } from "./GearRatioChart";
+import { m } from "@/paraglide/messages";
 
 function storedHeightUnit(settings: TuneSettings): "cm" | "in" {
   return settings.springs?.unit === "lb/in" ? "in" : "cm";
@@ -22,16 +23,30 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
   const springUnit = settings.springs?.unit ?? "kgf/mm";
   const aeroUnit = settings.aero?.unit ?? "kgf";
 
-  const sections: { title: string; rows: Row[] }[] = [
+  const sectionTitles: Record<string, string> = {
+    tires: m.tune_section_tires(),
+    gearing: m.tune_section_gearing(),
+    alignment: m.tune_section_alignment(),
+    antiRollBars: m.tune_section_anti_roll_bars(),
+    springs: m.tune_section_springs(),
+    damping: m.tune_section_damping(),
+    aero: m.tune_section_aero(),
+    differential: m.tune_section_differential(),
+    brakes: m.tune_section_brakes(),
+  };
+
+  const sections: { key: string; title: string; rows: Row[] }[] = [
     {
-      title: "Tires",
+      key: "tires",
+      title: sectionTitles.tires,
       rows: rows(
         row("Front Pressure", settings.tires?.frontPressure, (v) => `${v.toFixed(2)} bar`),
         row("Rear Pressure", settings.tires?.rearPressure, (v) => `${v.toFixed(2)} bar`),
       ),
     },
     {
-      title: "Gearing",
+      key: "gearing",
+      title: sectionTitles.gearing,
       rows: [
         ...rows(row("Final Drive", settings.gearing?.finalDrive, (v) => v.toFixed(2))),
         ...ratios.map((ratio, index) => [`Gear ${index + 1}`, ratio.toFixed(2)] as Row),
@@ -39,7 +54,8 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
       ],
     },
     {
-      title: "Alignment",
+      key: "alignment",
+      title: sectionTitles.alignment,
       rows: rows(
         row("Front Camber", settings.alignment?.frontCamber, (v) => `${v.toFixed(1)}°`),
         row("Rear Camber", settings.alignment?.rearCamber, (v) => `${v.toFixed(1)}°`),
@@ -49,14 +65,16 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
       ),
     },
     {
-      title: "Anti-Roll Bars",
+      key: "antiRollBars",
+      title: sectionTitles.antiRollBars,
       rows: rows(
         row("Front", settings.antiRollBars?.front, (v) => v.toFixed(1)),
         row("Rear", settings.antiRollBars?.rear, (v) => v.toFixed(1)),
       ),
     },
     {
-      title: "Springs",
+      key: "springs",
+      title: sectionTitles.springs,
       rows: rows(
         row("Front Rate", settings.springs?.frontRate, (v) => `${v.toFixed(1)} ${springUnit}`),
         row("Rear Rate", settings.springs?.rearRate, (v) => `${v.toFixed(1)} ${springUnit}`),
@@ -65,7 +83,8 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
       ),
     },
     {
-      title: "Damping",
+      key: "damping",
+      title: sectionTitles.damping,
       rows: rows(
         row("Front Bump", settings.damping?.frontBump, (v) => v.toFixed(1)),
         row("Rear Bump", settings.damping?.rearBump, (v) => v.toFixed(1)),
@@ -74,14 +93,16 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
       ),
     },
     {
-      title: "Aero",
+      key: "aero",
+      title: sectionTitles.aero,
       rows: rows(
         row("Front Downforce", settings.aero?.frontDownforce, (v) => `${v} ${aeroUnit}`),
         row("Rear Downforce", settings.aero?.rearDownforce, (v) => `${v} ${aeroUnit}`),
       ),
     },
     {
-      title: "Differential",
+      key: "differential",
+      title: sectionTitles.differential,
       rows: rows(
         row("Rear Accel", settings.differential?.rearAccel, (v) => `${v}%`),
         row("Rear Decel", settings.differential?.rearDecel, (v) => `${v}%`),
@@ -91,7 +112,8 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
       ),
     },
     {
-      title: "Brakes",
+      key: "brakes",
+      title: sectionTitles.brakes,
       rows: rows(
         row("Balance", settings.brakes?.balance, (v) => `${v}%`),
         row("Pressure", settings.brakes?.pressure, (v) => `${v}%`),
@@ -104,7 +126,7 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
       {sections
         .filter((section) => section.rows.length > 0)
         .map((section) => (
-          <div key={section.title} className="rounded-lg bg-app-bg/85 p-3">
+          <div key={section.key} className="rounded-lg bg-app-bg/85 p-3">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{section.title}</h4>
             <div className="space-y-0">
               {section.rows.map(([label, value]) => (
@@ -116,7 +138,7 @@ export function TuneSettingsPanel({ settings }: { settings: TuneSettings }) {
                 </div>
               ))}
             </div>
-            {section.title === "Gearing" && ratios.length > 0 && settings.gearing?.finalDrive != null && (
+            {section.key === "gearing" && ratios.length > 0 && settings.gearing?.finalDrive != null && (
               <div className="mt-2 pt-2 border-t border-app-border/60">
                 <GearRatioChart ratios={ratios} finalDrive={settings.gearing.finalDrive} topSpeedKph={settings.gearing?.topSpeedKph} />
               </div>

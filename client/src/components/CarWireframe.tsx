@@ -1,4 +1,5 @@
 import React, { useRef, useMemo, useState, useCallback, useEffect } from "react";
+import { m } from "@/paraglide/messages";
 import { client } from "../lib/rpc";
 import { Canvas } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
@@ -201,7 +202,7 @@ export const CarWireframe = React.memo(function CarWireframe({
       {!hideControls && (
         <div className="absolute top-2 left-2 flex flex-wrap gap-1 max-w-[65%]">
           <ToggleButton
-            label={toggles.solid === "solid" ? "Solid" : toggles.solid === "hidden" ? "Hidden" : "Wire"}
+            label={toggles.solid === "solid" ? m.carwire_solid() : toggles.solid === "hidden" ? m.carwire_hidden() : m.carwire_wire()}
             active={toggles.solid !== "wire"}
             onClick={() =>
               setToggles((prev) => ({
@@ -210,17 +211,17 @@ export const CarWireframe = React.memo(function CarWireframe({
               }))
             }
           />
-          {!minimal && <ToggleButton label="Springs" active={toggles.springs} onClick={() => toggle("springs")} />}
-          {!minimal && <ToggleButton label="Trails" active={toggles.trails} onClick={() => toggle("trails")} />}
-          {!minimal && <ToggleButton label="Inputs" active={toggles.inputs} onClick={() => toggle("inputs")} />}
-          {!minimal && <ToggleButton label="Track" active={toggles.track} onClick={() => toggle("track")} />}
-          {!minimal && <ToggleButton label="Grid" active={toggles.grid} onClick={() => toggle("grid")} />}
-          {!minimal && <ToggleButton label="Drive" active={toggles.drivetrain} onClick={() => toggle("drivetrain")} />}
-          {!minimal && <ToggleButton label="Tire Info" active={toggles.wheelInfo} onClick={() => toggle("wheelInfo")} />}
+          {!minimal && <ToggleButton label={m.carwire_springs()} active={toggles.springs} onClick={() => toggle("springs")} />}
+          {!minimal && <ToggleButton label={m.carwire_trails()} active={toggles.trails} onClick={() => toggle("trails")} />}
+          {!minimal && <ToggleButton label={m.carwire_inputs()} active={toggles.inputs} onClick={() => toggle("inputs")} />}
+          {!minimal && <ToggleButton label={m.carwire_track()} active={toggles.track} onClick={() => toggle("track")} />}
+          {!minimal && <ToggleButton label={m.carwire_grid()} active={toggles.grid} onClick={() => toggle("grid")} />}
+          {!minimal && <ToggleButton label={m.carwire_drive()} active={toggles.drivetrain} onClick={() => toggle("drivetrain")} />}
+          {!minimal && <ToggleButton label={m.carwire_tire_info()} active={toggles.wheelInfo} onClick={() => toggle("wheelInfo")} />}
           {/* Camber toggle intentionally not rendered: ACC is the only game
             with camber in telemetry and Kunos currently ships camberRAD[4]
             as a zeroed stub. Re-enable when the game writes real values. */}
-          {minimal && <ToggleButton label="Dims" active={toggles.dimensions} onClick={() => toggle("dimensions")} />}
+          {minimal && <ToggleButton label={m.carwire_dims()} active={toggles.dimensions} onClick={() => toggle("dimensions")} />}
         </div>
       )}
 
@@ -274,7 +275,7 @@ export const CarWireframe = React.memo(function CarWireframe({
                   saveStatus === "saved" ? "bg-green-600 text-white border-green-400" : "bg-green-700/80 hover:bg-green-600 text-white border-green-500/30"
                 }`}
               >
-                {saveStatus === "saving" ? "..." : saveStatus === "saved" ? "Saved" : "Save"}
+                {saveStatus === "saving" ? "..." : saveStatus === "saved" ? m.carwire_saved() : "Save"}
               </button>
               <button
                 onClick={() => {

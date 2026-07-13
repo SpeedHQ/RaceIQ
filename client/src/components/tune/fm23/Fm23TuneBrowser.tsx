@@ -8,14 +8,9 @@ import type { CatalogTune, TuneSettings } from "@/data/tune-catalog";
 import { useCatalogTunes, useCloneCatalogTune, useCreateTune, useDeleteTune, useDuplicateTune, useRefreshCommunityTunes, useResolveNames, useUserTunes } from "@/hooks/queries";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { m } from "@/paraglide/messages";
 
 const REQUIRED_SECTIONS = ["tires", "gearing", "alignment", "antiRollBars", "springs", "damping", "aero", "differential", "brakes"] as const;
-
-const SOURCES: SourceTab[] = [
-  { key: "all", label: "All" },
-  { key: "community", label: "Community" },
-  { key: "user", label: "Yours" },
-];
 
 export function Fm23TuneBrowser() {
   const navigate = useNavigate();
@@ -26,6 +21,12 @@ export function Fm23TuneBrowser() {
   const duplicate = useDuplicateTune();
   const refresh = useRefreshCommunityTunes();
   const createTune = useCreateTune();
+
+  const SOURCES: SourceTab[] = [
+    { key: "all", label: m.browser_all() },
+    { key: "community", label: m.browser_community() },
+    { key: "user", label: m.tune_source_yours() },
+  ];
 
   // Import a tune from a JSON file (same shape the tune editor exports).
   const handleImportFile = async (file: File) => {
@@ -43,11 +44,11 @@ export function Fm23TuneBrowser() {
       };
       await createTune.mutateAsync({
         gameId: "fm-2023",
-        name: parsed.name || file.name.replace(/\.json$/i, "") || "Imported Tune",
-        author: parsed.author || "Imported",
+        name: parsed.name || file.name.replace(/\.json$/i, "") || m.tune_source_imported_tune(),
+        author: parsed.author || m.tune_source_imported(),
         carOrdinal: Number(parsed.carOrdinal ?? 2860),
         category: parsed.category || "circuit",
-        description: parsed.description || "Imported from JSON",
+        description: parsed.description || m.tune_source_imported_from_json(),
         settings: withDefaults(normalizedSettings),
         unitSystem: parsed.unitSystem === "imperial" ? "imperial" : "metric",
         // biome-ignore lint/suspicious/noExplicitAny: create-tune mutation accepts a loose payload
@@ -80,14 +81,14 @@ export function Fm23TuneBrowser() {
     const counts = new Map<number, number>();
     for (const r of rows) counts.set(r.carOrdinal, (counts.get(r.carOrdinal) ?? 0) + 1);
     const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: carNames[ord] ?? `Car #${ord}`, count })).sort((a, b) => b.count - a.count);
-    return [{ value: "any", label: "Any car", count: rows.length }, ...opts];
+    return [{ value: "any", label: m.tune_filter_any_car(), count: rows.length }, ...opts];
   }, [rows, carNames]);
 
   const trackOptions: ComboOption[] = useMemo(() => {
     const counts = new Map<number, number>();
     for (const r of rows) if (r.trackOrdinal != null) counts.set(r.trackOrdinal, (counts.get(r.trackOrdinal) ?? 0) + 1);
     const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: names?.trackNames[String(ord)] ?? `Track ${ord}`, count })).sort((a, b) => b.count - a.count);
-    return [{ value: "any", label: "Any track", count: rows.length }, ...opts];
+    return [{ value: "any", label: m.tune_filter_any_track(), count: rows.length }, ...opts];
   }, [rows, names]);
 
   return (

@@ -1,12 +1,12 @@
 import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-
-const SUB_TABS = [
-  { to: "/fm23/setups", label: "Car Tunes", match: (p: string) => !p.startsWith("/fm23/setups/wheel") },
-  { to: "/fm23/setups/wheel", label: "Wheel / FFB", match: (p: string) => p.startsWith("/fm23/setups/wheel") },
-] as const;
+import { m } from "@/paraglide/messages";
 
 function Fm23SetupsLayout() {
   const { pathname } = useLocation();
+  const SUB_TABS = [
+    { to: "/fm23/setups", label: m.cardetail_section_car_tunes(), match: (p: string) => !p.startsWith("/fm23/setups/wheel") },
+    { to: "/fm23/setups/wheel", label: m.cardetail_section_wheel_ffb(), match: (p: string) => p.startsWith("/fm23/setups/wheel") },
+  ] as const;
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="flex gap-2 px-4 pt-3">

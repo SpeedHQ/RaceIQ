@@ -1,4 +1,5 @@
 import type { LiveSectorData } from "@shared/types";
+import { m } from "@/paraglide/messages";
 import type { DisplayPacket } from "../lib/convert-packet";
 import { LiveTrackMap } from "./LiveTrackMap";
 import { LapTimes } from "./telemetry/LapTimes";
@@ -63,7 +64,7 @@ export function RaceInfo({
         {showTrackMap && (
           <div style={{ minHeight: 280 }}>
             <div className="p-2 border-b border-app-border">
-              <div className="text-xs font-semibold text-app-text-muted uppercase tracking-wider truncate">{trackName || "Track Map"}</div>
+              <div className="text-xs font-semibold text-app-text-muted uppercase tracking-wider truncate">{trackName || m.raceinfo_track_map_heading()}</div>
             </div>
             <LiveTrackMap packet={packet} />
           </div>
