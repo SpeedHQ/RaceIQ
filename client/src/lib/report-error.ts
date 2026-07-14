@@ -14,24 +14,12 @@
  */
 import { client } from "./rpc";
 
-/** Stop a render loop that errors every frame from flooding the log. */
-const MAX_REPORTS_PER_SESSION = 200;
-const DUPLICATE_WINDOW_MS = 10_000;
-let reportCount = 0;
-const recent = new Map<string, number>();
-
+/**
+ * Report every error, unthrottled — nothing is dropped or de-duplicated, so
+ * the log reflects exactly what the client saw, including repeat counts.
+ */
 export function reportClientError(scope: string, message: string, detail?: unknown, level: "warn" | "error" = "error"): void {
   try {
-    if (reportCount >= MAX_REPORTS_PER_SESSION) return;
-
-    // Drop repeats of the same message inside a short window.
-    const key = `${scope}:${message}`;
-    const now = Date.now();
-    const last = recent.get(key);
-    if (last !== undefined && now - last < DUPLICATE_WINDOW_MS) return;
-    recent.set(key, now);
-    reportCount += 1;
-
     void client.api["client-log"]
       .$post({
         json: {
