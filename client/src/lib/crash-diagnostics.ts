@@ -3,13 +3,16 @@
  * load can surface what happened before an "Aw Snap" crash.
  *
  * Captures:
- * - Unhandled errors and promise rejections via window events.
+ * - Unhandled errors and promise rejections via window events. These are also
+ *   forwarded to the server log so they appear in the diagnostics export.
  * - Periodic heap-pressure samples (Chrome-only performance.memory). If
  *   the JS heap climbs past 85% of its limit we log a warning AND write
  *   the last heap sample to localStorage — so if the tab dies moments
  *   later, the next load has a "this is what the heap looked like before
  *   you died" record to compare against.
  */
+
+import { installClientErrorReporting, reportClientError } from "./report-error";
 
 const LAST_ERROR_KEY = "raceiq.crash.last_error";
 const LAST_REJECTION_KEY = "raceiq.crash.last_rejection";
@@ -100,7 +103,7 @@ function reportPreviousCrash(): void {
 
 function installGlobalErrorHandlers(): void {
   window.addEventListener("error", (ev) => {
-    persist(LAST_ERROR_KEY, {
+    const record = {
       message: ev.message,
       filename: ev.filename,
       lineno: ev.lineno,
@@ -108,17 +111,21 @@ function installGlobalErrorHandlers(): void {
       stack: ev.error?.stack ?? null,
       ts: Date.now(),
       url: location.href,
-    });
+    };
+    persist(LAST_ERROR_KEY, record);
+    reportClientError("window.onerror", ev.message || "Uncaught error", record);
   });
 
   window.addEventListener("unhandledrejection", (ev) => {
     const reason = ev.reason as { message?: string; stack?: string } | string | undefined;
-    persist(LAST_REJECTION_KEY, {
+    const record = {
       reason: typeof reason === "string" ? reason : (reason?.message ?? String(reason)),
       stack: typeof reason === "object" && reason ? (reason.stack ?? null) : null,
       ts: Date.now(),
       url: location.href,
-    });
+    };
+    persist(LAST_REJECTION_KEY, record);
+    reportClientError("unhandledrejection", record.reason, record);
   });
 }
 
@@ -145,9 +152,7 @@ function startHeapMonitor(): void {
     if (ratio > WARN_RATIO && !warned) {
       warned = true;
       console.warn(
-        `[RaceIQ] JS heap pressure: ${(ratio * 100).toFixed(1)}% ` +
-          `(${(usedJSHeapSize / 1048576).toFixed(0)} MB / ${(jsHeapSizeLimit / 1048576).toFixed(0)} MB). ` +
-          `An OOM crash (Aw Snap, error 5) may be imminent.`,
+        `[RaceIQ] JS heap pressure: ${(ratio * 100).toFixed(1)}% (${(usedJSHeapSize / 1048576).toFixed(0)} MB / ${(jsHeapSizeLimit / 1048576).toFixed(0)} MB). An OOM crash (Aw Snap, error 5) may be imminent.`,
       );
     } else if (ratio < WARN_RATIO * 0.9) {
       warned = false; // re-arm if heap recovers
@@ -156,6 +161,9 @@ function startHeapMonitor(): void {
 }
 
 export function installCrashDiagnostics(): void {
+  // Patch the console first so the previous session's breadcrumbs below are
+  // themselves forwarded to the server log.
+  installClientErrorReporting();
   reportPreviousCrash();
   installGlobalErrorHandlers();
   startHeapMonitor();

@@ -22,8 +22,10 @@
  */
 import type { Agent } from "@mastra/core/agent";
 
+import { log } from "../logger";
 import { estimateTokenCostUsd } from "./chat-pricing";
 import { toClientAiError } from "./provider-error";
+import type { ClientAiError } from "./provider-error";
 
 type AgentStream = Awaited<ReturnType<Agent["stream"]>>;
 type AgentStreamPart = AgentStream["fullStream"] extends AsyncIterable<infer Part> ? Part : never;
@@ -48,6 +50,31 @@ type ChatStreamContext = {
   provider: string | null;
   modelId: string | null;
 };
+
+/**
+ * Chat failures are delivered to the browser as `{type:"error"}` stream events
+ * and never bubble to Hono's error middleware, so they have to be logged here
+ * or they never reach `raceiq.log` / the diagnostics export.
+ */
+function logStreamError(
+  where: string,
+  aiError: ClientAiError,
+  context: { provider: string | null; modelId: string | null; attempt: number; willRetry: boolean },
+) {
+  const upstream = aiError.upstream
+    ? ` upstream=${JSON.stringify(aiError.upstream)}`
+    : "";
+  log.error(
+    `[Chat] ${where}: ${aiError.message}`
+    + ` provider=${aiError.provider ?? context.provider ?? "unknown"}`
+    + ` model=${aiError.modelId ?? context.modelId ?? "unknown"}`
+    + ` status=${aiError.statusCode ?? "none"}`
+    + ` retryable=${aiError.retryable}`
+    + ` attempt=${context.attempt}`
+    + ` willRetry=${context.willRetry}`
+    + upstream,
+  );
+}
 export function chatStreamResponse(
   streamSource: Promise<AgentStream> | AgentStream | StreamFactory,
   context?: ChatStreamContext,
@@ -144,6 +171,12 @@ export function chatStreamResponse(
                 }
                 case "error": {
                   const aiError = toClientAiError(p.error);
+                  logStreamError("stream error event", aiError, {
+                    provider,
+                    modelId,
+                    attempt,
+                    willRetry: false,
+                  });
                   writeEvent(controller, { type: "error", ...aiError });
                   break;
                 }
@@ -156,6 +189,12 @@ export function chatStreamResponse(
           } catch (err: unknown) {
             const aiError = toClientAiError(err);
             const shouldRetry = aiError.retryable && attempt < maxAttempts;
+            logStreamError("stream failed", aiError, {
+              provider,
+              modelId,
+              attempt,
+              willRetry: shouldRetry,
+            });
             if (shouldRetry) continue;
             writeEvent(controller, { type: "error", ...aiError });
             try {

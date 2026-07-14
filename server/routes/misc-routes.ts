@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { existsSync, readdirSync, mkdirSync, readFileSync, writeFileSync, rmSync, statSync } from "fs";
 import { readdir, stat, statfs } from "fs/promises";
 import { resolve, join } from "path";
@@ -15,8 +17,16 @@ import { getRunningGame } from "../games/registry";
 import { getCurrentDetectedGame } from "../parsers";
 import { loadSettings } from "../settings";
 import { client as dbClient } from "../db";
-import { getChatMemory } from "../ai/chat-agent";
+import { getChatMemory, CHAT_RESOURCE_ID } from "../ai/chat-agent";
+import { log } from "../logger";
 import pkg from "../../package.json";
+
+const ClientLogSchema = z.object({
+  level: z.enum(["warn", "error"]).default("error"),
+  scope: z.string().max(64),
+  message: z.string().max(4000),
+  detail: z.unknown().optional(),
+});
 
 import {
   findForzaInstall,
@@ -430,8 +440,36 @@ export const miscRoutes = new Hono()
     return c.json({ deleted: true });
   })
 
+  /**
+   * POST /api/client-log — sink for browser-side errors.
+   *
+   * The file logger only captures the server console, so anything thrown in the
+   * React AI panels stays in devtools and never reaches the diagnostics export.
+   * The client posts here so user-reported chat failures are in `logs.txt`.
+   */
+  .post("/api/client-log", zValidator("json", ClientLogSchema), async (c) => {
+    const { level, scope, message, detail } = c.req.valid("json");
+    const suffix = detail ? ` ${JSON.stringify(detail).slice(0, 2000)}` : "";
+    const line = `[Client/${scope}] ${message}${suffix}`;
+    if (level === "warn") log.warn(line);
+    else log.error(line);
+    return c.json({ ok: true });
+  })
+
   // GET /api/diagnostics — download a zip with diagnostics.json + logs.txt
   .get("/api/diagnostics", async (c) => {
+    /** Mastra stores content as a string or { content, parts: [{ text }] }. */
+    const extractMessageText = (raw: unknown): string => {
+      if (typeof raw === "string") return raw;
+      if (raw && typeof raw === "object") {
+        const o = raw as { content?: unknown; parts?: Array<{ text?: unknown }> };
+        if (typeof o.content === "string") return o.content;
+        if (Array.isArray(o.parts)) {
+          return o.parts.map((p) => (typeof p.text === "string" ? p.text : "")).join("");
+        }
+      }
+      return "";
+    };
     const logFile = join(USER_DATA_DIR, "raceiq.log");
     let logs = "";
     try {
@@ -464,31 +502,37 @@ export const miscRoutes = new Hono()
     const memUsage = process.memoryUsage();
     const serverMemoryMB = Math.round(memUsage.heapUsed / 1024 / 1024);
 
-    // Fetch recent chat messages from Mastra memory
-    let chatMessages: Array<{ role: string; content: string; timestamp?: string }> = [];
+    // Fetch recent chat messages from Mastra memory (newest threads first)
+    const chatMessages: Array<{ threadId: string; role: string; content: string; timestamp?: string }> = [];
+    let chatError: string | null = null;
     try {
-      // Note: Mastra Memory API varies by version. Attempt to fetch threads if available.
       const memory = getChatMemory();
-      if (memory && typeof (memory as any).getThreads === "function") {
-        const threads = await (memory as any).getThreads();
-        if (threads && threads.length > 0) {
-          for (const thread of threads.slice(0, 5)) {
-            if (typeof (memory as any).getMessages === "function") {
-              const messages = await (memory as any).getMessages(thread.id);
-              if (messages) {
-                chatMessages.push(
-                  ...messages.map((m: any) => ({
-                    role: m.role || "unknown",
-                    content: m.content || "",
-                    timestamp: m.createdAt || m.timestamp,
-                  }))
-                );
-              }
-            }
-          }
+      const { threads } = await memory.listThreads({
+        filter: { resourceId: CHAT_RESOURCE_ID },
+        perPage: false,
+      });
+      const toIso = (v: unknown) =>
+        v instanceof Date ? v.toISOString() : v ? String(v) : "";
+      const recent = [...threads]
+        .sort((a, b) => toIso(b.updatedAt).localeCompare(toIso(a.updatedAt)))
+        .slice(0, 5);
+      for (const thread of recent) {
+        const result = await memory.recall({ threadId: thread.id });
+        for (const m of result.messages ?? []) {
+          if (m.role !== "user" && m.role !== "assistant") continue;
+          chatMessages.push({
+            threadId: thread.id,
+            role: m.role,
+            content: extractMessageText(m.content),
+            timestamp: toIso(m.createdAt),
+          });
         }
       }
-    } catch {}
+      chatMessages.sort((a, b) => (b.timestamp ?? "").localeCompare(a.timestamp ?? ""));
+    } catch (err: any) {
+      chatError = err?.message ?? String(err);
+      console.error("[Diagnostics] Failed to read chat memory:", chatError);
+    }
 
     // Database size and stats
     let dbSizeMB: number | null = null;
@@ -675,7 +719,12 @@ export const miscRoutes = new Hono()
       },
       chat: {
         messageCount: chatMessages.length,
-        recentMessages: chatMessages.slice(0, 20),
+        error: chatError,
+        // Cap per-message length so a long analysis answer can't bloat the zip.
+        recentMessages: chatMessages.slice(0, 20).map((m) => ({
+          ...m,
+          content: m.content.length > 4000 ? `${m.content.slice(0, 4000)}… [truncated]` : m.content,
+        })),
       },
       generatedAt: new Date().toISOString(),
     };
