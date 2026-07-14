@@ -13,7 +13,10 @@ import { loadSettings } from "../../server/settings";
 export const compareEngineerAgent = new Agent({
   id: "compare-engineer",
   name: "Compare Engineer",
-  instructions: compareEngineerPersona("metric"),
+  instructions: () => {
+    const s = loadSettings();
+    return compareEngineerPersona(s.unit, s.temperatureUnit, s.language);
+  },
   model: () => {
     const s = loadSettings();
     return getMastraModelId(s.aiProvider, s.aiModel, s.localEndpoint);
