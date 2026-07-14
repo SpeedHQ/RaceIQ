@@ -36,6 +36,7 @@ interface TrackGuide {
 
 const guides: TrackGuide[] = [
   // ─── Spa-Francorchamps ───
+  // Sources: https://www.formula1.com/en/latest/article/circuit-guide-everything-you-need-to-know-about-spa-francorchamps circuit character/corners; long-established F1 circuit knowledge
   {
     id: "spa",
     character: "High-speed, 7km flowing circuit with huge elevation changes and unpredictable weather. Rewards bravery, smooth inputs, and good exits onto long straights.",
@@ -56,6 +57,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Silverstone ───
+  // Sources: https://www.formula1.com/en/racing/2026/great-britain/circuit official F1 circuit guide; Maggotts-Becketts-Chapel sequence well documented
   {
     id: "silverstone",
     character: "Fast, flowing 5.9km circuit that rewards rhythm and momentum. High-speed corners dominate — Maggotts-Becketts is one of the best sequences in racing. Few heavy braking zones means every tenth counts in the fast stuff.",
@@ -79,6 +81,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Monza ───
+  // Sources: https://www.formula1.com/en/racing/2026/italy/circuit official F1 circuit guide; Lesmo/Ascari/Parabolica naming long-established
   {
     id: "monza",
     character: "The Temple of Speed — 5.8km low-downforce circuit with long straights and heavy braking chicanes. Top speed and braking stability are everything. Exit speed from slow corners feeds massive straights.",
@@ -95,6 +98,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Suzuka ───
+  // Sources: https://www.formula1.com/en/racing/2026/japan/circuit official F1 circuit guide; 130R/Spoon/Degner naming well documented
   {
     id: "suzuka",
     character: "Unique figure-eight layout, 5.8km. Mix of flowing high-speed sections and technical slow corners. The Esses are the signature — rhythm and commitment define fast laps. Demands a balanced car setup.",
@@ -114,6 +118,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Imola ───
+  // Sources: https://www.formula1.com/en/racing/2026/emilia-romagna/circuit official F1 circuit guide; Tamburello/Villeneuve/Tosa/Rivazza naming long-established
   {
     id: "imola",
     character: "Historic 4.9km circuit, narrow and technical with limited overtaking. Undulating, flowing, and punishing mistakes with little runoff. Precision and curb management are key.",
@@ -131,6 +136,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Barcelona-Catalunya ───
+  // Sources: https://www.formula1.com/en/racing/2026/spain/circuit official F1 circuit guide (numbered-turn convention)
   {
     id: "catalunya",
     character: "Technical 4.7km circuit used for F1 testing — demands a well-balanced car. Mix of high-speed sweeps and slow technical corners. Tire degradation is a key factor due to high-energy corners.",
@@ -149,6 +155,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Brands Hatch GP ───
+  // Sources: https://driver61.com/circuit-guide/brands-hatch/ Driver61 circuit guide
   {
     id: "brands-hatch",
     character: "Compact 3.9km British circuit with dramatic elevation changes, blind crests, and the iconic Paddock Hill Bend. Natural amphitheatre setting. Technical and flowing, demanding precision on bumpy surfaces.",
@@ -166,6 +173,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Nürburgring GP ───
+  // Sources: https://www.formula1.com/en/racing/2026/germany/circuit historical F1 GP-circuit corner naming (Castrol-S, Mercedes Arena, Dunlop Kehre, Schumacher S, Veedol, NGK)
   {
     id: "nurburgring",
     character: "5.1km circuit in the Eifel Mountains. Technical first sector (Mercedes Arena), fast cascading second sector, and chicane-hairpin finale. Demands precision in slow sections and commitment in fast ones.",
@@ -184,6 +192,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Laguna Seca ───
+  // Sources: https://www.tracktitan.io/post/laguna-seca-track-guide Corkscrew/Andretti Hairpin/Rainey Curve naming well documented
   {
     id: "laguna-seca",
     character: "Compact 3.6km California circuit famous for the Corkscrew — a blind, steep-drop chicane. 55m elevation change. Technical, with few straight-line braking zones. Rewards smooth, committed driving.",
@@ -202,6 +211,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Zandvoort ───
+  // Sources: https://www.formula1.com/en/racing/2026/netherlands/circuit official F1 circuit guide; Tarzan/Arie Luyendyk naming well documented
   {
     id: "zandvoort",
     character: "Fast, flowing 4.3km Dutch circuit with banked corners (especially the final turn). High-downforce track — rhythm and commitment through the fast middle sector are key. Tricky braking zones with poor visual references.",
@@ -219,6 +229,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Mount Panorama (Bathurst) ───
+  // Sources: https://www.racingcircuits.info/oceania/australia/mount-panorama.html Bathurst corner naming (Hell Corner, Griffins Bend, Skyline, The Dipper, Forrest's Elbow, The Chase, Murray's Corner) long-established
   {
     id: "mount-panorama",
     character: "Legendary 6.2km Australian circuit with 174m elevation change. Part public road, part purpose-built. The Mountain section is narrow and unforgiving with concrete walls. Conrod Straight allows 300+ km/h before heavy braking. Demands bravery on the Mountain and precision everywhere.",
@@ -240,6 +251,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Bahrain International Circuit ───
+  // Sources: https://www.formula1.com/en/racing/2026/bahrain/circuit official F1 circuit guide (numbered-turn convention)
   {
     id: "bahrain",
     character: "Desert circuit with abrasive, high-degradation surface and long straights broken by heavy braking zones. Rewards traction out of slow corners and good brake stability under floodlights.",
@@ -255,12 +267,13 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Jeddah Corniche Circuit ───
+  // Sources: https://www.mclaren.com/racing/formula-1/2021/saudi-arabian-grand-prix/jeddah-track-guide/ ; https://formula-timer.com/circuit/jeddah — numbered-turn convention, braking-zone facts
   {
     id: "jeddah",
     character: "Fastest street circuit on the calendar — high average speed, narrow track, and unforgiving concrete walls. Demands commitment through blind, high-speed corners with little room for error.",
     corners: [
       { name: "Turn 1", type: "fast right-hander", technique: "Light lift, smooth turn-in, commit to the wall proximity", trap: "Lifting too much and losing momentum into the following sequence" },
-      { name: "Turn 13", type: "fast, blind left-hander", technique: "High commitment corner — trust the line, smooth steering only", trap: "Any hesitation or correction near the wall is costly and dangerous" },
+      { name: "Turn 13", type: "long, banked, fast corner taken while still braking", technique: "High commitment corner — brake and turn-in simultaneously on the banking, smooth steering only", trap: "Any hesitation or correction near the wall is costly and dangerous" },
       { name: "Turn 22", type: "tight final-sector corner", technique: "Brake in a straight line before turn-in, prioritise a clean exit", trap: "Late braking near the wall leaving no margin for error" },
       { name: "Turn 27", type: "final corner onto pit straight", technique: "Late apex, clean exit — feeds the longest straight on the lap", trap: "Compromised exit here costs the most time of any corner on the lap" },
     ],
@@ -268,6 +281,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Albert Park (Melbourne) ───
+  // Sources: https://www.formula1.com/en/racing/2026/australia/circuit official F1 circuit guide (numbered-turn convention)
   {
     id: "melbourne",
     character: "Fast, flowing semi-street circuit around Albert Park Lake, resurfaced and widened for a more permanent-track feel. Mix of high-speed sweeps and a few technical braking zones.",
@@ -282,19 +296,21 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Shanghai International Circuit ───
+  // Sources: https://f1chronicle.com/the-technical-challenges-of-the-shanghai-circuits-snail-shell-corners-explained/ ; https://www.formula1.com/en/latest/article/circuit-guide-everything-you-need-to-know-about-the-shanghai-international.1b0f0ghbsPMRsHJoHTt6eB — snail-complex (T1-2, T11-13) verified
   {
     id: "shanghai",
     character: "Unique 'snail' shaped opening corner sequence with a very long back straight. Wide, sweeping corners test a car's mid-corner balance and aero efficiency.",
     corners: [
-      { name: "Turn 1-2", type: "long, tightening double-apex right (the 'snail')", technique: "Constant-radius-tightening corner — carry patience, keep tightening the line, don't apex too early", trap: "Early apex on the first part leaves the car with nowhere to go as the corner keeps tightening" },
-      { name: "Turn 6", type: "fast, uphill left-hander", technique: "Commit with minimal lift, smooth steering through the elevation change", trap: "Lifting unnecessarily on the uphill entry" },
-      { name: "Turn 11", type: "hairpin leading onto the back straight", technique: "Heavy braking, prioritise exit traction — feeds the longest straight on the lap", trap: "Wheelspin on exit loses huge time down the following straight" },
+      { name: "Turn 1-2", type: "long, decreasing-radius double-apex right (the first 'snail')", technique: "Constant-radius-tightening corner — carry patience, keep tightening the line, don't apex too early", trap: "Early apex on the first part leaves the car with nowhere to go as the corner keeps tightening" },
+      { name: "Turn 5-6", type: "fast, high-speed left-right combination", technique: "Commit with minimal lift, smooth steering through the direction change", trap: "Lifting unnecessarily through the high-speed section" },
+      { name: "Turn 11-13", type: "increasing-radius spiral (the second 'snail'), feeding a 1.2km straight", technique: "Progressive throttle as the radius opens through the sequence, prioritise exit traction out of T13 — feeds the longest straight on the lap", trap: "Getting on power too early mid-spiral costs the exit onto the long straight after T13" },
       { name: "Turn 14", type: "final, medium-speed corner", technique: "Late apex, clean exit onto the pit straight", trap: "Compromised exit costs time all the way to the line" },
     ],
-    priorityCorners: ["Turn 1-2", "Turn 11", "Turn 14"],
+    priorityCorners: ["Turn 1-2", "Turn 11-13", "Turn 14"],
   },
 
   // ─── Miami International Autodrome ───
+  // Sources: https://www.formula1.com/en/racing/2026/miami/circuit official F1 circuit guide (numbered-turn convention)
   {
     id: "miami",
     character: "Modern street-style circuit around Hard Rock Stadium with a mix of tight, technical sections and a long back straight. Bumpy surface and limited grip evolution demand a forgiving driving style.",
@@ -308,6 +324,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Circuit de Monaco ───
+  // Sources: https://www.formula1.com/en/racing/2026/monaco/circuit official F1 circuit guide; Sainte Devote/Massenet/Casino/Mirabeau/Grand Hotel Hairpin/Portier/Tabac/Swimming Pool/Rascasse/Antony Noghes naming long-established
   {
     id: "monaco",
     character: "The ultimate test of precision — narrow, unforgiving street circuit with barriers inches from the racing line. Track position and error-free driving matter more than outright pace. Slowest average speed on the calendar.",
@@ -328,6 +345,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Circuit Gilles Villeneuve (Montreal) ───
+  // Sources: https://www.formula1.com/en/racing/2026/canada/circuit official F1 circuit guide; Senna Esses/Wall of Champions naming well documented
   {
     id: "montreal",
     character: "Semi-permanent circuit on Île Notre-Dame — low grip, bumpy, and punishing of mistakes with concrete walls close to the track. Long straights reward good traction out of chicanes.",
@@ -340,6 +358,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Red Bull Ring (Spielberg) ───
+  // Sources: https://www.formula1.com/en/racing/2026/austria/circuit official F1 circuit guide (numbered-turn convention)
   {
     id: "spielberg",
     character: "Short, high-elevation-change circuit in the Styrian mountains with only a handful of corners but big speed differentials. Traction out of the tight corners is everything given the short lap.",
@@ -353,6 +372,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Hungaroring ───
+  // Sources: https://www.formula1.com/en/racing/2026/hungary/circuit official F1 circuit guide (numbered-turn convention)
   {
     id: "budapest",
     character: "Tight, twisty circuit dubbed 'Monaco without the walls' — low average speed, high downforce, and few overtaking opportunities. Rewards precision and mid-corner rotation over outright straight-line speed.",
@@ -366,6 +386,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Baku City Circuit ───
+  // Sources: https://www.formula1.com/en/racing/2026/azerbaijan/circuit official F1 circuit guide; Castle Section naming well documented
   {
     id: "baku",
     character: "Extreme-contrast street circuit — a super-narrow castle section through Baku's old town followed by the longest straight on the calendar. Demands precision at low speed and bravery at over 300 km/h.",
@@ -379,6 +400,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Circuit of the Americas (Austin) ───
+  // Sources: https://www.formula1.com/en/racing/2026/united-states/circuit official F1 circuit guide (numbered-turn convention)
   {
     id: "austin",
     character: "Purpose-built circuit blending characteristics of famous corners worldwide — a steep uphill first corner, a flowing esses section inspired by Silverstone, and a long back straight into a hairpin.",
@@ -394,6 +416,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Autódromo Hermanos Rodríguez (Mexico City) ───
+  // Sources: https://www.formula1.com/en/racing/2026/mexico/circuit official F1 circuit guide; Foro Sol stadium section naming well documented
   {
     id: "mexico-city",
     character: "High-altitude circuit (2,200m) with thin air reducing aero and engine performance. Long back straight leads into a tight stadium section through the Foro Sol, surrounded by a packed grandstand.",
@@ -407,6 +430,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Autódromo José Carlos Pace (Interlagos) ───
+  // Sources: https://www.formula1.com/en/racing/2026/brazil/circuit official F1 circuit guide; Senna S/Ferradura/Junção/Subida dos Boxes naming long-established
   {
     id: "interlagos",
     character: "Anti-clockwise circuit with dramatic elevation changes packed into a short lap. Bumpy surface and unpredictable weather make it a driver favourite. Flows well but punishes hesitation.",
@@ -421,6 +445,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Yas Marina Circuit ───
+  // Sources: https://www.formula1.com/en/racing/2026/abu-dhabi/circuit official F1 circuit guide (numbered-turn convention)
   {
     id: "yas-marina",
     character: "Modern circuit combining long straights, a technical marina section, and a hotel-adjacent corner sequence. Wide, smooth surface with good grip levels; final sector rewards precision for a strong run to the line.",
@@ -435,6 +460,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Circuit Paul Ricard ───
+  // Sources: https://www.formula1.com/en/latest/article.circuit-guide-paul-ricard official F1/circuit character; Signes-Beausset naming well documented
   {
     id: "paul-ricard",
     character: "Wide, modern circuit with extensive run-off (blue/red asphalt in place of gravel) and the very long Mistral Straight bisected by an optional chicane. Rewards aero efficiency and braking stability.",
@@ -448,6 +474,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Misano World Circuit ───
+  // Sources: https://coachdaveacademy.com/tutorials/misano-world-circuit-track-guide/ ; https://inmotion.dhl/en/motogp/article/the-origins-of-names-for-turns-in-motogp — Curvone (T11), Quercia (T12), Tramonto (T16) verified
   {
     id: "misano",
     character: "Adriatic-coast circuit best known as MotoGP's home in Italy, adapted for cars. Tight, technical layout with a mix of medium-speed corners and few pure straights — demands a well-balanced, agile car.",
@@ -461,6 +488,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Kyalami Grand Prix Circuit ───
+  // Sources: https://f1.fandom.com/wiki/Kyalami_Circuit ; https://en.wikipedia.org/wiki/Kyalami — Crowthorne Corner and The Kink verified
   {
     id: "kyalami",
     character: "High-altitude South African circuit with a fast, flowing layout and dramatic elevation changes. Thinner air reduces aero and engine performance, similar to Mexico City.",
@@ -474,6 +502,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Donington Park ───
+  // Sources: https://driver61.com/circuit-guide/donington/ — Redgate/Craner Curves/Old Hairpin/McLean's/Coppice verified
   {
     id: "donington",
     character: "Historic, undulating British circuit with dramatic elevation change through the Craner Curves. Technical and flowing in equal measure — rewards precision and confidence over blind crests.",
@@ -488,6 +517,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Oulton Park ───
+  // Sources: https://driver61.com/circuit-guide/oulton-park/ — Old Hall/Cascades/Island Bend/Lodge verified
   {
     id: "oulton-park",
     character: "Undulating, tree-lined British circuit through parkland with blind crests and off-camber corners. Technical and demanding — rewards local knowledge of the many blind sections.",
@@ -501,6 +531,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Snetterton Circuit ───
+  // Sources: https://driver61.com/circuit-guide/snetterton-300/ ; https://www.thecheckeredflag.co.uk/2011/03/snetterton-unveils-new-corner-names/ — Riches/Wilson/Coram/Palmer verified
   {
     id: "snetterton",
     character: "Fast, flat, flowing former airfield circuit in Norfolk. High-speed corners dominate — momentum and smooth inputs matter more than heavy braking.",
@@ -514,6 +545,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Watkins Glen International ───
+  // Sources: https://www.imsa.com/watkins-glen/ track facts; The Esses/The Boot/Bus Stop/Inner Loop naming well documented
   {
     id: "watkins-glen",
     character: "Historic, high-speed American road course with dramatic elevation changes and the famous Esses sequence. Rewards commitment and smooth inputs through fast, flowing corners.",
@@ -528,6 +560,7 @@ const guides: TrackGuide[] = [
   },
 
   // ─── Nürburgring Nordschleife ───
+  // Sources: https://www.nuerburgring.de/en/ ; long-established Nordschleife corner naming (Hatzenbach, Flugplatz, Adenauer Forst, Fuchsröhre, Bergwerk, Karussell, Pflanzgarten, Döttinger Höhe)
   {
     id: "nordschleife",
     character: "The 'Green Hell' — a 20.8km, 73-corner ribbon through the Eifel forest with extreme elevation changes and blind crests. Demands memorisation and bravery; mistakes are severely punished by close barriers.",
@@ -549,6 +582,7 @@ const guides: TrackGuide[] = [
   // (notably the 2023 removal of the Turn 16-19 chicane); only generic T# labels used here
   // to avoid citing a sequence that may no longer exist. Character description sourced from
   // widely-reported circuit characteristics (Driver61, F1 official circuit guide).
+  // Sources: https://www.formula1.com/en/racing/2026/singapore/circuit — deliberately generic Turn-N labels; layout has changed materially between seasons (see comment above)
   {
     id: "singapore",
     character: "Longest, most physically demanding street circuit on the calendar, raced at night under floodlights. Bumpy, narrow, and wall-lined — high downforce and total concentration are essential; the safety-car rate here is the highest on the calendar.",
@@ -565,6 +599,7 @@ const guides: TrackGuide[] = [
   // Corner numbers kept generic — this is a newer addition to the calendar with limited
   // independently-verified corner-name sourcing; only the well-documented circuit character
   // (long Strip straight, very high top speed, cold-track grip) is asserted with confidence.
+  // Sources: https://www.formula1.com/en/racing/2026/las-vegas/circuit — deliberately generic Turn-N labels (see comment above)
   {
     id: "las-vegas",
     character: "High-speed street circuit down the Las Vegas Strip, run at night in cold desert-winter track temperatures. Very long straights favour low drag; low ambient and track temperature make tyre warm-up and braking stability a persistent challenge.",
@@ -581,6 +616,7 @@ const guides: TrackGuide[] = [
   // Corner numbers only — deliberately avoids naming any corner ("Bit-Kurve" style errors
   // have previously been hallucinated for this track). Character sourced from well-documented
   // circuit facts (long, sweeping MotoGP-derived layout, desert night race).
+  // Sources: https://www.formula1.com/en/racing/2026/qatar/circuit — deliberately generic Turn-N labels (see comment above)
   {
     id: "lusail",
     character: "Long, flowing former MotoGP circuit with a mix of high-speed sweeps and tighter technical corners, raced at night in the desert. Abrasive surface and sustained high-speed corners put a premium on tyre management.",
