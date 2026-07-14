@@ -149,7 +149,7 @@ ${sectorMarks.join("\n")}
  */
 function segmentLabel(seg: NamedSegment, lengthM: number): string {
   const nums = seg.numbers ?? [];
-  if (nums.length === 0) return seg.name || `${Math.round(lengthM)}m`;
+  if (nums.length === 0) return seg.name || `S ${Math.round(lengthM)}m`;
   const prefix = nums.length > 1 ? `T${nums[0]}–T${nums[nums.length - 1]}` : `T${nums[0]}`;
   if (!seg.name || seg.name === prefix) return prefix;
   return `${prefix} ${seg.name}`;

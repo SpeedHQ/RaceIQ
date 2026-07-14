@@ -29,7 +29,7 @@
   <polyline fill="none" stroke="#22c55e" stroke-width="5" points="706.9,376.2 706.0,376.7 705.0,377.1 704.0,377.6 703.1,378.1 702.1,378.5 701.1,379.0 700.2,379.5 699.2,379.9 698.2,380.4 697.3,380.9 696.3,381.4 695.3,381.8 694.4,382.3 693.4,382.8 692.4,383.2 691.4,383.7 690.5,384.1 689.5,384.6 688.5,385.0 687.5,385.4 686.5,385.9 685.5,386.3 684.5,386.6 683.5,387.0 682.5,387.4 681.5,387.8 680.5,388.1 679.5,388.5 678.5,388.8 677.4,389.1 676.4,389.4 675.4,389.7 674.3,390.0 673.3,390.3 672.3,390.6 671.2,390.8 670.2,391.1 669.1,391.3 668.1,391.5 667.0,391.7 666.0,391.9 664.9,392.1 663.8,392.3 662.8,392.5 661.7,392.6 660.7,392.8 659.6,392.9 658.5,393.1 657.5,393.2 656.4,393.3 655.3,393.4 654.2,393.5 653.2,393.5 652.1,393.6 651.0,393.7 650.0,393.7 648.9,393.7 647.8,393.7 646.7,393.8 645.7,393.8 644.6,393.7 643.5,393.7 642.4,393.7 641.4,393.6 640.3,393.6 639.2,393.5 638.1,393.4 637.1,393.3 636.0,393.2 634.9,393.1 633.9,393.0 632.8,392.9 631.7,392.7 630.7,392.6 629.6,392.4 628.5,392.2 627.5,392.0 626.4,391.8 625.4,391.6 624.3,391.4 623.3,391.2 622.2,390.9 621.2,390.7 620.1,390.4 619.1,390.2 618.1,389.9 617.0,389.6 616.0,389.3 615.0,389.0 614.0,388.6 612.9,388.3 611.9,387.9 610.9,387.6 609.9,387.2 608.9,386.8 607.9,386.5 606.9,386.1 605.9,385.7 604.9,385.2 603.9,384.8 602.9,384.4 602.0,383.9 601.0,383.5 600.0,383.0 599.1,382.5 598.1,382.0 597.1,381.5 596.2,381.0 595.3,380.5 594.3,380.0 593.4,379.4 592.5,378.9 591.5,378.3 590.6,377.8 589.7,377.2 588.8,376.7 587.9,376.1 586.9,375.6 586.0,375.0 585.1,374.4 584.2,373.9" />
   <polyline fill="none" stroke="#9ca3af" stroke-width="2.5" points="584.2,373.9 583.3,373.3 582.4,372.8 581.4,372.2 580.5,371.7 579.6,371.1 578.7,370.5 577.8,370.0" />
   <line x1="522.6" y1="336.6" x2="526.4" y2="362.3" stroke="#d1d5db" stroke-width="1" />
-  <text x="526.4" y="362.3" text-anchor="start" class="name" fill="#6b7280">231m</text>
+  <text x="526.4" y="362.3" text-anchor="start" class="name" fill="#6b7280">S 231m</text>
   <line x1="417.9" y1="273.1" x2="392.1" y2="276.2" stroke="#d1d5db" stroke-width="1" />
   <text x="392.1" y="276.2" text-anchor="end" class="name" fill="#111827">T1</text>
   <line x1="426.7" y1="216.7" x2="403.8" y2="204.5" stroke="#d1d5db" stroke-width="1" />
@@ -37,7 +37,7 @@
   <line x1="499.4" y1="128.5" x2="497.0" y2="102.6" stroke="#d1d5db" stroke-width="1" />
   <text x="497.0" y="102.6" text-anchor="end" class="name" fill="#111827">T3</text>
   <line x1="610.8" y1="170.0" x2="629.9" y2="152.3" stroke="#d1d5db" stroke-width="1" />
-  <text x="629.9" y="152.3" text-anchor="start" class="name" fill="#6b7280">37m</text>
+  <text x="629.9" y="152.3" text-anchor="start" class="name" fill="#6b7280">S 37m</text>
   <line x1="675.2" y1="208.8" x2="700.0" y2="200.8" stroke="#d1d5db" stroke-width="1" />
   <text x="700.0" y="200.8" text-anchor="start" class="name" fill="#111827">T4</text>
   <line x1="771.7" y1="188.1" x2="796.7" y2="181.1" stroke="#d1d5db" stroke-width="1" />
@@ -45,7 +45,7 @@
   <line x1="897.7" y1="194.0" x2="923.3" y2="189.5" stroke="#d1d5db" stroke-width="1" />
   <text x="923.3" y="189.5" text-anchor="start" class="name" fill="#111827">T6–T8 T6</text>
   <line x1="520.9" y1="106.8" x2="522.4" y2="80.8" stroke="#d1d5db" stroke-width="1" />
-  <text x="522.4" y="80.8" text-anchor="start" class="name" fill="#6b7280">1188m</text>
+  <text x="522.4" y="80.8" text-anchor="start" class="name" fill="#6b7280">S 1188m</text>
   <line x1="168.1" y1="201.6" x2="142.5" y2="197.2" stroke="#d1d5db" stroke-width="1" />
   <text x="142.5" y="197.2" text-anchor="end" class="name" fill="#111827">T11</text>
   <line x1="177.5" y1="272.4" x2="151.5" y2="273.2" stroke="#d1d5db" stroke-width="1" />
@@ -57,7 +57,7 @@
   <line x1="118.0" y1="390.2" x2="93.2" y2="398.3" stroke="#d1d5db" stroke-width="1" />
   <text x="93.2" y="398.3" text-anchor="end" class="name" fill="#111827">T16</text>
   <line x1="438.0" y1="399.8" x2="425.7" y2="422.7" stroke="#d1d5db" stroke-width="1" />
-  <text x="425.7" y="422.7" text-anchor="end" class="name" fill="#6b7280">1040m</text>
+  <text x="425.7" y="422.7" text-anchor="end" class="name" fill="#6b7280">S 1040m</text>
   <line x1="784.8" y1="412.7" x2="807.6" y2="425.3" stroke="#d1d5db" stroke-width="1" />
   <text x="807.6" y="425.3" text-anchor="start" class="name" fill="#111827">T17</text>
   <line x1="746.0" y1="362.4" x2="769.9" y2="372.6" stroke="#d1d5db" stroke-width="1" />
@@ -65,7 +65,7 @@
   <line x1="645.7" y1="393.8" x2="664.2" y2="412.0" stroke="#d1d5db" stroke-width="1" />
   <text x="664.2" y="412.0" text-anchor="start" class="name" fill="#111827">T19</text>
   <line x1="580.5" y1="371.7" x2="594.3" y2="393.7" stroke="#d1d5db" stroke-width="1" />
-  <text x="594.3" y="393.7" text-anchor="start" class="name" fill="#6b7280">16m</text>
+  <text x="594.3" y="393.7" text-anchor="start" class="name" fill="#6b7280">S 16m</text>
   <circle cx="833.9" cy="147.7" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
   <text x="844.9" y="139.7" class="sector">S1 0.331</text>
   <circle cx="158.8" cy="391.6" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />

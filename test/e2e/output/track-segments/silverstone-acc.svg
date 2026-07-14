@@ -29,11 +29,11 @@
   <polyline fill="none" stroke="#f97316" stroke-width="5" points="158.2,662.1 159.3,663.6 160.4,665.2 161.6,666.6 162.7,668.1 163.9,669.6 165.1,671.0 166.4,672.4 167.6,673.8 168.9,675.2 170.2,676.5 171.6,677.8 173.0,679.0 174.4,680.3 175.8,681.5 177.3,682.7 178.7,683.9 180.2,685.0 181.7,686.1 183.2,687.2 184.8,688.3 186.3,689.4 187.9,690.4 189.5,691.4 191.1,692.3 192.7,693.3 194.4,694.2 196.0,695.1 197.7,695.9 199.4,696.8 201.1,697.5 202.8,698.3 204.5,699.0 206.3,699.7 208.0,700.4 209.8,701.1 211.5,701.7 213.3,702.3 215.1,702.8 216.9,703.4 218.7,703.9 220.5,704.4 222.3,704.9 224.1,705.4 225.9,705.8 227.8,706.3 229.6,706.7 231.4,707.1 233.3,707.5 235.1,707.8 236.9,708.2 238.8,708.5 240.6,708.9 242.5,709.2" />
   <polyline fill="none" stroke="#9ca3af" stroke-width="2.5" points="242.5,709.2 244.3,709.5 246.2,709.8 248.0,710.2 249.9,710.4 251.7,710.7 253.6,711.0 255.4,711.2 257.3,711.5 259.2,711.7 261.0,712.0 262.9,712.2 264.8,712.4 266.6,712.7 268.5,712.9 270.3,713.1 272.2,713.3 274.1,713.5 275.9,713.7 277.8,713.9 279.7,714.1 281.5,714.3 283.4,714.5 285.3,714.7 287.1,714.9 289.0,715.2 290.9,715.4 292.7,715.6 294.6,715.8 296.5,716.0" />
   <line x1="311.9" y1="717.7" x2="314.2" y2="743.6" stroke="#d1d5db" stroke-width="1" />
-  <text x="314.2" y="743.6" text-anchor="start" class="name" fill="#6b7280">78m</text>
+  <text x="314.2" y="743.6" text-anchor="start" class="name" fill="#6b7280">S 78m</text>
   <line x1="391.7" y1="711.4" x2="400.9" y2="735.8" stroke="#d1d5db" stroke-width="1" />
   <text x="400.9" y="735.8" text-anchor="start" class="name" fill="#111827">T9 Copse</text>
   <line x1="424.8" y1="607.0" x2="441.0" y2="627.4" stroke="#d1d5db" stroke-width="1" />
-  <text x="441.0" y="627.4" text-anchor="start" class="name" fill="#6b7280">235m</text>
+  <text x="441.0" y="627.4" text-anchor="start" class="name" fill="#6b7280">S 235m</text>
   <line x1="439.3" y1="440.5" x2="465.2" y2="441.8" stroke="#d1d5db" stroke-width="1" />
   <text x="465.2" y="441.8" text-anchor="start" class="name" fill="#111827">T10–T13 Maggotts/Becketts</text>
   <line x1="358.4" y1="241.3" x2="367.6" y2="217.0" stroke="#d1d5db" stroke-width="1" />
@@ -41,7 +41,7 @@
   <line x1="258.3" y1="78.3" x2="256.3" y2="52.4" stroke="#d1d5db" stroke-width="1" />
   <text x="256.3" y="52.4" text-anchor="end" class="name" fill="#111827">T15 Stowe</text>
   <line x1="189.5" y1="138.9" x2="181.3" y2="114.2" stroke="#d1d5db" stroke-width="1" />
-  <text x="181.3" y="114.2" text-anchor="end" class="name" fill="#6b7280">75m</text>
+  <text x="181.3" y="114.2" text-anchor="end" class="name" fill="#6b7280">S 75m</text>
   <line x1="154.3" y1="180.3" x2="142.2" y2="157.3" stroke="#d1d5db" stroke-width="1" />
   <text x="142.2" y="157.3" text-anchor="end" class="name" fill="#111827">T16 Vale</text>
   <line x1="77.5" y1="226.8" x2="58.9" y2="208.6" stroke="#d1d5db" stroke-width="1" />
@@ -65,7 +65,7 @@
   <line x1="194.4" y1="694.2" x2="185.7" y2="718.7" stroke="#d1d5db" stroke-width="1" />
   <text x="185.7" y="718.7" text-anchor="end" class="name" fill="#111827">T8 Woodcote</text>
   <line x1="270.3" y1="713.1" x2="268.9" y2="739.1" stroke="#d1d5db" stroke-width="1" />
-  <text x="268.9" y="739.1" text-anchor="end" class="name" fill="#6b7280">150m</text>
+  <text x="268.9" y="739.1" text-anchor="end" class="name" fill="#6b7280">S 150m</text>
 
   <rect x="292.0" y="711.1" width="10" height="10" fill="#111827" />
   <text x="309.0" y="720.1" class="sub">S/F</text>

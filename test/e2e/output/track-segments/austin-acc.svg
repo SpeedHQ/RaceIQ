@@ -30,13 +30,13 @@
   <polyline fill="none" stroke="#06b6d4" stroke-width="5" points="141.1,337.0 139.1,336.1 137.1,335.1 135.1,334.2 133.0,333.2 131.0,332.3 129.0,331.3 127.0,330.4 125.0,329.4 122.9,328.5 120.9,327.5 118.9,326.6 116.9,325.7 114.9,324.7 112.9,323.7 110.9,322.6 109.0,321.5 107.1,320.3 105.2,319.1 103.4,317.8 101.7,316.3 100.1,314.7 98.9,312.9 97.9,310.9 97.2,308.8 96.8,306.6 96.8,304.4 97.1,302.2 97.7,300.0 98.5,297.9 99.5,295.9 100.7,294.1 102.2,292.4 103.7,290.7 105.2,289.1 106.9,287.7 108.6,286.3 110.4,284.9 112.2,283.5 114.0,282.2 115.8,280.9 117.6,279.6 119.4,278.3 121.2,277.0 123.0,275.6 124.8,274.3 126.6,273.0" />
   <polyline fill="none" stroke="#9ca3af" stroke-width="2.5" points="126.6,273.0 128.4,271.7 130.2,270.4 132.0,269.1 133.9,267.8 135.7,266.5 137.6,265.3 139.4,264.0 141.2,262.7 143.1,261.5" />
   <line x1="223.6" y1="202.4" x2="201.8" y2="188.3" stroke="#d1d5db" stroke-width="1" />
-  <text x="201.8" y="188.3" text-anchor="end" class="name" fill="#6b7280">434m</text>
+  <text x="201.8" y="188.3" text-anchor="end" class="name" fill="#6b7280">S 434m</text>
   <line x1="357.3" y1="102.6" x2="346.7" y2="78.8" stroke="#d1d5db" stroke-width="1" />
   <text x="346.7" y="78.8" text-anchor="end" class="name" fill="#111827">T1</text>
   <line x1="369.6" y1="211.8" x2="355.0" y2="190.3" stroke="#d1d5db" stroke-width="1" />
   <text x="355.0" y="190.3" text-anchor="end" class="name" fill="#111827">T2</text>
   <line x1="441.8" y1="266.2" x2="433.7" y2="241.5" stroke="#d1d5db" stroke-width="1" />
-  <text x="433.7" y="241.5" text-anchor="end" class="name" fill="#6b7280">68m</text>
+  <text x="433.7" y="241.5" text-anchor="end" class="name" fill="#6b7280">S 68m</text>
   <line x1="484.4" y1="320.2" x2="490.3" y2="294.8" stroke="#d1d5db" stroke-width="1" />
   <text x="490.3" y="294.8" text-anchor="start" class="name" fill="#111827">T3</text>
   <line x1="543.9" y1="399.1" x2="567.3" y2="410.5" stroke="#d1d5db" stroke-width="1" />
@@ -50,7 +50,7 @@
   <line x1="805.4" y1="436.9" x2="830.8" y2="442.4" stroke="#d1d5db" stroke-width="1" />
   <text x="830.8" y="442.4" text-anchor="start" class="name" fill="#111827">T10</text>
   <line x1="848.2" y1="485.2" x2="873.0" y2="493.2" stroke="#d1d5db" stroke-width="1" />
-  <text x="873.0" y="493.2" text-anchor="start" class="name" fill="#6b7280">63m</text>
+  <text x="873.0" y="493.2" text-anchor="start" class="name" fill="#6b7280">S 63m</text>
   <line x1="902.2" y1="556.1" x2="926.0" y2="566.8" stroke="#d1d5db" stroke-width="1" />
   <text x="926.0" y="566.8" text-anchor="start" class="name" fill="#111827">T11</text>
   <line x1="657.7" y1="504.5" x2="678.4" y2="520.3" stroke="#d1d5db" stroke-width="1" />
@@ -68,7 +68,7 @@
   <line x1="97.9" y1="310.9" x2="72.2" y2="307.2" stroke="#d1d5db" stroke-width="1" />
   <text x="72.2" y="307.2" text-anchor="end" class="name" fill="#111827">T20</text>
   <line x1="135.7" y1="266.5" x2="110.7" y2="259.3" stroke="#d1d5db" stroke-width="1" />
-  <text x="110.7" y="259.3" text-anchor="end" class="name" fill="#6b7280">48m</text>
+  <text x="110.7" y="259.3" text-anchor="end" class="name" fill="#6b7280">S 48m</text>
   <circle cx="859.0" cy="499.4" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
   <text x="870.0" y="491.4" class="sector">S1 0.434</text>
   <circle cx="450.6" cy="470.7" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
