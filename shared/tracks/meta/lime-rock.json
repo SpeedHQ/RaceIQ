@@ -10,7 +10,7 @@
       "segments": [
         {
           "type": "straight",
-          "name": "",
+          "name": "Sam Posey Straight",
           "startFrac": 0,
           "endFrac": 0.0499
         },
@@ -87,7 +87,7 @@
   "segments": [
     {
       "type": "straight",
-      "name": "",
+      "name": "Sam Posey Straight",
       "startFrac": 0,
       "endFrac": 0.0499
     },

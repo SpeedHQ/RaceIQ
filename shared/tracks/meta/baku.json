@@ -15,7 +15,7 @@
       "segments": [
         {
           "type": "straight",
-          "name": "",
+          "name": "Neftchiler Avenue",
           "startFrac": 0,
           "endFrac": 0.0261
         },
@@ -218,7 +218,7 @@
   "segments": [
     {
       "type": "straight",
-      "name": "",
+      "name": "Neftchiler Avenue",
       "startFrac": 0,
       "endFrac": 0.0261
     },

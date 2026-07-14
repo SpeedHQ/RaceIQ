@@ -80,6 +80,39 @@ describe("alignSegments", () => {
     expect(res.segments.map((s) => s.name)).toContain("Cooper Straight");
   });
 
+  test("the start/finish straight is named on both sides of the line", () => {
+    // The line sits mid-straight, so the straight anchored after the last corner
+    // continues past 0 as the lap's leading segment — same tarmac, same name.
+    const detected = [region(0.1, 0.15, "right"), region(0.6, 0.65, "left")];
+    const list: CornerNameList = {
+      circuit: "Test",
+      turnCount: 2,
+      corners: [
+        { number: 1, name: "First", direction: "right" },
+        { number: 2, name: "Last", direction: "left" },
+      ],
+      straights: [{ after: 2, name: "Wheatcroft Straight" }],
+    };
+    const res = alignSegments(detected, list, 5000);
+    expect(res.ok).toBe(true);
+    expect(res.segments[0]).toMatchObject({ type: "straight", name: "Wheatcroft Straight", startFrac: 0 });
+    expect(res.segments[res.segments.length - 1]).toMatchObject({ type: "straight", name: "Wheatcroft Straight", endFrac: 1 });
+  });
+
+  test("an unnamed leading straight stays unnamed", () => {
+    const detected = [region(0.1, 0.15, "right"), region(0.6, 0.65, "left")];
+    const list: CornerNameList = {
+      circuit: "Test",
+      turnCount: 2,
+      corners: [
+        { number: 1, name: "First", direction: "right" },
+        { number: 2, name: "Last", direction: "left" },
+      ],
+    };
+    const res = alignSegments(detected, list, 5000);
+    expect(res.segments[0]).toMatchObject({ type: "straight", name: "" });
+  });
+
   test("direction mismatch is a hard failure", () => {
     const detected = [region(0.1, 0.15, "left"), region(0.4, 0.45, "left")];
     const list: CornerNameList = {

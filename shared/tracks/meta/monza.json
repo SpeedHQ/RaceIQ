@@ -15,7 +15,7 @@
       "segments": [
         {
           "type": "straight",
-          "name": "",
+          "name": "Start/Finish",
           "startFrac": 0,
           "endFrac": 0.1337
         },
@@ -126,7 +126,7 @@
       "segments": [
         {
           "type": "straight",
-          "name": "",
+          "name": "Start/Finish",
           "startFrac": 0,
           "endFrac": 0.1346
         },
@@ -226,7 +226,7 @@
   "segments": [
     {
       "type": "straight",
-      "name": "",
+      "name": "Start/Finish",
       "startFrac": 0,
       "endFrac": 0.1337
     },

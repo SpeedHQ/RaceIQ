@@ -87,12 +87,21 @@ describe("track segment generator", () => {
             for (const name of expectedNames) {
               expect(segmentNames, `${slug}/${a.gameId} missing "${name}"`).toContain(name);
             }
-            // No curated name may appear twice (each is one section)
+            // No curated name may appear twice (each is one section) — except the
+            // start/finish straight, which the line splits into the lap's first
+            // and last segment (Donington's Wheatcroft Straight).
+            const first = a.segments[0];
+            const last = a.segments[a.segments.length - 1];
+            const splitByLine =
+              first?.type === "straight" && last?.type === "straight" && !!first.name && first.name === last.name
+                ? first.name
+                : null;
             const counts = new Map<string, number>();
             for (const n of segmentNames) counts.set(n, (counts.get(n) ?? 0) + 1);
             for (const [n, count] of counts) {
               if (expectedNames.has(n) || optionalNames.has(n)) {
-                expect(count, `${slug}/${a.gameId} has ${count}× "${n}"`).toBe(1);
+                const allowed = n === splitByLine ? 2 : 1;
+                expect(count, `${slug}/${a.gameId} has ${count}× "${n}"`).toBe(allowed);
               }
             }
           });

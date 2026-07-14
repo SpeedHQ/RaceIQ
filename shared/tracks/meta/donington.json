@@ -5,7 +5,7 @@
       "segments": [
         {
           "type": "straight",
-          "name": "",
+          "name": "Wheatcroft Straight",
           "startFrac": 0,
           "endFrac": 0.0622
         },
@@ -44,22 +44,16 @@
           "name": "Old Hairpin",
           "direction": "right",
           "startFrac": 0.263,
-          "endFrac": 0.3231,
+          "endFrac": 0.3269,
           "numbers": [
             4
           ]
         },
         {
-          "type": "straight",
-          "name": "Starkey's Straight",
-          "startFrac": 0.3231,
-          "endFrac": 0.3308
-        },
-        {
           "type": "corner",
-          "name": "Starkey's",
+          "name": "Starkey's Bridge",
           "direction": "left",
-          "startFrac": 0.3308,
+          "startFrac": 0.3269,
           "endFrac": 0.4068,
           "numbers": [
             5
@@ -67,28 +61,27 @@
         },
         {
           "type": "corner",
-          "name": "Schwantz Curve",
+          "name": "McLeans",
           "direction": "right",
           "startFrac": 0.4068,
           "endFrac": 0.5024,
           "numbers": [
-            6
+            7
           ]
         },
         {
           "type": "corner",
-          "name": "McLeans-Coppice",
+          "name": "Coppice",
           "direction": "right",
           "startFrac": 0.5024,
           "endFrac": 0.5829,
           "numbers": [
-            7,
             8
           ]
         },
         {
           "type": "straight",
-          "name": "Wheatcroft Park Straight",
+          "name": "Starkey's Straight",
           "startFrac": 0.5829,
           "endFrac": 0.6806
         },
@@ -129,14 +122,20 @@
           "name": "Goddards",
           "direction": "left",
           "startFrac": 0.9075,
-          "endFrac": 1,
+          "endFrac": 0.9765,
           "numbers": [
             12
           ]
+        },
+        {
+          "type": "straight",
+          "name": "Wheatcroft Straight",
+          "startFrac": 0.9765,
+          "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3231,
+        "s1End": 0.3269,
         "s2End": 0.5829,
         "source": "corner-anchored"
       }
@@ -145,7 +144,7 @@
   "segments": [
     {
       "type": "straight",
-      "name": "",
+      "name": "Wheatcroft Straight",
       "startFrac": 0,
       "endFrac": 0.0622
     },
@@ -184,22 +183,16 @@
       "name": "Old Hairpin",
       "direction": "right",
       "startFrac": 0.263,
-      "endFrac": 0.3231,
+      "endFrac": 0.3269,
       "numbers": [
         4
       ]
     },
     {
-      "type": "straight",
-      "name": "Starkey's Straight",
-      "startFrac": 0.3231,
-      "endFrac": 0.3308
-    },
-    {
       "type": "corner",
-      "name": "Starkey's",
+      "name": "Starkey's Bridge",
       "direction": "left",
-      "startFrac": 0.3308,
+      "startFrac": 0.3269,
       "endFrac": 0.4068,
       "numbers": [
         5
@@ -207,28 +200,27 @@
     },
     {
       "type": "corner",
-      "name": "Schwantz Curve",
+      "name": "McLeans",
       "direction": "right",
       "startFrac": 0.4068,
       "endFrac": 0.5024,
       "numbers": [
-        6
+        7
       ]
     },
     {
       "type": "corner",
-      "name": "McLeans-Coppice",
+      "name": "Coppice",
       "direction": "right",
       "startFrac": 0.5024,
       "endFrac": 0.5829,
       "numbers": [
-        7,
         8
       ]
     },
     {
       "type": "straight",
-      "name": "Wheatcroft Park Straight",
+      "name": "Starkey's Straight",
       "startFrac": 0.5829,
       "endFrac": 0.6806
     },
@@ -269,14 +261,20 @@
       "name": "Goddards",
       "direction": "left",
       "startFrac": 0.9075,
-      "endFrac": 1,
+      "endFrac": 0.9765,
       "numbers": [
         12
       ]
+    },
+    {
+      "type": "straight",
+      "name": "Wheatcroft Straight",
+      "startFrac": 0.9765,
+      "endFrac": 1
     }
   ],
   "sectors": {
-    "s1End": 0.3231,
+    "s1End": 0.3269,
     "s2End": 0.5829,
     "source": "corner-anchored"
   }

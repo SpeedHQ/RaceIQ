@@ -13,7 +13,7 @@
       "segments": [
         {
           "type": "straight",
-          "name": "",
+          "name": "Wall of Champions",
           "startFrac": 0,
           "endFrac": 0.0284
         },
@@ -173,7 +173,7 @@
   "segments": [
     {
       "type": "straight",
-      "name": "",
+      "name": "Wall of Champions",
       "startFrac": 0,
       "endFrac": 0.0284
     },

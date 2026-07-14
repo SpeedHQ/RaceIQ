@@ -133,7 +133,7 @@
       "segments": [
         {
           "type": "straight",
-          "name": "",
+          "name": "Brabham Straight",
           "startFrac": 0,
           "endFrac": 0.028
         },
@@ -272,7 +272,7 @@
   "segments": [
     {
       "type": "straight",
-      "name": "",
+      "name": "Brabham Straight",
       "startFrac": 0,
       "endFrac": 0.028
     },

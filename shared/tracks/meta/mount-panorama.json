@@ -10,7 +10,7 @@
       "segments": [
         {
           "type": "straight",
-          "name": "",
+          "name": "Pit Straight",
           "startFrac": 0,
           "endFrac": 0.0317
         },
@@ -167,7 +167,7 @@
       "segments": [
         {
           "type": "straight",
-          "name": "",
+          "name": "Pit Straight",
           "startFrac": 0,
           "endFrac": 0.0167
         },
@@ -324,7 +324,7 @@
   "segments": [
     {
       "type": "straight",
-      "name": "",
+      "name": "Pit Straight",
       "startFrac": 0,
       "endFrac": 0.0167
     },

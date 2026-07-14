@@ -15,7 +15,7 @@
       "segments": [
         {
           "type": "straight",
-          "name": "",
+          "name": "Hamilton Straight",
           "startFrac": 0,
           "endFrac": 0.0429
         },
@@ -373,7 +373,7 @@
       "segments": [
         {
           "type": "straight",
-          "name": "",
+          "name": "Hamilton Straight",
           "startFrac": 0,
           "endFrac": 0.0201
         },
@@ -567,7 +567,7 @@
   "segments": [
     {
       "type": "straight",
-      "name": "",
+      "name": "Hamilton Straight",
       "startFrac": 0,
       "endFrac": 0.0201
     },

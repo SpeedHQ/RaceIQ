@@ -1,24 +1,24 @@
 {
   "circuit": "Donington Park (GP circuit)",
-  "source": "Official Donington Park GP circuit map",
+  "source": "Official Donington Park GP circuit map — Wheatcroft Straight is the start/finish straight (the grid); Coppice leads onto Starkey's Straight, the circuit's fastest",
   "turnCount": 12,
   "corners": [
     { "number": 1, "name": "Redgate", "direction": "right" },
     { "number": 2, "name": "Craner Curves", "direction": "right" },
     { "number": 3, "name": "", "direction": "left" },
     { "number": 4, "name": "Old Hairpin", "direction": "right" },
-    { "number": 5, "name": "Starkey's", "direction": "left" },
-    { "number": 6, "name": "Schwantz Curve", "direction": "right" },
-    { "number": 7, "name": "McLeans", "direction": "right", "group": "McLeans-Coppice" },
-    { "number": 8, "name": "Coppice", "direction": "right", "group": "McLeans-Coppice" },
+    { "number": 5, "name": "Starkey's Bridge", "direction": "left", "optional": true },
+    { "number": 6, "name": "Schwantz Curve", "direction": "right", "optional": true },
+    { "number": 7, "name": "McLeans", "direction": "right" },
+    { "number": 8, "name": "Coppice", "direction": "right" },
     { "number": 9, "name": "Fogarty Esses", "direction": "left", "group": "Fogarty Esses" },
     { "number": 10, "name": "Fogarty Esses", "direction": "right", "group": "Fogarty Esses" },
     { "number": 11, "name": "Melbourne Hairpin", "direction": "right" },
     { "number": 12, "name": "Goddards", "direction": "left" }
   ],
   "straights": [
-    { "after": 4, "name": "Starkey's Straight" },
-    { "after": 8, "name": "Wheatcroft Park Straight" }
+    { "after": 8, "name": "Starkey's Straight" },
+    { "after": 12, "name": "Wheatcroft Straight" }
   ],
   "sectors": {
     "s1EndAfterCorner": 4,
