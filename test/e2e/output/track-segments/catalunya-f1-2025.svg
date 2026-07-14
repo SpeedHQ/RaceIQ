@@ -28,7 +28,7 @@
   <polyline fill="none" stroke="#eab308" stroke-width="5" points="132.6,688.9 126.2,684.6 120.4,680.8 115.4,677.5 110.4,674.2 105.4,671.0 100.5,667.7 95.7,664.2 91.1,660.4 87.1,655.9 83.9,651.3 81.4,646.3 79.5,641.0 78.2,635.4 77.5,629.5 77.4,623.7 78.0,618.1 79.2,612.5 81.1,607.0 83.6,601.5 86.8,596.3 89.8,591.6 93.0,586.8 96.2,581.8 99.2,577.2 102.5,572.1 105.7,567.1 108.9,562.0 112.0,557.3" />
   <polyline fill="none" stroke="#9ca3af" stroke-width="2.5" points="112.0,557.3 115.1,552.6 118.4,547.5 121.6,542.4 124.9,537.4 127.9,532.6 131.1,527.8 134.1,523.1 137.3,518.1 140.4,513.4 143.4,508.7 146.5,503.8 149.7,498.9 152.9,493.9" />
   <line x1="255.7" y1="334.7" x2="231.7" y2="324.7" stroke="#d1d5db" stroke-width="1" />
-  <text x="231.7" y="324.7" text-anchor="end" class="name" fill="#6b7280">S 659m</text>
+  <text x="231.7" y="324.7" text-anchor="end" class="name" fill="#6b7280">St1 659m</text>
   <line x1="387.9" y1="129.6" x2="391.8" y2="103.9" stroke="#d1d5db" stroke-width="1" />
   <text x="391.8" y="103.9" text-anchor="start" class="name" fill="#111827">T1 Elf</text>
   <line x1="471.5" y1="117.8" x2="482.5" y2="94.3" stroke="#d1d5db" stroke-width="1" />
@@ -36,7 +36,7 @@
   <line x1="610.9" y1="126.2" x2="629.7" y2="108.3" stroke="#d1d5db" stroke-width="1" />
   <text x="629.7" y="108.3" text-anchor="start" class="name" fill="#111827">T3 Renault</text>
   <line x1="564.4" y1="263.9" x2="587.5" y2="252.0" stroke="#d1d5db" stroke-width="1" />
-  <text x="587.5" y="252.0" text-anchor="start" class="name" fill="#6b7280">S 37m</text>
+  <text x="587.5" y="252.0" text-anchor="start" class="name" fill="#6b7280">St2 37m</text>
   <line x1="476.8" y1="326.8" x2="501.1" y2="317.6" stroke="#d1d5db" stroke-width="1" />
   <text x="501.1" y="317.6" text-anchor="start" class="name" fill="#111827">T4 Repsol</text>
   <line x1="524.0" y1="151.8" x2="539.9" y2="131.3" stroke="#d1d5db" stroke-width="1" />
@@ -48,11 +48,11 @@
   <line x1="395.6" y1="325.8" x2="413.2" y2="306.7" stroke="#d1d5db" stroke-width="1" />
   <text x="413.2" y="306.7" text-anchor="start" class="name" fill="#111827">T8</text>
   <line x1="413.6" y1="368.9" x2="439.5" y2="366.8" stroke="#d1d5db" stroke-width="1" />
-  <text x="439.5" y="366.8" text-anchor="start" class="name" fill="#6b7280">S 9m</text>
+  <text x="439.5" y="366.8" text-anchor="start" class="name" fill="#6b7280">St3 9m</text>
   <line x1="432.0" y1="446.0" x2="451.4" y2="463.2" stroke="#d1d5db" stroke-width="1" />
   <text x="451.4" y="463.2" text-anchor="start" class="name" fill="#111827">T9 Campsa</text>
   <line x1="303.3" y1="526.2" x2="295.5" y2="551.0" stroke="#d1d5db" stroke-width="1" />
-  <text x="295.5" y="551.0" text-anchor="end" class="name" fill="#6b7280">S 249m</text>
+  <text x="295.5" y="551.0" text-anchor="end" class="name" fill="#6b7280">St4 249m</text>
   <line x1="155.4" y1="608.9" x2="138.8" y2="628.8" stroke="#d1d5db" stroke-width="1" />
   <text x="138.8" y="628.8" text-anchor="end" class="name" fill="#111827">T10 La Caixa</text>
   <line x1="298.9" y1="637.9" x2="293.8" y2="663.4" stroke="#d1d5db" stroke-width="1" />
@@ -62,7 +62,7 @@
   <line x1="77.5" y1="629.5" x2="58.4" y2="647.3" stroke="#d1d5db" stroke-width="1" />
   <text x="58.4" y="647.3" text-anchor="start" class="name" fill="#111827">T16 New Holland</text>
   <line x1="134.1" y1="523.1" x2="112.7" y2="537.8" stroke="#d1d5db" stroke-width="1" />
-  <text x="112.7" y="537.8" text-anchor="end" class="name" fill="#6b7280">S 141m</text>
+  <text x="112.7" y="537.8" text-anchor="end" class="name" fill="#6b7280">St5 141m</text>
   <circle cx="501.4" cy="213.8" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
   <text x="512.4" y="205.8" class="sector">S1 0.429</text>
   <circle cx="364.9" cy="495.5" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />

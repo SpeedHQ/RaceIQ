@@ -23,15 +23,15 @@
   <polyline fill="none" stroke="#ec4899" stroke-width="5" points="893.8,309.6 894.8,306.5 895.8,303.5 896.8,300.4 897.7,297.4 898.7,294.3 899.6,291.3 900.4,288.2 901.1,285.1 901.7,281.9 902.3,278.8 902.7,275.6 903.0,272.4 903.2,269.2 903.2,266.0 903.1,262.8 902.9,259.7 902.4,256.5 901.7,253.4 900.7,250.4 899.4,247.4 897.9,244.6 896.2,241.9 894.3,239.3 892.2,236.9 890.0,234.6 887.6,232.4 885.2,230.3 882.7,228.3 880.1,226.4 877.5,224.6 874.8,222.9 872.0,221.2 869.2,219.6 866.4,218.1 863.6,216.6 860.7,215.3 857.7,214.0 854.7,212.9 851.7,211.8 848.7,210.7 845.7,209.6 842.7,208.5 839.6,207.5 836.6,206.4 833.6,205.4 830.5,204.5 827.4,203.5 824.4,202.6 821.3,201.7 818.2,200.9 815.1,200.0 812.0,199.2 808.9,198.3 805.8,197.5" />
   <polyline fill="none" stroke="#9ca3af" stroke-width="2.5" points="805.8,197.5 802.7,196.6 799.6,195.8 796.6,195.0 793.5,194.1 790.4,193.2 787.3,192.3 784.2,191.5 781.1,190.6 778.0,189.7 775.0,188.8 771.9,187.9 768.8,187.0 765.7,186.1 762.6,185.2 759.6,184.4 756.5,183.5 753.4,182.5 750.3,181.6 747.3,180.7 744.2,179.8 741.1,179.0 738.0,178.1 734.9,177.2 731.9,176.3 728.8,175.4 725.7,174.6 722.6,173.7 719.5,172.8" />
   <line x1="638.3" y1="149.5" x2="653.1" y2="128.1" stroke="#d1d5db" stroke-width="1" />
-  <text x="653.1" y="128.1" text-anchor="start" class="name" fill="#6b7280">S 255m</text>
+  <text x="653.1" y="128.1" text-anchor="start" class="name" fill="#6b7280">St1 255m</text>
   <line x1="460.1" y1="97.3" x2="458.1" y2="71.4" stroke="#d1d5db" stroke-width="1" />
   <text x="458.1" y="71.4" text-anchor="end" class="name" fill="#111827">T1 Niki Lauda Kurve</text>
   <line x1="279.2" y1="330.7" x2="253.8" y2="325.1" stroke="#d1d5db" stroke-width="1" />
-  <text x="253.8" y="325.1" text-anchor="end" class="name" fill="#6b7280">S 623m</text>
+  <text x="253.8" y="325.1" text-anchor="end" class="name" fill="#6b7280">St2 623m</text>
   <line x1="98.9" y1="570.8" x2="75.8" y2="582.6" stroke="#d1d5db" stroke-width="1" />
   <text x="75.8" y="582.6" text-anchor="end" class="name" fill="#111827">T3 Remus</text>
   <line x1="331.8" y1="583.8" x2="316.6" y2="604.9" stroke="#d1d5db" stroke-width="1" />
-  <text x="316.6" y="604.9" text-anchor="end" class="name" fill="#6b7280">S 459m</text>
+  <text x="316.6" y="604.9" text-anchor="end" class="name" fill="#6b7280">St3 459m</text>
   <line x1="595.4" y1="506.5" x2="612.4" y2="526.2" stroke="#d1d5db" stroke-width="1" />
   <text x="612.4" y="526.2" text-anchor="start" class="name" fill="#111827">T4 Schlossgold</text>
   <line x1="331.7" y1="451.6" x2="308.5" y2="463.3" stroke="#d1d5db" stroke-width="1" />
@@ -41,13 +41,13 @@
   <line x1="550.1" y1="373.0" x2="576.1" y2="372.2" stroke="#d1d5db" stroke-width="1" />
   <text x="576.1" y="372.2" text-anchor="start" class="name" fill="#111827">T7</text>
   <line x1="677.9" y1="380.1" x2="703.9" y2="380.8" stroke="#d1d5db" stroke-width="1" />
-  <text x="703.9" y="380.8" text-anchor="start" class="name" fill="#6b7280">S 140m</text>
+  <text x="703.9" y="380.8" text-anchor="start" class="name" fill="#6b7280">St4 140m</text>
   <line x1="828.4" y1="383.6" x2="854.4" y2="384.2" stroke="#d1d5db" stroke-width="1" />
   <text x="854.4" y="384.2" text-anchor="start" class="name" fill="#111827">T9 Rindt</text>
   <line x1="885.2" y1="230.3" x2="909.7" y2="221.5" stroke="#d1d5db" stroke-width="1" />
   <text x="909.7" y="221.5" text-anchor="end" class="name" fill="#111827">T10 Red Bull Mobile</text>
   <line x1="762.6" y1="185.2" x2="784.2" y2="170.7" stroke="#d1d5db" stroke-width="1" />
-  <text x="784.2" y="170.7" text-anchor="start" class="name" fill="#6b7280">S 145m</text>
+  <text x="784.2" y="170.7" text-anchor="start" class="name" fill="#6b7280">St5 145m</text>
   <circle cx="136.6" cy="532.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
   <text x="147.6" y="524.0" class="sector">S1 0.299</text>
   <circle cx="475.5" cy="332.1" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />

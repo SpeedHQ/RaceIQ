@@ -27,7 +27,7 @@
   <polyline fill="none" stroke="#f43f5e" stroke-width="5" points="334.5,140.8 337.5,141.2 340.4,141.5 343.4,141.8 346.3,142.1 349.3,142.4 352.2,142.7 355.2,143.0 358.1,143.3 361.1,143.6 364.1,143.9 367.0,144.1 370.0,144.4 372.9,144.6 375.9,144.9 378.9,145.1 381.8,145.3 384.8,145.5 387.8,145.7 390.7,145.9 393.7,146.1 396.7,146.3 399.6,146.4 402.6,146.4 405.5,146.4 408.5,146.5 411.5,146.6 414.4,146.8 417.4,147.0 420.3,147.4 423.2,148.0 426.1,148.8 428.9,149.8 431.5,151.3 433.7,153.3 435.6,155.5 437.3,157.9 438.7,160.6 439.6,163.4 439.9,166.3 439.6,169.3 438.8,172.2 437.8,174.9 436.2,177.4 434.3,179.7 432.2,181.8 429.9,183.7 427.4,185.3 424.8,186.7 422.1,187.9 419.3,189.0 416.5,190.0 413.6,190.7 410.7,191.3 407.8,191.8 404.9,192.3 402.0,192.8 399.0,193.3 396.1,193.7 393.2,194.1 390.2,194.6 387.3,195.0 384.3,195.3 381.4,195.7 378.5,196.1 375.5,196.4" />
   <polyline fill="none" stroke="#9ca3af" stroke-width="2.5" points="375.5,196.4 372.5,196.8 369.6,197.1 366.6,197.5 363.7,197.8 360.7,198.1 357.8,198.5 354.8,198.8 351.9,199.2 348.9,199.5 346.0,199.8" />
   <line x1="283.6" y1="207.4" x2="257.8" y2="204.1" stroke="#d1d5db" stroke-width="1" />
-  <text x="257.8" y="204.1" text-anchor="end" class="name" fill="#6b7280">S 200m</text>
+  <text x="257.8" y="204.1" text-anchor="end" class="name" fill="#6b7280">St1 200m</text>
   <line x1="117.4" y1="236.8" x2="91.4" y2="237.1" stroke="#d1d5db" stroke-width="1" />
   <text x="91.4" y="237.1" text-anchor="end" class="name" fill="#111827">T1 Redgate</text>
   <line x1="208.6" y1="374.1" x2="185.6" y2="386.4" stroke="#d1d5db" stroke-width="1" />
@@ -43,7 +43,7 @@
   <line x1="786.1" y1="348.1" x2="810.4" y2="357.1" stroke="#d1d5db" stroke-width="1" />
   <text x="810.4" y="357.1" text-anchor="start" class="name" fill="#111827">T6 Schwantz Curve</text>
   <line x1="859.9" y1="269.7" x2="885.7" y2="272.2" stroke="#d1d5db" stroke-width="1" />
-  <text x="885.7" y="272.2" text-anchor="start" class="name" fill="#6b7280">S 20m</text>
+  <text x="885.7" y="272.2" text-anchor="start" class="name" fill="#6b7280">St3 20m</text>
   <line x1="885.7" y1="150.1" x2="911.2" y2="145.0" stroke="#d1d5db" stroke-width="1" />
   <text x="911.2" y="145.0" text-anchor="end" class="name" fill="#111827">T7–T8 McLeans-Coppice</text>
   <line x1="687.0" y1="138.0" x2="710.8" y2="127.5" stroke="#d1d5db" stroke-width="1" />
@@ -51,15 +51,15 @@
   <line x1="496.2" y1="138.5" x2="502.2" y2="113.2" stroke="#d1d5db" stroke-width="1" />
   <text x="502.2" y="113.2" text-anchor="start" class="name" fill="#111827">T9–T10 Fogarty Esses</text>
   <line x1="360.5" y1="111.1" x2="342.7" y2="92.2" stroke="#d1d5db" stroke-width="1" />
-  <text x="342.7" y="92.2" text-anchor="end" class="name" fill="#6b7280">S 85m</text>
+  <text x="342.7" y="92.2" text-anchor="end" class="name" fill="#6b7280">St5 85m</text>
   <line x1="231.2" y1="99.1" x2="208.4" y2="86.6" stroke="#d1d5db" stroke-width="1" />
   <text x="208.4" y="86.6" text-anchor="end" class="name" fill="#111827">T11 Melbourne Hairpin</text>
   <line x1="319.8" y1="139.3" x2="297.5" y2="125.9" stroke="#d1d5db" stroke-width="1" />
-  <text x="297.5" y="125.9" text-anchor="end" class="name" fill="#6b7280">S 50m</text>
+  <text x="297.5" y="125.9" text-anchor="end" class="name" fill="#6b7280">St6 50m</text>
   <line x1="428.9" y1="149.8" x2="416.4" y2="127.0" stroke="#d1d5db" stroke-width="1" />
   <text x="416.4" y="127.0" text-anchor="end" class="name" fill="#111827">T12 Goddards</text>
   <line x1="360.7" y1="198.1" x2="335.8" y2="190.7" stroke="#d1d5db" stroke-width="1" />
-  <text x="335.8" y="190.7" text-anchor="end" class="name" fill="#6b7280">S 55m</text>
+  <text x="335.8" y="190.7" text-anchor="end" class="name" fill="#6b7280">St7 55m</text>
   <circle cx="526.5" cy="357.5" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
   <text x="537.5" y="349.5" class="sector">S1 0.332</text>
   <circle cx="760.9" cy="130.9" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />

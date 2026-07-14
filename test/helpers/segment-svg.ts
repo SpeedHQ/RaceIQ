@@ -70,6 +70,7 @@ export function generateSegmentSvg(
   const polylines: string[] = [];
   const labels: string[] = [];
   let cornerIdx = 0;
+  let straightIdx = 0;
   for (const seg of segments) {
     const from = idxAtFrac(seg.startFrac);
     const to = Math.max(from + 1, idxAtFrac(seg.endFrac));
@@ -81,8 +82,9 @@ export function generateSegmentSvg(
     const isCorner = seg.type === "corner";
     const color = isCorner ? CORNER_COLORS[cornerIdx++ % CORNER_COLORS.length] : STRAIGHT_COLOR;
     polylines.push(`  <polyline fill="none" stroke="${color}" stroke-width="${isCorner ? 5 : 2.5}" points="${pts.join(" ")}" />`);
+    if (!isCorner) straightIdx++;
 
-    const label = segmentLabel(seg, (seg.endFrac - seg.startFrac) * total);
+    const label = segmentLabel(seg, isCorner ? 0 : straightIdx, (seg.endFrac - seg.startFrac) * total);
     if (label) {
       const mid = toSvg(outline[idxAtFrac((seg.startFrac + seg.endFrac) / 2)]);
       // Push label away from the centroid so it sits outside the track line
@@ -144,12 +146,13 @@ ${sectorMarks.join("\n")}
 
 /**
  * "T1 La Source", "T5–T6 Les Combes", plain "Kemmel" for named straights,
- * "T9" for unnamed corners, "420m" for unnamed straights (viz-only fallback —
- * the stored segment name stays "" so the client renders a generic label).
+ * "T9" for unnamed corners, "St2 420m" for unnamed straights (viz-only
+ * fallback — the stored segment name stays "" so the client renders a
+ * generic label; "St" avoids colliding with the S1/S2 sector markers).
  */
-function segmentLabel(seg: NamedSegment, lengthM: number): string {
+function segmentLabel(seg: NamedSegment, straightIdx: number, lengthM: number): string {
   const nums = seg.numbers ?? [];
-  if (nums.length === 0) return seg.name || `S ${Math.round(lengthM)}m`;
+  if (nums.length === 0) return seg.name || `St${straightIdx} ${Math.round(lengthM)}m`;
   const prefix = nums.length > 1 ? `T${nums[0]}–T${nums[nums.length - 1]}` : `T${nums[0]}`;
   if (!seg.name || seg.name === prefix) return prefix;
   return `${prefix} ${seg.name}`;

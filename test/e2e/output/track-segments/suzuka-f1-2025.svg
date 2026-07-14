@@ -26,7 +26,7 @@
   <polyline fill="none" stroke="#ef4444" stroke-width="5" points="387.0,403.7 384.6,405.8 382.0,407.9 379.3,409.7 375.7,411.7 372.8,413.0 368.9,414.4 365.8,415.2 362.6,415.7 359.3,416.0 356.1,416.2 352.8,416.2 349.6,415.9 346.3,415.5 343.1,414.9 339.2,413.9 336.1,413.0 333.0,411.9 330.0,410.6 327.0,409.3 323.3,407.5 320.5,405.9 317.7,404.2 314.4,401.9 311.7,400.0 308.5,397.6 305.9,395.6 302.7,393.0 299.7,390.3 297.3,388.0" />
   <polyline fill="none" stroke="#9ca3af" stroke-width="2.5" points="297.3,388.0 295.0,385.7 292.8,383.3 290.1,380.3 288.0,377.8 285.9,375.3 283.8,372.8 281.6,370.4" />
   <line x1="212.2" y1="289.2" x2="186.6" y2="285.0" stroke="#d1d5db" stroke-width="1" />
-  <text x="186.6" y="285.0" text-anchor="end" class="name" fill="#6b7280">S 505m</text>
+  <text x="186.6" y="285.0" text-anchor="end" class="name" fill="#6b7280">St1 505m</text>
   <line x1="99.1" y1="127.0" x2="76.2" y2="114.7" stroke="#d1d5db" stroke-width="1" />
   <text x="76.2" y="114.7" text-anchor="start" class="name" fill="#111827">T1–T2 First Curve</text>
   <line x1="254.8" y1="223.3" x2="231.3" y2="212.0" stroke="#d1d5db" stroke-width="1" />
@@ -36,7 +36,7 @@
   <line x1="539.5" y1="281.2" x2="558.0" y2="262.9" stroke="#d1d5db" stroke-width="1" />
   <text x="558.0" y="262.9" text-anchor="start" class="name" fill="#111827">T8–T9 Degner</text>
   <line x1="580.6" y1="333.7" x2="606.6" y2="333.5" stroke="#d1d5db" stroke-width="1" />
-  <text x="606.6" y="333.5" text-anchor="start" class="name" fill="#6b7280">S 54m</text>
+  <text x="606.6" y="333.5" text-anchor="start" class="name" fill="#6b7280">St2 54m</text>
   <line x1="592.8" y1="390.2" x2="615.8" y2="402.3" stroke="#d1d5db" stroke-width="1" />
   <text x="615.8" y="402.3" text-anchor="start" class="name" fill="#111827">T10</text>
   <line x1="592.8" y1="461.1" x2="609.6" y2="481.0" stroke="#d1d5db" stroke-width="1" />
@@ -50,13 +50,13 @@
   <line x1="567.0" y1="313.5" x2="592.2" y2="307.1" stroke="#d1d5db" stroke-width="1" />
   <text x="592.2" y="307.1" text-anchor="start" class="name" fill="#111827">T15 130R</text>
   <line x1="489.4" y1="344.7" x2="497.8" y2="369.3" stroke="#d1d5db" stroke-width="1" />
-  <text x="497.8" y="369.3" text-anchor="start" class="name" fill="#6b7280">S 142m</text>
+  <text x="497.8" y="369.3" text-anchor="start" class="name" fill="#6b7280">St4 142m</text>
   <line x1="430.4" y1="399.7" x2="413.6" y2="419.5" stroke="#d1d5db" stroke-width="1" />
   <text x="413.6" y="419.5" text-anchor="end" class="name" fill="#111827">T16–T17 Casio Triangle</text>
   <line x1="339.2" y1="413.9" x2="316.3" y2="426.4" stroke="#d1d5db" stroke-width="1" />
   <text x="316.3" y="426.4" text-anchor="end" class="name" fill="#111827">T18</text>
   <line x1="288.0" y1="377.8" x2="262.6" y2="383.4" stroke="#d1d5db" stroke-width="1" />
-  <text x="262.6" y="383.4" text-anchor="end" class="name" fill="#6b7280">S 61m</text>
+  <text x="262.6" y="383.4" text-anchor="end" class="name" fill="#6b7280">St5 61m</text>
   <circle cx="481.5" cy="310.5" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
   <text x="492.5" y="302.5" class="sector">S1 0.382</text>
   <circle cx="629.6" cy="334.5" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
