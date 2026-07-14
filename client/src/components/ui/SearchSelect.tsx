@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from "react";
 import { m } from "@/paraglide/messages";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 interface SearchSelectOption {
   value: string;
@@ -23,6 +24,8 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelRect, setPanelRect] = useState<{ top: number; left: number; width: number } | null>(null);
 
   const selectedLabel = options.find((o) => o.value === value)?.label ?? fallbackLabel ?? "";
 
@@ -42,13 +45,33 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setSearch("");
-      }
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
+      setSearch("");
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Position the portaled panel against the trigger input, recomputing on scroll/resize
+  useLayoutEffect(() => {
+    if (!open) {
+      setPanelRect(null);
+      return;
+    }
+    const updateRect = () => {
+      const rect = inputRef.current?.getBoundingClientRect();
+      if (rect) setPanelRect({ top: rect.bottom, left: rect.left, width: rect.width });
+    };
+    updateRect();
+    window.addEventListener("scroll", updateRect, true);
+    window.addEventListener("resize", updateRect);
+    return () => {
+      window.removeEventListener("scroll", updateRect, true);
+      window.removeEventListener("resize", updateRect);
+    };
   }, [open]);
 
   // Keyboard navigation
@@ -96,31 +119,47 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
         className={`w-full bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text placeholder:text-app-text-dim focus:outline-none disabled:opacity-50 text-ellipsis ${focusBorderClass}`}
       />
       {/* Chevron indicator */}
-      <svg className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-app-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <svg
+        aria-hidden="true"
+        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-app-text-muted"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
       </svg>
-      {open && !disabled && (
-        <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-auto rounded-lg bg-app-surface-alt border border-app-border-input z-50 shadow-lg">
-          {filtered.map((o, i) => {
-            const showGroup = o.group && (i === 0 || filtered[i - 1]?.group !== o.group);
-            return (
-              <div key={o.value}>
-                {showGroup && <div className="px-3 py-1 text-xs font-medium text-app-text-muted bg-app-surface border-t border-app-border-input first:border-t-0">{o.group}</div>}
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => handleSelect(o.value)}
-                  className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
-                    i === highlightIdx ? "bg-app-accent/20 text-app-text" : o.value === value ? "text-app-accent" : "text-app-text hover:bg-app-accent/10"
-                  }`}
-                >
-                  {o.label}
-                </button>
-              </div>
-            );
-          })}
-          {filtered.length === 0 && <div className="px-3 py-2 text-sm text-app-text-muted">{m.common_no_results()}</div>}
-        </div>
-      )}
+      {open &&
+        !disabled &&
+        panelRect &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{ position: "fixed", top: panelRect.top, left: panelRect.left, width: panelRect.width, marginTop: 4 }}
+            className="max-h-60 overflow-auto rounded-lg bg-app-surface-alt border border-app-border-input z-50 shadow-lg"
+          >
+            {filtered.map((o, i) => {
+              const showGroup = o.group && (i === 0 || filtered[i - 1]?.group !== o.group);
+              return (
+                <div key={o.value}>
+                  {showGroup && <div className="px-3 py-1 text-xs font-medium text-app-text-muted bg-app-surface border-t border-app-border-input first:border-t-0">{o.group}</div>}
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleSelect(o.value)}
+                    className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
+                      i === highlightIdx ? "bg-app-accent/20 text-app-text" : o.value === value ? "text-app-accent" : "text-app-text hover:bg-app-accent/10"
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                </div>
+              );
+            })}
+            {filtered.length === 0 && <div className="px-3 py-2 text-sm text-app-text-muted">{m.common_no_results()}</div>}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
