@@ -82,7 +82,7 @@ export function generateSegmentSvg(
     const color = isCorner ? CORNER_COLORS[cornerIdx++ % CORNER_COLORS.length] : STRAIGHT_COLOR;
     polylines.push(`  <polyline fill="none" stroke="${color}" stroke-width="${isCorner ? 5 : 2.5}" points="${pts.join(" ")}" />`);
 
-    const label = segmentLabel(seg);
+    const label = segmentLabel(seg, (seg.endFrac - seg.startFrac) * total);
     if (label) {
       const mid = toSvg(outline[idxAtFrac((seg.startFrac + seg.endFrac) / 2)]);
       // Push label away from the centroid so it sits outside the track line
@@ -142,10 +142,14 @@ ${sectorMarks.join("\n")}
   writeFileSync(outFile, svg);
 }
 
-/** "T1 La Source", "T5–T6 Les Combes", plain "Kemmel" for straights, "T9" for unnamed corners. */
-function segmentLabel(seg: NamedSegment): string {
+/**
+ * "T1 La Source", "T5–T6 Les Combes", plain "Kemmel" for named straights,
+ * "T9" for unnamed corners, "420m" for unnamed straights (viz-only fallback —
+ * the stored segment name stays "" so the client renders a generic label).
+ */
+function segmentLabel(seg: NamedSegment, lengthM: number): string {
   const nums = seg.numbers ?? [];
-  if (nums.length === 0) return seg.name;
+  if (nums.length === 0) return seg.name || `${Math.round(lengthM)}m`;
   const prefix = nums.length > 1 ? `T${nums[0]}–T${nums[nums.length - 1]}` : `T${nums[0]}`;
   if (!seg.name || seg.name === prefix) return prefix;
   return `${prefix} ${seg.name}`;

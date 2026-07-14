@@ -27,12 +27,16 @@
   <polyline fill="none" stroke="#ef4444" stroke-width="5" points="713.6,419.8 715.5,423.6 717.4,427.4 719.3,431.2 721.3,435.0 723.2,438.8 725.1,442.7 727.1,446.5 729.0,450.3 730.8,454.1 732.5,458.1 733.9,462.1 735.0,466.2 735.9,470.4 736.5,474.6 736.7,478.9 736.3,483.2 735.1,487.3 733.3,491.1 730.9,494.7 728.2,498.0 725.4,501.2 722.5,504.3 719.6,507.5 716.7,510.6 713.9,513.8 711.0,516.9 708.1,520.1 705.2,523.2" />
   <polyline fill="none" stroke="#f97316" stroke-width="5" points="705.2,523.2 702.3,526.4 699.4,529.6 696.5,532.7 693.7,535.9 690.8,539.0 687.9,542.2 685.0,545.3 682.1,548.5 678.8,551.2 675.1,553.3 671.3,555.2 667.5,557.2 663.7,559.1 659.8,560.8 655.5,561.2 651.4,559.8 648.0,557.1 645.7,553.6 643.7,549.8 641.8,546.0 639.8,542.2 637.9,538.4 636.0,534.5 634.1,530.7 632.1,526.9 630.2,523.1 628.3,519.3" />
   <polyline fill="none" stroke="#9ca3af" stroke-width="2.5" points="628.3,519.3 626.4,515.5 624.4,511.7 622.5,507.8 620.6,504.0 618.7,500.2 616.8,496.4 614.8,492.6" />
+  <line x1="584.7" y1="432.8" x2="558.8" y2="430.4" stroke="#d1d5db" stroke-width="1" />
+  <text x="558.8" y="430.4" text-anchor="end" class="name" fill="#6b7280">228m</text>
   <line x1="520.8" y1="307.1" x2="508.1" y2="284.5" stroke="#d1d5db" stroke-width="1" />
   <text x="508.1" y="284.5" text-anchor="end" class="name" fill="#111827">T1</text>
   <line x1="407.4" y1="358.6" x2="383.3" y2="348.8" stroke="#d1d5db" stroke-width="1" />
   <text x="383.3" y="348.8" text-anchor="end" class="name" fill="#111827">T2</text>
   <line x1="369.2" y1="478.6" x2="343.7" y2="483.8" stroke="#d1d5db" stroke-width="1" />
   <text x="343.7" y="483.8" text-anchor="end" class="name" fill="#111827">T3–T4 T3</text>
+  <line x1="233.4" y1="509.1" x2="207.9" y2="514.4" stroke="#d1d5db" stroke-width="1" />
+  <text x="207.9" y="514.4" text-anchor="end" class="name" fill="#6b7280">219m</text>
   <line x1="100.6" y1="576.8" x2="75.7" y2="584.1" stroke="#d1d5db" stroke-width="1" />
   <text x="75.7" y="584.1" text-anchor="start" class="name" fill="#111827">T5 Hairpin</text>
   <line x1="403.7" y1="602.2" x2="384.3" y2="619.6" stroke="#d1d5db" stroke-width="1" />
@@ -43,6 +47,8 @@
   <text x="876.2" y="375.7" text-anchor="start" class="name" fill="#6b7280">Second Straight</text>
   <line x1="872.4" y1="97.0" x2="889.0" y2="77.1" stroke="#d1d5db" stroke-width="1" />
   <text x="889.0" y="77.1" text-anchor="end" class="name" fill="#111827">T8–T9 Banked Hairpin</text>
+  <line x1="836.6" y1="201.2" x2="855.5" y2="183.3" stroke="#d1d5db" stroke-width="1" />
+  <text x="855.5" y="183.3" text-anchor="start" class="name" fill="#6b7280">16m</text>
   <line x1="849.2" y1="250.9" x2="870.4" y2="235.9" stroke="#d1d5db" stroke-width="1" />
   <text x="870.4" y="235.9" text-anchor="start" class="name" fill="#111827">T10</text>
   <line x1="830.3" y1="332.9" x2="854.3" y2="322.8" stroke="#d1d5db" stroke-width="1" />
@@ -55,6 +61,8 @@
   <text x="761.5" y="481.7" text-anchor="start" class="name" fill="#111827">T14</text>
   <line x1="659.8" y1="560.8" x2="672.1" y2="583.7" stroke="#d1d5db" stroke-width="1" />
   <text x="672.1" y="583.7" text-anchor="start" class="name" fill="#111827">T15–T16 T15</text>
+  <line x1="620.6" y1="504.0" x2="630.5" y2="528.1" stroke="#d1d5db" stroke-width="1" />
+  <text x="630.5" y="528.1" text-anchor="start" class="name" fill="#6b7280">60m</text>
   <circle cx="168.7" cy="603.5" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
   <text x="179.7" y="595.5" class="sector">S1 0.303</text>
   <circle cx="834.5" cy="192.9" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />

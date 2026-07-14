@@ -28,8 +28,12 @@
   <polyline fill="none" stroke="#f97316" stroke-width="5" points="526.6,198.5 530.2,196.2 532.6,192.9 532.7,188.8 531.7,184.7 530.4,180.7 529.0,176.3 527.6,171.9 526.3,167.9 524.9,163.9 523.1,159.7 521.5,155.9 519.9,152.0 518.1,148.0 516.1,144.0 514.0,140.1 511.8,136.4 509.1,132.4 506.6,128.9 504.0,125.7 500.8,122.2 497.7,119.1 494.3,116.0 490.8,113.2 487.4,110.8 483.6,108.8 479.8,107.1 476.0,105.7" />
   <polyline fill="none" stroke="#eab308" stroke-width="5" points="476.0,105.7 472.1,104.2 468.5,102.1 465.9,98.9 464.2,95.1 463.4,91.1 464.8,87.0 468.5,84.9 472.7,83.8 476.7,82.6 480.9,81.5 485.2,80.5 489.4,79.6 493.4,79.1 497.5,78.6 501.5,78.2 505.6,77.8 509.6,77.4 513.6,77.7 517.6,78.9 520.4,81.8 520.8,85.9 521.1,90.1 521.5,94.2 522.6,98.3 524.3,102.2 526.5,105.7 529.1,109.8 531.6,113.3 534.2,117.2 536.5,120.8 538.6,124.3 540.8,128.3 542.7,131.9 544.6,135.7 546.4,139.6 548.1,143.6 549.7,147.6 551.2,151.6 552.7,155.6" />
   <polyline fill="none" stroke="#9ca3af" stroke-width="2.5" points="552.7,155.6 554.1,159.6 555.5,163.7 556.9,167.8 558.3,171.9 559.5,176.0 560.8,180.2 562.0,184.3 563.2,188.5 564.4,192.6 565.6,196.8 566.8,200.9 567.9,205.1 569.0,209.2 570.0,213.4 571.0,217.6 571.9,221.8 572.7,226.2 573.4,230.6 574.1,235.0 574.7,239.2 575.3,243.2 575.9,247.5 576.4,251.7 576.8,255.8 577.2,259.9 577.6,265.5 577.9,269.7" />
+  <line x1="580.5" y1="308.1" x2="603.3" y2="295.4" stroke="#d1d5db" stroke-width="1" />
+  <text x="603.3" y="295.4" text-anchor="start" class="name" fill="#6b7280">101m</text>
   <line x1="566.4" y1="416.5" x2="592.4" y2="414.5" stroke="#d1d5db" stroke-width="1" />
   <text x="592.4" y="414.5" text-anchor="start" class="name" fill="#111827">T1 Sainte Dévote</text>
+  <line x1="428.9" y1="447.1" x2="454.4" y2="452.5" stroke="#d1d5db" stroke-width="1" />
+  <text x="454.4" y="452.5" text-anchor="start" class="name" fill="#6b7280">209m</text>
   <line x1="252.5" y1="491.3" x2="229.8" y2="504.1" stroke="#d1d5db" stroke-width="1" />
   <text x="229.8" y="504.1" text-anchor="end" class="name" fill="#111827">T3 Massenet</text>
   <line x1="237.9" y1="631.4" x2="224.5" y2="653.7" stroke="#d1d5db" stroke-width="1" />
@@ -40,12 +44,18 @@
   <text x="103.7" y="673.2" text-anchor="start" class="name" fill="#111827">T6 Fairmont Hairpin</text>
   <line x1="87.2" y1="720.6" x2="69.4" y2="739.5" stroke="#d1d5db" stroke-width="1" />
   <text x="69.4" y="739.5" text-anchor="start" class="name" fill="#111827">T7–T8 Portier</text>
+  <line x1="84.7" y1="638.2" x2="64.0" y2="653.8" stroke="#d1d5db" stroke-width="1" />
+  <text x="64.0" y="653.8" text-anchor="end" class="name" fill="#6b7280">49m</text>
   <line x1="124.8" y1="532.1" x2="100.9" y2="542.4" stroke="#d1d5db" stroke-width="1" />
   <text x="100.9" y="542.4" text-anchor="end" class="name" fill="#111827">T9 Tunnel</text>
+  <line x1="225.5" y1="468.6" x2="200.4" y2="475.6" stroke="#d1d5db" stroke-width="1" />
+  <text x="200.4" y="475.6" text-anchor="end" class="name" fill="#6b7280">68m</text>
   <line x1="315.4" y1="441.5" x2="290.0" y2="447.1" stroke="#d1d5db" stroke-width="1" />
   <text x="290.0" y="447.1" text-anchor="end" class="name" fill="#111827">T10–T11 Nouvelle Chicane</text>
   <line x1="405.4" y1="422.2" x2="430.9" y2="416.9" stroke="#d1d5db" stroke-width="1" />
   <text x="430.9" y="416.9" text-anchor="start" class="name" fill="#111827">T12 Tabac</text>
+  <line x1="444.6" y1="417.7" x2="470.3" y2="413.4" stroke="#d1d5db" stroke-width="1" />
+  <text x="470.3" y="413.4" text-anchor="start" class="name" fill="#6b7280">16m</text>
   <line x1="540.0" y1="386.8" x2="565.2" y2="380.5" stroke="#d1d5db" stroke-width="1" />
   <text x="565.2" y="380.5" text-anchor="start" class="name" fill="#111827">T13 Louis Chiron</text>
   <line x1="523.0" y1="245.0" x2="540.2" y2="225.5" stroke="#d1d5db" stroke-width="1" />
@@ -54,6 +64,8 @@
   <text x="528.6" y="121.2" text-anchor="start" class="name" fill="#111827">T16</text>
   <line x1="520.4" y1="81.8" x2="531.4" y2="58.2" stroke="#d1d5db" stroke-width="1" />
   <text x="531.4" y="58.2" text-anchor="start" class="name" fill="#111827">T18–T19 Rascasse / Antony Noghès</text>
+  <line x1="570.0" y1="213.4" x2="588.1" y2="194.7" stroke="#d1d5db" stroke-width="1" />
+  <text x="588.1" y="194.7" text-anchor="start" class="name" fill="#6b7280">178m</text>
   <circle cx="177.7" cy="708.7" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
   <text x="188.7" y="700.7" class="sector">S1 0.330</text>
   <circle cx="444.6" cy="417.7" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
