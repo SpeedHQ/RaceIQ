@@ -394,7 +394,7 @@ function LapAnalyseInner() {
       RR: (currentPacket.TireWearRR - windowPacket.TireWearRR) / dt,
     };
   }, [currentPacket, cursorIdx, telemetry]);
-  const lapInsights = useMemo(() => analyzeLap(telemetry), [telemetry]);
+  const lapInsights = useMemo(() => analyzeLap(telemetry, gameId), [telemetry, gameId]);
 
   // Time display — use interpolated time during playback so timer doesn't freeze in gaps
   // Separate display time state that ticks during playback (even through gaps)

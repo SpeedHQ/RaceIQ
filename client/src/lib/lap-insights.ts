@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "@shared/types";
+import type { GameId, TelemetryPacket } from "@shared/types";
 import { allWheelStates } from "./vehicle-dynamics";
 
 export type InsightCategory = "suspension" | "tires" | "driving" | "mechanical";
@@ -13,23 +13,31 @@ export interface LapInsight {
   frameIndices: number[];
 }
 
-function groupEvents(flags: boolean[], minFrames: number): [number, number][] {
-  const events: [number, number][] = [];
+function groupEvents(flags: boolean[], minFrames: number, mergeGap = 0): [number, number][] {
+  // Runs separated by fewer than mergeGap false frames are merged before the
+  // minFrames filter, so a flickering signal counts as one event, not several.
+  const runs: [number, number][] = [];
   let start = -1;
   for (let i = 0; i < flags.length; i++) {
     if (flags[i]) {
       if (start === -1) start = i;
     } else {
-      if (start !== -1 && i - start >= minFrames) {
-        events.push([start, i - 1]);
-      }
+      if (start !== -1) runs.push([start, i - 1]);
       start = -1;
     }
   }
-  if (start !== -1 && flags.length - start >= minFrames) {
-    events.push([start, flags.length - 1]);
+  if (start !== -1) runs.push([start, flags.length - 1]);
+
+  const merged: [number, number][] = [];
+  for (const run of runs) {
+    const last = merged[merged.length - 1];
+    if (last && run[0] - last[1] - 1 <= mergeGap) {
+      last[1] = run[1];
+    } else {
+      merged.push([run[0], run[1]]);
+    }
   }
-  return events;
+  return merged.filter(([s, e]) => e - s + 1 >= minFrames);
 }
 
 function midFrame(events: [number, number][]): number[] {
@@ -78,14 +86,14 @@ function detectSuspensionImbalance(telemetry: TelemetryPacket[]): LapInsight | n
       category: "suspension",
       severity: Math.abs(avgDelta) > 0.25 ? "critical" : "warning",
       label: "Suspension Imbalance",
-      detail: `${side} side ${(Math.abs(avgDelta) * 100).toFixed(0)}% stiffer on average`,
+      detail: `${side} side compressed ${(Math.abs(avgDelta) * 100).toFixed(0)}% more on average — check corner weights/ride height (or a one-direction track)`,
       frameIndices: [Math.round(telemetry.length / 2)],
     };
   }
   return null;
 }
 
-function detectTireOverheat(telemetry: TelemetryPacket[]): LapInsight[] {
+function detectTireOverheat(telemetry: TelemetryPacket[], gameId: GameId): LapInsight[] {
   const wheels = ["FL", "FR", "RL", "RR"] as const;
   const fields = {
     FL: "TireTempFL",
@@ -94,18 +102,24 @@ function detectTireOverheat(telemetry: TelemetryPacket[]): LapInsight[] {
     RR: "TireTempRR",
   } as const;
 
+  // FM reports °F; F1/ACC/AC Evo report °C.
+  const fahrenheit = gameId === "fm-2023";
+  const warnTemp = fahrenheit ? 250 : 110;
+  const critTemp = fahrenheit ? 300 : 130;
+  const unit = fahrenheit ? "°F" : "°C";
+
   const insights: LapInsight[] = [];
   for (const w of wheels) {
-    const flags = telemetry.map((p) => p[fields[w]] > 250);
-    const events = groupEvents(flags, 10);
+    const flags = telemetry.map((p) => p[fields[w]] > warnTemp);
+    const events = groupEvents(flags, 10, 30);
     if (events.length > 0) {
       const peak = Math.max(...telemetry.map((p) => p[fields[w]]));
       insights.push({
         id: `tire-overheat-${w}`,
         category: "tires",
-        severity: peak > 300 ? "critical" : "warning",
+        severity: peak > critTemp ? "critical" : "warning",
         label: "Tire Overheat",
-        detail: `${w} exceeded 250°F (peak ${peak.toFixed(0)}°F)`,
+        detail: `${w} exceeded ${warnTemp}${unit} (peak ${peak.toFixed(0)}${unit})`,
         frameIndices: midFrame(events),
       });
     }
@@ -122,7 +136,7 @@ function detectLockups(telemetry: TelemetryPacket[]): LapInsight[] {
       const ws = allWheelStates(p);
       return ws[w.toLowerCase() as "fl" | "fr" | "rl" | "rr"].state === "lockup";
     });
-    const events = groupEvents(flags, 5);
+    const events = groupEvents(flags, 5, 15);
     if (events.length > 0) {
       insights.push({
         id: `tire-lockup-${w}`,
@@ -146,7 +160,7 @@ function detectWheelspin(telemetry: TelemetryPacket[]): LapInsight[] {
       const ws = allWheelStates(p);
       return ws[w.toLowerCase() as "fl" | "fr" | "rl" | "rr"].state === "spin";
     });
-    const events = groupEvents(flags, 5);
+    const events = groupEvents(flags, 5, 15);
     if (events.length > 0) {
       insights.push({
         id: `tire-spin-${w}`,
@@ -165,6 +179,7 @@ function detectWearImbalance(telemetry: TelemetryPacket[]): LapInsight | null {
   const last = telemetry[telemetry.length - 1];
   if (!last) return null;
   const wears = [last.TireWearFL, last.TireWearFR, last.TireWearRL, last.TireWearRR];
+  if (wears.some((w) => w < 0)) return null; // -1 = wear not reported (short FM packet)
   const labels = ["FL", "FR", "RL", "RR"];
   const maxW = Math.max(...wears);
   const minW = Math.min(...wears);
@@ -177,7 +192,7 @@ function detectWearImbalance(telemetry: TelemetryPacket[]): LapInsight | null {
       category: "tires",
       severity: delta > 0.3 ? "critical" : "warning",
       label: "Wear Imbalance",
-      detail: `${minLabel} most worn, ${maxLabel} least (${(delta * 100).toFixed(0)}% spread)`,
+      detail: `${maxLabel} most worn, ${minLabel} least (${(delta * 100).toFixed(0)}% spread)`,
       frameIndices: [telemetry.length - 1],
     };
   }
@@ -191,7 +206,7 @@ function detectBrakeTractionLoss(telemetry: TelemetryPacket[]): LapInsight | nul
     const ws = allWheelStates(p);
     return ws.fl.state === "lockup" || ws.fr.state === "lockup" || ws.rl.state === "lockup" || ws.rr.state === "lockup";
   });
-  const events = groupEvents(flags, 3);
+  const events = groupEvents(flags, 3, 15);
   if (events.length === 0) return null;
   return {
     id: "driving-brake-traction-loss",
@@ -208,7 +223,7 @@ function detectRevLimiter(telemetry: TelemetryPacket[]): LapInsight | null {
   const maxRpm = telemetry[0].EngineMaxRpm;
   if (maxRpm === 0) return null;
   const flags = telemetry.map((p) => p.CurrentEngineRpm >= maxRpm - 50);
-  const events = groupEvents(flags, 10);
+  const events = groupEvents(flags, 10, 20);
   if (events.length === 0) return null;
   return {
     id: "driving-rev-limiter",
@@ -261,33 +276,27 @@ function detectTrailBraking(telemetry: TelemetryPacket[]): LapInsight | null {
 }
 
 function detectEarlyBraking(telemetry: TelemetryPacket[]): LapInsight | null {
-  // Pattern: brake zone ends → coasting/no input → throttle applied while still turning
-  // This means the driver braked too early, lost speed, then had to accelerate mid-corner
-  const brakeFlags = telemetry.map((p) => p.Brake > 10);
-  const brakeZones = groupEvents(brakeFlags, 3);
+  // Pattern: brake zone ends → sustained coast/low throttle → throttle applied while
+  // still turning. Driver braked too early, lost speed, then had to accelerate mid-corner.
+  const brakeFlags = telemetry.map((p) => p.Brake > 25);
+  const brakeZones = groupEvents(brakeFlags, 3, 10);
   if (brakeZones.length === 0) return null;
 
   const events: [number, number][] = [];
   for (const [, brakeEnd] of brakeZones) {
-    // After brake release, look for: low throttle gap then throttle while still steering
+    // Scan the 1.5s after brake release without bailing on individual noisy frames:
+    // count coast frames, and fire on the first solid throttle application in a turn.
     let gapFrames = 0;
-    let foundThrottleInTurn = false;
-    let eventFrame = brakeEnd;
     for (let i = brakeEnd + 1; i < Math.min(brakeEnd + 90, telemetry.length); i++) {
       const p = telemetry[i];
-      if (p.Accel < 30 && p.Brake < 10) {
+      if (p.Brake > 25) break; // next brake zone — stop scanning this corner
+      if (p.Accel < 50) {
         gapFrames++;
-      } else if (p.Accel > 80 && Math.abs(p.Steer) > 20 && gapFrames >= 5) {
-        // Driver is accelerating mid-corner after a coast gap = braked too early
-        foundThrottleInTurn = true;
-        eventFrame = i;
+      } else if (p.Accel > 140 && Math.abs(p.Steer) > 25) {
+        if (gapFrames >= 15) events.push([brakeEnd, i]); // ≥0.25s coast then power mid-turn
         break;
-      } else {
-        break; // immediate throttle with no gap = normal corner exit
       }
-    }
-    if (foundThrottleInTurn) {
-      events.push([brakeEnd, eventFrame]);
+      // partial throttle (50–140) neither counts as coast nor triggers — keep scanning
     }
   }
 
@@ -297,8 +306,62 @@ function detectEarlyBraking(telemetry: TelemetryPacket[]): LapInsight | null {
     category: "driving",
     severity: events.length >= 4 ? "warning" : "info",
     label: "Early Braking",
-    detail: `${events.length} corner${events.length > 1 ? "s" : ""} — braked early, had to accelerate mid-turn`,
+    detail: `${events.length} corner${events.length > 1 ? "s" : ""} — braked early, coasted, then had to accelerate mid-turn`,
     frameIndices: midFrame(events),
+  };
+}
+
+function detectOverSlowing(telemetry: TelemetryPacket[]): LapInsight | null {
+  // Over-slowed corner entry: driver scrubs off too much speed, then has to get back
+  // on the throttle before the corner is done. Signature: speed keeps falling after
+  // brake release, hits a minimum well below the brake-release speed, then the driver
+  // re-accelerates while still carrying significant steering.
+  const brakeFlags = telemetry.map((p) => p.Brake > 25);
+  const brakeZones = groupEvents(brakeFlags, 5, 10);
+  if (brakeZones.length === 0) return null;
+
+  const events: [number, number][] = [];
+  for (const [, brakeEnd] of brakeZones) {
+    const releaseSpeed = telemetry[brakeEnd].Speed;
+    if (releaseSpeed * 2.23694 < 25) continue; // ignore pit/very slow sections
+
+    // Find the local speed minimum within 2s of brake release
+    let minIdx = brakeEnd;
+    let minSpeed = releaseSpeed;
+    const scanEnd = Math.min(brakeEnd + 120, telemetry.length - 1);
+    for (let i = brakeEnd + 1; i <= scanEnd; i++) {
+      if (telemetry[i].Brake > 25) break; // next brake zone
+      if (telemetry[i].Speed < minSpeed) {
+        minSpeed = telemetry[i].Speed;
+        minIdx = i;
+      }
+    }
+
+    // Speed kept dropping ≥8% after the brakes were already released — the slowing
+    // wasn't done by the brakes, the driver just ran out of momentum.
+    const extraScrub = (releaseSpeed - minSpeed) / releaseSpeed;
+    if (extraScrub < 0.08) continue;
+
+    // And the driver had to pick the throttle back up while still mid-corner
+    let reaccelerated = false;
+    for (let i = minIdx; i <= Math.min(minIdx + 60, telemetry.length - 1); i++) {
+      const p = telemetry[i];
+      if (p.Accel > 80 && Math.abs(p.Steer) > 25) {
+        reaccelerated = true;
+        break;
+      }
+    }
+    if (reaccelerated) events.push([brakeEnd, minIdx]);
+  }
+
+  if (events.length === 0) return null;
+  return {
+    id: "driving-over-slowing",
+    category: "driving",
+    severity: events.length >= 4 ? "warning" : "info",
+    label: "Over-Slowed Corner",
+    detail: `${events.length} corner${events.length > 1 ? "s" : ""} — scrubbed extra speed after brake release, then re-accelerated mid-turn. Carry more entry speed or brake later/lighter.`,
+    frameIndices: events.map(([, minIdx]) => minIdx),
   };
 }
 
@@ -313,7 +376,7 @@ function detectCounterSteer(telemetry: TelemetryPacket[]): LapInsight | null {
     // Both must be significant, and in opposite directions
     return Math.abs(yawRate) > 0.3 && Math.abs(steer) > 20 && Math.sign(yawRate) !== Math.sign(steer);
   });
-  const events = groupEvents(flags, 3);
+  const events = groupEvents(flags, 3, 10);
   if (events.length === 0) return null;
   return {
     id: "driving-counter-steer",
@@ -332,7 +395,7 @@ function detectThrottleTractionLoss(telemetry: TelemetryPacket[]): LapInsight | 
     const ws = allWheelStates(p);
     return ws.fl.state === "spin" || ws.fr.state === "spin" || ws.rl.state === "spin" || ws.rr.state === "spin";
   });
-  const events = groupEvents(flags, 3);
+  const events = groupEvents(flags, 3, 15);
   if (events.length === 0) return null;
   return {
     id: "driving-throttle-traction-loss",
@@ -389,13 +452,13 @@ function detectFuelConsumption(telemetry: TelemetryPacket[]): LapInsight | null 
   const endFuel = telemetry[telemetry.length - 1].Fuel;
   const used = startFuel - endFuel;
   if (used <= 0) return null;
-  const lapsRemaining = endFuel > 0 ? endFuel / used : Infinity;
+  const lapsRemaining = endFuel > 0 ? endFuel / used : Number.POSITIVE_INFINITY;
   return {
     id: "mech-fuel",
     category: "mechanical",
     severity: lapsRemaining < 3 ? "critical" : lapsRemaining < 5 ? "warning" : "info",
     label: "Fuel",
-    detail: `Used ${(used * 100).toFixed(1)}% — ~${lapsRemaining === Infinity ? "∞" : lapsRemaining.toFixed(1)} laps remaining`,
+    detail: `Used ${(used * 100).toFixed(1)}% — ~${lapsRemaining === Number.POSITIVE_INFINITY ? "∞" : lapsRemaining.toFixed(1)} laps remaining`,
     frameIndices: [telemetry.length - 1],
   };
 }
@@ -485,7 +548,7 @@ function detectBrakeDrag(telemetry: TelemetryPacket[]): LapInsight | null {
   };
 }
 
-export function analyzeLap(telemetry: TelemetryPacket[]): LapInsight[] {
+export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapInsight[] {
   if (telemetry.length < 10) return [];
 
   const insights: LapInsight[] = [];
@@ -496,7 +559,7 @@ export function analyzeLap(telemetry: TelemetryPacket[]): LapInsight[] {
   if (imbalance) insights.push(imbalance);
 
   // Tires
-  insights.push(...detectTireOverheat(telemetry));
+  insights.push(...detectTireOverheat(telemetry, gameId));
   insights.push(...detectLockups(telemetry));
   insights.push(...detectWheelspin(telemetry));
   const wearImb = detectWearImbalance(telemetry);
@@ -515,6 +578,8 @@ export function analyzeLap(telemetry: TelemetryPacket[]): LapInsight[] {
   if (counterSteer) insights.push(counterSteer);
   const earlyBrake = detectEarlyBraking(telemetry);
   if (earlyBrake) insights.push(earlyBrake);
+  const overSlow = detectOverSlowing(telemetry);
+  if (overSlow) insights.push(overSlow);
   const throttleLoss = detectThrottleTractionLoss(telemetry);
   if (throttleLoss) insights.push(throttleLoss);
   const earlyThrottle = detectEarlyThrottle(telemetry);

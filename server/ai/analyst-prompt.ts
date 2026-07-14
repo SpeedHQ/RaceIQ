@@ -140,7 +140,7 @@ export function buildAnalystPrompt(
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
   // Run precomputed insight analysis
-  const insights = analyzeLap(packets);
+  const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId);
   let insightsText = "";
   if (insights.length > 0) {
     insightsText = "\n--- Precomputed Insights (unverified — validate against raw data) ---\n";
