@@ -1,0 +1,91 @@
+{
+  "name": "Eaglerock Speedway (Oval)",
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0495
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "left",
+          "startFrac": 0.0495,
+          "endFrac": 0.4535,
+          "numbers": [
+            1,
+            2
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4535,
+          "endFrac": 0.5085
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "left",
+          "startFrac": 0.5085,
+          "endFrac": 0.9523,
+          "numbers": [
+            3,
+            4
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9523,
+          "endFrac": 1
+        }
+      ]
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0495
+    },
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "left",
+      "startFrac": 0.0495,
+      "endFrac": 0.4535,
+      "numbers": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4535,
+      "endFrac": 0.5085
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "left",
+      "startFrac": 0.5085,
+      "endFrac": 0.9523,
+      "numbers": [
+        3,
+        4
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9523,
+      "endFrac": 1
+    }
+  ]
+}

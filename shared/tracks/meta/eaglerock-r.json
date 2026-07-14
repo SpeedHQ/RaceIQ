@@ -1,0 +1,115 @@
+{
+  "name": "Eaglerock Speedway (Full Reverse)",
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0473
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "right",
+          "startFrac": 0.0473,
+          "endFrac": 0.4685,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "left",
+          "startFrac": 0.4685,
+          "endFrac": 0.5297,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.5297,
+          "endFrac": 0.5933,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "right",
+          "startFrac": 0.5933,
+          "endFrac": 0.9539,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9539,
+          "endFrac": 1
+        }
+      ]
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0473
+    },
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "right",
+      "startFrac": 0.0473,
+      "endFrac": 0.4685,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T2",
+      "direction": "left",
+      "startFrac": 0.4685,
+      "endFrac": 0.5297,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.5297,
+      "endFrac": 0.5933,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "right",
+      "startFrac": 0.5933,
+      "endFrac": 0.9539,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9539,
+      "endFrac": 1
+    }
+  ]
+}

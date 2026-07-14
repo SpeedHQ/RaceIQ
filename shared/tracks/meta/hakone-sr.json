@@ -1,0 +1,211 @@
+{
+  "name": "Hakone (Short Reverse)",
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0642
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "right",
+          "startFrac": 0.0642,
+          "endFrac": 0.1704,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "left",
+          "startFrac": 0.1704,
+          "endFrac": 0.263,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.263,
+          "endFrac": 0.2797
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "left",
+          "startFrac": 0.2797,
+          "endFrac": 0.3836,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3836,
+          "endFrac": 0.5369
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "left",
+          "startFrac": 0.5369,
+          "endFrac": 0.6297,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "right",
+          "startFrac": 0.6297,
+          "endFrac": 0.7005,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7005,
+          "endFrac": 0.7063
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "left",
+          "startFrac": 0.7063,
+          "endFrac": 0.7739,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "left",
+          "startFrac": 0.7739,
+          "endFrac": 0.892,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.892,
+          "endFrac": 1
+        }
+      ]
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0642
+    },
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "right",
+      "startFrac": 0.0642,
+      "endFrac": 0.1704,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T2",
+      "direction": "left",
+      "startFrac": 0.1704,
+      "endFrac": 0.263,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.263,
+      "endFrac": 0.2797
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "left",
+      "startFrac": 0.2797,
+      "endFrac": 0.3836,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3836,
+      "endFrac": 0.5369
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "left",
+      "startFrac": 0.5369,
+      "endFrac": 0.6297,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "right",
+      "startFrac": 0.6297,
+      "endFrac": 0.7005,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.7005,
+      "endFrac": 0.7063
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "left",
+      "startFrac": 0.7063,
+      "endFrac": 0.7739,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T7",
+      "direction": "left",
+      "startFrac": 0.7739,
+      "endFrac": 0.892,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.892,
+      "endFrac": 1
+    }
+  ]
+}

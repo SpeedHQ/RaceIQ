@@ -1,0 +1,287 @@
+{
+  "name": "Circuit de Barcelona-Catalunya — National",
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.1206
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "right",
+          "startFrac": 0.1206,
+          "endFrac": 0.2279,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "left",
+          "startFrac": 0.2279,
+          "endFrac": 0.2686,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.2686,
+          "endFrac": 0.3189,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "right",
+          "startFrac": 0.3189,
+          "endFrac": 0.406,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "right",
+          "startFrac": 0.406,
+          "endFrac": 0.4556,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "left",
+          "startFrac": 0.4556,
+          "endFrac": 0.5013,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.5013,
+          "endFrac": 0.5169
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "left",
+          "startFrac": 0.5169,
+          "endFrac": 0.6351,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "right",
+          "startFrac": 0.6351,
+          "endFrac": 0.7242,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T9",
+          "direction": "right",
+          "startFrac": 0.7242,
+          "endFrac": 0.7768,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "direction": "left",
+          "startFrac": 0.7768,
+          "endFrac": 0.8043,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T11",
+          "direction": "right",
+          "startFrac": 0.8043,
+          "endFrac": 0.8291,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T12",
+          "direction": "right",
+          "startFrac": 0.8291,
+          "endFrac": 0.9139,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9139,
+          "endFrac": 1
+        }
+      ]
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.1206
+    },
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "right",
+      "startFrac": 0.1206,
+      "endFrac": 0.2279,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T2",
+      "direction": "left",
+      "startFrac": 0.2279,
+      "endFrac": 0.2686,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.2686,
+      "endFrac": 0.3189,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "right",
+      "startFrac": 0.3189,
+      "endFrac": 0.406,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "right",
+      "startFrac": 0.406,
+      "endFrac": 0.4556,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "left",
+      "startFrac": 0.4556,
+      "endFrac": 0.5013,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.5013,
+      "endFrac": 0.5169
+    },
+    {
+      "type": "corner",
+      "name": "T7",
+      "direction": "left",
+      "startFrac": 0.5169,
+      "endFrac": 0.6351,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T8",
+      "direction": "right",
+      "startFrac": 0.6351,
+      "endFrac": 0.7242,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T9",
+      "direction": "right",
+      "startFrac": 0.7242,
+      "endFrac": 0.7768,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T10",
+      "direction": "left",
+      "startFrac": 0.7768,
+      "endFrac": 0.8043,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T11",
+      "direction": "right",
+      "startFrac": 0.8043,
+      "endFrac": 0.8291,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T12",
+      "direction": "right",
+      "startFrac": 0.8291,
+      "endFrac": 0.9139,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9139,
+      "endFrac": 1
+    }
+  ]
+}

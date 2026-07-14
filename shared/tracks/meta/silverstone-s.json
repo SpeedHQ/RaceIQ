@@ -1,0 +1,179 @@
+{
+  "name": "Silverstone — National",
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0357
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "right",
+          "startFrac": 0.0357,
+          "endFrac": 0.1498,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1498,
+          "endFrac": 0.2221
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "left",
+          "startFrac": 0.2221,
+          "endFrac": 0.3167,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.3167,
+          "endFrac": 0.4334,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4334,
+          "endFrac": 0.581
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "left",
+          "startFrac": 0.581,
+          "endFrac": 0.7046,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "right",
+          "startFrac": 0.7046,
+          "endFrac": 0.819,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "right",
+          "startFrac": 0.819,
+          "endFrac": 0.946,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.946,
+          "endFrac": 1
+        }
+      ]
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0357
+    },
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "right",
+      "startFrac": 0.0357,
+      "endFrac": 0.1498,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1498,
+      "endFrac": 0.2221
+    },
+    {
+      "type": "corner",
+      "name": "T2",
+      "direction": "left",
+      "startFrac": 0.2221,
+      "endFrac": 0.3167,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.3167,
+      "endFrac": 0.4334,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4334,
+      "endFrac": 0.581
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "left",
+      "startFrac": 0.581,
+      "endFrac": 0.7046,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "right",
+      "startFrac": 0.7046,
+      "endFrac": 0.819,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "right",
+      "startFrac": 0.819,
+      "endFrac": 0.946,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.946,
+      "endFrac": 1
+    }
+  ]
+}

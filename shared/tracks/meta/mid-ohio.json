@@ -1,7 +1,309 @@
 {
   "name": "Mid-Ohio Sports Car Course",
   "sectors": {
-    "s1End": 0.33,
-    "s2End": 0.66
-  }
+    "s1End": 0.5655,
+    "s2End": 0.7774,
+    "source": "corner-anchored"
+  },
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0326
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "left",
+          "startFrac": 0.0326,
+          "endFrac": 0.1314,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1314,
+          "endFrac": 0.1998
+        },
+        {
+          "type": "corner",
+          "name": "The Keyhole",
+          "direction": "right",
+          "startFrac": 0.1998,
+          "endFrac": 0.31,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Back Straight",
+          "startFrac": 0.31,
+          "endFrac": 0.4908
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "right",
+          "startFrac": 0.4908,
+          "endFrac": 0.5655,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "left",
+          "startFrac": 0.5655,
+          "endFrac": 0.6127,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "right",
+          "startFrac": 0.6127,
+          "endFrac": 0.6541,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "left",
+          "startFrac": 0.6541,
+          "endFrac": 0.69,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "right",
+          "startFrac": 0.69,
+          "endFrac": 0.7198,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T9",
+          "direction": "right",
+          "startFrac": 0.7198,
+          "endFrac": 0.7774,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "direction": "right",
+          "startFrac": 0.7774,
+          "endFrac": 0.8408,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T11",
+          "direction": "left",
+          "startFrac": 0.8408,
+          "endFrac": 0.882,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T12",
+          "direction": "right",
+          "startFrac": 0.882,
+          "endFrac": 0.951,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T13",
+          "direction": "left",
+          "startFrac": 0.951,
+          "endFrac": 0.985,
+          "numbers": [
+            13
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.985,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.5655,
+        "s2End": 0.7774,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0326
+    },
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "left",
+      "startFrac": 0.0326,
+      "endFrac": 0.1314,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1314,
+      "endFrac": 0.1998
+    },
+    {
+      "type": "corner",
+      "name": "The Keyhole",
+      "direction": "right",
+      "startFrac": 0.1998,
+      "endFrac": 0.31,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Back Straight",
+      "startFrac": 0.31,
+      "endFrac": 0.4908
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "right",
+      "startFrac": 0.4908,
+      "endFrac": 0.5655,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "left",
+      "startFrac": 0.5655,
+      "endFrac": 0.6127,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "right",
+      "startFrac": 0.6127,
+      "endFrac": 0.6541,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T7",
+      "direction": "left",
+      "startFrac": 0.6541,
+      "endFrac": 0.69,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T8",
+      "direction": "right",
+      "startFrac": 0.69,
+      "endFrac": 0.7198,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T9",
+      "direction": "right",
+      "startFrac": 0.7198,
+      "endFrac": 0.7774,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T10",
+      "direction": "right",
+      "startFrac": 0.7774,
+      "endFrac": 0.8408,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T11",
+      "direction": "left",
+      "startFrac": 0.8408,
+      "endFrac": 0.882,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T12",
+      "direction": "right",
+      "startFrac": 0.882,
+      "endFrac": 0.951,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T13",
+      "direction": "left",
+      "startFrac": 0.951,
+      "endFrac": 0.985,
+      "numbers": [
+        13
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.985,
+      "endFrac": 1
+    }
+  ]
 }

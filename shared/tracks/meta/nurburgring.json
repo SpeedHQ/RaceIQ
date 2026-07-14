@@ -1,7 +1,550 @@
 {
   "name": "Nürburgring",
   "sectors": {
-    "s1End": 0.31,
-    "s2End": 0.66
-  }
+    "s1End": 0.341,
+    "s2End": 0.6366,
+    "source": "corner-anchored"
+  },
+  "games": {
+    "acc": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.085
+        },
+        {
+          "type": "corner",
+          "name": "Castrol-S",
+          "direction": "right",
+          "startFrac": 0.085,
+          "endFrac": 0.1442,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Mercedes Arena",
+          "direction": "left",
+          "startFrac": 0.1442,
+          "endFrac": 0.2227,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.2227,
+          "endFrac": 0.2617,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2617,
+          "endFrac": 0.2854
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "left",
+          "startFrac": 0.2854,
+          "endFrac": 0.3457,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "right",
+          "startFrac": 0.3457,
+          "endFrac": 0.393,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.393,
+          "endFrac": 0.4305
+        },
+        {
+          "type": "corner",
+          "name": "Dunlop-Kehre",
+          "direction": "right",
+          "startFrac": 0.4305,
+          "endFrac": 0.5144,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.5144,
+          "endFrac": 0.5198
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "left",
+          "startFrac": 0.5198,
+          "endFrac": 0.5834,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.5834,
+          "endFrac": 0.6239
+        },
+        {
+          "type": "corner",
+          "name": "Michael-Schumacher-S",
+          "direction": "left",
+          "startFrac": 0.6239,
+          "endFrac": 0.6856,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "direction": "right",
+          "startFrac": 0.6856,
+          "endFrac": 0.7404,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7404,
+          "endFrac": 0.8499
+        },
+        {
+          "type": "corner",
+          "name": "NGK-Schikane",
+          "startFrac": 0.8499,
+          "endFrac": 0.92,
+          "numbers": [
+            12,
+            13
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T14",
+          "direction": "right",
+          "startFrac": 0.92,
+          "endFrac": 0.9763,
+          "numbers": [
+            14
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9763,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.393,
+        "s2End": 0.6856,
+        "source": "corner-anchored"
+      }
+    },
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0423
+        },
+        {
+          "type": "corner",
+          "name": "Castrol-S",
+          "direction": "right",
+          "startFrac": 0.0423,
+          "endFrac": 0.1007,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Mercedes Arena",
+          "direction": "left",
+          "startFrac": 0.1007,
+          "endFrac": 0.1792,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.1792,
+          "endFrac": 0.2104,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2104,
+          "endFrac": 0.2416
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "left",
+          "startFrac": 0.2416,
+          "endFrac": 0.299,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "right",
+          "startFrac": 0.299,
+          "endFrac": 0.341,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.341,
+          "endFrac": 0.3899
+        },
+        {
+          "type": "corner",
+          "name": "Dunlop-Kehre",
+          "direction": "right",
+          "startFrac": 0.3899,
+          "endFrac": 0.4641,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4641,
+          "endFrac": 0.4736
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "left",
+          "startFrac": 0.4736,
+          "endFrac": 0.5235,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "right",
+          "startFrac": 0.5235,
+          "endFrac": 0.5556,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.5556,
+          "endFrac": 0.5816
+        },
+        {
+          "type": "corner",
+          "name": "Michael-Schumacher-S",
+          "direction": "left",
+          "startFrac": 0.5816,
+          "endFrac": 0.6366,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "direction": "right",
+          "startFrac": 0.6366,
+          "endFrac": 0.6862,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6862,
+          "endFrac": 0.7075
+        },
+        {
+          "type": "corner",
+          "name": "T11",
+          "direction": "right",
+          "startFrac": 0.7075,
+          "endFrac": 0.7672,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7672,
+          "endFrac": 0.7987
+        },
+        {
+          "type": "corner",
+          "name": "NGK-Schikane",
+          "startFrac": 0.7987,
+          "endFrac": 0.859,
+          "numbers": [
+            12,
+            13
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.859,
+          "endFrac": 0.8636
+        },
+        {
+          "type": "corner",
+          "name": "T14",
+          "direction": "right",
+          "startFrac": 0.8636,
+          "endFrac": 0.9265,
+          "numbers": [
+            14
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9265,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.341,
+        "s2End": 0.6366,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0423
+    },
+    {
+      "type": "corner",
+      "name": "Castrol-S",
+      "direction": "right",
+      "startFrac": 0.0423,
+      "endFrac": 0.1007,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Mercedes Arena",
+      "direction": "left",
+      "startFrac": 0.1007,
+      "endFrac": 0.1792,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.1792,
+      "endFrac": 0.2104,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.2104,
+      "endFrac": 0.2416
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "left",
+      "startFrac": 0.2416,
+      "endFrac": 0.299,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "right",
+      "startFrac": 0.299,
+      "endFrac": 0.341,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.341,
+      "endFrac": 0.3899
+    },
+    {
+      "type": "corner",
+      "name": "Dunlop-Kehre",
+      "direction": "right",
+      "startFrac": 0.3899,
+      "endFrac": 0.4641,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4641,
+      "endFrac": 0.4736
+    },
+    {
+      "type": "corner",
+      "name": "T7",
+      "direction": "left",
+      "startFrac": 0.4736,
+      "endFrac": 0.5235,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T8",
+      "direction": "right",
+      "startFrac": 0.5235,
+      "endFrac": 0.5556,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.5556,
+      "endFrac": 0.5816
+    },
+    {
+      "type": "corner",
+      "name": "Michael-Schumacher-S",
+      "direction": "left",
+      "startFrac": 0.5816,
+      "endFrac": 0.6366,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T10",
+      "direction": "right",
+      "startFrac": 0.6366,
+      "endFrac": 0.6862,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.6862,
+      "endFrac": 0.7075
+    },
+    {
+      "type": "corner",
+      "name": "T11",
+      "direction": "right",
+      "startFrac": 0.7075,
+      "endFrac": 0.7672,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.7672,
+      "endFrac": 0.7987
+    },
+    {
+      "type": "corner",
+      "name": "NGK-Schikane",
+      "startFrac": 0.7987,
+      "endFrac": 0.859,
+      "numbers": [
+        12,
+        13
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.859,
+      "endFrac": 0.8636
+    },
+    {
+      "type": "corner",
+      "name": "T14",
+      "direction": "right",
+      "startFrac": 0.8636,
+      "endFrac": 0.9265,
+      "numbers": [
+        14
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9265,
+      "endFrac": 1
+    }
+  ]
 }

@@ -1,7 +1,363 @@
 {
   "name": "Road America",
   "sectors": {
-    "s1End": 0.34,
-    "s2End": 0.66
-  }
+    "s1End": 0.3788,
+    "s2End": 0.6152,
+    "source": "corner-anchored"
+  },
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.071
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "right",
+          "startFrac": 0.071,
+          "endFrac": 0.1258,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Moraine Sweep",
+          "startFrac": 0.1258,
+          "endFrac": 0.1456
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.1456,
+          "endFrac": 0.2007,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Hurry Downs",
+          "startFrac": 0.2007,
+          "endFrac": 0.3323
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "left",
+          "startFrac": 0.3323,
+          "endFrac": 0.3788,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3788,
+          "endFrac": 0.3834
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "left",
+          "startFrac": 0.3834,
+          "endFrac": 0.4245,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "right",
+          "startFrac": 0.4245,
+          "endFrac": 0.4623,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4623,
+          "endFrac": 0.479
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "left",
+          "startFrac": 0.479,
+          "endFrac": 0.5227,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "The Carousel",
+          "direction": "right",
+          "startFrac": 0.5227,
+          "endFrac": 0.6152,
+          "numbers": [
+            9,
+            10
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6152,
+          "endFrac": 0.6315
+        },
+        {
+          "type": "corner",
+          "name": "The Kink",
+          "direction": "right",
+          "startFrac": 0.6315,
+          "endFrac": 0.6847,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6847,
+          "endFrac": 0.7652
+        },
+        {
+          "type": "corner",
+          "name": "Canada Corner",
+          "direction": "right",
+          "startFrac": 0.7652,
+          "endFrac": 0.813,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.813,
+          "endFrac": 0.8183
+        },
+        {
+          "type": "corner",
+          "name": "T13",
+          "direction": "left",
+          "startFrac": 0.8183,
+          "endFrac": 0.8644,
+          "numbers": [
+            13
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.8644,
+          "endFrac": 0.868
+        },
+        {
+          "type": "corner",
+          "name": "T14",
+          "direction": "right",
+          "startFrac": 0.868,
+          "endFrac": 0.9145,
+          "numbers": [
+            14
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9145,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3788,
+        "s2End": 0.6152,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.071
+    },
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "right",
+      "startFrac": 0.071,
+      "endFrac": 0.1258,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Moraine Sweep",
+      "startFrac": 0.1258,
+      "endFrac": 0.1456
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.1456,
+      "endFrac": 0.2007,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Hurry Downs",
+      "startFrac": 0.2007,
+      "endFrac": 0.3323
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "left",
+      "startFrac": 0.3323,
+      "endFrac": 0.3788,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3788,
+      "endFrac": 0.3834
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "left",
+      "startFrac": 0.3834,
+      "endFrac": 0.4245,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T7",
+      "direction": "right",
+      "startFrac": 0.4245,
+      "endFrac": 0.4623,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4623,
+      "endFrac": 0.479
+    },
+    {
+      "type": "corner",
+      "name": "T8",
+      "direction": "left",
+      "startFrac": 0.479,
+      "endFrac": 0.5227,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "The Carousel",
+      "direction": "right",
+      "startFrac": 0.5227,
+      "endFrac": 0.6152,
+      "numbers": [
+        9,
+        10
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.6152,
+      "endFrac": 0.6315
+    },
+    {
+      "type": "corner",
+      "name": "The Kink",
+      "direction": "right",
+      "startFrac": 0.6315,
+      "endFrac": 0.6847,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.6847,
+      "endFrac": 0.7652
+    },
+    {
+      "type": "corner",
+      "name": "Canada Corner",
+      "direction": "right",
+      "startFrac": 0.7652,
+      "endFrac": 0.813,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.813,
+      "endFrac": 0.8183
+    },
+    {
+      "type": "corner",
+      "name": "T13",
+      "direction": "left",
+      "startFrac": 0.8183,
+      "endFrac": 0.8644,
+      "numbers": [
+        13
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.8644,
+      "endFrac": 0.868
+    },
+    {
+      "type": "corner",
+      "name": "T14",
+      "direction": "right",
+      "startFrac": 0.868,
+      "endFrac": 0.9145,
+      "numbers": [
+        14
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9145,
+      "endFrac": 1
+    }
+  ]
 }

@@ -302,7 +302,7 @@ function buildUnits(corners: CornerNameEntry[]): Unit[] {
     const prev = units[units.length - 1];
     if (entry.group && prev?.group === entry.group) {
       prev.members.push(entry);
-      prev.maxSpan = Math.max(prev.maxSpan + 1, entry.spans ?? 1);
+      prev.maxSpan += entry.spans ?? 1;
     } else {
       units.push({ members: [entry], group: entry.group, maxSpan: entry.spans ?? 1 });
     }
@@ -596,8 +596,11 @@ function alignOnePolarity(
     const nextStart = i + 1 < corners.length ? corners[i + 1].startFrac : 1;
     pushStraight(c.endFrac, nextStart, c.regionIndex);
   }
-  // Lap must end at exactly 1 (trailing slivers are absorbed above)
-  if (segments.length > 0) segments[segments.length - 1].endFrac = 1;
+  // Lap must span exactly 0..1 (leading/trailing slivers are absorbed)
+  if (segments.length > 0) {
+    segments[0].startFrac = 0;
+    segments[segments.length - 1].endFrac = 1;
+  }
 
   // Sliver absorption may have extended corner segments — keep the corners
   // array (used for sector anchoring) in sync with the final section bounds.

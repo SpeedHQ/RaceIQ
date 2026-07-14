@@ -1,0 +1,241 @@
+{
+  "name": "Circuit Ricardo Tormo (Valencia)",
+  "games": {
+    "acc": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0812
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "left",
+          "startFrac": 0.0812,
+          "endFrac": 0.1802,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1802,
+          "endFrac": 0.1872
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "left",
+          "startFrac": 0.1872,
+          "endFrac": 0.2976,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.2976,
+          "endFrac": 0.4004,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "left",
+          "startFrac": 0.4004,
+          "endFrac": 0.4695,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4695,
+          "endFrac": 0.5089
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "left",
+          "startFrac": 0.5089,
+          "endFrac": 0.6333,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "right",
+          "startFrac": 0.6333,
+          "endFrac": 0.7196,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7196,
+          "endFrac": 0.7266
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "right",
+          "startFrac": 0.7266,
+          "endFrac": 0.7805,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "left",
+          "startFrac": 0.7805,
+          "endFrac": 0.9365,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9365,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.4004,
+        "s2End": 0.6333,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0812
+    },
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "left",
+      "startFrac": 0.0812,
+      "endFrac": 0.1802,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1802,
+      "endFrac": 0.1872
+    },
+    {
+      "type": "corner",
+      "name": "T2",
+      "direction": "left",
+      "startFrac": 0.1872,
+      "endFrac": 0.2976,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.2976,
+      "endFrac": 0.4004,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "left",
+      "startFrac": 0.4004,
+      "endFrac": 0.4695,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4695,
+      "endFrac": 0.5089
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "left",
+      "startFrac": 0.5089,
+      "endFrac": 0.6333,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "right",
+      "startFrac": 0.6333,
+      "endFrac": 0.7196,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.7196,
+      "endFrac": 0.7266
+    },
+    {
+      "type": "corner",
+      "name": "T7",
+      "direction": "right",
+      "startFrac": 0.7266,
+      "endFrac": 0.7805,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T8",
+      "direction": "left",
+      "startFrac": 0.7805,
+      "endFrac": 0.9365,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9365,
+      "endFrac": 1
+    }
+  ],
+  "sectors": {
+    "s1End": 0.4004,
+    "s2End": 0.6333,
+    "source": "corner-anchored"
+  }
+}

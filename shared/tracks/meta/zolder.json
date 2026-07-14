@@ -1,0 +1,273 @@
+{
+  "name": "Circuit Zolder",
+  "games": {
+    "acc": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0291
+        },
+        {
+          "type": "corner",
+          "name": "Eerste Linkse",
+          "direction": "left",
+          "startFrac": 0.0291,
+          "endFrac": 0.1233,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Sterrewachtbocht",
+          "direction": "right",
+          "startFrac": 0.1233,
+          "endFrac": 0.251,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.251,
+          "endFrac": 0.3287,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3287,
+          "endFrac": 0.3983
+        },
+        {
+          "type": "corner",
+          "name": "Sacramentshelling",
+          "startFrac": 0.3983,
+          "endFrac": 0.483,
+          "numbers": [
+            4,
+            5
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.483,
+          "endFrac": 0.49
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "left",
+          "startFrac": 0.49,
+          "endFrac": 0.5645,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Villeneuve Chicane",
+          "startFrac": 0.5645,
+          "endFrac": 0.5961,
+          "numbers": [
+            7,
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T9",
+          "direction": "right",
+          "startFrac": 0.5961,
+          "endFrac": 0.6852,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6852,
+          "endFrac": 0.7168
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "direction": "right",
+          "startFrac": 0.7168,
+          "endFrac": 0.7952,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7952,
+          "endFrac": 0.8622
+        },
+        {
+          "type": "corner",
+          "name": "Jacky Ickx Chicane",
+          "startFrac": 0.8622,
+          "endFrac": 0.957,
+          "numbers": [
+            11,
+            12
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.957,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3287,
+        "s2End": 0.5961,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0291
+    },
+    {
+      "type": "corner",
+      "name": "Eerste Linkse",
+      "direction": "left",
+      "startFrac": 0.0291,
+      "endFrac": 0.1233,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Sterrewachtbocht",
+      "direction": "right",
+      "startFrac": 0.1233,
+      "endFrac": 0.251,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.251,
+      "endFrac": 0.3287,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3287,
+      "endFrac": 0.3983
+    },
+    {
+      "type": "corner",
+      "name": "Sacramentshelling",
+      "startFrac": 0.3983,
+      "endFrac": 0.483,
+      "numbers": [
+        4,
+        5
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.483,
+      "endFrac": 0.49
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "left",
+      "startFrac": 0.49,
+      "endFrac": 0.5645,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Villeneuve Chicane",
+      "startFrac": 0.5645,
+      "endFrac": 0.5961,
+      "numbers": [
+        7,
+        8
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T9",
+      "direction": "right",
+      "startFrac": 0.5961,
+      "endFrac": 0.6852,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.6852,
+      "endFrac": 0.7168
+    },
+    {
+      "type": "corner",
+      "name": "T10",
+      "direction": "right",
+      "startFrac": 0.7168,
+      "endFrac": 0.7952,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.7952,
+      "endFrac": 0.8622
+    },
+    {
+      "type": "corner",
+      "name": "Jacky Ickx Chicane",
+      "startFrac": 0.8622,
+      "endFrac": 0.957,
+      "numbers": [
+        11,
+        12
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.957,
+      "endFrac": 1
+    }
+  ],
+  "sectors": {
+    "s1End": 0.3287,
+    "s2End": 0.5961,
+    "source": "corner-anchored"
+  }
+}

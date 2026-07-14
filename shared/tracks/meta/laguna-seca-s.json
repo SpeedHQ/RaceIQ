@@ -1,0 +1,223 @@
+{
+  "name": "WeatherTech Raceway Laguna Seca — Short",
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0837
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "left",
+          "startFrac": 0.0837,
+          "endFrac": 0.1936,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1936,
+          "endFrac": 0.2433
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "left",
+          "startFrac": 0.2433,
+          "endFrac": 0.3497,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3497,
+          "endFrac": 0.3728
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "left",
+          "startFrac": 0.3728,
+          "endFrac": 0.4641,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4641,
+          "endFrac": 0.5454
+        },
+        {
+          "type": "corner",
+          "name": "Corkscrew",
+          "startFrac": 0.5454,
+          "endFrac": 0.6541,
+          "numbers": [
+            4,
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Rainey Curve",
+          "direction": "left",
+          "startFrac": 0.6541,
+          "endFrac": 0.7461,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "right",
+          "startFrac": 0.7461,
+          "endFrac": 0.8282,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.8282,
+          "endFrac": 0.8398
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "left",
+          "startFrac": 0.8398,
+          "endFrac": 0.923,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.923,
+          "endFrac": 1
+        }
+      ]
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0837
+    },
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "left",
+      "startFrac": 0.0837,
+      "endFrac": 0.1936,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1936,
+      "endFrac": 0.2433
+    },
+    {
+      "type": "corner",
+      "name": "T2",
+      "direction": "left",
+      "startFrac": 0.2433,
+      "endFrac": 0.3497,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3497,
+      "endFrac": 0.3728
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "left",
+      "startFrac": 0.3728,
+      "endFrac": 0.4641,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4641,
+      "endFrac": 0.5454
+    },
+    {
+      "type": "corner",
+      "name": "Corkscrew",
+      "startFrac": 0.5454,
+      "endFrac": 0.6541,
+      "numbers": [
+        4,
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Rainey Curve",
+      "direction": "left",
+      "startFrac": 0.6541,
+      "endFrac": 0.7461,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T7",
+      "direction": "right",
+      "startFrac": 0.7461,
+      "endFrac": 0.8282,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.8282,
+      "endFrac": 0.8398
+    },
+    {
+      "type": "corner",
+      "name": "T8",
+      "direction": "left",
+      "startFrac": 0.8398,
+      "endFrac": 0.923,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.923,
+      "endFrac": 1
+    }
+  ]
+}

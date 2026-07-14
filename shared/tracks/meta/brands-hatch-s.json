@@ -3,9 +3,167 @@
   "games": {
     "fm-2023": {
       "sectors": {
-        "s1End": 0.369,
-        "s2End": 0.695
-      }
+        "s1End": 0.3734,
+        "s2End": 0.6584,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0385
+        },
+        {
+          "type": "corner",
+          "name": "Paddock Hill Bend",
+          "direction": "right",
+          "startFrac": 0.0385,
+          "endFrac": 0.2292,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2292,
+          "endFrac": 0.2383
+        },
+        {
+          "type": "corner",
+          "name": "Druids",
+          "direction": "right",
+          "startFrac": 0.2383,
+          "endFrac": 0.3734,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Graham Hill Bend",
+          "direction": "left",
+          "startFrac": 0.3734,
+          "endFrac": 0.5119,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Cooper Straight",
+          "startFrac": 0.5119,
+          "endFrac": 0.5347
+        },
+        {
+          "type": "corner",
+          "name": "Surtees",
+          "direction": "left",
+          "startFrac": 0.5347,
+          "endFrac": 0.6584,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Clearways",
+          "direction": "right",
+          "startFrac": 0.6584,
+          "endFrac": 0.9325,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Brabham Straight",
+          "startFrac": 0.9325,
+          "endFrac": 1
+        }
+      ]
     }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0385
+    },
+    {
+      "type": "corner",
+      "name": "Paddock Hill Bend",
+      "direction": "right",
+      "startFrac": 0.0385,
+      "endFrac": 0.2292,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.2292,
+      "endFrac": 0.2383
+    },
+    {
+      "type": "corner",
+      "name": "Druids",
+      "direction": "right",
+      "startFrac": 0.2383,
+      "endFrac": 0.3734,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Graham Hill Bend",
+      "direction": "left",
+      "startFrac": 0.3734,
+      "endFrac": 0.5119,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Cooper Straight",
+      "startFrac": 0.5119,
+      "endFrac": 0.5347
+    },
+    {
+      "type": "corner",
+      "name": "Surtees",
+      "direction": "left",
+      "startFrac": 0.5347,
+      "endFrac": 0.6584,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Clearways",
+      "direction": "right",
+      "startFrac": 0.6584,
+      "endFrac": 0.9325,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Brabham Straight",
+      "startFrac": 0.9325,
+      "endFrac": 1
+    }
+  ],
+  "sectors": {
+    "s1End": 0.3734,
+    "s2End": 0.6584,
+    "source": "corner-anchored"
   }
 }

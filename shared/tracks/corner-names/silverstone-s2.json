@@ -1,0 +1,47 @@
+{
+  "circuit": "Silverstone — International",
+  "source": "derived from track geometry (layout variant, sequential numbering)",
+  "turnCount": 8,
+  "corners": [
+    {
+      "number": 1,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 2,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 3,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "right"
+    }
+  ]
+}

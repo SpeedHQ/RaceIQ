@@ -1,7 +1,233 @@
 {
   "name": "Road Atlanta",
   "sectors": {
-    "s1End": 0.34,
-    "s2End": 0.66
-  }
+    "s1End": 0.3747,
+    "s2End": 0.7028,
+    "source": "corner-anchored"
+  },
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0489
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "right",
+          "startFrac": 0.0489,
+          "endFrac": 0.1614,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "The Esses",
+          "startFrac": 0.1614,
+          "endFrac": 0.3747,
+          "numbers": [
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3747,
+          "endFrac": 0.4387
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "right",
+          "startFrac": 0.4387,
+          "endFrac": 0.5112,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "right",
+          "startFrac": 0.5112,
+          "endFrac": 0.5558,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Back Straight",
+          "startFrac": 0.5558,
+          "endFrac": 0.8206
+        },
+        {
+          "type": "corner",
+          "name": "T9",
+          "direction": "left",
+          "startFrac": 0.8206,
+          "endFrac": 0.8692,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "10a/10b Chicane",
+          "direction": "right",
+          "startFrac": 0.8692,
+          "endFrac": 0.8985,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T11",
+          "direction": "right",
+          "startFrac": 0.8985,
+          "endFrac": 0.9419,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T12",
+          "direction": "right",
+          "startFrac": 0.9419,
+          "endFrac": 0.9939,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9939,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3747,
+        "s2End": 0.7028,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0489
+    },
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "right",
+      "startFrac": 0.0489,
+      "endFrac": 0.1614,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "The Esses",
+      "startFrac": 0.1614,
+      "endFrac": 0.3747,
+      "numbers": [
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3747,
+      "endFrac": 0.4387
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "right",
+      "startFrac": 0.4387,
+      "endFrac": 0.5112,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T7",
+      "direction": "right",
+      "startFrac": 0.5112,
+      "endFrac": 0.5558,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Back Straight",
+      "startFrac": 0.5558,
+      "endFrac": 0.8206
+    },
+    {
+      "type": "corner",
+      "name": "T9",
+      "direction": "left",
+      "startFrac": 0.8206,
+      "endFrac": 0.8692,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "10a/10b Chicane",
+      "direction": "right",
+      "startFrac": 0.8692,
+      "endFrac": 0.8985,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T11",
+      "direction": "right",
+      "startFrac": 0.8985,
+      "endFrac": 0.9419,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T12",
+      "direction": "right",
+      "startFrac": 0.9419,
+      "endFrac": 0.9939,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9939,
+      "endFrac": 1
+    }
+  ]
 }

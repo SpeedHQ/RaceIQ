@@ -1,0 +1,47 @@
+{
+  "circuit": "Yas Marina — South",
+  "source": "derived from track geometry (layout variant, sequential numbering)",
+  "turnCount": 8,
+  "corners": [
+    {
+      "number": 1,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 2,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 3,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "left"
+    }
+  ]
+}

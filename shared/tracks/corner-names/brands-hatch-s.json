@@ -1,0 +1,20 @@
+{
+  "circuit": "Brands Hatch — Indy Circuit",
+  "source": "Official circuit map (Indy layout)",
+  "turnCount": 5,
+  "corners": [
+    { "number": 1, "name": "Paddock Hill Bend", "direction": "right" },
+    { "number": 2, "name": "Druids", "direction": "right" },
+    { "number": 3, "name": "Graham Hill Bend", "direction": "left" },
+    { "number": 4, "name": "Surtees", "direction": "left" },
+    { "number": 5, "name": "Clearways", "direction": "right" }
+  ],
+  "straights": [
+    { "after": 3, "name": "Cooper Straight" },
+    { "after": 5, "name": "Brabham Straight" }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 2,
+    "s2EndAfterCorner": 4
+  }
+}

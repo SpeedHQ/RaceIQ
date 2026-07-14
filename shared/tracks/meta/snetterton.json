@@ -1,0 +1,333 @@
+{
+  "name": "Snetterton Circuit (300)",
+  "games": {
+    "acc": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.038
+        },
+        {
+          "type": "corner",
+          "name": "Riches",
+          "direction": "right",
+          "startFrac": 0.038,
+          "endFrac": 0.1287,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1287,
+          "endFrac": 0.1345
+        },
+        {
+          "type": "corner",
+          "name": "Montreal",
+          "direction": "right",
+          "startFrac": 0.1345,
+          "endFrac": 0.2015,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2015,
+          "endFrac": 0.2047
+        },
+        {
+          "type": "corner",
+          "name": "Palmer",
+          "direction": "left",
+          "startFrac": 0.2047,
+          "endFrac": 0.2774,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2774,
+          "endFrac": 0.3123
+        },
+        {
+          "type": "corner",
+          "name": "Agostini",
+          "direction": "left",
+          "startFrac": 0.3123,
+          "endFrac": 0.3908,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Hamilton",
+          "direction": "left",
+          "startFrac": 0.3908,
+          "endFrac": 0.4473,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Oggies",
+          "direction": "right",
+          "startFrac": 0.4473,
+          "endFrac": 0.5,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Williams",
+          "direction": "right",
+          "startFrac": 0.5,
+          "endFrac": 0.5591,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Bentley Straight",
+          "startFrac": 0.5591,
+          "endFrac": 0.6614
+        },
+        {
+          "type": "corner",
+          "name": "Brundle",
+          "direction": "left",
+          "startFrac": 0.6614,
+          "endFrac": 0.7184,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Nelson",
+          "direction": "right",
+          "startFrac": 0.7184,
+          "endFrac": 0.7474,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Bomb Hole",
+          "direction": "right",
+          "startFrac": 0.7474,
+          "endFrac": 0.8033,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Coram",
+          "direction": "right",
+          "startFrac": 0.8033,
+          "endFrac": 0.8924,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Murrays",
+          "direction": "left",
+          "startFrac": 0.8924,
+          "endFrac": 0.9241,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9241,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3908,
+        "s2End": 0.7474,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.038
+    },
+    {
+      "type": "corner",
+      "name": "Riches",
+      "direction": "right",
+      "startFrac": 0.038,
+      "endFrac": 0.1287,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1287,
+      "endFrac": 0.1345
+    },
+    {
+      "type": "corner",
+      "name": "Montreal",
+      "direction": "right",
+      "startFrac": 0.1345,
+      "endFrac": 0.2015,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.2015,
+      "endFrac": 0.2047
+    },
+    {
+      "type": "corner",
+      "name": "Palmer",
+      "direction": "left",
+      "startFrac": 0.2047,
+      "endFrac": 0.2774,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.2774,
+      "endFrac": 0.3123
+    },
+    {
+      "type": "corner",
+      "name": "Agostini",
+      "direction": "left",
+      "startFrac": 0.3123,
+      "endFrac": 0.3908,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Hamilton",
+      "direction": "left",
+      "startFrac": 0.3908,
+      "endFrac": 0.4473,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Oggies",
+      "direction": "right",
+      "startFrac": 0.4473,
+      "endFrac": 0.5,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Williams",
+      "direction": "right",
+      "startFrac": 0.5,
+      "endFrac": 0.5591,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Bentley Straight",
+      "startFrac": 0.5591,
+      "endFrac": 0.6614
+    },
+    {
+      "type": "corner",
+      "name": "Brundle",
+      "direction": "left",
+      "startFrac": 0.6614,
+      "endFrac": 0.7184,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Nelson",
+      "direction": "right",
+      "startFrac": 0.7184,
+      "endFrac": 0.7474,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Bomb Hole",
+      "direction": "right",
+      "startFrac": 0.7474,
+      "endFrac": 0.8033,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Coram",
+      "direction": "right",
+      "startFrac": 0.8033,
+      "endFrac": 0.8924,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Murrays",
+      "direction": "left",
+      "startFrac": 0.8924,
+      "endFrac": 0.9241,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9241,
+      "endFrac": 1
+    }
+  ],
+  "sectors": {
+    "s1End": 0.3908,
+    "s2End": 0.7474,
+    "source": "corner-anchored"
+  }
+}

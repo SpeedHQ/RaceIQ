@@ -1,7 +1,492 @@
 {
   "name": "Mount Panorama Circuit",
   "sectors": {
-    "s1End": 0.34,
-    "s2End": 0.66
-  }
+    "s1End": 0.311,
+    "s2End": 0.624,
+    "source": "corner-anchored"
+  },
+  "games": {
+    "acc": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0292
+        },
+        {
+          "type": "corner",
+          "name": "Hell Corner",
+          "direction": "left",
+          "startFrac": 0.0292,
+          "endFrac": 0.0853,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Mountain Straight",
+          "startFrac": 0.0853,
+          "endFrac": 0.2094
+        },
+        {
+          "type": "corner",
+          "name": "Griffins Bend",
+          "direction": "right",
+          "startFrac": 0.2094,
+          "endFrac": 0.2774,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2774,
+          "endFrac": 0.2826
+        },
+        {
+          "type": "corner",
+          "name": "The Cutting",
+          "direction": "left",
+          "startFrac": 0.2826,
+          "endFrac": 0.3359,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Reid Park",
+          "direction": "right",
+          "startFrac": 0.3359,
+          "endFrac": 0.3998,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Sulman Park",
+          "direction": "left",
+          "startFrac": 0.3998,
+          "endFrac": 0.4627,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "McPhillamy Park",
+          "direction": "left",
+          "startFrac": 0.4627,
+          "endFrac": 0.5066,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.5066,
+          "endFrac": 0.518
+        },
+        {
+          "type": "corner",
+          "name": "The Esses",
+          "startFrac": 0.518,
+          "endFrac": 0.591,
+          "numbers": [
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T11",
+          "direction": "right",
+          "startFrac": 0.591,
+          "endFrac": 0.6161,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Forrest's Elbow",
+          "direction": "left",
+          "startFrac": 0.6161,
+          "endFrac": 0.648,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Conrod Straight",
+          "startFrac": 0.648,
+          "endFrac": 0.8571
+        },
+        {
+          "type": "corner",
+          "name": "The Chase",
+          "startFrac": 0.8571,
+          "endFrac": 0.9302,
+          "numbers": [
+            13,
+            14
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9302,
+          "endFrac": 0.9496
+        },
+        {
+          "type": "corner",
+          "name": "Murray's Corner",
+          "direction": "left",
+          "startFrac": 0.9496,
+          "endFrac": 0.9952,
+          "numbers": [
+            15
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Pit Straight",
+          "startFrac": 0.9952,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3359,
+        "s2End": 0.648,
+        "source": "corner-anchored"
+      }
+    },
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0156
+        },
+        {
+          "type": "corner",
+          "name": "Hell Corner",
+          "direction": "left",
+          "startFrac": 0.0156,
+          "endFrac": 0.0562,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Mountain Straight",
+          "startFrac": 0.0562,
+          "endFrac": 0.1864
+        },
+        {
+          "type": "corner",
+          "name": "Griffins Bend",
+          "direction": "right",
+          "startFrac": 0.1864,
+          "endFrac": 0.2522,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2522,
+          "endFrac": 0.2579
+        },
+        {
+          "type": "corner",
+          "name": "The Cutting",
+          "direction": "left",
+          "startFrac": 0.2579,
+          "endFrac": 0.311,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Reid Park",
+          "direction": "right",
+          "startFrac": 0.311,
+          "endFrac": 0.3715,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Sulman Park",
+          "direction": "left",
+          "startFrac": 0.3715,
+          "endFrac": 0.4368,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "McPhillamy Park",
+          "direction": "left",
+          "startFrac": 0.4368,
+          "endFrac": 0.4824,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4824,
+          "endFrac": 0.4868
+        },
+        {
+          "type": "corner",
+          "name": "The Esses",
+          "startFrac": 0.4868,
+          "endFrac": 0.568,
+          "numbers": [
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T11",
+          "direction": "right",
+          "startFrac": 0.568,
+          "endFrac": 0.5926,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Forrest's Elbow",
+          "direction": "left",
+          "startFrac": 0.5926,
+          "endFrac": 0.624,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Conrod Straight",
+          "startFrac": 0.624,
+          "endFrac": 0.836
+        },
+        {
+          "type": "corner",
+          "name": "The Chase",
+          "startFrac": 0.836,
+          "endFrac": 0.9007,
+          "numbers": [
+            13,
+            14
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9007,
+          "endFrac": 0.9275
+        },
+        {
+          "type": "corner",
+          "name": "Murray's Corner",
+          "direction": "left",
+          "startFrac": 0.9275,
+          "endFrac": 0.9757,
+          "numbers": [
+            15
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Pit Straight",
+          "startFrac": 0.9757,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.311,
+        "s2End": 0.624,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0156
+    },
+    {
+      "type": "corner",
+      "name": "Hell Corner",
+      "direction": "left",
+      "startFrac": 0.0156,
+      "endFrac": 0.0562,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Mountain Straight",
+      "startFrac": 0.0562,
+      "endFrac": 0.1864
+    },
+    {
+      "type": "corner",
+      "name": "Griffins Bend",
+      "direction": "right",
+      "startFrac": 0.1864,
+      "endFrac": 0.2522,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.2522,
+      "endFrac": 0.2579
+    },
+    {
+      "type": "corner",
+      "name": "The Cutting",
+      "direction": "left",
+      "startFrac": 0.2579,
+      "endFrac": 0.311,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Reid Park",
+      "direction": "right",
+      "startFrac": 0.311,
+      "endFrac": 0.3715,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Sulman Park",
+      "direction": "left",
+      "startFrac": 0.3715,
+      "endFrac": 0.4368,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "McPhillamy Park",
+      "direction": "left",
+      "startFrac": 0.4368,
+      "endFrac": 0.4824,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4824,
+      "endFrac": 0.4868
+    },
+    {
+      "type": "corner",
+      "name": "The Esses",
+      "startFrac": 0.4868,
+      "endFrac": 0.568,
+      "numbers": [
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T11",
+      "direction": "right",
+      "startFrac": 0.568,
+      "endFrac": 0.5926,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Forrest's Elbow",
+      "direction": "left",
+      "startFrac": 0.5926,
+      "endFrac": 0.624,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Conrod Straight",
+      "startFrac": 0.624,
+      "endFrac": 0.836
+    },
+    {
+      "type": "corner",
+      "name": "The Chase",
+      "startFrac": 0.836,
+      "endFrac": 0.9007,
+      "numbers": [
+        13,
+        14
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9007,
+      "endFrac": 0.9275
+    },
+    {
+      "type": "corner",
+      "name": "Murray's Corner",
+      "direction": "left",
+      "startFrac": 0.9275,
+      "endFrac": 0.9757,
+      "numbers": [
+        15
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Pit Straight",
+      "startFrac": 0.9757,
+      "endFrac": 1
+    }
+  ]
 }

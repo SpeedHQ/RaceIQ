@@ -1,0 +1,1143 @@
+{
+  "name": "Nürburgring Nordschleife (24h layout)",
+  "games": {
+    "acc": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0172
+        },
+        {
+          "type": "corner",
+          "name": "Castrol-S",
+          "startFrac": 0.0172,
+          "endFrac": 0.0346,
+          "numbers": [
+            1,
+            2
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.0346,
+          "endFrac": 0.0373
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "left",
+          "startFrac": 0.0373,
+          "endFrac": 0.0498,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "right",
+          "startFrac": 0.0498,
+          "endFrac": 0.0586,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.0586,
+          "endFrac": 0.0674
+        },
+        {
+          "type": "corner",
+          "name": "Dunlop-Kehre",
+          "direction": "right",
+          "startFrac": 0.0674,
+          "endFrac": 0.0842,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "left",
+          "startFrac": 0.0842,
+          "endFrac": 0.0974,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.0974,
+          "endFrac": 0.1053
+        },
+        {
+          "type": "corner",
+          "name": "Michael-Schumacher-S",
+          "startFrac": 0.1053,
+          "endFrac": 0.1286,
+          "numbers": [
+            7,
+            8
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1286,
+          "endFrac": 0.1505
+        },
+        {
+          "type": "corner",
+          "name": "NGK-Schikane",
+          "startFrac": 0.1505,
+          "endFrac": 0.1654,
+          "numbers": [
+            9,
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T11",
+          "direction": "left",
+          "startFrac": 0.1654,
+          "endFrac": 0.1733,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T12",
+          "direction": "left",
+          "startFrac": 0.1733,
+          "endFrac": 0.1815,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T13",
+          "direction": "right",
+          "startFrac": 0.1815,
+          "endFrac": 0.1971,
+          "numbers": [
+            13
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1971,
+          "endFrac": 0.2005
+        },
+        {
+          "type": "corner",
+          "name": "Hatzenbach",
+          "startFrac": 0.2005,
+          "endFrac": 0.2366,
+          "numbers": [
+            14,
+            15,
+            16,
+            17,
+            18,
+            19
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2366,
+          "endFrac": 0.252
+        },
+        {
+          "type": "corner",
+          "name": "Flugplatz",
+          "direction": "right",
+          "startFrac": 0.252,
+          "endFrac": 0.2695,
+          "numbers": [
+            20
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2695,
+          "endFrac": 0.3127
+        },
+        {
+          "type": "corner",
+          "name": "Aremberg",
+          "direction": "right",
+          "startFrac": 0.3127,
+          "endFrac": 0.3292,
+          "numbers": [
+            21
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3292,
+          "endFrac": 0.3611
+        },
+        {
+          "type": "corner",
+          "name": "Adenauer Forst",
+          "startFrac": 0.3611,
+          "endFrac": 0.3836,
+          "numbers": [
+            22,
+            23,
+            24
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3836,
+          "endFrac": 0.3969
+        },
+        {
+          "type": "corner",
+          "name": "Metzgesfeld",
+          "direction": "left",
+          "startFrac": 0.3969,
+          "endFrac": 0.4156,
+          "numbers": [
+            25,
+            26
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T27",
+          "direction": "right",
+          "startFrac": 0.4156,
+          "endFrac": 0.4205,
+          "numbers": [
+            27
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Kallenhard",
+          "direction": "right",
+          "startFrac": 0.4205,
+          "endFrac": 0.4305,
+          "numbers": [
+            28
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T29",
+          "direction": "left",
+          "startFrac": 0.4305,
+          "endFrac": 0.4398,
+          "numbers": [
+            29
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T30",
+          "direction": "right",
+          "startFrac": 0.4398,
+          "endFrac": 0.454,
+          "numbers": [
+            30
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T31",
+          "direction": "right",
+          "startFrac": 0.454,
+          "endFrac": 0.4597,
+          "numbers": [
+            31
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Wehrseifen",
+          "direction": "left",
+          "startFrac": 0.4597,
+          "endFrac": 0.4633,
+          "numbers": [
+            32
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Breidscheid",
+          "direction": "right",
+          "startFrac": 0.4633,
+          "endFrac": 0.4706,
+          "numbers": [
+            33
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4706,
+          "endFrac": 0.4734
+        },
+        {
+          "type": "corner",
+          "name": "T34",
+          "direction": "left",
+          "startFrac": 0.4734,
+          "endFrac": 0.4874,
+          "numbers": [
+            34
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Ex-Mühle",
+          "direction": "right",
+          "startFrac": 0.4874,
+          "endFrac": 0.4948,
+          "numbers": [
+            35
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4948,
+          "endFrac": 0.5126
+        },
+        {
+          "type": "corner",
+          "name": "Bergwerk",
+          "direction": "right",
+          "startFrac": 0.5126,
+          "endFrac": 0.5299,
+          "numbers": [
+            36
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.5299,
+          "endFrac": 0.5896
+        },
+        {
+          "type": "corner",
+          "name": "Kesselchen",
+          "direction": "left",
+          "startFrac": 0.5896,
+          "endFrac": 0.6043,
+          "numbers": [
+            37
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6043,
+          "endFrac": 0.6183
+        },
+        {
+          "type": "corner",
+          "name": "Klostertal",
+          "direction": "right",
+          "startFrac": 0.6183,
+          "endFrac": 0.6365,
+          "numbers": [
+            38
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Karussell",
+          "direction": "left",
+          "startFrac": 0.6365,
+          "endFrac": 0.6475,
+          "numbers": [
+            39
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T40",
+          "direction": "right",
+          "startFrac": 0.6475,
+          "endFrac": 0.6565,
+          "numbers": [
+            40
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6565,
+          "endFrac": 0.6653
+        },
+        {
+          "type": "corner",
+          "name": "T41",
+          "direction": "left",
+          "startFrac": 0.6653,
+          "endFrac": 0.6749,
+          "numbers": [
+            41
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Hohe Acht",
+          "direction": "right",
+          "startFrac": 0.6749,
+          "endFrac": 0.6899,
+          "numbers": [
+            42
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T43",
+          "direction": "right",
+          "startFrac": 0.6899,
+          "endFrac": 0.698,
+          "numbers": [
+            43
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Wippermann",
+          "startFrac": 0.698,
+          "endFrac": 0.7173,
+          "numbers": [
+            44,
+            45,
+            46
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Eschbach",
+          "direction": "left",
+          "startFrac": 0.7173,
+          "endFrac": 0.7272,
+          "numbers": [
+            47
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T48",
+          "direction": "right",
+          "startFrac": 0.7272,
+          "endFrac": 0.7342,
+          "numbers": [
+            48
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Brünnchen",
+          "direction": "right",
+          "startFrac": 0.7342,
+          "endFrac": 0.7444,
+          "numbers": [
+            49
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T50",
+          "direction": "left",
+          "startFrac": 0.7444,
+          "endFrac": 0.7552,
+          "numbers": [
+            50
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T51",
+          "direction": "left",
+          "startFrac": 0.7552,
+          "endFrac": 0.7671,
+          "numbers": [
+            51
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Pflanzgarten",
+          "startFrac": 0.7671,
+          "endFrac": 0.8022,
+          "numbers": [
+            52,
+            53,
+            54
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.8022,
+          "endFrac": 0.8125
+        },
+        {
+          "type": "corner",
+          "name": "Schwalbenschwanz",
+          "direction": "right",
+          "startFrac": 0.8125,
+          "endFrac": 0.8249,
+          "numbers": [
+            55
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T56",
+          "direction": "left",
+          "startFrac": 0.8249,
+          "endFrac": 0.8331,
+          "numbers": [
+            56
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Kleines Karussell",
+          "direction": "left",
+          "startFrac": 0.8331,
+          "endFrac": 0.8472,
+          "numbers": [
+            57
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Galgenkopf",
+          "direction": "right",
+          "startFrac": 0.8472,
+          "endFrac": 0.8685,
+          "numbers": [
+            58
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Döttinger Höhe",
+          "startFrac": 0.8685,
+          "endFrac": 0.9728
+        },
+        {
+          "type": "corner",
+          "name": "Tiergarten",
+          "direction": "right",
+          "startFrac": 0.9728,
+          "endFrac": 0.9816,
+          "numbers": [
+            59
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Hohenrain",
+          "direction": "left",
+          "startFrac": 0.9816,
+          "endFrac": 0.9881,
+          "numbers": [
+            60
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9881,
+          "endFrac": 1
+        }
+      ]
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0172
+    },
+    {
+      "type": "corner",
+      "name": "Castrol-S",
+      "startFrac": 0.0172,
+      "endFrac": 0.0346,
+      "numbers": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.0346,
+      "endFrac": 0.0373
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "left",
+      "startFrac": 0.0373,
+      "endFrac": 0.0498,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "right",
+      "startFrac": 0.0498,
+      "endFrac": 0.0586,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.0586,
+      "endFrac": 0.0674
+    },
+    {
+      "type": "corner",
+      "name": "Dunlop-Kehre",
+      "direction": "right",
+      "startFrac": 0.0674,
+      "endFrac": 0.0842,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "left",
+      "startFrac": 0.0842,
+      "endFrac": 0.0974,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.0974,
+      "endFrac": 0.1053
+    },
+    {
+      "type": "corner",
+      "name": "Michael-Schumacher-S",
+      "startFrac": 0.1053,
+      "endFrac": 0.1286,
+      "numbers": [
+        7,
+        8
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1286,
+      "endFrac": 0.1505
+    },
+    {
+      "type": "corner",
+      "name": "NGK-Schikane",
+      "startFrac": 0.1505,
+      "endFrac": 0.1654,
+      "numbers": [
+        9,
+        10
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T11",
+      "direction": "left",
+      "startFrac": 0.1654,
+      "endFrac": 0.1733,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T12",
+      "direction": "left",
+      "startFrac": 0.1733,
+      "endFrac": 0.1815,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T13",
+      "direction": "right",
+      "startFrac": 0.1815,
+      "endFrac": 0.1971,
+      "numbers": [
+        13
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1971,
+      "endFrac": 0.2005
+    },
+    {
+      "type": "corner",
+      "name": "Hatzenbach",
+      "startFrac": 0.2005,
+      "endFrac": 0.2366,
+      "numbers": [
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.2366,
+      "endFrac": 0.252
+    },
+    {
+      "type": "corner",
+      "name": "Flugplatz",
+      "direction": "right",
+      "startFrac": 0.252,
+      "endFrac": 0.2695,
+      "numbers": [
+        20
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.2695,
+      "endFrac": 0.3127
+    },
+    {
+      "type": "corner",
+      "name": "Aremberg",
+      "direction": "right",
+      "startFrac": 0.3127,
+      "endFrac": 0.3292,
+      "numbers": [
+        21
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3292,
+      "endFrac": 0.3611
+    },
+    {
+      "type": "corner",
+      "name": "Adenauer Forst",
+      "startFrac": 0.3611,
+      "endFrac": 0.3836,
+      "numbers": [
+        22,
+        23,
+        24
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3836,
+      "endFrac": 0.3969
+    },
+    {
+      "type": "corner",
+      "name": "Metzgesfeld",
+      "direction": "left",
+      "startFrac": 0.3969,
+      "endFrac": 0.4156,
+      "numbers": [
+        25,
+        26
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T27",
+      "direction": "right",
+      "startFrac": 0.4156,
+      "endFrac": 0.4205,
+      "numbers": [
+        27
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Kallenhard",
+      "direction": "right",
+      "startFrac": 0.4205,
+      "endFrac": 0.4305,
+      "numbers": [
+        28
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T29",
+      "direction": "left",
+      "startFrac": 0.4305,
+      "endFrac": 0.4398,
+      "numbers": [
+        29
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T30",
+      "direction": "right",
+      "startFrac": 0.4398,
+      "endFrac": 0.454,
+      "numbers": [
+        30
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T31",
+      "direction": "right",
+      "startFrac": 0.454,
+      "endFrac": 0.4597,
+      "numbers": [
+        31
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Wehrseifen",
+      "direction": "left",
+      "startFrac": 0.4597,
+      "endFrac": 0.4633,
+      "numbers": [
+        32
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Breidscheid",
+      "direction": "right",
+      "startFrac": 0.4633,
+      "endFrac": 0.4706,
+      "numbers": [
+        33
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4706,
+      "endFrac": 0.4734
+    },
+    {
+      "type": "corner",
+      "name": "T34",
+      "direction": "left",
+      "startFrac": 0.4734,
+      "endFrac": 0.4874,
+      "numbers": [
+        34
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Ex-Mühle",
+      "direction": "right",
+      "startFrac": 0.4874,
+      "endFrac": 0.4948,
+      "numbers": [
+        35
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4948,
+      "endFrac": 0.5126
+    },
+    {
+      "type": "corner",
+      "name": "Bergwerk",
+      "direction": "right",
+      "startFrac": 0.5126,
+      "endFrac": 0.5299,
+      "numbers": [
+        36
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.5299,
+      "endFrac": 0.5896
+    },
+    {
+      "type": "corner",
+      "name": "Kesselchen",
+      "direction": "left",
+      "startFrac": 0.5896,
+      "endFrac": 0.6043,
+      "numbers": [
+        37
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.6043,
+      "endFrac": 0.6183
+    },
+    {
+      "type": "corner",
+      "name": "Klostertal",
+      "direction": "right",
+      "startFrac": 0.6183,
+      "endFrac": 0.6365,
+      "numbers": [
+        38
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Karussell",
+      "direction": "left",
+      "startFrac": 0.6365,
+      "endFrac": 0.6475,
+      "numbers": [
+        39
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T40",
+      "direction": "right",
+      "startFrac": 0.6475,
+      "endFrac": 0.6565,
+      "numbers": [
+        40
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.6565,
+      "endFrac": 0.6653
+    },
+    {
+      "type": "corner",
+      "name": "T41",
+      "direction": "left",
+      "startFrac": 0.6653,
+      "endFrac": 0.6749,
+      "numbers": [
+        41
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Hohe Acht",
+      "direction": "right",
+      "startFrac": 0.6749,
+      "endFrac": 0.6899,
+      "numbers": [
+        42
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T43",
+      "direction": "right",
+      "startFrac": 0.6899,
+      "endFrac": 0.698,
+      "numbers": [
+        43
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Wippermann",
+      "startFrac": 0.698,
+      "endFrac": 0.7173,
+      "numbers": [
+        44,
+        45,
+        46
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Eschbach",
+      "direction": "left",
+      "startFrac": 0.7173,
+      "endFrac": 0.7272,
+      "numbers": [
+        47
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T48",
+      "direction": "right",
+      "startFrac": 0.7272,
+      "endFrac": 0.7342,
+      "numbers": [
+        48
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Brünnchen",
+      "direction": "right",
+      "startFrac": 0.7342,
+      "endFrac": 0.7444,
+      "numbers": [
+        49
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T50",
+      "direction": "left",
+      "startFrac": 0.7444,
+      "endFrac": 0.7552,
+      "numbers": [
+        50
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T51",
+      "direction": "left",
+      "startFrac": 0.7552,
+      "endFrac": 0.7671,
+      "numbers": [
+        51
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Pflanzgarten",
+      "startFrac": 0.7671,
+      "endFrac": 0.8022,
+      "numbers": [
+        52,
+        53,
+        54
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.8022,
+      "endFrac": 0.8125
+    },
+    {
+      "type": "corner",
+      "name": "Schwalbenschwanz",
+      "direction": "right",
+      "startFrac": 0.8125,
+      "endFrac": 0.8249,
+      "numbers": [
+        55
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T56",
+      "direction": "left",
+      "startFrac": 0.8249,
+      "endFrac": 0.8331,
+      "numbers": [
+        56
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Kleines Karussell",
+      "direction": "left",
+      "startFrac": 0.8331,
+      "endFrac": 0.8472,
+      "numbers": [
+        57
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Galgenkopf",
+      "direction": "right",
+      "startFrac": 0.8472,
+      "endFrac": 0.8685,
+      "numbers": [
+        58
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Döttinger Höhe",
+      "startFrac": 0.8685,
+      "endFrac": 0.9728
+    },
+    {
+      "type": "corner",
+      "name": "Tiergarten",
+      "direction": "right",
+      "startFrac": 0.9728,
+      "endFrac": 0.9816,
+      "numbers": [
+        59
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Hohenrain",
+      "direction": "left",
+      "startFrac": 0.9816,
+      "endFrac": 0.9881,
+      "numbers": [
+        60
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9881,
+      "endFrac": 1
+    }
+  ]
+}
