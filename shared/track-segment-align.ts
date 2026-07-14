@@ -230,12 +230,13 @@ export interface AlignmentIssue {
 }
 
 export interface AlignedCorner {
-  /** Index into the detected corner-region list. */
+  /** Index into the detected corner-region list (last region when merged). */
   regionIndex: number;
-  /** Corner numbers covered by this region. */
+  /** Corner numbers covered by this section. */
   numbers: number[];
   name: string;
-  direction: "left" | "right";
+  /** null for mixed-direction complexes (chicanes). */
+  direction: "left" | "right" | null;
   startFrac: number;
   endFrac: number;
 }
@@ -436,38 +437,23 @@ function alignOnePolarity(
     const baseIdx = cursor;
     cursor += take;
 
-    // A single corner spanning several regions (double-apex split by the
-    // detector) is ONE corner — merge into one segment covering the whole arc.
-    if (u.members.length === 1 && take > 1) {
-      const member = u.members[0];
-      const regionIdx = baseIdx + take - 1;
-      corners.push({
-        regionIndex: regionIdx,
-        numbers: [member.number],
-        name: displayName(member),
-        direction: consumed[0].direction,
-        startFrac: round4(consumed[0].startFrac),
-        endFrac: round4(consumed[take - 1].endFrac),
-      });
-      lastRegionIdxByCorner.set(member.number, regionIdx);
-      continue;
-    }
-
-    const oneToOne = take === u.members.length;
-    for (let k = 0; k < consumed.length; k++) {
-      const member = oneToOne ? u.members[k] : null;
-      const name = member ? displayName(member) : (u.group ?? displayName(u.members[0]));
-      const numbers = member ? [member.number] : u.members.map((m) => m.number);
-      corners.push({
-        regionIndex: baseIdx + k,
-        numbers,
-        name,
-        direction: consumed[k].direction,
-        startFrac: round4(consumed[k].startFrac),
-        endFrac: round4(consumed[k].endFrac),
-      });
-      for (const num of numbers) lastRegionIdxByCorner.set(num, baseIdx + k);
-    }
+    // One unit = one output section. A grouped complex (chicane, Les Combes)
+    // and a spans-split double-apex both merge into a single named section
+    // spanning entry to exit — matching how coaches and track maps refer to
+    // them. Direction is null when the merged regions disagree (chicanes).
+    const regionIdx = baseIdx + take - 1;
+    const dirs = new Set(consumed.map((c) => c.direction));
+    const name = u.group ?? displayName(u.members[0]);
+    const numbers = u.members.map((m) => m.number);
+    corners.push({
+      regionIndex: regionIdx,
+      numbers,
+      name,
+      direction: dirs.size === 1 ? consumed[0].direction : null,
+      startFrac: round4(consumed[0].startFrac),
+      endFrac: round4(consumed[take - 1].endFrac),
+    });
+    for (const num of numbers) lastRegionIdxByCorner.set(num, regionIdx);
   }
 
   // Straight names anchor to the corner they follow
@@ -481,24 +467,25 @@ function alignOnePolarity(
     straightNameAfterRegion.set(idx, s.name);
   }
 
-  // Stretch each corner over its approach and exit: coaching sections cover
-  // the braking zone and corner exit, not just the tight curvature arc
+  // Stretch each corner section over its approach and exit: coaching sections
+  // cover the braking zone and corner exit, not just the tight curvature arc
   // (matches how track guides describe corners). Capped at half the gap to
   // the neighbouring corner so real straights (Kemmel) survive intact.
-  // Sector anchoring above uses the unpadded geometric exits.
+  // The padded fracs ARE the section boundaries — sector anchors resolve
+  // against them, so an anchored boundary coincides with the section end.
   const ENTRY_PAD_M = 150;
   const EXIT_PAD_M = 80;
-  const padded = corners.map((c, i) => {
-    if (!totalDistM) return { start: c.startFrac, end: c.endFrac };
-    const prevEnd = i > 0 ? corners[i - 1].endFrac : 0;
-    const nextStart = i + 1 < corners.length ? corners[i + 1].startFrac : 1;
-    const entryPad = Math.min(ENTRY_PAD_M / totalDistM, (c.startFrac - prevEnd) / 2);
-    const exitPad = Math.min(EXIT_PAD_M / totalDistM, (nextStart - c.endFrac) / 2);
-    return {
-      start: round4(Math.max(0, c.startFrac - Math.max(0, entryPad))),
-      end: round4(Math.min(1, c.endFrac + Math.max(0, exitPad))),
-    };
-  });
+  if (totalDistM) {
+    const unpadded = corners.map((c) => ({ start: c.startFrac, end: c.endFrac }));
+    for (let i = 0; i < corners.length; i++) {
+      const prevEnd = i > 0 ? unpadded[i - 1].end : 0;
+      const nextStart = i + 1 < corners.length ? unpadded[i + 1].start : 1;
+      const entryPad = Math.min(ENTRY_PAD_M / totalDistM, (unpadded[i].start - prevEnd) / 2);
+      const exitPad = Math.min(EXIT_PAD_M / totalDistM, (nextStart - unpadded[i].end) / 2);
+      corners[i].startFrac = round4(Math.max(0, unpadded[i].start - Math.max(0, entryPad)));
+      corners[i].endFrac = round4(Math.min(1, unpadded[i].end + Math.max(0, exitPad)));
+    }
+  }
 
   // Build the full lap: straights fill the gaps between corner regions.
   const segments: NamedSegment[] = [];
@@ -512,18 +499,19 @@ function alignOnePolarity(
     });
   };
 
-  if (padded.length > 0 && padded[0].start > 0) pushStraight(0, padded[0].start, null);
+  if (corners.length > 0 && corners[0].startFrac > 0) pushStraight(0, corners[0].startFrac, null);
   for (let i = 0; i < corners.length; i++) {
     const c = corners[i];
     segments.push({
       type: "corner",
       name: c.name,
-      direction: c.direction,
-      startFrac: padded[i].start,
-      endFrac: padded[i].end,
+      ...(c.direction ? { direction: c.direction } : {}),
+      startFrac: c.startFrac,
+      endFrac: c.endFrac,
+      numbers: c.numbers,
     });
-    const nextStart = i + 1 < corners.length ? padded[i + 1].start : 1;
-    pushStraight(padded[i].end, nextStart, c.regionIndex);
+    const nextStart = i + 1 < corners.length ? corners[i + 1].startFrac : 1;
+    pushStraight(c.endFrac, nextStart, c.regionIndex);
   }
 
   return { ok: true, cost: match.cost, issues, segments, corners };

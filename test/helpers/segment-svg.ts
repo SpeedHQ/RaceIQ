@@ -82,17 +82,23 @@ export function generateSegmentSvg(
     const color = isCorner ? CORNER_COLORS[cornerIdx++ % CORNER_COLORS.length] : STRAIGHT_COLOR;
     polylines.push(`  <polyline fill="none" stroke="${color}" stroke-width="${isCorner ? 5 : 2.5}" points="${pts.join(" ")}" />`);
 
-    if (seg.name) {
+    const label = segmentLabel(seg);
+    if (label) {
       const mid = toSvg(outline[idxAtFrac((seg.startFrac + seg.endFrac) / 2)]);
       // Push label away from the centroid so it sits outside the track line
       const dx = mid.x - centroid.x, dy = mid.y - centroid.y;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      const lx = mid.x + (dx / len) * 26;
-      const ly = mid.y + (dy / len) * 26;
-      const anchor = lx < mid.x ? "end" : "start";
+      let lx = mid.x + (dx / len) * 26;
+      const ly = Math.min(svgHeight - 6, Math.max(14, mid.y + (dy / len) * 26));
+      let anchor = lx < mid.x ? "end" : "start";
+      // Keep labels inside the viewport — flip anchor at the edges
+      const approxWidth = label.length * 7.5;
+      if (anchor === "end" && lx - approxWidth < 4) anchor = "start";
+      if (anchor === "start" && lx + approxWidth > svgWidth - 4) anchor = "end";
+      lx = Math.min(svgWidth - 4, Math.max(4, lx));
       labels.push(
         `  <line x1="${mid.x.toFixed(1)}" y1="${mid.y.toFixed(1)}" x2="${lx.toFixed(1)}" y2="${ly.toFixed(1)}" stroke="#d1d5db" stroke-width="1" />`,
-        `  <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" class="name" fill="${isCorner ? "#111827" : "#6b7280"}">${escapeXml(seg.name)}</text>`,
+        `  <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" class="name" fill="${isCorner ? "#111827" : "#6b7280"}">${escapeXml(label)}</text>`,
       );
     }
   }
@@ -134,6 +140,15 @@ ${sectorMarks.join("\n")}
 </svg>`;
 
   writeFileSync(outFile, svg);
+}
+
+/** "T1 La Source", "T5–T6 Les Combes", plain "Kemmel" for straights, "T9" for unnamed corners. */
+function segmentLabel(seg: NamedSegment): string {
+  const nums = seg.numbers ?? [];
+  if (nums.length === 0) return seg.name;
+  const prefix = nums.length > 1 ? `T${nums[0]}–T${nums[nums.length - 1]}` : `T${nums[0]}`;
+  if (!seg.name || seg.name === prefix) return prefix;
+  return `${prefix} ${seg.name}`;
 }
 
 function escapeXml(s: string): string {

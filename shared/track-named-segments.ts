@@ -13,6 +13,8 @@ export interface NamedSegment {
   direction?: "left" | "right";
   startFrac: number;
   endFrac: number;
+  /** Official turn numbers covered by this section (corners only). */
+  numbers?: number[];
 }
 
 // Keyed by track name (must match tracks.csv name exactly)
