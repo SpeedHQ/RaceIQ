@@ -1,4 +1,5 @@
 import type { Point, TrackSectors } from "@/components/track/types";
+import { segmentDisplayNames } from "@/lib/segment-label";
 
 /**
  * drawTrack — Shared canvas rendering for both gallery thumbnails and detail views.
@@ -139,13 +140,11 @@ export function drawTrack(
     let cornerIdx = 0,
       straightIdx = 0;
 
-    // Build display names: auto-number unnamed straights
-    let sNum = 1;
-    const displayNames = sectors.segments.map((s) => {
-      if (s.type === "straight" && (!s.name || /^S[\d?]*$/.test(s.name))) return `S${sNum++}`;
-      if (s.type === "straight") sNum++;
-      return s.name;
-    });
+    // Corner names carry their official turn numbers ("Eau Rouge/Raidillon (2-4)");
+    // thumbnails stay clean with names only.
+    const displayNames = large
+      ? segmentDisplayNames(sectors.segments)
+      : segmentDisplayNames(sectors.segments.map((s) => ({ ...s, numbers: undefined })));
 
     let segIdx = 0;
     for (const seg of sectors.segments) {

@@ -54,8 +54,6 @@ import { getAcEvoTracks } from "../../shared/ac-evo-track-data";
 import { tryGetServerGame } from "../games/registry";
 import { tryGetGame } from "../../shared/games/registry";
 import { GameIdSchema, type GameId } from "../../shared/types";
-import { existsSync, writeFileSync, mkdirSync } from "fs";
-import { resolve } from "path";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
 
@@ -95,10 +93,6 @@ function getSharedTrackName(ordinal: number, gameId?: string): string | undefine
   }
   return undefined;
 }
-
-// ─── Track data file persistence ────────────────────────────────────────────
-
-import { SHARED_DIR } from "../../shared/resolve-data";
 
 // ─── Boundary helpers ───────────────────────────────────────────────────────
 

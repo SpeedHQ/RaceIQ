@@ -18,6 +18,9 @@ export interface Point {
 export interface TrackSegment {
   type: "corner" | "straight";
   name: string;
+  /** Official turn numbers this section covers (corners only) — a chicane merges several. */
+  numbers?: number[];
+  direction?: "left" | "right";
   startFrac: number;
   endFrac: number;
   startIdx: number;
