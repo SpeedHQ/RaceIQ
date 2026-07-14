@@ -207,46 +207,44 @@ export function AnalyseLapHeader({
               e.target.value = "";
             }}
           />
-          {(hasTelemetry || selectedLapId != null) && (
-            <DropdownMenu
-              trigger={
-                <Button variant="app-outline" size="app-md" disabled={exportingBin || importingBin}>
-                  {exportingBin ? "Exporting..." : importingBin ? "Importing..." : m.analyse_export_import_button()}
-                  <ChevronDown className="size-3.5" />
-                </Button>
-              }
-              items={[
-                ...(hasTelemetry
-                  ? [
-                      {
-                        key: "export-csv",
-                        label: m.analyse_export_csv_button(),
-                        icon: <FileDown className="size-3.5" />,
-                        onClick: onExport,
-                      },
-                    ]
-                  : []),
-                ...(selectedLapId != null && hasTelemetry
-                  ? [
-                      {
-                        key: "export-bin",
-                        label: "Export .bin",
-                        icon: <Download className="size-3.5" />,
-                        onClick: onExportBin,
-                        disabled: exportingBin,
-                      },
-                    ]
-                  : []),
-                {
-                  key: "import-bin",
-                  label: "Import .bin",
-                  icon: <Upload className="size-3.5" />,
-                  onClick: () => importInputRef.current?.click(),
-                  disabled: importingBin,
-                },
-              ]}
-            />
-          )}
+          <DropdownMenu
+            trigger={
+              <Button variant="app-outline" size="app-md" disabled={exportingBin || importingBin}>
+                {exportingBin ? "Exporting..." : importingBin ? "Importing..." : m.analyse_export_import_button()}
+                <ChevronDown className="size-3.5" />
+              </Button>
+            }
+            items={[
+              ...(hasTelemetry
+                ? [
+                    {
+                      key: "export-csv",
+                      label: m.analyse_export_csv_button(),
+                      icon: <FileDown className="size-3.5" />,
+                      onClick: onExport,
+                    },
+                  ]
+                : []),
+              ...(selectedLapId != null && hasTelemetry
+                ? [
+                    {
+                      key: "export-bin",
+                      label: "Export .bin",
+                      icon: <Download className="size-3.5" />,
+                      onClick: onExportBin,
+                      disabled: exportingBin,
+                    },
+                  ]
+                : []),
+              {
+                key: "import-bin",
+                label: "Import .bin",
+                icon: <Upload className="size-3.5" />,
+                onClick: () => importInputRef.current?.click(),
+                disabled: importingBin,
+              },
+            ]}
+          />
           {hasTelemetry && (
             <Button variant="app-outline" size="app-lg" onClick={onToggleAi} className={aiPanelOpen ? "text-app-accent border-app-accent/40 bg-app-accent/10" : "hover:text-app-accent"}>
               <Sparkles className="size-3.5" />
