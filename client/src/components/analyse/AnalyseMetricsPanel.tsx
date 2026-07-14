@@ -1,6 +1,6 @@
-import type { TelemetryPacket, GameId } from "@shared/types";
-import { m } from "../../paraglide/messages";
+import type { GameId, TelemetryPacket } from "@shared/types";
 import { useUnits } from "../../hooks/useUnits";
+import { m } from "../../paraglide/messages";
 import { getSteeringLock } from "../Settings";
 
 export function MetricsPanel({ pkt, startFuel, gameId }: { pkt: TelemetryPacket & { DisplaySpeed?: number }; startFuel?: number; gameId?: GameId }) {
@@ -20,8 +20,8 @@ export function MetricsPanel({ pkt, startFuel, gameId }: { pkt: TelemetryPacket 
       <MetricRow label={m.dataguide_brake()} value={`${brakePct}%`} color={Number(brakePct) > 0 ? "#ef4444" : undefined} />
       <MetricRow label={m.dataguide_steer()} value={`${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`} />
       {(gameId === "fm-2023" || pkt.Boost > 0) && <MetricRow label={m.dataguide_boost()} value={`${pkt.Boost.toFixed(1)} psi`} />}
-      {(gameId === "fm-2023" || pkt.Power > 0) && <MetricRow label={m.dataguide_power_torque()} value={`${(pkt.Power / 745.7).toFixed(0)} hp`} />}
-      {(gameId === "fm-2023" || pkt.Torque > 0) && <MetricRow label={m.dataguide_power_torque()} value={`${pkt.Torque.toFixed(0)} Nm`} />}
+      {(gameId === "fm-2023" || pkt.Power > 0) && <MetricRow label={m.dataguide_power()} value={`${(pkt.Power / 745.7).toFixed(0)} hp`} />}
+      {(gameId === "fm-2023" || pkt.Torque > 0) && <MetricRow label={m.dataguide_torque()} value={`${pkt.Torque.toFixed(0)} Nm`} />}
       <div className="col-span-2 flex justify-between">
         <span className="text-app-text-muted">{m.dataguide_fuel()}</span>
         <span className="tabular-nums">
