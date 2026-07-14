@@ -1,6 +1,7 @@
 {
   "circuit": "Brands Hatch",
   "source": "Official circuit map (3.916 km Grand Prix layout)",
+  "turnCount": 10,
   "corners": [
     { "number": 1, "name": "Paddock Hill Bend", "direction": "right" },
     { "number": 2, "name": "Druids", "direction": "right" },

@@ -17,6 +17,7 @@ import {
   writableAlignments,
 } from "../shared/track-segment-generate";
 import { loadSharedTrackMeta } from "../shared/track-data";
+import { validateNameList } from "../shared/track-segment-align";
 
 const slugs = listCuratedSlugs();
 
@@ -29,6 +30,11 @@ describe("track segment generator", () => {
     describe(slug, () => {
       const nameList = loadCornerNameList(slug)!;
       const { outcomes, aligned } = generateTrackSegments(slug, nameList);
+
+      test("accounts for every official turn (turnCount)", () => {
+        expect(nameList.turnCount).toBeGreaterThan(0);
+        expect(validateNameList(nameList)).toEqual([]);
+      });
 
       test("aligns on every available game centerline", () => {
         expect(outcomes.length).toBeGreaterThan(0);

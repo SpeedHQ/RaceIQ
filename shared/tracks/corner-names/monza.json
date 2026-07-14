@@ -1,6 +1,7 @@
 {
   "circuit": "Autodromo Nazionale Monza",
   "source": "Official circuit map / FIA F1 track guide (5.793 km GP layout)",
+  "turnCount": 11,
   "corners": [
     { "number": 1, "name": "Variante del Rettifilo", "direction": "right", "group": "Variante del Rettifilo" },
     { "number": 2, "name": "", "direction": "left", "group": "Variante del Rettifilo" },

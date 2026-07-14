@@ -12,6 +12,7 @@ import {
   alignSegments,
   detectCornerRegions,
   resolveSectors,
+  validateNameList,
   type CornerNameList,
 } from "./track-segment-align";
 import {
@@ -110,6 +111,17 @@ export function generateTrackSegments(
 ): GenerationResult {
   const outcomes: TrackOutcome[] = [];
   const aligned: GameAlignment[] = [];
+
+  // The name list itself must account for every official turn number
+  const listIssues = validateNameList(nameList);
+  if (listIssues.length > 0) {
+    outcomes.push({
+      slug, gameId: "-", ok: false, cost: Infinity, wrote: false,
+      detail: `invalid name list: ${listIssues.map((i) => i.message).join("; ")}`,
+    });
+    return { outcomes, aligned };
+  }
+
   const centerlines = findCenterlines(slug, gameFilter);
   if (centerlines.length === 0) {
     outcomes.push({ slug, gameId: "-", ok: false, cost: Infinity, wrote: false, detail: "no centerline found" });

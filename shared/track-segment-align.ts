@@ -185,6 +185,11 @@ export interface CornerNameEntry {
    * centerlines don't register as a corner at all. May match zero regions.
    */
   optional?: boolean;
+  /**
+   * Additional official turn numbers subsumed by this entry (e.g. Pouhon is
+   * officially T10-T11 but modelled as one entry: number 10, covers [11]).
+   */
+  covers?: number[];
 }
 
 export interface StraightNameEntry {
@@ -210,9 +215,44 @@ export interface CornerNameList {
   circuit: string;
   /** Provenance of the naming/sector data (circuit map, wiki, FIA doc). */
   source?: string;
+  /** Official number of turns — corner entries must account for 1..turnCount. */
+  turnCount: number;
   corners: CornerNameEntry[];
   straights?: StraightNameEntry[];
   sectors?: SectorAnchors;
+}
+
+/**
+ * Validate a curated name list against its declared official turn count:
+ * every turn number 1..turnCount must be accounted for exactly once (via
+ * `number` or `covers`), in strictly increasing order around the lap.
+ */
+export function validateNameList(list: CornerNameList): AlignmentIssue[] {
+  const issues: AlignmentIssue[] = [];
+  if (!Number.isInteger(list.turnCount) || list.turnCount < 1) {
+    issues.push({ severity: "error", message: `turnCount missing or invalid (${list.turnCount})` });
+    return issues;
+  }
+  const seen = new Set<number>();
+  let prevMax = 0;
+  for (const c of list.corners) {
+    const nums = [c.number, ...(c.covers ?? [])];
+    for (const n of nums) {
+      if (!Number.isInteger(n) || n < 1 || n > list.turnCount) {
+        issues.push({ severity: "error", message: `turn ${n} outside 1..${list.turnCount}` });
+        continue;
+      }
+      if (seen.has(n)) issues.push({ severity: "error", message: `turn ${n} listed twice` });
+      seen.add(n);
+    }
+    const lo = Math.min(...nums);
+    if (lo <= prevMax) issues.push({ severity: "error", message: `turn ${c.number} out of racing order` });
+    prevMax = Math.max(prevMax, ...nums);
+  }
+  for (let n = 1; n <= list.turnCount; n++) {
+    if (!seen.has(n)) issues.push({ severity: "error", message: `turn ${n} unaccounted for (add an entry or covers)` });
+  }
+  return issues;
 }
 
 // ─── Alignment ───────────────────────────────────────────────────────────────
@@ -444,7 +484,7 @@ function alignOnePolarity(
     const regionIdx = baseIdx + take - 1;
     const dirs = new Set(consumed.map((c) => c.direction));
     const name = u.group ?? displayName(u.members[0]);
-    const numbers = u.members.map((m) => m.number);
+    const numbers = u.members.flatMap((m) => [m.number, ...(m.covers ?? [])]).sort((a, b) => a - b);
     corners.push({
       regionIndex: regionIdx,
       numbers,

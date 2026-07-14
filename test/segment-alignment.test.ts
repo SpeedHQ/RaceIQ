@@ -5,6 +5,7 @@ import {
   alignSegments,
   detectCornerRegions,
   resolveSectors,
+  validateNameList,
   type CornerRegion,
   type CornerNameList,
 } from "../shared/track-segment-align";
@@ -26,6 +27,7 @@ describe("alignSegments", () => {
     const detected = [region(0.1, 0.15, "right"), region(0.4, 0.45, "left"), region(0.8, 0.85, "right")];
     const list: CornerNameList = {
       circuit: "Test",
+      turnCount: 99,
       corners: [
         { number: 1, name: "First", direction: "right" },
         { number: 2, name: "Second", direction: "left" },
@@ -45,6 +47,7 @@ describe("alignSegments", () => {
     const detected = [region(0.1, 0.15, "left"), region(0.4, 0.45, "left")];
     const list: CornerNameList = {
       circuit: "Test",
+      turnCount: 99,
       corners: [
         { number: 1, name: "First", direction: "right" },
         { number: 2, name: "Second", direction: "left" },
@@ -58,6 +61,7 @@ describe("alignSegments", () => {
     const detected = [region(0.1, 0.15, "right"), region(0.2, 0.25, "left"), region(0.4, 0.45, "left")];
     const list: CornerNameList = {
       circuit: "Test",
+      turnCount: 99,
       corners: [{ number: 1, name: "Only", direction: "right" }],
     };
     expect(alignSegments(detected, list).ok).toBe(false);
@@ -67,6 +71,7 @@ describe("alignSegments", () => {
     const detected = [region(0.1, 0.16, "right"), region(0.5, 0.55, "left")];
     const list: CornerNameList = {
       circuit: "Test",
+      turnCount: 99,
       corners: [
         { number: 1, name: "In", direction: "right", group: "Chicane" },
         { number: 2, name: "Out", direction: "left", group: "Chicane" },
@@ -85,6 +90,7 @@ describe("alignSegments", () => {
     const detected = [region(0.1, 0.14, "left"), region(0.15, 0.19, "left"), region(0.6, 0.65, "right")];
     const list: CornerNameList = {
       circuit: "Test",
+      turnCount: 99,
       corners: [
         { number: 1, name: "Double", direction: "left", spans: 2 },
         { number: 2, name: "Simple", direction: "right" },
@@ -102,6 +108,7 @@ describe("alignSegments", () => {
     const detected = [region(0.1, 0.15, "right"), region(0.6, 0.65, "left")];
     const list: CornerNameList = {
       circuit: "Test",
+      turnCount: 99,
       corners: [
         { number: 1, name: "First", direction: "right" },
         { number: 2, name: "Shallow", direction: "right", optional: true },
@@ -118,6 +125,7 @@ describe("alignSegments", () => {
     const detected = [region(0.1, 0.15, "left"), region(0.4, 0.45, "right"), region(0.8, 0.85, "left")];
     const list: CornerNameList = {
       circuit: "Test",
+      turnCount: 99,
       corners: [
         { number: 1, name: "A", direction: "right" },
         { number: 2, name: "B", direction: "left" },
@@ -134,6 +142,7 @@ describe("alignSegments", () => {
     const detected = [region(0.1, 0.15, "right"), region(0.5, 0.55, "left")];
     const list: CornerNameList = {
       circuit: "Test",
+      turnCount: 99,
       corners: [
         { number: 1, name: "First", direction: "right" },
         { number: 2, name: "Second", direction: "left" },
@@ -143,6 +152,66 @@ describe("alignSegments", () => {
     const res = alignSegments(detected, list);
     const named = res.segments.find((s) => s.type === "straight" && s.name === "Back Straight");
     expect(named).toMatchObject({ startFrac: 0.15, endFrac: 0.5 });
+  });
+});
+
+describe("validateNameList", () => {
+  const base = { circuit: "Test", turnCount: 4 };
+
+  test("complete list passes", () => {
+    const issues = validateNameList({
+      ...base,
+      corners: [
+        { number: 1, name: "A" },
+        { number: 2, name: "B", covers: [3] },
+        { number: 4, name: "C" },
+      ],
+    });
+    expect(issues).toEqual([]);
+  });
+
+  test("missing turn number fails", () => {
+    const issues = validateNameList({
+      ...base,
+      corners: [{ number: 1, name: "A" }, { number: 2, name: "B" }, { number: 4, name: "C" }],
+    });
+    expect(issues.some((i) => i.message.includes("turn 3 unaccounted"))).toBe(true);
+  });
+
+  test("duplicate turn number fails", () => {
+    const issues = validateNameList({
+      ...base,
+      corners: [
+        { number: 1, name: "A" },
+        { number: 2, name: "B", covers: [2, 3] },
+        { number: 4, name: "C" },
+      ],
+    });
+    expect(issues.some((i) => i.message.includes("listed twice"))).toBe(true);
+  });
+
+  test("out-of-order numbering fails", () => {
+    const issues = validateNameList({
+      ...base,
+      corners: [
+        { number: 2, name: "B" },
+        { number: 1, name: "A" },
+        { number: 3, name: "C", covers: [4] },
+      ],
+    });
+    expect(issues.some((i) => i.message.includes("out of racing order"))).toBe(true);
+  });
+
+  test("number beyond turnCount fails", () => {
+    const issues = validateNameList({
+      ...base,
+      corners: [
+        { number: 1, name: "A", covers: [2, 3] },
+        { number: 4, name: "B" },
+        { number: 5, name: "C" },
+      ],
+    });
+    expect(issues.some((i) => i.message.includes("outside 1..4"))).toBe(true);
   });
 });
 
