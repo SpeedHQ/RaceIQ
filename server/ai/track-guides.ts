@@ -628,6 +628,340 @@ const guides: TrackGuide[] = [
     ],
     priorityCorners: ["Turn 1", "Turn 6", "Turn 16"],
   },
+
+  // ─── Road America ───
+  // Sources: https://driver61.com/wp-content/uploads/2020/10/Road-America-Track-Map-Driver61.pdf ; https://www.roadamerica.com/sites/main/files/file-attachments/road_america_track_notes_2025.pdf — Kink/Canada Corner naming verified
+  {
+    id: "road-america",
+    character: "4.048-mile (6.52km) fast, flowing Wisconsin road course with minimal barriers and huge braking zones after long straights. Momentum through the sweepers and a strong exit from Canada Corner onto the front straight define lap time.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking right-hander after the front straight", technique: "Brake hard from top speed, late apex to set up the run to Turn 3", trap: "Over-braking and giving up momentum into the following section" },
+      { name: "Turn 5", type: "fast left-hander (signature vantage point)", technique: "Commit with smooth steering, carry speed into the following sequence", trap: "Lifting unnecessarily kills momentum through the fast section" },
+      { name: "Kink", type: "flat-out (or near-flat) high-speed kink", technique: "Minimal steering input, trust the car at speed", trap: "Any correction at this speed is highly costly — regarded as the track's most demanding corner" },
+      { name: "Canada Corner", type: "heavy-braking hairpin after a long downhill run", technique: "Brake hard and late, patient throttle on exit", trap: "Locking up on the long downhill approach" },
+      { name: "Turn 14", type: "final corner onto the front straight", technique: "Late apex, clean exit is critical — feeds the front straight", trap: "Compromised exit costs time down the entire straight" },
+    ],
+    priorityCorners: ["Kink", "Canada Corner", "Turn 14"],
+  },
+
+  // ─── Road Atlanta ───
+  // Sources: https://www.allenbergracingschools.com/expert-advice/road-atlanta-corner-by-corner/ ; https://hotlaprentals.com/articles/road-atlanta-track-guide-complete-drivers-guide-to-georgias-premier-racing-circuit
+  {
+    id: "road-atlanta",
+    character: "2.54-mile (4.10km) undulating Georgia road course with dramatic elevation change and the famous Esses sequence. Rhythm through the fast, blind sections and a strong exit from Turn 10b onto the back straight are critical.",
+    corners: [
+      { name: "Turn 1", type: "fast downhill right-hander with a compression point", technique: "Commit through the blind downhill entry, let the car settle in the compression", trap: "Braking too late on the downhill approach and running wide" },
+      { name: "The Esses", type: "fast, flowing left-right-left combination (Turns 4-5) with big elevation change", technique: "Rhythm and smooth inputs, carry maximum speed through the sequence", trap: "Over-driving any single apex disrupts the whole sequence" },
+      { name: "Turn 10a", type: "tight right-hander after a short straight from the Esses", technique: "Firm braking, precise turn-in", trap: "Carrying too much speed in and running out of track" },
+      { name: "Turn 10b", type: "quick left immediately after 10a, feeds the back straight", technique: "Late apex, prioritise exit speed above all — the second most important corner on the track", trap: "Compromising the exit here costs time down the entire back straight" },
+    ],
+    priorityCorners: ["The Esses", "Turn 10b"],
+  },
+
+  // ─── Indianapolis Motor Speedway (road course) ───
+  // Sources: https://www.tracktitan.io/post/indianapolis-track-guide ; https://www.racingcircuits.info/north-america/usa/indianapolis-motor-speedway.html
+  {
+    id: "indianapolis",
+    character: "Road course built inside the Indianapolis Motor Speedway oval, combining a stretch of the famous banking with a tight, technical infield section. Traction out of the infield hairpins and a clean run onto the oval banking define the lap.",
+    corners: [
+      { name: "Turn 1", type: "tight right-hander off the front straight", technique: "Brake hard, late apex, prioritise a clean exit into the infield", trap: "Over-braking and losing momentum into the technical infield section" },
+      { name: "Turn 7", type: "tight hairpin at the end of Hulman Straight", technique: "Hard braking, patient entry, progressive throttle on exit", trap: "Carrying too much speed in and missing the apex" },
+      { name: "Turn 12-14", type: "technical infield esses", technique: "Smooth, rhythmic direction changes through the sequence", trap: "Over-driving any single apex disrupts the whole complex" },
+      { name: "Turn 16", type: "final corner onto the oval banking", technique: "Late apex, clean exit is critical — feeds the run down the front straight", trap: "Compromised exit costs time down the entire straight" },
+    ],
+    priorityCorners: ["Turn 7", "Turn 16"],
+  },
+
+  // ─── Daytona International Speedway (road course) ───
+  // Sources: https://www.nascar.com/news-media/2020/08/12/daytona-road-course-turn-by-turn-analysis/ ; https://www.imsa.com/news/2022/01/28/chicanes-at-daytona-le-mans-renamed-in-symbol-of-unity/ — International Horseshoe / Le Mans Chicane (formerly "Bus Stop") verified
+  {
+    id: "daytona",
+    character: "Road course combining a stretch of Daytona's steep NASCAR oval banking with a technical infield section. The International Horseshoe and the Le Mans Chicane (formerly the 'Bus Stop') are the defining infield features; banking exit speed carries into the tri-oval.",
+    corners: [
+      { name: "Turn 1", type: "infield corner off the oval banking", technique: "Brake hard from banking speed, late apex", trap: "Misjudging braking distance after carrying speed off the banking" },
+      { name: "International Horseshoe", type: "flat, sweeping right-hander down to 1st gear", technique: "Patient trail brake, low speed, precise placement", trap: "Braking too late and missing the tight apex" },
+      { name: "Le Mans Chicane", type: "technical backstretch chicane (formerly the 'Bus Stop')", technique: "Hard, precise braking, smooth direction change through the three-legged chicane", trap: "Carrying too much speed in and running out of track on exit" },
+      { name: "Oval banking rejoin", type: "high-speed merge back onto the tri-oval banking", technique: "Commit smoothly, use the banking to carry speed", trap: "Hesitating on the merge costs significant time on the run to the line" },
+    ],
+    priorityCorners: ["International Horseshoe", "Le Mans Chicane"],
+  },
+
+  // ─── Virginia International Raceway ───
+  // Sources: https://hotlaprentals.com/articles/virginia-international-raceway-vir-complete-track-guide-master-americas-most-versatile-racing-circuit ; https://www.tarheelbmwcca.org/virnorthhotlap.pdf — Climbing Esses/Oak Tree/Roller Coaster/Hog Pen verified
+  {
+    id: "vir",
+    character: "3.27-mile (5.26km) undulating Virginia road course regarded as one of America's most technical circuits. The uphill Climbing Esses and the downhill Roller Coaster complex are the signature sections; a clean run through the Climbing Esses sets up the rest of the lap.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking right-hander off the front straight", technique: "Brake hard, late apex", trap: "Over-braking and losing momentum into the following section" },
+      { name: "Climbing Esses", type: "uphill left-right-left sequence (Turns 7-9) taken at high entry speed", technique: "Commit through the blind crests, smooth steering, let the car settle over each crest", trap: "Braking or lifting mid-sequence unsettles the car on the elevation changes" },
+      { name: "Oak Tree", type: "high-speed right-hander (Turn 12)", technique: "Late braking, full commitment", trap: "Hesitation here scrubs significant speed" },
+      { name: "Roller Coaster", type: "downhill compression sequence (Turns 13-15) with three pronounced humps", technique: "Stay smooth and committed as the car goes light over each hump", trap: "Excess speed or a poor line here risks significant airtime" },
+      { name: "Hog Pen", type: "tight chicane (Turns 16-17) before the front straight", technique: "Hard, precise braking, quick direction change", trap: "Carrying too much speed in and running out of track on exit" },
+    ],
+    priorityCorners: ["Climbing Esses", "Oak Tree", "Hog Pen"],
+  },
+
+  // ─── Mid-Ohio Sports Car Course ───
+  // Sources: https://www.paradigmshiftracing.com/mid-ohio-sports-car-course-track-guide-map.html ; https://en.wikipedia.org/wiki/Mid-Ohio_Sports_Car_Course — Keyhole/Carousel/Thunder Valley/Madness verified
+  {
+    id: "mid-ohio",
+    character: "Undulating Ohio road course through rolling, wooded terrain. The Keyhole and Carousel are the signature corners; Thunder Valley and the Madness esses demand a well-balanced car.",
+    corners: [
+      { name: "Turn 1", type: "blind, fast corner at the end of the front straight", technique: "Commit to the blind entry, trust the line", trap: "Lifting unnecessarily costs significant time on a corner that's faster than it looks" },
+      { name: "Keyhole", type: "tight, technical corner with a difficult, narrow entry", technique: "Patient, precise braking, low speed, prioritise a clean exit", trap: "Carrying too much speed in and running out of track" },
+      { name: "Madness", type: "roller-coaster esses sequence", technique: "Rhythm and smooth inputs through the direction changes", trap: "Over-driving any single apex disrupts the whole sequence" },
+      { name: "Thunder Valley", type: "downhill straight section", technique: "Full commitment, prepare early for the braking zone that follows", trap: "Not preparing early enough for the next braking zone" },
+      { name: "Carousel", type: "near-360-degree tightening corner with multiple possible lines", technique: "Progressive, patient throttle as the corner tightens, use the largest reasonable radius", trap: "Apexing too early leaves nowhere to go as the corner keeps tightening" },
+    ],
+    priorityCorners: ["Keyhole", "Carousel"],
+  },
+
+  // ─── Sochi Autodrom ───
+  // Sources: https://www.racefans.net/f1-information/going-to-a-race/sochi-autodrom-circuit-information/ ; https://www.f1-fansite.com/f1-circuits/sochi-street-circuit-layout-records/ — Turn 3 decreasing-radius description verified
+  {
+    id: "sochi",
+    character: "Former F1 circuit built around Sochi's Olympic Park with an unusually long, constant-radius Turn 3 and mostly 90-degree corners. Tyre and brake management through the sustained long corners is the key challenge.",
+    corners: [
+      { name: "Turn 2", type: "heavy-braking corner off the main straight", technique: "Brake hard, late apex", trap: "Over-braking and losing momentum into Turn 3" },
+      { name: "Turn 3", type: "very long, 180-degree decreasing-radius left-hander (longest turn of any modern F1 circuit)", technique: "Patient, progressive line as the corner tightens around its full radius", trap: "Apexing too early leaves nowhere to go as the corner keeps tightening" },
+      { name: "Turn 4", type: "distinctive 180-degree left-hander", technique: "Smooth, committed steering through the long radius", trap: "Over-driving the entry and running out of track mid-corner" },
+      { name: "Turn 12-13", type: "fast sweeping combination taken around 240 km/h", technique: "Minimal lift, smooth steering through the direction change", trap: "Any correction at this speed scrubs significant time" },
+    ],
+    priorityCorners: ["Turn 3", "Turn 12-13"],
+  },
+
+  // ─── Autódromo Internacional do Algarve (Portimão) ───
+  // Sources: https://driver61.com/circuit-guide/portimao/ — Primeira/Turn 4 blind crest/Torre Vip naming verified
+  {
+    id: "portimao",
+    character: "Rollercoaster Portuguese circuit with dramatic elevation change and multiple blind crests. Turn 1 (Primeira) is a tight downshift zone, and Turn 5 (Torre Vip) at the bottom of the biggest drop is the tightest corner on the lap.",
+    corners: [
+      { name: "Primeira", type: "moderately tight 75-degree right-hander (Turn 1)", technique: "Heavy downshift under braking, late apex", trap: "Misjudging the braking distance from the very high approach speed" },
+      { name: "Turn 4", type: "fast corner over a blind crest", technique: "Commit through the crest, be ready for the car to go light and possibly oversteer on landing", trap: "Lifting or correcting as the car unloads over the blind crest" },
+      { name: "Torre Vip", type: "tightest corner on the circuit, a 160-degree left-hander (Turn 5) after a long downhill braking zone", technique: "Brake hard on the downhill approach, late apex, patient throttle on exit", trap: "Braking too early wastes the downhill advantage; too late and you miss the apex entirely" },
+      { name: "Turn 15", type: "final, sweeping corner onto the pit straight", technique: "Late apex, clean exit is critical — feeds the run to the line", trap: "Compromised exit costs time down the entire straight" },
+    ],
+    priorityCorners: ["Torre Vip", "Turn 15"],
+  },
+
+  // ─── Circuit Zolder ───
+  // Sources: https://www.lotus-on-track.com/circuit-guides/zolder/ ; https://www.fullgripmotorsport.com/tracks/info/zolder — Kanaalbocht/Butte/Jacky Ickx complex verified
+  {
+    id: "zolder",
+    character: "Compact, undulating Belgian circuit built through pine forest alongside the Albert Canal. A mix of technical, blind corners (the Jacky Ickx complex) and one genuinely fast turn (Butte) reward precision over outright commitment.",
+    corners: [
+      { name: "Turn 1", type: "tight right-hander off the front straight", technique: "Brake hard, late apex", trap: "Over-braking and losing momentum into the following section" },
+      { name: "Kanaalbocht", type: "flat, smooth-turn-in corner alongside the Albert Canal", technique: "Minimal braking, smooth commitment", trap: "Over-slowing for a corner that needs little braking" },
+      { name: "Butte", type: "one of the few genuinely fast corners on the circuit", technique: "Commit with smooth steering, carry as much speed as possible", trap: "Lifting unnecessarily costs significant time" },
+      { name: "Jacky Ickx complex", type: "blind corner complex at the end of an uphill section under a bridge", technique: "Trust your reference points, commit to the blind entry", trap: "Hesitating on the blind approach and missing the apex" },
+    ],
+    priorityCorners: ["Butte", "Jacky Ickx complex"],
+  },
+
+  // ─── Circuit Ricardo Tormo (Valencia) ───
+  // Sources: https://www.tracktitan.io/post/valencia-track-guide ; https://www.racingcircuits.info/europe/spain/valencia-ricardo-tormo.html
+  {
+    id: "valencia",
+    character: "Compact, technical Spanish circuit with a mix of tight, slow corners and a long main straight. Five right-handers and eight left-handers demand a well-balanced car with strong low-speed traction.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking corner off the main straight", technique: "Brake hard, late apex", trap: "Over-braking and losing momentum into the following technical section" },
+      { name: "Turn 4", type: "tight, technical corner", technique: "Patient trail brake, precise low-speed placement", trap: "Carrying too much speed in and running wide on exit" },
+      { name: "Turn 9", type: "tight hairpin in the technical middle sector", technique: "Hard braking, late apex, progressive throttle on exit", trap: "Early throttle causing wheelspin on the tightening exit" },
+      { name: "Turn 12", type: "final corner onto the main straight", technique: "Late apex, clean exit is critical — feeds the longest straight on the lap", trap: "Compromised exit costs time down the entire straight" },
+    ],
+    priorityCorners: ["Turn 9", "Turn 12"],
+  },
+
+  // ─── Mugello Circuit ───
+  // Sources: https://www.about-mugello-travel-guide.com/mugello-circuit/the-15-turns.html ; https://www.mclaren.com/racing/formula-1/2020/tuscan-grand-prix/mugello-track-guide/ — San Donato/Arrabbiata/Bucine verified
+  {
+    id: "mugello",
+    character: "Fast, flowing Tuscan circuit through rolling hills, owned by Ferrari. High-speed corners dominate, especially the flat-out Arrabbiata pair; smooth commitment through the fast sections defines lap time.",
+    corners: [
+      { name: "San Donato", type: "tight right-hander off the front straight (Turn 1)", technique: "Brake hard, late apex", trap: "Over-braking and losing momentum into the following section" },
+      { name: "Arrabbiata 1 & 2", type: "two of the quickest corners on the circuit, taken close to flat-out", technique: "Minimal steering input, trust the grip, commit fully", trap: "Any lift or correction at this speed scrubs enormous time" },
+      { name: "Casanova-Savelli", type: "fast, technical downhill-to-uphill complex", technique: "Smooth, rhythmic direction changes, carry momentum through the sequence", trap: "Over-driving any single apex disrupts the whole complex" },
+      { name: "Bucine", type: "final, long corner before the main straight", technique: "Late apex, progressive throttle, clean exit is critical", trap: "Early throttle here compromises the entire run down the front straight" },
+    ],
+    priorityCorners: ["Arrabbiata 1 & 2", "Bucine"],
+  },
+
+  // ─── Sebring International Raceway ───
+  // Sources: https://thetracksource.com/sebring-international-raceway-turn-by-turn-guide/ ; https://blayze.io/blog/car-racing/dominating-turn17-at-sebring-international-raceway
+  {
+    id: "sebring",
+    character: "Bumpy, abrasive former WWII airfield circuit in Florida — one of the roughest surfaces in racing, mixing concrete runway sections with tarmac. Precision over the bumps and a strong exit from the final corner define the lap.",
+    corners: [
+      { name: "Turn 1", type: "heavy-braking corner off the front straight", technique: "Brake hard over the bumpy surface, late apex", trap: "The bumps under braking make lockups common" },
+      { name: "Hairpin", type: "tight, slow-speed corner (Turn 7) with a notoriously bumpy braking zone", technique: "Precision braking over the bumps, smooth throttle application", trap: "The bumpy surface unsettles the car right at the braking point" },
+      { name: "Sunset Bend", type: "fast, bumpy right-hander onto the front straight (Turn 17)", technique: "Commit through the bumps — tight on exit if taken correctly", trap: "Heavy braking zone with varying racing lines makes this the corner Sebring is best known for" },
+    ],
+    priorityCorners: ["Hairpin", "Sunset Bend"],
+  },
+
+  // ─── Circuit de la Sarthe (Le Mans) ───
+  // Sources: https://www.24h-lemans.com/en/news/landmarks-of-the-24-hours-of-le-mans-circuit-57442 ; https://en.wikipedia.org/wiki/Circuit_de_la_Sarthe — Dunlop Curve/Tertre Rouge/Mulsanne Corner/Arnage/Porsche Curves verified
+  {
+    id: "le-mans",
+    character: "Hybrid of permanent circuit and closed public roads, home of the 24 Hours of Le Mans. Long straights (including the Mulsanne) reward low drag and reliability; the Porsche Curves reward pure commitment at the end of a long stint.",
+    corners: [
+      { name: "Dunlop Curve", type: "fast sweeping section under the circuit's famous bridge", technique: "Commit with smooth steering through the compression", trap: "Any hesitation here scrubs speed early in the lap" },
+      { name: "Tertre Rouge", type: "fast right-hander feeding the Mulsanne Straight", technique: "A fast, clean exit is essential — feeds the longest straight on the lap", trap: "Compromising exit speed here costs time over the entire Mulsanne Straight" },
+      { name: "Mulsanne Corner", type: "heavy-braking corner at the end of the Mulsanne Straight", technique: "Brake hard from very high speed, slowing from roughly 300 to 75 km/h", trap: "Misjudging the braking distance from the extreme straight-line speed" },
+      { name: "Arnage", type: "slowest corner on the circuit, a tight right-angle right-hander", technique: "Patient, low-speed precision, prioritise a clean exit", trap: "Carrying too much speed in and running wide on exit" },
+      { name: "Porsche Curves", type: "fast, flowing sequence taken close to flat-out by the bravest drivers", technique: "Commit with smooth, minimal steering corrections", trap: "Any correction at speed here is highly costly" },
+    ],
+    priorityCorners: ["Tertre Rouge", "Mulsanne Corner", "Porsche Curves"],
+  },
+
+  // ─── Lime Rock Park ───
+  // Sources: https://limerock.com/wp-content/uploads/2022/01/LapofLRP_TurnByTurn.pdf ; https://speedsecrets.com/wp-content/uploads/2018/12/Lime-Rock.pdf — Big Bend/West Bend/No Name Straight verified
+  {
+    id: "lime-rock",
+    character: "Short, technical Connecticut road course through wooded, rolling terrain. No two corners are alike — precision and patience through the tight, blind sections matter more than outright speed.",
+    corners: [
+      { name: "Big Bend", type: "fast, sweeping right-hander off the front straight (Turn 1)", technique: "Commit with smooth steering, carry speed into the Lefthander-Righthander that follows", trap: "Over-slowing and giving up momentum through the following section" },
+      { name: "West Bend", type: "tricky corner with a tightening, non-constant-radius kerb and negative camber near the exit", technique: "Moderate braking, be ready for the corner to tighten right before the apex", trap: "Misjudging the tightening radius and running wide right where the camber turns against you" },
+      { name: "Righthander (No Name Straight approach)", type: "exit corner leading onto the circuit's second-longest flat-out section", technique: "A clean exit here is critical — carries speed all the way down No Name Straight", trap: "A poor exit costs time over the entire following straight" },
+    ],
+    priorityCorners: ["Big Bend", "Righthander (No Name Straight approach)"],
+  },
+
+  // ─── Homestead-Miami Speedway (road course) ───
+  // Sources: https://www.racingcircuits.info/north-america/usa/homestead-miami-speedway.html ; https://www.iracing.com/tracks/homestead-miami-speedway/
+  // No community-established corner names were found for this road course layout — generic Turn-N labels used deliberately.
+  {
+    id: "homestead",
+    character: "Road course built in the infield and banking of Homestead-Miami Speedway, mixing tight infield technical corners with fast sweepers. No widely-documented corner names exist for this layout, so turns are numbered generically.",
+    corners: [
+      { name: "Turn 1", type: "fast sweeper off the front straight", technique: "Commit with smooth steering, carry speed into the infield", trap: "Over-slowing and giving up momentum early in the lap" },
+      { name: "Turn 3", type: "tight technical infield corner", technique: "Patient braking, low-speed precision", trap: "Carrying too much speed in and running out of track" },
+      { name: "Turn 6", type: "tight infield corner", technique: "Firm braking, late apex, prioritise a clean exit", trap: "Early apex compromises the exit and the following section" },
+      { name: "Turn 10", type: "fast sweeper leading toward the oval banking rejoin", technique: "Commit through the corner, use the banking to carry speed", trap: "Hesitating on the merge back onto the banking costs significant time" },
+    ],
+    priorityCorners: ["Turn 1", "Turn 10"],
+  },
+
+  // ─── Hockenheimring ───
+  // Sources: long-established F1/DTM circuit knowledge (Wikipedia, racingcircuits.info) — Spitzkehre/Sachskurve/Motodrom naming well documented since the 2002 circuit shortening
+  {
+    id: "hockenheim",
+    character: "Short, modern German circuit built after the historic forest layout was truncated in 2002. A long straight into a tight hairpin (Spitzkehre) leads into the Motodrom stadium section, where several corners are packed in front of the grandstands.",
+    corners: [
+      { name: "Nordkurve", type: "medium-speed right-hander off the front straight (Turn 1)", technique: "Firm braking, late apex", trap: "Running wide compromises the run to the following section" },
+      { name: "Turn 6", type: "fast right-hander leading onto the back straight", technique: "Commit with smooth steering, carry speed onto the straight", trap: "Lifting unnecessarily costs speed down the entire straight" },
+      { name: "Spitzkehre", type: "very tight hairpin at the end of the long back straight", technique: "Hard, late braking from very high speed, patient throttle on exit", trap: "Locking the front from the high approach speed" },
+      { name: "Sachskurve", type: "fast corner leading into the Motodrom stadium section", technique: "Commit through the corner, smooth transition into the technical stadium sequence", trap: "Over-driving the entry and compromising the stadium section that follows" },
+      { name: "Motodrom", type: "tight, technical stadium section in front of the grandstands (final corners)", technique: "Patient, precise inputs through the tightening sequence, clean exit onto the front straight is critical", trap: "Compromised exit here costs time down the entire front straight" },
+    ],
+    priorityCorners: ["Spitzkehre", "Motodrom"],
+  },
+
+  // ─── Maple Valley (fictional — Forza Motorsport original) ───
+  // Community knowledge (no formal, verified corner-name guide available). Character sourced from
+  // official Forza track-list description (forza.net) and community track discussion; no individual
+  // corner names are community-established, so generic Turn-N labels are used deliberately.
+  {
+    id: "maple-valley",
+    character: "Fictional Forza Motorsport original circuit set in a Vermont valley — a fast, flowing layout with sweeping corners and gentle elevation changes. No community-established corner names exist; downhill sections in particular reward precise braking and turn-in.",
+    corners: [
+      { name: "Turn 1", type: "medium-speed corner off the front straight", technique: "Firm braking, late apex", trap: "Running wide compromises the run into the following section" },
+      { name: "Turn 5", type: "fast, downhill sweeper", technique: "Commit through the downhill section with smooth steering; be precise with braking and turn-in on the descent", trap: "Braking too late on the downhill approach and running wide" },
+      { name: "Turn 9", type: "tight, technical corner in the infield", technique: "Patient braking, low-speed precision, prioritise a clean exit", trap: "Carrying too much speed in and running out of track" },
+      { name: "Final Corner", type: "corner onto the front straight", technique: "Late apex, clean exit is critical — feeds the front straight", trap: "Compromised exit costs time down the entire straight" },
+    ],
+    priorityCorners: ["Turn 5", "Final Corner"],
+  },
+
+  // ─── Fujimi Kaido (fictional — Forza Motorsport original) ───
+  // Community knowledge (no formal corner-name guide available). This is a fictional 144-turn, 16.4km
+  // mountain-pass circuit — track character is sourced from Forza's official design article
+  // (forza.net/news/forza-motorsport-fujimi-kaido); no individual corners have established names.
+  {
+    id: "fujimi-kaido",
+    character: "Fictional 16.4km closed-course mountain pass in Nagano Prefecture, Japan, with 144 turns and 826m of elevation gain — the tallest track in Forza Motorsport. Blind hairpins, tunnels, and drastic elevation changes dominate; no individual corners have established names, so this is a track for memorisation and rhythm rather than corner-specific technique.",
+    corners: [
+      { name: "Lower Forest Hairpins", type: "tight, tree-lined hairpin sequence near the base of the mountain", technique: "Patient, low-speed precision, prioritise clean exits to carry speed into the climb", trap: "Carrying too much speed in and running out of track on the tight, blind hairpins" },
+      { name: "Mid-Mountain Tunnels", type: "blind tunnel sections with sudden light changes", technique: "Commit on memory of the racing line, stay smooth through the reduced visibility", trap: "Hesitating in the reduced-visibility tunnels costs significant time" },
+      { name: "Upper Mountain Switchbacks", type: "steep, arid switchback section near the summit (23-degree grade)", technique: "Patient braking on the steep sections, precise turn-in on each switchback", trap: "Misjudging braking distance on the steepest sections of the track" },
+    ],
+    priorityCorners: ["Lower Forest Hairpins", "Upper Mountain Switchbacks"],
+  },
+
+  // ─── Sunset Peninsula (fictional — Forza Motorsport original) ───
+  // Community knowledge (no formal corner-name guide available). Character based on official
+  // Forza track-list description; no individual corners have established community names.
+  {
+    id: "sunset-peninsula",
+    character: "Fictional Florida-set circuit returning from earlier Forza titles, run along a coastal peninsula. Flowing, medium-speed corners dominate with few heavy braking zones; no individual corners have established community names.",
+    corners: [
+      { name: "Turn 1", type: "medium-speed corner off the front straight", technique: "Firm braking, late apex", trap: "Running wide compromises the run into the following section" },
+      { name: "Turn 6", type: "fast, coastal sweeper", technique: "Commit with smooth steering, carry speed through the corner", trap: "Lifting unnecessarily costs momentum through the fast section" },
+      { name: "Turn 10", type: "tight, technical corner", technique: "Patient braking, low-speed precision, prioritise a clean exit", trap: "Carrying too much speed in and running out of track" },
+      { name: "Final Corner", type: "corner onto the front straight", technique: "Late apex, clean exit is critical — feeds the front straight", trap: "Compromised exit costs time down the entire straight" },
+    ],
+    priorityCorners: ["Turn 6", "Final Corner"],
+  },
+
+  // ─── Grand Oak Raceway (fictional — Forza Motorsport original) ───
+  // Community knowledge (no formal corner-name guide available). Character based on official
+  // Forza track-list description; no individual corners have established community names.
+  {
+    id: "grand-oak",
+    character: "Fictional New Hampshire circuit introduced in Forza Motorsport (2023). A technical, tree-lined layout in the style of classic New England road courses; no individual corners have established community names.",
+    corners: [
+      { name: "Turn 1", type: "medium-speed corner off the front straight", technique: "Firm braking, late apex", trap: "Running wide compromises the run into the following section" },
+      { name: "Turn 5", type: "fast, tree-lined sweeper", technique: "Commit with smooth steering, carry speed through the corner", trap: "Lifting unnecessarily costs momentum through the fast section" },
+      { name: "Turn 9", type: "tight, technical corner", technique: "Patient braking, low-speed precision, prioritise a clean exit", trap: "Carrying too much speed in and running out of track" },
+      { name: "Final Corner", type: "corner onto the front straight", technique: "Late apex, clean exit is critical — feeds the front straight", trap: "Compromised exit costs time down the entire straight" },
+    ],
+    priorityCorners: ["Turn 5", "Final Corner"],
+  },
+
+  // ─── Hakone (fictional — Forza Motorsport original) ───
+  // Community knowledge (no formal corner-name guide available). Character based on official
+  // Forza track-list description; no individual corners have established community names.
+  {
+    id: "hakone",
+    character: "Fictional circuit set in and around the mountain town of Hakone, Japan, winding up and down serpentine mountain roads for over 10 miles at full length. Elevation change and blind, technical corners dominate; no individual corners have established community names.",
+    corners: [
+      { name: "Turn 1", type: "medium-speed corner off the front straight", technique: "Firm braking, late apex", trap: "Running wide compromises the run into the following section" },
+      { name: "Turn 6", type: "fast, blind corner on a mountain climb", technique: "Commit through the blind section, trust the line", trap: "Lifting unnecessarily on the blind entry costs significant time" },
+      { name: "Turn 12", type: "tight, technical hairpin on a descent", technique: "Patient braking on the downhill approach, low-speed precision", trap: "Misjudging braking distance on the steep descent" },
+      { name: "Final Corner", type: "corner onto the front straight", technique: "Late apex, clean exit is critical — feeds the front straight", trap: "Compromised exit costs time down the entire straight" },
+    ],
+    priorityCorners: ["Turn 6", "Final Corner"],
+  },
+
+  // ─── Eaglerock Speedway (fictional — Forza Motorsport original) ───
+  // Community knowledge (no formal corner-name guide available). Character based on official
+  // Forza track-list description; no individual corners have established community names.
+  {
+    id: "eaglerock",
+    character: "Fictional Iowa short oval/road circuit introduced in Forza Motorsport (2023), combining oval-speedway banking with an infield road course layout. No individual corners have established community names.",
+    corners: [
+      { name: "Turn 1", type: "banked oval corner off the front straight", technique: "Commit smoothly, use the banking to carry speed", trap: "Hesitating on the banking costs significant time" },
+      { name: "Turn 3", type: "tight infield corner", technique: "Firm braking, late apex, prioritise a clean exit", trap: "Early apex compromises the exit and the following section" },
+      { name: "Turn 6", type: "fast infield sweeper", technique: "Commit with smooth steering, carry speed through the corner", trap: "Lifting unnecessarily costs momentum through the fast section" },
+      { name: "Final Corner", type: "corner onto the front straight/banking", technique: "Late apex, clean exit is critical — feeds the front straight", trap: "Compromised exit costs time down the entire straight" },
+    ],
+    priorityCorners: ["Turn 1", "Final Corner"],
+  },
+
+  // ─── Hanoi Street Circuit ───
+  // Sources: https://www.formula1.com/en/latest/article/revealed-new-vietnam-circuit-layout-after-extra-corner-added.4iLrvepmebiNySei26Ijx0 ; https://en.wikipedia.org/wiki/Hanoi_Circuit
+  // Circuit was built but its planned F1 race was never held; only Turn 11 (hairpin) and the long
+  // Turn 6-9-to-11 acceleration zone are documented — other corners use generic Turn-N labels.
+  {
+    id: "hanoi",
+    character: "Hybrid street/purpose-built circuit designed by Hermann Tilke next to the Mỹ Đình National Stadium — built for a Vietnamese Grand Prix that was never held. Mixes a temporary street section with technical, high-speed esses and a long straight into a slow hairpin.",
+    corners: [
+      { name: "Turn 1", type: "corner off the front straight", technique: "Firm braking, late apex", trap: "Running wide compromises the run into the following section" },
+      { name: "Turn 6-9", type: "high-speed esses complex", technique: "Rhythm and smooth inputs through the direction changes, carry maximum speed", trap: "Over-driving any single apex disrupts the whole sequence" },
+      { name: "Turn 11", type: "slow-speed hairpin at the end of a long, 1.5km acceleration zone", technique: "Hard braking from top speed, late apex, patient throttle on exit", trap: "Misjudging the braking distance after the long flat-out run" },
+    ],
+    priorityCorners: ["Turn 6-9", "Turn 11"],
+  },
 ];
 
 // ─── Lookup logic ───
@@ -648,7 +982,7 @@ function normalise(name: string): string {
  */
 const TRACK_KEYWORDS: [string[], string][] = [
   [["mount panorama", "bathurst"], "mount-panorama"],
-  [["brands hatch"], "brands-hatch"],
+  [["brands hatch", "brand hatch"], "brands-hatch"],
   [["laguna seca", "weathertech"], "laguna-seca"],
   // Nordschleife must be checked before the generic Nürburgring GP match below,
   // since "nürburgring nordschleife" / "nürburgring 24h" both contain "nurburgring".
@@ -685,6 +1019,29 @@ const TRACK_KEYWORDS: [string[], string][] = [
   [["marina bay", "singapore"], "singapore"],
   [["las vegas"], "las-vegas"],
   [["lusail"], "lusail"],
+  [["road america"], "road-america"],
+  [["road atlanta"], "road-atlanta"],
+  [["indianapolis", "brickyard"], "indianapolis"],
+  [["daytona"], "daytona"],
+  [["virginia international", "vir "], "vir"],
+  [["mid ohio", "mid-ohio"], "mid-ohio"],
+  [["sochi"], "sochi"],
+  [["algarve", "portimao", "portimão"], "portimao"],
+  [["zolder"], "zolder"],
+  [["ricardo tormo", "valencia"], "valencia"],
+  [["mugello"], "mugello"],
+  [["sebring"], "sebring"],
+  [["le mans", "sarthe"], "le-mans"],
+  [["lime rock"], "lime-rock"],
+  [["homestead"], "homestead"],
+  [["hockenheim"], "hockenheim"],
+  [["maple valley"], "maple-valley"],
+  [["fujimi"], "fujimi-kaido"],
+  [["sunset peninsula"], "sunset-peninsula"],
+  [["grand oak"], "grand-oak"],
+  [["hakone"], "hakone"],
+  [["eaglerock"], "eaglerock"],
+  [["hanoi"], "hanoi"],
 ];
 
 /** Look up a guide by track meta ID (e.g., "spa") or display name */

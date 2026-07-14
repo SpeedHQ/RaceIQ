@@ -28,41 +28,39 @@ function coverage(names: string[]): { covered: string[]; missing: string[]; rati
 const root = join(import.meta.dir, "..");
 
 describe("track guide coverage — real-world circuits", () => {
-  test("F1 2025 calendar has high guide coverage", () => {
+  test("F1 2025 calendar has full guide coverage", () => {
     const rows = parseCsv(join(root, "shared/games/f1-2025/tracks.csv"));
     const names = [...new Set(rows.map((r) => r.name))];
     const { covered, missing, ratio } = coverage(names);
     console.log(`F1 2025: ${covered.length}/${names.length} covered. Missing: ${missing.join(", ")}`);
-    expect(ratio).toBeGreaterThanOrEqual(0.8);
+    expect(ratio).toBe(1);
   });
 
-  test("ACC real circuits have high guide coverage", () => {
+  test("ACC real circuits have full guide coverage", () => {
     const rows = parseCsv(join(root, "shared/games/acc/tracks.csv"));
     const names = [...new Set(rows.map((r) => r.name))];
     const { covered, missing, ratio } = coverage(names);
     console.log(`ACC: ${covered.length}/${names.length} covered. Missing: ${missing.join(", ")}`);
-    expect(ratio).toBeGreaterThanOrEqual(0.8);
+    expect(ratio).toBe(1);
   });
 
-  test("AC Evo real circuits have high guide coverage", () => {
+  test("AC Evo real circuits have full guide coverage", () => {
     const rows = parseCsv(join(root, "shared/games/ac-evo/tracks.csv"));
     const names = [...new Set(rows.map((r) => r.name))];
     const { covered, missing, ratio } = coverage(names);
     console.log(`AC Evo: ${covered.length}/${names.length} covered. Missing: ${missing.join(", ")}`);
-    expect(ratio).toBeGreaterThanOrEqual(0.8);
+    expect(ratio).toBe(1);
   });
 });
 
-describe("track guide coverage — FM 2023 (mostly fictional, soft check)", () => {
-  test("reports coverage without asserting a hard threshold", () => {
+describe("track guide coverage — FM 2023 (real + fictional circuits)", () => {
+  test("full track list has full guide coverage", () => {
     const rows = parseCsv(join(root, "shared/games/fm-2023/tracks.csv"));
     const names = [...new Set(rows.map((r) => r.name))];
     const { covered, missing, ratio } = coverage(names);
     console.log(
-      `FM 2023: ${covered.length}/${names.length} covered (${(ratio * 100).toFixed(0)}%). ` +
-        `Missing (many are fictional/no verifiable source): ${missing.join(", ")}`
+      `FM 2023: ${covered.length}/${names.length} covered (${(ratio * 100).toFixed(0)}%). Missing: ${missing.join(", ")}`
     );
-    // Soft check only — FM has many fictional tracks with no real-world source to cite.
-    expect(names.length).toBeGreaterThan(0);
+    expect(ratio).toBe(1);
   });
 });
