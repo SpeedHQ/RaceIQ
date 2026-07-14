@@ -2,14 +2,14 @@
   "name": "Circuit Zandvoort",
   "sectors": {
     "s1End": 0.4495,
-    "s2End": 0.6833,
+    "s2End": 0.6716,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
         "s1End": 0.4495,
-        "s2End": 0.6833,
+        "s2End": 0.6716,
         "source": "corner-anchored"
       },
       "segments": [
@@ -85,7 +85,7 @@
           "name": "T8",
           "direction": "left",
           "startFrac": 0.5572,
-          "endFrac": 0.6363,
+          "endFrac": 0.6246,
           "numbers": [
             8,
             9
@@ -94,7 +94,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6363,
+          "startFrac": 0.6246,
           "endFrac": 0.6906
         },
         {
@@ -133,7 +133,7 @@
           "name": "Arie Luyendykbocht",
           "direction": "right",
           "startFrac": 0.8459,
-          "endFrac": 0.9466,
+          "endFrac": 0.9349,
           "numbers": [
             14
           ]
@@ -141,7 +141,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9466,
+          "startFrac": 0.9349,
           "endFrac": 1
         }
       ]
@@ -189,7 +189,7 @@
           "name": "Hunzerug",
           "direction": "left",
           "startFrac": 0.2535,
-          "endFrac": 0.3469,
+          "endFrac": 0.3248,
           "numbers": [
             4
           ]
@@ -198,7 +198,7 @@
           "type": "corner",
           "name": "Slotemaker/Scheivlak",
           "direction": "right",
-          "startFrac": 0.3469,
+          "startFrac": 0.3248,
           "endFrac": 0.4545,
           "numbers": [
             5,
@@ -220,7 +220,7 @@
           "name": "T8",
           "direction": "left",
           "startFrac": 0.567,
-          "endFrac": 0.6411,
+          "endFrac": 0.6291,
           "numbers": [
             8,
             9
@@ -229,7 +229,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6411,
+          "startFrac": 0.6291,
           "endFrac": 0.6925
         },
         {
@@ -258,7 +258,7 @@
           "name": "Arie Luyendykbocht",
           "direction": "right",
           "startFrac": 0.7894,
-          "endFrac": 0.9473,
+          "endFrac": 0.9353,
           "numbers": [
             14
           ]
@@ -266,13 +266,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9473,
+          "startFrac": 0.9353,
           "endFrac": 1
         }
       ],
       "sectors": {
         "s1End": 0.4545,
-        "s2End": 0.689,
+        "s2End": 0.677,
         "source": "corner-anchored"
       }
     }
@@ -350,7 +350,7 @@
       "name": "T8",
       "direction": "left",
       "startFrac": 0.5572,
-      "endFrac": 0.6363,
+      "endFrac": 0.6246,
       "numbers": [
         8,
         9
@@ -359,7 +359,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.6363,
+      "startFrac": 0.6246,
       "endFrac": 0.6906
     },
     {
@@ -398,7 +398,7 @@
       "name": "Arie Luyendykbocht",
       "direction": "right",
       "startFrac": 0.8459,
-      "endFrac": 0.9466,
+      "endFrac": 0.9349,
       "numbers": [
         14
       ]
@@ -406,7 +406,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9466,
+      "startFrac": 0.9349,
       "endFrac": 1
     }
   ]

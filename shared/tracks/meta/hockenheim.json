@@ -1,7 +1,7 @@
 {
   "name": "Hockenheimring",
   "sectors": {
-    "s1End": 0.4922,
+    "s1End": 0.4813,
     "s2End": 0.8506,
     "source": "corner-anchored"
   },
@@ -19,7 +19,7 @@
           "name": "Nordkurve",
           "direction": "right",
           "startFrac": 0.0282,
-          "endFrac": 0.0882,
+          "endFrac": 0.0773,
           "numbers": [
             1
           ]
@@ -27,7 +27,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.0882,
+          "startFrac": 0.0773,
           "endFrac": 0.1475
         },
         {
@@ -45,7 +45,7 @@
           "name": "T3",
           "direction": "left",
           "startFrac": 0.1963,
-          "endFrac": 0.247,
+          "endFrac": 0.2361,
           "numbers": [
             3
           ]
@@ -53,7 +53,7 @@
         {
           "type": "straight",
           "name": "Parabolika",
-          "startFrac": 0.247,
+          "startFrac": 0.2361,
           "endFrac": 0.4237
         },
         {
@@ -61,7 +61,7 @@
           "name": "Spitzkehre",
           "direction": "right",
           "startFrac": 0.4237,
-          "endFrac": 0.4922,
+          "endFrac": 0.4813,
           "numbers": [
             6
           ]
@@ -69,7 +69,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4922,
+          "startFrac": 0.4813,
           "endFrac": 0.5188
         },
         {
@@ -97,7 +97,7 @@
           "name": "T9",
           "direction": "right",
           "startFrac": 0.6353,
-          "endFrac": 0.6885,
+          "endFrac": 0.6776,
           "numbers": [
             9
           ]
@@ -105,7 +105,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6885,
+          "startFrac": 0.6776,
           "endFrac": 0.7134
         },
         {
@@ -153,7 +153,7 @@
           "name": "Südkurve",
           "direction": "right",
           "startFrac": 0.8911,
-          "endFrac": 0.978,
+          "endFrac": 0.9734,
           "numbers": [
             15,
             16,
@@ -163,12 +163,12 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.978,
+          "startFrac": 0.9734,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.4922,
+        "s1End": 0.4813,
         "s2End": 0.8506,
         "source": "corner-anchored"
       }
@@ -186,7 +186,7 @@
       "name": "Nordkurve",
       "direction": "right",
       "startFrac": 0.0282,
-      "endFrac": 0.0882,
+      "endFrac": 0.0773,
       "numbers": [
         1
       ]
@@ -194,7 +194,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.0882,
+      "startFrac": 0.0773,
       "endFrac": 0.1475
     },
     {
@@ -212,7 +212,7 @@
       "name": "T3",
       "direction": "left",
       "startFrac": 0.1963,
-      "endFrac": 0.247,
+      "endFrac": 0.2361,
       "numbers": [
         3
       ]
@@ -220,7 +220,7 @@
     {
       "type": "straight",
       "name": "Parabolika",
-      "startFrac": 0.247,
+      "startFrac": 0.2361,
       "endFrac": 0.4237
     },
     {
@@ -228,7 +228,7 @@
       "name": "Spitzkehre",
       "direction": "right",
       "startFrac": 0.4237,
-      "endFrac": 0.4922,
+      "endFrac": 0.4813,
       "numbers": [
         6
       ]
@@ -236,7 +236,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.4922,
+      "startFrac": 0.4813,
       "endFrac": 0.5188
     },
     {
@@ -264,7 +264,7 @@
       "name": "T9",
       "direction": "right",
       "startFrac": 0.6353,
-      "endFrac": 0.6885,
+      "endFrac": 0.6776,
       "numbers": [
         9
       ]
@@ -272,7 +272,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.6885,
+      "startFrac": 0.6776,
       "endFrac": 0.7134
     },
     {
@@ -320,7 +320,7 @@
       "name": "Südkurve",
       "direction": "right",
       "startFrac": 0.8911,
-      "endFrac": 0.978,
+      "endFrac": 0.9734,
       "numbers": [
         15,
         16,
@@ -330,7 +330,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.978,
+      "startFrac": 0.9734,
       "endFrac": 1
     }
   ]

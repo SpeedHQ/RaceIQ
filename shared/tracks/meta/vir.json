@@ -1,8 +1,8 @@
 {
   "name": "Virginia International Raceway",
   "sectors": {
-    "s1End": 0.2811,
-    "s2End": 0.5628,
+    "s1End": 0.2715,
+    "s2End": 0.5532,
     "source": "corner-anchored"
   },
   "games": {
@@ -19,7 +19,7 @@
           "name": "Horseshoe",
           "direction": "right",
           "startFrac": 0.0419,
-          "endFrac": 0.1101,
+          "endFrac": 0.1005,
           "numbers": [
             1
           ]
@@ -27,7 +27,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1101,
+          "startFrac": 0.1005,
           "endFrac": 0.1302
         },
         {
@@ -65,7 +65,7 @@
           "name": "T6",
           "direction": "left",
           "startFrac": 0.2449,
-          "endFrac": 0.2811,
+          "endFrac": 0.2715,
           "numbers": [
             6
           ]
@@ -73,7 +73,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2811,
+          "startFrac": 0.2715,
           "endFrac": 0.3488
         },
         {
@@ -92,17 +92,23 @@
           "name": "South Bend",
           "direction": "left",
           "startFrac": 0.4391,
-          "endFrac": 0.5052,
+          "endFrac": 0.4809,
           "numbers": [
             10
           ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4809,
+          "endFrac": 0.5052
         },
         {
           "type": "corner",
           "name": "Oak Tree",
           "direction": "right",
           "startFrac": 0.5052,
-          "endFrac": 0.5628,
+          "endFrac": 0.5532,
           "numbers": [
             11,
             12
@@ -111,7 +117,7 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.5628,
+          "startFrac": 0.5532,
           "endFrac": 0.7366
         },
         {
@@ -159,7 +165,7 @@
           "name": "Hog Pen",
           "direction": "right",
           "startFrac": 0.8529,
-          "endFrac": 0.9147,
+          "endFrac": 0.9051,
           "numbers": [
             17
           ]
@@ -167,13 +173,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9147,
+          "startFrac": 0.9051,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.2811,
-        "s2End": 0.5628,
+        "s1End": 0.2715,
+        "s2End": 0.5532,
         "source": "corner-anchored"
       }
     }
@@ -190,7 +196,7 @@
       "name": "Horseshoe",
       "direction": "right",
       "startFrac": 0.0419,
-      "endFrac": 0.1101,
+      "endFrac": 0.1005,
       "numbers": [
         1
       ]
@@ -198,7 +204,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1101,
+      "startFrac": 0.1005,
       "endFrac": 0.1302
     },
     {
@@ -236,7 +242,7 @@
       "name": "T6",
       "direction": "left",
       "startFrac": 0.2449,
-      "endFrac": 0.2811,
+      "endFrac": 0.2715,
       "numbers": [
         6
       ]
@@ -244,7 +250,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.2811,
+      "startFrac": 0.2715,
       "endFrac": 0.3488
     },
     {
@@ -263,17 +269,23 @@
       "name": "South Bend",
       "direction": "left",
       "startFrac": 0.4391,
-      "endFrac": 0.5052,
+      "endFrac": 0.4809,
       "numbers": [
         10
       ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4809,
+      "endFrac": 0.5052
     },
     {
       "type": "corner",
       "name": "Oak Tree",
       "direction": "right",
       "startFrac": 0.5052,
-      "endFrac": 0.5628,
+      "endFrac": 0.5532,
       "numbers": [
         11,
         12
@@ -282,7 +294,7 @@
     {
       "type": "straight",
       "name": "Back Straight",
-      "startFrac": 0.5628,
+      "startFrac": 0.5532,
       "endFrac": 0.7366
     },
     {
@@ -330,7 +342,7 @@
       "name": "Hog Pen",
       "direction": "right",
       "startFrac": 0.8529,
-      "endFrac": 0.9147,
+      "endFrac": 0.9051,
       "numbers": [
         17
       ]
@@ -338,7 +350,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9147,
+      "startFrac": 0.9051,
       "endFrac": 1
     }
   ]

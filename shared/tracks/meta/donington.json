@@ -75,7 +75,7 @@
           "name": "Coppice",
           "direction": "right",
           "startFrac": 0.5024,
-          "endFrac": 0.5956,
+          "endFrac": 0.5829,
           "numbers": [
             8
           ]
@@ -83,28 +83,40 @@
         {
           "type": "straight",
           "name": "Starkey's Straight",
-          "startFrac": 0.5956,
+          "startFrac": 0.5829,
           "endFrac": 0.6806
         },
         {
           "type": "corner",
           "name": "Fogarty Esses",
           "startFrac": 0.6806,
-          "endFrac": 0.8086,
+          "endFrac": 0.7782,
           "numbers": [
             9,
             10
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7782,
+          "endFrac": 0.8086
+        },
+        {
           "type": "corner",
           "name": "Melbourne Hairpin",
           "direction": "right",
           "startFrac": 0.8086,
-          "endFrac": 0.9075,
+          "endFrac": 0.8796,
           "numbers": [
             11
           ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.8796,
+          "endFrac": 0.9075
         },
         {
           "type": "corner",
@@ -126,7 +138,7 @@
       ],
       "sectors": {
         "s1End": 0.3269,
-        "s2End": 0.5956,
+        "s2End": 0.5829,
         "source": "corner-anchored"
       }
     }
@@ -204,7 +216,7 @@
       "name": "Coppice",
       "direction": "right",
       "startFrac": 0.5024,
-      "endFrac": 0.5956,
+      "endFrac": 0.5829,
       "numbers": [
         8
       ]
@@ -212,28 +224,40 @@
     {
       "type": "straight",
       "name": "Starkey's Straight",
-      "startFrac": 0.5956,
+      "startFrac": 0.5829,
       "endFrac": 0.6806
     },
     {
       "type": "corner",
       "name": "Fogarty Esses",
       "startFrac": 0.6806,
-      "endFrac": 0.8086,
+      "endFrac": 0.7782,
       "numbers": [
         9,
         10
       ]
     },
     {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.7782,
+      "endFrac": 0.8086
+    },
+    {
       "type": "corner",
       "name": "Melbourne Hairpin",
       "direction": "right",
       "startFrac": 0.8086,
-      "endFrac": 0.9075,
+      "endFrac": 0.8796,
       "numbers": [
         11
       ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.8796,
+      "endFrac": 0.9075
     },
     {
       "type": "corner",
@@ -255,7 +279,7 @@
   ],
   "sectors": {
     "s1End": 0.3269,
-    "s2End": 0.5956,
+    "s2End": 0.5829,
     "source": "corner-anchored"
   }
 }

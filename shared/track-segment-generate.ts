@@ -216,7 +216,10 @@ export function autoTrackSegments(outline: { x: number; z: number }[]): {
   cornerCount: number;
   totalDist: number;
 } {
-  const detection = detectCornerRegions(outline);
+  // With no name list to say otherwise, a weak region is just a kink — only a
+  // curated corner name can promote one into a section.
+  const raw = detectCornerRegions(outline);
+  const detection = { corners: raw.corners.filter((c) => !c.weak), totalDist: raw.totalDist };
   if (detection.corners.length === 0) {
     return { segments: [], cornerCount: 0, totalDist: detection.totalDist };
   }

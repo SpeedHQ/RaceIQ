@@ -1,14 +1,14 @@
 {
   "name": "Autodromo Jose Carlos Pace",
   "sectors": {
-    "s1End": 0.303,
+    "s1End": 0.2914,
     "s2End": 0.737,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.303,
+        "s1End": 0.2914,
         "s2End": 0.737,
         "source": "corner-anchored"
       },
@@ -34,7 +34,7 @@
           "name": "Curva do Sol",
           "direction": "left",
           "startFrac": 0.1189,
-          "endFrac": 0.2096,
+          "endFrac": 0.198,
           "numbers": [
             3
           ]
@@ -42,7 +42,7 @@
         {
           "type": "straight",
           "name": "Reta Oposta",
-          "startFrac": 0.2096,
+          "startFrac": 0.198,
           "endFrac": 0.2927
         },
         {
@@ -60,10 +60,16 @@
           "name": "T5",
           "direction": "left",
           "startFrac": 0.3526,
-          "endFrac": 0.4363,
+          "endFrac": 0.412,
           "numbers": [
             5
           ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.412,
+          "endFrac": 0.4363
         },
         {
           "type": "corner",
@@ -140,7 +146,7 @@
           "name": "Arquibancadas",
           "direction": "left",
           "startFrac": 0.8236,
-          "endFrac": 0.8987,
+          "endFrac": 0.8871,
           "numbers": [
             13,
             14,
@@ -150,7 +156,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.8987,
+          "startFrac": 0.8871,
           "endFrac": 1
         }
       ]
@@ -178,7 +184,7 @@
       "name": "Curva do Sol",
       "direction": "left",
       "startFrac": 0.1189,
-      "endFrac": 0.2096,
+      "endFrac": 0.198,
       "numbers": [
         3
       ]
@@ -186,7 +192,7 @@
     {
       "type": "straight",
       "name": "Reta Oposta",
-      "startFrac": 0.2096,
+      "startFrac": 0.198,
       "endFrac": 0.2927
     },
     {
@@ -204,10 +210,16 @@
       "name": "T5",
       "direction": "left",
       "startFrac": 0.3526,
-      "endFrac": 0.4363,
+      "endFrac": 0.412,
       "numbers": [
         5
       ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.412,
+      "endFrac": 0.4363
     },
     {
       "type": "corner",
@@ -284,7 +296,7 @@
       "name": "Arquibancadas",
       "direction": "left",
       "startFrac": 0.8236,
-      "endFrac": 0.8987,
+      "endFrac": 0.8871,
       "numbers": [
         13,
         14,
@@ -294,7 +306,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.8987,
+      "startFrac": 0.8871,
       "endFrac": 1
     }
   ]

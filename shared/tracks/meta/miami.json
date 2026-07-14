@@ -1,15 +1,15 @@
 {
   "name": "Miami International Autodrome",
   "sectors": {
-    "s1End": 0.3387,
-    "s2End": 0.6903,
+    "s1End": 0.3295,
+    "s2End": 0.6811,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3387,
-        "s2End": 0.6903,
+        "s1End": 0.3295,
+        "s2End": 0.6811,
         "source": "corner-anchored"
       },
       "segments": [
@@ -44,7 +44,7 @@
           "name": "T3",
           "direction": "right",
           "startFrac": 0.1,
-          "endFrac": 0.1441,
+          "endFrac": 0.1349,
           "numbers": [
             3
           ]
@@ -52,7 +52,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1441,
+          "startFrac": 0.1349,
           "endFrac": 0.1775
         },
         {
@@ -80,7 +80,7 @@
           "name": "T6",
           "direction": "left",
           "startFrac": 0.2552,
-          "endFrac": 0.3387,
+          "endFrac": 0.3295,
           "numbers": [
             6,
             7,
@@ -90,7 +90,23 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3387,
+          "startFrac": 0.3295,
+          "endFrac": 0.3747
+        },
+        {
+          "type": "corner",
+          "name": "T9",
+          "direction": "right",
+          "startFrac": 0.3747,
+          "endFrac": 0.4276,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4276,
           "endFrac": 0.5513
         },
         {
@@ -139,7 +155,7 @@
           "name": "T16",
           "direction": "left",
           "startFrac": 0.656,
-          "endFrac": 0.6903,
+          "endFrac": 0.6811,
           "numbers": [
             16
           ]
@@ -147,7 +163,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6903,
+          "startFrac": 0.6811,
           "endFrac": 0.8787
         },
         {
@@ -215,7 +231,7 @@
       "name": "T3",
       "direction": "right",
       "startFrac": 0.1,
-      "endFrac": 0.1441,
+      "endFrac": 0.1349,
       "numbers": [
         3
       ]
@@ -223,7 +239,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1441,
+      "startFrac": 0.1349,
       "endFrac": 0.1775
     },
     {
@@ -251,7 +267,7 @@
       "name": "T6",
       "direction": "left",
       "startFrac": 0.2552,
-      "endFrac": 0.3387,
+      "endFrac": 0.3295,
       "numbers": [
         6,
         7,
@@ -261,7 +277,23 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3387,
+      "startFrac": 0.3295,
+      "endFrac": 0.3747
+    },
+    {
+      "type": "corner",
+      "name": "T9",
+      "direction": "right",
+      "startFrac": 0.3747,
+      "endFrac": 0.4276,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4276,
       "endFrac": 0.5513
     },
     {
@@ -310,7 +342,7 @@
       "name": "T16",
       "direction": "left",
       "startFrac": 0.656,
-      "endFrac": 0.6903,
+      "endFrac": 0.6811,
       "numbers": [
         16
       ]
@@ -318,7 +350,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.6903,
+      "startFrac": 0.6811,
       "endFrac": 0.8787
     },
     {

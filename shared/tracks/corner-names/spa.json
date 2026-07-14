@@ -4,8 +4,9 @@
   "turnCount": 19,
   "corners": [
     { "number": 1, "name": "La Source", "direction": "right" },
-    { "number": 2, "name": "Eau Rouge", "direction": "left", "group": "Eau Rouge/Raidillon" },
-    { "number": 3, "name": "Raidillon", "direction": "right", "group": "Eau Rouge/Raidillon", "covers": [4] },
+    { "number": 2, "name": "", "direction": "right", "group": "Eau Rouge/Raidillon" },
+    { "number": 3, "name": "Eau Rouge", "direction": "left", "group": "Eau Rouge/Raidillon" },
+    { "number": 4, "name": "Raidillon", "direction": "right", "group": "Eau Rouge/Raidillon" },
     { "number": 5, "name": "Les Combes", "direction": "right", "group": "Les Combes" },
     { "number": 6, "name": "", "direction": "left", "group": "Les Combes" },
     { "number": 7, "name": "Malmedy", "direction": "right" },
@@ -22,11 +23,10 @@
     { "number": 19, "name": "", "direction": "left", "group": "Bus Stop" }
   ],
   "straights": [
-    { "after": 3, "name": "Kemmel" },
-    { "after": 15, "name": "Courbe Paul Frère" }
+    { "after": 4, "name": "Kemmel" }
   ],
   "sectors": {
-    "s1EndAfterCorner": 3,
+    "s1EndAfterCorner": 4,
     "s1OffsetM": 1100,
     "s2EndAfterCorner": 15
   }

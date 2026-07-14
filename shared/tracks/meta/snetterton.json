@@ -34,7 +34,7 @@
           "name": "Palmer",
           "direction": "left",
           "startFrac": 0.2004,
-          "endFrac": 0.2869,
+          "endFrac": 0.2764,
           "numbers": [
             3
           ]
@@ -42,7 +42,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2869,
+          "startFrac": 0.2764,
           "endFrac": 0.3176
         },
         {
@@ -80,7 +80,7 @@
           "name": "Williams",
           "direction": "right",
           "startFrac": 0.4947,
-          "endFrac": 0.5611,
+          "endFrac": 0.5506,
           "numbers": [
             7
           ]
@@ -88,7 +88,7 @@
         {
           "type": "straight",
           "name": "Bentley Straight",
-          "startFrac": 0.5611,
+          "startFrac": 0.5506,
           "endFrac": 0.6741
         },
         {
@@ -136,7 +136,7 @@
           "name": "Murrays",
           "direction": "left",
           "startFrac": 0.8929,
-          "endFrac": 0.9325,
+          "endFrac": 0.922,
           "numbers": [
             12
           ]
@@ -144,7 +144,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9325,
+          "startFrac": 0.922,
           "endFrac": 1
         }
       ],
@@ -187,7 +187,7 @@
       "name": "Palmer",
       "direction": "left",
       "startFrac": 0.2004,
-      "endFrac": 0.2869,
+      "endFrac": 0.2764,
       "numbers": [
         3
       ]
@@ -195,7 +195,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.2869,
+      "startFrac": 0.2764,
       "endFrac": 0.3176
     },
     {
@@ -233,7 +233,7 @@
       "name": "Williams",
       "direction": "right",
       "startFrac": 0.4947,
-      "endFrac": 0.5611,
+      "endFrac": 0.5506,
       "numbers": [
         7
       ]
@@ -241,7 +241,7 @@
     {
       "type": "straight",
       "name": "Bentley Straight",
-      "startFrac": 0.5611,
+      "startFrac": 0.5506,
       "endFrac": 0.6741
     },
     {
@@ -289,7 +289,7 @@
       "name": "Murrays",
       "direction": "left",
       "startFrac": 0.8929,
-      "endFrac": 0.9325,
+      "endFrac": 0.922,
       "numbers": [
         12
       ]
@@ -297,7 +297,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9325,
+      "startFrac": 0.922,
       "endFrac": 1
     }
   ],

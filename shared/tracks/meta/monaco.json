@@ -24,22 +24,26 @@
           "name": "Sainte Dévote",
           "direction": "right",
           "startFrac": 0.0323,
-          "endFrac": 0.1074,
+          "endFrac": 0.1085,
           "numbers": [
             1
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1074,
-          "endFrac": 0.1822
+          "type": "corner",
+          "name": "Beau Rivage",
+          "direction": "left",
+          "startFrac": 0.1085,
+          "endFrac": 0.191,
+          "numbers": [
+            2
+          ]
         },
         {
           "type": "corner",
           "name": "Massenet",
           "direction": "left",
-          "startFrac": 0.1822,
+          "startFrac": 0.191,
           "endFrac": 0.2622,
           "numbers": [
             3
@@ -151,7 +155,7 @@
           "type": "corner",
           "name": "Rascasse / Antony Noghès",
           "startFrac": 0.8737,
-          "endFrac": 0.9595,
+          "endFrac": 0.9445,
           "numbers": [
             18,
             19
@@ -160,7 +164,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9595,
+          "startFrac": 0.9445,
           "endFrac": 1
         }
       ]
@@ -178,22 +182,26 @@
       "name": "Sainte Dévote",
       "direction": "right",
       "startFrac": 0.0323,
-      "endFrac": 0.1074,
+      "endFrac": 0.1085,
       "numbers": [
         1
       ]
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.1074,
-      "endFrac": 0.1822
+      "type": "corner",
+      "name": "Beau Rivage",
+      "direction": "left",
+      "startFrac": 0.1085,
+      "endFrac": 0.191,
+      "numbers": [
+        2
+      ]
     },
     {
       "type": "corner",
       "name": "Massenet",
       "direction": "left",
-      "startFrac": 0.1822,
+      "startFrac": 0.191,
       "endFrac": 0.2622,
       "numbers": [
         3
@@ -305,7 +313,7 @@
       "type": "corner",
       "name": "Rascasse / Antony Noghès",
       "startFrac": 0.8737,
-      "endFrac": 0.9595,
+      "endFrac": 0.9445,
       "numbers": [
         18,
         19
@@ -314,7 +322,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9595,
+      "startFrac": 0.9445,
       "endFrac": 1
     }
   ]

@@ -2,14 +2,14 @@
   "name": "Autodromo Internazionale Enzo e Dino Ferrari",
   "sectors": {
     "s1End": 0.3634,
-    "s2End": 0.7739,
+    "s2End": 0.7961,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
         "s1End": 0.3634,
-        "s2End": 0.7739,
+        "s2End": 0.7961,
         "source": "corner-anchored"
       },
       "segments": [
@@ -23,7 +23,7 @@
           "type": "corner",
           "name": "Tamburello",
           "startFrac": 0.1546,
-          "endFrac": 0.2583,
+          "endFrac": 0.2481,
           "numbers": [
             2,
             3,
@@ -33,7 +33,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2583,
+          "startFrac": 0.2481,
           "endFrac": 0.2845
         },
         {
@@ -51,7 +51,7 @@
           "name": "Tosa",
           "direction": "left",
           "startFrac": 0.3634,
-          "endFrac": 0.4299,
+          "endFrac": 0.4197,
           "numbers": [
             7
           ]
@@ -59,7 +59,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4299,
+          "startFrac": 0.4197,
           "endFrac": 0.4861
         },
         {
@@ -98,7 +98,7 @@
           "name": "T13",
           "direction": "right",
           "startFrac": 0.6163,
-          "endFrac": 0.6561,
+          "endFrac": 0.6459,
           "numbers": [
             13
           ]
@@ -106,25 +106,30 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6561,
+          "startFrac": 0.6459,
           "endFrac": 0.698
         },
         {
           "type": "corner",
           "name": "Variante Alta",
-          "direction": "right",
           "startFrac": 0.698,
-          "endFrac": 0.7331,
+          "endFrac": 0.7553,
           "numbers": [
             14,
             15
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7553,
+          "endFrac": 0.8564
+        },
+        {
           "type": "corner",
           "name": "Rivazza",
           "direction": "left",
-          "startFrac": 0.7331,
+          "startFrac": 0.8564,
           "endFrac": 0.9024,
           "numbers": [
             17,
@@ -136,7 +141,7 @@
           "name": "T19",
           "direction": "left",
           "startFrac": 0.9024,
-          "endFrac": 0.9481,
+          "endFrac": 0.9379,
           "numbers": [
             19
           ]
@@ -144,7 +149,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9481,
+          "startFrac": 0.9379,
           "endFrac": 1
         }
       ]
@@ -161,7 +166,7 @@
           "type": "corner",
           "name": "Tamburello",
           "startFrac": 0.11,
-          "endFrac": 0.2159,
+          "endFrac": 0.2057,
           "numbers": [
             2,
             3,
@@ -171,7 +176,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2159,
+          "startFrac": 0.2057,
           "endFrac": 0.2385
         },
         {
@@ -189,7 +194,7 @@
           "name": "Tosa",
           "direction": "left",
           "startFrac": 0.3255,
-          "endFrac": 0.3855,
+          "endFrac": 0.3753,
           "numbers": [
             7
           ]
@@ -197,7 +202,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3855,
+          "startFrac": 0.3753,
           "endFrac": 0.4389
         },
         {
@@ -215,7 +220,7 @@
           "name": "Acque Minerali",
           "direction": "right",
           "startFrac": 0.5417,
-          "endFrac": 0.6115,
+          "endFrac": 0.6013,
           "numbers": [
             11,
             12
@@ -224,7 +229,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6115,
+          "startFrac": 0.6013,
           "endFrac": 0.6546
         },
         {
@@ -243,7 +248,7 @@
           "name": "Rivazza",
           "direction": "left",
           "startFrac": 0.6902,
-          "endFrac": 0.7235,
+          "endFrac": 0.7133,
           "numbers": [
             17,
             18
@@ -252,7 +257,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7235,
+          "startFrac": 0.7133,
           "endFrac": 0.8118
         },
         {
@@ -260,7 +265,7 @@
           "name": "T19",
           "direction": "left",
           "startFrac": 0.8118,
-          "endFrac": 0.9064,
+          "endFrac": 0.8962,
           "numbers": [
             19
           ]
@@ -268,7 +273,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9064,
+          "startFrac": 0.8962,
           "endFrac": 1
         }
       ],
@@ -290,7 +295,7 @@
       "type": "corner",
       "name": "Tamburello",
       "startFrac": 0.1546,
-      "endFrac": 0.2583,
+      "endFrac": 0.2481,
       "numbers": [
         2,
         3,
@@ -300,7 +305,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.2583,
+      "startFrac": 0.2481,
       "endFrac": 0.2845
     },
     {
@@ -318,7 +323,7 @@
       "name": "Tosa",
       "direction": "left",
       "startFrac": 0.3634,
-      "endFrac": 0.4299,
+      "endFrac": 0.4197,
       "numbers": [
         7
       ]
@@ -326,7 +331,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.4299,
+      "startFrac": 0.4197,
       "endFrac": 0.4861
     },
     {
@@ -365,7 +370,7 @@
       "name": "T13",
       "direction": "right",
       "startFrac": 0.6163,
-      "endFrac": 0.6561,
+      "endFrac": 0.6459,
       "numbers": [
         13
       ]
@@ -373,25 +378,30 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.6561,
+      "startFrac": 0.6459,
       "endFrac": 0.698
     },
     {
       "type": "corner",
       "name": "Variante Alta",
-      "direction": "right",
       "startFrac": 0.698,
-      "endFrac": 0.7331,
+      "endFrac": 0.7553,
       "numbers": [
         14,
         15
       ]
     },
     {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.7553,
+      "endFrac": 0.8564
+    },
+    {
       "type": "corner",
       "name": "Rivazza",
       "direction": "left",
-      "startFrac": 0.7331,
+      "startFrac": 0.8564,
       "endFrac": 0.9024,
       "numbers": [
         17,
@@ -403,7 +413,7 @@
       "name": "T19",
       "direction": "left",
       "startFrac": 0.9024,
-      "endFrac": 0.9481,
+      "endFrac": 0.9379,
       "numbers": [
         19
       ]
@@ -411,7 +421,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9481,
+      "startFrac": 0.9379,
       "endFrac": 1
     }
   ]

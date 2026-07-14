@@ -48,7 +48,7 @@
           "name": "T5",
           "direction": "left",
           "startFrac": 0.5705,
-          "endFrac": 0.9376,
+          "endFrac": 0.9186,
           "numbers": [
             5
           ]
@@ -56,7 +56,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9376,
+          "startFrac": 0.9186,
           "endFrac": 1
         }
       ]
@@ -108,7 +108,7 @@
       "name": "T5",
       "direction": "left",
       "startFrac": 0.5705,
-      "endFrac": 0.9376,
+      "endFrac": 0.9186,
       "numbers": [
         5
       ]
@@ -116,7 +116,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9376,
+      "startFrac": 0.9186,
       "endFrac": 1
     }
   ]

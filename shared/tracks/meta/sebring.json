@@ -48,7 +48,7 @@
           "name": "T4",
           "direction": "left",
           "startFrac": 0.183,
-          "endFrac": 0.2241,
+          "endFrac": 0.2155,
           "numbers": [
             4
           ]
@@ -56,7 +56,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2241,
+          "startFrac": 0.2155,
           "endFrac": 0.3134
         },
         {
@@ -144,7 +144,7 @@
           "name": "T13",
           "direction": "right",
           "startFrac": 0.5478,
-          "endFrac": 0.5877,
+          "endFrac": 0.5791,
           "numbers": [
             13
           ]
@@ -152,7 +152,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5877,
+          "startFrac": 0.5791,
           "endFrac": 0.6064
         },
         {
@@ -190,7 +190,7 @@
           "name": "T17",
           "direction": "right",
           "startFrac": 0.722,
-          "endFrac": 0.7626,
+          "endFrac": 0.754,
           "numbers": [
             17
           ]
@@ -198,7 +198,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7626,
+          "startFrac": 0.754,
           "endFrac": 0.8694
         },
         {
@@ -216,7 +216,7 @@
           "name": "Sunset Bend",
           "direction": "right",
           "startFrac": 0.9115,
-          "endFrac": 0.9656,
+          "endFrac": 0.957,
           "numbers": [
             19
           ]
@@ -224,7 +224,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9656,
+          "startFrac": 0.957,
           "endFrac": 1
         }
       ]
@@ -272,7 +272,7 @@
       "name": "T4",
       "direction": "left",
       "startFrac": 0.183,
-      "endFrac": 0.2241,
+      "endFrac": 0.2155,
       "numbers": [
         4
       ]
@@ -280,7 +280,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.2241,
+      "startFrac": 0.2155,
       "endFrac": 0.3134
     },
     {
@@ -368,7 +368,7 @@
       "name": "T13",
       "direction": "right",
       "startFrac": 0.5478,
-      "endFrac": 0.5877,
+      "endFrac": 0.5791,
       "numbers": [
         13
       ]
@@ -376,7 +376,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.5877,
+      "startFrac": 0.5791,
       "endFrac": 0.6064
     },
     {
@@ -414,7 +414,7 @@
       "name": "T17",
       "direction": "right",
       "startFrac": 0.722,
-      "endFrac": 0.7626,
+      "endFrac": 0.754,
       "numbers": [
         17
       ]
@@ -422,7 +422,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7626,
+      "startFrac": 0.754,
       "endFrac": 0.8694
     },
     {
@@ -440,7 +440,7 @@
       "name": "Sunset Bend",
       "direction": "right",
       "startFrac": 0.9115,
-      "endFrac": 0.9656,
+      "endFrac": 0.957,
       "numbers": [
         19
       ]
@@ -448,7 +448,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9656,
+      "startFrac": 0.957,
       "endFrac": 1
     }
   ]

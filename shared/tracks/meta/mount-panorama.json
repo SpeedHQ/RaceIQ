@@ -2,7 +2,7 @@
   "name": "Mount Panorama Circuit",
   "sectors": {
     "s1End": 0.3098,
-    "s2End": 0.6298,
+    "s2End": 0.6217,
     "source": "corner-anchored"
   },
   "games": {
@@ -20,7 +20,7 @@
           "name": "Hell Corner",
           "direction": "left",
           "startFrac": 0.0317,
-          "endFrac": 0.0869,
+          "endFrac": 0.0788,
           "numbers": [
             1
           ]
@@ -28,7 +28,7 @@
         {
           "type": "straight",
           "name": "Mountain Straight",
-          "startFrac": 0.0869,
+          "startFrac": 0.0788,
           "endFrac": 0.2126
         },
         {
@@ -36,10 +36,16 @@
           "name": "Griffins Bend",
           "direction": "right",
           "startFrac": 0.2126,
-          "endFrac": 0.2941,
+          "endFrac": 0.2718,
           "numbers": [
             2
           ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2718,
+          "endFrac": 0.2941
         },
         {
           "type": "corner",
@@ -108,7 +114,7 @@
           "name": "Forrest's Elbow",
           "direction": "left",
           "startFrac": 0.6173,
-          "endFrac": 0.6545,
+          "endFrac": 0.6464,
           "numbers": [
             12
           ]
@@ -116,18 +122,24 @@
         {
           "type": "straight",
           "name": "Conrod Straight",
-          "startFrac": 0.6545,
+          "startFrac": 0.6464,
           "endFrac": 0.8603
         },
         {
           "type": "corner",
           "name": "The Chase",
           "startFrac": 0.8603,
-          "endFrac": 0.9512,
+          "endFrac": 0.9294,
           "numbers": [
             13,
             14
           ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9294,
+          "endFrac": 0.9512
         },
         {
           "type": "corner",
@@ -149,7 +161,7 @@
       ],
       "sectors": {
         "s1End": 0.3327,
-        "s2End": 0.6545,
+        "s2End": 0.6464,
         "source": "corner-anchored"
       }
     },
@@ -167,7 +179,7 @@
           "name": "Hell Corner",
           "direction": "left",
           "startFrac": 0.0167,
-          "endFrac": 0.0611,
+          "endFrac": 0.053,
           "numbers": [
             1
           ]
@@ -175,7 +187,7 @@
         {
           "type": "straight",
           "name": "Mountain Straight",
-          "startFrac": 0.0611,
+          "startFrac": 0.053,
           "endFrac": 0.1877
         },
         {
@@ -183,7 +195,7 @@
           "name": "Griffins Bend",
           "direction": "right",
           "startFrac": 0.1877,
-          "endFrac": 0.2545,
+          "endFrac": 0.2464,
           "numbers": [
             2
           ]
@@ -191,7 +203,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2545,
+          "startFrac": 0.2464,
           "endFrac": 0.2712
         },
         {
@@ -261,7 +273,7 @@
           "name": "Forrest's Elbow",
           "direction": "left",
           "startFrac": 0.5923,
-          "endFrac": 0.6298,
+          "endFrac": 0.6217,
           "numbers": [
             12
           ]
@@ -269,14 +281,14 @@
         {
           "type": "straight",
           "name": "Conrod Straight",
-          "startFrac": 0.6298,
+          "startFrac": 0.6217,
           "endFrac": 0.8383
         },
         {
           "type": "corner",
           "name": "The Chase",
           "startFrac": 0.8383,
-          "endFrac": 0.9075,
+          "endFrac": 0.8994,
           "numbers": [
             13,
             14
@@ -285,7 +297,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9075,
+          "startFrac": 0.8994,
           "endFrac": 0.9288
         },
         {
@@ -293,7 +305,7 @@
           "name": "Murray's Corner",
           "direction": "left",
           "startFrac": 0.9288,
-          "endFrac": 0.9776,
+          "endFrac": 0.9734,
           "numbers": [
             15
           ]
@@ -301,14 +313,14 @@
         {
           "type": "straight",
           "name": "Pit Straight",
-          "startFrac": 0.9776,
+          "startFrac": 0.9734,
           "endFrac": 1,
           "group": "Pit Straight"
         }
       ],
       "sectors": {
         "s1End": 0.3098,
-        "s2End": 0.6298,
+        "s2End": 0.6217,
         "source": "corner-anchored"
       }
     }
@@ -326,7 +338,7 @@
       "name": "Hell Corner",
       "direction": "left",
       "startFrac": 0.0167,
-      "endFrac": 0.0611,
+      "endFrac": 0.053,
       "numbers": [
         1
       ]
@@ -334,7 +346,7 @@
     {
       "type": "straight",
       "name": "Mountain Straight",
-      "startFrac": 0.0611,
+      "startFrac": 0.053,
       "endFrac": 0.1877
     },
     {
@@ -342,7 +354,7 @@
       "name": "Griffins Bend",
       "direction": "right",
       "startFrac": 0.1877,
-      "endFrac": 0.2545,
+      "endFrac": 0.2464,
       "numbers": [
         2
       ]
@@ -350,7 +362,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.2545,
+      "startFrac": 0.2464,
       "endFrac": 0.2712
     },
     {
@@ -420,7 +432,7 @@
       "name": "Forrest's Elbow",
       "direction": "left",
       "startFrac": 0.5923,
-      "endFrac": 0.6298,
+      "endFrac": 0.6217,
       "numbers": [
         12
       ]
@@ -428,14 +440,14 @@
     {
       "type": "straight",
       "name": "Conrod Straight",
-      "startFrac": 0.6298,
+      "startFrac": 0.6217,
       "endFrac": 0.8383
     },
     {
       "type": "corner",
       "name": "The Chase",
       "startFrac": 0.8383,
-      "endFrac": 0.9075,
+      "endFrac": 0.8994,
       "numbers": [
         13,
         14
@@ -444,7 +456,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9075,
+      "startFrac": 0.8994,
       "endFrac": 0.9288
     },
     {
@@ -452,7 +464,7 @@
       "name": "Murray's Corner",
       "direction": "left",
       "startFrac": 0.9288,
-      "endFrac": 0.9776,
+      "endFrac": 0.9734,
       "numbers": [
         15
       ]
@@ -460,7 +472,7 @@
     {
       "type": "straight",
       "name": "Pit Straight",
-      "startFrac": 0.9776,
+      "startFrac": 0.9734,
       "endFrac": 1,
       "group": "Pit Straight"
     }

@@ -1,7 +1,7 @@
 {
   "name": "WeatherTech Raceway Laguna Seca",
   "sectors": {
-    "s1End": 0.3333,
+    "s1End": 0.3194,
     "s2End": 0.728,
     "source": "corner-anchored"
   },
@@ -39,7 +39,7 @@
           "name": "T4",
           "direction": "right",
           "startFrac": 0.253,
-          "endFrac": 0.3459,
+          "endFrac": 0.3318,
           "numbers": [
             4
           ]
@@ -47,7 +47,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3459,
+          "startFrac": 0.3318,
           "endFrac": 0.3768
         },
         {
@@ -55,17 +55,23 @@
           "name": "T5",
           "direction": "left",
           "startFrac": 0.3768,
-          "endFrac": 0.4948,
+          "endFrac": 0.464,
           "numbers": [
             5
           ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.464,
+          "endFrac": 0.4948
         },
         {
           "type": "corner",
           "name": "T6",
           "direction": "left",
           "startFrac": 0.4948,
-          "endFrac": 0.5821,
+          "endFrac": 0.568,
           "numbers": [
             6
           ]
@@ -73,7 +79,7 @@
         {
           "type": "straight",
           "name": "Rahal Straight",
-          "startFrac": 0.5821,
+          "startFrac": 0.568,
           "endFrac": 0.6379
         },
         {
@@ -121,7 +127,7 @@
           "name": "T11",
           "direction": "left",
           "startFrac": 0.8777,
-          "endFrac": 0.955,
+          "endFrac": 0.9409,
           "numbers": [
             11
           ]
@@ -129,12 +135,12 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.955,
+          "startFrac": 0.9409,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3459,
+        "s1End": 0.3318,
         "s2End": 0.7205,
         "source": "corner-anchored"
       }
@@ -142,16 +148,20 @@
     "fm-2023": {
       "segments": [
         {
-          "type": "straight",
-          "name": "",
+          "type": "corner",
+          "name": "T1",
+          "direction": "left",
           "startFrac": 0,
-          "endFrac": 0.0727
+          "endFrac": 0.0889,
+          "numbers": [
+            1
+          ]
         },
         {
           "type": "corner",
           "name": "Andretti Hairpin",
           "direction": "left",
-          "startFrac": 0.0727,
+          "startFrac": 0.0889,
           "endFrac": 0.1577,
           "numbers": [
             2
@@ -172,7 +182,7 @@
           "name": "T4",
           "direction": "right",
           "startFrac": 0.2508,
-          "endFrac": 0.3333,
+          "endFrac": 0.3194,
           "numbers": [
             4
           ]
@@ -180,7 +190,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3333,
+          "startFrac": 0.3194,
           "endFrac": 0.3694
         },
         {
@@ -188,17 +198,23 @@
           "name": "T5",
           "direction": "left",
           "startFrac": 0.3694,
-          "endFrac": 0.491,
+          "endFrac": 0.455,
           "numbers": [
             5
           ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.455,
+          "endFrac": 0.491
         },
         {
           "type": "corner",
           "name": "T6",
           "direction": "left",
           "startFrac": 0.491,
-          "endFrac": 0.5749,
+          "endFrac": 0.561,
           "numbers": [
             6
           ]
@@ -206,7 +222,7 @@
         {
           "type": "straight",
           "name": "Rahal Straight",
-          "startFrac": 0.5749,
+          "startFrac": 0.561,
           "endFrac": 0.6339
         },
         {
@@ -254,7 +270,7 @@
           "name": "T11",
           "direction": "left",
           "startFrac": 0.8692,
-          "endFrac": 0.9478,
+          "endFrac": 0.9339,
           "numbers": [
             11
           ]
@@ -262,12 +278,12 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9478,
+          "startFrac": 0.9339,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3333,
+        "s1End": 0.3194,
         "s2End": 0.728,
         "source": "corner-anchored"
       }
@@ -275,16 +291,20 @@
   },
   "segments": [
     {
-      "type": "straight",
-      "name": "",
+      "type": "corner",
+      "name": "T1",
+      "direction": "left",
       "startFrac": 0,
-      "endFrac": 0.0727
+      "endFrac": 0.0889,
+      "numbers": [
+        1
+      ]
     },
     {
       "type": "corner",
       "name": "Andretti Hairpin",
       "direction": "left",
-      "startFrac": 0.0727,
+      "startFrac": 0.0889,
       "endFrac": 0.1577,
       "numbers": [
         2
@@ -305,7 +325,7 @@
       "name": "T4",
       "direction": "right",
       "startFrac": 0.2508,
-      "endFrac": 0.3333,
+      "endFrac": 0.3194,
       "numbers": [
         4
       ]
@@ -313,7 +333,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3333,
+      "startFrac": 0.3194,
       "endFrac": 0.3694
     },
     {
@@ -321,17 +341,23 @@
       "name": "T5",
       "direction": "left",
       "startFrac": 0.3694,
-      "endFrac": 0.491,
+      "endFrac": 0.455,
       "numbers": [
         5
       ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.455,
+      "endFrac": 0.491
     },
     {
       "type": "corner",
       "name": "T6",
       "direction": "left",
       "startFrac": 0.491,
-      "endFrac": 0.5749,
+      "endFrac": 0.561,
       "numbers": [
         6
       ]
@@ -339,7 +365,7 @@
     {
       "type": "straight",
       "name": "Rahal Straight",
-      "startFrac": 0.5749,
+      "startFrac": 0.561,
       "endFrac": 0.6339
     },
     {
@@ -387,7 +413,7 @@
       "name": "T11",
       "direction": "left",
       "startFrac": 0.8692,
-      "endFrac": 0.9478,
+      "endFrac": 0.9339,
       "numbers": [
         11
       ]
@@ -395,7 +421,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9478,
+      "startFrac": 0.9339,
       "endFrac": 1
     }
   ]

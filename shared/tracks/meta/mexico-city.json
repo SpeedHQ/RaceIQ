@@ -1,15 +1,15 @@
 {
   "name": "Autodromo Hermanos Rodriguez",
   "sectors": {
-    "s1End": 0.412,
-    "s2End": 0.8188,
+    "s1End": 0.4009,
+    "s2End": 0.8077,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.412,
-        "s2End": 0.8188,
+        "s1End": 0.4009,
+        "s2End": 0.8077,
         "source": "corner-anchored"
       },
       "segments": [
@@ -45,7 +45,7 @@
           "name": "T3",
           "direction": "right",
           "startFrac": 0.3111,
-          "endFrac": 0.3567,
+          "endFrac": 0.3456,
           "numbers": [
             3
           ]
@@ -53,7 +53,7 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.3567,
+          "startFrac": 0.3456,
           "endFrac": 0.4454
         },
         {
@@ -131,7 +131,7 @@
           "name": "T11",
           "direction": "left",
           "startFrac": 0.7125,
-          "endFrac": 0.7524,
+          "endFrac": 0.7413,
           "numbers": [
             11
           ]
@@ -139,7 +139,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7524,
+          "startFrac": 0.7413,
           "endFrac": 0.817
         },
         {
@@ -177,7 +177,7 @@
           "name": "Peraltada",
           "direction": "right",
           "startFrac": 0.9235,
-          "endFrac": 0.9667,
+          "endFrac": 0.9582,
           "numbers": [
             15,
             16,
@@ -187,7 +187,7 @@
         {
           "type": "straight",
           "name": "Start/Finish",
-          "startFrac": 0.9667,
+          "startFrac": 0.9582,
           "endFrac": 1,
           "group": "Start/Finish"
         }
@@ -227,7 +227,7 @@
       "name": "T3",
       "direction": "right",
       "startFrac": 0.3111,
-      "endFrac": 0.3567,
+      "endFrac": 0.3456,
       "numbers": [
         3
       ]
@@ -235,7 +235,7 @@
     {
       "type": "straight",
       "name": "Back Straight",
-      "startFrac": 0.3567,
+      "startFrac": 0.3456,
       "endFrac": 0.4454
     },
     {
@@ -313,7 +313,7 @@
       "name": "T11",
       "direction": "left",
       "startFrac": 0.7125,
-      "endFrac": 0.7524,
+      "endFrac": 0.7413,
       "numbers": [
         11
       ]
@@ -321,7 +321,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7524,
+      "startFrac": 0.7413,
       "endFrac": 0.817
     },
     {
@@ -359,7 +359,7 @@
       "name": "Peraltada",
       "direction": "right",
       "startFrac": 0.9235,
-      "endFrac": 0.9667,
+      "endFrac": 0.9582,
       "numbers": [
         15,
         16,
@@ -369,7 +369,7 @@
     {
       "type": "straight",
       "name": "Start/Finish",
-      "startFrac": 0.9667,
+      "startFrac": 0.9582,
       "endFrac": 1,
       "group": "Start/Finish"
     }

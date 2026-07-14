@@ -71,7 +71,7 @@
           "name": "Aintree",
           "direction": "left",
           "startFrac": 0.2015,
-          "endFrac": 0.24,
+          "endFrac": 0.2315,
           "numbers": [
             5
           ]
@@ -79,7 +79,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.24,
+          "startFrac": 0.2315,
           "endFrac": 0.3085
         },
         {
@@ -107,7 +107,7 @@
           "name": "Woodcote",
           "direction": "right",
           "startFrac": 0.4131,
-          "endFrac": 0.4701,
+          "endFrac": 0.4616,
           "numbers": [
             8
           ]
@@ -115,7 +115,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4701,
+          "startFrac": 0.4616,
           "endFrac": 0.494
         },
         {
@@ -123,7 +123,7 @@
           "name": "Copse",
           "direction": "right",
           "startFrac": 0.494,
-          "endFrac": 0.5595,
+          "endFrac": 0.551,
           "numbers": [
             9
           ]
@@ -131,7 +131,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5595,
+          "startFrac": 0.551,
           "endFrac": 0.5879
         },
         {
@@ -157,7 +157,7 @@
           "name": "Chapel",
           "direction": "left",
           "startFrac": 0.7061,
-          "endFrac": 0.7425,
+          "endFrac": 0.734,
           "numbers": [
             14
           ]
@@ -165,7 +165,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7425,
+          "startFrac": 0.734,
           "endFrac": 0.8229
         },
         {
@@ -173,10 +173,16 @@
           "name": "Stowe",
           "direction": "right",
           "startFrac": 0.8229,
-          "endFrac": 0.9138,
+          "endFrac": 0.8933,
           "numbers": [
             15
           ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.8933,
+          "endFrac": 0.9138
         },
         {
           "type": "corner",
@@ -215,7 +221,7 @@
           "name": "Copse",
           "direction": "right",
           "startFrac": 0,
-          "endFrac": 0.0835,
+          "endFrac": 0.0749,
           "numbers": [
             9
           ]
@@ -223,14 +229,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.0835,
+          "startFrac": 0.0749,
           "endFrac": 0.1162
         },
         {
           "type": "corner",
           "name": "Maggotts/Becketts",
           "startFrac": 0.1162,
-          "endFrac": 0.235,
+          "endFrac": 0.2154,
           "numbers": [
             10,
             11,
@@ -241,7 +247,23 @@
         {
           "type": "straight",
           "name": "Hangar Straight",
-          "startFrac": 0.235,
+          "startFrac": 0.2154,
+          "endFrac": 0.221
+        },
+        {
+          "type": "corner",
+          "name": "Chapel",
+          "direction": "left",
+          "startFrac": 0.221,
+          "endFrac": 0.2496,
+          "numbers": [
+            14
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2496,
           "endFrac": 0.3357
         },
         {
@@ -269,7 +291,7 @@
           "name": "Club",
           "direction": "right",
           "startFrac": 0.4622,
-          "endFrac": 0.4931,
+          "endFrac": 0.4845,
           "numbers": [
             17,
             18
@@ -278,7 +300,7 @@
         {
           "type": "straight",
           "name": "Hamilton Straight",
-          "startFrac": 0.4931,
+          "startFrac": 0.4845,
           "endFrac": 0.5491
         },
         {
@@ -316,7 +338,7 @@
           "name": "The Loop",
           "direction": "left",
           "startFrac": 0.6829,
-          "endFrac": 0.7246,
+          "endFrac": 0.716,
           "numbers": [
             4
           ]
@@ -324,7 +346,7 @@
         {
           "type": "straight",
           "name": "Wellington Straight",
-          "startFrac": 0.7246,
+          "startFrac": 0.716,
           "endFrac": 0.8262
         },
         {
@@ -352,7 +374,7 @@
           "name": "Woodcote",
           "direction": "right",
           "startFrac": 0.9282,
-          "endFrac": 0.9604,
+          "endFrac": 0.9518,
           "numbers": [
             8
           ]
@@ -360,7 +382,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9604,
+          "startFrac": 0.9518,
           "endFrac": 1
         }
       ]
@@ -425,7 +447,7 @@
           "name": "Aintree",
           "direction": "left",
           "startFrac": 0.1763,
-          "endFrac": 0.215,
+          "endFrac": 0.2065,
           "numbers": [
             5
           ]
@@ -433,7 +455,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.215,
+          "startFrac": 0.2065,
           "endFrac": 0.2794
         },
         {
@@ -461,7 +483,7 @@
           "name": "Woodcote",
           "direction": "right",
           "startFrac": 0.379,
-          "endFrac": 0.445,
+          "endFrac": 0.4365,
           "numbers": [
             8
           ]
@@ -469,7 +491,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.445,
+          "startFrac": 0.4365,
           "endFrac": 0.4682
         },
         {
@@ -477,7 +499,7 @@
           "name": "Copse",
           "direction": "right",
           "startFrac": 0.4682,
-          "endFrac": 0.5359,
+          "endFrac": 0.5274,
           "numbers": [
             9
           ]
@@ -485,7 +507,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5359,
+          "startFrac": 0.5274,
           "endFrac": 0.5614
         },
         {
@@ -505,7 +527,7 @@
           "name": "Chapel",
           "direction": "left",
           "startFrac": 0.6846,
-          "endFrac": 0.7183,
+          "endFrac": 0.7098,
           "numbers": [
             14
           ]
@@ -513,7 +535,7 @@
         {
           "type": "straight",
           "name": "Hangar Straight",
-          "startFrac": 0.7183,
+          "startFrac": 0.7098,
           "endFrac": 0.7993
         },
         {
@@ -521,10 +543,16 @@
           "name": "Stowe",
           "direction": "right",
           "startFrac": 0.7993,
-          "endFrac": 0.8888,
+          "endFrac": 0.8687,
           "numbers": [
             15
           ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.8687,
+          "endFrac": 0.8888
         },
         {
           "type": "corner",
@@ -541,7 +569,7 @@
           "name": "Club",
           "direction": "right",
           "startFrac": 0.9219,
-          "endFrac": 0.9783,
+          "endFrac": 0.9758,
           "numbers": [
             17,
             18
@@ -550,7 +578,7 @@
         {
           "type": "straight",
           "name": "Hamilton Straight",
-          "startFrac": 0.9783,
+          "startFrac": 0.9758,
           "endFrac": 1,
           "group": "Hamilton Straight"
         }
@@ -621,7 +649,7 @@
       "name": "Aintree",
       "direction": "left",
       "startFrac": 0.1763,
-      "endFrac": 0.215,
+      "endFrac": 0.2065,
       "numbers": [
         5
       ]
@@ -629,7 +657,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.215,
+      "startFrac": 0.2065,
       "endFrac": 0.2794
     },
     {
@@ -657,7 +685,7 @@
       "name": "Woodcote",
       "direction": "right",
       "startFrac": 0.379,
-      "endFrac": 0.445,
+      "endFrac": 0.4365,
       "numbers": [
         8
       ]
@@ -665,7 +693,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.445,
+      "startFrac": 0.4365,
       "endFrac": 0.4682
     },
     {
@@ -673,7 +701,7 @@
       "name": "Copse",
       "direction": "right",
       "startFrac": 0.4682,
-      "endFrac": 0.5359,
+      "endFrac": 0.5274,
       "numbers": [
         9
       ]
@@ -681,7 +709,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.5359,
+      "startFrac": 0.5274,
       "endFrac": 0.5614
     },
     {
@@ -701,7 +729,7 @@
       "name": "Chapel",
       "direction": "left",
       "startFrac": 0.6846,
-      "endFrac": 0.7183,
+      "endFrac": 0.7098,
       "numbers": [
         14
       ]
@@ -709,7 +737,7 @@
     {
       "type": "straight",
       "name": "Hangar Straight",
-      "startFrac": 0.7183,
+      "startFrac": 0.7098,
       "endFrac": 0.7993
     },
     {
@@ -717,10 +745,16 @@
       "name": "Stowe",
       "direction": "right",
       "startFrac": 0.7993,
-      "endFrac": 0.8888,
+      "endFrac": 0.8687,
       "numbers": [
         15
       ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.8687,
+      "endFrac": 0.8888
     },
     {
       "type": "corner",
@@ -737,7 +771,7 @@
       "name": "Club",
       "direction": "right",
       "startFrac": 0.9219,
-      "endFrac": 0.9783,
+      "endFrac": 0.9758,
       "numbers": [
         17,
         18
@@ -746,7 +780,7 @@
     {
       "type": "straight",
       "name": "Hamilton Straight",
-      "startFrac": 0.9783,
+      "startFrac": 0.9758,
       "endFrac": 1,
       "group": "Hamilton Straight"
     }

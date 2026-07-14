@@ -24,6 +24,12 @@ export interface CornerRegion {
   lengthM: number;
   /** Integrated turn angle across the region (radians). */
   turnRad: number;
+  /**
+   * Bends too little to be a corner on its own (< MIN_TURN_RAD), so alignment
+   * only claims it when a curated name says a corner is there — otherwise it
+   * is skipped for free and stays part of the surrounding straight.
+   */
+  weak?: boolean;
 }
 
 interface Pt { x: number; z: number }
@@ -56,7 +62,8 @@ export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; t
   const K_IN = 1 / 450;
   const K_OUT = 1 / 700;
   const MIN_CORNER_M = 15;
-  const MIN_TURN_RAD = 0.20;   // ~11.5° of heading change required
+  const MIN_TURN_RAD = 0.20;   // ~11.5° of heading change required to stand alone
+  const WEAK_TURN_RAD = 0.10;  // below ~5.7° it's noise, not a corner anyone names
   const MERGE_GAP_M = 50;      // same-direction regions closer than this merge
   const SIGN_RUN_M = 25;       // sustained opposite sign for this long = split
   // K_OUT is deliberately loose so a corner's declining curvature tail bridges
@@ -197,8 +204,13 @@ export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; t
         untrimmedLengthM,
       };
     })
-    .filter((c) => c.untrimmedLengthM >= MIN_CORNER_M && c.turnRad >= MIN_TURN_RAD)
-    .map(({ untrimmedLengthM, ...c }) => c);
+    .filter((c) => c.untrimmedLengthM >= MIN_CORNER_M && c.turnRad >= WEAK_TURN_RAD)
+    // Runs that bend too little to be a corner on their own are kept as weak
+    // regions rather than dropped. Geometry alone can't tell Spa's Raidillon
+    // (~0.19 rad, just under the cutoff) from a meaningless kink — but the
+    // curated name list can, so alignment claims a weak region when a name
+    // says a corner is there and skips it for free otherwise.
+    .map(({ untrimmedLengthM, ...c }) => (c.turnRad < MIN_TURN_RAD ? { ...c, weak: true } : c));
 
   return { corners, totalDist };
 }
@@ -404,24 +416,41 @@ function unitCost(u: Unit, segs: CornerRegion[]): number {
 
 /**
  * Match ordered name-list units onto ordered detected regions via DP.
- * Both sequences must be fully consumed.
+ * Every unit and every strong region must be consumed; weak regions may be
+ * skipped (see WEAK_SKIP) — that is what lets a curated name claim a bend the
+ * detector was unwilling to call a corner by itself.
  */
 function matchUnits(units: Unit[], detected: CornerRegion[]):
-  { cost: number; spansPerUnit: number[] } | null {
+  { cost: number; spansPerUnit: number[]; skipped: boolean[] } | null {
   const nU = units.length;
   const nD = detected.length;
+  // Cheaper than any sanctioned mapping (TIE_BREAK), so a unit that can take a
+  // weak region 1:1 does, while an unnamed kink is left alone. Non-zero so it
+  // never ties with claiming it.
+  const WEAK_SKIP = 0.005;
   const dp: number[][] = Array.from({ length: nU + 1 }, () => new Array(nD + 1).fill(HARD_FAIL));
-  const choice: number[][] = Array.from({ length: nU + 1 }, () => new Array(nD + 1).fill(0));
+  // How each state was reached, so the walk back knows unit takes from skips.
+  const from: ({ pi: number; pj: number; take: number } | null)[][] =
+    Array.from({ length: nU + 1 }, () => new Array(nD + 1).fill(null));
   dp[0][0] = 0;
-  for (let i = 0; i < nU; i++) {
+  for (let i = 0; i <= nU; i++) {
     for (let j = 0; j <= nD; j++) {
       if (dp[i][j] === HARD_FAIL) continue;
+      // Leave a weak region out of every section — it stays part of the straight
+      if (j < nD && detected[j].weak) {
+        const total = dp[i][j] + WEAK_SKIP;
+        if (total < dp[i][j + 1]) {
+          dp[i][j + 1] = total;
+          from[i][j + 1] = { pi: i, pj: j, take: -1 };
+        }
+      }
+      if (i === nU) continue;
       // Optional corners (too shallow for some games' centerlines) may match nothing
       if (units[i].members.length === 1 && units[i].members[0].optional) {
         const total = dp[i][j] + 0.01;
         if (total < dp[i + 1][j]) {
           dp[i + 1][j] = total;
-          choice[i + 1][j] = 0;
+          from[i + 1][j] = { pi: i, pj: j, take: 0 };
         }
       }
       const maxTake = Math.min(units[i].maxSpan + 1, nD - j); // allow one over maxSpan at extra cost
@@ -432,20 +461,25 @@ function matchUnits(units: Unit[], detected: CornerRegion[]):
         const total = dp[i][j] + c + over;
         if (total < dp[i + 1][j + take]) {
           dp[i + 1][j + take] = total;
-          choice[i + 1][j + take] = take;
+          from[i + 1][j + take] = { pi: i, pj: j, take };
         }
       }
     }
   }
   if (dp[nU][nD] === HARD_FAIL) return null;
-  const spansPerUnit: number[] = new Array(nU);
+  const spansPerUnit: number[] = new Array(nU).fill(0);
+  const skipped: boolean[] = new Array(nD).fill(false);
+  let i = nU;
   let j = nD;
-  for (let i = nU; i > 0; i--) {
-    const take = choice[i][j];
-    spansPerUnit[i - 1] = take;
-    j -= take;
+  while (i > 0 || j > 0) {
+    const step = from[i][j];
+    if (!step) return null;
+    if (step.take === -1) skipped[j - 1] = true;
+    else spansPerUnit[i - 1] = step.take;
+    i = step.pi;
+    j = step.pj;
   }
-  return { cost: dp[nU][nD], spansPerUnit };
+  return { cost: dp[nU][nD], spansPerUnit, skipped };
 }
 
 function round4(v: number): number {
@@ -497,7 +531,7 @@ function alignOnePolarity(
   // starts at the old pit straight before Copse), so the detected sequence
   // can be rotated relative to the name list. Try every rotation; offset 0
   // is preferred via a tie-break penalty on the others.
-  let match: { cost: number; spansPerUnit: number[] } | null = null;
+  let match: { cost: number; spansPerUnit: number[]; skipped: boolean[] } | null = null;
   let rotation = 0;
   for (let offset = 0; offset < detected.length; offset++) {
     const rotated = offset === 0 ? detected : [...detected.slice(offset), ...detected.slice(0, offset)];
@@ -505,7 +539,7 @@ function alignOnePolarity(
     if (!m) continue;
     const cost = m.cost + (offset === 0 ? 0 : 0.05);
     if (!match || cost < match.cost) {
-      match = { cost, spansPerUnit: m.spansPerUnit };
+      match = { cost, spansPerUnit: m.spansPerUnit, skipped: m.skipped };
       rotation = offset;
     }
   }
@@ -530,6 +564,8 @@ function alignOnePolarity(
   for (let ui = 0; ui < units.length; ui++) {
     const u = units[ui];
     const take = match.spansPerUnit[ui];
+    // Weak regions no unit claimed aren't part of any section — step over them
+    while (match.skipped[cursor]) cursor++;
     if (take === 0) {
       issues.push({ severity: "warning", message: `corner ${u.members[0].number} (${displayName(u.members[0])}) not detected on this centerline — omitted` });
       continue;
@@ -583,11 +619,8 @@ function alignOnePolarity(
   // The padded fracs ARE the section boundaries — sector anchors resolve
   // against them, so an anchored boundary coincides with the section end.
   const ENTRY_PAD_M = 150;
-  // A corner's exit runs until the car is straight-lining, which is further out
-  // than the curvature arc: Spa's Eau Rouge/Raidillon keeps turning up the hill
-  // to the crest (~130 m past the detected arc) before Kemmel begins. 80 m cut
-  // fast complexes short of their own exit.
-  const EXIT_PAD_M = 130;
+  // Padding covers the braking zone and exit either side of the detected arc.
+  const EXIT_PAD_M = 80;
   // A curated straight is real by declaration, so padding may not consume the
   // whole gap it lives in — Donington's Starkey's Straight sits in a ~140 m gap
   // that entry+exit padding would erase entirely, silently pushing its name

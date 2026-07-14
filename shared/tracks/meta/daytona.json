@@ -49,7 +49,7 @@
           "name": "International Horseshoe",
           "direction": "right",
           "startFrac": 0.1415,
-          "endFrac": 0.1974,
+          "endFrac": 0.1887,
           "numbers": [
             4
           ]
@@ -57,7 +57,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1974,
+          "startFrac": 0.1887,
           "endFrac": 0.2197
         },
         {
@@ -85,7 +85,7 @@
           "name": "NASCAR 1-2 Banking",
           "direction": "left",
           "startFrac": 0.3464,
-          "endFrac": 0.4036,
+          "endFrac": 0.3949,
           "numbers": [
             7
           ]
@@ -93,7 +93,7 @@
         {
           "type": "straight",
           "name": "Backstretch",
-          "startFrac": 0.4036,
+          "startFrac": 0.3949,
           "endFrac": 0.6386
         },
         {
@@ -112,7 +112,7 @@
           "name": "NASCAR 3-4 Banking",
           "direction": "left",
           "startFrac": 0.6953,
-          "endFrac": 0.7262,
+          "endFrac": 0.7175,
           "numbers": [
             11
           ]
@@ -120,7 +120,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7262,
+          "startFrac": 0.7175,
           "endFrac": 1
         }
       ],
@@ -173,7 +173,7 @@
       "name": "International Horseshoe",
       "direction": "right",
       "startFrac": 0.1415,
-      "endFrac": 0.1974,
+      "endFrac": 0.1887,
       "numbers": [
         4
       ]
@@ -181,7 +181,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1974,
+      "startFrac": 0.1887,
       "endFrac": 0.2197
     },
     {
@@ -209,7 +209,7 @@
       "name": "NASCAR 1-2 Banking",
       "direction": "left",
       "startFrac": 0.3464,
-      "endFrac": 0.4036,
+      "endFrac": 0.3949,
       "numbers": [
         7
       ]
@@ -217,7 +217,7 @@
     {
       "type": "straight",
       "name": "Backstretch",
-      "startFrac": 0.4036,
+      "startFrac": 0.3949,
       "endFrac": 0.6386
     },
     {
@@ -236,7 +236,7 @@
       "name": "NASCAR 3-4 Banking",
       "direction": "left",
       "startFrac": 0.6953,
-      "endFrac": 0.7262,
+      "endFrac": 0.7175,
       "numbers": [
         11
       ]
@@ -244,7 +244,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7262,
+      "startFrac": 0.7175,
       "endFrac": 1
     }
   ]

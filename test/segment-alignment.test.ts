@@ -142,6 +142,45 @@ describe("alignSegments", () => {
     expect(res.segments[0]).toMatchObject({ type: "straight", name: "" });
   });
 
+  test("a curated name claims a bend too shallow to be a corner on its own", () => {
+    // Spa's Raidillon integrates to ~0.19 rad, under the kink cutoff, so the
+    // detector marks it weak. The name list says it's a corner, so it counts.
+    const weak = { ...region(0.16, 0.17, "right"), turnRad: 0.15, weak: true };
+    const detected = [region(0.1, 0.15, "left"), weak];
+    const list: CornerNameList = {
+      circuit: "Test",
+      turnCount: 2,
+      corners: [
+        { number: 1, name: "Eau Rouge", direction: "left", group: "Eau Rouge/Raidillon" },
+        { number: 2, name: "Raidillon", direction: "right", group: "Eau Rouge/Raidillon" },
+      ],
+    };
+    const res = alignSegments(detected, list, 7000);
+    expect(res.ok).toBe(true);
+    const complex = res.corners.find((c) => c.name === "Eau Rouge/Raidillon");
+    expect(complex?.numbers, "the weak region should be part of the complex").toEqual([1, 2]);
+    // The section must reach the weak region's geometry, not stop at the strong one
+    expect(complex!.endFrac).toBeGreaterThan(0.17);
+  });
+
+  test("an unnamed weak bend stays part of the straight", () => {
+    const weak = { ...region(0.4, 0.41, "right"), turnRad: 0.15, weak: true };
+    const detected = [region(0.1, 0.15, "left"), weak, region(0.7, 0.75, "right")];
+    const list: CornerNameList = {
+      circuit: "Test",
+      turnCount: 2,
+      corners: [
+        { number: 1, name: "First", direction: "left" },
+        { number: 2, name: "Second", direction: "right" },
+      ],
+    };
+    const res = alignSegments(detected, list, 7000);
+    expect(res.ok).toBe(true);
+    // Two named corners, and the kink between them is not promoted to a third
+    expect(res.corners.map((c) => c.name)).toEqual(["First", "Second"]);
+    expect(res.segments.filter((s) => s.type === "corner")).toHaveLength(2);
+  });
+
   test("direction mismatch is a hard failure", () => {
     const detected = [region(0.1, 0.15, "left"), region(0.4, 0.45, "left")];
     const list: CornerNameList = {
