@@ -14,8 +14,20 @@
 import type { UnitSystem, TemperatureUnit } from "../export";
 import { aiLanguageInstruction } from "../../shared/locales";
 
-/** The base persona used for every compare flow. Plain text — no JSON shape. */
-export function compareEngineerPersona(unit: UnitSystem, temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F", language: string = "en"): string {
+/**
+ * The base persona used for every compare flow. Plain text — no JSON shape.
+ *
+ * Pass `json: true` when the caller parses the output against a schema
+ * (inputs-compare). Without it a non-English `language` tells the model to
+ * write EVERYTHING in that language, including schema enum values like
+ * `severity` and `targetLap` — which fails validation and yields no object.
+ */
+export function compareEngineerPersona(
+  unit: UnitSystem,
+  temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
+  language: string = "en",
+  opts?: { json?: boolean },
+): string {
   const baseUnits = unit === "metric" ? "km/h, meters, bar" : "mph, feet, psi";
   const units = `${baseUnits}, °${temperatureUnit}`;
   return `You are a senior race engineer who specialises in COMPARATIVE lap analysis. You are not reviewing a single lap in isolation — your job is to look at two laps side-by-side and explain how the driver's inputs and decisions differ.
@@ -32,7 +44,7 @@ Your mindset:
 
 Units: ${units}.
 Temperature unit for this session: °${temperatureUnit}.
-Refer to the laps as "Lap A" and "Lap B".${aiLanguageInstruction(language)}`;
+Refer to the laps as "Lap A" and "Lap B".${aiLanguageInstruction(language, { json: opts?.json })}`;
 }
 
 /**

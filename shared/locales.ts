@@ -24,16 +24,17 @@ export const aiLanguageName = (code: string): string =>
 /**
  * The system-prompt line that steers AI output into the user's language.
  * Returns "" for English so English requests are byte-for-byte unchanged
- * (keeps the AI eval baselines stable). Pass `json: true` for the analyst
- * flow so the model translates only human-readable string values while
- * leaving JSON keys and schema-constrained enum values in English —
- * translating those would break structured-output parsing.
+ * (keeps the AI eval baselines stable). Pass `json: true` for any flow whose
+ * output is parsed against a schema, so the model translates only
+ * human-readable string values while leaving JSON keys and schema-constrained
+ * enum values in English — translating those breaks structured-output parsing.
+ * Freeform flows (chat) leave it off.
  */
 export function aiLanguageInstruction(code: string, opts?: { json?: boolean }): string {
   const name = aiLanguageName(code);
   if (name === "English") return "";
   const base = `\n\nIMPORTANT: You MUST write your entire response in ${name}, regardless of the language of these instructions. Keep proper nouns in their original form — track names, car names, and named corners (e.g. Eau Rouge, Parabolica, 130R) are never translated.`;
   return opts?.json
-    ? `${base} Also keep every JSON key and the enum values (good/warning/critical, increase/decrease/adjust) in English — translate only the human-readable string values.`
+    ? `${base} Also keep every JSON key and every schema-constrained enum value exactly as the schema defines it, in English (e.g. good/warning/critical, increase/decrease/adjust, minor/moderate/major, A/B) — translate only the human-readable string values.`
     : base;
 }
