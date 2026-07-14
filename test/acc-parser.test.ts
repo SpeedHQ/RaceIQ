@@ -8,6 +8,8 @@ import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
 import { parseRawLapFramesForTest } from "../server/db/queries";
 import { stopMaintenanceTasks } from "../server/pipeline";
+import { getAccTrackName } from "../shared/acc-track-data";
+import { getAccCarName } from "../shared/acc-car-data";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -170,4 +172,24 @@ describe("parseRawLapFrames — coordinate normalization (standard-xyz)", () => 
       expect(n.PositionZ).toBeCloseTo(r.PositionZ, 4);
     }
   }, { timeout: 30000 });
+
+  test("ACC recording resolves to a real track and car, not the unresolved sentinel", async () => {
+    const raw = Buffer.from(gunzipSync(readFileSync(ACC_SESSION_BIN)));
+    const startOffset = 8 + raw.readUInt32LE(4);
+
+    const serverGame = getServerGame("acc");
+    const off = startOffset;
+    const frameLen = raw.readUInt32LE(off);
+    const packet = serverGame.tryParse(raw.subarray(off + 4, off + 4 + frameLen), null);
+
+    expect(packet).not.toBeNull();
+    // -1 is the "not yet resolved from static data" sentinel (see
+    // ParsingProcessor in server/games/acc/triplet-pipeline.ts) — a
+    // recording should never bake that in, since it means the track/car
+    // name lookup failed or raced the static data buffer at capture time.
+    expect(packet!.TrackOrdinal).toBeGreaterThanOrEqual(0);
+    expect(packet!.CarOrdinal).toBeGreaterThanOrEqual(0);
+    expect(getAccTrackName(packet!.TrackOrdinal)).toBe("Monza - GP");
+    expect(getAccCarName(packet!.CarOrdinal)).toBe("Porsche 991 GT3 R 2018");
+  });
 });
