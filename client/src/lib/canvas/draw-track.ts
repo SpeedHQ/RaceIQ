@@ -1,6 +1,86 @@
 import type { Point, TrackSectors } from "@/components/track/types";
 import { segmentDisplayNames } from "@/lib/segment-label";
 
+interface LabelCandidate {
+  text: string;
+  color: string;
+  /** Track-side anchor the label points at. */
+  mx: number;
+  my: number;
+  /** Unit normal to the track, pointing to one side. */
+  nx: number;
+  ny: number;
+  /** Higher wins the space when two labels collide. */
+  priority: number;
+  /** Lap fraction the section covers — tie-breaker among equal priorities. */
+  size: number;
+}
+
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+function overlaps(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+/**
+ * Draw as many labels as fit without overlapping. Tight infields (Spa's
+ * Campus/Les Fagnes/Piff Paff) can't show every name at once, so the most
+ * significant ones claim their space first and anything still colliding is
+ * dropped — an unreadable pile of overlapping names says less than a clean
+ * partial set. Each label tries the outside of the track first, then the
+ * inside, before giving up.
+ */
+function placeLabels(
+  ctx: CanvasRenderingContext2D,
+  labels: LabelCandidate[],
+  large: boolean,
+  w: number,
+  h: number,
+) {
+  ctx.font = large ? "bold 9px monospace" : "bold 7px monospace";
+  ctx.textAlign = "center";
+  const offDist = large ? 14 : 8;
+  const padX = 3;
+  const padY = 2;
+  const taken: Rect[] = [];
+
+  const ordered = [...labels].sort((a, b) => b.priority - a.priority || b.size - a.size);
+  for (const label of ordered) {
+    const textWidth = ctx.measureText(label.text).width;
+    const rw = textWidth + padX * 2;
+    const rh = 10 + padY * 2;
+
+    let placed: { lx: number; ly: number; rect: Rect } | null = null;
+    for (const side of [1, -1]) {
+      const lx = label.mx + label.nx * offDist * side;
+      const ly = label.my + label.ny * offDist * side;
+      const rect = { x: lx - rw / 2, y: ly + 3 - 7 - padY, w: rw, h: rh };
+      // Off-canvas is as unreadable as overlapping
+      if (rect.x < 0 || rect.y < 0 || rect.x + rect.w > w || rect.y + rect.h > h) continue;
+      if (taken.some((t) => overlaps(rect, t))) continue;
+      placed = { lx, ly, rect };
+      break;
+    }
+    if (!placed) continue;
+    taken.push(placed.rect);
+
+    ctx.globalAlpha = large ? 0.85 : 0.6;
+    ctx.fillStyle = "#0f172a";
+    ctx.beginPath();
+    ctx.roundRect(placed.rect.x, placed.rect.y, rw, rh, 3);
+    ctx.fill();
+    ctx.globalAlpha = large ? 0.95 : 0.8;
+    ctx.fillStyle = label.color;
+    ctx.fillText(label.text, placed.lx, placed.ly + 3);
+    ctx.globalAlpha = 1;
+  }
+}
+
 /**
  * drawTrack — Shared canvas rendering for both gallery thumbnails and detail views.
  * Draws a thick base outline, then overlays color-coded segments (corner/straight).
@@ -139,6 +219,7 @@ export function drawTrack(
     const n = outline.length;
     let cornerIdx = 0,
       straightIdx = 0;
+    const labels: LabelCandidate[] = [];
 
     // Corner names carry their official turn numbers ("Eau Rouge/Raidillon (2-4)");
     // thumbnails stay clean with names only.
@@ -186,42 +267,36 @@ export function drawTrack(
         ctx.stroke();
       }
 
-      // Label at midpoint of segment (the shorter half of a split straight is
-      // left unlabelled — its group is named on the longer half)
+      // Collect the label; placement happens after every segment is drawn so
+      // labels can be tested against each other (see placeLabels below).
       const suppressed = seg.group ? labelledGroups.has(`${seg.group}:${seg.startFrac}`) : false;
-      if (!suppressed && (large || seg.type === "corner")) {
+      if (!suppressed && (large || seg.type === "corner") && displayName) {
         const midIdx = Math.round((start + end) / 2);
         const midPt = outline[Math.min(midIdx, n - 1)];
         const [mx, my] = toCanvas(midPt.x, midPt.z);
 
-        // Offset label away from track using perpendicular
+        // Perpendicular to the track, so the label sits beside the line not on it
         const prevIdx = Math.max(0, midIdx - 2);
         const nextIdx = Math.min(n - 1, midIdx + 2);
         const dx = outline[nextIdx].x - outline[prevIdx].x;
         const dz = outline[nextIdx].z - outline[prevIdx].z;
         const len = Math.sqrt(dx * dx + dz * dz) || 1;
-        const offDist = large ? 14 : 8;
-        const lx = mx + (-dz / len) * offDist;
-        const ly = my + (dx / len) * offDist;
-
-        ctx.font = large ? "bold 9px monospace" : "bold 7px monospace";
-        ctx.textAlign = "center";
-        // Background pill behind label
-        const textWidth = ctx.measureText(displayName).width;
-        const padX = 3,
-          padY = 2;
-        ctx.globalAlpha = large ? 0.85 : 0.6;
-        ctx.fillStyle = "#0f172a";
-        ctx.beginPath();
-        ctx.roundRect(lx - textWidth / 2 - padX, ly + 3 - 7 - padY, textWidth + padX * 2, 10 + padY * 2, 3);
-        ctx.fill();
-        // Label text
-        ctx.globalAlpha = large ? 0.95 : 0.8;
-        ctx.fillStyle = color;
-        ctx.fillText(displayName, lx, ly + 3);
-        ctx.globalAlpha = 1;
+        labels.push({
+          text: displayName,
+          color,
+          mx,
+          my,
+          nx: -dz / len,
+          ny: dx / len,
+          // A real name is worth more screen space than "T6" or "S3"; among
+          // equals, the longer section is the more significant one.
+          priority: (/^[TS]\d/.test(displayName) ? 0 : 2) + (seg.type === "corner" ? 1 : 0),
+          size: seg.endFrac - seg.startFrac,
+        });
       }
     }
+
+    placeLabels(ctx, labels, large, w, h);
   } else if (!sectorOverride) {
     ctx.beginPath();
     ctx.strokeStyle = large ? "#94a3b8" : "#64748b";
