@@ -1,8 +1,9 @@
-import { m } from "../../paraglide/messages";
 import type { LapMeta } from "@shared/types";
-import { Download, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
+import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { formatLapTime } from "../../lib/format";
+import { m } from "../../paraglide/messages";
+import { DropdownMenu } from "../ui/DropdownMenu";
 import { NoteModal } from "../ui/NoteModal";
 import { SearchSelect } from "../ui/SearchSelect";
 import { Button } from "../ui/button";
@@ -150,8 +151,8 @@ export function AnalyseLapHeader({
                     </option>
                   ))}
                 </select>
-                {selectedLap?.tuneId && (
-                  <Button variant="app-outline" size="app-sm" onClick={() => onViewTune(selectedLap.tuneId!)}>
+                {selectedLap?.tuneId != null && (
+                  <Button variant="app-outline" size="app-sm" onClick={() => onViewTune(selectedLap.tuneId as number)}>
                     {m.label_view()}
                   </Button>
                 )}
@@ -195,17 +196,6 @@ export function AnalyseLapHeader({
               {m.analyse_guide_button()}
             </Button>
           )}
-          {hasTelemetry && (
-            <Button variant="app-outline" size="app-md" onClick={onExport}>
-              {m.analyse_export_csv_button()}
-            </Button>
-          )}
-          {selectedLapId != null && hasTelemetry && (
-            <Button variant="app-outline" size="app-md" onClick={onExportBin} disabled={exportingBin} title="Download the raw session capture (.bin) containing this lap">
-              <Download className="size-3.5" />
-              {exportingBin ? "Exporting..." : "Export .bin"}
-            </Button>
-          )}
           <input
             ref={importInputRef}
             type="file"
@@ -217,10 +207,46 @@ export function AnalyseLapHeader({
               e.target.value = "";
             }}
           />
-          <Button variant="app-outline" size="app-md" onClick={() => importInputRef.current?.click()} disabled={importingBin} title="Import a raw session capture (.bin) exported from RaceIQ">
-            <Upload className="size-3.5" />
-            {importingBin ? "Importing..." : "Import .bin"}
-          </Button>
+          {(hasTelemetry || selectedLapId != null) && (
+            <DropdownMenu
+              trigger={
+                <Button variant="app-outline" size="app-md" disabled={exportingBin || importingBin}>
+                  {exportingBin ? "Exporting..." : importingBin ? "Importing..." : m.analyse_export_import_button()}
+                  <ChevronDown className="size-3.5" />
+                </Button>
+              }
+              items={[
+                ...(hasTelemetry
+                  ? [
+                      {
+                        key: "export-csv",
+                        label: m.analyse_export_csv_button(),
+                        icon: <FileDown className="size-3.5" />,
+                        onClick: onExport,
+                      },
+                    ]
+                  : []),
+                ...(selectedLapId != null && hasTelemetry
+                  ? [
+                      {
+                        key: "export-bin",
+                        label: "Export .bin",
+                        icon: <Download className="size-3.5" />,
+                        onClick: onExportBin,
+                        disabled: exportingBin,
+                      },
+                    ]
+                  : []),
+                {
+                  key: "import-bin",
+                  label: "Import .bin",
+                  icon: <Upload className="size-3.5" />,
+                  onClick: () => importInputRef.current?.click(),
+                  disabled: importingBin,
+                },
+              ]}
+            />
+          )}
           {hasTelemetry && (
             <Button variant="app-outline" size="app-lg" onClick={onToggleAi} className={aiPanelOpen ? "text-app-accent border-app-accent/40 bg-app-accent/10" : "hover:text-app-accent"}>
               <Sparkles className="size-3.5" />
