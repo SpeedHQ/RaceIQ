@@ -1,3 +1,4 @@
+import { getGame } from "@shared/games/registry";
 import type { LapMeta, TelemetryPacket } from "@shared/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -22,6 +23,7 @@ import { useUnits } from "../hooks/useUnits";
 import { buildExportCsv } from "../lib/lap-export";
 import { analyzeLap } from "../lib/lap-insights";
 import { client } from "../lib/rpc";
+import { m } from "../paraglide/messages";
 import { MobileNotSupported } from "../routes/__root";
 import { useRequiredGameId } from "../stores/game";
 import type { AiPanelHandle, AnalysisHighlight } from "./AiPanel";
@@ -33,10 +35,21 @@ import { AnalyseTimelineScrubber } from "./analyse/AnalyseTimelineScrubber";
 import { AnalyseTopSection } from "./analyse/AnalyseTopSection";
 import type { Point, TrackMapHandle } from "./analyse/AnalyseTrackMap";
 import { F1SetupModal } from "./analyse/F1SetupModal";
+import { ImportResultModal } from "./analyse/ImportResultModal";
 import { TuneViewModal } from "./analyse/TuneViewModal";
 
 // Stable empty array to avoid re-renders when no telemetry loaded
 const emptyTelemetry: TelemetryPacket[] = [];
+
+interface ImportedLap {
+  lapId: number;
+  sessionId: number;
+  lapNumber: number;
+  lapTime: number;
+  isValid: boolean;
+  carOrdinal: number;
+  trackOrdinal: number;
+}
 
 // ── Main Component ───────────────────────────────────────────────────
 
@@ -56,7 +69,7 @@ function useIsPhoneViewport() {
 
 export function LapAnalyse() {
   const isPhone = useIsPhoneViewport();
-  if (isPhone) return <MobileNotSupported feature="Lap analyse" />;
+  if (isPhone) return <MobileNotSupported feature={m.lapanalyse_feature_name()} />;
   return <LapAnalyseInner />;
 }
 
@@ -80,37 +93,46 @@ function LapAnalyseInner() {
   const isLegacyLap = lapData?.isLegacy === true;
   const displayTelemetry = useConvertedTelemetry(telemetry);
 
+  // Backfill track/car selection from the loaded lap's own row when the URL omitted them
+  useEffect(() => {
+    if (selectedTrack == null && lapData?.trackOrdinal != null) {
+      setSelectedTrack(lapData.trackOrdinal);
+    }
+    if (selectedCar == null && lapData?.carOrdinal != null) {
+      setSelectedCar(lapData.carOrdinal);
+    }
+  }, [lapData, selectedTrack, selectedCar]);
+
   // Fetch track data via TanStack Query (keyed on trackOrdinal derived from selection or lap data)
-  const trackOrd = selectedTrack ?? lapData?.meta?.trackOrdinal ?? null;
+  const trackOrd = selectedTrack ?? lapData?.trackOrdinal ?? null;
   const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined);
   const outline = useMemo(() => {
     if (!outlineRaw) return null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: pre-existing
     const d = outlineRaw as any;
     if (d?.points && Array.isArray(d.points)) return d.points as Point[];
     if (Array.isArray(d)) return d as Point[];
     return null;
   }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: pre-existing
   const boundaries = (boundariesRaw as any) ?? null;
   const { data: sectorsRaw } = useTrackSectorBoundaries(trackOrd ?? undefined);
   const sectors = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: pre-existing
     const s = sectorsRaw as any;
     return s?.s1End ? (s as { s1End: number; s2End: number }) : null;
   }, [sectorsRaw]);
   const { data: segmentsRaw } = useTrackSectors(trackOrd ?? undefined);
   const segments = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: pre-existing
     const s = segmentsRaw as any;
     return s?.segments ? (s.segments as { type: string; name: string; startFrac: number; endFrac: number }[]) : null;
   }, [segmentsRaw]);
 
   const [carName, setCarName] = useState("");
   const [trackName, setTrackName] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: pre-existing
   const initialCursor = (search as any).cursor as number | undefined;
   const [cursorIdx, setCursorIdx] = useState(0);
   // Visual time fraction override — set during scrubbing through gaps
@@ -118,7 +140,7 @@ function LapAnalyseInner() {
   const [visualTimeFrac, setVisualTimeFrac] = useState<number | null>(null);
   const [sidebarTab, setSidebarTab] = useState<"live" | "insights">("live");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: pre-existing
   const vizParam = (search as any).viz as string | undefined;
   const [vizMode, setWheelTab] = useCookieState<"2d" | "3d">("analyse-vizMode", "2d");
   // URL ?viz= param overrides cookie on mount
@@ -223,8 +245,8 @@ function LapAnalyseInner() {
   }, [initialCarName, selectedCar]);
 
   // Batch-resolve track/car names for display via query hook
-  const missingTrackOrds = useMemo(() => [...new Set(laps.filter((l) => l.trackOrdinal != null && !trackNames[l.trackOrdinal!]).map((l) => l.trackOrdinal!))], [laps, trackNames]);
-  const missingCarOrds = useMemo(() => [...new Set(laps.filter((l) => l.carOrdinal != null && !carNames[l.carOrdinal!]).map((l) => l.carOrdinal!))], [laps, carNames]);
+  const missingTrackOrds = useMemo(() => [...new Set(laps.map((l) => l.trackOrdinal).filter((ord): ord is number => ord != null && !trackNames[ord]))], [laps, trackNames]);
+  const missingCarOrds = useMemo(() => [...new Set(laps.map((l) => l.carOrdinal).filter((ord): ord is number => ord != null && !carNames[ord]))], [laps, carNames]);
   const { data: resolvedNames } = useResolveNames(missingTrackOrds, missingCarOrds);
   useEffect(() => {
     if (!resolvedNames) return;
@@ -394,16 +416,16 @@ function LapAnalyseInner() {
   // Tune selector
   const { data: availableTunes } = useQuery({
     queryKey: ["tunes", selectedLap?.carOrdinal],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: pre-existing
     queryFn: () => client.api.tunes.$get({ query: { carOrdinal: selectedLap?.carOrdinal != null ? String(selectedLap.carOrdinal) : undefined } }).then((r) => r.json() as any),
     enabled: !!selectedLap?.carOrdinal,
   });
 
   const updateLapTune = useMutation({
     mutationFn: (tuneId: number | null) =>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       client.api.laps[":id"].tune
         .$patch({ param: { id: String(selectedLapId) }, json: { tuneId } })
+        // biome-ignore lint/suspicious/noExplicitAny: pre-existing
         .then((r) => r.json() as any),
     onMutate: (tuneId) => {
       // Optimistically update local laps state so dropdown doesn't reset
@@ -418,9 +440,9 @@ function LapAnalyseInner() {
 
   const updateLapNotesMutation = useMutation({
     mutationFn: (notes: string) =>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       client.api.laps[":id"].notes
         .$patch({ param: { id: String(selectedLapId) }, json: { notes: notes || null } })
+        // biome-ignore lint/suspicious/noExplicitAny: pre-existing
         .then((r) => r.json() as any),
     onMutate: (notes) => {
       setLaps((prev) => prev.map((l) => (l.id === selectedLapId ? { ...l, notes: notes || undefined } : l)));
@@ -432,9 +454,9 @@ function LapAnalyseInner() {
 
   const deleteLapMutation = useMutation({
     mutationFn: (lapId: number) =>
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       client.api.laps[":id"]
         .$delete({ param: { id: String(lapId) } })
+        // biome-ignore lint/suspicious/noExplicitAny: pre-existing
         .then((r) => r.json() as any),
     onSuccess: () => {
       setSelectedLapId(null);
@@ -489,28 +511,48 @@ function LapAnalyseInner() {
 
   // Import a raw session capture (.bin) — re-runs the pipeline server-side
   const [importingBin, setImportingBin] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    fileName: string;
+    packetCount: number;
+    laps: ImportedLap[];
+    gameId: string;
+    routePrefix: string;
+  } | null>(null);
   const handleImportBin = useCallback(
     async (file: File) => {
       setImportingBin(true);
       try {
         const body = new FormData();
         body.append("file", file);
-        const res = await fetch(`/api/laps/import`, { method: "POST", body });
+        const res = await fetch("/api/laps/import", { method: "POST", body });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
           window.alert(data?.error ?? `Import failed (${res.status})`);
           return;
         }
         queryClient.invalidateQueries({ queryKey: ["laps"] });
-        const n = data?.imported ?? 0;
-        window.alert(`Imported ${n} lap${n === 1 ? "" : "s"} from ${file.name}.`);
+        const laps: ImportedLap[] = data?.laps ?? [];
+        setImportResult({
+          fileName: file.name,
+          packetCount: data?.packetCount ?? 0,
+          laps,
+          gameId: data?.gameId,
+          routePrefix: data?.routePrefix,
+        });
+        // Auto-jump to the imported session when it belongs to the game we're already viewing
+        if (data?.gameId === gameId && laps.length > 0) {
+          const lastLap = laps[laps.length - 1];
+          setSelectedTrack(lastLap.trackOrdinal);
+          setSelectedCar(lastLap.carOrdinal);
+          setSelectedLapId(lastLap.lapId);
+        }
       } catch (e) {
         window.alert(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
       } finally {
         setImportingBin(false);
       }
     },
-    [queryClient],
+    [queryClient, gameId],
   );
 
   return (
@@ -551,18 +593,18 @@ function LapAnalyseInner() {
       {telemetry.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-app-text-muted text-sm">
           {loading ? (
-            <span>Loading lap telemetry...</span>
+            <span>{m.analyse_loading_telemetry()}</span>
           ) : isLegacyLap ? (
-            <span>This lap was recorded before raw telemetry storage. Lap times and metadata are preserved but telemetry charts are unavailable.</span>
+            <span>{m.lapanalyse_legacy_notice()}</span>
           ) : parseError ? (
             <div className="flex flex-col items-center gap-2 max-w-xl text-center">
-              <span className="text-app-danger font-medium">Failed to parse lap telemetry</span>
+              <span className="text-app-danger font-medium">{m.analyse_parse_error()}</span>
               <code className="text-xs text-app-text-muted whitespace-pre-wrap break-words">{parseError}</code>
             </div>
           ) : selectedLapId ? (
-            <span>No telemetry data for this lap.</span>
+            <span>{m.analyse_no_telemetry_data()}</span>
           ) : (
-            <span>Select a track, car, and lap to analyse.</span>
+            <span>{m.analyse_select_to_start()}</span>
           )}
         </div>
       )}
@@ -707,6 +749,37 @@ function LapAnalyseInner() {
 
       {/* F1 Car Setup modal */}
       {showSetup && telemetry[0]?.f1?.setup && <F1SetupModal setup={telemetry[0].f1.setup} onClose={() => setShowSetup(false)} />}
+
+      {/* Import result modal */}
+      {importResult &&
+        (() => {
+          const sameGame = importResult.gameId === gameId;
+          const lastLap = importResult.laps[importResult.laps.length - 1];
+          return (
+            <ImportResultModal
+              fileName={importResult.fileName}
+              packetCount={importResult.packetCount}
+              laps={importResult.laps}
+              sameGame={sameGame}
+              gameLabel={getGame(importResult.gameId as Parameters<typeof getGame>[0])?.shortName ?? importResult.gameId}
+              onGoToSession={
+                lastLap
+                  ? () => {
+                      if (sameGame) {
+                        setSelectedTrack(lastLap.trackOrdinal);
+                        setSelectedCar(lastLap.carOrdinal);
+                        setSelectedLapId(lastLap.lapId);
+                      } else {
+                        navigate({ to: `/${importResult.routePrefix}/analyse`, search: { track: lastLap.trackOrdinal, car: lastLap.carOrdinal, lap: lastLap.lapId } });
+                      }
+                      setImportResult(null);
+                    }
+                  : undefined
+              }
+              onClose={() => setImportResult(null)}
+            />
+          );
+        })()}
     </div>
   );
 }

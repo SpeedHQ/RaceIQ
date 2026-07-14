@@ -1,4 +1,5 @@
 import type { TelemetryPacket, GameId } from "@shared/types";
+import { m } from "../../paraglide/messages";
 import { useUnits } from "../../hooks/useUnits";
 import { getSteeringLock } from "../Settings";
 
@@ -12,17 +13,17 @@ export function MetricsPanel({ pkt, startFuel, gameId }: { pkt: TelemetryPacket 
 
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono">
-      <MetricRow label="Speed" value={`${speed.toFixed(0)} ${units.speedLabel}`} />
-      <MetricRow label="RPM" value={`${pkt.CurrentEngineRpm.toFixed(0)}`} />
-      <MetricRow label="Gear" value={`${pkt.Gear}`} />
-      <MetricRow label="Throttle" value={`${throttlePct}%`} color={Number(throttlePct) > 0 ? "#34d399" : undefined} />
-      <MetricRow label="Brake" value={`${brakePct}%`} color={Number(brakePct) > 0 ? "#ef4444" : undefined} />
-      <MetricRow label="Steer" value={`${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`} />
-      {(gameId === "fm-2023" || pkt.Boost > 0) && <MetricRow label="Boost" value={`${pkt.Boost.toFixed(1)} psi`} />}
-      {(gameId === "fm-2023" || pkt.Power > 0) && <MetricRow label="Power" value={`${(pkt.Power / 745.7).toFixed(0)} hp`} />}
-      {(gameId === "fm-2023" || pkt.Torque > 0) && <MetricRow label="Torque" value={`${pkt.Torque.toFixed(0)} Nm`} />}
+      <MetricRow label={m.dataguide_speed()} value={`${speed.toFixed(0)} ${units.speedLabel}`} />
+      <MetricRow label={m.dataguide_rpm()} value={`${pkt.CurrentEngineRpm.toFixed(0)}`} />
+      <MetricRow label={m.dataguide_gear()} value={`${pkt.Gear}`} />
+      <MetricRow label={m.dataguide_throttle()} value={`${throttlePct}%`} color={Number(throttlePct) > 0 ? "#34d399" : undefined} />
+      <MetricRow label={m.dataguide_brake()} value={`${brakePct}%`} color={Number(brakePct) > 0 ? "#ef4444" : undefined} />
+      <MetricRow label={m.dataguide_steer()} value={`${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`} />
+      {(gameId === "fm-2023" || pkt.Boost > 0) && <MetricRow label={m.dataguide_boost()} value={`${pkt.Boost.toFixed(1)} psi`} />}
+      {(gameId === "fm-2023" || pkt.Power > 0) && <MetricRow label={m.dataguide_power_torque()} value={`${(pkt.Power / 745.7).toFixed(0)} hp`} />}
+      {(gameId === "fm-2023" || pkt.Torque > 0) && <MetricRow label={m.dataguide_power_torque()} value={`${pkt.Torque.toFixed(0)} Nm`} />}
       <div className="col-span-2 flex justify-between">
-        <span className="text-app-text-muted">Fuel</span>
+        <span className="text-app-text-muted">{m.dataguide_fuel()}</span>
         <span className="tabular-nums">
           <span className="text-amber-400">{startFuel != null ? ((startFuel - pkt.Fuel) * 100).toFixed(1) : "?"}</span>
           <span className="text-app-text-dim"> used </span>

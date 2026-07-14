@@ -21,7 +21,7 @@ import {
   getLapsRaw,
 } from "../db/queries";
 import { KNOWN_GAME_IDS } from "../../shared/types";
-import { importSessionBin, detectGameIdFromFilename } from "../import-session-bin";
+import { importSessionBin, detectGameIdFromBuffer } from "../import-session-bin";
 import { assessLapRecording } from "../lap-quality";
 
 // Toggle: set true to use native ACC lastSectorTime transitions in recheck instead of distance-fraction
@@ -41,6 +41,10 @@ import { getChatMemory, chatThreadId, compareChatThreadId, CHAT_RESOURCE_ID } fr
 import { getSecret } from "../keystore";
 import { deleteAnalysis as deleteAnalysisQuery } from "../db/queries";
 import { tryGetGame } from "../../shared/games/registry";
+import { gzip } from "zlib";
+import { promisify } from "util";
+
+const gzipAsync = promisify(gzip);
 import { loadSharedTrackMeta } from "../../shared/track-data";
 import { buildChatSystemPrompt } from "../ai/chat-prompt";
 import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
@@ -229,16 +233,18 @@ export const lapRoutes = new Hono()
 
     const file = Bun.file(row.rawFile);
     if (!(await file.exists())) return c.json({ error: "Raw capture file is missing on disk" }, 410);
-    const bytes = new Uint8Array(await file.arrayBuffer());
+    let bytes = new Uint8Array(await file.arrayBuffer());
+    if (!row.rawFile.endsWith(".gz")) {
+      bytes = new Uint8Array(await gzipAsync(Buffer.from(bytes)));
+    }
 
     const trackName = tryGetGame(row.gameId)?.getTrackName?.(row.trackOrdinal ?? -1);
     const slug = (trackName || `track${row.trackOrdinal ?? 0}`)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
-    const gzExt = row.rawFile.endsWith(".gz") ? ".gz" : "";
     // Filename MUST start with `<gameId>-` so re-import can detect the game.
-    const filename = `${row.gameId}-${slug}-session${row.sessionId}.bin${gzExt}`;
+    const filename = `${row.gameId}-${slug}-session${row.sessionId}.bin.gz`;
 
     c.header("Content-Type", "application/octet-stream");
     c.header("Content-Disposition", `attachment; filename="${filename}"`);
@@ -248,7 +254,8 @@ export const lapRoutes = new Hono()
 
   // ── Import a raw session capture (.bin) ─────────────────────
   // Feeds an uploaded session .bin through the full pipeline so its laps land
-  // in the DB as a fresh session. GameId is detected from the filename prefix.
+  // in the DB as a fresh session. GameId is detected from the frame content
+  // (each adapter's canHandle()), not the uploaded filename.
   .post("/api/laps/import", async (c) => {
     const form = await c.req.formData().catch(() => null);
     const file = form?.get("file");
@@ -260,16 +267,16 @@ export const lapRoutes = new Hono()
       return c.json({ error: "Expected a .bin or .bin.gz file" }, 400);
     }
 
-    const gameId = detectGameIdFromFilename(uploadName);
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const gameId = detectGameIdFromBuffer(bytes);
     if (!gameId) {
       return c.json(
-        { error: `Could not detect game from filename "${uploadName}". Expected prefix: ${KNOWN_GAME_IDS.join(", ")}.` },
+        { error: `Could not detect game from "${uploadName}" — no recognized frame format found. Supported games: ${KNOWN_GAME_IDS.join(", ")}.` },
         400
       );
     }
 
     try {
-      const bytes = Buffer.from(await file.arrayBuffer());
       const { packetCount, laps } = await importSessionBin(bytes, gameId);
       if (packetCount === 0) return c.json({ error: "No telemetry packets found in file" }, 400);
       return c.json({
@@ -383,7 +390,7 @@ export const lapRoutes = new Hono()
       /* ignore */
     }
 
-    let prompt = buildAnalystPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, segments);
+    let prompt = buildAnalystPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, segments, undefined, settings.language);
     if (lap.gameId === "f1-2025") {
       prompt += buildF1SetupReferenceBlock(lap.carSetup, lap.telemetry, lap.trackOrdinal ?? -1);
     }
@@ -580,7 +587,7 @@ export const lapRoutes = new Hono()
     const analysisJson = cached?.analysis;
 
     // Build chat prompt
-    const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson);
+    const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language);
 
     // Set up API key env vars for Mastra/AI SDK (uses chatProvider setting)
     const chatProvider = settings.chatProvider;
@@ -883,6 +890,8 @@ export const lapRoutes = new Hono()
       segments,
       settings.unit,
       settings.temperatureUnit,
+      undefined,
+      settings.language,
     );
 
     // Set provider env vars before calling Mastra (the dynamic model resolver
@@ -1030,6 +1039,7 @@ export const lapRoutes = new Hono()
       cachedB.analysis,
       settings.unit,
       settings.temperatureUnit,
+      settings.language,
     );
 
     const chatProvider = settings.chatProvider;

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { TelemetryPacket } from "@shared/types";
+import { m } from "../paraglide/messages";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
 
@@ -118,7 +119,7 @@ export function CurrentLapStats({ packet }: Props) {
     <div className="p-3 space-y-2">
       <div className="flex justify-between items-end mb-1">
         <div>
-          <div className="text-xs text-app-text-muted uppercase tracking-wider">Current Lap</div>
+          <div className="text-xs text-app-text-muted uppercase tracking-wider">{m.livestats_current_lap_label()}</div>
           <div className="text-xl font-mono font-semibold text-app-text tabular-nums">{formatLapTime(packet.CurrentLap)}</div>
         </div>
         <div className="text-right">
@@ -160,10 +161,10 @@ export function CurrentLapStats({ packet }: Props) {
                 <div className="flex items-center justify-between mt-0.5">
                   <div className="flex gap-3">
                     <span className="text-[9px] text-app-text-muted">
-                      Last <span className="font-mono text-app-text-secondary">{last > 0 ? formatLapTime(last) : "-"}</span>
+                      {m.telemetry_last()} <span className="font-mono text-app-text-secondary">{last > 0 ? formatLapTime(last) : "-"}</span>
                     </span>
                     <span className="text-[9px] text-purple-400">
-                      Best <span className="font-mono">{best > 0 ? formatLapTime(best) : "-"}</span>
+                      {m.label_best()} <span className="font-mono">{best > 0 ? formatLapTime(best) : "-"}</span>
                     </span>
                   </div>
                   {delta && (
@@ -179,15 +180,15 @@ export function CurrentLapStats({ packet }: Props) {
           {/* Last/Best total */}
           <div className="flex justify-between pt-1 border-t border-app-border/50">
             <span className="text-[9px] text-app-text-muted">
-              Last <span className="font-mono text-app-text-secondary">{s.lastTimes[0] > 0 ? formatLapTime(s.lastTimes[0] + s.lastTimes[1] + s.lastTimes[2]) : "-"}</span>
+              {m.telemetry_last()} <span className="font-mono text-app-text-secondary">{s.lastTimes[0] > 0 ? formatLapTime(s.lastTimes[0] + s.lastTimes[1] + s.lastTimes[2]) : "-"}</span>
             </span>
             <span className="text-[9px] text-purple-400">
-              Best <span className="font-mono">{s.bestTimes[0] < Infinity ? formatLapTime(s.bestTimes[0] + s.bestTimes[1] + s.bestTimes[2]) : "-"}</span>
+              {m.label_best()} <span className="font-mono">{s.bestTimes[0] < Infinity ? formatLapTime(s.bestTimes[0] + s.bestTimes[1] + s.bestTimes[2]) : "-"}</span>
             </span>
           </div>
         </div>
       ) : (
-        <div className="border-t border-app-border pt-2 text-xs text-app-text-muted">Complete a lap to see sector times</div>
+        <div className="border-t border-app-border pt-2 text-xs text-app-text-muted">{m.livestats_complete_lap_message()}</div>
       )}
     </div>
   );

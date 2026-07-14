@@ -1,4 +1,5 @@
 import type { TelemetryPacket, GameId } from "@shared/types";
+import { m } from "../../paraglide/messages";
 import { Info } from "lucide-react";
 import { allWheelStates, allFrictionCircle, steerBalance, tireState, slipRatioColor, frictionUtilColor, balanceColor, tireTempLabel } from "../../lib/vehicle-dynamics";
 import type { useUnits } from "../../hooks/useUnits";
@@ -40,7 +41,7 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
 
   const slipTitle = (
     <span className="flex items-center gap-1 group relative">
-      Slip
+      {m.label_slip()}
       <Info className="w-3 h-3 text-app-text-dim cursor-help inline" />
       <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">
         Ratio: wheel speed vs ground speed
@@ -64,7 +65,7 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
       {/* Balance */}
       <div className="flex justify-between">
         <span className="flex items-center gap-1 group relative text-app-text-muted">
-          Balance
+          {m.label_balance()}
           <Info className="w-3 h-3 text-app-text-dim cursor-help" />
           <span className="absolute left-0 top-full mt-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2.5 py-2 text-[10px] text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal w-[300px]">
             <span className="block mb-1">Yaw rate vs path curvature + front/rear slip-angle delta.</span>
@@ -137,7 +138,7 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
 
                   {/* Combined balance bar */}
                   <text x="0" y="80" fill="currentColor" opacity="0.5" fontSize="6.5">
-                    Combined
+                    {m.label_combined()}
                   </text>
                   <rect x="0" y="82" width="200" height="10" rx="1" fill="currentColor" opacity="0.06" />
                   <rect x="0" y="82" width={thrLeftX} height="10" fill="#ef4444" opacity="0.18" />
@@ -148,13 +149,13 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
                   <line x1={thrRightX} y1="78" x2={thrRightX} y2="96" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
                   <circle cx={currentX} cy="87" r="4" fill={balanceColor(bal.state)} stroke="#0f172a" strokeWidth="1.2" />
                   <text x={thrLeftX / 2} y="106" textAnchor="middle" fill="#ef4444" fontSize="7" fontWeight="600">
-                    OVER
+                    {m.dynamics_over()}
                   </text>
                   <text x="100" y="106" textAnchor="middle" fill="#34d399" fontSize="7" fontWeight="600">
-                    NEUTRAL
+                    {m.dynamics_neutral()}
                   </text>
                   <text x={(thrRightX + 200) / 2} y="106" textAnchor="middle" fill="#3b82f6" fontSize="7" fontWeight="600">
-                    UNDER
+                    {m.dynamics_under()}
                   </text>
                 </svg>
               );
@@ -172,7 +173,7 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
 
       {/* G-Force */}
       <div className="flex justify-between">
-        <span className="text-app-text-muted">G-Force</span>
+        <span className="text-app-text-muted">{m.analyse_g_force()}</span>
         <span className="tabular-nums text-app-text">
           Lat {latG > 0 ? "+" : ""}
           {latG.toFixed(2)}g<span className="text-app-text-dim"> </span>
@@ -184,7 +185,7 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
       {/* Brake Bias (ACC) */}
       {currentPacket.acc && (
         <div className="flex justify-between">
-          <span className="text-app-text-muted">Brake Bias</span>
+          <span className="text-app-text-muted">{m.analyse_brake_bias()}</span>
           <span className="tabular-nums text-app-text">{(currentPacket.acc.brakeBias * 100).toFixed(1)}%F</span>
         </div>
       )}
@@ -193,15 +194,15 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
       <WheelTable
         rows={[
           {
-            label: "Grip Ask",
+            label: m.analyse_dynamics_grip_ask(),
             fl: C(`${(fc.fl * 100).toFixed(0)}%`, frictionUtilColor(fc.fl)),
             fr: C(`${(fc.fr * 100).toFixed(0)}%`, frictionUtilColor(fc.fr)),
             rl: C(`${(fc.rl * 100).toFixed(0)}%`, frictionUtilColor(fc.rl)),
             rr: C(`${(fc.rr * 100).toFixed(0)}%`, frictionUtilColor(fc.rr)),
           },
-          { label: "Traction", fl: C(states[0].label, states[0].color), fr: C(states[1].label, states[1].color), rl: C(states[2].label, states[2].color), rr: C(states[3].label, states[3].color) },
+          { label: m.analyse_dynamics_traction(), fl: C(states[0].label, states[0].color), fr: C(states[1].label, states[1].color), rl: C(states[2].label, states[2].color), rr: C(states[3].label, states[3].color) },
           {
-            label: "Temp",
+            label: m.analyse_dynamics_temp(),
             fl: C(states[0].temp.label, states[0].temp.color),
             fr: C(states[1].temp.label, states[1].temp.color),
             rl: C(states[2].temp.label, states[2].temp.color),
@@ -210,40 +211,40 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
           ...(!isF1
             ? [
                 {
-                  label: "Surface",
+                  label: m.analyse_dynamics_surface(),
                   fl: (
                     <span className="text-app-text-dim">
                       {currentPacket.WheelOnRumbleStripFL !== 0
-                        ? C("CURB", "#fb923c")
+                        ? C(m.analyse_dynamics_curb(), "#fb923c")
                         : currentPacket.WheelInPuddleDepthFL > 0
-                          ? C(`WET ${(currentPacket.WheelInPuddleDepthFL * 100).toFixed(0)}%`, "#3b82f6")
+                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthFL * 100).toFixed(0)}%`, "#3b82f6")
                           : "—"}
                     </span>
                   ),
                   fr: (
                     <span className="text-app-text-dim">
                       {currentPacket.WheelOnRumbleStripFR !== 0
-                        ? C("CURB", "#fb923c")
+                        ? C(m.analyse_dynamics_curb(), "#fb923c")
                         : currentPacket.WheelInPuddleDepthFR > 0
-                          ? C(`WET ${(currentPacket.WheelInPuddleDepthFR * 100).toFixed(0)}%`, "#3b82f6")
+                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthFR * 100).toFixed(0)}%`, "#3b82f6")
                           : "—"}
                     </span>
                   ),
                   rl: (
                     <span className="text-app-text-dim">
                       {currentPacket.WheelOnRumbleStripRL !== 0
-                        ? C("CURB", "#fb923c")
+                        ? C(m.analyse_dynamics_curb(), "#fb923c")
                         : currentPacket.WheelInPuddleDepthRL > 0
-                          ? C(`WET ${(currentPacket.WheelInPuddleDepthRL * 100).toFixed(0)}%`, "#3b82f6")
+                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthRL * 100).toFixed(0)}%`, "#3b82f6")
                           : "—"}
                     </span>
                   ),
                   rr: (
                     <span className="text-app-text-dim">
                       {currentPacket.WheelOnRumbleStripRR !== 0
-                        ? C("CURB", "#fb923c")
+                        ? C(m.analyse_dynamics_curb(), "#fb923c")
                         : currentPacket.WheelInPuddleDepthRR > 0
-                          ? C(`WET ${(currentPacket.WheelInPuddleDepthRR * 100).toFixed(0)}%`, "#3b82f6")
+                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthRR * 100).toFixed(0)}%`, "#3b82f6")
                           : "—"}
                     </span>
                   ),
@@ -259,14 +260,14 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
         borderTop
         rows={[
           {
-            label: "Ratio",
+            label: m.analyse_dynamics_ratio(),
             fl: C(`${(ws.fl.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.fl.slipRatio)),
             fr: C(`${(ws.fr.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.fr.slipRatio)),
             rl: C(`${(ws.rl.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.rl.slipRatio)),
             rr: C(`${(ws.rr.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.rr.slipRatio)),
           },
           {
-            label: "Angle",
+            label: m.analyse_dynamics_angle(),
             fl: C(`${fmt(currentPacket.TireSlipAngleFL)}°`, angleColor(currentPacket.TireSlipAngleFL)),
             fr: C(`${fmt(currentPacket.TireSlipAngleFR)}°`, angleColor(currentPacket.TireSlipAngleFR)),
             rl: C(`${fmt(currentPacket.TireSlipAngleRL)}°`, angleColor(currentPacket.TireSlipAngleRL)),

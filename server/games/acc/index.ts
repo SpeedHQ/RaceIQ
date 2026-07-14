@@ -1,10 +1,12 @@
 import type { ServerGameAdapter } from "../types";
 import type { TelemetryPacket } from "../../../shared/types";
 import { accAdapter } from "../../../shared/games/acc";
-import { getAccCarName } from "../../../shared/acc-car-data";
-import { getAccTrackName, getAccSharedTrackName } from "../../../shared/acc-track-data";
+import { getAccCarName, getAccCarByModel } from "../../../shared/acc-car-data";
+import { getAccTrackName, getAccSharedTrackName, getAccTrackByName } from "../../../shared/acc-track-data";
 import { LapDetectorAcc } from "../../lap-detector-acc";
 import { parseAccBuffers } from "./parser";
+import { STATIC } from "./structs";
+import { readWString } from "./utils";
 import { ACC_PACKED_MAGIC, unpackTriplet } from "../shared/pack-triplet";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 
@@ -66,9 +68,28 @@ export const accServerAdapter: ServerGameAdapter = {
   tryParse(buf: Buffer, _state: unknown): TelemetryPacket | null {
     const triplet = unpackTriplet(buf);
     if (!triplet) return null;
+
+    // Prefer re-resolving from the embedded static struct over the packed
+    // header — the header is a cache of whatever ParsingProcessor had
+    // resolved *at capture time*, which older recordings baked in as 0
+    // (Monza/car #0) whenever resolution hadn't happened yet. The static
+    // struct is the ground truth and is stored in full on every frame, so
+    // re-deriving here repairs already-recorded .bin files on import too.
+    let carOrdinal = triplet.carOrdinal;
+    let trackOrdinal = triplet.trackOrdinal;
+    if (triplet.staticData.length >= STATIC.SIZE) {
+      const cm = readWString(triplet.staticData, STATIC.carModel.offset, STATIC.carModel.size);
+      const resolvedCar = cm ? getAccCarByModel(cm)?.id : undefined;
+      if (resolvedCar != null) carOrdinal = resolvedCar;
+
+      const tn = readWString(triplet.staticData, STATIC.track.offset, STATIC.track.size);
+      const resolvedTrack = tn ? getAccTrackByName(tn)?.id : undefined;
+      if (resolvedTrack != null) trackOrdinal = resolvedTrack;
+    }
+
     return parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData, {
-      carOrdinal: triplet.carOrdinal,
-      trackOrdinal: triplet.trackOrdinal,
+      carOrdinal,
+      trackOrdinal,
     });
   },
 

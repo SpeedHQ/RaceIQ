@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { m } from "@/paraglide/messages";
 import { Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";
 
 interface F1Driver {
@@ -305,14 +306,14 @@ const powerUnitGroups = [
 ];
 
 const statLabels: { key: keyof CarStats; label: string }[] = [
-  { key: "overallRating", label: "Overall" },
-  { key: "pace", label: "Pace" },
-  { key: "straightLineSpeed", label: "Straight Speed" },
-  { key: "cornerSpeed", label: "Corner Speed" },
-  { key: "braking", label: "Braking" },
-  { key: "traction", label: "Traction" },
-  { key: "aeroEfficiency", label: "Aero Efficiency" },
-  { key: "reliability", label: "Reliability" },
+  { key: "overallRating", label: m.f1cars_overall() },
+  { key: "pace", label: m.label_pace() },
+  { key: "straightLineSpeed", label: m.f1cars_straight_speed() },
+  { key: "cornerSpeed", label: m.f1cars_corner_speed() },
+  { key: "braking", label: m.label_braking() },
+  { key: "traction", label: m.f1cars_traction() },
+  { key: "aeroEfficiency", label: m.f1cars_aero_efficiency() },
+  { key: "reliability", label: m.f1cars_reliability() },
 ];
 
 type ViewMode = "grid" | "table";
@@ -333,7 +334,7 @@ export function F1Cars() {
         <div className="flex items-center rounded-lg border border-app-border overflow-hidden">
           <button
             onClick={() => setView("table")}
-            title="Table view"
+            title={m.label_table_view()}
             className={`px-2.5 py-1.5 transition-colors ${view === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90-muted hover:text-app-text/90"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -343,7 +344,7 @@ export function F1Cars() {
           </button>
           <button
             onClick={() => setView("grid")}
-            title="Grid view"
+            title={m.label_grid_view()}
             className={`px-2.5 py-1.5 transition-colors ${view === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90-muted hover:text-app-text/90"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -360,7 +361,7 @@ export function F1Cars() {
 
       {/* Regulation Specs */}
       <div>
-        <h2 className="text-sm font-semibold text-app-text/90 uppercase tracking-wider mb-3">2025 Technical Regulations</h2>
+        <h2 className="text-sm font-semibold text-app-text/90 uppercase tracking-wider mb-3">{m.f1cars_regulations()}</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {Object.entries(regulations).map(([key, value]) => (
             <div key={key} className="bg-app-surface-alt/20 rounded-lg p-3">
@@ -373,7 +374,7 @@ export function F1Cars() {
 
       {/* Power Unit Groups */}
       <div>
-        <h2 className="text-sm font-semibold text-app-text/90 uppercase tracking-wider mb-3">Power Unit Suppliers</h2>
+        <h2 className="text-sm font-semibold text-app-text/90 uppercase tracking-wider mb-3">{m.f1cars_power_units()}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {powerUnitGroups.map((pu) => (
             <div key={pu.name} className="bg-app-surface-alt/20 rounded-lg p-3">
@@ -470,15 +471,15 @@ function TeamCard({ team }: { team: F1Team }) {
         {/* Info row */}
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs border-t border-app-border/30 pt-2">
           <div className="flex justify-between">
-            <span className="text-app-text/90-dim">Power Unit</span>
+            <span className="text-app-text/90-dim">{m.label_power_unit()}</span>
             <span className="text-app-text/90">{team.powerUnit}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-app-text/90-dim">Base</span>
+            <span className="text-app-text/90-dim">{m.label_base()}</span>
             <span className="text-app-text/90">{team.base}</span>
           </div>
           <div className="flex justify-between col-span-2">
-            <span className="text-app-text/90-dim">Team Principal</span>
+            <span className="text-app-text/90-dim">{m.label_team_principal()}</span>
             <span className="text-app-text/90">{team.teamPrincipal}</span>
           </div>
         </div>
@@ -491,10 +492,10 @@ function TableView() {
   return (
     <Table>
       <THead>
-        <TH>Team</TH>
-        <TH>Chassis</TH>
+        <TH>{m.label_team()}</TH>
+        <TH>{m.label_chassis()}</TH>
         <TH>PU</TH>
-        <TH>Drivers</TH>
+        <TH>{m.label_drivers()}</TH>
         <TH className="text-right px-2">OVR</TH>
         <TH className="text-right px-2">PAC</TH>
         <TH className="text-right px-2">SPD</TH>

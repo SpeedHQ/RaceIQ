@@ -1,4 +1,5 @@
 import { memo, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
+import { m } from "../../paraglide/messages";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { TelemetryChart } from "./AnalyseTelemetryChart";
 
@@ -219,7 +220,7 @@ export const AnalyseChartsPanel = memo(
       <div className="flex-1 min-h-0 overflow-y-auto relative" ref={scrollRef}>
         <canvas ref={cursorOverlayRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }} />
         <div className="p-3 space-y-2">
-          <TelemetryChart series={[{ data: chartData.speed, color: "#22d3ee", label: `Speed (${speedLabel})` }]} {...common} height={100} />
+          <TelemetryChart series={[{ data: chartData.speed, color: "#22d3ee", label: `${m.label_speed()} (${speedLabel})` }]} {...common} height={100} />
           <TelemetryChart
             series={[
               { data: chartData.throttle, color: "#34d399", label: "Throttle %" },
@@ -228,7 +229,7 @@ export const AnalyseChartsPanel = memo(
             {...common}
             height={100}
           />
-          <TelemetryChart series={[{ data: chartData.rpm, color: "#a855f7", label: "RPM" }]} {...common} height={100} />
+          <TelemetryChart series={[{ data: chartData.rpm, color: "#a855f7", label: m.dataguide_rpm() }]} {...common} height={100} />
           <TelemetryChart series={[{ data: chartData.steering, color: "#fbbf24", label: "Steering" }]} {...common} height={80} />
           {chartData.drs && <TelemetryChart series={[{ data: chartData.drs, color: "#22c55e", label: "DRS" }]} {...common} height={40} />}
           {chartData.ersStore && chartData.ersDeployed && (

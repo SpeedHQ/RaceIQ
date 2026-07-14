@@ -1,43 +1,34 @@
 import { useState } from "react";
+import { m } from "@/paraglide/messages";
 import { useGameId } from "../stores/game";
 import { useSettings } from "../hooks/queries";
 
 function ForzaSetupGuide({ port }: { port: string }) {
   return (
     <div className="mt-4 rounded-lg border border-app-border bg-app-surface-alt p-4 max-w-lg">
-      <h3 className="text-sm font-semibold text-app-text mb-3">Forza Motorsport (2023) — Data Out Setup</h3>
+      <h3 className="text-sm font-semibold text-app-text mb-3">{m.setupguide_forza_title()}</h3>
       <ol className="space-y-2.5 text-sm text-app-text-muted list-decimal list-inside">
+        <li>{m.setupguide_forza_step1()}</li>
+        <li>{m.setupguide_forza_step2()}</li>
+        <li>{m.setupguide_forza_step3()}</li>
         <li>
-          Open <span className="text-app-text">Forza Motorsport</span> and go to <span className="text-app-text">Settings</span>.
+          {m.setupguide_data_out_on()}
         </li>
         <li>
-          Navigate to <span className="text-app-text">Gameplay &amp; HUD</span>.
-        </li>
-        <li>
-          Scroll down to the <span className="text-app-text">UDP Race Telemetry</span> section.
-        </li>
-        <li>
-          Set <span className="text-app-text">Data Out</span> to <span className="text-app-accent font-medium">On</span>.
-        </li>
-        <li>
-          Set <span className="text-app-text">Data Out IP Address</span> to your PC's local IP address (e.g.{" "}
-          <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 text-xs font-mono">192.168.1.x</code>
+          {m.setupguide_data_out_ip()} <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 text-xs font-mono">192.168.1.x</code>
           ).
           <p className="mt-1 text-xs text-app-text-muted/70">
-            If the game is on the same PC, use <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 font-mono">127.0.0.1</code>
+            {m.setupguide_same_pc_note()} <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 font-mono">127.0.0.1</code>
           </p>
         </li>
         <li>
-          Set <span className="text-app-text">Data Out IP Port</span> to <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 text-xs font-mono">{port}</code> (must match Settings &gt;
-          Connection).
+          {m.setupguide_data_out_port()} <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 text-xs font-mono">{port}</code> {m.setupguide_match_settings()}
         </li>
-        <li>
-          Set <span className="text-app-text">Data Out Packet Format</span> to <span className="text-app-accent font-medium">Car Dash</span>.
-        </li>
+        <li>{m.setupguide_data_out_packet_format()}</li>
       </ol>
       <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
         <p className="text-xs text-amber-400">
-          <span className="font-semibold">Note:</span> Telemetry only sends data while you're in an active session (Practice, Qualifying, or Race). You won't receive data from menus or replays.
+          <span className="font-semibold">{m.setupguide_note_label()}</span> {m.setupguide_forza_note()}
         </p>
       </div>
     </div>
@@ -47,40 +38,27 @@ function ForzaSetupGuide({ port }: { port: string }) {
 function F1SetupGuide({ port }: { port: string }) {
   return (
     <div className="mt-4 rounded-lg border border-app-border bg-app-surface-alt p-4 max-w-lg">
-      <h3 className="text-sm font-semibold text-app-text mb-3">EA Sports F1 2025 — UDP Telemetry Setup</h3>
+      <h3 className="text-sm font-semibold text-app-text mb-3">{m.setupguide_f1_title()}</h3>
       <ol className="space-y-2.5 text-sm text-app-text-muted list-decimal list-inside">
+        <li>{m.setupguide_f1_step1()}</li>
+        <li>{m.setupguide_f1_step2()}</li>
+        <li>{m.setupguide_udp_telemetry_on()}</li>
+        <li>{m.setupguide_udp_broadcast_off()}</li>
         <li>
-          Open <span className="text-app-text">F1 2025</span> and go to <span className="text-app-text">Settings</span> (main menu).
-        </li>
-        <li>
-          Navigate to <span className="text-app-text">Telemetry Settings</span>.
-        </li>
-        <li>
-          Set <span className="text-app-text">UDP Telemetry</span> to <span className="text-app-accent font-medium">On</span>.
-        </li>
-        <li>
-          Set <span className="text-app-text">UDP Broadcast Mode</span> to <span className="text-app-accent font-medium">Off</span> (unicast).
-        </li>
-        <li>
-          Set <span className="text-app-text">UDP IP Address</span> to your PC's local IP address.
+          {m.setupguide_udp_ip()}
           <p className="mt-1 text-xs text-app-text-muted/70">
-            If the game is on the same PC, use <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 font-mono">127.0.0.1</code>
+            {m.setupguide_same_pc_note()} <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 font-mono">127.0.0.1</code>
           </p>
         </li>
         <li>
-          Set <span className="text-app-text">UDP Port</span> to <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 text-xs font-mono">{port}</code> (must match Settings &gt;
-          Connection).
+          {m.setupguide_udp_port()} <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 text-xs font-mono">{port}</code> {m.setupguide_match_settings()}
         </li>
-        <li>
-          Set <span className="text-app-text">UDP Send Rate</span> to <span className="text-app-accent font-medium">60 Hz</span> for best data quality.
-        </li>
-        <li>
-          Set <span className="text-app-text">UDP Format</span> to <span className="text-app-accent font-medium">2025</span>.
-        </li>
+        <li>{m.setupguide_udp_send_rate()}</li>
+        <li>{m.setupguide_udp_format()}</li>
       </ol>
       <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
         <p className="text-xs text-amber-400">
-          <span className="font-semibold">Note:</span> Telemetry only sends during active sessions (Practice, Qualifying, Sprint, Race).
+          <span className="font-semibold">{m.setupguide_note_label()}</span> {m.setupguide_f1_note()}
         </p>
       </div>
     </div>
@@ -90,21 +68,21 @@ function F1SetupGuide({ port }: { port: string }) {
 function AccSetupGuide() {
   return (
     <div className="mt-4 rounded-lg border border-app-border bg-app-surface-alt p-4 max-w-lg">
-      <h3 className="text-sm font-semibold text-app-text mb-3">Assetto Corsa Competizione — Setup</h3>
+      <h3 className="text-sm font-semibold text-app-text mb-3">{m.setupguide_acc_title()}</h3>
       <ol className="space-y-2.5 text-sm text-app-text-muted list-decimal list-inside">
         <li>
-          ACC uses <span className="text-app-text">shared memory</span> — no UDP configuration required.
+          {m.setupguide_acc_step1_prefix()} <span className="text-app-text">{m.setupguide_acc_shared_memory()}</span> {m.setupguide_acc_step1_suffix()}
         </li>
         <li>
-          RaceIQ must be running on the <span className="text-app-text">same PC</span> as Assetto Corsa Competizione.
+          {m.setupguide_acc_step2_prefix()} <span className="text-app-text">{m.setupguide_acc_same_pc()}</span> {m.setupguide_acc_step2_suffix()}
         </li>
         <li>
-          Launch ACC and enter a <span className="text-app-text">practice or race session</span> — data will appear automatically once the session starts.
+          {m.setupguide_acc_step3_prefix()} <span className="text-app-text">{m.setupguide_acc_practice_session()}</span> {m.setupguide_acc_step3_suffix()}
         </li>
       </ol>
       <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
         <p className="text-xs text-amber-400">
-          <span className="font-semibold">Note:</span> Shared memory is only active while ACC is running and a session is in progress. Data won't appear from the main menu.
+          <span className="font-semibold">{m.setupguide_note_label()}</span> {m.setupguide_acc_note()}
         </p>
       </div>
     </div>
@@ -117,7 +95,7 @@ export function NoDataView() {
   const { displaySettings } = useSettings();
   const port = String((displaySettings as any).udpPort ?? "5300");
 
-  const guideLabel = gameId === "f1-2025" ? "How to enable UDP Telemetry in F1 2025" : gameId === "acc" ? "How to connect Assetto Corsa Competizione" : "How to enable Data Out in Forza Motorsport";
+  const guideLabel = gameId === "f1-2025" ? m.settings_f1_guide_toggle() : gameId === "acc" ? m.nodata_guide_acc() : m.settings_forza_guide_toggle();
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
@@ -132,8 +110,8 @@ export function NoDataView() {
       </div>
 
       <div className="text-center">
-        <div className="text-sm font-semibold text-app-text">Waiting for telemetry</div>
-        <div className="text-xs text-app-text-muted mt-1">Start a session in-game to begin receiving data</div>
+        <div className="text-sm font-semibold text-app-text">{m.nodata_waiting_title()}</div>
+        <div className="text-xs text-app-text-muted mt-1">{m.nodata_waiting_desc()}</div>
       </div>
 
       <div>

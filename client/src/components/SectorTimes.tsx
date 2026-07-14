@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { m } from "@/paraglide/messages";
 import { formatLapTime } from "@/lib/format";
 import { getSoundEnabled, getSoundVolume, getSoundType, getSoundUrl } from "./Settings";
 import type { LiveSectorData } from "@shared/types";
@@ -116,7 +117,7 @@ export function SectorTimes({ sectors }: { sectors: LiveSectorData | null }) {
 
   if (!sectors) return null;
 
-  const sectorNames = ["S1", "S2", "S3"];
+  const sectorNames = [m.sectortimes_s1(), m.sectortimes_s2(), m.sectortimes_s3()];
   const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
 
   return (
@@ -153,11 +154,11 @@ export function SectorTimes({ sectors }: { sectors: LiveSectorData | null }) {
                 )}
               </div>
               <div className="flex justify-between mt-1">
-                <span className="text-[10px] text-app-text-muted">Last</span>
+                <span className="text-[10px] text-app-text-muted">{m.label_last()}</span>
                 <span className="text-sm font-mono font-bold text-app-text-secondary tabular-nums">{last > 0 ? formatLapTime(last) : "-"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[10px] text-purple-400">Best</span>
+                <span className="text-[10px] text-purple-400">{m.label_best()}</span>
                 <span className="text-sm font-mono font-bold text-purple-400 tabular-nums">{best > 0 ? formatLapTime(best) : "-"}</span>
               </div>
             </div>

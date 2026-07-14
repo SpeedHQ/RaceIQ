@@ -1,10 +1,12 @@
 import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/components/tune/tune-constants";
 import { useState, type ReactNode } from "react";
 import type { TuneRow } from "./types";
+import { m } from "@/paraglide/messages";
 
-const SOURCE_LABEL: Record<TuneRow["source"], string> = {
-  community: "Community",
-  user: "Yours",
+// Resolve at render time — calling m.*() at module scope would freeze the locale.
+const SOURCE_LABEL: Record<TuneRow["source"], () => string> = {
+  community: () => m.browser_community(),
+  user: () => m.tune_source_yours(),
 };
 
 // Shared responsive grid: mobile shows #, name, lap, chevron; sm+ adds car + track + category + author.
@@ -39,7 +41,7 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
         <span className={`text-sm font-bold text-center ${rank === 1 && hasTime ? "text-app-accent" : "text-app-text-muted"}`}>{rank}</span>
         <span className="min-w-0">
           <span className="block text-[15px] font-semibold truncate">{row.name}</span>
-          <span className="block text-[10px] text-app-text-muted mt-1">{SOURCE_LABEL[row.source]}</span>
+          <span className="block text-[10px] text-app-text-muted mt-1">{SOURCE_LABEL[row.source]()}</span>
         </span>
         <span className="hidden sm:block text-[13px] text-app-text-secondary min-w-0 truncate">{carName}</span>
         <span className={`hidden sm:block text-[13px] min-w-0 truncate ${trackName ? "text-app-accent" : "text-app-text-dim"}`}>{trackName ?? "—"}</span>
@@ -53,7 +55,7 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
         <span className="hidden sm:block text-[13px] min-w-0 truncate">{row.author}</span>
         <span className={`justify-self-end font-mono text-[13px] tabular-nums text-right ${hasTime ? "text-amber-400" : "text-app-text-dim"}`}>
           {hasTime ? row.lapTimeRaw : "—"}
-          <span className="hidden sm:block text-[8px] uppercase tracking-wide text-app-text-dim mt-0.5">{hasTime ? (row.lapTimeTrack ?? "LAP") : "NO TIME"}</span>
+          <span className="hidden sm:block text-[8px] uppercase tracking-wide text-app-text-dim mt-0.5">{hasTime ? (row.lapTimeTrack ?? m.browser_lap_label()) : m.browser_no_time()}</span>
         </span>
         <span className={`hidden sm:block text-center text-app-text-dim transition-transform ${isOpen ? "rotate-90 text-app-accent" : ""}`}>›</span>
       </button>
@@ -66,7 +68,7 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
             {isUser ? (
               <>
                 <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold" onClick={() => onEdit?.(row)}>
-                  Edit
+                  {m.common_edit()}
                 </button>
                 {onDuplicate && (
                   <button
@@ -75,7 +77,7 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
                     onClick={() => onDuplicate(row)}
                     disabled={isDuplicating}
                   >
-                    {isDuplicating ? "…" : "Duplicate"}
+                    {isDuplicating ? "…" : m.tune_duplicate()}
                   </button>
                 )}
                 {!confirmDelete ? (
@@ -84,23 +86,23 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
                     className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-pink-400"
                     onClick={() => setConfirmDelete(true)}
                   >
-                    Delete
+                    {m.common_delete()}
                   </button>
                 ) : (
                   <span className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-pink-400 uppercase">Sure?</span>
+                    <span className="text-[11px] text-pink-400 uppercase">{m.browser_confirm_delete()}</span>
                     <button type="button" className="text-[11px] uppercase tracking-wide px-3 py-2 rounded bg-pink-500/20 text-pink-300" onClick={() => onDelete?.(row)}>
-                      Yes
+                      {m.tune_yes()}
                     </button>
                     <button type="button" className="text-[11px] uppercase tracking-wide px-3 py-2 rounded text-app-text-muted hover:text-app-text" onClick={() => setConfirmDelete(false)}>
-                      No
+                      {m.browser_no()}
                     </button>
                   </span>
                 )}
               </>
             ) : (
               <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold" onClick={() => onClone?.(row)}>
-                Clone to garage
+                {m.browser_clone_garage()}
               </button>
             )}
           </div>

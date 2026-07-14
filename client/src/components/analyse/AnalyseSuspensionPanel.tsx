@@ -1,4 +1,5 @@
 import type { TelemetryPacket } from "@shared/types";
+import { m } from "../../paraglide/messages";
 import { Info } from "lucide-react";
 import { WheelTable } from "./WheelTable";
 
@@ -23,7 +24,7 @@ export function AnalyseSuspensionPanel({ currentPacket }: Props) {
 
   const suspTitle = (
     <span className="flex items-center gap-1 group relative">
-      Suspension
+      {m.dataguide_suspension()}
       <Info className="w-3 h-3 text-app-text-dim cursor-help inline" />
       <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">
         Load Distribution: 50% = balanced
@@ -39,13 +40,13 @@ export function AnalyseSuspensionPanel({ currentPacket }: Props) {
       borderTop
       rows={[
         {
-          label: "Travel",
+          label: m.dataguide_travel(),
           fl: mmValues ? C(fmtMm(mmValues[0]) + "mm", mmColor(mmValues[0])) : C(`${(suspValues[0] * 100).toFixed(0)}%`, suspColor(suspValues[0])),
           fr: mmValues ? C(fmtMm(mmValues[1]) + "mm", mmColor(mmValues[1])) : C(`${(suspValues[1] * 100).toFixed(0)}%`, suspColor(suspValues[1])),
           rl: mmValues ? C(fmtMm(mmValues[2]) + "mm", mmColor(mmValues[2])) : C(`${(suspValues[2] * 100).toFixed(0)}%`, suspColor(suspValues[2])),
           rr: mmValues ? C(fmtMm(mmValues[3]) + "mm", mmColor(mmValues[3])) : C(`${(suspValues[3] * 100).toFixed(0)}%`, suspColor(suspValues[3])),
         },
-        { label: "Load", fl: `Lon ${lonLoad}%`, rl: `Lat ${latLoad}%`, fr: "", rr: "", span2: true },
+        { label: m.dataguide_load(), fl: `Lon ${lonLoad}%`, rl: `Lat ${latLoad}%`, fr: "", rr: "", span2: true },
       ]}
     />
   );

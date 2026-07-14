@@ -22,3 +22,5 @@
 - [project_community_tunes_cdn.md](project_community_tunes_cdn.md) — Community tunes synced from SpeedHQ Cloudflare Pages CDN into FM catalog (branch feat/community-tunes-cdn)
 - [project_tune_browser_ui.md](project_tune_browser_ui.md) — Timing-tower tune browse UI: reusable presentational + per-game container (FM only), Track→Car search, lap-time column
 - [errors_test_suite_wiped_dev_db.md](errors_test_suite_wiped_dev_db.md) — bun run test lacked DATA_DIR isolation, wiped real community_tunes; fixed via .data-test override
+- [project_i18n_paraglide.md](project_i18n_paraglide.md) — i18n via Paraglide JS; `language` setting drives UI locale + AI output language; shared/locales.ts is source of truth
+- [project_track_segment_pipeline.md](project_track_segment_pipeline.md) — Static corner-name + sector pipeline (PR #84); no telemetry calibration; corner-names JSON + generator + SVG viz

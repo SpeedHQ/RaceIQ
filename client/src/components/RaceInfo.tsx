@@ -1,4 +1,5 @@
 import type { LiveSectorData } from "@shared/types";
+import { m } from "@/paraglide/messages";
 import type { DisplayPacket } from "../lib/convert-packet";
 import { LiveTrackMap } from "./LiveTrackMap";
 import { LapTimes } from "./telemetry/LapTimes";
@@ -30,7 +31,7 @@ export function RaceInfo({
         <div className={showTrackMap ? "border-r border-app-border" : ""}>
           <div className="p-2 border-b border-app-border flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Race</h2>
+              <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.label_race()}</h2>
               {sessionType && sessionType !== "unknown" && <span className="text-xs font-bold text-app-accent uppercase">{sessionType.replace(/-/g, " ")}</span>}
             </div>
             <div className="flex items-center gap-2 truncate ml-2">
@@ -42,7 +43,7 @@ export function RaceInfo({
           <div className="p-3">
             <div className="flex items-baseline gap-4 mb-2">
               <div>
-                <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Position</div>
+                <div className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.label_position()}</div>
                 <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">P{packet.RacePosition}</div>
               </div>
               <div>
@@ -63,7 +64,7 @@ export function RaceInfo({
         {showTrackMap && (
           <div style={{ minHeight: 280 }}>
             <div className="p-2 border-b border-app-border">
-              <div className="text-xs font-semibold text-app-text-muted uppercase tracking-wider truncate">{trackName || "Track Map"}</div>
+              <div className="text-xs font-semibold text-app-text-muted uppercase tracking-wider truncate">{trackName || m.raceinfo_track_map_heading()}</div>
             </div>
             <LiveTrackMap packet={packet} />
           </div>

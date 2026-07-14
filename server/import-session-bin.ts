@@ -1,6 +1,6 @@
 import { gunzipSync } from "zlib";
 import { KNOWN_GAME_IDS, type GameId, type LapMeta } from "../shared/types";
-import { getServerGame } from "./games/registry";
+import { getAllServerGames, getServerGame } from "./games/registry";
 import { Pipeline } from "./pipeline";
 import { RealDbAdapter, type DbAdapter, type WsAdapter } from "./pipeline-adapters";
 import { META_FRAME_MAGIC } from "./udp-recorder";
@@ -93,6 +93,46 @@ export function detectGameIdFromFilename(name: string): GameId | null {
   return null;
 }
 
+function decompressIfGz(bytes: Buffer): Buffer {
+  if (bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b) {
+    return Buffer.from(gunzipSync(bytes));
+  }
+  return bytes;
+}
+
+/** Session-capture framing: optional 12-byte meta frame, then repeated [uint32 LE len][frame]. */
+function* iterateFrames(buf: Buffer): Generator<Buffer> {
+  let offset = 0;
+  if (buf.length >= 4 && buf.readUInt32LE(0) === META_FRAME_MAGIC) offset = 12;
+  while (offset + 4 <= buf.length) {
+    const len = buf.readUInt32LE(offset);
+    offset += 4;
+    if (len <= 0 || offset + len > buf.length) break;
+    yield buf.subarray(offset, offset + len);
+    offset += len;
+  }
+}
+
+/**
+ * Detect a gameId from the actual frame content of a session .bin capture,
+ * by probing each registered game's `canHandle()` — the same detection every
+ * adapter already does for live UDP dispatch (server/parsers/index.ts). This
+ * doesn't depend on the uploaded filename following any naming convention.
+ */
+export function detectGameIdFromBuffer(bytes: Buffer): GameId | null {
+  const buf = decompressIfGz(bytes);
+  const games = getAllServerGames();
+  let checked = 0;
+  for (const frame of iterateFrames(buf)) {
+    for (const game of games) {
+      if (game.canHandle(frame)) return game.id;
+    }
+    checked++;
+    if (checked >= 20) break;
+  }
+  return null;
+}
+
 /**
  * Feed a session `.bin` capture through the full pipeline (parser → lap
  * detection → DB writes) so its laps land in the database as a fresh session.
@@ -109,28 +149,15 @@ export async function importSessionBin(
   bytes: Buffer,
   gameId: GameId
 ): Promise<{ packetCount: number; laps: ImportedLap[] }> {
-  let buf = bytes;
-  if (buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b) {
-    buf = Buffer.from(gunzipSync(buf));
-  }
+  const buf = decompressIfGz(bytes);
 
   const serverGame = getServerGame(gameId);
   const state = serverGame.createParserState?.() ?? null;
   const db = new ImportCaptureAdapter();
   const pipeline = new Pipeline(db, new NoopWsAdapter(), { bypassPacketRateFilter: true });
 
-  // Skip the 12-byte meta frame (magic length 0xFFFFFFFF) when present; older
-  // meta-less dumps start straight at the first real frame.
-  let offset = 0;
-  if (buf.length >= 4 && buf.readUInt32LE(0) === META_FRAME_MAGIC) offset = 12;
-
   let packetCount = 0;
-  while (offset + 4 <= buf.length) {
-    const len = buf.readUInt32LE(offset);
-    offset += 4;
-    if (len <= 0 || offset + len > buf.length) break;
-    const frame = buf.subarray(offset, offset + len);
-    offset += len;
+  for (const frame of iterateFrames(buf)) {
     const packet = serverGame.tryParse(frame, state);
     if (packet) {
       await pipeline.processPacket(packet, frame);

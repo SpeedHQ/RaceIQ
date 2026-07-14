@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { m } from "@/paraglide/messages";
 
 export interface ComboOption {
   value: string;
@@ -74,12 +75,12 @@ export function ComboBox({ label, value, options, onChange, placeholder, variant
               <span className={`flex-1 truncate text-sm font-semibold ${o.value === value ? "text-app-accent" : "text-app-text"}`}>{o.label}</span>
               {o.count != null && (
                 <span className="text-[11px] text-app-text-muted whitespace-nowrap">
-                  <b className="text-app-text">{o.count}</b> tunes
+                  <b className="text-app-text">{o.count}</b> {m.browser_tunes()}
                 </span>
               )}
             </button>
           ))}
-          {filtered.length === 0 && <div className="px-3.5 py-2.5 text-xs text-app-text-dim">No match</div>}
+          {filtered.length === 0 && <div className="px-3.5 py-2.5 text-xs text-app-text-dim">{m.browser_no_match()}</div>}
         </div>
       )}
     </div>

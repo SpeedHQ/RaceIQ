@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Settings2 } from "lucide-react";
+import { m } from "@/paraglide/messages";
 import { Button } from "../ui/button";
 
 interface AiPanelMenuProps {
@@ -36,7 +37,7 @@ export function AiPanelMenu({ onClearChat, onClearAnalysis, onClearAll }: AiPane
             }}
             className="w-full text-left px-3 py-1.5 text-[11px] text-app-text-secondary hover:text-app-text hover:bg-app-surface-alt transition-colors"
           >
-            Clear chat only
+            {m.aipanel_clear_chat_only()}
           </button>
           <button
             onClick={() => {
@@ -45,7 +46,7 @@ export function AiPanelMenu({ onClearChat, onClearAnalysis, onClearAll }: AiPane
             }}
             className="w-full text-left px-3 py-1.5 text-[11px] text-app-text-secondary hover:text-app-text hover:bg-app-surface-alt transition-colors"
           >
-            Clear analysis (keep chat)
+            {m.aipanel_clear_analysis_keep_chat()}
           </button>
           <div className="border-t border-app-border-input my-1" />
           <button
@@ -55,7 +56,7 @@ export function AiPanelMenu({ onClearChat, onClearAnalysis, onClearAll }: AiPane
             }}
             className="w-full text-left px-3 py-1.5 text-[11px] text-red-400 hover:text-red-300 hover:bg-app-surface-alt transition-colors"
           >
-            Clear all
+            {m.aipanel_clear_all()}
           </button>
         </div>
       )}

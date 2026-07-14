@@ -1,4 +1,5 @@
 import type { TelemetryPacket, GameId } from "@shared/types";
+import { m } from "../../paraglide/messages";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { tryGetGame } from "@shared/games/registry";
 import { tireTempColor, tireHealthColor, wearRateColor, brakeTempColor, tirePressureColor, COLORS } from "../../lib/vehicle-dynamics";
@@ -53,23 +54,23 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
   const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
 
   const rows = [
-    { label: "Rotation /s", fl: speeds[0].toFixed(1), fr: speeds[1].toFixed(1), rl: speeds[2].toFixed(1), rr: speeds[3].toFixed(1) },
+    { label: m.analyse_wheels_rotation_s(), fl: speeds[0].toFixed(1), fr: speeds[1].toFixed(1), rl: speeds[2].toFixed(1), rr: speeds[3].toFixed(1) },
     {
-      label: "Temp",
+      label: m.analyse_wheels_temp(),
       fl: C(`${fl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFL), units.thresholds)),
       fr: C(`${fr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFR), units.thresholds)),
       rl: C(`${rl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRL), units.thresholds)),
       rr: C(`${rr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRR), units.thresholds)),
     },
     {
-      label: "Health",
+      label: m.analyse_wheels_health(),
       fl: C(`${((1 - healths[0]) * 100).toFixed(1)}%`, tireHealthColor(healths[0], hThresh)),
       fr: C(`${((1 - healths[1]) * 100).toFixed(1)}%`, tireHealthColor(healths[1], hThresh)),
       rl: C(`${((1 - healths[2]) * 100).toFixed(1)}%`, tireHealthColor(healths[2], hThresh)),
       rr: C(`${((1 - healths[3]) * 100).toFixed(1)}%`, tireHealthColor(healths[3], hThresh)),
     },
     {
-      label: "Wear /s",
+      label: m.analyse_wheels_wear_s(),
       fl: C(wearRates[0] != null ? wearRates[0].toFixed(3) + "%" : "—", wearRateColor(wearRates[0])),
       fr: C(wearRates[1] != null ? wearRates[1].toFixed(3) + "%" : "—", wearRateColor(wearRates[1])),
       rl: C(wearRates[2] != null ? wearRates[2].toFixed(3) + "%" : "—", wearRateColor(wearRates[2])),
@@ -78,7 +79,7 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
     ...(hasBrakes
       ? [
           {
-            label: "Brake",
+            label: m.analyse_wheels_brake(),
             fl: C(`${brakeFL.toFixed(0)}°C`, COLORS[brakeTempColor(brakeFL, false)]),
             fr: C(`${brakeFR.toFixed(0)}°C`, COLORS[brakeTempColor(brakeFR, false)]),
             rl: C(`${brakeRL.toFixed(0)}°C`, COLORS[brakeTempColor(brakeRL, true)]),
@@ -89,7 +90,7 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
     ...(hasPressure
       ? [
           {
-            label: "Pressure",
+            label: m.analyse_wheels_pressure(),
             fl: C(`${pressFL.toFixed(1)} psi`, COLORS[tirePressureColor(pressFL, pressureOptimal)]),
             fr: C(`${pressFR.toFixed(1)} psi`, COLORS[tirePressureColor(pressFR, pressureOptimal)]),
             rl: C(`${pressRL.toFixed(1)} psi`, COLORS[tirePressureColor(pressRL, pressureOptimal)]),
@@ -101,7 +102,7 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
 
   return (
     <div className="text-[11px] font-mono">
-      <WheelTable title="Wheels" borderTop rows={rows} />
+      <WheelTable title={m.analyse_wheels_wheels()} borderTop rows={rows} />
     </div>
   );
 }

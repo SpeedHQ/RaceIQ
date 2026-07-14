@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useSettings, useSaveSettings } from "@/hooks/queries";
+import { m } from "@/paraglide/messages";
 import { RefreshCw, X } from "lucide-react";
 
 const PROVIDER_KEY_MAP: Record<string, string> = {
@@ -170,7 +171,7 @@ export function AiSection() {
         const text = await res.text().catch(() => "");
         console.warn(`[AI] ${base} error body: ${text || "<empty>"}`);
       }
-      if (!res.ok) throw new Error("Failed to refresh models");
+      if (!res.ok) throw new Error(m.ai_refresh_models_failed());
       return res.json() as Promise<ModelsResponse>;
     },
     onSuccess: (data) => {
@@ -223,7 +224,7 @@ export function AiSection() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("Failed to save API key");
+      if (!res.ok) throw new Error(m.ai_save_key_failed());
     },
   });
   const isSaving = saveSettings.isPending;
@@ -251,7 +252,7 @@ export function AiSection() {
             setApiKey("");
           })
           .catch((err: unknown) => {
-            setSaveError(err instanceof Error ? err.message : "Failed to save API key");
+            setSaveError(err instanceof Error ? err.message : m.ai_save_key_failed());
           });
       }
       const durationMs = Math.round(performance.now() - startedAt);
@@ -267,7 +268,7 @@ export function AiSection() {
     } catch (err) {
       const durationMs = Math.round(performance.now() - startedAt);
       console.error(`[AI Settings] analysis save failed in ${durationMs}ms`, err instanceof Error ? err.message : String(err));
-      setSaveError(err instanceof Error ? err.message : "Failed to save AI settings");
+      setSaveError(err instanceof Error ? err.message : m.ai_save_settings_failed());
     }
   };
 
@@ -280,25 +281,25 @@ export function AiSection() {
       updateKeyStatusInSettingsCache(providerKeyId, false);
       qc.invalidateQueries({ queryKey: ["settings"] });
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Failed to clear API key");
+      setSaveError(err instanceof Error ? err.message : m.ai_clear_key_failed());
     }
   };
 
   if (!settingsLoaded) {
     return (
       <section>
-        <h2 className="text-sm font-semibold text-app-text mb-4">AI Settings</h2>
-        <div className="max-w-xs rounded border border-app-border-input bg-app-surface px-3 py-2 text-xs text-app-text-muted">Loading AI settings…</div>
+        <h2 className="text-sm font-semibold text-app-text mb-4">{m.ai_settings_title()}</h2>
+        <div className="max-w-xs rounded border border-app-border-input bg-app-surface px-3 py-2 text-xs text-app-text-muted">{m.ai_settings_loading()}</div>
       </section>
     );
   }
   return (
     <section>
-      <h2 className="text-sm font-semibold text-app-text mb-4">AI Analysis Provider</h2>
-      <p className="text-xs text-app-text-muted mb-4">Choose which AI provider to use for lap analysis. Requires an API key.</p>
+      <h2 className="text-sm font-semibold text-app-text mb-4">{m.ai_analysis_provider_title()}</h2>
+      <p className="text-xs text-app-text-muted mb-4">{m.ai_analysis_provider_desc()}</p>
       <div className="space-y-4">
         <div>
-          <label className="block text-xs text-app-text-muted mb-1">Provider</label>
+          <label className="block text-xs text-app-text-muted mb-1">{m.ai_provider_label()}</label>
           <select
             value={provider}
             onChange={(e) => {
@@ -308,7 +309,7 @@ export function AiSection() {
             }}
             className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
           >
-            <option value="">— None —</option>
+            <option value="">{m.ai_provider_none()}</option>
             {(aiProviders ?? []).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -318,7 +319,7 @@ export function AiSection() {
         </div>
         {provider === "local" && (
           <div>
-            <label className="block text-xs text-app-text-muted mb-1">API Endpoint</label>
+            <label className="block text-xs text-app-text-muted mb-1">{m.ai_endpoint_label()}</label>
             <input
               type="text"
               value={localEndpoint}
@@ -326,7 +327,7 @@ export function AiSection() {
               placeholder="http://localhost:1234/v1"
               className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs font-mono"
             />
-            <p className="text-xs text-app-text-muted mt-1">OpenAI-compatible endpoint URL (e.g. LM Studio, Ollama)</p>
+            <p className="text-xs text-app-text-muted mt-1">{m.ai_endpoint_desc()}</p>
           </div>
         )}
         {keyInfo && (
@@ -337,13 +338,13 @@ export function AiSection() {
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder={(keyStatus[provider] ?? false) ? "••••••••  (key stored)" : keyInfo.placeholder}
+                placeholder={(keyStatus[provider] ?? false) ? m.ai_key_stored_placeholder() : keyInfo.placeholder}
                 className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
               />
               {(keyStatus[provider] ?? false) && (
                 <button
                   onClick={() => clearKey(PROVIDER_KEY_MAP[provider])}
-                  title="Clear stored key"
+                  title={m.ai_clear_key_title()}
                   className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-red-400 hover:bg-red-400/10 transition-colors"
                 >
                   <X className="size-3.5" />
@@ -361,18 +362,18 @@ export function AiSection() {
         {canShowModelPicker && (
           <div>
             <div className="mb-1 flex items-center gap-2 whitespace-nowrap">
-              <label className="block text-xs text-app-text-muted">Model</label>
+              <label className="block text-xs text-app-text-muted">{m.ai_model_label()}</label>
               <button
                 type="button"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
                 className="inline-flex items-center gap-1 text-[11px] text-app-text-muted hover:text-app-text disabled:opacity-50"
-                title="Refresh models"
+                title={m.ai_refresh_models_title()}
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
-                Refresh
+                {m.ai_refresh()}
               </button>
-              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-[11px] text-app-text-muted whitespace-nowrap">Loading models…</span>}
+              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-[11px] text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
             <select
               value={model}
@@ -382,7 +383,7 @@ export function AiSection() {
               }}
               className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
             >
-              <option value="">Default (gemini-flash-latest)</option>
+              <option value="">{m.ai_model_default()}</option>
               {models.map((m: { id: string; name: string }) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -393,14 +394,14 @@ export function AiSection() {
         )}
         {provider === "gemini" && canShowModelPicker && (
           <div>
-            <label className="block text-xs text-app-text-muted mb-1">Thinking</label>
+            <label className="block text-xs text-app-text-muted mb-1">{m.ai_thinking_label()}</label>
             {modelSupportsThinking ? (
               <select
                 value={effectiveThinkingBudget == null ? "" : String(effectiveThinkingBudget)}
                 onChange={(e) => setThinkingBudget(e.target.value ? Number(e.target.value) : null)}
                 className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
               >
-                <option value="">None</option>
+                <option value="">{m.label_none()}</option>
                 {GEMINI_THINKING_BUDGET_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -408,37 +409,37 @@ export function AiSection() {
                 ))}
               </select>
             ) : (
-              <div className="text-xs text-app-text-muted max-w-xs rounded border border-app-border-input px-3 py-2">This model does not support thinking. Using None.</div>
+              <div className="text-xs text-app-text-muted max-w-xs rounded border border-app-border-input px-3 py-2">{m.ai_thinking_unsupported()}</div>
             )}
           </div>
         )}
-        {provider !== "" && !hasProviderKey && <p className="text-xs text-app-text-muted">Add and save an API key to load available models.</p>}
+        {provider !== "" && !hasProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
         {provider !== "" && hasProviderKey && !aiModelsFetching && models.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
-            <span>No models returned for this provider.</span>
+            <span>{m.ai_no_models()}</span>
             <button type="button" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="inline-flex items-center gap-1 hover:text-app-text disabled:opacity-50">
               <RefreshCw className="size-3" />
-              Refresh
+              {m.ai_refresh()}
             </button>
           </div>
         )}
-        {provider !== "" && hasProviderKey && (providerModelError || aiModelsError) && <p className="text-xs text-red-400">{providerModelError || "Failed to load models. Check API key and provider connection."}</p>}
+        {provider !== "" && hasProviderKey && (providerModelError || aiModelsError) && <p className="text-xs text-red-400">{providerModelError || m.ai_load_models_failed()}</p>}
         <button
           onClick={handleSave}
           disabled={isSaving || !canSaveAnalysis}
           className="text-sm px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed text-white transition-colors"
         >
-          {isSaving ? "Saving…" : "Save"}
+          {isSaving ? m.common_saving() : m.common_save()}
         </button>
         {saveError && <p className="text-xs text-red-400">{saveError}</p>}
       </div>
 
       {/* Chat provider */}
-      <h2 className="text-sm font-semibold text-app-text mb-4 mt-8">AI Chat Provider</h2>
-      <p className="text-xs text-app-text-muted mb-4">Choose which provider to use for the AI chat. Requires an API key.</p>
+      <h2 className="text-sm font-semibold text-app-text mb-4 mt-8">{m.ai_chat_provider_title()}</h2>
+      <p className="text-xs text-app-text-muted mb-4">{m.ai_chat_provider_desc()}</p>
       <div className="space-y-4">
         <div>
-          <label className="block text-xs text-app-text-muted mb-1">Provider</label>
+          <label className="block text-xs text-app-text-muted mb-1">{m.ai_provider_label()}</label>
           <select
             value={chatProvider}
             onChange={(e) => {
@@ -448,7 +449,7 @@ export function AiSection() {
             }}
             className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
           >
-            <option value="">— None —</option>
+            <option value="">{m.ai_provider_none()}</option>
             {(aiProviders ?? []).map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -464,13 +465,13 @@ export function AiSection() {
                 type="password"
                 value={chatApiKey}
                 onChange={(e) => setChatApiKey(e.target.value)}
-                placeholder={(keyStatus[chatProvider] ?? false) ? "••••••••  (key stored)" : PROVIDER_KEY_LABELS[chatProvider].placeholder}
+                placeholder={(keyStatus[chatProvider] ?? false) ? m.ai_key_stored_placeholder() : PROVIDER_KEY_LABELS[chatProvider].placeholder}
                 className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
               />
               {(keyStatus[chatProvider] ?? false) && (
                 <button
                   onClick={() => clearKey(PROVIDER_KEY_MAP[chatProvider])}
-                  title="Clear stored key"
+                  title={m.ai_clear_key_title()}
                   className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-red-400 hover:bg-red-400/10 transition-colors"
                 >
                   <X className="size-3.5" />
@@ -488,18 +489,18 @@ export function AiSection() {
         {canShowChatModelPicker && (
           <div>
             <div className="mb-1 flex items-center gap-2 whitespace-nowrap">
-              <label className="block text-xs text-app-text-muted">Model</label>
+              <label className="block text-xs text-app-text-muted">{m.ai_model_label()}</label>
               <button
                 type="button"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
                 className="inline-flex items-center gap-1 text-[11px] text-app-text-muted hover:text-app-text disabled:opacity-50"
-                title="Refresh models"
+                title={m.ai_refresh_models_title()}
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
-                Refresh
+                {m.ai_refresh()}
               </button>
-              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-[11px] text-app-text-muted whitespace-nowrap">Loading models…</span>}
+              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-[11px] text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
             <select
               value={chatModel}
@@ -509,7 +510,7 @@ export function AiSection() {
               }}
               className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
             >
-              <option value="">Default (gemini-flash-latest)</option>
+              <option value="">{m.ai_model_default()}</option>
               {chatModels.map((m: { id: string; name: string }) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -520,14 +521,14 @@ export function AiSection() {
         )}
         {chatProvider === "gemini" && canShowChatModelPicker && (
           <div>
-            <label className="block text-xs text-app-text-muted mb-1">Thinking</label>
+            <label className="block text-xs text-app-text-muted mb-1">{m.ai_thinking_label()}</label>
             {chatModelSupportsThinking ? (
               <select
                 value={effectiveChatThinkingBudget == null ? "" : String(effectiveChatThinkingBudget)}
                 onChange={(e) => setChatThinkingBudget(e.target.value ? Number(e.target.value) : null)}
                 className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
               >
-                <option value="">None</option>
+                <option value="">{m.label_none()}</option>
                 {GEMINI_THINKING_BUDGET_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -535,21 +536,21 @@ export function AiSection() {
                 ))}
               </select>
             ) : (
-              <div className="text-xs text-app-text-muted max-w-xs rounded border border-app-border-input px-3 py-2">This model does not support thinking. Using None.</div>
+              <div className="text-xs text-app-text-muted max-w-xs rounded border border-app-border-input px-3 py-2">{m.ai_thinking_unsupported()}</div>
             )}
           </div>
         )}
-        {chatProvider !== "" && !hasChatProviderKey && <p className="text-xs text-app-text-muted">Add and save an API key to load available models.</p>}
+        {chatProvider !== "" && !hasChatProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
         {chatProvider !== "" && hasChatProviderKey && !aiModelsFetching && chatModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
-            <span>No models returned for this provider.</span>
+            <span>{m.ai_no_models()}</span>
             <button type="button" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="inline-flex items-center gap-1 hover:text-app-text disabled:opacity-50">
               <RefreshCw className="size-3" />
-              Refresh
+              {m.ai_refresh()}
             </button>
           </div>
         )}
-        {chatProvider !== "" && hasChatProviderKey && (chatProviderModelError || aiModelsError) && <p className="text-xs text-red-400">{chatProviderModelError || "Failed to load models. Check API key and provider connection."}</p>}
+        {chatProvider !== "" && hasChatProviderKey && (chatProviderModelError || aiModelsError) && <p className="text-xs text-red-400">{chatProviderModelError || m.ai_load_models_failed()}</p>}
         <button
           onClick={async () => {
             setChatSaveError(null);
@@ -569,7 +570,7 @@ export function AiSection() {
                     setChatApiKey("");
                   })
                   .catch((err: unknown) => {
-                    setChatSaveError(err instanceof Error ? err.message : "Failed to save API key");
+                    setChatSaveError(err instanceof Error ? err.message : m.ai_save_key_failed());
                   });
               }
               qc.invalidateQueries({ queryKey: ["settings"] });
@@ -584,13 +585,13 @@ export function AiSection() {
             } catch (err) {
               const durationMs = Math.round(performance.now() - startedAt);
               console.error(`[AI Settings] chat save failed in ${durationMs}ms`, err instanceof Error ? err.message : String(err));
-              setChatSaveError(err instanceof Error ? err.message : "Failed to save chat settings");
+              setChatSaveError(err instanceof Error ? err.message : m.ai_save_chat_settings_failed());
             }
           }}
           disabled={isSaving || !canSaveChat}
           className="text-sm px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed text-white transition-colors"
         >
-          {isSaving ? "Saving…" : "Save"}
+          {isSaving ? m.common_saving() : m.common_save()}
         </button>
         {chatSaveError && <p className="text-xs text-red-400">{chatSaveError}</p>}
       </div>

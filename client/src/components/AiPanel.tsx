@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from "react";
+import { m } from "@/paraglide/messages";
 import { client } from "../lib/rpc";
 import { useSettings } from "../hooks/queries";
 import { useUiStore } from "../stores/ui";
@@ -28,12 +29,12 @@ function formatStreamError(event: StreamErrorEvent): string {
   const model = event.modelId;
   if (statusCode || status) parts.push(`(${statusCode ?? "error"}${status ? ` ${status}` : ""})`);
   if (model) parts.push(`[${model}]`);
-  if (event.retryable) parts.push("Retryable: try again.");
+  if (event.retryable) parts.push(m.aipanel_retryable());
   return parts.join(" ");
 }
 
 function toErrorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : "Failed to fetch analysis";
+  return err instanceof Error ? err.message : m.aipanel_fetch_failed();
 }
 function safeParseAnalysis(raw: string): unknown {
   try {
@@ -300,7 +301,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       try {
         const res = await fetch(`/api/laps/${lapId}/analyse${regenerate ? "?regenerate=true" : ""}`, { method: "POST" });
         if (!res.ok) {
-          const data = (await res.json().catch(() => ({ error: "Unknown error" }))) as { error?: string };
+          const data = (await res.json().catch(() => ({ error: m.aipanel_unknown_error() }))) as { error?: string };
           throw new Error(data.error || `HTTP ${res.status}`);
         }
 
@@ -310,7 +311,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           // Empty string = model produced no text (e.g. it burned through
           // maxSteps calling tools without finalising). Treat as error.
           if (typeof data.analysis === "string" && data.analysis.trim().length === 0) {
-            throw new Error("Model returned no analysis text (likely got stuck in a tool-call loop). Try again or reduce tool usage.");
+            throw new Error(m.aipanel_no_text_error());
           }
           const parsed = (typeof data.analysis === "string" ? safeParseAnalysis(data.analysis) : data.analysis) as AnalysisData | null;
           setAnalysis(parsed);
@@ -377,7 +378,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               }
             }
           });
-          if (!resolved) throw new Error("Analyse stream ended without a result");
+          if (!resolved) throw new Error(m.aipanel_stream_no_result());
         } else {
           const data = (await res.json()) as { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean };
           apply(data);
@@ -506,7 +507,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         body: JSON.stringify({ message: msg }),
       });
       if (!res.ok) {
-        const errData = (await res.json().catch(() => ({ error: "Request failed" }))) as { error?: string };
+        const errData = (await res.json().catch(() => ({ error: m.aipanel_request_failed() }))) as { error?: string };
         throw new Error(errData.error || `HTTP ${res.status}`);
       }
       await readChatStream(res, (event) => {
@@ -568,11 +569,11 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
             <Sparkles className="size-5 text-app-text-dim" />
             <div>
-              <p className="text-[11px] text-app-text-secondary font-medium">AI not set up</p>
-              <p className="text-[10px] text-app-text-muted mt-0.5">Add an API key to start analysing laps</p>
+              <p className="text-[11px] text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
+              <p className="text-[10px] text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
             </div>
             <button onClick={() => openSettings("ai")} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors">
-              Set up AI
+              {m.aipanel_set_up_ai()}
             </button>
           </div>
         )}
@@ -587,10 +588,10 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             </div>
             <div className="text-center">
               <p className="text-[11px] text-app-text-secondary font-medium">
-                {analyseTool ? `Using tool: ${analyseTool}` : analyseStatus === "generating" ? "Generating analysis…" : analyseStatus === "thinking" ? "Thinking…" : "Preparing model…"}
+                {analyseTool ? `${m.aipanel_using_tool()} ${analyseTool}` : analyseStatus === "generating" ? m.aipanel_generating_analysis() : analyseStatus === "thinking" ? m.aipanel_thinking() : m.aipanel_preparing_model()}
               </p>
-              <p className="text-[10px] text-app-text-dim mt-1">{analyseStatus === "generating" ? "Streaming tokens from the model" : "Reviewing telemetry, corners, and setup data"}</p>
-              {!analyseStatus && <p className="text-[9px] text-app-text-dim mt-0.5">May take up to 90 seconds</p>}
+              <p className="text-[10px] text-app-text-dim mt-1">{analyseStatus === "generating" ? m.aipanel_streaming_tokens() : m.aipanel_reviewing_data()}</p>
+              {!analyseStatus && <p className="text-[9px] text-app-text-dim mt-0.5">{m.aipanel_may_take()}</p>}
             </div>
             <div className="flex gap-1">
               <div className="size-1 rounded-full bg-amber-400 animate-pulse" />
@@ -604,10 +605,10 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         {aiConfigured && !analysis && !loading && !error && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Sparkles className="size-5 text-amber-400" />
-            <p className="text-[11px] text-app-text-muted">No analysis yet</p>
+            <p className="text-[11px] text-app-text-muted">{m.aipanel_no_analysis()}</p>
             <button onClick={() => fetchAnalysis(false)} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
               <Sparkles className="size-3" />
-              Analyse Lap
+              {m.aipanel_analyse_lap()}
             </button>
           </div>
         )}
@@ -618,7 +619,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             <div className="rounded-lg px-2.5 py-2 bg-red-400/10 border border-red-400/20">
               <p className="text-[11px] text-red-400">{error}</p>
               <Button variant="app-outline" size="app-sm" onClick={() => fetchAnalysis(false)} className="mt-1">
-                Retry
+                {m.label_retry()}
               </Button>
             </div>
           </div>
@@ -634,7 +635,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               {/* Pace */}
               {analysis.pace?.length > 0 && (
                 <div>
-                  <SectionHeader icon={<Gauge className="size-3" />} title="Pace" />
+                  <SectionHeader icon={<Gauge className="size-3" />} title={m.label_pace()} />
                   <div className="grid grid-cols-1 gap-1.5">
                     {analysis.pace.map((item, i) => (
                       <MetricCard key={i} item={item} />
@@ -646,7 +647,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               {/* Handling */}
               {analysis.handling?.length > 0 && (
                 <div>
-                  <SectionHeader icon={<Sliders className="size-3" />} title="Handling" />
+                  <SectionHeader icon={<Sliders className="size-3" />} title={m.label_handling()} />
                   <div className="grid grid-cols-1 gap-1.5">
                     {analysis.handling.map((item, i) => (
                       <MetricCard key={i} item={item} />
@@ -658,7 +659,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               {/* Problem Corners */}
               {analysis.corners?.length > 0 && (
                 <div>
-                  <SectionHeader icon={<AlertTriangle className="size-3" />} title="Problem Corners" />
+                  <SectionHeader icon={<AlertTriangle className="size-3" />} title={m.label_problem_corners()} />
                   <div className="space-y-1.5">
                     {analysis.corners.map((corner, i) => (
                       <TrackCard
@@ -684,7 +685,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               {/* Braking per corner */}
               {analysis.braking?.length > 0 && (
                 <div>
-                  <SectionHeader icon={<CircleDot className="size-3" />} title="Braking Points" />
+                  <SectionHeader icon={<CircleDot className="size-3" />} title={m.label_braking_points()} />
                   <div className="space-y-1.5">
                     {analysis.braking.map((item, i) => (
                       <TrackCard
@@ -709,7 +710,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               {/* Throttle per corner */}
               {analysis.throttle?.length > 0 && (
                 <div>
-                  <SectionHeader icon={<Zap className="size-3" />} title="Throttle Application" />
+                  <SectionHeader icon={<Zap className="size-3" />} title={m.label_throttle_application()} />
                   <div className="space-y-1.5">
                     {analysis.throttle.map((item, i) => (
                       <TrackCard
@@ -734,7 +735,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               {/* Coaching */}
               {analysis.coaching?.length > 0 && (
                 <div>
-                  <SectionHeader icon={<Lightbulb className="size-3" />} title="Coaching" />
+                  <SectionHeader icon={<Lightbulb className="size-3" />} title={m.label_coaching()} />
                   <div className="space-y-1.5">
                     {analysis.coaching.map((item, i) => (
                       <TrackCard
@@ -777,9 +778,9 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 <button
                   onClick={handleExport}
                   className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
-                  title="Export as image"
+                  title={m.label_export_as_image()}
                 >
-                  <Download className="size-3" /> Export
+                  <Download className="size-3" /> {m.aipanel_export()}
                 </button>
                 <button
                   onClick={() => {
@@ -788,9 +789,9 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                   }}
                   disabled={loading}
                   className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors disabled:opacity-50"
-                  title="Regenerate analysis and clear chat"
+                  title={m.aipanel_regenerate_title()}
                 >
-                  <RefreshCw className="size-3" /> Regenerate
+                  <RefreshCw className="size-3" /> {m.label_regenerate()}
                 </button>
                 <button
                   onClick={() => {
@@ -800,9 +801,9 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                     onHighlightsChange?.([]);
                   }}
                   className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-red-400 px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
-                  title="Clear analysis and chat"
+                  title={m.aipanel_clear_title()}
                 >
-                  <Trash2 className="size-3" /> Clear
+                  <Trash2 className="size-3" /> {m.common_clear()}
                 </button>
               </div>
             </div>
@@ -848,7 +849,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                     <Markdown remarkPlugins={[remarkGfm]}>{streaming}</Markdown>
                   </div>
                 </div>
-                {chatStatus === "generating" && <span className="text-[9px] text-app-text-muted font-mono pl-1">Generating…</span>}
+                {chatStatus === "generating" && <span className="text-[9px] text-app-text-muted font-mono pl-1">{m.aipanel_generating()}</span>}
               </div>
             )}
             {chatUsage && !streaming && (
@@ -864,7 +865,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 <div className="rounded-lg px-2.5 py-1.5 bg-app-surface-alt/60 border border-app-border-input/40">
                   <div className="flex items-center gap-1.5">
                     <div className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    <span className="text-[10px] text-app-text-secondary">{chatTool ? `Using tool: ${chatTool}` : chatStatus === "thinking" ? "Thinking…" : "Waiting for model…"}</span>
+                    <span className="text-[10px] text-app-text-secondary">{chatTool ? `${m.aipanel_using_tool()} ${chatTool}` : chatStatus === "thinking" ? m.aipanel_thinking() : m.aipanel_waiting_model()}</span>
                   </div>
                 </div>
               </div>
@@ -886,7 +887,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                     }}
                     className="mt-1"
                   >
-                    Retry
+                    {m.label_retry()}
                   </Button>
                 </div>
               </div>
@@ -909,7 +910,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 sendChat();
               }
             }}
-            placeholder="Chat about this lap..."
+            placeholder={m.aipanel_chat_placeholder()}
             disabled={chatLoading}
             rows={1}
             style={{ height: "auto", maxHeight: "9.375rem" }}

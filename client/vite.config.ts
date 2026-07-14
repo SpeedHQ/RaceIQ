@@ -2,6 +2,7 @@ import { createLogger, defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import path from "path";
 
 // Deduplicate proxy error logs — show once, then suppress repeats
@@ -26,7 +27,19 @@ logger.warn = (msg, options) => {
 };
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), TanStackRouterVite()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    TanStackRouterVite(),
+    paraglideVitePlugin({
+      project: "./project.inlang",
+      outdir: "./src/paraglide",
+      // Locale is driven by the server-persisted `language` setting; the client
+      // bootstraps it via setLocale() on load (see __root.tsx). localStorage is
+      // the runtime cache; baseLocale ("en") is the fallback.
+      strategy: ["localStorage", "baseLocale"],
+    }),
+  ],
   customLogger: logger,
   resolve: {
     alias: {

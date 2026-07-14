@@ -99,13 +99,13 @@ export class ParsingProcessor implements TripletProcessor {
 
   async process(triplet: { physics: Buffer; graphics: Buffer; staticData: Buffer }): Promise<void> {
     try {
-      if (this.carOrdinal === 0 && triplet.staticData.length >= STATIC.SIZE) {
+      if (this.carOrdinal === -1 && triplet.staticData.length >= STATIC.SIZE) {
         const cm = readWString(triplet.staticData, STATIC.carModel.offset, STATIC.carModel.size);
-        if (cm) this.carOrdinal = getAccCarByModel(cm)?.id ?? 0;
+        if (cm) this.carOrdinal = getAccCarByModel(cm)?.id ?? -1;
       }
-      if (this.trackOrdinal === 0 && triplet.staticData.length >= STATIC.SIZE) {
+      if (this.trackOrdinal === -1 && triplet.staticData.length >= STATIC.SIZE) {
         const tn = readWString(triplet.staticData, STATIC.track.offset, STATIC.track.size);
-        if (tn) this.trackOrdinal = getAccTrackByName(tn)?.id ?? 0;
+        if (tn) this.trackOrdinal = getAccTrackByName(tn)?.id ?? -1;
       }
       const packet = parseAccBuffers(triplet.physics, triplet.graphics, triplet.staticData, {
         carOrdinal: this.carOrdinal,

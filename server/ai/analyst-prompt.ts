@@ -6,6 +6,7 @@ import { analyzeLap } from "../../client/src/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { buildTrackGuideContext } from "./track-guides";
+import { aiLanguageInstruction } from "../../shared/locales";
 
 interface CornerDef {
   index: number;
@@ -98,12 +99,12 @@ RULES:
 - Escape any special characters in string values (quotes, newlines)
 - Do not include trailing commas in arrays or objects`;
 
-function getSystemPrompt(gameId: GameId, unit: UnitSystem, temperatureUnit: TemperatureUnit): string {
+function getSystemPrompt(gameId: GameId, unit: UnitSystem, temperatureUnit: TemperatureUnit, language: string): string {
   const speedDistanceWeight = unit === "metric" ? "km/h, meters, kg, bar" : "mph, feet, lb, psi";
   const units = `${speedDistanceWeight}, °${temperatureUnit}`;
   const adapter = tryGetServerGame(gameId);
   const base = adapter ? adapter.aiSystemPrompt : FORZA_SYSTEM_PROMPT;
-  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}`;
+  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${aiLanguageInstruction(language, { json: true })}`;
 }
 
 export function buildAnalystPrompt(
@@ -129,6 +130,8 @@ export function buildAnalystPrompt(
   }[],
   /** Pre-fetched track guide text. When provided, skips internal lookup. */
   externalTrackGuide?: string,
+  /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
+  language: string = "en",
 ): string {
   const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
   const trackName = getTrackName(lap.trackOrdinal ?? 0);
@@ -205,7 +208,7 @@ ${cornerData}
 ${insightsText}`;
 
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
-  const systemPrompt = getSystemPrompt(gameId, unit, temperatureUnit);
+  const systemPrompt = getSystemPrompt(gameId, unit, temperatureUnit, language);
 
   // Build game-specific extended context via adapter
   let f1ExtendedContext = "";

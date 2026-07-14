@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { m } from "../../paraglide/messages";
 import { client } from "../../lib/rpc";
 
 interface AccCarSpecs {
@@ -126,7 +127,7 @@ export function AccCars() {
   }, [filtered]);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-full text-app-text-dim">Loading cars...</div>;
+    return <div className="flex items-center justify-center h-full text-app-text-dim">{m.cars_loading()}</div>;
   }
 
   return (
@@ -138,7 +139,7 @@ export function AccCars() {
             className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${!filterClass ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
             onClick={() => setFilterClass(null)}
           >
-            All
+            {m.acccars_all_classes()}
           </button>
           {classes.map((cls) => {
             const c = classColor(cls);
@@ -163,7 +164,7 @@ export function AccCars() {
           <div key={cls}>
             <div className="flex items-center gap-2 mb-3">
               <span className={`text-xs font-bold px-2 py-0.5 rounded ${c.bg} ${c.text}`}>{cls}</span>
-              <span className="text-xs text-app-text-dim">{classCars.length} cars</span>
+              <span className="text-xs text-app-text-dim">{classCars.length} {m.acccars_car_count_label()}</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {classCars.map((car) => {
@@ -211,7 +212,7 @@ export function AccCars() {
         );
       })}
 
-      {filtered.length === 0 && <div className="text-center text-app-text-dim py-8">No cars match your filters.</div>}
+      {filtered.length === 0 && <div className="text-center text-app-text-dim py-8">{m.acccars_no_match()}</div>}
     </div>
   );
 }

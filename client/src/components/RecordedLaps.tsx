@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
+import { m } from "@/paraglide/messages";
 import { useDeleteLap } from "../hooks/queries";
 import { useGameRoute } from "../stores/game";
 import type { LapMeta } from "@shared/types";
@@ -53,19 +54,19 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
   return (
     <div className="border-b border-app-border">
       <div className="p-2 border-b border-app-border flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Recorded Laps</h2>
+        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.laps_recorded_title()}</h2>
       </div>
       {sorted.length === 0 ? (
-        <div className="p-3 text-center text-xs text-app-text-dim">No completed laps yet</div>
+        <div className="p-3 text-center text-xs text-app-text-dim">{m.laps_none_completed()}</div>
       ) : (
         <>
           <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_auto_auto] gap-x-2 px-3 py-1 text-xs text-app-text-dim uppercase tracking-wider border-b border-app-border/50">
-            <div className="w-10">Lap</div>
+            <div className="w-10">{m.label_lap()}</div>
             <div className="text-right">S1</div>
             <div className="text-right">S2</div>
             <div className="text-right">S3</div>
-            <div className="text-right">Time</div>
-            <div className="text-right w-14">Delta</div>
+            <div className="text-right">{m.label_time()}</div>
+            <div className="text-right w-14">{m.label_delta()}</div>
             <div className="w-16"></div>
           </div>
           <div className="divide-y divide-app-border/30">
@@ -96,7 +97,7 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                       onClick={() => navigate({ to: `${gameRoute}/analyse` as any, search: { track: l.trackOrdinal, car: l.carOrdinal, lap: l.id } as any })}
                       className="px-1.5 py-0.5 text-[10px] rounded bg-purple-600 hover:bg-purple-500 text-white"
                     >
-                      Analyse
+                      {m.label_analyse()}
                     </button>
                     <button onClick={() => deleteLap.mutate(l.id)} className="px-1 py-0.5 text-[10px] rounded bg-slate-700 hover:bg-red-600 text-app-text">
                       ×

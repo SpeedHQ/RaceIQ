@@ -1,3 +1,4 @@
+import { m } from "../../paraglide/messages";
 import { X } from "lucide-react";
 import { Button } from "../ui/button";
 
@@ -39,7 +40,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
       <div className="bg-app-surface border border-app-border rounded-xl shadow-2xl w-[560px] max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-app-border shrink-0">
-          <h2 className="text-sm font-semibold text-app-text">Data Panel Guide</h2>
+          <h2 className="text-sm font-semibold text-app-text">{m.analyse_data_guide_title()}</h2>
           <Button variant="app-ghost" size="app-sm" onClick={onClose}>
             <X className="w-4 h-4" />
           </Button>
@@ -48,21 +49,21 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
         {/* Scrollable content */}
         <div className="overflow-y-auto px-5 py-4 space-y-5">
           {/* Metrics */}
-          <Section title="Metrics">
-            <Row label="Speed" desc="Current vehicle speed in selected units." />
-            <Row label="RPM" desc="Engine revolutions per minute." />
-            <Row label="Gear" desc="Current gear (0 = reverse, 1–n = forward)." />
-            <Row label="Throttle / Brake" desc="Pedal input as % of full travel (0–100%)." />
-            <Row label="Steer" desc="Steering wheel angle in degrees, scaled to your steering lock setting." />
-            <Row label="Boost" desc="Turbo/supercharger boost pressure in PSI above atmospheric." />
-            <Row label="Power / Torque" desc="Engine output at the current RPM." />
-            <Row label="Fuel" desc="% consumed since lap start · % remaining in tank." />
+          <Section title={m.dataguide_metrics()}>
+            <Row label={m.dataguide_speed()} desc="Current vehicle speed in selected units." />
+            <Row label={m.dataguide_rpm()} desc="Engine revolutions per minute." />
+            <Row label={m.dataguide_gear()} desc="Current gear (0 = reverse, 1–n = forward)." />
+            <Row label={m.dataguide_throttle_brake()} desc="Pedal input as % of full travel (0–100%)." />
+            <Row label={m.dataguide_steer()} desc="Steering wheel angle in degrees, scaled to your steering lock setting." />
+            <Row label={m.dataguide_boost()} desc="Turbo/supercharger boost pressure in PSI above atmospheric." />
+            <Row label={m.dataguide_power_torque()} desc="Engine output at the current RPM." />
+            <Row label={m.dataguide_fuel()} desc="% consumed since lap start · % remaining in tank." />
           </Section>
 
           {/* Dynamics */}
-          <Section title="Dynamics">
+          <Section title={m.dataguide_dynamics()}>
             <Row
-              label="Balance"
+              label={m.dataguide_balance()}
               desc={
                 <>
                   Hybrid understeer/oversteer detector. Combines two independent physics signals: <span className="text-app-text">yaw rate vs path curvature</span> (ω compared to Aᵧ/V — MoTeC/VBox
@@ -72,9 +73,9 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
                 </>
               }
             />
-            <Row label="G-Force" desc="Lateral (cornering) and longitudinal (braking/acceleration) g-forces." />
+            <Row label={m.dataguide_g_force()} desc="Lateral (cornering) and longitudinal (braking/acceleration) g-forces." />
             <Row
-              label="Grip Ask"
+              label={m.dataguide_grip_ask()}
               desc={
                 <>
                   Friction circle utilisation per tire, from physics signals: <span className="text-app-text">hypot(|slipRatio|/0.15, |slipAngle|/10°)</span>. Slip ratio is derived from wheel rotation
@@ -84,7 +85,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               }
             />
             <Row
-              label="Traction"
+              label={m.dataguide_traction()}
               desc={
                 <span className="space-y-0.5 block">
                   <span className="block">
@@ -115,7 +116,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               }
             />
             <Row
-              label="Temp"
+              label={m.dataguide_temp()}
               desc={
                 <>
                   Tire surface temperature zone: <ColorDot color="#3b82f6" />
@@ -127,7 +128,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               }
             />
             <Row
-              label="Surface"
+              label={m.dataguide_surface()}
               desc={
                 <>
                   <span className="text-app-text">CURB</span> = on a rumble strip · <span className="text-app-text">WET XX%</span> = puddle at XX% depth
@@ -137,19 +138,19 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
           </Section>
 
           {/* Slip */}
-          <Section title="Slip">
-            <Row label="Ratio" desc="Wheel speed vs ground speed. High ratio = wheelspin/lockup. Colour: green &lt;10% · amber &lt;30% · red beyond." />
-            <Row label="Angle" desc="Angle between wheel heading and direction of travel. Peak mechanical grip is typically 6–12° (speed-dependent). Thresholds scale down at low speed." />
+          <Section title={m.dataguide_slip()}>
+            <Row label={m.dataguide_ratio()} desc="Wheel speed vs ground speed. High ratio = wheelspin/lockup. Colour: green &lt;10% · amber &lt;30% · red beyond." />
+            <Row label={m.dataguide_angle()} desc="Angle between wheel heading and direction of travel. Peak mechanical grip is typically 6–12° (speed-dependent). Thresholds scale down at low speed." />
           </Section>
 
           {/* Wheels */}
-          <Section title="Wheels">
-            <Row label="Rotation /s" desc="Wheel angular velocity in rad/s. Spikes sharply during wheelspin." />
+          <Section title={m.dataguide_wheels()}>
+            <Row label={m.dataguide_rotation_s()} desc="Wheel angular velocity in rad/s. Spikes sharply during wheelspin." />
             <Row
-              label="Temp"
+              label={m.dataguide_temp()}
               desc={
                 <>
-                  Surface temperature. <ColorDot color="#3b82f6" />
+                  {m.dataguide_surface_temp()} <ColorDot color="#3b82f6" />
                   cold · <ColorDot color="#34d399" />
                   optimal · <ColorDot color="#fbbf24" />
                   hot · <ColorDot color="#ef4444" />
@@ -158,22 +159,22 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               }
             />
             <Row
-              label="Health"
+              label={m.dataguide_health()}
               desc={
                 <>
-                  Tire wear remaining. <span className="text-app-text">100%</span> = new. <ColorDot color="#34d399" />
+                  {m.dataguide_tire_wear_remaining()} <span className="text-app-text">100%</span> = new. <ColorDot color="#34d399" />
                   &gt;70% · <ColorDot color="#fbbf24" />
                   &gt;40% · <ColorDot color="#ef4444" />
                   below
                 </>
               }
             />
-            <Row label="Wear /s" desc="% of tire worn per second at the current intensity, measured over the last lap." />
+            <Row label={m.dataguide_wear_s()} desc="% of tire worn per second at the current intensity, measured over the last lap." />
             <Row
-              label="Brake"
+              label={m.dataguide_brake()}
               desc={
                 <>
-                  Brake disc temperature. <ColorDot color="#3b82f6" />
+                  {m.dataguide_brake_disc_temp()} <ColorDot color="#3b82f6" />
                   cold · <ColorDot color="#34d399" />
                   working range · <ColorDot color="#fbbf24" />
                   hot · <ColorDot color="#ef4444" />
@@ -184,9 +185,9 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
           </Section>
 
           {/* Suspension */}
-          <Section title="Suspension">
+          <Section title={m.dataguide_suspension()}>
             <Row
-              label="Travel"
+              label={m.dataguide_travel()}
               desc={
                 <>
                   Normalised suspension travel (0–100%). <ColorDot color="#3b82f6" />
@@ -197,7 +198,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
                 </>
               }
             />
-            <Row label="Load" desc="Weight distribution. Lon 50% = balanced front/rear · Lat 50% = balanced left/right. Shifts during acceleration, braking, and cornering." />
+            <Row label={m.dataguide_load()} desc="Weight distribution. Lon 50% = balanced front/rear · Lat 50% = balanced left/right. Shifts during acceleration, braking, and cornering." />
           </Section>
         </div>
       </div>

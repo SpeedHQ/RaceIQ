@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { m } from "@/paraglide/messages";
 import { client } from "../../lib/rpc";
 import { Button } from "../ui/button";
 
@@ -13,15 +14,15 @@ export function TuneViewModal({ tuneId, onClose }: { tuneId: number; onClose: ()
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
       <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[600px] max-h-[80vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
         {isLoading ? (
-          <p className="text-app-text-muted text-sm">Loading tune...</p>
+          <p className="text-app-text-muted text-sm">{m.tuneview_loading()}</p>
         ) : !tune ? (
-          <p className="text-app-text-muted text-sm">Tune not found</p>
+          <p className="text-app-text-muted text-sm">{m.tuneview_not_found()}</p>
         ) : (
           <>
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-app-text">{tune.name}</h2>
-                {tune.author && <p className="text-xs text-app-text-muted">by {tune.author}</p>}
+                {tune.author && <p className="text-xs text-app-text-muted">{m.tuneview_by_author()} {tune.author}</p>}
               </div>
               <Button variant="app-ghost" size="app-sm" onClick={onClose}>
                 &times;

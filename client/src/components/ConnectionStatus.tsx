@@ -1,5 +1,6 @@
 import { useTelemetryStore } from "../stores/telemetry";
 import { useSettings } from "../hooks/queries";
+import { m } from "@/paraglide/messages";
 import { deriveConnectionStatusView } from "./connection-status-logic";
 
 interface Props {
@@ -21,15 +22,20 @@ export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving }: P
   const { displaySettings } = useSettings();
   const view = deriveConnectionStatusView({ connected, forzaReceiving, detectedGame });
 
+  // Localize the display text here (connection-status-logic stays pure/testable).
+  // gameLabel is the game's display name (proper noun) — kept verbatim.
+  const serverText = view.serverLabel === "Server" ? m.status_server() : m.status_disconnected();
+  const gameText = forzaReceiving ? (view.gameLabel ?? m.status_receiving()) : view.gameLabel ? `${view.gameLabel} — ${m.status_waiting()}` : m.status_no_signal();
+
   return (
     <div className="flex items-center gap-4 px-4 self-stretch bg-app-surface">
       <div className="flex items-center gap-2 w-28 shrink-0">
         <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${connected ? DOT_CLASS.green : DOT_CLASS.red}`} />
-        <span className="text-sm font-medium text-app-text whitespace-nowrap">{view.serverLabel}</span>
+        <span className="text-sm font-medium text-app-text whitespace-nowrap">{serverText}</span>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${DOT_CLASS[view.dotColor]}`} />
-        <span className="text-sm font-medium text-app-text whitespace-nowrap">{view.gameText}</span>
+        <span className="text-sm font-medium text-app-text whitespace-nowrap">{gameText}</span>
       </div>
       <span className="text-sm text-app-text-muted font-mono tabular-nums whitespace-nowrap shrink-0">{forzaReceiving ? `${packetsPerSec} pkt/s · ${displaySettings.wsRefreshRate ?? 60}Hz` : ""}</span>
     </div>

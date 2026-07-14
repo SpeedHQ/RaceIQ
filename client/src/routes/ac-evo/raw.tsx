@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { m } from "@/paraglide/messages";
 import React, { useEffect, useRef, useState } from "react";
 import { RawTelemetry } from "../../components/RawTelemetry";
 import { useTelemetryStore } from "../../stores/telemetry";
@@ -168,16 +169,16 @@ function RawPage() {
     <div className="flex-1 overflow-hidden flex flex-col">
       <div className="flex gap-2 p-2 border-b border-app-border items-center">
         <button className={`px-3 py-1 rounded text-xs ${view === "parsed" ? "bg-app-accent text-white" : "bg-app-surface"}`} onClick={() => setView("parsed")}>
-          Parsed Packet
+          {m.dev_parsed_packet()}
         </button>
         <button className={`px-3 py-1 rounded text-xs ${view === "fields" ? "bg-app-accent text-white" : "bg-app-surface"}`} onClick={() => setView("fields")}>
-          Struct Fields (v0.6)
+          {m.dev_struct_fields()}
         </button>
         <button className={`px-3 py-1 rounded text-xs ${view === "verify" ? "bg-app-accent text-white" : "bg-app-surface"}`} onClick={() => setView("verify")}>
-          Verify (bytes + interp)
+          {m.dev_verify_fields()}
         </button>
         <button className={`px-3 py-1 rounded text-xs ${view === "hex" ? "bg-app-accent text-white" : "bg-app-surface"}`} onClick={() => setView("hex")}>
-          Raw Hex
+          {m.dev_raw_hex()}
         </button>
         {view === "hex" && (
           <div className="flex gap-1 ml-4">
@@ -189,7 +190,7 @@ function RawPage() {
           </div>
         )}
         <div className="ml-auto text-xs text-app-text-muted font-mono">
-          {view === "parsed" ? "source: WebSocket (live)" : lastPollAt == null ? "no poll yet" : `polls: ${pollCount} · last ${pollAgeMs}ms ago (${new Date(lastPollAt).toLocaleTimeString()})`}
+          {view === "parsed" ? m.dev_websocket_source() : lastPollAt == null ? m.dev_no_poll_yet() : `polls: ${pollCount} · last ${pollAgeMs}ms ago (${new Date(lastPollAt).toLocaleTimeString()})`}
         </div>
       </div>
       {err && <div className="p-2 text-red-400 text-xs">Error: {err}</div>}
