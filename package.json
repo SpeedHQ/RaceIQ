@@ -33,6 +33,7 @@
     "extract:tracks:acc": "bun scripts/extract-acc-tracks.ts",
     "tracks:segments": "bun scripts/generate-track-segments.ts",
     "tracks:turn-counts": "bun scripts/update-expected-turn-counts.ts",
+    "tracks:segment-counts": "bun scripts/update-expected-segment-counts.ts",
     "extract:cars:ac-evo": "bun scripts/extract-ac-evo-cars.ts",
     "scrape:car-images:ac-evo": "bun scripts/scrape-ac-evo-car-images.ts",
     "laps:export": "bun scripts/export-laps.ts",
