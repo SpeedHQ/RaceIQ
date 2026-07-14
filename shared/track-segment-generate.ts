@@ -13,6 +13,7 @@ import {
   detectCornerRegions,
   resolveSectors,
   validateNameList,
+  type AlignedCorner,
   type CornerNameList,
 } from "./track-segment-align";
 import {
@@ -82,6 +83,8 @@ export interface GameAlignment {
   gameId: string;
   file: string;
   segments: NonNullable<SharedTrackMeta["segments"]>;
+  /** Named corners with the official turn numbers each one covers. */
+  corners: AlignedCorner[];
   sectors: { s1End: number; s2End: number; source: string } | null;
   cost: number;
 }
@@ -157,7 +160,7 @@ export function generateTrackSegments(
     }
 
     seenGames.add(gameId);
-    aligned.push({ gameId, file, segments: result.segments, sectors, cost: result.cost });
+    aligned.push({ gameId, file, segments: result.segments, corners: result.corners, sectors, cost: result.cost });
     const warnings = result.issues.filter((i) => i.severity === "warning").map((i) => i.message);
     outcomes.push({
       slug, gameId, ok: true, cost: result.cost, wrote: false,
