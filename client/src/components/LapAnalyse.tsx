@@ -57,7 +57,7 @@ function useIsPhoneViewport() {
 
 export function LapAnalyse() {
   const isPhone = useIsPhoneViewport();
-  if (isPhone) return <MobileNotSupported feature="Lap analyse" />;
+  if (isPhone) return <MobileNotSupported feature={m.lapanalyse_feature_name()} />;
   return <LapAnalyseInner />;
 }
 
@@ -493,7 +493,7 @@ function LapAnalyseInner() {
           {loading ? (
             <span>{m.analyse_loading_telemetry()}</span>
           ) : isLegacyLap ? (
-            <span>This lap was recorded before raw telemetry storage. Lap times and metadata are preserved but telemetry charts are unavailable.</span>
+            <span>{m.lapanalyse_legacy_notice()}</span>
           ) : parseError ? (
             <div className="flex flex-col items-center gap-2 max-w-xl text-center">
               <span className="text-app-danger font-medium">{m.analyse_parse_error()}</span>

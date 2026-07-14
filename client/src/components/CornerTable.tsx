@@ -13,7 +13,7 @@ interface Props {
 
 export function CornerTable({ corners }: Props) {
   if (corners.length === 0) {
-    return <div className="text-app-text-dim text-sm p-4">No corner data available.</div>;
+    return <div className="text-app-text-dim text-sm p-4">{m.corner_no_data()}</div>;
   }
 
   return (

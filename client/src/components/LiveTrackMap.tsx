@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { TelemetryPacket } from "@shared/types";
+import { m } from "@/paraglide/messages";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
 
@@ -620,7 +621,7 @@ export function LiveTrackMap({ packet }: Props) {
           className="absolute top-2 right-2 px-2 py-1 text-xs hover:bg-red-900/80 text-app-text-secondary hover:text-red-300 rounded border border-app-border-input hover:border-red-700 transition-colors"
           title="Delete recorded track map and re-record from driving"
         >
-          Reset Map
+          {m.label_reset_map()}
         </button>
       )}
     </div>

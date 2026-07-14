@@ -150,7 +150,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               label={m.dataguide_temp()}
               desc={
                 <>
-                  Surface temperature. <ColorDot color="#3b82f6" />
+                  {m.dataguide_surface_temp()} <ColorDot color="#3b82f6" />
                   cold · <ColorDot color="#34d399" />
                   optimal · <ColorDot color="#fbbf24" />
                   hot · <ColorDot color="#ef4444" />
@@ -162,7 +162,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               label={m.dataguide_health()}
               desc={
                 <>
-                  Tire wear remaining. <span className="text-app-text">100%</span> = new. <ColorDot color="#34d399" />
+                  {m.dataguide_tire_wear_remaining()} <span className="text-app-text">100%</span> = new. <ColorDot color="#34d399" />
                   &gt;70% · <ColorDot color="#fbbf24" />
                   &gt;40% · <ColorDot color="#ef4444" />
                   below
@@ -174,7 +174,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               label={m.dataguide_brake()}
               desc={
                 <>
-                  Brake disc temperature. <ColorDot color="#3b82f6" />
+                  {m.dataguide_brake_disc_temp()} <ColorDot color="#3b82f6" />
                   cold · <ColorDot color="#34d399" />
                   working range · <ColorDot color="#fbbf24" />
                   hot · <ColorDot color="#ef4444" />

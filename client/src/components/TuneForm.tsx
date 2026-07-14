@@ -399,7 +399,7 @@ export function UserTuneCard({
             <span className="text-[10px] text-app-text-muted">
               by {tune.author} &middot; {tune.source === "catalog-clone" ? "cloned from catalog" : "user created"}
             </span>
-            {tune.source === "catalog-clone" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">Cloned</span>}
+            {tune.source === "catalog-clone" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">{m.tuneform_cloned()}</span>}
           </div>
           <p className={`text-xs text-app-text-muted mt-0.5 ${isExpanded ? "" : "line-clamp-1"}`}>{tune.description}</p>
         </div>
@@ -418,7 +418,7 @@ export function UserTuneCard({
               }}
               className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
             >
-              Edit
+              {m.common_edit()}
             </button>
             {onDuplicate && (
               <button
@@ -426,7 +426,7 @@ export function UserTuneCard({
                 disabled={isDuplicating}
                 className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-50 transition-colors"
               >
-                {isDuplicating ? "..." : "Duplicate"}
+                {isDuplicating ? "..." : m.common_duplicate()}
               </button>
             )}
             <div className="relative">
@@ -442,10 +442,10 @@ export function UserTuneCard({
               {shareOpen && (
                 <div className="absolute left-0 top-full mt-1 z-20 min-w-40 rounded-md border border-app-border bg-app-surface p-1 shadow-lg">
                   <button type="button" onClick={handleCopyShare} className="block w-full text-left text-[10px] px-2 py-1 rounded hover:bg-app-accent/20 text-app-text">
-                    Copy to clipboard
+                    {m.tuneform_copy_clipboard()}
                   </button>
                   <button type="button" onClick={handleDownloadShare} className="block w-full text-left text-[10px] px-2 py-1 rounded hover:bg-app-accent/20 text-app-text">
-                    Download JSON
+                    {m.tuneform_download_json()}
                   </button>
                 </div>
               )}
@@ -458,7 +458,7 @@ export function UserTuneCard({
                 }}
                 className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
               >
-                Delete
+                {m.common_delete()}
               </button>
             ) : (
               <span className="flex items-center gap-1">
@@ -768,7 +768,7 @@ export function TuneForm({
             </select>
           </label>
           <label className="space-y-1">
-            <span className="text-xs font-medium text-app-text-muted">Drivetrain</span>
+            <span className="text-xs font-medium text-app-text-muted">{m.label_drivetrain()}</span>
             <select
               value={drivetrain}
               onChange={(e) => setDrivetrain(e.target.value as "rwd" | "fwd" | "awd")}
@@ -797,25 +797,25 @@ export function TuneForm({
                 <div className="p-3 grid grid-cols-3 gap-x-4 gap-y-2">
                   {s.hp > 0 && (
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">Power</span>
+                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">{m.label_power()}</span>
                       <span className="text-xs font-mono text-app-text">{s.hp} hp</span>
                     </div>
                   )}
                   {s.torque > 0 && (
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">Torque</span>
+                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">{m.label_torque()}</span>
                       <span className="text-xs font-mono text-app-text">{s.torque} lb-ft</span>
                     </div>
                   )}
                   {s.weightKg > 0 && (
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">Weight</span>
+                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">{m.label_weight()}</span>
                       <span className="text-xs font-mono text-app-text">{s.weightKg} kg</span>
                     </div>
                   )}
                   {s.engine && (
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">Engine</span>
+                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">{m.label_engine()}</span>
                       <span className="text-xs font-mono text-app-text truncate">
                         {s.engine}
                         {s.aspiration && s.aspiration !== "NA" ? ` · ${s.aspiration}` : ""}
@@ -824,13 +824,13 @@ export function TuneForm({
                   )}
                   {s.topSpeedMph > 0 && (
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">Top Speed</span>
+                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">{m.label_top_speed()}</span>
                       <span className="text-xs font-mono text-app-text">{Math.round(s.topSpeedMph * 1.60934)} km/h</span>
                     </div>
                   )}
                   {s.division && (
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">Division</span>
+                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">{m.label_division()}</span>
                       <span className="text-xs text-app-text truncate">{s.division}</span>
                     </div>
                   )}
@@ -855,7 +855,7 @@ export function TuneForm({
       {activeTab === "settings" && (
         <div className="p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted">Tune Parameters</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted">{m.tuneform_tune_parameters()}</h3>
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => setJsonMode(false)} className="hidden">
                 {m.tune_json_import()}
@@ -885,7 +885,7 @@ export function TuneForm({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <label className="text-xs px-3 py-1.5 rounded bg-app-surface ring-1 ring-app-border text-app-text cursor-pointer hover:bg-app-surface-alt transition-colors">
-                  Import JSON File
+                  {m.tuneform_import_json_file()}
                   <input type="file" accept=".json,application/json" onChange={handleJsonFileImport} className="hidden" />
                 </label>
               </div>
@@ -928,7 +928,7 @@ export function TuneForm({
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_gearing()}</h4>
                 <NumberField label="Final Drive" value={settings.gearing.finalDrive} onChange={(v) => updateSettings("gearing", "finalDrive", v)} step={0.01} unit=":1" />
                 <NumberField
-                  label="Top Speed"
+                  label={m.label_top_speed()}
                   value={settings.gearing.topSpeedKph ?? Math.round((allCars.find((c) => c.ordinal === carOrdinal)?.specs?.topSpeedMph ?? 0) * 1.60934)}
                   onChange={(v) =>
                     setSettings((s) => ({
@@ -941,7 +941,7 @@ export function TuneForm({
                 />
                 <div className="space-y-1 pt-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-app-text-muted">Gear Ratios</span>
+                    <span className="text-xs text-app-text-muted">{m.tuneform_gear_ratios()}</span>
                     <select
                       value={settings.gearing.ratios?.length ?? 6}
                       onChange={(e) => {

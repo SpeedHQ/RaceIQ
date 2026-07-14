@@ -52,9 +52,9 @@ export function PitEstimate({ packet, pit, gameId }: PitEstimateProps) {
   const pitStatus = packet.acc?.pitStatus;
   const pitBadge =
     pitStatus === "in_pit"
-      ? { label: "IN PIT", cls: "bg-sky-500/20 text-sky-300 border-sky-500/30" }
+      ? { label: m.pit_in_pit(), cls: "bg-sky-500/20 text-sky-300 border-sky-500/30" }
       : pitStatus === "pit_lane"
-        ? { label: "PIT LANE", cls: "bg-amber-500/20 text-amber-300 border-amber-500/30" }
+        ? { label: m.pit_pit_lane(), cls: "bg-amber-500/20 text-amber-300 border-amber-500/30" }
         : null;
 
   return (
@@ -86,10 +86,10 @@ export function PitEstimate({ packet, pit, gameId }: PitEstimateProps) {
           <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-x-2 items-center mb-1 px-0.5">
             <div className="w-6" />
             <div />
-            <div className="text-[10px] text-app-text-dim uppercase tracking-wider text-right w-12">Health</div>
-            <div className="text-[10px] text-app-text-dim uppercase tracking-wider text-right w-14">Wear/lap</div>
-            <div className="text-[10px] text-amber-400/70 uppercase tracking-wider text-right w-12">Cliff{pit?.cliffPct ? ` ${pit.cliffPct}%` : ""}</div>
-            <div className="text-[10px] text-red-400/70 uppercase tracking-wider text-right w-12">Dead{pit?.deadPct ? ` ${pit.deadPct}%` : ""}</div>
+            <div className="text-[10px] text-app-text-dim uppercase tracking-wider text-right w-12">{m.pit_health()}</div>
+            <div className="text-[10px] text-app-text-dim uppercase tracking-wider text-right w-14">{m.pit_wear_lap()}</div>
+            <div className="text-[10px] text-amber-400/70 uppercase tracking-wider text-right w-12">{m.pit_cliff()}{pit?.cliffPct ? ` ${pit.cliffPct}%` : ""}</div>
+            <div className="text-[10px] text-red-400/70 uppercase tracking-wider text-right w-12">{m.pit_dead()}{pit?.deadPct ? ` ${pit.deadPct}%` : ""}</div>
           </div>
 
           {tireData.map((t) => (

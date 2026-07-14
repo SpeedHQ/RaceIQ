@@ -112,14 +112,14 @@ function useLapAnalysis(lapId: number, panelOpen: boolean) {
           query: regenerate ? { regenerate: "true" } : {},
         });
         if (!res.ok) {
-          const data = (await res.json().catch(() => ({ error: "Unknown error" }))) as { error?: string };
+          const data = (await res.json().catch(() => ({ error: m.compare_unknown_error() }))) as { error?: string };
           throw new Error(data.error || `HTTP ${res.status}`);
         }
         const data = (await res.json()) as { analysis: string | object | null };
         const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis as string) : data.analysis;
         setSummary(summarize(parsed));
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Failed to analyse");
+        setError(err instanceof Error ? err.message : m.compare_analyse_failed());
       } finally {
         setLoading(false);
       }
@@ -167,14 +167,14 @@ function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boolean) {
         const url = `/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse${regenerate ? "?regenerate=true" : ""}`;
         const res = await fetch(url, { method: "POST" });
         if (!res.ok) {
-          const data = (await res.json().catch(() => ({ error: "Unknown error" }))) as { error?: string };
+          const data = (await res.json().catch(() => ({ error: m.compare_unknown_error() }))) as { error?: string };
           throw new Error(data.error || `HTTP ${res.status}`);
         }
         const data = (await res.json()) as { analysis: string | object | null };
         const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis as string) : data.analysis;
         setAnalysis(parsed);
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Failed to analyse inputs");
+        setError(err instanceof Error ? err.message : m.compare_analyse_inputs_failed());
       } finally {
         setLoading(false);
       }
@@ -223,14 +223,14 @@ function InputsSection({
       {!analysis && !loading && !error && (
         <button onClick={() => run(false)} className="w-full flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
           <Sparkles className="size-3" />
-          Compare Inputs
+          {m.compare_inputs_compare_button()}
         </button>
       )}
 
       {loading && (
         <div className="flex items-center gap-2 text-[10px] text-app-text-muted py-1">
           <div className="size-3 border border-app-border-input border-t-amber-400 rounded-full animate-spin" />
-          Comparing inputs…
+          {m.compare_inputs_comparing()}
         </div>
       )}
 
@@ -238,7 +238,7 @@ function InputsSection({
         <div className="text-[10px] text-red-400 mb-1">
           {error}
           <Button variant="app-outline" size="app-sm" onClick={() => run(false)} className="ml-2">
-            Retry
+            {m.compare_retry()}
           </Button>
         </div>
       )}
@@ -256,7 +256,7 @@ function InputsSection({
             </div>
           </div>
           <span className="flex items-center gap-1 text-[10px] text-app-text-secondary shrink-0">
-            <Eye className="size-3" /> View
+            <Eye className="size-3" /> {m.label_view()}
           </span>
         </button>
       )}
@@ -289,7 +289,7 @@ function LapSection({
         <span className={`w-2 h-2 rounded-full ${dotClass}`} />
         <span className="text-[11px] font-semibold text-app-text truncate flex-1">{lap.label}</span>
         {summary && (
-          <button onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title="Regenerate">
+          <button onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()}>
             <RefreshCw className="size-3" />
           </button>
         )}
@@ -298,14 +298,14 @@ function LapSection({
       {!summary && !loading && !error && (
         <button onClick={() => run(false)} className="w-full flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
           <Sparkles className="size-3" />
-          Analyse Lap
+          {m.compare_analyse_lap_button()}
         </button>
       )}
 
       {loading && (
         <div className="flex items-center gap-2 text-[10px] text-app-text-muted py-1">
           <div className="size-3 border border-app-border-input border-t-amber-400 rounded-full animate-spin" />
-          Analysing…
+          {m.compare_analysing()}
         </div>
       )}
 
@@ -313,7 +313,7 @@ function LapSection({
         <div className="text-[10px] text-red-400 mb-1">
           {error}
           <Button variant="app-outline" size="app-sm" onClick={() => run(false)} className="ml-2">
-            Retry
+            {m.compare_retry()}
           </Button>
         </div>
       )}
@@ -331,7 +331,7 @@ function LapSection({
             </div>
           </div>
           <span className="flex items-center gap-1 text-[10px] text-app-text-secondary shrink-0">
-            <Eye className="size-3" /> View
+            <Eye className="size-3" /> {m.label_view()}
           </span>
         </button>
       )}
@@ -439,7 +439,7 @@ function InputsModal({
                           c.targetLap === "A" ? "bg-orange-500/15 text-orange-300 border border-orange-500/30" : "bg-blue-500/15 text-blue-300 border border-blue-500/30"
                         }`}
                       >
-                        Lap {c.targetLap}
+                        {m.compare_lap_label()} {c.targetLap}
                       </span>
                       <span className="text-[11px] font-medium text-app-text">{c.tip}</span>
                     </div>
@@ -562,7 +562,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
         body: JSON.stringify({ message: msg }),
       });
       if (!res.ok) {
-        const errData = (await res.json().catch(() => ({ error: "Request failed" }))) as { error?: string };
+        const errData = (await res.json().catch(() => ({ error: m.compare_request_failed() }))) as { error?: string };
         throw new Error(errData.error || `HTTP ${res.status}`);
       }
       await readChatStream(res, (event) => {
@@ -595,7 +595,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
       setMessages((prev) => [...prev, { role: "assistant", content: fullText, usage: finalUsage ?? undefined }]);
       setChatUsage(finalUsage);
     } catch (err: unknown) {
-      setChatError(err instanceof Error ? err.message : "Chat failed");
+      setChatError(err instanceof Error ? err.message : m.compare_chat_failed());
     } finally {
       setChatLoading(false);
       setChatStatus(null);
@@ -632,7 +632,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
           <p className="text-[10px] text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
         </div>
         <button onClick={() => openSettings("ai")} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors">
-          Set up AI
+          {m.compare_setup_ai_button()}
         </button>
       </div>
     );
@@ -696,7 +696,9 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
                 <div className="rounded-lg px-2.5 py-1.5 bg-app-surface-alt/60 border border-app-border-input/40">
                   <div className="flex items-center gap-1.5">
                     <div className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    <span className="text-[10px] text-app-text-secondary">{chatTool ? `Using tool: ${chatTool}` : chatStatus === "thinking" ? "Thinking…" : "Waiting for model…"}</span>
+                    <span className="text-[10px] text-app-text-secondary">
+                      {chatTool ? `${m.compare_chat_using_tool()} ${chatTool}` : chatStatus === "thinking" ? m.compare_chat_thinking() : m.compare_chat_waiting()}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -734,7 +736,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
                 sendChat();
               }
             }}
-            placeholder="Ask about the comparison..."
+            placeholder={m.compare_chat_placeholder()}
             disabled={chatLoading}
             rows={1}
             style={{ height: "auto", maxHeight: "9.375rem" }}

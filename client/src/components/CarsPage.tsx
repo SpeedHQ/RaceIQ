@@ -497,7 +497,7 @@ export function CarsPage() {
 
                     {/* Image */}
                     <div className="h-32 flex items-center justify-center bg-app-bg rounded-t-xl overflow-hidden px-3 pt-3 relative">
-                      {s.imageUrl ? <img src={s.imageUrl} alt={car.name} loading="lazy" className="h-full w-full object-contain" /> : <div className="text-xs text-app-text/90-muted">No image</div>}
+                      {s.imageUrl ? <img src={s.imageUrl} alt={car.name} loading="lazy" className="h-full w-full object-contain" /> : <div className="text-xs text-app-text/90-muted">{m.cars_no_image()}</div>}
                       {configsReady && getCarModel(car.ordinal).hasModel && (
                         <button
                           onClick={(e) => {
@@ -531,11 +531,11 @@ export function CarsPage() {
                           <span className="tabular-nums text-app-text/90">{s.hp || "—"}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-app-text/90-muted">Torque</span>
+                          <span className="text-app-text/90-muted">{m.cars_torque_label()}</span>
                           <span className="tabular-nums text-app-text/90">{s.torque || "—"}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-app-text/90-muted">Top Spd</span>
+                          <span className="text-app-text/90-muted">{m.cars_top_spd_label()}</span>
                           <span className="tabular-nums text-app-text/90">{fmtSpeed(s.topSpeedMph)}</span>
                         </div>
                         <div className="flex justify-between">
@@ -543,11 +543,11 @@ export function CarsPage() {
                           <span className="tabular-nums text-app-text/90">{s.zeroToSixty ? `${s.zeroToSixty}s` : "—"}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-app-text/90-muted">Weight</span>
+                          <span className="text-app-text/90-muted">{m.cars_weight_label()}</span>
                           <span className="tabular-nums text-app-text/90">{fmtWeight(s.weightKg, s.weightLbs)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-app-text/90-muted">Brake 60</span>
+                          <span className="text-app-text/90-muted">{m.cars_brake_60_label()}</span>
                           <span className="tabular-nums text-app-text/90">{fmtBrake(s.braking60)}</span>
                         </div>
                       </div>
@@ -624,7 +624,7 @@ export function CarsPage() {
             <TH>
               <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="weightKg" label={isMetric ? "Wt (kg)" : "Wt (lb)"} />
             </TH>
-            <TH>Drive</TH>
+            <TH>{m.cars_drive_label()}</TH>
             <TH>
               <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="topSpeedMph" label={`Top Spd (${units.speedLabel})`} />
             </TH>
@@ -724,14 +724,14 @@ export function CarsPage() {
       {selected.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-app-surface border border-app-border rounded-full px-4 py-2 shadow-xl">
           <span className="text-xs text-app-text/90-muted">
-            {m.cars_selected({ count: selected.size })}
+            {selected.size} {m.cars_selected()}
           </span>
           <button
             onClick={() => setComparing(true)}
             disabled={selected.size < 2}
             className="text-xs font-semibold px-3 py-1 rounded-full bg-app-accent/20 text-app-accent border border-app-accent/30 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-app-accent/30 transition-colors"
           >
-            {m.cars_compare_button({ count: selected.size })}
+            {m.cars_compare_button()} ({selected.size})
           </button>
           <button onClick={() => setSelected(new Set())} className="text-xs text-app-text/90-muted hover:text-app-text/90 transition-colors">
             {m.common_clear()}

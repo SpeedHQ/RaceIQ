@@ -213,7 +213,7 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
           ytLoading && (
             <span className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-app-text-muted inline-flex items-center gap-1.5 cursor-wait" aria-busy="true">
               <span className="w-3 h-3 rounded-full border-2 border-app-border border-t-app-accent animate-spin" />
-              Download
+              {m.label_download()}
             </span>
           )
         )}

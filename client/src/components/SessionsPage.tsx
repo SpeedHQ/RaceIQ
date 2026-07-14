@@ -149,7 +149,7 @@ function SessionLapTable({
                       </span>
                     )}
                     {lap.isLegacy ? (
-                      <Tooltip content={m.sessions_legacy_tooltip({ version: RAW_STORAGE_VERSION })}>
+                      <Tooltip content={`${m.sessions_legacy_tooltip_prefix()} ${RAW_STORAGE_VERSION} ${m.sessions_legacy_tooltip_suffix()}`}>
                         <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
                           {m.label_analyse()}
                         </Button>
@@ -461,7 +461,7 @@ export function SessionsPage() {
           {m.label_sessions()}
           {!isLoading && (
             <span className="text-app-text/90-muted font-normal ml-2">
-              {filtered.length === sessions.length ? m.sessions_total({ count: sessions.length }) : m.sessions_filtered_count({ shown: filtered.length, total: sessions.length })}
+              {filtered.length === sessions.length ? `${sessions.length} ${m.sessions_total()}` : `${filtered.length} ${m.sessions_filtered_count()} ${sessions.length}`}
             </span>
           )}
         </h1>
@@ -476,7 +476,7 @@ export function SessionsPage() {
               if (!lapA || !lapB) return null;
               if (lapA.isLegacy || lapB.isLegacy)
                 return (
-                  <Tooltip content={m.sessions_legacy_tooltip({ version: RAW_STORAGE_VERSION })}>
+                  <Tooltip content={`${m.sessions_legacy_tooltip_prefix()} ${RAW_STORAGE_VERSION} ${m.sessions_legacy_tooltip_suffix()}`}>
                     <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none">
                       {m.label_compare()}
                     </Button>
@@ -515,9 +515,9 @@ export function SessionsPage() {
           {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
             <button onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors">
               {m.common_delete()}{" "}
-              {selectedSessions.size > 0 ? m.sessions_count_sessions({ count: selectedSessions.size }) : ""}
+              {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
               {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
-              {selectedLaps.size > 0 ? m.sessions_count_laps({ count: selectedLaps.size }) : ""}
+              {selectedLaps.size > 0 ? `${selectedLaps.size} ${m.sessions_count_laps()}` : ""}
             </button>
           )}
         </div>
@@ -710,7 +710,7 @@ export function SessionsPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs text-app-text/90-muted">
           <span>
-            {m.sessions_showing({ from: page * PAGE_SIZE + 1, to: Math.min((page + 1) * PAGE_SIZE, filtered.length), total: filtered.length })}
+            {m.sessions_showing_prefix()} {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} {m.sessions_showing_of()} {filtered.length}
           </span>
           <div className="flex gap-1">
             <button

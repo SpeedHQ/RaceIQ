@@ -50,7 +50,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
       const res = await client.api.update.apply.$post();
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? m.update_failed_status({ status: res.status }));
+        throw new Error(body?.error ?? `${m.update_failed_status()} (${res.status})`);
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : m.update_failed());
@@ -116,7 +116,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
                       </div>
                       {older.length > 0 && !showAllReleases && (
                         <button onClick={() => setShowAllReleases(true)} className="text-xs text-app-accent hover:underline">
-                          {m.update_show_earlier({ count: older.length })}
+                          {m.update_show_earlier_prefix()} {older.length} {m.update_show_earlier_suffix()}
                         </button>
                       )}
                       {showAllReleases &&
@@ -177,7 +177,9 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
                   <div className="h-2 rounded-full bg-app-surface-2 overflow-hidden">
                     <div className="h-full rounded-full bg-app-accent transition-all duration-300" style={{ width: `${percent}%` }} />
                   </div>
-                  <p className="text-xs text-app-text-muted text-center">{m.update_downloading({ percent })}</p>
+                  <p className="text-xs text-app-text-muted text-center">
+                    {m.update_downloading()} {percent}%
+                  </p>
                 </div>
               )}
 
@@ -191,7 +193,9 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
               {stage === "complete" && (
                 <div className="text-center space-y-2">
                   <p className="text-sm text-green-400 font-medium">{m.updates_complete()}</p>
-                  <p className="text-xs text-app-text-muted">{m.update_refreshing({ count: countdown ?? 0 })}</p>
+                  <p className="text-xs text-app-text-muted">
+                    {m.update_refreshing()} {countdown ?? 0}s...
+                  </p>
                 </div>
               )}
             </>

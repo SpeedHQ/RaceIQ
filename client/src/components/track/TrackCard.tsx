@@ -50,7 +50,7 @@ export function TrackCard({
         <div className="flex items-start justify-between gap-2">
           <div className="text-app-body font-medium text-app-text">{track.name}</div>
           <span className="shrink-0 text-app-label px-1.5 py-0.5 rounded bg-app-surface-alt border border-app-border text-app-text-muted">
-            {track.lapCount ?? 0} {(track.lapCount ?? 0) === 1 ? "lap" : m.pitwindow_laps()}
+            {track.lapCount ?? 0} {(track.lapCount ?? 0) === 1 ? m.trackcard_lap_singular() : m.pitwindow_laps()}
           </span>
         </div>
         <div className="text-app-label text-app-text-muted">
@@ -72,7 +72,7 @@ export function TrackCard({
                   setupCount > 0 ? "bg-green-900/70 border-green-700/50 text-green-300" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"
                 }`}
               >
-                {setupCount} setup{setupCount !== 1 ? "s" : ""}
+                {setupCount} {setupCount === 1 ? m.trackcard_setup_count() : m.trackcard_setup_counts()}
               </span>
             )}
             {guideCount !== undefined && (
@@ -81,7 +81,7 @@ export function TrackCard({
                   guideCount > 0 ? "bg-orange-900/70 border-orange-700/50 text-orange-300" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"
                 }`}
               >
-                {guideCount} guide{guideCount !== 1 ? "s" : ""}
+                {guideCount} {guideCount === 1 ? m.trackcard_guide_count() : m.trackcard_guide_counts()}
               </span>
             )}
           </div>

@@ -274,10 +274,10 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
         {chronoLaps.length >= 2 && (
           <div className="flex flex-col gap-0.5 border-t border-app-border pt-2.5">
             <div className="flex items-center gap-1.5 mb-1">
-              <div className="text-xs text-app-text-dim uppercase tracking-wider">Trend</div>
-              {trendDir === "faster" && <span className="text-xs text-emerald-400 font-medium">↓ Faster</span>}
-              {trendDir === "slower" && <span className="text-xs text-red-400 font-medium">↑ Slower</span>}
-              {trendDir === "neutral" && chronoLaps.length >= 4 && <span className="text-xs text-app-text-secondary font-medium">→ Keeping pace</span>}
+              <div className="text-xs text-app-text-dim uppercase tracking-wider">{m.trackdetail_trend()}</div>
+              {trendDir === "faster" && <span className="text-xs text-emerald-400 font-medium">↓ {m.trackdetail_faster()}</span>}
+              {trendDir === "slower" && <span className="text-xs text-red-400 font-medium">↑ {m.trackdetail_slower()}</span>}
+              {trendDir === "neutral" && chronoLaps.length >= 4 && <span className="text-xs text-app-text-secondary font-medium">→ {m.trackdetail_keeping_pace()}</span>}
             </div>
             <div className="relative">
               <svg
@@ -316,7 +316,7 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
                 <polygon points={`${polyline} ${(padL + plotW).toFixed(1)},${(padT + plotH).toFixed(1)} ${padL},${(padT + plotH).toFixed(1)}`} fill="url(#areaFill)" />
                 {/* Axis labels */}
                 <text x={padL} y={vbH - 2} fontSize="8" fill="rgb(255 255 255 / 0.3)" fontFamily="sans-serif">
-                  Older
+                  {m.trackdetail_older()}
                 </text>
                 <text x={padL + plotW - 30} y={vbH - 2} fontSize="8" fill="rgb(255 255 255 / 0.3)" fontFamily="sans-serif">
                   {lastDate}
@@ -349,7 +349,7 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
                   textAnchor={worstPoint.x > vbW / 2 ? "end" : "start"}
                   style={{ pointerEvents: "none" }}
                 >
-                  Worst
+                  {m.trackdetail_worst_point()}
                 </text>
                 {/* Best point + callout */}
                 <circle cx={bestPoint.x} cy={bestPoint.y} r="4" fill="rgb(192 132 252)" style={{ pointerEvents: "none" }} />
@@ -363,7 +363,7 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
                   textAnchor={bestPoint.x > vbW / 2 ? "end" : "start"}
                   style={{ pointerEvents: "none" }}
                 >
-                  Best
+                  {m.trackdetail_best_point()}
                 </text>
                 {/* Hover vertical line */}
                 {hoveredIdx !== null && (
@@ -408,8 +408,8 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
           <div className="flex flex-col gap-2 border-t border-app-border pt-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs text-app-text-dim uppercase tracking-wider">
-                Sectors
-                <InfoTooltip position="bottom">Theoretical best = best S1 + best S2 + best S3 across all laps. Gap = time between your best lap and theoretical best.</InfoTooltip>
+                {m.trackdetail_sectors()}
+                <InfoTooltip position="bottom">{m.trackdetail_theoretical_best_tooltip()}</InfoTooltip>
               </div>
               {theoretical != null && (
                 <div className="flex items-baseline gap-2 text-[11px] font-mono tabular-nums">
@@ -441,7 +441,7 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
                             <span className="group/tip relative inline-flex items-center shrink-0 cursor-help">
                               <span className="text-[9px] text-amber-400/80">↔</span>
                               <span className="absolute left-0 top-full mt-2 w-max max-w-[200px] hidden group-hover/tip:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">
-                                Most variance — largest time spread across laps. Most time lost/gained here.
+                                {m.trackdetail_most_variance_tooltip()}
                               </span>
                             </span>
                           )}
@@ -473,7 +473,7 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
         {/* Per-car best times */}
         {showCarBreakdown && (
           <div className="flex flex-col gap-1.5 border-t border-app-border pt-2.5">
-            <div className="text-xs text-app-text-dim uppercase tracking-wider">By Car</div>
+            <div className="text-xs text-app-text-dim uppercase tracking-wider">{m.trackdetail_by_car()}</div>
             {carList.map((car, i) => {
               const barPct = 100 - ((car.bestTime - minT) / carRange) * 100;
               return (
@@ -496,7 +496,7 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
         {/* By lap number */}
         {showLapNumBreakdown && (
           <div className="flex flex-col gap-1.5 border-t border-app-border pt-2.5">
-            <div className="text-xs text-app-text-dim uppercase tracking-wider">By Lap #</div>
+            <div className="text-xs text-app-text-dim uppercase tracking-wider">{m.trackdetail_by_lap_num()}</div>
             {lapNumData.map(({ lapNum, bestTime, count }) => {
               const barPct = 100 - ((bestTime - lapNumBest) / lapNumRange) * 100;
               const isFastest = bestTime === lapNumBest;
@@ -959,7 +959,15 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                   : "text-app-text-muted hover:text-app-text-secondary hover:bg-app-surface-alt"
               }`}
             >
-              {tab === "laps" && trackLaps.length > 0 ? `${m.label_laps()} (${trackLaps.length})` : tab === "guide" ? m.track_detail_guides_tab() : tab === "setups" ? m.track_detail_setup_tab() : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === "laps" && trackLaps.length > 0
+                ? `${m.label_laps()} (${trackLaps.length})`
+                : tab === "guide"
+                  ? m.track_detail_guides_tab()
+                  : tab === "setups"
+                    ? m.track_detail_setup_tab()
+                    : tab === "debug"
+                      ? m.trackdetail_debug_tab()
+                      : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
@@ -1047,10 +1055,10 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                             onChange={(e) => updateSegName(i, e.target.value)}
                             className="flex-1 text-app-label font-mono bg-transparent border-b border-app-border-input text-app-text outline-none px-1 placeholder:text-app-text-dim"
                           />
-                          <button onClick={() => addSegment(i)} className="text-app-unit text-app-text-muted hover:text-app-text px-1" title="Split segment">
+                          <button onClick={() => addSegment(i)} className="text-app-unit text-app-text-muted hover:text-app-text px-1" title={m.trackdetail_split_segment()}>
                             +
                           </button>
-                          <button onClick={() => removeSegment(i)} className="text-app-unit text-app-text-muted hover:text-red-400 px-1" title="Remove segment">
+                          <button onClick={() => removeSegment(i)} className="text-app-unit text-app-text-muted hover:text-red-400 px-1" title={m.trackdetail_remove_segment()}>
                             x
                           </button>
                         </div>
@@ -1085,7 +1093,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
             {/* Sector Boundaries */}
             <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
               <div className="flex items-center justify-between mb-2">
-                <div className="text-app-label text-app-text-muted uppercase tracking-wider">Sector Boundaries</div>
+                <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.trackdetail_sector_boundaries()}</div>
                 {isDevelopment &&
                   (!editingSectors ? (
                     <button
@@ -1093,7 +1101,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                       disabled={!sectorBounds}
                       className="text-app-unit text-cyan-400 hover:text-cyan-300 px-2 py-0.5 rounded bg-cyan-900/30 border border-cyan-800/50 disabled:opacity-50"
                     >
-                      Edit
+                      {m.common_edit()}
                     </button>
                   ) : (
                     <div className="flex gap-1">
@@ -1102,13 +1110,13 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                         disabled={savingSectors}
                         className="text-app-unit text-emerald-400 hover:text-emerald-300 px-2 py-0.5 rounded bg-emerald-900/30 border border-emerald-800/50 disabled:opacity-50"
                       >
-                        {savingSectors ? "..." : "Save"}
+                        {savingSectors ? "..." : m.common_save()}
                       </button>
                       <button
                         onClick={() => setEditingSectors(false)}
                         className="text-app-unit text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
                       >
-                        Cancel
+                        {m.common_cancel()}
                       </button>
                     </div>
                   ))}
@@ -1118,7 +1126,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-red-500" />
-                      <span className="text-app-label text-app-text-muted w-16">S1 End</span>
+                      <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s1_end()}</span>
                       <input
                         type="number"
                         step="0.1"
@@ -1132,7 +1140,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-blue-500" />
-                      <span className="text-app-label text-app-text-muted w-16">S2 End</span>
+                      <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s2_end()}</span>
                       <input
                         type="number"
                         step="0.1"
@@ -1146,9 +1154,9 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                      <span className="text-app-label text-app-text-muted w-16">S3 End</span>
+                      <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s3_end()}</span>
                       <span className="text-app-label font-mono text-app-text-secondary">100.0</span>
-                      <span className="text-app-label text-app-text-dim">% (finish)</span>
+                      <span className="text-app-label text-app-text-dim">% ({m.trackdetail_finish()})</span>
                     </div>
                     <div className="flex h-2 rounded overflow-hidden mt-1">
                       <div className="bg-red-500/60" style={{ width: `${editS1}%` }} />
@@ -1178,7 +1186,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                   </div>
                 )
               ) : (
-                <div className="text-app-label text-app-text-dim">No sector data available</div>
+                <div className="text-app-label text-app-text-dim">{m.trackdetail_no_sector_data()}</div>
               )}
             </div>
           </div>
@@ -1217,7 +1225,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                     }}
                   />
                 ) : (
-                  <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">No outline available</div>
+                  <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackdetail_no_outline_available()}</div>
                 )}
                 <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
                   <button
@@ -1315,17 +1323,19 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                       {(() => {
                           const filterRow = (
                             <div className="flex items-center gap-3 flex-wrap">
-                              <div className="text-app-label text-app-text-muted uppercase tracking-wider">Laps ({filteredLaps.length})</div>
+                              <div className="text-app-label text-app-text-muted uppercase tracking-wider">
+                                {m.label_laps()} ({filteredLaps.length})
+                              </div>
                               {/* Division filter — Forza only */}
                               {hasForzaTunes && uniqueDivisions.length > 1 && (
                                 <SearchMultiSelect<string>
                                   mode="single"
-                                  buttonLabel={selectedDivision ?? "All divisions"}
+                                  buttonLabel={selectedDivision ?? m.trackdetail_all_divisions()}
                                   options={uniqueDivisions.map((d) => ({ key: d, label: d }))}
                                   isSelected={(k) => selectedDivision === k}
                                   onSelect={(k) => setSelectedDivision(k)}
                                   onClear={selectedDivision ? () => setSelectedDivision(null) : undefined}
-                                  searchPlaceholder="Search divisions..."
+                                  searchPlaceholder={m.trackdetail_search_divisions_placeholder()}
                                   menuWidthClass="w-56"
                                 />
                               )}
@@ -1342,7 +1352,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                       }
                                     : undefined
                                 }
-                                searchPlaceholder="Search cars..."
+                                searchPlaceholder={m.trackdetail_search_cars_placeholder()}
                                 menuAlign="right"
                                 renderItem={(opt) => {
                                   const car = uniqueCars.find((c) => c.carOrdinal === opt.key);
@@ -1359,7 +1369,9 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                               {/* Selection actions — inline in header row */}
                               {selectedLaps.size > 0 && (
                                 <div className="flex items-center gap-2 ml-auto">
-                                  <span className="text-app-unit text-app-text-dim">{selectedLaps.size} selected</span>
+                                  <span className="text-app-unit text-app-text-dim">
+                                    {selectedLaps.size} {m.trackdetail_selected()}
+                                  </span>
                                   {selectedLaps.size === 2 &&
                                     (() => {
                                       const [lapA, lapB] = Array.from(selectedLaps);
@@ -1379,26 +1391,26 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                           }
                                           className="text-app-unit px-2 py-0.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-medium"
                                         >
-                                          Compare
+                                          {m.trackdetail_compare()}
                                         </button>
                                       );
                                     })()}
                                   {!confirmDelete ? (
                                     <button onClick={() => setConfirmDelete(true)} className="text-app-unit px-2 py-0.5 rounded bg-red-600/80 hover:bg-red-600 text-white font-medium">
-                                      Delete ({selectedLaps.size})
+                                      {m.trackdetail_delete()} ({selectedLaps.size})
                                     </button>
                                   ) : (
                                     <div className="flex items-center gap-1">
-                                      <span className="text-app-unit text-red-400">Confirm?</span>
+                                      <span className="text-app-unit text-red-400">{m.trackdetail_confirm()}</span>
                                       <button
                                         onClick={handleBulkDelete}
                                         disabled={deleting}
                                         className="text-app-unit px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white font-medium disabled:opacity-50"
                                       >
-                                        {deleting ? "..." : "Yes"}
+                                        {deleting ? "..." : m.trackdetail_yes()}
                                       </button>
                                       <button onClick={() => setConfirmDelete(false)} className="text-app-unit px-2 py-0.5 rounded bg-app-surface-alt text-app-text-secondary hover:text-app-text">
-                                        Cancel
+                                        {m.common_cancel()}
                                       </button>
                                     </div>
                                   )}
@@ -1415,7 +1427,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                               <div className="md:hidden flex flex-col gap-2">
                                 {filterRow}
                                 <div className="flex items-center gap-1 border-b border-app-border">
-                                  {["Stats", "Laps"].map((label, i) => (
+                                  {[m.trackdetail_stats_page(), m.label_laps()].map((label, i) => (
                                     <button
                                       key={label}
                                       onClick={() => gotoCarouselPage(i)}
@@ -1462,9 +1474,9 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                                       {hasSessionTypes &&
                                                         lap.sessionId != null &&
                                                         ((sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
-                                                          <span className="text-[10px] text-emerald-400 font-medium">Race</span>
+                                                          <span className="text-[10px] text-emerald-400 font-medium">{m.track_detail_race()}</span>
                                                         ) : (
-                                                          <span className="text-[10px] text-amber-400 font-medium">Quali</span>
+                                                          <span className="text-[10px] text-amber-400 font-medium">{m.track_detail_quali()}</span>
                                                         ))}
                                                     </div>
                                                     {lap.createdAt && (
@@ -1479,7 +1491,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                                     <div className="flex items-center gap-1">
                                                       <span className={isFastest ? "text-purple-400 font-bold" : "text-app-text"}>{formatLapTime(lap.lapTime)}</span>
                                                       {lap.isValid === false ? (
-                                                        <span className="text-red-400 w-6 text-center" title={lap.invalidReason ?? "Invalid lap"}>
+                                                        <span className="text-red-400 w-6 text-center" title={lap.invalidReason ?? m.trackdetail_invalid_lap()}>
                                                           ✕
                                                         </span>
                                                       ) : (
@@ -1559,9 +1571,9 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                               {hasSessionTypes && (
                                                 <TD>
                                                   {lap.sessionId != null && (sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
-                                                    <span className="text-[10px] text-emerald-400 font-medium">Race</span>
+                                                    <span className="text-[10px] text-emerald-400 font-medium">{m.track_detail_race()}</span>
                                                   ) : (
-                                                    <span className="text-[10px] text-amber-400 font-medium">Quali</span>
+                                                    <span className="text-[10px] text-amber-400 font-medium">{m.track_detail_quali()}</span>
                                                   )}
                                                 </TD>
                                               )}
@@ -1573,7 +1585,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                                     <span className="group/inv relative text-sm text-red-400 cursor-default">
                                                       ✕
                                                       <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">
-                                                        {lap.invalidReason ?? "Invalid lap"}
+                                                        {lap.invalidReason ?? m.trackdetail_invalid_lap()}
                                                       </span>
                                                     </span>
                                                   ) : (
@@ -1583,14 +1595,14 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                               </TD>
                                               <TD className="w-px whitespace-nowrap">
                                                 {lap.isLegacy ? (
-                                                  <Tooltip content={`Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable`}>
+                                                  <Tooltip content={`${m.trackdetail_recorded_before()} ${RAW_STORAGE_VERSION} — ${m.trackdetail_telemetry_unavailable()}`}>
                                                     <Button
                                                       variant="app-outline"
                                                       size="app-sm"
                                                       disabled
                                                       className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40"
                                                     >
-                                                      Analyse
+                                                      {m.trackdetail_analyse()}
                                                     </Button>
                                                   </Tooltip>
                                                 ) : (
@@ -1603,7 +1615,7 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
                                                       navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
                                                     }}
                                                   >
-                                                    Analyse
+                                                    {m.trackdetail_analyse()}
                                                   </Button>
                                                 )}
                                               </TD>

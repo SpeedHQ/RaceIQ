@@ -28,7 +28,7 @@ export function LapTimes({ packet, sectors }: LapTimesProps) {
           <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(packet.CurrentLap)}</div>
         </div>
         <div className="w-fit">
-          <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Est. Lap</div>
+          <div className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.telemetry_est_lap()}</div>
           <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(sectors?.estimatedLap ?? 0)}</div>
         </div>
         <div className="w-fit">

@@ -1,6 +1,7 @@
 import { useTelemetryStore } from "../../stores/telemetry";
 import { tryGetGame } from "@shared/games/registry";
 import type { GameId } from "@shared/types";
+import { m } from "@/paraglide/messages";
 import { TireGrid } from "../telemetry/TireGrid";
 import { LapTimeChart } from "../LapTimeChart";
 import { PitEstimate } from "../telemetry/PitEstimate";
@@ -56,7 +57,7 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
         {/* Pit Window */}
         <div className="border-b border-app-border">
           <div className="p-2 border-b border-app-border">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Pit Window</h2>
+            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.label_pit_window()}</h2>
           </div>
           <div className="p-3">
             <PitEstimate packet={packet} pit={pit} gameId="acc" />

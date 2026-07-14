@@ -512,7 +512,7 @@ export function AnalysisDisplay({
               className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
               title={m.label_export_as_image()}
             >
-              <Download className="size-3" /> Export
+              <Download className="size-3" /> {m.label_export()}
             </button>
           )}
           {onRegenerate && (
@@ -522,7 +522,7 @@ export function AnalysisDisplay({
               className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors disabled:opacity-50"
               title={m.aidisplay_regenerate()}
             >
-              <RefreshCw className="size-3" /> Regenerate
+              <RefreshCw className="size-3" /> {m.label_regenerate()}
             </button>
           )}
           {onClear && (
@@ -531,7 +531,7 @@ export function AnalysisDisplay({
               className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-red-400 px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
               title={m.aipanel_clear_title()}
             >
-              <Trash2 className="size-3" /> Clear
+              <Trash2 className="size-3" /> {m.label_clear()}
             </button>
           )}
         </div>

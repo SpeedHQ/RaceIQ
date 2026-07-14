@@ -62,7 +62,7 @@ export function ImportSetupFile({
     <div className="flex-1 overflow-auto p-4 max-w-3xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-app-text">{m.import_title({ gameLabel })}</h1>
+          <h1 className="text-lg font-bold text-app-text">{m.import_title_prefix()} {gameLabel} {m.import_title_suffix()}</h1>
           <p className="text-xs text-app-text-muted">
             {m.import_pick_setup()} {data?.baseDir ? <span className="font-mono text-[10px]">{data.baseDir}</span> : null}
           </p>
@@ -76,7 +76,7 @@ export function ImportSetupFile({
         <div className="text-center py-12 text-app-text-muted text-sm">{m.import_scanning()}</div>
       ) : !data?.baseDir ? (
         <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-4 text-sm text-app-text-muted">
-          <p>{m.import_folder_not_found({ gameLabel })}</p>
+          <p>{m.import_folder_not_found_prefix()} {gameLabel} {m.import_folder_not_found_suffix()}</p>
           <p className="mt-2 text-[11px]">
             {m.import_expected_path()} <code className="font-mono">Documents/{gameId === "acc" ? "Assetto Corsa Competizione" : "Assetto Corsa EVO"}/Setups</code>.
             {m.import_launch_game()}

@@ -588,7 +588,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             </div>
             <div className="text-center">
               <p className="text-[11px] text-app-text-secondary font-medium">
-                {analyseTool ? m.aipanel_using_tool({ tool: analyseTool }) : analyseStatus === "generating" ? m.aipanel_generating_analysis() : analyseStatus === "thinking" ? m.aipanel_thinking() : m.aipanel_preparing_model()}
+                {analyseTool ? `${m.aipanel_using_tool()} ${analyseTool}` : analyseStatus === "generating" ? m.aipanel_generating_analysis() : analyseStatus === "thinking" ? m.aipanel_thinking() : m.aipanel_preparing_model()}
               </p>
               <p className="text-[10px] text-app-text-dim mt-1">{analyseStatus === "generating" ? m.aipanel_streaming_tokens() : m.aipanel_reviewing_data()}</p>
               {!analyseStatus && <p className="text-[9px] text-app-text-dim mt-0.5">{m.aipanel_may_take()}</p>}
@@ -865,7 +865,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 <div className="rounded-lg px-2.5 py-1.5 bg-app-surface-alt/60 border border-app-border-input/40">
                   <div className="flex items-center gap-1.5">
                     <div className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    <span className="text-[10px] text-app-text-secondary">{chatTool ? m.aipanel_using_tool({ tool: chatTool }) : chatStatus === "thinking" ? m.aipanel_thinking() : m.aipanel_waiting_model()}</span>
+                    <span className="text-[10px] text-app-text-secondary">{chatTool ? `${m.aipanel_using_tool()} ${chatTool}` : chatStatus === "thinking" ? m.aipanel_thinking() : m.aipanel_waiting_model()}</span>
                   </div>
                 </div>
               </div>

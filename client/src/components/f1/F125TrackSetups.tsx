@@ -154,7 +154,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
   const activeGuide = guides.find((g) => g.source === selectedSource) ?? guides[0];
 
-  if (guides.length === 0) return <div className="text-app-text-secondary text-app-unit p-4">No guide available for this track.</div>;
+  if (guides.length === 0) return <div className="text-app-text-secondary text-app-unit p-4">{m.f1setup_no_guide()}</div>;
 
   return (
     <div className="flex h-full min-h-0 gap-3">
@@ -176,20 +176,20 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
             >
               <div className="flex items-center gap-1.5 mb-1">
                 <span className={`text-sm font-medium ${isActive ? "text-app-accent" : "text-app-text"}`}>{sourceDisplayName(g.source)}</span>
-                {sectionCount > 0 && <span className="px-1 py-0.5 text-[8px] font-bold uppercase rounded bg-blue-500/20 text-blue-400">Text</span>}
+                {sectionCount > 0 && <span className="px-1 py-0.5 text-[8px] font-bold uppercase rounded bg-blue-500/20 text-blue-400">{m.label_text()}</span>}
                 {g.videoUrl && <span className="px-1 py-0.5 text-[8px] font-bold uppercase rounded bg-red-500/20 text-red-400">YT</span>}
               </div>
               <table className="w-full text-xs text-app-text-secondary">
                 <tbody>
                   {g.setupTips && (
                     <tr>
-                      <td className="pr-2 text-app-text-dim">Setup tips</td>
+                      <td className="pr-2 text-app-text-dim">{m.f1setup_setup_tips_label()}</td>
                       <td>Yes</td>
                     </tr>
                   )}
                   {g.drivingTips && (
                     <tr>
-                      <td className="pr-2 text-app-text-dim">Driving tips</td>
+                      <td className="pr-2 text-app-text-dim">{m.f1setup_driving_tips_label()}</td>
                       <td>Yes</td>
                     </tr>
                   )}
@@ -213,14 +213,14 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
               onClick={() => setContentTab("guide")}
               className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${contentTab === "guide" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
             >
-              Guide
+              {m.f1setup_guide_tab()}
             </button>
             {activeGuide.setupTips && (
               <button
                 onClick={() => setContentTab("setup")}
                 className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${contentTab === "setup" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
               >
-                Setup Tips
+                {m.f1setup_setup_tips_tab()}
               </button>
             )}
             {activeGuide.source && (
@@ -262,7 +262,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
                 )}
                 {activeGuide.drivingTips && (
                   <div className="mb-6">
-                    <p className="text-app-text font-semibold text-sm mb-1">Driving Tips</p>
+                    <p className="text-app-text font-semibold text-sm mb-1">{m.f1setup_driving_tips_tab()}</p>
                     <p className="text-app-text-secondary text-sm leading-relaxed whitespace-pre-line">{activeGuide.drivingTips}</p>
                   </div>
                 )}
@@ -330,9 +330,9 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
     syncSetupUrl(0);
   };
 
-  if (!trackSlug) return <div className="text-app-text-dim text-sm py-4 text-center">No community setups available for this track</div>;
-  if (isLoading || !trackData) return <div className="text-app-text-dim text-sm py-4 text-center animate-pulse">Loading setups...</div>;
-  if (!trackData.setups?.length) return <div className="text-app-text-dim text-sm py-4 text-center">No community setups available</div>;
+  if (!trackSlug) return <div className="text-app-text-dim text-sm py-4 text-center">{m.f1setup_no_setups_this_track()}</div>;
+  if (isLoading || !trackData) return <div className="text-app-text-dim text-sm py-4 text-center animate-pulse">{m.f1setup_loading_setups()}</div>;
+  if (!trackData.setups?.length) return <div className="text-app-text-dim text-sm py-4 text-center">{m.f1setup_no_setups()}</div>;
 
   const setup = filteredSetups[selectedIdx] ?? filteredSetups[0];
   const f1lapsCount = trackData.setups.filter((s) => (s.provider || "f1laps") === "f1laps").length;
@@ -384,10 +384,10 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
           <div className="flex items-center gap-1.5 px-2 py-1 bg-app-surface-alt border-b border-app-border/20 sticky top-0 z-10">
             <span className="text-[9px] text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
             <span className="text-[9px] text-app-text-dim uppercase w-7 shrink-0">Src</span>
-            <span className="text-[9px] text-app-text-dim uppercase flex-1">Author / Team</span>
-            <span className="text-[9px] text-app-text-dim uppercase w-8 text-center">Input</span>
-            <span className="text-[9px] text-app-text-dim uppercase w-12 text-center">Info</span>
-            <span className="text-[9px] text-app-text-dim uppercase w-16 text-right">Time</span>
+            <span className="text-[9px] text-app-text-dim uppercase flex-1">{m.label_author_team()}</span>
+            <span className="text-[9px] text-app-text-dim uppercase w-8 text-center">{m.label_input()}</span>
+            <span className="text-[9px] text-app-text-dim uppercase w-12 text-center">{m.label_info()}</span>
+            <span className="text-[9px] text-app-text-dim uppercase w-16 text-right">{m.label_time()}</span>
           </div>
           {filteredSetups.map((s, i) => (
             <div
@@ -699,8 +699,8 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
     return () => document.removeEventListener("touchmove", onMove);
   }, []);
 
-  if (!trackSlug) return <div className="text-app-text-dim text-sm py-4 text-center">No setups available for this track</div>;
-  if (isLoading || !trackData) return <div className="text-app-text-dim text-sm py-4 text-center animate-pulse">Loading setups...</div>;
+  if (!trackSlug) return <div className="text-app-text-dim text-sm py-4 text-center">{m.f1setup_no_setups_available()}</div>;
+  if (isLoading || !trackData) return <div className="text-app-text-dim text-sm py-4 text-center animate-pulse">{m.f1setup_loading_setups()}</div>;
 
   return (
     <div className="flex flex-col md:flex-row md:gap-3 md:h-full md:overflow-hidden">
@@ -761,11 +761,11 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                   }}
                   className="text-[10px] text-app-text-dim hover:text-app-text"
                 >
-                  Clear
+                  {m.label_clear()}
                 </button>
               </>
             ) : (
-              <span className="text-[10px] text-app-text-dim">Drag to filter range, click to pick a setup</span>
+              <span className="text-[10px] text-app-text-dim">{m.f1setup_drag_filter_hint()}</span>
             )}
           </div>
 
@@ -809,10 +809,10 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
             <div className="flex items-center gap-1.5 px-2 py-1 bg-app-surface-alt border-b border-app-border/20 sticky top-0 z-10">
               <span className="text-[9px] text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
               <span className="text-[9px] text-app-text-dim uppercase w-7 shrink-0">Src</span>
-              <span className="text-[9px] text-app-text-dim uppercase flex-1">Author / Team</span>
-              <span className="text-[9px] text-app-text-dim uppercase w-8 text-center">Input</span>
-              <span className="text-[9px] text-app-text-dim uppercase w-12 text-center">Info</span>
-              <span className="text-[9px] text-app-text-dim uppercase w-16 text-right">Time</span>
+              <span className="text-[9px] text-app-text-dim uppercase flex-1">{m.label_author_team()}</span>
+              <span className="text-[9px] text-app-text-dim uppercase w-8 text-center">{m.label_input()}</span>
+              <span className="text-[9px] text-app-text-dim uppercase w-12 text-center">{m.label_info()}</span>
+              <span className="text-[9px] text-app-text-dim uppercase w-16 text-right">{m.label_time()}</span>
             </div>
             {filteredSetups.length === 0 ? (
               <div className="text-app-text-dim text-xs py-4 text-center">No {weather.toLowerCase()} setups</div>
@@ -874,15 +874,15 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
           <div className="flex items-center gap-3 mb-1.5 text-[10px] text-app-text-secondary" style={{ minHeight: "1.625rem" }}>
             <span className="flex items-center gap-1">
               <span className="inline-block w-[2px] h-3 bg-rose-400 rounded-full" />
-              Min / Max
+              {m.f1setup_min_max()}
             </span>
             <span className="flex items-center gap-1">
               <span className="inline-block w-12 h-2.5 rounded-sm" style={{ background: "linear-gradient(to right, rgba(34,211,238,0), rgba(34,211,238,1))" }} />
-              Popularity
+              {m.f1setup_popularity()}
             </span>
             <span className="flex items-center gap-1">
               <span className="inline-block w-2 h-2 bg-amber-400 rotate-45 rounded-[1px]" />
-              Median
+              {m.f1setup_median()}
             </span>
             {pickedSetup && (
               <span className="flex items-center gap-1">

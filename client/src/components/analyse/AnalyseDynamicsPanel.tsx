@@ -41,7 +41,7 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
 
   const slipTitle = (
     <span className="flex items-center gap-1 group relative">
-      Slip
+      {m.label_slip()}
       <Info className="w-3 h-3 text-app-text-dim cursor-help inline" />
       <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">
         Ratio: wheel speed vs ground speed
@@ -65,7 +65,7 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
       {/* Balance */}
       <div className="flex justify-between">
         <span className="flex items-center gap-1 group relative text-app-text-muted">
-          Balance
+          {m.label_balance()}
           <Info className="w-3 h-3 text-app-text-dim cursor-help" />
           <span className="absolute left-0 top-full mt-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2.5 py-2 text-[10px] text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal w-[300px]">
             <span className="block mb-1">Yaw rate vs path curvature + front/rear slip-angle delta.</span>
@@ -138,7 +138,7 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
 
                   {/* Combined balance bar */}
                   <text x="0" y="80" fill="currentColor" opacity="0.5" fontSize="6.5">
-                    Combined
+                    {m.label_combined()}
                   </text>
                   <rect x="0" y="82" width="200" height="10" rx="1" fill="currentColor" opacity="0.06" />
                   <rect x="0" y="82" width={thrLeftX} height="10" fill="#ef4444" opacity="0.18" />
@@ -149,13 +149,13 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
                   <line x1={thrRightX} y1="78" x2={thrRightX} y2="96" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
                   <circle cx={currentX} cy="87" r="4" fill={balanceColor(bal.state)} stroke="#0f172a" strokeWidth="1.2" />
                   <text x={thrLeftX / 2} y="106" textAnchor="middle" fill="#ef4444" fontSize="7" fontWeight="600">
-                    OVER
+                    {m.dynamics_over()}
                   </text>
                   <text x="100" y="106" textAnchor="middle" fill="#34d399" fontSize="7" fontWeight="600">
-                    NEUTRAL
+                    {m.dynamics_neutral()}
                   </text>
                   <text x={(thrRightX + 200) / 2} y="106" textAnchor="middle" fill="#3b82f6" fontSize="7" fontWeight="600">
-                    UNDER
+                    {m.dynamics_under()}
                   </text>
                 </svg>
               );

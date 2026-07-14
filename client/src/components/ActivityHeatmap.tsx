@@ -130,7 +130,7 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
       <div className="flex items-baseline justify-between mb-2">
         <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">{m.heatmap_title()}</h2>
         <div className="text-[11px] text-app-text/90-dim">
-          {m.heatmap_summary({ total: fmtDuration(totalSeconds), days: totalDays, streak: longestStreak, best: fmtDuration(bestDaySeconds) })}
+          {fmtDuration(totalSeconds)} · {totalDays} {m.heatmap_active_days()} · {m.heatmap_longest_streak()} {longestStreak} {m.heatmap_days_word()} · {m.heatmap_longest_day()} {fmtDuration(bestDaySeconds)}
         </div>
       </div>
       <div ref={scrollRef} className="rounded-lg p-4 overflow-x-auto relative">

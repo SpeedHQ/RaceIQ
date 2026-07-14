@@ -126,11 +126,15 @@ export function TrackViewer() {
           ))}
         </div>
         <div className="text-app-label text-app-text-muted uppercase tracking-wider whitespace-nowrap">
-          {withOutline.length} with outlines, {withoutOutline.length} without
+          {withOutline.length} {m.trackviewer_with_outlines()}, {withoutOutline.length} {m.trackviewer_without_outlines_suffix()}
         </div>
       </div>
 
-      {filtered.length === 0 && <div className="text-app-subtext text-app-text-dim mt-6">No tracks matching &ldquo;{search}&rdquo;</div>}
+      {filtered.length === 0 && (
+        <div className="text-app-subtext text-app-text-dim mt-6">
+          {m.trackviewer_no_tracks_matching()} &ldquo;{search}&rdquo;
+        </div>
+      )}
 
       {withOutline.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
@@ -156,7 +160,7 @@ export function TrackViewer() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-app-body text-app-text-secondary">{t.name}</div>
                   <span className="shrink-0 text-app-label px-1.5 py-0.5 rounded bg-app-surface-alt border border-app-border text-app-text-muted">
-                    {t.lapCount ?? 0} {(t.lapCount ?? 0) === 1 ? "lap" : "laps"}
+                    {t.lapCount ?? 0} {(t.lapCount ?? 0) === 1 ? m.trackcard_lap_singular() : m.pitwindow_laps()}
                   </span>
                 </div>
                 <div className="text-app-label text-app-text-dim">

@@ -143,7 +143,7 @@ export function AnalyseLapHeader({
                 </select>
                 {selectedLap?.tuneId && (
                   <Button variant="app-outline" size="app-sm" onClick={() => onViewTune(selectedLap.tuneId!)}>
-                    View
+                    {m.label_view()}
                   </Button>
                 )}
                 {tunePending && <span className="text-xs text-app-text-muted animate-pulse">{m.common_saving()}</span>}

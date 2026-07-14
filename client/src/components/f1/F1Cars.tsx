@@ -471,15 +471,15 @@ function TeamCard({ team }: { team: F1Team }) {
         {/* Info row */}
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs border-t border-app-border/30 pt-2">
           <div className="flex justify-between">
-            <span className="text-app-text/90-dim">Power Unit</span>
+            <span className="text-app-text/90-dim">{m.label_power_unit()}</span>
             <span className="text-app-text/90">{team.powerUnit}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-app-text/90-dim">Base</span>
+            <span className="text-app-text/90-dim">{m.label_base()}</span>
             <span className="text-app-text/90">{team.base}</span>
           </div>
           <div className="flex justify-between col-span-2">
-            <span className="text-app-text/90-dim">Team Principal</span>
+            <span className="text-app-text/90-dim">{m.label_team_principal()}</span>
             <span className="text-app-text/90">{team.teamPrincipal}</span>
           </div>
         </div>
@@ -492,10 +492,10 @@ function TableView() {
   return (
     <Table>
       <THead>
-        <TH>Team</TH>
-        <TH>Chassis</TH>
+        <TH>{m.label_team()}</TH>
+        <TH>{m.label_chassis()}</TH>
         <TH>PU</TH>
-        <TH>Drivers</TH>
+        <TH>{m.label_drivers()}</TH>
         <TH className="text-right px-2">OVR</TH>
         <TH className="text-right px-2">PAC</TH>
         <TH className="text-right px-2">SPD</TH>

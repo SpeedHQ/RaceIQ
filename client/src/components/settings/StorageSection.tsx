@@ -109,7 +109,7 @@ function GameBreakdown({ gameId, stats }: { gameId: string; stats: GameStorageSt
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-white uppercase tracking-wide">{gameId}</span>
         <span className="text-xs text-white/40">
-          {m.storage_file_count({ count: total })} — {fmt(totalBytes)}
+          {total} {m.storage_file_count()} — {fmt(totalBytes)}
         </span>
       </div>
       <div className="flex items-center justify-between">
@@ -195,7 +195,7 @@ function CacheSection() {
           </div>
           <div className="flex items-center justify-between pt-1 text-xs text-white/50">
             <span>
-              {m.storage_cached_laps({ count: cache.entries })}
+              {cache.entries} {m.storage_cached_laps()}
             </span>
           </div>
         </div>
@@ -252,8 +252,8 @@ export function StorageSection() {
         {data && (
           <div className="rounded-lg border border-white/10 bg-white/5 px-4 divide-y divide-white/5 mb-4">
             <StatRow label={m.storage_total_size()} value={fmt(data.totalBytes)} />
-            <StatRow label={m.storage_uncompressed_bin()} value={data.binCount > 0 ? `${m.storage_file_count({ count: data.binCount })} — ${fmt(data.binBytes)}` : m.label_none()} />
-            <StatRow label={m.storage_compressed_gz()} value={data.gzCount > 0 ? `${m.storage_file_count({ count: data.gzCount })} — ${fmt(data.gzBytes)}` : m.label_none()} />
+            <StatRow label={m.storage_uncompressed_bin()} value={data.binCount > 0 ? `${data.binCount} ${m.storage_file_count()} — ${fmt(data.binBytes)}` : m.label_none()} />
+            <StatRow label={m.storage_compressed_gz()} value={data.gzCount > 0 ? `${data.gzCount} ${m.storage_file_count()} — ${fmt(data.gzBytes)}` : m.label_none()} />
             {data.binCount > 0 && data.gzCount > 0 && <StatRow label={m.storage_space_saved()} value={`${((1 - data.gzBytes / (data.gzBytes + data.binBytes)) * 100).toFixed(0)}%`} />}
             {data.diskTotal > 0 && (
               <>

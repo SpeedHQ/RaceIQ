@@ -122,7 +122,7 @@ function StaleLapButton() {
   );
 }
 
-export function MobileNotSupported({ feature = "This view" }: { feature?: string }) {
+export function MobileNotSupported({ feature = m.root_this_view() }: { feature?: string }) {
   const [show, setShow] = useState(false);
   useEffect(() => {
     const check = () => {
@@ -150,7 +150,9 @@ export function MobileNotSupported({ feature = "This view" }: { feature?: string
           <path d="M8 20h8" />
         </svg>
         <div className="text-base font-semibold text-app-text">{m.root_desktop_required()}</div>
-        <div className="text-sm text-app-text-muted">{m.root_mobile_not_supported({ feature })}</div>
+        <div className="text-sm text-app-text-muted">
+          {feature} {m.root_mobile_not_supported()}
+        </div>
       </div>
     </div>
   );
@@ -190,8 +192,8 @@ export function RotatePrompt() {
             <path d="M12 18h.01" />
             <path d="M3 12 L8 9 L8 15 Z" fill="currentColor" />
           </svg>
-          <div className="text-base font-semibold text-app-text">Rotate your device</div>
-          <div className="text-sm text-app-text-muted">Dashboards are designed for landscape. Turn your phone sideways for the best view.</div>
+          <div className="text-base font-semibold text-app-text">{m.root_rotate_device()}</div>
+          <div className="text-sm text-app-text-muted">{m.root_rotate_landscape()}</div>
         </div>
       </div>
     </div>
@@ -510,7 +512,7 @@ function AppShell() {
           >
             <div className="w-full md:max-w-2xl h-full md:rounded-lg md:border border-app-border bg-app-bg overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between px-4 py-3 border-b border-app-border bg-app-surface">
-                <h1 className="text-sm font-semibold text-app-text">Settings</h1>
+                <h1 className="text-sm font-semibold text-app-text">{m.nav_settings()}</h1>
                 <button
                   onClick={() => {
                     closeSettings();

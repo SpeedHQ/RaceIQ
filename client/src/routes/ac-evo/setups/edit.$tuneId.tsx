@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { m } from "@/paraglide/messages";
 import { useQuery } from "@tanstack/react-query";
 import { client } from "../../../lib/rpc";
 import { SetupTuneForm } from "../../../components/setup-tune/SetupTuneForm";
@@ -26,8 +27,8 @@ function EditAcEvoTunePage() {
       (await client.api.tunes[":id"].$get({ param: { id: String(tuneId) } })).json() as Promise<TuneRow>,
   });
 
-  if (isLoading) return <div className="p-4 text-app-text-muted text-sm">Loading tune...</div>;
-  if (!tune) return <div className="p-4 text-app-text-muted text-sm">Tune not found</div>;
+  if (isLoading) return <div className="p-4 text-app-text-muted text-sm">{m.tuneedit_loading()}</div>;
+  if (!tune) return <div className="p-4 text-app-text-muted text-sm">{m.tuneedit_not_found()}</div>;
 
   return (
     <div className="flex-1 overflow-auto">

@@ -35,13 +35,13 @@ function formatRelative(iso: string): string {
   if (!Number.isFinite(ts)) return "—";
   const diff = Date.now() - ts;
   const sec = Math.floor(diff / 1000);
-  if (sec < 60) return m.chats_seconds_ago({ count: sec });
+  if (sec < 60) return `${sec}s ${m.chats_seconds_ago()}`;
   const min = Math.floor(sec / 60);
-  if (min < 60) return m.home_minutes_ago({ count: min });
+  if (min < 60) return `${min}m ${m.home_minutes_ago()}`;
   const hr = Math.floor(min / 60);
-  if (hr < 24) return m.home_hours_ago({ count: hr });
+  if (hr < 24) return `${hr}h ${m.home_hours_ago()}`;
   const day = Math.floor(hr / 24);
-  if (day < 30) return m.home_days_ago({ count: day });
+  if (day < 30) return `${day}d ${m.home_days_ago()}`;
   return new Date(iso).toLocaleDateString();
 }
 
@@ -167,7 +167,7 @@ export function ChatsPage() {
                   <td className="px-3 py-2 text-app-text-secondary font-mono text-[11px]">
                     {row.laps.map((l, i) => (
                       <div key={i}>
-                        {m.chats_lap_number({ number: l.lapNumber })} — {formatLapTime(l.lapTime)}
+                        {m.chats_lap_number()} {l.lapNumber} — {formatLapTime(l.lapTime)}
                         {!l.isValid && <span className="text-red-400 ml-1">(inv)</span>}
                       </div>
                     ))}

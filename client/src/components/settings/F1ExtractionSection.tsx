@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
 
@@ -41,11 +42,11 @@ export function F1ExtractionSection() {
 
   return (
     <section>
-      <h2 className="text-lg font-semibold text-app-text mb-4">F1 2025 Extraction</h2>
+      <h2 className="text-lg font-semibold text-app-text mb-4">{m.extraction_f1_title()}</h2>
 
       {!status?.installed && (
         <div className="rounded-md bg-yellow-500/10 border border-yellow-500/30 p-3 mb-4">
-          <p className="text-sm text-yellow-300">F1 25 not detected. Make sure it's installed via Steam.</p>
+          <p className="text-sm text-yellow-300">{m.extraction_f1_not_detected()}</p>
         </div>
       )}
 
@@ -91,7 +92,7 @@ export function F1ExtractionSection() {
               fetchStatus();
             }}
           >
-            Delete Extracted Data
+            {m.extraction_delete_data()}
           </Button>
         )}
       </div>

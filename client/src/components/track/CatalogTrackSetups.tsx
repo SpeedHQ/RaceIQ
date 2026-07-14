@@ -173,7 +173,7 @@ export function CatalogTrackSetups({
       bestTracks: t.bestTracks,
       description: t.description ?? "",
       settings: t.settings,
-      sourceLabel: t.sourceName || "Community",
+      sourceLabel: t.sourceName || m.catalogtracksetups_community(),
     }));
     const mine: SetupRow[] = (userTunes as RawUserTune[]).map((t) => ({
       id: `user:${t.id}`,
@@ -183,7 +183,7 @@ export function CatalogTrackSetups({
       trackOrdinal: t.trackOrdinal ?? null,
       description: t.description ?? "",
       settings: t.settings,
-      sourceLabel: "Yours",
+      sourceLabel: m.catalogtracksetups_yours(),
     }));
     return [...community, ...mine];
   }, [catalog, userTunes]);
@@ -219,7 +219,7 @@ export function CatalogTrackSetups({
   const selected = setups.find((t) => t.id === selectedId) ?? setups[0];
 
   if (setups.length === 0) {
-    return <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm text-center px-4">No setups yet</div>;
+    return <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm text-center px-4">{m.catalogtracksetups_no_setups_yet()}</div>;
   }
 
   return (
@@ -227,7 +227,9 @@ export function CatalogTrackSetups({
       {/* Left: filter + setup list */}
       <div className="w-[420px] shrink-0 flex flex-col min-h-0">
         <div className="flex items-center gap-2 mb-1.5">
-          <div className="text-app-label text-app-text-muted uppercase tracking-wider shrink-0">Setups ({setups.length})</div>
+          <div className="text-app-label text-app-text-muted uppercase tracking-wider shrink-0">
+            {m.catalogtracksetups_setups()} ({setups.length})
+          </div>
           {uniqueCars.length > 1 && (
             <SearchSelect
               className="ml-auto w-48"
@@ -242,7 +244,7 @@ export function CatalogTrackSetups({
         <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-app-border/20">
           <div className="flex items-center gap-1.5 px-2 py-1 bg-app-surface-alt/50 border-b border-app-border/20 sticky top-0 z-10">
             <span className="text-[9px] text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
-            <span className="text-[9px] text-app-text-dim uppercase flex-1">Name / Car</span>
+            <span className="text-[9px] text-app-text-dim uppercase flex-1">{m.catalogtracksetups_name_car()}</span>
             <span className="text-[9px] text-app-text-dim uppercase text-center">Cat</span>
           </div>
           {setups.map((t, i) => {

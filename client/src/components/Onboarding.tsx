@@ -684,7 +684,7 @@ export function StepCommunity() {
           className="flex items-center gap-2 rounded-lg border border-app-border bg-app-surface-alt px-4 py-2.5 text-sm text-app-text-secondary hover:border-app-accent hover:text-app-accent transition-colors"
         >
           <SiDiscord className="w-5 h-5" />
-          Discord
+          {m.ob_discord()}
         </a>
         <a
           href="https://github.com/SpeedHQ/RaceIQ"
@@ -693,7 +693,7 @@ export function StepCommunity() {
           className="flex items-center gap-2 rounded-lg border border-app-border bg-app-surface-alt px-4 py-2.5 text-sm text-app-text-secondary hover:border-app-accent hover:text-app-accent transition-colors"
         >
           <SiGithub className="w-5 h-5" />
-          GitHub
+          {m.ob_github()}
         </a>
       </div>
     </div>
@@ -767,27 +767,17 @@ export function StepConnection() {
         <summary className="text-xs text-app-accent cursor-pointer hover:text-app-accent/80 transition-colors">{m.settings_forza_guide_toggle()}</summary>
         <div className="mt-3 rounded-lg border border-app-border bg-app-surface-alt p-3">
           <ol className="space-y-1.5 text-xs text-app-text-muted list-decimal list-inside">
+            <li>{m.ob_forza_open_settings()}</li>
+            <li>{m.ob_forza_go_to_gameplay()}</li>
+            <li>{m.ob_forza_scroll_udp()}</li>
+            <li>{m.setupguide_data_out_on()}</li>
             <li>
-              Open <span className="text-app-text">Settings</span> in Forza Motorsport.
+              {m.ob_ip_address_short()} <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 font-mono">127.0.0.1</code> {m.ob_ip_address_same_pc()}
             </li>
             <li>
-              Go to <span className="text-app-text">Gameplay &amp; HUD</span>.
+              {m.ob_port_set_to()} <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 font-mono">{udpPort || "5301"}</code>.
             </li>
-            <li>
-              Scroll to <span className="text-app-text">UDP Race Telemetry</span>.
-            </li>
-            <li>
-              Set <span className="text-app-text">Data Out</span> to <span className="text-app-accent font-medium">On</span>.
-            </li>
-            <li>
-              Set <span className="text-app-text">IP Address</span> to your PC's IP (or <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 font-mono">127.0.0.1</code> if same PC).
-            </li>
-            <li>
-              Set <span className="text-app-text">Port</span> to <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 font-mono">{udpPort || "5301"}</code>.
-            </li>
-            <li>
-              Set <span className="text-app-text">Packet Format</span> to <span className="text-app-accent font-medium">Car Dash</span>.
-            </li>
+            <li>{m.ob_packet_format_car_dash()}</li>
           </ol>
           <p className="mt-2 text-[10px] text-app-text-muted/70">{m.ob_connection_forza_note()}</p>
         </div>
@@ -797,30 +787,18 @@ export function StepConnection() {
         <summary className="text-xs text-app-accent cursor-pointer hover:text-app-accent/80 transition-colors">{m.settings_f1_guide_toggle()}</summary>
         <div className="mt-3 rounded-lg border border-app-border bg-app-surface-alt p-3">
           <ol className="space-y-1.5 text-xs text-app-text-muted list-decimal list-inside">
+            <li>{m.ob_f1_open_settings()}</li>
+            <li>{m.ob_f1_go_to_telemetry()}</li>
+            <li>{m.setupguide_udp_telemetry_on()}</li>
+            <li>{m.ob_udp_broadcast_off()}</li>
             <li>
-              Open <span className="text-app-text">Settings</span> in F1 2025.
+              {m.ob_ip_address_short()} <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 font-mono">127.0.0.1</code> {m.ob_ip_address_same_pc()}
             </li>
             <li>
-              Go to <span className="text-app-text">Telemetry Settings</span>.
+              {m.ob_port_set_to()} <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 font-mono">{udpPort || "5300"}</code>.
             </li>
-            <li>
-              Set <span className="text-app-text">UDP Telemetry</span> to <span className="text-app-accent font-medium">On</span>.
-            </li>
-            <li>
-              Set <span className="text-app-text">UDP Broadcast Mode</span> to <span className="text-app-accent font-medium">Off</span>.
-            </li>
-            <li>
-              Set <span className="text-app-text">IP Address</span> to your PC's IP (or <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 font-mono">127.0.0.1</code> if same PC).
-            </li>
-            <li>
-              Set <span className="text-app-text">Port</span> to <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 font-mono">{udpPort || "5300"}</code>.
-            </li>
-            <li>
-              Set <span className="text-app-text">UDP Send Rate</span> to <span className="text-app-accent font-medium">60 Hz</span>.
-            </li>
-            <li>
-              Set <span className="text-app-text">UDP Format</span> to <span className="text-app-accent font-medium">2025</span>.
-            </li>
+            <li>{m.ob_udp_send_rate_short()}</li>
+            <li>{m.setupguide_udp_format()}</li>
           </ol>
           <p className="mt-2 text-[10px] text-app-text-muted/70">{m.ob_connection_f1_note()}</p>
         </div>
@@ -837,7 +815,7 @@ export function StepConnection() {
               {receiving ? (packetsPerSec > 0 ? m.ob_connection_status_receiving() : m.ob_connection_status_connected_waiting()) : m.ob_connection_status_waiting()}
             </p>
             <p className="text-xs text-app-text-muted mt-0.5">
-              {receiving ? (packetsPerSec > 0 ? m.ob_connection_packets_per_sec({ count: packetsPerSec }) : m.ob_connection_udp_pkts_hint({ count: udpPps })) : m.ob_connection_start_hint()}
+              {receiving ? (packetsPerSec > 0 ? `${packetsPerSec} ${m.ob_connection_packets_per_sec()}` : `${udpPps} ${m.ob_connection_udp_pkts_hint()}`) : m.ob_connection_start_hint()}
             </p>
           </div>
         </div>

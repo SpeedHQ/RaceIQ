@@ -36,10 +36,10 @@ export function NoteModal({ value, onSave, onClose }: { value?: string; onSave: 
         />
         <div className="flex justify-end gap-2">
           <Button variant="app-ghost" size="app-sm" onClick={onClose}>
-            Cancel
+            {m.common_cancel()}
           </Button>
           <Button variant="app-outline" size="app-sm" className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70" onClick={commit}>
-            Save
+            {m.common_save()}
           </Button>
         </div>
       </div>

@@ -377,7 +377,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
             followCar ? "bg-cyan-900/50 border-cyan-700 text-cyan-400" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
           }`}
         >
-          {followCar ? "Follow View" : "Fixed View"}
+          {followCar ? m.compare_follow_view() : m.compare_fixed_view()}
         </button>
         {alignedOutline.length < 2 ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>

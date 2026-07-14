@@ -104,9 +104,9 @@ function RecentLapsTable({
 function formatTimeAgo(date: Date): string {
   const sec = Math.floor((Date.now() - date.getTime()) / 1000);
   if (sec < 60) return m.home_just_now();
-  if (sec < 3600) return m.home_minutes_ago({ count: Math.floor(sec / 60) });
-  if (sec < 86400) return m.home_hours_ago({ count: Math.floor(sec / 3600) });
-  if (sec < 604800) return m.home_days_ago({ count: Math.floor(sec / 86400) });
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ${m.home_minutes_ago()}`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ${m.home_hours_ago()}`;
+  if (sec < 604800) return `${Math.floor(sec / 86400)}d ${m.home_days_ago()}`;
   return date.toLocaleDateString();
 }
 
@@ -322,7 +322,7 @@ export function HomePage() {
       ) : (
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-app-text/90">{displaySettings.driverName ? m.home_hello({ name: displaySettings.driverName }) : "RaceIQ"}</h1>
+            <h1 className="text-2xl font-bold text-app-text/90">{displaySettings.driverName ? `${m.home_hello()}, ${displaySettings.driverName}` : "RaceIQ"}</h1>
             <p className="text-sm text-app-text/90-muted mt-0.5">{m.home_dashboard_overview()}</p>
           </div>
           <button onClick={() => openSettings("games")} className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors" title={m.home_manage_games()}>

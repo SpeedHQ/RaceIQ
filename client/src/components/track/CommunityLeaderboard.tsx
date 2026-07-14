@@ -42,9 +42,9 @@ export function CommunityLeaderboard({ trackName, trackVariant }: { trackName: s
       <div className="overflow-y-auto flex-1">
         <Table fit>
           <THead>
-            <TH>Car</TH>
-            <TH>Driver</TH>
-            <TH className="text-right">Time</TH>
+            <TH>{m.communityleaderboard_car()}</TH>
+            <TH>{m.communityleaderboard_driver()}</TH>
+            <TH className="text-right">{m.communityleaderboard_time()}</TH>
           </THead>
           <TBody>
             {rows.map((e, i) => (
