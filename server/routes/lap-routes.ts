@@ -912,12 +912,28 @@ export const lapRoutes = new Hono()
     try {
       const start = performance.now();
       const result = await compareEngineerAgent.generate(prompt, {
-        structuredOutput: { schema: InputsCompareSchema },
+        structuredOutput: {
+          schema: InputsCompareSchema,
+          // LM Studio only accepts `response_format: json_schema` (it rejects
+          // json_object), and for reasoning models such as qwen3.5 it emits the
+          // schema-constrained JSON into `reasoning_content` while leaving
+          // `content` empty — so no object is ever parsed and this route throws.
+          // Prompt injection keeps the answer on the plain-text channel, which
+          // those models fill normally. Hosted providers parse native structured
+          // output fine, so only the local path opts in.
+          ...(settings.aiProvider === "local" ? { jsonPromptInjection: true } : {}),
+        },
       });
       const durationMs = Math.round(performance.now() - start);
 
       const object = (result as any).object;
-      if (!object) throw new Error("Compare engineer returned no structured object");
+      if (!object) {
+        throw new Error(
+          settings.aiProvider === "local"
+            ? `Model "${settings.aiModel}" returned no output matching the expected structure. Some local models do not reliably emit structured JSON — try another model in Settings → AI Analysis.`
+            : "Compare engineer returned no structured object",
+        );
+      }
 
       // Merge server-authoritative segment types into the model response so
       // named corners never appear as "straight". Match by name first; fall
