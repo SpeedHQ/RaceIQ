@@ -22,6 +22,7 @@ import {
 } from "../db/queries";
 import { KNOWN_GAME_IDS } from "../../shared/types";
 import { importSessionBin, detectGameIdFromBuffer } from "../import-session-bin";
+import { analyzeLap } from "../../shared/lib/lap-insights";
 import { assessLapRecording } from "../lap-quality";
 
 // Toggle: set true to use native ACC lastSectorTime transitions in recheck instead of distance-fraction
@@ -207,7 +208,11 @@ export const lapRoutes = new Hono()
       }
     }
 
-    return c.json({ ...lap, sectorTimes });
+    // Precomputed lap insights — server-side so the client gets them in the
+    // initial fetch instead of re-deriving on every render
+    const insights = lap.gameId ? analyzeLap(packets, lap.gameId) : [];
+
+    return c.json({ ...lap, sectorTimes, insights });
   })
 
   // ── Export lap telemetry as text ────────────────────────────
