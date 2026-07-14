@@ -15,6 +15,13 @@ export interface NamedSegment {
   endFrac: number;
   /** Official turn numbers covered by this section (corners only). */
   numbers?: number[];
+  /**
+   * Sections that are one physical piece of track split into two segments —
+   * the start/finish straight, which the line cuts into the lap's first and
+   * last segment. Both halves share this key so consumers can label the
+   * straight once instead of twice.
+   */
+  group?: string;
 }
 
 // Keyed by track name (must match tracks.csv name exactly)

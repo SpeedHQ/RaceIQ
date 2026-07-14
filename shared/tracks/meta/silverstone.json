@@ -17,7 +17,8 @@
           "type": "straight",
           "name": "Hamilton Straight",
           "startFrac": 0,
-          "endFrac": 0.0429
+          "endFrac": 0.0429,
+          "group": "Hamilton Straight"
         },
         {
           "type": "corner",
@@ -208,7 +209,8 @@
           "type": "straight",
           "name": "Hamilton Straight",
           "startFrac": 0.9907,
-          "endFrac": 1
+          "endFrac": 1,
+          "group": "Hamilton Straight"
         }
       ]
     },
@@ -375,7 +377,8 @@
           "type": "straight",
           "name": "Hamilton Straight",
           "startFrac": 0,
-          "endFrac": 0.0201
+          "endFrac": 0.0201,
+          "group": "Hamilton Straight"
         },
         {
           "type": "corner",
@@ -554,7 +557,8 @@
           "type": "straight",
           "name": "Hamilton Straight",
           "startFrac": 0.9758,
-          "endFrac": 1
+          "endFrac": 1,
+          "group": "Hamilton Straight"
         }
       ],
       "sectors": {
@@ -569,7 +573,8 @@
       "type": "straight",
       "name": "Hamilton Straight",
       "startFrac": 0,
-      "endFrac": 0.0201
+      "endFrac": 0.0201,
+      "group": "Hamilton Straight"
     },
     {
       "type": "corner",
@@ -748,7 +753,8 @@
       "type": "straight",
       "name": "Hamilton Straight",
       "startFrac": 0.9758,
-      "endFrac": 1
+      "endFrac": 1,
+      "group": "Hamilton Straight"
     }
   ]
 }

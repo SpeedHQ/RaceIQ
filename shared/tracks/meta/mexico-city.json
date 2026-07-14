@@ -17,7 +17,8 @@
           "type": "straight",
           "name": "Start/Finish",
           "startFrac": 0,
-          "endFrac": 0.2503
+          "endFrac": 0.2503,
+          "group": "Start/Finish"
         },
         {
           "type": "corner",
@@ -187,7 +188,8 @@
           "type": "straight",
           "name": "Start/Finish",
           "startFrac": 0.9582,
-          "endFrac": 1
+          "endFrac": 1,
+          "group": "Start/Finish"
         }
       ]
     }
@@ -197,7 +199,8 @@
       "type": "straight",
       "name": "Start/Finish",
       "startFrac": 0,
-      "endFrac": 0.2503
+      "endFrac": 0.2503,
+      "group": "Start/Finish"
     },
     {
       "type": "corner",
@@ -367,7 +370,8 @@
       "type": "straight",
       "name": "Start/Finish",
       "startFrac": 0.9582,
-      "endFrac": 1
+      "endFrac": 1,
+      "group": "Start/Finish"
     }
   ]
 }

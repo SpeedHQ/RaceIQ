@@ -669,12 +669,18 @@ function alignOnePolarity(
 
   // The start/finish line sits mid-straight, so the straight named after the
   // last corner (Donington's Wheatcroft Straight) continues past 0 as the
-  // lap's leading segment — same tarmac, so it carries the same name.
+  // lap's leading segment — same tarmac, so it carries the same name. Both
+  // halves are grouped: one straight, split by the line, labelled once.
   const first = segments[0];
+  const last = segments[segments.length - 1];
   const lastCorner = corners[corners.length - 1];
   if (first?.type === "straight" && !first.name && lastCorner) {
     const wrapped = straightNameAfterRegion.get(lastCorner.regionIndex);
-    if (wrapped) first.name = wrapped;
+    if (wrapped && last?.type === "straight" && last.name === wrapped && last !== first) {
+      first.name = wrapped;
+      first.group = wrapped;
+      last.group = wrapped;
+    }
   }
 
   // Sliver absorption may have extended corner segments — keep the corners

@@ -12,7 +12,8 @@
           "type": "straight",
           "name": "Pit Straight",
           "startFrac": 0,
-          "endFrac": 0.0317
+          "endFrac": 0.0317,
+          "group": "Pit Straight"
         },
         {
           "type": "corner",
@@ -154,7 +155,8 @@
           "type": "straight",
           "name": "Pit Straight",
           "startFrac": 0.9903,
-          "endFrac": 1
+          "endFrac": 1,
+          "group": "Pit Straight"
         }
       ],
       "sectors": {
@@ -169,7 +171,8 @@
           "type": "straight",
           "name": "Pit Straight",
           "startFrac": 0,
-          "endFrac": 0.0167
+          "endFrac": 0.0167,
+          "group": "Pit Straight"
         },
         {
           "type": "corner",
@@ -311,7 +314,8 @@
           "type": "straight",
           "name": "Pit Straight",
           "startFrac": 0.9734,
-          "endFrac": 1
+          "endFrac": 1,
+          "group": "Pit Straight"
         }
       ],
       "sectors": {
@@ -326,7 +330,8 @@
       "type": "straight",
       "name": "Pit Straight",
       "startFrac": 0,
-      "endFrac": 0.0167
+      "endFrac": 0.0167,
+      "group": "Pit Straight"
     },
     {
       "type": "corner",
@@ -468,7 +473,8 @@
       "type": "straight",
       "name": "Pit Straight",
       "startFrac": 0.9734,
-      "endFrac": 1
+      "endFrac": 1,
+      "group": "Pit Straight"
     }
   ]
 }

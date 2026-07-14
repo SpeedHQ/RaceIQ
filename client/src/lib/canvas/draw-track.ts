@@ -145,6 +145,14 @@ export function drawTrack(
     const displayNames = large
       ? segmentDisplayNames(sectors.segments)
       : segmentDisplayNames(sectors.segments.map((s) => ({ ...s, numbers: undefined })));
+    // The start/finish straight is two segments but one straight — label the
+    // longer half so its name doesn't appear twice on the map.
+    const labelledGroups = new Set<string>();
+    for (const g of new Set(sectors.segments.map((s) => s.group).filter(Boolean))) {
+      const halves = sectors.segments.filter((s) => s.group === g);
+      const longest = halves.reduce((a, b) => (b.endFrac - b.startFrac > a.endFrac - a.startFrac ? b : a));
+      for (const h of halves) if (h !== longest) labelledGroups.add(`${g}:${h.startFrac}`);
+    }
 
     let segIdx = 0;
     for (const seg of sectors.segments) {
@@ -178,8 +186,10 @@ export function drawTrack(
         ctx.stroke();
       }
 
-      // Label at midpoint of segment
-      if (large || seg.type === "corner") {
+      // Label at midpoint of segment (the shorter half of a split straight is
+      // left unlabelled — its group is named on the longer half)
+      const suppressed = seg.group ? labelledGroups.has(`${seg.group}:${seg.startFrac}`) : false;
+      if (!suppressed && (large || seg.type === "corner")) {
         const midIdx = Math.round((start + end) / 2);
         const midPt = outline[Math.min(midIdx, n - 1)];
         const [mx, my] = toCanvas(midPt.x, midPt.z);

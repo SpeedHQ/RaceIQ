@@ -7,7 +7,8 @@
           "type": "straight",
           "name": "Wheatcroft Straight",
           "startFrac": 0,
-          "endFrac": 0.0622
+          "endFrac": 0.0622,
+          "group": "Wheatcroft Straight"
         },
         {
           "type": "corner",
@@ -131,7 +132,8 @@
           "type": "straight",
           "name": "Wheatcroft Straight",
           "startFrac": 0.9765,
-          "endFrac": 1
+          "endFrac": 1,
+          "group": "Wheatcroft Straight"
         }
       ],
       "sectors": {
@@ -146,7 +148,8 @@
       "type": "straight",
       "name": "Wheatcroft Straight",
       "startFrac": 0,
-      "endFrac": 0.0622
+      "endFrac": 0.0622,
+      "group": "Wheatcroft Straight"
     },
     {
       "type": "corner",
@@ -270,7 +273,8 @@
       "type": "straight",
       "name": "Wheatcroft Straight",
       "startFrac": 0.9765,
-      "endFrac": 1
+      "endFrac": 1,
+      "group": "Wheatcroft Straight"
     }
   ],
   "sectors": {

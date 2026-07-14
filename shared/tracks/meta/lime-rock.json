@@ -12,7 +12,8 @@
           "type": "straight",
           "name": "Sam Posey Straight",
           "startFrac": 0,
-          "endFrac": 0.0499
+          "endFrac": 0.0499,
+          "group": "Sam Posey Straight"
         },
         {
           "type": "corner",
@@ -74,7 +75,8 @@
           "type": "straight",
           "name": "Sam Posey Straight",
           "startFrac": 0.8724,
-          "endFrac": 1
+          "endFrac": 1,
+          "group": "Sam Posey Straight"
         }
       ],
       "sectors": {
@@ -89,7 +91,8 @@
       "type": "straight",
       "name": "Sam Posey Straight",
       "startFrac": 0,
-      "endFrac": 0.0499
+      "endFrac": 0.0499,
+      "group": "Sam Posey Straight"
     },
     {
       "type": "corner",
@@ -151,7 +154,8 @@
       "type": "straight",
       "name": "Sam Posey Straight",
       "startFrac": 0.8724,
-      "endFrac": 1
+      "endFrac": 1,
+      "group": "Sam Posey Straight"
     }
   ]
 }

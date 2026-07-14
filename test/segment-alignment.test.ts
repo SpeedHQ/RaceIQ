@@ -95,8 +95,19 @@ describe("alignSegments", () => {
     };
     const res = alignSegments(detected, list, 5000);
     expect(res.ok).toBe(true);
-    expect(res.segments[0]).toMatchObject({ type: "straight", name: "Wheatcroft Straight", startFrac: 0 });
-    expect(res.segments[res.segments.length - 1]).toMatchObject({ type: "straight", name: "Wheatcroft Straight", endFrac: 1 });
+    // Both halves grouped: one straight, split by the line, so consumers label it once.
+    expect(res.segments[0]).toMatchObject({
+      type: "straight",
+      name: "Wheatcroft Straight",
+      group: "Wheatcroft Straight",
+      startFrac: 0,
+    });
+    expect(res.segments[res.segments.length - 1]).toMatchObject({
+      type: "straight",
+      name: "Wheatcroft Straight",
+      group: "Wheatcroft Straight",
+      endFrac: 1,
+    });
   });
 
   test("an unnamed leading straight stays unnamed", () => {

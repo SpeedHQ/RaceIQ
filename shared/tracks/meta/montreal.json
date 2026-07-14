@@ -15,7 +15,8 @@
           "type": "straight",
           "name": "Wall of Champions",
           "startFrac": 0,
-          "endFrac": 0.0284
+          "endFrac": 0.0284,
+          "group": "Wall of Champions"
         },
         {
           "type": "corner",
@@ -165,7 +166,8 @@
           "type": "straight",
           "name": "Wall of Champions",
           "startFrac": 0.9268,
-          "endFrac": 1
+          "endFrac": 1,
+          "group": "Wall of Champions"
         }
       ]
     }
@@ -175,7 +177,8 @@
       "type": "straight",
       "name": "Wall of Champions",
       "startFrac": 0,
-      "endFrac": 0.0284
+      "endFrac": 0.0284,
+      "group": "Wall of Champions"
     },
     {
       "type": "corner",
@@ -325,7 +328,8 @@
       "type": "straight",
       "name": "Wall of Champions",
       "startFrac": 0.9268,
-      "endFrac": 1
+      "endFrac": 1,
+      "group": "Wall of Champions"
     }
   ]
 }

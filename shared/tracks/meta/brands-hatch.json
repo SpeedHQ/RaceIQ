@@ -135,7 +135,8 @@
           "type": "straight",
           "name": "Brabham Straight",
           "startFrac": 0,
-          "endFrac": 0.028
+          "endFrac": 0.028,
+          "group": "Brabham Straight"
         },
         {
           "type": "corner",
@@ -259,7 +260,8 @@
           "type": "straight",
           "name": "Brabham Straight",
           "startFrac": 0.9625,
-          "endFrac": 1
+          "endFrac": 1,
+          "group": "Brabham Straight"
         }
       ],
       "sectors": {
@@ -274,7 +276,8 @@
       "type": "straight",
       "name": "Brabham Straight",
       "startFrac": 0,
-      "endFrac": 0.028
+      "endFrac": 0.028,
+      "group": "Brabham Straight"
     },
     {
       "type": "corner",
@@ -398,7 +401,8 @@
       "type": "straight",
       "name": "Brabham Straight",
       "startFrac": 0.9625,
-      "endFrac": 1
+      "endFrac": 1,
+      "group": "Brabham Straight"
     }
   ]
 }
