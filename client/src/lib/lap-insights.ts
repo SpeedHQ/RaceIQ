@@ -1,5 +1,5 @@
 import type { GameId, TelemetryPacket } from "@shared/types";
-import { allWheelStates } from "./vehicle-dynamics";
+import { allWheelStates, steerBalance } from "./vehicle-dynamics";
 
 export type InsightCategory = "suspension" | "tires" | "driving" | "mechanical";
 export type InsightSeverity = "info" | "warning" | "critical";
@@ -548,6 +548,290 @@ function detectBrakeDrag(telemetry: TelemetryPacket[]): LapInsight | null {
   };
 }
 
+function detectDownshiftOverRev(telemetry: TelemetryPacket[]): LapInsight | null {
+  // Downshift that sends the engine near the limiter — too aggressive, risks
+  // rear lockup from engine braking and over-rev damage.
+  if (telemetry.length === 0) return null;
+  const maxRpm = telemetry[0].EngineMaxRpm;
+  if (maxRpm === 0) return null;
+
+  const eventFrames: number[] = [];
+  let lastEvent = -60;
+  for (let i = 1; i < telemetry.length; i++) {
+    const prev = telemetry[i - 1];
+    const cur = telemetry[i];
+    if (!(cur.Gear > 0 && prev.Gear > cur.Gear)) continue;
+    // RPM spike within 0.3s of the downshift
+    for (let j = i; j < Math.min(i + 18, telemetry.length); j++) {
+      if (telemetry[j].CurrentEngineRpm >= maxRpm * 0.97) {
+        if (i - lastEvent >= 60) {
+          eventFrames.push(j);
+          lastEvent = i;
+        }
+        break;
+      }
+    }
+  }
+
+  if (eventFrames.length === 0) return null;
+  return {
+    id: "driving-downshift-over-rev",
+    category: "driving",
+    severity: eventFrames.length >= 4 ? "warning" : "info",
+    label: "Aggressive Downshifts",
+    detail: `${eventFrames.length} downshift${eventFrames.length > 1 ? "s" : ""} spiked RPM near the limiter — shift down later to avoid engine-braking lockups`,
+    frameIndices: eventFrames,
+  };
+}
+
+function detectLateBrakingOvershoot(telemetry: TelemetryPacket[]): LapInsight | null {
+  // Carried too much speed into the corner: still braking hard while turning
+  // hard, with the front tires scrubbing (understeer) — the opposite fault of
+  // over-slowing.
+  const brakeFlags = telemetry.map((p) => p.Brake > 25);
+  const brakeZones = groupEvents(brakeFlags, 5, 10);
+  if (brakeZones.length === 0) return null;
+
+  const events: [number, number][] = [];
+  for (const [start, end] of brakeZones) {
+    let overlapFrames = 0;
+    let peakFrame = start;
+    for (let i = start; i <= end; i++) {
+      const p = telemetry[i];
+      if (p.Brake > 90 && Math.abs(p.Steer) > 35 && p.Speed * 2.23694 > 30) {
+        const bal = steerBalance(p);
+        if (bal.state === "understeer" && bal.severity > 0.3) {
+          overlapFrames++;
+          peakFrame = i;
+        }
+      }
+    }
+    if (overlapFrames >= 10) events.push([start, peakFrame]); // ≥~0.17s of hard-brake understeer
+  }
+
+  if (events.length === 0) return null;
+  return {
+    id: "driving-late-braking-overshoot",
+    category: "driving",
+    severity: events.length >= 3 ? "warning" : "info",
+    label: "Late Braking Overshoot",
+    detail: `${events.length} corner${events.length > 1 ? "s" : ""} — still braking hard with heavy steering and front scrub. Brake earlier or release sooner to rotate.`,
+    frameIndices: events.map(([, peak]) => peak),
+  };
+}
+
+function detectUndersteerScrub(telemetry: TelemetryPacket[]): LapInsight | null {
+  // Sustained understeer mid-corner: lots of steering, front slip well above
+  // rear — the fronts are sliding, adding steering won't help.
+  const flags = telemetry.map((p) => {
+    if (p.Speed * 2.23694 < 30 || Math.abs(p.Steer) < 25) return false;
+    const bal = steerBalance(p);
+    return bal.state === "understeer" && bal.severity > 0.4;
+  });
+  const events = groupEvents(flags, 10, 20);
+  if (events.length === 0) return null;
+  const totalFrames = events.reduce((s, [a, b]) => s + (b - a + 1), 0);
+  return {
+    id: "driving-understeer-scrub",
+    category: "driving",
+    severity: events.length >= 4 || totalFrames > 180 ? "warning" : "info",
+    label: "Understeer Scrub",
+    detail: `${events.length} corner${events.length > 1 ? "s" : ""} with sustained front scrub (${(totalFrames / 60).toFixed(1)}s total) — slow entry slightly or open the steering to regain front grip`,
+    frameIndices: midFrame(events),
+  };
+}
+
+function detectSteeringSawing(telemetry: TelemetryPacket[]): LapInsight | null {
+  // High-frequency steering reversals mid-corner — fighting the car or
+  // overdriving. Count direction flips of the steering derivative.
+  const reversal: boolean[] = new Array(telemetry.length).fill(false);
+  let lastDir = 0;
+  for (let i = 1; i < telemetry.length; i++) {
+    const p = telemetry[i];
+    if (Math.abs(p.Steer) < 15 || p.Speed * 2.23694 < 40) {
+      lastDir = 0;
+      continue;
+    }
+    const d = p.Steer - telemetry[i - 1].Steer;
+    if (Math.abs(d) < 5) continue;
+    const dir = Math.sign(d);
+    if (lastDir !== 0 && dir !== lastDir) reversal[i] = true;
+    lastDir = dir;
+  }
+
+  // Flag windows with ≥4 reversals per second
+  const flags: boolean[] = new Array(telemetry.length).fill(false);
+  let count = 0;
+  for (let i = 0; i < telemetry.length; i++) {
+    if (reversal[i]) count++;
+    if (i >= 60 && reversal[i - 60]) count--;
+    if (count >= 4) flags[i] = true;
+  }
+  const events = groupEvents(flags, 10, 30);
+  if (events.length === 0) return null;
+  return {
+    id: "driving-steering-sawing",
+    category: "driving",
+    severity: events.length >= 3 ? "warning" : "info",
+    label: "Steering Sawing",
+    detail: `${events.length} zone${events.length > 1 ? "s" : ""} of rapid steering corrections — smooth the inputs; sawing scrubs speed and unsettles the car`,
+    frameIndices: midFrame(events),
+  };
+}
+
+function detectThrottleMicroLifts(telemetry: TelemetryPacket[]): LapInsight | null {
+  // Repeated small throttle lifts under power with the rear breaking loose —
+  // manually doing traction control's job. Signature: near-full throttle,
+  // sharp dip, quick recovery, with wheelspin nearby.
+  const liftFrames: number[] = [];
+  let i = 1;
+  while (i < telemetry.length - 1) {
+    const prev = telemetry[i - 1];
+    const cur = telemetry[i];
+    if (prev.Accel > 180 && prev.Accel - cur.Accel >= 60) {
+      // Find recovery within 20 frames
+      let recovered = -1;
+      for (let j = i + 1; j < Math.min(i + 20, telemetry.length); j++) {
+        if (telemetry[j].Brake > 25) break; // lift into braking = corner entry, not a micro-lift
+        if (telemetry[j].Accel > 180) {
+          recovered = j;
+          break;
+        }
+      }
+      if (recovered !== -1) {
+        // Require rear slip near the lift to distinguish from deliberate lifts
+        let slipNearby = false;
+        for (let j = Math.max(0, i - 10); j <= Math.min(recovered + 10, telemetry.length - 1); j++) {
+          const ws = allWheelStates(telemetry[j]);
+          if (ws.rl.state === "spin" || ws.rr.state === "spin") {
+            slipNearby = true;
+            break;
+          }
+        }
+        if (slipNearby) liftFrames.push(i);
+        i = recovered + 1;
+        continue;
+      }
+    }
+    i++;
+  }
+
+  if (liftFrames.length < 4) return null;
+  return {
+    id: "driving-throttle-micro-lifts",
+    category: "driving",
+    severity: liftFrames.length >= 8 ? "warning" : "info",
+    label: "Throttle Micro-Lifts",
+    detail: `${liftFrames.length} quick lifts under power with rear slip — feeding throttle more progressively beats stabbing and lifting`,
+    frameIndices: liftFrames,
+  };
+}
+
+function detectTireTempSplit(telemetry: TelemetryPacket[], gameId: GameId): LapInsight | null {
+  // Persistent front/rear temperature split points at setup balance:
+  // hot fronts = understeer-prone, hot rears = oversteer/traction-limited.
+  let front = 0;
+  let rear = 0;
+  let n = 0;
+  for (const p of telemetry) {
+    if (p.Speed * 2.23694 < 15) continue;
+    front += (p.TireTempFL + p.TireTempFR) / 2;
+    rear += (p.TireTempRL + p.TireTempRR) / 2;
+    n++;
+  }
+  if (n < 100) return null;
+  front /= n;
+  rear /= n;
+  if (front <= 0 || rear <= 0) return null; // temps not reported
+
+  const fahrenheit = gameId === "fm-2023";
+  const warn = fahrenheit ? 25 : 12;
+  const crit = fahrenheit ? 45 : 22;
+  const unit = fahrenheit ? "°F" : "°C";
+  const delta = front - rear;
+  if (Math.abs(delta) < warn) return null;
+
+  const hotEnd = delta > 0 ? "front" : "rear";
+  const hint = delta > 0 ? "understeer-prone — consider softer front or more front downforce" : "oversteer/traction-limited — consider softer rear or less rear camber";
+  return {
+    id: "tire-temp-split",
+    category: "tires",
+    severity: Math.abs(delta) > crit ? "warning" : "info",
+    label: "Front/Rear Temp Split",
+    detail: `${hotEnd} axle ${Math.abs(delta).toFixed(0)}${unit} hotter on average — ${hint}`,
+    frameIndices: [Math.round(telemetry.length / 2)],
+  };
+}
+
+function detectInnerOuterTempSpread(telemetry: TelemetryPacket[]): LapInsight[] {
+  // ACC-only: inner-vs-outer tread temperature spread indicates camber/pressure
+  // problems. Sustained inner-hot = too much camber; outer-hot = not enough.
+  const labels = ["FL", "FR", "RL", "RR"] as const;
+  const sums = [0, 0, 0, 0];
+  let n = 0;
+  for (const p of telemetry) {
+    const acc = p.acc;
+    if (!acc || p.Speed * 2.23694 < 15) continue;
+    for (let t = 0; t < 4; t++) {
+      sums[t] += acc.tireInnerTemp[t] - acc.tireOuterTemp[t];
+    }
+    n++;
+  }
+  if (n < 100) return [];
+
+  const insights: LapInsight[] = [];
+  for (let t = 0; t < 4; t++) {
+    const delta = sums[t] / n; // °C, + = inner hotter
+    if (Math.abs(delta) < 8) continue;
+    const hint = delta > 0 ? "inner edge running hot — reduce negative camber or raise pressure" : "outer edge running hot — add negative camber";
+    insights.push({
+      id: `tire-edge-temp-${labels[t]}`,
+      category: "tires",
+      severity: Math.abs(delta) > 15 ? "warning" : "info",
+      label: "Tire Edge Temp Spread",
+      detail: `${labels[t]} ${Math.abs(delta).toFixed(0)}°C ${delta > 0 ? "inner" : "outer"}-hot on average — ${hint}`,
+      frameIndices: [Math.round(telemetry.length / 2)],
+    });
+  }
+  return insights;
+}
+
+function detectKerbRiding(telemetry: TelemetryPacket[]): LapInsight | null {
+  // Hard kerb strikes: wheel on a rumble strip (when the game reports it)
+  // combined with a sharp suspension compression spike at speed. Games that
+  // don't report rumble strips (F1, AC Evo) fall back to the spike alone.
+  const hasRumble = telemetry.some((p) => p.WheelOnRumbleStripFL > 0 || p.WheelOnRumbleStripFR > 0 || p.WheelOnRumbleStripRL > 0 || p.WheelOnRumbleStripRR > 0);
+
+  const flags: boolean[] = new Array(telemetry.length).fill(false);
+  for (let i = 1; i < telemetry.length; i++) {
+    const p = telemetry[i];
+    if (p.Speed * 2.23694 < 30) continue;
+    const prev = telemetry[i - 1];
+    const spike = Math.max(
+      Math.abs(p.NormSuspensionTravelFL - prev.NormSuspensionTravelFL),
+      Math.abs(p.NormSuspensionTravelFR - prev.NormSuspensionTravelFR),
+      Math.abs(p.NormSuspensionTravelRL - prev.NormSuspensionTravelRL),
+      Math.abs(p.NormSuspensionTravelRR - prev.NormSuspensionTravelRR),
+    );
+    if (hasRumble) {
+      const onKerb = p.WheelOnRumbleStripFL > 0 || p.WheelOnRumbleStripFR > 0 || p.WheelOnRumbleStripRL > 0 || p.WheelOnRumbleStripRR > 0;
+      flags[i] = onKerb && spike > 0.1;
+    } else {
+      flags[i] = spike > 0.18; // spike-only needs a stronger signal
+    }
+  }
+  const events = groupEvents(flags, 2, 20);
+  if (events.length < 3) return null; // occasional kerb use is normal
+  return {
+    id: "driving-kerb-riding",
+    category: "driving",
+    severity: events.length >= 8 ? "warning" : "info",
+    label: "Hard Kerb Strikes",
+    detail: `${events.length} heavy kerb strikes — big compression spikes unsettle the car and can cost time or damage`,
+    frameIndices: midFrame(events),
+  };
+}
+
 export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapInsight[] {
   if (telemetry.length < 10) return [];
 
@@ -564,6 +848,9 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapIns
   insights.push(...detectWheelspin(telemetry));
   const wearImb = detectWearImbalance(telemetry);
   if (wearImb) insights.push(wearImb);
+  const tempSplit = detectTireTempSplit(telemetry, gameId);
+  if (tempSplit) insights.push(tempSplit);
+  insights.push(...detectInnerOuterTempSpread(telemetry));
 
   // Driving
   const brakeLoss = detectBrakeTractionLoss(telemetry);
@@ -589,6 +876,18 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapIns
 
   const brakeDrag = detectBrakeDrag(telemetry);
   if (brakeDrag) insights.push(brakeDrag);
+  const downshift = detectDownshiftOverRev(telemetry);
+  if (downshift) insights.push(downshift);
+  const overshoot = detectLateBrakingOvershoot(telemetry);
+  if (overshoot) insights.push(overshoot);
+  const scrub = detectUndersteerScrub(telemetry);
+  if (scrub) insights.push(scrub);
+  const sawing = detectSteeringSawing(telemetry);
+  if (sawing) insights.push(sawing);
+  const microLifts = detectThrottleMicroLifts(telemetry);
+  if (microLifts) insights.push(microLifts);
+  const kerbs = detectKerbRiding(telemetry);
+  if (kerbs) insights.push(kerbs);
 
   // Mechanical
   const fuel = detectFuelConsumption(telemetry);
