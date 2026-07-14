@@ -22,6 +22,8 @@ import {
 } from "../db/queries";
 import { KNOWN_GAME_IDS } from "../../shared/types";
 import { importSessionBin, detectGameIdFromBuffer } from "../import-session-bin";
+import { analyzeLap } from "../../shared/lib/lap-insights";
+import { buildCompareInsightsBlock } from "../ai/insight-format";
 import { assessLapRecording } from "../lap-quality";
 
 // Toggle: set true to use native ACC lastSectorTime transitions in recheck instead of distance-fraction
@@ -207,7 +209,11 @@ export const lapRoutes = new Hono()
       }
     }
 
-    return c.json({ ...lap, sectorTimes });
+    // Precomputed lap insights — server-side so the client gets them in the
+    // initial fetch instead of re-deriving on every render
+    const insights = lap.gameId ? analyzeLap(packets, lap.gameId) : [];
+
+    return c.json({ ...lap, sectorTimes, insights });
   })
 
   // ── Export lap telemetry as text ────────────────────────────
@@ -888,6 +894,9 @@ export const lapRoutes = new Hono()
       },
       comparison,
       segments,
+      undefined,
+      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) +
+        buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
 
     // Set provider env vars before calling Mastra (the dynamic model resolver
@@ -1065,6 +1074,8 @@ export const lapRoutes = new Hono()
       settings.unit,
       settings.temperatureUnit,
       settings.language,
+      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) +
+        buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
 
     const chatProvider = settings.chatProvider;

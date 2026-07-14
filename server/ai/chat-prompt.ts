@@ -7,7 +7,7 @@ import type { TelemetryPacket, Tune, GameId } from "../../shared/types";
 import { generateExport, type UnitSystem, type TemperatureUnit } from "../export";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import { buildCornerData } from "./corner-data";
-import { analyzeLap } from "../../client/src/lib/lap-insights";
+import { analyzeLap } from "../../shared/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { aiLanguageInstruction } from "../../shared/locales";
@@ -52,7 +52,7 @@ export function buildChatSystemPrompt(
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
   // Precomputed insights
-  const insights = analyzeLap(packets);
+  const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId);
   let insightsText = "";
   if (insights.length > 0) {
     insightsText = "\n--- Precomputed Insights ---\n";
