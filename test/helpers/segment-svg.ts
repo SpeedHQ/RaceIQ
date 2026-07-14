@@ -138,7 +138,7 @@ ${sectorMarks.join("\n")}
   <rect x="${(start.x - 5).toFixed(1)}" y="${(start.y - 5).toFixed(1)}" width="10" height="10" fill="#111827" />
   <text x="${(start.x + 12).toFixed(1)}" y="${(start.y + 4).toFixed(1)}" class="sub">S/F</text>
   <text class="title" x="12" y="22">${escapeXml(title)}</text>
-  <text class="sub" x="12" y="40">${segments.filter((s) => s.type === "corner").length} corners, ${segments.length} segments, ${(total / 1000).toFixed(3)} km</text>
+  <text class="sub" x="12" y="40">${segments.filter((s) => s.type === "corner").length} corners, ${straightIdx} straights, ${segments.length} segments, ${(total / 1000).toFixed(3)} km</text>
 </svg>`;
 
   writeFileSync(outFile, svg);
