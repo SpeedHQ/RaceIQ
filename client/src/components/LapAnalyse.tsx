@@ -93,18 +93,18 @@ function LapAnalyseInner() {
   const isLegacyLap = lapData?.isLegacy === true;
   const displayTelemetry = useConvertedTelemetry(telemetry);
 
-  // Backfill track/car selection from the loaded lap's metadata when the URL omitted them
+  // Backfill track/car selection from the loaded lap's own row when the URL omitted them
   useEffect(() => {
-    if (selectedTrack == null && lapData?.meta?.trackOrdinal != null) {
-      setSelectedTrack(lapData.meta.trackOrdinal);
+    if (selectedTrack == null && lapData?.trackOrdinal != null) {
+      setSelectedTrack(lapData.trackOrdinal);
     }
-    if (selectedCar == null && lapData?.meta?.carOrdinal != null) {
-      setSelectedCar(lapData.meta.carOrdinal);
+    if (selectedCar == null && lapData?.carOrdinal != null) {
+      setSelectedCar(lapData.carOrdinal);
     }
   }, [lapData, selectedTrack, selectedCar]);
 
   // Fetch track data via TanStack Query (keyed on trackOrdinal derived from selection or lap data)
-  const trackOrd = selectedTrack ?? lapData?.meta?.trackOrdinal ?? null;
+  const trackOrd = selectedTrack ?? lapData?.trackOrdinal ?? null;
   const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined);
   const outline = useMemo(() => {
     if (!outlineRaw) return null;
