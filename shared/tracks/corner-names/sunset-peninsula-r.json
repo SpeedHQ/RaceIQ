@@ -1,0 +1,87 @@
+{
+  "circuit": "Sunset Peninsula (Full Reverse)",
+  "source": "derived from track geometry (no official corner names)",
+  "turnCount": 16,
+  "corners": [
+    {
+      "number": 1,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 2,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 3,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 10,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 11,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 12,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 13,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 14,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 15,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 16,
+      "name": "",
+      "direction": "left"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "circuit": "Mugello Circuit",
+  "source": "Official circuit map (15 turns)",
+  "turnCount": 15,
+  "corners": [
+    { "number": 1, "name": "San Donato", "direction": "right" },
+    { "number": 2, "name": "Luco", "direction": "left" },
+    { "number": 3, "name": "Poggio Secco", "direction": "right" },
+    { "number": 4, "name": "Materassi" },
+    { "number": 5, "name": "Borgo San Lorenzo" },
+    { "number": 6, "name": "Casanova", "direction": "right" },
+    { "number": 7, "name": "Savelli", "direction": "left" },
+    { "number": 8, "name": "Arrabbiata 1", "direction": "right" },
+    { "number": 9, "name": "Arrabbiata 2", "direction": "right" },
+    { "number": 10, "name": "Scarperia" },
+    { "number": 11, "name": "Palagio" },
+    { "number": 12, "name": "Correntaio", "direction": "right" },
+    { "number": 13, "name": "Biondetti 1" },
+    { "number": 14, "name": "Biondetti 2" },
+    { "number": 15, "name": "Bucine", "direction": "left" }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 5,
+    "s2EndAfterCorner": 10
+  }
+}

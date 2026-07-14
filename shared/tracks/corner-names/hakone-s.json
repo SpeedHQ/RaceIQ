@@ -1,0 +1,42 @@
+{
+  "circuit": "Hakone (Short)",
+  "source": "derived from track geometry (no official corner names)",
+  "turnCount": 7,
+  "corners": [
+    {
+      "number": 1,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 2,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 3,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "left"
+    }
+  ]
+}

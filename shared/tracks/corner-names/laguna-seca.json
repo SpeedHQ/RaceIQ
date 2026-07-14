@@ -1,0 +1,25 @@
+{
+  "circuit": "WeatherTech Raceway Laguna Seca",
+  "source": "Official circuit map (11 turns); Corkscrew T8",
+  "turnCount": 11,
+  "corners": [
+    { "number": 1, "name": "", "direction": "left", "optional": true },
+    { "number": 2, "name": "Andretti Hairpin", "direction": "left" },
+    { "number": 3, "name": "", "direction": "right" },
+    { "number": 4, "name": "", "direction": "right" },
+    { "number": 5, "name": "", "direction": "left" },
+    { "number": 6, "name": "", "direction": "left" },
+    { "number": 7, "name": "", "optional": true },
+    { "number": 8, "name": "Corkscrew", "spans": 2 },
+    { "number": 9, "name": "Rainey Curve", "direction": "left" },
+    { "number": 10, "name": "", "direction": "right" },
+    { "number": 11, "name": "", "direction": "left" }
+  ],
+  "straights": [
+    { "after": 6, "name": "Rahal Straight" }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 4,
+    "s2EndAfterCorner": 8
+  }
+}

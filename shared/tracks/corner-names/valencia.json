@@ -1,0 +1,19 @@
+{
+  "circuit": "Circuit Ricardo Tormo (Valencia)",
+  "source": "Sequential detected corners (flowing layout; official 14-turn numbering not reliably mapped)",
+  "turnCount": 8,
+  "corners": [
+    { "number": 1, "name": "", "direction": "left" },
+    { "number": 2, "name": "", "direction": "left" },
+    { "number": 3, "name": "", "direction": "right" },
+    { "number": 4, "name": "", "direction": "left" },
+    { "number": 5, "name": "", "direction": "left" },
+    { "number": 6, "name": "", "direction": "right" },
+    { "number": 7, "name": "", "direction": "right" },
+    { "number": 8, "name": "", "direction": "left" }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 3,
+    "s2EndAfterCorner": 5
+  }
+}

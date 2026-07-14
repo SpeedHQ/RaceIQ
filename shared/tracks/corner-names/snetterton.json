@@ -1,0 +1,26 @@
+{
+  "circuit": "Snetterton Circuit (300)",
+  "source": "Official circuit map (12 turns)",
+  "turnCount": 12,
+  "corners": [
+    { "number": 1, "name": "Riches", "direction": "right" },
+    { "number": 2, "name": "Montreal", "direction": "right" },
+    { "number": 3, "name": "Palmer", "direction": "left" },
+    { "number": 4, "name": "Agostini", "direction": "left" },
+    { "number": 5, "name": "Hamilton", "direction": "left" },
+    { "number": 6, "name": "Oggies", "direction": "right" },
+    { "number": 7, "name": "Williams", "direction": "right" },
+    { "number": 8, "name": "Brundle", "direction": "left" },
+    { "number": 9, "name": "Nelson", "direction": "right" },
+    { "number": 10, "name": "Bomb Hole", "direction": "right" },
+    { "number": 11, "name": "Coram", "direction": "right" },
+    { "number": 12, "name": "Murrays", "direction": "left" }
+  ],
+  "straights": [
+    { "after": 7, "name": "Bentley Straight" }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 4,
+    "s2EndAfterCorner": 9
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "circuit": "Eaglerock Speedway (Oval)",
+  "source": "derived from track geometry (no official corner names)",
+  "turnCount": 4,
+  "corners": [
+    {
+      "number": 1,
+      "name": "",
+      "direction": "left",
+      "covers": [
+        2
+      ]
+    },
+    {
+      "number": 3,
+      "name": "",
+      "direction": "left",
+      "covers": [
+        4
+      ]
+    }
+  ]
+}

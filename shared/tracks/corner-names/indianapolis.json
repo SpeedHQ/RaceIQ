@@ -1,0 +1,20 @@
+{
+  "circuit": "Indianapolis Motor Speedway — Road Course",
+  "source": "Official IMS road course map (14 turns)",
+  "turnCount": 14,
+  "corners": [
+    { "number": 1, "name": "", "direction": "right" },
+    { "number": 2, "name": "", "direction": "left" },
+    { "number": 3, "name": "", "direction": "right", "covers": [4] },
+    { "number": 5, "name": "", "direction": "left" },
+    { "number": 6, "name": "", "direction": "right" },
+    { "number": 7, "name": "", "direction": "left" },
+    { "number": 8, "name": "", "direction": "right" },
+    { "number": 9, "name": "", "direction": "left" },
+    { "number": 10, "name": "", "direction": "right" },
+    { "number": 11, "name": "", "direction": "right" },
+    { "number": 12, "name": "", "direction": "right" },
+    { "number": 13, "name": "", "direction": "left" },
+    { "number": 14, "name": "", "direction": "right" }
+  ]
+}
