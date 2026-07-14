@@ -55,6 +55,7 @@ export async function readChatStream(res: Response, onEvent: (event: ChatStreamE
       } catch {
         // Skip malformed lines — protocol is best-effort; keep the reader
         // alive so later well-formed events still arrive.
+        console.warn("[ChatStream] malformed NDJSON line", line.slice(0, 200));
       }
       idx = buf.indexOf("\n");
     }
@@ -65,7 +66,7 @@ export async function readChatStream(res: Response, onEvent: (event: ChatStreamE
     try {
       onEvent(JSON.parse(tail) as ChatStreamEvent);
     } catch {
-      /* ignore */
+      console.warn("[ChatStream] malformed NDJSON tail", tail.slice(0, 200));
     }
   }
 }
