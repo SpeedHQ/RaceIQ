@@ -99,6 +99,8 @@ export function buildCompareChatSystemPrompt(
   temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
   /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
+  /** Per-lap precomputed insight blocks (see buildCompareInsightsBlock). */
+  precomputedInsights?: string,
 ): string {
   const carA = getCarName(lapA.carOrdinal ?? 0);
   const carB = getCarName(lapB.carOrdinal ?? 0);
@@ -115,5 +117,6 @@ ${summarizeComparison(comparison)}--- LAP A ANALYSIS (already shown to driver) -
 ${summarizeAnalysis("Lap A", analysisJsonA)}
 --- LAP B ANALYSIS (already shown to driver) ---
 ${summarizeAnalysis("Lap B", analysisJsonB)}
+${precomputedInsights ?? ""}
 Use both analyses and the corner-by-corner deltas to explain where time is gained or lost and what the slower lap should change.`;
 }

@@ -285,6 +285,8 @@ export function buildInputsComparePrompt(
   segments: PromptSegment[] | null,
   /** Pre-fetched track guide text. When provided, skips internal lookup. */
   externalTrackGuide?: string,
+  /** Per-lap precomputed insight blocks (see buildCompareInsightsBlock). */
+  precomputedInsights?: string,
 ): string {
   const carA = getCarName(lapA.carOrdinal ?? 0);
   const carB = getCarName(lapB.carOrdinal ?? 0);
@@ -412,6 +414,7 @@ Per-segment notes:
 
 To produce a concrete "action", you MUST diff the events/speed rows between Lap A and Lap B for the same segment and quote the resulting numbers. If the slower lap brakes 120m into a corner and the faster lap brakes at 132m, the action is "Brake 12m later into T1 (current brake point 120m, target 132m)." Do not produce actions without such numeric evidence.
 
+${precomputedInsights ?? ""}
 Segments to analyse (${expectedCount} total — produce EXACTLY ${expectedCount} entries in your "segments" array):
 ${segLines.join("\n\n")}`;
 }
