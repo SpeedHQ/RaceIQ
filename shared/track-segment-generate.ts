@@ -191,6 +191,45 @@ export function buildUpdatedMeta(
   return meta;
 }
 
+/**
+ * Auto-generate segments for a track with no curated name list: detected
+ * corners become sequential T-number tokens through the same alignment path
+ * (padding, merging) that curated tracks use.
+ */
+export function autoTrackSegments(outline: { x: number; z: number }[]): {
+  segments: NonNullable<SharedTrackMeta["segments"]>;
+  cornerCount: number;
+  totalDist: number;
+} {
+  const detection = detectCornerRegions(outline);
+  if (detection.corners.length === 0) {
+    return { segments: [], cornerCount: 0, totalDist: detection.totalDist };
+  }
+  const syntheticList: CornerNameList = {
+    circuit: "auto",
+    corners: detection.corners.map((c, i) => ({ number: i + 1, name: "", direction: c.direction })),
+  };
+  const result = alignSegments(detection.corners, syntheticList, detection.totalDist);
+  return {
+    segments: result.ok ? result.segments : [],
+    cornerCount: detection.corners.length,
+    totalDist: detection.totalDist,
+  };
+}
+
+/** Every centerline file per game (basename without -centerline.csv suffix). */
+export function listAllCenterlines(): { gameId: string; slug: string; file: string }[] {
+  const found: { gameId: string; slug: string; file: string }[] = [];
+  for (const [gameId, dir] of Object.entries(GAME_DIRS)) {
+    if (!existsSync(dir)) continue;
+    for (const f of readdirSync(dir)) {
+      if (!f.endsWith("-centerline.csv")) continue;
+      found.push({ gameId, slug: f.replace(/-centerline\.csv$/, ""), file: resolve(dir, f) });
+    }
+  }
+  return found;
+}
+
 /** Persist writable alignments into the track's meta file. Returns written gameIds. */
 export function writeTrackMeta(
   slug: string,
