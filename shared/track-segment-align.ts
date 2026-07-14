@@ -174,9 +174,13 @@ export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; t
       // bounded so it never crosses the apex. Using the region-wide peak here
       // would, in an asymmetric compound corner (e.g. a long fast entry into
       // a much tighter hairpin), walk the weaker side's trim straight past
-      // its own real apex and erase that whole half.
-      const kTrimStart = Math.max(K_IN, r.firstPeak * TRIM_FRAC);
-      const kTrimEnd = Math.max(K_IN, r.lastPeak * TRIM_FRAC);
+      // its own real apex and erase that whole half. Clamped at that side's
+      // own peak too: a direction-split sub-run's peak can itself be under
+      // K_IN (it only needs a sustained sign flip to split, not a fresh
+      // K_IN crossing) — without the clamp the K_IN floor would reintroduce
+      // the exact same "walk past a weak apex" bug it's meant to prevent.
+      const kTrimStart = Math.min(r.firstPeak, Math.max(K_IN, r.firstPeak * TRIM_FRAC));
+      const kTrimEnd = Math.min(r.lastPeak, Math.max(K_IN, r.lastPeak * TRIM_FRAC));
       let start = r.start;
       while (start < r.apexIdx && Math.abs(kappa[start]) < kTrimStart) start++;
       let end = r.end;
