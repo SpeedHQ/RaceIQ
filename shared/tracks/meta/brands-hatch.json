@@ -24,16 +24,10 @@
           "name": "Paddock Hill Bend",
           "direction": "right",
           "startFrac": 0.0232,
-          "endFrac": 0.1107,
+          "endFrac": 0.1184,
           "numbers": [
             1
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1107,
-          "endFrac": 0.1184
         },
         {
           "type": "corner",
@@ -176,16 +170,10 @@
           "name": "Druids",
           "direction": "right",
           "startFrac": 0.1121,
-          "endFrac": 0.1899,
+          "endFrac": 0.1927,
           "numbers": [
             2
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1899,
-          "endFrac": 0.1927
         },
         {
           "type": "corner",
@@ -266,16 +254,10 @@
           "name": "Sheene Curve",
           "direction": "right",
           "startFrac": 0.6936,
-          "endFrac": 0.7274,
+          "endFrac": 0.7333,
           "numbers": [
             8
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7274,
-          "endFrac": 0.7333
         },
         {
           "type": "corner",
@@ -345,16 +327,10 @@
       "name": "Druids",
       "direction": "right",
       "startFrac": 0.1121,
-      "endFrac": 0.1899,
+      "endFrac": 0.1927,
       "numbers": [
         2
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.1899,
-      "endFrac": 0.1927
     },
     {
       "type": "corner",
@@ -435,16 +411,10 @@
       "name": "Sheene Curve",
       "direction": "right",
       "startFrac": 0.6936,
-      "endFrac": 0.7274,
+      "endFrac": 0.7333,
       "numbers": [
         8
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.7274,
-      "endFrac": 0.7333
     },
     {
       "type": "corner",

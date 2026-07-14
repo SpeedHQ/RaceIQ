@@ -70,16 +70,10 @@
           "name": "Schwantz Curve",
           "direction": "right",
           "startFrac": 0.4068,
-          "endFrac": 0.4955,
+          "endFrac": 0.5024,
           "numbers": [
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4955,
-          "endFrac": 0.5024
         },
         {
           "type": "corner",
@@ -222,16 +216,10 @@
       "name": "Schwantz Curve",
       "direction": "right",
       "startFrac": 0.4068,
-      "endFrac": 0.4955,
+      "endFrac": 0.5024,
       "numbers": [
         6
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4955,
-      "endFrac": 0.5024
     },
     {
       "type": "corner",

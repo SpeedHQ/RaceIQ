@@ -19,16 +19,10 @@
           "name": "Andretti Hairpin",
           "direction": "left",
           "startFrac": 0.0801,
-          "endFrac": 0.1743,
+          "endFrac": 0.1778,
           "numbers": [
             2
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1743,
-          "endFrac": 0.1778
         },
         {
           "type": "corner",
@@ -123,16 +117,10 @@
           "name": "T10",
           "direction": "right",
           "startFrac": 0.7997,
-          "endFrac": 0.8706,
+          "endFrac": 0.8777,
           "numbers": [
             10
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8706,
-          "endFrac": 0.8777
         },
         {
           "type": "corner",
@@ -170,32 +158,20 @@
           "name": "Andretti Hairpin",
           "direction": "left",
           "startFrac": 0.0727,
-          "endFrac": 0.1704,
+          "endFrac": 0.1763,
           "numbers": [
             2
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1704,
-          "endFrac": 0.1763
         },
         {
           "type": "corner",
           "name": "T3",
           "direction": "right",
           "startFrac": 0.1763,
-          "endFrac": 0.2455,
+          "endFrac": 0.2508,
           "numbers": [
             3
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2455,
-          "endFrac": 0.2508
         },
         {
           "type": "corner",
@@ -270,16 +246,10 @@
           "name": "Rainey Curve",
           "direction": "left",
           "startFrac": 0.7178,
-          "endFrac": 0.7878,
+          "endFrac": 0.7922,
           "numbers": [
             9
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7878,
-          "endFrac": 0.7922
         },
         {
           "type": "corner",
@@ -333,32 +303,20 @@
       "name": "Andretti Hairpin",
       "direction": "left",
       "startFrac": 0.0727,
-      "endFrac": 0.1704,
+      "endFrac": 0.1763,
       "numbers": [
         2
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.1704,
-      "endFrac": 0.1763
     },
     {
       "type": "corner",
       "name": "T3",
       "direction": "right",
       "startFrac": 0.1763,
-      "endFrac": 0.2455,
+      "endFrac": 0.2508,
       "numbers": [
         3
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.2455,
-      "endFrac": 0.2508
     },
     {
       "type": "corner",
@@ -433,16 +391,10 @@
       "name": "Rainey Curve",
       "direction": "left",
       "startFrac": 0.7178,
-      "endFrac": 0.7878,
+      "endFrac": 0.7922,
       "numbers": [
         9
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.7878,
-      "endFrac": 0.7922
     },
     {
       "type": "corner",

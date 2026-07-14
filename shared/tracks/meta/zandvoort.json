@@ -1,14 +1,14 @@
 {
   "name": "Circuit Zandvoort",
   "sectors": {
-    "s1End": 0.4429,
+    "s1End": 0.4495,
     "s2End": 0.6716,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.4429,
+        "s1End": 0.4495,
         "s2End": 0.6716,
         "source": "corner-anchored"
       },
@@ -76,33 +76,21 @@
           "name": "Slotemaker/Scheivlak",
           "direction": "right",
           "startFrac": 0.3185,
-          "endFrac": 0.4429,
+          "endFrac": 0.4495,
           "numbers": [
             5,
             6
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4429,
-          "endFrac": 0.4495
-        },
-        {
           "type": "corner",
           "name": "Mastersbocht",
           "direction": "right",
           "startFrac": 0.4495,
-          "endFrac": 0.5549,
+          "endFrac": 0.5572,
           "numbers": [
             7
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5549,
-          "endFrac": 0.5572
         },
         {
           "type": "corner",
@@ -401,33 +389,21 @@
       "name": "Slotemaker/Scheivlak",
       "direction": "right",
       "startFrac": 0.3185,
-      "endFrac": 0.4429,
+      "endFrac": 0.4495,
       "numbers": [
         5,
         6
       ]
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4429,
-      "endFrac": 0.4495
-    },
-    {
       "type": "corner",
       "name": "Mastersbocht",
       "direction": "right",
       "startFrac": 0.4495,
-      "endFrac": 0.5549,
+      "endFrac": 0.5572,
       "numbers": [
         7
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.5549,
-      "endFrac": 0.5572
     },
     {
       "type": "corner",

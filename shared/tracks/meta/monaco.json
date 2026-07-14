@@ -50,16 +50,10 @@
           "name": "Casino",
           "direction": "right",
           "startFrac": 0.2622,
-          "endFrac": 0.2985,
+          "endFrac": 0.3057,
           "numbers": [
             4
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2985,
-          "endFrac": 0.3057
         },
         {
           "type": "corner",
@@ -129,16 +123,10 @@
           "name": "Tabac",
           "direction": "left",
           "startFrac": 0.6481,
-          "endFrac": 0.6765,
+          "endFrac": 0.6844,
           "numbers": [
             12
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6765,
-          "endFrac": 0.6844
         },
         {
           "type": "corner",
@@ -228,16 +216,10 @@
       "name": "Casino",
       "direction": "right",
       "startFrac": 0.2622,
-      "endFrac": 0.2985,
+      "endFrac": 0.3057,
       "numbers": [
         4
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.2985,
-      "endFrac": 0.3057
     },
     {
       "type": "corner",
@@ -307,16 +289,10 @@
       "name": "Tabac",
       "direction": "left",
       "startFrac": 0.6481,
-      "endFrac": 0.6765,
+      "endFrac": 0.6844,
       "numbers": [
         12
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.6765,
-      "endFrac": 0.6844
     },
     {
       "type": "corner",

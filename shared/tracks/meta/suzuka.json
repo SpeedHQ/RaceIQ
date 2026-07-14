@@ -100,16 +100,10 @@
           "name": "T12",
           "direction": "right",
           "startFrac": 0.5241,
-          "endFrac": 0.6359,
+          "endFrac": 0.6382,
           "numbers": [
             12
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6359,
-          "endFrac": 0.6382
         },
         {
           "type": "corner",
@@ -427,16 +421,10 @@
       "name": "T12",
       "direction": "right",
       "startFrac": 0.5241,
-      "endFrac": 0.6359,
+      "endFrac": 0.6382,
       "numbers": [
         12
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.6359,
-      "endFrac": 0.6382
     },
     {
       "type": "corner",

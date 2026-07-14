@@ -56,16 +56,10 @@
           "name": "T3",
           "direction": "left",
           "startFrac": 0.2296,
-          "endFrac": 0.2701,
+          "endFrac": 0.2747,
           "numbers": [
             3
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2701,
-          "endFrac": 0.2747
         },
         {
           "type": "corner",
@@ -114,16 +108,10 @@
           "name": "T7",
           "direction": "right",
           "startFrac": 0.3993,
-          "endFrac": 0.4426,
+          "endFrac": 0.4449,
           "numbers": [
             7
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4426,
-          "endFrac": 0.4449
         },
         {
           "type": "corner",
@@ -283,16 +271,10 @@
       "name": "T3",
       "direction": "left",
       "startFrac": 0.2296,
-      "endFrac": 0.2701,
+      "endFrac": 0.2747,
       "numbers": [
         3
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.2701,
-      "endFrac": 0.2747
     },
     {
       "type": "corner",
@@ -341,16 +323,10 @@
       "name": "T7",
       "direction": "right",
       "startFrac": 0.3993,
-      "endFrac": 0.4426,
+      "endFrac": 0.4449,
       "numbers": [
         7
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4426,
-      "endFrac": 0.4449
     },
     {
       "type": "corner",

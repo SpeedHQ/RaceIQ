@@ -1,7 +1,7 @@
 {
   "name": "Circuit de Barcelona-Catalunya",
   "sectors": {
-    "s1End": 0.3995,
+    "s1End": 0.403,
     "s2End": 0.6313,
     "source": "corner-anchored"
   },
@@ -106,16 +106,10 @@
           "name": "T8",
           "direction": "right",
           "startFrac": 0.5591,
-          "endFrac": 0.59,
+          "endFrac": 0.592,
           "numbers": [
             8
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.59,
-          "endFrac": 0.592
         },
         {
           "type": "corner",
@@ -138,16 +132,10 @@
           "name": "La Caixa",
           "direction": "left",
           "startFrac": 0.7134,
-          "endFrac": 0.7739,
+          "endFrac": 0.7774,
           "numbers": [
             10
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7739,
-          "endFrac": 0.7774
         },
         {
           "type": "corner",
@@ -411,16 +399,10 @@
           "name": "Repsol",
           "direction": "right",
           "startFrac": 0.3088,
-          "endFrac": 0.3995,
+          "endFrac": 0.403,
           "numbers": [
             4
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3995,
-          "endFrac": 0.403
         },
         {
           "type": "corner",
@@ -457,16 +439,10 @@
           "name": "T8",
           "direction": "right",
           "startFrac": 0.5336,
-          "endFrac": 0.5637,
+          "endFrac": 0.5659,
           "numbers": [
             8
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5637,
-          "endFrac": 0.5659
         },
         {
           "type": "corner",
@@ -532,7 +508,7 @@
         }
       ],
       "sectors": {
-        "s1End": 0.3995,
+        "s1End": 0.403,
         "s2End": 0.6313,
         "source": "corner-anchored"
       }
@@ -586,16 +562,10 @@
       "name": "Repsol",
       "direction": "right",
       "startFrac": 0.3088,
-      "endFrac": 0.3995,
+      "endFrac": 0.403,
       "numbers": [
         4
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3995,
-      "endFrac": 0.403
     },
     {
       "type": "corner",
@@ -632,16 +602,10 @@
       "name": "T8",
       "direction": "right",
       "startFrac": 0.5336,
-      "endFrac": 0.5637,
+      "endFrac": 0.5659,
       "numbers": [
         8
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.5637,
-      "endFrac": 0.5659
     },
     {
       "type": "corner",

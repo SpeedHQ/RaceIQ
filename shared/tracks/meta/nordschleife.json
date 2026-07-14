@@ -56,10 +56,16 @@
           "name": "Dunlop-Kehre",
           "direction": "right",
           "startFrac": 0.0684,
-          "endFrac": 0.0837,
+          "endFrac": 0.0818,
           "numbers": [
             5
           ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.0818,
+          "endFrac": 0.0837
         },
         {
           "type": "corner",
@@ -481,10 +487,16 @@
           "name": "T51",
           "direction": "left",
           "startFrac": 0.7549,
-          "endFrac": 0.7669,
+          "endFrac": 0.7655,
           "numbers": [
             51
           ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7655,
+          "endFrac": 0.7669
         },
         {
           "type": "corner",
@@ -638,10 +650,16 @@
       "name": "Dunlop-Kehre",
       "direction": "right",
       "startFrac": 0.0684,
-      "endFrac": 0.0837,
+      "endFrac": 0.0818,
       "numbers": [
         5
       ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.0818,
+      "endFrac": 0.0837
     },
     {
       "type": "corner",
@@ -1063,10 +1081,16 @@
       "name": "T51",
       "direction": "left",
       "startFrac": 0.7549,
-      "endFrac": 0.7669,
+      "endFrac": 0.7655,
       "numbers": [
         51
       ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.7655,
+      "endFrac": 0.7669
     },
     {
       "type": "corner",

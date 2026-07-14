@@ -83,16 +83,10 @@
           "name": "Piratella",
           "direction": "left",
           "startFrac": 0.5356,
-          "endFrac": 0.5802,
+          "endFrac": 0.5828,
           "numbers": [
             9
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5802,
-          "endFrac": 0.5828
         },
         {
           "type": "corner",
@@ -374,16 +368,10 @@
       "name": "Piratella",
       "direction": "left",
       "startFrac": 0.5356,
-      "endFrac": 0.5802,
+      "endFrac": 0.5828,
       "numbers": [
         9
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.5802,
-      "endFrac": 0.5828
     },
     {
       "type": "corner",

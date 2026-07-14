@@ -2,7 +2,7 @@
   "name": "Mid-Ohio Sports Car Course",
   "sectors": {
     "s1End": 0.5655,
-    "s2End": 0.7657,
+    "s2End": 0.7715,
     "source": "corner-anchored"
   },
   "games": {
@@ -101,16 +101,10 @@
           "name": "T9",
           "direction": "right",
           "startFrac": 0.7184,
-          "endFrac": 0.7657,
+          "endFrac": 0.7715,
           "numbers": [
             9
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7657,
-          "endFrac": 0.7715
         },
         {
           "type": "corner",
@@ -161,7 +155,7 @@
       ],
       "sectors": {
         "s1End": 0.5655,
-        "s2End": 0.7657,
+        "s2End": 0.7715,
         "source": "corner-anchored"
       }
     }
@@ -260,16 +254,10 @@
       "name": "T9",
       "direction": "right",
       "startFrac": 0.7184,
-      "endFrac": 0.7657,
+      "endFrac": 0.7715,
       "numbers": [
         9
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.7657,
-      "endFrac": 0.7715
     },
     {
       "type": "corner",

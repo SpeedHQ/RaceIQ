@@ -61,32 +61,20 @@
           "name": "Reid Park",
           "direction": "right",
           "startFrac": 0.3327,
-          "endFrac": 0.3954,
+          "endFrac": 0.3982,
           "numbers": [
             4
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3954,
-          "endFrac": 0.3982
         },
         {
           "type": "corner",
           "name": "Sulman Park",
           "direction": "left",
           "startFrac": 0.3982,
-          "endFrac": 0.4562,
+          "endFrac": 0.4599,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4562,
-          "endFrac": 0.4599
         },
         {
           "type": "corner",
@@ -236,32 +224,20 @@
           "name": "Reid Park",
           "direction": "right",
           "startFrac": 0.3098,
-          "endFrac": 0.3689,
+          "endFrac": 0.3711,
           "numbers": [
             4
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3689,
-          "endFrac": 0.3711
         },
         {
           "type": "corner",
           "name": "Sulman Park",
           "direction": "left",
           "startFrac": 0.3711,
-          "endFrac": 0.4339,
+          "endFrac": 0.4362,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4339,
-          "endFrac": 0.4362
         },
         {
           "type": "corner",
@@ -411,32 +387,20 @@
       "name": "Reid Park",
       "direction": "right",
       "startFrac": 0.3098,
-      "endFrac": 0.3689,
+      "endFrac": 0.3711,
       "numbers": [
         4
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3689,
-      "endFrac": 0.3711
     },
     {
       "type": "corner",
       "name": "Sulman Park",
       "direction": "left",
       "startFrac": 0.3711,
-      "endFrac": 0.4339,
+      "endFrac": 0.4362,
       "numbers": [
         5
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4339,
-      "endFrac": 0.4362
     },
     {
       "type": "corner",

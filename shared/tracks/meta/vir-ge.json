@@ -172,16 +172,10 @@
           "name": "T15",
           "direction": "left",
           "startFrac": 0.4518,
-          "endFrac": 0.4778,
+          "endFrac": 0.4811,
           "numbers": [
             15
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4778,
-          "endFrac": 0.4811
         },
         {
           "type": "corner",
@@ -460,16 +454,10 @@
       "name": "T15",
       "direction": "left",
       "startFrac": 0.4518,
-      "endFrac": 0.4778,
+      "endFrac": 0.4811,
       "numbers": [
         15
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4778,
-      "endFrac": 0.4811
     },
     {
       "type": "corner",

@@ -11,8 +11,7 @@
   <rect width="1000" height="800" fill="#ffffff" />
   <polyline fill="none" stroke="#9ca3af" stroke-width="2.5" points="438.5,270.4 436.6,273.0 434.7,275.7 432.8,278.4 430.9,281.0 429.0,283.7 427.0,286.3 425.1,289.0 423.2,291.6 421.3,294.3 419.3,297.0 417.4,299.6 415.5,302.3 413.6,304.9 411.7,307.6 409.8,310.2 407.9,312.8 406.0,315.4 404.1,318.1 402.2,320.8 400.3,323.4 398.3,326.1 396.4,328.7 394.5,331.4 392.6,334.0 390.7,336.7 388.7,339.3 386.8,342.0 384.9,344.7 383.0,347.3" />
   <polyline fill="none" stroke="#ef4444" stroke-width="5" points="383.0,347.3 381.1,350.0 379.2,352.6 377.2,355.3 375.3,357.9 373.4,360.6 371.5,363.2 369.6,365.9 367.7,368.6 365.8,371.2 363.8,373.9 362.0,376.4 360.1,379.1 358.2,381.7 356.2,384.4 354.3,387.0 352.4,389.7 350.5,392.3 348.4,394.7 346.0,396.6 343.1,398.2 340.2,399.4 337.1,400.2 333.8,400.8 330.6,401.2 327.3,401.5 324.0,401.5 320.8,401.4 317.5,401.2 314.2,400.8 311.0,400.4 307.7,400.0" />
-  <polyline fill="none" stroke="#f97316" stroke-width="5" points="307.7,400.0 304.5,399.6 301.2,399.2 298.0,398.8 294.7,398.4 291.5,398.0 288.2,397.7 285.0,397.2 281.7,396.9 278.4,396.7 275.2,396.8 271.9,397.0 268.7,397.5 265.4,398.1 262.3,398.9 259.2,399.9 256.1,401.1 253.1,402.5 250.3,404.1 247.5,405.8 244.8,407.7 242.2,409.7 239.7,411.8 237.2,414.0 234.7,416.1 232.2,418.2 229.7,420.3 227.2,422.4 224.7,424.5 222.2,426.6 219.7,428.7" />
-  <polyline fill="none" stroke="#9ca3af" stroke-width="2.5" points="219.7,428.7 217.2,430.8 214.7,433.0" />
+  <polyline fill="none" stroke="#f97316" stroke-width="5" points="307.7,400.0 304.5,399.6 301.2,399.2 298.0,398.8 294.7,398.4 291.5,398.0 288.2,397.7 285.0,397.2 281.7,396.9 278.4,396.7 275.2,396.8 271.9,397.0 268.7,397.5 265.4,398.1 262.3,398.9 259.2,399.9 256.1,401.1 253.1,402.5 250.3,404.1 247.5,405.8 244.8,407.7 242.2,409.7 239.7,411.8 237.2,414.0 234.7,416.1 232.2,418.2 229.7,420.3 227.2,422.4 224.7,424.5 222.2,426.6 219.7,428.7 217.2,430.8 214.7,433.0" />
   <polyline fill="none" stroke="#eab308" stroke-width="5" points="214.7,433.0 212.2,435.1 209.7,437.2 207.2,439.3 204.7,441.4 202.2,443.5 199.7,445.6 197.2,447.7 194.7,449.8 192.1,451.9 189.6,453.7 186.7,455.0 183.5,455.5 180.3,454.9 177.5,453.2 175.6,450.6 174.5,447.6 173.4,444.5 172.4,441.4 171.3,438.3 170.3,435.2 169.2,432.1" />
   <polyline fill="none" stroke="#22c55e" stroke-width="5" points="169.2,432.1 168.2,429.0 167.1,425.9 166.1,423.0 165.1,419.9 164.0,416.8 162.8,413.9 160.9,411.3 158.3,409.4 155.1,408.6 151.9,409.1 149.2,410.9 147.3,413.6 146.0,416.3 144.6,419.3 143.4,422.3 142.2,425.4 141.1,428.5 140.1,431.6 139.2,434.7 138.4,437.9 137.6,441.1 136.9,444.3" />
   <polyline fill="none" stroke="#06b6d4" stroke-width="5" points="136.9,444.3 136.3,447.5 135.8,450.8 135.4,454.0 135.1,457.3 134.9,460.5 134.7,463.8 134.7,467.1 134.7,470.4 135.0,473.4 135.7,476.6 137.1,479.6 139.1,482.0 141.6,484.2 144.0,486.4 146.5,488.6 148.9,490.7 151.3,492.9 153.8,495.1 156.2,497.3 158.7,499.5 161.1,501.6 163.6,503.8" />
@@ -36,10 +35,8 @@
   <text x="430.4" y="294.4" text-anchor="start" class="name" fill="#6b7280">St1 252m</text>
   <line x1="352.4" y1="389.7" x2="376.3" y2="379.5" stroke="#d1d5db" stroke-width="1" />
   <text x="376.3" y="379.5" text-anchor="start" class="name" fill="#111827">T1 Abbey</text>
-  <line x1="259.2" y1="399.9" x2="266.3" y2="374.9" stroke="#d1d5db" stroke-width="1" />
-  <text x="266.3" y="374.9" text-anchor="start" class="name" fill="#111827">T2 Farm Curve</text>
-  <line x1="217.2" y1="430.8" x2="191.3" y2="428.6" stroke="#d1d5db" stroke-width="1" />
-  <text x="191.3" y="428.6" text-anchor="end" class="name" fill="#6b7280">St2 16m</text>
+  <line x1="256.1" y1="401.1" x2="261.2" y2="375.6" stroke="#d1d5db" stroke-width="1" />
+  <text x="261.2" y="375.6" text-anchor="start" class="name" fill="#111827">T2 Farm Curve</text>
   <line x1="189.6" y1="453.7" x2="164.9" y2="462.0" stroke="#d1d5db" stroke-width="1" />
   <text x="164.9" y="462.0" text-anchor="end" class="name" fill="#111827">T3 Village</text>
   <line x1="149.2" y1="410.9" x2="123.8" y2="405.2" stroke="#d1d5db" stroke-width="1" />
@@ -53,15 +50,15 @@
   <line x1="394.7" y1="590.3" x2="412.4" y2="609.4" stroke="#d1d5db" stroke-width="1" />
   <text x="412.4" y="609.4" text-anchor="start" class="name" fill="#111827">T7 Luffield</text>
   <line x1="383.4" y1="649.6" x2="397.1" y2="671.7" stroke="#d1d5db" stroke-width="1" />
-  <text x="397.1" y="671.7" text-anchor="start" class="name" fill="#6b7280">St4 56m</text>
+  <text x="397.1" y="671.7" text-anchor="start" class="name" fill="#6b7280">St3 56m</text>
   <line x1="343.5" y1="696.1" x2="352.3" y2="720.6" stroke="#d1d5db" stroke-width="1" />
   <text x="352.3" y="720.6" text-anchor="start" class="name" fill="#111827">T8 Woodcote</text>
   <line x1="254.0" y1="713.3" x2="254.4" y2="739.3" stroke="#d1d5db" stroke-width="1" />
-  <text x="254.4" y="739.3" text-anchor="start" class="name" fill="#6b7280">St5 191m</text>
+  <text x="254.4" y="739.3" text-anchor="start" class="name" fill="#6b7280">St4 191m</text>
   <line x1="156.3" y1="721.2" x2="148.3" y2="746.0" stroke="#d1d5db" stroke-width="1" />
   <text x="148.3" y="746.0" text-anchor="end" class="name" fill="#111827">T9 Copse</text>
   <line x1="113.9" y1="633.8" x2="99.3" y2="655.3" stroke="#d1d5db" stroke-width="1" />
-  <text x="99.3" y="655.3" text-anchor="end" class="name" fill="#6b7280">St6 217m</text>
+  <text x="99.3" y="655.3" text-anchor="end" class="name" fill="#6b7280">St5 217m</text>
   <line x1="91.9" y1="472.4" x2="66.7" y2="478.6" stroke="#d1d5db" stroke-width="1" />
   <text x="66.7" y="478.6" text-anchor="start" class="name" fill="#111827">T10–T13 Maggotts/Becketts</text>
   <line x1="126.1" y1="342.1" x2="105.2" y2="326.6" stroke="#d1d5db" stroke-width="1" />
@@ -71,7 +68,7 @@
   <line x1="278.8" y1="78.5" x2="280.9" y2="52.5" stroke="#d1d5db" stroke-width="1" />
   <text x="280.9" y="52.5" text-anchor="start" class="name" fill="#111827">T15 Stowe</text>
   <line x1="344.6" y1="140.8" x2="352.6" y2="116.0" stroke="#d1d5db" stroke-width="1" />
-  <text x="352.6" y="116.0" text-anchor="start" class="name" fill="#6b7280">St8 121m</text>
+  <text x="352.6" y="116.0" text-anchor="start" class="name" fill="#6b7280">St7 121m</text>
   <line x1="387.3" y1="186.0" x2="400.0" y2="163.3" stroke="#d1d5db" stroke-width="1" />
   <text x="400.0" y="163.3" text-anchor="start" class="name" fill="#111827">T16 Vale</text>
   <line x1="451.6" y1="212.8" x2="469.1" y2="193.6" stroke="#d1d5db" stroke-width="1" />
@@ -85,5 +82,5 @@
   <rect x="433.5" y="265.4" width="10" height="10" fill="#111827" />
   <text x="450.5" y="274.4" class="sub">S/F</text>
   <text class="title" x="12" y="22">Silverstone Circuit — f1-2025</text>
-  <text class="sub" x="12" y="40">14 corners, 9 straights, 23 segments, 5.881 km</text>
+  <text class="sub" x="12" y="40">14 corners, 8 straights, 22 segments, 5.881 km</text>
 </svg>

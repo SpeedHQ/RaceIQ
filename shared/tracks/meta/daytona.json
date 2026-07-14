@@ -39,16 +39,10 @@
           "name": "T3",
           "direction": "left",
           "startFrac": 0.1134,
-          "endFrac": 0.1378,
+          "endFrac": 0.1415,
           "numbers": [
             3
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1378,
-          "endFrac": 0.1415
         },
         {
           "type": "corner",
@@ -181,16 +175,10 @@
       "name": "T3",
       "direction": "left",
       "startFrac": 0.1134,
-      "endFrac": 0.1378,
+      "endFrac": 0.1415,
       "numbers": [
         3
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.1378,
-      "endFrac": 0.1415
     },
     {
       "type": "corner",

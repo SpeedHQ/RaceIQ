@@ -72,16 +72,10 @@
           "name": "Rainey Curve",
           "direction": "left",
           "startFrac": 0.653,
-          "endFrac": 0.7397,
+          "endFrac": 0.7451,
           "numbers": [
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7397,
-          "endFrac": 0.7451
         },
         {
           "type": "corner",
@@ -188,16 +182,10 @@
       "name": "Rainey Curve",
       "direction": "left",
       "startFrac": 0.653,
-      "endFrac": 0.7397,
+      "endFrac": 0.7451,
       "numbers": [
         6
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.7397,
-      "endFrac": 0.7451
     },
     {
       "type": "corner",

@@ -102,16 +102,10 @@
           "name": "T8",
           "direction": "left",
           "startFrac": 0.7696,
-          "endFrac": 0.8547,
+          "endFrac": 0.8608,
           "numbers": [
             8
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8547,
-          "endFrac": 0.8608
         },
         {
           "type": "corner",
@@ -232,16 +226,10 @@
       "name": "T8",
       "direction": "left",
       "startFrac": 0.7696,
-      "endFrac": 0.8547,
+      "endFrac": 0.8608,
       "numbers": [
         8
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.8547,
-      "endFrac": 0.8608
     },
     {
       "type": "corner",

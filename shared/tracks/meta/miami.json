@@ -181,16 +181,10 @@
           "name": "T19",
           "direction": "right",
           "startFrac": 0.9521,
-          "endFrac": 0.9965,
+          "endFrac": 1,
           "numbers": [
             19
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9965,
-          "endFrac": 1
         }
       ]
     }
@@ -364,16 +358,10 @@
       "name": "T19",
       "direction": "right",
       "startFrac": 0.9521,
-      "endFrac": 0.9965,
+      "endFrac": 1,
       "numbers": [
         19
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.9965,
-      "endFrac": 1
     }
   ]
 }

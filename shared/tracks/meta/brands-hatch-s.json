@@ -3,7 +3,7 @@
   "games": {
     "fm-2023": {
       "sectors": {
-        "s1End": 0.3844,
+        "s1End": 0.39,
         "s2End": 0.6605,
         "source": "corner-anchored"
       },
@@ -35,16 +35,10 @@
           "name": "Druids",
           "direction": "right",
           "startFrac": 0.2279,
-          "endFrac": 0.3844,
+          "endFrac": 0.39,
           "numbers": [
             2
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3844,
-          "endFrac": 0.39
         },
         {
           "type": "corner",
@@ -119,16 +113,10 @@
       "name": "Druids",
       "direction": "right",
       "startFrac": 0.2279,
-      "endFrac": 0.3844,
+      "endFrac": 0.39,
       "numbers": [
         2
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3844,
-      "endFrac": 0.39
     },
     {
       "type": "corner",
@@ -174,7 +162,7 @@
     }
   ],
   "sectors": {
-    "s1End": 0.3844,
+    "s1End": 0.39,
     "s2End": 0.6605,
     "source": "corner-anchored"
   }

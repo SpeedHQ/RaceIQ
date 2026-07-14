@@ -2,14 +2,14 @@
   "name": "Autodromo Jose Carlos Pace",
   "sectors": {
     "s1End": 0.2914,
-    "s2End": 0.7332,
+    "s2End": 0.737,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
         "s1End": 0.2914,
-        "s2End": 0.7332,
+        "s2End": 0.737,
         "source": "corner-anchored"
       },
       "segments": [
@@ -96,16 +96,10 @@
           "name": "Pinheirinho",
           "direction": "left",
           "startFrac": 0.5623,
-          "endFrac": 0.6137,
+          "endFrac": 0.6193,
           "numbers": [
             8
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6137,
-          "endFrac": 0.6193
         },
         {
           "type": "corner",
@@ -122,16 +116,10 @@
           "name": "Mergulho",
           "direction": "left",
           "startFrac": 0.6665,
-          "endFrac": 0.7332,
+          "endFrac": 0.737,
           "numbers": [
             10
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7332,
-          "endFrac": 0.737
         },
         {
           "type": "corner",
@@ -148,16 +136,10 @@
           "name": "T12",
           "direction": "left",
           "startFrac": 0.7805,
-          "endFrac": 0.8174,
+          "endFrac": 0.8236,
           "numbers": [
             12
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8174,
-          "endFrac": 0.8236
         },
         {
           "type": "corner",
@@ -264,16 +246,10 @@
       "name": "Pinheirinho",
       "direction": "left",
       "startFrac": 0.5623,
-      "endFrac": 0.6137,
+      "endFrac": 0.6193,
       "numbers": [
         8
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.6137,
-      "endFrac": 0.6193
     },
     {
       "type": "corner",
@@ -290,16 +266,10 @@
       "name": "Mergulho",
       "direction": "left",
       "startFrac": 0.6665,
-      "endFrac": 0.7332,
+      "endFrac": 0.737,
       "numbers": [
         10
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.7332,
-      "endFrac": 0.737
     },
     {
       "type": "corner",
@@ -316,16 +286,10 @@
       "name": "T12",
       "direction": "left",
       "startFrac": 0.7805,
-      "endFrac": 0.8174,
+      "endFrac": 0.8236,
       "numbers": [
         12
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.8174,
-      "endFrac": 0.8236
     },
     {
       "type": "corner",

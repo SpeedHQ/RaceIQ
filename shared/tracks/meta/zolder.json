@@ -14,16 +14,10 @@
           "name": "Eerste Linkse",
           "direction": "left",
           "startFrac": 0.0297,
-          "endFrac": 0.1188,
+          "endFrac": 0.122,
           "numbers": [
             1
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1188,
-          "endFrac": 0.122
         },
         {
           "type": "corner",
@@ -161,16 +155,10 @@
       "name": "Eerste Linkse",
       "direction": "left",
       "startFrac": 0.0297,
-      "endFrac": 0.1188,
+      "endFrac": 0.122,
       "numbers": [
         1
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.1188,
-      "endFrac": 0.122
     },
     {
       "type": "corner",

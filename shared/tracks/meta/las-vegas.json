@@ -176,16 +176,10 @@
           "name": "T17",
           "direction": "left",
           "startFrac": 0.9494,
-          "endFrac": 0.9977,
+          "endFrac": 1,
           "numbers": [
             17
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9977,
-          "endFrac": 1
         }
       ]
     }
@@ -354,16 +348,10 @@
       "name": "T17",
       "direction": "left",
       "startFrac": 0.9494,
-      "endFrac": 0.9977,
+      "endFrac": 1,
       "numbers": [
         17
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.9977,
-      "endFrac": 1
     }
   ]
 }

@@ -130,16 +130,10 @@
       "name": "Piff Paff",
       "direction": "left",
       "startFrac": 0.6392,
-      "endFrac": 0.6692,
+      "endFrac": 0.6714,
       "numbers": [
         13
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.6692,
-      "endFrac": 0.6714
     },
     {
       "type": "corner",
@@ -332,16 +326,10 @@
           "name": "Piff Paff",
           "direction": "left",
           "startFrac": 0.6575,
-          "endFrac": 0.687,
+          "endFrac": 0.6897,
           "numbers": [
             13
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.687,
-          "endFrac": 0.6897
         },
         {
           "type": "corner",
@@ -529,16 +517,10 @@
           "name": "Piff Paff",
           "direction": "left",
           "startFrac": 0.6392,
-          "endFrac": 0.6692,
+          "endFrac": 0.6714,
           "numbers": [
             13
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6692,
-          "endFrac": 0.6714
         },
         {
           "type": "corner",
@@ -731,16 +713,10 @@
           "name": "Piff Paff",
           "direction": "left",
           "startFrac": 0.6525,
-          "endFrac": 0.682,
+          "endFrac": 0.6842,
           "numbers": [
             13
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.682,
-          "endFrac": 0.6842
         },
         {
           "type": "corner",

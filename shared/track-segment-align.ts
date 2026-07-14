@@ -587,12 +587,19 @@ function alignOnePolarity(
   // when Aintree is detected in between.
   const segments: NamedSegment[] = [];
   let pendingName = "";
+  // Below this, it's not a real straight — just the trimmed gap between two
+  // adjacent corners' padded boundaries — so it's absorbed rather than shown
+  // as its own segment. A fixed lap-fraction (e.g. 0.002) under-absorbs on
+  // long tracks now that corner trimming (see detectCornerRegions) produces
+  // gaps of tens of meters; anchor the cutoff to an absolute distance instead.
+  const MIN_STRAIGHT_M = 30;
+  const sliverFrac = totalDistM ? MIN_STRAIGHT_M / totalDistM : 0.002;
   const pushStraight = (startFrac: number, endFrac: number, afterRegion: number | null) => {
     if (afterRegion !== null) {
       const anchored = straightNameAfterRegion.get(afterRegion);
       if (anchored) pendingName = anchored;
     }
-    if (endFrac - startFrac < 0.002) {
+    if (endFrac - startFrac < sliverFrac) {
       // Sliver: absorb into the previous segment so the lap stays contiguous
       const prev = segments[segments.length - 1];
       if (prev) prev.endFrac = round4(endFrac);

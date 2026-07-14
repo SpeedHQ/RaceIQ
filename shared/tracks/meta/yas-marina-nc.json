@@ -14,16 +14,10 @@
           "name": "T1",
           "direction": "left",
           "startFrac": 0.0576,
-          "endFrac": 0.1763,
+          "endFrac": 0.1811,
           "numbers": [
             1
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1763,
-          "endFrac": 0.1811
         },
         {
           "type": "corner",
@@ -132,16 +126,10 @@
       "name": "T1",
       "direction": "left",
       "startFrac": 0.0576,
-      "endFrac": 0.1763,
+      "endFrac": 0.1811,
       "numbers": [
         1
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.1763,
-      "endFrac": 0.1811
     },
     {
       "type": "corner",

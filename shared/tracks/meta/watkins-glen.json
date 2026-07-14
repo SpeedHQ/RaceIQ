@@ -63,16 +63,10 @@
           "name": "Outer Loop",
           "direction": "right",
           "startFrac": 0.3799,
-          "endFrac": 0.476,
+          "endFrac": 0.4811,
           "numbers": [
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.476,
-          "endFrac": 0.4811
         },
         {
           "type": "corner",
@@ -95,16 +89,10 @@
           "name": "The Boot",
           "direction": "right",
           "startFrac": 0.5665,
-          "endFrac": 0.7596,
+          "endFrac": 0.7647,
           "numbers": [
             8
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7596,
-          "endFrac": 0.7647
         },
         {
           "type": "corner",
@@ -151,7 +139,7 @@
       ],
       "sectors": {
         "s1End": 0.3236,
-        "s2End": 0.7596,
+        "s2End": 0.7647,
         "source": "corner-anchored"
       }
     },
@@ -274,16 +262,10 @@
           "name": "T10",
           "direction": "left",
           "startFrac": 0.8355,
-          "endFrac": 0.8954,
+          "endFrac": 0.8998,
           "numbers": [
             10
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8954,
-          "endFrac": 0.8998
         },
         {
           "type": "corner",
@@ -427,16 +409,10 @@
       "name": "T10",
       "direction": "left",
       "startFrac": 0.8355,
-      "endFrac": 0.8954,
+      "endFrac": 0.8998,
       "numbers": [
         10
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.8954,
-      "endFrac": 0.8998
     },
     {
       "type": "corner",

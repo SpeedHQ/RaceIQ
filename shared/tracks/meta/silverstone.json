@@ -34,16 +34,10 @@
           "name": "Farm Curve",
           "direction": "left",
           "startFrac": 0.0883,
-          "endFrac": 0.1324,
+          "endFrac": 0.1352,
           "numbers": [
             2
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1324,
-          "endFrac": 0.1352
         },
         {
           "type": "corner",
@@ -358,16 +352,10 @@
           "name": "Luffield",
           "direction": "right",
           "startFrac": 0.8684,
-          "endFrac": 0.914,
+          "endFrac": 0.9183,
           "numbers": [
             7
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.914,
-          "endFrac": 0.9183
         },
         {
           "type": "corner",
