@@ -222,6 +222,7 @@ export function autoTrackSegments(outline: { x: number; z: number }[]): {
   }
   const syntheticList: CornerNameList = {
     circuit: "auto",
+    turnCount: detection.corners.length,
     corners: detection.corners.map((c, i) => ({ number: i + 1, name: "", direction: c.direction })),
   };
   const result = alignSegments(detection.corners, syntheticList, detection.totalDist);

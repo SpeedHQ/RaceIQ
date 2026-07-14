@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IS_DEV } from "../env";
 import { OrdinalParamSchema, GameIdQuerySchema } from "../../shared/schemas";
-import { detectSegments } from "../track-segment-detect";
+import { autoTrackSegments } from "../../shared/track-segment-generate";
 import {
   getLaps,
   getLapSummariesByTrack,
@@ -490,8 +490,14 @@ export const trackRoutes = new Hono()
       }
       if (!outline || outline.length < 20) return c.json({ segments: [] });
 
-      const result = detectSegments(outline);
-      return c.json({ segments: result.segments, totalDist: result.totalDist, source: "auto" });
+      // Same detector as the curated pipeline — an uncurated track just gets
+      // T-number tokens instead of real names.
+      const result = autoTrackSegments(outline);
+      return c.json({
+        segments: result.segments.map((s) => ({ ...s, startIdx: 0, endIdx: 0, distStart: 0, distEnd: 0 })),
+        totalDist: result.totalDist,
+        source: "auto",
+      });
     }
   )
 
