@@ -358,7 +358,7 @@ export function buildInputsComparePrompt(
   const segNames = useSegs.map((s) => `"${s.name}"`).join(", ");
   const expectedCount = useSegs.length;
 
-  return `${compareEngineerPersona(unit, temperatureUnit, language)}
+  return `${compareEngineerPersona(unit, temperatureUnit, language, { json: true })}
 
 This task: produce a structured per-segment comparison of driver inputs (throttle, brake, steering) plus coaching for the slower lap.
 

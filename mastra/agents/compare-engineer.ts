@@ -15,7 +15,8 @@ export const compareEngineerAgent = new Agent({
   name: "Compare Engineer",
   instructions: () => {
     const s = loadSettings();
-    return compareEngineerPersona(s.unit, s.temperatureUnit, s.language);
+    // json: true — this agent's output is parsed against InputsCompareSchema.
+    return compareEngineerPersona(s.unit, s.temperatureUnit, s.language, { json: true });
   },
   model: () => {
     const s = loadSettings();
