@@ -18,7 +18,10 @@ import {
   getCompareAnalysis,
   saveCompareAnalysis,
   deleteCompareAnalysis,
+  getLapsRaw,
 } from "../db/queries";
+import { KNOWN_GAME_IDS } from "../../shared/types";
+import { importSessionBin, detectGameIdFromFilename } from "../import-session-bin";
 import { assessLapRecording } from "../lap-quality";
 
 // Toggle: set true to use native ACC lastSectorTime transitions in recheck instead of distance-fraction
@@ -212,6 +215,75 @@ export const lapRoutes = new Hono()
     if (packets.length === 0) return c.json({ error: "No telemetry data" }, 400);
     const exportText = generateExport(lap, packets);
     return c.text(exportText);
+  })
+
+  // ── Export raw session capture (.bin) containing this lap ────
+  // The raw capture is stored per-session, so this hands back the whole
+  // session .bin (meta frame + every frame). Re-importable via POST
+  // /api/laps/import, which re-runs the pipeline to rebuild all laps.
+  .get("/api/laps/:id/export-bin", zValidator("param", IdParamSchema), async (c) => {
+    const { id } = c.req.valid("param");
+    const [row] = await getLapsRaw([id]);
+    if (!row) return c.json({ error: "Lap not found" }, 404);
+    if (!row.rawFile) return c.json({ error: "No raw capture available for this lap" }, 409);
+
+    const file = Bun.file(row.rawFile);
+    if (!(await file.exists())) return c.json({ error: "Raw capture file is missing on disk" }, 410);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+
+    const trackName = tryGetGame(row.gameId)?.getTrackName?.(row.trackOrdinal ?? -1);
+    const slug = (trackName || `track${row.trackOrdinal ?? 0}`)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    const gzExt = row.rawFile.endsWith(".gz") ? ".gz" : "";
+    // Filename MUST start with `<gameId>-` so re-import can detect the game.
+    const filename = `${row.gameId}-${slug}-session${row.sessionId}.bin${gzExt}`;
+
+    c.header("Content-Type", "application/octet-stream");
+    c.header("Content-Disposition", `attachment; filename="${filename}"`);
+    c.header("Content-Length", String(bytes.byteLength));
+    return c.body(bytes);
+  })
+
+  // ── Import a raw session capture (.bin) ─────────────────────
+  // Feeds an uploaded session .bin through the full pipeline so its laps land
+  // in the DB as a fresh session. GameId is detected from the filename prefix.
+  .post("/api/laps/import", async (c) => {
+    const form = await c.req.formData().catch(() => null);
+    const file = form?.get("file");
+    if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
+
+    const uploadName = file.name || "upload.bin";
+    const lower = uploadName.toLowerCase();
+    if (!lower.endsWith(".bin") && !lower.endsWith(".bin.gz")) {
+      return c.json({ error: "Expected a .bin or .bin.gz file" }, 400);
+    }
+
+    const gameId = detectGameIdFromFilename(uploadName);
+    if (!gameId) {
+      return c.json(
+        { error: `Could not detect game from filename "${uploadName}". Expected prefix: ${KNOWN_GAME_IDS.join(", ")}.` },
+        400
+      );
+    }
+
+    try {
+      const bytes = Buffer.from(await file.arrayBuffer());
+      const { packetCount, laps } = await importSessionBin(bytes, gameId);
+      if (packetCount === 0) return c.json({ error: "No telemetry packets found in file" }, 400);
+      return c.json({
+        ok: true,
+        gameId,
+        routePrefix: getGame(gameId).routePrefix,
+        packetCount,
+        imported: laps.length,
+        laps,
+      });
+    } catch (err: any) {
+      console.error("[Import] Failed:", err?.message);
+      return c.json({ error: "Failed to import file", details: String(err?.message ?? err) }, 500);
+    }
   })
 
   // ── AI analysis ─────────────────────────────────────────────

@@ -1,12 +1,12 @@
-import { useState } from "react";
 import { m } from "../../paraglide/messages";
 import type { LapMeta } from "@shared/types";
-import { Sparkles, Trash2, NotebookPen } from "lucide-react";
+import { Download, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
+import { useRef, useState } from "react";
+import { formatLapTime } from "../../lib/format";
+import { NoteModal } from "../ui/NoteModal";
 import { SearchSelect } from "../ui/SearchSelect";
 import { Button } from "../ui/button";
-import { formatLapTime } from "../../lib/format";
 import { DataGuideModal } from "./DataGuideModal";
-import { NoteModal } from "../ui/NoteModal";
 
 interface Props {
   // Selection state
@@ -35,6 +35,10 @@ interface Props {
   onViewTune: (tuneId: number) => void;
   onShowSetup: () => void;
   onExport: () => void;
+  onExportBin: () => void;
+  onImportBin: (file: File) => void;
+  exportingBin: boolean;
+  importingBin: boolean;
   onToggleAi: () => void;
   onDeleteLap: () => void;
   onNotesChange: (notes: string) => void;
@@ -63,12 +67,17 @@ export function AnalyseLapHeader({
   onViewTune,
   onShowSetup,
   onExport,
+  onExportBin,
+  onImportBin,
+  exportingBin,
+  importingBin,
   onToggleAi,
   onDeleteLap,
   onNotesChange,
 }: Props) {
   const [guideOpen, setGuideOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
   return (
     <>
       <div className="flex items-center gap-2 p-3 border-b border-app-border flex-wrap shrink-0">
@@ -129,7 +138,7 @@ export function AnalyseLapHeader({
                   value={selectedLap?.tuneId ?? ""}
                   onChange={(e) => {
                     const val = e.target.value;
-                    onTuneChange(val ? parseInt(val, 10) : null);
+                    onTuneChange(val ? Number.parseInt(val, 10) : null);
                   }}
                   disabled={tunePending}
                   className="bg-app-surface border border-app-border-input rounded px-2 py-1 text-sm text-app-text"
@@ -191,6 +200,27 @@ export function AnalyseLapHeader({
               {m.analyse_export_csv_button()}
             </Button>
           )}
+          {selectedLapId != null && hasTelemetry && (
+            <Button variant="app-outline" size="app-md" onClick={onExportBin} disabled={exportingBin} title="Download the raw session capture (.bin) containing this lap">
+              <Download className="size-3.5" />
+              {exportingBin ? "Exporting..." : "Export .bin"}
+            </Button>
+          )}
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".bin,.gz,.bin.gz"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onImportBin(file);
+              e.target.value = "";
+            }}
+          />
+          <Button variant="app-outline" size="app-md" onClick={() => importInputRef.current?.click()} disabled={importingBin} title="Import a raw session capture (.bin) exported from RaceIQ">
+            <Upload className="size-3.5" />
+            {importingBin ? "Importing..." : "Import .bin"}
+          </Button>
           {hasTelemetry && (
             <Button variant="app-outline" size="app-lg" onClick={onToggleAi} className={aiPanelOpen ? "text-app-accent border-app-accent/40 bg-app-accent/10" : "hover:text-app-accent"}>
               <Sparkles className="size-3.5" />
