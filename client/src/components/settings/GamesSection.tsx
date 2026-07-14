@@ -1,5 +1,6 @@
 import { getAllGames } from "@shared/games/registry";
 import { useSettings, useSaveSettings } from "../../hooks/queries";
+import { m } from "@/paraglide/messages";
 
 export function GamesSection() {
   const { displaySettings } = useSettings();
@@ -14,8 +15,8 @@ export function GamesSection() {
 
   return (
     <section>
-      <h2 className="text-lg font-semibold text-app-text mb-1">Games</h2>
-      <p className="text-sm text-app-text-muted mb-4">Choose which games appear in the top navigation and on the home page.</p>
+      <h2 className="text-lg font-semibold text-app-text mb-1">{m.label_games()}</h2>
+      <p className="text-sm text-app-text-muted mb-4">{m.games_desc()}</p>
       <div className="space-y-2 max-w-sm">
         {games.map((game) => {
           const visible = !hiddenGames.includes(game.id);

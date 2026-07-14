@@ -383,7 +383,7 @@ export const lapRoutes = new Hono()
       /* ignore */
     }
 
-    let prompt = buildAnalystPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, segments);
+    let prompt = buildAnalystPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, segments, undefined, settings.language);
     if (lap.gameId === "f1-2025") {
       prompt += buildF1SetupReferenceBlock(lap.carSetup, lap.telemetry, lap.trackOrdinal ?? -1);
     }
@@ -580,7 +580,7 @@ export const lapRoutes = new Hono()
     const analysisJson = cached?.analysis;
 
     // Build chat prompt
-    const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson);
+    const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language);
 
     // Set up API key env vars for Mastra/AI SDK (uses chatProvider setting)
     const chatProvider = settings.chatProvider;
@@ -883,6 +883,8 @@ export const lapRoutes = new Hono()
       segments,
       settings.unit,
       settings.temperatureUnit,
+      undefined,
+      settings.language,
     );
 
     // Set provider env vars before calling Mastra (the dynamic model resolver
@@ -1030,6 +1032,7 @@ export const lapRoutes = new Hono()
       cachedB.analysis,
       settings.unit,
       settings.temperatureUnit,
+      settings.language,
     );
 
     const chatProvider = settings.chatProvider;

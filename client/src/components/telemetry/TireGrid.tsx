@@ -1,4 +1,5 @@
 import { useUnits } from "@/hooks/useUnits";
+import { m } from "@/paraglide/messages";
 import { brakeTempColor, BRAKE_COLOR_CLASSES, type BrakeTempThresholds } from "@/lib/vehicle-dynamics";
 
 const PAD_NEW_MM = 29; // ACC: pads start at 29mm when new
@@ -56,7 +57,7 @@ export function TireGrid({ fl, fr, rl, rr, healthThresholds, tempThresholds, pre
   return (
     <div>
       <div className="p-2 border-b border-app-border flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Tires</h2>
+        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.label_tires()}</h2>
         {compound && (
           <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${compoundStyle ? `${compoundStyle.bg} ${compoundStyle.text}` : "bg-slate-700 text-slate-200"}`}>{compound}</span>
         )}

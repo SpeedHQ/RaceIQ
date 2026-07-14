@@ -97,13 +97,15 @@ export function buildCompareChatSystemPrompt(
   analysisJsonB: string | null | undefined,
   unit: UnitSystem = "metric",
   temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
+  /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
+  language: string = "en",
 ): string {
   const carA = getCarName(lapA.carOrdinal ?? 0);
   const carB = getCarName(lapB.carOrdinal ?? 0);
   const trackName = getTrackName(lapA.trackOrdinal ?? 0);
   const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? lapA.lapTime - lapB.lapTime;
 
-  return `${compareEngineerPersona(unit, temperatureUnit)}
+  return `${compareEngineerPersona(unit, temperatureUnit, language)}
 
 This task: free-form chat. The driver will ask you questions about how the two laps compare. Be brief and use bullet points where helpful. NO JSON output — write conversational answers.
 

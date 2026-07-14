@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { m } from "@/paraglide/messages";
 import { useMemo, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CarWireframe } from "../../components/CarWireframe";
@@ -116,14 +117,14 @@ function CarModelPage() {
   const staticPacket = useMemo(() => makeStaticPacket(ordinal), [ordinal]);
   const telemetry = useMemo(() => [staticPacket], [staticPacket]);
 
-  if (!carModel) return <div className="flex items-center justify-center h-full text-app-text-dim">Loading...</div>;
+  if (!carModel) return <div className="flex items-center justify-center h-full text-app-text-dim">{m.carmodel_loading()}</div>;
 
   if (!carModel.hasModel) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 text-app-text-dim">
-        <div className="text-lg">No 3D model available for this car</div>
+        <div className="text-lg">{m.carmodel_no_model()}</div>
         <button onClick={() => navigate({ to: "/fm23/cars" })} className="px-4 py-2 rounded bg-app-surface-alt border border-app-border-input text-app-text-secondary hover:text-app-text">
-          Back to Cars
+          {m.carmodel_back_to_cars()}
         </button>
       </div>
     );

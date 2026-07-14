@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { z } from "zod";
 import { resolveDataDir } from "./data-dir";
 import { isLaunchOnLoginEnabled } from "./launch-on-login";
+import { LOCALE_CODES } from "../shared/locales";
 
 const SETTINGS_DIR = resolveDataDir();
 const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
@@ -19,6 +20,10 @@ const AppSettingsSchema = z.object({
   udpPort: z.number().int().min(1024).max(65535).default(5301),
   unit: z.enum(["metric", "imperial"]).default("metric"),
   temperatureUnit: z.enum(["C", "F"]).default("C"),
+  // UI + AI output language (ISO code). Drives Paraglide client locale and the
+  // AI "respond in <language>" instruction. Keep in sync with shared/locales.ts
+  // and client/project.inlang/settings.json.
+  language: z.enum(LOCALE_CODES as [string, ...string[]]).default("en"),
   aiProvider: AiProviderSchema.default("gemini"),
   aiModel: z.string().default("gemini-flash-latest"),
   aiThinkingBudget: z.number().int().min(0).nullable().default(null),

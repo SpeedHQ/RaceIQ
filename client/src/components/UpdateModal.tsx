@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { m } from "@/paraglide/messages";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ReleaseNotes } from "@/components/ReleaseNotes";
@@ -14,10 +15,10 @@ function StepIndicator({ step, current }: { step: (typeof STEPS)[number]; curren
   const isDone = stepIdx > thisIdx;
 
   const labels: Record<string, string> = {
-    downloading: "Download",
-    installing: "Install",
-    reconnecting: "Restart",
-    complete: "Done",
+    downloading: m.label_download(),
+    installing: m.update_step_install(),
+    reconnecting: m.update_step_restart(),
+    complete: m.update_step_done(),
   };
 
   return (
@@ -49,10 +50,10 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
       const res = await client.api.update.apply.$post();
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? `Failed (${res.status})`);
+        throw new Error(body?.error ?? `${m.update_failed_status()} (${res.status})`);
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Update failed");
+      setError(e instanceof Error ? e.message : m.update_failed());
       useTelemetryStore.getState().setUpdateProgress(null);
     }
   };
@@ -83,7 +84,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
       <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg border border-app-border bg-app-bg shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-app-border">
-          <h2 className="text-sm font-semibold text-app-text">{stage === "complete" ? "Update Complete" : stage ? "Updating RaceIQ" : "Update Available"}</h2>
+          <h2 className="text-sm font-semibold text-app-text">{stage === "complete" ? m.update_title_complete() : stage ? m.update_title_updating() : m.update_title_available()}</h2>
           {!isUpdating && (
             <button onClick={onClose} className="p-1.5 rounded hover:bg-app-surface-alt transition-colors text-app-text-muted hover:text-app-text">
               <X className="size-4" />
@@ -97,7 +98,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
           {!stage && !error && (
             <>
               <p className="text-sm text-app-text-secondary">
-                RaceIQ <span className="font-mono text-app-accent">v{version}</span> is ready to install.
+                RaceIQ <span className="font-mono text-app-accent">v{version}</span> {m.update_ready_suffix()}
               </p>
               {newReleases.length > 0 &&
                 (() => {
@@ -115,7 +116,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
                       </div>
                       {older.length > 0 && !showAllReleases && (
                         <button onClick={() => setShowAllReleases(true)} className="text-xs text-app-accent hover:underline">
-                          Show {older.length} earlier release{older.length > 1 ? "s" : ""}
+                          {m.update_show_earlier_prefix()} {older.length} {m.update_show_earlier_suffix()}
                         </button>
                       )}
                       {showAllReleases &&
@@ -133,10 +134,10 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
                 })()}
               <div className="flex justify-end gap-3">
                 <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
-                  Install Update
+                  {m.label_install_update()}
                 </Button>
                 <Button variant="outline" onClick={onClose}>
-                  Later
+                  {m.update_later()}
                 </Button>
               </div>
             </>
@@ -148,10 +149,10 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
               <p className="text-sm text-red-400">{error}</p>
               <div className="flex justify-end gap-3">
                 <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
-                  Retry
+                  {m.label_retry()}
                 </Button>
                 <Button variant="outline" onClick={onClose}>
-                  Close
+                  {m.common_close()}
                 </Button>
               </div>
             </>
@@ -176,21 +177,25 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
                   <div className="h-2 rounded-full bg-app-surface-2 overflow-hidden">
                     <div className="h-full rounded-full bg-app-accent transition-all duration-300" style={{ width: `${percent}%` }} />
                   </div>
-                  <p className="text-xs text-app-text-muted text-center">Downloading installer... {percent}%</p>
+                  <p className="text-xs text-app-text-muted text-center">
+                    {m.update_downloading()} {percent}%
+                  </p>
                 </div>
               )}
 
               {/* Installing */}
-              {stage === "installing" && <p className="text-xs text-app-text-muted text-center animate-pulse">Running installer...</p>}
+              {stage === "installing" && <p className="text-xs text-app-text-muted text-center animate-pulse">{m.label_running_installer()}</p>}
 
               {/* Reconnecting */}
-              {stage === "reconnecting" && <p className="text-xs text-app-text-muted text-center animate-pulse">Waiting for RaceIQ to restart...</p>}
+              {stage === "reconnecting" && <p className="text-xs text-app-text-muted text-center animate-pulse">{m.updates_reconnecting()}</p>}
 
               {/* Complete */}
               {stage === "complete" && (
                 <div className="text-center space-y-2">
-                  <p className="text-sm text-green-400 font-medium">Update installed successfully!</p>
-                  <p className="text-xs text-app-text-muted">Refreshing in {countdown ?? 0}s...</p>
+                  <p className="text-sm text-green-400 font-medium">{m.updates_complete()}</p>
+                  <p className="text-xs text-app-text-muted">
+                    {m.update_refreshing()} {countdown ?? 0}s...
+                  </p>
                 </div>
               )}
             </>

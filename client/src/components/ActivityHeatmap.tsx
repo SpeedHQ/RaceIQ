@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { m } from "@/paraglide/messages";
+import { getLocale } from "@/paraglide/runtime";
 import type { LapMeta } from "@shared/types";
 
 const CELL = 11;
 const GAP = 3;
 const WEEKS = 53;
 const DAYS = 7;
-const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
 
 function dayKey(d: Date): string {
   const y = d.getFullYear();
@@ -39,7 +39,17 @@ const LEVEL_COLORS = ["var(--color-app-surface-alt, #1a1d26)", "rgba(139, 92, 24
 export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
   const [hover, setHover] = useState<{ date: string; seconds: number; x: number; y: number } | null>(null);
 
+  // Localized weekday abbreviations for the Mon/Wed/Fri rows (Nov 2021 starts
+  // on a Monday). Recomputed on locale remount.
+  const dayLabels = useMemo(() => {
+    const f = new Intl.DateTimeFormat(getLocale(), { weekday: "short" });
+    const d = (n: number) => f.format(new Date(2021, 10, n));
+    return ["", d(1), "", d(3), "", d(5), ""];
+  }, []);
+
   const { cells, max, totalDays, totalSeconds, monthMarkers, longestStreak, bestDaySeconds, bestDayKey } = useMemo(() => {
+    // Localized month abbreviation (Jan/Jän/…); re-evaluated on locale remount.
+    const monthFmt = new Intl.DateTimeFormat(getLocale(), { month: "short" });
     const secs = new Map<string, number>();
     for (const lap of laps) {
       if (lap.lapTime <= 0) continue;
@@ -85,7 +95,7 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
           currentStreak = 0;
         }
         if (d === 0 && date.getMonth() !== lastMonth) {
-          months.push({ week: w, label: MONTH_LABELS[date.getMonth()] });
+          months.push({ week: w, label: monthFmt.format(date) });
           lastMonth = date.getMonth();
         }
       }
@@ -118,15 +128,15 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2">
-        <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">Activity — Last 12 Months</h2>
+        <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">{m.heatmap_title()}</h2>
         <div className="text-[11px] text-app-text/90-dim">
-          {fmtDuration(totalSeconds)} · {totalDays} active days · longest streak {longestStreak} day{longestStreak === 1 ? "" : "s"} · longest day {fmtDuration(bestDaySeconds)}
+          {fmtDuration(totalSeconds)} · {totalDays} {m.heatmap_active_days()} · {m.heatmap_longest_streak()} {longestStreak} {m.heatmap_days_word()} · {m.heatmap_longest_day()} {fmtDuration(bestDaySeconds)}
         </div>
       </div>
       <div ref={scrollRef} className="rounded-lg p-4 overflow-x-auto relative">
         <div className="flex gap-2 w-max mx-auto">
           <div className="flex flex-col justify-between py-[14px] pr-1 text-[9px] text-app-text/90-dim leading-none select-none">
-            {DAY_LABELS.map((l, i) => (
+            {dayLabels.map((l, i) => (
               <div key={i} style={{ height: CELL }}>
                 {l}
               </div>
@@ -189,14 +199,14 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
                 border: "1.5px solid rgba(34, 211, 238, 1)",
               }}
             />
-            Longest day
+            {m.heatmap_longest_day()}
           </span>
           <div className="flex items-center gap-1.5">
-            <span>Less</span>
+            <span>{m.heatmap_less()}</span>
             {LEVEL_COLORS.map((c, i) => (
               <span key={i} className="inline-block rounded-sm" style={{ width: CELL, height: CELL, background: c, border: "0.5px solid rgba(255,255,255,0.04)" }} />
             ))}
-            <span>More</span>
+            <span>{m.heatmap_more()}</span>
           </div>
         </div>
         {hover && (
@@ -204,7 +214,7 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
             className="fixed z-50 pointer-events-none px-2 py-1 rounded bg-app-surface border border-app-border text-[11px] text-app-text shadow-lg"
             style={{ left: hover.x, top: hover.y - 8, transform: "translate(-50%, -100%)" }}
           >
-            <div className="font-mono font-bold">{hover.seconds > 0 ? fmtDuration(hover.seconds) : "No activity"}</div>
+            <div className="font-mono font-bold">{hover.seconds > 0 ? fmtDuration(hover.seconds) : m.heatmap_no_activity()}</div>
             <div className="text-app-text/90-dim">{hover.date}</div>
           </div>
         )}

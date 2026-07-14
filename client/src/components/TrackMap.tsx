@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, useState } from "react";
+import { m } from "@/paraglide/messages";
 import type { TelemetryPacket } from "@shared/types";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
@@ -272,7 +273,7 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
   return (
     <div ref={containerRef} className={`relative w-full h-full min-h-[200px] ${className ?? ""}`}>
       {telemetry.length < 2 ? (
-        <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">No position data</div>
+        <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.trackmap_no_position_data()}</div>
       ) : (
         <canvas ref={canvasRef} className="absolute inset-0" />
       )}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { client } from "@/lib/rpc";
 
 interface WheelOption {
@@ -36,7 +37,7 @@ export function WheelPicker({ value, onChange }: { value: string; onChange: (v: 
           </div>
         </button>
       ))}
-      {wheels.length === 0 && <p className="text-sm text-app-text-muted col-span-3">No wheel images found in client/public/wheels/</p>}
+      {wheels.length === 0 && <p className="text-sm text-app-text-muted col-span-3">{m.wheel_no_images()}</p>}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { TelemetryPacket } from "@shared/types";
+import { m } from "@/paraglide/messages";
 import type { DisplayPacket } from "@/lib/convert-packet";
 
 /**
@@ -15,7 +16,7 @@ export function SurfaceConditions({ packet }: { packet: DisplayPacket | Telemetr
 
   return (
     <div>
-      <div className="text-xs text-app-text-muted uppercase tracking-wider mb-2">Surface</div>
+      <div className="text-xs text-app-text-muted uppercase tracking-wider mb-2">{m.surface_heading()}</div>
       <div className="grid grid-cols-2 gap-1.5 max-w-[200px] mx-auto">
         {wheels.map((w) => (
           <div
@@ -26,7 +27,7 @@ export function SurfaceConditions({ packet }: { packet: DisplayPacket | Telemetr
           >
             <span className="text-app-text-muted font-bold">{w.label}</span>
             <span className={`font-bold ${w.rumble ? "text-orange-400" : w.puddle > 0 ? "text-blue-400" : "text-app-text-dim"}`}>
-              {w.rumble ? "CURB" : w.puddle > 0 ? `WET ${(w.puddle * 100).toFixed(0)}%` : "—"}
+              {w.rumble ? m.surface_curb() : w.puddle > 0 ? `${m.surface_wet()} ${(w.puddle * 100).toFixed(0)}%` : "—"}
             </span>
           </div>
         ))}

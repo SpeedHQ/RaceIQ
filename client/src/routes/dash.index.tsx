@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { m } from "@/paraglide/messages";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState, type ReactNode } from "react";
 import { ComboDash } from "../components/dashes/ComboDash";
@@ -28,25 +29,17 @@ const fToC = (f: number) => ((f - 32) * 5) / 9;
 
 interface DashMeta {
   slug: "combo-1" | "combo-2";
-  title: string;
-  description: string;
   href: "/dash/combo-1" | "/dash/combo-2";
 }
 
+// Title/description resolve at render time (localized) — see dashTitle/dashDesc.
 const DASH_META: DashMeta[] = [
-  {
-    slug: "combo-1",
-    href: "/dash/combo-1",
-    title: "Combo Dash 1 — Race HUD",
-    description: "Rev bar + gear/speed/lap tiles, fuel & tire laps-remaining, lap + sector readout, and a live tire grid. Landscape tablet-friendly.",
-  },
-  {
-    slug: "combo-2",
-    href: "/dash/combo-2",
-    title: "Combo Dash 2 — Lap Times & Pace",
-    description: "Lap timing summary across the top, big lap-time trend chart with optimum and average pace lines, plus live sector splits and recent laps on the side.",
-  },
+  { slug: "combo-1", href: "/dash/combo-1" },
+  { slug: "combo-2", href: "/dash/combo-2" },
 ];
+
+const dashTitle = (slug: DashMeta["slug"]) => (slug === "combo-1" ? m.dash_race_hud() : m.dash_lap_pace());
+const dashDesc = (slug: DashMeta["slug"]) => (slug === "combo-1" ? m.dash_combo1_desc() : m.dash_combo2_desc());
 
 function useViewportSize() {
   const [size, setSize] = useState(() => ({
@@ -101,14 +94,14 @@ function DashCatalogue() {
       <RotatePrompt />
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-black tracking-tight">Dashboards</h1>
-          <p className="mt-2 text-white/60 text-sm">Single-purpose dashboards designed for a phone or tablet in the cockpit. Scan the QR code on the device to open it over your LAN.</p>
+          <h1 className="text-3xl font-black tracking-tight">{m.dash_page_title()}</h1>
+          <p className="mt-2 text-white/60 text-sm">{m.dash_page_intro()}</p>
           {lanIp && port ? (
             <p className="mt-2 text-xs text-white/40 font-mono">
-              serving at http://{lanIp}:{port}
+              {m.dash_serving_at()} http://{lanIp}:{port}
             </p>
           ) : (
-            <p className="mt-2 text-xs text-red-400/70 font-mono">LAN IP unavailable — device must be on the same Wi-Fi as this PC.</p>
+            <p className="mt-2 text-xs text-red-400/70 font-mono">{m.dash_lan_unavailable()}</p>
           )}
         </div>
 
@@ -133,9 +126,9 @@ function DashCatalogue() {
                 <div className="p-5 flex gap-4 items-start">
                   <div className="flex-1 min-w-0">
                     <Link to={d.href}>
-                      <div className="text-lg font-bold mb-1 hover:text-app-accent">{d.title}</div>
+                      <div className="text-lg font-bold mb-1 hover:text-app-accent">{dashTitle(d.slug)}</div>
                     </Link>
-                    <div className="text-sm text-white/60 leading-relaxed">{d.description}</div>
+                    <div className="text-sm text-white/60 leading-relaxed">{dashDesc(d.slug)}</div>
                     <div className="mt-3 text-xs font-mono tracking-wider text-white/40 break-all">{url ?? d.href}</div>
                   </div>
                   {url && (

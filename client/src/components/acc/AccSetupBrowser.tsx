@@ -2,6 +2,8 @@ import { PLATFORM_LABEL, PlatformIcon, detectPlatform } from "@/components/acc/a
 import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
 import type { ComboOption } from "@/components/tune/browser/ComboBox";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
+import { m } from "@/paraglide/messages";
+import { useUiStore } from "@/stores/ui";
 import { client } from "@/lib/rpc";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
@@ -27,7 +29,11 @@ interface AccCar {
   name: string;
 }
 
-const SOURCES: SourceTab[] = [{ key: "all", label: "All" }];
+const SOURCE_KEYS: Pick<SourceTab, "key">[] = [{ key: "all" }];
+
+const SOURCE_LABELS: Record<string, () => string> = {
+  all: m.browser_all,
+};
 
 // "1:23.456" | "83.456" -> seconds
 function parseLap(raw: string | undefined): number | null {
@@ -62,14 +68,14 @@ function AccSetupValues({ data }: { data: AccSetupFile }) {
   const a = data.advancedSetup ?? {};
   const groups: { title: string; rows: [string, number | number[] | undefined][] }[] = [
     {
-      title: "Tyres",
+      title: m.browser_tyre(),
       rows: [
         ["Compound", b.tyres?.tyreCompound],
         ["Pressure", b.tyres?.tyrePressure],
       ],
     },
     {
-      title: "Alignment",
+      title: m.browser_alignment(),
       rows: [
         ["Camber", b.alignment?.camber],
         ["Toe", b.alignment?.toe],
@@ -78,7 +84,7 @@ function AccSetupValues({ data }: { data: AccSetupFile }) {
       ],
     },
     {
-      title: "Electronics",
+      title: m.browser_electronics(),
       rows: [
         ["TC1 / TC2", [b.electronics?.tC1 ?? 0, b.electronics?.tC2 ?? 0]],
         ["ABS", b.electronics?.abs],
@@ -87,7 +93,7 @@ function AccSetupValues({ data }: { data: AccSetupFile }) {
       ],
     },
     {
-      title: "Mechanical",
+      title: m.browser_mechanical(),
       rows: [
         ["ARB F/R", [a.mechanicalBalance?.aRBFront ?? 0, a.mechanicalBalance?.aRBRear ?? 0]],
         ["Wheel rate", a.mechanicalBalance?.wheelRate],
@@ -97,7 +103,7 @@ function AccSetupValues({ data }: { data: AccSetupFile }) {
       ],
     },
     {
-      title: "Dampers",
+      title: m.browser_dampers(),
       rows: [
         ["Bump slow", a.dampers?.bumpSlow],
         ["Bump fast", a.dampers?.bumpFast],
@@ -106,7 +112,7 @@ function AccSetupValues({ data }: { data: AccSetupFile }) {
       ],
     },
     {
-      title: "Aero",
+      title: m.browser_aero(),
       rows: [
         ["Ride height", a.aeroBalance?.rideHeight],
         ["Rear wing", a.aeroBalance?.rearWing],
@@ -177,7 +183,7 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
       {setup.notes && <p className="text-xs text-app-text-muted leading-relaxed whitespace-pre-line max-w-[70ch]">{setup.notes}</p>}
       {setup.setupFile && (
         <div>
-          {isLoading && <div className="text-app-text-dim text-xs">Loading setup…</div>}
+          {isLoading && <div className="text-app-text-dim text-xs">{m.browser_loading_setup()}</div>}
           {file && <AccSetupValues data={file} />}
         </div>
       )}
@@ -207,7 +213,7 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
           ytLoading && (
             <span className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-app-text-muted inline-flex items-center gap-1.5 cursor-wait" aria-busy="true">
               <span className="w-3 h-3 rounded-full border-2 border-app-border border-t-app-accent animate-spin" />
-              Download
+              {m.label_download()}
             </span>
           )
         )}
@@ -218,7 +224,7 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
             rel="noopener noreferrer"
             className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-red-400 hover:text-red-300 no-underline"
           >
-            ▶ Video
+            ▶ {m.browser_video()}
           </a>
         )}
         {setup.pageUrl && (
@@ -228,7 +234,7 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
             rel="noopener noreferrer"
             className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-app-text-muted hover:text-app-text no-underline"
           >
-            Source
+            {m.browser_source()}
           </a>
         )}
       </div>
@@ -237,6 +243,7 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
 }
 
 export function AccSetupBrowser() {
+  const uiLocale = useUiStore((s) => s.uiLocale);
   const { data: setups = [] } = useQuery<AccSetup[]>({
     queryKey: ["acc-setups", "all"],
     queryFn: () => client.api.acc.setups.$get({ query: {} }).then((r) => r.json() as unknown as AccSetup[]),
@@ -293,15 +300,17 @@ export function AccSetupBrowser() {
     const counts = new Map<number, number>();
     for (const r of rows) counts.set(r.carOrdinal, (counts.get(r.carOrdinal) ?? 0) + 1);
     const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: carNames[ord] ?? `Car ${ord}`, count })).sort((a, b) => b.count - a.count);
-    return [{ value: "any", label: "Any car", count: rows.length }, ...opts];
-  }, [rows, carNames]);
+    return [{ value: "any", label: m.setup_any_car(), count: rows.length }, ...opts];
+  }, [rows, carNames, uiLocale]);
 
   const trackOptions: ComboOption[] = useMemo(() => {
     const counts = new Map<number, number>();
     for (const r of rows) if (r.trackOrdinal != null) counts.set(r.trackOrdinal, (counts.get(r.trackOrdinal) ?? 0) + 1);
     const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: trackNames[ord] ?? `Track ${ord}`, count })).sort((a, b) => b.count - a.count);
-    return [{ value: "any", label: "Any track", count: rows.length }, ...opts];
-  }, [rows, trackNames]);
+    return [{ value: "any", label: m.setup_any_track(), count: rows.length }, ...opts];
+  }, [rows, trackNames, uiLocale]);
+
+  const sources: SourceTab[] = useMemo(() => SOURCE_KEYS.map((s) => ({ ...s, label: SOURCE_LABELS[s.key]() })), [uiLocale]);
 
   return (
     <SetupBrowser
@@ -310,7 +319,7 @@ export function AccSetupBrowser() {
       trackNames={trackNames}
       trackOptions={trackOptions}
       carOptions={carOptions}
-      sources={SOURCES}
+      sources={sources}
       renderSettings={(row: TuneRow) => <AccSetupPanel setup={row.settings as AccSetup} />}
       readOnly
     />

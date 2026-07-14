@@ -1,12 +1,6 @@
 import { useState } from "react";
 import type { LapInsight, InsightCategory } from "../lib/lap-insights";
-
-const CATEGORIES: { key: InsightCategory; icon: string; label: string }[] = [
-  { key: "suspension", icon: "🔧", label: "Suspension" },
-  { key: "tires", icon: "🛞", label: "Tires" },
-  { key: "driving", icon: "🏎️", label: "Driving" },
-  { key: "mechanical", icon: "⚙️", label: "Mechanical" },
-];
+import { m } from "@/paraglide/messages";
 
 const SEVERITY_COLOR: Record<string, string> = {
   info: "#94a3b8",
@@ -73,9 +67,15 @@ export function InsightPanel({
   insights: LapInsight[];
   onJumpToFrame: (frameIdx: number) => void;
 }) {
+  const categories: { key: InsightCategory; icon: string; label: string }[] = [
+    { key: "suspension", icon: "🔧", label: m.insight_category_suspension() },
+    { key: "tires", icon: "🛞", label: m.label_tires() },
+    { key: "driving", icon: "🏎️", label: m.insight_category_driving() },
+    { key: "mechanical", icon: "⚙️", label: m.insight_category_mechanical() },
+  ];
   return (
     <div className="space-y-3">
-      {CATEGORIES.map(({ key, icon, label }) => {
+      {categories.map(({ key, icon, label }) => {
         const items = insights.filter((i) => i.category === key);
         return (
           <div key={key}>

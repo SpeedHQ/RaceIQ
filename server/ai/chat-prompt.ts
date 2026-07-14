@@ -10,6 +10,7 @@ import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../client/src/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
+import { aiLanguageInstruction } from "../../shared/locales";
 
 interface CornerDef {
   index: number;
@@ -18,12 +19,12 @@ interface CornerDef {
   distanceEnd: number;
 }
 
-function chatSystemPrompt(unit: UnitSystem, temperatureUnit: TemperatureUnit) {
+function chatSystemPrompt(unit: UnitSystem, temperatureUnit: TemperatureUnit, language: string) {
   const baseUnits = unit === "metric" ? "km/h, meters, bar" : "mph, feet, psi";
   const units = `${baseUnits}, °${temperatureUnit}`;
   return `You are a racing engineer. Answer the driver's questions about their lap using the telemetry data below.
 
-Be brief. Use bullet points. Cite specific numbers in ${units}. Address them as "you". Temperature unit for this session is °${temperatureUnit}. No JSON output.`;
+Be brief. Use bullet points. Cite specific numbers in ${units}. Address them as "you". Temperature unit for this session is °${temperatureUnit}. No JSON output.${aiLanguageInstruction(language)}`;
 }
 
 export function buildChatSystemPrompt(
@@ -41,6 +42,8 @@ export function buildChatSystemPrompt(
   temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
   tune?: Tune,
   analysisJson?: string,
+  /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
+  language: string = "en",
 ): string {
   const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
   const trackName = getTrackName(lap.trackOrdinal ?? 0);
@@ -107,7 +110,7 @@ export function buildChatSystemPrompt(
   // Game-specific system prompt override (use chat version, not analysis JSON version)
   const gameSystemNote = serverAdapter?.aiSystemPrompt ? `\nGame-specific notes: This is ${serverAdapter.aiSystemPrompt.split("\n")[0]}\n` : "";
 
-  return `${chatSystemPrompt(unit, temperatureUnit)}
+  return `${chatSystemPrompt(unit, temperatureUnit, language)}
 ${gameSystemNote}
 --- LAP CONTEXT ---
 Car: ${carName}

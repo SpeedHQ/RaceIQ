@@ -33,6 +33,8 @@ export interface DisplaySettings {
   hiddenGames?: string[];
   /** Whether to launch RaceIQ automatically on Windows login */
   launchOnLogin?: boolean;
+  /** UI + AI output language (ISO code, e.g. "en", "de"). */
+  language?: string;
   /** True when running as compiled exe, false in dev (bun run dev) */
   isCompiled?: boolean;
 }
@@ -50,6 +52,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   wsRefreshRate: "60",
   renderFpsCap: 60,
   cacheMaxMB: 256,
+  language: "en",
 };
 
 export interface ReleaseInfo {

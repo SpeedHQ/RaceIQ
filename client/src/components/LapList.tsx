@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { m } from "@/paraglide/messages";
 import { useNavigate } from "@tanstack/react-router";
 import { useDeleteLap } from "../hooks/queries";
 import { useGameRoute } from "../stores/game";
@@ -29,11 +30,11 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
   }
 
   if (!trackOrd) {
-    return <div className="p-4 text-app-text-dim text-sm">No track detected. Start driving to identify the track and view recorded laps.</div>;
+    return <div className="p-4 text-app-text-dim text-sm">{m.laps_no_track()}</div>;
   }
 
   if (laps.length === 0) {
-    return <div className="p-4 text-app-text-dim text-sm">No laps recorded yet. Start driving to record telemetry.</div>;
+    return <div className="p-4 text-app-text-dim text-sm">{m.laps_none_recorded()}</div>;
   }
 
   const toggleSort = (key: SortKey) => {
@@ -92,10 +93,12 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
         <thead>
           <tr className="text-xs text-app-text-muted uppercase tracking-wider border-b border-app-border">
             <th className="text-left p-2 cursor-pointer hover:text-app-text select-none" onClick={() => toggleSort("lap")}>
-              Lap{arrow("lap")}
+              {m.label_lap()}
+              {arrow("lap")}
             </th>
             <th className="text-left p-2 cursor-pointer hover:text-app-text select-none" onClick={() => toggleSort("time")}>
-              Time{arrow("time")}
+              {m.label_time()}
+              {arrow("time")}
             </th>
             <th className="text-left p-2">
               <span className="text-red-400">S1</span>
@@ -106,8 +109,8 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
             <th className="text-left p-2">
               <span className="text-yellow-400">S3</span>
             </th>
-            <th className="text-center p-2">Valid</th>
-            <th className="text-right p-2">Actions</th>
+            <th className="text-center p-2">{m.laps_col_valid()}</th>
+            <th className="text-right p-2">{m.label_actions()}</th>
           </tr>
         </thead>
         <tbody>
@@ -127,7 +130,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
                   {lap.isValid ? (
                     <span className="text-emerald-400">&#10003;</span>
                   ) : (
-                    <span className="text-red-400 cursor-help" title={lap.invalidReason || "invalid"}>
+                    <span className="text-red-400 cursor-help" title={lap.invalidReason || m.laps_invalid()}>
                       &#10007;
                     </span>
                   )}
@@ -150,10 +153,10 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
                         });
                       }}
                     >
-                      Analyse
+                      {m.label_analyse()}
                     </Button>
                     <Button variant="app-ghost" size="app-sm" className="hover:text-red-400" onClick={() => deleteLap.mutate(lap.id)}>
-                      Delete
+                      {m.common_delete()}
                     </Button>
                   </div>
                 </td>

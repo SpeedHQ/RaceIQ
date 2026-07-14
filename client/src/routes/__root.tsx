@@ -1,22 +1,39 @@
-import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { m } from "@/paraglide/messages";
+import { getLocale, isLocale } from "@/paraglide/runtime";
+import { applyLocale } from "@/lib/locale";
+import { getAllGames } from "@shared/games/registry";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { Link, Outlet, createRootRoute, useLocation } from "@tanstack/react-router";
+import { Menu, RefreshCw, Settings2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ConnectionStatus } from "../components/ConnectionStatus";
+import { OnboardingModal } from "../components/Onboarding";
+import { Settings } from "../components/Settings";
+import { UpdateModal } from "../components/UpdateModal";
+import { ThemeProvider } from "../context/theme";
+import { useSettings } from "../hooks/queries";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { useTelemetryStore } from "../stores/telemetry";
 import { useUiStore } from "../stores/ui";
-import { useSettings } from "../hooks/queries";
-import { ThemeProvider } from "../context/theme";
-import { ConnectionStatus } from "../components/ConnectionStatus";
-import { Settings } from "../components/Settings";
-import { UpdateModal } from "../components/UpdateModal";
-import { OnboardingModal } from "../components/Onboarding";
-import { Button } from "@/components/ui/button";
-import { Settings2, RefreshCw, X, Menu } from "lucide-react";
-import { getAllGames } from "@shared/games/registry";
 
 import { queryClient } from "../lib/queryClient";
 
+// Canonical (English, path-stable) game sub-tab keys. The URL segment is always
+// the lowercased English key; only the *display* label is localized.
 const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Chats", "Tracks", "Cars", "Setups", "Raw"] as const;
+
+const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {
+  Live: m.tab_live,
+  Sessions: m.label_sessions,
+  Compare: m.label_compare,
+  Analyse: m.label_analyse,
+  Chats: m.tab_chats,
+  Tracks: m.label_tracks,
+  Cars: m.label_cars,
+  Setups: m.tab_setups,
+  Raw: m.tab_raw,
+};
 
 let _gamePrefixes: string[] | null = null;
 function getGamePrefixes() {
@@ -36,7 +53,7 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
       <div className="w-96 rounded-xl border border-white/10 bg-[#1a1a1a] p-6 shadow-2xl">
         <div className="flex items-center gap-3 mb-4">
           <RefreshCw className={`size-5 text-blue-400 ${complete ? "" : "animate-spin"}`} />
-          <h2 className="text-sm font-semibold text-white flex-1">{complete ? "Reprocessing complete" : "Reprocessing sessions…"}</h2>
+          <h2 className="text-sm font-semibold text-white flex-1">{complete ? m.root_reprocessing_complete() : m.root_reprocessing()}</h2>
           {complete && (
             <button onClick={onClose} className="text-white/40 hover:text-white/70 transition-colors" aria-label="Close">
               <X className="size-4" />
@@ -52,7 +69,7 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
           </span>
           <span>{percent}%</span>
         </div>
-        {complete && <p className="mt-3 text-xs text-green-400 text-center">All sessions updated.</p>}
+        {complete && <p className="mt-3 text-xs text-green-400 text-center">{m.root_all_sessions_updated()}</p>}
       </div>
     </div>
   );
@@ -85,7 +102,7 @@ function StaleLapButton() {
         <div className="fixed bottom-4 right-4 z-50 w-72 rounded-lg bg-app-surface border border-blue-500/30 shadow-xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <RefreshCw className="size-4 text-blue-400 shrink-0" />
-            <span className="text-sm font-semibold text-app-text">Lap detection updated</span>
+            <span className="text-sm font-semibold text-app-text">{m.root_lap_detection_updated()}</span>
           </div>
           <p className="text-xs text-app-text-muted mb-3">
             {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s were" : " was"} recorded with an older lap detector. Reparsing will improve lap boundaries and timing
@@ -105,7 +122,7 @@ function StaleLapButton() {
   );
 }
 
-export function MobileNotSupported({ feature = "This view" }: { feature?: string }) {
+export function MobileNotSupported({ feature = m.root_this_view() }: { feature?: string }) {
   const [show, setShow] = useState(false);
   useEffect(() => {
     const check = () => {
@@ -132,8 +149,10 @@ export function MobileNotSupported({ feature = "This view" }: { feature?: string
           <rect x="3" y="4" width="18" height="14" rx="2" />
           <path d="M8 20h8" />
         </svg>
-        <div className="text-base font-semibold text-app-text">Desktop required</div>
-        <div className="text-sm text-app-text-muted">{feature} isn't supported on mobile yet. Open RaceIQ on a tablet or desktop to use it.</div>
+        <div className="text-base font-semibold text-app-text">{m.root_desktop_required()}</div>
+        <div className="text-sm text-app-text-muted">
+          {feature} {m.root_mobile_not_supported()}
+        </div>
       </div>
     </div>
   );
@@ -173,8 +192,8 @@ export function RotatePrompt() {
             <path d="M12 18h.01" />
             <path d="M3 12 L8 9 L8 15 Z" fill="currentColor" />
           </svg>
-          <div className="text-base font-semibold text-app-text">Rotate your device</div>
-          <div className="text-sm text-app-text-muted">Dashboards are designed for landscape. Turn your phone sideways for the best view.</div>
+          <div className="text-base font-semibold text-app-text">{m.root_rotate_device()}</div>
+          <div className="text-sm text-app-text-muted">{m.root_rotate_landscape()}</div>
         </div>
       </div>
     </div>
@@ -185,6 +204,17 @@ function AppShell() {
   useWebSocket();
   const { displaySettings, settingsLoaded } = useSettings();
   const driverName = displaySettings.driverName || "";
+
+  // Bootstrap the Paraglide UI locale from the server-persisted `language`
+  // setting (the source of truth — the AI needs it server-side anyway). No
+  // reload here: this only runs when the stored language differs from the
+  // runtime locale (first load / cross-device), and the picker itself reloads.
+  const settingsLanguage = displaySettings.language;
+  const uiLocale = useUiStore((s) => s.uiLocale);
+  useEffect(() => {
+    if (!settingsLoaded || !settingsLanguage || !isLocale(settingsLanguage)) return;
+    if (getLocale() !== settingsLanguage) applyLocale(settingsLanguage);
+  }, [settingsLoaded, settingsLanguage]);
   const connected = useTelemetryStore((s) => s.connected);
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const isRaceOn = useTelemetryStore((s) => s.isRaceOn);
@@ -231,26 +261,28 @@ function AppShell() {
   const hiddenGamesKey = hiddenGames.join(",");
   const globalTabs = useMemo(
     () => [
-      { to: "/", label: "Home" },
+      { to: "/", label: m.nav_home() },
       ...getAllGames()
         .filter((g) => !hiddenGames.includes(g.id))
         .map((g) => ({ to: `/${g.routePrefix}`, label: g.shortName })),
-      { to: "/dash", label: "Dash" },
-      ...(import.meta.env.DEV ? [{ to: "/dev", label: "Dev" }] : []),
+      { to: "/dash", label: m.nav_dash() },
+      ...(import.meta.env.DEV ? [{ to: "/dev", label: m.nav_dev() }] : []),
       // eslint-disable-next-line react-hooks/exhaustive-deps
     ],
-    [hiddenGamesKey],
+    // uiLocale: recompute labels when the language changes (no reload).
+    [hiddenGamesKey, uiLocale],
   );
 
   // Determine which game-specific tabs to show based on current route
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const gameTabs = useMemo(() => {
     const prefix = getGamePrefixes().find((p) => location.pathname.startsWith(p));
     if (!prefix) return [];
     // Every game exposes a "Setups" tab: fm23/acc/ac-evo show the tune browser
     // (Forza also folds its wheel/FFB catalogue in as a sub-tab), f125 shows a
     // placeholder. No per-game gating needed.
-    return GAME_SUB_TABS.map((label) => ({ to: `${prefix}/${label.toLowerCase()}`, label }));
-  }, [location.pathname]);
+    return GAME_SUB_TABS.map((key) => ({ to: `${prefix}/${key.toLowerCase()}`, label: SUB_TAB_LABELS[key]() }));
+  }, [location.pathname, uiLocale]);
 
   // Active game sub-tab (for the tablet <select> dropdown)
   const activeGameTab = useMemo(() => {
@@ -284,7 +316,7 @@ function AppShell() {
     return (
       <ThemeProvider>
         <div className="h-screen bg-black text-app-text">
-          <Outlet />
+          <Outlet key={uiLocale} />
         </div>
       </ThemeProvider>
     );
@@ -381,18 +413,18 @@ function AppShell() {
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-400/15 text-yellow-400 border border-yellow-400/30 hover:bg-yellow-400/25 transition-colors"
               >
                 <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-                <span className="hidden sm:inline">Update available</span>
-                <span className="sm:hidden">Update</span>
+                <span className="hidden sm:inline">{m.root_update_available()}</span>
+                <span className="sm:hidden">{m.root_update_short()}</span>
               </button>
             )}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => (showSettings ? closeSettings() : openSettings())}
-              aria-label={driverName ? `Settings (${driverName})` : "Settings"}
+              aria-label={driverName ? `${m.nav_settings()} (${driverName})` : m.nav_settings()}
               className="hidden md:flex text-app-text-secondary hover:text-app-text items-center gap-1.5"
             >
-              <span className="hidden sm:inline">{driverName || "Settings"}</span>
+              <span className="hidden sm:inline">{driverName || m.nav_settings()}</span>
               <Settings2 className="size-3.5 text-app-text-muted" />
             </Button>
 
@@ -409,7 +441,7 @@ function AppShell() {
             <div className="absolute inset-0 bg-black/60" />
             <nav className="relative w-64 max-w-[80vw] h-full bg-app-bg border-l border-app-border flex flex-col overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
-                <span className="text-sm font-semibold text-app-text">Navigation</span>
+                <span className="text-sm font-semibold text-app-text">{m.nav_navigation()}</span>
                 <button onClick={() => setMobileNavOpen(false)} className="p-1 text-app-text-muted hover:text-app-text" aria-label="Close navigation">
                   <X className="size-4" />
                 </button>
@@ -435,7 +467,7 @@ function AppShell() {
                 {gameTabs.length > 0 && (
                   <>
                     <div className="mx-4 my-2 border-t border-app-border" />
-                    <div className="px-4 py-1 text-[10px] uppercase tracking-wider text-app-text-dim">This game</div>
+                    <div className="px-4 py-1 text-[10px] uppercase tracking-wider text-app-text-dim">{m.nav_this_game()}</div>
                     {gameTabs.map((tab) => (
                       <Link
                         key={tab.to}
@@ -464,7 +496,7 @@ function AppShell() {
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 border-transparent text-app-text-muted hover:text-app-text"
                 >
                   <Settings2 className="size-4" />
-                  <span>{driverName || "Settings"}</span>
+                  <span>{driverName || m.nav_settings()}</span>
                 </button>
               </div>
             </nav>
@@ -480,7 +512,7 @@ function AppShell() {
           >
             <div className="w-full md:max-w-2xl h-full md:rounded-lg md:border border-app-border bg-app-bg overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between px-4 py-3 border-b border-app-border bg-app-surface">
-                <h1 className="text-sm font-semibold text-app-text">Settings</h1>
+                <h1 className="text-sm font-semibold text-app-text">{m.nav_settings()}</h1>
                 <button
                   onClick={() => {
                     closeSettings();
@@ -507,7 +539,7 @@ function AppShell() {
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
 
         <div className="min-h-0 overflow-y-auto">
-          <Outlet />
+          <Outlet key={uiLocale} />
         </div>
       </div>
       <StaleLapButton />

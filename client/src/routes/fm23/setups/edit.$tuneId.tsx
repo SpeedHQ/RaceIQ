@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { m } from "@/paraglide/messages";
 import { useQuery } from "@tanstack/react-query";
 import type { TuneSettings } from "@shared/types";
 import type { TuneFormData } from "../../../components/TuneForm";
@@ -26,8 +27,8 @@ function EditTunePage() {
     queryFn: () => client.api.tunes[":id"].$get({ param: { id: String(tuneId) } }).then((r) => r.json() as unknown as TuneResponse),
   });
 
-  if (isLoading) return <div className="p-4 text-app-text-muted text-sm">Loading tune...</div>;
-  if (!tune) return <div className="p-4 text-app-text-muted text-sm">Tune not found</div>;
+  if (isLoading) return <div className="p-4 text-app-text-muted text-sm">{m.tuneedit_loading()}</div>;
+  if (!tune) return <div className="p-4 text-app-text-muted text-sm">{m.tuneedit_not_found()}</div>;
 
   const initialData: Partial<TuneFormData> = {
     name: tune.name,

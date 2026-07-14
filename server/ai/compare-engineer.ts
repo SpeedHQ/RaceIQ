@@ -12,9 +12,10 @@
  * and inputs-compare-analysis stay consistent.
  */
 import type { UnitSystem, TemperatureUnit } from "../export";
+import { aiLanguageInstruction } from "../../shared/locales";
 
 /** The base persona used for every compare flow. Plain text — no JSON shape. */
-export function compareEngineerPersona(unit: UnitSystem, temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F"): string {
+export function compareEngineerPersona(unit: UnitSystem, temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F", language: string = "en"): string {
   const baseUnits = unit === "metric" ? "km/h, meters, bar" : "mph, feet, psi";
   const units = `${baseUnits}, °${temperatureUnit}`;
   return `You are a senior race engineer who specialises in COMPARATIVE lap analysis. You are not reviewing a single lap in isolation — your job is to look at two laps side-by-side and explain how the driver's inputs and decisions differ.
@@ -31,7 +32,7 @@ Your mindset:
 
 Units: ${units}.
 Temperature unit for this session: °${temperatureUnit}.
-Refer to the laps as "Lap A" and "Lap B".`;
+Refer to the laps as "Lap A" and "Lap B".${aiLanguageInstruction(language)}`;
 }
 
 /**

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { m } from "@/paraglide/messages";
 import { useQuery } from "@tanstack/react-query";
 import { client } from "../../lib/rpc";
 
@@ -73,7 +74,7 @@ export function AcEvoCars() {
   }, [filtered]);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-full text-app-text-dim">Loading cars...</div>;
+    return <div className="flex items-center justify-center h-full text-app-text-dim">{m.acevocars_loading()}</div>;
   }
 
   return (
@@ -85,7 +86,7 @@ export function AcEvoCars() {
             className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${!filterClass ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
             onClick={() => setFilterClass(null)}
           >
-            All
+            {m.acevocars_filter_all()}
           </button>
           {classes.map((cls) => {
             const c = classColor(cls);

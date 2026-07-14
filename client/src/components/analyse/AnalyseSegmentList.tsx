@@ -1,4 +1,5 @@
 import { useMemo, memo } from "react";
+import { m } from "@/paraglide/messages";
 import type { TelemetryPacket } from "@shared/types";
 
 interface Segment {
@@ -75,7 +76,7 @@ export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, 
   }, [segmentData, cursorIdx]);
 
   if (!segmentTimes) {
-    return <div className="text-[10px] text-app-text-dim">No segment data</div>;
+    return <div className="text-[10px] text-app-text-dim">{m.analyse_no_segment_data()}</div>;
   }
 
   return (

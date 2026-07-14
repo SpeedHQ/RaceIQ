@@ -1,5 +1,6 @@
 import { useTelemetryStore } from "../stores/telemetry";
 import { Link } from "@tanstack/react-router";
+import { m } from "@/paraglide/messages";
 import { useTrackName, useCarName } from "../hooks/queries";
 import { useGameId, useGameRoute } from "../stores/game";
 import { LiveTelemetry, type DashboardMode } from "./LiveTelemetry";
@@ -31,7 +32,7 @@ function PageHeader({
           }
           className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "driver" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
         >
-          Driver
+          {m.label_driver()}
         </Link>
         <Link
           to={
@@ -40,7 +41,7 @@ function PageHeader({
           }
           className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "pitcrew" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
         >
-          Pit Crew
+          {m.label_pit_crew()}
         </Link>
       </div>
       {import.meta.env.DEV && (

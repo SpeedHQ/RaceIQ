@@ -1,3 +1,4 @@
+import { m } from "@/paraglide/messages";
 import type { LivePitData, GameId } from "@shared/types";
 
 interface PitWindowProps {
@@ -28,10 +29,10 @@ export function PitWindow({ pit, gameId }: PitWindowProps) {
   return (
     <div className="flex items-baseline gap-2 shrink-0">
       <span className={`text-3xl font-mono font-black tabular-nums leading-none ${urgentColor}`}>{pitIn != null ? pitIn.toFixed(1) : "—"}</span>
-      <span className="text-sm text-app-text-muted">laps</span>
+      <span className="text-sm text-app-text-muted">{m.pitwindow_laps()}</span>
       {pit != null && limitedBy && (
         <span className="text-base text-app-text-dim whitespace-nowrap">
-          · limited by <span className={`font-bold ${limitedBy === "fuel" ? fuelColor : "text-app-text"}`}>{limitedBy}</span>
+          · {m.pitwindow_limited_by()} <span className={`font-bold ${limitedBy === "fuel" ? fuelColor : "text-app-text"}`}>{limitedBy}</span>
         </span>
       )}
     </div>

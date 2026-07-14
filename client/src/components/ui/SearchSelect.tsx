@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { m } from "@/paraglide/messages";
 
 interface SearchSelectOption {
   value: string;
@@ -117,7 +118,7 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
               </div>
             );
           })}
-          {filtered.length === 0 && <div className="px-3 py-2 text-sm text-app-text-muted">No results</div>}
+          {filtered.length === 0 && <div className="px-3 py-2 text-sm text-app-text-muted">{m.common_no_results()}</div>}
         </div>
       )}
     </div>

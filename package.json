@@ -22,6 +22,8 @@
     "test": "DATA_DIR=\"$PWD/.data-test\" bun test --timeout 60000",
     "lint": "cd client && bun run lint",
     "format": "cd client && bun run format",
+    "i18n:machine-translate": "bunx @inlang/cli machine translate --project ./client/project.inlang",
+    "i18n:validate": "bunx @inlang/cli validate --project ./client/project.inlang",
     "test:ai": "bun test test/ai-quality.ai-eval.ts --timeout 120000",
     "ai:baseline": "bun scripts/ai-baseline.ts",
     "bench": "bun test/benchmarks/pipeline.bench.ts",

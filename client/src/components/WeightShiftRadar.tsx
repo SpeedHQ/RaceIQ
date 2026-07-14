@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { m } from "@/paraglide/messages";
 import type { TelemetryPacket } from "@shared/types";
 
 /**
@@ -112,9 +113,9 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     <div className="relative flex flex-col items-center">
       <canvas ref={canvasRef} style={{ width: size, height: size }} className="rounded" />
       <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 text-[9px] font-mono text-app-text-muted text-center leading-tight">
-        Load
+        {m.label_load()}
         <br />
-        Distribution
+        {m.label_distribution()}
       </span>
     </div>
   );

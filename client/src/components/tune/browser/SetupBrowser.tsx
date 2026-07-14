@@ -1,4 +1,5 @@
 import { type ReactNode, useMemo, useRef, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { ComboBox, type ComboOption } from "./ComboBox";
 import { TUNE_GRID, TuneBrowserRow } from "./TuneBrowserRow";
 import type { SourceTab, TuneRow } from "./types";
@@ -114,21 +115,21 @@ export function SetupBrowser(props: SetupBrowserProps) {
               onClick={() => importInputRef.current?.click()}
               disabled={props.importing}
             >
-              {props.importing ? "Importing…" : "Import"}
+              {props.importing ? m.setup_importing() : m.setup_import_button()}
             </button>
           </>
         )}
         {props.onNewTune && (
           <button type="button" className="text-[11px] font-bold uppercase tracking-wide bg-app-accent text-app-bg px-3.5 py-2 rounded" onClick={props.onNewTune}>
-            + New tune
+            {m.setup_new_tune()}
           </button>
         )}
       </div>
 
       <div className="flex items-end gap-2.5 mb-3">
-        <ComboBox label="1 · Track" variant="track" value={track} options={trackOptions} onChange={pickTrack} placeholder="Any track" />
-        <span className="hidden sm:block text-app-text-dim pb-3">→</span>
-        <ComboBox label="2 · Car" variant="car" value={car} options={carOptions} onChange={pickCar} placeholder="Any car" />
+        <ComboBox label={m.setup_track_label()} variant="track" value={track} options={trackOptions} onChange={pickTrack} placeholder={m.setup_any_track()} />
+        <span className="hidden sm:block text-app-text-dim pb-3">{m.setup_arrow()}</span>
+        <ComboBox label={m.setup_car_label()} variant="car" value={car} options={carOptions} onChange={pickCar} placeholder={m.setup_any_car()} />
       </div>
 
       <div className="flex gap-1.5 items-center flex-wrap px-2.5 py-2 bg-app-surface border border-b-0 border-app-border rounded-t-lg">
@@ -145,7 +146,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
         <input
           type="text"
           value={author}
-          placeholder="Search author…"
+          placeholder={m.setup_search_author()}
           onChange={(e) => pickAuthor(e.target.value)}
           className="text-[11px] bg-app-bg border border-app-border-input rounded px-2.5 py-1.5 text-app-text placeholder:text-app-text-dim outline-none focus:border-app-accent w-40"
         />
@@ -157,21 +158,21 @@ export function SetupBrowser(props: SetupBrowserProps) {
             onClick={props.onRefresh}
             disabled={props.refreshing}
           >
-            {props.refreshing ? "Refreshing…" : "↻ Refresh"}
+            {props.refreshing ? m.setup_refreshing() : m.setup_refresh_button()}
           </button>
         )}
       </div>
 
       <div className="border border-app-border rounded-b-lg overflow-hidden">
         <div className={`${TUNE_GRID} px-3 py-2.5 bg-app-bg text-[9px] uppercase tracking-wider text-app-text-dim`}>
-          <span>#</span>
-          <span>Tune</span>
-          <span className="hidden sm:block">Car</span>
-          <span className="hidden sm:block">Track</span>
-          <span className="hidden sm:block">Category</span>
-          <span className="hidden sm:block">Author</span>
+          <span>{m.setup_table_rank()}</span>
+          <span>{m.setup_table_tune()}</span>
+          <span className="hidden sm:block">{m.label_car()}</span>
+          <span className="hidden sm:block">{m.label_track()}</span>
+          <span className="hidden sm:block">{m.label_category()}</span>
+          <span className="hidden sm:block">{m.label_author()}</span>
           <button type="button" className="justify-self-end uppercase tracking-wider text-app-accent inline-flex items-center gap-1" onClick={() => setSortAsc((a) => !a)}>
-            Lap time <span className="text-[8px]">{sortAsc ? "▲" : "▼"}</span>
+            {m.label_lap_time()} <span className="text-[8px]">{sortAsc ? "▲" : "▼"}</span>
           </button>
           <span className="hidden sm:block" />
         </div>
@@ -193,7 +194,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
             readOnly={props.readOnly}
           />
         ))}
-        {visible.length === 0 && <div className="text-center py-12 text-app-text-dim text-sm">No setups match this filter.</div>}
+        {visible.length === 0 && <div className="text-center py-12 text-app-text-dim text-sm">{m.setup_no_matches()}</div>}
       </div>
 
       {visible.length > 0 && (
@@ -204,7 +205,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={safePage === 0}
           >
-            ← Prev
+            {m.setup_prev_button()}
           </button>
           <span className="font-mono text-[11px] text-app-text-muted tabular-nums">
             {safePage * PAGE_SIZE + 1}–{Math.min(visible.length, (safePage + 1) * PAGE_SIZE)} of {visible.length} · page {safePage + 1}/{totalPages}
@@ -215,11 +216,11 @@ export function SetupBrowser(props: SetupBrowserProps) {
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={safePage >= totalPages - 1}
           >
-            Next →
+            {m.setup_next_button()}
           </button>
         </div>
       )}
-      <p className="text-[10px] text-app-text-dim mt-2.5">↕ Sort by lap time · pick a track to compare (times only compare within one track).</p>
+      <p className="text-[10px] text-app-text-dim mt-2.5">{m.setup_sort_info()}</p>
     </div>
   );
 }

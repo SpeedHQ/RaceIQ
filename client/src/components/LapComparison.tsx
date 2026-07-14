@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
+import { m } from "../paraglide/messages";
 import type { LapMeta, ComparisonData } from "@shared/types";
 import { TelemetryChart } from "./TelemetryChart";
 import { TimeDelta } from "./TimeDelta";
@@ -40,7 +41,7 @@ function useIsPhoneViewport() {
 
 export function LapComparison() {
   const isPhone = useIsPhoneViewport();
-  if (isPhone) return <MobileNotSupported feature="Lap compare" />;
+  if (isPhone) return <MobileNotSupported feature={m.lapcompare_feature_name()} />;
   return <LapComparisonInner />;
 }
 
@@ -159,7 +160,7 @@ function LapComparisonInner() {
 
       const groups: TrackGroup[] = [];
       for (const [ordinal, trackLaps] of byTrack) {
-        let name = `Track ${ordinal}`;
+        let name = `${m.compare_track_fallback()} ${ordinal}`;
         try {
           name = await client.api["track-name"][":ordinal"].$get({ param: { ordinal: String(ordinal) }, query: { gameId: gameId! } }).then((r) => (r.ok ? r.text() : name));
         } catch {}
@@ -249,14 +250,14 @@ function LapComparisonInner() {
       const res = await client.api.laps[":id1"].compare[":id2"].$get({ param: { id1: String(lapAId), id2: String(lapBId) } });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        const msg = body.error ?? "Failed to load comparison data";
-        setError(msg.includes("no telemetry") ? "One or both laps were recorded before raw telemetry storage and cannot be compared." : msg);
+        const msg = body.error ?? m.compare_load_failed();
+        setError(msg.includes("no telemetry") ? m.compare_telemetry_unavailable() : msg);
         setComparison(null);
         return;
       }
       setComparison((await res.json()) as unknown as ComparisonData);
     } catch {
-      setError("Failed to load comparison data");
+      setError(m.compare_load_failed());
       setComparison(null);
     } finally {
       setLoading(false);
@@ -319,12 +320,12 @@ function LapComparisonInner() {
       <div className="flex items-start gap-3 shrink-0">
         {/* Track selector */}
         <div className="flex flex-col gap-1 flex-1 min-w-[140px] max-w-[260px]">
-          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Track</label>
+          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.label_track()}</label>
           <SearchSelect
             value={selectedTrack != null ? String(selectedTrack) : ""}
             onChange={(v) => setSelectedTrack(v ? Number(v) : null)}
-            options={trackGroups.map((g) => ({ value: String(g.trackOrdinal), label: `${g.trackName} (${g.laps.length} laps)` }))}
-            placeholder="Search tracks..."
+            options={trackGroups.map((g) => ({ value: String(g.trackOrdinal), label: `${g.trackName} (${g.laps.length} ${m.pitwindow_laps()})` }))}
+            placeholder={m.compare_search_tracks()}
           />
         </div>
 
@@ -332,13 +333,13 @@ function LapComparisonInner() {
         <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[220px]">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-            <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Car A</label>
+            <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_car_a()}</label>
           </div>
           <SearchSelect
             value={carAOrd != null ? String(carAOrd) : ""}
             onChange={(v) => setCarAOrd(v ? Number(v) : null)}
-            options={trackCars.map((ord) => ({ value: String(ord), label: carNames.get(ord) || `Car ${ord}` }))}
-            placeholder="Search cars..."
+            options={trackCars.map((ord) => ({ value: String(ord), label: carNames.get(ord) || `${m.compare_car_fallback()} ${ord}` }))}
+            placeholder={m.compare_search_cars()}
             disabled={!selectedTrack}
             focusColor="orange-500"
           />
@@ -346,12 +347,12 @@ function LapComparisonInner() {
 
         {/* Lap A */}
         <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[200px]">
-          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap A</label>
+          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_lap_a()}</label>
           <SearchSelect
             value={lapAId != null ? String(lapAId) : ""}
             onChange={(v) => setLapAId(v ? Number(v) : null)}
-            options={carALaps.map((lap) => ({ value: String(lap.id), label: `Lap ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
-            placeholder="Search laps..."
+            options={carALaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
+            placeholder={m.compare_search_laps()}
             disabled={!carAOrd}
             focusColor="orange-500"
           />
@@ -361,13 +362,13 @@ function LapComparisonInner() {
         <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[220px]">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-            <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Car B</label>
+            <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_car_b()}</label>
           </div>
           <SearchSelect
             value={carBOrd != null ? String(carBOrd) : ""}
             onChange={(v) => setCarBOrd(v ? Number(v) : null)}
-            options={trackCars.map((ord) => ({ value: String(ord), label: carNames.get(ord) || `Car ${ord}` }))}
-            placeholder="Search cars..."
+            options={trackCars.map((ord) => ({ value: String(ord), label: carNames.get(ord) || `${m.compare_car_fallback()} ${ord}` }))}
+            placeholder={m.compare_search_cars()}
             disabled={!selectedTrack}
             focusColor="blue-500"
           />
@@ -375,12 +376,12 @@ function LapComparisonInner() {
 
         {/* Lap B */}
         <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[200px]">
-          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap B</label>
+          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_lap_b()}</label>
           <SearchSelect
             value={lapBId != null ? String(lapBId) : ""}
             onChange={(v) => setLapBId(v ? Number(v) : null)}
-            options={carBLaps.map((lap) => ({ value: String(lap.id), label: `Lap ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
-            placeholder="Search laps..."
+            options={carBLaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
+            placeholder={m.compare_search_laps()}
             disabled={!carBOrd}
             focusColor="blue-500"
           />
@@ -393,11 +394,11 @@ function LapComparisonInner() {
             size="app-lg"
             onClick={toggleAiPanel}
             disabled={!comparison}
-            title="Toggle AI compare panel"
+            title={m.compare_toggle_ai()}
             className={aiPanelOpen ? "text-app-accent border-app-accent/40 bg-app-accent/10" : "hover:text-app-accent"}
           >
             <Sparkles className="size-3.5" />
-            AI Analysis
+            {m.label_ai_analysis()}
           </Button>
         </div>
       </div>
@@ -405,16 +406,16 @@ function LapComparisonInner() {
       {/* Loading / Error */}
       {(loading || error) && (
         <div className="shrink-0">
-          {loading && <div className="text-app-text-muted text-sm">Loading comparison data...</div>}
+          {loading && <div className="text-app-text-muted text-sm">{m.compare_loading()}</div>}
           {error && <div className="text-red-400 text-sm">{error}</div>}
         </div>
       )}
 
       {/* No selection prompt */}
       {!lapAId || !lapBId ? (
-        <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">Select two laps above to compare</div>
+        <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_two_laps()}</div>
       ) : lapAId === lapBId ? (
-        <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">Select two different laps to compare</div>
+        <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_different_laps()}</div>
       ) : comparison?.traces?.distance ? (
         <div className="flex gap-4 flex-1 min-h-0 overflow-hidden">
           {/* Left: track map */}
@@ -423,8 +424,8 @@ function LapComparisonInner() {
               outline={trackOutline ?? syntheticOutline}
               telemetryA={comparison.telemetryA}
               telemetryB={comparison.telemetryB}
-              labelA={`${carNames.get(comparison.lapA.carOrdinal!) || "Car A"} — Lap ${comparison.lapA.lapNumber}`}
-              labelB={`${carNames.get(comparison.lapB.carOrdinal!) || "Car B"} — Lap ${comparison.lapB.lapNumber}`}
+              labelA={`${carNames.get(comparison.lapA.carOrdinal!) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber}`}
+              labelB={`${carNames.get(comparison.lapB.carOrdinal!) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber}`}
               lapTimeA={formatLapTime(comparison.lapA.lapTime)}
               lapTimeB={formatLapTime(comparison.lapB.lapTime)}
               segments={segmentTimings}
@@ -451,12 +452,12 @@ function LapComparisonInner() {
                     data={{
                       distance: comparison.traces.distance,
                       values: [comparison.traces.speedA.map(units.fromMph), comparison.traces.speedB.map(units.fromMph)],
-                      labels: [`Speed A (${units.speedLabel})`, `Speed B (${units.speedLabel})`],
+                      labels: [`${m.compare_speed_a()} (${units.speedLabel})`, `${m.compare_speed_b()} (${units.speedLabel})`],
                       colors: [COLOR_A, COLOR_B],
                     }}
                     syncKey={SYNC_KEY}
                     height={200}
-                    title="Speed"
+                    title={m.label_speed()}
                     onCursorMove={handleCursorMove}
                   />
                 </div>
@@ -467,12 +468,12 @@ function LapComparisonInner() {
                     data={{
                       distance: comparison.traces.distance,
                       values: [comparison.traces.throttleA, comparison.traces.throttleB, comparison.traces.brakeA, comparison.traces.brakeB],
-                      labels: ["Throttle A", "Throttle B", "Brake A", "Brake B"],
+                      labels: [m.compare_chart_throttle_a(), m.compare_chart_throttle_b(), m.compare_chart_brake_a(), m.compare_chart_brake_b()],
                       colors: [COLOR_A, COLOR_B, "#f97316aa", "#3b82f6aa"],
                     }}
                     syncKey={SYNC_KEY}
                     height={180}
-                    title="Throttle & Brake"
+                    title={m.compare_throttle_brake()}
                     onCursorMove={handleCursorMove}
                   />
                 </div>
@@ -483,12 +484,12 @@ function LapComparisonInner() {
                     data={{
                       distance: comparison.traces.distance,
                       values: [comparison.traces.rpmA, comparison.traces.rpmB],
-                      labels: ["RPM A", "RPM B"],
+                      labels: [m.compare_chart_rpm_a(), m.compare_chart_rpm_b()],
                       colors: [COLOR_A, COLOR_B],
                     }}
                     syncKey={SYNC_KEY}
                     height={180}
-                    title="RPM"
+                    title={m.compare_rpm()}
                     onCursorMove={handleCursorMove}
                   />
                 </div>
@@ -500,12 +501,12 @@ function LapComparisonInner() {
                       data={{
                         distance: comparison.traces.distance,
                         values: [comparison.traces.tireWearA!, comparison.traces.tireWearB!],
-                        labels: ["Tire Wear A (%)", "Tire Wear B (%)"],
+                        labels: [`${m.compare_chart_tire_wear_a()} (%)`, `${m.compare_chart_tire_wear_b()} (%)`],
                         colors: [COLOR_A, COLOR_B],
                       }}
                       syncKey={SYNC_KEY}
                       height={160}
-                      title="Tire Wear (avg all 4)"
+                      title={m.compare_tire_wear()}
                       onCursorMove={handleCursorMove}
                     />
                   </div>
@@ -519,12 +520,12 @@ function LapComparisonInner() {
             <CompareAiSidebar
               lapA={{
                 id: lapAId!,
-                label: `${carNames.get(comparison.lapA.carOrdinal!) || "Car A"} — Lap ${comparison.lapA.lapNumber} (${formatLapTime(comparison.lapA.lapTime)})`,
+                label: `${carNames.get(comparison.lapA.carOrdinal!) || m.compare_car_a_fallback()} — ${m.compare_lap_label()} ${comparison.lapA.lapNumber} (${formatLapTime(comparison.lapA.lapTime)})`,
                 lapTime: comparison.lapA.lapTime,
               }}
               lapB={{
                 id: lapBId!,
-                label: `${carNames.get(comparison.lapB.carOrdinal!) || "Car B"} — Lap ${comparison.lapB.lapNumber} (${formatLapTime(comparison.lapB.lapTime)})`,
+                label: `${carNames.get(comparison.lapB.carOrdinal!) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber} (${formatLapTime(comparison.lapB.lapTime)})`,
                 lapTime: comparison.lapB.lapTime,
               }}
               panelRef={aiPanelRef}

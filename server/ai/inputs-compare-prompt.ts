@@ -280,6 +280,8 @@ export function buildInputsComparePrompt(
   temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
   /** Pre-fetched track guide text. When provided, skips internal lookup. */
   externalTrackGuide?: string,
+  /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
+  language: string = "en",
 ): string {
   const carA = getCarName(lapA.carOrdinal ?? 0);
   const carB = getCarName(lapB.carOrdinal ?? 0);
@@ -356,7 +358,7 @@ export function buildInputsComparePrompt(
   const segNames = useSegs.map((s) => `"${s.name}"`).join(", ");
   const expectedCount = useSegs.length;
 
-  return `${compareEngineerPersona(unit, temperatureUnit)}
+  return `${compareEngineerPersona(unit, temperatureUnit, language)}
 
 This task: produce a structured per-segment comparison of driver inputs (throttle, brake, steering) plus coaching for the slower lap.
 
