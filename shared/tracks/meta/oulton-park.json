@@ -7,14 +7,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0234
+          "endFrac": 0.024
         },
         {
           "type": "corner",
           "name": "Old Hall Corner",
           "direction": "right",
-          "startFrac": 0.0234,
-          "endFrac": 0.1039,
+          "startFrac": 0.024,
+          "endFrac": 0.1027,
           "numbers": [
             1
           ]
@@ -22,36 +22,48 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1039,
-          "endFrac": 0.1331
+          "startFrac": 0.1027,
+          "endFrac": 0.1377
         },
         {
           "type": "corner",
           "name": "Cascades",
           "direction": "left",
-          "startFrac": 0.1331,
-          "endFrac": 0.3641,
+          "startFrac": 0.1377,
+          "endFrac": 0.3268,
           "numbers": [
             2,
             3
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3268,
+          "endFrac": 0.339
+        },
+        {
           "type": "corner",
           "name": "Island Bend",
           "direction": "right",
-          "startFrac": 0.3641,
-          "endFrac": 0.4207,
+          "startFrac": 0.339,
+          "endFrac": 0.4283,
           "numbers": [
             4
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4283,
+          "endFrac": 0.4318
+        },
+        {
           "type": "corner",
           "name": "Lodge Corner",
           "direction": "right",
-          "startFrac": 0.4207,
-          "endFrac": 0.4709,
+          "startFrac": 0.4318,
+          "endFrac": 0.468,
           "numbers": [
             5
           ]
@@ -60,8 +72,8 @@
           "type": "corner",
           "name": "T6",
           "direction": "right",
-          "startFrac": 0.4709,
-          "endFrac": 0.5124,
+          "startFrac": 0.468,
+          "endFrac": 0.5112,
           "numbers": [
             6
           ]
@@ -69,13 +81,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5124,
-          "endFrac": 0.5637
+          "startFrac": 0.5112,
+          "endFrac": 0.5648
         },
         {
           "type": "corner",
           "name": "Foulston",
-          "startFrac": 0.5637,
+          "startFrac": 0.5648,
           "endFrac": 0.6302,
           "numbers": [
             7,
@@ -87,7 +99,7 @@
           "name": "T9",
           "direction": "right",
           "startFrac": 0.6302,
-          "endFrac": 0.6769,
+          "endFrac": 0.6722,
           "numbers": [
             9
           ]
@@ -95,7 +107,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6769,
+          "startFrac": 0.6722,
           "endFrac": 0.741
         },
         {
@@ -103,7 +115,7 @@
           "name": "Deer Leap",
           "direction": "right",
           "startFrac": 0.741,
-          "endFrac": 0.8402,
+          "endFrac": 0.8344,
           "numbers": [
             10
           ]
@@ -111,7 +123,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.8402,
+          "startFrac": 0.8344,
           "endFrac": 0.8775
         },
         {
@@ -119,7 +131,7 @@
           "name": "T11",
           "direction": "right",
           "startFrac": 0.8775,
-          "endFrac": 0.9592,
+          "endFrac": 0.9581,
           "numbers": [
             11
           ]
@@ -127,12 +139,12 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9592,
+          "startFrac": 0.9581,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.4207,
+        "s1End": 0.4283,
         "s2End": 0.6302,
         "source": "corner-anchored"
       }
@@ -143,14 +155,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.0234
+      "endFrac": 0.024
     },
     {
       "type": "corner",
       "name": "Old Hall Corner",
       "direction": "right",
-      "startFrac": 0.0234,
-      "endFrac": 0.1039,
+      "startFrac": 0.024,
+      "endFrac": 0.1027,
       "numbers": [
         1
       ]
@@ -158,36 +170,48 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1039,
-      "endFrac": 0.1331
+      "startFrac": 0.1027,
+      "endFrac": 0.1377
     },
     {
       "type": "corner",
       "name": "Cascades",
       "direction": "left",
-      "startFrac": 0.1331,
-      "endFrac": 0.3641,
+      "startFrac": 0.1377,
+      "endFrac": 0.3268,
       "numbers": [
         2,
         3
       ]
     },
     {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3268,
+      "endFrac": 0.339
+    },
+    {
       "type": "corner",
       "name": "Island Bend",
       "direction": "right",
-      "startFrac": 0.3641,
-      "endFrac": 0.4207,
+      "startFrac": 0.339,
+      "endFrac": 0.4283,
       "numbers": [
         4
       ]
     },
     {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4283,
+      "endFrac": 0.4318
+    },
+    {
       "type": "corner",
       "name": "Lodge Corner",
       "direction": "right",
-      "startFrac": 0.4207,
-      "endFrac": 0.4709,
+      "startFrac": 0.4318,
+      "endFrac": 0.468,
       "numbers": [
         5
       ]
@@ -196,8 +220,8 @@
       "type": "corner",
       "name": "T6",
       "direction": "right",
-      "startFrac": 0.4709,
-      "endFrac": 0.5124,
+      "startFrac": 0.468,
+      "endFrac": 0.5112,
       "numbers": [
         6
       ]
@@ -205,13 +229,13 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.5124,
-      "endFrac": 0.5637
+      "startFrac": 0.5112,
+      "endFrac": 0.5648
     },
     {
       "type": "corner",
       "name": "Foulston",
-      "startFrac": 0.5637,
+      "startFrac": 0.5648,
       "endFrac": 0.6302,
       "numbers": [
         7,
@@ -223,7 +247,7 @@
       "name": "T9",
       "direction": "right",
       "startFrac": 0.6302,
-      "endFrac": 0.6769,
+      "endFrac": 0.6722,
       "numbers": [
         9
       ]
@@ -231,7 +255,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.6769,
+      "startFrac": 0.6722,
       "endFrac": 0.741
     },
     {
@@ -239,7 +263,7 @@
       "name": "Deer Leap",
       "direction": "right",
       "startFrac": 0.741,
-      "endFrac": 0.8402,
+      "endFrac": 0.8344,
       "numbers": [
         10
       ]
@@ -247,7 +271,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.8402,
+      "startFrac": 0.8344,
       "endFrac": 0.8775
     },
     {
@@ -255,7 +279,7 @@
       "name": "T11",
       "direction": "right",
       "startFrac": 0.8775,
-      "endFrac": 0.9592,
+      "endFrac": 0.9581,
       "numbers": [
         11
       ]
@@ -263,12 +287,12 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9592,
+      "startFrac": 0.9581,
       "endFrac": 1
     }
   ],
   "sectors": {
-    "s1End": 0.4207,
+    "s1End": 0.4283,
     "s2End": 0.6302,
     "source": "corner-anchored"
   }

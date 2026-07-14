@@ -24,7 +24,7 @@
           "name": "T1",
           "direction": "left",
           "startFrac": 0.0249,
-          "endFrac": 0.0702,
+          "endFrac": 0.0695,
           "numbers": [
             1
           ]
@@ -32,15 +32,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.0702,
-          "endFrac": 0.0829
+          "startFrac": 0.0695,
+          "endFrac": 0.0836
         },
         {
           "type": "corner",
           "name": "T2",
           "direction": "left",
-          "startFrac": 0.0829,
-          "endFrac": 0.1269,
+          "startFrac": 0.0836,
+          "endFrac": 0.1262,
           "numbers": [
             2
           ]
@@ -48,7 +48,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1269,
+          "startFrac": 0.1262,
           "endFrac": 0.2282
         },
         {
@@ -88,7 +88,7 @@
           "name": "T5",
           "direction": "left",
           "startFrac": 0.3212,
-          "endFrac": 0.3566,
+          "endFrac": 0.3562,
           "numbers": [
             5
           ]
@@ -97,8 +97,8 @@
           "type": "corner",
           "name": "T6",
           "direction": "right",
-          "startFrac": 0.3566,
-          "endFrac": 0.3761,
+          "startFrac": 0.3562,
+          "endFrac": 0.3754,
           "numbers": [
             6
           ]
@@ -106,7 +106,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3761,
+          "startFrac": 0.3754,
           "endFrac": 0.3986
         },
         {
@@ -124,7 +124,7 @@
           "name": "Castle Section",
           "direction": "left",
           "startFrac": 0.4449,
-          "endFrac": 0.4726,
+          "endFrac": 0.4723,
           "numbers": [
             8,
             9
@@ -134,8 +134,8 @@
           "type": "corner",
           "name": "T10",
           "direction": "right",
-          "startFrac": 0.4726,
-          "endFrac": 0.4822,
+          "startFrac": 0.4723,
+          "endFrac": 0.4826,
           "numbers": [
             10
           ]
@@ -144,7 +144,7 @@
           "type": "corner",
           "name": "T11",
           "direction": "left",
-          "startFrac": 0.4822,
+          "startFrac": 0.4826,
           "endFrac": 0.5042,
           "numbers": [
             11
@@ -154,14 +154,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.5042,
-          "endFrac": 0.5233
+          "endFrac": 0.524
         },
         {
           "type": "corner",
           "name": "T12",
           "direction": "left",
-          "startFrac": 0.5233,
-          "endFrac": 0.5741,
+          "startFrac": 0.524,
+          "endFrac": 0.5714,
           "numbers": [
             12
           ]
@@ -169,7 +169,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5741,
+          "startFrac": 0.5714,
           "endFrac": 0.602
         },
         {
@@ -202,14 +202,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.7064,
-          "endFrac": 0.734
+          "endFrac": 0.7347
         },
         {
           "type": "corner",
           "name": "T17",
           "direction": "left",
-          "startFrac": 0.734,
-          "endFrac": 0.7741,
+          "startFrac": 0.7347,
+          "endFrac": 0.7737,
           "numbers": [
             17
           ]
@@ -218,8 +218,8 @@
           "type": "corner",
           "name": "T18",
           "direction": "right",
-          "startFrac": 0.7741,
-          "endFrac": 0.8052,
+          "startFrac": 0.7737,
+          "endFrac": 0.8045,
           "numbers": [
             18
           ]
@@ -227,7 +227,7 @@
         {
           "type": "straight",
           "name": "Neftchiler Avenue",
-          "startFrac": 0.8052,
+          "startFrac": 0.8045,
           "endFrac": 1
         }
       ]
@@ -245,7 +245,7 @@
       "name": "T1",
       "direction": "left",
       "startFrac": 0.0249,
-      "endFrac": 0.0702,
+      "endFrac": 0.0695,
       "numbers": [
         1
       ]
@@ -253,15 +253,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.0702,
-      "endFrac": 0.0829
+      "startFrac": 0.0695,
+      "endFrac": 0.0836
     },
     {
       "type": "corner",
       "name": "T2",
       "direction": "left",
-      "startFrac": 0.0829,
-      "endFrac": 0.1269,
+      "startFrac": 0.0836,
+      "endFrac": 0.1262,
       "numbers": [
         2
       ]
@@ -269,7 +269,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1269,
+      "startFrac": 0.1262,
       "endFrac": 0.2282
     },
     {
@@ -309,7 +309,7 @@
       "name": "T5",
       "direction": "left",
       "startFrac": 0.3212,
-      "endFrac": 0.3566,
+      "endFrac": 0.3562,
       "numbers": [
         5
       ]
@@ -318,8 +318,8 @@
       "type": "corner",
       "name": "T6",
       "direction": "right",
-      "startFrac": 0.3566,
-      "endFrac": 0.3761,
+      "startFrac": 0.3562,
+      "endFrac": 0.3754,
       "numbers": [
         6
       ]
@@ -327,7 +327,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3761,
+      "startFrac": 0.3754,
       "endFrac": 0.3986
     },
     {
@@ -345,7 +345,7 @@
       "name": "Castle Section",
       "direction": "left",
       "startFrac": 0.4449,
-      "endFrac": 0.4726,
+      "endFrac": 0.4723,
       "numbers": [
         8,
         9
@@ -355,8 +355,8 @@
       "type": "corner",
       "name": "T10",
       "direction": "right",
-      "startFrac": 0.4726,
-      "endFrac": 0.4822,
+      "startFrac": 0.4723,
+      "endFrac": 0.4826,
       "numbers": [
         10
       ]
@@ -365,7 +365,7 @@
       "type": "corner",
       "name": "T11",
       "direction": "left",
-      "startFrac": 0.4822,
+      "startFrac": 0.4826,
       "endFrac": 0.5042,
       "numbers": [
         11
@@ -375,14 +375,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0.5042,
-      "endFrac": 0.5233
+      "endFrac": 0.524
     },
     {
       "type": "corner",
       "name": "T12",
       "direction": "left",
-      "startFrac": 0.5233,
-      "endFrac": 0.5741,
+      "startFrac": 0.524,
+      "endFrac": 0.5714,
       "numbers": [
         12
       ]
@@ -390,7 +390,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.5741,
+      "startFrac": 0.5714,
       "endFrac": 0.602
     },
     {
@@ -423,14 +423,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0.7064,
-      "endFrac": 0.734
+      "endFrac": 0.7347
     },
     {
       "type": "corner",
       "name": "T17",
       "direction": "left",
-      "startFrac": 0.734,
-      "endFrac": 0.7741,
+      "startFrac": 0.7347,
+      "endFrac": 0.7737,
       "numbers": [
         17
       ]
@@ -439,8 +439,8 @@
       "type": "corner",
       "name": "T18",
       "direction": "right",
-      "startFrac": 0.7741,
-      "endFrac": 0.8052,
+      "startFrac": 0.7737,
+      "endFrac": 0.8045,
       "numbers": [
         18
       ]
@@ -448,7 +448,7 @@
     {
       "type": "straight",
       "name": "Neftchiler Avenue",
-      "startFrac": 0.8052,
+      "startFrac": 0.8045,
       "endFrac": 1
     }
   ]

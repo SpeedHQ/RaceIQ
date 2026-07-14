@@ -1,8 +1,8 @@
 {
   "name": "Nürburgring",
   "sectors": {
-    "s1End": 0.341,
-    "s2End": 0.6366,
+    "s1End": 0.3399,
+    "s2End": 0.6365,
     "source": "corner-anchored"
   },
   "games": {
@@ -12,14 +12,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.085
+          "endFrac": 0.086
         },
         {
           "type": "corner",
           "name": "Castrol-S",
           "direction": "right",
-          "startFrac": 0.085,
-          "endFrac": 0.1442,
+          "startFrac": 0.086,
+          "endFrac": 0.1432,
           "numbers": [
             1
           ]
@@ -28,8 +28,8 @@
           "type": "corner",
           "name": "Mercedes Arena",
           "direction": "left",
-          "startFrac": 0.1442,
-          "endFrac": 0.2227,
+          "startFrac": 0.1432,
+          "endFrac": 0.2222,
           "numbers": [
             2
           ]
@@ -38,8 +38,8 @@
           "type": "corner",
           "name": "T3",
           "direction": "right",
-          "startFrac": 0.2227,
-          "endFrac": 0.2617,
+          "startFrac": 0.2222,
+          "endFrac": 0.2548,
           "numbers": [
             3
           ]
@@ -47,14 +47,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2617,
-          "endFrac": 0.2854
+          "startFrac": 0.2548,
+          "endFrac": 0.2894
         },
         {
           "type": "corner",
           "name": "T4",
           "direction": "left",
-          "startFrac": 0.2854,
+          "startFrac": 0.2894,
           "endFrac": 0.3457,
           "numbers": [
             4
@@ -65,7 +65,7 @@
           "name": "T5",
           "direction": "right",
           "startFrac": 0.3457,
-          "endFrac": 0.393,
+          "endFrac": 0.3881,
           "numbers": [
             5
           ]
@@ -73,15 +73,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.393,
-          "endFrac": 0.4305
+          "startFrac": 0.3881,
+          "endFrac": 0.4325
         },
         {
           "type": "corner",
           "name": "Dunlop-Kehre",
           "direction": "right",
-          "startFrac": 0.4305,
-          "endFrac": 0.5144,
+          "startFrac": 0.4325,
+          "endFrac": 0.5104,
           "numbers": [
             6
           ]
@@ -89,15 +89,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5144,
-          "endFrac": 0.5198
+          "startFrac": 0.5104,
+          "endFrac": 0.5223
         },
         {
           "type": "corner",
           "name": "T7",
           "direction": "left",
-          "startFrac": 0.5198,
-          "endFrac": 0.5834,
+          "startFrac": 0.5223,
+          "endFrac": 0.5755,
           "numbers": [
             7
           ]
@@ -105,15 +105,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5834,
-          "endFrac": 0.6239
+          "startFrac": 0.5755,
+          "endFrac": 0.6249
         },
         {
           "type": "corner",
           "name": "Michael-Schumacher-S",
           "direction": "left",
-          "startFrac": 0.6239,
-          "endFrac": 0.6856,
+          "startFrac": 0.6249,
+          "endFrac": 0.6831,
           "numbers": [
             9
           ]
@@ -122,8 +122,8 @@
           "type": "corner",
           "name": "T10",
           "direction": "right",
-          "startFrac": 0.6856,
-          "endFrac": 0.7404,
+          "startFrac": 0.6831,
+          "endFrac": 0.7325,
           "numbers": [
             10
           ]
@@ -131,14 +131,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7404,
-          "endFrac": 0.8499
+          "startFrac": 0.7325,
+          "endFrac": 0.8509
         },
         {
           "type": "corner",
           "name": "NGK-Schikane",
-          "startFrac": 0.8499,
-          "endFrac": 0.92,
+          "startFrac": 0.8509,
+          "endFrac": 0.9176,
           "numbers": [
             12,
             13
@@ -148,8 +148,8 @@
           "type": "corner",
           "name": "T14",
           "direction": "right",
-          "startFrac": 0.92,
-          "endFrac": 0.9763,
+          "startFrac": 0.9176,
+          "endFrac": 0.9743,
           "numbers": [
             14
           ]
@@ -157,13 +157,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9763,
+          "startFrac": 0.9743,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.393,
-        "s2End": 0.6856,
+        "s1End": 0.3881,
+        "s2End": 0.6831,
         "source": "corner-anchored"
       }
     },
@@ -173,14 +173,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0423
+          "endFrac": 0.0426
         },
         {
           "type": "corner",
           "name": "Castrol-S",
           "direction": "right",
-          "startFrac": 0.0423,
-          "endFrac": 0.1007,
+          "startFrac": 0.0426,
+          "endFrac": 0.0981,
           "numbers": [
             1
           ]
@@ -189,7 +189,7 @@
           "type": "corner",
           "name": "Mercedes Arena",
           "direction": "left",
-          "startFrac": 0.1007,
+          "startFrac": 0.0981,
           "endFrac": 0.1792,
           "numbers": [
             2
@@ -200,7 +200,7 @@
           "name": "T3",
           "direction": "right",
           "startFrac": 0.1792,
-          "endFrac": 0.2104,
+          "endFrac": 0.2088,
           "numbers": [
             3
           ]
@@ -208,15 +208,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2104,
-          "endFrac": 0.2416
+          "startFrac": 0.2088,
+          "endFrac": 0.2428
         },
         {
           "type": "corner",
           "name": "T4",
           "direction": "left",
-          "startFrac": 0.2416,
-          "endFrac": 0.299,
+          "startFrac": 0.2428,
+          "endFrac": 0.2988,
           "numbers": [
             4
           ]
@@ -225,8 +225,8 @@
           "type": "corner",
           "name": "T5",
           "direction": "right",
-          "startFrac": 0.299,
-          "endFrac": 0.341,
+          "startFrac": 0.2988,
+          "endFrac": 0.3399,
           "numbers": [
             5
           ]
@@ -234,15 +234,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.341,
-          "endFrac": 0.3899
+          "startFrac": 0.3399,
+          "endFrac": 0.3903
         },
         {
           "type": "corner",
           "name": "Dunlop-Kehre",
           "direction": "right",
-          "startFrac": 0.3899,
-          "endFrac": 0.4641,
+          "startFrac": 0.3903,
+          "endFrac": 0.4633,
           "numbers": [
             6
           ]
@@ -250,15 +250,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4641,
-          "endFrac": 0.4736
+          "startFrac": 0.4633,
+          "endFrac": 0.4738
         },
         {
           "type": "corner",
           "name": "T7",
           "direction": "left",
-          "startFrac": 0.4736,
-          "endFrac": 0.5235,
+          "startFrac": 0.4738,
+          "endFrac": 0.5233,
           "numbers": [
             7
           ]
@@ -267,8 +267,8 @@
           "type": "corner",
           "name": "T8",
           "direction": "right",
-          "startFrac": 0.5235,
-          "endFrac": 0.5556,
+          "startFrac": 0.5233,
+          "endFrac": 0.554,
           "numbers": [
             8
           ]
@@ -276,15 +276,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5556,
-          "endFrac": 0.5816
+          "startFrac": 0.554,
+          "endFrac": 0.582
         },
         {
           "type": "corner",
           "name": "Michael-Schumacher-S",
           "direction": "left",
-          "startFrac": 0.5816,
-          "endFrac": 0.6366,
+          "startFrac": 0.582,
+          "endFrac": 0.6365,
           "numbers": [
             9
           ]
@@ -293,8 +293,8 @@
           "type": "corner",
           "name": "T10",
           "direction": "right",
-          "startFrac": 0.6366,
-          "endFrac": 0.6862,
+          "startFrac": 0.6365,
+          "endFrac": 0.6855,
           "numbers": [
             10
           ]
@@ -302,15 +302,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6862,
-          "endFrac": 0.7075
+          "startFrac": 0.6855,
+          "endFrac": 0.7083
         },
         {
           "type": "corner",
           "name": "T11",
           "direction": "right",
-          "startFrac": 0.7075,
-          "endFrac": 0.7672,
+          "startFrac": 0.7083,
+          "endFrac": 0.7656,
           "numbers": [
             11
           ]
@@ -318,14 +318,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7672,
-          "endFrac": 0.7987
+          "startFrac": 0.7656,
+          "endFrac": 0.7991
         },
         {
           "type": "corner",
           "name": "NGK-Schikane",
-          "startFrac": 0.7987,
-          "endFrac": 0.859,
+          "startFrac": 0.7991,
+          "endFrac": 0.8583,
           "numbers": [
             12,
             13
@@ -334,7 +334,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.859,
+          "startFrac": 0.8583,
           "endFrac": 0.8636
         },
         {
@@ -342,7 +342,7 @@
           "name": "T14",
           "direction": "right",
           "startFrac": 0.8636,
-          "endFrac": 0.9265,
+          "endFrac": 0.9257,
           "numbers": [
             14
           ]
@@ -350,13 +350,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9265,
+          "startFrac": 0.9257,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.341,
-        "s2End": 0.6366,
+        "s1End": 0.3399,
+        "s2End": 0.6365,
         "source": "corner-anchored"
       }
     }
@@ -366,14 +366,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.0423
+      "endFrac": 0.0426
     },
     {
       "type": "corner",
       "name": "Castrol-S",
       "direction": "right",
-      "startFrac": 0.0423,
-      "endFrac": 0.1007,
+      "startFrac": 0.0426,
+      "endFrac": 0.0981,
       "numbers": [
         1
       ]
@@ -382,7 +382,7 @@
       "type": "corner",
       "name": "Mercedes Arena",
       "direction": "left",
-      "startFrac": 0.1007,
+      "startFrac": 0.0981,
       "endFrac": 0.1792,
       "numbers": [
         2
@@ -393,7 +393,7 @@
       "name": "T3",
       "direction": "right",
       "startFrac": 0.1792,
-      "endFrac": 0.2104,
+      "endFrac": 0.2088,
       "numbers": [
         3
       ]
@@ -401,15 +401,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.2104,
-      "endFrac": 0.2416
+      "startFrac": 0.2088,
+      "endFrac": 0.2428
     },
     {
       "type": "corner",
       "name": "T4",
       "direction": "left",
-      "startFrac": 0.2416,
-      "endFrac": 0.299,
+      "startFrac": 0.2428,
+      "endFrac": 0.2988,
       "numbers": [
         4
       ]
@@ -418,8 +418,8 @@
       "type": "corner",
       "name": "T5",
       "direction": "right",
-      "startFrac": 0.299,
-      "endFrac": 0.341,
+      "startFrac": 0.2988,
+      "endFrac": 0.3399,
       "numbers": [
         5
       ]
@@ -427,15 +427,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.341,
-      "endFrac": 0.3899
+      "startFrac": 0.3399,
+      "endFrac": 0.3903
     },
     {
       "type": "corner",
       "name": "Dunlop-Kehre",
       "direction": "right",
-      "startFrac": 0.3899,
-      "endFrac": 0.4641,
+      "startFrac": 0.3903,
+      "endFrac": 0.4633,
       "numbers": [
         6
       ]
@@ -443,15 +443,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.4641,
-      "endFrac": 0.4736
+      "startFrac": 0.4633,
+      "endFrac": 0.4738
     },
     {
       "type": "corner",
       "name": "T7",
       "direction": "left",
-      "startFrac": 0.4736,
-      "endFrac": 0.5235,
+      "startFrac": 0.4738,
+      "endFrac": 0.5233,
       "numbers": [
         7
       ]
@@ -460,8 +460,8 @@
       "type": "corner",
       "name": "T8",
       "direction": "right",
-      "startFrac": 0.5235,
-      "endFrac": 0.5556,
+      "startFrac": 0.5233,
+      "endFrac": 0.554,
       "numbers": [
         8
       ]
@@ -469,15 +469,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.5556,
-      "endFrac": 0.5816
+      "startFrac": 0.554,
+      "endFrac": 0.582
     },
     {
       "type": "corner",
       "name": "Michael-Schumacher-S",
       "direction": "left",
-      "startFrac": 0.5816,
-      "endFrac": 0.6366,
+      "startFrac": 0.582,
+      "endFrac": 0.6365,
       "numbers": [
         9
       ]
@@ -486,8 +486,8 @@
       "type": "corner",
       "name": "T10",
       "direction": "right",
-      "startFrac": 0.6366,
-      "endFrac": 0.6862,
+      "startFrac": 0.6365,
+      "endFrac": 0.6855,
       "numbers": [
         10
       ]
@@ -495,15 +495,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.6862,
-      "endFrac": 0.7075
+      "startFrac": 0.6855,
+      "endFrac": 0.7083
     },
     {
       "type": "corner",
       "name": "T11",
       "direction": "right",
-      "startFrac": 0.7075,
-      "endFrac": 0.7672,
+      "startFrac": 0.7083,
+      "endFrac": 0.7656,
       "numbers": [
         11
       ]
@@ -511,14 +511,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7672,
-      "endFrac": 0.7987
+      "startFrac": 0.7656,
+      "endFrac": 0.7991
     },
     {
       "type": "corner",
       "name": "NGK-Schikane",
-      "startFrac": 0.7987,
-      "endFrac": 0.859,
+      "startFrac": 0.7991,
+      "endFrac": 0.8583,
       "numbers": [
         12,
         13
@@ -527,7 +527,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.859,
+      "startFrac": 0.8583,
       "endFrac": 0.8636
     },
     {
@@ -535,7 +535,7 @@
       "name": "T14",
       "direction": "right",
       "startFrac": 0.8636,
-      "endFrac": 0.9265,
+      "endFrac": 0.9257,
       "numbers": [
         14
       ]
@@ -543,7 +543,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9265,
+      "startFrac": 0.9257,
       "endFrac": 1
     }
   ]

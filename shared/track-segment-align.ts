@@ -59,6 +59,12 @@ export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; t
   const MIN_TURN_RAD = 0.20;   // ~11.5° of heading change required
   const MERGE_GAP_M = 50;      // same-direction regions closer than this merge
   const SIGN_RUN_M = 25;       // sustained opposite sign for this long = split
+  // K_OUT is deliberately loose so a corner's declining curvature tail bridges
+  // MERGE_GAP_M gaps into the next apex (double-apex corners, chicanes) instead
+  // of splitting. That same looseness makes regions overshoot into adjacent
+  // straights. K_TRIM re-tightens the rendered/timed boundary of an already
+  // merged region without touching detection or merge decisions above.
+  const K_TRIM = 1 / 300;
 
   const winIdx = Math.max(2, Math.round(CURV_WINDOW_M / meanSpacing));
   const kappa: number[] = new Array(n);
@@ -144,19 +150,33 @@ export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; t
 
   const corners: CornerRegion[] = mergedRegions
     .map((r) => {
+      // Existence (count, merge/split) is decided on the full K_OUT-bounded
+      // region above; turn/length here filter that same untrimmed region so
+      // trimming the exported boundary below can never change corner count.
       let turn = 0;
       for (let i = r.start; i <= r.end; i++) turn += Math.abs(kappa[i]) * meanSpacing;
+      const untrimmedLengthM = dists[r.end] - dists[r.start];
+
+      // Trim the loose K_OUT tail off each side, back to where curvature is
+      // actually corner-grade (K_TRIM) — bounded so it never crosses the apex.
+      let start = r.start;
+      while (start < r.apexIdx && Math.abs(kappa[start]) < K_TRIM) start++;
+      let end = r.end;
+      while (end > r.apexIdx && Math.abs(kappa[end]) < K_TRIM) end--;
+
       return {
-        startFrac: dists[r.start] / totalDist,
-        endFrac: dists[r.end] / totalDist,
+        startFrac: dists[start] / totalDist,
+        endFrac: dists[end] / totalDist,
         apexFrac: dists[r.apexIdx] / totalDist,
         direction: r.direction,
         peakKappa: r.peak,
-        lengthM: dists[r.end] - dists[r.start],
+        lengthM: dists[end] - dists[start],
         turnRad: turn,
+        untrimmedLengthM,
       };
     })
-    .filter((c) => c.lengthM >= MIN_CORNER_M && c.turnRad >= MIN_TURN_RAD);
+    .filter((c) => c.untrimmedLengthM >= MIN_CORNER_M && c.turnRad >= MIN_TURN_RAD)
+    .map(({ untrimmedLengthM, ...c }) => c);
 
   return { corners, totalDist };
 }

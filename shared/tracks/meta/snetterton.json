@@ -7,14 +7,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.038
+          "endFrac": 0.0422
         },
         {
           "type": "corner",
           "name": "Riches",
           "direction": "right",
-          "startFrac": 0.038,
-          "endFrac": 0.1287,
+          "startFrac": 0.0422,
+          "endFrac": 0.1234,
           "numbers": [
             1
           ]
@@ -22,15 +22,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1287,
-          "endFrac": 0.1345
+          "startFrac": 0.1234,
+          "endFrac": 0.1334
         },
         {
           "type": "corner",
           "name": "Montreal",
           "direction": "right",
-          "startFrac": 0.1345,
-          "endFrac": 0.2015,
+          "startFrac": 0.1334,
+          "endFrac": 0.1983,
           "numbers": [
             2
           ]
@@ -38,15 +38,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2015,
-          "endFrac": 0.2047
+          "startFrac": 0.1983,
+          "endFrac": 0.2036
         },
         {
           "type": "corner",
           "name": "Palmer",
           "direction": "left",
-          "startFrac": 0.2047,
-          "endFrac": 0.2774,
+          "startFrac": 0.2036,
+          "endFrac": 0.2764,
           "numbers": [
             3
           ]
@@ -54,7 +54,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2774,
+          "startFrac": 0.2764,
           "endFrac": 0.3123
         },
         {
@@ -62,17 +62,23 @@
           "name": "Agostini",
           "direction": "left",
           "startFrac": 0.3123,
-          "endFrac": 0.3908,
+          "endFrac": 0.3861,
           "numbers": [
             4
           ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3861,
+          "endFrac": 0.3908
         },
         {
           "type": "corner",
           "name": "Hamilton",
           "direction": "left",
           "startFrac": 0.3908,
-          "endFrac": 0.4473,
+          "endFrac": 0.4478,
           "numbers": [
             5
           ]
@@ -81,8 +87,8 @@
           "type": "corner",
           "name": "Oggies",
           "direction": "right",
-          "startFrac": 0.4473,
-          "endFrac": 0.5,
+          "startFrac": 0.4478,
+          "endFrac": 0.4989,
           "numbers": [
             6
           ]
@@ -91,8 +97,8 @@
           "type": "corner",
           "name": "Williams",
           "direction": "right",
-          "startFrac": 0.5,
-          "endFrac": 0.5591,
+          "startFrac": 0.4989,
+          "endFrac": 0.5506,
           "numbers": [
             7
           ]
@@ -100,14 +106,14 @@
         {
           "type": "straight",
           "name": "Bentley Straight",
-          "startFrac": 0.5591,
-          "endFrac": 0.6614
+          "startFrac": 0.5506,
+          "endFrac": 0.6741
         },
         {
           "type": "corner",
           "name": "Brundle",
           "direction": "left",
-          "startFrac": 0.6614,
+          "startFrac": 0.6741,
           "endFrac": 0.7184,
           "numbers": [
             8
@@ -128,17 +134,23 @@
           "name": "Bomb Hole",
           "direction": "right",
           "startFrac": 0.7474,
-          "endFrac": 0.8033,
+          "endFrac": 0.8017,
           "numbers": [
             10
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.8017,
+          "endFrac": 0.8138
+        },
+        {
           "type": "corner",
           "name": "Coram",
           "direction": "right",
-          "startFrac": 0.8033,
-          "endFrac": 0.8924,
+          "startFrac": 0.8138,
+          "endFrac": 0.8909,
           "numbers": [
             11
           ]
@@ -147,8 +159,8 @@
           "type": "corner",
           "name": "Murrays",
           "direction": "left",
-          "startFrac": 0.8924,
-          "endFrac": 0.9241,
+          "startFrac": 0.8909,
+          "endFrac": 0.923,
           "numbers": [
             12
           ]
@@ -156,12 +168,12 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9241,
+          "startFrac": 0.923,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3908,
+        "s1End": 0.3861,
         "s2End": 0.7474,
         "source": "corner-anchored"
       }
@@ -172,14 +184,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.038
+      "endFrac": 0.0422
     },
     {
       "type": "corner",
       "name": "Riches",
       "direction": "right",
-      "startFrac": 0.038,
-      "endFrac": 0.1287,
+      "startFrac": 0.0422,
+      "endFrac": 0.1234,
       "numbers": [
         1
       ]
@@ -187,15 +199,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1287,
-      "endFrac": 0.1345
+      "startFrac": 0.1234,
+      "endFrac": 0.1334
     },
     {
       "type": "corner",
       "name": "Montreal",
       "direction": "right",
-      "startFrac": 0.1345,
-      "endFrac": 0.2015,
+      "startFrac": 0.1334,
+      "endFrac": 0.1983,
       "numbers": [
         2
       ]
@@ -203,15 +215,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.2015,
-      "endFrac": 0.2047
+      "startFrac": 0.1983,
+      "endFrac": 0.2036
     },
     {
       "type": "corner",
       "name": "Palmer",
       "direction": "left",
-      "startFrac": 0.2047,
-      "endFrac": 0.2774,
+      "startFrac": 0.2036,
+      "endFrac": 0.2764,
       "numbers": [
         3
       ]
@@ -219,7 +231,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.2774,
+      "startFrac": 0.2764,
       "endFrac": 0.3123
     },
     {
@@ -227,17 +239,23 @@
       "name": "Agostini",
       "direction": "left",
       "startFrac": 0.3123,
-      "endFrac": 0.3908,
+      "endFrac": 0.3861,
       "numbers": [
         4
       ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3861,
+      "endFrac": 0.3908
     },
     {
       "type": "corner",
       "name": "Hamilton",
       "direction": "left",
       "startFrac": 0.3908,
-      "endFrac": 0.4473,
+      "endFrac": 0.4478,
       "numbers": [
         5
       ]
@@ -246,8 +264,8 @@
       "type": "corner",
       "name": "Oggies",
       "direction": "right",
-      "startFrac": 0.4473,
-      "endFrac": 0.5,
+      "startFrac": 0.4478,
+      "endFrac": 0.4989,
       "numbers": [
         6
       ]
@@ -256,8 +274,8 @@
       "type": "corner",
       "name": "Williams",
       "direction": "right",
-      "startFrac": 0.5,
-      "endFrac": 0.5591,
+      "startFrac": 0.4989,
+      "endFrac": 0.5506,
       "numbers": [
         7
       ]
@@ -265,14 +283,14 @@
     {
       "type": "straight",
       "name": "Bentley Straight",
-      "startFrac": 0.5591,
-      "endFrac": 0.6614
+      "startFrac": 0.5506,
+      "endFrac": 0.6741
     },
     {
       "type": "corner",
       "name": "Brundle",
       "direction": "left",
-      "startFrac": 0.6614,
+      "startFrac": 0.6741,
       "endFrac": 0.7184,
       "numbers": [
         8
@@ -293,17 +311,23 @@
       "name": "Bomb Hole",
       "direction": "right",
       "startFrac": 0.7474,
-      "endFrac": 0.8033,
+      "endFrac": 0.8017,
       "numbers": [
         10
       ]
     },
     {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.8017,
+      "endFrac": 0.8138
+    },
+    {
       "type": "corner",
       "name": "Coram",
       "direction": "right",
-      "startFrac": 0.8033,
-      "endFrac": 0.8924,
+      "startFrac": 0.8138,
+      "endFrac": 0.8909,
       "numbers": [
         11
       ]
@@ -312,8 +336,8 @@
       "type": "corner",
       "name": "Murrays",
       "direction": "left",
-      "startFrac": 0.8924,
-      "endFrac": 0.9241,
+      "startFrac": 0.8909,
+      "endFrac": 0.923,
       "numbers": [
         12
       ]
@@ -321,12 +345,12 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9241,
+      "startFrac": 0.923,
       "endFrac": 1
     }
   ],
   "sectors": {
-    "s1End": 0.3908,
+    "s1End": 0.3861,
     "s2End": 0.7474,
     "source": "corner-anchored"
   }

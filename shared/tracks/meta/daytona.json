@@ -1,8 +1,8 @@
 {
   "name": "Daytona International Speedway",
   "sectors": {
-    "s1End": 0.3391,
-    "s2End": 0.6955,
+    "s1End": 0.3373,
+    "s2End": 0.6957,
     "source": "corner-anchored"
   },
   "games": {
@@ -12,14 +12,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.026
+          "endFrac": 0.0262
         },
         {
           "type": "corner",
           "name": "T1",
           "direction": "left",
-          "startFrac": 0.026,
-          "endFrac": 0.1038,
+          "startFrac": 0.0262,
+          "endFrac": 0.1005,
           "numbers": [
             1
           ]
@@ -28,8 +28,8 @@
           "type": "corner",
           "name": "T2",
           "direction": "right",
-          "startFrac": 0.1038,
-          "endFrac": 0.115,
+          "startFrac": 0.1005,
+          "endFrac": 0.1134,
           "numbers": [
             2
           ]
@@ -38,8 +38,8 @@
           "type": "corner",
           "name": "T3",
           "direction": "left",
-          "startFrac": 0.115,
-          "endFrac": 0.1385,
+          "startFrac": 0.1134,
+          "endFrac": 0.1378,
           "numbers": [
             3
           ]
@@ -47,15 +47,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1385,
-          "endFrac": 0.1411
+          "startFrac": 0.1378,
+          "endFrac": 0.1409
         },
         {
           "type": "corner",
           "name": "International Horseshoe",
           "direction": "right",
-          "startFrac": 0.1411,
-          "endFrac": 0.1971,
+          "startFrac": 0.1409,
+          "endFrac": 0.1926,
           "numbers": [
             4
           ]
@@ -63,25 +63,31 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1971,
-          "endFrac": 0.219
+          "startFrac": 0.1926,
+          "endFrac": 0.2207
         },
         {
           "type": "corner",
           "name": "T5",
           "direction": "left",
-          "startFrac": 0.219,
-          "endFrac": 0.2764,
+          "startFrac": 0.2207,
+          "endFrac": 0.269,
           "numbers": [
             5
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.269,
+          "endFrac": 0.2737
+        },
+        {
           "type": "corner",
           "name": "West Horseshoe",
           "direction": "right",
-          "startFrac": 0.2764,
-          "endFrac": 0.3391,
+          "startFrac": 0.2737,
+          "endFrac": 0.3373,
           "numbers": [
             6
           ]
@@ -89,15 +95,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3391,
-          "endFrac": 0.3476
+          "startFrac": 0.3373,
+          "endFrac": 0.3467
         },
         {
           "type": "corner",
           "name": "NASCAR 1-2 Banking",
           "direction": "left",
-          "startFrac": 0.3476,
-          "endFrac": 0.4228,
+          "startFrac": 0.3467,
+          "endFrac": 0.4207,
           "numbers": [
             7
           ]
@@ -105,14 +111,14 @@
         {
           "type": "straight",
           "name": "Backstretch",
-          "startFrac": 0.4228,
-          "endFrac": 0.6369
+          "startFrac": 0.4207,
+          "endFrac": 0.6376
         },
         {
           "type": "corner",
           "name": "Bus Stop",
-          "startFrac": 0.6369,
-          "endFrac": 0.6955,
+          "startFrac": 0.6376,
+          "endFrac": 0.6957,
           "numbers": [
             8,
             9,
@@ -123,8 +129,8 @@
           "type": "corner",
           "name": "NASCAR 3-4 Banking",
           "direction": "left",
-          "startFrac": 0.6955,
-          "endFrac": 0.7189,
+          "startFrac": 0.6957,
+          "endFrac": 0.7175,
           "numbers": [
             11
           ]
@@ -132,13 +138,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7189,
+          "startFrac": 0.7175,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3391,
-        "s2End": 0.6955,
+        "s1End": 0.3373,
+        "s2End": 0.6957,
         "source": "corner-anchored"
       }
     }
@@ -148,14 +154,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.026
+      "endFrac": 0.0262
     },
     {
       "type": "corner",
       "name": "T1",
       "direction": "left",
-      "startFrac": 0.026,
-      "endFrac": 0.1038,
+      "startFrac": 0.0262,
+      "endFrac": 0.1005,
       "numbers": [
         1
       ]
@@ -164,8 +170,8 @@
       "type": "corner",
       "name": "T2",
       "direction": "right",
-      "startFrac": 0.1038,
-      "endFrac": 0.115,
+      "startFrac": 0.1005,
+      "endFrac": 0.1134,
       "numbers": [
         2
       ]
@@ -174,8 +180,8 @@
       "type": "corner",
       "name": "T3",
       "direction": "left",
-      "startFrac": 0.115,
-      "endFrac": 0.1385,
+      "startFrac": 0.1134,
+      "endFrac": 0.1378,
       "numbers": [
         3
       ]
@@ -183,15 +189,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1385,
-      "endFrac": 0.1411
+      "startFrac": 0.1378,
+      "endFrac": 0.1409
     },
     {
       "type": "corner",
       "name": "International Horseshoe",
       "direction": "right",
-      "startFrac": 0.1411,
-      "endFrac": 0.1971,
+      "startFrac": 0.1409,
+      "endFrac": 0.1926,
       "numbers": [
         4
       ]
@@ -199,25 +205,31 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1971,
-      "endFrac": 0.219
+      "startFrac": 0.1926,
+      "endFrac": 0.2207
     },
     {
       "type": "corner",
       "name": "T5",
       "direction": "left",
-      "startFrac": 0.219,
-      "endFrac": 0.2764,
+      "startFrac": 0.2207,
+      "endFrac": 0.269,
       "numbers": [
         5
       ]
     },
     {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.269,
+      "endFrac": 0.2737
+    },
+    {
       "type": "corner",
       "name": "West Horseshoe",
       "direction": "right",
-      "startFrac": 0.2764,
-      "endFrac": 0.3391,
+      "startFrac": 0.2737,
+      "endFrac": 0.3373,
       "numbers": [
         6
       ]
@@ -225,15 +237,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3391,
-      "endFrac": 0.3476
+      "startFrac": 0.3373,
+      "endFrac": 0.3467
     },
     {
       "type": "corner",
       "name": "NASCAR 1-2 Banking",
       "direction": "left",
-      "startFrac": 0.3476,
-      "endFrac": 0.4228,
+      "startFrac": 0.3467,
+      "endFrac": 0.4207,
       "numbers": [
         7
       ]
@@ -241,14 +253,14 @@
     {
       "type": "straight",
       "name": "Backstretch",
-      "startFrac": 0.4228,
-      "endFrac": 0.6369
+      "startFrac": 0.4207,
+      "endFrac": 0.6376
     },
     {
       "type": "corner",
       "name": "Bus Stop",
-      "startFrac": 0.6369,
-      "endFrac": 0.6955,
+      "startFrac": 0.6376,
+      "endFrac": 0.6957,
       "numbers": [
         8,
         9,
@@ -259,8 +271,8 @@
       "type": "corner",
       "name": "NASCAR 3-4 Banking",
       "direction": "left",
-      "startFrac": 0.6955,
-      "endFrac": 0.7189,
+      "startFrac": 0.6957,
+      "endFrac": 0.7175,
       "numbers": [
         11
       ]
@@ -268,7 +280,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7189,
+      "startFrac": 0.7175,
       "endFrac": 1
     }
   ]

@@ -7,13 +7,13 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0754
+          "endFrac": 0.0763
         },
         {
           "type": "corner",
           "name": "S de la Verrerie",
-          "startFrac": 0.0754,
-          "endFrac": 0.1595,
+          "startFrac": 0.0763,
+          "endFrac": 0.1569,
           "numbers": [
             1,
             2
@@ -22,15 +22,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1595,
-          "endFrac": 0.1928
+          "startFrac": 0.1569,
+          "endFrac": 0.1946
         },
         {
           "type": "corner",
           "name": "T3",
           "direction": "right",
-          "startFrac": 0.1928,
-          "endFrac": 0.2349,
+          "startFrac": 0.1946,
+          "endFrac": 0.2345,
           "numbers": [
             3
           ]
@@ -39,8 +39,8 @@
           "type": "corner",
           "name": "T4",
           "direction": "left",
-          "startFrac": 0.2349,
-          "endFrac": 0.2546,
+          "startFrac": 0.2345,
+          "endFrac": 0.2537,
           "numbers": [
             4
           ]
@@ -49,8 +49,8 @@
           "type": "corner",
           "name": "Sainte-Beaume",
           "direction": "right",
-          "startFrac": 0.2546,
-          "endFrac": 0.3094,
+          "startFrac": 0.2537,
+          "endFrac": 0.3129,
           "numbers": [
             5
           ]
@@ -59,8 +59,8 @@
           "type": "corner",
           "name": "T6",
           "direction": "left",
-          "startFrac": 0.3094,
-          "endFrac": 0.3558,
+          "startFrac": 0.3129,
+          "endFrac": 0.34,
           "numbers": [
             6
           ]
@@ -68,25 +68,31 @@
         {
           "type": "straight",
           "name": "Mistral Straight",
-          "startFrac": 0.3558,
-          "endFrac": 0.6276
+          "startFrac": 0.34,
+          "endFrac": 0.6372
         },
         {
           "type": "corner",
           "name": "Signes",
           "direction": "right",
-          "startFrac": 0.6276,
-          "endFrac": 0.7091,
+          "startFrac": 0.6372,
+          "endFrac": 0.6775,
           "numbers": [
             7
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6775,
+          "endFrac": 0.7047
+        },
+        {
           "type": "corner",
           "name": "T8",
           "direction": "right",
-          "startFrac": 0.7091,
-          "endFrac": 0.7989,
+          "startFrac": 0.7047,
+          "endFrac": 0.7963,
           "numbers": [
             8
           ]
@@ -95,8 +101,8 @@
           "type": "corner",
           "name": "Beausset",
           "direction": "left",
-          "startFrac": 0.7989,
-          "endFrac": 0.8453,
+          "startFrac": 0.7963,
+          "endFrac": 0.8515,
           "numbers": [
             9
           ]
@@ -104,8 +110,8 @@
         {
           "type": "corner",
           "name": "Bendor",
-          "startFrac": 0.8453,
-          "endFrac": 0.9658,
+          "startFrac": 0.8515,
+          "endFrac": 0.9649,
           "numbers": [
             10,
             11,
@@ -115,13 +121,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9658,
+          "startFrac": 0.9649,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3094,
-        "s2End": 0.8453,
+        "s1End": 0.3129,
+        "s2End": 0.8515,
         "source": "corner-anchored"
       }
     }
@@ -131,13 +137,13 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.0754
+      "endFrac": 0.0763
     },
     {
       "type": "corner",
       "name": "S de la Verrerie",
-      "startFrac": 0.0754,
-      "endFrac": 0.1595,
+      "startFrac": 0.0763,
+      "endFrac": 0.1569,
       "numbers": [
         1,
         2
@@ -146,15 +152,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1595,
-      "endFrac": 0.1928
+      "startFrac": 0.1569,
+      "endFrac": 0.1946
     },
     {
       "type": "corner",
       "name": "T3",
       "direction": "right",
-      "startFrac": 0.1928,
-      "endFrac": 0.2349,
+      "startFrac": 0.1946,
+      "endFrac": 0.2345,
       "numbers": [
         3
       ]
@@ -163,8 +169,8 @@
       "type": "corner",
       "name": "T4",
       "direction": "left",
-      "startFrac": 0.2349,
-      "endFrac": 0.2546,
+      "startFrac": 0.2345,
+      "endFrac": 0.2537,
       "numbers": [
         4
       ]
@@ -173,8 +179,8 @@
       "type": "corner",
       "name": "Sainte-Beaume",
       "direction": "right",
-      "startFrac": 0.2546,
-      "endFrac": 0.3094,
+      "startFrac": 0.2537,
+      "endFrac": 0.3129,
       "numbers": [
         5
       ]
@@ -183,8 +189,8 @@
       "type": "corner",
       "name": "T6",
       "direction": "left",
-      "startFrac": 0.3094,
-      "endFrac": 0.3558,
+      "startFrac": 0.3129,
+      "endFrac": 0.34,
       "numbers": [
         6
       ]
@@ -192,25 +198,31 @@
     {
       "type": "straight",
       "name": "Mistral Straight",
-      "startFrac": 0.3558,
-      "endFrac": 0.6276
+      "startFrac": 0.34,
+      "endFrac": 0.6372
     },
     {
       "type": "corner",
       "name": "Signes",
       "direction": "right",
-      "startFrac": 0.6276,
-      "endFrac": 0.7091,
+      "startFrac": 0.6372,
+      "endFrac": 0.6775,
       "numbers": [
         7
       ]
     },
     {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.6775,
+      "endFrac": 0.7047
+    },
+    {
       "type": "corner",
       "name": "T8",
       "direction": "right",
-      "startFrac": 0.7091,
-      "endFrac": 0.7989,
+      "startFrac": 0.7047,
+      "endFrac": 0.7963,
       "numbers": [
         8
       ]
@@ -219,8 +231,8 @@
       "type": "corner",
       "name": "Beausset",
       "direction": "left",
-      "startFrac": 0.7989,
-      "endFrac": 0.8453,
+      "startFrac": 0.7963,
+      "endFrac": 0.8515,
       "numbers": [
         9
       ]
@@ -228,8 +240,8 @@
     {
       "type": "corner",
       "name": "Bendor",
-      "startFrac": 0.8453,
-      "endFrac": 0.9658,
+      "startFrac": 0.8515,
+      "endFrac": 0.9649,
       "numbers": [
         10,
         11,
@@ -239,13 +251,13 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9658,
+      "startFrac": 0.9649,
       "endFrac": 1
     }
   ],
   "sectors": {
-    "s1End": 0.3094,
-    "s2End": 0.8453,
+    "s1End": 0.3129,
+    "s2End": 0.8515,
     "source": "corner-anchored"
   }
 }

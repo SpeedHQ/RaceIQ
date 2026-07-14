@@ -1,15 +1,15 @@
 {
   "name": "Suzuka Circuit",
   "sectors": {
-    "s1End": 0.3821,
-    "s2End": 0.826,
+    "s1End": 0.3599,
+    "s2End": 0.8191,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3821,
-        "s2End": 0.826,
+        "s1End": 0.3599,
+        "s2End": 0.8191,
         "source": "corner-anchored"
       },
       "segments": [
@@ -17,14 +17,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0871
+          "endFrac": 0.0889
         },
         {
           "type": "corner",
           "name": "First Curve",
           "direction": "right",
-          "startFrac": 0.0871,
-          "endFrac": 0.1725,
+          "startFrac": 0.0889,
+          "endFrac": 0.1727,
           "numbers": [
             1,
             2
@@ -33,8 +33,8 @@
         {
           "type": "corner",
           "name": "S Curves",
-          "startFrac": 0.1725,
-          "endFrac": 0.2889,
+          "startFrac": 0.1727,
+          "endFrac": 0.2891,
           "numbers": [
             3,
             4,
@@ -46,18 +46,24 @@
           "type": "corner",
           "name": "Dunlop",
           "direction": "left",
-          "startFrac": 0.2889,
-          "endFrac": 0.3821,
+          "startFrac": 0.2891,
+          "endFrac": 0.3599,
           "numbers": [
             7
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3599,
+          "endFrac": 0.3708
+        },
+        {
           "type": "corner",
           "name": "Degner",
           "direction": "right",
-          "startFrac": 0.3821,
-          "endFrac": 0.443,
+          "startFrac": 0.3708,
+          "endFrac": 0.4416,
           "numbers": [
             8,
             9
@@ -66,7 +72,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.443,
+          "startFrac": 0.4416,
           "endFrac": 0.4523
         },
         {
@@ -74,7 +80,7 @@
           "name": "T10",
           "direction": "right",
           "startFrac": 0.4523,
-          "endFrac": 0.4919,
+          "endFrac": 0.4912,
           "numbers": [
             10
           ]
@@ -83,8 +89,8 @@
           "type": "corner",
           "name": "Hairpin",
           "direction": "left",
-          "startFrac": 0.4919,
-          "endFrac": 0.5258,
+          "startFrac": 0.4912,
+          "endFrac": 0.5256,
           "numbers": [
             11
           ]
@@ -93,18 +99,24 @@
           "type": "corner",
           "name": "T12",
           "direction": "right",
-          "startFrac": 0.5258,
-          "endFrac": 0.6394,
+          "startFrac": 0.5256,
+          "endFrac": 0.6149,
           "numbers": [
             12
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6149,
+          "endFrac": 0.6268
+        },
+        {
           "type": "corner",
           "name": "Spoon",
           "direction": "left",
-          "startFrac": 0.6394,
-          "endFrac": 0.7225,
+          "startFrac": 0.6268,
+          "endFrac": 0.7156,
           "numbers": [
             13,
             14
@@ -113,7 +125,7 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.7225,
+          "startFrac": 0.7156,
           "endFrac": 0.8287
         },
         {
@@ -121,7 +133,7 @@
           "name": "130R",
           "direction": "left",
           "startFrac": 0.8287,
-          "endFrac": 0.878,
+          "endFrac": 0.8766,
           "numbers": [
             15
           ]
@@ -129,14 +141,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.878,
+          "startFrac": 0.8766,
           "endFrac": 0.9025
         },
         {
           "type": "corner",
           "name": "Casio Triangle",
           "startFrac": 0.9025,
-          "endFrac": 0.9466,
+          "endFrac": 0.9473,
           "numbers": [
             16,
             17
@@ -146,8 +158,8 @@
           "type": "corner",
           "name": "T18",
           "direction": "right",
-          "startFrac": 0.9466,
-          "endFrac": 0.9895,
+          "startFrac": 0.9473,
+          "endFrac": 0.9828,
           "numbers": [
             18
           ]
@@ -155,7 +167,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9895,
+          "startFrac": 0.9828,
           "endFrac": 1
         }
       ]
@@ -166,14 +178,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0321
+          "endFrac": 0.0391
         },
         {
           "type": "corner",
           "name": "First Curve",
           "direction": "right",
-          "startFrac": 0.0321,
-          "endFrac": 0.1225,
+          "startFrac": 0.0391,
+          "endFrac": 0.123,
           "numbers": [
             1,
             2
@@ -182,8 +194,8 @@
         {
           "type": "corner",
           "name": "S Curves",
-          "startFrac": 0.1225,
-          "endFrac": 0.2355,
+          "startFrac": 0.123,
+          "endFrac": 0.2346,
           "numbers": [
             3,
             4,
@@ -195,18 +207,24 @@
           "type": "corner",
           "name": "Dunlop",
           "direction": "left",
-          "startFrac": 0.2355,
-          "endFrac": 0.327,
+          "startFrac": 0.2346,
+          "endFrac": 0.2754,
           "numbers": [
             7
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2754,
+          "endFrac": 0.3127
+        },
+        {
           "type": "corner",
           "name": "Degner",
           "direction": "right",
-          "startFrac": 0.327,
-          "endFrac": 0.3944,
+          "startFrac": 0.3127,
+          "endFrac": 0.3935,
           "numbers": [
             8,
             9
@@ -215,7 +233,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3944,
+          "startFrac": 0.3935,
           "endFrac": 0.4001
         },
         {
@@ -223,7 +241,7 @@
           "name": "T10",
           "direction": "right",
           "startFrac": 0.4001,
-          "endFrac": 0.4392,
+          "endFrac": 0.4318,
           "numbers": [
             10
           ]
@@ -232,8 +250,8 @@
           "type": "corner",
           "name": "Hairpin",
           "direction": "left",
-          "startFrac": 0.4392,
-          "endFrac": 0.4726,
+          "startFrac": 0.4318,
+          "endFrac": 0.4752,
           "numbers": [
             11
           ]
@@ -242,8 +260,8 @@
           "type": "corner",
           "name": "T12",
           "direction": "right",
-          "startFrac": 0.4726,
-          "endFrac": 0.5299,
+          "startFrac": 0.4752,
+          "endFrac": 0.5039,
           "numbers": [
             12
           ]
@@ -251,15 +269,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5299,
-          "endFrac": 0.5664
+          "startFrac": 0.5039,
+          "endFrac": 0.5699
         },
         {
           "type": "corner",
           "name": "Spoon",
           "direction": "left",
-          "startFrac": 0.5664,
-          "endFrac": 0.6724,
+          "startFrac": 0.5699,
+          "endFrac": 0.6707,
           "numbers": [
             13,
             14
@@ -268,15 +286,15 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.6724,
-          "endFrac": 0.7741
+          "startFrac": 0.6707,
+          "endFrac": 0.7819
         },
         {
           "type": "corner",
           "name": "130R",
           "direction": "left",
-          "startFrac": 0.7741,
-          "endFrac": 0.8489,
+          "startFrac": 0.7819,
+          "endFrac": 0.8219,
           "numbers": [
             15
           ]
@@ -284,13 +302,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.8489,
-          "endFrac": 0.8537
+          "startFrac": 0.8219,
+          "endFrac": 0.8462
         },
         {
           "type": "corner",
           "name": "Casio Triangle",
-          "startFrac": 0.8537,
+          "startFrac": 0.8462,
           "endFrac": 0.8967,
           "numbers": [
             16,
@@ -302,7 +320,7 @@
           "name": "T18",
           "direction": "right",
           "startFrac": 0.8967,
-          "endFrac": 0.9427,
+          "endFrac": 0.9296,
           "numbers": [
             18
           ]
@@ -310,13 +328,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9427,
+          "startFrac": 0.9296,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.327,
-        "s2End": 0.7767,
+        "s1End": 0.2754,
+        "s2End": 0.775,
         "source": "corner-anchored"
       }
     }
@@ -326,14 +344,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.0871
+      "endFrac": 0.0889
     },
     {
       "type": "corner",
       "name": "First Curve",
       "direction": "right",
-      "startFrac": 0.0871,
-      "endFrac": 0.1725,
+      "startFrac": 0.0889,
+      "endFrac": 0.1727,
       "numbers": [
         1,
         2
@@ -342,8 +360,8 @@
     {
       "type": "corner",
       "name": "S Curves",
-      "startFrac": 0.1725,
-      "endFrac": 0.2889,
+      "startFrac": 0.1727,
+      "endFrac": 0.2891,
       "numbers": [
         3,
         4,
@@ -355,18 +373,24 @@
       "type": "corner",
       "name": "Dunlop",
       "direction": "left",
-      "startFrac": 0.2889,
-      "endFrac": 0.3821,
+      "startFrac": 0.2891,
+      "endFrac": 0.3599,
       "numbers": [
         7
       ]
     },
     {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3599,
+      "endFrac": 0.3708
+    },
+    {
       "type": "corner",
       "name": "Degner",
       "direction": "right",
-      "startFrac": 0.3821,
-      "endFrac": 0.443,
+      "startFrac": 0.3708,
+      "endFrac": 0.4416,
       "numbers": [
         8,
         9
@@ -375,7 +399,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.443,
+      "startFrac": 0.4416,
       "endFrac": 0.4523
     },
     {
@@ -383,7 +407,7 @@
       "name": "T10",
       "direction": "right",
       "startFrac": 0.4523,
-      "endFrac": 0.4919,
+      "endFrac": 0.4912,
       "numbers": [
         10
       ]
@@ -392,8 +416,8 @@
       "type": "corner",
       "name": "Hairpin",
       "direction": "left",
-      "startFrac": 0.4919,
-      "endFrac": 0.5258,
+      "startFrac": 0.4912,
+      "endFrac": 0.5256,
       "numbers": [
         11
       ]
@@ -402,18 +426,24 @@
       "type": "corner",
       "name": "T12",
       "direction": "right",
-      "startFrac": 0.5258,
-      "endFrac": 0.6394,
+      "startFrac": 0.5256,
+      "endFrac": 0.6149,
       "numbers": [
         12
       ]
     },
     {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.6149,
+      "endFrac": 0.6268
+    },
+    {
       "type": "corner",
       "name": "Spoon",
       "direction": "left",
-      "startFrac": 0.6394,
-      "endFrac": 0.7225,
+      "startFrac": 0.6268,
+      "endFrac": 0.7156,
       "numbers": [
         13,
         14
@@ -422,7 +452,7 @@
     {
       "type": "straight",
       "name": "Back Straight",
-      "startFrac": 0.7225,
+      "startFrac": 0.7156,
       "endFrac": 0.8287
     },
     {
@@ -430,7 +460,7 @@
       "name": "130R",
       "direction": "left",
       "startFrac": 0.8287,
-      "endFrac": 0.878,
+      "endFrac": 0.8766,
       "numbers": [
         15
       ]
@@ -438,14 +468,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.878,
+      "startFrac": 0.8766,
       "endFrac": 0.9025
     },
     {
       "type": "corner",
       "name": "Casio Triangle",
       "startFrac": 0.9025,
-      "endFrac": 0.9466,
+      "endFrac": 0.9473,
       "numbers": [
         16,
         17
@@ -455,8 +485,8 @@
       "type": "corner",
       "name": "T18",
       "direction": "right",
-      "startFrac": 0.9466,
-      "endFrac": 0.9895,
+      "startFrac": 0.9473,
+      "endFrac": 0.9828,
       "numbers": [
         18
       ]
@@ -464,7 +494,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9895,
+      "startFrac": 0.9828,
       "endFrac": 1
     }
   ]

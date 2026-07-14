@@ -3,8 +3,8 @@
   "games": {
     "fm-2023": {
       "sectors": {
-        "s1End": 0.3734,
-        "s2End": 0.6584,
+        "s1End": 0.3733,
+        "s2End": 0.6573,
         "source": "corner-anchored"
       },
       "segments": [
@@ -12,14 +12,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0385
+          "endFrac": 0.0405
         },
         {
           "type": "corner",
           "name": "Paddock Hill Bend",
           "direction": "right",
-          "startFrac": 0.0385,
-          "endFrac": 0.2292,
+          "startFrac": 0.0405,
+          "endFrac": 0.2219,
           "numbers": [
             1
           ]
@@ -27,15 +27,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2292,
-          "endFrac": 0.2383
+          "startFrac": 0.2219,
+          "endFrac": 0.2351
         },
         {
           "type": "corner",
           "name": "Druids",
           "direction": "right",
-          "startFrac": 0.2383,
-          "endFrac": 0.3734,
+          "startFrac": 0.2351,
+          "endFrac": 0.3733,
           "numbers": [
             2
           ]
@@ -44,8 +44,8 @@
           "type": "corner",
           "name": "Graham Hill Bend",
           "direction": "left",
-          "startFrac": 0.3734,
-          "endFrac": 0.5119,
+          "startFrac": 0.3733,
+          "endFrac": 0.5067,
           "numbers": [
             3
           ]
@@ -53,15 +53,15 @@
         {
           "type": "straight",
           "name": "Cooper Straight",
-          "startFrac": 0.5119,
-          "endFrac": 0.5347
+          "startFrac": 0.5067,
+          "endFrac": 0.5353
         },
         {
           "type": "corner",
           "name": "Surtees",
           "direction": "left",
-          "startFrac": 0.5347,
-          "endFrac": 0.6584,
+          "startFrac": 0.5353,
+          "endFrac": 0.6573,
           "numbers": [
             4
           ]
@@ -70,8 +70,8 @@
           "type": "corner",
           "name": "Clearways",
           "direction": "right",
-          "startFrac": 0.6584,
-          "endFrac": 0.9325,
+          "startFrac": 0.6573,
+          "endFrac": 0.8993,
           "numbers": [
             5
           ]
@@ -79,7 +79,7 @@
         {
           "type": "straight",
           "name": "Brabham Straight",
-          "startFrac": 0.9325,
+          "startFrac": 0.8993,
           "endFrac": 1
         }
       ]
@@ -90,14 +90,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.0385
+      "endFrac": 0.0405
     },
     {
       "type": "corner",
       "name": "Paddock Hill Bend",
       "direction": "right",
-      "startFrac": 0.0385,
-      "endFrac": 0.2292,
+      "startFrac": 0.0405,
+      "endFrac": 0.2219,
       "numbers": [
         1
       ]
@@ -105,15 +105,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.2292,
-      "endFrac": 0.2383
+      "startFrac": 0.2219,
+      "endFrac": 0.2351
     },
     {
       "type": "corner",
       "name": "Druids",
       "direction": "right",
-      "startFrac": 0.2383,
-      "endFrac": 0.3734,
+      "startFrac": 0.2351,
+      "endFrac": 0.3733,
       "numbers": [
         2
       ]
@@ -122,8 +122,8 @@
       "type": "corner",
       "name": "Graham Hill Bend",
       "direction": "left",
-      "startFrac": 0.3734,
-      "endFrac": 0.5119,
+      "startFrac": 0.3733,
+      "endFrac": 0.5067,
       "numbers": [
         3
       ]
@@ -131,15 +131,15 @@
     {
       "type": "straight",
       "name": "Cooper Straight",
-      "startFrac": 0.5119,
-      "endFrac": 0.5347
+      "startFrac": 0.5067,
+      "endFrac": 0.5353
     },
     {
       "type": "corner",
       "name": "Surtees",
       "direction": "left",
-      "startFrac": 0.5347,
-      "endFrac": 0.6584,
+      "startFrac": 0.5353,
+      "endFrac": 0.6573,
       "numbers": [
         4
       ]
@@ -148,8 +148,8 @@
       "type": "corner",
       "name": "Clearways",
       "direction": "right",
-      "startFrac": 0.6584,
-      "endFrac": 0.9325,
+      "startFrac": 0.6573,
+      "endFrac": 0.8993,
       "numbers": [
         5
       ]
@@ -157,13 +157,13 @@
     {
       "type": "straight",
       "name": "Brabham Straight",
-      "startFrac": 0.9325,
+      "startFrac": 0.8993,
       "endFrac": 1
     }
   ],
   "sectors": {
-    "s1End": 0.3734,
-    "s2End": 0.6584,
+    "s1End": 0.3733,
+    "s2End": 0.6573,
     "source": "corner-anchored"
   }
 }
