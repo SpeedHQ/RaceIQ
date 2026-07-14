@@ -380,13 +380,14 @@ function round4(v: number): number {
 export function alignSegments(
   detected: CornerRegion[],
   nameList: CornerNameList,
+  totalDistM?: number,
 ): AlignmentResult {
   const flip = (c: CornerRegion): CornerRegion => ({
     ...c,
     direction: c.direction === "left" ? "right" : "left",
   });
-  const normal = alignOnePolarity(detected, nameList);
-  const mirrored = alignOnePolarity(detected.map(flip), nameList);
+  const normal = alignOnePolarity(detected, nameList, totalDistM);
+  const mirrored = alignOnePolarity(detected.map(flip), nameList, totalDistM);
   if (!normal.ok || (mirrored.ok && mirrored.cost < normal.cost)) {
     if (mirrored.ok) {
       mirrored.issues.push({ severity: "warning", message: "mirrored coordinate system detected — directions flipped to real-world" });
@@ -399,6 +400,7 @@ export function alignSegments(
 function alignOnePolarity(
   detected: CornerRegion[],
   nameList: CornerNameList,
+  totalDistM?: number,
 ): AlignmentResult {
   const issues: AlignmentIssue[] = [];
   const units = buildUnits(nameList.corners);
@@ -479,6 +481,25 @@ function alignOnePolarity(
     straightNameAfterRegion.set(idx, s.name);
   }
 
+  // Stretch each corner over its approach and exit: coaching sections cover
+  // the braking zone and corner exit, not just the tight curvature arc
+  // (matches how track guides describe corners). Capped at half the gap to
+  // the neighbouring corner so real straights (Kemmel) survive intact.
+  // Sector anchoring above uses the unpadded geometric exits.
+  const ENTRY_PAD_M = 150;
+  const EXIT_PAD_M = 80;
+  const padded = corners.map((c, i) => {
+    if (!totalDistM) return { start: c.startFrac, end: c.endFrac };
+    const prevEnd = i > 0 ? corners[i - 1].endFrac : 0;
+    const nextStart = i + 1 < corners.length ? corners[i + 1].startFrac : 1;
+    const entryPad = Math.min(ENTRY_PAD_M / totalDistM, (c.startFrac - prevEnd) / 2);
+    const exitPad = Math.min(EXIT_PAD_M / totalDistM, (nextStart - c.endFrac) / 2);
+    return {
+      start: round4(Math.max(0, c.startFrac - Math.max(0, entryPad))),
+      end: round4(Math.min(1, c.endFrac + Math.max(0, exitPad))),
+    };
+  });
+
   // Build the full lap: straights fill the gaps between corner regions.
   const segments: NamedSegment[] = [];
   const pushStraight = (startFrac: number, endFrac: number, afterRegion: number | null) => {
@@ -491,18 +512,18 @@ function alignOnePolarity(
     });
   };
 
-  if (corners[0].startFrac > 0) pushStraight(0, corners[0].startFrac, null);
+  if (padded.length > 0 && padded[0].start > 0) pushStraight(0, padded[0].start, null);
   for (let i = 0; i < corners.length; i++) {
     const c = corners[i];
     segments.push({
       type: "corner",
       name: c.name,
       direction: c.direction,
-      startFrac: c.startFrac,
-      endFrac: c.endFrac,
+      startFrac: padded[i].start,
+      endFrac: padded[i].end,
     });
-    const nextStart = i + 1 < corners.length ? corners[i + 1].startFrac : 1;
-    pushStraight(c.endFrac, nextStart, c.regionIndex);
+    const nextStart = i + 1 < corners.length ? padded[i + 1].start : 1;
+    pushStraight(padded[i].end, nextStart, c.regionIndex);
   }
 
   return { ok: true, cost: match.cost, issues, segments, corners };

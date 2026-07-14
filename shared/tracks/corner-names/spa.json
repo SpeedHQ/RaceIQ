@@ -12,15 +12,17 @@
     { "number": 9, "name": "", "direction": "left" },
     { "number": 10, "name": "Pouhon", "direction": "left", "spans": 2 },
     { "number": 12, "name": "Les Fagnes", "direction": "right" },
-    { "number": 13, "name": "", "direction": "left" },
+    { "number": 13, "name": "Piff Paff", "direction": "left" },
     { "number": 14, "name": "Campus", "direction": "right" },
     { "number": 15, "name": "Stavelot", "direction": "right" },
+    { "number": 16, "name": "Courbe Paul Frère", "direction": "left", "optional": true },
     { "number": 17, "name": "Blanchimont", "direction": "left" },
     { "number": 18, "name": "Bus Stop", "direction": "right", "group": "Bus Stop" },
     { "number": 19, "name": "", "direction": "left", "group": "Bus Stop" }
   ],
   "straights": [
-    { "after": 3, "name": "Kemmel" }
+    { "after": 3, "name": "Kemmel" },
+    { "after": 15, "name": "Courbe Paul Frère" }
   ],
   "sectors": {
     "s1EndAfterCorner": 3,

@@ -127,7 +127,7 @@ export function generateTrackSegments(
       continue;
     }
     const detection = detectCornerRegions(outline);
-    const result = alignSegments(detection.corners, nameList);
+    const result = alignSegments(detection.corners, nameList, detection.totalDist);
 
     if (!result.ok) {
       outcomes.push({
