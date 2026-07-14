@@ -919,6 +919,19 @@ export const lapRoutes = new Hono()
           // output fine, so only the local path opts in.
           ...(settings.aiProvider === "local" ? { jsonPromptInjection: true } : {}),
         },
+        // Every other AI route already caps output and disables reasoning on
+        // local models (analyse, lap chat, compare chat). This one did not, so
+        // a thinking model such as qwen3.5 could reason unboundedly and push the
+        // request past Bun.serve's 255s idleTimeout — surfacing to the client as
+        // a bare "socket hang up" from the Vite proxy.
+        modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+        providerOptions: {
+          openai: { reasoningEffort: settings.aiProvider === "local" ? "none" : "low" },
+          google: buildGoogleThinkingProviderOptions(
+            settings.aiModel || "gemini-flash-latest",
+            settings.aiThinkingBudget,
+          ) as never,
+        },
       });
       const durationMs = Math.round(performance.now() - start);
 
