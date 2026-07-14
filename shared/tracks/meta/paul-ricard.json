@@ -1,0 +1,251 @@
+{
+  "name": "Circuit Paul Ricard (GP layout)",
+  "games": {
+    "acc": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0754
+        },
+        {
+          "type": "corner",
+          "name": "S de la Verrerie",
+          "startFrac": 0.0754,
+          "endFrac": 0.1595,
+          "numbers": [
+            1,
+            2
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1595,
+          "endFrac": 0.1928
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.1928,
+          "endFrac": 0.2349,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "left",
+          "startFrac": 0.2349,
+          "endFrac": 0.2546,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Sainte-Beaume",
+          "direction": "right",
+          "startFrac": 0.2546,
+          "endFrac": 0.3094,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "left",
+          "startFrac": 0.3094,
+          "endFrac": 0.3558,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Mistral Straight",
+          "startFrac": 0.3558,
+          "endFrac": 0.6276
+        },
+        {
+          "type": "corner",
+          "name": "Signes",
+          "direction": "right",
+          "startFrac": 0.6276,
+          "endFrac": 0.7091,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "right",
+          "startFrac": 0.7091,
+          "endFrac": 0.7989,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Beausset",
+          "direction": "left",
+          "startFrac": 0.7989,
+          "endFrac": 0.8453,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Bendor",
+          "startFrac": 0.8453,
+          "endFrac": 0.9658,
+          "numbers": [
+            10,
+            11,
+            12
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9658,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3094,
+        "s2End": 0.8453,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0754
+    },
+    {
+      "type": "corner",
+      "name": "S de la Verrerie",
+      "startFrac": 0.0754,
+      "endFrac": 0.1595,
+      "numbers": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1595,
+      "endFrac": 0.1928
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.1928,
+      "endFrac": 0.2349,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "left",
+      "startFrac": 0.2349,
+      "endFrac": 0.2546,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Sainte-Beaume",
+      "direction": "right",
+      "startFrac": 0.2546,
+      "endFrac": 0.3094,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "left",
+      "startFrac": 0.3094,
+      "endFrac": 0.3558,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Mistral Straight",
+      "startFrac": 0.3558,
+      "endFrac": 0.6276
+    },
+    {
+      "type": "corner",
+      "name": "Signes",
+      "direction": "right",
+      "startFrac": 0.6276,
+      "endFrac": 0.7091,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T8",
+      "direction": "right",
+      "startFrac": 0.7091,
+      "endFrac": 0.7989,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Beausset",
+      "direction": "left",
+      "startFrac": 0.7989,
+      "endFrac": 0.8453,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Bendor",
+      "startFrac": 0.8453,
+      "endFrac": 0.9658,
+      "numbers": [
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9658,
+      "endFrac": 1
+    }
+  ],
+  "sectors": {
+    "s1End": 0.3094,
+    "s2End": 0.8453,
+    "source": "corner-anchored"
+  }
+}

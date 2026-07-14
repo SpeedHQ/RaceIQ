@@ -451,13 +451,32 @@ function alignOnePolarity(
     return { ok: false, cost: HARD_FAIL, issues, segments: [], corners: [] };
   }
 
-  const match = matchUnits(units, detected);
+  // A game's centerline may start anywhere on the lap (e.g. ACC Silverstone
+  // starts at the old pit straight before Copse), so the detected sequence
+  // can be rotated relative to the name list. Try every rotation; offset 0
+  // is preferred via a tie-break penalty on the others.
+  let match: { cost: number; spansPerUnit: number[] } | null = null;
+  let rotation = 0;
+  for (let offset = 0; offset < detected.length; offset++) {
+    const rotated = offset === 0 ? detected : [...detected.slice(offset), ...detected.slice(0, offset)];
+    const m = matchUnits(units, rotated);
+    if (!m) continue;
+    const cost = m.cost + (offset === 0 ? 0 : 0.05);
+    if (!match || cost < match.cost) {
+      match = { cost, spansPerUnit: m.spansPerUnit };
+      rotation = offset;
+    }
+  }
   if (!match) {
     issues.push({
       severity: "error",
-      message: `no valid alignment: ${nameList.corners.length} named corners (${units.length} units) vs ${detected.length} detected regions — check direction fields and grouping`,
+      message: `no valid alignment at any lap rotation: ${nameList.corners.length} named corners (${units.length} units) vs ${detected.length} detected regions — check direction fields and grouping`,
     });
     return { ok: false, cost: HARD_FAIL, issues, segments: [], corners: [] };
+  }
+  if (rotation !== 0) {
+    detected = [...detected.slice(rotation), ...detected.slice(0, rotation)];
+    issues.push({ severity: "warning", message: `centerline start is mid-lap: matched with rotation offset ${rotation}` });
   }
   if (match.cost >= 1) {
     issues.push({ severity: "warning", message: `fuzzy alignment (cost ${match.cost}): detector segmentation differs from name-list expectation` });
@@ -499,13 +518,21 @@ function alignOnePolarity(
   // Straight names anchor to the corner they follow
   const straightNameAfterRegion = new Map<number, string>();
   for (const s of nameList.straights ?? []) {
-    const idx = lastRegionIdxByCorner.get(s.after);
+    // If the anchor corner wasn't detected (optional kink), fall back to the
+    // nearest earlier detected corner — the straight after it is the same one.
+    let idx: number | undefined;
+    for (let n = s.after; n >= 1 && idx === undefined; n--) {
+      idx = lastRegionIdxByCorner.get(n);
+    }
     if (idx === undefined) {
       issues.push({ severity: "warning", message: `straight "${s.name}" anchored after unknown corner ${s.after}` });
       continue;
     }
     straightNameAfterRegion.set(idx, s.name);
   }
+
+  // Restore lap order (rotation matching walks the corners mid-lap first)
+  corners.sort((a, b) => a.startFrac - b.startFrac);
 
   // Stretch each corner section over its approach and exit: coaching sections
   // cover the braking zone and corner exit, not just the tight curvature arc
@@ -528,30 +555,56 @@ function alignOnePolarity(
   }
 
   // Build the full lap: straights fill the gaps between corner regions.
+  // A straight name whose anchor is followed only by a sliver (the next
+  // corner starts immediately) rolls forward to the next real straight —
+  // e.g. Wellington Straight anchored after The Loop still lands correctly
+  // when Aintree is detected in between.
   const segments: NamedSegment[] = [];
+  let pendingName = "";
   const pushStraight = (startFrac: number, endFrac: number, afterRegion: number | null) => {
-    if (endFrac - startFrac < 0.002) return; // skip slivers between chicane elements
+    if (afterRegion !== null) {
+      const anchored = straightNameAfterRegion.get(afterRegion);
+      if (anchored) pendingName = anchored;
+    }
+    if (endFrac - startFrac < 0.002) {
+      // Sliver: absorb into the previous segment so the lap stays contiguous
+      const prev = segments[segments.length - 1];
+      if (prev) prev.endFrac = round4(endFrac);
+      return;
+    }
     segments.push({
       type: "straight",
-      name: afterRegion !== null ? (straightNameAfterRegion.get(afterRegion) ?? "") : "",
+      name: pendingName,
       startFrac: round4(startFrac),
       endFrac: round4(endFrac),
     });
+    pendingName = "";
   };
 
   if (corners.length > 0 && corners[0].startFrac > 0) pushStraight(0, corners[0].startFrac, null);
   for (let i = 0; i < corners.length; i++) {
     const c = corners[i];
+    const prevEnd = segments.length > 0 ? segments[segments.length - 1].endFrac : 0;
     segments.push({
       type: "corner",
       name: c.name,
       ...(c.direction ? { direction: c.direction } : {}),
-      startFrac: c.startFrac,
+      startFrac: Math.max(c.startFrac, prevEnd),
       endFrac: c.endFrac,
       numbers: c.numbers,
     });
     const nextStart = i + 1 < corners.length ? corners[i + 1].startFrac : 1;
     pushStraight(c.endFrac, nextStart, c.regionIndex);
+  }
+  // Lap must end at exactly 1 (trailing slivers are absorbed above)
+  if (segments.length > 0) segments[segments.length - 1].endFrac = 1;
+
+  // Sliver absorption may have extended corner segments — keep the corners
+  // array (used for sector anchoring) in sync with the final section bounds.
+  const cornerSegs = segments.filter((s) => s.type === "corner");
+  for (let i = 0; i < corners.length && i < cornerSegs.length; i++) {
+    corners[i].startFrac = cornerSegs[i].startFrac;
+    corners[i].endFrac = cornerSegs[i].endFrac;
   }
 
   return { ok: true, cost: match.cost, issues, segments, corners };

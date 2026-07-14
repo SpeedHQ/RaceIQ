@@ -1,15 +1,357 @@
 {
   "name": "Circuit de Monaco",
   "sectors": {
-    "s1End": 0.336,
-    "s2End": 0.674
+    "s1End": 0.33,
+    "s2End": 0.68,
+    "source": "hand-researched"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.321,
-        "s2End": 0.662
-      }
+        "s1End": 0.33,
+        "s2End": 0.68,
+        "source": "hand-researched"
+      },
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0304
+        },
+        {
+          "type": "corner",
+          "name": "Sainte Dévote",
+          "direction": "right",
+          "startFrac": 0.0304,
+          "endFrac": 0.0962,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.0962,
+          "endFrac": 0.1593
+        },
+        {
+          "type": "corner",
+          "name": "Massenet",
+          "direction": "left",
+          "startFrac": 0.1593,
+          "endFrac": 0.2604,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Casino",
+          "direction": "right",
+          "startFrac": 0.2604,
+          "endFrac": 0.3123,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Mirabeau",
+          "direction": "right",
+          "startFrac": 0.3123,
+          "endFrac": 0.3554,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Fairmont Hairpin",
+          "direction": "left",
+          "startFrac": 0.3554,
+          "endFrac": 0.398,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Portier",
+          "direction": "right",
+          "startFrac": 0.398,
+          "endFrac": 0.4622,
+          "numbers": [
+            7,
+            8
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4622,
+          "endFrac": 0.4769
+        },
+        {
+          "type": "corner",
+          "name": "Tunnel",
+          "direction": "right",
+          "startFrac": 0.4769,
+          "endFrac": 0.5635,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.5635,
+          "endFrac": 0.5839
+        },
+        {
+          "type": "corner",
+          "name": "Nouvelle Chicane",
+          "startFrac": 0.5839,
+          "endFrac": 0.6479,
+          "numbers": [
+            10,
+            11
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Tabac",
+          "direction": "left",
+          "startFrac": 0.6479,
+          "endFrac": 0.6786,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6786,
+          "endFrac": 0.6835
+        },
+        {
+          "type": "corner",
+          "name": "Louis Chiron",
+          "direction": "left",
+          "startFrac": 0.6835,
+          "endFrac": 0.7741,
+          "numbers": [
+            13
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Piscine",
+          "direction": "right",
+          "startFrac": 0.7741,
+          "endFrac": 0.8203,
+          "numbers": [
+            14,
+            15
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T16",
+          "direction": "left",
+          "startFrac": 0.8203,
+          "endFrac": 0.8727,
+          "numbers": [
+            16
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Rascasse / Antony Noghès",
+          "startFrac": 0.8727,
+          "endFrac": 0.9464,
+          "numbers": [
+            18,
+            19
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9464,
+          "endFrac": 1
+        }
+      ]
     }
-  }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0304
+    },
+    {
+      "type": "corner",
+      "name": "Sainte Dévote",
+      "direction": "right",
+      "startFrac": 0.0304,
+      "endFrac": 0.0962,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.0962,
+      "endFrac": 0.1593
+    },
+    {
+      "type": "corner",
+      "name": "Massenet",
+      "direction": "left",
+      "startFrac": 0.1593,
+      "endFrac": 0.2604,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Casino",
+      "direction": "right",
+      "startFrac": 0.2604,
+      "endFrac": 0.3123,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Mirabeau",
+      "direction": "right",
+      "startFrac": 0.3123,
+      "endFrac": 0.3554,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Fairmont Hairpin",
+      "direction": "left",
+      "startFrac": 0.3554,
+      "endFrac": 0.398,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Portier",
+      "direction": "right",
+      "startFrac": 0.398,
+      "endFrac": 0.4622,
+      "numbers": [
+        7,
+        8
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4622,
+      "endFrac": 0.4769
+    },
+    {
+      "type": "corner",
+      "name": "Tunnel",
+      "direction": "right",
+      "startFrac": 0.4769,
+      "endFrac": 0.5635,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.5635,
+      "endFrac": 0.5839
+    },
+    {
+      "type": "corner",
+      "name": "Nouvelle Chicane",
+      "startFrac": 0.5839,
+      "endFrac": 0.6479,
+      "numbers": [
+        10,
+        11
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Tabac",
+      "direction": "left",
+      "startFrac": 0.6479,
+      "endFrac": 0.6786,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.6786,
+      "endFrac": 0.6835
+    },
+    {
+      "type": "corner",
+      "name": "Louis Chiron",
+      "direction": "left",
+      "startFrac": 0.6835,
+      "endFrac": 0.7741,
+      "numbers": [
+        13
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Piscine",
+      "direction": "right",
+      "startFrac": 0.7741,
+      "endFrac": 0.8203,
+      "numbers": [
+        14,
+        15
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T16",
+      "direction": "left",
+      "startFrac": 0.8203,
+      "endFrac": 0.8727,
+      "numbers": [
+        16
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Rascasse / Antony Noghès",
+      "startFrac": 0.8727,
+      "endFrac": 0.9464,
+      "numbers": [
+        18,
+        19
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9464,
+      "endFrac": 1
+    }
+  ]
 }

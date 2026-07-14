@@ -1,0 +1,26 @@
+{
+  "circuit": "Marina Bay Street Circuit",
+  "source": "Official F1 track map (2023+ 19-turn layout, 4.940 km); directions verified against F1 2025 centerline geometry",
+  "turnCount": 19,
+  "corners": [
+    { "number": 1, "name": "", "direction": "left" },
+    { "number": 2, "name": "", "direction": "right" },
+    { "number": 3, "name": "", "direction": "left" },
+    { "number": 4, "name": "", "direction": "left" },
+    { "number": 5, "name": "", "direction": "right" },
+    { "number": 6, "name": "", "direction": "right" },
+    { "number": 7, "name": "", "direction": "left" },
+    { "number": 8, "name": "", "direction": "right" },
+    { "number": 9, "name": "", "direction": "left" },
+    { "number": 10, "name": "Memorial", "direction": "left" },
+    { "number": 11, "name": "", "direction": "right" },
+    { "number": 12, "name": "", "direction": "left" },
+    { "number": 13, "name": "", "direction": "left" },
+    { "number": 14, "name": "", "direction": "right" },
+    { "number": 15, "name": "", "direction": "left" },
+    { "number": 16, "name": "", "direction": "right" },
+    { "number": 17, "name": "", "direction": "left" },
+    { "number": 18, "name": "", "direction": "left" },
+    { "number": 19, "name": "", "direction": "left" }
+  ]
+}

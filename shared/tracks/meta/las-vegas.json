@@ -1,15 +1,345 @@
 {
   "name": "Las Vegas Street Circuit",
   "sectors": {
-    "s1End": 0.319,
-    "s2End": 0.679
+    "s1End": 0.3,
+    "s2End": 0.74,
+    "source": "hand-researched"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.318,
-        "s2End": 0.664
-      }
+        "s1End": 0.3,
+        "s2End": 0.74,
+        "source": "hand-researched"
+      },
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.023
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "left",
+          "startFrac": 0.023,
+          "endFrac": 0.0814,
+          "numbers": [
+            1,
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.0814,
+          "endFrac": 0.1319,
+          "numbers": [
+            3,
+            4
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1319,
+          "endFrac": 0.2272
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "right",
+          "startFrac": 0.2272,
+          "endFrac": 0.2722,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "left",
+          "startFrac": 0.2722,
+          "endFrac": 0.3354,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "right",
+          "startFrac": 0.3354,
+          "endFrac": 0.3535,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "left",
+          "startFrac": 0.3535,
+          "endFrac": 0.3808,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3808,
+          "endFrac": 0.4124
+        },
+        {
+          "type": "corner",
+          "name": "T9",
+          "direction": "right",
+          "startFrac": 0.4124,
+          "endFrac": 0.4677,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "direction": "left",
+          "startFrac": 0.4677,
+          "endFrac": 0.5153,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T12",
+          "direction": "left",
+          "startFrac": 0.5153,
+          "endFrac": 0.5384,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Las Vegas Strip",
+          "startFrac": 0.5384,
+          "endFrac": 0.8122
+        },
+        {
+          "type": "corner",
+          "name": "T14",
+          "direction": "left",
+          "startFrac": 0.8122,
+          "endFrac": 0.8437,
+          "numbers": [
+            14
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T15",
+          "direction": "right",
+          "startFrac": 0.8437,
+          "endFrac": 0.8524,
+          "numbers": [
+            15
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T16",
+          "direction": "left",
+          "startFrac": 0.8524,
+          "endFrac": 0.875,
+          "numbers": [
+            16
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.875,
+          "endFrac": 0.9494
+        },
+        {
+          "type": "corner",
+          "name": "T17",
+          "direction": "left",
+          "startFrac": 0.9494,
+          "endFrac": 1,
+          "numbers": [
+            17
+          ]
+        }
+      ]
     }
-  }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.023
+    },
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "left",
+      "startFrac": 0.023,
+      "endFrac": 0.0814,
+      "numbers": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.0814,
+      "endFrac": 0.1319,
+      "numbers": [
+        3,
+        4
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1319,
+      "endFrac": 0.2272
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "right",
+      "startFrac": 0.2272,
+      "endFrac": 0.2722,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "left",
+      "startFrac": 0.2722,
+      "endFrac": 0.3354,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T7",
+      "direction": "right",
+      "startFrac": 0.3354,
+      "endFrac": 0.3535,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T8",
+      "direction": "left",
+      "startFrac": 0.3535,
+      "endFrac": 0.3808,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3808,
+      "endFrac": 0.4124
+    },
+    {
+      "type": "corner",
+      "name": "T9",
+      "direction": "right",
+      "startFrac": 0.4124,
+      "endFrac": 0.4677,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T10",
+      "direction": "left",
+      "startFrac": 0.4677,
+      "endFrac": 0.5153,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T12",
+      "direction": "left",
+      "startFrac": 0.5153,
+      "endFrac": 0.5384,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Las Vegas Strip",
+      "startFrac": 0.5384,
+      "endFrac": 0.8122
+    },
+    {
+      "type": "corner",
+      "name": "T14",
+      "direction": "left",
+      "startFrac": 0.8122,
+      "endFrac": 0.8437,
+      "numbers": [
+        14
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T15",
+      "direction": "right",
+      "startFrac": 0.8437,
+      "endFrac": 0.8524,
+      "numbers": [
+        15
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T16",
+      "direction": "left",
+      "startFrac": 0.8524,
+      "endFrac": 0.875,
+      "numbers": [
+        16
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.875,
+      "endFrac": 0.9494
+    },
+    {
+      "type": "corner",
+      "name": "T17",
+      "direction": "left",
+      "startFrac": 0.9494,
+      "endFrac": 1,
+      "numbers": [
+        17
+      ]
+    }
+  ]
 }

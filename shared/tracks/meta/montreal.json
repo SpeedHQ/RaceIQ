@@ -9,7 +9,323 @@
       "sectors": {
         "s1End": 0.287,
         "s2End": 0.679
-      }
+      },
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0274
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "left",
+          "startFrac": 0.0274,
+          "endFrac": 0.068,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "right",
+          "startFrac": 0.068,
+          "endFrac": 0.1164,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1164,
+          "endFrac": 0.1315
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.1315,
+          "endFrac": 0.1762,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "left",
+          "startFrac": 0.1762,
+          "endFrac": 0.2048,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "right",
+          "startFrac": 0.2048,
+          "endFrac": 0.2677,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "left",
+          "startFrac": 0.2677,
+          "endFrac": 0.2996,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "right",
+          "startFrac": 0.2996,
+          "endFrac": 0.3463,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3463,
+          "endFrac": 0.4271
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "right",
+          "startFrac": 0.4271,
+          "endFrac": 0.4681,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T9",
+          "direction": "left",
+          "startFrac": 0.4681,
+          "endFrac": 0.5042,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.5042,
+          "endFrac": 0.5812
+        },
+        {
+          "type": "corner",
+          "name": "L'Épingle",
+          "direction": "right",
+          "startFrac": 0.5812,
+          "endFrac": 0.6584,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6584,
+          "endFrac": 0.8609
+        },
+        {
+          "type": "corner",
+          "name": "T13",
+          "direction": "right",
+          "startFrac": 0.8609,
+          "endFrac": 0.9018,
+          "numbers": [
+            13
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T14",
+          "direction": "left",
+          "startFrac": 0.9018,
+          "endFrac": 0.9286,
+          "numbers": [
+            14
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Wall of Champions",
+          "startFrac": 0.9286,
+          "endFrac": 1
+        }
+      ]
     }
-  }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0274
+    },
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "left",
+      "startFrac": 0.0274,
+      "endFrac": 0.068,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T2",
+      "direction": "right",
+      "startFrac": 0.068,
+      "endFrac": 0.1164,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1164,
+      "endFrac": 0.1315
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.1315,
+      "endFrac": 0.1762,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "left",
+      "startFrac": 0.1762,
+      "endFrac": 0.2048,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "right",
+      "startFrac": 0.2048,
+      "endFrac": 0.2677,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "left",
+      "startFrac": 0.2677,
+      "endFrac": 0.2996,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T7",
+      "direction": "right",
+      "startFrac": 0.2996,
+      "endFrac": 0.3463,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3463,
+      "endFrac": 0.4271
+    },
+    {
+      "type": "corner",
+      "name": "T8",
+      "direction": "right",
+      "startFrac": 0.4271,
+      "endFrac": 0.4681,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T9",
+      "direction": "left",
+      "startFrac": 0.4681,
+      "endFrac": 0.5042,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.5042,
+      "endFrac": 0.5812
+    },
+    {
+      "type": "corner",
+      "name": "L'Épingle",
+      "direction": "right",
+      "startFrac": 0.5812,
+      "endFrac": 0.6584,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.6584,
+      "endFrac": 0.8609
+    },
+    {
+      "type": "corner",
+      "name": "T13",
+      "direction": "right",
+      "startFrac": 0.8609,
+      "endFrac": 0.9018,
+      "numbers": [
+        13
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T14",
+      "direction": "left",
+      "startFrac": 0.9018,
+      "endFrac": 0.9286,
+      "numbers": [
+        14
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Wall of Champions",
+      "startFrac": 0.9286,
+      "endFrac": 1
+    }
+  ]
 }

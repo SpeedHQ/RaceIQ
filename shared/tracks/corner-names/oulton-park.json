@@ -1,0 +1,25 @@
+{
+  "circuit": "Oulton Park (International circuit)",
+  "source": "Official Oulton Park circuit map",
+  "turnCount": 11,
+  "corners": [
+    { "number": 1, "name": "Old Hall Corner", "direction": "right" },
+    { "number": 2, "name": "Cascades", "direction": "left", "group": "Cascades" },
+    { "number": 3, "name": "Cascades", "direction": "left", "group": "Cascades" },
+    { "number": 4, "name": "Island Bend", "direction": "right" },
+    { "number": 5, "name": "Lodge Corner", "direction": "right" },
+    { "number": 6, "name": "", "direction": "right" },
+    { "number": 7, "name": "Foulston", "direction": "right", "group": "Foulston" },
+    { "number": 8, "name": "Foulston", "direction": "left", "group": "Foulston" },
+    { "number": 9, "name": "", "direction": "right" },
+    { "number": 10, "name": "Deer Leap", "direction": "right" },
+    { "number": 11, "name": "", "direction": "right" }
+  ],
+  "straights": [
+    { "after": 4, "name": "" }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 4,
+    "s2EndAfterCorner": 8
+  }
+}

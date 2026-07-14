@@ -1,15 +1,360 @@
 {
   "name": "Red Bull Ring",
   "sectors": {
-    "s1End": 0.234,
-    "s2End": 0.639
+    "s1End": 0.291,
+    "s2End": 0.7288,
+    "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.213,
-        "s2End": 0.626
+        "s1End": 0.291,
+        "s2End": 0.7288,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0695
+        },
+        {
+          "type": "corner",
+          "name": "Niki Lauda Kurve",
+          "direction": "right",
+          "startFrac": 0.0695,
+          "endFrac": 0.1286,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1286,
+          "endFrac": 0.2864
+        },
+        {
+          "type": "corner",
+          "name": "Remus",
+          "direction": "right",
+          "startFrac": 0.2864,
+          "endFrac": 0.3482,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3482,
+          "endFrac": 0.4724
+        },
+        {
+          "type": "corner",
+          "name": "Schlossgold",
+          "direction": "right",
+          "startFrac": 0.4724,
+          "endFrac": 0.5973,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "left",
+          "startFrac": 0.5973,
+          "endFrac": 0.6742,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Rauch",
+          "direction": "left",
+          "startFrac": 0.6742,
+          "endFrac": 0.7288,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "right",
+          "startFrac": 0.7288,
+          "endFrac": 0.7877,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7877,
+          "endFrac": 0.8345
+        },
+        {
+          "type": "corner",
+          "name": "Rindt",
+          "direction": "right",
+          "startFrac": 0.8345,
+          "endFrac": 0.9087,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Red Bull Mobile",
+          "direction": "right",
+          "startFrac": 0.9087,
+          "endFrac": 0.9526,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9526,
+          "endFrac": 1
+        }
+      ]
+    },
+    "acc": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0594
+        },
+        {
+          "type": "corner",
+          "name": "Niki Lauda Kurve",
+          "direction": "right",
+          "startFrac": 0.0594,
+          "endFrac": 0.1353,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1353,
+          "endFrac": 0.2807
+        },
+        {
+          "type": "corner",
+          "name": "Remus",
+          "direction": "right",
+          "startFrac": 0.2807,
+          "endFrac": 0.3576,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3576,
+          "endFrac": 0.4648
+        },
+        {
+          "type": "corner",
+          "name": "Schlossgold",
+          "direction": "right",
+          "startFrac": 0.4648,
+          "endFrac": 0.5919,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "left",
+          "startFrac": 0.5919,
+          "endFrac": 0.6747,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Rauch",
+          "direction": "left",
+          "startFrac": 0.6747,
+          "endFrac": 0.7318,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "right",
+          "startFrac": 0.7318,
+          "endFrac": 0.7948,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7948,
+          "endFrac": 0.8274
+        },
+        {
+          "type": "corner",
+          "name": "Rindt",
+          "direction": "right",
+          "startFrac": 0.8274,
+          "endFrac": 0.9033,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Red Bull Mobile",
+          "direction": "right",
+          "startFrac": 0.9033,
+          "endFrac": 0.9662,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9662,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.2987,
+        "s2End": 0.7318,
+        "source": "corner-anchored"
       }
     }
-  }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0695
+    },
+    {
+      "type": "corner",
+      "name": "Niki Lauda Kurve",
+      "direction": "right",
+      "startFrac": 0.0695,
+      "endFrac": 0.1286,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1286,
+      "endFrac": 0.2864
+    },
+    {
+      "type": "corner",
+      "name": "Remus",
+      "direction": "right",
+      "startFrac": 0.2864,
+      "endFrac": 0.3482,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3482,
+      "endFrac": 0.4724
+    },
+    {
+      "type": "corner",
+      "name": "Schlossgold",
+      "direction": "right",
+      "startFrac": 0.4724,
+      "endFrac": 0.5973,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "left",
+      "startFrac": 0.5973,
+      "endFrac": 0.6742,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Rauch",
+      "direction": "left",
+      "startFrac": 0.6742,
+      "endFrac": 0.7288,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T7",
+      "direction": "right",
+      "startFrac": 0.7288,
+      "endFrac": 0.7877,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.7877,
+      "endFrac": 0.8345
+    },
+    {
+      "type": "corner",
+      "name": "Rindt",
+      "direction": "right",
+      "startFrac": 0.8345,
+      "endFrac": 0.9087,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Red Bull Mobile",
+      "direction": "right",
+      "startFrac": 0.9087,
+      "endFrac": 0.9526,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9526,
+      "endFrac": 1
+    }
+  ]
 }

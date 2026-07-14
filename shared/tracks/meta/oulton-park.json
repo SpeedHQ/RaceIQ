@@ -1,0 +1,275 @@
+{
+  "name": "Oulton Park (International circuit)",
+  "games": {
+    "acc": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0234
+        },
+        {
+          "type": "corner",
+          "name": "Old Hall Corner",
+          "direction": "right",
+          "startFrac": 0.0234,
+          "endFrac": 0.1039,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1039,
+          "endFrac": 0.1331
+        },
+        {
+          "type": "corner",
+          "name": "Cascades",
+          "direction": "left",
+          "startFrac": 0.1331,
+          "endFrac": 0.3641,
+          "numbers": [
+            2,
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Island Bend",
+          "direction": "right",
+          "startFrac": 0.3641,
+          "endFrac": 0.4207,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Lodge Corner",
+          "direction": "right",
+          "startFrac": 0.4207,
+          "endFrac": 0.4709,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "right",
+          "startFrac": 0.4709,
+          "endFrac": 0.5124,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.5124,
+          "endFrac": 0.5637
+        },
+        {
+          "type": "corner",
+          "name": "Foulston",
+          "startFrac": 0.5637,
+          "endFrac": 0.6302,
+          "numbers": [
+            7,
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T9",
+          "direction": "right",
+          "startFrac": 0.6302,
+          "endFrac": 0.6769,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6769,
+          "endFrac": 0.741
+        },
+        {
+          "type": "corner",
+          "name": "Deer Leap",
+          "direction": "right",
+          "startFrac": 0.741,
+          "endFrac": 0.8402,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.8402,
+          "endFrac": 0.8775
+        },
+        {
+          "type": "corner",
+          "name": "T11",
+          "direction": "right",
+          "startFrac": 0.8775,
+          "endFrac": 0.9592,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9592,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.4207,
+        "s2End": 0.6302,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0234
+    },
+    {
+      "type": "corner",
+      "name": "Old Hall Corner",
+      "direction": "right",
+      "startFrac": 0.0234,
+      "endFrac": 0.1039,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1039,
+      "endFrac": 0.1331
+    },
+    {
+      "type": "corner",
+      "name": "Cascades",
+      "direction": "left",
+      "startFrac": 0.1331,
+      "endFrac": 0.3641,
+      "numbers": [
+        2,
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Island Bend",
+      "direction": "right",
+      "startFrac": 0.3641,
+      "endFrac": 0.4207,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Lodge Corner",
+      "direction": "right",
+      "startFrac": 0.4207,
+      "endFrac": 0.4709,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "right",
+      "startFrac": 0.4709,
+      "endFrac": 0.5124,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.5124,
+      "endFrac": 0.5637
+    },
+    {
+      "type": "corner",
+      "name": "Foulston",
+      "startFrac": 0.5637,
+      "endFrac": 0.6302,
+      "numbers": [
+        7,
+        8
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T9",
+      "direction": "right",
+      "startFrac": 0.6302,
+      "endFrac": 0.6769,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.6769,
+      "endFrac": 0.741
+    },
+    {
+      "type": "corner",
+      "name": "Deer Leap",
+      "direction": "right",
+      "startFrac": 0.741,
+      "endFrac": 0.8402,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.8402,
+      "endFrac": 0.8775
+    },
+    {
+      "type": "corner",
+      "name": "T11",
+      "direction": "right",
+      "startFrac": 0.8775,
+      "endFrac": 0.9592,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9592,
+      "endFrac": 1
+    }
+  ],
+  "sectors": {
+    "s1End": 0.4207,
+    "s2End": 0.6302,
+    "source": "corner-anchored"
+  }
+}

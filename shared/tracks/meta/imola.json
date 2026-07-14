@@ -1,15 +1,430 @@
 {
   "name": "Autodromo Internazionale Enzo e Dino Ferrari",
   "sectors": {
-    "s1End": 0.312,
-    "s2End": 0.709
+    "s1End": 0.3556,
+    "s2End": 0.774,
+    "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.310,
-        "s2End": 0.674
+        "s1End": 0.3556,
+        "s2End": 0.774,
+        "source": "corner-anchored"
+      },
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.1532
+        },
+        {
+          "type": "corner",
+          "name": "Tamburello",
+          "startFrac": 0.1532,
+          "endFrac": 0.2493,
+          "numbers": [
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2493,
+          "endFrac": 0.2833
+        },
+        {
+          "type": "corner",
+          "name": "Villeneuve",
+          "startFrac": 0.2833,
+          "endFrac": 0.3556,
+          "numbers": [
+            5,
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3556,
+          "endFrac": 0.3612
+        },
+        {
+          "type": "corner",
+          "name": "Tosa",
+          "direction": "left",
+          "startFrac": 0.3612,
+          "endFrac": 0.4224,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4224,
+          "endFrac": 0.4836
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "left",
+          "startFrac": 0.4836,
+          "endFrac": 0.5369,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Piratella",
+          "direction": "left",
+          "startFrac": 0.5369,
+          "endFrac": 0.5834,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Acque Minerali",
+          "direction": "right",
+          "startFrac": 0.5834,
+          "endFrac": 0.6156,
+          "numbers": [
+            11,
+            12
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T13",
+          "direction": "right",
+          "startFrac": 0.6156,
+          "endFrac": 0.6472,
+          "numbers": [
+            13
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6472,
+          "endFrac": 0.6968
+        },
+        {
+          "type": "corner",
+          "name": "Variante Alta",
+          "direction": "right",
+          "startFrac": 0.6968,
+          "endFrac": 0.7332,
+          "numbers": [
+            14,
+            15
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Rivazza",
+          "direction": "left",
+          "startFrac": 0.7332,
+          "endFrac": 0.9024,
+          "numbers": [
+            17,
+            18
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T19",
+          "direction": "left",
+          "startFrac": 0.9024,
+          "endFrac": 0.9404,
+          "numbers": [
+            19
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9404,
+          "endFrac": 1
+        }
+      ]
+    },
+    "acc": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.1048
+        },
+        {
+          "type": "corner",
+          "name": "Tamburello",
+          "startFrac": 0.1048,
+          "endFrac": 0.217,
+          "numbers": [
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.217,
+          "endFrac": 0.2354
+        },
+        {
+          "type": "corner",
+          "name": "Villeneuve",
+          "startFrac": 0.2354,
+          "endFrac": 0.3255,
+          "numbers": [
+            5,
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Tosa",
+          "direction": "left",
+          "startFrac": 0.3255,
+          "endFrac": 0.3825,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3825,
+          "endFrac": 0.4348
+        },
+        {
+          "type": "corner",
+          "name": "Piratella",
+          "direction": "left",
+          "startFrac": 0.4348,
+          "endFrac": 0.5407,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Acque Minerali",
+          "direction": "right",
+          "startFrac": 0.5407,
+          "endFrac": 0.6106,
+          "numbers": [
+            11,
+            12
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6106,
+          "endFrac": 0.6495
+        },
+        {
+          "type": "corner",
+          "name": "Variante Alta",
+          "direction": "right",
+          "startFrac": 0.6495,
+          "endFrac": 0.6896,
+          "numbers": [
+            14,
+            15
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Rivazza",
+          "direction": "left",
+          "startFrac": 0.6896,
+          "endFrac": 0.7174,
+          "numbers": [
+            17,
+            18
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7174,
+          "endFrac": 0.8067
+        },
+        {
+          "type": "corner",
+          "name": "T19",
+          "direction": "left",
+          "startFrac": 0.8067,
+          "endFrac": 0.9003,
+          "numbers": [
+            19
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9003,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3255,
+        "s2End": 0.7307,
+        "source": "corner-anchored"
       }
     }
-  }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.1532
+    },
+    {
+      "type": "corner",
+      "name": "Tamburello",
+      "startFrac": 0.1532,
+      "endFrac": 0.2493,
+      "numbers": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.2493,
+      "endFrac": 0.2833
+    },
+    {
+      "type": "corner",
+      "name": "Villeneuve",
+      "startFrac": 0.2833,
+      "endFrac": 0.3556,
+      "numbers": [
+        5,
+        6
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3556,
+      "endFrac": 0.3612
+    },
+    {
+      "type": "corner",
+      "name": "Tosa",
+      "direction": "left",
+      "startFrac": 0.3612,
+      "endFrac": 0.4224,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4224,
+      "endFrac": 0.4836
+    },
+    {
+      "type": "corner",
+      "name": "T8",
+      "direction": "left",
+      "startFrac": 0.4836,
+      "endFrac": 0.5369,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Piratella",
+      "direction": "left",
+      "startFrac": 0.5369,
+      "endFrac": 0.5834,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Acque Minerali",
+      "direction": "right",
+      "startFrac": 0.5834,
+      "endFrac": 0.6156,
+      "numbers": [
+        11,
+        12
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T13",
+      "direction": "right",
+      "startFrac": 0.6156,
+      "endFrac": 0.6472,
+      "numbers": [
+        13
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.6472,
+      "endFrac": 0.6968
+    },
+    {
+      "type": "corner",
+      "name": "Variante Alta",
+      "direction": "right",
+      "startFrac": 0.6968,
+      "endFrac": 0.7332,
+      "numbers": [
+        14,
+        15
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Rivazza",
+      "direction": "left",
+      "startFrac": 0.7332,
+      "endFrac": 0.9024,
+      "numbers": [
+        17,
+        18
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T19",
+      "direction": "left",
+      "startFrac": 0.9024,
+      "endFrac": 0.9404,
+      "numbers": [
+        19
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9404,
+      "endFrac": 1
+    }
+  ]
 }

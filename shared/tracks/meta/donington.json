@@ -1,0 +1,307 @@
+{
+  "name": "Donington Park (GP circuit)",
+  "games": {
+    "acc": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0508
+        },
+        {
+          "type": "corner",
+          "name": "Redgate",
+          "direction": "right",
+          "startFrac": 0.0508,
+          "endFrac": 0.1458,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Craner Curves",
+          "direction": "right",
+          "startFrac": 0.1458,
+          "endFrac": 0.2237,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "left",
+          "startFrac": 0.2237,
+          "endFrac": 0.2649,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Old Hairpin",
+          "direction": "right",
+          "startFrac": 0.2649,
+          "endFrac": 0.3321,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Starkey's",
+          "direction": "left",
+          "startFrac": 0.3321,
+          "endFrac": 0.3954,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Starkey's Straight",
+          "startFrac": 0.3954,
+          "endFrac": 0.4081
+        },
+        {
+          "type": "corner",
+          "name": "Schwantz Curve",
+          "direction": "right",
+          "startFrac": 0.4081,
+          "endFrac": 0.498,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.498,
+          "endFrac": 0.5031
+        },
+        {
+          "type": "corner",
+          "name": "McLeans-Coppice",
+          "direction": "right",
+          "startFrac": 0.5031,
+          "endFrac": 0.6146,
+          "numbers": [
+            7,
+            8
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Wheatcroft Park Straight",
+          "startFrac": 0.6146,
+          "endFrac": 0.6793
+        },
+        {
+          "type": "corner",
+          "name": "Fogarty Esses",
+          "startFrac": 0.6793,
+          "endFrac": 0.7795,
+          "numbers": [
+            9,
+            10
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7795,
+          "endFrac": 0.801
+        },
+        {
+          "type": "corner",
+          "name": "Melbourne Hairpin",
+          "direction": "right",
+          "startFrac": 0.801,
+          "endFrac": 0.891,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.891,
+          "endFrac": 0.9037
+        },
+        {
+          "type": "corner",
+          "name": "Goddards",
+          "direction": "left",
+          "startFrac": 0.9037,
+          "endFrac": 0.9861,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9861,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3321,
+        "s2End": 0.6146,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0508
+    },
+    {
+      "type": "corner",
+      "name": "Redgate",
+      "direction": "right",
+      "startFrac": 0.0508,
+      "endFrac": 0.1458,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Craner Curves",
+      "direction": "right",
+      "startFrac": 0.1458,
+      "endFrac": 0.2237,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "left",
+      "startFrac": 0.2237,
+      "endFrac": 0.2649,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Old Hairpin",
+      "direction": "right",
+      "startFrac": 0.2649,
+      "endFrac": 0.3321,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Starkey's",
+      "direction": "left",
+      "startFrac": 0.3321,
+      "endFrac": 0.3954,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Starkey's Straight",
+      "startFrac": 0.3954,
+      "endFrac": 0.4081
+    },
+    {
+      "type": "corner",
+      "name": "Schwantz Curve",
+      "direction": "right",
+      "startFrac": 0.4081,
+      "endFrac": 0.498,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.498,
+      "endFrac": 0.5031
+    },
+    {
+      "type": "corner",
+      "name": "McLeans-Coppice",
+      "direction": "right",
+      "startFrac": 0.5031,
+      "endFrac": 0.6146,
+      "numbers": [
+        7,
+        8
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Wheatcroft Park Straight",
+      "startFrac": 0.6146,
+      "endFrac": 0.6793
+    },
+    {
+      "type": "corner",
+      "name": "Fogarty Esses",
+      "startFrac": 0.6793,
+      "endFrac": 0.7795,
+      "numbers": [
+        9,
+        10
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.7795,
+      "endFrac": 0.801
+    },
+    {
+      "type": "corner",
+      "name": "Melbourne Hairpin",
+      "direction": "right",
+      "startFrac": 0.801,
+      "endFrac": 0.891,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.891,
+      "endFrac": 0.9037
+    },
+    {
+      "type": "corner",
+      "name": "Goddards",
+      "direction": "left",
+      "startFrac": 0.9037,
+      "endFrac": 0.9861,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9861,
+      "endFrac": 1
+    }
+  ],
+  "sectors": {
+    "s1End": 0.3321,
+    "s2End": 0.6146,
+    "source": "corner-anchored"
+  }
+}
