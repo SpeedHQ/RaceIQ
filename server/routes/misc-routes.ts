@@ -458,18 +458,6 @@ export const miscRoutes = new Hono()
 
   // GET /api/diagnostics — download a zip with diagnostics.json + logs.txt
   .get("/api/diagnostics", async (c) => {
-    /** Mastra stores content as a string or { content, parts: [{ text }] }. */
-    const extractMessageText = (raw: unknown): string => {
-      if (typeof raw === "string") return raw;
-      if (raw && typeof raw === "object") {
-        const o = raw as { content?: unknown; parts?: Array<{ text?: unknown }> };
-        if (typeof o.content === "string") return o.content;
-        if (Array.isArray(o.parts)) {
-          return o.parts.map((p) => (typeof p.text === "string" ? p.text : "")).join("");
-        }
-      }
-      return "";
-    };
     const logFile = join(USER_DATA_DIR, "raceiq.log");
     let logs = "";
     try {
@@ -502,8 +490,13 @@ export const miscRoutes = new Hono()
     const memUsage = process.memoryUsage();
     const serverMemoryMB = Math.round(memUsage.heapUsed / 1024 / 1024);
 
-    // Fetch recent chat messages from Mastra memory (newest threads first)
-    const chatMessages: Array<{ threadId: string; role: string; content: string; timestamp?: string }> = [];
+    // Chat metadata from Mastra memory (newest threads first). Message *text*
+    // is deliberately excluded — a diagnostics zip gets attached to bug reports
+    // and shared around, and the conversation itself is the user's, not ours.
+    // Counts + thread ids answer "was chat used, how much, on which laps",
+    // which is what support actually needs; failures are in `logs.txt`.
+    const chatThreads: Array<{ threadId: string; messages: number; updatedAt: string }> = [];
+    let chatMessageCount = 0;
     let chatError: string | null = null;
     try {
       const memory = getChatMemory();
@@ -518,17 +511,16 @@ export const miscRoutes = new Hono()
         .slice(0, 5);
       for (const thread of recent) {
         const result = await memory.recall({ threadId: thread.id });
-        for (const m of result.messages ?? []) {
-          if (m.role !== "user" && m.role !== "assistant") continue;
-          chatMessages.push({
-            threadId: thread.id,
-            role: m.role,
-            content: extractMessageText(m.content),
-            timestamp: toIso(m.createdAt),
-          });
-        }
+        const count = (result.messages ?? []).filter(
+          (m) => m.role === "user" || m.role === "assistant",
+        ).length;
+        chatMessageCount += count;
+        chatThreads.push({
+          threadId: thread.id,
+          messages: count,
+          updatedAt: toIso(thread.updatedAt),
+        });
       }
-      chatMessages.sort((a, b) => (b.timestamp ?? "").localeCompare(a.timestamp ?? ""));
     } catch (err: any) {
       chatError = err?.message ?? String(err);
       console.error("[Diagnostics] Failed to read chat memory:", chatError);
@@ -718,13 +710,9 @@ export const miscRoutes = new Hono()
         },
       },
       chat: {
-        messageCount: chatMessages.length,
+        messageCount: chatMessageCount,
         error: chatError,
-        // Cap per-message length so a long analysis answer can't bloat the zip.
-        recentMessages: chatMessages.slice(0, 20).map((m) => ({
-          ...m,
-          content: m.content.length > 4000 ? `${m.content.slice(0, 4000)}… [truncated]` : m.content,
-        })),
+        threads: chatThreads,
       },
       generatedAt: new Date().toISOString(),
     };
