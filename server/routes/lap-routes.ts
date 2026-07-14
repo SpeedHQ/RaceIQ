@@ -41,6 +41,10 @@ import { getChatMemory, chatThreadId, compareChatThreadId, CHAT_RESOURCE_ID } fr
 import { getSecret } from "../keystore";
 import { deleteAnalysis as deleteAnalysisQuery } from "../db/queries";
 import { tryGetGame } from "../../shared/games/registry";
+import { gzip } from "zlib";
+import { promisify } from "util";
+
+const gzipAsync = promisify(gzip);
 import { loadSharedTrackMeta } from "../../shared/track-data";
 import { buildChatSystemPrompt } from "../ai/chat-prompt";
 import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
@@ -229,16 +233,18 @@ export const lapRoutes = new Hono()
 
     const file = Bun.file(row.rawFile);
     if (!(await file.exists())) return c.json({ error: "Raw capture file is missing on disk" }, 410);
-    const bytes = new Uint8Array(await file.arrayBuffer());
+    let bytes = new Uint8Array(await file.arrayBuffer());
+    if (!row.rawFile.endsWith(".gz")) {
+      bytes = new Uint8Array(await gzipAsync(Buffer.from(bytes)));
+    }
 
     const trackName = tryGetGame(row.gameId)?.getTrackName?.(row.trackOrdinal ?? -1);
     const slug = (trackName || `track${row.trackOrdinal ?? 0}`)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
-    const gzExt = row.rawFile.endsWith(".gz") ? ".gz" : "";
     // Filename MUST start with `<gameId>-` so re-import can detect the game.
-    const filename = `${row.gameId}-${slug}-session${row.sessionId}.bin${gzExt}`;
+    const filename = `${row.gameId}-${slug}-session${row.sessionId}.bin.gz`;
 
     c.header("Content-Type", "application/octet-stream");
     c.header("Content-Disposition", `attachment; filename="${filename}"`);
