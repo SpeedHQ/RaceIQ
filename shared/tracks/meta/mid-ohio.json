@@ -19,7 +19,7 @@
           "name": "T1",
           "direction": "left",
           "startFrac": 0.034,
-          "endFrac": 0.127,
+          "endFrac": 0.1409,
           "numbers": [
             1
           ]
@@ -27,7 +27,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.127,
+          "startFrac": 0.1409,
           "endFrac": 0.2009
         },
         {
@@ -35,7 +35,7 @@
           "name": "The Keyhole",
           "direction": "right",
           "startFrac": 0.2009,
-          "endFrac": 0.3072,
+          "endFrac": 0.3211,
           "numbers": [
             2
           ]
@@ -43,7 +43,7 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.3072,
+          "startFrac": 0.3211,
           "endFrac": 0.4981
         },
         {
@@ -166,7 +166,7 @@
       "name": "T1",
       "direction": "left",
       "startFrac": 0.034,
-      "endFrac": 0.127,
+      "endFrac": 0.1409,
       "numbers": [
         1
       ]
@@ -174,7 +174,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.127,
+      "startFrac": 0.1409,
       "endFrac": 0.2009
     },
     {
@@ -182,7 +182,7 @@
       "name": "The Keyhole",
       "direction": "right",
       "startFrac": 0.2009,
-      "endFrac": 0.3072,
+      "endFrac": 0.3211,
       "numbers": [
         2
       ]
@@ -190,7 +190,7 @@
     {
       "type": "straight",
       "name": "Back Straight",
-      "startFrac": 0.3072,
+      "startFrac": 0.3211,
       "endFrac": 0.4981
     },
     {

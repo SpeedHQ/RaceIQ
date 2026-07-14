@@ -62,7 +62,7 @@
           "name": "T5",
           "direction": "right",
           "startFrac": 0.1743,
-          "endFrac": 0.2181,
+          "endFrac": 0.2282,
           "numbers": [
             5
           ]
@@ -70,7 +70,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2181,
+          "startFrac": 0.2282,
           "endFrac": 0.2592
         },
         {
@@ -108,7 +108,7 @@
           "name": "T9",
           "direction": "left",
           "startFrac": 0.4326,
-          "endFrac": 0.4706,
+          "endFrac": 0.4807,
           "numbers": [
             9
           ]
@@ -116,7 +116,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4706,
+          "startFrac": 0.4807,
           "endFrac": 0.5079
         },
         {
@@ -154,7 +154,7 @@
           "name": "T13",
           "direction": "left",
           "startFrac": 0.6062,
-          "endFrac": 0.6449,
+          "endFrac": 0.655,
           "numbers": [
             13
           ]
@@ -162,7 +162,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6449,
+          "startFrac": 0.655,
           "endFrac": 0.704
         },
         {
@@ -180,7 +180,7 @@
           "name": "T15",
           "direction": "left",
           "startFrac": 0.7601,
-          "endFrac": 0.8107,
+          "endFrac": 0.8208,
           "numbers": [
             15
           ]
@@ -188,7 +188,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.8107,
+          "startFrac": 0.8208,
           "endFrac": 0.8545
         },
         {
@@ -286,7 +286,7 @@
       "name": "T5",
       "direction": "right",
       "startFrac": 0.1743,
-      "endFrac": 0.2181,
+      "endFrac": 0.2282,
       "numbers": [
         5
       ]
@@ -294,7 +294,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.2181,
+      "startFrac": 0.2282,
       "endFrac": 0.2592
     },
     {
@@ -332,7 +332,7 @@
       "name": "T9",
       "direction": "left",
       "startFrac": 0.4326,
-      "endFrac": 0.4706,
+      "endFrac": 0.4807,
       "numbers": [
         9
       ]
@@ -340,7 +340,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.4706,
+      "startFrac": 0.4807,
       "endFrac": 0.5079
     },
     {
@@ -378,7 +378,7 @@
       "name": "T13",
       "direction": "left",
       "startFrac": 0.6062,
-      "endFrac": 0.6449,
+      "endFrac": 0.655,
       "numbers": [
         13
       ]
@@ -386,7 +386,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.6449,
+      "startFrac": 0.655,
       "endFrac": 0.704
     },
     {
@@ -404,7 +404,7 @@
       "name": "T15",
       "direction": "left",
       "startFrac": 0.7601,
-      "endFrac": 0.8107,
+      "endFrac": 0.8208,
       "numbers": [
         15
       ]
@@ -412,7 +412,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.8107,
+      "startFrac": 0.8208,
       "endFrac": 0.8545
     },
     {

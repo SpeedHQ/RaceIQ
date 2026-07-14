@@ -2,14 +2,14 @@
   "name": "Suzuka Circuit",
   "sectors": {
     "s1End": 0.3804,
-    "s2End": 0.8177,
+    "s2End": 0.8263,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
         "s1End": 0.3804,
-        "s2End": 0.8177,
+        "s2End": 0.8263,
         "source": "corner-anchored"
       },
       "segments": [
@@ -98,7 +98,7 @@
           "name": "Spoon",
           "direction": "left",
           "startFrac": 0.6382,
-          "endFrac": 0.7142,
+          "endFrac": 0.7228,
           "numbers": [
             13,
             14
@@ -107,7 +107,7 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.7142,
+          "startFrac": 0.7228,
           "endFrac": 0.8287
         },
         {
@@ -115,7 +115,7 @@
           "name": "130R",
           "direction": "left",
           "startFrac": 0.8287,
-          "endFrac": 0.8766,
+          "endFrac": 0.8852,
           "numbers": [
             15
           ]
@@ -123,7 +123,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.8766,
+          "startFrac": 0.8852,
           "endFrac": 0.9045
         },
         {
@@ -225,7 +225,7 @@
           "name": "T12",
           "direction": "right",
           "startFrac": 0.4687,
-          "endFrac": 0.5291,
+          "endFrac": 0.5378,
           "numbers": [
             12
           ]
@@ -233,7 +233,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5291,
+          "startFrac": 0.5378,
           "endFrac": 0.576
         },
         {
@@ -241,7 +241,7 @@
           "name": "Spoon",
           "direction": "left",
           "startFrac": 0.576,
-          "endFrac": 0.6716,
+          "endFrac": 0.6803,
           "numbers": [
             13,
             14
@@ -250,7 +250,7 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.6716,
+          "startFrac": 0.6803,
           "endFrac": 0.7741
         },
         {
@@ -258,16 +258,10 @@
           "name": "130R",
           "direction": "left",
           "startFrac": 0.7741,
-          "endFrac": 0.8306,
+          "endFrac": 0.8506,
           "numbers": [
             15
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8306,
-          "endFrac": 0.8506
         },
         {
           "type": "corner",
@@ -284,7 +278,7 @@
           "name": "T18",
           "direction": "right",
           "startFrac": 0.8962,
-          "endFrac": 0.9296,
+          "endFrac": 0.9383,
           "numbers": [
             18
           ]
@@ -292,13 +286,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9296,
+          "startFrac": 0.9383,
           "endFrac": 1
         }
       ],
       "sectors": {
         "s1End": 0.3157,
-        "s2End": 0.7759,
+        "s2End": 0.7846,
         "source": "corner-anchored"
       }
     }
@@ -389,7 +383,7 @@
       "name": "Spoon",
       "direction": "left",
       "startFrac": 0.6382,
-      "endFrac": 0.7142,
+      "endFrac": 0.7228,
       "numbers": [
         13,
         14
@@ -398,7 +392,7 @@
     {
       "type": "straight",
       "name": "Back Straight",
-      "startFrac": 0.7142,
+      "startFrac": 0.7228,
       "endFrac": 0.8287
     },
     {
@@ -406,7 +400,7 @@
       "name": "130R",
       "direction": "left",
       "startFrac": 0.8287,
-      "endFrac": 0.8766,
+      "endFrac": 0.8852,
       "numbers": [
         15
       ]
@@ -414,7 +408,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.8766,
+      "startFrac": 0.8852,
       "endFrac": 0.9045
     },
     {

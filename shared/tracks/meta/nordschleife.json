@@ -13,7 +13,7 @@
           "type": "corner",
           "name": "Castrol-S",
           "startFrac": 0.0182,
-          "endFrac": 0.0312,
+          "endFrac": 0.0332,
           "numbers": [
             1,
             2
@@ -22,7 +22,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.0312,
+          "startFrac": 0.0332,
           "endFrac": 0.0375
         },
         {
@@ -40,7 +40,7 @@
           "name": "T4",
           "direction": "right",
           "startFrac": 0.0494,
-          "endFrac": 0.0568,
+          "endFrac": 0.0588,
           "numbers": [
             4
           ]
@@ -48,7 +48,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.0568,
+          "startFrac": 0.0588,
           "endFrac": 0.0684
         },
         {
@@ -66,7 +66,7 @@
           "name": "T6",
           "direction": "left",
           "startFrac": 0.0837,
-          "endFrac": 0.0974,
+          "endFrac": 0.0994,
           "numbers": [
             6
           ]
@@ -74,14 +74,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.0974,
+          "startFrac": 0.0994,
           "endFrac": 0.1063
         },
         {
           "type": "corner",
           "name": "Michael-Schumacher-S",
           "startFrac": 0.1063,
-          "endFrac": 0.127,
+          "endFrac": 0.129,
           "numbers": [
             7,
             8
@@ -90,7 +90,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.127,
+          "startFrac": 0.129,
           "endFrac": 0.1515
         },
         {
@@ -137,7 +137,7 @@
           "type": "corner",
           "name": "Hatzenbach",
           "startFrac": 0.2007,
-          "endFrac": 0.2345,
+          "endFrac": 0.2365,
           "numbers": [
             14,
             15,
@@ -150,7 +150,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2345,
+          "startFrac": 0.2365,
           "endFrac": 0.252
         },
         {
@@ -158,7 +158,7 @@
           "name": "Flugplatz",
           "direction": "right",
           "startFrac": 0.252,
-          "endFrac": 0.2693,
+          "endFrac": 0.2713,
           "numbers": [
             20
           ]
@@ -166,7 +166,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2693,
+          "startFrac": 0.2713,
           "endFrac": 0.3129
         },
         {
@@ -174,7 +174,7 @@
           "name": "Aremberg",
           "direction": "right",
           "startFrac": 0.3129,
-          "endFrac": 0.3274,
+          "endFrac": 0.3294,
           "numbers": [
             21
           ]
@@ -182,14 +182,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3274,
+          "startFrac": 0.3294,
           "endFrac": 0.3617
         },
         {
           "type": "corner",
           "name": "Adenauer Forst",
           "startFrac": 0.3617,
-          "endFrac": 0.3814,
+          "endFrac": 0.3834,
           "numbers": [
             22,
             23,
@@ -199,7 +199,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3814,
+          "startFrac": 0.3834,
           "endFrac": 0.3969
         },
         {
@@ -298,7 +298,7 @@
           "name": "Ex-Mühle",
           "direction": "right",
           "startFrac": 0.4873,
-          "endFrac": 0.4938,
+          "endFrac": 0.4958,
           "numbers": [
             35
           ]
@@ -306,7 +306,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4938,
+          "startFrac": 0.4958,
           "endFrac": 0.5133
         },
         {
@@ -314,7 +314,7 @@
           "name": "Bergwerk",
           "direction": "right",
           "startFrac": 0.5133,
-          "endFrac": 0.5265,
+          "endFrac": 0.5285,
           "numbers": [
             36
           ]
@@ -322,7 +322,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5265,
+          "startFrac": 0.5285,
           "endFrac": 0.5896
         },
         {
@@ -330,7 +330,7 @@
           "name": "Kesselchen",
           "direction": "left",
           "startFrac": 0.5896,
-          "endFrac": 0.6034,
+          "endFrac": 0.6054,
           "numbers": [
             37
           ]
@@ -338,7 +338,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6034,
+          "startFrac": 0.6054,
           "endFrac": 0.6191
         },
         {
@@ -366,7 +366,7 @@
           "name": "T40",
           "direction": "right",
           "startFrac": 0.6473,
-          "endFrac": 0.6553,
+          "endFrac": 0.6573,
           "numbers": [
             40
           ]
@@ -374,7 +374,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6553,
+          "startFrac": 0.6573,
           "endFrac": 0.6661
         },
         {
@@ -472,7 +472,7 @@
           "type": "corner",
           "name": "Pflanzgarten",
           "startFrac": 0.7669,
-          "endFrac": 0.802,
+          "endFrac": 0.804,
           "numbers": [
             52,
             53,
@@ -482,7 +482,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.802,
+          "startFrac": 0.804,
           "endFrac": 0.8125
         },
         {
@@ -520,7 +520,7 @@
           "name": "Galgenkopf",
           "direction": "right",
           "startFrac": 0.8463,
-          "endFrac": 0.8679,
+          "endFrac": 0.8699,
           "numbers": [
             58
           ]
@@ -528,7 +528,7 @@
         {
           "type": "straight",
           "name": "Döttinger Höhe",
-          "startFrac": 0.8679,
+          "startFrac": 0.8699,
           "endFrac": 0.9732
         },
         {
@@ -546,7 +546,7 @@
           "name": "Hohenrain",
           "direction": "left",
           "startFrac": 0.9815,
-          "endFrac": 0.9865,
+          "endFrac": 0.9885,
           "numbers": [
             60
           ]
@@ -554,7 +554,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9865,
+          "startFrac": 0.9885,
           "endFrac": 1
         }
       ]
@@ -571,7 +571,7 @@
       "type": "corner",
       "name": "Castrol-S",
       "startFrac": 0.0182,
-      "endFrac": 0.0312,
+      "endFrac": 0.0332,
       "numbers": [
         1,
         2
@@ -580,7 +580,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.0312,
+      "startFrac": 0.0332,
       "endFrac": 0.0375
     },
     {
@@ -598,7 +598,7 @@
       "name": "T4",
       "direction": "right",
       "startFrac": 0.0494,
-      "endFrac": 0.0568,
+      "endFrac": 0.0588,
       "numbers": [
         4
       ]
@@ -606,7 +606,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.0568,
+      "startFrac": 0.0588,
       "endFrac": 0.0684
     },
     {
@@ -624,7 +624,7 @@
       "name": "T6",
       "direction": "left",
       "startFrac": 0.0837,
-      "endFrac": 0.0974,
+      "endFrac": 0.0994,
       "numbers": [
         6
       ]
@@ -632,14 +632,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.0974,
+      "startFrac": 0.0994,
       "endFrac": 0.1063
     },
     {
       "type": "corner",
       "name": "Michael-Schumacher-S",
       "startFrac": 0.1063,
-      "endFrac": 0.127,
+      "endFrac": 0.129,
       "numbers": [
         7,
         8
@@ -648,7 +648,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.127,
+      "startFrac": 0.129,
       "endFrac": 0.1515
     },
     {
@@ -695,7 +695,7 @@
       "type": "corner",
       "name": "Hatzenbach",
       "startFrac": 0.2007,
-      "endFrac": 0.2345,
+      "endFrac": 0.2365,
       "numbers": [
         14,
         15,
@@ -708,7 +708,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.2345,
+      "startFrac": 0.2365,
       "endFrac": 0.252
     },
     {
@@ -716,7 +716,7 @@
       "name": "Flugplatz",
       "direction": "right",
       "startFrac": 0.252,
-      "endFrac": 0.2693,
+      "endFrac": 0.2713,
       "numbers": [
         20
       ]
@@ -724,7 +724,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.2693,
+      "startFrac": 0.2713,
       "endFrac": 0.3129
     },
     {
@@ -732,7 +732,7 @@
       "name": "Aremberg",
       "direction": "right",
       "startFrac": 0.3129,
-      "endFrac": 0.3274,
+      "endFrac": 0.3294,
       "numbers": [
         21
       ]
@@ -740,14 +740,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3274,
+      "startFrac": 0.3294,
       "endFrac": 0.3617
     },
     {
       "type": "corner",
       "name": "Adenauer Forst",
       "startFrac": 0.3617,
-      "endFrac": 0.3814,
+      "endFrac": 0.3834,
       "numbers": [
         22,
         23,
@@ -757,7 +757,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3814,
+      "startFrac": 0.3834,
       "endFrac": 0.3969
     },
     {
@@ -856,7 +856,7 @@
       "name": "Ex-Mühle",
       "direction": "right",
       "startFrac": 0.4873,
-      "endFrac": 0.4938,
+      "endFrac": 0.4958,
       "numbers": [
         35
       ]
@@ -864,7 +864,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.4938,
+      "startFrac": 0.4958,
       "endFrac": 0.5133
     },
     {
@@ -872,7 +872,7 @@
       "name": "Bergwerk",
       "direction": "right",
       "startFrac": 0.5133,
-      "endFrac": 0.5265,
+      "endFrac": 0.5285,
       "numbers": [
         36
       ]
@@ -880,7 +880,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.5265,
+      "startFrac": 0.5285,
       "endFrac": 0.5896
     },
     {
@@ -888,7 +888,7 @@
       "name": "Kesselchen",
       "direction": "left",
       "startFrac": 0.5896,
-      "endFrac": 0.6034,
+      "endFrac": 0.6054,
       "numbers": [
         37
       ]
@@ -896,7 +896,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.6034,
+      "startFrac": 0.6054,
       "endFrac": 0.6191
     },
     {
@@ -924,7 +924,7 @@
       "name": "T40",
       "direction": "right",
       "startFrac": 0.6473,
-      "endFrac": 0.6553,
+      "endFrac": 0.6573,
       "numbers": [
         40
       ]
@@ -932,7 +932,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.6553,
+      "startFrac": 0.6573,
       "endFrac": 0.6661
     },
     {
@@ -1030,7 +1030,7 @@
       "type": "corner",
       "name": "Pflanzgarten",
       "startFrac": 0.7669,
-      "endFrac": 0.802,
+      "endFrac": 0.804,
       "numbers": [
         52,
         53,
@@ -1040,7 +1040,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.802,
+      "startFrac": 0.804,
       "endFrac": 0.8125
     },
     {
@@ -1078,7 +1078,7 @@
       "name": "Galgenkopf",
       "direction": "right",
       "startFrac": 0.8463,
-      "endFrac": 0.8679,
+      "endFrac": 0.8699,
       "numbers": [
         58
       ]
@@ -1086,7 +1086,7 @@
     {
       "type": "straight",
       "name": "Döttinger Höhe",
-      "startFrac": 0.8679,
+      "startFrac": 0.8699,
       "endFrac": 0.9732
     },
     {
@@ -1104,7 +1104,7 @@
       "name": "Hohenrain",
       "direction": "left",
       "startFrac": 0.9815,
-      "endFrac": 0.9865,
+      "endFrac": 0.9885,
       "numbers": [
         60
       ]
@@ -1112,7 +1112,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9865,
+      "startFrac": 0.9885,
       "endFrac": 1
     }
   ]

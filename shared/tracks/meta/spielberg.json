@@ -1,14 +1,14 @@
 {
   "name": "Red Bull Ring",
   "sectors": {
-    "s1End": 0.2896,
+    "s1End": 0.3012,
     "s2End": 0.7288,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.2896,
+        "s1End": 0.3012,
         "s2End": 0.7288,
         "source": "corner-anchored"
       },
@@ -24,7 +24,7 @@
           "name": "Niki Lauda Kurve",
           "direction": "right",
           "startFrac": 0.0709,
-          "endFrac": 0.1272,
+          "endFrac": 0.1388,
           "numbers": [
             1
           ]
@@ -32,7 +32,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1272,
+          "startFrac": 0.1388,
           "endFrac": 0.2892
         },
         {
@@ -40,7 +40,7 @@
           "name": "Remus",
           "direction": "right",
           "startFrac": 0.2892,
-          "endFrac": 0.3454,
+          "endFrac": 0.357,
           "numbers": [
             3
           ]
@@ -48,7 +48,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3454,
+          "startFrac": 0.357,
           "endFrac": 0.4739
         },
         {
@@ -86,7 +86,7 @@
           "name": "T7",
           "direction": "right",
           "startFrac": 0.7288,
-          "endFrac": 0.7863,
+          "endFrac": 0.7979,
           "numbers": [
             7
           ]
@@ -94,7 +94,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7863,
+          "startFrac": 0.7979,
           "endFrac": 0.836
         },
         {
@@ -112,7 +112,7 @@
           "name": "Red Bull Mobile",
           "direction": "right",
           "startFrac": 0.9086,
-          "endFrac": 0.9497,
+          "endFrac": 0.9613,
           "numbers": [
             10
           ]
@@ -120,7 +120,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9497,
+          "startFrac": 0.9613,
           "endFrac": 1
         }
       ]
@@ -138,7 +138,7 @@
           "name": "Niki Lauda Kurve",
           "direction": "right",
           "startFrac": 0.0664,
-          "endFrac": 0.1306,
+          "endFrac": 0.1422,
           "numbers": [
             1
           ]
@@ -146,7 +146,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1306,
+          "startFrac": 0.1422,
           "endFrac": 0.2842
         },
         {
@@ -154,7 +154,7 @@
           "name": "Remus",
           "direction": "right",
           "startFrac": 0.2842,
-          "endFrac": 0.3459,
+          "endFrac": 0.3575,
           "numbers": [
             3
           ]
@@ -162,7 +162,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3459,
+          "startFrac": 0.3575,
           "endFrac": 0.4718
         },
         {
@@ -170,7 +170,7 @@
           "name": "Schlossgold",
           "direction": "right",
           "startFrac": 0.4718,
-          "endFrac": 0.5383,
+          "endFrac": 0.5499,
           "numbers": [
             4
           ]
@@ -178,7 +178,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5383,
+          "startFrac": 0.5499,
           "endFrac": 0.5779
         },
         {
@@ -206,16 +206,10 @@
           "name": "T7",
           "direction": "right",
           "startFrac": 0.7254,
-          "endFrac": 0.7925,
+          "endFrac": 0.8274,
           "numbers": [
             7
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7925,
-          "endFrac": 0.8274
         },
         {
           "type": "corner",
@@ -232,7 +226,7 @@
           "name": "Red Bull Mobile",
           "direction": "right",
           "startFrac": 0.9079,
-          "endFrac": 0.9522,
+          "endFrac": 0.9638,
           "numbers": [
             10
           ]
@@ -240,12 +234,12 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9522,
+          "startFrac": 0.9638,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.294,
+        "s1End": 0.3056,
         "s2End": 0.7254,
         "source": "corner-anchored"
       }
@@ -263,7 +257,7 @@
       "name": "Niki Lauda Kurve",
       "direction": "right",
       "startFrac": 0.0709,
-      "endFrac": 0.1272,
+      "endFrac": 0.1388,
       "numbers": [
         1
       ]
@@ -271,7 +265,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1272,
+      "startFrac": 0.1388,
       "endFrac": 0.2892
     },
     {
@@ -279,7 +273,7 @@
       "name": "Remus",
       "direction": "right",
       "startFrac": 0.2892,
-      "endFrac": 0.3454,
+      "endFrac": 0.357,
       "numbers": [
         3
       ]
@@ -287,7 +281,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3454,
+      "startFrac": 0.357,
       "endFrac": 0.4739
     },
     {
@@ -325,7 +319,7 @@
       "name": "T7",
       "direction": "right",
       "startFrac": 0.7288,
-      "endFrac": 0.7863,
+      "endFrac": 0.7979,
       "numbers": [
         7
       ]
@@ -333,7 +327,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7863,
+      "startFrac": 0.7979,
       "endFrac": 0.836
     },
     {
@@ -351,7 +345,7 @@
       "name": "Red Bull Mobile",
       "direction": "right",
       "startFrac": 0.9086,
-      "endFrac": 0.9497,
+      "endFrac": 0.9613,
       "numbers": [
         10
       ]
@@ -359,7 +353,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9497,
+      "startFrac": 0.9613,
       "endFrac": 1
     }
   ]

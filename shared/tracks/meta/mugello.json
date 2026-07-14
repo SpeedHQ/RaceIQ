@@ -39,16 +39,10 @@
           "name": "Poggio Secco",
           "direction": "right",
           "startFrac": 0.1957,
-          "endFrac": 0.2354,
+          "endFrac": 0.2553,
           "numbers": [
             3
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2354,
-          "endFrac": 0.2553
         },
         {
           "type": "corner",
@@ -155,7 +149,7 @@
           "name": "Biondetti 2",
           "direction": "right",
           "startFrac": 0.7533,
-          "endFrac": 0.7802,
+          "endFrac": 0.7898,
           "numbers": [
             14
           ]
@@ -163,7 +157,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7802,
+          "startFrac": 0.7898,
           "endFrac": 0.8119
         },
         {
@@ -171,7 +165,7 @@
           "name": "Bucine",
           "direction": "left",
           "startFrac": 0.8119,
-          "endFrac": 0.9025,
+          "endFrac": 0.9121,
           "numbers": [
             15
           ]
@@ -179,7 +173,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9025,
+          "startFrac": 0.9121,
           "endFrac": 1
         }
       ],
@@ -222,16 +216,10 @@
       "name": "Poggio Secco",
       "direction": "right",
       "startFrac": 0.1957,
-      "endFrac": 0.2354,
+      "endFrac": 0.2553,
       "numbers": [
         3
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.2354,
-      "endFrac": 0.2553
     },
     {
       "type": "corner",
@@ -338,7 +326,7 @@
       "name": "Biondetti 2",
       "direction": "right",
       "startFrac": 0.7533,
-      "endFrac": 0.7802,
+      "endFrac": 0.7898,
       "numbers": [
         14
       ]
@@ -346,7 +334,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7802,
+      "startFrac": 0.7898,
       "endFrac": 0.8119
     },
     {
@@ -354,7 +342,7 @@
       "name": "Bucine",
       "direction": "left",
       "startFrac": 0.8119,
-      "endFrac": 0.9025,
+      "endFrac": 0.9121,
       "numbers": [
         15
       ]
@@ -362,7 +350,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9025,
+      "startFrac": 0.9121,
       "endFrac": 1
     }
   ]

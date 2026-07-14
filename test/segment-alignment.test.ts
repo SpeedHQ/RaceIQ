@@ -63,6 +63,24 @@ describe("alignSegments", () => {
     expect(between, "corners should be adjacent, not split by a ~60 m straight").toEqual([]);
   });
 
+  test("a curated straight survives a gap that padding wants to swallow whole", () => {
+    // Brands Hatch's Cooper Straight: a ~280 m gap, less than entry+exit padding
+    // wants. Padding must reserve enough for the straight to survive rounding.
+    const detected = [region(0.3964, 0.4597, "right"), region(0.6062, 0.6457, "right")];
+    const list: CornerNameList = {
+      circuit: "Test",
+      turnCount: 2,
+      corners: [
+        { number: 1, name: "Graham Hill Bend", direction: "right" },
+        { number: 2, name: "Surtees", direction: "right" },
+      ],
+      straights: [{ after: 1, name: "Cooper Straight" }],
+    };
+    const res = alignSegments(detected, list, 1925);
+    expect(res.ok).toBe(true);
+    expect(res.segments.map((s) => s.name), "padding ate the curated straight").toContain("Cooper Straight");
+  });
+
   test("a curated straight survives even when short", () => {
     // Brands Hatch's Cooper Straight is real at ~55 m — a name outranks the length cutoff.
     const detected = [region(0.1, 0.12, "right"), region(0.1286, 0.15, "left")];

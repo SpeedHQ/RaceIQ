@@ -54,7 +54,7 @@
           "name": "T5",
           "direction": "right",
           "startFrac": 0.3286,
-          "endFrac": 0.3875,
+          "endFrac": 0.4043,
           "numbers": [
             5
           ]
@@ -62,7 +62,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3875,
+          "startFrac": 0.4043,
           "endFrac": 0.593
         },
         {
@@ -70,16 +70,10 @@
           "name": "T6",
           "direction": "right",
           "startFrac": 0.593,
-          "endFrac": 0.74,
+          "endFrac": 0.7789,
           "numbers": [
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.74,
-          "endFrac": 0.7789
         },
         {
           "type": "corner",
@@ -96,7 +90,7 @@
           "name": "T8",
           "direction": "right",
           "startFrac": 0.8451,
-          "endFrac": 0.9508,
+          "endFrac": 0.9619,
           "numbers": [
             8
           ]
@@ -104,7 +98,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9508,
+          "startFrac": 0.9619,
           "endFrac": 1
         }
       ]
@@ -162,7 +156,7 @@
       "name": "T5",
       "direction": "right",
       "startFrac": 0.3286,
-      "endFrac": 0.3875,
+      "endFrac": 0.4043,
       "numbers": [
         5
       ]
@@ -170,7 +164,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3875,
+      "startFrac": 0.4043,
       "endFrac": 0.593
     },
     {
@@ -178,16 +172,10 @@
       "name": "T6",
       "direction": "right",
       "startFrac": 0.593,
-      "endFrac": 0.74,
+      "endFrac": 0.7789,
       "numbers": [
         6
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.74,
-      "endFrac": 0.7789
     },
     {
       "type": "corner",
@@ -204,7 +192,7 @@
       "name": "T8",
       "direction": "right",
       "startFrac": 0.8451,
-      "endFrac": 0.9508,
+      "endFrac": 0.9619,
       "numbers": [
         8
       ]
@@ -212,7 +200,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9508,
+      "startFrac": 0.9619,
       "endFrac": 1
     }
   ]

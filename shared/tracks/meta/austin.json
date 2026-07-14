@@ -2,14 +2,14 @@
   "name": "Circuit of the Americas",
   "sectors": {
     "s1End": 0.3807,
-    "s2End": 0.652,
+    "s2End": 0.6611,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
         "s1End": 0.3807,
-        "s2End": 0.652,
+        "s2End": 0.6611,
         "source": "corner-anchored"
       },
       "segments": [
@@ -114,23 +114,17 @@
           "name": "T10",
           "direction": "left",
           "startFrac": 0.3807,
-          "endFrac": 0.415,
+          "endFrac": 0.4417,
           "numbers": [
             10
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.415,
-          "endFrac": 0.4417
         },
         {
           "type": "corner",
           "name": "T11",
           "direction": "left",
           "startFrac": 0.4417,
-          "endFrac": 0.4882,
+          "endFrac": 0.4973,
           "numbers": [
             11
           ]
@@ -138,7 +132,7 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.4882,
+          "startFrac": 0.4973,
           "endFrac": 0.6602
         },
         {
@@ -299,7 +293,7 @@
           "name": "T11",
           "direction": "left",
           "startFrac": 0.431,
-          "endFrac": 0.4892,
+          "endFrac": 0.4984,
           "numbers": [
             11
           ]
@@ -307,7 +301,7 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.4892,
+          "startFrac": 0.4984,
           "endFrac": 0.6591
         },
         {
@@ -376,7 +370,7 @@
       ],
       "sectors": {
         "s1End": 0.4333,
-        "s2End": 0.6555,
+        "s2End": 0.6647,
         "source": "corner-anchored"
       }
     }
@@ -483,23 +477,17 @@
       "name": "T10",
       "direction": "left",
       "startFrac": 0.3807,
-      "endFrac": 0.415,
+      "endFrac": 0.4417,
       "numbers": [
         10
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.415,
-      "endFrac": 0.4417
     },
     {
       "type": "corner",
       "name": "T11",
       "direction": "left",
       "startFrac": 0.4417,
-      "endFrac": 0.4882,
+      "endFrac": 0.4973,
       "numbers": [
         11
       ]
@@ -507,7 +495,7 @@
     {
       "type": "straight",
       "name": "Back Straight",
-      "startFrac": 0.4882,
+      "startFrac": 0.4973,
       "endFrac": 0.6602
     },
     {

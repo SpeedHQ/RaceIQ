@@ -33,16 +33,10 @@
           "name": "T2",
           "direction": "right",
           "startFrac": 0.067,
-          "endFrac": 0.107,
+          "endFrac": 0.1343,
           "numbers": [
             2
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.107,
-          "endFrac": 0.1343
         },
         {
           "type": "corner",
@@ -89,7 +83,7 @@
           "name": "T7",
           "direction": "right",
           "startFrac": 0.2996,
-          "endFrac": 0.3323,
+          "endFrac": 0.3437,
           "numbers": [
             7
           ]
@@ -97,7 +91,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3323,
+          "startFrac": 0.3437,
           "endFrac": 0.429
         },
         {
@@ -115,7 +109,7 @@
           "name": "T9",
           "direction": "left",
           "startFrac": 0.4691,
-          "endFrac": 0.5023,
+          "endFrac": 0.5137,
           "numbers": [
             9
           ]
@@ -123,7 +117,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5023,
+          "startFrac": 0.5137,
           "endFrac": 0.5831
         },
         {
@@ -131,7 +125,7 @@
           "name": "L'Épingle",
           "direction": "right",
           "startFrac": 0.5831,
-          "endFrac": 0.6584,
+          "endFrac": 0.6698,
           "numbers": [
             10
           ]
@@ -139,7 +133,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6584,
+          "startFrac": 0.6698,
           "endFrac": 0.8628
         },
         {
@@ -157,7 +151,7 @@
           "name": "T14",
           "direction": "left",
           "startFrac": 0.9028,
-          "endFrac": 0.9268,
+          "endFrac": 0.9382,
           "numbers": [
             14
           ]
@@ -165,7 +159,7 @@
         {
           "type": "straight",
           "name": "Wall of Champions",
-          "startFrac": 0.9268,
+          "startFrac": 0.9382,
           "endFrac": 1,
           "group": "Wall of Champions"
         }
@@ -195,16 +189,10 @@
       "name": "T2",
       "direction": "right",
       "startFrac": 0.067,
-      "endFrac": 0.107,
+      "endFrac": 0.1343,
       "numbers": [
         2
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.107,
-      "endFrac": 0.1343
     },
     {
       "type": "corner",
@@ -251,7 +239,7 @@
       "name": "T7",
       "direction": "right",
       "startFrac": 0.2996,
-      "endFrac": 0.3323,
+      "endFrac": 0.3437,
       "numbers": [
         7
       ]
@@ -259,7 +247,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3323,
+      "startFrac": 0.3437,
       "endFrac": 0.429
     },
     {
@@ -277,7 +265,7 @@
       "name": "T9",
       "direction": "left",
       "startFrac": 0.4691,
-      "endFrac": 0.5023,
+      "endFrac": 0.5137,
       "numbers": [
         9
       ]
@@ -285,7 +273,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.5023,
+      "startFrac": 0.5137,
       "endFrac": 0.5831
     },
     {
@@ -293,7 +281,7 @@
       "name": "L'Épingle",
       "direction": "right",
       "startFrac": 0.5831,
-      "endFrac": 0.6584,
+      "endFrac": 0.6698,
       "numbers": [
         10
       ]
@@ -301,7 +289,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.6584,
+      "startFrac": 0.6698,
       "endFrac": 0.8628
     },
     {
@@ -319,7 +307,7 @@
       "name": "T14",
       "direction": "left",
       "startFrac": 0.9028,
-      "endFrac": 0.9268,
+      "endFrac": 0.9382,
       "numbers": [
         14
       ]
@@ -327,7 +315,7 @@
     {
       "type": "straight",
       "name": "Wall of Champions",
-      "startFrac": 0.9268,
+      "startFrac": 0.9382,
       "endFrac": 1,
       "group": "Wall of Champions"
     }

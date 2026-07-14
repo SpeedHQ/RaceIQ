@@ -75,7 +75,7 @@
           "name": "Coppice",
           "direction": "right",
           "startFrac": 0.5024,
-          "endFrac": 0.5829,
+          "endFrac": 0.5956,
           "numbers": [
             8
           ]
@@ -83,47 +83,35 @@
         {
           "type": "straight",
           "name": "Starkey's Straight",
-          "startFrac": 0.5829,
+          "startFrac": 0.5956,
           "endFrac": 0.6806
         },
         {
           "type": "corner",
           "name": "Fogarty Esses",
           "startFrac": 0.6806,
-          "endFrac": 0.7782,
+          "endFrac": 0.8086,
           "numbers": [
             9,
             10
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7782,
-          "endFrac": 0.8086
-        },
-        {
           "type": "corner",
           "name": "Melbourne Hairpin",
           "direction": "right",
           "startFrac": 0.8086,
-          "endFrac": 0.8796,
+          "endFrac": 0.9075,
           "numbers": [
             11
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8796,
-          "endFrac": 0.9075
         },
         {
           "type": "corner",
           "name": "Goddards",
           "direction": "left",
           "startFrac": 0.9075,
-          "endFrac": 0.9765,
+          "endFrac": 0.9763,
           "numbers": [
             12
           ]
@@ -131,14 +119,14 @@
         {
           "type": "straight",
           "name": "Wheatcroft Straight",
-          "startFrac": 0.9765,
+          "startFrac": 0.9763,
           "endFrac": 1,
           "group": "Wheatcroft Straight"
         }
       ],
       "sectors": {
         "s1End": 0.3269,
-        "s2End": 0.5829,
+        "s2End": 0.5956,
         "source": "corner-anchored"
       }
     }
@@ -216,7 +204,7 @@
       "name": "Coppice",
       "direction": "right",
       "startFrac": 0.5024,
-      "endFrac": 0.5829,
+      "endFrac": 0.5956,
       "numbers": [
         8
       ]
@@ -224,47 +212,35 @@
     {
       "type": "straight",
       "name": "Starkey's Straight",
-      "startFrac": 0.5829,
+      "startFrac": 0.5956,
       "endFrac": 0.6806
     },
     {
       "type": "corner",
       "name": "Fogarty Esses",
       "startFrac": 0.6806,
-      "endFrac": 0.7782,
+      "endFrac": 0.8086,
       "numbers": [
         9,
         10
       ]
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.7782,
-      "endFrac": 0.8086
-    },
-    {
       "type": "corner",
       "name": "Melbourne Hairpin",
       "direction": "right",
       "startFrac": 0.8086,
-      "endFrac": 0.8796,
+      "endFrac": 0.9075,
       "numbers": [
         11
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.8796,
-      "endFrac": 0.9075
     },
     {
       "type": "corner",
       "name": "Goddards",
       "direction": "left",
       "startFrac": 0.9075,
-      "endFrac": 0.9765,
+      "endFrac": 0.9763,
       "numbers": [
         12
       ]
@@ -272,14 +248,14 @@
     {
       "type": "straight",
       "name": "Wheatcroft Straight",
-      "startFrac": 0.9765,
+      "startFrac": 0.9763,
       "endFrac": 1,
       "group": "Wheatcroft Straight"
     }
   ],
   "sectors": {
     "s1End": 0.3269,
-    "s2End": 0.5829,
+    "s2End": 0.5956,
     "source": "corner-anchored"
   }
 }

@@ -2,14 +2,14 @@
   "name": "Circuit de Barcelona-Catalunya",
   "sectors": {
     "s1End": 0.403,
-    "s2End": 0.6313,
+    "s2End": 0.642,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
         "s1End": 0.4215,
-        "s2End": 0.6554,
+        "s2End": 0.6661,
         "source": "corner-anchored"
       },
       "segments": [
@@ -44,16 +44,10 @@
           "name": "Renault",
           "direction": "right",
           "startFrac": 0.2186,
-          "endFrac": 0.3042,
+          "endFrac": 0.3297,
           "numbers": [
             3
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3042,
-          "endFrac": 0.3297
         },
         {
           "type": "corner",
@@ -110,7 +104,7 @@
           "name": "Campsa",
           "direction": "right",
           "startFrac": 0.592,
-          "endFrac": 0.6554,
+          "endFrac": 0.6661,
           "numbers": [
             9
           ]
@@ -118,7 +112,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6554,
+          "startFrac": 0.6661,
           "endFrac": 0.7134
         },
         {
@@ -156,7 +150,7 @@
           "name": "New Holland",
           "direction": "right",
           "startFrac": 0.9043,
-          "endFrac": 0.9674,
+          "endFrac": 0.9751,
           "numbers": [
             16
           ]
@@ -164,7 +158,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9674,
+          "startFrac": 0.9751,
           "endFrac": 1
         }
       ]
@@ -252,7 +246,7 @@
           "name": "Campsa",
           "direction": "right",
           "startFrac": 0.6016,
-          "endFrac": 0.6638,
+          "endFrac": 0.6747,
           "numbers": [
             9
           ]
@@ -260,7 +254,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6638,
+          "startFrac": 0.6747,
           "endFrac": 0.7205
         },
         {
@@ -308,7 +302,7 @@
           "name": "New Holland",
           "direction": "right",
           "startFrac": 0.9007,
-          "endFrac": 0.964,
+          "endFrac": 0.9733,
           "numbers": [
             16
           ]
@@ -316,13 +310,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.964,
+          "startFrac": 0.9733,
           "endFrac": 1
         }
       ],
       "sectors": {
         "s1End": 0.4259,
-        "s2End": 0.6638,
+        "s2End": 0.6747,
         "source": "corner-anchored"
       }
     },
@@ -419,7 +413,7 @@
           "name": "Campsa",
           "direction": "right",
           "startFrac": 0.5659,
-          "endFrac": 0.6313,
+          "endFrac": 0.642,
           "numbers": [
             9
           ]
@@ -427,7 +421,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6313,
+          "startFrac": 0.642,
           "endFrac": 0.6873
         },
         {
@@ -465,7 +459,7 @@
           "name": "New Holland",
           "direction": "right",
           "startFrac": 0.8786,
-          "endFrac": 0.9431,
+          "endFrac": 0.9538,
           "numbers": [
             16
           ]
@@ -473,13 +467,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9431,
+          "startFrac": 0.9538,
           "endFrac": 1
         }
       ],
       "sectors": {
         "s1End": 0.403,
-        "s2End": 0.6313,
+        "s2End": 0.642,
         "source": "corner-anchored"
       }
     }
@@ -576,7 +570,7 @@
       "name": "Campsa",
       "direction": "right",
       "startFrac": 0.5659,
-      "endFrac": 0.6313,
+      "endFrac": 0.642,
       "numbers": [
         9
       ]
@@ -584,7 +578,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.6313,
+      "startFrac": 0.642,
       "endFrac": 0.6873
     },
     {
@@ -622,7 +616,7 @@
       "name": "New Holland",
       "direction": "right",
       "startFrac": 0.8786,
-      "endFrac": 0.9431,
+      "endFrac": 0.9538,
       "numbers": [
         16
       ]
@@ -630,7 +624,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9431,
+      "startFrac": 0.9538,
       "endFrac": 1
     }
   ]

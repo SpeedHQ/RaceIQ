@@ -1,15 +1,15 @@
 {
   "name": "Shanghai International Circuit",
   "sectors": {
-    "s1End": 0.2253,
-    "s2End": 0.7218,
+    "s1End": 0.2345,
+    "s2End": 0.731,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.2253,
-        "s2End": 0.7218,
+        "s1End": 0.2345,
+        "s2End": 0.731,
         "source": "corner-anchored"
       },
       "segments": [
@@ -35,7 +35,7 @@
           "name": "T3-4",
           "direction": "left",
           "startFrac": 0.1561,
-          "endFrac": 0.1885,
+          "endFrac": 0.1977,
           "numbers": [
             3,
             4
@@ -44,7 +44,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1885,
+          "startFrac": 0.1977,
           "endFrac": 0.2622
         },
         {
@@ -92,7 +92,7 @@
           "name": "T10",
           "direction": "left",
           "startFrac": 0.4807,
-          "endFrac": 0.507,
+          "endFrac": 0.5162,
           "numbers": [
             10
           ]
@@ -100,7 +100,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.507,
+          "startFrac": 0.5162,
           "endFrac": 0.549
         },
         {
@@ -118,7 +118,7 @@
           "name": "T12-13",
           "direction": "right",
           "startFrac": 0.5843,
-          "endFrac": 0.6114,
+          "endFrac": 0.6206,
           "numbers": [
             12,
             13
@@ -127,7 +127,7 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.6114,
+          "startFrac": 0.6206,
           "endFrac": 0.8533
         },
         {
@@ -135,23 +135,17 @@
           "name": "T14",
           "direction": "right",
           "startFrac": 0.8533,
-          "endFrac": 0.8986,
+          "endFrac": 0.9212,
           "numbers": [
             14
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8986,
-          "endFrac": 0.9212
         },
         {
           "type": "corner",
           "name": "T16",
           "direction": "left",
           "startFrac": 0.9212,
-          "endFrac": 0.9666,
+          "endFrac": 0.9758,
           "numbers": [
             16
           ]
@@ -159,7 +153,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9666,
+          "startFrac": 0.9758,
           "endFrac": 1
         }
       ]
@@ -188,7 +182,7 @@
       "name": "T3-4",
       "direction": "left",
       "startFrac": 0.1561,
-      "endFrac": 0.1885,
+      "endFrac": 0.1977,
       "numbers": [
         3,
         4
@@ -197,7 +191,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1885,
+      "startFrac": 0.1977,
       "endFrac": 0.2622
     },
     {
@@ -245,7 +239,7 @@
       "name": "T10",
       "direction": "left",
       "startFrac": 0.4807,
-      "endFrac": 0.507,
+      "endFrac": 0.5162,
       "numbers": [
         10
       ]
@@ -253,7 +247,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.507,
+      "startFrac": 0.5162,
       "endFrac": 0.549
     },
     {
@@ -271,7 +265,7 @@
       "name": "T12-13",
       "direction": "right",
       "startFrac": 0.5843,
-      "endFrac": 0.6114,
+      "endFrac": 0.6206,
       "numbers": [
         12,
         13
@@ -280,7 +274,7 @@
     {
       "type": "straight",
       "name": "Back Straight",
-      "startFrac": 0.6114,
+      "startFrac": 0.6206,
       "endFrac": 0.8533
     },
     {
@@ -288,23 +282,17 @@
       "name": "T14",
       "direction": "right",
       "startFrac": 0.8533,
-      "endFrac": 0.8986,
+      "endFrac": 0.9212,
       "numbers": [
         14
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.8986,
-      "endFrac": 0.9212
     },
     {
       "type": "corner",
       "name": "T16",
       "direction": "left",
       "startFrac": 0.9212,
-      "endFrac": 0.9666,
+      "endFrac": 0.9758,
       "numbers": [
         16
       ]
@@ -312,7 +300,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9666,
+      "startFrac": 0.9758,
       "endFrac": 1
     }
   ]

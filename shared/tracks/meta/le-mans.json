@@ -50,7 +50,7 @@
           "name": "Tertre Rouge",
           "direction": "right",
           "startFrac": 0.1291,
-          "endFrac": 0.1479,
+          "endFrac": 0.1515,
           "numbers": [
             7
           ]
@@ -58,14 +58,14 @@
         {
           "type": "straight",
           "name": "Mulsanne Straight",
-          "startFrac": 0.1479,
+          "startFrac": 0.1515,
           "endFrac": 0.2848
         },
         {
           "type": "corner",
           "name": "Mulsanne Chicane 1",
           "startFrac": 0.2848,
-          "endFrac": 0.3195,
+          "endFrac": 0.3231,
           "numbers": [
             8,
             9,
@@ -75,14 +75,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3195,
+          "startFrac": 0.3231,
           "endFrac": 0.429
         },
         {
           "type": "corner",
           "name": "Mulsanne Chicane 2",
           "startFrac": 0.429,
-          "endFrac": 0.4634,
+          "endFrac": 0.467,
           "numbers": [
             11,
             12,
@@ -92,7 +92,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4634,
+          "startFrac": 0.467,
           "endFrac": 0.556
         },
         {
@@ -100,7 +100,7 @@
           "name": "Mulsanne Corner",
           "direction": "right",
           "startFrac": 0.556,
-          "endFrac": 0.5748,
+          "endFrac": 0.5784,
           "numbers": [
             14
           ]
@@ -108,7 +108,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5748,
+          "startFrac": 0.5784,
           "endFrac": 0.6962
         },
         {
@@ -136,7 +136,7 @@
           "name": "Arnage",
           "direction": "right",
           "startFrac": 0.7349,
-          "endFrac": 0.7527,
+          "endFrac": 0.7563,
           "numbers": [
             17
           ]
@@ -144,14 +144,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7527,
+          "startFrac": 0.7563,
           "endFrac": 0.8264
         },
         {
           "type": "corner",
           "name": "Porsche Curves",
           "startFrac": 0.8264,
-          "endFrac": 0.9219,
+          "endFrac": 0.9255,
           "numbers": [
             18,
             19,
@@ -163,7 +163,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9219,
+          "startFrac": 0.9255,
           "endFrac": 0.9614
         },
         {
@@ -237,7 +237,7 @@
       "name": "Tertre Rouge",
       "direction": "right",
       "startFrac": 0.1291,
-      "endFrac": 0.1479,
+      "endFrac": 0.1515,
       "numbers": [
         7
       ]
@@ -245,14 +245,14 @@
     {
       "type": "straight",
       "name": "Mulsanne Straight",
-      "startFrac": 0.1479,
+      "startFrac": 0.1515,
       "endFrac": 0.2848
     },
     {
       "type": "corner",
       "name": "Mulsanne Chicane 1",
       "startFrac": 0.2848,
-      "endFrac": 0.3195,
+      "endFrac": 0.3231,
       "numbers": [
         8,
         9,
@@ -262,14 +262,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3195,
+      "startFrac": 0.3231,
       "endFrac": 0.429
     },
     {
       "type": "corner",
       "name": "Mulsanne Chicane 2",
       "startFrac": 0.429,
-      "endFrac": 0.4634,
+      "endFrac": 0.467,
       "numbers": [
         11,
         12,
@@ -279,7 +279,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.4634,
+      "startFrac": 0.467,
       "endFrac": 0.556
     },
     {
@@ -287,7 +287,7 @@
       "name": "Mulsanne Corner",
       "direction": "right",
       "startFrac": 0.556,
-      "endFrac": 0.5748,
+      "endFrac": 0.5784,
       "numbers": [
         14
       ]
@@ -295,7 +295,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.5748,
+      "startFrac": 0.5784,
       "endFrac": 0.6962
     },
     {
@@ -323,7 +323,7 @@
       "name": "Arnage",
       "direction": "right",
       "startFrac": 0.7349,
-      "endFrac": 0.7527,
+      "endFrac": 0.7563,
       "numbers": [
         17
       ]
@@ -331,14 +331,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7527,
+      "startFrac": 0.7563,
       "endFrac": 0.8264
     },
     {
       "type": "corner",
       "name": "Porsche Curves",
       "startFrac": 0.8264,
-      "endFrac": 0.9219,
+      "endFrac": 0.9255,
       "numbers": [
         18,
         19,
@@ -350,7 +350,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9219,
+      "startFrac": 0.9255,
       "endFrac": 0.9614
     },
     {

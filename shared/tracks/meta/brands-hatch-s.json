@@ -33,7 +33,7 @@
           "name": "Graham Hill Bend",
           "direction": "left",
           "startFrac": 0.3697,
-          "endFrac": 0.5015,
+          "endFrac": 0.5252,
           "numbers": [
             3
           ]
@@ -41,14 +41,14 @@
         {
           "type": "straight",
           "name": "Cooper Straight",
-          "startFrac": 0.5015,
-          "endFrac": 0.5409
+          "startFrac": 0.5252,
+          "endFrac": 0.5411
         },
         {
           "type": "corner",
           "name": "Surtees",
           "direction": "left",
-          "startFrac": 0.5409,
+          "startFrac": 0.5411,
           "endFrac": 0.6605,
           "numbers": [
             4
@@ -59,7 +59,7 @@
           "name": "Clearways",
           "direction": "right",
           "startFrac": 0.6605,
-          "endFrac": 0.9242,
+          "endFrac": 0.9333,
           "numbers": [
             5
           ]
@@ -67,7 +67,7 @@
         {
           "type": "straight",
           "name": "Brabham Straight",
-          "startFrac": 0.9242,
+          "startFrac": 0.9333,
           "endFrac": 1
         }
       ]
@@ -99,7 +99,7 @@
       "name": "Graham Hill Bend",
       "direction": "left",
       "startFrac": 0.3697,
-      "endFrac": 0.5015,
+      "endFrac": 0.5252,
       "numbers": [
         3
       ]
@@ -107,14 +107,14 @@
     {
       "type": "straight",
       "name": "Cooper Straight",
-      "startFrac": 0.5015,
-      "endFrac": 0.5409
+      "startFrac": 0.5252,
+      "endFrac": 0.5411
     },
     {
       "type": "corner",
       "name": "Surtees",
       "direction": "left",
-      "startFrac": 0.5409,
+      "startFrac": 0.5411,
       "endFrac": 0.6605,
       "numbers": [
         4
@@ -125,7 +125,7 @@
       "name": "Clearways",
       "direction": "right",
       "startFrac": 0.6605,
-      "endFrac": 0.9242,
+      "endFrac": 0.9333,
       "numbers": [
         5
       ]
@@ -133,7 +133,7 @@
     {
       "type": "straight",
       "name": "Brabham Straight",
-      "startFrac": 0.9242,
+      "startFrac": 0.9333,
       "endFrac": 1
     }
   ],

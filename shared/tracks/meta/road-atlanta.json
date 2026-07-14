@@ -1,8 +1,8 @@
 {
   "name": "Road Atlanta",
   "sectors": {
-    "s1End": 0.3727,
-    "s2End": 0.6989,
+    "s1End": 0.385,
+    "s2End": 0.7112,
     "source": "corner-anchored"
   },
   "games": {
@@ -28,7 +28,7 @@
           "type": "corner",
           "name": "The Esses",
           "startFrac": 0.1613,
-          "endFrac": 0.3727,
+          "endFrac": 0.385,
           "numbers": [
             2,
             3,
@@ -39,7 +39,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3727,
+          "startFrac": 0.385,
           "endFrac": 0.4406
         },
         {
@@ -57,7 +57,7 @@
           "name": "T7",
           "direction": "right",
           "startFrac": 0.5115,
-          "endFrac": 0.5519,
+          "endFrac": 0.5642,
           "numbers": [
             7
           ]
@@ -65,7 +65,7 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.5519,
+          "startFrac": 0.5642,
           "endFrac": 0.8226
         },
         {
@@ -110,8 +110,8 @@
         }
       ],
       "sectors": {
-        "s1End": 0.3727,
-        "s2End": 0.6989,
+        "s1End": 0.385,
+        "s2End": 0.7112,
         "source": "corner-anchored"
       }
     }
@@ -137,7 +137,7 @@
       "type": "corner",
       "name": "The Esses",
       "startFrac": 0.1613,
-      "endFrac": 0.3727,
+      "endFrac": 0.385,
       "numbers": [
         2,
         3,
@@ -148,7 +148,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3727,
+      "startFrac": 0.385,
       "endFrac": 0.4406
     },
     {
@@ -166,7 +166,7 @@
       "name": "T7",
       "direction": "right",
       "startFrac": 0.5115,
-      "endFrac": 0.5519,
+      "endFrac": 0.5642,
       "numbers": [
         7
       ]
@@ -174,7 +174,7 @@
     {
       "type": "straight",
       "name": "Back Straight",
-      "startFrac": 0.5519,
+      "startFrac": 0.5642,
       "endFrac": 0.8226
     },
     {

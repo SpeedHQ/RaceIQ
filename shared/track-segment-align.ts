@@ -583,7 +583,11 @@ function alignOnePolarity(
   // The padded fracs ARE the section boundaries — sector anchors resolve
   // against them, so an anchored boundary coincides with the section end.
   const ENTRY_PAD_M = 150;
-  const EXIT_PAD_M = 80;
+  // A corner's exit runs until the car is straight-lining, which is further out
+  // than the curvature arc: Spa's Eau Rouge/Raidillon keeps turning up the hill
+  // to the crest (~130 m past the detected arc) before Kemmel begins. 80 m cut
+  // fast complexes short of their own exit.
+  const EXIT_PAD_M = 130;
   // A curated straight is real by declaration, so padding may not consume the
   // whole gap it lives in — Donington's Starkey's Straight sits in a ~140 m gap
   // that entry+exit padding would erase entirely, silently pushing its name
@@ -591,10 +595,15 @@ function alignOnePolarity(
   const MIN_NAMED_STRAIGHT_M = 30;
   if (totalDistM) {
     const unpadded = corners.map((c) => ({ start: c.startFrac, end: c.endFrac }));
-    // Space each gap must keep, as a fraction: reserved when a name anchors there.
+    // Space each gap must keep, as a fraction: reserved when a name anchors
+    // there. Reserving exactly the minimum isn't enough — round4() quantizes
+    // both boundaries to 1e-4 of a lap, which can shave the gap back under the
+    // cutoff (Brands Hatch's Cooper Straight landed at 29.8 m against 30), so
+    // the slack for that rounding is reserved as well.
+    const ROUND_SLACK = 4e-4;
     const reserveAfter = (i: number) =>
       i >= 0 && i < corners.length && straightNameAfterRegion.has(corners[i].regionIndex)
-        ? MIN_NAMED_STRAIGHT_M / totalDistM
+        ? MIN_NAMED_STRAIGHT_M / totalDistM + ROUND_SLACK
         : 0;
     for (let i = 0; i < corners.length; i++) {
       const prevEnd = i > 0 ? unpadded[i - 1].end : 0;

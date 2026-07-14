@@ -1,7 +1,7 @@
 {
   "name": "Watkins Glen International",
   "sectors": {
-    "s1End": 0.3692,
+    "s1End": 0.3784,
     "s2End": 0.7628,
     "source": "corner-anchored"
   },
@@ -29,7 +29,7 @@
           "name": "The Esses",
           "direction": "right",
           "startFrac": 0.0957,
-          "endFrac": 0.1571,
+          "endFrac": 0.1663,
           "numbers": [
             2,
             3,
@@ -39,7 +39,7 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.1571,
+          "startFrac": 0.1663,
           "endFrac": 0.3318
         },
         {
@@ -67,16 +67,10 @@
           "name": "The Toe",
           "direction": "left",
           "startFrac": 0.4811,
-          "endFrac": 0.548,
+          "endFrac": 0.5665,
           "numbers": [
             7
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.548,
-          "endFrac": 0.5665
         },
         {
           "type": "corner",
@@ -113,7 +107,7 @@
           "name": "T11",
           "direction": "right",
           "startFrac": 0.9015,
-          "endFrac": 0.9538,
+          "endFrac": 0.963,
           "numbers": [
             11
           ]
@@ -121,12 +115,12 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9538,
+          "startFrac": 0.963,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3236,
+        "s1End": 0.3328,
         "s2End": 0.7647,
         "source": "corner-anchored"
       }
@@ -153,7 +147,7 @@
           "type": "corner",
           "name": "The Esses",
           "startFrac": 0.0929,
-          "endFrac": 0.204,
+          "endFrac": 0.2132,
           "numbers": [
             2,
             3,
@@ -163,7 +157,7 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.204,
+          "startFrac": 0.2132,
           "endFrac": 0.3222
         },
         {
@@ -230,7 +224,7 @@
           "name": "T11",
           "direction": "right",
           "startFrac": 0.8998,
-          "endFrac": 0.9519,
+          "endFrac": 0.9611,
           "numbers": [
             11
           ]
@@ -238,12 +232,12 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9519,
+          "startFrac": 0.9611,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3692,
+        "s1End": 0.3784,
         "s2End": 0.7628,
         "source": "corner-anchored"
       }
@@ -270,7 +264,7 @@
       "type": "corner",
       "name": "The Esses",
       "startFrac": 0.0929,
-      "endFrac": 0.204,
+      "endFrac": 0.2132,
       "numbers": [
         2,
         3,
@@ -280,7 +274,7 @@
     {
       "type": "straight",
       "name": "Back Straight",
-      "startFrac": 0.204,
+      "startFrac": 0.2132,
       "endFrac": 0.3222
     },
     {
@@ -347,7 +341,7 @@
       "name": "T11",
       "direction": "right",
       "startFrac": 0.8998,
-      "endFrac": 0.9519,
+      "endFrac": 0.9611,
       "numbers": [
         11
       ]
@@ -355,7 +349,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9519,
+      "startFrac": 0.9611,
       "endFrac": 1
     }
   ]

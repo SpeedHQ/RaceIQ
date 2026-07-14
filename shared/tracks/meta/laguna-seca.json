@@ -1,7 +1,7 @@
 {
   "name": "WeatherTech Raceway Laguna Seca",
   "sectors": {
-    "s1End": 0.3194,
+    "s1End": 0.3333,
     "s2End": 0.728,
     "source": "corner-anchored"
   },
@@ -39,7 +39,7 @@
           "name": "T4",
           "direction": "right",
           "startFrac": 0.253,
-          "endFrac": 0.3318,
+          "endFrac": 0.3459,
           "numbers": [
             4
           ]
@@ -47,7 +47,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3318,
+          "startFrac": 0.3459,
           "endFrac": 0.3768
         },
         {
@@ -55,23 +55,17 @@
           "name": "T5",
           "direction": "left",
           "startFrac": 0.3768,
-          "endFrac": 0.464,
+          "endFrac": 0.4948,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.464,
-          "endFrac": 0.4948
         },
         {
           "type": "corner",
           "name": "T6",
           "direction": "left",
           "startFrac": 0.4948,
-          "endFrac": 0.568,
+          "endFrac": 0.5821,
           "numbers": [
             6
           ]
@@ -79,7 +73,7 @@
         {
           "type": "straight",
           "name": "Rahal Straight",
-          "startFrac": 0.568,
+          "startFrac": 0.5821,
           "endFrac": 0.6379
         },
         {
@@ -127,7 +121,7 @@
           "name": "T11",
           "direction": "left",
           "startFrac": 0.8777,
-          "endFrac": 0.9409,
+          "endFrac": 0.955,
           "numbers": [
             11
           ]
@@ -135,12 +129,12 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9409,
+          "startFrac": 0.955,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3318,
+        "s1End": 0.3459,
         "s2End": 0.7205,
         "source": "corner-anchored"
       }
@@ -178,7 +172,7 @@
           "name": "T4",
           "direction": "right",
           "startFrac": 0.2508,
-          "endFrac": 0.3194,
+          "endFrac": 0.3333,
           "numbers": [
             4
           ]
@@ -186,7 +180,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3194,
+          "startFrac": 0.3333,
           "endFrac": 0.3694
         },
         {
@@ -194,23 +188,17 @@
           "name": "T5",
           "direction": "left",
           "startFrac": 0.3694,
-          "endFrac": 0.455,
+          "endFrac": 0.491,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.455,
-          "endFrac": 0.491
         },
         {
           "type": "corner",
           "name": "T6",
           "direction": "left",
           "startFrac": 0.491,
-          "endFrac": 0.561,
+          "endFrac": 0.5749,
           "numbers": [
             6
           ]
@@ -218,7 +206,7 @@
         {
           "type": "straight",
           "name": "Rahal Straight",
-          "startFrac": 0.561,
+          "startFrac": 0.5749,
           "endFrac": 0.6339
         },
         {
@@ -266,7 +254,7 @@
           "name": "T11",
           "direction": "left",
           "startFrac": 0.8692,
-          "endFrac": 0.9339,
+          "endFrac": 0.9478,
           "numbers": [
             11
           ]
@@ -274,12 +262,12 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9339,
+          "startFrac": 0.9478,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3194,
+        "s1End": 0.3333,
         "s2End": 0.728,
         "source": "corner-anchored"
       }
@@ -317,7 +305,7 @@
       "name": "T4",
       "direction": "right",
       "startFrac": 0.2508,
-      "endFrac": 0.3194,
+      "endFrac": 0.3333,
       "numbers": [
         4
       ]
@@ -325,7 +313,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3194,
+      "startFrac": 0.3333,
       "endFrac": 0.3694
     },
     {
@@ -333,23 +321,17 @@
       "name": "T5",
       "direction": "left",
       "startFrac": 0.3694,
-      "endFrac": 0.455,
+      "endFrac": 0.491,
       "numbers": [
         5
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.455,
-      "endFrac": 0.491
     },
     {
       "type": "corner",
       "name": "T6",
       "direction": "left",
       "startFrac": 0.491,
-      "endFrac": 0.561,
+      "endFrac": 0.5749,
       "numbers": [
         6
       ]
@@ -357,7 +339,7 @@
     {
       "type": "straight",
       "name": "Rahal Straight",
-      "startFrac": 0.561,
+      "startFrac": 0.5749,
       "endFrac": 0.6339
     },
     {
@@ -405,7 +387,7 @@
       "name": "T11",
       "direction": "left",
       "startFrac": 0.8692,
-      "endFrac": 0.9339,
+      "endFrac": 0.9478,
       "numbers": [
         11
       ]
@@ -413,7 +395,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9339,
+      "startFrac": 0.9478,
       "endFrac": 1
     }
   ]

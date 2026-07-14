@@ -34,7 +34,7 @@
           "name": "T3",
           "direction": "right",
           "startFrac": 0.251,
-          "endFrac": 0.3224,
+          "endFrac": 0.3351,
           "numbers": [
             3
           ]
@@ -42,7 +42,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3224,
+          "startFrac": 0.3351,
           "endFrac": 0.4009
         },
         {
@@ -80,23 +80,17 @@
           "name": "T9",
           "direction": "right",
           "startFrac": 0.5955,
-          "endFrac": 0.6839,
+          "endFrac": 0.7181,
           "numbers": [
             9
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6839,
-          "endFrac": 0.7181
         },
         {
           "type": "corner",
           "name": "T10",
           "direction": "right",
           "startFrac": 0.7181,
-          "endFrac": 0.7888,
+          "endFrac": 0.8015,
           "numbers": [
             10
           ]
@@ -104,14 +98,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7888,
+          "startFrac": 0.8015,
           "endFrac": 0.8673
         },
         {
           "type": "corner",
           "name": "Jacky Ickx Chicane",
           "startFrac": 0.8673,
-          "endFrac": 0.9494,
+          "endFrac": 0.9621,
           "numbers": [
             11,
             12
@@ -120,12 +114,12 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9494,
+          "startFrac": 0.9621,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3224,
+        "s1End": 0.3351,
         "s2End": 0.5955,
         "source": "corner-anchored"
       }
@@ -163,7 +157,7 @@
       "name": "T3",
       "direction": "right",
       "startFrac": 0.251,
-      "endFrac": 0.3224,
+      "endFrac": 0.3351,
       "numbers": [
         3
       ]
@@ -171,7 +165,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3224,
+      "startFrac": 0.3351,
       "endFrac": 0.4009
     },
     {
@@ -209,23 +203,17 @@
       "name": "T9",
       "direction": "right",
       "startFrac": 0.5955,
-      "endFrac": 0.6839,
+      "endFrac": 0.7181,
       "numbers": [
         9
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.6839,
-      "endFrac": 0.7181
     },
     {
       "type": "corner",
       "name": "T10",
       "direction": "right",
       "startFrac": 0.7181,
-      "endFrac": 0.7888,
+      "endFrac": 0.8015,
       "numbers": [
         10
       ]
@@ -233,14 +221,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7888,
+      "startFrac": 0.8015,
       "endFrac": 0.8673
     },
     {
       "type": "corner",
       "name": "Jacky Ickx Chicane",
       "startFrac": 0.8673,
-      "endFrac": 0.9494,
+      "endFrac": 0.9621,
       "numbers": [
         11,
         12
@@ -249,12 +237,12 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9494,
+      "startFrac": 0.9621,
       "endFrac": 1
     }
   ],
   "sectors": {
-    "s1End": 0.3224,
+    "s1End": 0.3351,
     "s2End": 0.5955,
     "source": "corner-anchored"
   }

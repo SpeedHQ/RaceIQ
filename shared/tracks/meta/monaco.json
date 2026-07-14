@@ -24,7 +24,7 @@
           "name": "Sainte Dévote",
           "direction": "right",
           "startFrac": 0.0323,
-          "endFrac": 0.0924,
+          "endFrac": 0.1074,
           "numbers": [
             1
           ]
@@ -32,7 +32,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.0924,
+          "startFrac": 0.1074,
           "endFrac": 0.1822
         },
         {
@@ -151,7 +151,7 @@
           "type": "corner",
           "name": "Rascasse / Antony Noghès",
           "startFrac": 0.8737,
-          "endFrac": 0.9445,
+          "endFrac": 0.9595,
           "numbers": [
             18,
             19
@@ -160,7 +160,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9445,
+          "startFrac": 0.9595,
           "endFrac": 1
         }
       ]
@@ -178,7 +178,7 @@
       "name": "Sainte Dévote",
       "direction": "right",
       "startFrac": 0.0323,
-      "endFrac": 0.0924,
+      "endFrac": 0.1074,
       "numbers": [
         1
       ]
@@ -186,7 +186,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.0924,
+      "startFrac": 0.1074,
       "endFrac": 0.1822
     },
     {
@@ -305,7 +305,7 @@
       "type": "corner",
       "name": "Rascasse / Antony Noghès",
       "startFrac": 0.8737,
-      "endFrac": 0.9445,
+      "endFrac": 0.9595,
       "numbers": [
         18,
         19
@@ -314,7 +314,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9445,
+      "startFrac": 0.9595,
       "endFrac": 1
     }
   ]
