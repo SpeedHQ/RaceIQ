@@ -81,7 +81,7 @@ describe("alignSegments", () => {
     expect(res.corners[1].name).toBe("Hairpin");
   });
 
-  test("spans allows a double-apex corner split into two regions", () => {
+  test("spans merges a double-apex corner split into two regions into one segment", () => {
     const detected = [region(0.1, 0.14, "left"), region(0.15, 0.19, "left"), region(0.6, 0.65, "right")];
     const list: CornerNameList = {
       circuit: "Test",
@@ -93,7 +93,9 @@ describe("alignSegments", () => {
     const res = alignSegments(detected, list);
     expect(res.ok).toBe(true);
     expect(res.cost).toBeLessThan(1);
-    expect(res.corners.filter((c) => c.name === "Double")).toHaveLength(2);
+    const doubles = res.corners.filter((c) => c.name === "Double");
+    expect(doubles).toHaveLength(1);
+    expect(doubles[0]).toMatchObject({ startFrac: 0.1, endFrac: 0.19 });
   });
 
   test("optional corner may be absent", () => {

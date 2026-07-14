@@ -294,19 +294,6 @@
           "name": "Pouhon",
           "direction": "left",
           "startFrac": 0.5413,
-          "endFrac": 0.5595
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5595,
-          "endFrac": 0.5669
-        },
-        {
-          "type": "corner",
-          "name": "Pouhon",
-          "direction": "left",
-          "startFrac": 0.5669,
           "endFrac": 0.5924
         },
         {

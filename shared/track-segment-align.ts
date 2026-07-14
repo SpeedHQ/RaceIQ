@@ -433,6 +433,24 @@ function alignOnePolarity(
     const consumed = detected.slice(cursor, cursor + take);
     const baseIdx = cursor;
     cursor += take;
+
+    // A single corner spanning several regions (double-apex split by the
+    // detector) is ONE corner — merge into one segment covering the whole arc.
+    if (u.members.length === 1 && take > 1) {
+      const member = u.members[0];
+      const regionIdx = baseIdx + take - 1;
+      corners.push({
+        regionIndex: regionIdx,
+        numbers: [member.number],
+        name: displayName(member),
+        direction: consumed[0].direction,
+        startFrac: round4(consumed[0].startFrac),
+        endFrac: round4(consumed[take - 1].endFrac),
+      });
+      lastRegionIdxByCorner.set(member.number, regionIdx);
+      continue;
+    }
+
     const oneToOne = take === u.members.length;
     for (let k = 0; k < consumed.length; k++) {
       const member = oneToOne ? u.members[k] : null;
