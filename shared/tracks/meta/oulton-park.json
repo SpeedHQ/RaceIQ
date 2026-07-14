@@ -41,7 +41,7 @@
           "name": "Island Bend",
           "direction": "right",
           "startFrac": 0.3665,
-          "endFrac": 0.4131,
+          "endFrac": 0.4166,
           "numbers": [
             4
           ]
@@ -50,7 +50,7 @@
           "type": "corner",
           "name": "Lodge Corner",
           "direction": "right",
-          "startFrac": 0.4131,
+          "startFrac": 0.4166,
           "endFrac": 0.4692,
           "numbers": [
             5
@@ -132,7 +132,7 @@
         }
       ],
       "sectors": {
-        "s1End": 0.4131,
+        "s1End": 0.4166,
         "s2End": 0.6255,
         "source": "corner-anchored"
       }
@@ -177,7 +177,7 @@
       "name": "Island Bend",
       "direction": "right",
       "startFrac": 0.3665,
-      "endFrac": 0.4131,
+      "endFrac": 0.4166,
       "numbers": [
         4
       ]
@@ -186,7 +186,7 @@
       "type": "corner",
       "name": "Lodge Corner",
       "direction": "right",
-      "startFrac": 0.4131,
+      "startFrac": 0.4166,
       "endFrac": 0.4692,
       "numbers": [
         5
@@ -268,7 +268,7 @@
     }
   ],
   "sectors": {
-    "s1End": 0.4131,
+    "s1End": 0.4166,
     "s2End": 0.6255,
     "source": "corner-anchored"
   }

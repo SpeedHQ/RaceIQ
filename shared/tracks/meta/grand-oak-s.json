@@ -24,16 +24,10 @@
           "name": "T2",
           "direction": "left",
           "startFrac": 0.203,
-          "endFrac": 0.3178,
+          "endFrac": 0.3491,
           "numbers": [
             2
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3178,
-          "endFrac": 0.3491
         },
         {
           "type": "corner",
@@ -122,16 +116,10 @@
       "name": "T2",
       "direction": "left",
       "startFrac": 0.203,
-      "endFrac": 0.3178,
+      "endFrac": 0.3491,
       "numbers": [
         2
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3178,
-      "endFrac": 0.3491
     },
     {
       "type": "corner",

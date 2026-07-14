@@ -14,32 +14,20 @@
           "name": "Riches",
           "direction": "right",
           "startFrac": 0.038,
-          "endFrac": 0.1256,
+          "endFrac": 0.1367,
           "numbers": [
             1
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1256,
-          "endFrac": 0.1367
         },
         {
           "type": "corner",
           "name": "Montreal",
           "direction": "right",
           "startFrac": 0.1367,
-          "endFrac": 0.192,
+          "endFrac": 0.2004,
           "numbers": [
             2
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.192,
-          "endFrac": 0.2004
         },
         {
           "type": "corner",
@@ -62,16 +50,10 @@
           "name": "Agostini",
           "direction": "left",
           "startFrac": 0.3176,
-          "endFrac": 0.3808,
+          "endFrac": 0.3882,
           "numbers": [
             4
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3808,
-          "endFrac": 0.3882
         },
         {
           "type": "corner",
@@ -167,7 +149,7 @@
         }
       ],
       "sectors": {
-        "s1End": 0.3808,
+        "s1End": 0.3882,
         "s2End": 0.7452,
         "source": "corner-anchored"
       }
@@ -185,32 +167,20 @@
       "name": "Riches",
       "direction": "right",
       "startFrac": 0.038,
-      "endFrac": 0.1256,
+      "endFrac": 0.1367,
       "numbers": [
         1
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.1256,
-      "endFrac": 0.1367
     },
     {
       "type": "corner",
       "name": "Montreal",
       "direction": "right",
       "startFrac": 0.1367,
-      "endFrac": 0.192,
+      "endFrac": 0.2004,
       "numbers": [
         2
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.192,
-      "endFrac": 0.2004
     },
     {
       "type": "corner",
@@ -233,16 +203,10 @@
       "name": "Agostini",
       "direction": "left",
       "startFrac": 0.3176,
-      "endFrac": 0.3808,
+      "endFrac": 0.3882,
       "numbers": [
         4
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3808,
-      "endFrac": 0.3882
     },
     {
       "type": "corner",
@@ -338,7 +302,7 @@
     }
   ],
   "sectors": {
-    "s1End": 0.3808,
+    "s1End": 0.3882,
     "s2End": 0.7452,
     "source": "corner-anchored"
   }

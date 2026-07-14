@@ -134,16 +134,10 @@
           "name": "Marina Bend",
           "direction": "left",
           "startFrac": 0.8402,
-          "endFrac": 0.8919,
+          "endFrac": 0.9018,
           "numbers": [
             13
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8919,
-          "endFrac": 0.9018
         },
         {
           "type": "corner",
@@ -160,17 +154,11 @@
           "name": "T15",
           "direction": "right",
           "startFrac": 0.9475,
-          "endFrac": 0.9871,
+          "endFrac": 1,
           "numbers": [
             15,
             16
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9871,
-          "endFrac": 1
         }
       ]
     },
@@ -303,16 +291,10 @@
           "name": "Marina Bend",
           "direction": "left",
           "startFrac": 0.818,
-          "endFrac": 0.8691,
+          "endFrac": 0.8797,
           "numbers": [
             13
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8691,
-          "endFrac": 0.8797
         },
         {
           "type": "corner",
@@ -477,16 +459,10 @@
       "name": "Marina Bend",
       "direction": "left",
       "startFrac": 0.818,
-      "endFrac": 0.8691,
+      "endFrac": 0.8797,
       "numbers": [
         13
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.8691,
-      "endFrac": 0.8797
     },
     {
       "type": "corner",

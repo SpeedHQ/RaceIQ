@@ -57,17 +57,11 @@
           "name": "Degner",
           "direction": "right",
           "startFrac": 0.3804,
-          "endFrac": 0.4404,
+          "endFrac": 0.451,
           "numbers": [
             8,
             9
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4404,
-          "endFrac": 0.451
         },
         {
           "type": "corner",
@@ -147,16 +141,10 @@
           "name": "T18",
           "direction": "right",
           "startFrac": 0.9459,
-          "endFrac": 0.9888,
+          "endFrac": 1,
           "numbers": [
             18
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9888,
-          "endFrac": 1
         }
       ]
     },
@@ -196,33 +184,21 @@
           "name": "Dunlop",
           "direction": "left",
           "startFrac": 0.2346,
-          "endFrac": 0.3075,
+          "endFrac": 0.3157,
           "numbers": [
             7
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3075,
-          "endFrac": 0.3157
         },
         {
           "type": "corner",
           "name": "Degner",
           "direction": "right",
           "startFrac": 0.3157,
-          "endFrac": 0.3901,
+          "endFrac": 0.3979,
           "numbers": [
             8,
             9
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3901,
-          "endFrac": 0.3979
         },
         {
           "type": "corner",
@@ -321,7 +297,7 @@
         }
       ],
       "sectors": {
-        "s1End": 0.3075,
+        "s1End": 0.3157,
         "s2End": 0.7759,
         "source": "corner-anchored"
       }
@@ -372,17 +348,11 @@
       "name": "Degner",
       "direction": "right",
       "startFrac": 0.3804,
-      "endFrac": 0.4404,
+      "endFrac": 0.451,
       "numbers": [
         8,
         9
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4404,
-      "endFrac": 0.451
     },
     {
       "type": "corner",
@@ -462,16 +432,10 @@
       "name": "T18",
       "direction": "right",
       "startFrac": 0.9459,
-      "endFrac": 0.9888,
+      "endFrac": 1,
       "numbers": [
         18
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.9888,
-      "endFrac": 1
     }
   ]
 }

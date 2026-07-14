@@ -122,16 +122,10 @@
           "name": "T10",
           "direction": "right",
           "startFrac": 0.7672,
-          "endFrac": 0.7968,
+          "endFrac": 0.8066,
           "numbers": [
             10
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7968,
-          "endFrac": 0.8066
         },
         {
           "type": "corner",
@@ -272,16 +266,10 @@
       "name": "T10",
       "direction": "right",
       "startFrac": 0.7672,
-      "endFrac": 0.7968,
+      "endFrac": 0.8066,
       "numbers": [
         10
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.7968,
-      "endFrac": 0.8066
     },
     {
       "type": "corner",

@@ -174,16 +174,10 @@
           "name": "T14",
           "direction": "left",
           "startFrac": 0.6518,
-          "endFrac": 0.6765,
+          "endFrac": 0.6827,
           "numbers": [
             14
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6765,
-          "endFrac": 0.6827
         },
         {
           "type": "corner",
@@ -476,16 +470,10 @@
       "name": "T14",
       "direction": "left",
       "startFrac": 0.6518,
-      "endFrac": 0.6765,
+      "endFrac": 0.6827,
       "numbers": [
         14
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.6765,
-      "endFrac": 0.6827
     },
     {
       "type": "corner",

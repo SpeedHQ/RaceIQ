@@ -584,13 +584,25 @@ function alignOnePolarity(
   // against them, so an anchored boundary coincides with the section end.
   const ENTRY_PAD_M = 150;
   const EXIT_PAD_M = 80;
+  // A curated straight is real by declaration, so padding may not consume the
+  // whole gap it lives in — Donington's Starkey's Straight sits in a ~140 m gap
+  // that entry+exit padding would erase entirely, silently pushing its name
+  // onto the next straight down the lap.
+  const MIN_NAMED_STRAIGHT_M = 30;
   if (totalDistM) {
     const unpadded = corners.map((c) => ({ start: c.startFrac, end: c.endFrac }));
+    // Space each gap must keep, as a fraction: reserved when a name anchors there.
+    const reserveAfter = (i: number) =>
+      i >= 0 && i < corners.length && straightNameAfterRegion.has(corners[i].regionIndex)
+        ? MIN_NAMED_STRAIGHT_M / totalDistM
+        : 0;
     for (let i = 0; i < corners.length; i++) {
       const prevEnd = i > 0 ? unpadded[i - 1].end : 0;
       const nextStart = i + 1 < corners.length ? unpadded[i + 1].start : 1;
-      const entryPad = Math.min(ENTRY_PAD_M / totalDistM, (unpadded[i].start - prevEnd) / 2);
-      const exitPad = Math.min(EXIT_PAD_M / totalDistM, (nextStart - unpadded[i].end) / 2);
+      const entryRoom = Math.max(0, unpadded[i].start - prevEnd - reserveAfter(i - 1)) / 2;
+      const exitRoom = Math.max(0, nextStart - unpadded[i].end - reserveAfter(i)) / 2;
+      const entryPad = Math.min(ENTRY_PAD_M / totalDistM, entryRoom);
+      const exitPad = Math.min(EXIT_PAD_M / totalDistM, exitRoom);
       corners[i].startFrac = round4(Math.max(0, unpadded[i].start - Math.max(0, entryPad)));
       corners[i].endFrac = round4(Math.min(1, unpadded[i].end + Math.max(0, exitPad)));
     }
@@ -603,19 +615,23 @@ function alignOnePolarity(
   // when Aintree is detected in between.
   const segments: NamedSegment[] = [];
   let pendingName = "";
-  // Below this, it's not a real straight — just the trimmed gap between two
-  // adjacent corners' padded boundaries — so it's absorbed rather than shown
-  // as its own segment. A fixed lap-fraction (e.g. 0.002) under-absorbs on
-  // long tracks now that corner trimming (see detectCornerRegions) produces
-  // gaps of tens of meters; anchor the cutoff to an absolute distance instead.
-  const MIN_STRAIGHT_M = 30;
-  const sliverFrac = totalDistM ? MIN_STRAIGHT_M / totalDistM : 0.002;
+  // A short gap between two corners is a chute, not a straight — corners that
+  // flow into each other (Les Fagnes → Piff Paff) should stay adjacent rather
+  // than be split by a segment nobody would call a straight. Absorb the gap
+  // instead, which joins the corner sections and keeps the lap contiguous.
+  // A fixed lap-fraction (e.g. 0.002) under-absorbs on long tracks now that
+  // corner trimming (see detectCornerRegions) produces gaps of tens of meters;
+  // anchor the cutoff to an absolute distance instead.
+  const MIN_UNNAMED_STRAIGHT_M = 100;
+  const fracOf = (m: number) => (totalDistM ? m / totalDistM : m / 15000);
   const pushStraight = (startFrac: number, endFrac: number, afterRegion: number | null) => {
+    let anchored: string | undefined;
     if (afterRegion !== null) {
-      const anchored = straightNameAfterRegion.get(afterRegion);
+      anchored = straightNameAfterRegion.get(afterRegion);
       if (anchored) pendingName = anchored;
     }
-    if (endFrac - startFrac < sliverFrac) {
+    const minM = anchored ? MIN_NAMED_STRAIGHT_M : MIN_UNNAMED_STRAIGHT_M;
+    if (endFrac - startFrac < fracOf(minM)) {
       // Sliver: absorb into the previous segment so the lap stays contiguous
       const prev = segments[segments.length - 1];
       if (prev) prev.endFrac = round4(endFrac);

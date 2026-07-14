@@ -2,28 +2,22 @@
   "name": "Brand Hatch",
   "sectors": {
     "s1End": 0.3571,
-    "s2End": 0.6614,
+    "s2End": 0.6701,
     "source": "corner-anchored"
   },
   "games": {
     "acc": {
       "sectors": {
         "s1End": 0.3591,
-        "s2End": 0.6751,
+        "s2End": 0.6899,
         "source": "corner-anchored"
       },
       "segments": [
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0232
-        },
-        {
           "type": "corner",
           "name": "Paddock Hill Bend",
           "direction": "right",
-          "startFrac": 0.0232,
+          "startFrac": 0,
           "endFrac": 0.1184,
           "numbers": [
             1
@@ -53,13 +47,13 @@
           "type": "straight",
           "name": "Cooper Straight",
           "startFrac": 0.2534,
-          "endFrac": 0.2677
+          "endFrac": 0.2715
         },
         {
           "type": "corner",
           "name": "Surtees",
           "direction": "left",
-          "startFrac": 0.2677,
+          "startFrac": 0.2715,
           "endFrac": 0.3591,
           "numbers": [
             4
@@ -86,16 +80,10 @@
           "name": "Westfield Bend",
           "direction": "right",
           "startFrac": 0.568,
-          "endFrac": 0.6415,
+          "endFrac": 0.6563,
           "numbers": [
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6415,
-          "endFrac": 0.6563
         },
         {
           "type": "corner",
@@ -154,16 +142,10 @@
           "name": "Paddock Hill Bend",
           "direction": "right",
           "startFrac": 0.028,
-          "endFrac": 0.1004,
+          "endFrac": 0.1121,
           "numbers": [
             1
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1004,
-          "endFrac": 0.1121
         },
         {
           "type": "corner",
@@ -189,13 +171,13 @@
           "type": "straight",
           "name": "Cooper Straight",
           "startFrac": 0.2483,
-          "endFrac": 0.2656
+          "endFrac": 0.2694
         },
         {
           "type": "corner",
           "name": "Surtees",
           "direction": "left",
-          "startFrac": 0.2656,
+          "startFrac": 0.2694,
           "endFrac": 0.3571,
           "numbers": [
             4
@@ -212,32 +194,20 @@
           "name": "Hawthorn Bend",
           "direction": "right",
           "startFrac": 0.4628,
-          "endFrac": 0.5597,
+          "endFrac": 0.5693,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5597,
-          "endFrac": 0.5693
         },
         {
           "type": "corner",
           "name": "Westfield Bend",
           "direction": "right",
           "startFrac": 0.5693,
-          "endFrac": 0.628,
+          "endFrac": 0.6367,
           "numbers": [
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.628,
-          "endFrac": 0.6367
         },
         {
           "type": "corner",
@@ -294,7 +264,7 @@
       ],
       "sectors": {
         "s1End": 0.3571,
-        "s2End": 0.6614,
+        "s2End": 0.6701,
         "source": "corner-anchored"
       }
     }
@@ -311,16 +281,10 @@
       "name": "Paddock Hill Bend",
       "direction": "right",
       "startFrac": 0.028,
-      "endFrac": 0.1004,
+      "endFrac": 0.1121,
       "numbers": [
         1
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.1004,
-      "endFrac": 0.1121
     },
     {
       "type": "corner",
@@ -346,13 +310,13 @@
       "type": "straight",
       "name": "Cooper Straight",
       "startFrac": 0.2483,
-      "endFrac": 0.2656
+      "endFrac": 0.2694
     },
     {
       "type": "corner",
       "name": "Surtees",
       "direction": "left",
-      "startFrac": 0.2656,
+      "startFrac": 0.2694,
       "endFrac": 0.3571,
       "numbers": [
         4
@@ -369,32 +333,20 @@
       "name": "Hawthorn Bend",
       "direction": "right",
       "startFrac": 0.4628,
-      "endFrac": 0.5597,
+      "endFrac": 0.5693,
       "numbers": [
         5
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.5597,
-      "endFrac": 0.5693
     },
     {
       "type": "corner",
       "name": "Westfield Bend",
       "direction": "right",
       "startFrac": 0.5693,
-      "endFrac": 0.628,
+      "endFrac": 0.6367,
       "numbers": [
         6
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.628,
-      "endFrac": 0.6367
     },
     {
       "type": "corner",

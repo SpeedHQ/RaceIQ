@@ -4,26 +4,14 @@
     "fm-2023": {
       "segments": [
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0262
-        },
-        {
           "type": "corner",
           "name": "T1",
           "direction": "right",
-          "startFrac": 0.0262,
-          "endFrac": 0.0839,
+          "startFrac": 0,
+          "endFrac": 0.1092,
           "numbers": [
             1
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.0839,
-          "endFrac": 0.1092
         },
         {
           "type": "corner",
@@ -122,26 +110,14 @@
   },
   "segments": [
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0262
-    },
-    {
       "type": "corner",
       "name": "T1",
       "direction": "right",
-      "startFrac": 0.0262,
-      "endFrac": 0.0839,
+      "startFrac": 0,
+      "endFrac": 0.1092,
       "numbers": [
         1
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.0839,
-      "endFrac": 0.1092
     },
     {
       "type": "corner",

@@ -81,16 +81,10 @@
           "name": "McPhillamy Park",
           "direction": "left",
           "startFrac": 0.4599,
-          "endFrac": 0.5058,
+          "endFrac": 0.5179,
           "numbers": [
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5058,
-          "endFrac": 0.5179
         },
         {
           "type": "corner",
@@ -151,7 +145,7 @@
           "name": "Murray's Corner",
           "direction": "left",
           "startFrac": 0.9512,
-          "endFrac": 0.9927,
+          "endFrac": 0.9903,
           "numbers": [
             15
           ]
@@ -159,7 +153,7 @@
         {
           "type": "straight",
           "name": "Pit Straight",
-          "startFrac": 0.9927,
+          "startFrac": 0.9903,
           "endFrac": 1
         }
       ],
@@ -244,16 +238,10 @@
           "name": "McPhillamy Park",
           "direction": "left",
           "startFrac": 0.4362,
-          "endFrac": 0.4811,
+          "endFrac": 0.4862,
           "numbers": [
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4811,
-          "endFrac": 0.4862
         },
         {
           "type": "corner",
@@ -407,16 +395,10 @@
       "name": "McPhillamy Park",
       "direction": "left",
       "startFrac": 0.4362,
-      "endFrac": 0.4811,
+      "endFrac": 0.4862,
       "numbers": [
         6
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4811,
-      "endFrac": 0.4862
     },
     {
       "type": "corner",

@@ -50,16 +50,10 @@
           "name": "Sainte-Beaume",
           "direction": "right",
           "startFrac": 0.2537,
-          "endFrac": 0.2804,
+          "endFrac": 0.2897,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2804,
-          "endFrac": 0.2897
         },
         {
           "type": "corner",
@@ -82,16 +76,10 @@
           "name": "Signes",
           "direction": "right",
           "startFrac": 0.6276,
-          "endFrac": 0.7003,
+          "endFrac": 0.7109,
           "numbers": [
             7
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7003,
-          "endFrac": 0.7109
         },
         {
           "type": "corner",
@@ -132,7 +120,7 @@
         }
       ],
       "sectors": {
-        "s1End": 0.2804,
+        "s1End": 0.2897,
         "s2End": 0.8423,
         "source": "corner-anchored"
       }
@@ -186,16 +174,10 @@
       "name": "Sainte-Beaume",
       "direction": "right",
       "startFrac": 0.2537,
-      "endFrac": 0.2804,
+      "endFrac": 0.2897,
       "numbers": [
         5
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.2804,
-      "endFrac": 0.2897
     },
     {
       "type": "corner",
@@ -218,16 +200,10 @@
       "name": "Signes",
       "direction": "right",
       "startFrac": 0.6276,
-      "endFrac": 0.7003,
+      "endFrac": 0.7109,
       "numbers": [
         7
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.7003,
-      "endFrac": 0.7109
     },
     {
       "type": "corner",
@@ -268,7 +244,7 @@
     }
   ],
   "sectors": {
-    "s1End": 0.2804,
+    "s1End": 0.2897,
     "s2End": 0.8423,
     "source": "corner-anchored"
   }

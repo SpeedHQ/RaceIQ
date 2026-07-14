@@ -9,26 +9,14 @@
       },
       "segments": [
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0415
-        },
-        {
           "type": "corner",
           "name": "Paddock Hill Bend",
           "direction": "right",
-          "startFrac": 0.0415,
-          "endFrac": 0.2054,
+          "startFrac": 0,
+          "endFrac": 0.2279,
           "numbers": [
             1
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2054,
-          "endFrac": 0.2279
         },
         {
           "type": "corner",
@@ -54,13 +42,13 @@
           "type": "straight",
           "name": "Cooper Straight",
           "startFrac": 0.5015,
-          "endFrac": 0.5332
+          "endFrac": 0.5409
         },
         {
           "type": "corner",
           "name": "Surtees",
           "direction": "left",
-          "startFrac": 0.5332,
+          "startFrac": 0.5409,
           "endFrac": 0.6605,
           "numbers": [
             4
@@ -87,26 +75,14 @@
   },
   "segments": [
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0415
-    },
-    {
       "type": "corner",
       "name": "Paddock Hill Bend",
       "direction": "right",
-      "startFrac": 0.0415,
-      "endFrac": 0.2054,
+      "startFrac": 0,
+      "endFrac": 0.2279,
       "numbers": [
         1
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.2054,
-      "endFrac": 0.2279
     },
     {
       "type": "corner",
@@ -132,13 +108,13 @@
       "type": "straight",
       "name": "Cooper Straight",
       "startFrac": 0.5015,
-      "endFrac": 0.5332
+      "endFrac": 0.5409
     },
     {
       "type": "corner",
       "name": "Surtees",
       "direction": "left",
-      "startFrac": 0.5332,
+      "startFrac": 0.5409,
       "endFrac": 0.6605,
       "numbers": [
         4

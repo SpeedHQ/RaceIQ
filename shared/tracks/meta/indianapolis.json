@@ -115,16 +115,10 @@
           "name": "T11",
           "direction": "right",
           "startFrac": 0.6868,
-          "endFrac": 0.7604,
+          "endFrac": 0.7689,
           "numbers": [
             11
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7604,
-          "endFrac": 0.7689
         },
         {
           "type": "corner",

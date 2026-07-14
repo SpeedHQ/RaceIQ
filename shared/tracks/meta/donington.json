@@ -44,26 +44,26 @@
           "name": "Old Hairpin",
           "direction": "right",
           "startFrac": 0.263,
-          "endFrac": 0.3269,
+          "endFrac": 0.3231,
           "numbers": [
             4
           ]
         },
         {
+          "type": "straight",
+          "name": "Starkey's Straight",
+          "startFrac": 0.3231,
+          "endFrac": 0.3308
+        },
+        {
           "type": "corner",
           "name": "Starkey's",
           "direction": "left",
-          "startFrac": 0.3269,
-          "endFrac": 0.3916,
+          "startFrac": 0.3308,
+          "endFrac": 0.4068,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "Starkey's Straight",
-          "startFrac": 0.3916,
-          "endFrac": 0.4068
         },
         {
           "type": "corner",
@@ -129,20 +129,14 @@
           "name": "Goddards",
           "direction": "left",
           "startFrac": 0.9075,
-          "endFrac": 0.9804,
+          "endFrac": 1,
           "numbers": [
             12
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9804,
-          "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3269,
+        "s1End": 0.3231,
         "s2End": 0.5829,
         "source": "corner-anchored"
       }
@@ -190,26 +184,26 @@
       "name": "Old Hairpin",
       "direction": "right",
       "startFrac": 0.263,
-      "endFrac": 0.3269,
+      "endFrac": 0.3231,
       "numbers": [
         4
       ]
     },
     {
+      "type": "straight",
+      "name": "Starkey's Straight",
+      "startFrac": 0.3231,
+      "endFrac": 0.3308
+    },
+    {
       "type": "corner",
       "name": "Starkey's",
       "direction": "left",
-      "startFrac": 0.3269,
-      "endFrac": 0.3916,
+      "startFrac": 0.3308,
+      "endFrac": 0.4068,
       "numbers": [
         5
       ]
-    },
-    {
-      "type": "straight",
-      "name": "Starkey's Straight",
-      "startFrac": 0.3916,
-      "endFrac": 0.4068
     },
     {
       "type": "corner",
@@ -275,20 +269,14 @@
       "name": "Goddards",
       "direction": "left",
       "startFrac": 0.9075,
-      "endFrac": 0.9804,
+      "endFrac": 1,
       "numbers": [
         12
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.9804,
-      "endFrac": 1
     }
   ],
   "sectors": {
-    "s1End": 0.3269,
+    "s1End": 0.3231,
     "s2End": 0.5829,
     "source": "corner-anchored"
   }

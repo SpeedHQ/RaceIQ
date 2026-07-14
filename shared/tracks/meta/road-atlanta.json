@@ -103,16 +103,10 @@
           "name": "T12",
           "direction": "right",
           "startFrac": 0.9416,
-          "endFrac": 0.9912,
+          "endFrac": 1,
           "numbers": [
             12
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9912,
-          "endFrac": 1
         }
       ],
       "sectors": {
@@ -218,16 +212,10 @@
       "name": "T12",
       "direction": "right",
       "startFrac": 0.9416,
-      "endFrac": 0.9912,
+      "endFrac": 1,
       "numbers": [
         12
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.9912,
-      "endFrac": 1
     }
   ]
 }

@@ -13,7 +13,7 @@
           "type": "corner",
           "name": "Variante del Parco",
           "startFrac": 0.0301,
-          "endFrac": 0.1028,
+          "endFrac": 0.1064,
           "numbers": [
             1,
             2
@@ -23,7 +23,7 @@
           "type": "corner",
           "name": "T3",
           "direction": "right",
-          "startFrac": 0.1028,
+          "startFrac": 0.1064,
           "endFrac": 0.1647,
           "numbers": [
             3
@@ -152,7 +152,7 @@
       "type": "corner",
       "name": "Variante del Parco",
       "startFrac": 0.0301,
-      "endFrac": 0.1028,
+      "endFrac": 0.1064,
       "numbers": [
         1,
         2
@@ -162,7 +162,7 @@
       "type": "corner",
       "name": "T3",
       "direction": "right",
-      "startFrac": 0.1028,
+      "startFrac": 0.1064,
       "endFrac": 0.1647,
       "numbers": [
         3

@@ -1,7 +1,7 @@
 {
   "name": "Road America",
   "sectors": {
-    "s1End": 0.3764,
+    "s1End": 0.3838,
     "s2End": 0.614,
     "source": "corner-anchored"
   },
@@ -51,16 +51,10 @@
           "name": "T5",
           "direction": "left",
           "startFrac": 0.3354,
-          "endFrac": 0.3764,
+          "endFrac": 0.3838,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3764,
-          "endFrac": 0.3838
         },
         {
           "type": "corner",
@@ -136,32 +130,20 @@
           "name": "Canada Corner",
           "direction": "right",
           "startFrac": 0.7667,
-          "endFrac": 0.8081,
+          "endFrac": 0.8162,
           "numbers": [
             12
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8081,
-          "endFrac": 0.8162
         },
         {
           "type": "corner",
           "name": "T13",
           "direction": "left",
           "startFrac": 0.8162,
-          "endFrac": 0.8619,
+          "endFrac": 0.8687,
           "numbers": [
             13
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8619,
-          "endFrac": 0.8687
         },
         {
           "type": "corner",
@@ -181,7 +163,7 @@
         }
       ],
       "sectors": {
-        "s1End": 0.3764,
+        "s1End": 0.3838,
         "s2End": 0.614,
         "source": "corner-anchored"
       }
@@ -231,16 +213,10 @@
       "name": "T5",
       "direction": "left",
       "startFrac": 0.3354,
-      "endFrac": 0.3764,
+      "endFrac": 0.3838,
       "numbers": [
         5
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3764,
-      "endFrac": 0.3838
     },
     {
       "type": "corner",
@@ -316,32 +292,20 @@
       "name": "Canada Corner",
       "direction": "right",
       "startFrac": 0.7667,
-      "endFrac": 0.8081,
+      "endFrac": 0.8162,
       "numbers": [
         12
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.8081,
-      "endFrac": 0.8162
     },
     {
       "type": "corner",
       "name": "T13",
       "direction": "left",
       "startFrac": 0.8162,
-      "endFrac": 0.8619,
+      "endFrac": 0.8687,
       "numbers": [
         13
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.8619,
-      "endFrac": 0.8687
     },
     {
       "type": "corner",

@@ -1,14 +1,14 @@
 {
   "name": "Hungaroring",
   "sectors": {
-    "s1End": 0.5017,
+    "s1End": 0.5124,
     "s2End": 0.7385,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.5017,
+        "s1End": 0.5124,
         "s2End": 0.7385,
         "source": "corner-anchored"
       },
@@ -24,16 +24,10 @@
           "name": "T1",
           "direction": "right",
           "startFrac": 0.1029,
-          "endFrac": 0.2085,
+          "endFrac": 0.2175,
           "numbers": [
             1
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2085,
-          "endFrac": 0.2175
         },
         {
           "type": "corner",
@@ -76,16 +70,10 @@
           "name": "T5",
           "direction": "right",
           "startFrac": 0.4371,
-          "endFrac": 0.5017,
+          "endFrac": 0.5124,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5017,
-          "endFrac": 0.5124
         },
         {
           "type": "corner",
@@ -246,16 +234,10 @@
           "name": "T5",
           "direction": "right",
           "startFrac": 0.4473,
-          "endFrac": 0.508,
+          "endFrac": 0.5167,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.508,
-          "endFrac": 0.5167
         },
         {
           "type": "corner",
@@ -351,7 +333,7 @@
         }
       ],
       "sectors": {
-        "s1End": 0.508,
+        "s1End": 0.5167,
         "s2End": 0.7476,
         "source": "corner-anchored"
       }
@@ -369,16 +351,10 @@
       "name": "T1",
       "direction": "right",
       "startFrac": 0.1029,
-      "endFrac": 0.2085,
+      "endFrac": 0.2175,
       "numbers": [
         1
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.2085,
-      "endFrac": 0.2175
     },
     {
       "type": "corner",
@@ -421,16 +397,10 @@
       "name": "T5",
       "direction": "right",
       "startFrac": 0.4371,
-      "endFrac": 0.5017,
+      "endFrac": 0.5124,
       "numbers": [
         5
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.5017,
-      "endFrac": 0.5124
     },
     {
       "type": "corner",

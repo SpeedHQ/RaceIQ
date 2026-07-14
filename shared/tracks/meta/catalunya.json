@@ -8,7 +8,7 @@
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.4104,
+        "s1End": 0.4215,
         "s2End": 0.6554,
         "source": "corner-anchored"
       },
@@ -60,16 +60,10 @@
           "name": "Repsol",
           "direction": "right",
           "startFrac": 0.3297,
-          "endFrac": 0.4104,
+          "endFrac": 0.4215,
           "numbers": [
             4
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4104,
-          "endFrac": 0.4215
         },
         {
           "type": "corner",
@@ -208,48 +202,30 @@
           "name": "Renault",
           "direction": "right",
           "startFrac": 0.2244,
-          "endFrac": 0.3298,
+          "endFrac": 0.3407,
           "numbers": [
             3
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3298,
-          "endFrac": 0.3407
         },
         {
           "type": "corner",
           "name": "Repsol",
           "direction": "right",
           "startFrac": 0.3407,
-          "endFrac": 0.415,
+          "endFrac": 0.4259,
           "numbers": [
             4
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.415,
-          "endFrac": 0.4259
         },
         {
           "type": "corner",
           "name": "Seat",
           "direction": "left",
           "startFrac": 0.4259,
-          "endFrac": 0.4914,
+          "endFrac": 0.5131,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4914,
-          "endFrac": 0.5131
         },
         {
           "type": "corner",
@@ -345,7 +321,7 @@
         }
       ],
       "sectors": {
-        "s1End": 0.415,
+        "s1End": 0.4259,
         "s2End": 0.6638,
         "source": "corner-anchored"
       }
@@ -383,16 +359,10 @@
           "name": "Renault",
           "direction": "right",
           "startFrac": 0.1936,
-          "endFrac": 0.299,
+          "endFrac": 0.3088,
           "numbers": [
             3
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.299,
-          "endFrac": 0.3088
         },
         {
           "type": "corner",
@@ -546,16 +516,10 @@
       "name": "Renault",
       "direction": "right",
       "startFrac": 0.1936,
-      "endFrac": 0.299,
+      "endFrac": 0.3088,
       "numbers": [
         3
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.299,
-      "endFrac": 0.3088
     },
     {
       "type": "corner",

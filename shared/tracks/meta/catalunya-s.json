@@ -64,16 +64,10 @@
           "name": "T6",
           "direction": "left",
           "startFrac": 0.4559,
-          "endFrac": 0.4993,
+          "endFrac": 0.5176,
           "numbers": [
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4993,
-          "endFrac": 0.5176
         },
         {
           "type": "corner",
@@ -206,16 +200,10 @@
       "name": "T6",
       "direction": "left",
       "startFrac": 0.4559,
-      "endFrac": 0.4993,
+      "endFrac": 0.5176,
       "numbers": [
         6
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4993,
-      "endFrac": 0.5176
     },
     {
       "type": "corner",

@@ -81,16 +81,10 @@
           "name": "Dunlop-Kehre",
           "direction": "right",
           "startFrac": 0.4394,
-          "endFrac": 0.5045,
+          "endFrac": 0.5164,
           "numbers": [
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5045,
-          "endFrac": 0.5164
         },
         {
           "type": "corner",
@@ -242,16 +236,10 @@
           "name": "Dunlop-Kehre",
           "direction": "right",
           "startFrac": 0.3911,
-          "endFrac": 0.4622,
+          "endFrac": 0.4728,
           "numbers": [
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4622,
-          "endFrac": 0.4728
         },
         {
           "type": "corner",
@@ -325,17 +313,11 @@
           "type": "corner",
           "name": "NGK-Schikane",
           "startFrac": 0.8006,
-          "endFrac": 0.8567,
+          "endFrac": 0.8636,
           "numbers": [
             12,
             13
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8567,
-          "endFrac": 0.8636
         },
         {
           "type": "corner",
@@ -435,16 +417,10 @@
       "name": "Dunlop-Kehre",
       "direction": "right",
       "startFrac": 0.3911,
-      "endFrac": 0.4622,
+      "endFrac": 0.4728,
       "numbers": [
         6
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4622,
-      "endFrac": 0.4728
     },
     {
       "type": "corner",
@@ -518,17 +494,11 @@
       "type": "corner",
       "name": "NGK-Schikane",
       "startFrac": 0.8006,
-      "endFrac": 0.8567,
+      "endFrac": 0.8636,
       "numbers": [
         12,
         13
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.8567,
-      "endFrac": 0.8636
     },
     {
       "type": "corner",

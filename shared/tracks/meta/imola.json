@@ -1,14 +1,14 @@
 {
   "name": "Autodromo Internazionale Enzo e Dino Ferrari",
   "sectors": {
-    "s1End": 0.3544,
+    "s1End": 0.3634,
     "s2End": 0.7739,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3544,
+        "s1End": 0.3634,
         "s2End": 0.7739,
         "source": "corner-anchored"
       },
@@ -40,17 +40,11 @@
           "type": "corner",
           "name": "Villeneuve",
           "startFrac": 0.2845,
-          "endFrac": 0.3544,
+          "endFrac": 0.3634,
           "numbers": [
             5,
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3544,
-          "endFrac": 0.3634
         },
         {
           "type": "corner",
@@ -313,17 +307,11 @@
       "type": "corner",
       "name": "Villeneuve",
       "startFrac": 0.2845,
-      "endFrac": 0.3544,
+      "endFrac": 0.3634,
       "numbers": [
         5,
         6
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3544,
-      "endFrac": 0.3634
     },
     {
       "type": "corner",

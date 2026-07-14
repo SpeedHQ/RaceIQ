@@ -33,13 +33,13 @@
           "type": "straight",
           "name": "Curva Grande approach",
           "startFrac": 0.1829,
-          "endFrac": 0.1981
+          "endFrac": 0.1991
         },
         {
           "type": "corner",
           "name": "Curva Grande",
           "direction": "right",
-          "startFrac": 0.1981,
+          "startFrac": 0.1991,
           "endFrac": 0.2459,
           "numbers": [
             3
@@ -55,33 +55,21 @@
           "type": "corner",
           "name": "Variante della Roggia",
           "startFrac": 0.3442,
-          "endFrac": 0.3927,
+          "endFrac": 0.4049,
           "numbers": [
             4,
             5
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3927,
-          "endFrac": 0.4049
-        },
-        {
           "type": "corner",
           "name": "Lesmo 1",
           "direction": "right",
           "startFrac": 0.4049,
-          "endFrac": 0.4677,
+          "endFrac": 0.4745,
           "numbers": [
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4677,
-          "endFrac": 0.4745
         },
         {
           "type": "corner",
@@ -162,33 +150,21 @@
           "type": "corner",
           "name": "Variante della Roggia",
           "startFrac": 0.3405,
-          "endFrac": 0.3936,
+          "endFrac": 0.4053,
           "numbers": [
             4,
             5
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3936,
-          "endFrac": 0.4053
-        },
-        {
           "type": "corner",
           "name": "Lesmo 1",
           "direction": "right",
           "startFrac": 0.4053,
-          "endFrac": 0.4665,
+          "endFrac": 0.4722,
           "numbers": [
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4665,
-          "endFrac": 0.4722
         },
         {
           "type": "corner",
@@ -268,13 +244,13 @@
       "type": "straight",
       "name": "Curva Grande approach",
       "startFrac": 0.1829,
-      "endFrac": 0.1981
+      "endFrac": 0.1991
     },
     {
       "type": "corner",
       "name": "Curva Grande",
       "direction": "right",
-      "startFrac": 0.1981,
+      "startFrac": 0.1991,
       "endFrac": 0.2459,
       "numbers": [
         3
@@ -290,33 +266,21 @@
       "type": "corner",
       "name": "Variante della Roggia",
       "startFrac": 0.3442,
-      "endFrac": 0.3927,
+      "endFrac": 0.4049,
       "numbers": [
         4,
         5
       ]
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3927,
-      "endFrac": 0.4049
-    },
-    {
       "type": "corner",
       "name": "Lesmo 1",
       "direction": "right",
       "startFrac": 0.4049,
-      "endFrac": 0.4677,
+      "endFrac": 0.4745,
       "numbers": [
         6
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4677,
-      "endFrac": 0.4745
     },
     {
       "type": "corner",

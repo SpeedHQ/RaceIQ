@@ -2,14 +2,14 @@
   "name": "Silverstone Racing Circuit",
   "sectors": {
     "s1End": 0.3287,
-    "s2End": 0.7085,
+    "s2End": 0.7101,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
         "s1End": 0.3539,
-        "s2End": 0.7288,
+        "s2End": 0.7262,
         "source": "corner-anchored"
       },
       "segments": [
@@ -54,16 +54,22 @@
           "name": "The Loop",
           "direction": "left",
           "startFrac": 0.1677,
-          "endFrac": 0.1987,
+          "endFrac": 0.1961,
           "numbers": [
             4
           ]
         },
         {
+          "type": "straight",
+          "name": "Wellington Straight",
+          "startFrac": 0.1961,
+          "endFrac": 0.2013
+        },
+        {
           "type": "corner",
           "name": "Aintree",
           "direction": "left",
-          "startFrac": 0.1987,
+          "startFrac": 0.2013,
           "endFrac": 0.2315,
           "numbers": [
             5
@@ -71,7 +77,7 @@
         },
         {
           "type": "straight",
-          "name": "Wellington Straight",
+          "name": "",
           "startFrac": 0.2315,
           "endFrac": 0.3085
         },
@@ -90,16 +96,10 @@
           "name": "Luffield",
           "direction": "right",
           "startFrac": 0.3539,
-          "endFrac": 0.4036,
+          "endFrac": 0.4131,
           "numbers": [
             7
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4036,
-          "endFrac": 0.4131
         },
         {
           "type": "corner",
@@ -137,7 +137,7 @@
           "type": "corner",
           "name": "Maggotts/Becketts",
           "startFrac": 0.5879,
-          "endFrac": 0.7033,
+          "endFrac": 0.7007,
           "numbers": [
             10,
             11,
@@ -146,10 +146,16 @@
           ]
         },
         {
+          "type": "straight",
+          "name": "Hangar Straight",
+          "startFrac": 0.7007,
+          "endFrac": 0.7059
+        },
+        {
           "type": "corner",
           "name": "Chapel",
           "direction": "left",
-          "startFrac": 0.7033,
+          "startFrac": 0.7059,
           "endFrac": 0.734,
           "numbers": [
             14
@@ -157,7 +163,7 @@
         },
         {
           "type": "straight",
-          "name": "Hangar Straight",
+          "name": "",
           "startFrac": 0.734,
           "endFrac": 0.8229
         },
@@ -192,7 +198,7 @@
           "name": "Club",
           "direction": "right",
           "startFrac": 0.9474,
-          "endFrac": 0.9933,
+          "endFrac": 0.9907,
           "numbers": [
             17,
             18
@@ -201,7 +207,7 @@
         {
           "type": "straight",
           "name": "Hamilton Straight",
-          "startFrac": 0.9933,
+          "startFrac": 0.9907,
           "endFrac": 1
         }
       ]
@@ -209,16 +215,10 @@
     "acc": {
       "segments": [
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0134
-        },
-        {
           "type": "corner",
           "name": "Copse",
           "direction": "right",
-          "startFrac": 0.0134,
+          "startFrac": 0,
           "endFrac": 0.0749,
           "numbers": [
             9
@@ -253,16 +253,10 @@
           "name": "Stowe",
           "direction": "right",
           "startFrac": 0.3357,
-          "endFrac": 0.4097,
+          "endFrac": 0.4252,
           "numbers": [
             15
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4097,
-          "endFrac": 0.4252
         },
         {
           "type": "corner",
@@ -418,7 +412,7 @@
           "name": "The Loop",
           "direction": "left",
           "startFrac": 0.1482,
-          "endFrac": 0.1736,
+          "endFrac": 0.1761,
           "numbers": [
             4
           ]
@@ -427,7 +421,7 @@
           "type": "corner",
           "name": "Aintree",
           "direction": "left",
-          "startFrac": 0.1736,
+          "startFrac": 0.1761,
           "endFrac": 0.2065,
           "numbers": [
             5
@@ -495,7 +489,7 @@
           "type": "corner",
           "name": "Maggotts/Becketts",
           "startFrac": 0.5614,
-          "endFrac": 0.683,
+          "endFrac": 0.6846,
           "numbers": [
             10,
             11,
@@ -507,7 +501,7 @@
           "type": "corner",
           "name": "Chapel",
           "direction": "left",
-          "startFrac": 0.683,
+          "startFrac": 0.6846,
           "endFrac": 0.7098,
           "numbers": [
             14
@@ -565,7 +559,7 @@
       ],
       "sectors": {
         "s1End": 0.3287,
-        "s2End": 0.7085,
+        "s2End": 0.7101,
         "source": "corner-anchored"
       }
     }
@@ -612,7 +606,7 @@
       "name": "The Loop",
       "direction": "left",
       "startFrac": 0.1482,
-      "endFrac": 0.1736,
+      "endFrac": 0.1761,
       "numbers": [
         4
       ]
@@ -621,7 +615,7 @@
       "type": "corner",
       "name": "Aintree",
       "direction": "left",
-      "startFrac": 0.1736,
+      "startFrac": 0.1761,
       "endFrac": 0.2065,
       "numbers": [
         5
@@ -689,7 +683,7 @@
       "type": "corner",
       "name": "Maggotts/Becketts",
       "startFrac": 0.5614,
-      "endFrac": 0.683,
+      "endFrac": 0.6846,
       "numbers": [
         10,
         11,
@@ -701,7 +695,7 @@
       "type": "corner",
       "name": "Chapel",
       "direction": "left",
-      "startFrac": 0.683,
+      "startFrac": 0.6846,
       "endFrac": 0.7098,
       "numbers": [
         14

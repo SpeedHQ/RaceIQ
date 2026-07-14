@@ -49,17 +49,11 @@
           "type": "corner",
           "name": "Sacramentshelling",
           "startFrac": 0.4009,
-          "endFrac": 0.4741,
+          "endFrac": 0.4855,
           "numbers": [
             4,
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4741,
-          "endFrac": 0.4855
         },
         {
           "type": "corner",
@@ -184,17 +178,11 @@
       "type": "corner",
       "name": "Sacramentshelling",
       "startFrac": 0.4009,
-      "endFrac": 0.4741,
+      "endFrac": 0.4855,
       "numbers": [
         4,
         5
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4741,
-      "endFrac": 0.4855
     },
     {
       "type": "corner",

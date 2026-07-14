@@ -43,6 +43,43 @@ describe("alignSegments", () => {
     expect(res.segments[res.segments.length - 1]).toMatchObject({ type: "straight", endFrac: 1 });
   });
 
+  test("a short unnamed gap joins the corners instead of becoming a straight", () => {
+    // 7 km lap, corners ~60 m apart: a chute, not a straight.
+    const detected = [region(0.1, 0.12, "right"), region(0.1286, 0.15, "left")];
+    const list: CornerNameList = {
+      circuit: "Test",
+      turnCount: 2,
+      corners: [
+        { number: 1, name: "First", direction: "right" },
+        { number: 2, name: "Second", direction: "left" },
+      ],
+    };
+    const res = alignSegments(detected, list, 7000);
+    expect(res.ok).toBe(true);
+    const between = res.segments.slice(
+      res.segments.findIndex((s) => s.name === "First") + 1,
+      res.segments.findIndex((s) => s.name === "Second"),
+    );
+    expect(between, "corners should be adjacent, not split by a ~60 m straight").toEqual([]);
+  });
+
+  test("a curated straight survives even when short", () => {
+    // Brands Hatch's Cooper Straight is real at ~55 m — a name outranks the length cutoff.
+    const detected = [region(0.1, 0.12, "right"), region(0.1286, 0.15, "left")];
+    const list: CornerNameList = {
+      circuit: "Test",
+      turnCount: 2,
+      corners: [
+        { number: 1, name: "First", direction: "right" },
+        { number: 2, name: "Second", direction: "left" },
+      ],
+      straights: [{ after: 1, name: "Cooper Straight" }],
+    };
+    const res = alignSegments(detected, list, 7000);
+    expect(res.ok).toBe(true);
+    expect(res.segments.map((s) => s.name)).toContain("Cooper Straight");
+  });
+
   test("direction mismatch is a hard failure", () => {
     const detected = [region(0.1, 0.15, "left"), region(0.4, 0.45, "left")];
     const list: CornerNameList = {

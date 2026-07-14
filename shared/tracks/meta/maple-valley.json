@@ -50,16 +50,10 @@
           "name": "T4",
           "direction": "left",
           "startFrac": 0.3135,
-          "endFrac": 0.3752,
+          "endFrac": 0.3878,
           "numbers": [
             4
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3752,
-          "endFrac": 0.3878
         },
         {
           "type": "corner",
@@ -214,16 +208,10 @@
       "name": "T4",
       "direction": "left",
       "startFrac": 0.3135,
-      "endFrac": 0.3752,
+      "endFrac": 0.3878,
       "numbers": [
         4
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3752,
-      "endFrac": 0.3878
     },
     {
       "type": "corner",

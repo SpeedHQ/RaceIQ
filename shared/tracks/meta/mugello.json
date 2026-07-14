@@ -1,7 +1,7 @@
 {
   "name": "Mugello Circuit",
   "sectors": {
-    "s1End": 0.3295,
+    "s1End": 0.3424,
     "s2End": 0.595,
     "source": "corner-anchored"
   },
@@ -65,16 +65,10 @@
           "name": "Borgo San Lorenzo",
           "direction": "right",
           "startFrac": 0.2976,
-          "endFrac": 0.3295,
+          "endFrac": 0.3424,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3295,
-          "endFrac": 0.3424
         },
         {
           "type": "corner",
@@ -111,16 +105,10 @@
           "name": "Arrabbiata 2",
           "direction": "right",
           "startFrac": 0.4926,
-          "endFrac": 0.5387,
+          "endFrac": 0.5498,
           "numbers": [
             9
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5387,
-          "endFrac": 0.5498
         },
         {
           "type": "corner",
@@ -137,16 +125,10 @@
           "name": "Palagio",
           "direction": "left",
           "startFrac": 0.595,
-          "endFrac": 0.6289,
+          "endFrac": 0.6472,
           "numbers": [
             11
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6289,
-          "endFrac": 0.6472
         },
         {
           "type": "corner",
@@ -202,7 +184,7 @@
         }
       ],
       "sectors": {
-        "s1End": 0.3295,
+        "s1End": 0.3424,
         "s2End": 0.595,
         "source": "corner-anchored"
       }
@@ -266,16 +248,10 @@
       "name": "Borgo San Lorenzo",
       "direction": "right",
       "startFrac": 0.2976,
-      "endFrac": 0.3295,
+      "endFrac": 0.3424,
       "numbers": [
         5
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3295,
-      "endFrac": 0.3424
     },
     {
       "type": "corner",
@@ -312,16 +288,10 @@
       "name": "Arrabbiata 2",
       "direction": "right",
       "startFrac": 0.4926,
-      "endFrac": 0.5387,
+      "endFrac": 0.5498,
       "numbers": [
         9
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.5387,
-      "endFrac": 0.5498
     },
     {
       "type": "corner",
@@ -338,16 +308,10 @@
       "name": "Palagio",
       "direction": "left",
       "startFrac": 0.595,
-      "endFrac": 0.6289,
+      "endFrac": 0.6472,
       "numbers": [
         11
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.6289,
-      "endFrac": 0.6472
     },
     {
       "type": "corner",

@@ -56,16 +56,10 @@
           "name": "Dunlop-Kehre",
           "direction": "right",
           "startFrac": 0.0684,
-          "endFrac": 0.0818,
+          "endFrac": 0.0837,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.0818,
-          "endFrac": 0.0837
         },
         {
           "type": "corner",
@@ -134,16 +128,10 @@
           "name": "T13",
           "direction": "right",
           "startFrac": 0.1803,
-          "endFrac": 0.1971,
+          "endFrac": 0.2007,
           "numbers": [
             13
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1971,
-          "endFrac": 0.2007
         },
         {
           "type": "corner",
@@ -290,16 +278,10 @@
           "name": "Breidscheid",
           "direction": "right",
           "startFrac": 0.4631,
-          "endFrac": 0.4696,
+          "endFrac": 0.4735,
           "numbers": [
             33
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4696,
-          "endFrac": 0.4735
         },
         {
           "type": "corner",
@@ -364,16 +346,10 @@
           "name": "Klostertal",
           "direction": "right",
           "startFrac": 0.6191,
-          "endFrac": 0.6327,
+          "endFrac": 0.6364,
           "numbers": [
             38
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6327,
-          "endFrac": 0.6364
         },
         {
           "type": "corner",
@@ -487,16 +463,10 @@
           "name": "T51",
           "direction": "left",
           "startFrac": 0.7549,
-          "endFrac": 0.7655,
+          "endFrac": 0.7669,
           "numbers": [
             51
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7655,
-          "endFrac": 0.7669
         },
         {
           "type": "corner",
@@ -644,16 +614,10 @@
       "name": "Dunlop-Kehre",
       "direction": "right",
       "startFrac": 0.0684,
-      "endFrac": 0.0818,
+      "endFrac": 0.0837,
       "numbers": [
         5
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.0818,
-      "endFrac": 0.0837
     },
     {
       "type": "corner",
@@ -722,16 +686,10 @@
       "name": "T13",
       "direction": "right",
       "startFrac": 0.1803,
-      "endFrac": 0.1971,
+      "endFrac": 0.2007,
       "numbers": [
         13
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.1971,
-      "endFrac": 0.2007
     },
     {
       "type": "corner",
@@ -878,16 +836,10 @@
       "name": "Breidscheid",
       "direction": "right",
       "startFrac": 0.4631,
-      "endFrac": 0.4696,
+      "endFrac": 0.4735,
       "numbers": [
         33
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4696,
-      "endFrac": 0.4735
     },
     {
       "type": "corner",
@@ -952,16 +904,10 @@
       "name": "Klostertal",
       "direction": "right",
       "startFrac": 0.6191,
-      "endFrac": 0.6327,
+      "endFrac": 0.6364,
       "numbers": [
         38
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.6327,
-      "endFrac": 0.6364
     },
     {
       "type": "corner",
@@ -1075,16 +1021,10 @@
       "name": "T51",
       "direction": "left",
       "startFrac": 0.7549,
-      "endFrac": 0.7655,
+      "endFrac": 0.7669,
       "numbers": [
         51
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.7655,
-      "endFrac": 0.7669
     },
     {
       "type": "corner",

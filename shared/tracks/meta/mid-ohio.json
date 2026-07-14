@@ -141,16 +141,10 @@
           "name": "T13",
           "direction": "left",
           "startFrac": 0.9494,
-          "endFrac": 0.983,
+          "endFrac": 1,
           "numbers": [
             13
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.983,
-          "endFrac": 1
         }
       ],
       "sectors": {
@@ -294,16 +288,10 @@
       "name": "T13",
       "direction": "left",
       "startFrac": 0.9494,
-      "endFrac": 0.983,
+      "endFrac": 1,
       "numbers": [
         13
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.983,
-      "endFrac": 1
     }
   ]
 }

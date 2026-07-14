@@ -4,26 +4,14 @@
     "fm-2023": {
       "segments": [
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0182
-        },
-        {
           "type": "corner",
           "name": "T1",
           "direction": "right",
-          "startFrac": 0.0182,
-          "endFrac": 0.0584,
+          "startFrac": 0,
+          "endFrac": 0.0759,
           "numbers": [
             1
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.0584,
-          "endFrac": 0.0759
         },
         {
           "type": "corner",
@@ -106,16 +94,10 @@
           "name": "T9",
           "direction": "left",
           "startFrac": 0.3729,
-          "endFrac": 0.4057,
+          "endFrac": 0.4281,
           "numbers": [
             9
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4057,
-          "endFrac": 0.4281
         },
         {
           "type": "corner",
@@ -194,26 +176,14 @@
   },
   "segments": [
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0182
-    },
-    {
       "type": "corner",
       "name": "T1",
       "direction": "right",
-      "startFrac": 0.0182,
-      "endFrac": 0.0584,
+      "startFrac": 0,
+      "endFrac": 0.0759,
       "numbers": [
         1
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.0584,
-      "endFrac": 0.0759
     },
     {
       "type": "corner",
@@ -296,16 +266,10 @@
       "name": "T9",
       "direction": "left",
       "startFrac": 0.3729,
-      "endFrac": 0.4057,
+      "endFrac": 0.4281,
       "numbers": [
         9
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4057,
-      "endFrac": 0.4281
     },
     {
       "type": "corner",

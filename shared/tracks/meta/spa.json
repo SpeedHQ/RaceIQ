@@ -61,16 +61,10 @@
       "name": "Malmedy",
       "direction": "right",
       "startFrac": 0.3514,
-      "endFrac": 0.3786,
+      "endFrac": 0.3882,
       "numbers": [
         7
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3786,
-      "endFrac": 0.3882
     },
     {
       "type": "corner",
@@ -103,17 +97,11 @@
       "name": "Pouhon",
       "direction": "left",
       "startFrac": 0.5013,
-      "endFrac": 0.5866,
+      "endFrac": 0.5972,
       "numbers": [
         10,
         11
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.5866,
-      "endFrac": 0.5972
     },
     {
       "type": "corner",
@@ -257,16 +245,10 @@
           "name": "Malmedy",
           "direction": "right",
           "startFrac": 0.3698,
-          "endFrac": 0.3964,
+          "endFrac": 0.4067,
           "numbers": [
             7
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3964,
-          "endFrac": 0.4067
         },
         {
           "type": "corner",
@@ -299,17 +281,11 @@
           "name": "Pouhon",
           "direction": "left",
           "startFrac": 0.5199,
-          "endFrac": 0.6038,
+          "endFrac": 0.616,
           "numbers": [
             10,
             11
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6038,
-          "endFrac": 0.616
         },
         {
           "type": "corner",
@@ -377,17 +353,11 @@
           "type": "corner",
           "name": "Bus Stop",
           "startFrac": 0.9419,
-          "endFrac": 0.9874,
+          "endFrac": 1,
           "numbers": [
             18,
             19
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9874,
-          "endFrac": 1
         }
       ]
     },
@@ -448,16 +418,10 @@
           "name": "Malmedy",
           "direction": "right",
           "startFrac": 0.3514,
-          "endFrac": 0.3786,
+          "endFrac": 0.3882,
           "numbers": [
             7
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3786,
-          "endFrac": 0.3882
         },
         {
           "type": "corner",
@@ -490,17 +454,11 @@
           "name": "Pouhon",
           "direction": "left",
           "startFrac": 0.5013,
-          "endFrac": 0.5866,
+          "endFrac": 0.5972,
           "numbers": [
             10,
             11
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5866,
-          "endFrac": 0.5972
         },
         {
           "type": "corner",
@@ -644,16 +602,10 @@
           "name": "Malmedy",
           "direction": "right",
           "startFrac": 0.3641,
-          "endFrac": 0.3961,
+          "endFrac": 0.4052,
           "numbers": [
             7
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3961,
-          "endFrac": 0.4052
         },
         {
           "type": "corner",

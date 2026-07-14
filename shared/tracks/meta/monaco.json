@@ -80,33 +80,21 @@
           "name": "Portier",
           "direction": "right",
           "startFrac": 0.3941,
-          "endFrac": 0.4604,
+          "endFrac": 0.476,
           "numbers": [
             7,
             8
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4604,
-          "endFrac": 0.476
-        },
-        {
           "type": "corner",
           "name": "Tunnel",
           "direction": "right",
           "startFrac": 0.476,
-          "endFrac": 0.5608,
+          "endFrac": 0.5854,
           "numbers": [
             9
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5608,
-          "endFrac": 0.5854
         },
         {
           "type": "corner",
@@ -246,33 +234,21 @@
       "name": "Portier",
       "direction": "right",
       "startFrac": 0.3941,
-      "endFrac": 0.4604,
+      "endFrac": 0.476,
       "numbers": [
         7,
         8
       ]
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4604,
-      "endFrac": 0.476
-    },
-    {
       "type": "corner",
       "name": "Tunnel",
       "direction": "right",
       "startFrac": 0.476,
-      "endFrac": 0.5608,
+      "endFrac": 0.5854,
       "numbers": [
         9
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.5608,
-      "endFrac": 0.5854
     },
     {
       "type": "corner",

@@ -2,7 +2,7 @@
   "name": "Lime Rock Park",
   "sectors": {
     "s1End": 0.3836,
-    "s2End": 0.7307,
+    "s2End": 0.7441,
     "source": "corner-anchored"
   },
   "games": {
@@ -45,32 +45,20 @@
           "name": "Uphill",
           "direction": "right",
           "startFrac": 0.4461,
-          "endFrac": 0.5771,
+          "endFrac": 0.6011,
           "numbers": [
             4
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5771,
-          "endFrac": 0.6011
         },
         {
           "type": "corner",
           "name": "West Bend",
           "direction": "right",
           "startFrac": 0.6011,
-          "endFrac": 0.7307,
+          "endFrac": 0.7441,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7307,
-          "endFrac": 0.7441
         },
         {
           "type": "corner",
@@ -91,7 +79,7 @@
       ],
       "sectors": {
         "s1End": 0.3836,
-        "s2End": 0.7307,
+        "s2End": 0.7441,
         "source": "corner-anchored"
       }
     }
@@ -134,32 +122,20 @@
       "name": "Uphill",
       "direction": "right",
       "startFrac": 0.4461,
-      "endFrac": 0.5771,
+      "endFrac": 0.6011,
       "numbers": [
         4
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.5771,
-      "endFrac": 0.6011
     },
     {
       "type": "corner",
       "name": "West Bend",
       "direction": "right",
       "startFrac": 0.6011,
-      "endFrac": 0.7307,
+      "endFrac": 0.7441,
       "numbers": [
         5
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.7307,
-      "endFrac": 0.7441
     },
     {
       "type": "corner",

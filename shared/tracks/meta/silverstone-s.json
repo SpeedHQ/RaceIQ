@@ -4,16 +4,10 @@
     "fm-2023": {
       "segments": [
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0361
-        },
-        {
           "type": "corner",
           "name": "T1",
           "direction": "right",
-          "startFrac": 0.0361,
+          "startFrac": 0,
           "endFrac": 0.1468,
           "numbers": [
             1
@@ -92,16 +86,10 @@
   },
   "segments": [
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0361
-    },
-    {
       "type": "corner",
       "name": "T1",
       "direction": "right",
-      "startFrac": 0.0361,
+      "startFrac": 0,
       "endFrac": 0.1468,
       "numbers": [
         1

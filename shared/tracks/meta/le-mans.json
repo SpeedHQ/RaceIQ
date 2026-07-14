@@ -28,34 +28,22 @@
           "type": "corner",
           "name": "Dunlop Chicane",
           "startFrac": 0.0554,
-          "endFrac": 0.0731,
+          "endFrac": 0.077,
           "numbers": [
             2,
             3
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.0731,
-          "endFrac": 0.077
-        },
-        {
           "type": "corner",
           "name": "Esses de la Forêt",
           "startFrac": 0.077,
-          "endFrac": 0.125,
+          "endFrac": 0.1291,
           "numbers": [
             4,
             5,
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.125,
-          "endFrac": 0.1291
         },
         {
           "type": "corner",
@@ -138,16 +126,10 @@
           "name": "Indianapolis",
           "direction": "left",
           "startFrac": 0.7149,
-          "endFrac": 0.7306,
+          "endFrac": 0.7349,
           "numbers": [
             16
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7306,
-          "endFrac": 0.7349
         },
         {
           "type": "corner",
@@ -198,17 +180,11 @@
           "type": "corner",
           "name": "Ford Chicane 2",
           "startFrac": 0.9809,
-          "endFrac": 0.9933,
+          "endFrac": 1,
           "numbers": [
             25,
             26
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9933,
-          "endFrac": 1
         }
       ],
       "sectors": {
@@ -239,34 +215,22 @@
       "type": "corner",
       "name": "Dunlop Chicane",
       "startFrac": 0.0554,
-      "endFrac": 0.0731,
+      "endFrac": 0.077,
       "numbers": [
         2,
         3
       ]
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.0731,
-      "endFrac": 0.077
-    },
-    {
       "type": "corner",
       "name": "Esses de la Forêt",
       "startFrac": 0.077,
-      "endFrac": 0.125,
+      "endFrac": 0.1291,
       "numbers": [
         4,
         5,
         6
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.125,
-      "endFrac": 0.1291
     },
     {
       "type": "corner",
@@ -349,16 +313,10 @@
       "name": "Indianapolis",
       "direction": "left",
       "startFrac": 0.7149,
-      "endFrac": 0.7306,
+      "endFrac": 0.7349,
       "numbers": [
         16
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.7306,
-      "endFrac": 0.7349
     },
     {
       "type": "corner",
@@ -409,17 +367,11 @@
       "type": "corner",
       "name": "Ford Chicane 2",
       "startFrac": 0.9809,
-      "endFrac": 0.9933,
+      "endFrac": 1,
       "numbers": [
         25,
         26
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.9933,
-      "endFrac": 1
     }
   ]
 }

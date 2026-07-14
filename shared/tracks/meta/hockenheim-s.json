@@ -92,16 +92,10 @@
           "name": "T7",
           "direction": "right",
           "startFrac": 0.6456,
-          "endFrac": 0.7363,
+          "endFrac": 0.7452,
           "numbers": [
             7
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7363,
-          "endFrac": 0.7452
         },
         {
           "type": "corner",
@@ -242,16 +236,10 @@
       "name": "T7",
       "direction": "right",
       "startFrac": 0.6456,
-      "endFrac": 0.7363,
+      "endFrac": 0.7452,
       "numbers": [
         7
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.7363,
-      "endFrac": 0.7452
     },
     {
       "type": "corner",

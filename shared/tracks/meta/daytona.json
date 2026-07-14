@@ -1,7 +1,7 @@
 {
   "name": "Daytona International Speedway",
   "sectors": {
-    "s1End": 0.3352,
+    "s1End": 0.3464,
     "s2End": 0.6953,
     "source": "corner-anchored"
   },
@@ -65,32 +65,20 @@
           "name": "T5",
           "direction": "left",
           "startFrac": 0.2197,
-          "endFrac": 0.2693,
+          "endFrac": 0.2789,
           "numbers": [
             5
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2693,
-          "endFrac": 0.2789
         },
         {
           "type": "corner",
           "name": "West Horseshoe",
           "direction": "right",
           "startFrac": 0.2789,
-          "endFrac": 0.3352,
+          "endFrac": 0.3464,
           "numbers": [
             6
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3352,
-          "endFrac": 0.3464
         },
         {
           "type": "corner",
@@ -137,7 +125,7 @@
         }
       ],
       "sectors": {
-        "s1End": 0.3352,
+        "s1End": 0.3464,
         "s2End": 0.6953,
         "source": "corner-anchored"
       }
@@ -201,32 +189,20 @@
       "name": "T5",
       "direction": "left",
       "startFrac": 0.2197,
-      "endFrac": 0.2693,
+      "endFrac": 0.2789,
       "numbers": [
         5
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.2693,
-      "endFrac": 0.2789
     },
     {
       "type": "corner",
       "name": "West Horseshoe",
       "direction": "right",
       "startFrac": 0.2789,
-      "endFrac": 0.3352,
+      "endFrac": 0.3464,
       "numbers": [
         6
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3352,
-      "endFrac": 0.3464
     },
     {
       "type": "corner",

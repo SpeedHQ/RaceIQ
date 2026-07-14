@@ -1,15 +1,15 @@
 {
   "name": "Bahrain International Circuit",
   "sectors": {
-    "s1End": 0.3567,
-    "s2End": 0.707,
+    "s1End": 0.3735,
+    "s2End": 0.7162,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3567,
-        "s2End": 0.707,
+        "s1End": 0.3735,
+        "s2End": 0.7162,
         "source": "corner-anchored"
       },
       "segments": [
@@ -60,16 +60,10 @@
           "name": "T4",
           "direction": "right",
           "startFrac": 0.2555,
-          "endFrac": 0.3012,
+          "endFrac": 0.318,
           "numbers": [
             4
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3012,
-          "endFrac": 0.318
         },
         {
           "type": "corner",
@@ -96,16 +90,10 @@
           "name": "T7",
           "direction": "right",
           "startFrac": 0.4002,
-          "endFrac": 0.4383,
+          "endFrac": 0.4567,
           "numbers": [
             7
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4383,
-          "endFrac": 0.4567
         },
         {
           "type": "corner",
@@ -128,17 +116,11 @@
           "name": "T9-10",
           "direction": "left",
           "startFrac": 0.6104,
-          "endFrac": 0.6607,
+          "endFrac": 0.6699,
           "numbers": [
             9,
             10
           ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6607,
-          "endFrac": 0.6699
         },
         {
           "type": "corner",
@@ -234,16 +216,10 @@
       "name": "T4",
       "direction": "right",
       "startFrac": 0.2555,
-      "endFrac": 0.3012,
+      "endFrac": 0.318,
       "numbers": [
         4
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3012,
-      "endFrac": 0.318
     },
     {
       "type": "corner",
@@ -270,16 +246,10 @@
       "name": "T7",
       "direction": "right",
       "startFrac": 0.4002,
-      "endFrac": 0.4383,
+      "endFrac": 0.4567,
       "numbers": [
         7
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4383,
-      "endFrac": 0.4567
     },
     {
       "type": "corner",
@@ -302,17 +272,11 @@
       "name": "T9-10",
       "direction": "left",
       "startFrac": 0.6104,
-      "endFrac": 0.6607,
+      "endFrac": 0.6699,
       "numbers": [
         9,
         10
       ]
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.6607,
-      "endFrac": 0.6699
     },
     {
       "type": "corner",
