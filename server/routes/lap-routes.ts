@@ -888,10 +888,6 @@ export const lapRoutes = new Hono()
       },
       comparison,
       segments,
-      settings.unit,
-      settings.temperatureUnit,
-      undefined,
-      settings.language,
     );
 
     // Set provider env vars before calling Mastra (the dynamic model resolver
