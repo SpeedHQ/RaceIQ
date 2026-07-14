@@ -62,9 +62,13 @@ export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; t
   // K_OUT is deliberately loose so a corner's declining curvature tail bridges
   // MERGE_GAP_M gaps into the next apex (double-apex corners, chicanes) instead
   // of splitting. That same looseness makes regions overshoot into adjacent
-  // straights. K_TRIM re-tightens the rendered/timed boundary of an already
-  // merged region without touching detection or merge decisions above.
-  const K_TRIM = 1 / 300;
+  // straights. TRIM_FRAC re-tightens the rendered/timed boundary of an already
+  // merged region without touching detection or merge decisions above — trim
+  // is relative to each corner's OWN peak curvature (not a fixed radius),
+  // since a fixed cutoff shrinks large-radius sustained-curvature corners
+  // (banked oval turns, near-constant radius throughout) down to a sliver:
+  // their interior never exceeds a fixed tight threshold, only their own peak.
+  const TRIM_FRAC = 0.5;
 
   const winIdx = Math.max(2, Math.round(CURV_WINDOW_M / meanSpacing));
   const kappa: number[] = new Array(n);
@@ -157,12 +161,14 @@ export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; t
       for (let i = r.start; i <= r.end; i++) turn += Math.abs(kappa[i]) * meanSpacing;
       const untrimmedLengthM = dists[r.end] - dists[r.start];
 
-      // Trim the loose K_OUT tail off each side, back to where curvature is
-      // actually corner-grade (K_TRIM) — bounded so it never crosses the apex.
+      // Trim the loose K_OUT tail off each side, back to where curvature
+      // drops below a fraction of THIS corner's own peak — never looser than
+      // K_IN — bounded so it never crosses the apex.
+      const kTrim = Math.max(K_IN, r.peak * TRIM_FRAC);
       let start = r.start;
-      while (start < r.apexIdx && Math.abs(kappa[start]) < K_TRIM) start++;
+      while (start < r.apexIdx && Math.abs(kappa[start]) < kTrim) start++;
       let end = r.end;
-      while (end > r.apexIdx && Math.abs(kappa[end]) < K_TRIM) end--;
+      while (end > r.apexIdx && Math.abs(kappa[end]) < kTrim) end--;
 
       return {
         startFrac: dists[start] / totalDist,

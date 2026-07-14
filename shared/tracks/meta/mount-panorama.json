@@ -1,8 +1,8 @@
 {
   "name": "Mount Panorama Circuit",
   "sectors": {
-    "s1End": 0.3113,
-    "s2End": 0.623,
+    "s1End": 0.3098,
+    "s2End": 0.6217,
     "source": "corner-anchored"
   },
   "games": {
@@ -12,14 +12,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.03
+          "endFrac": 0.0317
         },
         {
           "type": "corner",
           "name": "Hell Corner",
           "direction": "left",
-          "startFrac": 0.03,
-          "endFrac": 0.0796,
+          "startFrac": 0.0317,
+          "endFrac": 0.0788,
           "numbers": [
             1
           ]
@@ -27,7 +27,7 @@
         {
           "type": "straight",
           "name": "Mountain Straight",
-          "startFrac": 0.0796,
+          "startFrac": 0.0788,
           "endFrac": 0.2126
         },
         {
@@ -35,7 +35,7 @@
           "name": "Griffins Bend",
           "direction": "right",
           "startFrac": 0.2126,
-          "endFrac": 0.2726,
+          "endFrac": 0.2718,
           "numbers": [
             2
           ]
@@ -43,15 +43,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2726,
-          "endFrac": 0.281
+          "startFrac": 0.2718,
+          "endFrac": 0.2941
         },
         {
           "type": "corner",
           "name": "The Cutting",
           "direction": "left",
-          "startFrac": 0.281,
-          "endFrac": 0.3359,
+          "startFrac": 0.2941,
+          "endFrac": 0.3327,
           "numbers": [
             3
           ]
@@ -60,8 +60,8 @@
           "type": "corner",
           "name": "Reid Park",
           "direction": "right",
-          "startFrac": 0.3359,
-          "endFrac": 0.3946,
+          "startFrac": 0.3327,
+          "endFrac": 0.3954,
           "numbers": [
             4
           ]
@@ -69,15 +69,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3946,
-          "endFrac": 0.4059
+          "startFrac": 0.3954,
+          "endFrac": 0.3982
         },
         {
           "type": "corner",
           "name": "Sulman Park",
           "direction": "left",
-          "startFrac": 0.4059,
-          "endFrac": 0.453,
+          "startFrac": 0.3982,
+          "endFrac": 0.4562,
           "numbers": [
             5
           ]
@@ -85,15 +85,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.453,
-          "endFrac": 0.4591
+          "startFrac": 0.4562,
+          "endFrac": 0.4599
         },
         {
           "type": "corner",
           "name": "McPhillamy Park",
           "direction": "left",
-          "startFrac": 0.4591,
-          "endFrac": 0.505,
+          "startFrac": 0.4599,
+          "endFrac": 0.5058,
           "numbers": [
             6
           ]
@@ -101,13 +101,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.505,
-          "endFrac": 0.5187
+          "startFrac": 0.5058,
+          "endFrac": 0.5179
         },
         {
           "type": "corner",
           "name": "The Esses",
-          "startFrac": 0.5187,
+          "startFrac": 0.5179,
           "endFrac": 0.591,
           "numbers": [
             7,
@@ -121,7 +121,7 @@
           "name": "T11",
           "direction": "right",
           "startFrac": 0.591,
-          "endFrac": 0.6153,
+          "endFrac": 0.6173,
           "numbers": [
             11
           ]
@@ -130,8 +130,8 @@
           "type": "corner",
           "name": "Forrest's Elbow",
           "direction": "left",
-          "startFrac": 0.6153,
-          "endFrac": 0.6472,
+          "startFrac": 0.6173,
+          "endFrac": 0.6464,
           "numbers": [
             12
           ]
@@ -139,14 +139,14 @@
         {
           "type": "straight",
           "name": "Conrod Straight",
-          "startFrac": 0.6472,
-          "endFrac": 0.8579
+          "startFrac": 0.6464,
+          "endFrac": 0.8603
         },
         {
           "type": "corner",
           "name": "The Chase",
-          "startFrac": 0.8579,
-          "endFrac": 0.9229,
+          "startFrac": 0.8603,
+          "endFrac": 0.9294,
           "numbers": [
             13,
             14
@@ -155,15 +155,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9229,
-          "endFrac": 0.9504
+          "startFrac": 0.9294,
+          "endFrac": 0.9512
         },
         {
           "type": "corner",
           "name": "Murray's Corner",
           "direction": "left",
-          "startFrac": 0.9504,
-          "endFrac": 0.9947,
+          "startFrac": 0.9512,
+          "endFrac": 0.9927,
           "numbers": [
             15
           ]
@@ -171,13 +171,13 @@
         {
           "type": "straight",
           "name": "Pit Straight",
-          "startFrac": 0.9947,
+          "startFrac": 0.9927,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3359,
-        "s2End": 0.6472,
+        "s1End": 0.3327,
+        "s2End": 0.6464,
         "source": "corner-anchored"
       }
     },
@@ -187,14 +187,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0157
+          "endFrac": 0.0167
         },
         {
           "type": "corner",
           "name": "Hell Corner",
           "direction": "left",
-          "startFrac": 0.0157,
-          "endFrac": 0.0549,
+          "startFrac": 0.0167,
+          "endFrac": 0.053,
           "numbers": [
             1
           ]
@@ -202,15 +202,15 @@
         {
           "type": "straight",
           "name": "Mountain Straight",
-          "startFrac": 0.0549,
-          "endFrac": 0.187
+          "startFrac": 0.053,
+          "endFrac": 0.1877
         },
         {
           "type": "corner",
           "name": "Griffins Bend",
           "direction": "right",
-          "startFrac": 0.187,
-          "endFrac": 0.247,
+          "startFrac": 0.1877,
+          "endFrac": 0.2464,
           "numbers": [
             2
           ]
@@ -218,15 +218,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.247,
-          "endFrac": 0.2557
+          "startFrac": 0.2464,
+          "endFrac": 0.2712
         },
         {
           "type": "corner",
           "name": "The Cutting",
           "direction": "left",
-          "startFrac": 0.2557,
-          "endFrac": 0.3113,
+          "startFrac": 0.2712,
+          "endFrac": 0.3098,
           "numbers": [
             3
           ]
@@ -235,8 +235,8 @@
           "type": "corner",
           "name": "Reid Park",
           "direction": "right",
-          "startFrac": 0.3113,
-          "endFrac": 0.3693,
+          "startFrac": 0.3098,
+          "endFrac": 0.3689,
           "numbers": [
             4
           ]
@@ -244,15 +244,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3693,
-          "endFrac": 0.3721
+          "startFrac": 0.3689,
+          "endFrac": 0.3711
         },
         {
           "type": "corner",
           "name": "Sulman Park",
           "direction": "left",
-          "startFrac": 0.3721,
-          "endFrac": 0.4326,
+          "startFrac": 0.3711,
+          "endFrac": 0.4339,
           "numbers": [
             5
           ]
@@ -260,15 +260,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4326,
-          "endFrac": 0.4357
+          "startFrac": 0.4339,
+          "endFrac": 0.4362
         },
         {
           "type": "corner",
           "name": "McPhillamy Park",
           "direction": "left",
-          "startFrac": 0.4357,
-          "endFrac": 0.4808,
+          "startFrac": 0.4362,
+          "endFrac": 0.4811,
           "numbers": [
             6
           ]
@@ -276,14 +276,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4808,
-          "endFrac": 0.4884
+          "startFrac": 0.4811,
+          "endFrac": 0.4888
         },
         {
           "type": "corner",
           "name": "The Esses",
-          "startFrac": 0.4884,
-          "endFrac": 0.5679,
+          "startFrac": 0.4888,
+          "endFrac": 0.5676,
           "numbers": [
             7,
             8,
@@ -295,8 +295,8 @@
           "type": "corner",
           "name": "T11",
           "direction": "right",
-          "startFrac": 0.5679,
-          "endFrac": 0.5917,
+          "startFrac": 0.5676,
+          "endFrac": 0.5923,
           "numbers": [
             11
           ]
@@ -305,8 +305,8 @@
           "type": "corner",
           "name": "Forrest's Elbow",
           "direction": "left",
-          "startFrac": 0.5917,
-          "endFrac": 0.623,
+          "startFrac": 0.5923,
+          "endFrac": 0.6217,
           "numbers": [
             12
           ]
@@ -314,13 +314,13 @@
         {
           "type": "straight",
           "name": "Conrod Straight",
-          "startFrac": 0.623,
-          "endFrac": 0.8364
+          "startFrac": 0.6217,
+          "endFrac": 0.8383
         },
         {
           "type": "corner",
           "name": "The Chase",
-          "startFrac": 0.8364,
+          "startFrac": 0.8383,
           "endFrac": 0.8994,
           "numbers": [
             13,
@@ -331,14 +331,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.8994,
-          "endFrac": 0.9278
+          "endFrac": 0.9288
         },
         {
           "type": "corner",
           "name": "Murray's Corner",
           "direction": "left",
-          "startFrac": 0.9278,
-          "endFrac": 0.9751,
+          "startFrac": 0.9288,
+          "endFrac": 0.9734,
           "numbers": [
             15
           ]
@@ -346,13 +346,13 @@
         {
           "type": "straight",
           "name": "Pit Straight",
-          "startFrac": 0.9751,
+          "startFrac": 0.9734,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3113,
-        "s2End": 0.623,
+        "s1End": 0.3098,
+        "s2End": 0.6217,
         "source": "corner-anchored"
       }
     }
@@ -362,14 +362,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.0157
+      "endFrac": 0.0167
     },
     {
       "type": "corner",
       "name": "Hell Corner",
       "direction": "left",
-      "startFrac": 0.0157,
-      "endFrac": 0.0549,
+      "startFrac": 0.0167,
+      "endFrac": 0.053,
       "numbers": [
         1
       ]
@@ -377,15 +377,15 @@
     {
       "type": "straight",
       "name": "Mountain Straight",
-      "startFrac": 0.0549,
-      "endFrac": 0.187
+      "startFrac": 0.053,
+      "endFrac": 0.1877
     },
     {
       "type": "corner",
       "name": "Griffins Bend",
       "direction": "right",
-      "startFrac": 0.187,
-      "endFrac": 0.247,
+      "startFrac": 0.1877,
+      "endFrac": 0.2464,
       "numbers": [
         2
       ]
@@ -393,15 +393,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.247,
-      "endFrac": 0.2557
+      "startFrac": 0.2464,
+      "endFrac": 0.2712
     },
     {
       "type": "corner",
       "name": "The Cutting",
       "direction": "left",
-      "startFrac": 0.2557,
-      "endFrac": 0.3113,
+      "startFrac": 0.2712,
+      "endFrac": 0.3098,
       "numbers": [
         3
       ]
@@ -410,8 +410,8 @@
       "type": "corner",
       "name": "Reid Park",
       "direction": "right",
-      "startFrac": 0.3113,
-      "endFrac": 0.3693,
+      "startFrac": 0.3098,
+      "endFrac": 0.3689,
       "numbers": [
         4
       ]
@@ -419,15 +419,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3693,
-      "endFrac": 0.3721
+      "startFrac": 0.3689,
+      "endFrac": 0.3711
     },
     {
       "type": "corner",
       "name": "Sulman Park",
       "direction": "left",
-      "startFrac": 0.3721,
-      "endFrac": 0.4326,
+      "startFrac": 0.3711,
+      "endFrac": 0.4339,
       "numbers": [
         5
       ]
@@ -435,15 +435,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.4326,
-      "endFrac": 0.4357
+      "startFrac": 0.4339,
+      "endFrac": 0.4362
     },
     {
       "type": "corner",
       "name": "McPhillamy Park",
       "direction": "left",
-      "startFrac": 0.4357,
-      "endFrac": 0.4808,
+      "startFrac": 0.4362,
+      "endFrac": 0.4811,
       "numbers": [
         6
       ]
@@ -451,14 +451,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.4808,
-      "endFrac": 0.4884
+      "startFrac": 0.4811,
+      "endFrac": 0.4888
     },
     {
       "type": "corner",
       "name": "The Esses",
-      "startFrac": 0.4884,
-      "endFrac": 0.5679,
+      "startFrac": 0.4888,
+      "endFrac": 0.5676,
       "numbers": [
         7,
         8,
@@ -470,8 +470,8 @@
       "type": "corner",
       "name": "T11",
       "direction": "right",
-      "startFrac": 0.5679,
-      "endFrac": 0.5917,
+      "startFrac": 0.5676,
+      "endFrac": 0.5923,
       "numbers": [
         11
       ]
@@ -480,8 +480,8 @@
       "type": "corner",
       "name": "Forrest's Elbow",
       "direction": "left",
-      "startFrac": 0.5917,
-      "endFrac": 0.623,
+      "startFrac": 0.5923,
+      "endFrac": 0.6217,
       "numbers": [
         12
       ]
@@ -489,13 +489,13 @@
     {
       "type": "straight",
       "name": "Conrod Straight",
-      "startFrac": 0.623,
-      "endFrac": 0.8364
+      "startFrac": 0.6217,
+      "endFrac": 0.8383
     },
     {
       "type": "corner",
       "name": "The Chase",
-      "startFrac": 0.8364,
+      "startFrac": 0.8383,
       "endFrac": 0.8994,
       "numbers": [
         13,
@@ -506,14 +506,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0.8994,
-      "endFrac": 0.9278
+      "endFrac": 0.9288
     },
     {
       "type": "corner",
       "name": "Murray's Corner",
       "direction": "left",
-      "startFrac": 0.9278,
-      "endFrac": 0.9751,
+      "startFrac": 0.9288,
+      "endFrac": 0.9734,
       "numbers": [
         15
       ]
@@ -521,7 +521,7 @@
     {
       "type": "straight",
       "name": "Pit Straight",
-      "startFrac": 0.9751,
+      "startFrac": 0.9734,
       "endFrac": 1
     }
   ]

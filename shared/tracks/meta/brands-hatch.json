@@ -1,15 +1,15 @@
 {
   "name": "Brand Hatch",
   "sectors": {
-    "s1End": 0.3586,
-    "s2End": 0.6639,
+    "s1End": 0.3571,
+    "s2End": 0.6614,
     "source": "corner-anchored"
   },
   "games": {
     "acc": {
       "sectors": {
         "s1End": 0.3591,
-        "s2End": 0.6725,
+        "s2End": 0.6751,
         "source": "corner-anchored"
       },
       "segments": [
@@ -17,14 +17,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0226
+          "endFrac": 0.0232
         },
         {
           "type": "corner",
           "name": "Paddock Hill Bend",
           "direction": "right",
-          "startFrac": 0.0226,
-          "endFrac": 0.112,
+          "startFrac": 0.0232,
+          "endFrac": 0.1107,
           "numbers": [
             1
           ]
@@ -32,15 +32,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.112,
-          "endFrac": 0.1158
+          "startFrac": 0.1107,
+          "endFrac": 0.1184
         },
         {
           "type": "corner",
           "name": "Druids",
           "direction": "right",
-          "startFrac": 0.1158,
-          "endFrac": 0.1826,
+          "startFrac": 0.1184,
+          "endFrac": 0.1858,
           "numbers": [
             2
           ]
@@ -49,7 +49,7 @@
           "type": "corner",
           "name": "Graham Hill Bend",
           "direction": "left",
-          "startFrac": 0.1826,
+          "startFrac": 0.1858,
           "endFrac": 0.2534,
           "numbers": [
             3
@@ -59,13 +59,13 @@
           "type": "straight",
           "name": "Cooper Straight",
           "startFrac": 0.2534,
-          "endFrac": 0.2657
+          "endFrac": 0.2677
         },
         {
           "type": "corner",
           "name": "Surtees",
           "direction": "left",
-          "startFrac": 0.2657,
+          "startFrac": 0.2677,
           "endFrac": 0.3591,
           "numbers": [
             4
@@ -75,30 +75,24 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.3591,
-          "endFrac": 0.4662
+          "endFrac": 0.461
         },
         {
           "type": "corner",
           "name": "Hawthorn Bend",
           "direction": "right",
-          "startFrac": 0.4662,
-          "endFrac": 0.5551,
+          "startFrac": 0.461,
+          "endFrac": 0.568,
           "numbers": [
             5
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5551,
-          "endFrac": 0.5622
-        },
-        {
           "type": "corner",
           "name": "Westfield Bend",
           "direction": "right",
-          "startFrac": 0.5622,
-          "endFrac": 0.6389,
+          "startFrac": 0.568,
+          "endFrac": 0.6415,
           "numbers": [
             6
           ]
@@ -106,15 +100,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6389,
-          "endFrac": 0.655
+          "startFrac": 0.6415,
+          "endFrac": 0.6563
         },
         {
           "type": "corner",
           "name": "Sheene Curve",
           "direction": "right",
-          "startFrac": 0.655,
-          "endFrac": 0.7375,
+          "startFrac": 0.6563,
+          "endFrac": 0.7382,
           "numbers": [
             8
           ]
@@ -123,8 +117,8 @@
           "type": "corner",
           "name": "Stirling's Bend",
           "direction": "left",
-          "startFrac": 0.7375,
-          "endFrac": 0.8,
+          "startFrac": 0.7382,
+          "endFrac": 0.7962,
           "numbers": [
             9
           ]
@@ -132,7 +126,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.8,
+          "startFrac": 0.7962,
           "endFrac": 0.8297
         },
         {
@@ -140,7 +134,7 @@
           "name": "Clark Curve",
           "direction": "right",
           "startFrac": 0.8297,
-          "endFrac": 0.9342,
+          "endFrac": 0.9367,
           "numbers": [
             10
           ]
@@ -148,7 +142,7 @@
         {
           "type": "straight",
           "name": "Brabham Straight",
-          "startFrac": 0.9342,
+          "startFrac": 0.9367,
           "endFrac": 1
         }
       ]
@@ -159,14 +153,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.02
+          "endFrac": 0.028
         },
         {
           "type": "corner",
           "name": "Paddock Hill Bend",
           "direction": "right",
-          "startFrac": 0.02,
-          "endFrac": 0.1086,
+          "startFrac": 0.028,
+          "endFrac": 0.1004,
           "numbers": [
             1
           ]
@@ -174,25 +168,31 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1086,
-          "endFrac": 0.1157
+          "startFrac": 0.1004,
+          "endFrac": 0.1121
         },
         {
           "type": "corner",
           "name": "Druids",
           "direction": "right",
-          "startFrac": 0.1157,
-          "endFrac": 0.1845,
+          "startFrac": 0.1121,
+          "endFrac": 0.1899,
           "numbers": [
             2
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1899,
+          "endFrac": 0.1927
+        },
+        {
           "type": "corner",
           "name": "Graham Hill Bend",
           "direction": "left",
-          "startFrac": 0.1845,
-          "endFrac": 0.2503,
+          "startFrac": 0.1927,
+          "endFrac": 0.2483,
           "numbers": [
             3
           ]
@@ -200,15 +200,15 @@
         {
           "type": "straight",
           "name": "Cooper Straight",
-          "startFrac": 0.2503,
-          "endFrac": 0.2645
+          "startFrac": 0.2483,
+          "endFrac": 0.2656
         },
         {
           "type": "corner",
           "name": "Surtees",
           "direction": "left",
-          "startFrac": 0.2645,
-          "endFrac": 0.3586,
+          "startFrac": 0.2656,
+          "endFrac": 0.3571,
           "numbers": [
             4
           ]
@@ -216,15 +216,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3586,
-          "endFrac": 0.4704
+          "startFrac": 0.3571,
+          "endFrac": 0.4628
         },
         {
           "type": "corner",
           "name": "Hawthorn Bend",
           "direction": "right",
-          "startFrac": 0.4704,
-          "endFrac": 0.5592,
+          "startFrac": 0.4628,
+          "endFrac": 0.5597,
           "numbers": [
             5
           ]
@@ -232,15 +232,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5592,
-          "endFrac": 0.5684
+          "startFrac": 0.5597,
+          "endFrac": 0.5693
         },
         {
           "type": "corner",
           "name": "Westfield Bend",
           "direction": "right",
-          "startFrac": 0.5684,
-          "endFrac": 0.6305,
+          "startFrac": 0.5693,
+          "endFrac": 0.628,
           "numbers": [
             6
           ]
@@ -248,15 +248,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6305,
-          "endFrac": 0.6398
+          "startFrac": 0.628,
+          "endFrac": 0.6367
         },
         {
           "type": "corner",
           "name": "Dingle Dell",
           "direction": "right",
-          "startFrac": 0.6398,
-          "endFrac": 0.6887,
+          "startFrac": 0.6367,
+          "endFrac": 0.6936,
           "numbers": [
             7
           ]
@@ -265,8 +265,8 @@
           "type": "corner",
           "name": "Sheene Curve",
           "direction": "right",
-          "startFrac": 0.6887,
-          "endFrac": 0.7289,
+          "startFrac": 0.6936,
+          "endFrac": 0.7274,
           "numbers": [
             8
           ]
@@ -274,15 +274,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7289,
-          "endFrac": 0.7336
+          "startFrac": 0.7274,
+          "endFrac": 0.7333
         },
         {
           "type": "corner",
           "name": "Stirling's Bend",
           "direction": "left",
-          "startFrac": 0.7336,
-          "endFrac": 0.7967,
+          "startFrac": 0.7333,
+          "endFrac": 0.7957,
           "numbers": [
             9
           ]
@@ -290,7 +290,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7967,
+          "startFrac": 0.7957,
           "endFrac": 0.8353
         },
         {
@@ -298,7 +298,7 @@
           "name": "Clark Curve",
           "direction": "right",
           "startFrac": 0.8353,
-          "endFrac": 0.9502,
+          "endFrac": 0.9183,
           "numbers": [
             10
           ]
@@ -306,13 +306,13 @@
         {
           "type": "straight",
           "name": "Brabham Straight",
-          "startFrac": 0.9502,
+          "startFrac": 0.9183,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3586,
-        "s2End": 0.6639,
+        "s1End": 0.3571,
+        "s2End": 0.6614,
         "source": "corner-anchored"
       }
     }
@@ -322,14 +322,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.02
+      "endFrac": 0.028
     },
     {
       "type": "corner",
       "name": "Paddock Hill Bend",
       "direction": "right",
-      "startFrac": 0.02,
-      "endFrac": 0.1086,
+      "startFrac": 0.028,
+      "endFrac": 0.1004,
       "numbers": [
         1
       ]
@@ -337,25 +337,31 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1086,
-      "endFrac": 0.1157
+      "startFrac": 0.1004,
+      "endFrac": 0.1121
     },
     {
       "type": "corner",
       "name": "Druids",
       "direction": "right",
-      "startFrac": 0.1157,
-      "endFrac": 0.1845,
+      "startFrac": 0.1121,
+      "endFrac": 0.1899,
       "numbers": [
         2
       ]
     },
     {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1899,
+      "endFrac": 0.1927
+    },
+    {
       "type": "corner",
       "name": "Graham Hill Bend",
       "direction": "left",
-      "startFrac": 0.1845,
-      "endFrac": 0.2503,
+      "startFrac": 0.1927,
+      "endFrac": 0.2483,
       "numbers": [
         3
       ]
@@ -363,15 +369,15 @@
     {
       "type": "straight",
       "name": "Cooper Straight",
-      "startFrac": 0.2503,
-      "endFrac": 0.2645
+      "startFrac": 0.2483,
+      "endFrac": 0.2656
     },
     {
       "type": "corner",
       "name": "Surtees",
       "direction": "left",
-      "startFrac": 0.2645,
-      "endFrac": 0.3586,
+      "startFrac": 0.2656,
+      "endFrac": 0.3571,
       "numbers": [
         4
       ]
@@ -379,15 +385,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3586,
-      "endFrac": 0.4704
+      "startFrac": 0.3571,
+      "endFrac": 0.4628
     },
     {
       "type": "corner",
       "name": "Hawthorn Bend",
       "direction": "right",
-      "startFrac": 0.4704,
-      "endFrac": 0.5592,
+      "startFrac": 0.4628,
+      "endFrac": 0.5597,
       "numbers": [
         5
       ]
@@ -395,15 +401,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.5592,
-      "endFrac": 0.5684
+      "startFrac": 0.5597,
+      "endFrac": 0.5693
     },
     {
       "type": "corner",
       "name": "Westfield Bend",
       "direction": "right",
-      "startFrac": 0.5684,
-      "endFrac": 0.6305,
+      "startFrac": 0.5693,
+      "endFrac": 0.628,
       "numbers": [
         6
       ]
@@ -411,15 +417,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.6305,
-      "endFrac": 0.6398
+      "startFrac": 0.628,
+      "endFrac": 0.6367
     },
     {
       "type": "corner",
       "name": "Dingle Dell",
       "direction": "right",
-      "startFrac": 0.6398,
-      "endFrac": 0.6887,
+      "startFrac": 0.6367,
+      "endFrac": 0.6936,
       "numbers": [
         7
       ]
@@ -428,8 +434,8 @@
       "type": "corner",
       "name": "Sheene Curve",
       "direction": "right",
-      "startFrac": 0.6887,
-      "endFrac": 0.7289,
+      "startFrac": 0.6936,
+      "endFrac": 0.7274,
       "numbers": [
         8
       ]
@@ -437,15 +443,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7289,
-      "endFrac": 0.7336
+      "startFrac": 0.7274,
+      "endFrac": 0.7333
     },
     {
       "type": "corner",
       "name": "Stirling's Bend",
       "direction": "left",
-      "startFrac": 0.7336,
-      "endFrac": 0.7967,
+      "startFrac": 0.7333,
+      "endFrac": 0.7957,
       "numbers": [
         9
       ]
@@ -453,7 +459,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7967,
+      "startFrac": 0.7957,
       "endFrac": 0.8353
     },
     {
@@ -461,7 +467,7 @@
       "name": "Clark Curve",
       "direction": "right",
       "startFrac": 0.8353,
-      "endFrac": 0.9502,
+      "endFrac": 0.9183,
       "numbers": [
         10
       ]
@@ -469,7 +475,7 @@
     {
       "type": "straight",
       "name": "Brabham Straight",
-      "startFrac": 0.9502,
+      "startFrac": 0.9183,
       "endFrac": 1
     }
   ]

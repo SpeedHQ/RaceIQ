@@ -1,15 +1,15 @@
 {
   "name": "Circuit Zandvoort",
   "sectors": {
-    "s1End": 0.4408,
-    "s2End": 0.6727,
+    "s1End": 0.4429,
+    "s2End": 0.6716,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.4408,
-        "s2End": 0.6727,
+        "s1End": 0.4429,
+        "s2End": 0.6716,
         "source": "corner-anchored"
       },
       "segments": [
@@ -17,14 +17,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0382
+          "endFrac": 0.0391
         },
         {
           "type": "corner",
           "name": "Tarzanbocht",
           "direction": "right",
-          "startFrac": 0.0382,
-          "endFrac": 0.1248,
+          "startFrac": 0.0391,
+          "endFrac": 0.1228,
           "numbers": [
             1
           ]
@@ -32,14 +32,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1248,
-          "endFrac": 0.1323
+          "startFrac": 0.1228,
+          "endFrac": 0.1319
         },
         {
           "type": "corner",
           "name": "Gerlachbocht",
           "direction": "right",
-          "startFrac": 0.1323,
+          "startFrac": 0.1319,
           "endFrac": 0.1799,
           "numbers": [
             2
@@ -50,7 +50,7 @@
           "name": "Hugenholtzbocht",
           "direction": "left",
           "startFrac": 0.1799,
-          "endFrac": 0.2324,
+          "endFrac": 0.2304,
           "numbers": [
             3
           ]
@@ -58,15 +58,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2324,
-          "endFrac": 0.2556
+          "startFrac": 0.2304,
+          "endFrac": 0.2517
         },
         {
           "type": "corner",
           "name": "Hunzerug",
           "direction": "left",
-          "startFrac": 0.2556,
-          "endFrac": 0.3191,
+          "startFrac": 0.2517,
+          "endFrac": 0.3185,
           "numbers": [
             4
           ]
@@ -75,8 +75,8 @@
           "type": "corner",
           "name": "Slotemaker/Scheivlak",
           "direction": "right",
-          "startFrac": 0.3191,
-          "endFrac": 0.4408,
+          "startFrac": 0.3185,
+          "endFrac": 0.4429,
           "numbers": [
             5,
             6
@@ -85,25 +85,31 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4408,
-          "endFrac": 0.4475
+          "startFrac": 0.4429,
+          "endFrac": 0.4495
         },
         {
           "type": "corner",
           "name": "Mastersbocht",
           "direction": "right",
-          "startFrac": 0.4475,
-          "endFrac": 0.5637,
+          "startFrac": 0.4495,
+          "endFrac": 0.5549,
           "numbers": [
             7
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.5549,
+          "endFrac": 0.5572
+        },
+        {
           "type": "corner",
           "name": "T8",
           "direction": "left",
-          "startFrac": 0.5637,
-          "endFrac": 0.6257,
+          "startFrac": 0.5572,
+          "endFrac": 0.6246,
           "numbers": [
             8,
             9
@@ -112,15 +118,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6257,
-          "endFrac": 0.6887
+          "startFrac": 0.6246,
+          "endFrac": 0.6906
         },
         {
           "type": "corner",
           "name": "T10",
           "direction": "right",
-          "startFrac": 0.6887,
-          "endFrac": 0.7332,
+          "startFrac": 0.6906,
+          "endFrac": 0.7336,
           "numbers": [
             10
           ]
@@ -129,8 +135,8 @@
           "type": "corner",
           "name": "Hans Ernst Bocht",
           "direction": "left",
-          "startFrac": 0.7332,
-          "endFrac": 0.7772,
+          "startFrac": 0.7336,
+          "endFrac": 0.7762,
           "numbers": [
             11,
             12
@@ -139,7 +145,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7772,
+          "startFrac": 0.7762,
           "endFrac": 0.7867
         },
         {
@@ -147,7 +153,7 @@
           "name": "T13",
           "direction": "right",
           "startFrac": 0.7867,
-          "endFrac": 0.8498,
+          "endFrac": 0.8459,
           "numbers": [
             13
           ]
@@ -156,8 +162,8 @@
           "type": "corner",
           "name": "Arie Luyendykbocht",
           "direction": "right",
-          "startFrac": 0.8498,
-          "endFrac": 0.9339,
+          "startFrac": 0.8459,
+          "endFrac": 0.9349,
           "numbers": [
             14
           ]
@@ -165,7 +171,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9339,
+          "startFrac": 0.9349,
           "endFrac": 1
         }
       ]
@@ -176,14 +182,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0395
+          "endFrac": 0.0419
         },
         {
           "type": "corner",
           "name": "Tarzanbocht",
           "direction": "right",
-          "startFrac": 0.0395,
-          "endFrac": 0.1292,
+          "startFrac": 0.0419,
+          "endFrac": 0.1196,
           "numbers": [
             1
           ]
@@ -191,15 +197,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1292,
-          "endFrac": 0.1334
+          "startFrac": 0.1196,
+          "endFrac": 0.1286
         },
         {
           "type": "corner",
           "name": "Gerlachbocht",
           "direction": "right",
-          "startFrac": 0.1334,
-          "endFrac": 0.1848,
+          "startFrac": 0.1286,
+          "endFrac": 0.1836,
           "numbers": [
             2
           ]
@@ -208,8 +214,8 @@
           "type": "corner",
           "name": "Hugenholtzbocht",
           "direction": "left",
-          "startFrac": 0.1848,
-          "endFrac": 0.2404,
+          "startFrac": 0.1836,
+          "endFrac": 0.2332,
           "numbers": [
             3
           ]
@@ -217,15 +223,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.2404,
-          "endFrac": 0.2667
+          "startFrac": 0.2332,
+          "endFrac": 0.2535
         },
         {
           "type": "corner",
           "name": "Hunzerug",
           "direction": "left",
-          "startFrac": 0.2667,
-          "endFrac": 0.3217,
+          "startFrac": 0.2535,
+          "endFrac": 0.3325,
           "numbers": [
             4
           ]
@@ -233,15 +239,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3217,
-          "endFrac": 0.3492
+          "startFrac": 0.3325,
+          "endFrac": 0.3469
         },
         {
           "type": "corner",
           "name": "Slotemaker/Scheivlak",
           "direction": "right",
-          "startFrac": 0.3492,
-          "endFrac": 0.4473,
+          "startFrac": 0.3469,
+          "endFrac": 0.4544,
           "numbers": [
             5,
             6
@@ -250,15 +256,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4473,
-          "endFrac": 0.4509
+          "startFrac": 0.4544,
+          "endFrac": 0.4939
         },
         {
           "type": "corner",
           "name": "Mastersbocht",
           "direction": "right",
-          "startFrac": 0.4509,
-          "endFrac": 0.5711,
+          "startFrac": 0.4939,
+          "endFrac": 0.567,
           "numbers": [
             7
           ]
@@ -267,8 +273,8 @@
           "type": "corner",
           "name": "T8",
           "direction": "left",
-          "startFrac": 0.5711,
-          "endFrac": 0.6422,
+          "startFrac": 0.567,
+          "endFrac": 0.6291,
           "numbers": [
             8,
             9
@@ -277,14 +283,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6422,
-          "endFrac": 0.6913
+          "startFrac": 0.6291,
+          "endFrac": 0.6925
         },
         {
           "type": "corner",
           "name": "T10",
           "direction": "right",
-          "startFrac": 0.6913,
+          "startFrac": 0.6925,
           "endFrac": 0.7416,
           "numbers": [
             10
@@ -295,7 +301,7 @@
           "name": "Hans Ernst Bocht",
           "direction": "left",
           "startFrac": 0.7416,
-          "endFrac": 0.7858,
+          "endFrac": 0.7798,
           "numbers": [
             11,
             12
@@ -304,15 +310,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7858,
-          "endFrac": 0.7918
+          "startFrac": 0.7798,
+          "endFrac": 0.7894
         },
         {
           "type": "corner",
           "name": "Arie Luyendykbocht",
           "direction": "right",
-          "startFrac": 0.7918,
-          "endFrac": 0.921,
+          "startFrac": 0.7894,
+          "endFrac": 0.8971,
           "numbers": [
             14
           ]
@@ -320,13 +326,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.921,
+          "startFrac": 0.8971,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.4473,
-        "s2End": 0.6901,
+        "s1End": 0.4544,
+        "s2End": 0.677,
         "source": "corner-anchored"
       }
     }
@@ -336,14 +342,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.0382
+      "endFrac": 0.0391
     },
     {
       "type": "corner",
       "name": "Tarzanbocht",
       "direction": "right",
-      "startFrac": 0.0382,
-      "endFrac": 0.1248,
+      "startFrac": 0.0391,
+      "endFrac": 0.1228,
       "numbers": [
         1
       ]
@@ -351,14 +357,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1248,
-      "endFrac": 0.1323
+      "startFrac": 0.1228,
+      "endFrac": 0.1319
     },
     {
       "type": "corner",
       "name": "Gerlachbocht",
       "direction": "right",
-      "startFrac": 0.1323,
+      "startFrac": 0.1319,
       "endFrac": 0.1799,
       "numbers": [
         2
@@ -369,7 +375,7 @@
       "name": "Hugenholtzbocht",
       "direction": "left",
       "startFrac": 0.1799,
-      "endFrac": 0.2324,
+      "endFrac": 0.2304,
       "numbers": [
         3
       ]
@@ -377,15 +383,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.2324,
-      "endFrac": 0.2556
+      "startFrac": 0.2304,
+      "endFrac": 0.2517
     },
     {
       "type": "corner",
       "name": "Hunzerug",
       "direction": "left",
-      "startFrac": 0.2556,
-      "endFrac": 0.3191,
+      "startFrac": 0.2517,
+      "endFrac": 0.3185,
       "numbers": [
         4
       ]
@@ -394,8 +400,8 @@
       "type": "corner",
       "name": "Slotemaker/Scheivlak",
       "direction": "right",
-      "startFrac": 0.3191,
-      "endFrac": 0.4408,
+      "startFrac": 0.3185,
+      "endFrac": 0.4429,
       "numbers": [
         5,
         6
@@ -404,25 +410,31 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.4408,
-      "endFrac": 0.4475
+      "startFrac": 0.4429,
+      "endFrac": 0.4495
     },
     {
       "type": "corner",
       "name": "Mastersbocht",
       "direction": "right",
-      "startFrac": 0.4475,
-      "endFrac": 0.5637,
+      "startFrac": 0.4495,
+      "endFrac": 0.5549,
       "numbers": [
         7
       ]
     },
     {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.5549,
+      "endFrac": 0.5572
+    },
+    {
       "type": "corner",
       "name": "T8",
       "direction": "left",
-      "startFrac": 0.5637,
-      "endFrac": 0.6257,
+      "startFrac": 0.5572,
+      "endFrac": 0.6246,
       "numbers": [
         8,
         9
@@ -431,15 +443,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.6257,
-      "endFrac": 0.6887
+      "startFrac": 0.6246,
+      "endFrac": 0.6906
     },
     {
       "type": "corner",
       "name": "T10",
       "direction": "right",
-      "startFrac": 0.6887,
-      "endFrac": 0.7332,
+      "startFrac": 0.6906,
+      "endFrac": 0.7336,
       "numbers": [
         10
       ]
@@ -448,8 +460,8 @@
       "type": "corner",
       "name": "Hans Ernst Bocht",
       "direction": "left",
-      "startFrac": 0.7332,
-      "endFrac": 0.7772,
+      "startFrac": 0.7336,
+      "endFrac": 0.7762,
       "numbers": [
         11,
         12
@@ -458,7 +470,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7772,
+      "startFrac": 0.7762,
       "endFrac": 0.7867
     },
     {
@@ -466,7 +478,7 @@
       "name": "T13",
       "direction": "right",
       "startFrac": 0.7867,
-      "endFrac": 0.8498,
+      "endFrac": 0.8459,
       "numbers": [
         13
       ]
@@ -475,8 +487,8 @@
       "type": "corner",
       "name": "Arie Luyendykbocht",
       "direction": "right",
-      "startFrac": 0.8498,
-      "endFrac": 0.9339,
+      "startFrac": 0.8459,
+      "endFrac": 0.9349,
       "numbers": [
         14
       ]
@@ -484,7 +496,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9339,
+      "startFrac": 0.9349,
       "endFrac": 1
     }
   ]

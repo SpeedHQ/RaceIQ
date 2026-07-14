@@ -17,14 +17,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0304
+          "endFrac": 0.0323
         },
         {
           "type": "corner",
           "name": "Sainte Dévote",
           "direction": "right",
-          "startFrac": 0.0304,
-          "endFrac": 0.0943,
+          "startFrac": 0.0323,
+          "endFrac": 0.0924,
           "numbers": [
             1
           ]
@@ -32,15 +32,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.0943,
-          "endFrac": 0.1612
+          "startFrac": 0.0924,
+          "endFrac": 0.1822
         },
         {
           "type": "corner",
           "name": "Massenet",
           "direction": "left",
-          "startFrac": 0.1612,
-          "endFrac": 0.2603,
+          "startFrac": 0.1822,
+          "endFrac": 0.2622,
           "numbers": [
             3
           ]
@@ -49,8 +49,8 @@
           "type": "corner",
           "name": "Casino",
           "direction": "right",
-          "startFrac": 0.2603,
-          "endFrac": 0.3003,
+          "startFrac": 0.2622,
+          "endFrac": 0.2985,
           "numbers": [
             4
           ]
@@ -58,7 +58,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3003,
+          "startFrac": 0.2985,
           "endFrac": 0.3057
         },
         {
@@ -66,7 +66,7 @@
           "name": "Mirabeau",
           "direction": "right",
           "startFrac": 0.3057,
-          "endFrac": 0.3554,
+          "endFrac": 0.3545,
           "numbers": [
             5
           ]
@@ -75,8 +75,8 @@
           "type": "corner",
           "name": "Fairmont Hairpin",
           "direction": "left",
-          "startFrac": 0.3554,
-          "endFrac": 0.397,
+          "startFrac": 0.3545,
+          "endFrac": 0.3941,
           "numbers": [
             6
           ]
@@ -85,8 +85,8 @@
           "type": "corner",
           "name": "Portier",
           "direction": "right",
-          "startFrac": 0.397,
-          "endFrac": 0.4622,
+          "startFrac": 0.3941,
+          "endFrac": 0.4604,
           "numbers": [
             7,
             8
@@ -95,14 +95,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4622,
-          "endFrac": 0.4798
+          "startFrac": 0.4604,
+          "endFrac": 0.476
         },
         {
           "type": "corner",
           "name": "Tunnel",
           "direction": "right",
-          "startFrac": 0.4798,
+          "startFrac": 0.476,
           "endFrac": 0.5608,
           "numbers": [
             9
@@ -112,13 +112,13 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.5608,
-          "endFrac": 0.5832
+          "endFrac": 0.5854
         },
         {
           "type": "corner",
           "name": "Nouvelle Chicane",
-          "startFrac": 0.5832,
-          "endFrac": 0.6479,
+          "startFrac": 0.5854,
+          "endFrac": 0.6481,
           "numbers": [
             10,
             11
@@ -128,7 +128,7 @@
           "type": "corner",
           "name": "Tabac",
           "direction": "left",
-          "startFrac": 0.6479,
+          "startFrac": 0.6481,
           "endFrac": 0.6765,
           "numbers": [
             12
@@ -138,14 +138,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.6765,
-          "endFrac": 0.6835
+          "endFrac": 0.6844
         },
         {
           "type": "corner",
           "name": "Louis Chiron",
           "direction": "left",
-          "startFrac": 0.6835,
-          "endFrac": 0.7741,
+          "startFrac": 0.6844,
+          "endFrac": 0.7721,
           "numbers": [
             13
           ]
@@ -154,7 +154,7 @@
           "type": "corner",
           "name": "Piscine",
           "direction": "right",
-          "startFrac": 0.7741,
+          "startFrac": 0.7721,
           "endFrac": 0.8203,
           "numbers": [
             14,
@@ -166,7 +166,7 @@
           "name": "T16",
           "direction": "left",
           "startFrac": 0.8203,
-          "endFrac": 0.8737,
+          "endFrac": 0.8521,
           "numbers": [
             16
           ]
@@ -174,8 +174,8 @@
         {
           "type": "corner",
           "name": "Rascasse / Antony Noghès",
-          "startFrac": 0.8737,
-          "endFrac": 0.9464,
+          "startFrac": 0.8521,
+          "endFrac": 0.9445,
           "numbers": [
             18,
             19
@@ -184,7 +184,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9464,
+          "startFrac": 0.9445,
           "endFrac": 1
         }
       ]
@@ -195,14 +195,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.0304
+      "endFrac": 0.0323
     },
     {
       "type": "corner",
       "name": "Sainte Dévote",
       "direction": "right",
-      "startFrac": 0.0304,
-      "endFrac": 0.0943,
+      "startFrac": 0.0323,
+      "endFrac": 0.0924,
       "numbers": [
         1
       ]
@@ -210,15 +210,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.0943,
-      "endFrac": 0.1612
+      "startFrac": 0.0924,
+      "endFrac": 0.1822
     },
     {
       "type": "corner",
       "name": "Massenet",
       "direction": "left",
-      "startFrac": 0.1612,
-      "endFrac": 0.2603,
+      "startFrac": 0.1822,
+      "endFrac": 0.2622,
       "numbers": [
         3
       ]
@@ -227,8 +227,8 @@
       "type": "corner",
       "name": "Casino",
       "direction": "right",
-      "startFrac": 0.2603,
-      "endFrac": 0.3003,
+      "startFrac": 0.2622,
+      "endFrac": 0.2985,
       "numbers": [
         4
       ]
@@ -236,7 +236,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3003,
+      "startFrac": 0.2985,
       "endFrac": 0.3057
     },
     {
@@ -244,7 +244,7 @@
       "name": "Mirabeau",
       "direction": "right",
       "startFrac": 0.3057,
-      "endFrac": 0.3554,
+      "endFrac": 0.3545,
       "numbers": [
         5
       ]
@@ -253,8 +253,8 @@
       "type": "corner",
       "name": "Fairmont Hairpin",
       "direction": "left",
-      "startFrac": 0.3554,
-      "endFrac": 0.397,
+      "startFrac": 0.3545,
+      "endFrac": 0.3941,
       "numbers": [
         6
       ]
@@ -263,8 +263,8 @@
       "type": "corner",
       "name": "Portier",
       "direction": "right",
-      "startFrac": 0.397,
-      "endFrac": 0.4622,
+      "startFrac": 0.3941,
+      "endFrac": 0.4604,
       "numbers": [
         7,
         8
@@ -273,14 +273,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.4622,
-      "endFrac": 0.4798
+      "startFrac": 0.4604,
+      "endFrac": 0.476
     },
     {
       "type": "corner",
       "name": "Tunnel",
       "direction": "right",
-      "startFrac": 0.4798,
+      "startFrac": 0.476,
       "endFrac": 0.5608,
       "numbers": [
         9
@@ -290,13 +290,13 @@
       "type": "straight",
       "name": "",
       "startFrac": 0.5608,
-      "endFrac": 0.5832
+      "endFrac": 0.5854
     },
     {
       "type": "corner",
       "name": "Nouvelle Chicane",
-      "startFrac": 0.5832,
-      "endFrac": 0.6479,
+      "startFrac": 0.5854,
+      "endFrac": 0.6481,
       "numbers": [
         10,
         11
@@ -306,7 +306,7 @@
       "type": "corner",
       "name": "Tabac",
       "direction": "left",
-      "startFrac": 0.6479,
+      "startFrac": 0.6481,
       "endFrac": 0.6765,
       "numbers": [
         12
@@ -316,14 +316,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0.6765,
-      "endFrac": 0.6835
+      "endFrac": 0.6844
     },
     {
       "type": "corner",
       "name": "Louis Chiron",
       "direction": "left",
-      "startFrac": 0.6835,
-      "endFrac": 0.7741,
+      "startFrac": 0.6844,
+      "endFrac": 0.7721,
       "numbers": [
         13
       ]
@@ -332,7 +332,7 @@
       "type": "corner",
       "name": "Piscine",
       "direction": "right",
-      "startFrac": 0.7741,
+      "startFrac": 0.7721,
       "endFrac": 0.8203,
       "numbers": [
         14,
@@ -344,7 +344,7 @@
       "name": "T16",
       "direction": "left",
       "startFrac": 0.8203,
-      "endFrac": 0.8737,
+      "endFrac": 0.8521,
       "numbers": [
         16
       ]
@@ -352,8 +352,8 @@
     {
       "type": "corner",
       "name": "Rascasse / Antony Noghès",
-      "startFrac": 0.8737,
-      "endFrac": 0.9464,
+      "startFrac": 0.8521,
+      "endFrac": 0.9445,
       "numbers": [
         18,
         19
@@ -362,7 +362,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9464,
+      "startFrac": 0.9445,
       "endFrac": 1
     }
   ]

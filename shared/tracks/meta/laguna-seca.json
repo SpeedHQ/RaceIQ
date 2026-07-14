@@ -1,7 +1,7 @@
 {
   "name": "WeatherTech Raceway Laguna Seca",
   "sectors": {
-    "s1End": 0.3199,
+    "s1End": 0.3194,
     "s2End": 0.7178,
     "source": "corner-anchored"
   },
@@ -12,24 +12,30 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0744
+          "endFrac": 0.0801
         },
         {
           "type": "corner",
           "name": "Andretti Hairpin",
           "direction": "left",
-          "startFrac": 0.0744,
-          "endFrac": 0.175,
+          "startFrac": 0.0801,
+          "endFrac": 0.1743,
           "numbers": [
             2
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1743,
+          "endFrac": 0.1778
+        },
+        {
           "type": "corner",
           "name": "T3",
           "direction": "right",
-          "startFrac": 0.175,
-          "endFrac": 0.2551,
+          "startFrac": 0.1778,
+          "endFrac": 0.253,
           "numbers": [
             3
           ]
@@ -38,8 +44,8 @@
           "type": "corner",
           "name": "T4",
           "direction": "right",
-          "startFrac": 0.2551,
-          "endFrac": 0.3304,
+          "startFrac": 0.253,
+          "endFrac": 0.3318,
           "numbers": [
             4
           ]
@@ -47,15 +53,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3304,
-          "endFrac": 0.367
+          "startFrac": 0.3318,
+          "endFrac": 0.3768
         },
         {
           "type": "corner",
           "name": "T5",
           "direction": "left",
-          "startFrac": 0.367,
-          "endFrac": 0.4738,
+          "startFrac": 0.3768,
+          "endFrac": 0.464,
           "numbers": [
             5
           ]
@@ -63,15 +69,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4738,
-          "endFrac": 0.4934
+          "startFrac": 0.464,
+          "endFrac": 0.4948
         },
         {
           "type": "corner",
           "name": "T6",
           "direction": "left",
-          "startFrac": 0.4934,
-          "endFrac": 0.5722,
+          "startFrac": 0.4948,
+          "endFrac": 0.568,
           "numbers": [
             6
           ]
@@ -79,15 +85,15 @@
         {
           "type": "straight",
           "name": "Rahal Straight",
-          "startFrac": 0.5722,
-          "endFrac": 0.6322
+          "startFrac": 0.568,
+          "endFrac": 0.6379
         },
         {
           "type": "corner",
           "name": "T7",
           "direction": "left",
-          "startFrac": 0.6322,
-          "endFrac": 0.6912,
+          "startFrac": 0.6379,
+          "endFrac": 0.6906,
           "numbers": [
             7
           ]
@@ -96,8 +102,8 @@
           "type": "corner",
           "name": "Corkscrew",
           "direction": "right",
-          "startFrac": 0.6912,
-          "endFrac": 0.7233,
+          "startFrac": 0.6906,
+          "endFrac": 0.7205,
           "numbers": [
             8
           ]
@@ -106,7 +112,7 @@
           "type": "corner",
           "name": "Rainey Curve",
           "direction": "left",
-          "startFrac": 0.7233,
+          "startFrac": 0.7205,
           "endFrac": 0.7997,
           "numbers": [
             9
@@ -126,14 +132,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.8706,
-          "endFrac": 0.8756
+          "endFrac": 0.8777
         },
         {
           "type": "corner",
           "name": "T11",
           "direction": "left",
-          "startFrac": 0.8756,
-          "endFrac": 0.9451,
+          "startFrac": 0.8777,
+          "endFrac": 0.9409,
           "numbers": [
             11
           ]
@@ -141,13 +147,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9451,
+          "startFrac": 0.9409,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3304,
-        "s2End": 0.7233,
+        "s1End": 0.3318,
+        "s2End": 0.7205,
         "source": "corner-anchored"
       }
     },
@@ -157,14 +163,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.071
+          "endFrac": 0.0727
         },
         {
           "type": "corner",
           "name": "Andretti Hairpin",
           "direction": "left",
-          "startFrac": 0.071,
-          "endFrac": 0.1716,
+          "startFrac": 0.0727,
+          "endFrac": 0.1704,
           "numbers": [
             2
           ]
@@ -172,15 +178,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1716,
-          "endFrac": 0.1764
+          "startFrac": 0.1704,
+          "endFrac": 0.1763
         },
         {
           "type": "corner",
           "name": "T3",
           "direction": "right",
-          "startFrac": 0.1764,
-          "endFrac": 0.246,
+          "startFrac": 0.1763,
+          "endFrac": 0.2455,
           "numbers": [
             3
           ]
@@ -188,15 +194,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.246,
-          "endFrac": 0.2505
+          "startFrac": 0.2455,
+          "endFrac": 0.2508
         },
         {
           "type": "corner",
           "name": "T4",
           "direction": "right",
-          "startFrac": 0.2505,
-          "endFrac": 0.3199,
+          "startFrac": 0.2508,
+          "endFrac": 0.3194,
           "numbers": [
             4
           ]
@@ -204,15 +210,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3199,
-          "endFrac": 0.3683
+          "startFrac": 0.3194,
+          "endFrac": 0.3694
         },
         {
           "type": "corner",
           "name": "T5",
           "direction": "left",
-          "startFrac": 0.3683,
-          "endFrac": 0.4661,
+          "startFrac": 0.3694,
+          "endFrac": 0.455,
           "numbers": [
             5
           ]
@@ -220,15 +226,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4661,
-          "endFrac": 0.4893
+          "startFrac": 0.455,
+          "endFrac": 0.491
         },
         {
           "type": "corner",
           "name": "T6",
           "direction": "left",
-          "startFrac": 0.4893,
-          "endFrac": 0.5621,
+          "startFrac": 0.491,
+          "endFrac": 0.561,
           "numbers": [
             6
           ]
@@ -236,14 +242,14 @@
         {
           "type": "straight",
           "name": "Rahal Straight",
-          "startFrac": 0.5621,
-          "endFrac": 0.63
+          "startFrac": 0.561,
+          "endFrac": 0.6339
         },
         {
           "type": "corner",
           "name": "T7",
           "direction": "left",
-          "startFrac": 0.63,
+          "startFrac": 0.6339,
           "endFrac": 0.6853,
           "numbers": [
             7
@@ -264,7 +270,7 @@
           "name": "Rainey Curve",
           "direction": "left",
           "startFrac": 0.7178,
-          "endFrac": 0.7895,
+          "endFrac": 0.7878,
           "numbers": [
             9
           ]
@@ -272,15 +278,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7895,
-          "endFrac": 0.7926
+          "startFrac": 0.7878,
+          "endFrac": 0.7922
         },
         {
           "type": "corner",
           "name": "T10",
           "direction": "right",
-          "startFrac": 0.7926,
-          "endFrac": 0.8583,
+          "startFrac": 0.7922,
+          "endFrac": 0.8572,
           "numbers": [
             10
           ]
@@ -288,15 +294,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.8583,
-          "endFrac": 0.8686
+          "startFrac": 0.8572,
+          "endFrac": 0.8692
         },
         {
           "type": "corner",
           "name": "T11",
           "direction": "left",
-          "startFrac": 0.8686,
-          "endFrac": 0.9366,
+          "startFrac": 0.8692,
+          "endFrac": 0.9339,
           "numbers": [
             11
           ]
@@ -304,12 +310,12 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9366,
+          "startFrac": 0.9339,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3199,
+        "s1End": 0.3194,
         "s2End": 0.7178,
         "source": "corner-anchored"
       }
@@ -320,14 +326,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.071
+      "endFrac": 0.0727
     },
     {
       "type": "corner",
       "name": "Andretti Hairpin",
       "direction": "left",
-      "startFrac": 0.071,
-      "endFrac": 0.1716,
+      "startFrac": 0.0727,
+      "endFrac": 0.1704,
       "numbers": [
         2
       ]
@@ -335,15 +341,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1716,
-      "endFrac": 0.1764
+      "startFrac": 0.1704,
+      "endFrac": 0.1763
     },
     {
       "type": "corner",
       "name": "T3",
       "direction": "right",
-      "startFrac": 0.1764,
-      "endFrac": 0.246,
+      "startFrac": 0.1763,
+      "endFrac": 0.2455,
       "numbers": [
         3
       ]
@@ -351,15 +357,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.246,
-      "endFrac": 0.2505
+      "startFrac": 0.2455,
+      "endFrac": 0.2508
     },
     {
       "type": "corner",
       "name": "T4",
       "direction": "right",
-      "startFrac": 0.2505,
-      "endFrac": 0.3199,
+      "startFrac": 0.2508,
+      "endFrac": 0.3194,
       "numbers": [
         4
       ]
@@ -367,15 +373,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3199,
-      "endFrac": 0.3683
+      "startFrac": 0.3194,
+      "endFrac": 0.3694
     },
     {
       "type": "corner",
       "name": "T5",
       "direction": "left",
-      "startFrac": 0.3683,
-      "endFrac": 0.4661,
+      "startFrac": 0.3694,
+      "endFrac": 0.455,
       "numbers": [
         5
       ]
@@ -383,15 +389,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.4661,
-      "endFrac": 0.4893
+      "startFrac": 0.455,
+      "endFrac": 0.491
     },
     {
       "type": "corner",
       "name": "T6",
       "direction": "left",
-      "startFrac": 0.4893,
-      "endFrac": 0.5621,
+      "startFrac": 0.491,
+      "endFrac": 0.561,
       "numbers": [
         6
       ]
@@ -399,14 +405,14 @@
     {
       "type": "straight",
       "name": "Rahal Straight",
-      "startFrac": 0.5621,
-      "endFrac": 0.63
+      "startFrac": 0.561,
+      "endFrac": 0.6339
     },
     {
       "type": "corner",
       "name": "T7",
       "direction": "left",
-      "startFrac": 0.63,
+      "startFrac": 0.6339,
       "endFrac": 0.6853,
       "numbers": [
         7
@@ -427,7 +433,7 @@
       "name": "Rainey Curve",
       "direction": "left",
       "startFrac": 0.7178,
-      "endFrac": 0.7895,
+      "endFrac": 0.7878,
       "numbers": [
         9
       ]
@@ -435,15 +441,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7895,
-      "endFrac": 0.7926
+      "startFrac": 0.7878,
+      "endFrac": 0.7922
     },
     {
       "type": "corner",
       "name": "T10",
       "direction": "right",
-      "startFrac": 0.7926,
-      "endFrac": 0.8583,
+      "startFrac": 0.7922,
+      "endFrac": 0.8572,
       "numbers": [
         10
       ]
@@ -451,15 +457,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.8583,
-      "endFrac": 0.8686
+      "startFrac": 0.8572,
+      "endFrac": 0.8692
     },
     {
       "type": "corner",
       "name": "T11",
       "direction": "left",
-      "startFrac": 0.8686,
-      "endFrac": 0.9366,
+      "startFrac": 0.8692,
+      "endFrac": 0.9339,
       "numbers": [
         11
       ]
@@ -467,7 +473,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9366,
+      "startFrac": 0.9339,
       "endFrac": 1
     }
   ]

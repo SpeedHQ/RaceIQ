@@ -7,14 +7,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0558
+          "endFrac": 0.0622
         },
         {
           "type": "corner",
           "name": "Redgate",
           "direction": "right",
-          "startFrac": 0.0558,
-          "endFrac": 0.1427,
+          "startFrac": 0.0622,
+          "endFrac": 0.137,
           "numbers": [
             1
           ]
@@ -23,24 +23,18 @@
           "type": "corner",
           "name": "Craner Curves",
           "direction": "right",
-          "startFrac": 0.1427,
-          "endFrac": 0.1775,
+          "startFrac": 0.137,
+          "endFrac": 0.2231,
           "numbers": [
             2
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1775,
-          "endFrac": 0.2078
-        },
-        {
           "type": "corner",
           "name": "T3",
           "direction": "left",
-          "startFrac": 0.2078,
-          "endFrac": 0.2655,
+          "startFrac": 0.2231,
+          "endFrac": 0.2699,
           "numbers": [
             3
           ]
@@ -49,8 +43,8 @@
           "type": "corner",
           "name": "Old Hairpin",
           "direction": "right",
-          "startFrac": 0.2655,
-          "endFrac": 0.3276,
+          "startFrac": 0.2699,
+          "endFrac": 0.3269,
           "numbers": [
             4
           ]
@@ -59,8 +53,8 @@
           "type": "corner",
           "name": "Starkey's",
           "direction": "left",
-          "startFrac": 0.3276,
-          "endFrac": 0.3663,
+          "startFrac": 0.3269,
+          "endFrac": 0.3916,
           "numbers": [
             5
           ]
@@ -68,14 +62,14 @@
         {
           "type": "straight",
           "name": "Starkey's Straight",
-          "startFrac": 0.3663,
-          "endFrac": 0.4042
+          "startFrac": 0.3916,
+          "endFrac": 0.4068
         },
         {
           "type": "corner",
           "name": "Schwantz Curve",
           "direction": "right",
-          "startFrac": 0.4042,
+          "startFrac": 0.4068,
           "endFrac": 0.4955,
           "numbers": [
             6
@@ -92,7 +86,7 @@
           "name": "McLeans-Coppice",
           "direction": "right",
           "startFrac": 0.5024,
-          "endFrac": 0.5842,
+          "endFrac": 0.5829,
           "numbers": [
             7,
             8
@@ -101,14 +95,14 @@
         {
           "type": "straight",
           "name": "Wheatcroft Park Straight",
-          "startFrac": 0.5842,
-          "endFrac": 0.6793
+          "startFrac": 0.5829,
+          "endFrac": 0.6806
         },
         {
           "type": "corner",
           "name": "Fogarty Esses",
-          "startFrac": 0.6793,
-          "endFrac": 0.7718,
+          "startFrac": 0.6806,
+          "endFrac": 0.7782,
           "numbers": [
             9,
             10
@@ -117,15 +111,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7718,
-          "endFrac": 0.8023
+          "startFrac": 0.7782,
+          "endFrac": 0.8086
         },
         {
           "type": "corner",
           "name": "Melbourne Hairpin",
           "direction": "right",
-          "startFrac": 0.8023,
-          "endFrac": 0.8859,
+          "startFrac": 0.8086,
+          "endFrac": 0.8796,
           "numbers": [
             11
           ]
@@ -133,15 +127,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.8859,
-          "endFrac": 0.903
+          "startFrac": 0.8796,
+          "endFrac": 0.9075
         },
         {
           "type": "corner",
           "name": "Goddards",
           "direction": "left",
-          "startFrac": 0.903,
-          "endFrac": 0.9854,
+          "startFrac": 0.9075,
+          "endFrac": 0.9804,
           "numbers": [
             12
           ]
@@ -149,13 +143,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9854,
+          "startFrac": 0.9804,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3276,
-        "s2End": 0.5842,
+        "s1End": 0.3269,
+        "s2End": 0.5829,
         "source": "corner-anchored"
       }
     }
@@ -165,14 +159,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.0558
+      "endFrac": 0.0622
     },
     {
       "type": "corner",
       "name": "Redgate",
       "direction": "right",
-      "startFrac": 0.0558,
-      "endFrac": 0.1427,
+      "startFrac": 0.0622,
+      "endFrac": 0.137,
       "numbers": [
         1
       ]
@@ -181,24 +175,18 @@
       "type": "corner",
       "name": "Craner Curves",
       "direction": "right",
-      "startFrac": 0.1427,
-      "endFrac": 0.1775,
+      "startFrac": 0.137,
+      "endFrac": 0.2231,
       "numbers": [
         2
       ]
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.1775,
-      "endFrac": 0.2078
-    },
-    {
       "type": "corner",
       "name": "T3",
       "direction": "left",
-      "startFrac": 0.2078,
-      "endFrac": 0.2655,
+      "startFrac": 0.2231,
+      "endFrac": 0.2699,
       "numbers": [
         3
       ]
@@ -207,8 +195,8 @@
       "type": "corner",
       "name": "Old Hairpin",
       "direction": "right",
-      "startFrac": 0.2655,
-      "endFrac": 0.3276,
+      "startFrac": 0.2699,
+      "endFrac": 0.3269,
       "numbers": [
         4
       ]
@@ -217,8 +205,8 @@
       "type": "corner",
       "name": "Starkey's",
       "direction": "left",
-      "startFrac": 0.3276,
-      "endFrac": 0.3663,
+      "startFrac": 0.3269,
+      "endFrac": 0.3916,
       "numbers": [
         5
       ]
@@ -226,14 +214,14 @@
     {
       "type": "straight",
       "name": "Starkey's Straight",
-      "startFrac": 0.3663,
-      "endFrac": 0.4042
+      "startFrac": 0.3916,
+      "endFrac": 0.4068
     },
     {
       "type": "corner",
       "name": "Schwantz Curve",
       "direction": "right",
-      "startFrac": 0.4042,
+      "startFrac": 0.4068,
       "endFrac": 0.4955,
       "numbers": [
         6
@@ -250,7 +238,7 @@
       "name": "McLeans-Coppice",
       "direction": "right",
       "startFrac": 0.5024,
-      "endFrac": 0.5842,
+      "endFrac": 0.5829,
       "numbers": [
         7,
         8
@@ -259,14 +247,14 @@
     {
       "type": "straight",
       "name": "Wheatcroft Park Straight",
-      "startFrac": 0.5842,
-      "endFrac": 0.6793
+      "startFrac": 0.5829,
+      "endFrac": 0.6806
     },
     {
       "type": "corner",
       "name": "Fogarty Esses",
-      "startFrac": 0.6793,
-      "endFrac": 0.7718,
+      "startFrac": 0.6806,
+      "endFrac": 0.7782,
       "numbers": [
         9,
         10
@@ -275,15 +263,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7718,
-      "endFrac": 0.8023
+      "startFrac": 0.7782,
+      "endFrac": 0.8086
     },
     {
       "type": "corner",
       "name": "Melbourne Hairpin",
       "direction": "right",
-      "startFrac": 0.8023,
-      "endFrac": 0.8859,
+      "startFrac": 0.8086,
+      "endFrac": 0.8796,
       "numbers": [
         11
       ]
@@ -291,15 +279,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.8859,
-      "endFrac": 0.903
+      "startFrac": 0.8796,
+      "endFrac": 0.9075
     },
     {
       "type": "corner",
       "name": "Goddards",
       "direction": "left",
-      "startFrac": 0.903,
-      "endFrac": 0.9854,
+      "startFrac": 0.9075,
+      "endFrac": 0.9804,
       "numbers": [
         12
       ]
@@ -307,13 +295,13 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9854,
+      "startFrac": 0.9804,
       "endFrac": 1
     }
   ],
   "sectors": {
-    "s1End": 0.3276,
-    "s2End": 0.5842,
+    "s1End": 0.3269,
+    "s2End": 0.5829,
     "source": "corner-anchored"
   }
 }

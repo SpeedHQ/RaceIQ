@@ -7,14 +7,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.1919
+          "endFrac": 0.0495
         },
         {
           "type": "corner",
           "name": "T1",
           "direction": "left",
-          "startFrac": 0.1919,
-          "endFrac": 0.3325,
+          "startFrac": 0.0495,
+          "endFrac": 0.4511,
           "numbers": [
             1,
             2
@@ -23,15 +23,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3325,
-          "endFrac": 0.5464
+          "startFrac": 0.4511,
+          "endFrac": 0.5085
         },
         {
           "type": "corner",
           "name": "T3",
           "direction": "left",
-          "startFrac": 0.5464,
-          "endFrac": 0.687,
+          "startFrac": 0.5085,
+          "endFrac": 0.9511,
           "numbers": [
             3,
             4
@@ -40,7 +40,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.687,
+          "startFrac": 0.9511,
           "endFrac": 1
         }
       ]
@@ -51,14 +51,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.1919
+      "endFrac": 0.0495
     },
     {
       "type": "corner",
       "name": "T1",
       "direction": "left",
-      "startFrac": 0.1919,
-      "endFrac": 0.3325,
+      "startFrac": 0.0495,
+      "endFrac": 0.4511,
       "numbers": [
         1,
         2
@@ -67,15 +67,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3325,
-      "endFrac": 0.5464
+      "startFrac": 0.4511,
+      "endFrac": 0.5085
     },
     {
       "type": "corner",
       "name": "T3",
       "direction": "left",
-      "startFrac": 0.5464,
-      "endFrac": 0.687,
+      "startFrac": 0.5085,
+      "endFrac": 0.9511,
       "numbers": [
         3,
         4
@@ -84,7 +84,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.687,
+      "startFrac": 0.9511,
       "endFrac": 1
     }
   ]

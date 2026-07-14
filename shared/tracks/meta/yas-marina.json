@@ -1,14 +1,14 @@
 {
   "name": "Yas Marina Circuit",
   "sectors": {
-    "s1End": 0.278,
-    "s2End": 0.7318,
+    "s1End": 0.2761,
+    "s2End": 0.6888,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3013,
+        "s1End": 0.2983,
         "s2End": 0.7534,
         "source": "corner-anchored"
       },
@@ -17,14 +17,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0432
+          "endFrac": 0.0447
         },
         {
           "type": "corner",
           "name": "T1",
           "direction": "left",
-          "startFrac": 0.0432,
-          "endFrac": 0.099,
+          "startFrac": 0.0447,
+          "endFrac": 0.0975,
           "numbers": [
             1
           ]
@@ -32,15 +32,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.099,
-          "endFrac": 0.1013
+          "startFrac": 0.0975,
+          "endFrac": 0.1006
         },
         {
           "type": "corner",
           "name": "T2",
           "direction": "left",
-          "startFrac": 0.1013,
-          "endFrac": 0.1378,
+          "startFrac": 0.1006,
+          "endFrac": 0.137,
           "numbers": [
             2
           ]
@@ -49,7 +49,7 @@
           "type": "corner",
           "name": "T3",
           "direction": "right",
-          "startFrac": 0.1378,
+          "startFrac": 0.137,
           "endFrac": 0.1948,
           "numbers": [
             3,
@@ -60,14 +60,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.1948,
-          "endFrac": 0.238
+          "endFrac": 0.2395
         },
         {
           "type": "corner",
           "name": "Hairpin",
           "direction": "left",
-          "startFrac": 0.238,
-          "endFrac": 0.3013,
+          "startFrac": 0.2395,
+          "endFrac": 0.2983,
           "numbers": [
             5
           ]
@@ -75,14 +75,14 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.3013,
-          "endFrac": 0.4739
+          "startFrac": 0.2983,
+          "endFrac": 0.4754
         },
         {
           "type": "corner",
           "name": "T6-7 Chicane",
-          "startFrac": 0.4739,
-          "endFrac": 0.5357,
+          "startFrac": 0.4754,
+          "endFrac": 0.5342,
           "numbers": [
             6,
             7
@@ -91,14 +91,14 @@
         {
           "type": "straight",
           "name": "Second Straight",
-          "startFrac": 0.5357,
-          "endFrac": 0.6626
+          "startFrac": 0.5342,
+          "endFrac": 0.6641
         },
         {
           "type": "corner",
           "name": "Banked Hairpin",
           "direction": "left",
-          "startFrac": 0.6626,
+          "startFrac": 0.6641,
           "endFrac": 0.7534,
           "numbers": [
             8,
@@ -126,7 +126,7 @@
           "name": "T11",
           "direction": "right",
           "startFrac": 0.7922,
-          "endFrac": 0.8189,
+          "endFrac": 0.8196,
           "numbers": [
             11
           ]
@@ -135,7 +135,7 @@
           "type": "corner",
           "name": "T12",
           "direction": "right",
-          "startFrac": 0.8189,
+          "startFrac": 0.8196,
           "endFrac": 0.8402,
           "numbers": [
             12
@@ -146,7 +146,7 @@
           "name": "Marina Bend",
           "direction": "left",
           "startFrac": 0.8402,
-          "endFrac": 0.8949,
+          "endFrac": 0.8919,
           "numbers": [
             13
           ]
@@ -154,25 +154,31 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.8949,
-          "endFrac": 0.9003
+          "startFrac": 0.8919,
+          "endFrac": 0.9018
         },
         {
           "type": "corner",
           "name": "T14",
           "direction": "right",
-          "startFrac": 0.9003,
-          "endFrac": 0.9475,
+          "startFrac": 0.9018,
+          "endFrac": 0.9497,
           "numbers": [
             14
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9497,
+          "endFrac": 0.952
+        },
+        {
           "type": "corner",
           "name": "T15",
           "direction": "right",
-          "startFrac": 0.9475,
-          "endFrac": 0.9878,
+          "startFrac": 0.952,
+          "endFrac": 0.9871,
           "numbers": [
             15,
             16
@@ -181,7 +187,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9878,
+          "startFrac": 0.9871,
           "endFrac": 1
         }
       ]
@@ -192,24 +198,30 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0245
+          "endFrac": 0.0249
         },
         {
           "type": "corner",
           "name": "T1",
           "direction": "left",
-          "startFrac": 0.0245,
-          "endFrac": 0.0787,
+          "startFrac": 0.0249,
+          "endFrac": 0.0762,
           "numbers": [
             1
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.0762,
+          "endFrac": 0.0784
+        },
+        {
           "type": "corner",
           "name": "T2",
           "direction": "left",
-          "startFrac": 0.0787,
-          "endFrac": 0.1155,
+          "startFrac": 0.0784,
+          "endFrac": 0.1151,
           "numbers": [
             2
           ]
@@ -218,8 +230,8 @@
           "type": "corner",
           "name": "T3",
           "direction": "right",
-          "startFrac": 0.1155,
-          "endFrac": 0.1724,
+          "startFrac": 0.1151,
+          "endFrac": 0.1728,
           "numbers": [
             3,
             4
@@ -228,15 +240,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1724,
-          "endFrac": 0.2146
+          "startFrac": 0.1728,
+          "endFrac": 0.2165
         },
         {
           "type": "corner",
           "name": "Hairpin",
           "direction": "left",
-          "startFrac": 0.2146,
-          "endFrac": 0.278,
+          "startFrac": 0.2165,
+          "endFrac": 0.2761,
           "numbers": [
             5
           ]
@@ -244,14 +256,14 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.278,
-          "endFrac": 0.4489
+          "startFrac": 0.2761,
+          "endFrac": 0.4504
         },
         {
           "type": "corner",
           "name": "T6-7 Chicane",
-          "startFrac": 0.4489,
-          "endFrac": 0.5108,
+          "startFrac": 0.4504,
+          "endFrac": 0.5097,
           "numbers": [
             6,
             7
@@ -260,7 +272,7 @@
         {
           "type": "straight",
           "name": "Second Straight",
-          "startFrac": 0.5108,
+          "startFrac": 0.5097,
           "endFrac": 0.6375
         },
         {
@@ -268,7 +280,7 @@
           "name": "Banked Hairpin",
           "direction": "left",
           "startFrac": 0.6375,
-          "endFrac": 0.7318,
+          "endFrac": 0.6888,
           "numbers": [
             8,
             9
@@ -277,15 +289,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7318,
-          "endFrac": 0.7344
+          "startFrac": 0.6888,
+          "endFrac": 0.7238
         },
         {
           "type": "corner",
           "name": "T10",
           "direction": "right",
-          "startFrac": 0.7344,
-          "endFrac": 0.7688,
+          "startFrac": 0.7238,
+          "endFrac": 0.769,
           "numbers": [
             10
           ]
@@ -294,8 +306,8 @@
           "type": "corner",
           "name": "T11",
           "direction": "right",
-          "startFrac": 0.7688,
-          "endFrac": 0.7965,
+          "startFrac": 0.769,
+          "endFrac": 0.7971,
           "numbers": [
             11
           ]
@@ -304,8 +316,8 @@
           "type": "corner",
           "name": "T12",
           "direction": "right",
-          "startFrac": 0.7965,
-          "endFrac": 0.8181,
+          "startFrac": 0.7971,
+          "endFrac": 0.818,
           "numbers": [
             12
           ]
@@ -314,8 +326,8 @@
           "type": "corner",
           "name": "Marina Bend",
           "direction": "left",
-          "startFrac": 0.8181,
-          "endFrac": 0.8759,
+          "startFrac": 0.818,
+          "endFrac": 0.8691,
           "numbers": [
             13
           ]
@@ -323,25 +335,31 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.8759,
-          "endFrac": 0.8793
+          "startFrac": 0.8691,
+          "endFrac": 0.8797
         },
         {
           "type": "corner",
           "name": "T14",
           "direction": "right",
-          "startFrac": 0.8793,
-          "endFrac": 0.9261,
+          "startFrac": 0.8797,
+          "endFrac": 0.9276,
           "numbers": [
             14
           ]
         },
         {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9276,
+          "endFrac": 0.9299
+        },
+        {
           "type": "corner",
           "name": "T15",
           "direction": "right",
-          "startFrac": 0.9261,
-          "endFrac": 0.9691,
+          "startFrac": 0.9299,
+          "endFrac": 0.9679,
           "numbers": [
             15,
             16
@@ -350,13 +368,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9691,
+          "startFrac": 0.9679,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.278,
-        "s2End": 0.7318,
+        "s1End": 0.2761,
+        "s2End": 0.6888,
         "source": "corner-anchored"
       }
     }
@@ -366,24 +384,30 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.0245
+      "endFrac": 0.0249
     },
     {
       "type": "corner",
       "name": "T1",
       "direction": "left",
-      "startFrac": 0.0245,
-      "endFrac": 0.0787,
+      "startFrac": 0.0249,
+      "endFrac": 0.0762,
       "numbers": [
         1
       ]
     },
     {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.0762,
+      "endFrac": 0.0784
+    },
+    {
       "type": "corner",
       "name": "T2",
       "direction": "left",
-      "startFrac": 0.0787,
-      "endFrac": 0.1155,
+      "startFrac": 0.0784,
+      "endFrac": 0.1151,
       "numbers": [
         2
       ]
@@ -392,8 +416,8 @@
       "type": "corner",
       "name": "T3",
       "direction": "right",
-      "startFrac": 0.1155,
-      "endFrac": 0.1724,
+      "startFrac": 0.1151,
+      "endFrac": 0.1728,
       "numbers": [
         3,
         4
@@ -402,15 +426,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1724,
-      "endFrac": 0.2146
+      "startFrac": 0.1728,
+      "endFrac": 0.2165
     },
     {
       "type": "corner",
       "name": "Hairpin",
       "direction": "left",
-      "startFrac": 0.2146,
-      "endFrac": 0.278,
+      "startFrac": 0.2165,
+      "endFrac": 0.2761,
       "numbers": [
         5
       ]
@@ -418,14 +442,14 @@
     {
       "type": "straight",
       "name": "Back Straight",
-      "startFrac": 0.278,
-      "endFrac": 0.4489
+      "startFrac": 0.2761,
+      "endFrac": 0.4504
     },
     {
       "type": "corner",
       "name": "T6-7 Chicane",
-      "startFrac": 0.4489,
-      "endFrac": 0.5108,
+      "startFrac": 0.4504,
+      "endFrac": 0.5097,
       "numbers": [
         6,
         7
@@ -434,7 +458,7 @@
     {
       "type": "straight",
       "name": "Second Straight",
-      "startFrac": 0.5108,
+      "startFrac": 0.5097,
       "endFrac": 0.6375
     },
     {
@@ -442,7 +466,7 @@
       "name": "Banked Hairpin",
       "direction": "left",
       "startFrac": 0.6375,
-      "endFrac": 0.7318,
+      "endFrac": 0.6888,
       "numbers": [
         8,
         9
@@ -451,15 +475,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7318,
-      "endFrac": 0.7344
+      "startFrac": 0.6888,
+      "endFrac": 0.7238
     },
     {
       "type": "corner",
       "name": "T10",
       "direction": "right",
-      "startFrac": 0.7344,
-      "endFrac": 0.7688,
+      "startFrac": 0.7238,
+      "endFrac": 0.769,
       "numbers": [
         10
       ]
@@ -468,8 +492,8 @@
       "type": "corner",
       "name": "T11",
       "direction": "right",
-      "startFrac": 0.7688,
-      "endFrac": 0.7965,
+      "startFrac": 0.769,
+      "endFrac": 0.7971,
       "numbers": [
         11
       ]
@@ -478,8 +502,8 @@
       "type": "corner",
       "name": "T12",
       "direction": "right",
-      "startFrac": 0.7965,
-      "endFrac": 0.8181,
+      "startFrac": 0.7971,
+      "endFrac": 0.818,
       "numbers": [
         12
       ]
@@ -488,8 +512,8 @@
       "type": "corner",
       "name": "Marina Bend",
       "direction": "left",
-      "startFrac": 0.8181,
-      "endFrac": 0.8759,
+      "startFrac": 0.818,
+      "endFrac": 0.8691,
       "numbers": [
         13
       ]
@@ -497,25 +521,31 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.8759,
-      "endFrac": 0.8793
+      "startFrac": 0.8691,
+      "endFrac": 0.8797
     },
     {
       "type": "corner",
       "name": "T14",
       "direction": "right",
-      "startFrac": 0.8793,
-      "endFrac": 0.9261,
+      "startFrac": 0.8797,
+      "endFrac": 0.9276,
       "numbers": [
         14
       ]
     },
     {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9276,
+      "endFrac": 0.9299
+    },
+    {
       "type": "corner",
       "name": "T15",
       "direction": "right",
-      "startFrac": 0.9261,
-      "endFrac": 0.9691,
+      "startFrac": 0.9299,
+      "endFrac": 0.9679,
       "numbers": [
         15,
         16
@@ -524,7 +554,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9691,
+      "startFrac": 0.9679,
       "endFrac": 1
     }
   ]

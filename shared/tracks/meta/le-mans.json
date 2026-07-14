@@ -12,14 +12,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.035
+          "endFrac": 0.0334
         },
         {
           "type": "corner",
           "name": "Dunlop Curve",
           "direction": "right",
-          "startFrac": 0.035,
-          "endFrac": 0.0538,
+          "startFrac": 0.0334,
+          "endFrac": 0.0554,
           "numbers": [
             1
           ]
@@ -27,8 +27,8 @@
         {
           "type": "corner",
           "name": "Dunlop Chicane",
-          "startFrac": 0.0538,
-          "endFrac": 0.0736,
+          "startFrac": 0.0554,
+          "endFrac": 0.0731,
           "numbers": [
             2,
             3
@@ -37,13 +37,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.0736,
-          "endFrac": 0.0776
+          "startFrac": 0.0731,
+          "endFrac": 0.077
         },
         {
           "type": "corner",
           "name": "Esses de la Forêt",
-          "startFrac": 0.0776,
+          "startFrac": 0.077,
           "endFrac": 0.125,
           "numbers": [
             4,
@@ -55,14 +55,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.125,
-          "endFrac": 0.129
+          "endFrac": 0.1291
         },
         {
           "type": "corner",
           "name": "Tertre Rouge",
           "direction": "right",
-          "startFrac": 0.129,
-          "endFrac": 0.1482,
+          "startFrac": 0.1291,
+          "endFrac": 0.1479,
           "numbers": [
             7
           ]
@@ -70,14 +70,14 @@
         {
           "type": "straight",
           "name": "Mulsanne Straight",
-          "startFrac": 0.1482,
-          "endFrac": 0.2845
+          "startFrac": 0.1479,
+          "endFrac": 0.2848
         },
         {
           "type": "corner",
           "name": "Mulsanne Chicane 1",
-          "startFrac": 0.2845,
-          "endFrac": 0.3193,
+          "startFrac": 0.2848,
+          "endFrac": 0.3195,
           "numbers": [
             8,
             9,
@@ -87,14 +87,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3193,
-          "endFrac": 0.4287
+          "startFrac": 0.3195,
+          "endFrac": 0.429
         },
         {
           "type": "corner",
           "name": "Mulsanne Chicane 2",
-          "startFrac": 0.4287,
-          "endFrac": 0.4627,
+          "startFrac": 0.429,
+          "endFrac": 0.4634,
           "numbers": [
             11,
             12,
@@ -104,15 +104,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4627,
-          "endFrac": 0.5554
+          "startFrac": 0.4634,
+          "endFrac": 0.556
         },
         {
           "type": "corner",
           "name": "Mulsanne Corner",
           "direction": "right",
-          "startFrac": 0.5554,
-          "endFrac": 0.5756,
+          "startFrac": 0.556,
+          "endFrac": 0.5748,
           "numbers": [
             14
           ]
@@ -120,15 +120,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5756,
-          "endFrac": 0.6955
+          "startFrac": 0.5748,
+          "endFrac": 0.6962
         },
         {
           "type": "corner",
           "name": "T15",
           "direction": "right",
-          "startFrac": 0.6955,
-          "endFrac": 0.7144,
+          "startFrac": 0.6962,
+          "endFrac": 0.7149,
           "numbers": [
             15
           ]
@@ -137,8 +137,8 @@
           "type": "corner",
           "name": "Indianapolis",
           "direction": "left",
-          "startFrac": 0.7144,
-          "endFrac": 0.7312,
+          "startFrac": 0.7149,
+          "endFrac": 0.7306,
           "numbers": [
             16
           ]
@@ -146,7 +146,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7312,
+          "startFrac": 0.7306,
           "endFrac": 0.7349
         },
         {
@@ -154,7 +154,7 @@
           "name": "Arnage",
           "direction": "right",
           "startFrac": 0.7349,
-          "endFrac": 0.7537,
+          "endFrac": 0.7527,
           "numbers": [
             17
           ]
@@ -162,14 +162,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7537,
+          "startFrac": 0.7527,
           "endFrac": 0.8265
         },
         {
           "type": "corner",
           "name": "Porsche Curves",
           "startFrac": 0.8265,
-          "endFrac": 0.9217,
+          "endFrac": 0.9219,
           "numbers": [
             18,
             19,
@@ -181,14 +181,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9217,
-          "endFrac": 0.9607
+          "startFrac": 0.9219,
+          "endFrac": 0.9614
         },
         {
           "type": "corner",
           "name": "Ford Chicane 1",
-          "startFrac": 0.9607,
-          "endFrac": 0.9807,
+          "startFrac": 0.9614,
+          "endFrac": 0.9809,
           "numbers": [
             23,
             24
@@ -197,8 +197,8 @@
         {
           "type": "corner",
           "name": "Ford Chicane 2",
-          "startFrac": 0.9807,
-          "endFrac": 0.994,
+          "startFrac": 0.9809,
+          "endFrac": 0.9933,
           "numbers": [
             25,
             26
@@ -207,7 +207,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.994,
+          "startFrac": 0.9933,
           "endFrac": 1
         }
       ],
@@ -223,14 +223,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.035
+      "endFrac": 0.0334
     },
     {
       "type": "corner",
       "name": "Dunlop Curve",
       "direction": "right",
-      "startFrac": 0.035,
-      "endFrac": 0.0538,
+      "startFrac": 0.0334,
+      "endFrac": 0.0554,
       "numbers": [
         1
       ]
@@ -238,8 +238,8 @@
     {
       "type": "corner",
       "name": "Dunlop Chicane",
-      "startFrac": 0.0538,
-      "endFrac": 0.0736,
+      "startFrac": 0.0554,
+      "endFrac": 0.0731,
       "numbers": [
         2,
         3
@@ -248,13 +248,13 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.0736,
-      "endFrac": 0.0776
+      "startFrac": 0.0731,
+      "endFrac": 0.077
     },
     {
       "type": "corner",
       "name": "Esses de la Forêt",
-      "startFrac": 0.0776,
+      "startFrac": 0.077,
       "endFrac": 0.125,
       "numbers": [
         4,
@@ -266,14 +266,14 @@
       "type": "straight",
       "name": "",
       "startFrac": 0.125,
-      "endFrac": 0.129
+      "endFrac": 0.1291
     },
     {
       "type": "corner",
       "name": "Tertre Rouge",
       "direction": "right",
-      "startFrac": 0.129,
-      "endFrac": 0.1482,
+      "startFrac": 0.1291,
+      "endFrac": 0.1479,
       "numbers": [
         7
       ]
@@ -281,14 +281,14 @@
     {
       "type": "straight",
       "name": "Mulsanne Straight",
-      "startFrac": 0.1482,
-      "endFrac": 0.2845
+      "startFrac": 0.1479,
+      "endFrac": 0.2848
     },
     {
       "type": "corner",
       "name": "Mulsanne Chicane 1",
-      "startFrac": 0.2845,
-      "endFrac": 0.3193,
+      "startFrac": 0.2848,
+      "endFrac": 0.3195,
       "numbers": [
         8,
         9,
@@ -298,14 +298,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.3193,
-      "endFrac": 0.4287
+      "startFrac": 0.3195,
+      "endFrac": 0.429
     },
     {
       "type": "corner",
       "name": "Mulsanne Chicane 2",
-      "startFrac": 0.4287,
-      "endFrac": 0.4627,
+      "startFrac": 0.429,
+      "endFrac": 0.4634,
       "numbers": [
         11,
         12,
@@ -315,15 +315,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.4627,
-      "endFrac": 0.5554
+      "startFrac": 0.4634,
+      "endFrac": 0.556
     },
     {
       "type": "corner",
       "name": "Mulsanne Corner",
       "direction": "right",
-      "startFrac": 0.5554,
-      "endFrac": 0.5756,
+      "startFrac": 0.556,
+      "endFrac": 0.5748,
       "numbers": [
         14
       ]
@@ -331,15 +331,15 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.5756,
-      "endFrac": 0.6955
+      "startFrac": 0.5748,
+      "endFrac": 0.6962
     },
     {
       "type": "corner",
       "name": "T15",
       "direction": "right",
-      "startFrac": 0.6955,
-      "endFrac": 0.7144,
+      "startFrac": 0.6962,
+      "endFrac": 0.7149,
       "numbers": [
         15
       ]
@@ -348,8 +348,8 @@
       "type": "corner",
       "name": "Indianapolis",
       "direction": "left",
-      "startFrac": 0.7144,
-      "endFrac": 0.7312,
+      "startFrac": 0.7149,
+      "endFrac": 0.7306,
       "numbers": [
         16
       ]
@@ -357,7 +357,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7312,
+      "startFrac": 0.7306,
       "endFrac": 0.7349
     },
     {
@@ -365,7 +365,7 @@
       "name": "Arnage",
       "direction": "right",
       "startFrac": 0.7349,
-      "endFrac": 0.7537,
+      "endFrac": 0.7527,
       "numbers": [
         17
       ]
@@ -373,14 +373,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7537,
+      "startFrac": 0.7527,
       "endFrac": 0.8265
     },
     {
       "type": "corner",
       "name": "Porsche Curves",
       "startFrac": 0.8265,
-      "endFrac": 0.9217,
+      "endFrac": 0.9219,
       "numbers": [
         18,
         19,
@@ -392,14 +392,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9217,
-      "endFrac": 0.9607
+      "startFrac": 0.9219,
+      "endFrac": 0.9614
     },
     {
       "type": "corner",
       "name": "Ford Chicane 1",
-      "startFrac": 0.9607,
-      "endFrac": 0.9807,
+      "startFrac": 0.9614,
+      "endFrac": 0.9809,
       "numbers": [
         23,
         24
@@ -408,8 +408,8 @@
     {
       "type": "corner",
       "name": "Ford Chicane 2",
-      "startFrac": 0.9807,
-      "endFrac": 0.994,
+      "startFrac": 0.9809,
+      "endFrac": 0.9933,
       "numbers": [
         25,
         26
@@ -418,7 +418,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.994,
+      "startFrac": 0.9933,
       "endFrac": 1
     }
   ]
