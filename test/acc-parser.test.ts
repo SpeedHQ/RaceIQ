@@ -10,6 +10,7 @@ import { parseRawLapFramesForTest } from "../server/db/queries";
 import { stopMaintenanceTasks } from "../server/pipeline";
 import { getAccTrackName } from "../shared/acc-track-data";
 import { getAccCarName } from "../shared/acc-car-data";
+import { unpackTriplet } from "../server/games/shared/pack-triplet";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -173,23 +174,29 @@ describe("parseRawLapFrames — coordinate normalization (standard-xyz)", () => 
     }
   }, { timeout: 30000 });
 
-  test("ACC recording resolves to a real track and car, not the unresolved sentinel", async () => {
+  test("ACC recording resolves track/car from the embedded static struct, not a stale packed header", async () => {
     const raw = Buffer.from(gunzipSync(readFileSync(ACC_SESSION_BIN)));
     const startOffset = 8 + raw.readUInt32LE(4);
 
     const serverGame = getServerGame("acc");
     const off = startOffset;
     const frameLen = raw.readUInt32LE(off);
-    const packet = serverGame.tryParse(raw.subarray(off + 4, off + 4 + frameLen), null);
+    const frame = raw.subarray(off + 4, off + 4 + frameLen);
+    const packet = serverGame.tryParse(frame, null);
 
     expect(packet).not.toBeNull();
-    // -1 is the "not yet resolved from static data" sentinel (see
-    // ParsingProcessor in server/games/acc/triplet-pipeline.ts) — a
-    // recording should never bake that in, since it means the track/car
-    // name lookup failed or raced the static data buffer at capture time.
-    expect(packet!.TrackOrdinal).toBeGreaterThanOrEqual(0);
-    expect(packet!.CarOrdinal).toBeGreaterThanOrEqual(0);
-    expect(getAccTrackName(packet!.TrackOrdinal)).toBe("Monza - GP");
-    expect(getAccCarName(packet!.CarOrdinal)).toBe("Porsche 991 GT3 R 2018");
+    // This fixture predates static-data resolution and has carOrdinal=0/
+    // trackOrdinal=0 baked into its packed header on every frame (the old
+    // "unresolved" sentinel collides with Monza/car#0's real ids — see
+    // triplet-pipeline.ts). Its embedded static struct is genuinely
+    // "brands_hatch"/"mclaren_720s_gt3_evo" though, so tryParse must
+    // re-derive from the static struct rather than trust the header,
+    // otherwise every re-import of an old recording mislabels the session.
+    expect(getAccTrackName(packet!.TrackOrdinal)).toBe("Brands Hatch - GP");
+    expect(getAccCarName(packet!.CarOrdinal)).toBe("McLaren 720S GT3 Evo 2023");
+
+    const rawHeader = unpackTriplet(frame);
+    expect(rawHeader?.trackOrdinal).toBe(0);
+    expect(rawHeader?.carOrdinal).toBe(0);
   });
 });
