@@ -163,12 +163,12 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.7527,
-          "endFrac": 0.8265
+          "endFrac": 0.8264
         },
         {
           "type": "corner",
           "name": "Porsche Curves",
-          "startFrac": 0.8265,
+          "startFrac": 0.8264,
           "endFrac": 0.9219,
           "numbers": [
             18,
@@ -374,12 +374,12 @@
       "type": "straight",
       "name": "",
       "startFrac": 0.7527,
-      "endFrac": 0.8265
+      "endFrac": 0.8264
     },
     {
       "type": "corner",
       "name": "Porsche Curves",
-      "startFrac": 0.8265,
+      "startFrac": 0.8264,
       "endFrac": 0.9219,
       "numbers": [
         18,

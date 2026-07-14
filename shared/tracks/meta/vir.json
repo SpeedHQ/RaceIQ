@@ -145,7 +145,7 @@
           "name": "T15",
           "direction": "left",
           "startFrac": 0.7984,
-          "endFrac": 0.8263,
+          "endFrac": 0.8316,
           "numbers": [
             15
           ]
@@ -154,7 +154,7 @@
           "type": "corner",
           "name": "T16",
           "direction": "left",
-          "startFrac": 0.8263,
+          "startFrac": 0.8316,
           "endFrac": 0.8529,
           "numbers": [
             16
@@ -165,7 +165,7 @@
           "name": "Hog Pen",
           "direction": "right",
           "startFrac": 0.8529,
-          "endFrac": 0.9025,
+          "endFrac": 0.9051,
           "numbers": [
             17
           ]
@@ -173,7 +173,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9025,
+          "startFrac": 0.9051,
           "endFrac": 1
         }
       ],
@@ -322,7 +322,7 @@
       "name": "T15",
       "direction": "left",
       "startFrac": 0.7984,
-      "endFrac": 0.8263,
+      "endFrac": 0.8316,
       "numbers": [
         15
       ]
@@ -331,7 +331,7 @@
       "type": "corner",
       "name": "T16",
       "direction": "left",
-      "startFrac": 0.8263,
+      "startFrac": 0.8316,
       "endFrac": 0.8529,
       "numbers": [
         16
@@ -342,7 +342,7 @@
       "name": "Hog Pen",
       "direction": "right",
       "startFrac": 0.8529,
-      "endFrac": 0.9025,
+      "endFrac": 0.9051,
       "numbers": [
         17
       ]
@@ -350,7 +350,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9025,
+      "startFrac": 0.9051,
       "endFrac": 1
     }
   ]

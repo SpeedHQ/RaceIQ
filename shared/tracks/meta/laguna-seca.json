@@ -2,7 +2,7 @@
   "name": "WeatherTech Raceway Laguna Seca",
   "sectors": {
     "s1End": 0.3194,
-    "s2End": 0.7178,
+    "s2End": 0.728,
     "source": "corner-anchored"
   },
   "games": {
@@ -158,7 +158,7 @@
           "name": "Andretti Hairpin",
           "direction": "left",
           "startFrac": 0.0727,
-          "endFrac": 0.1763,
+          "endFrac": 0.1577,
           "numbers": [
             2
           ]
@@ -167,7 +167,7 @@
           "type": "corner",
           "name": "T3",
           "direction": "right",
-          "startFrac": 0.1763,
+          "startFrac": 0.1577,
           "endFrac": 0.2508,
           "numbers": [
             3
@@ -236,7 +236,7 @@
           "name": "Corkscrew",
           "direction": "right",
           "startFrac": 0.6853,
-          "endFrac": 0.7178,
+          "endFrac": 0.728,
           "numbers": [
             8
           ]
@@ -245,7 +245,7 @@
           "type": "corner",
           "name": "Rainey Curve",
           "direction": "left",
-          "startFrac": 0.7178,
+          "startFrac": 0.728,
           "endFrac": 0.7922,
           "numbers": [
             9
@@ -286,7 +286,7 @@
       ],
       "sectors": {
         "s1End": 0.3194,
-        "s2End": 0.7178,
+        "s2End": 0.728,
         "source": "corner-anchored"
       }
     }
@@ -303,7 +303,7 @@
       "name": "Andretti Hairpin",
       "direction": "left",
       "startFrac": 0.0727,
-      "endFrac": 0.1763,
+      "endFrac": 0.1577,
       "numbers": [
         2
       ]
@@ -312,7 +312,7 @@
       "type": "corner",
       "name": "T3",
       "direction": "right",
-      "startFrac": 0.1763,
+      "startFrac": 0.1577,
       "endFrac": 0.2508,
       "numbers": [
         3
@@ -381,7 +381,7 @@
       "name": "Corkscrew",
       "direction": "right",
       "startFrac": 0.6853,
-      "endFrac": 0.7178,
+      "endFrac": 0.728,
       "numbers": [
         8
       ]
@@ -390,7 +390,7 @@
       "type": "corner",
       "name": "Rainey Curve",
       "direction": "left",
-      "startFrac": 0.7178,
+      "startFrac": 0.728,
       "endFrac": 0.7922,
       "numbers": [
         9

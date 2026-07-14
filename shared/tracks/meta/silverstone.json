@@ -2,7 +2,7 @@
   "name": "Silverstone Racing Circuit",
   "sectors": {
     "s1End": 0.3287,
-    "s2End": 0.704,
+    "s2End": 0.7085,
     "source": "corner-anchored"
   },
   "games": {
@@ -352,7 +352,7 @@
           "name": "Luffield",
           "direction": "right",
           "startFrac": 0.8684,
-          "endFrac": 0.9183,
+          "endFrac": 0.9282,
           "numbers": [
             7
           ]
@@ -361,7 +361,7 @@
           "type": "corner",
           "name": "Woodcote",
           "direction": "right",
-          "startFrac": 0.9183,
+          "startFrac": 0.9282,
           "endFrac": 0.9518,
           "numbers": [
             8
@@ -408,7 +408,7 @@
           "name": "Village",
           "direction": "right",
           "startFrac": 0.113,
-          "endFrac": 0.1431,
+          "endFrac": 0.1482,
           "numbers": [
             3
           ]
@@ -417,7 +417,7 @@
           "type": "corner",
           "name": "The Loop",
           "direction": "left",
-          "startFrac": 0.1431,
+          "startFrac": 0.1482,
           "endFrac": 0.1736,
           "numbers": [
             4
@@ -495,7 +495,7 @@
           "type": "corner",
           "name": "Maggotts/Becketts",
           "startFrac": 0.5614,
-          "endFrac": 0.6785,
+          "endFrac": 0.683,
           "numbers": [
             10,
             11,
@@ -507,7 +507,7 @@
           "type": "corner",
           "name": "Chapel",
           "direction": "left",
-          "startFrac": 0.6785,
+          "startFrac": 0.683,
           "endFrac": 0.7098,
           "numbers": [
             14
@@ -550,7 +550,7 @@
           "name": "Club",
           "direction": "right",
           "startFrac": 0.9219,
-          "endFrac": 0.9745,
+          "endFrac": 0.9758,
           "numbers": [
             17,
             18
@@ -559,13 +559,13 @@
         {
           "type": "straight",
           "name": "Hamilton Straight",
-          "startFrac": 0.9745,
+          "startFrac": 0.9758,
           "endFrac": 1
         }
       ],
       "sectors": {
         "s1End": 0.3287,
-        "s2End": 0.704,
+        "s2End": 0.7085,
         "source": "corner-anchored"
       }
     }
@@ -602,7 +602,7 @@
       "name": "Village",
       "direction": "right",
       "startFrac": 0.113,
-      "endFrac": 0.1431,
+      "endFrac": 0.1482,
       "numbers": [
         3
       ]
@@ -611,7 +611,7 @@
       "type": "corner",
       "name": "The Loop",
       "direction": "left",
-      "startFrac": 0.1431,
+      "startFrac": 0.1482,
       "endFrac": 0.1736,
       "numbers": [
         4
@@ -689,7 +689,7 @@
       "type": "corner",
       "name": "Maggotts/Becketts",
       "startFrac": 0.5614,
-      "endFrac": 0.6785,
+      "endFrac": 0.683,
       "numbers": [
         10,
         11,
@@ -701,7 +701,7 @@
       "type": "corner",
       "name": "Chapel",
       "direction": "left",
-      "startFrac": 0.6785,
+      "startFrac": 0.683,
       "endFrac": 0.7098,
       "numbers": [
         14
@@ -744,7 +744,7 @@
       "name": "Club",
       "direction": "right",
       "startFrac": 0.9219,
-      "endFrac": 0.9745,
+      "endFrac": 0.9758,
       "numbers": [
         17,
         18
@@ -753,7 +753,7 @@
     {
       "type": "straight",
       "name": "Hamilton Straight",
-      "startFrac": 0.9745,
+      "startFrac": 0.9758,
       "endFrac": 1
     }
   ]

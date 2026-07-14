@@ -156,7 +156,7 @@
           "name": "T13/T14",
           "direction": "right",
           "startFrac": 0.7087,
-          "endFrac": 0.7648,
+          "endFrac": 0.7534,
           "numbers": [
             13,
             14
@@ -166,7 +166,7 @@
           "type": "corner",
           "name": "T15",
           "direction": "left",
-          "startFrac": 0.7648,
+          "startFrac": 0.7534,
           "endFrac": 0.8013,
           "numbers": [
             15
@@ -231,7 +231,7 @@
           "name": "T1",
           "direction": "left",
           "startFrac": 0.0885,
-          "endFrac": 0.1328,
+          "endFrac": 0.1387,
           "numbers": [
             1
           ]
@@ -240,7 +240,7 @@
           "type": "corner",
           "name": "T2",
           "direction": "right",
-          "startFrac": 0.1328,
+          "startFrac": 0.1387,
           "endFrac": 0.201,
           "numbers": [
             2
@@ -316,13 +316,13 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.4134,
-          "endFrac": 0.4356
+          "endFrac": 0.431
         },
         {
           "type": "corner",
           "name": "T11",
           "direction": "left",
-          "startFrac": 0.4356,
+          "startFrac": 0.431,
           "endFrac": 0.4892,
           "numbers": [
             11
@@ -339,7 +339,7 @@
           "name": "T12",
           "direction": "left",
           "startFrac": 0.6591,
-          "endFrac": 0.7086,
+          "endFrac": 0.7021,
           "numbers": [
             12
           ]
@@ -348,7 +348,7 @@
           "type": "corner",
           "name": "T13/T14",
           "direction": "right",
-          "startFrac": 0.7086,
+          "startFrac": 0.7021,
           "endFrac": 0.7584,
           "numbers": [
             13,
@@ -561,7 +561,7 @@
       "name": "T13/T14",
       "direction": "right",
       "startFrac": 0.7087,
-      "endFrac": 0.7648,
+      "endFrac": 0.7534,
       "numbers": [
         13,
         14
@@ -571,7 +571,7 @@
       "type": "corner",
       "name": "T15",
       "direction": "left",
-      "startFrac": 0.7648,
+      "startFrac": 0.7534,
       "endFrac": 0.8013,
       "numbers": [
         15

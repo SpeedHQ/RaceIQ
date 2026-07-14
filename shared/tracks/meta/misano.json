@@ -102,7 +102,7 @@
           "name": "T9",
           "direction": "right",
           "startFrac": 0.7975,
-          "endFrac": 0.8342,
+          "endFrac": 0.833,
           "numbers": [
             9
           ]
@@ -111,7 +111,7 @@
           "type": "corner",
           "name": "T10",
           "direction": "left",
-          "startFrac": 0.8342,
+          "startFrac": 0.833,
           "endFrac": 0.8937,
           "numbers": [
             10
@@ -241,7 +241,7 @@
       "name": "T9",
       "direction": "right",
       "startFrac": 0.7975,
-      "endFrac": 0.8342,
+      "endFrac": 0.833,
       "numbers": [
         9
       ]
@@ -250,7 +250,7 @@
       "type": "corner",
       "name": "T10",
       "direction": "left",
-      "startFrac": 0.8342,
+      "startFrac": 0.833,
       "endFrac": 0.8937,
       "numbers": [
         10

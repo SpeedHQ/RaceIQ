@@ -61,7 +61,7 @@
           "type": "corner",
           "name": "Corkscrew",
           "startFrac": 0.5508,
-          "endFrac": 0.653,
+          "endFrac": 0.6659,
           "numbers": [
             4,
             5
@@ -71,7 +71,7 @@
           "type": "corner",
           "name": "Rainey Curve",
           "direction": "left",
-          "startFrac": 0.653,
+          "startFrac": 0.6659,
           "endFrac": 0.7451,
           "numbers": [
             6
@@ -171,7 +171,7 @@
       "type": "corner",
       "name": "Corkscrew",
       "startFrac": 0.5508,
-      "endFrac": 0.653,
+      "endFrac": 0.6659,
       "numbers": [
         4,
         5
@@ -181,7 +181,7 @@
       "type": "corner",
       "name": "Rainey Curve",
       "direction": "left",
-      "startFrac": 0.653,
+      "startFrac": 0.6659,
       "endFrac": 0.7451,
       "numbers": [
         6

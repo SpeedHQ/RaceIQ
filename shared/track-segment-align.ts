@@ -137,6 +137,12 @@ export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; t
       direction: (sum >= 0 ? "right" : "left") as "left" | "right",
       peak,
       apexIdx,
+      // This sub-run's own peak, kept even after merging swallows a bigger
+      // neighbour — trimming the merged region's outer edges against the
+      // (possibly much taller) OTHER apex would walk right past a weak one
+      // (e.g. a long fast entry into a hairpin) and erase it entirely.
+      firstPeak: peak,
+      lastPeak: peak,
     };
   });
 
@@ -146,6 +152,7 @@ export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; t
     const prev = mergedRegions[mergedRegions.length - 1];
     if (prev && prev.direction === r.direction && dists[r.start] - dists[prev.end] <= MERGE_GAP_M) {
       prev.end = r.end;
+      prev.lastPeak = r.peak;
       if (r.peak > prev.peak) { prev.peak = r.peak; prev.apexIdx = r.apexIdx; }
     } else {
       mergedRegions.push({ ...r });
@@ -162,13 +169,18 @@ export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; t
       const untrimmedLengthM = dists[r.end] - dists[r.start];
 
       // Trim the loose K_OUT tail off each side, back to where curvature
-      // drops below a fraction of THIS corner's own peak — never looser than
-      // K_IN — bounded so it never crosses the apex.
-      const kTrim = Math.max(K_IN, r.peak * TRIM_FRAC);
+      // drops below a fraction of the LOCAL sub-run's own peak on that side
+      // (not the merged region's overall peak) — never looser than K_IN —
+      // bounded so it never crosses the apex. Using the region-wide peak here
+      // would, in an asymmetric compound corner (e.g. a long fast entry into
+      // a much tighter hairpin), walk the weaker side's trim straight past
+      // its own real apex and erase that whole half.
+      const kTrimStart = Math.max(K_IN, r.firstPeak * TRIM_FRAC);
+      const kTrimEnd = Math.max(K_IN, r.lastPeak * TRIM_FRAC);
       let start = r.start;
-      while (start < r.apexIdx && Math.abs(kappa[start]) < kTrim) start++;
+      while (start < r.apexIdx && Math.abs(kappa[start]) < kTrimStart) start++;
       let end = r.end;
-      while (end > r.apexIdx && Math.abs(kappa[end]) < kTrim) end--;
+      while (end > r.apexIdx && Math.abs(kappa[end]) < kTrimEnd) end--;
 
       return {
         startFrac: dists[start] / totalDist,

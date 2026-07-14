@@ -208,7 +208,7 @@
           "name": "Renault",
           "direction": "right",
           "startFrac": 0.2244,
-          "endFrac": 0.3189,
+          "endFrac": 0.3298,
           "numbers": [
             3
           ]
@@ -216,14 +216,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3189,
-          "endFrac": 0.3363
+          "startFrac": 0.3298,
+          "endFrac": 0.3407
         },
         {
           "type": "corner",
           "name": "Repsol",
           "direction": "right",
-          "startFrac": 0.3363,
+          "startFrac": 0.3407,
           "endFrac": 0.415,
           "numbers": [
             4
@@ -292,7 +292,7 @@
           "name": "La Caixa",
           "direction": "left",
           "startFrac": 0.7205,
-          "endFrac": 0.7812,
+          "endFrac": 0.7938,
           "numbers": [
             10
           ]
@@ -301,7 +301,7 @@
           "type": "corner",
           "name": "T11",
           "direction": "right",
-          "startFrac": 0.7812,
+          "startFrac": 0.7938,
           "endFrac": 0.8478,
           "numbers": [
             11
@@ -332,7 +332,7 @@
           "name": "New Holland",
           "direction": "right",
           "startFrac": 0.9007,
-          "endFrac": 0.928,
+          "endFrac": 0.964,
           "numbers": [
             16
           ]
@@ -340,7 +340,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.928,
+          "startFrac": 0.964,
           "endFrac": 1
         }
       ],

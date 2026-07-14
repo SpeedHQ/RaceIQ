@@ -19,7 +19,7 @@
           "name": "Castrol-S",
           "direction": "right",
           "startFrac": 0.0909,
-          "endFrac": 0.1422,
+          "endFrac": 0.1402,
           "numbers": [
             1
           ]
@@ -28,7 +28,7 @@
           "type": "corner",
           "name": "Mercedes Arena",
           "direction": "left",
-          "startFrac": 0.1422,
+          "startFrac": 0.1402,
           "endFrac": 0.2222,
           "numbers": [
             2
@@ -180,7 +180,7 @@
           "name": "Castrol-S",
           "direction": "right",
           "startFrac": 0.0446,
-          "endFrac": 0.0918,
+          "endFrac": 0.1006,
           "numbers": [
             1
           ]
@@ -189,7 +189,7 @@
           "type": "corner",
           "name": "Mercedes Arena",
           "direction": "left",
-          "startFrac": 0.0918,
+          "startFrac": 0.1006,
           "endFrac": 0.178,
           "numbers": [
             2
@@ -373,7 +373,7 @@
       "name": "Castrol-S",
       "direction": "right",
       "startFrac": 0.0446,
-      "endFrac": 0.0918,
+      "endFrac": 0.1006,
       "numbers": [
         1
       ]
@@ -382,7 +382,7 @@
       "type": "corner",
       "name": "Mercedes Arena",
       "direction": "left",
-      "startFrac": 0.0918,
+      "startFrac": 0.1006,
       "endFrac": 0.178,
       "numbers": [
         2

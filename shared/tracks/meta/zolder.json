@@ -14,7 +14,7 @@
           "name": "Eerste Linkse",
           "direction": "left",
           "startFrac": 0.0297,
-          "endFrac": 0.122,
+          "endFrac": 0.1277,
           "numbers": [
             1
           ]
@@ -23,23 +23,17 @@
           "type": "corner",
           "name": "Sterrewachtbocht",
           "direction": "right",
-          "startFrac": 0.122,
-          "endFrac": 0.1934,
+          "startFrac": 0.1277,
+          "endFrac": 0.251,
           "numbers": [
             2
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1934,
-          "endFrac": 0.2289
-        },
-        {
           "type": "corner",
           "name": "T3",
           "direction": "right",
-          "startFrac": 0.2289,
+          "startFrac": 0.251,
           "endFrac": 0.3224,
           "numbers": [
             3
@@ -92,7 +86,7 @@
           "name": "T9",
           "direction": "right",
           "startFrac": 0.5955,
-          "endFrac": 0.6599,
+          "endFrac": 0.6839,
           "numbers": [
             9
           ]
@@ -100,7 +94,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6599,
+          "startFrac": 0.6839,
           "endFrac": 0.7181
         },
         {
@@ -155,7 +149,7 @@
       "name": "Eerste Linkse",
       "direction": "left",
       "startFrac": 0.0297,
-      "endFrac": 0.122,
+      "endFrac": 0.1277,
       "numbers": [
         1
       ]
@@ -164,23 +158,17 @@
       "type": "corner",
       "name": "Sterrewachtbocht",
       "direction": "right",
-      "startFrac": 0.122,
-      "endFrac": 0.1934,
+      "startFrac": 0.1277,
+      "endFrac": 0.251,
       "numbers": [
         2
       ]
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.1934,
-      "endFrac": 0.2289
-    },
-    {
       "type": "corner",
       "name": "T3",
       "direction": "right",
-      "startFrac": 0.2289,
+      "startFrac": 0.251,
       "endFrac": 0.3224,
       "numbers": [
         3
@@ -233,7 +221,7 @@
       "name": "T9",
       "direction": "right",
       "startFrac": 0.5955,
-      "endFrac": 0.6599,
+      "endFrac": 0.6839,
       "numbers": [
         9
       ]
@@ -241,7 +229,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.6599,
+      "startFrac": 0.6839,
       "endFrac": 0.7181
     },
     {

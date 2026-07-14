@@ -184,23 +184,17 @@
           "type": "corner",
           "name": "Villeneuve",
           "startFrac": 0.2385,
-          "endFrac": 0.3106,
+          "endFrac": 0.3255,
           "numbers": [
             5,
             6
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3106,
-          "endFrac": 0.3183
-        },
-        {
           "type": "corner",
           "name": "Tosa",
           "direction": "left",
-          "startFrac": 0.3183,
+          "startFrac": 0.3255,
           "endFrac": 0.3753,
           "numbers": [
             7
@@ -217,22 +211,16 @@
           "name": "Piratella",
           "direction": "left",
           "startFrac": 0.4389,
-          "endFrac": 0.5028,
+          "endFrac": 0.5417,
           "numbers": [
             9
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5028,
-          "endFrac": 0.5498
-        },
-        {
           "type": "corner",
           "name": "Acque Minerali",
           "direction": "right",
-          "startFrac": 0.5498,
+          "startFrac": 0.5417,
           "endFrac": 0.6013,
           "numbers": [
             11,
@@ -278,7 +266,7 @@
           "name": "T19",
           "direction": "left",
           "startFrac": 0.8118,
-          "endFrac": 0.8941,
+          "endFrac": 0.8962,
           "numbers": [
             19
           ]
@@ -286,12 +274,12 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.8941,
+          "startFrac": 0.8962,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3106,
+        "s1End": 0.3255,
         "s2End": 0.7313,
         "source": "corner-anchored"
       }

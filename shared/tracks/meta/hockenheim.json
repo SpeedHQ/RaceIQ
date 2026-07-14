@@ -165,7 +165,7 @@
           "name": "Südkurve",
           "direction": "right",
           "startFrac": 0.8911,
-          "endFrac": 0.9599,
+          "endFrac": 0.9734,
           "numbers": [
             15,
             16,
@@ -175,7 +175,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9599,
+          "startFrac": 0.9734,
           "endFrac": 1
         }
       ],
@@ -344,7 +344,7 @@
       "name": "Südkurve",
       "direction": "right",
       "startFrac": 0.8911,
-      "endFrac": 0.9599,
+      "endFrac": 0.9734,
       "numbers": [
         15,
         16,
@@ -354,7 +354,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9599,
+      "startFrac": 0.9734,
       "endFrac": 1
     }
   ]

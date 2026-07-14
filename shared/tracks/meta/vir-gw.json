@@ -240,7 +240,7 @@
           "name": "T20",
           "direction": "left",
           "startFrac": 0.7633,
-          "endFrac": 0.782,
+          "endFrac": 0.7815,
           "numbers": [
             20
           ]
@@ -249,7 +249,7 @@
           "type": "corner",
           "name": "T21",
           "direction": "right",
-          "startFrac": 0.782,
+          "startFrac": 0.7815,
           "endFrac": 0.8164,
           "numbers": [
             21
@@ -270,7 +270,7 @@
           "name": "T23",
           "direction": "left",
           "startFrac": 0.8404,
-          "endFrac": 0.8625,
+          "endFrac": 0.8668,
           "numbers": [
             23
           ]
@@ -279,7 +279,7 @@
           "type": "corner",
           "name": "T24",
           "direction": "left",
-          "startFrac": 0.8625,
+          "startFrac": 0.8668,
           "endFrac": 0.8836,
           "numbers": [
             24
@@ -290,7 +290,7 @@
           "name": "T25",
           "direction": "right",
           "startFrac": 0.8836,
-          "endFrac": 0.9229,
+          "endFrac": 0.925,
           "numbers": [
             25
           ]
@@ -298,7 +298,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9229,
+          "startFrac": 0.925,
           "endFrac": 1
         }
       ]
@@ -542,7 +542,7 @@
       "name": "T20",
       "direction": "left",
       "startFrac": 0.7633,
-      "endFrac": 0.782,
+      "endFrac": 0.7815,
       "numbers": [
         20
       ]
@@ -551,7 +551,7 @@
       "type": "corner",
       "name": "T21",
       "direction": "right",
-      "startFrac": 0.782,
+      "startFrac": 0.7815,
       "endFrac": 0.8164,
       "numbers": [
         21
@@ -572,7 +572,7 @@
       "name": "T23",
       "direction": "left",
       "startFrac": 0.8404,
-      "endFrac": 0.8625,
+      "endFrac": 0.8668,
       "numbers": [
         23
       ]
@@ -581,7 +581,7 @@
       "type": "corner",
       "name": "T24",
       "direction": "left",
-      "startFrac": 0.8625,
+      "startFrac": 0.8668,
       "endFrac": 0.8836,
       "numbers": [
         24
@@ -592,7 +592,7 @@
       "name": "T25",
       "direction": "right",
       "startFrac": 0.8836,
-      "endFrac": 0.9229,
+      "endFrac": 0.925,
       "numbers": [
         25
       ]
@@ -600,7 +600,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.9229,
+      "startFrac": 0.925,
       "endFrac": 1
     }
   ]

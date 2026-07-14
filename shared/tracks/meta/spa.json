@@ -103,7 +103,7 @@
       "name": "Pouhon",
       "direction": "left",
       "startFrac": 0.5013,
-      "endFrac": 0.5829,
+      "endFrac": 0.5866,
       "numbers": [
         10,
         11
@@ -112,7 +112,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.5829,
+      "startFrac": 0.5866,
       "endFrac": 0.5972
     },
     {
@@ -490,7 +490,7 @@
           "name": "Pouhon",
           "direction": "left",
           "startFrac": 0.5013,
-          "endFrac": 0.5829,
+          "endFrac": 0.5866,
           "numbers": [
             10,
             11
@@ -499,7 +499,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.5829,
+          "startFrac": 0.5866,
           "endFrac": 0.5972
         },
         {

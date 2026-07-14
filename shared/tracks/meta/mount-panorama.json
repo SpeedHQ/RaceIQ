@@ -224,7 +224,7 @@
           "name": "Reid Park",
           "direction": "right",
           "startFrac": 0.3098,
-          "endFrac": 0.3711,
+          "endFrac": 0.3709,
           "numbers": [
             4
           ]
@@ -233,7 +233,7 @@
           "type": "corner",
           "name": "Sulman Park",
           "direction": "left",
-          "startFrac": 0.3711,
+          "startFrac": 0.3709,
           "endFrac": 0.4362,
           "numbers": [
             5
@@ -253,12 +253,12 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.4811,
-          "endFrac": 0.4888
+          "endFrac": 0.4862
         },
         {
           "type": "corner",
           "name": "The Esses",
-          "startFrac": 0.4888,
+          "startFrac": 0.4862,
           "endFrac": 0.5676,
           "numbers": [
             7,
@@ -387,7 +387,7 @@
       "name": "Reid Park",
       "direction": "right",
       "startFrac": 0.3098,
-      "endFrac": 0.3711,
+      "endFrac": 0.3709,
       "numbers": [
         4
       ]
@@ -396,7 +396,7 @@
       "type": "corner",
       "name": "Sulman Park",
       "direction": "left",
-      "startFrac": 0.3711,
+      "startFrac": 0.3709,
       "endFrac": 0.4362,
       "numbers": [
         5
@@ -416,12 +416,12 @@
       "type": "straight",
       "name": "",
       "startFrac": 0.4811,
-      "endFrac": 0.4888
+      "endFrac": 0.4862
     },
     {
       "type": "corner",
       "name": "The Esses",
-      "startFrac": 0.4888,
+      "startFrac": 0.4862,
       "endFrac": 0.5676,
       "numbers": [
         7,

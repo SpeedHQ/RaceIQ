@@ -118,7 +118,7 @@
           "name": "Castle Section",
           "direction": "left",
           "startFrac": 0.4449,
-          "endFrac": 0.4685,
+          "endFrac": 0.4722,
           "numbers": [
             8,
             9
@@ -128,7 +128,7 @@
           "type": "corner",
           "name": "T10",
           "direction": "right",
-          "startFrac": 0.4685,
+          "startFrac": 0.4722,
           "endFrac": 0.4822,
           "numbers": [
             10
@@ -333,7 +333,7 @@
       "name": "Castle Section",
       "direction": "left",
       "startFrac": 0.4449,
-      "endFrac": 0.4685,
+      "endFrac": 0.4722,
       "numbers": [
         8,
         9
@@ -343,7 +343,7 @@
       "type": "corner",
       "name": "T10",
       "direction": "right",
-      "startFrac": 0.4685,
+      "startFrac": 0.4722,
       "endFrac": 0.4822,
       "numbers": [
         10

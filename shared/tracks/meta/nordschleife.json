@@ -406,7 +406,7 @@
           "name": "T41",
           "direction": "left",
           "startFrac": 0.6661,
-          "endFrac": 0.6752,
+          "endFrac": 0.6748,
           "numbers": [
             41
           ]
@@ -415,7 +415,7 @@
           "type": "corner",
           "name": "Hohe Acht",
           "direction": "right",
-          "startFrac": 0.6752,
+          "startFrac": 0.6748,
           "endFrac": 0.6895,
           "numbers": [
             42
@@ -540,23 +540,17 @@
           "name": "Kleines Karussell",
           "direction": "left",
           "startFrac": 0.8332,
-          "endFrac": 0.8421,
+          "endFrac": 0.8463,
           "numbers": [
             57
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8421,
-          "endFrac": 0.8447
-        },
-        {
           "type": "corner",
           "name": "Galgenkopf",
           "direction": "right",
-          "startFrac": 0.8447,
-          "endFrac": 0.8677,
+          "startFrac": 0.8463,
+          "endFrac": 0.8679,
           "numbers": [
             58
           ]
@@ -564,7 +558,7 @@
         {
           "type": "straight",
           "name": "Döttinger Höhe",
-          "startFrac": 0.8677,
+          "startFrac": 0.8679,
           "endFrac": 0.9732
         },
         {
@@ -1000,7 +994,7 @@
       "name": "T41",
       "direction": "left",
       "startFrac": 0.6661,
-      "endFrac": 0.6752,
+      "endFrac": 0.6748,
       "numbers": [
         41
       ]
@@ -1009,7 +1003,7 @@
       "type": "corner",
       "name": "Hohe Acht",
       "direction": "right",
-      "startFrac": 0.6752,
+      "startFrac": 0.6748,
       "endFrac": 0.6895,
       "numbers": [
         42
@@ -1134,23 +1128,17 @@
       "name": "Kleines Karussell",
       "direction": "left",
       "startFrac": 0.8332,
-      "endFrac": 0.8421,
+      "endFrac": 0.8463,
       "numbers": [
         57
       ]
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.8421,
-      "endFrac": 0.8447
-    },
-    {
       "type": "corner",
       "name": "Galgenkopf",
       "direction": "right",
-      "startFrac": 0.8447,
-      "endFrac": 0.8677,
+      "startFrac": 0.8463,
+      "endFrac": 0.8679,
       "numbers": [
         58
       ]
@@ -1158,7 +1146,7 @@
     {
       "type": "straight",
       "name": "Döttinger Höhe",
-      "startFrac": 0.8677,
+      "startFrac": 0.8679,
       "endFrac": 0.9732
     },
     {

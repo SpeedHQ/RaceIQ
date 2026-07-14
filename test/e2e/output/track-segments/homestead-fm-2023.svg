@@ -29,8 +29,8 @@
   <text x="558.8" y="161.6" text-anchor="start" class="name" fill="#6b7280">St1 95m</text>
   <line x1="401.8" y1="97.6" x2="397.0" y2="72.1" stroke="#d1d5db" stroke-width="1" />
   <text x="397.0" y="72.1" text-anchor="end" class="name" fill="#111827">T1</text>
-  <line x1="163.3" y1="180.1" x2="142.7" y2="164.2" stroke="#d1d5db" stroke-width="1" />
-  <text x="142.7" y="164.2" text-anchor="end" class="name" fill="#111827">T2</text>
+  <line x1="163.5" y1="178.0" x2="142.9" y2="162.1" stroke="#d1d5db" stroke-width="1" />
+  <text x="142.9" y="162.1" text-anchor="end" class="name" fill="#111827">T2</text>
   <line x1="276.0" y1="214.3" x2="258.1" y2="195.4" stroke="#d1d5db" stroke-width="1" />
   <text x="258.1" y="195.4" text-anchor="end" class="name" fill="#111827">T3</text>
   <line x1="361.7" y1="313.7" x2="343.0" y2="295.6" stroke="#d1d5db" stroke-width="1" />

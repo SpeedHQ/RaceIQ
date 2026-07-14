@@ -235,23 +235,17 @@
           "name": "Slotemaker/Scheivlak",
           "direction": "right",
           "startFrac": 0.3469,
-          "endFrac": 0.4544,
+          "endFrac": 0.4545,
           "numbers": [
             5,
             6
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4544,
-          "endFrac": 0.4939
-        },
-        {
           "type": "corner",
           "name": "Mastersbocht",
           "direction": "right",
-          "startFrac": 0.4939,
+          "startFrac": 0.4545,
           "endFrac": 0.567,
           "numbers": [
             7
@@ -306,7 +300,7 @@
           "name": "Arie Luyendykbocht",
           "direction": "right",
           "startFrac": 0.7894,
-          "endFrac": 0.8971,
+          "endFrac": 0.9353,
           "numbers": [
             14
           ]
@@ -314,12 +308,12 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.8971,
+          "startFrac": 0.9353,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.4544,
+        "s1End": 0.4545,
         "s2End": 0.677,
         "source": "corner-anchored"
       }

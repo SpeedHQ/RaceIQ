@@ -1,14 +1,14 @@
 {
   "name": "Suzuka Circuit",
   "sectors": {
-    "s1End": 0.3599,
+    "s1End": 0.3804,
     "s2End": 0.8177,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3599,
+        "s1End": 0.3804,
         "s2End": 0.8177,
         "source": "corner-anchored"
       },
@@ -17,13 +17,13 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0902
+          "endFrac": 0.0889
         },
         {
           "type": "corner",
           "name": "First Curve",
           "direction": "right",
-          "startFrac": 0.0902,
+          "startFrac": 0.0889,
           "endFrac": 0.1727,
           "numbers": [
             1,
@@ -47,22 +47,16 @@
           "name": "Dunlop",
           "direction": "left",
           "startFrac": 0.2891,
-          "endFrac": 0.3599,
+          "endFrac": 0.3804,
           "numbers": [
             7
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3599,
-          "endFrac": 0.3708
-        },
-        {
           "type": "corner",
           "name": "Degner",
           "direction": "right",
-          "startFrac": 0.3708,
+          "startFrac": 0.3804,
           "endFrac": 0.4404,
           "numbers": [
             8,
@@ -211,13 +205,13 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.3075,
-          "endFrac": 0.3405
+          "endFrac": 0.3157
         },
         {
           "type": "corner",
           "name": "Degner",
           "direction": "right",
-          "startFrac": 0.3405,
+          "startFrac": 0.3157,
           "endFrac": 0.3901,
           "numbers": [
             8,
@@ -271,7 +265,7 @@
           "name": "Spoon",
           "direction": "left",
           "startFrac": 0.576,
-          "endFrac": 0.6551,
+          "endFrac": 0.6716,
           "numbers": [
             13,
             14
@@ -280,7 +274,7 @@
         {
           "type": "straight",
           "name": "Back Straight",
-          "startFrac": 0.6551,
+          "startFrac": 0.6716,
           "endFrac": 0.7741
         },
         {
@@ -328,7 +322,7 @@
       ],
       "sectors": {
         "s1End": 0.3075,
-        "s2End": 0.7594,
+        "s2End": 0.7759,
         "source": "corner-anchored"
       }
     }
@@ -338,13 +332,13 @@
       "type": "straight",
       "name": "",
       "startFrac": 0,
-      "endFrac": 0.0902
+      "endFrac": 0.0889
     },
     {
       "type": "corner",
       "name": "First Curve",
       "direction": "right",
-      "startFrac": 0.0902,
+      "startFrac": 0.0889,
       "endFrac": 0.1727,
       "numbers": [
         1,
@@ -368,22 +362,16 @@
       "name": "Dunlop",
       "direction": "left",
       "startFrac": 0.2891,
-      "endFrac": 0.3599,
+      "endFrac": 0.3804,
       "numbers": [
         7
       ]
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3599,
-      "endFrac": 0.3708
-    },
-    {
       "type": "corner",
       "name": "Degner",
       "direction": "right",
-      "startFrac": 0.3708,
+      "startFrac": 0.3804,
       "endFrac": 0.4404,
       "numbers": [
         8,

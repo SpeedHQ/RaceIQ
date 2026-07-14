@@ -56,22 +56,16 @@
           "name": "Schlossgold",
           "direction": "right",
           "startFrac": 0.4739,
-          "endFrac": 0.5405,
+          "endFrac": 0.5973,
           "numbers": [
             4
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5405,
-          "endFrac": 0.5821
-        },
-        {
           "type": "corner",
           "name": "T5",
           "direction": "left",
-          "startFrac": 0.5821,
+          "startFrac": 0.5973,
           "endFrac": 0.6742,
           "numbers": [
             5
@@ -301,22 +295,16 @@
       "name": "Schlossgold",
       "direction": "right",
       "startFrac": 0.4739,
-      "endFrac": 0.5405,
+      "endFrac": 0.5973,
       "numbers": [
         4
       ]
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.5405,
-      "endFrac": 0.5821
-    },
-    {
       "type": "corner",
       "name": "T5",
       "direction": "left",
-      "startFrac": 0.5821,
+      "startFrac": 0.5973,
       "endFrac": 0.6742,
       "numbers": [
         5

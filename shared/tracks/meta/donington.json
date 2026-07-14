@@ -34,7 +34,7 @@
           "name": "T3",
           "direction": "left",
           "startFrac": 0.2231,
-          "endFrac": 0.2699,
+          "endFrac": 0.263,
           "numbers": [
             3
           ]
@@ -43,7 +43,7 @@
           "type": "corner",
           "name": "Old Hairpin",
           "direction": "right",
-          "startFrac": 0.2699,
+          "startFrac": 0.263,
           "endFrac": 0.3269,
           "numbers": [
             4
@@ -180,7 +180,7 @@
       "name": "T3",
       "direction": "left",
       "startFrac": 0.2231,
-      "endFrac": 0.2699,
+      "endFrac": 0.263,
       "numbers": [
         3
       ]
@@ -189,7 +189,7 @@
       "type": "corner",
       "name": "Old Hairpin",
       "direction": "right",
-      "startFrac": 0.2699,
+      "startFrac": 0.263,
       "endFrac": 0.3269,
       "numbers": [
         4

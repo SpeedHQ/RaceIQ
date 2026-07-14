@@ -2,14 +2,14 @@
   "name": "Autodromo Nazionale Monza",
   "sectors": {
     "s1End": 0.3063,
-    "s2End": 0.7314,
+    "s2End": 0.7358,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
         "s1End": 0.3063,
-        "s2End": 0.7314,
+        "s2End": 0.7358,
         "source": "corner-anchored"
       },
       "segments": [
@@ -72,7 +72,7 @@
           "name": "Lesmo 1",
           "direction": "right",
           "startFrac": 0.4049,
-          "endFrac": 0.465,
+          "endFrac": 0.4677,
           "numbers": [
             6
           ]
@@ -80,14 +80,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.465,
-          "endFrac": 0.4732
+          "startFrac": 0.4677,
+          "endFrac": 0.4745
         },
         {
           "type": "corner",
           "name": "Lesmo 2",
           "direction": "right",
-          "startFrac": 0.4732,
+          "startFrac": 0.4745,
           "endFrac": 0.5142,
           "numbers": [
             7
@@ -103,7 +103,7 @@
           "type": "corner",
           "name": "Variante Ascari",
           "startFrac": 0.6557,
-          "endFrac": 0.7314,
+          "endFrac": 0.7358,
           "numbers": [
             8,
             9,
@@ -113,7 +113,7 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7314,
+          "startFrac": 0.7358,
           "endFrac": 0.8589
         },
         {
@@ -307,7 +307,7 @@
       "name": "Lesmo 1",
       "direction": "right",
       "startFrac": 0.4049,
-      "endFrac": 0.465,
+      "endFrac": 0.4677,
       "numbers": [
         6
       ]
@@ -315,14 +315,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.465,
-      "endFrac": 0.4732
+      "startFrac": 0.4677,
+      "endFrac": 0.4745
     },
     {
       "type": "corner",
       "name": "Lesmo 2",
       "direction": "right",
-      "startFrac": 0.4732,
+      "startFrac": 0.4745,
       "endFrac": 0.5142,
       "numbers": [
         7
@@ -338,7 +338,7 @@
       "type": "corner",
       "name": "Variante Ascari",
       "startFrac": 0.6557,
-      "endFrac": 0.7314,
+      "endFrac": 0.7358,
       "numbers": [
         8,
         9,
@@ -348,7 +348,7 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.7314,
+      "startFrac": 0.7358,
       "endFrac": 0.8589
     },
     {

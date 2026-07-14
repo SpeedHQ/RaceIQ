@@ -18,7 +18,7 @@
           "name": "T1",
           "direction": "left",
           "startFrac": 0.0518,
-          "endFrac": 0.1036,
+          "endFrac": 0.1238,
           "numbers": [
             1
           ]
@@ -26,14 +26,14 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1036,
-          "endFrac": 0.135
+          "startFrac": 0.1238,
+          "endFrac": 0.1354
         },
         {
           "type": "corner",
           "name": "T2",
           "direction": "left",
-          "startFrac": 0.135,
+          "startFrac": 0.1354,
           "endFrac": 0.1702,
           "numbers": [
             2
@@ -136,7 +136,7 @@
           "name": "T11",
           "direction": "left",
           "startFrac": 0.4867,
-          "endFrac": 0.5215,
+          "endFrac": 0.5224,
           "numbers": [
             11
           ]
@@ -145,7 +145,7 @@
           "type": "corner",
           "name": "T12",
           "direction": "right",
-          "startFrac": 0.5215,
+          "startFrac": 0.5224,
           "endFrac": 0.5478,
           "numbers": [
             12
@@ -260,7 +260,7 @@
       "name": "T1",
       "direction": "left",
       "startFrac": 0.0518,
-      "endFrac": 0.1036,
+      "endFrac": 0.1238,
       "numbers": [
         1
       ]
@@ -268,14 +268,14 @@
     {
       "type": "straight",
       "name": "",
-      "startFrac": 0.1036,
-      "endFrac": 0.135
+      "startFrac": 0.1238,
+      "endFrac": 0.1354
     },
     {
       "type": "corner",
       "name": "T2",
       "direction": "left",
-      "startFrac": 0.135,
+      "startFrac": 0.1354,
       "endFrac": 0.1702,
       "numbers": [
         2
@@ -378,7 +378,7 @@
       "name": "T11",
       "direction": "left",
       "startFrac": 0.4867,
-      "endFrac": 0.5215,
+      "endFrac": 0.5224,
       "numbers": [
         11
       ]
@@ -387,7 +387,7 @@
       "type": "corner",
       "name": "T12",
       "direction": "right",
-      "startFrac": 0.5215,
+      "startFrac": 0.5224,
       "endFrac": 0.5478,
       "numbers": [
         12

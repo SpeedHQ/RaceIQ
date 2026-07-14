@@ -50,7 +50,7 @@
           "name": "Casino",
           "direction": "right",
           "startFrac": 0.2622,
-          "endFrac": 0.3057,
+          "endFrac": 0.3123,
           "numbers": [
             4
           ]
@@ -59,7 +59,7 @@
           "type": "corner",
           "name": "Mirabeau",
           "direction": "right",
-          "startFrac": 0.3057,
+          "startFrac": 0.3123,
           "endFrac": 0.3545,
           "numbers": [
             5
@@ -133,7 +133,7 @@
           "name": "Louis Chiron",
           "direction": "left",
           "startFrac": 0.6844,
-          "endFrac": 0.7721,
+          "endFrac": 0.7741,
           "numbers": [
             13
           ]
@@ -142,7 +142,7 @@
           "type": "corner",
           "name": "Piscine",
           "direction": "right",
-          "startFrac": 0.7721,
+          "startFrac": 0.7741,
           "endFrac": 0.8203,
           "numbers": [
             14,
@@ -154,7 +154,7 @@
           "name": "T16",
           "direction": "left",
           "startFrac": 0.8203,
-          "endFrac": 0.8521,
+          "endFrac": 0.8737,
           "numbers": [
             16
           ]
@@ -162,7 +162,7 @@
         {
           "type": "corner",
           "name": "Rascasse / Antony Noghès",
-          "startFrac": 0.8521,
+          "startFrac": 0.8737,
           "endFrac": 0.9445,
           "numbers": [
             18,
@@ -216,7 +216,7 @@
       "name": "Casino",
       "direction": "right",
       "startFrac": 0.2622,
-      "endFrac": 0.3057,
+      "endFrac": 0.3123,
       "numbers": [
         4
       ]
@@ -225,7 +225,7 @@
       "type": "corner",
       "name": "Mirabeau",
       "direction": "right",
-      "startFrac": 0.3057,
+      "startFrac": 0.3123,
       "endFrac": 0.3545,
       "numbers": [
         5
@@ -299,7 +299,7 @@
       "name": "Louis Chiron",
       "direction": "left",
       "startFrac": 0.6844,
-      "endFrac": 0.7721,
+      "endFrac": 0.7741,
       "numbers": [
         13
       ]
@@ -308,7 +308,7 @@
       "type": "corner",
       "name": "Piscine",
       "direction": "right",
-      "startFrac": 0.7721,
+      "startFrac": 0.7741,
       "endFrac": 0.8203,
       "numbers": [
         14,
@@ -320,7 +320,7 @@
       "name": "T16",
       "direction": "left",
       "startFrac": 0.8203,
-      "endFrac": 0.8521,
+      "endFrac": 0.8737,
       "numbers": [
         16
       ]
@@ -328,7 +328,7 @@
     {
       "type": "corner",
       "name": "Rascasse / Antony Noghès",
-      "startFrac": 0.8521,
+      "startFrac": 0.8737,
       "endFrac": 0.9445,
       "numbers": [
         18,
