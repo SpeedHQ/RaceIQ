@@ -310,7 +310,6 @@ function guideEntries(): { slug: string; name: string; numbers: number[]; type: 
  * Degner 1 [9] / Degner 2 [10], so the guide prose and anchors agree.
  */
 const KNOWN_NUMBERING_CONFLICTS = [
-  "brands-hatch :: Clark Curve", // prose T9, meta T10
   "nurburgring :: Dunlop Kehre", // prose T7, meta T6
   "nurburgring :: NGK Chicane", // prose T15, meta T12-13
   "sebring :: Sunset Bend", // prose T17, meta T19
