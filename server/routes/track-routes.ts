@@ -440,6 +440,8 @@ export const trackRoutes = new Hono()
         (meta as any).games = (meta as any).games ?? {};
         (meta as any).games[gameId] = (meta as any).games[gameId] ?? {};
         (meta as any).games[gameId].segments = body.segments;
+        // Hand edit — protect it from being clobbered on regenerate.
+        (meta as any).games[gameId].manualOverride = true;
       } else {
         (meta as any).segments = body.segments;
       }

@@ -155,7 +155,7 @@ export interface SharedTrackMeta {
   name: string;
   sectors?: TrackSectors & { source?: string };
   segments?: NamedSegment[];
-  games?: Record<string, { sectors?: TrackSectors & { source?: string }; segments?: NamedSegment[] }>;
+  games?: Record<string, { sectors?: TrackSectors & { source?: string }; segments?: NamedSegment[]; manualOverride?: boolean }>;
 }
 
 const sharedTrackMetaCache = new Map<string, SharedTrackMeta | null>();

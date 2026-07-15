@@ -22,7 +22,6 @@ import {
   type SharedTrackMeta,
 } from "./track-data";
 import { SHARED_DIR } from "./resolve-data";
-import { namedSegments } from "./track-named-segments";
 
 export const CORNER_NAMES_DIR = resolve(SHARED_DIR, "tracks", "corner-names");
 const GAME_DIRS: Record<string, string> = {
@@ -126,52 +125,13 @@ export function generateTrackSegments(
     return { outcomes, aligned };
   }
 
-  // Hand-authored override present — its fractions are the source of truth, so
-  // detection is skipped (it would only be a chance to clobber them). But the
-  // override still has to flow through to what the server serves and the viz
-  // renders: emit it as an aligned entry per game centerline, drawn on that
-  // game's geometry, exactly like a detected alignment would be. Same fractions
-  // for every game, cost 0 (nothing to disagree with).
-  const override = namedSegments[nameList.circuit];
-  if (override) {
-    const centerlines = findCenterlines(slug, gameFilter);
-    if (centerlines.length === 0) {
-      outcomes.push({ slug, gameId: "-", ok: false, cost: Infinity, wrote: false, detail: "override present but no centerline found" });
-      return { outcomes, aligned };
-    }
-    // Corners implied by the override's corner-type segments (numbers + name).
-    const corners: AlignedCorner[] = override
-      .filter((s) => s.type === "corner")
-      .map((s, i) => ({
-        regionIndex: i,
-        numbers: s.numbers ?? [],
-        name: s.name,
-        direction: s.direction ?? null,
-        startFrac: s.startFrac,
-        endFrac: s.endFrac,
-      }));
-    const seen = new Set<string>();
-    for (const { gameId, file } of centerlines) {
-      if (seen.has(gameId)) continue;
-      seen.add(gameId);
-      // Fraction-based override needs no per-game geometry, but sectors that are
-      // corner-anchored do — resolve them against this game's centerline length.
-      let sectors: GameAlignment["sectors"] = null;
-      if (nameList.sectors) {
-        const outline = loadCenterline(file);
-        if (outline) {
-          const totalDist = detectCornerRegions(outline).totalDist;
-          sectors = resolveSectors(nameList.sectors, corners, totalDist).sectors;
-        }
-      }
-      aligned.push({ gameId, file, segments: override, corners, sectors, cost: 0 });
-      outcomes.push({
-        slug, gameId, ok: true, cost: 0, wrote: false,
-        detail: `hand-authored override (${override.length} segments, ${corners.length} corners)`,
-      });
-    }
-    return { outcomes, aligned };
-  }
+  // Hand-authored overrides live in the track's JSON meta, per game
+  // (meta.games[gameId].manualOverride), authored by hand or via the dev UI
+  // against THAT game's own centerline. They are NOT applied cross-game: a
+  // game's centerline can start anywhere on the lap (see the rotation logic in
+  // alignSegments), so one game's fractions are meaningless on another's
+  // geometry. Any game without its own override falls back to auto-detect.
+  const existingMeta = loadSharedTrackMeta(slug);
 
   const centerlines = findCenterlines(slug, gameFilter);
   if (centerlines.length === 0) {
@@ -183,6 +143,39 @@ export function generateTrackSegments(
   for (const { gameId, file } of centerlines) {
     // FM can have several layout variants per slug — first aligned one wins
     if (seenGames.has(gameId)) continue;
+
+    // Per-game hand-authored override: its fractions were authored against this
+    // game's own centerline, so trust them verbatim and skip detection. Sectors
+    // still resolve against this game's geometry below.
+    const gameOverride = existingMeta?.games?.[gameId];
+    if (gameOverride?.manualOverride && gameOverride.segments?.length) {
+      const segments = gameOverride.segments;
+      const corners: AlignedCorner[] = segments
+        .filter((s) => s.type === "corner")
+        .map((s, i) => ({
+          regionIndex: i,
+          numbers: s.numbers ?? [],
+          name: s.name,
+          direction: s.direction ?? null,
+          startFrac: s.startFrac,
+          endFrac: s.endFrac,
+        }));
+      let sectors: GameAlignment["sectors"] = null;
+      if (nameList.sectors) {
+        const outline = loadCenterline(file);
+        if (outline) {
+          const totalDist = detectCornerRegions(outline).totalDist;
+          sectors = resolveSectors(nameList.sectors, corners, totalDist).sectors;
+        }
+      }
+      seenGames.add(gameId);
+      aligned.push({ gameId, file, segments, corners, sectors, cost: 0 });
+      outcomes.push({
+        slug, gameId, ok: true, cost: 0, wrote: false,
+        detail: `hand-authored override (${segments.length} segments, ${corners.length} corners)`,
+      });
+      continue;
+    }
 
     const outline = loadCenterline(file);
     if (!outline) {
