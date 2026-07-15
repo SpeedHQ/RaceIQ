@@ -245,7 +245,7 @@ export function HomePage() {
   }, [recentLaps, periodStats, gameId]);
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
+    <div className="mx-auto max-w-[1400px] p-4 md:p-6 space-y-6">
       {/* Header */}
       {gameId ? (
         (() => {
@@ -338,6 +338,9 @@ export function HomePage() {
         </div>
       )}
 
+      {/* Dashboard body: full-width main column + permanent recent-session rail */}
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-6">
       {/* Game cards — only on global homepage */}
       {!gameId && (
         <div className="grid grid-cols-2 md:flex gap-3">
@@ -522,16 +525,6 @@ export function HomePage() {
         </div>
       )}
 
-      {/* Latest session recap. Renders in full here, so there is no modal to open —
-          clicking deep-links to analysing the session's best lap instead. */}
-      {latestSession && (
-        <div className="rounded-lg border border-app-border bg-app-surface p-4">
-          <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-2">{m.recap_latest_session()}</h2>
-          {/* gameId passed explicitly: the global home page has no active-game scope. */}
-          <SessionRecap sessionId={latestSession.id} gameId={latestSession.gameId} linkToAnalyse />
-        </div>
-      )}
-
       {/* Activity heatmap */}
       <ActivityHeatmap laps={gameId ? allLaps.filter((l) => l.gameId === gameId) : allLaps} />
 
@@ -582,6 +575,27 @@ export function HomePage() {
           <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">{m.home_recent_laps()}</h2>
         </div>
         <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} />
+      </div>
+        </div>
+
+        {/* Permanent recent-session rail — its own dedicated place */}
+        <aside className="space-y-4 lg:sticky lg:top-6">
+          {latestSession ? (
+            <div className="relative overflow-hidden rounded-xl border border-app-border bg-gradient-to-b from-app-surface-alt to-app-surface p-4">
+              <div className="pointer-events-none absolute -top-10 -right-10 h-36 w-36 rounded-full opacity-20" style={{ background: "radial-gradient(circle, var(--color-app-accent, #7c5cff) 0%, transparent 70%)" }} />
+              <div className="relative mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-app-accent">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-app-accent shadow-[0_0_8px_var(--color-app-accent,#7c5cff)]" />
+                {m.recap_latest_session()}
+              </div>
+              {/* gameId passed explicitly: the global home page has no active-game scope. */}
+              <SessionRecap sessionId={latestSession.id} gameId={latestSession.gameId} linkToAnalyse />
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-app-border bg-app-surface p-6 text-center text-xs text-app-text-muted">
+              {m.recap_latest_session()}
+            </div>
+          )}
+        </aside>
       </div>
     </div>
   );
