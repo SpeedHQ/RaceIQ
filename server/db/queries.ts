@@ -1035,6 +1035,7 @@ export async function getSessionRecapData(
 
   const lapRows = await db
     .select({
+      id: laps.id,
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,

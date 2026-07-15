@@ -2,6 +2,7 @@ import type { GameId, SessionRecap } from "../shared/types";
 
 /** Plain lap data needed to compute a recap. Nullable sectors are legacy laps. */
 export interface RecapLapInput {
+  id: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
@@ -67,7 +68,10 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
   const validLaps = laps.filter(isValidLap);
   const lapsValid = validLaps.length;
 
-  const bestLapSec = lapsValid > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
+  // Track the best lap itself, not just its time — the client deep-links to analysing it.
+  const bestLap = validLaps.reduce<RecapLapInput | null>((best, l) => (best === null || l.lapTime < best.lapTime ? l : best), null);
+  const bestLapSec = bestLap?.lapTime ?? null;
+  const bestLapId = bestLap?.id ?? null;
 
   // Valid laps only. Invalid laps are frequently detector artifacts — a real session
   // carried a single invalid 13207s lap, which rendered as "0 laps · 3h 40m on track".
@@ -126,9 +130,12 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
     carName,
     trackName,
     createdAt: session.createdAt,
+    carOrdinal: session.carOrdinal,
+    trackOrdinal: session.trackOrdinal,
     lapsValid,
     lapsTotal,
     bestLapSec,
+    bestLapId,
     timeOnTrackSec,
     distanceM,
     sparkline,

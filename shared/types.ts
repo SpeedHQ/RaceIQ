@@ -545,6 +545,9 @@ export interface SessionRecap {
   gameId: GameId;
   carName: string;
   trackName: string;
+  /** Raw ordinals, for deep-linking into the analyse view. */
+  carOrdinal: number;
+  trackOrdinal: number;
   createdAt: string;
 
   /** Laps with isValid && lapTime > 0. */
@@ -553,6 +556,8 @@ export interface SessionRecap {
   lapsTotal: number;
   /** Fastest valid lap, seconds. Null when no valid laps. */
   bestLapSec: number | null;
+  /** Lap id of the fastest valid lap, for deep-linking. Null when no valid laps. */
+  bestLapId: number | null;
   /** Sum of lapTime over VALID laps only — invalid laps are often detector artifacts. */
   timeOnTrackSec: number;
   /** trackLength * lapsValid, metres. Null when the track has no outline. */

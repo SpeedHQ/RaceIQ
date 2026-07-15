@@ -10,7 +10,7 @@ const baseSession: RecapSessionInput = {
 };
 
 function lap(overrides: Partial<RecapLapInput>): RecapLapInput {
-  return {
+  const merged = {
     lapNumber: 1,
     lapTime: 100,
     isValid: true,
@@ -19,6 +19,8 @@ function lap(overrides: Partial<RecapLapInput>): RecapLapInput {
     s3Time: null,
     ...overrides,
   };
+  // Default the id to the lap number so fixtures can assert bestLapId readably.
+  return { id: overrides.id ?? merged.lapNumber, ...merged };
 }
 
 function run(laps: RecapLapInput[], opts: Partial<{ trackLengthM: number | null; allTimeBestSec: number | null; carName: string; trackName: string }> = {}) {
@@ -33,6 +35,29 @@ function run(laps: RecapLapInput[], opts: Partial<{ trackLengthM: number | null;
 }
 
 describe("computeRecap", () => {
+  test("bestLapId points at the fastest VALID lap, for deep-linking to analyse", () => {
+    const laps = [
+      lap({ id: 501, lapNumber: 1, lapTime: 100 }),
+      lap({ id: 502, lapNumber: 2, lapTime: 95 }),
+      // faster, but invalid — must not win
+      lap({ id: 503, lapNumber: 3, lapTime: 90, isValid: false }),
+    ];
+    const recap = run(laps);
+    expect(recap.bestLapSec).toBe(95);
+    expect(recap.bestLapId).toBe(502);
+  });
+
+  test("bestLapId is null when there is no valid lap", () => {
+    const recap = run([lap({ id: 9, lapNumber: 1, lapTime: 100, isValid: false })]);
+    expect(recap.bestLapId).toBeNull();
+  });
+
+  test("carOrdinal/trackOrdinal are carried through for deep-linking", () => {
+    const recap = run([lap({ lapNumber: 1, lapTime: 100 })]);
+    expect(recap.carOrdinal).toBe(baseSession.carOrdinal);
+    expect(recap.trackOrdinal).toBe(baseSession.trackOrdinal);
+  });
+
   test("theoretical mixes sectors across laps", () => {
     const laps = [
       lap({ lapNumber: 1, lapTime: 100, s1Time: 30, s2Time: 40, s3Time: 30 }),

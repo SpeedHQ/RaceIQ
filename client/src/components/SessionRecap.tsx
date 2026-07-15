@@ -3,7 +3,7 @@ import type { GameId, SessionRecap as SessionRecapDto } from "@shared/types";
 import { useState } from "react";
 import { useSessionRecap } from "../hooks/queries";
 import { formatLapTime } from "../lib/format";
-import { useGameId } from "../stores/game";
+import { getGameRoute, useGameId } from "../stores/game";
 import { Button } from "./ui/button";
 
 function Tile({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
@@ -90,8 +90,20 @@ function buildRecapText(recap: SessionRecapDto): string {
  * `gameId` falls back to the active game store, which is only populated inside a
  * per-game layout. The global home page has no game scope, so surfaces there must
  * pass the session's own gameId explicitly.
+ *
+ * `linkToAnalyse` adds an "Analyse best lap" action. Surfaces that render this
+ * inline (the home card) use it; the modal does not, since it is already opened
+ * from a list that can navigate on its own.
  */
-export function SessionRecap({ sessionId, gameId: gameIdProp }: { sessionId: number; gameId?: GameId | null }) {
+export function SessionRecap({
+  sessionId,
+  gameId: gameIdProp,
+  linkToAnalyse = false,
+}: {
+  sessionId: number;
+  gameId?: GameId | null;
+  linkToAnalyse?: boolean;
+}) {
   const storeGameId = useGameId();
   const gameId = gameIdProp ?? storeGameId;
   const { data: recap, isLoading, isError } = useSessionRecap(sessionId, gameId);
@@ -111,6 +123,9 @@ export function SessionRecap({ sessionId, gameId: gameIdProp }: { sessionId: num
     });
   };
 
+  // Only offer analysis when there is a valid lap to analyse.
+  const analyseHref = linkToAnalyse && recap.bestLapId != null ? `${getGameRoute(recap.gameId)}/analyse?track=${recap.trackOrdinal}&car=${recap.carOrdinal}&lap=${recap.bestLapId}` : null;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
@@ -120,16 +135,22 @@ export function SessionRecap({ sessionId, gameId: gameIdProp }: { sessionId: num
           </div>
           <div className="text-xs text-app-text-muted mt-0.5">{new Date(recap.createdAt).toLocaleString()}</div>
         </div>
-        <Button
-          variant="app-outline"
-          size="app-sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            copy();
-          }}
-        >
-          {copied ? m.recap_copied() : m.recap_copy()}
-        </Button>
+        <div className="flex items-center gap-2">
+          {analyseHref && (
+            <Button
+              variant="app-outline"
+              size="app-sm"
+              onClick={() => {
+                window.location.href = analyseHref;
+              }}
+            >
+              {m.recap_analyse_best_lap()}
+            </Button>
+          )}
+          <Button variant="app-outline" size="app-sm" onClick={copy}>
+            {copied ? m.recap_copied() : m.recap_copy()}
+          </Button>
+        </div>
       </div>
 
       {recap.lapsTotal === 0 ? (
