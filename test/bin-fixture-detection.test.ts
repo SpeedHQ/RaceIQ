@@ -189,7 +189,13 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     const { packets } = readAcEvoPackets(file);
     expect(packets.length).toBeGreaterThan(0);
     const last = packets[packets.length - 1]!;
-    expect(getAcEvoTrackName(last.TrackOrdinal)).toBe("Monza - GP");
+    // This recording's STATIC track field is empty in all 20k+ frames (the
+    // game never populated it). It previously asserted "Monza - GP", but that
+    // only passed because unidentified tracks defaulted to ordinal 0, which
+    // happens to be Monza — the exact production bug where every unnamed
+    // session imported as Monza. Unidentified must stay unidentified (-1).
+    expect(last.TrackOrdinal).toBe(-1);
+    expect(getAcEvoTrackName(last.TrackOrdinal)).toBe("Unknown Track");
     expect(getAcEvoCarName(last.CarOrdinal)).toBe("Porsche 992 GT3 R Rennsport");
   }, { timeout: 60000 });
 

@@ -94,8 +94,10 @@ test.describe.serial("fresh install", () => {
     await expect(page.getByRole("heading", { name: "You're all set!" })).toBeVisible();
     await page.getByRole("button", { name: "Next" }).click();
 
-    // Onboarding modal gone, home page rendered
-    await expect(page.getByRole("heading", { name: "You're all set!" })).toBeHidden();
+    // Onboarding modal gone, home page rendered — finishing persists
+    // onboardingComplete via PUT + query invalidation before the modal
+    // unmounts, so give this more headroom than the default 5s under CI.
+    await expect(page.getByRole("heading", { name: "You're all set!" })).toBeHidden({ timeout: 15_000 });
     await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Hello, TestDriver" })).toBeVisible();
 
