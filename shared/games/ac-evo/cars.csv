@@ -22,3 +22,64 @@ id,model,name,class
 58,porsche_911_gt3_cup_992,Porsche 911 GT3 Cup (992),GT3 Cup
 59,porsche_992_gt3_r_rennsport,Porsche 992 GT3 R Rennsport,GT3
 60,bmw_m4_gt3_evo,BMW M4 GT3 Evo,GT3
+61,abarth_695_biposto,Abarth 695 Biposto,Unknown
+62,alfa_romeo_75_turbo_evo,Alfa Romeo 75 Turbo Evoluzione,Unknown
+63,alfa_romeo_giulia_gta_sprint,Alfa Romeo Giulia Sprint GTA,Unknown
+64,alfa_romeo_giulia_gtam,Alfa Romeo Giulia GTAm,Unknown
+65,alfa_romeo_junior,Alfa Romeo Junior,Unknown
+66,alpine_a110_s,Alpine A110 S,Unknown
+67,alpine_a290_b,Alpine A290 Beta,Unknown
+68,audi_r8_lms_gt3_evo_2,Audi R8 LMS GT3 Evo II,Unknown
+69,audi_r8_lms_gt4_evo,Audi R8 LMS GT4 Evo,Unknown
+70,audi_rs_3_sportback,Audi RS 3 Sportback,Unknown
+71,audi_rs_6_avant,Audi RS 6 Avant,Unknown
+72,audi_sport_quattro,Audi Sport quattro,Unknown
+73,bmw_m2_coupe,BMW M2 Coupe,Unknown
+74,bmw_m2_cs_racing,BMW M2 CS Racing,Unknown
+75,bmw_m3_e30_evo_iii,BMW M3 E30 Sport Evo (Evolution III),Unknown
+76,bmw_m3_e46_csl,BMW M3 E46 CSL,Unknown
+77,bmw_m8_competition,BMW M8 Competition,Unknown
+78,caterham_485_csr,Caterham 485 CSR,Unknown
+79,caterham_academy,Caterham Academy,Unknown
+80,chevrolet_camaro_zl1,Chevrolet Camaro ZL1,Unknown
+81,dallara_exp,Dallara EXP,Unknown
+82,dallara_stradale_coupe,Dallara Stradale,Unknown
+83,datsun_240z_fairlady,Datsun 240Z (S30),Unknown
+84,ferrari_288_gto,Ferrari 288 GTO,Unknown
+85,ferrari_296_gtb,Ferrari 296 GTB,Unknown
+86,ferrari_488_challenge_evo,Ferrari 488 Challenge Evo,Unknown
+87,ferrari_daytona_sp3,Ferrari Daytona SP3,Unknown
+88,ferrari_f2004,Ferrari F2004,Unknown
+89,ferrari_f40_lm,Ferrari F40 LM,Unknown
+90,ferrari_sf_25,Ferrari SF-25,Unknown
+91,ford_escort_rs_cosworth,Ford Escort RS Cosworth,Unknown
+92,ford_mustang_gt3,Ford Mustang GT3,Unknown
+93,honda_nsx_r,Honda NSX-R 92R,Unknown
+94,honda_s2000_ap1,Honda S2000 AP1,Unknown
+95,hyundai_i30_n_hb,Hyundai i30 N Hatchback,Unknown
+96,ktm_x_bow_gt2,KTM X-Bow GT2,Unknown
+97,ktm_x_bow_gt4,KTM X-Bow GT4,Unknown
+98,lamborghini_countach,Lamborghini Countach LP5000 QV,Unknown
+99,lamborghini_huracan_st_evo2,Lamborghini Huracán ST EVO2,Unknown
+100,lancia_delta_hf_integrale_evo_ii,Lancia Delta HF integrale Evoluzione II,Unknown
+101,lotus_emira,Lotus Emira,Unknown
+102,lotus_exige_v6_cup,Lotus Exige V6 Cup,Unknown
+103,maserati_mc20_gt2,Maserati GT2,Unknown
+104,mazda_mx5_na,Mazda MX-5 NA,Unknown
+105,mazda_mx5_nd_cup,Mazda MX-5 ND Cup,Unknown
+106,mercedes_190e_evo_ii,Mercedes-Benz 190E 2.5-16 Evo II,Unknown
+107,mercedes_amg_gt2,Mercedes-AMG GT2,Unknown
+108,mini_jcs_1990,Mini John Cooper S,Unknown
+109,peugeot_205_t16,Peugeot 205 T16,Unknown
+110,porsche_718_cayman_gt4_cs_mr,Porsche 718 Cayman GT4 Clubsport,Unknown
+111,porsche_718_cayman_gt4_rs,Porsche 718 Cayman GT4 RS,Unknown
+112,porsche_935,Porsche 935,Unknown
+113,porsche_964_turbo_3_6,Porsche 911 Turbo 3.6 (964),Unknown
+114,porsche_991ii_gt2_rs_clubsport_evo,Porsche 911 GT2 RS Clubsport Evo (991II),Unknown
+115,porsche_992_gt3_rs,Porsche 911 GT3 RS (992),Unknown
+116,renault_5_gt_turbo,Renault 5 GT Turbo,Unknown
+117,toyota_ae86_sprinter_trueno,Toyota Sprinter Trueno 1600GT-Apex (AE86),Unknown
+118,toyota_supra_mkiv,Toyota Supra MKIV,Unknown
+119,volkswagen_golf_gti_mk1,Volkswagen Golf GTI Mk1,Unknown
+120,volkswagen_golf_gti_mk8,Volkswagen Golf 8 GTI,Unknown
+121,volkswagen_golf_r_mk8,Volkswagen Golf 8 R,Unknown

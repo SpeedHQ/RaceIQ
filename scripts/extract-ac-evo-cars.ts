@@ -7,14 +7,22 @@
  * display name the game wrote to shared memory while you were driving.
  *
  * Usage:
- *   bun run scripts/extract-ac-evo-cars.ts          # dry run
- *   bun run scripts/extract-ac-evo-cars.ts --write  # append new rows to cars.csv
+ *   bun run scripts/extract-ac-evo-cars.ts                               # dry run (recordings)
+ *   bun run scripts/extract-ac-evo-cars.ts --write                      # append new rows to cars.csv
+ *   bun run scripts/extract-ac-evo-cars.ts --from-game [kspkg] [--write] # full car list from content.kspkg
+ *
+ * --from-game reads system\cars.table out of the game's content.kspkg
+ * (auto-located via AC_EVO_KSPKG or common Steam paths) and diffs the full
+ * shipped car list against cars.csv — run it after any game update to pick
+ * up every new car (real model slug + brand included), no driving required.
  */
 import { readFileSync, readdirSync, existsSync, appendFileSync } from "fs";
 import { join } from "path";
 import { GRAPHICS_EVO } from "../server/games/ac-evo/structs";
 import { readCString } from "../server/games/ac-evo/utils";
 import { getAllAcEvoCars, getAcEvoCarByDisplayName } from "../shared/ac-evo-car-data";
+import { Kspkg, findContentKspkg } from "../server/games/ac-evo/kspkg";
+import { parseCarsTable } from "../server/games/ac-evo/kspkg-tables";
 
 const RECORDINGS_DIR = "test/artifacts/sessions";
 const CSV_PATH = "shared/games/ac-evo/cars.csv";
@@ -43,8 +51,83 @@ function firstGraphicsFrameWithCar(filePath: string): string | null {
   return null;
 }
 
+/** Append rows to cars.csv, preserving trailing-newline hygiene. */
+function appendRows(newRows: string[]): void {
+  const content = readFileSync(CSV_PATH, "utf-8");
+  const trailingNewline = content.endsWith("\n") ? "" : "\n";
+  appendFileSync(CSV_PATH, trailingNewline + newRows.join("\n") + "\n");
+  console.log(`\nappended ${newRows.length} row(s) to ${CSV_PATH}`);
+}
+
+/** Read system\cars.table from content.kspkg and diff against cars.csv. */
+function fromGame(explicitPath: string | undefined, write: boolean): void {
+  const kspkgPath = findContentKspkg(explicitPath);
+  if (!kspkgPath) {
+    console.error("content.kspkg not found — pass a path (--from-game <path>) or set AC_EVO_KSPKG");
+    process.exit(1);
+  }
+  console.log(`reading ${kspkgPath}\n`);
+
+  const pkg = Kspkg.open(kspkgPath);
+  let records;
+  try {
+    records = parseCarsTable(pkg.readFile("system\\cars.table"));
+  } finally {
+    pkg.close();
+  }
+  console.log(`game ships ${records.length} car(s)\n`);
+
+  const csv = getAllAcEvoCars();
+  const csvModels = new Set(csv.map((c) => c.model.toLowerCase()));
+  const csvNames = new Set(csv.map((c) => c.name.toLowerCase()));
+
+  const known: string[] = [];
+  const missing: typeof records = [];
+  for (const r of records.sort((a, b) => a.slug.localeCompare(b.slug))) {
+    // Game slug is "ks_ferrari_296_gt3"; csv model column drops the ks_ prefix.
+    const model = r.slug.replace(/^ks_/, "");
+    // The table's name field is already the full display name (brand included).
+    const display = r.name;
+    if (csvModels.has(model.toLowerCase()) || csvNames.has(display.toLowerCase())) {
+      known.push(display);
+    } else {
+      missing.push(r);
+    }
+  }
+
+  console.log(`== ${known.length} known ==`);
+  for (const n of known.sort()) console.log(`  ✓ ${n}`);
+
+  console.log(`\n== ${missing.length} missing from ${CSV_PATH} ==`);
+  if (missing.length === 0) {
+    console.log(`  ${CSV_PATH} covers every shipped car`);
+    return;
+  }
+
+  let nextId = Math.max(0, ...csv.map((c) => c.id)) + 1;
+  const newRows: string[] = [];
+  for (const r of missing) {
+    const model = r.slug.replace(/^ks_/, "");
+    // The table's name field is already the full display name (brand included).
+    const display = r.name;
+    const row = `${nextId},${model},${display},Unknown`;
+    console.log(`  ${row}`);
+    newRows.push(row);
+    nextId++;
+  }
+
+  if (write) appendRows(newRows);
+  else console.log(`\n(dry run — rerun with --write to append to ${CSV_PATH})`);
+}
+
 function main(): void {
   const write = process.argv.includes("--write");
+  const fromGameIdx = process.argv.indexOf("--from-game");
+  if (fromGameIdx !== -1) {
+    const next = process.argv[fromGameIdx + 1];
+    fromGame(next && !next.startsWith("--") ? next : undefined, write);
+    return;
+  }
   if (!existsSync(RECORDINGS_DIR)) {
     console.error(`no recordings dir: ${RECORDINGS_DIR}`);
     process.exit(1);
