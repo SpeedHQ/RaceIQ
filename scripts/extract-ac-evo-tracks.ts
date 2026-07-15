@@ -8,15 +8,17 @@
  * identity the game wrote to shared memory while you were driving.
  *
  * Usage:
- *   bun run scripts/extract-ac-evo-tracks.ts                       # scan recordings, report known/unknown tracks
- *   bun run scripts/extract-ac-evo-tracks.ts --from-game [kspkg]   # read track list straight from content.kspkg
+ *   bun run scripts/extract-ac-evo-tracks.ts [kspkg]        # read track list from content.kspkg, append new rows
+ *   bun run scripts/extract-ac-evo-tracks.ts --recordings   # scan .bin recordings, report known/unknown tracks
  *
- * --from-game reads system\tracks.table out of the game's content.kspkg
- * (auto-located via AC_EVO_KSPKG or common Steam paths) and diffs the full
- * shipped track list against tracks.csv — run it after any game update to
- * see every new track immediately, no driving required.
+ * Default mode reads system\tracks.table out of the game's content.kspkg
+ * (auto-located via AC_EVO_KSPKG or common Steam paths), diffs the full
+ * shipped track list against tracks.csv and appends any missing rows —
+ * run it after any game update to pick up every new track, no driving
+ * required. Appended rows default to variant "GP"; extra layouts still
+ * need one drive each (the table has no layout list).
  */
-import { readFileSync, readdirSync, existsSync } from "fs";
+import { readFileSync, readdirSync, existsSync, appendFileSync } from "fs";
 import { gunzipSync } from "zlib";
 import { join } from "path";
 import { STATIC_EVO } from "../server/games/ac-evo/structs";
@@ -67,9 +69,7 @@ function firstStaticFrameWithTrack(filePath: string): TrackIdentity | null {
 function fromGame(explicitPath?: string): void {
   const kspkgPath = findContentKspkg(explicitPath);
   if (!kspkgPath) {
-    console.error(
-      "content.kspkg not found — pass a path (--from-game <path>) or set AC_EVO_KSPKG",
-    );
+    console.error("content.kspkg not found — pass a path or set AC_EVO_KSPKG");
     process.exit(1);
   }
   console.log(`reading ${kspkgPath}\n`);
@@ -100,19 +100,30 @@ function fromGame(explicitPath?: string): void {
     console.log(`  ${CSV_PATH} covers every shipped track`);
     return;
   }
+  let nextId = Math.max(0, ...[...getAcEvoTracks().values()].map((t) => t.id)) + 1;
+  const newRows: string[] = [];
   for (const t of missing) {
     const where = [t.country, t.region].filter(Boolean).join(", ");
+    const slug = t.folder.toLowerCase().replace(/_/g, "-");
+    const row = `${nextId},${t.name},GP,${slug}`;
     console.log(`  ✗ ${t.name} (folder=${t.folder}${where ? `, ${where}` : ""})`);
+    console.log(`    ${row}`);
+    newRows.push(row);
+    nextId++;
   }
+
+  const content = readFileSync(CSV_PATH, "utf-8");
+  const trailingNewline = content.endsWith("\n") ? "" : "\n";
+  appendFileSync(CSV_PATH, trailingNewline + newRows.join("\n") + "\n");
   console.log(
-    `\nadd rows for these to ${CSV_PATH} (layouts/variants still need one drive each — the table has no layout list)`,
+    `\nappended ${newRows.length} row(s) to ${CSV_PATH} (variant defaults to GP — extra layouts still need one drive each; the table has no layout list)`,
   );
 }
 
 function main(): void {
-  const fromGameIdx = process.argv.indexOf("--from-game");
-  if (fromGameIdx !== -1) {
-    fromGame(process.argv[fromGameIdx + 1]);
+  if (!process.argv.includes("--recordings")) {
+    const next = process.argv[2];
+    fromGame(next && !next.startsWith("--") ? next : undefined);
     return;
   }
   if (!existsSync(RECORDINGS_DIR)) {

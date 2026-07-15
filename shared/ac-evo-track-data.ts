@@ -50,15 +50,46 @@ export function getAcEvoTracks(): Map<number, AcEvoTrack> {
   return ensureLoaded();
 }
 
-/** Find a track by its AC Evo shared memory string name (e.g. "monza", "spa") */
+function norm(s: string): string {
+  return s.toLowerCase().replace(/[-_\s]/g, "");
+}
+
+/**
+ * Find a track by its AC Evo shared memory string name (e.g. "monza", "spa").
+ *
+ * Exact matches (commonTrackName, name, or name+variant) always win. Only
+ * then do we fall back to substring matching, preferring the LONGEST
+ * candidate so "brands-hatch-indy" beats "brands-hatch" instead of whichever
+ * row happens to come first in the CSV.
+ */
 export function getAcEvoTrackByName(trackStr: string): AcEvoTrack | undefined {
   ensureLoaded();
-  const needle = trackStr.toLowerCase().replace(/[-_\s]/g, "");
+  const needle = norm(trackStr);
+  if (!needle) return undefined;
+
   for (const track of trackMap!.values()) {
-    const haystack = track.commonTrackName.toLowerCase().replace(/[-_\s]/g, "");
-    if (haystack === needle || haystack.includes(needle) || needle.includes(haystack)) {
+    if (
+      norm(track.commonTrackName) === needle ||
+      norm(track.name) === needle ||
+      norm(`${track.name}${track.variant}`) === needle
+    ) {
       return track;
     }
   }
-  return undefined;
+
+  let best: AcEvoTrack | undefined;
+  let bestLen = 0;
+  for (const track of trackMap!.values()) {
+    for (const hay of [norm(track.commonTrackName), norm(track.name)]) {
+      if (!hay) continue;
+      if (hay.includes(needle) || needle.includes(hay)) {
+        const len = Math.min(hay.length, needle.length);
+        if (len > bestLen) {
+          best = track;
+          bestLen = len;
+        }
+      }
+    }
+  }
+  return best;
 }

@@ -7,11 +7,10 @@
  * display name the game wrote to shared memory while you were driving.
  *
  * Usage:
- *   bun run scripts/extract-ac-evo-cars.ts                               # dry run (recordings)
- *   bun run scripts/extract-ac-evo-cars.ts --write                      # append new rows to cars.csv
- *   bun run scripts/extract-ac-evo-cars.ts --from-game [kspkg] [--write] # full car list from content.kspkg
+ *   bun run scripts/extract-ac-evo-cars.ts [kspkg]        # full car list from content.kspkg, appends new rows
+ *   bun run scripts/extract-ac-evo-cars.ts --recordings   # scan .bin recordings instead
  *
- * --from-game reads system\cars.table out of the game's content.kspkg
+ * Default mode reads system\cars.table out of the game's content.kspkg
  * (auto-located via AC_EVO_KSPKG or common Steam paths) and diffs the full
  * shipped car list against cars.csv — run it after any game update to pick
  * up every new car (real model slug + brand included), no driving required.
@@ -60,10 +59,10 @@ function appendRows(newRows: string[]): void {
 }
 
 /** Read system\cars.table from content.kspkg and diff against cars.csv. */
-function fromGame(explicitPath: string | undefined, write: boolean): void {
+function fromGame(explicitPath: string | undefined): void {
   const kspkgPath = findContentKspkg(explicitPath);
   if (!kspkgPath) {
-    console.error("content.kspkg not found — pass a path (--from-game <path>) or set AC_EVO_KSPKG");
+    console.error("content.kspkg not found — pass a path or set AC_EVO_KSPKG");
     process.exit(1);
   }
   console.log(`reading ${kspkgPath}\n`);
@@ -116,16 +115,13 @@ function fromGame(explicitPath: string | undefined, write: boolean): void {
     nextId++;
   }
 
-  if (write) appendRows(newRows);
-  else console.log(`\n(dry run — rerun with --write to append to ${CSV_PATH})`);
+  appendRows(newRows);
 }
 
 function main(): void {
-  const write = process.argv.includes("--write");
-  const fromGameIdx = process.argv.indexOf("--from-game");
-  if (fromGameIdx !== -1) {
-    const next = process.argv[fromGameIdx + 1];
-    fromGame(next && !next.startsWith("--") ? next : undefined, write);
+  if (!process.argv.includes("--recordings")) {
+    const next = process.argv[2];
+    fromGame(next && !next.startsWith("--") ? next : undefined);
     return;
   }
   if (!existsSync(RECORDINGS_DIR)) {
@@ -177,14 +173,7 @@ function main(): void {
     nextId++;
   }
 
-  if (write) {
-    const content = readFileSync(CSV_PATH, "utf-8");
-    const trailingNewline = content.endsWith("\n") ? "" : "\n";
-    appendFileSync(CSV_PATH, trailingNewline + newRows.join("\n") + "\n");
-    console.log(`\nappended ${newRows.length} row(s) to ${CSV_PATH}`);
-  } else {
-    console.log(`\n(dry run — rerun with --write to append to ${CSV_PATH})`);
-  }
+  appendRows(newRows);
 }
 
 main();
