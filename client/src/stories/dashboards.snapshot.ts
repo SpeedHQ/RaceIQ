@@ -43,6 +43,10 @@ const stories: StoryCase[] = [
     id: "dashes-combo-combo-dash-2--fm-2023",
     viewport: IPHONE_16_PRO_LANDSCAPE,
   },
+  {
+    name: "HomePage",
+    id: "pages-homepage--default",
+  },
 ];
 
 for (const story of stories) {
