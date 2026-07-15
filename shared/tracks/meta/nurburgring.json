@@ -30,17 +30,18 @@
           "startFrac": 0.1402,
           "endFrac": 0.2222,
           "numbers": [
-            2
+            2,
+            3
           ]
         },
         {
           "type": "corner",
-          "name": "T3",
+          "name": "T4",
           "direction": "right",
           "startFrac": 0.2222,
           "endFrac": 0.2538,
           "numbers": [
-            3
+            4
           ]
         },
         {
@@ -51,22 +52,22 @@
         },
         {
           "type": "corner",
-          "name": "T4",
+          "name": "Valvoline-Kurve",
           "direction": "left",
           "startFrac": 0.2894,
           "endFrac": 0.3467,
           "numbers": [
-            4
+            5
           ]
         },
         {
           "type": "corner",
-          "name": "T5",
+          "name": "Ford-Kurve",
           "direction": "right",
           "startFrac": 0.3467,
           "endFrac": 0.3812,
           "numbers": [
-            5
+            6
           ]
         },
         {
@@ -82,27 +83,17 @@
           "startFrac": 0.4394,
           "endFrac": 0.5164,
           "numbers": [
-            6
-          ]
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "left",
-          "startFrac": 0.5164,
-          "endFrac": 0.5666,
-          "numbers": [
             7
           ]
         },
         {
           "type": "corner",
-          "name": "T8",
-          "direction": "right",
-          "startFrac": 0.5666,
+          "name": "Michael-Schumacher-S",
+          "startFrac": 0.5164,
           "endFrac": 0.5952,
           "numbers": [
-            8
+            8,
+            9
           ]
         },
         {
@@ -113,32 +104,32 @@
         },
         {
           "type": "corner",
-          "name": "Michael-Schumacher-S",
+          "name": "Warsteiner-Kurve",
           "direction": "left",
           "startFrac": 0.6259,
           "endFrac": 0.6831,
-          "numbers": [
-            9
-          ]
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "right",
-          "startFrac": 0.6831,
-          "endFrac": 0.7493,
           "numbers": [
             10
           ]
         },
         {
           "type": "corner",
-          "name": "T11",
+          "name": "Advan-Bogen",
+          "direction": "right",
+          "startFrac": 0.6831,
+          "endFrac": 0.7493,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Bit-Kurve",
           "direction": "right",
           "startFrac": 0.7493,
           "endFrac": 0.8243,
           "numbers": [
-            11
+            12
           ]
         },
         {
@@ -153,18 +144,18 @@
           "startFrac": 0.8539,
           "endFrac": 0.9186,
           "numbers": [
-            12,
-            13
+            13,
+            14
           ]
         },
         {
           "type": "corner",
-          "name": "T14",
+          "name": "Coca-Cola-Kurve",
           "direction": "right",
           "startFrac": 0.9186,
           "endFrac": 0.9684,
           "numbers": [
-            14
+            15
           ]
         },
         {
@@ -205,17 +196,18 @@
           "startFrac": 0.1006,
           "endFrac": 0.178,
           "numbers": [
-            2
+            2,
+            3
           ]
         },
         {
           "type": "corner",
-          "name": "T3",
+          "name": "T4",
           "direction": "right",
           "startFrac": 0.178,
           "endFrac": 0.206,
           "numbers": [
-            3
+            4
           ]
         },
         {
@@ -226,22 +218,22 @@
         },
         {
           "type": "corner",
-          "name": "T4",
+          "name": "Valvoline-Kurve",
           "direction": "left",
           "startFrac": 0.2432,
           "endFrac": 0.2994,
           "numbers": [
-            4
+            5
           ]
         },
         {
           "type": "corner",
-          "name": "T5",
+          "name": "Ford-Kurve",
           "direction": "right",
           "startFrac": 0.2994,
           "endFrac": 0.3387,
           "numbers": [
-            5
+            6
           ]
         },
         {
@@ -257,27 +249,17 @@
           "startFrac": 0.3911,
           "endFrac": 0.4728,
           "numbers": [
-            6
-          ]
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "left",
-          "startFrac": 0.4728,
-          "endFrac": 0.5233,
-          "numbers": [
             7
           ]
         },
         {
           "type": "corner",
-          "name": "T8",
-          "direction": "right",
-          "startFrac": 0.5233,
+          "name": "Michael-Schumacher-S",
+          "startFrac": 0.4728,
           "endFrac": 0.5548,
           "numbers": [
-            8
+            8,
+            9
           ]
         },
         {
@@ -288,22 +270,22 @@
         },
         {
           "type": "corner",
-          "name": "Michael-Schumacher-S",
+          "name": "Warsteiner-Kurve",
           "direction": "left",
           "startFrac": 0.5828,
           "endFrac": 0.6363,
           "numbers": [
-            9
+            10
           ]
         },
         {
           "type": "corner",
-          "name": "T10",
+          "name": "Advan-Bogen",
           "direction": "right",
           "startFrac": 0.6363,
           "endFrac": 0.6851,
           "numbers": [
-            10
+            11
           ]
         },
         {
@@ -314,12 +296,12 @@
         },
         {
           "type": "corner",
-          "name": "T11",
+          "name": "Bit-Kurve",
           "direction": "right",
           "startFrac": 0.7075,
           "endFrac": 0.7664,
           "numbers": [
-            11
+            12
           ]
         },
         {
@@ -334,18 +316,18 @@
           "startFrac": 0.8006,
           "endFrac": 0.8636,
           "numbers": [
-            12,
-            13
+            13,
+            14
           ]
         },
         {
           "type": "corner",
-          "name": "T14",
+          "name": "Coca-Cola-Kurve",
           "direction": "right",
           "startFrac": 0.8636,
           "endFrac": 0.925,
           "numbers": [
-            14
+            15
           ]
         },
         {
@@ -386,17 +368,18 @@
       "startFrac": 0.1006,
       "endFrac": 0.178,
       "numbers": [
-        2
+        2,
+        3
       ]
     },
     {
       "type": "corner",
-      "name": "T3",
+      "name": "T4",
       "direction": "right",
       "startFrac": 0.178,
       "endFrac": 0.206,
       "numbers": [
-        3
+        4
       ]
     },
     {
@@ -407,22 +390,22 @@
     },
     {
       "type": "corner",
-      "name": "T4",
+      "name": "Valvoline-Kurve",
       "direction": "left",
       "startFrac": 0.2432,
       "endFrac": 0.2994,
       "numbers": [
-        4
+        5
       ]
     },
     {
       "type": "corner",
-      "name": "T5",
+      "name": "Ford-Kurve",
       "direction": "right",
       "startFrac": 0.2994,
       "endFrac": 0.3387,
       "numbers": [
-        5
+        6
       ]
     },
     {
@@ -438,27 +421,17 @@
       "startFrac": 0.3911,
       "endFrac": 0.4728,
       "numbers": [
-        6
-      ]
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "left",
-      "startFrac": 0.4728,
-      "endFrac": 0.5233,
-      "numbers": [
         7
       ]
     },
     {
       "type": "corner",
-      "name": "T8",
-      "direction": "right",
-      "startFrac": 0.5233,
+      "name": "Michael-Schumacher-S",
+      "startFrac": 0.4728,
       "endFrac": 0.5548,
       "numbers": [
-        8
+        8,
+        9
       ]
     },
     {
@@ -469,22 +442,22 @@
     },
     {
       "type": "corner",
-      "name": "Michael-Schumacher-S",
+      "name": "Warsteiner-Kurve",
       "direction": "left",
       "startFrac": 0.5828,
       "endFrac": 0.6363,
       "numbers": [
-        9
+        10
       ]
     },
     {
       "type": "corner",
-      "name": "T10",
+      "name": "Advan-Bogen",
       "direction": "right",
       "startFrac": 0.6363,
       "endFrac": 0.6851,
       "numbers": [
-        10
+        11
       ]
     },
     {
@@ -495,12 +468,12 @@
     },
     {
       "type": "corner",
-      "name": "T11",
+      "name": "Bit-Kurve",
       "direction": "right",
       "startFrac": 0.7075,
       "endFrac": 0.7664,
       "numbers": [
-        11
+        12
       ]
     },
     {
@@ -515,18 +488,18 @@
       "startFrac": 0.8006,
       "endFrac": 0.8636,
       "numbers": [
-        12,
-        13
+        13,
+        14
       ]
     },
     {
       "type": "corner",
-      "name": "T14",
+      "name": "Coca-Cola-Kurve",
       "direction": "right",
       "startFrac": 0.8636,
       "endFrac": 0.925,
       "numbers": [
-        14
+        15
       ]
     },
     {

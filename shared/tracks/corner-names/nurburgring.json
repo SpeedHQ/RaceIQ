@@ -1,25 +1,25 @@
 {
   "circuit": "Nürburgring Grand Prix Circuit",
-  "source": "Landmark corner names, sequential numbering of detected corners",
-  "turnCount": 14,
+  "source": "Official GP-Strecke 15-turn numbering (circuit map / Wikipedia); Mercedes Arena T2-T3 detected as one double-apex complex",
+  "turnCount": 15,
   "corners": [
     { "number": 1, "name": "Castrol-S", "direction": "right" },
-    { "number": 2, "name": "Mercedes Arena", "direction": "left", "spans": 2 },
-    { "number": 3, "name": "", "direction": "right" },
-    { "number": 4, "name": "", "direction": "left" },
-    { "number": 5, "name": "", "direction": "right" },
-    { "number": 6, "name": "Dunlop-Kehre", "direction": "right" },
-    { "number": 7, "name": "", "direction": "left" },
-    { "number": 8, "name": "", "direction": "right" },
-    { "number": 9, "name": "Michael-Schumacher-S", "direction": "left" },
-    { "number": 10, "name": "", "direction": "right" },
-    { "number": 11, "name": "", "direction": "right" },
-    { "number": 12, "name": "NGK-Schikane", "direction": "left", "group": "NGK-Schikane" },
-    { "number": 13, "name": "", "direction": "right", "group": "NGK-Schikane" },
-    { "number": 14, "name": "", "direction": "right" }
+    { "number": 2, "name": "Mercedes Arena", "direction": "left", "spans": 2, "covers": [3] },
+    { "number": 4, "name": "", "direction": "right" },
+    { "number": 5, "name": "Valvoline-Kurve", "direction": "left" },
+    { "number": 6, "name": "Ford-Kurve", "direction": "right" },
+    { "number": 7, "name": "Dunlop-Kehre", "direction": "right" },
+    { "number": 8, "name": "Michael-Schumacher-S", "direction": "left", "group": "Michael-Schumacher-S" },
+    { "number": 9, "name": "", "direction": "right", "group": "Michael-Schumacher-S" },
+    { "number": 10, "name": "Warsteiner-Kurve", "direction": "left" },
+    { "number": 11, "name": "Advan-Bogen", "direction": "right" },
+    { "number": 12, "name": "Bit-Kurve", "direction": "right" },
+    { "number": 13, "name": "NGK-Schikane", "direction": "left", "group": "NGK-Schikane" },
+    { "number": 14, "name": "", "direction": "right", "group": "NGK-Schikane" },
+    { "number": 15, "name": "Coca-Cola-Kurve", "direction": "right" }
   ],
   "sectors": {
-    "s1EndAfterCorner": 5,
-    "s2EndAfterCorner": 9
+    "s1EndAfterCorner": 6,
+    "s2EndAfterCorner": 10
   }
 }

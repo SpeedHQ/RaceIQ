@@ -86,8 +86,6 @@ const KNOWN_ANCHOR_GAPS: Record<string, string[]> = {
   valencia: ["Turn 9", "Turn 12"],
   // Misano has 16 turns; meta detected 11. Tramonto is real (~T13).
   misano: ["Tramonto"],
-  // Real GP corner names; meta leaves T7/T8/T10/T11 unnamed.
-  nurburgring: ["Bit-Kurve", "Veedol"],
   // Fuchsröhre belongs between Aremberg (21) and Adenauer Forst (22-24);
   // meta has no segment there.
   nordschleife: ["Fuchsröhre", "Döttinger Höhe"],
@@ -308,12 +306,17 @@ function guideEntries(): { slug: string; name: string; numbers: number[]; type: 
  * [11] — it dropped a corner in the Esses and picked the count back up later.
  * Meta now numbers S Curves [3,4,5,6,7], Dunlop [8], and splits Degner into
  * Degner 1 [9] / Degner 2 [10], so the guide prose and anchors agree.
+ *
+ * Nürburgring and Sebring were the last two (#100). Nürburgring meta had
+ * dropped a corner in the Mercedes Arena (real T2-T4 detected as two
+ * segments) and renumbered everything after it one low against the official
+ * 15-turn GP scheme (Dunlop T7, Schumacher S T8-T9, Bit-Kurve T12, NGK/Veedol
+ * chicane T13-T14, Coca-Cola-Kurve T15). Meta now numbers Mercedes Arena
+ * [2,3] and re-syncs from there. Sebring meta had over-detected two
+ * exit-phase segments of T15 and numbered through to 19 on a 17-turn circuit;
+ * those two segments are now unnumbered and Sunset Bend is [17].
  */
-const KNOWN_NUMBERING_CONFLICTS = [
-  "nurburgring :: Dunlop Kehre", // prose T7, meta T6
-  "nurburgring :: NGK Chicane", // prose T15, meta T12-13
-  "sebring :: Sunset Bend", // prose T17, meta T19
-];
+const KNOWN_NUMBERING_CONFLICTS: string[] = [];
 
 describe("anchor cross-checks (independent of how anchors were derived)", () => {
   test("guide prose and its anchor overlap, except for known meta numbering conflicts", () => {

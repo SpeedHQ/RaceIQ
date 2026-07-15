@@ -251,8 +251,8 @@ function detectPass(outline: Pt[], K_IN: number, K_OUT: number): { corners: Pass
 // ─── Name-list types ─────────────────────────────────────────────────────────
 
 export interface CornerNameEntry {
-  /** Official turn number (1-based, in racing order). */
-  number: number;
+  /** Official turn number (1-based, in racing order). Absent on kink entries. */
+  number?: number;
   /** Canonical proper name; "" if the corner has no real name (renders as T<number>). */
   name: string;
   direction?: "left" | "right";
@@ -277,6 +277,13 @@ export interface CornerNameEntry {
    * officially T10-T11 but modelled as one entry: number 10, covers [11]).
    */
   covers?: number[];
+  /**
+   * A real bend the detector registers as a strong region but that the
+   * official numbering does not count as a turn (e.g. Sebring's esses between
+   * T15 and T16). Consumes exactly one region; the resulting section carries
+   * no turn number and no name. Kink entries must not have a number.
+   */
+  kink?: boolean;
 }
 
 export interface StraightNameEntry {
@@ -323,7 +330,12 @@ export function validateNameList(list: CornerNameList): AlignmentIssue[] {
   const seen = new Set<number>();
   let prevMax = 0;
   for (const c of list.corners) {
-    const nums = [c.number, ...(c.covers ?? [])];
+    if (c.kink) {
+      if (c.number !== undefined) issues.push({ severity: "error", message: `kink entry must not carry a turn number (got ${c.number})` });
+      if (c.group) issues.push({ severity: "error", message: "kink entry must not belong to a group" });
+      continue;
+    }
+    const nums = [c.number as number, ...(c.covers ?? [])];
     for (const n of nums) {
       if (!Number.isInteger(n) || n < 1 || n > list.turnCount) {
         issues.push({ severity: "error", message: `turn ${n} outside 1..${list.turnCount}` });
@@ -379,6 +391,7 @@ export interface AlignmentResult {
 }
 
 function displayName(entry: CornerNameEntry): string {
+  if (entry.kink) return "";
   return entry.name || `T${entry.number}`;
 }
 
@@ -600,6 +613,7 @@ function alignOnePolarity(
     // Weak regions no unit claimed aren't part of any section — step over them
     while (match.skipped[cursor]) cursor++;
     if (take === 0) {
+      if (u.members[0].kink) continue; // optional by nature — silently skip
       issues.push({ severity: "warning", message: `corner ${u.members[0].number} (${displayName(u.members[0])}) not detected on this centerline — omitted` });
       continue;
     }
@@ -614,7 +628,10 @@ function alignOnePolarity(
     const regionIdx = baseIdx + take - 1;
     const dirs = new Set(consumed.map((c) => c.direction));
     const name = u.group ?? displayName(u.members[0]);
-    const numbers = u.members.flatMap((m) => [m.number, ...(m.covers ?? [])]).sort((a, b) => a - b);
+    const numbers = u.members
+      .flatMap((m) => [m.number, ...(m.covers ?? [])])
+      .filter((n): n is number => n !== undefined)
+      .sort((a, b) => a - b);
     corners.push({
       regionIndex: regionIdx,
       numbers,
@@ -731,7 +748,7 @@ function alignOnePolarity(
       ...(c.direction ? { direction: c.direction } : {}),
       startFrac: Math.max(c.startFrac, prevEnd),
       endFrac: c.endFrac,
-      numbers: c.numbers,
+      ...(c.numbers.length > 0 ? { numbers: c.numbers } : {}),
     });
     const nextStart = i + 1 < corners.length ? corners[i + 1].startFrac : 1;
     pushStraight(c.endFrac, nextStart, c.regionIndex);
