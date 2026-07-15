@@ -512,6 +512,8 @@ export interface AutoTuneResult {
   model: string;
   written: { path: string } | null;
   preview: boolean;
+  /** False when no setup file was supplied — intents are advisory only. */
+  hasSetup?: boolean;
 }
 
 export function useAutoTune() {
@@ -520,7 +522,7 @@ export function useAutoTune() {
     mutationFn: async (data: {
       gameId: "acc" | "ac-evo";
       stintId: number;
-      filePath: string;
+      filePath?: string;
       trackName?: string;
       preview?: boolean;
     }) => {

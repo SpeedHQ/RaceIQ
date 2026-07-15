@@ -269,7 +269,9 @@ const ImportFileSchema = z.object({
 const AutoTuneSchema = z.object({
   gameId: z.enum(["acc", "ac-evo"]),
   stintId: z.number().int(),
-  filePath: z.string().min(1),
+  // Optional: when omitted, we still derive symptoms/intents from the lap and
+  // return a recommendation, but we can't apply it to a setup or write to disk.
+  filePath: z.string().min(1).optional(),
   trackName: z.string().optional(),
   // When true, compute symptoms/intents/applied without writing to disk.
   preview: z.boolean().optional().default(false),
@@ -557,30 +559,37 @@ export const tuneRoutes = new Hono()
       }
 
       // 2. Resolve + guard the source setup file (must live under Setups).
-      const baseDir = await getSetupsBaseDir(body.gameId);
-      if (!baseDir) return c.json({ error: "Setups folder not found" }, 404);
-      const absPath = resolve(body.filePath);
-      if (!existsSync(absPath)) return c.json({ error: "Setup file not found" }, 404);
+      //    The setup file is optional: without one we can still derive a
+      //    recommendation from the lap, we just can't apply it or write to disk.
+      const hasSetup = !!body.filePath;
+      let baseDir: string | null = null;
+      let realPath: string | null = null;
+      let sourceSetup: any = null;
 
-      let realPath: string;
-      let realBase: string;
-      try {
-        realPath = realpathSync(absPath);
-        realBase = realpathSync(resolve(baseDir));
-      } catch (err: any) {
-        if (err?.code === "ENOENT") return c.json({ error: "Setup file not found" }, 404);
-        return c.json({ error: `Read failed: ${err.message}` }, 500);
-      }
-      if (!(realPath + sep).startsWith(realBase + sep)) {
-        return c.json({ error: "Path must be inside the Setups folder" }, 400);
-      }
-      if (!realPath.toLowerCase().endsWith(".json")) {
-        return c.json({ error: "Only .json setup files can be auto-tuned" }, 400);
-      }
+      if (hasSetup) {
+        baseDir = await getSetupsBaseDir(body.gameId);
+        if (!baseDir) return c.json({ error: "Setups folder not found" }, 404);
+        const absPath = resolve(body.filePath!);
+        if (!existsSync(absPath)) return c.json({ error: "Setup file not found" }, 404);
 
-      let sourceSetup: any;
-      try { sourceSetup = JSON.parse(readFileSync(realPath, "utf-8")); }
-      catch (err: any) { return c.json({ error: `Invalid setup JSON: ${err.message}` }, 400); }
+        let realBase: string;
+        try {
+          realPath = realpathSync(absPath);
+          realBase = realpathSync(resolve(baseDir));
+        } catch (err: any) {
+          if (err?.code === "ENOENT") return c.json({ error: "Setup file not found" }, 404);
+          return c.json({ error: `Read failed: ${err.message}` }, 500);
+        }
+        if (!(realPath + sep).startsWith(realBase + sep)) {
+          return c.json({ error: "Path must be inside the Setups folder" }, 400);
+        }
+        if (!realPath.toLowerCase().endsWith(".json")) {
+          return c.json({ error: "Only .json setup files can be auto-tuned" }, 400);
+        }
+
+        try { sourceSetup = JSON.parse(readFileSync(realPath, "utf-8")); }
+        catch (err: any) { return c.json({ error: `Invalid setup JSON: ${err.message}` }, 400); }
+      }
 
       // 3. Symptoms → intents → applied setup.
       const corners = detectCorners(packets);
@@ -596,19 +605,28 @@ export const tuneRoutes = new Hono()
         return c.json({ error: err?.message ?? "AI request failed" }, 502);
       }
 
+      // Without a source setup we can only surface the recommended intents;
+      // apply/skip and disk writes require a setup to modify.
+      if (!hasSetup) {
+        return c.json({
+          symptoms, intents, applied: [], skipped: [], model,
+          written: null, preview: true, hasSetup: false,
+        });
+      }
+
       const { setup, applied, skipped } = applyIntents(body.gameId, sourceSetup, intents);
 
       // 4. Write the result unless this is a preview.
       let written = null;
       if (!body.preview) {
         try {
-          written = writeSetupFile(baseDir, realPath, setup);
+          written = writeSetupFile(baseDir!, realPath!, setup);
         } catch (err: any) {
           return c.json({ error: `Write failed: ${err.message}` }, 500);
         }
       }
 
-      return c.json({ symptoms, intents, applied, skipped, model, written, preview: !!body.preview });
+      return c.json({ symptoms, intents, applied, skipped, model, written, preview: !!body.preview, hasSetup: true });
     }
   )
 

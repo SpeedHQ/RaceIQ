@@ -25,11 +25,15 @@ export function AutoTunePanel({ gameId, laps, trackName }: AutoTunePanelProps) {
   const validLaps = [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber);
 
   async function runPreview() {
-    if (!stintId || !filePath) return;
+    if (!stintId) return;
     setError(null);
     setResult(null);
     try {
-      const res = await autoTune.mutateAsync({ gameId, stintId: Number(stintId), filePath, trackName, preview: true });
+      const res = await autoTune.mutateAsync({
+        gameId, stintId: Number(stintId),
+        filePath: filePath || undefined,
+        trackName, preview: true,
+      });
       setResult(res);
     } catch (err: any) {
       setError(err?.message ?? "Auto-tune failed");
@@ -69,7 +73,7 @@ export function AutoTunePanel({ gameId, laps, trackName }: AutoTunePanelProps) {
         </label>
 
         <label className="text-xs text-app-text-dim">
-          Setup file
+          Setup file <span className="text-app-text-muted">(optional)</span>
           <select
             className="mt-1 w-full bg-app-panel border border-app-border rounded px-2 py-1 text-sm"
             value={filePath}
@@ -88,14 +92,14 @@ export function AutoTunePanel({ gameId, laps, trackName }: AutoTunePanelProps) {
         <div className="flex gap-2 pt-1">
           <button
             onClick={runPreview}
-            disabled={!stintId || !filePath || autoTune.isPending}
+            disabled={!stintId || autoTune.isPending}
             className="px-2 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white"
           >
-            {autoTune.isPending ? "Analysing…" : "Preview"}
+            {autoTune.isPending ? "Analysing…" : filePath ? "Preview" : "Recommend"}
           </button>
           <button
             onClick={applyToFile}
-            disabled={!result || autoTune.isPending}
+            disabled={!result || !filePath || autoTune.isPending}
             className="px-2 py-1 text-xs rounded bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white"
           >
             Apply to file
@@ -108,7 +112,28 @@ export function AutoTunePanel({ gameId, laps, trackName }: AutoTunePanelProps) {
       {result && (
         <div className="border-t border-app-border pt-2 space-y-2">
           <div className="text-xs text-app-text-dim">Model: {result.model}</div>
-          {result.applied.length === 0 ? (
+
+          {result.hasSetup === false ? (
+            // Lap-only recommendation: no setup to apply to, show advisory intents.
+            <>
+              <div className="text-xs text-yellow-500">
+                No setup file selected — directional recommendation only (not applied, less precise).
+              </div>
+              {result.intents.length === 0 ? (
+                <div className="text-xs text-app-text-dim">No changes recommended.</div>
+              ) : (
+                <ul className="space-y-1">
+                  {result.intents.map((it, i) => (
+                    <li key={i} className="text-xs text-app-text">
+                      <span className="font-mono text-purple-400">{it.component}</span>:{" "}
+                      {it.direction} ({it.magnitude}){" "}
+                      <span className="text-app-text-dim">({it.reason})</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : result.applied.length === 0 ? (
             <div className="text-xs text-app-text-dim">No changes recommended.</div>
           ) : (
             <ul className="space-y-1">
