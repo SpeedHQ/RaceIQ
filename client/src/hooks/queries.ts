@@ -162,8 +162,9 @@ export function useTrackSectors(ord: number | undefined) {
   });
 }
 
-export function useTrackSectorBoundaries(ord: number | undefined) {
-  const gameId = useGameId();
+export function useTrackSectorBoundaries(ord: number | undefined, gameIdOverride?: GameId | null) {
+  const storeGameId = useGameId();
+  const gameId = gameIdOverride ?? storeGameId;
   return useQuery({
     queryKey: [...queryKeys.trackSectorBoundaries(ord!), gameId ?? null],
     queryFn: async () => {
@@ -171,14 +172,15 @@ export function useTrackSectorBoundaries(ord: number | undefined) {
         param: { ordinal: String(ord!) },
         query: { gameId: gameId! },
       });
-      return rpcJson(res);
+      return rpcJson<{ s1End: number; s2End: number } | null>(res);
     },
     enabled: ord != null && !!gameId,
   });
 }
 
-export function useTrackOutline(ord: number | undefined) {
-  const gameId = useGameId();
+export function useTrackOutline(ord: number | undefined, gameIdOverride?: GameId | null) {
+  const storeGameId = useGameId();
+  const gameId = gameIdOverride ?? storeGameId;
   return useQuery({
     queryKey: [...queryKeys.trackOutline(ord!), gameId ?? null],
     queryFn: async () => {
@@ -186,7 +188,7 @@ export function useTrackOutline(ord: number | undefined) {
         param: { ordinal: String(ord!) },
         query: { gameId: gameId! },
       });
-      return rpcJson(res);
+      return rpcJson<{ points?: { x: number; z: number }[]; flipX?: boolean } | { x: number; z: number }[]>(res);
     },
     enabled: ord != null && !!gameId,
   });

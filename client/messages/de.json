@@ -1420,5 +1420,9 @@
   "recap_text_laps": "Runden",
   "recap_text_theoretical": "theoretisch",
   "recap_text_consistency": "Konstanz",
-  "recap_text_on_track": "auf der Strecke"
+  "recap_text_on_track": "auf der Strecke",
+  "recap_sectors": "Sektoren",
+  "recap_sector_record": "Rekord",
+  "recap_sector_session_best": "Beste dieser Sitzung",
+  "recap_sector_lost": "Zeit verloren"
 }

@@ -1018,6 +1018,7 @@ export async function getSessionRecapData(
   laps: RecapLapInput[];
   trackLengthM: number | null;
   allTimeBestSec: number | null;
+  allTimeBestSectors: { s1: number | null; s2: number | null; s3: number | null } | null;
 } | null> {
   const sessionRow = await db
     .select({
@@ -1068,6 +1069,63 @@ export async function getSessionRecapData(
     .limit(1)
     .get();
 
+  const bestOtherS1Row = await db
+    .select({ s1Time: laps.s1Time })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(
+      and(
+        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
+        eq(sessions.carOrdinal, sessionRow.carOrdinal),
+        eq(sessions.gameId, gameId),
+        sql`${sessions.id} != ${id}`,
+        eq(laps.isValid, true),
+        sql`${laps.lapTime} > 0`,
+        sql`${laps.s1Time} IS NOT NULL`,
+      ),
+    )
+    .orderBy(laps.s1Time)
+    .limit(1)
+    .get();
+
+  const bestOtherS2Row = await db
+    .select({ s2Time: laps.s2Time })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(
+      and(
+        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
+        eq(sessions.carOrdinal, sessionRow.carOrdinal),
+        eq(sessions.gameId, gameId),
+        sql`${sessions.id} != ${id}`,
+        eq(laps.isValid, true),
+        sql`${laps.lapTime} > 0`,
+        sql`${laps.s2Time} IS NOT NULL`,
+      ),
+    )
+    .orderBy(laps.s2Time)
+    .limit(1)
+    .get();
+
+  const bestOtherS3Row = await db
+    .select({ s3Time: laps.s3Time })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(
+      and(
+        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
+        eq(sessions.carOrdinal, sessionRow.carOrdinal),
+        eq(sessions.gameId, gameId),
+        sql`${sessions.id} != ${id}`,
+        eq(laps.isValid, true),
+        sql`${laps.lapTime} > 0`,
+        sql`${laps.s3Time} IS NOT NULL`,
+      ),
+    )
+    .orderBy(laps.s3Time)
+    .limit(1)
+    .get();
+
   return {
     session: {
       id: sessionRow.id,
@@ -1079,6 +1137,11 @@ export async function getSessionRecapData(
     laps: lapRows.map((l) => ({ ...l, isValid: Boolean(l.isValid) })),
     trackLengthM,
     allTimeBestSec: bestOtherRow?.lapTime ?? null,
+    allTimeBestSectors: {
+      s1: bestOtherS1Row?.s1Time ?? null,
+      s2: bestOtherS2Row?.s2Time ?? null,
+      s3: bestOtherS3Row?.s3Time ?? null,
+    },
   };
 }
 

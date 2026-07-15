@@ -1420,5 +1420,9 @@
   "recap_text_laps": "laps",
   "recap_text_theoretical": "theoretical",
   "recap_text_consistency": "consistency",
-  "recap_text_on_track": "on track"
+  "recap_text_on_track": "on track",
+  "recap_sectors": "Sectors",
+  "recap_sector_record": "Record",
+  "recap_sector_session_best": "Best this session",
+  "recap_sector_lost": "Time lost"
 }

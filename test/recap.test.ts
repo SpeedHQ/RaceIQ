@@ -23,7 +23,16 @@ function lap(overrides: Partial<RecapLapInput>): RecapLapInput {
   return { id: overrides.id ?? merged.lapNumber, ...merged };
 }
 
-function run(laps: RecapLapInput[], opts: Partial<{ trackLengthM: number | null; allTimeBestSec: number | null; carName: string; trackName: string }> = {}) {
+function run(
+  laps: RecapLapInput[],
+  opts: Partial<{
+    trackLengthM: number | null;
+    allTimeBestSec: number | null;
+    allTimeBestSectors: { s1: number | null; s2: number | null; s3: number | null } | null;
+    carName: string;
+    trackName: string;
+  }> = {},
+) {
   return computeRecap({
     session: baseSession,
     laps,
@@ -31,6 +40,7 @@ function run(laps: RecapLapInput[], opts: Partial<{ trackLengthM: number | null;
     trackName: opts.trackName ?? "Maple Valley",
     trackLengthM: opts.trackLengthM ?? null,
     allTimeBestSec: opts.allTimeBestSec ?? null,
+    allTimeBestSectors: opts.allTimeBestSectors ?? null,
   });
 }
 
@@ -296,6 +306,98 @@ describe("computeRecap", () => {
 
     test("computeRecap never throws on ragged/empty input", () => {
       expect(() => run([])).not.toThrow();
+    });
+  });
+
+  describe("sectors", () => {
+    test("null when no valid lap has all three sectors", () => {
+      const laps = [
+        lap({ lapNumber: 1, lapTime: 100, s1Time: 33, s2Time: null, s3Time: 33 }),
+      ];
+      const recap = run(laps);
+      expect(recap.sectors).toBeNull();
+    });
+
+    test("sessionBestSec is the min per sector across different laps", () => {
+      const laps = [
+        lap({ id: 1, lapNumber: 1, lapTime: 100, s1Time: 30, s2Time: 40, s3Time: 30 }),
+        lap({ id: 2, lapNumber: 2, lapTime: 99, s1Time: 29, s2Time: 41, s3Time: 29 }),
+      ];
+      const recap = run(laps);
+      expect(recap.sectors).not.toBeNull();
+      const [s1, s2, s3] = recap.sectors!;
+      expect(s1.sessionBestSec).toBe(29);
+      expect(s2.sessionBestSec).toBe(40);
+      expect(s3.sessionBestSec).toBe(29);
+    });
+
+    test("status is 'record' when there is no all-time (first ever)", () => {
+      const laps = [lap({ lapNumber: 1, lapTime: 100, s1Time: 33, s2Time: 34, s3Time: 33 })];
+      const recap = run(laps, { allTimeBestSectors: null });
+      expect(recap.sectors!.every((s) => s.status === "record")).toBe(true);
+      expect(recap.sectors!.every((s) => s.allTimeBestSec === null)).toBe(true);
+    });
+
+    test("status is 'record' when sessionBest beats all-time", () => {
+      const laps = [lap({ lapNumber: 1, lapTime: 100, s1Time: 33, s2Time: 34, s3Time: 33 })];
+      const recap = run(laps, {
+        allTimeBestSectors: { s1: 34, s2: 35, s3: 34 },
+      });
+      expect(recap.sectors!.every((s) => s.status === "record")).toBe(true);
+    });
+
+    test("status is 'session-best' when the best lap owns that sector and all-time is faster", () => {
+      const laps = [
+        lap({ id: 1, lapNumber: 1, lapTime: 100, s1Time: 33, s2Time: 34, s3Time: 33 }),
+        lap({ id: 2, lapNumber: 2, lapTime: 105, s1Time: 40, s2Time: 40, s3Time: 40 }),
+      ];
+      // best lap (id 1, lapTime 100) owns all three sectors, all faster than all-time
+      const recap = run(laps, {
+        allTimeBestSectors: { s1: 30, s2: 30, s3: 30 },
+      });
+      // sessionBest for each sector equals best lap's own sector (it's the only fast lap)
+      expect(recap.sectors!.every((s) => s.status === "session-best" || s.status === "record")).toBe(true);
+    });
+
+    test("status is 'lost' when the best lap's sector is slower than the session best, with all-time faster", () => {
+      const laps = [
+        // best overall lap (fastest lapTime), but slow s1
+        lap({ id: 1, lapNumber: 1, lapTime: 98, s1Time: 35, s2Time: 30, s3Time: 33 }),
+        // slower overall lap, but fastest s1
+        lap({ id: 2, lapNumber: 2, lapTime: 100, s1Time: 29, s2Time: 40, s3Time: 31 }),
+      ];
+      const recap = run(laps, {
+        allTimeBestSectors: { s1: 20, s2: 20, s3: 20 },
+      });
+      const s1 = recap.sectors!.find((s) => s.index === 1)!;
+      expect(s1.bestLapSec).toBe(35); // best lap's own s1
+      expect(s1.sessionBestSec).toBe(29); // session-wide best s1, from the other lap
+      expect(s1.status).toBe("lost");
+    });
+
+    test("best lap has null sectors but another valid lap has complete sectors: must not throw, no 'lost' status", () => {
+      const laps = [
+        // fastest overall lap, but missing sector data
+        lap({ id: 1, lapNumber: 1, lapTime: 90, s1Time: null, s2Time: null, s3Time: null }),
+        // slower lap, complete sectors
+        lap({ id: 2, lapNumber: 2, lapTime: 100, s1Time: 33, s2Time: 34, s3Time: 33 }),
+      ];
+      expect(() => run(laps, { allTimeBestSectors: { s1: 20, s2: 20, s3: 20 } })).not.toThrow();
+      const recap = run(laps, { allTimeBestSectors: { s1: 20, s2: 20, s3: 20 } });
+      expect(recap.bestLapSec).toBe(90);
+      expect(recap.sectors).not.toBeNull();
+      expect(recap.sectors!.every((s) => s.status !== "lost")).toBe(true);
+      // falls back to sessionBestSec for bestLapSec on every sector
+      const [s1, s2, s3] = recap.sectors!;
+      expect(s1.bestLapSec).toBe(s1.sessionBestSec);
+      expect(s2.bestLapSec).toBe(s2.sessionBestSec);
+      expect(s3.bestLapSec).toBe(s3.sessionBestSec);
+    });
+
+    test("sectors entries are ordered index 1,2,3", () => {
+      const laps = [lap({ lapNumber: 1, lapTime: 100, s1Time: 33, s2Time: 34, s3Time: 33 })];
+      const recap = run(laps);
+      expect(recap.sectors!.map((s) => s.index)).toEqual([1, 2, 3]);
     });
   });
 });

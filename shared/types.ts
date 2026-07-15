@@ -589,6 +589,29 @@ export interface SessionRecap {
     /** Null when this is the first ever session on this track + car. */
     previousBestSec: number | null;
   } | null;
+
+  /**
+   * Per-sector breakdown of the session, for the sector-coloured track map.
+   * Null when no valid lap has a complete set of sectors (same condition as `theoretical`).
+   */
+  sectors:
+    | {
+        /** 1, 2 or 3. */
+        index: 1 | 2 | 3;
+        /** This sector's time on the session's BEST lap. */
+        bestLapSec: number;
+        /** Fastest time in this sector across all valid laps this session (feeds `theoretical`). */
+        sessionBestSec: number;
+        /** Fastest ever in this sector for this track+car+game, EXCLUDING this session. Null if none. */
+        allTimeBestSec: number | null;
+        /**
+         * record       = sessionBestSec beat allTimeBestSec (or there is no all-time yet) — a new record
+         * session-best = the best lap's sector equals this session's best in that sector
+         * lost         = the best lap lost time in this sector vs this session's own best
+         */
+        status: "record" | "session-best" | "lost";
+      }[]
+    | null;
 }
 
 export interface ServerStatus {

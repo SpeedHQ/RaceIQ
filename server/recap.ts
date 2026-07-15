@@ -32,6 +32,11 @@ export interface ComputeRecapInput {
    * track + car combination.
    */
   allTimeBestSec: number | null;
+  /**
+   * Fastest ever time in each sector for this track + car + game, across all
+   * OTHER sessions. Each field null when no other session has that sector.
+   */
+  allTimeBestSectors: { s1: number | null; s2: number | null; s3: number | null } | null;
 }
 
 function isValidLap(lap: RecapLapInput): boolean {
@@ -62,7 +67,7 @@ function consistencyRating(stdDevSec: number, bestLapSec: number): 1 | 2 | 3 | 4
  * resolves to a defined value; see the "Metric rules" section there.
  */
 export function computeRecap(input: ComputeRecapInput): SessionRecap {
-  const { session, laps, carName, trackName, trackLengthM, allTimeBestSec } = input;
+  const { session, laps, carName, trackName, trackLengthM, allTimeBestSec, allTimeBestSectors } = input;
 
   const lapsTotal = laps.length;
   const validLaps = laps.filter(isValidLap);
@@ -87,6 +92,7 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
   }));
 
   let theoretical: SessionRecap["theoretical"] = null;
+  let sectors: SessionRecap["sectors"] = null;
   const completeSectorLaps = validLaps.filter(
     (l) => l.s1Time !== null && l.s2Time !== null && l.s3Time !== null,
   );
@@ -102,6 +108,53 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
       sumSec,
       deltaToBestSec: Math.max(0, bestLapSec - sumSec),
     };
+
+    const sessionBests = [bestS1, bestS2, bestS3];
+    // The best lap may not itself have complete sectors (a different valid lap
+    // could own the fastest overall time with gaps in its sector splits). In
+    // that case fall back to the session bests for every sector, and never
+    // report "lost" since we have no real per-sector time from the best lap.
+    const bestLapHasCompleteSectors =
+      bestLap !== null &&
+      bestLap.s1Time !== null &&
+      bestLap.s2Time !== null &&
+      bestLap.s3Time !== null;
+    const bestLapSectors = bestLapHasCompleteSectors
+      ? [bestLap!.s1Time as number, bestLap!.s2Time as number, bestLap!.s3Time as number]
+      : sessionBests;
+
+    const EPS = 1e-6;
+    const allTimeSectors = [
+      allTimeBestSectors?.s1 ?? null,
+      allTimeBestSectors?.s2 ?? null,
+      allTimeBestSectors?.s3 ?? null,
+    ];
+
+    sectors = ([1, 2, 3] as const).map((index) => {
+      const i = index - 1;
+      const sessionBestSec = sessionBests[i];
+      const bestLapSectorSec = bestLapSectors[i];
+      const sectorAllTimeBestSec = allTimeSectors[i];
+
+      let status: "record" | "session-best" | "lost";
+      if (sectorAllTimeBestSec === null || sessionBestSec < sectorAllTimeBestSec) {
+        status = "record";
+      } else if (!bestLapHasCompleteSectors) {
+        status = "session-best";
+      } else if (Math.abs(bestLapSectorSec - sessionBestSec) < EPS) {
+        status = "session-best";
+      } else {
+        status = "lost";
+      }
+
+      return {
+        index,
+        bestLapSec: bestLapSectorSec,
+        sessionBestSec,
+        allTimeBestSec: sectorAllTimeBestSec,
+        status,
+      };
+    });
   }
 
   let improvementSec: number | null = null;
@@ -143,5 +196,6 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
     improvementSec,
     consistency,
     personalBest,
+    sectors,
   };
 }

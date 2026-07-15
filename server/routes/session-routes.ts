@@ -48,6 +48,7 @@ export const sessionRoutes = new Hono()
         trackName,
         trackLengthM: data.trackLengthM,
         allTimeBestSec: data.allTimeBestSec,
+        allTimeBestSectors: data.allTimeBestSectors,
       });
       return c.json(recap);
     },

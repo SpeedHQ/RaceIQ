@@ -1,10 +1,141 @@
 import { m } from "@/paraglide/messages";
 import type { GameId, SessionRecap as SessionRecapDto } from "@shared/types";
 import { useState } from "react";
-import { useSessionRecap } from "../hooks/queries";
+import { useSessionRecap, useTrackOutline, useTrackSectorBoundaries } from "../hooks/queries";
 import { formatLapTime } from "../lib/format";
 import { getGameRoute, useGameId } from "../stores/game";
 import { Button } from "./ui/button";
+
+type SectorStatus = "record" | "session-best" | "lost";
+
+const SECTOR_COLORS: Record<SectorStatus, string> = {
+  record: "#c084fc",
+  "session-best": "#34d399",
+  lost: "#f87171",
+};
+
+function sectorLabel(status: SectorStatus): string {
+  switch (status) {
+    case "record":
+      return m.recap_sector_record();
+    case "session-best":
+      return m.recap_sector_session_best();
+    case "lost":
+      return m.recap_sector_lost();
+  }
+}
+
+/** Splits a polyline into `boundaryFractions.length + 1` sub-polylines by
+ *  cumulative arc length (not point index — outline points are not evenly
+ *  spaced, and boundaries are distance fractions of total lap length). */
+function splitByArcLength(points: { x: number; z: number }[], boundaryFractions: number[]): { x: number; z: number }[][] {
+  const cumulative: number[] = [0];
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const cur = points[i];
+    const d = Math.hypot(cur.x - prev.x, cur.z - prev.z);
+    cumulative.push(cumulative[i - 1] + d);
+  }
+  const total = cumulative[cumulative.length - 1];
+  if (total <= 0) return [];
+
+  const targets = boundaryFractions.map((f) => f * total);
+  const segments: { x: number; z: number }[][] = [];
+  let start = 0;
+  let segment: { x: number; z: number }[] = [points[0]];
+
+  for (let t = 0; t < targets.length; t++) {
+    const target = targets[t];
+    while (start + 1 < points.length && cumulative[start + 1] < target) {
+      start++;
+      segment.push(points[start]);
+    }
+    // Interpolate the exact boundary point so segments share a vertex (no gap).
+    const a = points[start];
+    const b = points[Math.min(start + 1, points.length - 1)];
+    const distA = cumulative[start];
+    const distB = cumulative[Math.min(start + 1, points.length - 1)];
+    const span = distB - distA || 1;
+    const frac = Math.min(1, Math.max(0, (target - distA) / span));
+    const boundaryPoint = { x: a.x + (b.x - a.x) * frac, z: a.z + (b.z - a.z) * frac };
+    segment.push(boundaryPoint);
+    segments.push(segment);
+    segment = [boundaryPoint];
+  }
+  for (let i = start; i < points.length; i++) segment.push(points[i]);
+  segments.push(segment);
+
+  return segments;
+}
+
+function SectorTrackMap({
+  trackOrdinal,
+  gameId,
+  sectors,
+}: {
+  trackOrdinal: number;
+  gameId: GameId;
+  sectors: NonNullable<SessionRecapDto["sectors"]>;
+}) {
+  const { data: outlineData } = useTrackOutline(trackOrdinal, gameId);
+  const { data: bounds } = useTrackSectorBoundaries(trackOrdinal, gameId);
+
+  const points = Array.isArray(outlineData) ? outlineData : (outlineData?.points ?? null);
+  if (!points || points.length < 3 || !bounds) return null;
+
+  const segments = splitByArcLength(points, [bounds.s1End, bounds.s2End]);
+  if (segments.length !== 3) return null;
+
+  const width = 240;
+  const height = 140;
+  const pad = 10;
+
+  const xs = points.map((p) => p.x);
+  const zs = points.map((p) => p.z);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minZ = Math.min(...zs);
+  const maxZ = Math.max(...zs);
+  const rangeX = maxX - minX || 1;
+  const rangeZ = maxZ - minZ || 1;
+  const scale = Math.min((width - pad * 2) / rangeX, (height - pad * 2) / rangeZ);
+  const offsetX = pad + (width - pad * 2 - rangeX * scale) / 2;
+  const offsetZ = pad + (height - pad * 2 - rangeZ * scale) / 2;
+
+  const project = (p: { x: number; z: number }) => ({
+    x: offsetX + (p.x - minX) * scale,
+    y: offsetZ + (p.z - minZ) * scale,
+  });
+
+  const sectorByIndex = new Map(sectors.map((s) => [s.index, s]));
+
+  return (
+    <div>
+      <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">{m.recap_sectors()}</div>
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={m.recap_sectors()}>
+        <title>{m.recap_sectors()}</title>
+        {segments.map((seg, i) => {
+          const sectorIndex = (i + 1) as 1 | 2 | 3;
+          const status = sectorByIndex.get(sectorIndex)?.status;
+          if (!status) return null;
+          const path = seg
+            .map(project)
+            .map((p, pi) => `${pi === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+            .join(" ");
+          return <path key={sectorIndex} d={path} fill="none" stroke={SECTOR_COLORS[status]} strokeWidth={3} strokeLinecap="round" />;
+        })}
+      </svg>
+      <div className="flex items-center gap-3 mt-1 text-[10px] text-app-text-dim">
+        {(["record", "session-best", "lost"] as const).map((status) => (
+          <div key={status} className="flex items-center gap-1">
+            <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLORS[status] }} />
+            <span>{sectorLabel(status)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Tile({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
@@ -188,6 +319,8 @@ export function SessionRecap({
               <Sparkline laps={recap.sparkline} />
             </div>
           )}
+
+          {recap.sectors != null && <SectorTrackMap trackOrdinal={recap.trackOrdinal} gameId={recap.gameId} sectors={recap.sectors} />}
         </>
       )}
     </div>
