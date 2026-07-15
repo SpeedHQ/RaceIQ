@@ -2,21 +2,20 @@ import { countryName } from "@/lib/country-names";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
 import { useCatalogTunes, useTracks, useUserTunes } from "../hooks/queries";
 import { useGameId } from "../stores/game";
 import { tuneMatchesTrack } from "./track/CatalogTrackSetups";
 import { TrackCard } from "./track/TrackCard";
-import { TrackDetail } from "./track/TrackDetail";
 import type { TrackInfo } from "./track/types";
+import { trackRoutePath } from "@/lib/track-routes";
 import { AppInput } from "./ui/AppInput";
 
 type SortKey = "name" | "laps";
 
 /** TrackViewer — Gallery view of all known tracks, split into "with outlines" and "without". */
 export function TrackViewer() {
-  const routeSearch = useSearch({ strict: false }) as { track?: number; tab?: string };
   const navigate = useNavigate();
 
   const gameId = useGameId();
@@ -67,26 +66,17 @@ export function TrackViewer() {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
 
-  // Derive selected track from URL param — no useEffect needed, no gallery flash
-  const selectedTrack = useMemo(() => (routeSearch.track != null ? (tracks.find((t) => t.ordinal === routeSearch.track) ?? null) : null), [tracks, routeSearch.track]);
-
+  // Selecting a track is a navigation now — the detail view is its own route.
   const handleSelectTrack = useCallback(
     (t: TrackInfo) => {
-      navigate({ search: { track: t.ordinal } as never, replace: true });
+      if (!gameId) return;
+      navigate({ to: trackRoutePath(gameId, t.ordinal) });
     },
-    [navigate],
+    [navigate, gameId],
   );
-
-  const handleBack = useCallback(() => {
-    navigate({ search: {} as never, replace: true });
-  }, [navigate]);
 
   if (loading) {
     return <div className="p-4 text-app-text-dim">{m.trackviewer_loading()}</div>;
-  }
-
-  if (selectedTrack) {
-    return <TrackDetail track={selectedTrack} onBack={handleBack} initialTab={routeSearch.tab} navigate={navigate} />;
   }
 
   const query = search.toLowerCase().trim();
