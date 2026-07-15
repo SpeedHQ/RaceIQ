@@ -158,13 +158,13 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.11
+          "endFrac": 0.1061
         },
         {
           "type": "corner",
           "name": "Tamburello",
-          "startFrac": 0.11,
-          "endFrac": 0.2057,
+          "startFrac": 0.1061,
+          "endFrac": 0.2345,
           "numbers": [
             2,
             3,
@@ -172,16 +172,10 @@
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2057,
-          "endFrac": 0.2385
-        },
-        {
           "type": "corner",
           "name": "Villeneuve",
-          "startFrac": 0.2385,
-          "endFrac": 0.3255,
+          "startFrac": 0.2345,
+          "endFrac": 0.3261,
           "numbers": [
             5,
             6
@@ -191,8 +185,8 @@
           "type": "corner",
           "name": "Tosa",
           "direction": "left",
-          "startFrac": 0.3255,
-          "endFrac": 0.3753,
+          "startFrac": 0.3261,
+          "endFrac": 0.3715,
           "numbers": [
             7
           ]
@@ -200,15 +194,25 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3753,
-          "endFrac": 0.4389
+          "startFrac": 0.3715,
+          "endFrac": 0.4341
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "left",
+          "startFrac": 0.4341,
+          "endFrac": 0.5117,
+          "numbers": [
+            8
+          ]
         },
         {
           "type": "corner",
           "name": "Piratella",
           "direction": "left",
-          "startFrac": 0.4389,
-          "endFrac": 0.5417,
+          "startFrac": 0.5117,
+          "endFrac": 0.5385,
           "numbers": [
             9
           ]
@@ -217,25 +221,35 @@
           "type": "corner",
           "name": "Acque Minerali",
           "direction": "right",
-          "startFrac": 0.5417,
-          "endFrac": 0.6013,
+          "startFrac": 0.5385,
+          "endFrac": 0.5612,
           "numbers": [
             11,
             12
           ]
         },
         {
+          "type": "corner",
+          "name": "T13",
+          "direction": "right",
+          "startFrac": 0.5612,
+          "endFrac": 0.6112,
+          "numbers": [
+            13
+          ]
+        },
+        {
           "type": "straight",
           "name": "",
-          "startFrac": 0.6013,
-          "endFrac": 0.6546
+          "startFrac": 0.6112,
+          "endFrac": 0.6494
         },
         {
           "type": "corner",
           "name": "Variante Alta",
           "direction": "right",
-          "startFrac": 0.6546,
-          "endFrac": 0.6902,
+          "startFrac": 0.6494,
+          "endFrac": 0.6894,
           "numbers": [
             14,
             15
@@ -245,8 +259,8 @@
           "type": "corner",
           "name": "Rivazza",
           "direction": "left",
-          "startFrac": 0.6902,
-          "endFrac": 0.7133,
+          "startFrac": 0.6894,
+          "endFrac": 0.7275,
           "numbers": [
             17,
             18
@@ -255,15 +269,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7133,
-          "endFrac": 0.8118
+          "startFrac": 0.7275,
+          "endFrac": 0.8034
         },
         {
           "type": "corner",
           "name": "T19",
           "direction": "left",
-          "startFrac": 0.8118,
-          "endFrac": 0.8962,
+          "startFrac": 0.8034,
+          "endFrac": 0.8992,
           "numbers": [
             19
           ]
@@ -271,13 +285,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.8962,
+          "startFrac": 0.8992,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.3255,
-        "s2End": 0.7313,
+        "s1End": 0.3261,
+        "s2End": 0.7306,
         "source": "corner-anchored"
       }
     }

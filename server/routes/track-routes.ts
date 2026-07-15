@@ -22,6 +22,7 @@ import {
   getStartYaw,
   deleteRecordedOutline,
   getTrackBoundariesByOrdinal,
+  getTrackRacelineByOrdinal,
   getTrackCurbs,
   extractCurbSegments,
   recordCurbData,
@@ -916,6 +917,10 @@ export const trackRoutes = new Hono()
           leftEdge: extractedBoundaries.leftEdge,
           rightEdge: extractedBoundaries.rightEdge,
           centerLine,
+          // Game reference racing line, if the game shipped one (ACC/AC Evo only).
+          // A driving line, not track geometry — the analyse map may draw it as an
+          // overlay on top of leftEdge/rightEdge. Null for every other game.
+          raceLine: getTrackRacelineByOrdinal(ordinal, validGameId),
           pitLane: extractedBoundaries.pitLane,
           coordSystem: validGameId === "f1-2025" ? "f1-2025" : (validGameId === "acc" || validGameId === "ac-evo") ? "acc" : "forza",
         });

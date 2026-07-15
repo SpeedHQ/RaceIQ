@@ -422,7 +422,10 @@ describe("real geometry: Spa (ACC centerline)", () => {
     const { sectors } = resolveSectors(nameList.sectors!, res.corners, totalDist);
     expect(sectors!.s1End).toBeGreaterThan(0.29);
     expect(sectors!.s1End).toBeLessThan(0.36);
+    // S2/S3 splits at Stavelot's (T15) exit — ~0.785 on the true centre, where
+    // that corner now sits correctly (issue #98). The old ~0.77 was the racing
+    // line pulling Stavelot early.
     expect(sectors!.s2End).toBeGreaterThan(0.69);
-    expect(sectors!.s2End).toBeLessThan(0.78);
+    expect(sectors!.s2End).toBeLessThan(0.80);
   });
 });
