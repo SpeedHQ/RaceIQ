@@ -255,6 +255,108 @@ describe("guide entries sharing a meta segment are a known set", () => {
   });
 });
 
+/**
+ * Independent correctness checks for the anchors.
+ *
+ * The "turn exists in meta" checksum above shares a failure mode with the name
+ * matching that produced the anchors: a wrong-but-in-range number passes both.
+ * The two checks below don't — they cross-reference sources the anchoring never
+ * consulted, so they can disagree with it.
+ */
+
+/** Turn numbers a guide entry's own prose claims, e.g. type: "fast right (T12)". */
+function proseTurns(type: string): number[] | null {
+  const m = type.match(/\((?:T|Turn\s*)(\d+)(?:\s*[-–]\s*T?(\d+))?[,)]/i);
+  if (!m) return null;
+  const a = Number(m[1]);
+  const b = m[2] ? Number(m[2]) : a;
+  return Array.from({ length: b - a + 1 }, (_, i) => a + i);
+}
+
+function guideEntries(): { slug: string; name: string; numbers: number[]; type: string }[] {
+  const src = readFileSync(resolve(import.meta.dir, "../server/ai/track-guides.ts"), "utf8");
+  const out: { slug: string; name: string; numbers: number[]; type: string }[] = [];
+  let slug = "";
+  for (const line of src.split("\n")) {
+    const id = line.match(/^\s*id: "([a-z0-9-]+)"/);
+    if (id) {
+      slug = id[1];
+      continue;
+    }
+    const c = line.match(/^\s*\{ name: "([^"]+)", numbers: \[([0-9, ]*)\], type: "([^"]+)"/);
+    if (c && slug) {
+      out.push({
+        slug,
+        name: c[1],
+        numbers: c[2].split(",").map((x) => Number(x.trim())).filter(Number.isFinite),
+        type: c[3],
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Entries whose own prose cites a turn that doesn't overlap its anchor.
+ *
+ * Every one of these points at the RIGHT meta segment ("Dunlop Curve" -> meta's
+ * "Dunlop") — what disagrees is the turn number meta assigns to it. So these
+ * record suspected defects in meta's numbering, not bad anchors.
+ *
+ * Suzuka is the clearest: the real circuit numbers the S Curves T3-T7, Dunlop
+ * T8, Degner T9-T10, Hairpin T11. Meta has S Curves [3,4,5,6], Dunlop [7],
+ * Degner [8,9], then re-syncs at Hairpin [11] — it drops a corner in the Esses
+ * and picks the count back up later. Follow-up against the #84 curation.
+ */
+const KNOWN_NUMBERING_CONFLICTS = [
+  "brands-hatch :: Clark Curve", // prose T9, meta T10
+  "nurburgring :: Dunlop Kehre", // prose T7, meta T6
+  "nurburgring :: NGK Chicane", // prose T15, meta T12-13
+  "sebring :: Sunset Bend", // prose T17, meta T19
+  "suzuka :: Degner 2", // prose T10, meta's Degner covers 8-9
+  "suzuka :: Dunlop Curve", // prose T8, meta T7
+];
+
+describe("anchor cross-checks (independent of how anchors were derived)", () => {
+  test("guide prose and its anchor overlap, except for known meta numbering conflicts", () => {
+    const conflicts: string[] = [];
+    for (const e of guideEntries()) {
+      const prose = proseTurns(e.type);
+      if (!prose) continue;
+      // A merge makes prose a subset of the anchor ("Rivazza 1" prose [17],
+      // anchor [17,18]) — fine. Disjoint means one of the two is wrong.
+      if (!prose.some((n) => e.numbers.includes(n))) conflicts.push(`${e.slug} :: ${e.name}`);
+    }
+    expect(conflicts.sort()).toEqual(KNOWN_NUMBERING_CONFLICTS);
+  });
+
+  test("anchors ascend in guide order, except where the guide lists out of sequence", () => {
+    // Guides list corners in lap order, so anchors should ascend. A decrease is
+    // either a transposed anchor or a guide listing corners out of order — it
+    // found the Watkins Glen "Inner Loop" mislabel (T8 then T5). The entries
+    // below are verified as the guide listing out of order, anchors correct.
+    const KNOWN_OUT_OF_ORDER = [
+      "misano :: Curvone -> Quercia",
+      "mugello :: Arrabbiata 1 & 2 -> Casanova-Savelli",
+      "snetterton :: Coram -> Palmer",
+    ];
+    const bySlug = new Map<string, { name: string; numbers: number[] }[]>();
+    for (const e of guideEntries()) {
+      bySlug.set(e.slug, [...(bySlug.get(e.slug) ?? []), e]);
+    }
+    const anomalies: string[] = [];
+    for (const [slug, entries] of bySlug) {
+      for (let i = 1; i < entries.length; i++) {
+        const prev = Math.min(...entries[i - 1].numbers);
+        const cur = Math.min(...entries[i].numbers);
+        // Equal is a legitimate merge (both halves of one meta segment).
+        if (cur < prev) anomalies.push(`${slug} :: ${entries[i - 1].name} -> ${entries[i].name}`);
+      }
+    }
+    expect(anomalies.sort()).toEqual(KNOWN_OUT_OF_ORDER);
+  });
+});
+
 describe("guide corner naming defers to meta", () => {
   test("Monaco: guide's own names give way to meta's", () => {
     // The guide says "Swimming Pool" and "Grand Hotel Hairpin"; meta (and so

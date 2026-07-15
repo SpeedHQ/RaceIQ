@@ -581,8 +581,9 @@ const guides: TrackGuide[] = [
     corners: [
       { name: "Turn 1", numbers: [1], type: "heavy-braking right-hander", technique: "Brake hard from the front straight, late apex to set up the Esses", trap: "Over-braking and losing the momentum needed for the following section" },
       { name: "The Esses", numbers: [2, 3, 4], type: "fast, flowing left-right sequence", technique: "Rhythm and smooth inputs through the direction changes, carry maximum speed", trap: "Over-driving any single apex disrupts the whole sequence" },
+      // Lap order: the Inner Loop chicane (T5) comes before The Boot (T8).
+      { name: "Bus Stop Chicane", numbers: [5], type: "tight chicane after the back straight (the Inner Loop)", technique: "Hard, late braking, precise through the direction change", trap: "Carrying too much speed in and running out of track on exit" },
       { name: "The Boot", numbers: [8], type: "long, tightening back-straight corner", technique: "Patient, progressive line as the corner tightens", trap: "Early apex leaves nowhere to go as the corner keeps tightening" },
-      { name: "Bus Stop Chicane", numbers: [5], type: "tight chicane before the final corner", technique: "Hard, late braking, precise through the direction change", trap: "Carrying too much speed in and running out of track on exit" },
       // Was named "Inner Loop" — but the Inner Loop is the bus stop chicane at
       // T5 (above); this entry describes the final corner, which is T11.
       { name: "Final Corner", numbers: [11], type: "final tight corner onto the pit straight", technique: "Late apex, clean exit is critical — feeds the start/finish straight", trap: "Poor exit here costs time down the entire straight" },
