@@ -38,6 +38,7 @@ function ensureLoaded(): void {
 }
 
 export function getAcEvoCarName(ordinal: number): string {
+  if (ordinal < 0) return "Unknown Car"; // -1 sentinel: car never identified
   ensureLoaded();
   return carMap!.get(ordinal)?.name ?? `Car #${ordinal}`;
 }
@@ -63,6 +64,19 @@ export function getAcEvoCarByDisplayName(displayName: string): AcEvoCar | undefi
   const needle = displayName.toLowerCase().trim();
   for (const car of carMap!.values()) {
     if (car.name.toLowerCase() === needle) return car;
+  }
+  // Fallback: normalized compare (strip spaces/hyphens/underscores) against
+  // both display name and model slug — the shm string sometimes arrives as
+  // the model slug ("lotus_exige_v6_cup") rather than the display name.
+  const normNeedle = needle.replace(/[-_\s]/g, "");
+  if (!normNeedle) return undefined;
+  for (const car of carMap!.values()) {
+    if (
+      car.name.toLowerCase().replace(/[-_\s]/g, "") === normNeedle ||
+      car.model.toLowerCase().replace(/[-_\s]/g, "") === normNeedle
+    ) {
+      return car;
+    }
   }
   return undefined;
 }

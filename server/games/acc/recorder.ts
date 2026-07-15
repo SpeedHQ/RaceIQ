@@ -36,6 +36,7 @@ export class AcRecorder {
   private _file: Bun.FileSink | null = null;
   private _path: string | null = null;
   private _frameCount = 0;
+  private _lastStatic: Buffer | null = null;
 
   get recording(): boolean {
     return this._file !== null;
@@ -64,6 +65,7 @@ export class AcRecorder {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this._file = (Bun.file(this._path) as any).writer({ append: true });
     this._frameCount = 0;
+    this._lastStatic = null;
 
     // Write header with placeholder frameCount (will update on close)
     const header = Buffer.alloc(HEADER_SIZE);
@@ -86,8 +88,18 @@ export class AcRecorder {
     this._writeBufferFrame(1, buffer);
   }
 
-  /** Record static buffer from shared memory (typically once per session) */
+  /**
+   * Record static buffer from shared memory.
+   *
+   * Deduplicated: only writes a frame when the bytes differ from the last
+   * static frame written. The frame reader carries the last-seen static
+   * forward when assembling triplets, so every state transition (e.g. the
+   * game populating the track name mid-session) is still captured while
+   * avoiding ~100Hz duplicate static frames.
+   */
   writeStatic(buffer: Buffer): void {
+    if (this._lastStatic && this._lastStatic.equals(buffer)) return;
+    this._lastStatic = Buffer.from(buffer);
     this._writeBufferFrame(2, buffer);
   }
 
@@ -119,6 +131,7 @@ export class AcRecorder {
     }
 
     this._file = null;
+    this._lastStatic = null;
   }
 
   private _writeBufferFrame(type: number, buffer: Buffer): void {
