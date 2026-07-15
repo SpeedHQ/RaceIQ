@@ -7,8 +7,8 @@
  *       → TripletPipeline (processes via registered processors)
  *
  * Pipeline processors:
- *   - RecordingProcessor (recording mode only): writes raw buffers to .bin
- *   - ParsingProcessor (normal mode only): parses and feeds to pipeline
+ *   - DumpToBinProcessor (recording mode only): writes raw buffers to .bin
+ *   - ParsingProcessor (always): parses and feeds to pipeline
  *
  * Uses kernel32.dll via Bun FFI to open and map shared memory.
  */
@@ -32,18 +32,18 @@ export class AccSharedMemoryReader {
   private _carOrdinal = -1;
   private _trackOrdinal = -1;
   private _retryTimer: ReturnType<typeof setInterval> | null = null;
-  private _recordingOnly = false;
+  private _recordingEnabled = false;
 
-  constructor(recordingOnly = false) {
+  constructor(recordingEnabled = false) {
     this._bufferedReader = new BufferedAccMemoryReader();
     // Enable metrics in dev mode or when ACC_METRICS=1
     const enableMetrics = process.env.NODE_ENV !== "production" || process.env.ACC_METRICS === "1";
     this._tripletAssembler = new TripletAssembler(this._bufferedReader, enableMetrics);
     this._pipeline = new TripletPipeline();
-    this._recordingOnly = recordingOnly;
+    this._recordingEnabled = recordingEnabled;
 
     // If recording mode, start bin file immediately (one per server session)
-    if (this._recordingOnly) {
+    if (this._recordingEnabled) {
       const recordPath = accRecorder.start();
       console.log(`[ACC] Recording mode: bin file created at ${recordPath}`);
     }
@@ -82,6 +82,12 @@ export class AccSharedMemoryReader {
       this._retryTimer = null;
     }
     this._connected = false;
+    // Recording mode: this reader opened the bin file in its constructor, so
+    // close it when the reader goes down (game exit / shutdown). Finalizes the
+    // frameCount header instead of relying on the killed-process scan path.
+    if (this._recordingEnabled) {
+      await accRecorder.stop();
+    }
     console.log("[ACC] Shared memory reader stopped");
   }
 
@@ -102,7 +108,7 @@ export class AccSharedMemoryReader {
     // `server/index.ts` owns reader lifecycle.
     this._pipeline.register(new StatusCheckProcessor("ACC"));
 
-    if (this._recordingOnly) {
+    if (this._recordingEnabled) {
       this._pipeline.register(
         new DumpToBinProcessor(accRecorder),
         new ParsingProcessor(this._carOrdinal, this._trackOrdinal, accRecorder),
