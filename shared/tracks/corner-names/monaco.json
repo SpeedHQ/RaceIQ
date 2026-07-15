@@ -4,7 +4,7 @@
   "turnCount": 19,
   "corners": [
     { "number": 1, "name": "Sainte Dévote", "direction": "right" },
-    { "number": 2, "name": "Beau Rivage", "direction": "left", "optional": true },
+    { "number": 2, "name": "Beau Rivage", "direction": "left" },
     { "number": 3, "name": "Massenet", "direction": "left" },
     { "number": 4, "name": "Casino", "direction": "right" },
     { "number": 5, "name": "Mirabeau", "direction": "right" },
@@ -15,7 +15,7 @@
     { "number": 10, "name": "Nouvelle Chicane", "direction": "left", "group": "Nouvelle Chicane" },
     { "number": 11, "name": "", "direction": "right", "group": "Nouvelle Chicane" },
     { "number": 12, "name": "Tabac", "direction": "left", "spans": 2 },
-    { "number": 13, "name": "Louis Chiron", "direction": "left", "optional": true },
+    { "number": 13, "name": "Louis Chiron", "direction": "left" },
     { "number": 14, "name": "Piscine", "direction": "right", "group": "Piscine" },
     { "number": 15, "name": "", "direction": "right", "group": "Piscine" },
     { "number": 16, "name": "", "direction": "left" },

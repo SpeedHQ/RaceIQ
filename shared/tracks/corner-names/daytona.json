@@ -13,7 +13,7 @@
     { "number": 8, "name": "Bus Stop", "direction": "right", "group": "Bus Stop" },
     { "number": 9, "name": "", "direction": "left", "group": "Bus Stop" },
     { "number": 10, "name": "", "direction": "right", "group": "Bus Stop" },
-    { "number": 11, "name": "NASCAR 3-4 Banking", "direction": "left", "optional": true }
+    { "number": 11, "name": "NASCAR 3-4 Banking", "direction": "left" }
   ],
   "straights": [
     { "after": 7, "name": "Backstretch" }

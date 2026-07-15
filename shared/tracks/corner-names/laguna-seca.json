@@ -9,7 +9,7 @@
     { "number": 4, "name": "", "direction": "right" },
     { "number": 5, "name": "", "direction": "left" },
     { "number": 6, "name": "", "direction": "left" },
-    { "number": 7, "name": "", "optional": true },
+    { "number": 7, "name": "" },
     { "number": 8, "name": "Corkscrew", "spans": 2 },
     { "number": 9, "name": "Rainey Curve", "direction": "left" },
     { "number": 10, "name": "", "direction": "right" },

@@ -20,8 +20,8 @@
     { "number": 16, "name": "", "direction": "left" },
     { "number": 17, "name": "", "direction": "left" },
     { "number": 18, "name": "", "direction": "right" },
-    { "number": 19, "name": "", "direction": "left", "optional": true },
-    { "number": 20, "name": "", "direction": "right", "optional": true }
+    { "number": 19, "name": "", "direction": "left" },
+    { "number": 20, "name": "", "direction": "right" }
   ],
   "straights": [
     { "after": 20, "name": "Neftchiler Avenue" }

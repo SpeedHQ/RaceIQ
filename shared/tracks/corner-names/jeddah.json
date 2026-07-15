@@ -13,7 +13,7 @@
     { "number": 9, "name": "", "direction": "right" },
     { "number": 10, "name": "", "direction": "left" },
     { "number": 11, "name": "", "direction": "right", "optional": true },
-    { "number": 12, "name": "", "direction": "left", "optional": true },
+    { "number": 12, "name": "", "direction": "left" },
     { "number": 13, "name": "", "direction": "left" },
     { "number": 14, "name": "", "direction": "right" },
     { "number": 15, "name": "", "direction": "left" },

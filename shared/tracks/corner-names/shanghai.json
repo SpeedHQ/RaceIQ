@@ -7,7 +7,7 @@
     { "number": 2, "name": "", "direction": "right", "group": "Snail" },
     { "number": 3, "name": "", "direction": "left", "group": "T3-4" },
     { "number": 4, "name": "", "direction": "left", "group": "T3-4" },
-    { "number": 5, "name": "", "optional": true },
+    { "number": 5, "name": "" },
     { "number": 6, "name": "", "direction": "right" },
     { "number": 7, "name": "", "direction": "left" },
     { "number": 8, "name": "", "direction": "right" },

@@ -10,7 +10,7 @@
     { "number": 5, "name": "", "direction": "right" },
     { "number": 6, "name": "Dunlop-Kehre", "direction": "right" },
     { "number": 7, "name": "", "direction": "left" },
-    { "number": 8, "name": "", "direction": "right", "optional": true },
+    { "number": 8, "name": "", "direction": "right" },
     { "number": 9, "name": "Michael-Schumacher-S", "direction": "left" },
     { "number": 10, "name": "", "direction": "right" },
     { "number": 11, "name": "", "direction": "right", "optional": true },

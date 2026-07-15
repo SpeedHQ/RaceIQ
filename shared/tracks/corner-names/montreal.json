@@ -14,7 +14,7 @@
     { "number": 9, "name": "", "direction": "left" },
     { "number": 10, "name": "L'Épingle", "direction": "right" },
     { "number": 11, "name": "", "optional": true },
-    { "number": 12, "name": "", "optional": true },
+    { "number": 12, "name": "" },
     { "number": 13, "name": "", "direction": "right" },
     { "number": 14, "name": "", "direction": "left" }
   ],

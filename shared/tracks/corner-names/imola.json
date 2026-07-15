@@ -21,7 +21,7 @@
     { "number": 16, "name": "", "direction": "left", "optional": true },
     { "number": 17, "name": "Rivazza 1", "direction": "left", "group": "Rivazza" },
     { "number": 18, "name": "Rivazza 2", "direction": "left", "group": "Rivazza" },
-    { "number": 19, "name": "", "direction": "left", "optional": true }
+    { "number": 19, "name": "", "direction": "left" }
   ],
   "sectors": {
     "s1EndAfterCorner": 6,

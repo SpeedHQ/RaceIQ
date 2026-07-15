@@ -7,7 +7,7 @@
     { "number": 2, "name": "Craner Curves", "direction": "right" },
     { "number": 3, "name": "", "direction": "left" },
     { "number": 4, "name": "Old Hairpin", "direction": "right" },
-    { "number": 5, "name": "Starkey's Bridge", "direction": "left", "optional": true },
+    { "number": 5, "name": "Starkey's Bridge", "direction": "left" },
     { "number": 6, "name": "Schwantz Curve", "direction": "right", "optional": true },
     { "number": 7, "name": "McLeans", "direction": "right" },
     { "number": 8, "name": "Coppice", "direction": "right" },

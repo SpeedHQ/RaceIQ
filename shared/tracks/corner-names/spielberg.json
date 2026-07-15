@@ -9,7 +9,7 @@
     { "number": 4, "name": "Schlossgold", "direction": "right" },
     { "number": 5, "name": "", "direction": "left" },
     { "number": 6, "name": "Rauch", "direction": "left" },
-    { "number": 7, "name": "", "direction": "right", "optional": true },
+    { "number": 7, "name": "", "direction": "right" },
     { "number": 8, "name": "", "direction": "left", "optional": true },
     { "number": 9, "name": "Rindt", "direction": "right" },
     { "number": 10, "name": "Red Bull Mobile", "direction": "right" }

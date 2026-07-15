@@ -6,7 +6,7 @@
     { "number": 1, "name": "Tarzanbocht", "direction": "right" },
     { "number": 2, "name": "Gerlachbocht", "direction": "right" },
     { "number": 3, "name": "Hugenholtzbocht", "direction": "left" },
-    { "number": 4, "name": "Hunzerug", "direction": "left", "optional": true },
+    { "number": 4, "name": "Hunzerug", "direction": "left" },
     { "number": 5, "name": "Slotemakerbocht", "direction": "right", "group": "Slotemaker/Scheivlak" },
     { "number": 6, "name": "Scheivlak", "direction": "right", "group": "Slotemaker/Scheivlak" },
     { "number": 7, "name": "Mastersbocht", "direction": "right", "spans": 2 },
