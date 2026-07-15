@@ -28,8 +28,9 @@ describe("AC Evo parser — malformed/empty STATIC recovery", () => {
 
     expect(packet).not.toBeNull();
     expect(packet!.gameId).toBe("ac-evo");
-    expect(cache.carOrdinal).toBe(0);
-    // Ordinal 0 is Monza GP — an empty track string must not resolve to it.
+    // Ordinal 0 is Ferrari SF90 (car) / Monza GP (track) — an empty name must
+    // stay unidentified (-1), never silently resolve to the first ordinal.
+    expect(cache.carOrdinal).toBe(-1);
     expect(cache.trackOrdinal).toBe(-1);
     expect(packet!.TrackOrdinal).toBe(-1);
   });
@@ -61,7 +62,7 @@ describe("AC Evo parser — malformed/empty STATIC recovery", () => {
     expect(packet!.TrackOrdinal).toBe(0);
   });
 
-  test("unknown car display name resolves to carOrdinal=0 without throwing", () => {
+  test("unknown car display name resolves to -1 sentinel, not ordinal 0", () => {
     const { physics, graphics, staticData } = emptyBuffers();
     writeCString(graphics, GRAPHICS_EVO.car_model.offset, GRAPHICS_EVO.car_model.size, "__Not A Real Car__");
     const cache = createAcEvoParserCache();
@@ -69,7 +70,8 @@ describe("AC Evo parser — malformed/empty STATIC recovery", () => {
     const packet = parseAcEvoBuffers(physics, graphics, staticData, cache);
 
     expect(packet).not.toBeNull();
-    expect(cache.carOrdinal).toBe(0);
+    // Ordinal 0 is Ferrari SF90 — an unknown car must not silently become it.
+    expect(cache.carOrdinal).toBe(-1);
   });
 
   test("undersized buffers return null (no throw)", () => {
