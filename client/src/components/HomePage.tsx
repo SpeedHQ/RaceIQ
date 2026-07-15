@@ -1,18 +1,19 @@
-import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { m } from "@/paraglide/messages";
-import { Link } from "@tanstack/react-router";
-import { useQueries } from "@tanstack/react-query";
-import { Settings2 } from "lucide-react";
-import { useLaps, useSettings } from "../hooks/queries";
-import { formatLapTime } from "./LiveTelemetry";
-import { client } from "../lib/rpc";
+import { tryGetGame } from "@shared/games/registry";
 import type { LapMeta } from "@shared/types";
 import { RAW_STORAGE_VERSION } from "@shared/types";
-import { useGameId, getGameRoute } from "../stores/game";
-import { tryGetGame } from "@shared/games/registry";
+import { useQueries } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { Settings2 } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useLaps, useSessions, useSettings } from "../hooks/queries";
+import { client } from "../lib/rpc";
+import { getGameRoute, useGameId } from "../stores/game";
 import { useUiStore } from "../stores/ui";
-import { Table, THead, TBody, TRow, TH, TD } from "./ui/AppTable";
 import { ActivityHeatmap } from "./ActivityHeatmap";
+import { formatLapTime } from "./LiveTelemetry";
+import { SessionRecap } from "./SessionRecap";
+import { TBody, TD, TH, THead, TRow, Table } from "./ui/AppTable";
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
@@ -114,9 +115,15 @@ export function HomePage() {
   const gameId = useGameId();
   const gameAdapter = gameId ? tryGetGame(gameId) : null;
   const { data: allLaps = [] } = useLaps();
+  const { data: sessions = [] } = useSessions();
   const { displaySettings } = useSettings();
   const { openSettings } = useUiStore();
   const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
+
+  const latestSession = useMemo(() => {
+    if (sessions.length === 0) return null;
+    return [...sessions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+  }, [sessions]);
 
   // Resolve car/track names for recent laps
   const [carNames, setCarNames] = useState<Record<number, string>>({});
@@ -512,6 +519,16 @@ export function HomePage() {
               </div>
             </Link>
           )}
+        </div>
+      )}
+
+      {/* Latest session recap. Renders in full here, so there is no modal to open —
+          clicking deep-links to analysing the session's best lap instead. */}
+      {latestSession && (
+        <div className="rounded-lg border border-app-border bg-app-surface p-4">
+          <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-2">{m.recap_latest_session()}</h2>
+          {/* gameId passed explicitly: the global home page has no active-game scope. */}
+          <SessionRecap sessionId={latestSession.id} gameId={latestSession.gameId} linkToAnalyse />
         </div>
       )}
 

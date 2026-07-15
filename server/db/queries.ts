@@ -9,6 +9,8 @@ import { tryGetGame } from "../../shared/games/registry";
 import { gunzip } from "zlib";
 import { promisify } from "util";
 import { existsSync, unlinkSync } from "fs";
+import { getTrackLengthMeters } from "../../shared/track-data";
+import type { RecapLapInput, RecapSessionInput } from "../recap";
 
 const gunzipAsync = promisify(gunzip);
 
@@ -998,6 +1000,149 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
     });
   }
   return result;
+}
+
+/**
+ * Fetch-only data needed for a session recap: the session row, its laps, the
+ * track's length (metres, null when no outline), and the best valid lap time
+ * for the same track + car + game from every OTHER session. No math here —
+ * see server/recap.ts::computeRecap for the rules.
+ *
+ * Returns null when the session doesn't exist or its gameId doesn't match.
+ */
+export async function getSessionRecapData(
+  id: number,
+  gameId: GameId,
+): Promise<{
+  session: RecapSessionInput;
+  laps: RecapLapInput[];
+  trackLengthM: number | null;
+  allTimeBestSec: number | null;
+  allTimeBestSectors: { s1: number | null; s2: number | null; s3: number | null } | null;
+} | null> {
+  const sessionRow = await db
+    .select({
+      id: sessions.id,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
+      gameId: sessions.gameId,
+      createdAt: sessions.createdAt,
+    })
+    .from(sessions)
+    .where(eq(sessions.id, id))
+    .get();
+
+  if (!sessionRow || sessionRow.gameId !== gameId) return null;
+
+  const lapRows = await db
+    .select({
+      id: laps.id,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      s1Time: laps.s1Time,
+      s2Time: laps.s2Time,
+      s3Time: laps.s3Time,
+    })
+    .from(laps)
+    .where(eq(laps.sessionId, id))
+    .orderBy(laps.lapNumber)
+    .all();
+
+  const trackLengthM = getTrackLengthMeters(sessionRow.trackOrdinal, gameId);
+
+  const bestOtherRow = await db
+    .select({ lapTime: laps.lapTime })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(
+      and(
+        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
+        eq(sessions.carOrdinal, sessionRow.carOrdinal),
+        eq(sessions.gameId, gameId),
+        sql`${sessions.id} != ${id}`,
+        eq(laps.isValid, true),
+        sql`${laps.lapTime} > 0`,
+      ),
+    )
+    .orderBy(laps.lapTime)
+    .limit(1)
+    .get();
+
+  const bestOtherS1Row = await db
+    .select({ s1Time: laps.s1Time })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(
+      and(
+        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
+        eq(sessions.carOrdinal, sessionRow.carOrdinal),
+        eq(sessions.gameId, gameId),
+        sql`${sessions.id} != ${id}`,
+        eq(laps.isValid, true),
+        sql`${laps.lapTime} > 0`,
+        sql`${laps.s1Time} IS NOT NULL`,
+      ),
+    )
+    .orderBy(laps.s1Time)
+    .limit(1)
+    .get();
+
+  const bestOtherS2Row = await db
+    .select({ s2Time: laps.s2Time })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(
+      and(
+        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
+        eq(sessions.carOrdinal, sessionRow.carOrdinal),
+        eq(sessions.gameId, gameId),
+        sql`${sessions.id} != ${id}`,
+        eq(laps.isValid, true),
+        sql`${laps.lapTime} > 0`,
+        sql`${laps.s2Time} IS NOT NULL`,
+      ),
+    )
+    .orderBy(laps.s2Time)
+    .limit(1)
+    .get();
+
+  const bestOtherS3Row = await db
+    .select({ s3Time: laps.s3Time })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .where(
+      and(
+        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
+        eq(sessions.carOrdinal, sessionRow.carOrdinal),
+        eq(sessions.gameId, gameId),
+        sql`${sessions.id} != ${id}`,
+        eq(laps.isValid, true),
+        sql`${laps.lapTime} > 0`,
+        sql`${laps.s3Time} IS NOT NULL`,
+      ),
+    )
+    .orderBy(laps.s3Time)
+    .limit(1)
+    .get();
+
+  return {
+    session: {
+      id: sessionRow.id,
+      carOrdinal: sessionRow.carOrdinal,
+      trackOrdinal: sessionRow.trackOrdinal,
+      gameId: sessionRow.gameId as GameId,
+      createdAt: sessionRow.createdAt,
+    },
+    laps: lapRows.map((l) => ({ ...l, isValid: Boolean(l.isValid) })),
+    trackLengthM,
+    allTimeBestSec: bestOtherRow?.lapTime ?? null,
+    allTimeBestSectors: {
+      s1: bestOtherS1Row?.s1Time ?? null,
+      s2: bestOtherS2Row?.s2Time ?? null,
+      s3: bestOtherS3Row?.s3Time ?? null,
+    },
+  };
 }
 
 /**

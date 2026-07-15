@@ -535,6 +535,85 @@ export interface SessionMeta {
   gameId?: GameId;
 }
 
+/**
+ * Post-session summary shown on the recap card. Every field is derived from laps
+ * we already store — see server/recap.ts for the rules. Nullable fields mean
+ * "not computable for this session" and render as a hidden tile, never as a zero.
+ */
+export interface SessionRecap {
+  sessionId: number;
+  gameId: GameId;
+  carName: string;
+  trackName: string;
+  /** Raw ordinals, for deep-linking into the analyse view. */
+  carOrdinal: number;
+  trackOrdinal: number;
+  createdAt: string;
+
+  /** Laps with isValid && lapTime > 0. */
+  lapsValid: number;
+  /** Every lap row, including invalid ones. Display only ("valid/total"). */
+  lapsTotal: number;
+  /** Fastest valid lap, seconds. Null when no valid laps. */
+  bestLapSec: number | null;
+  /** Lap id of the fastest valid lap, for deep-linking. Null when no valid laps. */
+  bestLapId: number | null;
+  /** Sum of lapTime over VALID laps only — invalid laps are often detector artifacts. */
+  timeOnTrackSec: number;
+  /** trackLength * lapsValid, metres. Null when the track has no outline. */
+  distanceM: number | null;
+
+  /** Pace trend, in lap order. */
+  sparkline: { lapNumber: number; lapTimeSec: number; isValid: boolean }[];
+
+  /** Best sectors across valid laps, possibly from different laps. Null when no valid lap has all three. */
+  theoretical: {
+    bestS1: number;
+    bestS2: number;
+    bestS3: number;
+    sumSec: number;
+    /** bestLapSec - sumSec, clamped >= 0. The time left on the table. */
+    deltaToBestSec: number;
+  } | null;
+
+  /** First valid lap minus best lap, clamped >= 0. Null when fewer than 2 valid laps. */
+  improvementSec: number | null;
+  /** Population stddev of valid lap times, rated relative to best lap. Null when fewer than 3 valid laps. */
+  consistency: {
+    stdDevSec: number;
+    rating: 1 | 2 | 3 | 4 | 5;
+  } | null;
+  /** Compared against other sessions with the same track + car + game. Null when bestLapSec is null. */
+  personalBest: {
+    isNew: boolean;
+    /** Null when this is the first ever session on this track + car. */
+    previousBestSec: number | null;
+  } | null;
+
+  /**
+   * Per-sector breakdown of the session, for the sector-coloured track map.
+   * Null when no valid lap has a complete set of sectors (same condition as `theoretical`).
+   */
+  sectors:
+    | {
+        /** 1, 2 or 3. */
+        index: 1 | 2 | 3;
+        /** This sector's time on the session's BEST lap. */
+        bestLapSec: number;
+        /** Fastest time in this sector across all valid laps this session (feeds `theoretical`). */
+        sessionBestSec: number;
+        /** Fastest ever in this sector for this track+car+game, EXCLUDING this session. Null if none. */
+        allTimeBestSec: number | null;
+        /**
+         * record       = sessionBestSec beat allTimeBestSec (or there is no all-time yet) — a new record
+         * session-best = the best lap's sector equals this session's best in that sector
+         * lost         = the best lap lost time in this sector vs this session's own best
+         */
+        status: "record" | "session-best" | "lost";
+      }[]
+    | null;
+}
+
 export interface ServerStatus {
   udpReceiving: boolean;
   packetsPerSec: number;

@@ -12,7 +12,7 @@ import { loadSettings, saveSettings, PartialSettingsSchema } from "../settings";
 import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } from "../launch-on-login";
 import { getLapStats, setCacheMaxBytes } from "../db/queries";
 import { getRunningGame } from "../games/registry";
-import { getTrackOutlineByOrdinal } from "../../shared/track-data";
+import { getTrackLengthMeters } from "../../shared/track-data";
 
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
@@ -250,16 +250,8 @@ export const settingsRoutes = new Hono()
 
     let totalDistanceMeters = 0;
     for (const { trackOrdinal, count } of stats.lapsByTrack) {
-      const outline = gameId
-        ? getTrackOutlineByOrdinal(trackOrdinal, gameId)
-        : null;
-      if (outline && outline.length > 1) {
-        let trackLen = 0;
-        for (let i = 1; i < outline.length; i++) {
-          const dx = outline[i].x - outline[i - 1].x;
-          const dz = outline[i].z - outline[i - 1].z;
-          trackLen += Math.sqrt(dx * dx + dz * dz);
-        }
+      const trackLen = gameId ? getTrackLengthMeters(trackOrdinal, gameId) : null;
+      if (trackLen !== null) {
         totalDistanceMeters += trackLen * count;
       }
     }

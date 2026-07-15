@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { LapMeta, SessionMeta, TelemetryPacket, GameId } from "@shared/types";
+import type { LapMeta, SessionMeta, SessionRecap, TelemetryPacket, GameId } from "@shared/types";
 import { tryGetGame } from "@shared/games/registry";
 import type { CatalogTune } from "../data/tune-catalog";
 import { client } from "../lib/rpc";
@@ -162,8 +162,9 @@ export function useTrackSectors(ord: number | undefined) {
   });
 }
 
-export function useTrackSectorBoundaries(ord: number | undefined) {
-  const gameId = useGameId();
+export function useTrackSectorBoundaries(ord: number | undefined, gameIdOverride?: GameId | null) {
+  const storeGameId = useGameId();
+  const gameId = gameIdOverride ?? storeGameId;
   return useQuery({
     queryKey: [...queryKeys.trackSectorBoundaries(ord!), gameId ?? null],
     queryFn: async () => {
@@ -171,14 +172,15 @@ export function useTrackSectorBoundaries(ord: number | undefined) {
         param: { ordinal: String(ord!) },
         query: { gameId: gameId! },
       });
-      return rpcJson(res);
+      return rpcJson<{ s1End: number; s2End: number } | null>(res);
     },
     enabled: ord != null && !!gameId,
   });
 }
 
-export function useTrackOutline(ord: number | undefined) {
-  const gameId = useGameId();
+export function useTrackOutline(ord: number | undefined, gameIdOverride?: GameId | null) {
+  const storeGameId = useGameId();
+  const gameId = gameIdOverride ?? storeGameId;
   return useQuery({
     queryKey: [...queryKeys.trackOutline(ord!), gameId ?? null],
     queryFn: async () => {
@@ -186,7 +188,7 @@ export function useTrackOutline(ord: number | undefined) {
         param: { ordinal: String(ord!) },
         query: { gameId: gameId! },
       });
-      return rpcJson(res);
+      return rpcJson<{ points?: { x: number; z: number }[]; flipX?: boolean } | { x: number; z: number }[]>(res);
     },
     enabled: ord != null && !!gameId,
   });
@@ -237,6 +239,23 @@ export function useSessions() {
       });
       return rpcJson<SessionMeta[]>(res);
     },
+  });
+}
+
+export function useSessionRecap(sessionId: number | null | undefined, gameId: GameId | null | undefined) {
+  return useQuery({
+    queryKey: ["session-recap", sessionId ?? null, gameId ?? null],
+    queryFn: async () => {
+      // Narrowed rather than asserted: `enabled` already gates on both being set,
+      // but the queryFn closure can't see that.
+      if (sessionId == null || !gameId) throw new Error("useSessionRecap: sessionId and gameId are required");
+      const res = await client.api.sessions[":id"].recap.$get({
+        param: { id: String(sessionId) },
+        query: { gameId },
+      });
+      return rpcJson<SessionRecap>(res);
+    },
+    enabled: sessionId != null && !!gameId,
   });
 }
 
