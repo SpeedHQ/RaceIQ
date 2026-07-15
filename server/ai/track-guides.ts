@@ -18,6 +18,7 @@
 
 import { loadSharedTrackMeta } from "../../shared/track-data";
 import { segmentDisplayName } from "../../shared/segment-label";
+import type { ResolvedTrackGuide } from "../../shared/track-guide-types";
 
 interface CornerGuide {
   /**
@@ -1132,6 +1133,42 @@ function canonicalLabel(c: CornerGuide, labels: Map<number, string>): string | n
   const hit = labels.get(c.numbers[0]);
   if (!hit) return null;
   return c.numbers.every((n) => labels.get(n) === hit) ? hit : null;
+}
+
+/**
+ * The same knowledge `buildTrackGuideContext` puts in the prompt, structured.
+ *
+ * Shares the label resolution and the merge rule with the prompt builder, so
+ * what the Info page shows is what the coach was told — if these two could
+ * drift, the page would be documenting a guide that doesn't exist.
+ */
+export function getTrackGuide(trackName: string, opts: TrackGuideOptions = {}): ResolvedTrackGuide | null {
+  const guide = findGuide(opts.slug ?? trackName);
+  if (!guide) return null;
+  const labels = opts.slug ? metaLabelsByTurn(opts.slug, opts.gameId) : new Map<number, string>();
+  const labelFor = (c: CornerGuide) => canonicalLabel(c, labels) ?? c.name;
+  const isPriority = (c: CornerGuide) => guide.priorityCorners.includes(c.name);
+
+  const byLabel = new Map<string, CornerGuide[]>();
+  for (const c of guide.corners) {
+    const label = labelFor(c);
+    const bucket = byLabel.get(label);
+    if (bucket) bucket.push(c);
+    else byLabel.set(label, [c]);
+  }
+
+  return {
+    id: guide.id,
+    character: guide.character,
+    corners: [...byLabel].map(([label, entries]) => ({
+      label,
+      type: entries.map((e) => e.type).join("; "),
+      technique: entries.map((e) => e.technique).join(" "),
+      trap: entries.map((e) => e.trap).join("; "),
+      numbers: entries.flatMap((e) => e.numbers ?? []).sort((a, b) => a - b),
+      priority: entries.some(isPriority),
+    })),
+  };
 }
 
 /** The corner labels a guide will actually emit for this track/game. */

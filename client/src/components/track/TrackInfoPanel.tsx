@@ -1,7 +1,11 @@
 import { TBody, TD, TH, THead, TRow, Table } from "@/components/ui/AppTable";
 import { countryName } from "@/lib/country-names";
+import { client } from "@/lib/rpc";
 import { segmentDisplayNames } from "@/lib/segment-label";
 import { m } from "@/paraglide/messages";
+import type { ResolvedTrackGuide } from "@shared/track-guide-types";
+import type { GameId } from "@shared/types";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { TrackInfo as TrackInfoType, TrackSectors } from "./types";
 
@@ -44,13 +48,32 @@ export function TrackInfoPanel({
   sectorBounds,
   segSource,
   lapCount,
+  gameId,
+  part = "summary",
 }: {
   track: TrackInfoType;
   sectors: (TrackSectors & { source?: string }) | null;
   sectorBounds: { s1End: number; s2End: number } | null;
   segSource: string;
   lapCount: number;
+  gameId?: GameId | null;
+  /**
+   * "summary" sits beside the map in the top row, like the laps leaderboard;
+   * "details" is the full-width reading below it.
+   */
+  part?: "summary" | "details";
 }) {
+  // The expert guide the AI analyst is given for this track, if we have one.
+  const { data: guide } = useQuery<ResolvedTrackGuide | null>({
+    queryKey: ["track-guide", track.ordinal, gameId ?? null],
+    queryFn: () =>
+      client.api["track-guide"][":ordinal"]
+        .$get({ param: { ordinal: String(track.ordinal) }, query: { gameId: gameId ?? undefined } } as never)
+        .then((r) => r.json() as unknown as ResolvedTrackGuide | null),
+    enabled: !!gameId,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const segments = sectors?.segments ?? [];
   const labels = useMemo(() => segmentDisplayNames(segments), [segments]);
 
@@ -71,23 +94,29 @@ export function TrackInfoPanel({
 
   const cornersInSector = (n: 1 | 2 | 3) => corners.filter((s) => sectorOf(s.startFrac, s.endFrac) === n);
 
-  return (
-    <div className="space-y-4">
-      {/* What the circuit is */}
-      <div>
-        <div className="text-app-body font-medium text-app-text">{track.name}</div>
-        <div className="text-app-label text-app-text-muted">
-          {[track.variant, track.location && `${track.location}${track.country ? `, ${countryName(track.country)}` : ""}`].filter(Boolean).join(" · ")}
+  if (part === "summary") {
+    return (
+      <div className="space-y-3">
+        {/* What the circuit is */}
+        <div>
+          <div className="text-app-body font-medium text-app-text">{track.name}</div>
+          <div className="text-app-label text-app-text-muted">
+            {[track.variant, track.location && `${track.location}${track.country ? `, ${countryName(track.country)}` : ""}`].filter(Boolean).join(" · ")}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Stat label={m.trackinfo_length()} value={track.lengthKm > 0 ? `${track.lengthKm} km` : "—"} />
+          <Stat label={m.trackinfo_turns()} value={turnCount > 0 ? String(turnCount) : "—"} hint={corners.length > 0 ? m.trackinfo_sections({ n: String(corners.length) }) : undefined} />
+          <Stat label={m.trackinfo_straights()} value={straights.length > 0 ? String(straights.length) : "—"} />
+          <Stat label={m.trackinfo_laps_recorded()} value={String(lapCount)} />
         </div>
       </div>
+    );
+  }
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <Stat label={m.trackinfo_length()} value={track.lengthKm > 0 ? `${track.lengthKm} km` : "—"} />
-        <Stat label={m.trackinfo_turns()} value={turnCount > 0 ? String(turnCount) : "—"} hint={corners.length > 0 ? m.trackinfo_sections({ n: String(corners.length) }) : undefined} />
-        <Stat label={m.trackinfo_straights()} value={straights.length > 0 ? String(straights.length) : "—"} />
-        <Stat label={m.trackinfo_laps_recorded()} value={String(lapCount)} />
-      </div>
-
+  return (
+    <div className="space-y-4">
       {/* Sectors */}
       <div>
         <div className="flex items-center gap-2 mb-1.5">
@@ -117,6 +146,35 @@ export function TrackInfoPanel({
         )}
       </div>
 
+      {/* Expert guide — the coaching knowledge the AI analyst is given */}
+      {guide && (
+        <div>
+          <div className="text-app-label text-app-text-muted mb-1.5">{m.trackinfo_guide()}</div>
+          <div className="rounded-lg border border-app-border bg-app-surface/50 px-3 py-2">
+            <div className="text-app-subtext text-app-text-secondary">{guide.character}</div>
+          </div>
+          {guide.corners.length > 0 && (
+            <div className="mt-2 grid grid-cols-1 lg:grid-cols-2 gap-2">
+              {guide.corners.map((c) => (
+                <div key={c.label} className="rounded-lg border border-app-border bg-app-surface/50 px-3 py-2">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="text-app-body font-medium text-app-text">{c.label}</span>
+                    {c.priority && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded border font-mono leading-none bg-orange-900/70 border-orange-700/50 text-orange-300">{m.trackinfo_priority()}</span>
+                    )}
+                    <span className="text-app-label text-app-text-dim">{c.type}</span>
+                  </div>
+                  <div className="text-app-subtext text-app-text-secondary mt-1">{c.technique}</div>
+                  <div className="text-app-label text-app-text-dim mt-0.5">
+                    <span className="text-amber-500/80">{m.trackinfo_trap()}</span> {c.trap}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Segments */}
       <div>
         <div className="flex items-center gap-2 mb-1.5">
@@ -125,14 +183,14 @@ export function TrackInfoPanel({
         </div>
         {segments.length > 0 ? (
           <Table>
+            {/* THead supplies the <tr> itself — wrapping these in a TRow nests
+                <tr> inside <tr> and the header cells fall out of the columns. */}
             <THead>
-              <TRow>
-                <TH>{m.trackinfo_col_section()}</TH>
-                <TH>{m.trackinfo_col_type()}</TH>
-                <TH>{m.trackinfo_col_direction()}</TH>
-                <TH>{m.trackinfo_col_sector()}</TH>
-                <TH>{m.trackinfo_col_lap_position()}</TH>
-              </TRow>
+              <TH>{m.trackinfo_col_section()}</TH>
+              <TH>{m.trackinfo_col_type()}</TH>
+              <TH>{m.trackinfo_col_direction()}</TH>
+              <TH>{m.trackinfo_col_sector()}</TH>
+              <TH>{m.trackinfo_col_lap_position()}</TH>
             </THead>
             <TBody>
               {segments.map((s, i) => (

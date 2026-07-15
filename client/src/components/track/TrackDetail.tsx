@@ -1205,6 +1205,13 @@ export function TrackDetail({
             {/* Track map — hidden on setups tab so the setups panel can take the full left column */}
             {activeTab !== "setups" && (
               <div className={`shrink-0 flex flex-col md:flex-row gap-3 ${activeTab === "guide" && isF125 ? "md:h-[160px]" : "md:h-[320px]"}`}>
+              {/* Info summary left of map, same shape as the laps leaderboard */}
+              {activeTab === "info" && (
+                <div className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-auto flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
+                  <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="summary" />
+                </div>
+              )}
+
               {/* Leaderboard left of map on laps tab */}
               {activeTab === "laps" && (
                 <div className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-hidden flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
@@ -1323,9 +1330,9 @@ export function TrackDetail({
               )}
 
               <div className={`flex-1 min-h-0 ${activeTab === "laps" ? "md:overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
-                {/* Info tab — the track's reference data, and the default view */}
+                {/* Info tab — guide + segments read full width under the map */}
                 {activeTab === "info" && (
-                  <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} />
+                  <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="details" />
                 )}
 
                 {/* Laps tab */}

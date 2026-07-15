@@ -1444,5 +1444,8 @@
   "trackinfo_type_straight": "Straight",
   "trackinfo_dir_left": "Left",
   "trackinfo_dir_right": "Right",
-  "trackdetailroute_not_found": "Track not found"
+  "trackdetailroute_not_found": "Track not found",
+  "trackinfo_guide": "Expert guide",
+  "trackinfo_priority": "priority",
+  "trackinfo_trap": "Trap:"
 }

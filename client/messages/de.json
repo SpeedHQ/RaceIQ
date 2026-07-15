@@ -1444,5 +1444,8 @@
   "trackinfo_type_straight": "Gerade",
   "trackinfo_dir_left": "Links",
   "trackinfo_dir_right": "Rechts",
-  "trackdetailroute_not_found": "Strecke nicht gefunden"
+  "trackdetailroute_not_found": "Strecke nicht gefunden",
+  "trackinfo_guide": "Experten-Leitfaden",
+  "trackinfo_priority": "Priorität",
+  "trackinfo_trap": "Falle:"
 }
