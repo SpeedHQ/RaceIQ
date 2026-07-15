@@ -45,12 +45,24 @@ export function readAccFrames(filePath: string, limit?: number): { physics: Buff
   // runs until the limit is hit or data is exhausted.
   const maxFrameIdx = frameCount === 0 ? Number.MAX_SAFE_INTEGER : frameCount;
 
+  // The writer emits [physics, graphics, static?] per poll, where static
+  // frames are deduplicated (only written when the bytes change). A triplet is
+  // therefore flushed when the NEXT poll's physics frame arrives (or at EOF),
+  // carrying the last-seen static forward across polls that skipped it.
   const frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[] = [];
-  let lastPhysics = Buffer.alloc(0);
-  let lastGraphics = Buffer.alloc(0);
+  let pendingPhysics: Buffer | null = null;
+  let pendingGraphics: Buffer | null = null;
   let lastStatic = Buffer.alloc(0);
   let offset = HEADER_SIZE;
   let frameIdx = 0;
+
+  const flush = (): void => {
+    if (pendingPhysics && pendingGraphics && lastStatic.length > 0) {
+      frames.push({ physics: pendingPhysics, graphics: pendingGraphics, staticData: lastStatic });
+    }
+    pendingPhysics = null;
+    pendingGraphics = null;
+  };
 
   while (frameIdx < maxFrameIdx && offset + FRAME_HEADER <= data.length) {
     const frameType = data.readUInt8(offset);
@@ -62,19 +74,16 @@ export function readAccFrames(filePath: string, limit?: number): { physics: Buff
     offset += bufferSize;
 
     switch (frameType) {
-      case 0: lastPhysics = bufferData; break;
-      case 1: lastGraphics = bufferData; break;
+      case 0: flush(); pendingPhysics = bufferData; break; // new poll begins
+      case 1: pendingGraphics = bufferData; break;
       case 2: lastStatic = bufferData; break;
       default: frameIdx++; continue;
     }
 
-    if (frameType === 2 && lastPhysics.length > 0 && lastGraphics.length > 0) {
-      frames.push({ physics: lastPhysics, graphics: lastGraphics, staticData: lastStatic });
-      if (limit !== undefined && frames.length >= limit) break;
-    }
-
+    if (limit !== undefined && frames.length >= limit) return frames;
     frameIdx++;
   }
 
+  flush(); // final poll has no trailing physics frame to trigger it
   return frames;
 }

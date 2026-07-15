@@ -493,7 +493,7 @@ devRoutes.post("/api/dev/import-dump", async (c) => {
         const rawBuf = packTriplet(
           ACEVO_PACKED_MAGIC,
           packet.CarOrdinal,
-          packet.TrackOrdinal ?? 0,
+          packet.TrackOrdinal ?? -1, // -1 sentinel: ordinal 0 is Monza GP
           frame.physics,
           frame.graphics,
           frame.staticData

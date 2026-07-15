@@ -34,6 +34,7 @@ function ensureLoaded(): Map<number, AcEvoTrack> {
 }
 
 export function getAcEvoTrackName(ordinal: number): string {
+  if (ordinal < 0) return "Unknown Track"; // -1 sentinel: track never identified
   const track = ensureLoaded().get(ordinal);
   return track ? `${track.name} - ${track.variant}` : `Track #${ordinal}`;
 }

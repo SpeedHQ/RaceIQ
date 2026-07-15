@@ -38,6 +38,7 @@ function ensureLoaded(): void {
 }
 
 export function getAcEvoCarName(ordinal: number): string {
+  if (ordinal < 0) return "Unknown Car"; // -1 sentinel: car never identified
   ensureLoaded();
   return carMap!.get(ordinal)?.name ?? `Car #${ordinal}`;
 }

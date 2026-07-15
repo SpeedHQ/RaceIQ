@@ -25,7 +25,9 @@ class AcEvoParsingProcessor implements TripletProcessor {
     try {
       const packet = parseAcEvoBuffers(triplet.physics, triplet.graphics, triplet.staticData, this.cache);
       if (packet) {
-        const rawBuf = packTriplet(ACEVO_PACKED_MAGIC, packet.CarOrdinal, packet.TrackOrdinal ?? 0, triplet.physics, triplet.graphics, triplet.staticData);
+        // -1 sentinel = unresolved. Never default to 0: ordinal 0 is a real
+        // car/track (Ferrari SF90 Stradale / Monza GP).
+        const rawBuf = packTriplet(ACEVO_PACKED_MAGIC, packet.CarOrdinal, packet.TrackOrdinal ?? -1, triplet.physics, triplet.graphics, triplet.staticData);
         await processPacket(packet, rawBuf);
       }
     } catch (err) {
@@ -41,9 +43,9 @@ export class AcEvoSharedMemoryReader {
   private _pipeline: TripletPipeline;
   private _running = false;
   private _connected = false;
-  private _recordingOnly: boolean;
+  private _recordingEnabled: boolean;
 
-  constructor(recordingOnly = false) {
+  constructor(recordingEnabled = false) {
     this._bufferedReader = new BufferedAccMemoryReader({
       // AC Evo v0.6 uses acevo_pmf_* names (confirmed via handle.exe against
       // AssettoCorsaEVO.exe — ACC's acpmf_* names are not owned by the game).
@@ -61,9 +63,9 @@ export class AcEvoSharedMemoryReader {
     const enableMetrics = process.env.NODE_ENV !== "production" || process.env.ACC_METRICS === "1";
     this._tripletAssembler = new TripletAssembler(this._bufferedReader, enableMetrics);
     this._pipeline = new TripletPipeline();
-    this._recordingOnly = recordingOnly;
+    this._recordingEnabled = recordingEnabled;
 
-    if (this._recordingOnly) {
+    if (this._recordingEnabled) {
       const recordPath = acEvoRecorder.start(undefined, "ac-evo");
       console.log(`[AC Evo] Recording mode: bin file created at ${recordPath}`);
     }
@@ -96,6 +98,12 @@ export class AcEvoSharedMemoryReader {
     await this._tripletAssembler.stop();
     await this._bufferedReader.stop();
     this._connected = false;
+    // Recording mode: this reader opened the bin file in its constructor, so
+    // close it when the reader goes down (game exit / shutdown). Finalizes the
+    // frameCount header instead of relying on the killed-process scan path.
+    if (this._recordingEnabled) {
+      await acEvoRecorder.stop();
+    }
     console.log("[AC Evo] Shared memory reader stopped");
   }
 
@@ -111,7 +119,7 @@ export class AcEvoSharedMemoryReader {
     // Local\acpmf_graphics stays at 0 even during live sessions (page appears
     // to be a legacy stub), so using it as a gate silences every real packet.
     // Always parse — let the UI show whatever the page has so we can diagnose.
-    if (this._recordingOnly) {
+    if (this._recordingEnabled) {
       this._pipeline.register(
         new DumpToBinProcessor(acEvoRecorder),
         new AcEvoParsingProcessor(),

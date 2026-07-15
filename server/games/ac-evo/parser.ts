@@ -41,8 +41,12 @@ export interface AcEvoParserCache {
 
 export function createAcEvoParserCache(): AcEvoParserCache {
   return {
-    carOrdinal: 0,
-    trackOrdinal: 0,
+    // -1 = not yet identified. Ordinal 0 is a real car (Ferrari SF90 Stradale)
+    // and a real track (Monza GP), so an empty/unknown name must NOT default
+    // to 0 — that is exactly the production bug where sessions imported as
+    // "Monza" / "Ferrari SF90 Stradale".
+    carOrdinal: -1,
+    trackOrdinal: -1,
     lastCarModel: "",
     lastTrack: "",
     playerSlot: -1,
@@ -76,8 +80,9 @@ export function parseAcEvoBuffers(
     const car = getAcEvoCarByDisplayName(carModelStr);
     if (car) {
       cache.carOrdinal = car.id;
+      console.log(`[AC Evo Parser] Resolved car: "${carModelStr}" → ordinal ${car.id}`);
     } else {
-      cache.carOrdinal = 0;
+      cache.carOrdinal = -1;
       console.warn(`[AC Evo Parser] Unknown car "${carModelStr}" — add it to shared/games/ac-evo/cars.csv`);
     }
   }
@@ -89,7 +94,7 @@ export function parseAcEvoBuffers(
       cache.trackOrdinal = track.id;
       console.log(`[AC Evo Parser] Resolved track: "${trackStr}" → ordinal ${track.id}`);
     } else {
-      cache.trackOrdinal = 0;
+      cache.trackOrdinal = -1;
       console.warn(`[AC Evo Parser] Unknown track name: "${trackStr}"`);
     }
   }
