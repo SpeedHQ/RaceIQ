@@ -3,7 +3,7 @@ import { m } from "@/paraglide/messages";
 import { Link } from "@tanstack/react-router";
 import { useQueries } from "@tanstack/react-query";
 import { Settings2 } from "lucide-react";
-import { useLaps, useSettings } from "../hooks/queries";
+import { useLaps, useSessions, useSettings } from "../hooks/queries";
 import { formatLapTime } from "./LiveTelemetry";
 import { client } from "../lib/rpc";
 import type { LapMeta } from "@shared/types";
@@ -13,6 +13,8 @@ import { tryGetGame } from "@shared/games/registry";
 import { useUiStore } from "../stores/ui";
 import { Table, THead, TBody, TRow, TH, TD } from "./ui/AppTable";
 import { ActivityHeatmap } from "./ActivityHeatmap";
+import { SessionRecap } from "./SessionRecap";
+import { SessionRecapModal } from "./SessionRecapModal";
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
@@ -114,9 +116,16 @@ export function HomePage() {
   const gameId = useGameId();
   const gameAdapter = gameId ? tryGetGame(gameId) : null;
   const { data: allLaps = [] } = useLaps();
+  const { data: sessions = [] } = useSessions();
   const { displaySettings } = useSettings();
   const { openSettings } = useUiStore();
   const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
+  const [recapModalOpen, setRecapModalOpen] = useState(false);
+
+  const latestSession = useMemo(() => {
+    if (sessions.length === 0) return null;
+    return [...sessions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+  }, [sessions]);
 
   // Resolve car/track names for recent laps
   const [carNames, setCarNames] = useState<Record<number, string>>({});
@@ -514,6 +523,18 @@ export function HomePage() {
           )}
         </div>
       )}
+
+      {/* Latest session recap */}
+      {latestSession && (
+        <div
+          className="rounded-lg border border-app-border bg-app-surface p-4 cursor-pointer hover:border-app-accent/40 transition-colors"
+          onClick={() => setRecapModalOpen(true)}
+        >
+          <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider mb-2">Latest Session</h2>
+          <SessionRecap sessionId={latestSession.id} />
+        </div>
+      )}
+      {recapModalOpen && latestSession && <SessionRecapModal sessionId={latestSession.id} onClose={() => setRecapModalOpen(false)} />}
 
       {/* Activity heatmap */}
       <ActivityHeatmap laps={gameId ? allLaps.filter((l) => l.gameId === gameId) : allLaps} />

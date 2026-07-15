@@ -14,6 +14,7 @@ import { AppInput } from "./ui/AppInput";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Tooltip } from "./ui/InfoTooltip";
 import { RotatePrompt } from "../routes/__root";
+import { SessionRecapModal } from "./SessionRecapModal";
 
 const PAGE_SIZE = 25;
 
@@ -279,6 +280,7 @@ export function SessionsPage() {
   const [selectedLaps, setSelectedLaps] = useState<Set<number>>(new Set());
   const [selectedSessions, setSelectedSessions] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState("");
+  const [recapSessionId, setRecapSessionId] = useState<number | null>(null);
 
   // Group laps by session
   const lapsBySession = useMemo(() => {
@@ -454,6 +456,7 @@ export function SessionsPage() {
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
+      {recapSessionId != null && <SessionRecapModal sessionId={recapSessionId} onClose={() => setRecapSessionId(null)} />}
       <RotatePrompt />
       <div className="flex items-center flex-wrap gap-3">
         <AppInput type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={m.sessions_search_placeholder()} className="flex-1 min-w-[200px] sm:flex-none sm:w-64" />
@@ -548,8 +551,20 @@ export function SessionsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-2">
                       <div className="text-sm font-semibold text-app-text truncate">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</div>
-                      <div className="text-[11px] text-app-text/90-dim shrink-0">
-                        {new Date(session.createdAt).toLocaleDateString()} {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-[11px] text-app-text/90-dim">
+                          {new Date(session.createdAt).toLocaleDateString()} {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                        <Button
+                          variant="app-outline"
+                          size="app-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRecapSessionId(session.id);
+                          }}
+                        >
+                          Recap
+                        </Button>
                       </div>
                     </div>
                     <div className="text-xs text-app-text/90-muted truncate mt-0.5">
@@ -660,8 +675,22 @@ export function SessionsPage() {
                       />
                     </TD>
                     <TD className="text-app-text/90 whitespace-nowrap">
-                      {new Date(session.createdAt).toLocaleDateString()}{" "}
-                      <span className="text-app-text/90-dim">{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                      <div className="flex items-center gap-2">
+                        <span>
+                          {new Date(session.createdAt).toLocaleDateString()}{" "}
+                          <span className="text-app-text/90-dim">{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                        </span>
+                        <Button
+                          variant="app-outline"
+                          size="app-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRecapSessionId(session.id);
+                          }}
+                        >
+                          Recap
+                        </Button>
+                      </div>
                     </TD>
                     <TD className="text-app-text/90 tabular-nums">{session.lapCount ?? 0}</TD>
                     <TD className="text-app-text/90 tabular-nums">

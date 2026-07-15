@@ -535,6 +535,57 @@ export interface SessionMeta {
   gameId?: GameId;
 }
 
+/**
+ * Post-session summary shown on the recap card. Every field is derived from laps
+ * we already store — see server/recap.ts for the rules. Nullable fields mean
+ * "not computable for this session" and render as a hidden tile, never as a zero.
+ */
+export interface SessionRecap {
+  sessionId: number;
+  gameId: GameId;
+  carName: string;
+  trackName: string;
+  createdAt: string;
+
+  /** Laps with isValid && lapTime > 0. */
+  lapsValid: number;
+  /** Every lap row, including invalid ones. Display only ("valid/total"). */
+  lapsTotal: number;
+  /** Fastest valid lap, seconds. Null when no valid laps. */
+  bestLapSec: number | null;
+  /** Sum of lapTime over VALID laps only — invalid laps are often detector artifacts. */
+  timeOnTrackSec: number;
+  /** trackLength * lapsValid, metres. Null when the track has no outline. */
+  distanceM: number | null;
+
+  /** Pace trend, in lap order. */
+  sparkline: { lapNumber: number; lapTimeSec: number; isValid: boolean }[];
+
+  /** Best sectors across valid laps, possibly from different laps. Null when no valid lap has all three. */
+  theoretical: {
+    bestS1: number;
+    bestS2: number;
+    bestS3: number;
+    sumSec: number;
+    /** bestLapSec - sumSec, clamped >= 0. The time left on the table. */
+    deltaToBestSec: number;
+  } | null;
+
+  /** First valid lap minus best lap, clamped >= 0. Null when fewer than 2 valid laps. */
+  improvementSec: number | null;
+  /** Population stddev of valid lap times, rated relative to best lap. Null when fewer than 3 valid laps. */
+  consistency: {
+    stdDevSec: number;
+    rating: 1 | 2 | 3 | 4 | 5;
+  } | null;
+  /** Compared against other sessions with the same track + car + game. Null when bestLapSec is null. */
+  personalBest: {
+    isNew: boolean;
+    /** Null when this is the first ever session on this track + car. */
+    previousBestSec: number | null;
+  } | null;
+}
+
 export interface ServerStatus {
   udpReceiving: boolean;
   packetsPerSec: number;

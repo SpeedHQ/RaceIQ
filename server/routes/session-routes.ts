@@ -4,12 +4,15 @@ import { z } from "zod";
 
 import { GameIdQuerySchema } from "../../shared/schemas";
 import { IdParamSchema } from "../../shared/schemas";
-import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions } from "../db/queries";
+import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData } from "../db/queries";
 import { reprocessSession } from "../reprocess";
 import { LAP_DETECTOR_ID } from "../lap-detector";
 import { LAP_DETECTOR_V2_ID } from "../lap-detector-acc";
 import { LAP_DETECTOR_AC_EVO_ID } from "../lap-detector-ac-evo";
 import { wsManager } from "../ws";
+import { computeRecap } from "../recap";
+import { tryGetGame } from "../../shared/games/registry";
+import { getCarName, getTrackName } from "../../shared/car-data";
 
 const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_V2_ID, LAP_DETECTOR_AC_EVO_ID];
 
@@ -20,6 +23,35 @@ export const sessionRoutes = new Hono()
     const sessionList = await getSessions(gameId);
     return c.json(sessionList);
   })
+
+  // GET /api/sessions/:id/recap
+  .get(
+    "/api/sessions/:id/recap",
+    zValidator("param", IdParamSchema),
+    zValidator("query", GameIdQuerySchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const { gameId } = c.req.valid("query");
+      if (!gameId) return c.json({ error: "gameId is required" }, 400);
+
+      const data = await getSessionRecapData(id, gameId);
+      if (!data) return c.json({ error: "Session not found" }, 404);
+
+      const adapter = tryGetGame(gameId);
+      const carName = adapter ? adapter.getCarName(data.session.carOrdinal) : getCarName(data.session.carOrdinal, gameId);
+      const trackName = adapter ? adapter.getTrackName(data.session.trackOrdinal) : getTrackName(data.session.trackOrdinal, gameId);
+
+      const recap = computeRecap({
+        session: data.session,
+        laps: data.laps,
+        carName,
+        trackName,
+        trackLengthM: data.trackLengthM,
+        allTimeBestSec: data.allTimeBestSec,
+      });
+      return c.json(recap);
+    },
+  )
 
   // PATCH /api/sessions/:id/notes
   .patch(

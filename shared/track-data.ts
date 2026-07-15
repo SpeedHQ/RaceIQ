@@ -975,6 +975,22 @@ export function getTrackOutlineByOrdinal(ordinal: number, gameId: string, shared
   return loadBundledCenterline(ordinal, gameId) ?? loadRecordedOutline(ordinal, gameId) ?? loadSharedOutline(sharedName ?? "") ?? getBundledOutlineByOrdinal(ordinal);
 }
 
+/**
+ * Total track length in metres, derived by summing consecutive point distances
+ * along the outline. Returns null when no outline is available (never guess a length).
+ */
+export function getTrackLengthMeters(ordinal: number, gameId: string, sharedName?: string): number | null {
+  const outline = getTrackOutlineByOrdinal(ordinal, gameId, sharedName);
+  if (!outline || outline.length < 2) return null;
+  let length = 0;
+  for (let i = 1; i < outline.length; i++) {
+    const dx = outline[i].x - outline[i - 1].x;
+    const dz = outline[i].z - outline[i - 1].z;
+    length += Math.sqrt(dx * dx + dz * dz);
+  }
+  return length;
+}
+
 export function hasRecordedOutline(ordinal: number, gameId: string): boolean {
   validateGameId(gameId);
   ensureRecordedScanned();
