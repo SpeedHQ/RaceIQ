@@ -9,14 +9,19 @@
  *   - driver:    GRAPHICS_EVO.driver_name / driver_surname
  */
 
-import type { TelemetryPacket, AccExtendedData, GameId } from "../../../shared/types";
+import type { TelemetryPacket, AccExtendedData, AcEvoExtendedData, GameId } from "../../../shared/types";
 import {
   PHYSICS,
   GRAPHICS_EVO,
   STATIC_EVO,
+  SESSION_STATE,
+  TIMING_STATE,
+  ELECTRONICS,
   ACEVO_STATUS,
   ACEVO_FLAG_NAMES,
   ACEVO_CAR_LOCATION,
+  ACEVO_SESSION_TYPE_NAMES,
+  ACEVO_STARTING_GRIP_NAMES,
 } from "./structs";
 import { readCString } from "./utils";
 import { getAcEvoCarByDisplayName } from "../../../shared/ac-evo-car-data";
@@ -41,8 +46,12 @@ export interface AcEvoParserCache {
 
 export function createAcEvoParserCache(): AcEvoParserCache {
   return {
-    carOrdinal: 0,
-    trackOrdinal: 0,
+    // -1 = not yet identified. Ordinal 0 is a real car (Ferrari SF90 Stradale)
+    // and a real track (Monza GP), so an empty/unknown name must NOT default
+    // to 0 — that is exactly the production bug where sessions imported as
+    // "Monza" / "Ferrari SF90 Stradale".
+    carOrdinal: -1,
+    trackOrdinal: -1,
     lastCarModel: "",
     lastTrack: "",
     playerSlot: -1,
@@ -70,27 +79,32 @@ export function parseAcEvoBuffers(
   // v0.6 puts car_model inside GRAPHICS_EVO, track inside STATIC_EVO
   const carModelStr = readCString(graphicsBuf, GRAPHICS_EVO.car_model.offset, GRAPHICS_EVO.car_model.size);
   const trackStr = readCString(staticBuf, STATIC_EVO.track.offset, STATIC_EVO.track.size);
+  const trackCfgStr = readCString(staticBuf, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size);
 
   if (carModelStr && carModelStr !== cache.lastCarModel) {
     cache.lastCarModel = carModelStr;
     const car = getAcEvoCarByDisplayName(carModelStr);
     if (car) {
       cache.carOrdinal = car.id;
+      console.log(`[AC Evo Parser] Resolved car: "${carModelStr}" → ordinal ${car.id}`);
     } else {
-      cache.carOrdinal = 0;
+      cache.carOrdinal = -1;
       console.warn(`[AC Evo Parser] Unknown car "${carModelStr}" — add it to shared/games/ac-evo/cars.csv`);
     }
   }
 
-  if (trackStr && trackStr !== cache.lastTrack) {
-    cache.lastTrack = trackStr;
-    const track = getAcEvoTrackByName(trackStr);
+  // Include the layout in the cache key: switching GP → Indy at the same
+  // circuit changes only track_configuration, not track.
+  const trackKey = `${trackStr}|${trackCfgStr}`;
+  if (trackStr && trackKey !== cache.lastTrack) {
+    cache.lastTrack = trackKey;
+    const track = getAcEvoTrackByName(trackStr, trackCfgStr);
     if (track) {
       cache.trackOrdinal = track.id;
-      console.log(`[AC Evo Parser] Resolved track: "${trackStr}" → ordinal ${track.id}`);
+      console.log(`[AC Evo Parser] Resolved track: "${trackStr}" (config "${trackCfgStr}") → ordinal ${track.id} (${track.name} - ${track.variant})`);
     } else {
-      cache.trackOrdinal = 0;
-      console.warn(`[AC Evo Parser] Unknown track name: "${trackStr}"`);
+      cache.trackOrdinal = -1;
+      console.warn(`[AC Evo Parser] Unknown track name: "${trackStr}" (config "${trackCfgStr}")`);
     }
   }
 
@@ -267,6 +281,93 @@ export function parseAcEvoBuffers(
   const startingGround = staticBuf.readFloatLE(STATIC_EVO.starting_ground_temperature_c.offset);
   const trackLengthM = staticBuf.readFloatLE(STATIC_EVO.track_length_m.offset);
 
+  // --- AC Evo extended telemetry (previously-ignored shm fields) ---
+  const sessionRaw = staticBuf.readInt32LE(STATIC_EVO.session.offset);
+  const startingGripRaw = staticBuf.readInt32LE(STATIC_EVO.starting_grip.offset);
+  const sessBase = GRAPHICS_EVO.session_state_base.offset;
+  const timBase = GRAPHICS_EVO.timing_state_base.offset;
+
+  const acEvoExt: AcEvoExtendedData = {
+    physicsPacketId: physicsBuf.readInt32LE(PHYSICS.packetId.offset),
+    graphicsPacketId: graphicsBuf.readInt32LE(GRAPHICS_EVO.packetId.offset),
+    acEvoVersion: readCString(staticBuf, STATIC_EVO.ac_evo_version.offset, STATIC_EVO.ac_evo_version.size),
+
+    sessionType: ACEVO_SESSION_TYPE_NAMES[sessionRaw] ?? "unknown",
+    sessionName: readCString(staticBuf, STATIC_EVO.session_name.offset, STATIC_EVO.session_name.size),
+    startingGrip: ACEVO_STARTING_GRIP_NAMES[startingGripRaw] ?? "unknown",
+    isStaticWeather: staticBuf.readUInt8(STATIC_EVO.is_static_weather.offset) !== 0,
+    isTimedRace: staticBuf.readUInt8(STATIC_EVO.is_timed_race.offset) !== 0,
+    isOnline: staticBuf.readUInt8(STATIC_EVO.is_online.offset) !== 0,
+    numberOfSessions: staticBuf.readInt32LE(STATIC_EVO.number_of_sessions.offset),
+
+    airTempC: physicsBuf.readFloatLE(PHYSICS.airTemp.offset),
+    roadTempC: physicsBuf.readFloatLE(PHYSICS.roadTemp.offset),
+
+    deltaTimeMs: graphicsBuf.readInt32LE(GRAPHICS_EVO.delta_time_ms.offset),
+    predictedLapTimeMs: graphicsBuf.readInt32LE(GRAPHICS_EVO.predicted_lap_time_ms.offset),
+    deltaCurrent: readCString(graphicsBuf, timBase + TIMING_STATE.delta_current, 15),
+    deltaLast: readCString(graphicsBuf, timBase + TIMING_STATE.delta_last, 15),
+    idealLapTime: readCString(graphicsBuf, timBase + TIMING_STATE.ideal_laptime, 15),
+    timingIsInvalid: graphicsBuf.readUInt8(timBase + TIMING_STATE.is_invalid) !== 0,
+
+    sessionTimeLeftMs: graphicsBuf.readInt32LE(sessBase + SESSION_STATE.time_left_ms),
+    sessionTotalLaps: graphicsBuf.readInt32LE(sessBase + SESSION_STATE.total_lap),
+    sessionCurrentLap: graphicsBuf.readInt32LE(sessBase + SESSION_STATE.current_lap),
+    lapLengthKm: graphicsBuf.readFloatLE(sessBase + SESSION_STATE.lap_length_km),
+
+    escLevel: graphicsBuf.readInt8(elecBase + ELECTRONICS.esc_level),
+    engineMapLevel,
+    isDrsOpen: graphicsBuf.readUInt8(elecBase + ELECTRONICS.is_drs_open) !== 0,
+
+    clutchPercent: graphicsBuf.readFloatLE(GRAPHICS_EVO.clutch_percent.offset),
+    handbrakePercent: graphicsBuf.readFloatLE(GRAPHICS_EVO.handbrake_percent.offset),
+    waterTempC: physicsBuf.readFloatLE(PHYSICS.waterTemp.offset),
+    oilTempC: graphicsBuf.readFloatLE(GRAPHICS_EVO.oil_temperature_c.offset),
+    oilPressureBar: graphicsBuf.readFloatLE(GRAPHICS_EVO.oil_pressure_bar.offset),
+    exhaustTempC: graphicsBuf.readFloatLE(GRAPHICS_EVO.exhaust_temperature_c.offset),
+    turboBoost: graphicsBuf.readFloatLE(GRAPHICS_EVO.turbo_boost.offset),
+    currentTorque: graphicsBuf.readFloatLE(GRAPHICS_EVO.current_torque.offset),
+    currentBhp: graphicsBuf.readInt32LE(GRAPHICS_EVO.current_bhp.offset),
+    isWrongWay: graphicsBuf.readUInt8(GRAPHICS_EVO.is_wrong_way.offset) !== 0,
+
+    fuelLiters: graphicsBuf.readFloatLE(GRAPHICS_EVO.fuel_liter_current_quantity.offset),
+    fuelPercent: graphicsBuf.readFloatLE(GRAPHICS_EVO.fuel_liter_current_quantity_percent.offset),
+    fuelLitersPerLap: graphicsBuf.readFloatLE(GRAPHICS_EVO.fuel_liter_per_lap.offset),
+    fuelLitersUsed: graphicsBuf.readFloatLE(GRAPHICS_EVO.fuel_liter_used.offset),
+    lapsPossibleWithFuel: graphicsBuf.readFloatLE(GRAPHICS_EVO.laps_possible_with_fuel.offset),
+    kmPerFuelLiter: graphicsBuf.readFloatLE(GRAPHICS_EVO.km_per_fuel_liter.offset),
+    instantaneousKmPerLiter: graphicsBuf.readFloatLE(GRAPHICS_EVO.instantaneous_km_per_fuel_liter.offset),
+
+    brakeDiscLife: [
+      physicsBuf.readFloatLE(PHYSICS.discLifeFL.offset),
+      physicsBuf.readFloatLE(PHYSICS.discLifeFR.offset),
+      physicsBuf.readFloatLE(PHYSICS.discLifeRL.offset),
+      physicsBuf.readFloatLE(PHYSICS.discLifeRR.offset),
+    ],
+    tyreMiddleTempC: [
+      physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleFL.offset),
+      physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleFR.offset),
+      physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleRL.offset),
+      physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleRR.offset),
+    ],
+
+    localVelocity: [
+      physicsBuf.readFloatLE(PHYSICS.localVelocityX.offset),
+      physicsBuf.readFloatLE(PHYSICS.localVelocityY.offset),
+      physicsBuf.readFloatLE(PHYSICS.localVelocityZ.offset),
+    ],
+
+    gapAheadMs: graphicsBuf.readFloatLE(GRAPHICS_EVO.gap_ahead.offset),
+    gapBehindMs: graphicsBuf.readFloatLE(GRAPHICS_EVO.gap_behind.offset),
+
+    sessionKm: currentKm,
+    totalDrivingTimeS: graphicsBuf.readUInt32LE(GRAPHICS_EVO.total_driving_time_s.offset),
+
+    timeOfDayHours: graphicsBuf.readInt32LE(GRAPHICS_EVO.time_of_day_hours.offset),
+    timeOfDayMinutes: graphicsBuf.readInt32LE(GRAPHICS_EVO.time_of_day_minutes.offset),
+    timeOfDaySeconds: graphicsBuf.readInt32LE(GRAPHICS_EVO.time_of_day_seconds.offset),
+  };
+
   // --- Derived ---
   const gear = accGear <= 1 ? 0 : accGear - 1;
   const accel = Math.round(gas * 255);
@@ -335,6 +436,7 @@ export function parseAcEvoBuffers(
       centre: damCentre,
     },
     isValidLap: isValidLap ? true : null,
+    acEvo: acEvoExt,
   };
 
   // Expose AC Evo-specific extras on the acc object for downstream use

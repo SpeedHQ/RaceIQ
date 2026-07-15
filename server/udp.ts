@@ -68,7 +68,7 @@ class UdpListener {
    * under test/artifacts/sessions/ and every incoming datagram is appended to it
    * (in addition to the normal parse → pipeline → DB/WS flow). Mirrors how the
    * AccSharedMemoryReader/AcEvoSharedMemoryReader constructors create their
-   * .bin files when `recordingOnly=true`. Used by `dev:dump:fm` / `dev:dump:f1`.
+   * .bin files when `recordingEnabled=true`. Used by `dev:dump:fm` / `dev:dump:f1`.
    */
   setRecordingGameId(gameId: GameId | null): void {
     this._recordingGameId = gameId;

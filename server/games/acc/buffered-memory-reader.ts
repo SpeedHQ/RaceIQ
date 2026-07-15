@@ -32,6 +32,19 @@ export interface BufferedReaderOptions {
   staticName?: string;
   /** Offset in graphics buffer holding a stable session id. Null = disable change detection; read static only on first connect. */
   sessionIdOffset?: number | null;
+  /**
+   * Predicate that returns true once the static page contains real data.
+   * Only used when sessionIdOffset is null: the static page is re-read every
+   * graphics tick until this passes (the game may not have populated it yet
+   * when we attach, e.g. RaceIQ connects while the game is still in menus).
+   * Omit to treat the first read as valid (legacy read-once behavior).
+   */
+  staticValid?: (buf: Buffer) => boolean;
+  /**
+   * Only used when sessionIdOffset is null: once static is valid, re-read it
+   * at this interval to catch track/car changes mid-process. Default 1000ms.
+   */
+  staticRefreshMs?: number;
   /** Log prefix for diagnostics. */
   logPrefix?: string;
 }
@@ -57,6 +70,9 @@ export class BufferedAccMemoryReader implements IRealtimeAccMemoryReader {
   private _ffiPtr: ((buf: Buffer) => unknown) | null = null;
   // Session detection for smart static re-reading
   private _lastSessionId: number | null = null;
+  // Static page validity tracking (sessionIdOffset === null path)
+  private _staticEverValid = false;
+  private _lastStaticReadAt = 0;
 
   private readonly _opts: BufferedReaderOptions;
 
@@ -239,9 +255,25 @@ export class BufferedAccMemoryReader implements IRealtimeAccMemoryReader {
             this._staticBuffer = this._readMapped(this._static);
             this._lastSessionId = currentSessionId;
           }
-        } else if (!this._staticBuffer && this._static) {
-          // No session detection — just read static once on first graphics tick
-          this._staticBuffer = this._readMapped(this._static);
+        } else if (this._static) {
+          // No stable session id available. The game may attach its shared
+          // memory before populating the static page (e.g. we connect while
+          // it is still in menus), so a single read can capture a zeroed
+          // page. Re-read every tick until staticValid passes, then refresh
+          // periodically to catch track/car changes mid-process.
+          const now = Date.now();
+          const refreshMs = this._opts.staticRefreshMs ?? 1000;
+          if (!this._staticEverValid) {
+            this._staticBuffer = this._readMapped(this._static);
+            this._lastStaticReadAt = now;
+            if (this._opts.staticValid?.(this._staticBuffer) ?? true) {
+              this._staticEverValid = true;
+              console.log(`[${this._opts.logPrefix ?? "ACC"} Buffered Reader] Static page populated`);
+            }
+          } else if (now - this._lastStaticReadAt >= refreshMs) {
+            this._staticBuffer = this._readMapped(this._static);
+            this._lastStaticReadAt = now;
+          }
         }
       }
     }, 1000 / 60);
