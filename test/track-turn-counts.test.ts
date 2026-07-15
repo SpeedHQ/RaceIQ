@@ -23,9 +23,26 @@ const slugs = listCuratedSlugs();
  * not a track that lacks the corner. Nine of the eleven are ACC, which is the
  * shape of a systemic issue rather than nine unrelated corners.
  *
- * The big-radius cases (Curva Grande, Courbe Paul Frère) are fixed: the loose
- * second pass in detectCornerRegions now finds sweeps sitting on the strict
- * entry threshold. What remains are corners no pass sees at any threshold.
+ * The big-radius cases (Curva Grande, Courbe Paul Frère on F1) are fixed: the
+ * loose second pass in detectCornerRegions finds sweeps sitting on the strict
+ * entry threshold. What remains is NOT a threshold problem — do not try:
+ *
+ * ACC's "centerline" is the fastlane.ai RACING LINE, not the track centre
+ * (see server/games/acc/extract-tracks.ts, where fastlane nodes are written
+ * straight out as -centerline.csv). A racing line apexes and cuts, so these
+ * corners are straightened or fused into a neighbour rather than faintly
+ * detected: Brands Hatch's ACC line has 9 regions for 10 corners, and the
+ * ones around Dingle Dell peak at 210/175/167 m radius — loud, not shallow.
+ * Loosening thresholds makes it worse (at 1/1400 the two neighbours fuse into
+ * one), because the loose pass only fills gaps and there is no gap here.
+ *
+ * The true centre IS recoverable — midpoint of leftEdge/rightEdge in
+ * shared/tracks/acc/<slug>-boundaries.json (index-parity verified on all 25
+ * tracks, no track falls back to DEFAULT_HALF_WIDTH). It closes these gaps but
+ * only 6/25 ACC tracks still align writably (cost < 1) against name lists that
+ * were curated against racing-line segmentation, so adopting it is a per-track
+ * re-curation project, not a switch. austin/indianapolis additionally need
+ * width denoising (2.3x/1.8x the jitter of the racing line).
  *
  * This list is a defect register, not a baseline to re-bless: entries should
  * only be removed by fixing the detector, and a new entry means something
@@ -37,6 +54,8 @@ const KNOWN_DETECTOR_GAPS = new Set([
   "catalunya T14 f1-2025",
   "catalunya T14 fm-2023",
   "imola T8 acc",
+  // Not a detector gap at all: ACC's geometry has a 1901 m-radius LEFT where
+  // T13 is a right. The corner is not in that line — this one is permanent.
   "imola T13 acc",
   "silverstone T5 acc", // Aintree
   "spa T16 acc", // Courbe Paul Frère — found on fm-2023 and f1-2025, not ACC

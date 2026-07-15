@@ -342,7 +342,20 @@ export async function extractAccTracks(
       const { leftEdge, rightEdge } = computeEdges(nodes, widths, validWidths);
       const name = trackOutputName(dirName, ordinal, trackNames);
 
-      // Write centerline CSV: header x,z, one point per line
+      // Write centerline CSV: header x,z, one point per line.
+      //
+      // NOTE: these nodes are fastlane.ai's RACING LINE, not the track centre —
+      // "centerline" here means "the line we have", and it apexes and cuts. It
+      // reads ~1% short per lap and straightens shallow corners away entirely
+      // (Spa's Courbe Paul Frère, Silverstone's Aintree, Brands Hatch's Dingle
+      // Dell have no region of their own on it), which corner detection then
+      // cannot find at any threshold — see KNOWN_DETECTOR_GAPS in
+      // test/track-turn-counts.test.ts.
+      //
+      // The true centre is the midpoint of the leftEdge/rightEdge written below,
+      // and switching to it fixes those corners — but the curated name lists
+      // were written against this line's segmentation, so only 6/25 tracks still
+      // align writably against it. Adopting it is a per-track re-curation job.
       const centerlineLines = ["x,z"];
       for (const node of nodes) {
         centerlineLines.push(`${node.x.toFixed(4)},${node.z.toFixed(4)}`);
