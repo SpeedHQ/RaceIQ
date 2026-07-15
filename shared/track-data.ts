@@ -951,15 +951,15 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
   }
 }
 
-/** Load bundled game-extracted centerline CSV by ordinal. */
+/** Load a bundled game-extracted point CSV ("<name>-<suffix>.csv") by ordinal. */
 const bundledCenterlineCache = new Map<string, Point[] | null>();
-function loadBundledCenterline(ordinal: number, gameId: string): Point[] | null {
-  const key = gk(gameId, ordinal);
+function loadBundledPointCsv(ordinal: number, gameId: string, suffix: "centerline" | "raceline"): Point[] | null {
+  const key = `${suffix}:${gk(gameId, ordinal)}`;
   const cached = bundledCenterlineCache.get(key);
   if (cached !== undefined) return cached;
   const name = getBundledTrackName(gameId, ordinal);
   if (!name) { bundledCenterlineCache.set(key, null); return null; }
-  const filePath = resolve(bundledGameDir(gameId), `${name}-centerline.csv`);
+  const filePath = resolve(bundledGameDir(gameId), `${name}-${suffix}.csv`);
   const content = readDataFile(filePath);
   if (!content) { bundledCenterlineCache.set(key, null); return null; }
   try {
@@ -980,7 +980,19 @@ function loadBundledCenterline(ordinal: number, gameId: string): Point[] | null 
  */
 export function getTrackOutlineByOrdinal(ordinal: number, gameId: string, sharedName?: string): Point[] | null {
   validateGameId(gameId);
-  return loadBundledCenterline(ordinal, gameId) ?? loadRecordedOutline(ordinal, gameId) ?? loadSharedOutline(sharedName ?? "") ?? getBundledOutlineByOrdinal(ordinal);
+  return loadBundledPointCsv(ordinal, gameId, "centerline") ?? loadRecordedOutline(ordinal, gameId) ?? loadSharedOutline(sharedName ?? "") ?? getBundledOutlineByOrdinal(ordinal);
+}
+
+/**
+ * Get the game's reference racing line for a track, if one was extracted.
+ *
+ * Only ACC ships this (fastlane.ai's AI line, reused by AC Evo for the shared Kunos
+ * circuits); every other game returns null. It is a driving line, not track geometry —
+ * use getTrackOutlineByOrdinal for the centreline.
+ */
+export function getTrackRacelineByOrdinal(ordinal: number, gameId: string): Point[] | null {
+  validateGameId(gameId);
+  return loadBundledPointCsv(ordinal, gameId, "raceline");
 }
 
 /**

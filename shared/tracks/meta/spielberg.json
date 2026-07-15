@@ -129,14 +129,14 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0664
+          "endFrac": 0.0607
         },
         {
           "type": "corner",
           "name": "Niki Lauda Kurve",
           "direction": "right",
-          "startFrac": 0.0664,
-          "endFrac": 0.1306,
+          "startFrac": 0.0607,
+          "endFrac": 0.1309,
           "numbers": [
             1
           ]
@@ -144,15 +144,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.1306,
-          "endFrac": 0.2842
+          "startFrac": 0.1309,
+          "endFrac": 0.2834
         },
         {
           "type": "corner",
           "name": "Remus",
           "direction": "right",
-          "startFrac": 0.2842,
-          "endFrac": 0.3459,
+          "startFrac": 0.2834,
+          "endFrac": 0.3472,
           "numbers": [
             3
           ]
@@ -160,31 +160,25 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.3459,
-          "endFrac": 0.4718
+          "startFrac": 0.3472,
+          "endFrac": 0.4678
         },
         {
           "type": "corner",
           "name": "Schlossgold",
           "direction": "right",
-          "startFrac": 0.4718,
-          "endFrac": 0.5383,
+          "startFrac": 0.4678,
+          "endFrac": 0.5916,
           "numbers": [
             4
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5383,
-          "endFrac": 0.5779
-        },
-        {
           "type": "corner",
           "name": "T5",
           "direction": "left",
-          "startFrac": 0.5779,
-          "endFrac": 0.6747,
+          "startFrac": 0.5916,
+          "endFrac": 0.6779,
           "numbers": [
             5
           ]
@@ -193,8 +187,8 @@
           "type": "corner",
           "name": "Rauch",
           "direction": "left",
-          "startFrac": 0.6747,
-          "endFrac": 0.7254,
+          "startFrac": 0.6779,
+          "endFrac": 0.7488,
           "numbers": [
             6
           ]
@@ -203,8 +197,8 @@
           "type": "corner",
           "name": "T7",
           "direction": "right",
-          "startFrac": 0.7254,
-          "endFrac": 0.7925,
+          "startFrac": 0.7488,
+          "endFrac": 0.7942,
           "numbers": [
             7
           ]
@@ -212,15 +206,15 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.7925,
-          "endFrac": 0.8274
+          "startFrac": 0.7942,
+          "endFrac": 0.8234
         },
         {
           "type": "corner",
           "name": "Rindt",
           "direction": "right",
-          "startFrac": 0.8274,
-          "endFrac": 0.9079,
+          "startFrac": 0.8234,
+          "endFrac": 0.9025,
           "numbers": [
             9
           ]
@@ -229,8 +223,8 @@
           "type": "corner",
           "name": "Red Bull Mobile",
           "direction": "right",
-          "startFrac": 0.9079,
-          "endFrac": 0.9522,
+          "startFrac": 0.9025,
+          "endFrac": 0.9649,
           "numbers": [
             10
           ]
@@ -238,13 +232,13 @@
         {
           "type": "straight",
           "name": "",
-          "startFrac": 0.9522,
+          "startFrac": 0.9649,
           "endFrac": 1
         }
       ],
       "sectors": {
-        "s1End": 0.294,
-        "s2End": 0.7254,
+        "s1End": 0.2943,
+        "s2End": 0.7488,
         "source": "corner-anchored"
       }
     }
