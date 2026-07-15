@@ -195,15 +195,33 @@ export function buildUpdatedMeta(
     meta.games = meta.games ?? {};
     meta.games[a.gameId] = meta.games[a.gameId] ?? {};
     meta.games[a.gameId].segments = a.segments;
-    if (a.sectors) meta.games[a.gameId].sectors = a.sectors;
+    if (a.sectors && !hasCuratedSectors(meta.games[a.gameId].sectors)) {
+      meta.games[a.gameId].sectors = a.sectors;
+    }
   }
   // Global segments/sectors from the highest-priority aligned game
   const globalSrc = GLOBAL_PRIORITY.map((g) => writable.find((a) => a.gameId === g)).find(Boolean);
   if (globalSrc) {
     meta.segments = globalSrc.segments;
-    if (globalSrc.sectors) meta.sectors = globalSrc.sectors;
+    if (globalSrc.sectors && !hasCuratedSectors(meta.sectors)) {
+      meta.sectors = globalSrc.sectors;
+    }
   }
   return meta;
+}
+
+/**
+ * Sectors that came from somewhere better than geometry — F1 2025's official
+ * per-game fractions (#48), or values researched by hand. Corner-anchored
+ * sectors are derived from the centerline, which is a good way to give a game
+ * its OWN boundaries but a bad way to overrule a timing line someone looked up:
+ * regenerating used to silently push Silverstone's official F1 s1 from 0.314 to
+ * 0.354. Geometry fills gaps; it does not overwrite.
+ *
+ * `source` is stamped only on generated sectors, so its absence marks curation.
+ */
+function hasCuratedSectors(s: { source?: string } | undefined): boolean {
+  return !!s && !s.source;
 }
 
 /**

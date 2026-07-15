@@ -1,16 +1,14 @@
 {
   "name": "Las Vegas Street Circuit",
   "sectors": {
-    "s1End": 0.3,
-    "s2End": 0.74,
-    "source": "hand-researched"
+    "s1End": 0.319,
+    "s2End": 0.679
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3,
-        "s2End": 0.74,
-        "source": "hand-researched"
+        "s1End": 0.318,
+        "s2End": 0.664
       },
       "segments": [
         {

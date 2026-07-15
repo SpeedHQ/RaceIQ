@@ -1,16 +1,14 @@
 {
   "name": "Circuit of the Americas",
   "sectors": {
-    "s1End": 0.3807,
-    "s2End": 0.652,
-    "source": "corner-anchored"
+    "s1End": 0.31,
+    "s2End": 0.642
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3807,
-        "s2End": 0.652,
-        "source": "corner-anchored"
+        "s1End": 0.294,
+        "s2End": 0.646
       },
       "segments": [
         {

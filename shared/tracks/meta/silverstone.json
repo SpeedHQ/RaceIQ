@@ -1,16 +1,14 @@
 {
   "name": "Silverstone Racing Circuit",
   "sectors": {
-    "s1End": 0.3287,
-    "s2End": 0.7101,
-    "source": "corner-anchored"
+    "s1End": 0.331,
+    "s2End": 0.662
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3539,
-        "s2End": 0.726,
-        "source": "corner-anchored"
+        "s1End": 0.314,
+        "s2End": 0.636
       },
       "segments": [
         {

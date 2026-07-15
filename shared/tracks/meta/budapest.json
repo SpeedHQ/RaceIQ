@@ -1,16 +1,14 @@
 {
   "name": "Hungaroring",
   "sectors": {
-    "s1End": 0.5124,
-    "s2End": 0.7385,
-    "source": "corner-anchored"
+    "s1End": 0.256,
+    "s2End": 0.641
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.5124,
-        "s2End": 0.7385,
-        "source": "corner-anchored"
+        "s1End": 0.253,
+        "s2End": 0.635
       },
       "segments": [
         {

@@ -1,16 +1,14 @@
 {
   "name": "Jeddah Corniche Circuit",
   "sectors": {
-    "s1End": 0.32,
-    "s2End": 0.68,
-    "source": "hand-researched"
+    "s1End": 0.326,
+    "s2End": 0.668
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.32,
-        "s2End": 0.68,
-        "source": "hand-researched"
+        "s1End": 0.324,
+        "s2End": 0.664
       },
       "segments": [
         {

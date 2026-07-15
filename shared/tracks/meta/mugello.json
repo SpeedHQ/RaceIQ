@@ -1,9 +1,8 @@
 {
   "name": "Mugello Circuit",
   "sectors": {
-    "s1End": 0.3424,
-    "s2End": 0.595,
-    "source": "corner-anchored"
+    "s1End": 0.33,
+    "s2End": 0.67
   },
   "games": {
     "fm-2023": {

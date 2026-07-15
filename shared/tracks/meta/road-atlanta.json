@@ -1,9 +1,8 @@
 {
   "name": "Road Atlanta",
   "sectors": {
-    "s1End": 0.3727,
-    "s2End": 0.6989,
-    "source": "corner-anchored"
+    "s1End": 0.34,
+    "s2End": 0.66
   },
   "games": {
     "fm-2023": {

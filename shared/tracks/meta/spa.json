@@ -1,9 +1,8 @@
 {
   "name": "Circuit de Spa-Francorchamps",
   "sectors": {
-    "s1End": 0.3389,
-    "s2End": 0.7429,
-    "source": "corner-anchored"
+    "s1End": 0.32,
+    "s2End": 0.65
   },
   "segments": [
     {
@@ -194,9 +193,8 @@
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.4042,
-        "s2End": 0.7605,
-        "source": "corner-anchored"
+        "s1End": 0.32,
+        "s2End": 0.72
       },
       "segments": [
         {
@@ -567,9 +565,8 @@
         }
       ],
       "sectors": {
-        "s1End": 0.3389,
-        "s2End": 0.7429,
-        "source": "corner-anchored"
+        "s1End": 0.305,
+        "s2End": 0.703
       }
     },
     "acc": {

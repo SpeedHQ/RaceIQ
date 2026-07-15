@@ -1,16 +1,14 @@
 {
   "name": "Circuit de Monaco",
   "sectors": {
-    "s1End": 0.33,
-    "s2End": 0.68,
-    "source": "hand-researched"
+    "s1End": 0.336,
+    "s2End": 0.674
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.33,
-        "s2End": 0.68,
-        "source": "hand-researched"
+        "s1End": 0.321,
+        "s2End": 0.662
       },
       "segments": [
         {

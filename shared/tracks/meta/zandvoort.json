@@ -1,16 +1,14 @@
 {
   "name": "Circuit Zandvoort",
   "sectors": {
-    "s1End": 0.4495,
-    "s2End": 0.6716,
-    "source": "corner-anchored"
+    "s1End": 0.286,
+    "s2End": 0.643
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.4495,
-        "s2End": 0.6716,
-        "source": "corner-anchored"
+        "s1End": 0.291,
+        "s2End": 0.636
       },
       "segments": [
         {

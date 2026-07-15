@@ -1,9 +1,8 @@
 {
   "name": "Watkins Glen International",
   "sectors": {
-    "s1End": 0.3692,
-    "s2End": 0.7628,
-    "source": "corner-anchored"
+    "s1End": 0.33,
+    "s2End": 0.67
   },
   "games": {
     "acc": {

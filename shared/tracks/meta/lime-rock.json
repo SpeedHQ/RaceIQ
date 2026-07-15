@@ -1,9 +1,8 @@
 {
   "name": "Lime Rock Park",
   "sectors": {
-    "s1End": 0.3836,
-    "s2End": 0.7441,
-    "source": "corner-anchored"
+    "s1End": 0.33,
+    "s2End": 0.66
   },
   "games": {
     "fm-2023": {

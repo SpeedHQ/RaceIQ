@@ -1,9 +1,8 @@
 {
   "name": "Mid-Ohio Sports Car Course",
   "sectors": {
-    "s1End": 0.5655,
-    "s2End": 0.7715,
-    "source": "corner-anchored"
+    "s1End": 0.33,
+    "s2End": 0.66
   },
   "games": {
     "fm-2023": {

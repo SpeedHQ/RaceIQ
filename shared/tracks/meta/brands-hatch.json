@@ -1,16 +1,14 @@
 {
   "name": "Brand Hatch",
   "sectors": {
-    "s1End": 0.3571,
-    "s2End": 0.6701,
-    "source": "corner-anchored"
+    "s1End": 0.32,
+    "s2End": 0.67
   },
   "games": {
     "acc": {
       "sectors": {
-        "s1End": 0.3591,
-        "s2End": 0.6899,
-        "source": "corner-anchored"
+        "s1End": 0.353,
+        "s2End": 0.67
       },
       "segments": [
         {

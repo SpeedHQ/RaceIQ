@@ -1,16 +1,14 @@
 {
   "name": "Bahrain International Circuit",
   "sectors": {
-    "s1End": 0.3735,
-    "s2End": 0.7162,
-    "source": "corner-anchored"
+    "s1End": 0.336,
+    "s2End": 0.684
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3735,
-        "s2End": 0.7162,
-        "source": "corner-anchored"
+        "s1End": 0.336,
+        "s2End": 0.641
       },
       "segments": [
         {

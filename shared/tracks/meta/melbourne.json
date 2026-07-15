@@ -1,16 +1,14 @@
 {
   "name": "Melbourne Grand Prix Circuit",
   "sectors": {
-    "s1End": 0.35,
-    "s2End": 0.75,
-    "source": "hand-researched"
+    "s1End": 0.318,
+    "s2End": 0.667
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.35,
-        "s2End": 0.75,
-        "source": "hand-researched"
+        "s1End": 0.309,
+        "s2End": 0.644
       },
       "segments": [
         {

@@ -1,16 +1,14 @@
 {
   "name": "Baku City Circuit",
   "sectors": {
-    "s1End": 0.3,
-    "s2End": 0.72,
-    "source": "hand-researched"
+    "s1End": 0.308,
+    "s2End": 0.67
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3,
-        "s2End": 0.72,
-        "source": "hand-researched"
+        "s1End": 0.325,
+        "s2End": 0.666
       },
       "segments": [
         {

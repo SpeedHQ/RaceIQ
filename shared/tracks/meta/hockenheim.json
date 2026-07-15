@@ -1,9 +1,8 @@
 {
   "name": "Hockenheimring",
   "sectors": {
-    "s1End": 0.4813,
-    "s2End": 0.8506,
-    "source": "corner-anchored"
+    "s1End": 0.33,
+    "s2End": 0.68
   },
   "games": {
     "fm-2023": {

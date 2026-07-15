@@ -1,9 +1,8 @@
 {
   "name": "Virginia International Raceway",
   "sectors": {
-    "s1End": 0.2715,
-    "s2End": 0.5532,
-    "source": "corner-anchored"
+    "s1End": 0.33,
+    "s2End": 0.66
   },
   "games": {
     "fm-2023": {

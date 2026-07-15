@@ -1,9 +1,8 @@
 {
   "name": "WeatherTech Raceway Laguna Seca",
   "sectors": {
-    "s1End": 0.3194,
-    "s2End": 0.728,
-    "source": "corner-anchored"
+    "s1End": 0.36,
+    "s2End": 0.7
   },
   "games": {
     "acc": {

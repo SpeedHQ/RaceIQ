@@ -1,16 +1,14 @@
 {
   "name": "Autodromo Hermanos Rodriguez",
   "sectors": {
-    "s1End": 0.4009,
-    "s2End": 0.8077,
-    "source": "corner-anchored"
+    "s1End": 0.3,
+    "s2End": 0.692
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.4009,
-        "s2End": 0.8077,
-        "source": "corner-anchored"
+        "s1End": 0.302,
+        "s2End": 0.69
       },
       "segments": [
         {

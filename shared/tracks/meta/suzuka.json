@@ -1,16 +1,14 @@
 {
   "name": "Suzuka Circuit",
   "sectors": {
-    "s1End": 0.3804,
-    "s2End": 0.8177,
-    "source": "corner-anchored"
+    "s1End": 0.331,
+    "s2End": 0.644
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3804,
-        "s2End": 0.8177,
-        "source": "corner-anchored"
+        "s1End": 0.324,
+        "s2End": 0.632
       },
       "segments": [
         {

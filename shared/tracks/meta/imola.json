@@ -1,16 +1,14 @@
 {
   "name": "Autodromo Internazionale Enzo e Dino Ferrari",
   "sectors": {
-    "s1End": 0.3634,
-    "s2End": 0.7961,
-    "source": "corner-anchored"
+    "s1End": 0.312,
+    "s2End": 0.709
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3634,
-        "s2End": 0.7961,
-        "source": "corner-anchored"
+        "s1End": 0.31,
+        "s2End": 0.674
       },
       "segments": [
         {

@@ -1,9 +1,8 @@
 {
   "name": "Daytona International Speedway",
   "sectors": {
-    "s1End": 0.3464,
-    "s2End": 0.6953,
-    "source": "corner-anchored"
+    "s1End": 0.33,
+    "s2End": 0.66
   },
   "games": {
     "fm-2023": {

@@ -1,16 +1,14 @@
 {
   "name": "Miami International Autodrome",
   "sectors": {
-    "s1End": 0.316,
-    "s2End": 0.6811,
-    "source": "corner-anchored"
+    "s1End": 0.333,
+    "s2End": 0.674
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.316,
-        "s2End": 0.6811,
-        "source": "corner-anchored"
+        "s1End": 0.329,
+        "s2End": 0.652
       },
       "segments": [
         {
