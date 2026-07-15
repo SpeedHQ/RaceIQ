@@ -1,6 +1,6 @@
 {
   "circuit": "Sebring International Raceway",
-  "source": "Official 17-turn numbering (circuit map); detector finds two extra unnumbered kinks between T15 and T16; Sunset Bend is T17",
+  "source": "Official 17-turn numbering (circuit map); detector over-splits the T15/T16 area — one kink after T15, one absorbed into T17; Sunset Bend is T17",
   "turnCount": 17,
   "corners": [
     { "number": 1, "name": "", "direction": "left" },
@@ -19,8 +19,8 @@
     { "number": 14, "name": "", "direction": "left" },
     { "number": 15, "name": "", "direction": "right" },
     { "kink": true, "name": "", "direction": "left" },
-    { "kink": true, "name": "", "direction": "right" },
     { "number": 16, "name": "", "direction": "right" },
+    { "kink": true, "name": "", "direction": "right" },
     { "number": 17, "name": "Sunset Bend", "direction": "right" }
   ]
 }
