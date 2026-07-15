@@ -74,6 +74,7 @@ export function parseAcEvoBuffers(
   // v0.6 puts car_model inside GRAPHICS_EVO, track inside STATIC_EVO
   const carModelStr = readCString(graphicsBuf, GRAPHICS_EVO.car_model.offset, GRAPHICS_EVO.car_model.size);
   const trackStr = readCString(staticBuf, STATIC_EVO.track.offset, STATIC_EVO.track.size);
+  const trackCfgStr = readCString(staticBuf, STATIC_EVO.track_configuration.offset, STATIC_EVO.track_configuration.size);
 
   if (carModelStr && carModelStr !== cache.lastCarModel) {
     cache.lastCarModel = carModelStr;
@@ -87,15 +88,18 @@ export function parseAcEvoBuffers(
     }
   }
 
-  if (trackStr && trackStr !== cache.lastTrack) {
-    cache.lastTrack = trackStr;
-    const track = getAcEvoTrackByName(trackStr);
+  // Include the layout in the cache key: switching GP → Indy at the same
+  // circuit changes only track_configuration, not track.
+  const trackKey = `${trackStr}|${trackCfgStr}`;
+  if (trackStr && trackKey !== cache.lastTrack) {
+    cache.lastTrack = trackKey;
+    const track = getAcEvoTrackByName(trackStr, trackCfgStr);
     if (track) {
       cache.trackOrdinal = track.id;
-      console.log(`[AC Evo Parser] Resolved track: "${trackStr}" → ordinal ${track.id}`);
+      console.log(`[AC Evo Parser] Resolved track: "${trackStr}" (config "${trackCfgStr}") → ordinal ${track.id} (${track.name} - ${track.variant})`);
     } else {
       cache.trackOrdinal = -1;
-      console.warn(`[AC Evo Parser] Unknown track name: "${trackStr}"`);
+      console.warn(`[AC Evo Parser] Unknown track name: "${trackStr}" (config "${trackCfgStr}")`);
     }
   }
 

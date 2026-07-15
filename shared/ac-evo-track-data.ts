@@ -54,19 +54,7 @@ function norm(s: string): string {
   return s.toLowerCase().replace(/[-_\s]/g, "");
 }
 
-/**
- * Find a track by its AC Evo shared memory string name (e.g. "monza", "spa").
- *
- * Exact matches (commonTrackName, name, or name+variant) always win. Only
- * then do we fall back to substring matching, preferring the LONGEST
- * candidate so "brands-hatch-indy" beats "brands-hatch" instead of whichever
- * row happens to come first in the CSV.
- */
-export function getAcEvoTrackByName(trackStr: string): AcEvoTrack | undefined {
-  ensureLoaded();
-  const needle = norm(trackStr);
-  if (!needle) return undefined;
-
+function findExact(needle: string): AcEvoTrack | undefined {
   for (const track of trackMap!.values()) {
     if (
       norm(track.commonTrackName) === needle ||
@@ -76,7 +64,10 @@ export function getAcEvoTrackByName(trackStr: string): AcEvoTrack | undefined {
       return track;
     }
   }
+  return undefined;
+}
 
+function findFuzzy(needle: string): AcEvoTrack | undefined {
   let best: AcEvoTrack | undefined;
   let bestLen = 0;
   for (const track of trackMap!.values()) {
@@ -92,4 +83,37 @@ export function getAcEvoTrackByName(trackStr: string): AcEvoTrack | undefined {
     }
   }
   return best;
+}
+
+/**
+ * Find a track by its AC Evo shared memory string name (e.g. "monza", "spa").
+ *
+ * AC Evo reports the layout in a SEPARATE shm field (track_configuration),
+ * so callers that have it MUST pass `config` — "brands_hatch" alone
+ * exact-matches the GP row and Indy would never be considered.
+ *
+ * When `config` is given we first require an exact match on
+ * track+config (name+variant, or the combined commonTrackName like
+ * "brands-hatch-indy"). Only if that fails do we fall back to the plain
+ * track string. Exact matches (commonTrackName, name, or name+variant)
+ * always win over substring matching, which prefers the LONGEST candidate
+ * so "brands-hatch-indy" beats "brands-hatch" instead of whichever row
+ * happens to come first in the CSV.
+ */
+export function getAcEvoTrackByName(trackStr: string, config?: string): AcEvoTrack | undefined {
+  ensureLoaded();
+  const needle = norm(trackStr);
+  if (!needle) return undefined;
+
+  if (config) {
+    const cfgNeedle = norm(`${trackStr}${config}`);
+    if (cfgNeedle !== needle) {
+      // Exact-only for the combined form: substring matching on
+      // "monzafull" etc. would just re-match the base name arbitrarily.
+      const withCfg = findExact(cfgNeedle);
+      if (withCfg) return withCfg;
+    }
+  }
+
+  return findExact(needle) ?? findFuzzy(needle);
 }
