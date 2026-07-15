@@ -1404,6 +1404,7 @@
   "recap_copied": "Copied!",
   "recap_no_laps": "No laps recorded for this session.",
   "recap_laps": "Laps",
+  "recap_latest_session": "Latest Session",
   "recap_best_lap": "Best lap",
   "recap_time_on_track": "Time on track",
   "recap_distance": "Distance",

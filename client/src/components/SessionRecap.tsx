@@ -1,5 +1,5 @@
 import { m } from "@/paraglide/messages";
-import type { SessionRecap as SessionRecapDto } from "@shared/types";
+import type { GameId, SessionRecap as SessionRecapDto } from "@shared/types";
 import { useState } from "react";
 import { useSessionRecap } from "../hooks/queries";
 import { formatLapTime } from "../lib/format";
@@ -86,8 +86,14 @@ function buildRecapText(recap: SessionRecapDto): string {
   return lines.join("\n");
 }
 
-export function SessionRecap({ sessionId }: { sessionId: number }) {
-  const gameId = useGameId();
+/**
+ * `gameId` falls back to the active game store, which is only populated inside a
+ * per-game layout. The global home page has no game scope, so surfaces there must
+ * pass the session's own gameId explicitly.
+ */
+export function SessionRecap({ sessionId, gameId: gameIdProp }: { sessionId: number; gameId?: GameId | null }) {
+  const storeGameId = useGameId();
+  const gameId = gameIdProp ?? storeGameId;
   const { data: recap, isLoading, isError } = useSessionRecap(sessionId, gameId);
   const [copied, setCopied] = useState(false);
 

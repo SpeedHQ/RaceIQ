@@ -530,11 +530,14 @@ export function HomePage() {
           className="rounded-lg border border-app-border bg-app-surface p-4 cursor-pointer hover:border-app-accent/40 transition-colors"
           onClick={() => setRecapModalOpen(true)}
         >
-          <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider mb-2">Latest Session</h2>
-          <SessionRecap sessionId={latestSession.id} />
+          <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-2">{m.recap_latest_session()}</h2>
+          {/* gameId passed explicitly: the global home page has no active-game scope. */}
+          <SessionRecap sessionId={latestSession.id} gameId={latestSession.gameId} />
         </div>
       )}
-      {recapModalOpen && latestSession && <SessionRecapModal sessionId={latestSession.id} onClose={() => setRecapModalOpen(false)} />}
+      {recapModalOpen && latestSession && (
+        <SessionRecapModal sessionId={latestSession.id} gameId={latestSession.gameId} onClose={() => setRecapModalOpen(false)} />
+      )}
 
       {/* Activity heatmap */}
       <ActivityHeatmap laps={gameId ? allLaps.filter((l) => l.gameId === gameId) : allLaps} />
