@@ -181,8 +181,7 @@ export function buildAnalystPrompt(
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
 
   // Resolve the shared meta slug so the track guide can name corners the way
-  // meta (and therefore the whitelist below) names them. Note this goes through
-  // the *server* registry: the shared adapters' getSharedTrackName are stubs.
+  // meta (and therefore the whitelist below) names them.
   const trackSlug =
     lap.trackOrdinal != null && gameId
       ? (tryGetServerGame(gameId)?.getSharedTrackName?.(lap.trackOrdinal) ?? undefined)

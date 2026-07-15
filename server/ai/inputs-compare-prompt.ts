@@ -292,8 +292,7 @@ export function buildInputsComparePrompt(
   const carA = getCarName(lapA.carOrdinal ?? 0);
   const carB = getCarName(lapB.carOrdinal ?? 0);
   const trackName = getTrackName(lapA.trackOrdinal ?? 0);
-  // Resolve the meta slug via the *server* registry (the shared adapters'
-  // getSharedTrackName are stubs) so the guide names corners the way meta does.
+  // Resolve the meta slug so the guide names corners the way meta does.
   const trackSlug =
     lapA.trackOrdinal != null && lapA.gameId
       ? (tryGetServerGame(lapA.gameId)?.getSharedTrackName?.(lapA.trackOrdinal) ?? undefined)
