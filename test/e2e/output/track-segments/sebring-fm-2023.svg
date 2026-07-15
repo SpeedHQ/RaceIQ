@@ -72,11 +72,11 @@
   <line x1="814.7" y1="623.7" x2="837.3" y2="636.6" stroke="#d1d5db" stroke-width="1" />
   <text x="837.3" y="636.6" text-anchor="start" class="name" fill="#111827">St0 105m</text>
   <line x1="788.2" y1="706.0" x2="807.6" y2="723.3" stroke="#d1d5db" stroke-width="1" />
-  <text x="807.6" y="723.3" text-anchor="start" class="name" fill="#111827">St0 188m</text>
+  <text x="807.6" y="723.3" text-anchor="start" class="name" fill="#111827">T16</text>
   <line x1="519.1" y1="708.5" x2="522.1" y2="734.3" stroke="#d1d5db" stroke-width="1" />
   <text x="522.1" y="734.3" text-anchor="start" class="name" fill="#6b7280">St4 677m</text>
   <line x1="231.2" y1="709.7" x2="213.3" y2="728.6" stroke="#d1d5db" stroke-width="1" />
-  <text x="213.3" y="728.6" text-anchor="end" class="name" fill="#111827">T16</text>
+  <text x="213.3" y="728.6" text-anchor="end" class="name" fill="#111827">St0 247m</text>
   <line x1="141.3" y1="612.8" x2="118.1" y2="624.5" stroke="#d1d5db" stroke-width="1" />
   <text x="118.1" y="624.5" text-anchor="end" class="name" fill="#111827">T17 Sunset Bend</text>
   <line x1="288.9" y1="575.8" x2="267.5" y2="590.5" stroke="#d1d5db" stroke-width="1" />
