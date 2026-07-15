@@ -24,7 +24,10 @@ export interface NamedSegment {
   group?: string;
 }
 
-// Keyed by track name (must match tracks.csv name exactly)
+// Keyed by the corner-name list's `circuit` field (nameList.circuit), which is
+// what track-segment-generate consults to skip detection. For most tracks this
+// equals the tracks.csv name, but not always (e.g. Sebring's csv name is
+// "Sebring International" while its circuit label is "Sebring International Raceway").
 export const namedSegments: Record<string, NamedSegment[]> = {
   // Spa-Francorchamps — 7.004km GP circuit
   // Calibrated from lap 1337 telemetry (13958 pts, 6924m)
@@ -68,5 +71,38 @@ export const namedSegments: Record<string, NamedSegment[]> = {
     { type: "straight", name: "S9",                                   startFrac: 0.830, endFrac: 0.915 },
     // T18-19: Bus Stop chicane — peak at ~93.2% (6587m)
     { type: "corner",   name: "Bus Stop",         direction: "right", startFrac: 0.915, endFrac: 1.000 },
+  ],
+
+  // Sebring International Raceway — 6.02km full airport circuit
+  // Official 17-turn numbering; fractions from generated meta (shared/tracks/meta/sebring.json).
+  // Detector over-splits the T15/T16 area into two kinks (0.704–0.754); folded
+  // into the S3 straight here so only the 17 official turns remain.
+  // Reference: https://en.wikipedia.org/wiki/Sebring_International_Raceway
+  "Sebring International Raceway": [
+    // Start/finish straight, first half (wraps with the trailing half below)
+    { type: "straight", name: "S/F",              startFrac: 0.0000, endFrac: 0.0518, group: "start-finish" },
+    { type: "corner",   name: "T1",   direction: "left",  startFrac: 0.0518, endFrac: 0.1354, numbers: [1] },
+    { type: "corner",   name: "T2",   direction: "left",  startFrac: 0.1354, endFrac: 0.1702, numbers: [2] },
+    { type: "corner",   name: "T3",   direction: "right", startFrac: 0.1702, endFrac: 0.1830, numbers: [3] },
+    { type: "corner",   name: "T4",   direction: "left",  startFrac: 0.1830, endFrac: 0.2155, numbers: [4] },
+    { type: "straight", name: "S1",   startFrac: 0.2155, endFrac: 0.3134 },
+    { type: "corner",   name: "T5",   direction: "right", startFrac: 0.3134, endFrac: 0.3488, numbers: [5] },
+    { type: "corner",   name: "T6",   direction: "left",  startFrac: 0.3488, endFrac: 0.3556, numbers: [6] },
+    { type: "corner",   name: "T7",   direction: "right", startFrac: 0.3556, endFrac: 0.3722, numbers: [7] },
+    { type: "corner",   name: "T8",   direction: "right", startFrac: 0.3722, endFrac: 0.4034, numbers: [8] },
+    { type: "corner",   name: "T9",   direction: "left",  startFrac: 0.4034, endFrac: 0.4516, numbers: [9] },
+    { type: "corner",   name: "T10",  direction: "right", startFrac: 0.4516, endFrac: 0.4867, numbers: [10] },
+    { type: "corner",   name: "T11",  direction: "left",  startFrac: 0.4867, endFrac: 0.5224, numbers: [11] },
+    { type: "corner",   name: "T12",  direction: "right", startFrac: 0.5224, endFrac: 0.5478, numbers: [12] },
+    { type: "corner",   name: "T13",  direction: "right", startFrac: 0.5478, endFrac: 0.5791, numbers: [13] },
+    { type: "straight", name: "S2",   startFrac: 0.5791, endFrac: 0.6064 },
+    { type: "corner",   name: "T14",  direction: "left",  startFrac: 0.6064, endFrac: 0.6613, numbers: [14] },
+    { type: "corner",   name: "T15",  direction: "right", startFrac: 0.6613, endFrac: 0.7041, numbers: [15] },
+    // S3 absorbs the two detector kinks (0.7041–0.7540) between T15 and T16
+    { type: "straight", name: "S3",   startFrac: 0.7041, endFrac: 0.8694 },
+    { type: "corner",   name: "T16",  direction: "right", startFrac: 0.8694, endFrac: 0.9115, numbers: [16] },
+    { type: "corner",   name: "Sunset Bend", direction: "right", startFrac: 0.9115, endFrac: 0.9570, numbers: [17] },
+    // Start/finish straight, trailing half
+    { type: "straight", name: "S/F",  startFrac: 0.9570, endFrac: 1.0000, group: "start-finish" },
   ],
 };

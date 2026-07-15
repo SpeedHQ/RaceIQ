@@ -22,6 +22,7 @@ import {
   type SharedTrackMeta,
 } from "./track-data";
 import { SHARED_DIR } from "./resolve-data";
+import { namedSegments } from "./track-named-segments";
 
 export const CORNER_NAMES_DIR = resolve(SHARED_DIR, "tracks", "corner-names");
 const GAME_DIRS: Record<string, string> = {
@@ -121,6 +122,16 @@ export function generateTrackSegments(
     outcomes.push({
       slug, gameId: "-", ok: false, cost: Infinity, wrote: false,
       detail: `invalid name list: ${listIssues.map((i) => i.message).join("; ")}`,
+    });
+    return { outcomes, aligned };
+  }
+
+  // Hand-authored override present — its fractions are the source of truth, so
+  // detection is both wasted work and a chance to clobber them. Skip entirely.
+  if (namedSegments[nameList.circuit]) {
+    outcomes.push({
+      slug, gameId: "-", ok: true, cost: 0, wrote: false,
+      detail: `hand-authored override present (${nameList.circuit}) — detection skipped`,
     });
     return { outcomes, aligned };
   }
