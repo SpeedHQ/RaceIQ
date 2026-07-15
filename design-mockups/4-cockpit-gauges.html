@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RaceIQ — Cockpit Gauges</title>
+<style>
+  :root{
+    --bg:#0c0a09;--panel:#17130f;--panel2:#1e1813;--line:#2c241d;--ink:#f5efe6;--muted:#9a8d7c;
+    --accent:#ff7a1a;--accent-2:#ffd21a;--cool:#4ec9ff;
+    --mono:ui-monospace,"JetBrains Mono",Menlo,monospace;--sans:"Inter",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;
+    background-image:radial-gradient(circle at 20% 0%,rgba(255,122,26,.08),transparent 45%)}
+  .wrap{max-width:1600px;margin:0 auto;padding:18px 26px 46px}
+  header{display:flex;align-items:center;justify-content:space-between;padding:6px 0 18px;border-bottom:1px solid var(--line);margin-bottom:20px}
+  .brand{display:flex;align-items:center;gap:11px}
+  .rev{width:32px;height:32px;border-radius:50%;background:conic-gradient(var(--accent) 0 70%,#2c241d 70% 100%);display:grid;place-items:center}
+  .rev::after{content:"";width:20px;height:20px;border-radius:50%;background:var(--panel)}
+  .brand b{font-size:17px;letter-spacing:.02em}
+  .brand span{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;display:block}
+  nav{display:flex;gap:4px}
+  nav a{font-family:var(--mono);font-size:12px;color:var(--muted);text-decoration:none;padding:7px 12px;border-radius:6px}
+  nav a.on{color:var(--accent);background:var(--panel2)}
+  .conn{font-family:var(--mono);font-size:11px;color:var(--accent-2);letter-spacing:.08em}
+
+  .layout{display:grid;grid-template-columns:420px 1fr;gap:18px;align-items:start}
+  /* PERMANENT recent session = cockpit column, full height left */
+  .cockpit{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:22px;position:sticky;top:18px}
+  .ck-kick{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase}
+  .cockpit h2{font-size:23px;margin:10px 0 2px;letter-spacing:-.01em}
+  .cockpit .car{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .gauges{display:flex;justify-content:space-between;align-items:center;margin:22px 0 6px}
+  .gauge{text-align:center}
+  .gauge svg{display:block}
+  .gauge .gl{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.1em;margin-top:6px}
+  .gauge .gv{font-family:var(--mono);font-size:13px;font-weight:600;margin-top:2px}
+  .ck-time{text-align:center;margin:16px 0}
+  .ck-time .l{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+  .ck-time .t{font-family:var(--mono);font-size:52px;font-weight:700;letter-spacing:-.03em;line-height:1;margin-top:6px}
+  .ck-time .t small{font-size:22px;color:var(--muted)}
+  .ck-time .pb{font-family:var(--mono);font-size:12px;color:var(--accent-2);margin-top:6px}
+  .ck-sectors{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0}
+  .cs{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:9px;padding:9px;text-align:center}
+  .cs .l{font-family:var(--mono);font-size:9px;color:var(--muted)}
+  .cs .n{font-family:var(--mono);font-size:14px;font-weight:600;margin-top:3px}
+  .cs.best .n{color:var(--accent-2)}
+  .ck-trace{margin-top:6px}
+  .ck-trace svg{width:100%;height:60px}
+  .ck-btn{margin-top:18px;width:100%;padding:11px;border-radius:10px;border:none;background:linear-gradient(90deg,var(--accent),#c9550a);color:#1a0f06;font-family:var(--mono);font-weight:700;font-size:12px;letter-spacing:.08em;cursor:pointer}
+
+  .right{display:flex;flex-direction:column;gap:16px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .kpi .l{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+  .kpi .v{font-family:var(--mono);font-size:28px;font-weight:700;margin-top:8px}
+  .kpi .s{font-family:var(--mono);font-size:11px;color:var(--accent-2);margin-top:3px}
+  .block{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .block h3{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse}
+  th{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);letter-spacing:.1em;text-transform:uppercase}
+  td{font-family:var(--mono);font-size:13px;padding:9px 8px;border-bottom:1px solid rgba(44,36,29,.6)}
+  .g{color:var(--accent-2)}.r{color:#ff5a4d}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .barlist{display:flex;flex-direction:column;gap:11px}
+  .bl{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px}
+  .blbar{flex:1;height:7px;background:#241c15;border-radius:4px;overflow:hidden}
+  .blbar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><div class="rev"></div><div><b>RaceIQ</b><span>Cockpit</span></div></div>
+    <nav><a class="on">Home</a><a>Sessions</a><a>Laps</a><a>Garage</a><a>Compare</a><a>Dashes</a></nav>
+    <div class="conn">● FM LIVE · 60Hz · 5300</div>
+  </header>
+
+  <div class="layout">
+    <!-- PERMANENT recent-session cockpit -->
+    <aside class="cockpit">
+      <div class="ck-kick">◉ Latest session · 24 min ago</div>
+      <h2>Nürburgring GP</h2>
+      <div class="car">Porsche 911 GT3 R · 2020</div>
+
+      <div class="gauges">
+        <div class="gauge">
+          <svg width="70" height="70" viewBox="0 0 70 70">
+            <circle cx="35" cy="35" r="28" fill="none" stroke="#2c241d" stroke-width="6"/>
+            <circle cx="35" cy="35" r="28" fill="none" stroke="#ff7a1a" stroke-width="6" stroke-dasharray="176" stroke-dashoffset="40" stroke-linecap="round" transform="rotate(-90 35 35)"/>
+            <text x="35" y="40" text-anchor="middle" fill="#f5efe6" font-family="monospace" font-size="15" font-weight="700">271</text>
+          </svg>
+          <div class="gl">TOP KM/H</div>
+        </div>
+        <div class="gauge">
+          <svg width="70" height="70" viewBox="0 0 70 70">
+            <circle cx="35" cy="35" r="28" fill="none" stroke="#2c241d" stroke-width="6"/>
+            <circle cx="35" cy="35" r="28" fill="none" stroke="#ffd21a" stroke-width="6" stroke-dasharray="176" stroke-dashoffset="8" stroke-linecap="round" transform="rotate(-90 35 35)"/>
+            <text x="35" y="40" text-anchor="middle" fill="#f5efe6" font-family="monospace" font-size="15" font-weight="700">96%</text>
+          </svg>
+          <div class="gl">CONSISTENT</div>
+        </div>
+        <div class="gauge">
+          <svg width="70" height="70" viewBox="0 0 70 70">
+            <circle cx="35" cy="35" r="28" fill="none" stroke="#2c241d" stroke-width="6"/>
+            <circle cx="35" cy="35" r="28" fill="none" stroke="#4ec9ff" stroke-width="6" stroke-dasharray="176" stroke-dashoffset="70" stroke-linecap="round" transform="rotate(-90 35 35)"/>
+            <text x="35" y="40" text-anchor="middle" fill="#f5efe6" font-family="monospace" font-size="15" font-weight="700">18</text>
+          </svg>
+          <div class="gl">LAPS</div>
+        </div>
+      </div>
+
+      <div class="ck-time">
+        <div class="l">Best lap</div>
+        <div class="t">1:54<small>.382</small></div>
+        <div class="pb">▲ personal best · −0.41</div>
+      </div>
+
+      <div class="ck-sectors">
+        <div class="cs best"><div class="l">S1</div><div class="n">36.104</div></div>
+        <div class="cs"><div class="l">S2</div><div class="n">42.910</div></div>
+        <div class="cs best"><div class="l">S3</div><div class="n">35.368</div></div>
+      </div>
+
+      <div class="ck-trace">
+        <div class="l" style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.12em">SPEED · BEST LAP</div>
+        <svg viewBox="0 0 380 60" preserveAspectRatio="none"><polyline fill="none" stroke="#ff7a1a" stroke-width="2" points="0,46 25,18 55,8 85,28 115,44 150,16 185,6 220,30 255,46 290,20 330,10 380,32"/></svg>
+      </div>
+
+      <button class="ck-btn">OPEN SESSION ANALYSIS →</button>
+    </aside>
+
+    <div class="right">
+      <div class="kpis">
+        <div class="kpi"><div class="l">Total laps</div><div class="v">4,182</div><div class="s">▲ 214 / week</div></div>
+        <div class="kpi"><div class="l">Sessions</div><div class="v">241</div><div class="s">▲ 6 / week</div></div>
+        <div class="kpi"><div class="l">Personal bests</div><div class="v">37</div><div class="s">▲ 3 today</div></div>
+        <div class="kpi"><div class="l">Seat time</div><div class="v">92h</div><div class="s">4 games</div></div>
+      </div>
+
+      <div class="block">
+        <h3>Recent sessions</h3>
+        <table>
+          <thead><tr><th>When</th><th>Track</th><th>Car</th><th>Laps</th><th>Best</th><th>Δ</th></tr></thead>
+          <tbody>
+            <tr><td>24m ago</td><td>Nürburgring GP</td><td>911 GT3 R</td><td>18</td><td class="g">1:54.382</td><td class="g">PB</td></tr>
+            <tr><td>3h ago</td><td>Spa</td><td>M4 GT3</td><td>12</td><td>2:17.236</td><td class="r">+0.44</td></tr>
+            <tr><td>Sat</td><td>Laguna Seca</td><td>Cayman GT4</td><td>21</td><td class="g">1:31.902</td><td class="g">−0.12</td></tr>
+            <tr><td>Sat</td><td>Silverstone</td><td>720S GT3</td><td>9</td><td>1:58.774</td><td class="r">+1.02</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="two">
+        <div class="block">
+          <h3>Top cars</h3>
+          <div class="barlist">
+            <div class="bl"><span style="width:80px">911 GT3 R</span><span class="blbar"><i style="width:92%"></i></span><span style="color:var(--muted)">412</span></div>
+            <div class="bl"><span style="width:80px">M4 GT3</span><span class="blbar"><i style="width:70%"></i></span><span style="color:var(--muted)">318</span></div>
+            <div class="bl"><span style="width:80px">720S GT3</span><span class="blbar"><i style="width:54%"></i></span><span style="color:var(--muted)">241</span></div>
+            <div class="bl"><span style="width:80px">Cayman GT4</span><span class="blbar"><i style="width:38%"></i></span><span style="color:var(--muted)">170</span></div>
+          </div>
+        </div>
+        <div class="block">
+          <h3>Top tracks</h3>
+          <div class="barlist">
+            <div class="bl"><span style="width:80px">Nürburgring</span><span class="blbar"><i style="width:88%"></i></span><span style="color:var(--muted)">61</span></div>
+            <div class="bl"><span style="width:80px">Spa</span><span class="blbar"><i style="width:64%"></i></span><span style="color:var(--muted)">44</span></div>
+            <div class="bl"><span style="width:80px">Suzuka</span><span class="blbar"><i style="width:48%"></i></span><span style="color:var(--muted)">33</span></div>
+            <div class="bl"><span style="width:80px">Laguna Seca</span><span class="blbar"><i style="width:30%"></i></span><span style="color:var(--muted)">21</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

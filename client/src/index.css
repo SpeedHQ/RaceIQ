@@ -72,6 +72,7 @@
   --app-accent: #22d3ee;
   --app-accent-hover: #67e8f9;
   --app-highlight: #06b6d4;
+  --app-accent-2: #28e0a8;
 
   /* Dynamics status colors (good → bad spectrum) */
   --dynamics-green: #34d399;
@@ -140,6 +141,7 @@
   --app-accent: #22d3ee;
   --app-accent-hover: #67e8f9;
   --app-highlight: #06b6d4;
+  --app-accent-2: #28e0a8;
   --app-glass-blur: 0px;
   --app-glass-surface: #0d0d0d;
   --app-glass-surface-alt: #141414;
@@ -208,6 +210,7 @@
   --color-app-text-dim: var(--app-text-dim);
   --color-app-accent: var(--app-accent);
   --color-app-accent-hover: var(--app-accent-hover);
+  --color-app-accent-2: var(--app-accent-2);
   --color-app-highlight: var(--app-highlight);
   --color-app-glass-surface: var(--app-glass-surface);
   --color-app-glass-surface-alt: var(--app-glass-surface-alt);
@@ -223,6 +226,23 @@
   --color-dynamics-red: var(--dynamics-red);
   --color-dynamics-blue: var(--dynamics-blue);
   --color-dynamics-gray: var(--dynamics-gray);
+}
+
+/* ─── Homepage: "6-hybrid" mockup palette (scoped so other screens keep the default theme) ─── */
+.homepage-theme {
+  --app-bg: #000000;
+  --app-surface: #141a22;
+  --app-surface-alt: #181f2b;
+  --app-border: #222b37;
+  --app-border-input: #2b3646;
+  --app-text: #eaf0f7;
+  --app-text-secondary: #b3c0d1;
+  --app-text-muted: #7e8ca1;
+  --app-text-dim: #7e8ca1;
+  --app-accent: #7c5cff;
+  --app-accent-hover: #9a80ff;
+  --app-accent-2: #28e0a8;
+  --app-highlight: #4ec9ff;
 }
 
 /* ─── Always-visible scrollbar (must be outside @layer to override browser defaults) ─── */

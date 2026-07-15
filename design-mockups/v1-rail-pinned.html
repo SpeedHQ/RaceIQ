@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RaceIQ v1 — Rail + Pinned</title>
+<style>
+:root{--bg:#0b0e13;--rail:#0d1117;--panel:#141a22;--panel2:#181f2b;--line:#222b37;--ink:#eaf0f7;--muted:#7e8ca1;--accent:#7c5cff;--accent-2:#28e0a8;--warn:#ff6b6b;--cool:#4ec9ff;--mono:ui-monospace,"JetBrains Mono",Menlo,monospace;--sans:"Inter",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+aside.rail{background:var(--rail);border-right:1px solid var(--line);padding:22px 16px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:26px}.mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#4a2fd0);display:grid;place-items:center;font-family:var(--mono);font-weight:700}.brand b{font-size:16px}
+.navsec{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;margin:18px 8px 8px}
+.navlink{display:flex;gap:10px;padding:9px 10px;border-radius:8px;color:var(--muted);text-decoration:none;font-size:13px;font-family:var(--mono)}.navlink.on{background:var(--panel);color:var(--ink)}
+.railfoot{position:absolute;bottom:20px;left:16px;right:16px;font-family:var(--mono);font-size:11px;color:var(--accent-2);border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--panel)}
+main{padding:24px 28px 48px}
+.head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px}.head h1{font-size:22px}.head p{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.split{display:grid;grid-template-columns:1fr 380px;gap:18px;align-items:start}.col{display:flex;flex-direction:column;gap:16px}
+.cards4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}.lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.card .v{font-family:var(--mono);font-size:26px;font-weight:700;margin-top:8px}.card .s{font-family:var(--mono);font-size:11px;margin-top:4px;color:var(--accent-2)}
+.wide{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}.wide h3{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:14px}
+table{width:100%;border-collapse:collapse}th{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);letter-spacing:.1em;text-transform:uppercase}td{font-family:var(--mono);font-size:13px;padding:9px 8px;border-bottom:1px solid rgba(34,43,55,.5)}.g{color:var(--accent-2)}.r{color:var(--warn)}
+.pin{position:sticky;top:24px;background:linear-gradient(180deg,var(--panel2),#12171f);border:1px solid var(--line);border-radius:14px;padding:20px;overflow:hidden}
+.pin::after{content:"";position:absolute;top:-40px;right:-40px;width:140px;height:140px;border-radius:50%;background:radial-gradient(circle,rgba(124,92,255,.25),transparent 70%);pointer-events:none}
+.pinbadge{display:inline-flex;gap:7px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--accent);text-transform:uppercase}.pindot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+.pin h2{font-size:20px;margin:12px 0 2px}.pin .car{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.dials{display:flex;justify-content:space-between;margin:18px 0 4px;position:relative}.dial{text-align:center}.dial .dl{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;margin-top:6px}
+.pintime{font-family:var(--mono);font-size:44px;font-weight:700;margin:14px 0 2px;position:relative}.pintime small{color:var(--muted);font-size:18px}.pinpb{font-family:var(--mono);font-size:12px;color:var(--accent-2);position:relative}
+.pinsectors{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0;position:relative}.ps{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center}.ps .l{font-family:var(--mono);font-size:9px;color:var(--muted)}.ps .n{font-family:var(--mono);font-size:14px;font-weight:600;margin-top:2px}.ps.best .n{color:var(--accent-2)}
+.richgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:14px 0;position:relative}.rg{background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:8px;padding:8px 9px}.rg .l{font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase}.rg .n{font-family:var(--mono);font-size:15px;font-weight:600;margin-top:3px}
+.pintrace svg{width:100%;height:52px;margin-top:4px}.pinbtn{margin-top:16px;width:100%;padding:11px;border-radius:10px;border:1px solid var(--accent);background:rgba(124,92,255,.16);color:var(--ink);font-family:var(--mono);font-size:12px;cursor:pointer;position:relative}
+</style></head><body>
+<aside class="rail"><div class="brand"><div class="mark">R</div><b>RaceIQ</b></div>
+<div class="navsec">Overview</div><a class="navlink on">◆ Dashboard</a><a class="navlink">▤ Sessions</a><a class="navlink">⏱ Laps</a>
+<div class="navsec">Analysis</div><a class="navlink">◱ Garage</a><a class="navlink">◈ Tracks</a><a class="navlink">⇄ Compare</a><a class="navlink">▦ Dashes</a>
+<div class="railfoot">● Live · FM connected<br>UDP 5300 · 60Hz</div></aside>
+<main>
+<div class="head"><div><h1>Welcome back, Adam</h1><p>241 sessions · 4,182 laps</p></div><p>Sun 15 Jul · 21:04</p></div>
+<div class="split"><div class="col">
+<div class="cards4"><div class="card"><div class="lbl">Laps / week</div><div class="v">214</div><div class="s">▲ 32%</div></div><div class="card"><div class="lbl">New PBs</div><div class="v">3</div><div class="s">today</div></div><div class="card"><div class="lbl">Consistency</div><div class="v">94%</div><div class="s">7d avg</div></div><div class="card"><div class="lbl">Seat time</div><div class="v">6.2h</div><div class="s">week</div></div></div>
+<div class="wide"><h3>Recent sessions</h3><table><thead><tr><th>When</th><th>Track</th><th>Car</th><th>Laps</th><th>Best</th><th>Δ</th></tr></thead><tbody>
+<tr><td>24m</td><td>Nürburgring GP</td><td>911 GT3 R</td><td>18</td><td class="g">1:54.382</td><td class="g">PB</td></tr>
+<tr><td>3h</td><td>Spa</td><td>M4 GT3</td><td>12</td><td>2:17.236</td><td class="r">+0.44</td></tr>
+<tr><td>Sat</td><td>Laguna Seca</td><td>Cayman GT4</td><td>21</td><td class="g">1:31.902</td><td class="g">−0.12</td></tr>
+<tr><td>Sat</td><td>Silverstone</td><td>720S GT3</td><td>9</td><td>1:58.774</td><td class="r">+1.02</td></tr></tbody></table></div>
+<div class="wide"><h3>Activity · 6 months</h3><div style="display:grid;grid-template-columns:repeat(26,1fr);gap:4px" id="heat"></div></div>
+</div>
+<div class="pin"><span class="pinbadge"><span class="pindot"></span>Latest session · 24m ago</span><h2>Nürburgring GP</h2><div class="car">Porsche 911 GT3 R · 2020</div>
+<div class="dials">
+<div class="dial"><svg width="66" height="66" viewBox="0 0 66 66"><circle cx="33" cy="33" r="26" fill="none" stroke="#222b37" stroke-width="6"/><circle cx="33" cy="33" r="26" fill="none" stroke="#4ec9ff" stroke-width="6" stroke-dasharray="163" stroke-dashoffset="40" stroke-linecap="round" transform="rotate(-90 33 33)"/><text x="33" y="38" text-anchor="middle" fill="#eaf0f7" font-family="monospace" font-size="14" font-weight="700">271</text></svg><div class="dl">TOP KM/H</div></div>
+<div class="dial"><svg width="66" height="66" viewBox="0 0 66 66"><circle cx="33" cy="33" r="26" fill="none" stroke="#222b37" stroke-width="6"/><circle cx="33" cy="33" r="26" fill="none" stroke="#28e0a8" stroke-width="6" stroke-dasharray="163" stroke-dashoffset="7" stroke-linecap="round" transform="rotate(-90 33 33)"/><text x="33" y="38" text-anchor="middle" fill="#eaf0f7" font-family="monospace" font-size="14" font-weight="700">96%</text></svg><div class="dl">CONSISTENT</div></div>
+<div class="dial"><svg width="66" height="66" viewBox="0 0 66 66"><circle cx="33" cy="33" r="26" fill="none" stroke="#222b37" stroke-width="6"/><circle cx="33" cy="33" r="26" fill="none" stroke="#7c5cff" stroke-width="6" stroke-dasharray="163" stroke-dashoffset="65" stroke-linecap="round" transform="rotate(-90 33 33)"/><text x="33" y="38" text-anchor="middle" fill="#eaf0f7" font-family="monospace" font-size="14" font-weight="700">18</text></svg><div class="dl">LAPS</div></div>
+</div>
+<div class="lbl" style="margin-top:10px">Best lap</div><div class="pintime">1:54<small>.382</small></div><div class="pinpb">▲ new PB · −0.41</div>
+<div class="pinsectors"><div class="ps best"><div class="l">S1</div><div class="n">36.104</div></div><div class="ps"><div class="l">S2</div><div class="n">42.910</div></div><div class="ps best"><div class="l">S3</div><div class="n">35.368</div></div></div>
+<div class="richgrid"><div class="rg"><div class="l">Avg lap</div><div class="n">1:55.4</div></div><div class="rg"><div class="l">Clean</div><div class="n">15/18</div></div><div class="rg"><div class="l">Dist</div><div class="n">92km</div></div></div>
+<div class="pintrace"><div class="lbl">Speed trace</div><svg viewBox="0 0 340 52" preserveAspectRatio="none"><polyline fill="none" stroke="#28e0a8" stroke-width="2" points="0,42 22,16 48,7 78,24 105,40 138,14 172,5 208,28 240,42 270,18 305,9 340,28"/></svg></div>
+<button class="pinbtn">Open session analysis →</button></div></div>
+</main>
+<script>const h=document.getElementById('heat');for(let i=0;i<104;i++){const c=document.createElement('div');c.style.aspectRatio='1';c.style.borderRadius='3px';const v=Math.random();c.style.background=v>.5?`rgba(40,224,168,${.15+(v-.5)*1.5})`:'#1a222c';h.appendChild(c)}</script>
+</body></html>

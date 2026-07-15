@@ -17,10 +17,10 @@ import { TBody, TD, TH, THead, TRow, Table } from "./ui/AppTable";
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className="bg-app-surface-alt/30 rounded-lg p-4">
-      <div className="text-[10px] text-app-text/90-muted uppercase tracking-wider mb-1">{label}</div>
-      <div className={`text-3xl font-mono font-black tabular-nums leading-none ${color ?? "text-app-text/90"}`}>{value}</div>
-      {sub && <div className="text-xs text-app-text/90-dim mt-1">{sub}</div>}
+    <div className="rounded-xl border border-app-border bg-app-bg p-4">
+      <div className="text-[10px] text-app-text/90-muted uppercase tracking-[0.14em] mb-2">{label}</div>
+      <div className={`text-[26px] font-mono font-bold tabular-nums leading-none ${color ?? "text-app-text/90"}`}>{value}</div>
+      {sub && <div className="text-[11px] font-mono text-emerald-400 mt-1">{sub}</div>}
     </div>
   );
 }
@@ -43,7 +43,7 @@ function RecentLapsTable({
 
   return (
     <Table>
-      <THead>
+      <THead className="bg-neutral-900">
         {showGame && <TH>{m.home_col_game()}</TH>}
         <TH>{m.label_track()}</TH>
         <TH>{m.label_car()}</TH>
@@ -228,7 +228,7 @@ export function HomePage() {
       // Find the gameId from a lap that has this ordinal
       const lapForCar = recentLaps.find((l) => l.carOrdinal === ord);
       client.api["car-name"][":ordinal"]
-        .$get({ param: { ordinal: String(ord) }, query: { gameId: (lapForCar?.gameId ?? gameId)! } })
+        .$get({ param: { ordinal: String(ord) }, query: { gameId: lapForCar?.gameId ?? gameId ?? undefined } })
         .then((r) => (r.ok ? r.text() : ""))
         .then((name) => setCarNames((prev) => ({ ...prev, [ord]: name })))
         .catch(() => {});
@@ -237,7 +237,7 @@ export function HomePage() {
       if (trackNames[ord]) continue;
       const lapForTrack = recentLaps.find((l) => l.trackOrdinal === ord);
       client.api["track-name"][":ordinal"]
-        .$get({ param: { ordinal: String(ord) }, query: { gameId: (lapForTrack?.gameId ?? gameId)! } })
+        .$get({ param: { ordinal: String(ord) }, query: { gameId: lapForTrack?.gameId ?? gameId ?? undefined } })
         .then((r) => (r.ok ? r.text() : ""))
         .then((name) => setTrackNames((prev) => ({ ...prev, [ord]: name })))
         .catch(() => {});
@@ -245,7 +245,7 @@ export function HomePage() {
   }, [recentLaps, periodStats, gameId]);
 
   return (
-    <div className="mx-auto max-w-[1400px] p-4 md:p-6 space-y-6">
+    <div className="homepage-theme bg-app-bg text-app-text w-full p-4 md:p-6 lg:px-8 space-y-6">
       {/* Header */}
       {gameId ? (
         (() => {
@@ -332,257 +332,280 @@ export function HomePage() {
             <h1 className="text-2xl font-bold text-app-text/90">{displaySettings.driverName ? `${m.home_hello()}, ${displaySettings.driverName}` : "RaceIQ"}</h1>
             <p className="text-sm text-app-text/90-muted mt-0.5">{m.home_dashboard_overview()}</p>
           </div>
-          <button onClick={() => openSettings("games")} className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors" title={m.home_manage_games()}>
+          <button
+            type="button"
+            onClick={() => openSettings("games")}
+            className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors"
+            title={m.home_manage_games()}
+          >
             <Settings2 className="size-4" />
           </button>
         </div>
       )}
 
       {/* Dashboard body: full-width main column + permanent recent-session rail */}
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-6">
-      {/* Game cards — only on global homepage */}
-      {!gameId && (
-        <div className="grid grid-cols-2 md:flex gap-3">
-          {!hiddenGames.includes("fm-2023") && (
-            <Link
-              to="/fm23"
-              className="group md:flex-1 relative overflow-hidden rounded-lg border border-cyan-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-cyan-500/35 hover:shadow-[0_8px_32px_rgba(0,212,255,0.1)]"
-              style={{ background: "linear-gradient(135deg, #060a14 0%, #0a1628 40%, #0d2040 100%)" }}
-            >
-              {/* Accent glow */}
-              <div
-                className="absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20"
-                style={{ background: "radial-gradient(circle, rgba(0,212,255,0.15) 0%, transparent 70%)" }}
-              />
-              {/* Bottom accent bar */}
-              <div
-                className="absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100"
-                style={{ background: "linear-gradient(90deg, #00d4ff 0%, transparent 70%)" }}
-              />
-              {/* Speed lines */}
-              <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
-                <div className="absolute top-[18%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #00d4ff 30%, transparent 100%)" }} />
-                <div className="absolute top-[45%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #00d4ff 50%, transparent 100%)" }} />
-                <div className="absolute top-[72%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" style={{ background: "linear-gradient(90deg, transparent 10%, #00d4ff 60%, transparent 100%)" }} />
-              </div>
-              {/* Icon + Name */}
-              <div className="relative flex items-center gap-2.5 mb-3.5">
-                <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-cyan-500/8 border border-cyan-500/10">
-                  <img
-                    src="/forza-logo.svg"
-                    alt=""
-                    className="w-5 h-5"
-                    style={{ filter: "brightness(0) saturate(100%) invert(72%) sepia(98%) saturate(1234%) hue-rotate(152deg) brightness(101%) contrast(101%)" }}
+          {/* Game cards — only on global homepage */}
+          {!gameId && (
+            <div className="grid grid-cols-2 md:flex gap-3">
+              {!hiddenGames.includes("fm-2023") && (
+                <Link
+                  to="/fm23"
+                  className="group md:flex-1 relative overflow-hidden rounded-lg border border-cyan-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-cyan-500/35 hover:shadow-[0_8px_32px_rgba(0,212,255,0.1)]"
+                  style={{ background: "linear-gradient(135deg, #060a14 0%, #0a1628 40%, #0d2040 100%)" }}
+                >
+                  {/* Accent glow */}
+                  <div
+                    className="absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20"
+                    style={{ background: "radial-gradient(circle, rgba(0,212,255,0.15) 0%, transparent 70%)" }}
                   />
-                </div>
-                <span className="text-sm font-bold text-white/90">Forza Motorsport</span>
-              </div>
-              {/* Stats */}
-              <div className="relative flex gap-5">
-                <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-cyan-400">{gameStats.fm.laps}</div>
-                </div>
-                <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.fm.time}</div>
-                </div>
-              </div>
-            </Link>
-          )}
-          {!hiddenGames.includes("f1-2025") && (
-            <Link
-              to="/f125"
-              className="group md:flex-1 relative overflow-hidden rounded-lg border border-red-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-red-500/35 hover:shadow-[0_8px_32px_rgba(255,26,26,0.1)]"
-              style={{ background: "linear-gradient(135deg, #0e0606 0%, #1a0808 40%, #2d0a0a 100%)" }}
-            >
-              {/* Accent glow */}
-              <div
-                className="absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20"
-                style={{ background: "radial-gradient(circle, rgba(255,26,26,0.15) 0%, transparent 70%)" }}
-              />
-              {/* Bottom accent bar */}
-              <div
-                className="absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100"
-                style={{ background: "linear-gradient(90deg, #ff1a1a 0%, transparent 70%)" }}
-              />
-              {/* Speed lines */}
-              <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
-                <div className="absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #ff1a1a 30%, transparent 100%)" }} />
-                <div className="absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #ff1a1a 50%, transparent 100%)" }} />
-                <div className="absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" style={{ background: "linear-gradient(90deg, transparent 10%, #ff1a1a 60%, transparent 100%)" }} />
-              </div>
-              {/* Icon + Name */}
-              <div className="relative flex items-center gap-2.5 mb-3.5">
-                <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-red-500/8 border border-red-500/10">
-                  <img
-                    src="/f1-logo.svg"
-                    alt=""
-                    className="w-5 h-5"
-                    style={{ filter: "brightness(0) saturate(100%) invert(28%) sepia(67%) saturate(5839%) hue-rotate(350deg) brightness(100%) contrast(107%)" }}
+                  {/* Bottom accent bar */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100"
+                    style={{ background: "linear-gradient(90deg, #00d4ff 0%, transparent 70%)" }}
                   />
-                </div>
-                <span className="text-sm font-bold text-white/90">F1 2025</span>
-              </div>
-              {/* Stats */}
-              <div className="relative flex gap-5">
-                <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-red-500">{gameStats.f1.laps}</div>
-                </div>
-                <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.f1.time}</div>
-                </div>
-              </div>
-            </Link>
-          )}
-          {!hiddenGames.includes("acc") && (
-            <Link
-              to="/acc"
-              className="group md:flex-1 relative overflow-hidden rounded-lg border border-orange-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-orange-500/35 hover:shadow-[0_8px_32px_rgba(255,140,0,0.1)]"
-              style={{ background: "linear-gradient(135deg, #0e0a04 0%, #1a1008 40%, #2d1a0a 100%)" }}
-            >
-              {/* Accent glow */}
-              <div
-                className="absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20"
-                style={{ background: "radial-gradient(circle, rgba(255,140,0,0.15) 0%, transparent 70%)" }}
-              />
-              {/* Bottom accent bar */}
-              <div
-                className="absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100"
-                style={{ background: "linear-gradient(90deg, #ff8c00 0%, transparent 70%)" }}
-              />
-              {/* Speed lines */}
-              <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
-                <div className="absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #ff8c00 30%, transparent 100%)" }} />
-                <div className="absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #ff8c00 50%, transparent 100%)" }} />
-                <div className="absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" style={{ background: "linear-gradient(90deg, transparent 10%, #ff8c00 60%, transparent 100%)" }} />
-              </div>
-              {/* Icon + Name */}
-              <div className="relative flex items-center gap-2.5 mb-3.5">
-                <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-orange-500/8 border border-orange-500/10">
-                  <img src="/acc-logo.png" alt="" className="w-5 h-5 object-contain" />
-                </div>
-                <span className="text-sm font-bold text-white/90">Assetto Corsa Competizione</span>
-              </div>
-              {/* Stats */}
-              <div className="relative flex gap-5">
-                <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-orange-400">{gameStats.acc.laps}</div>
-                </div>
-                <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.acc.time}</div>
-                </div>
-              </div>
-            </Link>
-          )}
-          {!hiddenGames.includes("ac-evo") && (
-            <Link
-              to="/ac-evo"
-              className="group md:flex-1 relative overflow-hidden rounded-lg border border-green-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-green-500/35 hover:shadow-[0_8px_32px_rgba(0,230,118,0.1)]"
-              style={{ background: "linear-gradient(135deg, #030e06 0%, #071a0c 40%, #0a2d14 100%)" }}
-            >
-              {/* Accent glow */}
-              <div
-                className="absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20"
-                style={{ background: "radial-gradient(circle, rgba(0,230,118,0.15) 0%, transparent 70%)" }}
-              />
-              {/* Bottom accent bar */}
-              <div
-                className="absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100"
-                style={{ background: "linear-gradient(90deg, #00e676 0%, transparent 70%)" }}
-              />
-              {/* Speed lines */}
-              <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
-                <div className="absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #00e676 30%, transparent 100%)" }} />
-                <div className="absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #00e676 50%, transparent 100%)" }} />
-                <div className="absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" style={{ background: "linear-gradient(90deg, transparent 10%, #00e676 60%, transparent 100%)" }} />
-              </div>
-              {/* Icon + Name */}
-              <div className="relative flex items-center gap-2.5 mb-3.5">
-                <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-green-500/8 border border-green-500/10">
-                  <span className="text-xs font-black text-green-400">ACE</span>
-                </div>
-                <span className="text-sm font-bold text-white/90">Assetto Corsa Evo</span>
-              </div>
-              {/* Stats */}
-              <div className="relative flex gap-5">
-                <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-green-400">{gameStats.acEvo.laps}</div>
-                </div>
-                <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.acEvo.time}</div>
-                </div>
-              </div>
-            </Link>
-          )}
-        </div>
-      )}
-
-      {/* Activity heatmap */}
-      <ActivityHeatmap laps={gameId ? allLaps.filter((l) => l.gameId === gameId) : allLaps} />
-
-      {/* Period tabs + stats */}
-      <div>
-        <div className="flex items-center flex-wrap gap-1 mb-3">
-          {(
-            [
-              ["today", m.home_period_today()],
-              ["week", m.home_period_week()],
-              ["month", m.home_period_month()],
-              ["year", m.home_period_year()],
-              ["allTime", m.home_period_all_time()],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setPeriodTab(key)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90-muted hover:text-app-text/90"}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {(() => {
-          const data = periodStats[periodTab];
-          const timeSec = data.totalTime;
-          const fmtTime = (s: number) => {
-            const h = Math.floor(s / 3600);
-            const m = Math.floor((s % 3600) / 60);
-            return h > 0 ? `${h}h ${m}m` : `${m}m`;
-          };
-          return (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
-              <StatCard label={m.label_laps()} value={`${data.laps}`} />
-              <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
-              <StatCard label={m.label_cars()} value={`${data.cars}`} />
-              {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-violet-400" />}
+                  {/* Speed lines */}
+                  <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
+                    <div className="absolute top-[18%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #00d4ff 30%, transparent 100%)" }} />
+                    <div className="absolute top-[45%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #00d4ff 50%, transparent 100%)" }} />
+                    <div
+                      className="absolute top-[72%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]"
+                      style={{ background: "linear-gradient(90deg, transparent 10%, #00d4ff 60%, transparent 100%)" }}
+                    />
+                  </div>
+                  {/* Icon + Name */}
+                  <div className="relative flex items-center gap-2.5 mb-3.5">
+                    <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-cyan-500/8 border border-cyan-500/10">
+                      <img
+                        src="/forza-logo.svg"
+                        alt=""
+                        className="w-5 h-5"
+                        style={{ filter: "brightness(0) saturate(100%) invert(72%) sepia(98%) saturate(1234%) hue-rotate(152deg) brightness(101%) contrast(101%)" }}
+                      />
+                    </div>
+                    <span className="text-sm font-bold text-white/90">Forza Motorsport</span>
+                  </div>
+                  {/* Stats */}
+                  <div className="relative flex gap-5">
+                    <div>
+                      <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
+                      <div className="text-lg font-extrabold font-mono leading-none text-cyan-400">{gameStats.fm.laps}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
+                      <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.fm.time}</div>
+                    </div>
+                  </div>
+                </Link>
+              )}
+              {!hiddenGames.includes("f1-2025") && (
+                <Link
+                  to="/f125"
+                  className="group md:flex-1 relative overflow-hidden rounded-lg border border-red-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-red-500/35 hover:shadow-[0_8px_32px_rgba(255,26,26,0.1)]"
+                  style={{ background: "linear-gradient(135deg, #0e0606 0%, #1a0808 40%, #2d0a0a 100%)" }}
+                >
+                  {/* Accent glow */}
+                  <div
+                    className="absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20"
+                    style={{ background: "radial-gradient(circle, rgba(255,26,26,0.15) 0%, transparent 70%)" }}
+                  />
+                  {/* Bottom accent bar */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100"
+                    style={{ background: "linear-gradient(90deg, #ff1a1a 0%, transparent 70%)" }}
+                  />
+                  {/* Speed lines */}
+                  <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
+                    <div className="absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #ff1a1a 30%, transparent 100%)" }} />
+                    <div className="absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #ff1a1a 50%, transparent 100%)" }} />
+                    <div
+                      className="absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]"
+                      style={{ background: "linear-gradient(90deg, transparent 10%, #ff1a1a 60%, transparent 100%)" }}
+                    />
+                  </div>
+                  {/* Icon + Name */}
+                  <div className="relative flex items-center gap-2.5 mb-3.5">
+                    <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-red-500/8 border border-red-500/10">
+                      <img
+                        src="/f1-logo.svg"
+                        alt=""
+                        className="w-5 h-5"
+                        style={{ filter: "brightness(0) saturate(100%) invert(28%) sepia(67%) saturate(5839%) hue-rotate(350deg) brightness(100%) contrast(107%)" }}
+                      />
+                    </div>
+                    <span className="text-sm font-bold text-white/90">F1 2025</span>
+                  </div>
+                  {/* Stats */}
+                  <div className="relative flex gap-5">
+                    <div>
+                      <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
+                      <div className="text-lg font-extrabold font-mono leading-none text-red-500">{gameStats.f1.laps}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
+                      <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.f1.time}</div>
+                    </div>
+                  </div>
+                </Link>
+              )}
+              {!hiddenGames.includes("acc") && (
+                <Link
+                  to="/acc"
+                  className="group md:flex-1 relative overflow-hidden rounded-lg border border-orange-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-orange-500/35 hover:shadow-[0_8px_32px_rgba(255,140,0,0.1)]"
+                  style={{ background: "linear-gradient(135deg, #0e0a04 0%, #1a1008 40%, #2d1a0a 100%)" }}
+                >
+                  {/* Accent glow */}
+                  <div
+                    className="absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20"
+                    style={{ background: "radial-gradient(circle, rgba(255,140,0,0.15) 0%, transparent 70%)" }}
+                  />
+                  {/* Bottom accent bar */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100"
+                    style={{ background: "linear-gradient(90deg, #ff8c00 0%, transparent 70%)" }}
+                  />
+                  {/* Speed lines */}
+                  <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
+                    <div className="absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #ff8c00 30%, transparent 100%)" }} />
+                    <div className="absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #ff8c00 50%, transparent 100%)" }} />
+                    <div
+                      className="absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]"
+                      style={{ background: "linear-gradient(90deg, transparent 10%, #ff8c00 60%, transparent 100%)" }}
+                    />
+                  </div>
+                  {/* Icon + Name */}
+                  <div className="relative flex items-center gap-2.5 mb-3.5">
+                    <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-orange-500/8 border border-orange-500/10">
+                      <img src="/acc-logo.png" alt="" className="w-5 h-5 object-contain" />
+                    </div>
+                    <span className="text-sm font-bold text-white/90">Assetto Corsa Competizione</span>
+                  </div>
+                  {/* Stats */}
+                  <div className="relative flex gap-5">
+                    <div>
+                      <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
+                      <div className="text-lg font-extrabold font-mono leading-none text-orange-400">{gameStats.acc.laps}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
+                      <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.acc.time}</div>
+                    </div>
+                  </div>
+                </Link>
+              )}
+              {!hiddenGames.includes("ac-evo") && (
+                <Link
+                  to="/ac-evo"
+                  className="group md:flex-1 relative overflow-hidden rounded-lg border border-green-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-green-500/35 hover:shadow-[0_8px_32px_rgba(0,230,118,0.1)]"
+                  style={{ background: "linear-gradient(135deg, #030e06 0%, #071a0c 40%, #0a2d14 100%)" }}
+                >
+                  {/* Accent glow */}
+                  <div
+                    className="absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20"
+                    style={{ background: "radial-gradient(circle, rgba(0,230,118,0.15) 0%, transparent 70%)" }}
+                  />
+                  {/* Bottom accent bar */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100"
+                    style={{ background: "linear-gradient(90deg, #00e676 0%, transparent 70%)" }}
+                  />
+                  {/* Speed lines */}
+                  <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
+                    <div className="absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #00e676 30%, transparent 100%)" }} />
+                    <div className="absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #00e676 50%, transparent 100%)" }} />
+                    <div
+                      className="absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]"
+                      style={{ background: "linear-gradient(90deg, transparent 10%, #00e676 60%, transparent 100%)" }}
+                    />
+                  </div>
+                  {/* Icon + Name */}
+                  <div className="relative flex items-center gap-2.5 mb-3.5">
+                    <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-green-500/8 border border-green-500/10">
+                      <span className="text-xs font-black text-green-400">ACE</span>
+                    </div>
+                    <span className="text-sm font-bold text-white/90">Assetto Corsa Evo</span>
+                  </div>
+                  {/* Stats */}
+                  <div className="relative flex gap-5">
+                    <div>
+                      <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
+                      <div className="text-lg font-extrabold font-mono leading-none text-green-400">{gameStats.acEvo.laps}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
+                      <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.acEvo.time}</div>
+                    </div>
+                  </div>
+                </Link>
+              )}
             </div>
-          );
-        })()}
-      </div>
+          )}
 
-      {/* Recent laps */}
-      <div>
-        <div className="mb-2">
-          <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">{m.home_recent_laps()}</h2>
-        </div>
-        <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} />
-      </div>
+          {/* Activity heatmap */}
+          <div className="rounded-xl border border-app-border bg-app-bg p-4 md:p-5">
+            <ActivityHeatmap laps={gameId ? allLaps.filter((l) => l.gameId === gameId) : allLaps} />
+          </div>
+
+          {/* Period tabs + stats */}
+          <div>
+            <div className="flex items-center flex-wrap gap-1 mb-3">
+              {(
+                [
+                  ["today", m.home_period_today()],
+                  ["week", m.home_period_week()],
+                  ["month", m.home_period_month()],
+                  ["year", m.home_period_year()],
+                  ["allTime", m.home_period_all_time()],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => setPeriodTab(key)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90-muted hover:text-app-text/90"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {(() => {
+              const data = periodStats[periodTab];
+              const timeSec = data.totalTime;
+              const fmtTime = (s: number) => {
+                const h = Math.floor(s / 3600);
+                const m = Math.floor((s % 3600) / 60);
+                return h > 0 ? `${h}h ${m}m` : `${m}m`;
+              };
+              return (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
+                  <StatCard label={m.label_laps()} value={`${data.laps}`} />
+                  <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
+                  <StatCard label={m.label_cars()} value={`${data.cars}`} />
+                  {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-violet-400" />}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Recent laps */}
+          <div className="rounded-xl border border-app-border bg-app-bg p-4 md:p-5">
+            <div className="mb-3">
+              <h2 className="text-[11px] font-mono font-semibold text-app-text/90-muted uppercase tracking-[0.14em]">{m.home_recent_laps()}</h2>
+            </div>
+            <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} />
+          </div>
         </div>
 
         {/* Permanent recent-session rail — its own dedicated place */}
         <aside className="space-y-4 lg:sticky lg:top-6">
           {latestSession ? (
-            <div className="relative overflow-hidden rounded-xl border border-app-border bg-gradient-to-b from-app-surface-alt to-app-surface p-4">
-              <div className="pointer-events-none absolute -top-10 -right-10 h-36 w-36 rounded-full opacity-20" style={{ background: "radial-gradient(circle, var(--color-app-accent, #7c5cff) 0%, transparent 70%)" }} />
+            <div className="relative overflow-hidden rounded-xl border border-app-border bg-app-bg p-4">
+              <div
+                className="pointer-events-none absolute -top-10 -right-10 h-36 w-36 rounded-full opacity-20"
+                style={{ background: "radial-gradient(circle, var(--color-app-accent, #7c5cff) 0%, transparent 70%)" }}
+              />
               <div className="relative mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-app-accent">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-app-accent shadow-[0_0_8px_var(--color-app-accent,#7c5cff)]" />
                 {m.recap_latest_session()}
@@ -591,9 +614,7 @@ export function HomePage() {
               <SessionRecap sessionId={latestSession.id} gameId={latestSession.gameId} linkToAnalyse />
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-app-border bg-app-surface p-6 text-center text-xs text-app-text-muted">
-              {m.recap_latest_session()}
-            </div>
+            <div className="rounded-xl border border-dashed border-app-border bg-app-surface p-6 text-center text-xs text-app-text-muted">{m.recap_latest_session()}</div>
           )}
         </aside>
       </div>

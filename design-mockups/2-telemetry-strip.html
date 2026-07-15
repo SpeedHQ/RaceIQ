@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RaceIQ — Telemetry Strip</title>
+<style>
+  :root{
+    --bg:#07090c;--panel:#0f141a;--line:#1e2732;--ink:#f2f5f9;--muted:#7d8aa0;
+    --accent:#ffd43b;--hot:#ff5252;--cool:#3b9dff;
+    --mono:ui-monospace,"JetBrains Mono",Menlo,monospace;--sans:"Inter",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+  .bar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .brand{font-family:var(--mono);font-weight:700;letter-spacing:.24em;font-size:14px}
+  .brand b{color:var(--accent)}
+  .barnav{display:flex;gap:22px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .barnav a{color:var(--muted);text-decoration:none}.barnav a.on{color:var(--ink)}
+  .stat-conn{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.1em}
+
+  /* full-width permanent session banner */
+  .banner{width:100%;background:linear-gradient(90deg,#101820,#0c1116 60%);border-bottom:1px solid var(--line);position:relative;overflow:hidden}
+  .banner .grain{position:absolute;inset:0;opacity:.4;background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(255,255,255,.02) 3px 4px)}
+  .binner{display:grid;grid-template-columns:340px 1fr 300px;gap:0;position:relative;min-height:220px}
+  .bmeta{padding:26px 28px;border-right:1px solid var(--line)}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--accent);text-transform:uppercase}
+  .bmeta h1{font-size:28px;letter-spacing:-.02em;margin:12px 0 4px}
+  .bmeta .car{font-family:var(--mono);color:var(--muted);font-size:13px}
+  .bigtime{font-family:var(--mono);font-size:46px;font-weight:700;margin-top:22px;letter-spacing:-.02em}
+  .bigtime small{color:var(--muted);font-size:20px}
+  .btag{margin-top:6px;font-family:var(--mono);font-size:12px;color:var(--accent)}
+  .bchart{padding:22px 26px;position:relative}
+  .bchart .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+  .bchart svg{width:100%;height:150px;margin-top:8px}
+  .bstats{padding:22px 26px;border-left:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:18px;align-content:center}
+  .bstats .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+  .bstats .v{font-family:var(--mono);font-size:24px;font-weight:600;margin-top:4px}
+
+  .body{max-width:1600px;margin:0 auto;padding:22px 24px 48px}
+  .row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+  .tile .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+  .tile .v{font-family:var(--mono);font-size:26px;font-weight:700;margin-top:8px}
+  .tile .s{font-family:var(--mono);font-size:11px;margin-top:4px;color:var(--muted)}
+  .two{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-top:14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+  .panel h3{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse}
+  th{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);letter-spacing:.1em;text-transform:uppercase}
+  td{font-family:var(--mono);font-size:13px;padding:9px 8px;border-bottom:1px solid rgba(30,39,50,.5)}
+  .g{color:var(--accent)}.b{color:var(--cool)}.r{color:var(--hot)}
+  .cargrid{display:flex;flex-direction:column;gap:10px}
+  .carrow{display:flex;justify-content:space-between;align-items:center}
+  .carbar{height:6px;background:#1a222c;border-radius:3px;overflow:hidden;flex:1;margin:0 12px}
+  .carbar i{display:block;height:100%;background:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div class="brand">RACE<b>IQ</b></div>
+    <div class="barnav"><a class="on">Home</a><a>Sessions</a><a>Laps</a><a>Garage</a><a>Tracks</a><a>Dashes</a></div>
+    <div class="stat-conn">● LIVE · FM · 60Hz</div>
+  </div>
+
+  <!-- PERMANENT recent-session strip, full bleed -->
+  <div class="banner">
+    <div class="grain"></div>
+    <div class="binner">
+      <div class="bmeta">
+        <div class="kicker">Most recent session · 24m ago</div>
+        <h1>Nürburgring GP</h1>
+        <div class="car">Porsche 911 GT3 R (2020)</div>
+        <div class="bigtime">1:54<small>.382</small></div>
+        <div class="btag">▲ new personal best · −0.41</div>
+      </div>
+      <div class="bchart">
+        <div class="lbl">Throttle / brake · fastest lap</div>
+        <svg viewBox="0 0 800 150" preserveAspectRatio="none">
+          <defs><linearGradient id="th" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#ffd43b" stop-opacity=".35"/><stop offset="1" stop-color="#ffd43b" stop-opacity="0"/></linearGradient></defs>
+          <path d="M0,120 L60,40 L140,30 L220,110 L300,120 L360,35 L460,25 L540,100 L620,120 L700,45 L800,40 L800,150 L0,150 Z" fill="url(#th)"/>
+          <polyline fill="none" stroke="#ffd43b" stroke-width="2" points="0,120 60,40 140,30 220,110 300,120 360,35 460,25 540,100 620,120 700,45 800,40"/>
+          <polyline fill="none" stroke="#ff5252" stroke-width="1.8" opacity=".8" points="0,150 60,150 140,150 220,60 300,55 360,150 460,150 540,70 620,60 700,150 800,150"/>
+        </svg>
+      </div>
+      <div class="bstats">
+        <div><div class="lbl">Laps</div><div class="v">18</div></div>
+        <div><div class="lbl">Consistency</div><div class="v g">96%</div></div>
+        <div><div class="lbl">Top speed</div><div class="v">271</div></div>
+        <div><div class="lbl">Distance</div><div class="v">92km</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="row">
+      <div class="tile"><div class="lbl">Total sessions</div><div class="v">241</div><div class="s g">+6 this week</div></div>
+      <div class="tile"><div class="lbl">Total laps</div><div class="v">4,182</div><div class="s g">+214 this week</div></div>
+      <div class="tile"><div class="lbl">Personal bests</div><div class="v">37</div><div class="s g">+3 today</div></div>
+      <div class="tile"><div class="lbl">Distance driven</div><div class="v">18.4k</div><div class="s">kilometres</div></div>
+      <div class="tile"><div class="lbl">Seat time</div><div class="v">92h</div><div class="s">across 4 games</div></div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <h3>Recent laps</h3>
+        <table>
+          <thead><tr><th>Session</th><th>Track</th><th>Car</th><th>Best</th><th>Δ</th></tr></thead>
+          <tbody>
+            <tr><td>#241</td><td>Nürburgring GP</td><td>911 GT3 R</td><td class="g">1:54.382</td><td class="g">PB</td></tr>
+            <tr><td>#240</td><td>Spa-Francorchamps</td><td>M4 GT3</td><td>2:17.236</td><td class="r">+0.44</td></tr>
+            <tr><td>#239</td><td>Laguna Seca</td><td>Cayman GT4</td><td>1:31.902</td><td class="b">−0.12</td></tr>
+            <tr><td>#238</td><td>Silverstone</td><td>720S GT3</td><td>1:58.774</td><td class="r">+1.02</td></tr>
+            <tr><td>#237</td><td>Suzuka</td><td>GT-R Nismo</td><td>2:05.118</td><td class="b">−0.31</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <h3>Top cars · by laps</h3>
+        <div class="cargrid">
+          <div class="carrow"><span style="font-family:var(--mono);font-size:12px">911 GT3 R</span><span class="carbar"><i style="width:92%"></i></span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">412</span></div>
+          <div class="carrow"><span style="font-family:var(--mono);font-size:12px">M4 GT3</span><span class="carbar"><i style="width:70%"></i></span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">318</span></div>
+          <div class="carrow"><span style="font-family:var(--mono);font-size:12px">720S GT3</span><span class="carbar"><i style="width:54%"></i></span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">241</span></div>
+          <div class="carrow"><span style="font-family:var(--mono);font-size:12px">Cayman GT4</span><span class="carbar"><i style="width:38%"></i></span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">170</span></div>
+          <div class="carrow"><span style="font-family:var(--mono);font-size:12px">GT-R Nismo</span><span class="carbar"><i style="width:25%"></i></span><span style="font-family:var(--mono);font-size:12px;color:var(--muted)">112</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
