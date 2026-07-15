@@ -9,7 +9,6 @@ import { RecordedLaps } from "../RecordedLaps";
 import { NoDataView } from "../NoDataView";
 import { useTrackName, useCarName, useTirePressureOptimal } from "../../hooks/queries";
 import { RaceInfo } from "../RaceInfo";
-import { AutoTunePanel } from "../tunes/AutoTunePanel";
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 
@@ -77,12 +76,6 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
         <div className="flex-1 min-h-0 overflow-y-auto">
           <RecordedLaps laps={sessionLaps} />
         </div>
-
-        {(gameId === "acc" || gameId === "ac-evo") && (
-          <div className="border-t border-app-border">
-            <AutoTunePanel gameId={gameId} laps={sessionLaps} trackName={trackName ?? undefined} />
-          </div>
-        )}
       </div>
     </div>
   );

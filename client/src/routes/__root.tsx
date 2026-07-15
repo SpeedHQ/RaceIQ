@@ -21,13 +21,19 @@ import { queryClient } from "../lib/queryClient";
 
 // Canonical (English, path-stable) game sub-tab keys. The URL segment is always
 // the lowercased English key; only the *display* label is localized.
-const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Chats", "Tracks", "Cars", "Setups", "Raw"] as const;
+const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Tune", "Chats", "Tracks", "Cars", "Setups", "Raw"] as const;
+
+// Sub-tabs only exposed for certain games (auto-tune pipeline is acc/ac-evo only).
+const GAME_SUB_TAB_GATE: Partial<Record<(typeof GAME_SUB_TABS)[number], readonly string[]>> = {
+  Tune: ["/acc", "/ac-evo"],
+};
 
 const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {
   Live: m.tab_live,
   Sessions: m.label_sessions,
   Compare: m.label_compare,
   Analyse: m.label_analyse,
+  Tune: () => "Tune",
   Chats: m.tab_chats,
   Tracks: m.label_tracks,
   Cars: m.label_cars,
@@ -281,7 +287,10 @@ function AppShell() {
     // Every game exposes a "Setups" tab: fm23/acc/ac-evo show the tune browser
     // (Forza also folds its wheel/FFB catalogue in as a sub-tab), f125 shows a
     // placeholder. No per-game gating needed.
-    return GAME_SUB_TABS.map((key) => ({ to: `${prefix}/${key.toLowerCase()}`, label: SUB_TAB_LABELS[key]() }));
+    return GAME_SUB_TABS.filter((key) => {
+      const gate = GAME_SUB_TAB_GATE[key];
+      return !gate || gate.includes(prefix);
+    }).map((key) => ({ to: `${prefix}/${key.toLowerCase()}`, label: SUB_TAB_LABELS[key]() }));
   }, [location.pathname, uiLocale]);
 
   // Active game sub-tab (for the tablet <select> dropdown)
