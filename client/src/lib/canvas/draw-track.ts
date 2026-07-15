@@ -15,6 +15,7 @@ export function drawTrack(
   pan: { x: number; z: number } = { x: 0, z: 0 },
   sectorOverride?: { s1End: number; s2End: number },
   flipX?: boolean,
+  sectorColors?: [string, string, string],
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx || outline.length < 2) return;
@@ -69,10 +70,11 @@ export function drawTrack(
   // Sector override mode: draw S1/S2/S3 as colored bands, suppressing segment coloring
   if (sectorOverride) {
     const n = outline.length;
+    const [s1Color, s2Color, s3Color] = sectorColors ?? ["#ef4444", "#3b82f6", "#eab308"];
     const sectorDefs = [
-      { label: "S1", color: "#ef4444", start: 0, end: sectorOverride.s1End },
-      { label: "S2", color: "#3b82f6", start: sectorOverride.s1End, end: sectorOverride.s2End },
-      { label: "S3", color: "#eab308", start: sectorOverride.s2End, end: 1 },
+      { label: "S1", color: s1Color, start: 0, end: sectorOverride.s1End },
+      { label: "S2", color: s2Color, start: sectorOverride.s1End, end: sectorOverride.s2End },
+      { label: "S3", color: s3Color, start: sectorOverride.s2End, end: 1 },
     ];
     for (const sec of sectorDefs) {
       const startIdx = Math.round(sec.start * (n - 1));

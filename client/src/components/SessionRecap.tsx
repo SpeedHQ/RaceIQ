@@ -1,7 +1,8 @@
 import { m } from "@/paraglide/messages";
 import type { GameId, SessionRecap as SessionRecapDto } from "@shared/types";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSessionRecap, useTrackOutline, useTrackSectorBoundaries } from "../hooks/queries";
+import { drawTrack } from "../lib/canvas/draw-track";
 import { formatLapTime } from "../lib/format";
 import { getGameRoute, useGameId } from "../stores/game";
 import { Button } from "./ui/button";
@@ -14,6 +15,9 @@ const SECTOR_COLORS: Record<SectorStatus, string> = {
   lost: "#f87171",
 };
 
+/** Drawn for a sector we have no status for — must not imply time was lost there. */
+const NEUTRAL_SECTOR_COLOR = "#64748b";
+
 function sectorLabel(status: SectorStatus): string {
   switch (status) {
     case "record":
@@ -23,49 +27,6 @@ function sectorLabel(status: SectorStatus): string {
     case "lost":
       return m.recap_sector_lost();
   }
-}
-
-/** Splits a polyline into `boundaryFractions.length + 1` sub-polylines by
- *  cumulative arc length (not point index — outline points are not evenly
- *  spaced, and boundaries are distance fractions of total lap length). */
-function splitByArcLength(points: { x: number; z: number }[], boundaryFractions: number[]): { x: number; z: number }[][] {
-  const cumulative: number[] = [0];
-  for (let i = 1; i < points.length; i++) {
-    const prev = points[i - 1];
-    const cur = points[i];
-    const d = Math.hypot(cur.x - prev.x, cur.z - prev.z);
-    cumulative.push(cumulative[i - 1] + d);
-  }
-  const total = cumulative[cumulative.length - 1];
-  if (total <= 0) return [];
-
-  const targets = boundaryFractions.map((f) => f * total);
-  const segments: { x: number; z: number }[][] = [];
-  let start = 0;
-  let segment: { x: number; z: number }[] = [points[0]];
-
-  for (let t = 0; t < targets.length; t++) {
-    const target = targets[t];
-    while (start + 1 < points.length && cumulative[start + 1] < target) {
-      start++;
-      segment.push(points[start]);
-    }
-    // Interpolate the exact boundary point so segments share a vertex (no gap).
-    const a = points[start];
-    const b = points[Math.min(start + 1, points.length - 1)];
-    const distA = cumulative[start];
-    const distB = cumulative[Math.min(start + 1, points.length - 1)];
-    const span = distB - distA || 1;
-    const frac = Math.min(1, Math.max(0, (target - distA) / span));
-    const boundaryPoint = { x: a.x + (b.x - a.x) * frac, z: a.z + (b.z - a.z) * frac };
-    segment.push(boundaryPoint);
-    segments.push(segment);
-    segment = [boundaryPoint];
-  }
-  for (let i = start; i < points.length; i++) segment.push(points[i]);
-  segments.push(segment);
-
-  return segments;
 }
 
 function SectorTrackMap({
@@ -79,57 +40,62 @@ function SectorTrackMap({
 }) {
   const { data: outlineData } = useTrackOutline(trackOrdinal, gameId);
   const { data: bounds } = useTrackSectorBoundaries(trackOrdinal, gameId);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const points = Array.isArray(outlineData) ? outlineData : (outlineData?.points ?? null);
-  if (!points || points.length < 3 || !bounds) return null;
+  const flipX = Array.isArray(outlineData) ? undefined : outlineData?.flipX;
 
-  const segments = splitByArcLength(points, [bounds.s1End, bounds.s2End]);
-  if (segments.length !== 3) return null;
+  // Memoised: this is a useEffect dep, and a fresh array each render would redraw
+  // the canvas on every render. A sector with no data draws neutral — never red,
+  // which would falsely claim time was lost there.
+  const sectorColors = useMemo<[string, string, string]>(() => {
+    const byIndex = new Map(sectors.map((s) => [s.index, s]));
+    const colorFor = (i: 1 | 2 | 3) => {
+      const status = byIndex.get(i)?.status;
+      return status ? SECTOR_COLORS[status] : NEUTRAL_SECTOR_COLOR;
+    };
+    return [colorFor(1), colorFor(2), colorFor(3)];
+  }, [sectors]);
 
-  const width = 240;
-  const height = 140;
-  const pad = 10;
+  const canDraw = !!points && points.length >= 3 && !!bounds;
 
-  const xs = points.map((p) => p.x);
-  const zs = points.map((p) => p.z);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minZ = Math.min(...zs);
-  const maxZ = Math.max(...zs);
-  const rangeX = maxX - minX || 1;
-  const rangeZ = maxZ - minZ || 1;
-  const scale = Math.min((width - pad * 2) / rangeX, (height - pad * 2) / rangeZ);
-  const offsetX = pad + (width - pad * 2 - rangeX * scale) / 2;
-  const offsetZ = pad + (height - pad * 2 - rangeZ * scale) / 2;
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canDraw || !canvas || !points || !bounds) return;
 
-  const project = (p: { x: number; z: number }) => ({
-    x: offsetX + (p.x - minX) * scale,
-    y: offsetZ + (p.z - minZ) * scale,
-  });
+    let cancelled = false;
+    const tryDraw = () => {
+      if (cancelled) return;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        requestAnimationFrame(tryDraw);
+        return;
+      }
+      drawTrack(canvas, points, false, null, 1, { x: 0, z: 0 }, { s1End: bounds.s1End, s2End: bounds.s2End }, flipX, sectorColors);
+    };
+    tryDraw();
+    return () => {
+      cancelled = true;
+    };
+  }, [canDraw, points, bounds, flipX, sectorColors]);
 
-  const sectorByIndex = new Map(sectors.map((s) => [s.index, s]));
+  if (!canDraw) return null;
 
   return (
     <div>
       <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">{m.recap_sectors()}</div>
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={m.recap_sectors()}>
-        <title>{m.recap_sectors()}</title>
-        {segments.map((seg, i) => {
-          const sectorIndex = (i + 1) as 1 | 2 | 3;
-          const status = sectorByIndex.get(sectorIndex)?.status;
-          if (!status) return null;
-          const path = seg
-            .map(project)
-            .map((p, pi) => `${pi === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
-            .join(" ");
-          return <path key={sectorIndex} d={path} fill="none" stroke={SECTOR_COLORS[status]} strokeWidth={3} strokeLinecap="round" />;
-        })}
-      </svg>
-      <div className="flex items-center gap-3 mt-1 text-[10px] text-app-text-dim">
-        {(["record", "session-best", "lost"] as const).map((status) => (
-          <div key={status} className="flex items-center gap-1">
-            <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLORS[status] }} />
-            <span>{sectorLabel(status)}</span>
+      <canvas ref={canvasRef} className="w-full h-[220px]" aria-label={m.recap_sectors()} />
+
+      {/* Sector times from the best lap. Colour repeats the map's status so the two read together. */}
+      <div className="mt-2 flex flex-col gap-1">
+        {sectors.map((s) => (
+          <div key={s.index} className="flex items-center justify-between gap-2 text-xs">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: SECTOR_COLORS[s.status] }} />
+              <span className="text-app-text-muted font-medium">S{s.index}</span>
+            </span>
+            <span className="font-mono tabular-nums text-app-text/90">{s.bestLapSec.toFixed(3)}</span>
+            <span className="text-[10px] text-app-text-dim">{sectorLabel(s.status)}</span>
           </div>
         ))}
       </div>
@@ -287,41 +253,47 @@ export function SessionRecap({
       {recap.lapsTotal === 0 ? (
         <div className="p-6 text-center text-app-text-dim">{m.recap_no_laps()}</div>
       ) : (
-        <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <Tile label={m.recap_laps()} value={`${recap.lapsValid}/${recap.lapsTotal}`} />
-            {recap.bestLapSec != null && (
-              <Tile
-                label={m.recap_best_lap()}
-                value={formatLapTime(recap.bestLapSec)}
-                color="text-emerald-400"
-                sub={
-                  recap.personalBest?.isNew
-                    ? recap.personalBest.previousBestSec != null
-                      ? `${m.recap_new_pb()} · ${formatDelta(recap.personalBest.previousBestSec - recap.bestLapSec)}`
-                      : `${m.recap_new_pb()} · ${m.recap_new_pb_first_ever()}`
-                    : undefined
-                }
-              />
-            )}
-            <Tile label={m.recap_time_on_track()} value={formatDuration(recap.timeOnTrackSec)} />
-            {recap.distanceM != null && <Tile label={m.recap_distance()} value={formatDistance(recap.distanceM)} />}
-            {recap.improvementSec != null && <Tile label={m.recap_improvement()} value={`-${recap.improvementSec.toFixed(3)}s`} />}
-            {recap.consistency != null && <Tile label={m.recap_consistency()} value={`${recap.consistency.rating}★`} sub={`σ ${recap.consistency.stdDevSec.toFixed(3)}s`} />}
-            {recap.theoretical != null && (
-              <Tile label={m.recap_theoretical_best()} value={formatLapTime(recap.theoretical.sumSec)} sub={`${recap.theoretical.deltaToBestSec.toFixed(1)}s ${m.recap_left_on_table()}`} />
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-4">
+          <div className="flex flex-col gap-4 min-w-0">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <Tile label={m.recap_laps()} value={`${recap.lapsValid}/${recap.lapsTotal}`} />
+              {recap.bestLapSec != null && (
+                <Tile
+                  label={m.recap_best_lap()}
+                  value={formatLapTime(recap.bestLapSec)}
+                  color="text-emerald-400"
+                  sub={
+                    recap.personalBest?.isNew
+                      ? recap.personalBest.previousBestSec != null
+                        ? `${m.recap_new_pb()} · ${formatDelta(recap.personalBest.previousBestSec - recap.bestLapSec)}`
+                        : `${m.recap_new_pb()} · ${m.recap_new_pb_first_ever()}`
+                      : undefined
+                  }
+                />
+              )}
+              <Tile label={m.recap_time_on_track()} value={formatDuration(recap.timeOnTrackSec)} />
+              {recap.distanceM != null && <Tile label={m.recap_distance()} value={formatDistance(recap.distanceM)} />}
+              {recap.improvementSec != null && <Tile label={m.recap_improvement()} value={`-${recap.improvementSec.toFixed(3)}s`} />}
+              {recap.consistency != null && <Tile label={m.recap_consistency()} value={`${recap.consistency.rating}★`} sub={`σ ${recap.consistency.stdDevSec.toFixed(3)}s`} />}
+              {recap.theoretical != null && (
+                <Tile label={m.recap_theoretical_best()} value={formatLapTime(recap.theoretical.sumSec)} sub={`${recap.theoretical.deltaToBestSec.toFixed(1)}s ${m.recap_left_on_table()}`} />
+              )}
+            </div>
+
+            {recap.sparkline.length >= 2 && (
+              <div>
+                <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">{m.recap_pace()}</div>
+                <Sparkline laps={recap.sparkline} />
+              </div>
             )}
           </div>
 
-          {recap.sparkline.length >= 2 && (
-            <div>
-              <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">{m.recap_pace()}</div>
-              <Sparkline laps={recap.sparkline} />
+          {recap.sectors != null && (
+            <div className="lg:w-[240px] shrink-0">
+              <SectorTrackMap trackOrdinal={recap.trackOrdinal} gameId={recap.gameId} sectors={recap.sectors} />
             </div>
           )}
-
-          {recap.sectors != null && <SectorTrackMap trackOrdinal={recap.trackOrdinal} gameId={recap.gameId} sectors={recap.sectors} />}
-        </>
+        </div>
       )}
     </div>
   );
