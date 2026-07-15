@@ -206,7 +206,6 @@ const KNOWN_MERGES: Record<string, string[][]> = {
   silverstone: [["Maggotts", "Becketts"]],
   suzuka: [
     ["First Curve", "Second Curve"],
-    ["Degner 1", "Degner 2"],
   ],
   imola: [["Rivazza 1", "Rivazza 2"]],
   zandvoort: [["Turn 8", "Turn 9"]],
@@ -303,18 +302,18 @@ function guideEntries(): { slug: string; name: string; numbers: number[]; type: 
  * "Dunlop") — what disagrees is the turn number meta assigns to it. So these
  * record suspected defects in meta's numbering, not bad anchors.
  *
- * Suzuka is the clearest: the real circuit numbers the S Curves T3-T7, Dunlop
- * T8, Degner T9-T10, Hairpin T11. Meta has S Curves [3,4,5,6], Dunlop [7],
- * Degner [8,9], then re-syncs at Hairpin [11] — it drops a corner in the Esses
- * and picks the count back up later. Follow-up against the #84 curation.
+ * Suzuka was the clearest and has been corrected (#100): the real circuit
+ * numbers the S Curves T3-T7, Dunlop T8, Degner T9-T10, Hairpin T11. Meta used
+ * to have S Curves [3,4,5,6], Dunlop [7], Degner [8,9], re-syncing at Hairpin
+ * [11] — it dropped a corner in the Esses and picked the count back up later.
+ * Meta now numbers S Curves [3,4,5,6,7], Dunlop [8], and splits Degner into
+ * Degner 1 [9] / Degner 2 [10], so the guide prose and anchors agree.
  */
 const KNOWN_NUMBERING_CONFLICTS = [
   "brands-hatch :: Clark Curve", // prose T9, meta T10
   "nurburgring :: Dunlop Kehre", // prose T7, meta T6
   "nurburgring :: NGK Chicane", // prose T15, meta T12-13
   "sebring :: Sunset Bend", // prose T17, meta T19
-  "suzuka :: Degner 2", // prose T10, meta's Degner covers 8-9
-  "suzuka :: Dunlop Curve", // prose T8, meta T7
 ];
 
 describe("anchor cross-checks (independent of how anchors were derived)", () => {

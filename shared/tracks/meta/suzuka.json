@@ -37,7 +37,8 @@
             3,
             4,
             5,
-            6
+            6,
+            7
           ]
         },
         {
@@ -47,23 +48,22 @@
           "startFrac": 0.2891,
           "endFrac": 0.3804,
           "numbers": [
-            7
+            8
           ]
         },
         {
           "type": "corner",
-          "name": "Degner",
+          "name": "Degner 1",
           "direction": "right",
           "startFrac": 0.3804,
           "endFrac": 0.451,
           "numbers": [
-            8,
             9
           ]
         },
         {
           "type": "corner",
-          "name": "T10",
+          "name": "Degner 2",
           "direction": "right",
           "startFrac": 0.451,
           "endFrac": 0.4926,
