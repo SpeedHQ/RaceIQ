@@ -38,6 +38,8 @@ import { getGame } from "../../shared/games/registry";
 import type { GameId } from "../../shared/types";
 import { loadSettings } from "../settings";
 import { buildAnalystPrompt } from "../ai/analyst-prompt";
+import { resolveTrackContext } from "../ai/track-context";
+import { computeLapSectors } from "../compute-lap-sectors";
 import { getAnalystJsonSchema } from "../ai/schemas";
 import { getChatMemory, chatThreadId, compareChatThreadId, CHAT_RESOURCE_ID } from "../ai/chat-agent";
 import { getSecret } from "../keystore";
@@ -53,7 +55,7 @@ import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
 import { chatStreamResponse } from "../ai/chat-stream";
 import { topCatalogReferences, normalizePacketSetup, getCatalogDisplayName } from "../ai/f1-setup-catalog";
 import type { TelemetryPacket } from "../../shared/types";
-import { buildInputsComparePrompt, InputsCompareSchema } from "../ai/inputs-compare-prompt";
+import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "../ai/inputs-compare-prompt";
 // Dev uses the full Mastra instance (so Studio sees traces); prod tree-shakes
 // the Mastra wrapper out. See `server/ai/agents.ts` for the switch.
 import { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent } from "../ai/agents";
@@ -383,20 +385,25 @@ export const lapRoutes = new Hono()
       }
     }
 
-    // Fetch track segments for the AI to use exact names
-    let segments: { type: string; name: string; startFrac: number; endFrac: number }[] | undefined;
-    try {
-      const adapter = lap.gameId ? tryGetGame(lap.gameId) : null;
-      const sharedName = adapter?.getSharedTrackName?.(lap.trackOrdinal ?? 0);
-      if (sharedName) {
-        const meta = loadSharedTrackMeta(sharedName);
-        if (meta?.segments?.length) segments = meta.segments;
+    // Curated track data (#84): named segments with their official turn
+    // numbers, and this game's sector boundaries. Game-specific — each game's
+    // centerline has its own lap fractions.
+    const trackCtx = resolveTrackContext(lap.gameId as GameId | undefined, lap.trackOrdinal);
+    const segments = trackCtx.segments;
+
+    // Sector times, split on those boundaries, so the model can attribute a
+    // slow sector to the corners it actually covers.
+    let sectors: { times: { s1: number; s2: number; s3: number }; s1End: number; s2End: number } | undefined;
+    if (trackCtx.sectors?.s1End && trackCtx.sectors?.s2End && lap.gameId && lap.trackOrdinal != null) {
+      try {
+        const times = await computeLapSectors(lap.trackOrdinal, lap.gameId as GameId, lap.telemetry, lap.lapTime);
+        if (times) sectors = { times, s1End: trackCtx.sectors.s1End, s2End: trackCtx.sectors.s2End };
+      } catch {
+        /* sector times are optional context */
       }
-    } catch {
-      /* ignore */
     }
 
-    let prompt = buildAnalystPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, segments, undefined, settings.language);
+    let prompt = buildAnalystPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, segments, undefined, settings.language, sectors);
     if (lap.gameId === "f1-2025") {
       prompt += buildF1SetupReferenceBlock(lap.carSetup, lap.telemetry, lap.trackOrdinal ?? -1);
     }
@@ -855,25 +862,17 @@ export const lapRoutes = new Hono()
 
     const settings = loadSettings();
 
-    // Fetch named track segments (corners + straights) for per-segment breakdown
-    let segments: { name: string; type: "corner" | "straight"; startFrac: number; endFrac: number }[] | null = null;
-    try {
-      const adapter = lapA.gameId ? tryGetGame(lapA.gameId) : null;
-      const sharedName = adapter?.getSharedTrackName?.(lapA.trackOrdinal ?? 0);
-      if (sharedName) {
-        const meta = loadSharedTrackMeta(sharedName);
-        if (meta?.segments?.length) {
-          segments = meta.segments.map((s: any) => ({
-            name: s.name,
-            type: (s.type === "corner" ? "corner" : "straight") as "corner" | "straight",
-            startFrac: s.startFrac,
-            endFrac: s.endFrac,
-          }));
-        }
-      }
-    } catch {
-      /* segments optional */
-    }
+    // Named track segments (corners + straights) for the per-segment breakdown.
+    // Game-specific, and carrying the official turn numbers so the breakdown
+    // names corners the same way the map and the track guide do.
+    const segments: PromptSegment[] | null =
+      resolveTrackContext(lapA.gameId as GameId | undefined, lapA.trackOrdinal)?.segments?.map((s) => ({
+        name: s.name,
+        type: s.type === "corner" ? ("corner" as const) : ("straight" as const),
+        startFrac: s.startFrac,
+        endFrac: s.endFrac,
+        numbers: s.numbers,
+      })) ?? null;
 
     const prompt = buildInputsComparePrompt(
       {
