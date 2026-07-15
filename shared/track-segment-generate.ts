@@ -127,12 +127,49 @@ export function generateTrackSegments(
   }
 
   // Hand-authored override present — its fractions are the source of truth, so
-  // detection is both wasted work and a chance to clobber them. Skip entirely.
-  if (namedSegments[nameList.circuit]) {
-    outcomes.push({
-      slug, gameId: "-", ok: true, cost: 0, wrote: false,
-      detail: `hand-authored override present (${nameList.circuit}) — detection skipped`,
-    });
+  // detection is skipped (it would only be a chance to clobber them). But the
+  // override still has to flow through to what the server serves and the viz
+  // renders: emit it as an aligned entry per game centerline, drawn on that
+  // game's geometry, exactly like a detected alignment would be. Same fractions
+  // for every game, cost 0 (nothing to disagree with).
+  const override = namedSegments[nameList.circuit];
+  if (override) {
+    const centerlines = findCenterlines(slug, gameFilter);
+    if (centerlines.length === 0) {
+      outcomes.push({ slug, gameId: "-", ok: false, cost: Infinity, wrote: false, detail: "override present but no centerline found" });
+      return { outcomes, aligned };
+    }
+    // Corners implied by the override's corner-type segments (numbers + name).
+    const corners: AlignedCorner[] = override
+      .filter((s) => s.type === "corner")
+      .map((s, i) => ({
+        regionIndex: i,
+        numbers: s.numbers ?? [],
+        name: s.name,
+        direction: s.direction ?? null,
+        startFrac: s.startFrac,
+        endFrac: s.endFrac,
+      }));
+    const seen = new Set<string>();
+    for (const { gameId, file } of centerlines) {
+      if (seen.has(gameId)) continue;
+      seen.add(gameId);
+      // Fraction-based override needs no per-game geometry, but sectors that are
+      // corner-anchored do — resolve them against this game's centerline length.
+      let sectors: GameAlignment["sectors"] = null;
+      if (nameList.sectors) {
+        const outline = loadCenterline(file);
+        if (outline) {
+          const totalDist = detectCornerRegions(outline).totalDist;
+          sectors = resolveSectors(nameList.sectors, corners, totalDist).sectors;
+        }
+      }
+      aligned.push({ gameId, file, segments: override, corners, sectors, cost: 0 });
+      outcomes.push({
+        slug, gameId, ok: true, cost: 0, wrote: false,
+        detail: `hand-authored override (${override.length} segments, ${corners.length} corners)`,
+      });
+    }
     return { outcomes, aligned };
   }
 
