@@ -26,6 +26,12 @@ import {
 } from "../db/community-tune-queries";
 import { syncCommunityTunes } from "../community-tunes-sync";
 import { getLaptimes, syncLaptimes } from "../laptimes-sync";
+import { getLapById } from "../db/queries";
+import { detectCorners } from "../corner-detection";
+import { telemetryToSymptoms } from "../ai/tune-symptoms";
+import { requestTuneIntents } from "../ai/tune-intent";
+import { applyIntents } from "../ai/tune-rules";
+import { writeSetupFile } from "../ai/tune-writer";
 
 interface CatalogTune {
   id: string;
@@ -258,6 +264,15 @@ const ImportFileSchema = z.object({
   author: z.string().optional(),
   carOrdinal: z.number().int(),
   category: z.string().optional().default("circuit"),
+});
+
+const AutoTuneSchema = z.object({
+  gameId: z.enum(["acc", "ac-evo"]),
+  stintId: z.number().int(),
+  filePath: z.string().min(1),
+  trackName: z.string().optional(),
+  // When true, compute symptoms/intents/applied without writing to disk.
+  preview: z.boolean().optional().default(false),
 });
 
 export const tuneRoutes = new Hono()
@@ -521,6 +536,79 @@ export const tuneRoutes = new Hono()
       });
       const created = await getTuneById(id);
       return c.json(parseTuneRow(created), 201);
+    }
+  )
+
+  // POST /api/tunes/auto — auto-tune pipeline: derive symptoms from a stint's
+  // telemetry, ask the AI for tune intents, apply them to a source setup file's
+  // JSON, and (unless preview) write the result next to the source. Returns the
+  // symptoms, intents, and audit trail so the UI can show the reasoning.
+  .post("/api/tunes/auto",
+    zValidator("json", AutoTuneSchema),
+    async (c) => {
+      const body = c.req.valid("json");
+
+      // 1. Load the stint's telemetry.
+      const lap = await getLapById(body.stintId);
+      if (!lap) return c.json({ error: "Stint not found" }, 404);
+      const packets = lap.telemetry;
+      if (packets.length < 30) {
+        return c.json({ error: "Not enough telemetry to analyse this stint" }, 400);
+      }
+
+      // 2. Resolve + guard the source setup file (must live under Setups).
+      const baseDir = await getSetupsBaseDir(body.gameId);
+      if (!baseDir) return c.json({ error: "Setups folder not found" }, 404);
+      const absPath = resolve(body.filePath);
+      if (!existsSync(absPath)) return c.json({ error: "Setup file not found" }, 404);
+
+      let realPath: string;
+      let realBase: string;
+      try {
+        realPath = realpathSync(absPath);
+        realBase = realpathSync(resolve(baseDir));
+      } catch (err: any) {
+        if (err?.code === "ENOENT") return c.json({ error: "Setup file not found" }, 404);
+        return c.json({ error: `Read failed: ${err.message}` }, 500);
+      }
+      if (!(realPath + sep).startsWith(realBase + sep)) {
+        return c.json({ error: "Path must be inside the Setups folder" }, 400);
+      }
+      if (!realPath.toLowerCase().endsWith(".json")) {
+        return c.json({ error: "Only .json setup files can be auto-tuned" }, 400);
+      }
+
+      let sourceSetup: any;
+      try { sourceSetup = JSON.parse(readFileSync(realPath, "utf-8")); }
+      catch (err: any) { return c.json({ error: `Invalid setup JSON: ${err.message}` }, 400); }
+
+      // 3. Symptoms → intents → applied setup.
+      const corners = detectCorners(packets);
+      const symptoms = telemetryToSymptoms(packets, corners);
+
+      let intents;
+      let model: string;
+      try {
+        const res = await requestTuneIntents(body.gameId, symptoms, body.trackName);
+        intents = res.intents;
+        model = res.model;
+      } catch (err: any) {
+        return c.json({ error: err?.message ?? "AI request failed" }, 502);
+      }
+
+      const { setup, applied, skipped } = applyIntents(body.gameId, sourceSetup, intents);
+
+      // 4. Write the result unless this is a preview.
+      let written = null;
+      if (!body.preview) {
+        try {
+          written = writeSetupFile(baseDir, realPath, setup);
+        } catch (err: any) {
+          return c.json({ error: `Write failed: ${err.message}` }, 500);
+        }
+      }
+
+      return c.json({ symptoms, intents, applied, skipped, model, written, preview: !!body.preview });
     }
   )
 

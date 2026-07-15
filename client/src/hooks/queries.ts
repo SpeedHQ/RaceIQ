@@ -504,6 +504,34 @@ export function useImportTuneFile() {
   });
 }
 
+export interface AutoTuneResult {
+  symptoms: any;
+  intents: { component: string; direction: "increase" | "decrease"; magnitude: "small" | "medium" | "large"; reason: string }[];
+  applied: { component: string; path: string; from: number; to: number; direction: string; reason: string }[];
+  skipped: { component: string; reason: string }[];
+  model: string;
+  written: { path: string } | null;
+  preview: boolean;
+}
+
+export function useAutoTune() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      gameId: "acc" | "ac-evo";
+      stintId: number;
+      filePath: string;
+      trackName?: string;
+      preview?: boolean;
+    }) => {
+      const res = await (client.api.tunes as any).auto.$post({ json: data });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as AutoTuneResult;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["setup-files"] }),
+  });
+}
+
 // ── Tune Assignments ─────────────────────────────────────────────────────────
 export function useTuneAssignments() {
   return useQuery({
