@@ -1,14 +1,14 @@
 {
   "name": "Miami International Autodrome",
   "sectors": {
-    "s1End": 0.3295,
+    "s1End": 0.316,
     "s2End": 0.6811,
     "source": "corner-anchored"
   },
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3295,
+        "s1End": 0.316,
         "s2End": 0.6811,
         "source": "corner-anchored"
       },
@@ -80,7 +80,7 @@
           "name": "T6",
           "direction": "left",
           "startFrac": 0.2552,
-          "endFrac": 0.3295,
+          "endFrac": 0.316,
           "numbers": [
             6,
             7,
@@ -88,25 +88,29 @@
           ]
         },
         {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3295,
-          "endFrac": 0.3747
-        },
-        {
           "type": "corner",
           "name": "T9",
           "direction": "right",
-          "startFrac": 0.3747,
-          "endFrac": 0.4276,
+          "startFrac": 0.316,
+          "endFrac": 0.3391,
           "numbers": [
             9
           ]
         },
         {
+          "type": "corner",
+          "name": "T10",
+          "direction": "left",
+          "startFrac": 0.3391,
+          "endFrac": 0.3735,
+          "numbers": [
+            10
+          ]
+        },
+        {
           "type": "straight",
           "name": "",
-          "startFrac": 0.4276,
+          "startFrac": 0.3735,
           "endFrac": 0.5513
         },
         {
@@ -267,7 +271,7 @@
       "name": "T6",
       "direction": "left",
       "startFrac": 0.2552,
-      "endFrac": 0.3295,
+      "endFrac": 0.316,
       "numbers": [
         6,
         7,
@@ -275,25 +279,29 @@
       ]
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3295,
-      "endFrac": 0.3747
-    },
-    {
       "type": "corner",
       "name": "T9",
       "direction": "right",
-      "startFrac": 0.3747,
-      "endFrac": 0.4276,
+      "startFrac": 0.316,
+      "endFrac": 0.3391,
       "numbers": [
         9
       ]
     },
     {
+      "type": "corner",
+      "name": "T10",
+      "direction": "left",
+      "startFrac": 0.3391,
+      "endFrac": 0.3735,
+      "numbers": [
+        10
+      ]
+    },
+    {
       "type": "straight",
       "name": "",
-      "startFrac": 0.4276,
+      "startFrac": 0.3735,
       "endFrac": 0.5513
     },
     {

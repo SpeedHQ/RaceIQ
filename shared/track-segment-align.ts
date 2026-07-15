@@ -43,6 +43,39 @@ interface Pt { x: number; z: number }
  * same-direction gaps (double-apex corners stay whole).
  */
 export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; totalDist: number } {
+  // Strict pass: the corners the detector is confident about on curvature alone.
+  const strict = detectPass(outline, STRICT_K_IN, STRICT_K_OUT);
+
+  // Loose pass: a big-radius sweep (Monza's Curva Grande, ~1/450) sits right on
+  // the strict entry threshold, so whether it registers at all comes down to how
+  // a game sampled its centerline — it exists on F1 and vanishes into a 1.1 km
+  // hole on ACC. Re-running detection looser finds those, but its output may NOT
+  // replace the strict regions: entering runs earlier lengthens them, which fuses
+  // same-direction neighbours across MERGE_GAP_M and pushes borderline regions
+  // past MIN_TURN_RAD (turnRad integrates the untrimmed run), silently reshaping
+  // corners the name lists already align against. So only sweeps in the gaps the
+  // strict pass left behind are taken, and always as weak — never asserting a
+  // corner, just offering one a curated name may claim.
+  const loose = detectPass(outline, LOOSE_K_IN, LOOSE_K_OUT);
+  const extra = loose.corners.filter(
+    (l) => !strict.corners.some((s) => l.rawStartFrac < s.rawEndFrac && l.rawEndFrac > s.rawStartFrac),
+  );
+
+  const corners = [...strict.corners, ...extra.map((c) => ({ ...c, weak: true as const }))]
+    .sort((a, b) => a.startFrac - b.startFrac)
+    .map(({ rawStartFrac, rawEndFrac, ...c }) => c);
+  return { corners, totalDist: strict.totalDist };
+}
+
+const STRICT_K_IN = 1 / 450;
+const STRICT_K_OUT = 1 / 700;
+const LOOSE_K_IN = 1 / 650;
+const LOOSE_K_OUT = 1 / 900;
+
+/** A region plus its untrimmed extent, used to test overlap between passes. */
+type PassRegion = CornerRegion & { rawStartFrac: number; rawEndFrac: number };
+
+function detectPass(outline: Pt[], K_IN: number, K_OUT: number): { corners: PassRegion[]; totalDist: number } {
   const n = outline.length;
   if (n < 20) return { corners: [], totalDist: 0 };
 
@@ -56,11 +89,6 @@ export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; t
   const meanSpacing = totalDist / n;
 
   const CURV_WINDOW_M = 12;
-  // Enter/leave thresholds are deliberately loose (fast corners like
-  // Blanchimont have ~250-400 m radii); kinks are rejected afterwards by
-  // MIN_TURN_RAD — a real corner changes heading, a kink doesn't.
-  const K_IN = 1 / 450;
-  const K_OUT = 1 / 700;
   const MIN_CORNER_M = 15;
   const MIN_TURN_RAD = 0.20;   // ~11.5° of heading change required to stand alone
   const WEAK_TURN_RAD = 0.10;  // below ~5.7° it's noise, not a corner anyone names
@@ -166,7 +194,7 @@ export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; t
     }
   }
 
-  const corners: CornerRegion[] = mergedRegions
+  const corners: PassRegion[] = mergedRegions
     .map((r) => {
       // Existence (count, merge/split) is decided on the full K_OUT-bounded
       // region above; turn/length here filter that same untrimmed region so
@@ -202,6 +230,11 @@ export function detectCornerRegions(outline: Pt[]): { corners: CornerRegion[]; t
         lengthM: dists[end] - dists[start],
         turnRad: turn,
         untrimmedLengthM,
+        // Pre-trim extent: overlap between passes is tested on this, since a
+        // loose region can clear a strict region's trimmed bounds while sitting
+        // squarely inside the curvature it was trimmed from.
+        rawStartFrac: dists[r.start] / totalDist,
+        rawEndFrac: dists[r.end] / totalDist,
       };
     })
     .filter((c) => c.untrimmedLengthM >= MIN_CORNER_M && c.turnRad >= WEAK_TURN_RAD)

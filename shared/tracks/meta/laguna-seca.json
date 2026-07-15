@@ -12,13 +12,23 @@
           "type": "straight",
           "name": "",
           "startFrac": 0,
-          "endFrac": 0.0801
+          "endFrac": 0.0309
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "left",
+          "startFrac": 0.0309,
+          "endFrac": 0.1019,
+          "numbers": [
+            1
+          ]
         },
         {
           "type": "corner",
           "name": "Andretti Hairpin",
           "direction": "left",
-          "startFrac": 0.0801,
+          "startFrac": 0.1019,
           "endFrac": 0.1778,
           "numbers": [
             2

@@ -194,7 +194,7 @@
   "games": {
     "f1-2025": {
       "sectors": {
-        "s1End": 0.3555,
+        "s1End": 0.4042,
         "s2End": 0.7605,
         "source": "corner-anchored"
       },
@@ -225,7 +225,7 @@
           "type": "corner",
           "name": "Eau Rouge/Raidillon",
           "startFrac": 0.1398,
-          "endFrac": 0.1982,
+          "endFrac": 0.2469,
           "numbers": [
             2,
             3,
@@ -235,7 +235,7 @@
         {
           "type": "straight",
           "name": "Kemmel",
-          "startFrac": 0.1982,
+          "startFrac": 0.2469,
           "endFrac": 0.322
         },
         {
@@ -339,13 +339,23 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.7605,
-          "endFrac": 0.8587
+          "endFrac": 0.8109
+        },
+        {
+          "type": "corner",
+          "name": "Courbe Paul Frère",
+          "direction": "left",
+          "startFrac": 0.8109,
+          "endFrac": 0.8683,
+          "numbers": [
+            16
+          ]
         },
         {
           "type": "corner",
           "name": "Blanchimont",
           "direction": "left",
-          "startFrac": 0.8587,
+          "startFrac": 0.8683,
           "endFrac": 0.904,
           "numbers": [
             17

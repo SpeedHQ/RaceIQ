@@ -230,12 +230,12 @@
           "type": "straight",
           "name": "",
           "startFrac": 0.0749,
-          "endFrac": 0.1162
+          "endFrac": 0.0947
         },
         {
           "type": "corner",
           "name": "Maggotts/Becketts",
-          "startFrac": 0.1162,
+          "startFrac": 0.0947,
           "endFrac": 0.2154,
           "numbers": [
             10,

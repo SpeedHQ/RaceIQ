@@ -5,7 +5,7 @@
   "corners": [
     { "number": 1, "name": "Variante del Rettifilo", "direction": "right", "group": "Variante del Rettifilo" },
     { "number": 2, "name": "", "direction": "left", "group": "Variante del Rettifilo" },
-    { "number": 3, "name": "Curva Grande", "direction": "right", "optional": true },
+    { "number": 3, "name": "Curva Grande", "direction": "right" },
     { "number": 4, "name": "Variante della Roggia", "direction": "left", "group": "Variante della Roggia" },
     { "number": 5, "name": "", "direction": "right", "group": "Variante della Roggia" },
     { "number": 6, "name": "Lesmo 1", "direction": "right" },

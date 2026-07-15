@@ -147,6 +147,22 @@
           "type": "straight",
           "name": "Curva Grande approach",
           "startFrac": 0.1833,
+          "endFrac": 0.1987
+        },
+        {
+          "type": "corner",
+          "name": "Curva Grande",
+          "direction": "right",
+          "startFrac": 0.1987,
+          "endFrac": 0.2763,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2763,
           "endFrac": 0.3405
         },
         {
@@ -221,9 +237,9 @@
         }
       ],
       "sectors": {
-        "s1End": 0.33,
+        "s1End": 0.3371,
         "s2End": 0.7385,
-        "source": "hand-researched"
+        "source": "corner-anchored"
       }
     }
   },

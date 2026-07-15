@@ -23,10 +23,9 @@ const slugs = listCuratedSlugs();
  * not a track that lacks the corner. Nine of the eleven are ACC, which is the
  * shape of a systemic issue rather than nine unrelated corners.
  *
- * Known root cause for the big-radius cases (Curva Grande, Aintree): their
- * curvature sits within a hair of K_IN (1/450), so whether a region exists at
- * all comes down to how each game sampled its centerline. Widening K_IN admits
- * them but destabilises merge/split on 21+ other layouts, so the gap stands.
+ * The big-radius cases (Curva Grande, Courbe Paul Frère) are fixed: the loose
+ * second pass in detectCornerRegions now finds sweeps sitting on the strict
+ * entry threshold. What remains are corners no pass sees at any threshold.
  *
  * This list is a defect register, not a baseline to re-bless: entries should
  * only be removed by fixing the detector, and a new entry means something
@@ -39,12 +38,8 @@ const KNOWN_DETECTOR_GAPS = new Set([
   "catalunya T14 fm-2023",
   "imola T8 acc",
   "imola T13 acc",
-  "laguna-seca T1 acc",
-  "monza T3 acc", // Curva Grande — ~1/450 radius, right on the detection threshold
-  "nurburgring T11 acc",
   "silverstone T5 acc", // Aintree
-  "spa T16 f1-2025", // Courbe Paul Frère
-  "spa T16 acc",
+  "spa T16 acc", // Courbe Paul Frère — found on fm-2023 and f1-2025, not ACC
   "zandvoort T13 acc",
 ]);
 

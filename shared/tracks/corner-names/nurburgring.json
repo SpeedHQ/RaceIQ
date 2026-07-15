@@ -13,7 +13,7 @@
     { "number": 8, "name": "", "direction": "right" },
     { "number": 9, "name": "Michael-Schumacher-S", "direction": "left" },
     { "number": 10, "name": "", "direction": "right" },
-    { "number": 11, "name": "", "direction": "right", "optional": true },
+    { "number": 11, "name": "", "direction": "right" },
     { "number": 12, "name": "NGK-Schikane", "direction": "left", "group": "NGK-Schikane" },
     { "number": 13, "name": "", "direction": "right", "group": "NGK-Schikane" },
     { "number": 14, "name": "", "direction": "right" }
