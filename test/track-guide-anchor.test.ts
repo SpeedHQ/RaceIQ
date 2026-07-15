@@ -62,6 +62,104 @@ function guideAnchors(): { slug: string; name: string; numbers: number[] }[] {
   return out;
 }
 
+/**
+ * Guide entries deliberately left unanchored, with the reason. This is a defect
+ * register, not a suppression list: the test below asserts it matches reality
+ * exactly, so it fails both ways — a new unanchored entry must be justified
+ * here, and one that gets anchored fails as stale.
+ *
+ * Fantasy Forza layouts (grand-oak, hakone, eaglerock, maple-valley,
+ * sunset-peninsula, fujimi-kaido) are exempt entirely: they have no real-world
+ * turn numbering to defer to, and their guides are generic filler.
+ */
+const KNOWN_ANCHOR_GAPS: Record<string, string[]> = {
+  // Straights. `numbers` is corner-only, and meta already names these exactly
+  // as the guide does, so there is no drift to anchor away.
+  "mount-panorama": ["Mountain Straight", "Conrod Straight"],
+  montreal: ["Wall of Champions"],
+  interlagos: ["Subida dos Boxes"],
+
+  // META IS INCOMPLETE, GUIDE IS RIGHT — do not "fix" by forcing a match.
+  // ACC's centerline is fastlane.ai's racing line, which straightens shallow
+  // corners away entirely (see #84's KNOWN_DETECTOR_GAPS and #98).
+  // Circuit Ricardo Tormo has 14 turns; meta detected 8.
+  valencia: ["Turn 9", "Turn 12"],
+  // Misano has 16 turns; meta detected 11. Tramonto is real (~T13).
+  misano: ["Tramonto"],
+  // Real GP corner names; meta leaves T7/T8/T10/T11 unnamed.
+  nurburgring: ["Bit-Kurve", "Veedol"],
+  // Fuchsröhre belongs between Aremberg (21) and Adenauer Forst (22-24);
+  // meta has no segment there.
+  nordschleife: ["Fuchsröhre", "Döttinger Höhe"],
+  // meta numbering is self-inconsistent here: New Holland is 16 while T14 is
+  // 14, and 13/15 are absent. The post-2023 layout has 14 turns.
+  catalunya: ["Turn 12-13", "Turn 14-15"],
+
+  // Region spans several meta segments, so no single segment to anchor to.
+  "yas-marina": ["Hotel Corners", "Marina Section"],
+  // Motodrom spans Sachskurve (12) .. Südkurve (15-17) — several segments.
+  // "Turn 6": the guide calls it a fast right *onto* the back straight, but
+  // meta's T6 is the Spitzkehre hairpin at the *end* of it. The guide and meta
+  // number Hockenheim differently; anchoring by label would mislabel.
+  hockenheim: ["Motodrom", "Turn 6"],
+  "mid-ohio": ["Madness", "Thunder Valley", "Carousel"], // meta has no T3, 4-13 unnamed
+  zolder: ["Kanaalbocht", "Butte"], // meta leaves T3/T6/T9/T10 unnamed
+  // The guide carries both "Turn 1" and "Crowthorne" — Crowthorne IS T1, and
+  // the two entries describe it differently ("heavy-braking" vs "fast,
+  // sweeping"). Anchoring merges a contradiction; dedupe the guide first.
+  kyalami: ["The Kink", "Crowthorne"],
+  snetterton: ["Wilson"], // no matching name in meta's curated list
+  "lime-rock": ["Righthander (No Name Straight approach)"], // meta names 6 corners
+  "paul-ricard": ["Mistral Straight Chicane"], // ACC's layout omits the chicane
+
+  // Guide cites a turn outside the layout meta curates (IMS road course is 14
+  // turns). Which layout the guide describes needs sourcing, not a guess.
+  indianapolis: ["Turn 16"],
+
+  // No meta file, or an empty stub — nothing to anchor against.
+  sochi: ["Turn 2", "Turn 3", "Turn 4", "Turn 12-13"],
+  portimao: ["Primeira", "Turn 4", "Torre Vip", "Turn 15"],
+  hanoi: ["Turn 1", "Turn 6-9", "Turn 11"],
+};
+
+const FANTASY_SLUGS = new Set([
+  "maple-valley",
+  "fujimi-kaido",
+  "sunset-peninsula",
+  "grand-oak",
+  "hakone",
+  "eaglerock",
+]);
+
+/** Guide entries with no `numbers`, i.e. still rendering under their own name. */
+function unanchoredEntries(): Record<string, string[]> {
+  const src = readFileSync(resolve(import.meta.dir, "../server/ai/track-guides.ts"), "utf8");
+  const out: Record<string, string[]> = {};
+  let slug = "";
+  for (const line of src.split("\n")) {
+    const id = line.match(/^\s*id: "([a-z0-9-]+)"/);
+    if (id) {
+      slug = id[1];
+      continue;
+    }
+    const c = line.match(/^\s*\{ name: "([^"]+)", type: /);
+    if (c && slug && !FANTASY_SLUGS.has(slug)) (out[slug] ??= []).push(c[1]);
+  }
+  return out;
+}
+
+describe("unanchored guide entries are a known, justified set", () => {
+  test("register matches reality exactly (fails both ways)", () => {
+    const actual = unanchoredEntries();
+    // Compare as sorted "slug :: name" lines so a diff points at the entry.
+    const flat = (r: Record<string, string[]>) =>
+      Object.entries(r)
+        .flatMap(([s, names]) => names.map((n) => `${s} :: ${n}`))
+        .sort();
+    expect(flat(actual)).toEqual(flat(KNOWN_ANCHOR_GAPS));
+  });
+});
+
 describe("track guide turn-number anchors", () => {
   const anchors = guideAnchors();
 
@@ -91,6 +189,69 @@ describe("track guide turn-number anchors", () => {
       (a) => a.numbers.length === 0 || a.numbers.some((n, i) => i > 0 && n <= a.numbers[i - 1]),
     );
     expect(bad.map((b) => `${b.slug} :: ${b.name}`)).toEqual([]);
+  });
+});
+
+/**
+ * Guide entries that legitimately share one meta segment, because meta treats
+ * as one section what the guide coaches as two (Eau Rouge and Raidillon are one
+ * "Eau Rouge/Raidillon" segment). These merge into a single bullet.
+ *
+ * Registering them matters: an *unexpected* collision means a guide entry is
+ * mislabeled. That's how the Watkins Glen "Inner Loop" entry — which actually
+ * described the final corner at T11, not the T5 chicane — was caught.
+ */
+const KNOWN_MERGES: Record<string, string[][]> = {
+  spa: [["Eau Rouge", "Raidillon"]],
+  silverstone: [["Maggotts", "Becketts"]],
+  suzuka: [
+    ["First Curve", "Second Curve"],
+    ["Degner 1", "Degner 2"],
+  ],
+  imola: [["Rivazza 1", "Rivazza 2"]],
+  zandvoort: [["Turn 8", "Turn 9"]],
+  "mount-panorama": [["Skyline", "The Esses", "The Dipper"]],
+  monaco: [["Rascasse", "Antony Noghes"]],
+  baku: [["Castle Section", "Turn 8"]],
+  "road-atlanta": [["Turn 10a", "Turn 10b"]],
+};
+
+describe("guide entries sharing a meta segment are a known set", () => {
+  test("no unregistered collisions (an unexpected one means a mislabeled entry)", () => {
+    const anchors = guideAnchors();
+    const bySlug = new Map<string, { name: string; numbers: number[] }[]>();
+    for (const a of anchors) {
+      const list = bySlug.get(a.slug) ?? [];
+      list.push(a);
+      bySlug.set(a.slug, list);
+    }
+
+    const actual: string[] = [];
+    for (const [slug, entries] of bySlug) {
+      const meta = loadMeta(slug);
+      if (!meta) continue;
+      const games = Object.keys(meta.games ?? {});
+      const segs = (games.length ? meta.games![games[0]].segments : meta.segments) ?? [];
+      const labelOf = new Map<number, string>();
+      for (const s of segs) {
+        if (s.type !== "corner" || !s.numbers?.length || !s.name) continue;
+        for (const n of s.numbers) labelOf.set(n, `${s.name}|${s.numbers.join(",")}`);
+      }
+      const grouped = new Map<string, string[]>();
+      for (const e of entries) {
+        const hit = labelOf.get(e.numbers[0]);
+        if (!hit || !e.numbers.every((n) => labelOf.get(n) === hit)) continue;
+        grouped.set(hit, [...(grouped.get(hit) ?? []), e.name]);
+      }
+      for (const names of grouped.values()) {
+        if (names.length > 1) actual.push(`${slug} :: ${names.join(" + ")}`);
+      }
+    }
+
+    const expected = Object.entries(KNOWN_MERGES)
+      .flatMap(([slug, groups]) => groups.map((g) => `${slug} :: ${g.join(" + ")}`))
+      .sort();
+    expect(actual.sort()).toEqual(expected);
   });
 });
 

@@ -128,7 +128,7 @@ const guides: TrackGuide[] = [
     character: "Unique figure-eight layout, 5.8km. Mix of flowing high-speed sections and technical slow corners. The Esses are the signature — rhythm and commitment define fast laps. Demands a balanced car setup.",
     corners: [
       { name: "First Curve", numbers: [1, 2], type: "fast right-hander (T1)", technique: "Light braking or lift, smooth turn-in at 210-230 km/h. Position well for Second Curve", trap: "Over-slowing loses momentum through the opening sequence" },
-      { name: "Second Curve", type: "medium-speed left (T2)", technique: "Brake firmly, hit a late apex to open up the entry to the Esses", trap: "Early apex compromises the critical S-Curves entry" },
+      { name: "Second Curve", numbers: [2], type: "medium-speed left (T2)", technique: "Brake firmly, hit a late apex to open up the entry to the Esses", trap: "Early apex compromises the critical S-Curves entry" },
       { name: "S Curves", numbers: [3, 4, 5, 6], type: "fast flowing left-right-left-right-left sequence (T3-T7)", technique: "Rhythm is everything — light braking or lifts between direction changes, carry maximum speed, trust the car", trap: "Over-driving any single apex ruins the whole sequence. Smooth > aggressive here" },
       { name: "Dunlop Curve", numbers: [7], type: "medium-speed right (T8)", technique: "Moderate braking, late apex, good exit feeds Degner approach", trap: "Flat-spotting tires under heavy braking on the downhill" },
       { name: "Degner 1", numbers: [8, 9], type: "fast right-hander (T9)", technique: "Quick direction change from Dunlop exit, commit to the speed, clip apex", trap: "Hesitation loses huge time; need trust in the car's grip" },
@@ -210,7 +210,7 @@ const guides: TrackGuide[] = [
       { name: "Turn 10-11", numbers: [10, 11], type: "medium-speed right-left sequence", technique: "Good exit from T11 feeds Bit-Kurve and the fast section", trap: "Over-driving T10 compromises T11 exit" },
       { name: "Bit-Kurve", type: "fast right (T12)", technique: "Flat-out right-hand kink, stay smooth", trap: "Unnecessary lifting" },
       { name: "Veedol", type: "fast left-right chicane (T13-T14)", technique: "Brake between 100m and 50m, 3rd gear. Cut inside kerb T13, smash inside kerb T14 (if ride height allows)", trap: "Hitting concrete block on T13 kerb unsettles the car" },
-      { name: "NGK Chicane", type: "final right hairpin (T15)", technique: "Hard braking, tight hairpin. Clean exit onto start/finish straight", trap: "Braking too late and missing the apex; poor exit costs pit straight speed" },
+      { name: "NGK Chicane", numbers: [12, 13], type: "final right hairpin (T15)", technique: "Hard braking, tight hairpin. Clean exit onto start/finish straight", trap: "Braking too late and missing the apex; poor exit costs pit straight speed" },
     ],
     priorityCorners: ["Castrol-S", "Dunlop Kehre", "Veedol", "NGK Chicane"],
   },
@@ -263,9 +263,9 @@ const guides: TrackGuide[] = [
       { name: "Griffins Bend", numbers: [2], type: "fast left over crest", technique: "Commitment over the blind crest, trust the racing line", trap: "Lifting over the crest kills momentum" },
       { name: "The Cutting", numbers: [3], type: "fast section through narrow walls", technique: "Precision is critical — concrete walls on both sides. Smooth, committed driving", trap: "Any correction near the walls risks contact" },
       { name: "Reid Park", numbers: [4], type: "tight left-right complex", technique: "Hard braking, precise through the direction changes. Walls are very close", trap: "Over-driving into the first part with walls millimeters away" },
-      { name: "Skyline", type: "crest at the top of the Mountain", technique: "Car goes light over the top — smooth inputs, let it settle", trap: "Aggressive steering when the car is light = instant snap" },
+      { name: "Skyline", numbers: [7], type: "crest at the top of the Mountain", technique: "Car goes light over the top — smooth inputs, let it settle", trap: "Aggressive steering when the car is light = instant snap" },
       { name: "The Esses", numbers: [7, 8, 9, 10], type: "fast downhill left-right-left sequence", technique: "Descending quickly with walls close. Rhythm and commitment, carry speed", trap: "Over-driving while descending — the gradient increases speed rapidly" },
-      { name: "The Dipper", type: "fast compression into left", technique: "Car loads up in the dip — use the grip from compression", trap: "Not using the compression advantage" },
+      { name: "The Dipper", numbers: [8, 9], type: "fast compression into left", technique: "Car loads up in the dip — use the grip from compression", trap: "Not using the compression advantage" },
       { name: "Forrest Elbow", numbers: [12], type: "tight left leading to Conrod", technique: "Late apex is critical — feeds the enormously fast Conrod Straight", trap: "Early apex = slow Conrod Straight = massive time loss" },
       { name: "Conrod Straight", type: "very fast downhill straight", technique: "Full throttle, 300+ km/h. Prepare braking for The Chase", trap: "Not preparing early enough for the braking zone at The Chase" },
       { name: "The Chase", numbers: [13, 14], type: "left-right chicane after Conrod", technique: "Enormous braking zone from 300+ km/h. Hard, straight-line braking, precise through chicane", trap: "Braking too late from the extremely high speeds; ABS fade" },
@@ -451,7 +451,7 @@ const guides: TrackGuide[] = [
     corners: [
       { name: "Turn 1", numbers: [1], type: "heavy-braking right-hander", technique: "Brake early to compensate for reduced aero grip at altitude, late apex", trap: "Misjudging braking distance due to thinner air reducing downforce and drag" },
       { name: "Turn 4-6", numbers: [4, 5, 6], type: "fast, flowing esses", technique: "Smooth, rhythmic direction changes, trust the grip despite the altitude", trap: "Over-driving the reduced-grip conditions at altitude" },
-      { name: "Stadium Section", type: "tight, technical corners through the Foro Sol baseball stadium", technique: "Patient, precise low-speed inputs, use the atmosphere but stay focused on the tightening line", trap: "Getting distracted by the stadium crowd and missing braking points" },
+      { name: "Stadium Section", numbers: [12], type: "tight, technical corners through the Foro Sol baseball stadium", technique: "Patient, precise low-speed inputs, use the atmosphere but stay focused on the tightening line", trap: "Getting distracted by the stadium crowd and missing braking points" },
       // Meta names T15-17 Peraltada.
       { name: "Final Corner", numbers: [15, 16, 17], type: "long, tightening corner onto the pit straight", technique: "Progressive throttle as the corner opens, clean exit is critical", trap: "Early throttle application before the corner fully opens causes a slide" },
     ],
@@ -523,7 +523,7 @@ const guides: TrackGuide[] = [
     character: "High-altitude South African circuit with a fast, flowing layout and dramatic elevation changes. Thinner air reduces aero and engine performance, similar to Mexico City.",
     corners: [
       { name: "Turn 1", numbers: [1], type: "heavy-braking right-hander", technique: "Brake early to account for reduced aero grip at altitude, late apex", trap: "Misjudging braking distance due to the thinner air" },
-      { name: "Crowthorne", numbers: [1], type: "fast, sweeping corner", technique: "Commit with smooth steering, trust the grip despite the altitude", trap: "Lifting unnecessarily and losing momentum" },
+      { name: "Crowthorne", type: "fast, sweeping corner", technique: "Commit with smooth steering, trust the grip despite the altitude", trap: "Lifting unnecessarily and losing momentum" },
       { name: "The Kink", type: "high-speed direction change", technique: "Minimal steering input, stay smooth through the fast section", trap: "Any correction at speed here is costly" },
       { name: "Final Corner", numbers: [12], type: "medium-speed corner onto the pit straight", technique: "Late apex, clean exit is critical for the run to the line", trap: "Poor exit here costs time down the entire straight" },
     ],
@@ -582,10 +582,12 @@ const guides: TrackGuide[] = [
       { name: "Turn 1", numbers: [1], type: "heavy-braking right-hander", technique: "Brake hard from the front straight, late apex to set up the Esses", trap: "Over-braking and losing the momentum needed for the following section" },
       { name: "The Esses", numbers: [2, 3, 4], type: "fast, flowing left-right sequence", technique: "Rhythm and smooth inputs through the direction changes, carry maximum speed", trap: "Over-driving any single apex disrupts the whole sequence" },
       { name: "The Boot", numbers: [8], type: "long, tightening back-straight corner", technique: "Patient, progressive line as the corner tightens", trap: "Early apex leaves nowhere to go as the corner keeps tightening" },
-      { name: "Bus Stop Chicane", type: "tight chicane before the final corner", technique: "Hard, late braking, precise through the direction change", trap: "Carrying too much speed in and running out of track on exit" },
-      { name: "Inner Loop", numbers: [5], type: "final tight corner onto the pit straight", technique: "Late apex, clean exit is critical — feeds the start/finish straight", trap: "Poor exit here costs time down the entire straight" },
+      { name: "Bus Stop Chicane", numbers: [5], type: "tight chicane before the final corner", technique: "Hard, late braking, precise through the direction change", trap: "Carrying too much speed in and running out of track on exit" },
+      // Was named "Inner Loop" — but the Inner Loop is the bus stop chicane at
+      // T5 (above); this entry describes the final corner, which is T11.
+      { name: "Final Corner", numbers: [11], type: "final tight corner onto the pit straight", technique: "Late apex, clean exit is critical — feeds the start/finish straight", trap: "Poor exit here costs time down the entire straight" },
     ],
-    priorityCorners: ["The Esses", "Bus Stop Chicane", "Inner Loop"],
+    priorityCorners: ["The Esses", "Bus Stop Chicane", "Final Corner"],
   },
 
   // ─── Nürburgring Nordschleife ───
@@ -782,7 +784,7 @@ const guides: TrackGuide[] = [
       { name: "Turn 1", numbers: [1], type: "tight right-hander off the front straight", technique: "Brake hard, late apex", trap: "Over-braking and losing momentum into the following section" },
       { name: "Kanaalbocht", type: "flat, smooth-turn-in corner alongside the Albert Canal", technique: "Minimal braking, smooth commitment", trap: "Over-slowing for a corner that needs little braking" },
       { name: "Butte", type: "one of the few genuinely fast corners on the circuit", technique: "Commit with smooth steering, carry as much speed as possible", trap: "Lifting unnecessarily costs significant time" },
-      { name: "Jacky Ickx complex", type: "blind corner complex at the end of an uphill section under a bridge", technique: "Trust your reference points, commit to the blind entry", trap: "Hesitating on the blind approach and missing the apex" },
+      { name: "Jacky Ickx complex", numbers: [11, 12], type: "blind corner complex at the end of an uphill section under a bridge", technique: "Trust your reference points, commit to the blind entry", trap: "Hesitating on the blind approach and missing the apex" },
     ],
     priorityCorners: ["Butte", "Jacky Ickx complex"],
   },
@@ -822,7 +824,7 @@ const guides: TrackGuide[] = [
     character: "Bumpy, abrasive former WWII airfield circuit in Florida — one of the roughest surfaces in racing, mixing concrete runway sections with tarmac. Precision over the bumps and a strong exit from the final corner define the lap.",
     corners: [
       { name: "Turn 1", numbers: [1], type: "heavy-braking corner off the front straight", technique: "Brake hard over the bumpy surface, late apex", trap: "The bumps under braking make lockups common" },
-      { name: "Hairpin", type: "tight, slow-speed corner (Turn 7) with a notoriously bumpy braking zone", technique: "Precision braking over the bumps, smooth throttle application", trap: "The bumpy surface unsettles the car right at the braking point" },
+      { name: "Hairpin", numbers: [7], type: "tight, slow-speed corner (Turn 7) with a notoriously bumpy braking zone", technique: "Precision braking over the bumps, smooth throttle application", trap: "The bumpy surface unsettles the car right at the braking point" },
       { name: "Sunset Bend", numbers: [19], type: "fast, bumpy right-hander onto the front straight (Turn 17)", technique: "Commit through the bumps — tight on exit if taken correctly", trap: "Heavy braking zone with varying racing lines makes this the corner Sebring is best known for" },
     ],
     priorityCorners: ["Hairpin", "Sunset Bend"],
@@ -878,7 +880,7 @@ const guides: TrackGuide[] = [
     character: "Short, modern German circuit built after the historic forest layout was truncated in 2002. A long straight into a tight hairpin (Spitzkehre) leads into the Motodrom stadium section, where several corners are packed in front of the grandstands.",
     corners: [
       { name: "Nordkurve", numbers: [1], type: "medium-speed right-hander off the front straight (Turn 1)", technique: "Firm braking, late apex", trap: "Running wide compromises the run to the following section" },
-      { name: "Turn 6", numbers: [6], type: "fast right-hander leading onto the back straight", technique: "Commit with smooth steering, carry speed onto the straight", trap: "Lifting unnecessarily costs speed down the entire straight" },
+      { name: "Turn 6", type: "fast right-hander leading onto the back straight", technique: "Commit with smooth steering, carry speed onto the straight", trap: "Lifting unnecessarily costs speed down the entire straight" },
       { name: "Spitzkehre", numbers: [6], type: "very tight hairpin at the end of the long back straight", technique: "Hard, late braking from very high speed, patient throttle on exit", trap: "Locking the front from the high approach speed" },
       { name: "Sachskurve", numbers: [12], type: "fast corner leading into the Motodrom stadium section", technique: "Commit through the corner, smooth transition into the technical stadium sequence", trap: "Over-driving the entry and compromising the stadium section that follows" },
       { name: "Motodrom", type: "tight, technical stadium section in front of the grandstands (final corners)", technique: "Patient, precise inputs through the tightening sequence, clean exit onto the front straight is critical", trap: "Compromised exit here costs time down the entire front straight" },
