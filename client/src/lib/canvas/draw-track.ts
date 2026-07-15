@@ -1,6 +1,22 @@
 import type { Point, TrackSectors } from "@/components/track/types";
 
 /**
+ * Distance along the outline at each point, cumulative from point 0.
+ * Lets a distance fraction (e.g. a sector boundary at 0.34 of the lap) be mapped
+ * to the right point, which raw indexing gets wrong when points are unevenly spaced.
+ */
+function cumulativeDistances(outline: Point[]): number[] {
+  const cumulative = new Array<number>(outline.length);
+  cumulative[0] = 0;
+  for (let i = 1; i < outline.length; i++) {
+    const dx = outline[i].x - outline[i - 1].x;
+    const dz = outline[i].z - outline[i - 1].z;
+    cumulative[i] = cumulative[i - 1] + Math.sqrt(dx * dx + dz * dz);
+  }
+  return cumulative;
+}
+
+/**
  * drawTrack — Shared canvas rendering for both gallery thumbnails and detail views.
  * Draws a thick base outline, then overlays color-coded segments (corner/straight).
  * Segment labels are offset perpendicular to the track direction so they don't overlap the line.
@@ -76,9 +92,27 @@ export function drawTrack(
       { label: "S2", color: s2Color, start: sectorOverride.s1End, end: sectorOverride.s2End },
       { label: "S3", color: s3Color, start: sectorOverride.s2End, end: 1 },
     ];
+    // s1End/s2End are fractions of LAP DISTANCE, and outline points are not evenly
+    // spaced — so map them through cumulative arc length. Using the raw point index
+    // put the boundaries wherever the points happened to bunch up.
+    const cumulative = cumulativeDistances(outline);
+    const totalLength = cumulative[n - 1];
+    const indexAtFraction = (frac: number): number => {
+      if (!(totalLength > 0) || frac <= 0) return 0;
+      if (frac >= 1) return n - 1;
+      const target = frac * totalLength;
+      let lo = 0;
+      let hi = n - 1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (cumulative[mid] < target) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo;
+    };
     for (const sec of sectorDefs) {
-      const startIdx = Math.round(sec.start * (n - 1));
-      const endIdx = Math.min(Math.round(sec.end * (n - 1)), n - 1);
+      const startIdx = indexAtFraction(sec.start);
+      const endIdx = Math.min(indexAtFraction(sec.end), n - 1);
       if (startIdx >= endIdx) continue;
       ctx.beginPath();
       ctx.strokeStyle = sec.color;
