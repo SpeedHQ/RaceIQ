@@ -16,9 +16,69 @@ import { findCenterlines, generateTrackSegments, listCuratedSlugs, loadCornerNam
 
 const slugs = listCuratedSlugs();
 
+/**
+ * Optional corners that one game's centerline shows and another's doesn't.
+ * `optional` means "may match nothing", so these fail silently — but a corner
+ * detected on one game is real, and its absence on another is a detector gap,
+ * not a track that lacks the corner. Nine of the eleven are ACC, which is the
+ * shape of a systemic issue rather than nine unrelated corners.
+ *
+ * Known root cause for the big-radius cases (Curva Grande, Aintree): their
+ * curvature sits within a hair of K_IN (1/450), so whether a region exists at
+ * all comes down to how each game sampled its centerline. Widening K_IN admits
+ * them but destabilises merge/split on 21+ other layouts, so the gap stands.
+ *
+ * This list is a defect register, not a baseline to re-bless: entries should
+ * only be removed by fixing the detector, and a new entry means something
+ * regressed.
+ */
+const KNOWN_DETECTOR_GAPS = new Set([
+  "brands-hatch T7 acc", // Dingle Dell
+  "catalunya T6 acc",
+  "catalunya T14 f1-2025",
+  "catalunya T14 fm-2023",
+  "imola T8 acc",
+  "imola T13 acc",
+  "laguna-seca T1 acc",
+  "monza T3 acc", // Curva Grande — ~1/450 radius, right on the detection threshold
+  "nurburgring T11 acc",
+  "silverstone T5 acc", // Aintree
+  "spa T16 f1-2025", // Courbe Paul Frère
+  "spa T16 acc",
+  "zandvoort T13 acc",
+]);
+
 describe("turn counts match real-world circuit data", () => {
   test("curated tracks exist", () => {
     expect(slugs.length).toBeGreaterThan(0);
+  });
+
+  // An optional corner is only honest if EVERY game misses it. Where one game
+  // finds it and another doesn't, the corner is real and the detector is the
+  // problem — surface that instead of letting `optional` absorb it.
+  test("no undeclared detector gaps (optional corner one game sees and another misses)", () => {
+    const found: string[] = [];
+    for (const slug of slugs) {
+      const nameList = loadCornerNameList(slug)!;
+      const optional = nameList.corners.filter((c) => c.optional);
+      if (optional.length === 0) continue;
+      const { aligned } = generateTrackSegments(slug, nameList);
+      if (aligned.length < 2) continue; // nothing to compare against
+
+      for (const opt of optional) {
+        const misses = aligned.filter((a) => !a.corners.some((c) => c.numbers.includes(opt.number)));
+        const hits = aligned.filter((a) => a.corners.some((c) => c.numbers.includes(opt.number)));
+        if (hits.length === 0 || misses.length === 0) continue; // all or nothing is consistent
+        for (const m of misses) found.push(`${slug} T${opt.number} ${m.gameId}`);
+      }
+    }
+    const undeclared = found.filter((f) => !KNOWN_DETECTOR_GAPS.has(f));
+    const fixed = [...KNOWN_DETECTOR_GAPS].filter((k) => !found.includes(k));
+    expect(
+      undeclared,
+      `new detector gap — these games see the corner, this one doesn't: ${undeclared.join(", ")}`,
+    ).toEqual([]);
+    expect(fixed, `fixed! remove from KNOWN_DETECTOR_GAPS: ${fixed.join(", ")}`).toEqual([]);
   });
 
   for (const slug of slugs) {
