@@ -262,6 +262,96 @@ export interface AccExtendedData {
     right: number;
     centre: number;
   };
+
+  /**
+   * AC Evo-only extras read from the v0.6 shared-memory pages. Optional so the
+   * ACC parser (which shares this type) can omit it. Every field maps 1:1 to a
+   * struct field the parser previously ignored — the raw bytes were already in
+   * the recorded .bin (full physics/graphics/static pages), so reprocessing old
+   * AC Evo sessions surfaces these without a re-record.
+   */
+  acEvo?: AcEvoExtendedData;
+}
+
+export interface AcEvoExtendedData {
+  // Frame identity / staleness — packet IDs increment each shm write.
+  physicsPacketId: number;
+  graphicsPacketId: number;
+  acEvoVersion: string;
+
+  // Session context (STATIC_EVO)
+  sessionType: string;          // "time_attack" | "race" | "hot_stint" | "cruise" | "unknown"
+  sessionName: string;
+  startingGrip: string;         // "green" | "fast" | "optimum" | "unknown"
+  isStaticWeather: boolean;
+  isTimedRace: boolean;
+  isOnline: boolean;
+  numberOfSessions: number;
+
+  // Live environment (PHYSICS — distinct from STATIC starting temps)
+  airTempC: number;
+  roadTempC: number;
+
+  // Live timing (GRAPHICS_EVO — the fields v0.5 froze)
+  deltaTimeMs: number;          // live delta vs reference lap
+  predictedLapTimeMs: number;
+  deltaCurrent: string;         // preformatted from TIMING_STATE (e.g. "-0.234")
+  deltaLast: string;
+  idealLapTime: string;
+  timingIsInvalid: boolean;
+
+  // Session-state block (GRAPHICS_EVO embedded SESSION_STATE)
+  sessionTimeLeftMs: number;
+  sessionTotalLaps: number;
+  sessionCurrentLap: number;
+  lapLengthKm: number;
+
+  // Electronics setting levels not already on the acc object
+  escLevel: number;
+  engineMapLevel: number;
+  isDrsOpen: boolean;
+
+  // Engine health (GRAPHICS_EVO)
+  clutchPercent: number;        // 0..1
+  handbrakePercent: number;     // 0..1
+  waterTempC: number;
+  oilTempC: number;
+  oilPressureBar: number;
+  exhaustTempC: number;
+  turboBoost: number;
+  currentTorque: number;
+  currentBhp: number;
+  isWrongWay: boolean;
+
+  // Fuel economy (GRAPHICS_EVO)
+  fuelLiters: number;
+  fuelPercent: number;
+  fuelLitersPerLap: number;
+  fuelLitersUsed: number;
+  lapsPossibleWithFuel: number;
+  kmPerFuelLiter: number;
+  instantaneousKmPerLiter: number;
+
+  // Brake disc life + tyre middle-tread temps (PHYSICS — pad life & inner/outer
+  // already exposed on the packet; these complete the picture)
+  brakeDiscLife: [number, number, number, number];  // FL/FR/RL/RR
+  tyreMiddleTempC: [number, number, number, number]; // FL/FR/RL/RR
+
+  // Car-frame velocity (PHYSICS localVelocity — distinct from world VelocityXYZ)
+  localVelocity: [number, number, number]; // x, y, z
+
+  // Race gaps (GRAPHICS_EVO)
+  gapAheadMs: number;
+  gapBehindMs: number;
+
+  // Odometry (GRAPHICS_EVO)
+  sessionKm: number;
+  totalDrivingTimeS: number;
+
+  // Time of day (GRAPHICS_EVO)
+  timeOfDayHours: number;
+  timeOfDayMinutes: number;
+  timeOfDaySeconds: number;
 }
 
 export interface TelemetryPacket {

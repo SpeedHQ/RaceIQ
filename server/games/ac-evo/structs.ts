@@ -575,6 +575,14 @@ export const ACEVO_SESSION_TYPE = {
   AC_CRUISE: 3,
 } as const;
 
+export const ACEVO_SESSION_TYPE_NAMES: Record<number, string> = {
+  [ACEVO_SESSION_TYPE.AC_UNKNOWN]: "unknown",
+  [ACEVO_SESSION_TYPE.AC_TIME_ATTACK]: "time_attack",
+  [ACEVO_SESSION_TYPE.AC_RACE]: "race",
+  [ACEVO_SESSION_TYPE.AC_HOT_STINT]: "hot_stint",
+  [ACEVO_SESSION_TYPE.AC_CRUISE]: "cruise",
+};
+
 // ACEVO_FLAG_TYPE — totally different mapping from ACC v1.x
 export const ACEVO_FLAG_TYPE = {
   AC_NO_FLAG: 0,
@@ -625,3 +633,9 @@ export const ACEVO_STARTING_GRIP = {
   ACEVO_FAST: 1,
   ACEVO_OPTIMUM: 2,
 } as const;
+
+export const ACEVO_STARTING_GRIP_NAMES: Record<number, string> = {
+  [ACEVO_STARTING_GRIP.ACEVO_GREEN]: "green",
+  [ACEVO_STARTING_GRIP.ACEVO_FAST]: "fast",
+  [ACEVO_STARTING_GRIP.ACEVO_OPTIMUM]: "optimum",
+};
