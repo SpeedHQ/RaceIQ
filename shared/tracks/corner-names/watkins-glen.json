@@ -1,0 +1,25 @@
+{
+  "circuit": "Watkins Glen International",
+  "source": "Official circuit map (long course with Boot, 11 turns)",
+  "turnCount": 11,
+  "corners": [
+    { "number": 1, "name": "The 90", "direction": "right" },
+    { "number": 2, "name": "The Esses", "direction": "right", "group": "The Esses" },
+    { "number": 3, "name": "", "direction": "left", "group": "The Esses", "covers": [4] },
+    { "number": 5, "name": "Inner Loop", "spans": 3 },
+    { "number": 6, "name": "Outer Loop", "direction": "right" },
+    { "number": 7, "name": "The Toe", "direction": "left" },
+    { "number": 8, "name": "The Boot", "direction": "right", "spans": 2 },
+    { "number": 9, "name": "", "direction": "left" },
+    { "number": 10, "name": "", "direction": "left" },
+    { "number": 11, "name": "", "direction": "right" }
+  ],
+  "straights": [
+    { "after": 2, "name": "Back Straight" }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 2,
+    "s1OffsetM": 900,
+    "s2EndAfterCorner": 8
+  }
+}

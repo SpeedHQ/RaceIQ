@@ -1,0 +1,31 @@
+{
+  "circuit": "Mount Panorama Circuit (Bathurst)",
+  "source": "Official corner names, sequential numbering of detected corners",
+  "turnCount": 15,
+  "corners": [
+    { "number": 1, "name": "Hell Corner", "direction": "left" },
+    { "number": 2, "name": "Griffins Bend", "direction": "right" },
+    { "number": 3, "name": "The Cutting", "direction": "left" },
+    { "number": 4, "name": "Reid Park", "direction": "right", "spans": 2 },
+    { "number": 5, "name": "Sulman Park", "direction": "left" },
+    { "number": 6, "name": "McPhillamy Park", "direction": "left" },
+    { "number": 7, "name": "The Esses", "group": "The Esses" },
+    { "number": 8, "name": "", "group": "The Esses" },
+    { "number": 9, "name": "The Dipper", "group": "The Esses" },
+    { "number": 10, "name": "", "group": "The Esses", "spans": 2 },
+    { "number": 11, "name": "", "direction": "right" },
+    { "number": 12, "name": "Forrest's Elbow", "direction": "left" },
+    { "number": 13, "name": "The Chase", "direction": "left", "group": "The Chase" },
+    { "number": 14, "name": "", "direction": "right", "group": "The Chase" },
+    { "number": 15, "name": "Murray's Corner", "direction": "left" }
+  ],
+  "straights": [
+    { "after": 1, "name": "Mountain Straight" },
+    { "after": 12, "name": "Conrod Straight" },
+    { "after": 15, "name": "Pit Straight" }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 3,
+    "s2EndAfterCorner": 12
+  }
+}

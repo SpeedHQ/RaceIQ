@@ -1,0 +1,52 @@
+{
+  "circuit": "Sunset Peninsula (Short)",
+  "source": "derived from track geometry (no official corner names)",
+  "turnCount": 9,
+  "corners": [
+    {
+      "number": 1,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 2,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 3,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "right"
+    }
+  ]
+}

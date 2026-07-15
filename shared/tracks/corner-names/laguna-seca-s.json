@@ -1,0 +1,15 @@
+{
+  "circuit": "WeatherTech Raceway Laguna Seca — Short",
+  "source": "Parent circuit names on shared corners; sequential numbering",
+  "turnCount": 8,
+  "corners": [
+    { "number": 1, "name": "", "direction": "left" },
+    { "number": 2, "name": "", "direction": "left" },
+    { "number": 3, "name": "", "direction": "left" },
+    { "number": 4, "name": "Corkscrew", "direction": "left", "group": "Corkscrew" },
+    { "number": 5, "name": "", "direction": "right", "group": "Corkscrew" },
+    { "number": 6, "name": "Rainey Curve", "direction": "left" },
+    { "number": 7, "name": "", "direction": "right" },
+    { "number": 8, "name": "", "direction": "left" }
+  ]
+}

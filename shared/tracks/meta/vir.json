@@ -3,5 +3,354 @@
   "sectors": {
     "s1End": 0.33,
     "s2End": 0.66
-  }
+  },
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0419
+        },
+        {
+          "type": "corner",
+          "name": "Horseshoe",
+          "direction": "right",
+          "startFrac": 0.0419,
+          "endFrac": 0.1005,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1005,
+          "endFrac": 0.1302
+        },
+        {
+          "type": "corner",
+          "name": "NASCAR Bend",
+          "direction": "left",
+          "startFrac": 0.1302,
+          "endFrac": 0.1827,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Left Hook",
+          "direction": "left",
+          "startFrac": 0.1827,
+          "endFrac": 0.2076,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "right",
+          "startFrac": 0.2076,
+          "endFrac": 0.2449,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "left",
+          "startFrac": 0.2449,
+          "endFrac": 0.2715,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2715,
+          "endFrac": 0.3488
+        },
+        {
+          "type": "corner",
+          "name": "Climbing Esses",
+          "startFrac": 0.3488,
+          "endFrac": 0.4391,
+          "numbers": [
+            7,
+            8,
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "South Bend",
+          "direction": "left",
+          "startFrac": 0.4391,
+          "endFrac": 0.4809,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4809,
+          "endFrac": 0.5052
+        },
+        {
+          "type": "corner",
+          "name": "Oak Tree",
+          "direction": "right",
+          "startFrac": 0.5052,
+          "endFrac": 0.5532,
+          "numbers": [
+            11,
+            12
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Back Straight",
+          "startFrac": 0.5532,
+          "endFrac": 0.7366
+        },
+        {
+          "type": "corner",
+          "name": "T13",
+          "direction": "left",
+          "startFrac": 0.7366,
+          "endFrac": 0.7803,
+          "numbers": [
+            13
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Roller Coaster",
+          "direction": "right",
+          "startFrac": 0.7803,
+          "endFrac": 0.7984,
+          "numbers": [
+            14
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T15",
+          "direction": "left",
+          "startFrac": 0.7984,
+          "endFrac": 0.8316,
+          "numbers": [
+            15
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T16",
+          "direction": "left",
+          "startFrac": 0.8316,
+          "endFrac": 0.8529,
+          "numbers": [
+            16
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Hog Pen",
+          "direction": "right",
+          "startFrac": 0.8529,
+          "endFrac": 0.9051,
+          "numbers": [
+            17
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9051,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.2715,
+        "s2End": 0.5532,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0419
+    },
+    {
+      "type": "corner",
+      "name": "Horseshoe",
+      "direction": "right",
+      "startFrac": 0.0419,
+      "endFrac": 0.1005,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1005,
+      "endFrac": 0.1302
+    },
+    {
+      "type": "corner",
+      "name": "NASCAR Bend",
+      "direction": "left",
+      "startFrac": 0.1302,
+      "endFrac": 0.1827,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Left Hook",
+      "direction": "left",
+      "startFrac": 0.1827,
+      "endFrac": 0.2076,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "right",
+      "startFrac": 0.2076,
+      "endFrac": 0.2449,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "left",
+      "startFrac": 0.2449,
+      "endFrac": 0.2715,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.2715,
+      "endFrac": 0.3488
+    },
+    {
+      "type": "corner",
+      "name": "Climbing Esses",
+      "startFrac": 0.3488,
+      "endFrac": 0.4391,
+      "numbers": [
+        7,
+        8,
+        9
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "South Bend",
+      "direction": "left",
+      "startFrac": 0.4391,
+      "endFrac": 0.4809,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4809,
+      "endFrac": 0.5052
+    },
+    {
+      "type": "corner",
+      "name": "Oak Tree",
+      "direction": "right",
+      "startFrac": 0.5052,
+      "endFrac": 0.5532,
+      "numbers": [
+        11,
+        12
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Back Straight",
+      "startFrac": 0.5532,
+      "endFrac": 0.7366
+    },
+    {
+      "type": "corner",
+      "name": "T13",
+      "direction": "left",
+      "startFrac": 0.7366,
+      "endFrac": 0.7803,
+      "numbers": [
+        13
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Roller Coaster",
+      "direction": "right",
+      "startFrac": 0.7803,
+      "endFrac": 0.7984,
+      "numbers": [
+        14
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T15",
+      "direction": "left",
+      "startFrac": 0.7984,
+      "endFrac": 0.8316,
+      "numbers": [
+        15
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T16",
+      "direction": "left",
+      "startFrac": 0.8316,
+      "endFrac": 0.8529,
+      "numbers": [
+        16
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Hog Pen",
+      "direction": "right",
+      "startFrac": 0.8529,
+      "endFrac": 0.9051,
+      "numbers": [
+        17
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9051,
+      "endFrac": 1
+    }
+  ]
 }

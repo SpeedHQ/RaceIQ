@@ -1,0 +1,91 @@
+{
+  "name": "Eaglerock Speedway (Full Reverse)",
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "right",
+          "startFrac": 0,
+          "endFrac": 0.4686,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "left",
+          "startFrac": 0.4686,
+          "endFrac": 0.5303,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.5303,
+          "endFrac": 0.591,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "right",
+          "startFrac": 0.591,
+          "endFrac": 1,
+          "numbers": [
+            4
+          ]
+        }
+      ]
+    }
+  },
+  "segments": [
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "right",
+      "startFrac": 0,
+      "endFrac": 0.4686,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T2",
+      "direction": "left",
+      "startFrac": 0.4686,
+      "endFrac": 0.5303,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.5303,
+      "endFrac": 0.591,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "right",
+      "startFrac": 0.591,
+      "endFrac": 1,
+      "numbers": [
+        4
+      ]
+    }
+  ]
+}

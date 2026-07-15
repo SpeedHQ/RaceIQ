@@ -8,8 +8,304 @@
     "f1-2025": {
       "sectors": {
         "s1End": 0.239,
-        "s2End": 0.590
-      }
+        "s2End": 0.59
+      },
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0475
+        },
+        {
+          "type": "corner",
+          "name": "Senna S",
+          "startFrac": 0.0475,
+          "endFrac": 0.1189,
+          "numbers": [
+            1,
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Curva do Sol",
+          "direction": "left",
+          "startFrac": 0.1189,
+          "endFrac": 0.198,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Reta Oposta",
+          "startFrac": 0.198,
+          "endFrac": 0.2927
+        },
+        {
+          "type": "corner",
+          "name": "Descida do Lago",
+          "direction": "left",
+          "startFrac": 0.2927,
+          "endFrac": 0.3526,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "left",
+          "startFrac": 0.3526,
+          "endFrac": 0.412,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.412,
+          "endFrac": 0.4363
+        },
+        {
+          "type": "corner",
+          "name": "Ferradura",
+          "direction": "right",
+          "startFrac": 0.4363,
+          "endFrac": 0.5304,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Laranja",
+          "direction": "right",
+          "startFrac": 0.5304,
+          "endFrac": 0.5623,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Pinheirinho",
+          "direction": "left",
+          "startFrac": 0.5623,
+          "endFrac": 0.6045,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Bico de Pato",
+          "direction": "right",
+          "startFrac": 0.6045,
+          "endFrac": 0.6665,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Mergulho",
+          "direction": "left",
+          "startFrac": 0.6665,
+          "endFrac": 0.737,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Juncão",
+          "direction": "left",
+          "startFrac": 0.737,
+          "endFrac": 0.7805,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T12",
+          "direction": "left",
+          "startFrac": 0.7805,
+          "endFrac": 0.8236,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Arquibancadas",
+          "direction": "left",
+          "startFrac": 0.8236,
+          "endFrac": 0.8871,
+          "numbers": [
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.8871,
+          "endFrac": 1
+        }
+      ]
     }
-  }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0475
+    },
+    {
+      "type": "corner",
+      "name": "Senna S",
+      "startFrac": 0.0475,
+      "endFrac": 0.1189,
+      "numbers": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Curva do Sol",
+      "direction": "left",
+      "startFrac": 0.1189,
+      "endFrac": 0.198,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Reta Oposta",
+      "startFrac": 0.198,
+      "endFrac": 0.2927
+    },
+    {
+      "type": "corner",
+      "name": "Descida do Lago",
+      "direction": "left",
+      "startFrac": 0.2927,
+      "endFrac": 0.3526,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "left",
+      "startFrac": 0.3526,
+      "endFrac": 0.412,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.412,
+      "endFrac": 0.4363
+    },
+    {
+      "type": "corner",
+      "name": "Ferradura",
+      "direction": "right",
+      "startFrac": 0.4363,
+      "endFrac": 0.5304,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Laranja",
+      "direction": "right",
+      "startFrac": 0.5304,
+      "endFrac": 0.5623,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Pinheirinho",
+      "direction": "left",
+      "startFrac": 0.5623,
+      "endFrac": 0.6045,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Bico de Pato",
+      "direction": "right",
+      "startFrac": 0.6045,
+      "endFrac": 0.6665,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Mergulho",
+      "direction": "left",
+      "startFrac": 0.6665,
+      "endFrac": 0.737,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Juncão",
+      "direction": "left",
+      "startFrac": 0.737,
+      "endFrac": 0.7805,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T12",
+      "direction": "left",
+      "startFrac": 0.7805,
+      "endFrac": 0.8236,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Arquibancadas",
+      "direction": "left",
+      "startFrac": 0.8236,
+      "endFrac": 0.8871,
+      "numbers": [
+        13,
+        14,
+        15
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.8871,
+      "endFrac": 1
+    }
+  ]
 }

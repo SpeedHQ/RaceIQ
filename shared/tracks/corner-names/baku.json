@@ -1,0 +1,33 @@
+{
+  "circuit": "Baku City Circuit",
+  "source": "Official F1 track map (6.003 km street circuit, turns mostly unnamed); directions verified against F1 2025 centerline geometry",
+  "turnCount": 20,
+  "corners": [
+    { "number": 1, "name": "", "direction": "left" },
+    { "number": 2, "name": "", "direction": "left" },
+    { "number": 3, "name": "", "direction": "left" },
+    { "number": 4, "name": "", "direction": "right" },
+    { "number": 5, "name": "", "direction": "left" },
+    { "number": 6, "name": "", "direction": "right" },
+    { "number": 7, "name": "", "direction": "right" },
+    { "number": 8, "name": "Castle Section", "direction": "left", "covers": [9] },
+    { "number": 10, "name": "", "direction": "right" },
+    { "number": 11, "name": "", "direction": "left" },
+    { "number": 12, "name": "", "direction": "left" },
+    { "number": 13, "name": "", "direction": "left", "optional": true },
+    { "number": 14, "name": "", "direction": "left", "optional": true },
+    { "number": 15, "name": "", "direction": "left" },
+    { "number": 16, "name": "", "direction": "left" },
+    { "number": 17, "name": "", "direction": "left" },
+    { "number": 18, "name": "", "direction": "right" },
+    { "number": 19, "name": "", "direction": "left" },
+    { "number": 20, "name": "", "direction": "right" }
+  ],
+  "straights": [
+    { "after": 20, "name": "Neftchiler Avenue" }
+  ],
+  "sectors": {
+    "s1End": 0.3,
+    "s2End": 0.72
+  }
+}

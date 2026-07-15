@@ -3,5 +3,334 @@
   "sectors": {
     "s1End": 0.33,
     "s2End": 0.68
-  }
+  },
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0282
+        },
+        {
+          "type": "corner",
+          "name": "Nordkurve",
+          "direction": "right",
+          "startFrac": 0.0282,
+          "endFrac": 0.0773,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.0773,
+          "endFrac": 0.1475
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "right",
+          "startFrac": 0.1475,
+          "endFrac": 0.1963,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "left",
+          "startFrac": 0.1963,
+          "endFrac": 0.2361,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Parabolika",
+          "startFrac": 0.2361,
+          "endFrac": 0.4237
+        },
+        {
+          "type": "corner",
+          "name": "Spitzkehre",
+          "direction": "right",
+          "startFrac": 0.4237,
+          "endFrac": 0.4813,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4813,
+          "endFrac": 0.5188
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "right",
+          "startFrac": 0.5188,
+          "endFrac": 0.5883,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "left",
+          "startFrac": 0.5883,
+          "endFrac": 0.6353,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T9",
+          "direction": "right",
+          "startFrac": 0.6353,
+          "endFrac": 0.6776,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6776,
+          "endFrac": 0.7134
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "direction": "right",
+          "startFrac": 0.7134,
+          "endFrac": 0.7938,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Sachskurve",
+          "direction": "left",
+          "startFrac": 0.7938,
+          "endFrac": 0.8506,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T13",
+          "direction": "left",
+          "startFrac": 0.8506,
+          "endFrac": 0.8735,
+          "numbers": [
+            13
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T14",
+          "direction": "right",
+          "startFrac": 0.8735,
+          "endFrac": 0.8911,
+          "numbers": [
+            14
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Südkurve",
+          "direction": "right",
+          "startFrac": 0.8911,
+          "endFrac": 0.9734,
+          "numbers": [
+            15,
+            16,
+            17
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9734,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.4813,
+        "s2End": 0.8506,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.0282
+    },
+    {
+      "type": "corner",
+      "name": "Nordkurve",
+      "direction": "right",
+      "startFrac": 0.0282,
+      "endFrac": 0.0773,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.0773,
+      "endFrac": 0.1475
+    },
+    {
+      "type": "corner",
+      "name": "T2",
+      "direction": "right",
+      "startFrac": 0.1475,
+      "endFrac": 0.1963,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "left",
+      "startFrac": 0.1963,
+      "endFrac": 0.2361,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Parabolika",
+      "startFrac": 0.2361,
+      "endFrac": 0.4237
+    },
+    {
+      "type": "corner",
+      "name": "Spitzkehre",
+      "direction": "right",
+      "startFrac": 0.4237,
+      "endFrac": 0.4813,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.4813,
+      "endFrac": 0.5188
+    },
+    {
+      "type": "corner",
+      "name": "T7",
+      "direction": "right",
+      "startFrac": 0.5188,
+      "endFrac": 0.5883,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T8",
+      "direction": "left",
+      "startFrac": 0.5883,
+      "endFrac": 0.6353,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T9",
+      "direction": "right",
+      "startFrac": 0.6353,
+      "endFrac": 0.6776,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.6776,
+      "endFrac": 0.7134
+    },
+    {
+      "type": "corner",
+      "name": "T10",
+      "direction": "right",
+      "startFrac": 0.7134,
+      "endFrac": 0.7938,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Sachskurve",
+      "direction": "left",
+      "startFrac": 0.7938,
+      "endFrac": 0.8506,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T13",
+      "direction": "left",
+      "startFrac": 0.8506,
+      "endFrac": 0.8735,
+      "numbers": [
+        13
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T14",
+      "direction": "right",
+      "startFrac": 0.8735,
+      "endFrac": 0.8911,
+      "numbers": [
+        14
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Südkurve",
+      "direction": "right",
+      "startFrac": 0.8911,
+      "endFrac": 0.9734,
+      "numbers": [
+        15,
+        16,
+        17
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9734,
+      "endFrac": 1
+    }
+  ]
 }

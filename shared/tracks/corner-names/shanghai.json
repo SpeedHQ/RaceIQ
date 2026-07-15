@@ -1,0 +1,32 @@
+{
+  "circuit": "Shanghai International Circuit",
+  "source": "Official F1 track map (16 turns); Snail T1-2",
+  "turnCount": 16,
+  "corners": [
+    { "number": 1, "name": "Snail", "direction": "right", "group": "Snail" },
+    { "number": 2, "name": "", "direction": "right", "group": "Snail" },
+    { "number": 3, "name": "", "direction": "left", "group": "T3-4" },
+    { "number": 4, "name": "", "direction": "left", "group": "T3-4" },
+    { "number": 5, "name": "" },
+    { "number": 6, "name": "", "direction": "right" },
+    { "number": 7, "name": "", "direction": "left" },
+    { "number": 8, "name": "", "direction": "right" },
+    { "number": 9, "name": "", "direction": "left" },
+    { "number": 10, "name": "", "direction": "left" },
+    { "number": 11, "name": "", "direction": "left" },
+    { "number": 12, "name": "", "direction": "right", "group": "T12-13" },
+    { "number": 13, "name": "", "direction": "right", "group": "T12-13" },
+    { "number": 14, "name": "", "direction": "right" },
+    { "number": 15, "name": "", "optional": true },
+    { "number": 16, "name": "", "direction": "left" }
+  ],
+  "straights": [
+    { "after": 13, "name": "Back Straight" }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 4,
+    "s1OffsetM": 200,
+    "s2EndAfterCorner": 13,
+    "s2OffsetM": 600
+  }
+}

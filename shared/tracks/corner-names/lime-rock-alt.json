@@ -1,0 +1,52 @@
+{
+  "circuit": "Lime Rock Park — Alt",
+  "source": "derived from track geometry (layout variant, sequential numbering)",
+  "turnCount": 9,
+  "corners": [
+    {
+      "number": 1,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 2,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 3,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "right"
+    }
+  ]
+}

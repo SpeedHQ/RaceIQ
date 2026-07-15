@@ -1,0 +1,26 @@
+{
+  "circuit": "Circuit Paul Ricard (GP layout)",
+  "source": "Official Circuit Paul Ricard circuit map",
+  "turnCount": 12,
+  "corners": [
+    { "number": 1, "name": "S de la Verrerie", "direction": "left", "group": "S de la Verrerie" },
+    { "number": 2, "name": "S de la Verrerie", "direction": "right", "group": "S de la Verrerie" },
+    { "number": 3, "name": "", "direction": "right" },
+    { "number": 4, "name": "", "direction": "left" },
+    { "number": 5, "name": "Sainte-Beaume", "direction": "right" },
+    { "number": 6, "name": "", "direction": "left" },
+    { "number": 7, "name": "Signes", "direction": "right" },
+    { "number": 8, "name": "", "direction": "right" },
+    { "number": 9, "name": "Beausset", "direction": "left" },
+    { "number": 10, "name": "Bendor", "direction": "right", "group": "Bendor" },
+    { "number": 11, "name": "Bendor", "direction": "left", "group": "Bendor" },
+    { "number": 12, "name": "Bendor", "direction": "right", "group": "Bendor" }
+  ],
+  "straights": [
+    { "after": 6, "name": "Mistral Straight" }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 5,
+    "s2EndAfterCorner": 9
+  }
+}

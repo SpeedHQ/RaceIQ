@@ -1,15 +1,375 @@
 {
   "name": "Autodromo Hermanos Rodriguez",
   "sectors": {
-    "s1End": 0.300,
+    "s1End": 0.3,
     "s2End": 0.692
   },
   "games": {
     "f1-2025": {
       "sectors": {
         "s1End": 0.302,
-        "s2End": 0.690
-      }
+        "s2End": 0.69
+      },
+      "segments": [
+        {
+          "type": "straight",
+          "name": "Start/Finish",
+          "startFrac": 0,
+          "endFrac": 0.2503,
+          "group": "Start/Finish"
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "right",
+          "startFrac": 0.2503,
+          "endFrac": 0.2955,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "left",
+          "startFrac": 0.2955,
+          "endFrac": 0.3111,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.3111,
+          "endFrac": 0.3456,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Back Straight",
+          "startFrac": 0.3456,
+          "endFrac": 0.4454
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "left",
+          "startFrac": 0.4454,
+          "endFrac": 0.4897,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "right",
+          "startFrac": 0.4897,
+          "endFrac": 0.5143,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "right",
+          "startFrac": 0.5143,
+          "endFrac": 0.5738,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "left",
+          "startFrac": 0.5738,
+          "endFrac": 0.6206,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "right",
+          "startFrac": 0.6206,
+          "endFrac": 0.6436,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T9",
+          "direction": "left",
+          "startFrac": 0.6436,
+          "endFrac": 0.6781,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "direction": "right",
+          "startFrac": 0.6781,
+          "endFrac": 0.7125,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T11",
+          "direction": "left",
+          "startFrac": 0.7125,
+          "endFrac": 0.7413,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7413,
+          "endFrac": 0.817
+        },
+        {
+          "type": "corner",
+          "name": "Foro Sol",
+          "direction": "right",
+          "startFrac": 0.817,
+          "endFrac": 0.8733,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T13",
+          "direction": "left",
+          "startFrac": 0.8733,
+          "endFrac": 0.9021,
+          "numbers": [
+            13
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T14",
+          "direction": "right",
+          "startFrac": 0.9021,
+          "endFrac": 0.9235,
+          "numbers": [
+            14
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Peraltada",
+          "direction": "right",
+          "startFrac": 0.9235,
+          "endFrac": 0.9582,
+          "numbers": [
+            15,
+            16,
+            17
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Start/Finish",
+          "startFrac": 0.9582,
+          "endFrac": 1,
+          "group": "Start/Finish"
+        }
+      ]
     }
-  }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "Start/Finish",
+      "startFrac": 0,
+      "endFrac": 0.2503,
+      "group": "Start/Finish"
+    },
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "right",
+      "startFrac": 0.2503,
+      "endFrac": 0.2955,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T2",
+      "direction": "left",
+      "startFrac": 0.2955,
+      "endFrac": 0.3111,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.3111,
+      "endFrac": 0.3456,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Back Straight",
+      "startFrac": 0.3456,
+      "endFrac": 0.4454
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "left",
+      "startFrac": 0.4454,
+      "endFrac": 0.4897,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "right",
+      "startFrac": 0.4897,
+      "endFrac": 0.5143,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "right",
+      "startFrac": 0.5143,
+      "endFrac": 0.5738,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T7",
+      "direction": "left",
+      "startFrac": 0.5738,
+      "endFrac": 0.6206,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T8",
+      "direction": "right",
+      "startFrac": 0.6206,
+      "endFrac": 0.6436,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T9",
+      "direction": "left",
+      "startFrac": 0.6436,
+      "endFrac": 0.6781,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T10",
+      "direction": "right",
+      "startFrac": 0.6781,
+      "endFrac": 0.7125,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T11",
+      "direction": "left",
+      "startFrac": 0.7125,
+      "endFrac": 0.7413,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.7413,
+      "endFrac": 0.817
+    },
+    {
+      "type": "corner",
+      "name": "Foro Sol",
+      "direction": "right",
+      "startFrac": 0.817,
+      "endFrac": 0.8733,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T13",
+      "direction": "left",
+      "startFrac": 0.8733,
+      "endFrac": 0.9021,
+      "numbers": [
+        13
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T14",
+      "direction": "right",
+      "startFrac": 0.9021,
+      "endFrac": 0.9235,
+      "numbers": [
+        14
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Peraltada",
+      "direction": "right",
+      "startFrac": 0.9235,
+      "endFrac": 0.9582,
+      "numbers": [
+        15,
+        16,
+        17
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Start/Finish",
+      "startFrac": 0.9582,
+      "endFrac": 1,
+      "group": "Start/Finish"
+    }
+  ]
 }

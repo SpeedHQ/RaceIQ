@@ -1,0 +1,27 @@
+{
+  "circuit": "Bahrain International Circuit",
+  "source": "Official F1 track map (15 turns); numbered corners",
+  "turnCount": 15,
+  "corners": [
+    { "number": 1, "name": "", "direction": "right" },
+    { "number": 2, "name": "", "direction": "left" },
+    { "number": 3, "name": "", "direction": "right" },
+    { "number": 4, "name": "", "direction": "right" },
+    { "number": 5, "name": "" },
+    { "number": 6, "name": "" },
+    { "number": 7, "name": "" },
+    { "number": 8, "name": "", "direction": "left" },
+    { "number": 9, "name": "", "direction": "left", "group": "T9-10" },
+    { "number": 10, "name": "", "direction": "left", "group": "T9-10" },
+    { "number": 11, "name": "" },
+    { "number": 12, "name": "" },
+    { "number": 13, "name": "", "covers": [14] },
+    { "number": 15, "name": "", "optional": true }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 4,
+    "s1OffsetM": 300,
+    "s2EndAfterCorner": 10,
+    "s2OffsetM": 250
+  }
+}

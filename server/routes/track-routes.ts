@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IS_DEV } from "../env";
 import { OrdinalParamSchema, GameIdQuerySchema } from "../../shared/schemas";
-import { detectSegments } from "../track-segment-detect";
+import { autoTrackSegments } from "../../shared/track-segment-generate";
 import {
   getLaps,
   getLapSummariesByTrack,
@@ -28,6 +28,7 @@ import {
   loadSharedOutline,
   loadSharedBoundary,
   loadSharedTrackMeta,
+  saveSharedTrackMeta,
   recordLapTrace,
   getTrackAltitudeByOrdinal,
 } from "../../shared/track-data";
@@ -53,8 +54,6 @@ import { getAcEvoTracks } from "../../shared/ac-evo-track-data";
 import { tryGetServerGame } from "../games/registry";
 import { tryGetGame } from "../../shared/games/registry";
 import { GameIdSchema, type GameId } from "../../shared/types";
-import { existsSync, writeFileSync, mkdirSync } from "fs";
-import { resolve } from "path";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
 
@@ -94,10 +93,6 @@ function getSharedTrackName(ordinal: number, gameId?: string): string | undefine
   }
   return undefined;
 }
-
-// ─── Track data file persistence ────────────────────────────────────────────
-
-import { SHARED_DIR } from "../../shared/resolve-data";
 
 // ─── Boundary helpers ───────────────────────────────────────────────────────
 
@@ -309,9 +304,7 @@ export const trackRoutes = new Hono()
         } else {
           (meta as any).sectors = { s1End, s2End };
         }
-        const metaDir = resolve(SHARED_DIR, "tracks", "meta");
-        if (!existsSync(metaDir)) mkdirSync(metaDir, { recursive: true });
-        writeFileSync(resolve(metaDir, `${sharedName}.json`), JSON.stringify(meta, null, 2));
+        saveSharedTrackMeta(sharedName, meta);
       }
 
       return c.json({ success: true, s1End, s2End });
@@ -448,9 +441,7 @@ export const trackRoutes = new Hono()
       } else {
         (meta as any).segments = body.segments;
       }
-      const metaDir = resolve(SHARED_DIR, "tracks", "meta");
-      if (!existsSync(metaDir)) mkdirSync(metaDir, { recursive: true });
-      writeFileSync(resolve(metaDir, `${sharedName}.json`), JSON.stringify(meta, null, 2));
+      saveSharedTrackMeta(sharedName, meta);
       console.log(`[Track] Saved segments for ${sharedName}${gameId ? ` (${gameId})` : ""} (${body.segments.length} segments)`);
 
       return c.json({ success: true, count: body.segments.length });
@@ -493,8 +484,14 @@ export const trackRoutes = new Hono()
       }
       if (!outline || outline.length < 20) return c.json({ segments: [] });
 
-      const result = detectSegments(outline);
-      return c.json({ segments: result.segments, totalDist: result.totalDist, source: "auto" });
+      // Same detector as the curated pipeline — an uncurated track just gets
+      // T-number tokens instead of real names.
+      const result = autoTrackSegments(outline);
+      return c.json({
+        segments: result.segments.map((s) => ({ ...s, startIdx: 0, endIdx: 0, distStart: 0, distEnd: 0 })),
+        totalDist: result.totalDist,
+        source: "auto",
+      });
     }
   )
 

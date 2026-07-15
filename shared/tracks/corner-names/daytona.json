@@ -1,0 +1,25 @@
+{
+  "circuit": "Daytona International Speedway — Road Course",
+  "source": "IMSA road course landmarks, sequential numbering of detected corners",
+  "turnCount": 11,
+  "corners": [
+    { "number": 1, "name": "", "direction": "left" },
+    { "number": 2, "name": "", "direction": "right" },
+    { "number": 3, "name": "", "direction": "left" },
+    { "number": 4, "name": "International Horseshoe", "direction": "right" },
+    { "number": 5, "name": "", "direction": "left" },
+    { "number": 6, "name": "West Horseshoe", "direction": "right" },
+    { "number": 7, "name": "NASCAR 1-2 Banking", "direction": "left" },
+    { "number": 8, "name": "Bus Stop", "direction": "right", "group": "Bus Stop" },
+    { "number": 9, "name": "", "direction": "left", "group": "Bus Stop" },
+    { "number": 10, "name": "", "direction": "right", "group": "Bus Stop" },
+    { "number": 11, "name": "NASCAR 3-4 Banking", "direction": "left" }
+  ],
+  "straights": [
+    { "after": 7, "name": "Backstretch" }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 6,
+    "s2EndAfterCorner": 10
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "name": "Eaglerock Speedway (Oval)",
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "left",
+          "startFrac": 0,
+          "endFrac": 0.5085,
+          "numbers": [
+            1,
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "left",
+          "startFrac": 0.5085,
+          "endFrac": 1,
+          "numbers": [
+            3,
+            4
+          ]
+        }
+      ]
+    }
+  },
+  "segments": [
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "left",
+      "startFrac": 0,
+      "endFrac": 0.5085,
+      "numbers": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "left",
+      "startFrac": 0.5085,
+      "endFrac": 1,
+      "numbers": [
+        3,
+        4
+      ]
+    }
+  ]
+}

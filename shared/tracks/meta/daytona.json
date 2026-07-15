@@ -3,5 +3,248 @@
   "sectors": {
     "s1End": 0.33,
     "s2End": 0.66
-  }
+  },
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.026
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "left",
+          "startFrac": 0.026,
+          "endFrac": 0.097,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "right",
+          "startFrac": 0.097,
+          "endFrac": 0.1134,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "left",
+          "startFrac": 0.1134,
+          "endFrac": 0.1415,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "International Horseshoe",
+          "direction": "right",
+          "startFrac": 0.1415,
+          "endFrac": 0.1887,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.1887,
+          "endFrac": 0.2197
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "left",
+          "startFrac": 0.2197,
+          "endFrac": 0.2789,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "West Horseshoe",
+          "direction": "right",
+          "startFrac": 0.2789,
+          "endFrac": 0.3464,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "NASCAR 1-2 Banking",
+          "direction": "left",
+          "startFrac": 0.3464,
+          "endFrac": 0.3949,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Backstretch",
+          "startFrac": 0.3949,
+          "endFrac": 0.6386
+        },
+        {
+          "type": "corner",
+          "name": "Bus Stop",
+          "startFrac": 0.6386,
+          "endFrac": 0.6953,
+          "numbers": [
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "NASCAR 3-4 Banking",
+          "direction": "left",
+          "startFrac": 0.6953,
+          "endFrac": 0.7175,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7175,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3464,
+        "s2End": 0.6953,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.026
+    },
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "left",
+      "startFrac": 0.026,
+      "endFrac": 0.097,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T2",
+      "direction": "right",
+      "startFrac": 0.097,
+      "endFrac": 0.1134,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "left",
+      "startFrac": 0.1134,
+      "endFrac": 0.1415,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "International Horseshoe",
+      "direction": "right",
+      "startFrac": 0.1415,
+      "endFrac": 0.1887,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.1887,
+      "endFrac": 0.2197
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "left",
+      "startFrac": 0.2197,
+      "endFrac": 0.2789,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "West Horseshoe",
+      "direction": "right",
+      "startFrac": 0.2789,
+      "endFrac": 0.3464,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "NASCAR 1-2 Banking",
+      "direction": "left",
+      "startFrac": 0.3464,
+      "endFrac": 0.3949,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Backstretch",
+      "startFrac": 0.3949,
+      "endFrac": 0.6386
+    },
+    {
+      "type": "corner",
+      "name": "Bus Stop",
+      "startFrac": 0.6386,
+      "endFrac": 0.6953,
+      "numbers": [
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "NASCAR 3-4 Banking",
+      "direction": "left",
+      "startFrac": 0.6953,
+      "endFrac": 0.7175,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.7175,
+      "endFrac": 1
+    }
+  ]
 }

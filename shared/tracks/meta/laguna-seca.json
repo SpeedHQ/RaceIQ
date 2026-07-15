@@ -3,5 +3,435 @@
   "sectors": {
     "s1End": 0.36,
     "s2End": 0.7
-  }
+  },
+  "games": {
+    "acc": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.0309
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "left",
+          "startFrac": 0.0309,
+          "endFrac": 0.1019,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Andretti Hairpin",
+          "direction": "left",
+          "startFrac": 0.1019,
+          "endFrac": 0.1778,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.1778,
+          "endFrac": 0.253,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "right",
+          "startFrac": 0.253,
+          "endFrac": 0.3318,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3318,
+          "endFrac": 0.3768
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "left",
+          "startFrac": 0.3768,
+          "endFrac": 0.464,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.464,
+          "endFrac": 0.4948
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "left",
+          "startFrac": 0.4948,
+          "endFrac": 0.568,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Rahal Straight",
+          "startFrac": 0.568,
+          "endFrac": 0.6379
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "left",
+          "startFrac": 0.6379,
+          "endFrac": 0.6906,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Corkscrew",
+          "direction": "right",
+          "startFrac": 0.6906,
+          "endFrac": 0.7205,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Rainey Curve",
+          "direction": "left",
+          "startFrac": 0.7205,
+          "endFrac": 0.7997,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "direction": "right",
+          "startFrac": 0.7997,
+          "endFrac": 0.8777,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T11",
+          "direction": "left",
+          "startFrac": 0.8777,
+          "endFrac": 0.9409,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9409,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3318,
+        "s2End": 0.7205,
+        "source": "corner-anchored"
+      }
+    },
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "left",
+          "startFrac": 0,
+          "endFrac": 0.0889,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Andretti Hairpin",
+          "direction": "left",
+          "startFrac": 0.0889,
+          "endFrac": 0.1577,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.1577,
+          "endFrac": 0.2508,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "right",
+          "startFrac": 0.2508,
+          "endFrac": 0.3194,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3194,
+          "endFrac": 0.3694
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "left",
+          "startFrac": 0.3694,
+          "endFrac": 0.455,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.455,
+          "endFrac": 0.491
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "left",
+          "startFrac": 0.491,
+          "endFrac": 0.561,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Rahal Straight",
+          "startFrac": 0.561,
+          "endFrac": 0.6339
+        },
+        {
+          "type": "corner",
+          "name": "T7",
+          "direction": "left",
+          "startFrac": 0.6339,
+          "endFrac": 0.6853,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Corkscrew",
+          "direction": "right",
+          "startFrac": 0.6853,
+          "endFrac": 0.728,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Rainey Curve",
+          "direction": "left",
+          "startFrac": 0.728,
+          "endFrac": 0.7922,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "direction": "right",
+          "startFrac": 0.7922,
+          "endFrac": 0.8692,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T11",
+          "direction": "left",
+          "startFrac": 0.8692,
+          "endFrac": 0.9339,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9339,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3194,
+        "s2End": 0.728,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "left",
+      "startFrac": 0,
+      "endFrac": 0.0889,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Andretti Hairpin",
+      "direction": "left",
+      "startFrac": 0.0889,
+      "endFrac": 0.1577,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.1577,
+      "endFrac": 0.2508,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "right",
+      "startFrac": 0.2508,
+      "endFrac": 0.3194,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.3194,
+      "endFrac": 0.3694
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "left",
+      "startFrac": 0.3694,
+      "endFrac": 0.455,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.455,
+      "endFrac": 0.491
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "left",
+      "startFrac": 0.491,
+      "endFrac": 0.561,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Rahal Straight",
+      "startFrac": 0.561,
+      "endFrac": 0.6339
+    },
+    {
+      "type": "corner",
+      "name": "T7",
+      "direction": "left",
+      "startFrac": 0.6339,
+      "endFrac": 0.6853,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Corkscrew",
+      "direction": "right",
+      "startFrac": 0.6853,
+      "endFrac": 0.728,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Rainey Curve",
+      "direction": "left",
+      "startFrac": 0.728,
+      "endFrac": 0.7922,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T10",
+      "direction": "right",
+      "startFrac": 0.7922,
+      "endFrac": 0.8692,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T11",
+      "direction": "left",
+      "startFrac": 0.8692,
+      "endFrac": 0.9339,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9339,
+      "endFrac": 1
+    }
+  ]
 }

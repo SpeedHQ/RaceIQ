@@ -1,0 +1,67 @@
+{
+  "circuit": "Circuit de Barcelona-Catalunya — National",
+  "source": "derived from track geometry (layout variant, sequential numbering)",
+  "turnCount": 12,
+  "corners": [
+    {
+      "number": 1,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 2,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 3,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 10,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 11,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 12,
+      "name": "",
+      "direction": "right"
+    }
+  ]
+}

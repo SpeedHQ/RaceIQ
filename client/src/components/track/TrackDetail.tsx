@@ -7,6 +7,7 @@ import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
 import { Button } from "@/components/ui/button";
 import { useBulkDeleteLaps } from "@/hooks/queries";
 import { drawTrack } from "@/lib/canvas/draw-track";
+import { segmentDisplayNames } from "@/lib/segment-label";
 import { countryName } from "@/lib/country-names";
 import { isDevelopment } from "@/lib/env";
 import { formatLapTime } from "@/lib/format";
@@ -815,18 +816,11 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
     setSavingSectors(false);
   }, [editS1, editS2, track.ordinal]);
 
-  // Build display names: auto-number empty/unnamed straights
-  const segDisplayNames = useMemo(() => {
-    const segs = editing ? editSegments : (displaySectors?.segments ?? []);
-    let sNum = 1;
-    return segs.map((s) => {
-      if (s.type === "straight" && (!s.name || /^S[\d?]*$/.test(s.name))) {
-        return `S${sNum++}`;
-      }
-      if (s.type === "straight") sNum++;
-      return s.name;
-    });
-  }, [editing, editSegments, displaySectors]);
+  // Corner names carry their official turn numbers; straights are auto-numbered.
+  const segDisplayNames = useMemo(
+    () => segmentDisplayNames(editing ? editSegments : (displaySectors?.segments ?? [])),
+    [editing, editSegments, displaySectors],
+  );
 
   const corners = displaySectors?.segments.filter((s) => s.type === "corner") ?? [];
   const straights = displaySectors?.segments.filter((s) => s.type === "straight") ?? [];

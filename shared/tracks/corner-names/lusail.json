@@ -1,0 +1,27 @@
+{
+  "circuit": "Lusail International Circuit",
+  "source": "Official F1 track map (5.419 km, turns unnamed); directions verified against F1 2025 centerline geometry",
+  "turnCount": 16,
+  "corners": [
+    { "number": 1, "name": "", "direction": "right" },
+    { "number": 2, "name": "", "direction": "left" },
+    { "number": 3, "name": "", "direction": "right" },
+    { "number": 4, "name": "", "direction": "right" },
+    { "number": 5, "name": "", "direction": "right" },
+    { "number": 6, "name": "", "direction": "left" },
+    { "number": 7, "name": "", "direction": "right", "covers": [8] },
+    { "number": 9, "name": "", "direction": "right" },
+    { "number": 10, "name": "", "direction": "left" },
+    { "number": 11, "name": "", "direction": "right", "optional": true },
+    { "number": 12, "name": "", "direction": "right", "group": "Triple Right" },
+    { "number": 13, "name": "", "direction": "right", "group": "Triple Right" },
+    { "number": 14, "name": "", "direction": "right", "group": "Triple Right" },
+    { "number": 15, "name": "", "direction": "left" },
+    { "number": 16, "name": "", "direction": "right" }
+  ],
+  "straights": [],
+  "sectors": {
+    "s1End": 0.35,
+    "s2End": 0.7
+  }
+}

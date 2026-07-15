@@ -1,0 +1,27 @@
+{
+  "circuit": "Circuit de Barcelona-Catalunya",
+  "source": "Official circuit map (GP layout, chicane-era numbering, 16 turns)",
+  "turnCount": 16,
+  "corners": [
+    { "number": 1, "name": "Elf", "direction": "right" },
+    { "number": 2, "name": "", "direction": "left" },
+    { "number": 3, "name": "Renault", "direction": "right" },
+    { "number": 4, "name": "Repsol", "direction": "right" },
+    { "number": 5, "name": "Seat", "direction": "left" },
+    { "number": 6, "name": "", "direction": "left", "optional": true },
+    { "number": 7, "name": "Würth", "direction": "left" },
+    { "number": 8, "name": "", "direction": "right" },
+    { "number": 9, "name": "Campsa", "direction": "right" },
+    { "number": 10, "name": "La Caixa", "direction": "left" },
+    { "number": 11, "name": "", "direction": "right" },
+    { "number": 12, "name": "Banc Sabadell", "direction": "right" },
+    { "number": 13, "name": "", "direction": "right", "optional": true },
+    { "number": 14, "name": "", "direction": "left", "optional": true },
+    { "number": 15, "name": "", "direction": "right", "optional": true },
+    { "number": 16, "name": "New Holland", "direction": "right", "spans": 2 }
+  ],
+  "sectors": {
+    "s1EndAfterCorner": 4,
+    "s2EndAfterCorner": 9
+  }
+}

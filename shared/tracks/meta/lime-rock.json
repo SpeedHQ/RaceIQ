@@ -3,5 +3,158 @@
   "sectors": {
     "s1End": 0.33,
     "s2End": 0.66
-  }
+  },
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "Sam Posey Straight",
+          "startFrac": 0,
+          "endFrac": 0.0499,
+          "group": "Sam Posey Straight"
+        },
+        {
+          "type": "corner",
+          "name": "Big Bend",
+          "direction": "right",
+          "startFrac": 0.0499,
+          "endFrac": 0.221,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "The Esses",
+          "startFrac": 0.221,
+          "endFrac": 0.3836,
+          "numbers": [
+            2,
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "No Name Straight",
+          "startFrac": 0.3836,
+          "endFrac": 0.4461
+        },
+        {
+          "type": "corner",
+          "name": "Uphill",
+          "direction": "right",
+          "startFrac": 0.4461,
+          "endFrac": 0.6011,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "West Bend",
+          "direction": "right",
+          "startFrac": 0.6011,
+          "endFrac": 0.7441,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Downhill",
+          "direction": "right",
+          "startFrac": 0.7441,
+          "endFrac": 0.8724,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Sam Posey Straight",
+          "startFrac": 0.8724,
+          "endFrac": 1,
+          "group": "Sam Posey Straight"
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3836,
+        "s2End": 0.7441,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "Sam Posey Straight",
+      "startFrac": 0,
+      "endFrac": 0.0499,
+      "group": "Sam Posey Straight"
+    },
+    {
+      "type": "corner",
+      "name": "Big Bend",
+      "direction": "right",
+      "startFrac": 0.0499,
+      "endFrac": 0.221,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "The Esses",
+      "startFrac": 0.221,
+      "endFrac": 0.3836,
+      "numbers": [
+        2,
+        3
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "No Name Straight",
+      "startFrac": 0.3836,
+      "endFrac": 0.4461
+    },
+    {
+      "type": "corner",
+      "name": "Uphill",
+      "direction": "right",
+      "startFrac": 0.4461,
+      "endFrac": 0.6011,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "West Bend",
+      "direction": "right",
+      "startFrac": 0.6011,
+      "endFrac": 0.7441,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Downhill",
+      "direction": "right",
+      "startFrac": 0.7441,
+      "endFrac": 0.8724,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Sam Posey Straight",
+      "startFrac": 0.8724,
+      "endFrac": 1,
+      "group": "Sam Posey Straight"
+    }
+  ]
 }

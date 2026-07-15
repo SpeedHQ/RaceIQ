@@ -1,0 +1,34 @@
+{
+  "circuit": "Circuit de la Sarthe — Old (no Mulsanne chicanes)",
+  "source": "Official landmark names, sequential numbering of detected corners",
+  "turnCount": 20,
+  "corners": [
+    { "number": 1, "name": "Dunlop Curve", "direction": "right" },
+    { "number": 2, "name": "Dunlop Chicane", "direction": "left", "group": "Dunlop Chicane" },
+    { "number": 3, "name": "", "direction": "right", "group": "Dunlop Chicane" },
+    { "number": 4, "name": "Esses de la Forêt", "direction": "right", "group": "Esses de la Forêt" },
+    { "number": 5, "name": "", "direction": "left", "group": "Esses de la Forêt" },
+    { "number": 6, "name": "", "direction": "right", "group": "Esses de la Forêt" },
+    { "number": 7, "name": "Tertre Rouge", "direction": "right" },
+    { "number": 8, "name": "Mulsanne Corner", "direction": "right" },
+    { "number": 9, "name": "", "direction": "right" },
+    { "number": 10, "name": "Indianapolis", "direction": "left" },
+    { "number": 11, "name": "Arnage", "direction": "right" },
+    { "number": 12, "name": "Porsche Curves", "direction": "right", "group": "Porsche Curves" },
+    { "number": 13, "name": "", "direction": "left", "group": "Porsche Curves" },
+    { "number": 14, "name": "", "direction": "left", "group": "Porsche Curves" },
+    { "number": 15, "name": "", "direction": "right", "group": "Porsche Curves" },
+    { "number": 16, "name": "", "direction": "left", "group": "Porsche Curves" },
+    { "number": 17, "name": "Ford Chicane 1", "direction": "left", "group": "Ford Chicane 1" },
+    { "number": 18, "name": "", "direction": "right", "group": "Ford Chicane 1" },
+    { "number": 19, "name": "Ford Chicane 2", "direction": "left", "group": "Ford Chicane 2" },
+    { "number": 20, "name": "", "direction": "right", "group": "Ford Chicane 2" }
+  ],
+  "straights": [
+    { "after": 7, "name": "Mulsanne Straight" }
+  ],
+  "sectors": {
+    "s1End": 0.33,
+    "s2End": 0.66
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "circuit": "Albert Park Circuit",
+  "source": "Official F1 track map (5.278 km, post-2022 layout, 14 turns, unnamed); directions derived from F1 2025 centerline geometry (mirror-corrected)",
+  "turnCount": 14,
+  "corners": [
+    { "number": 1, "name": "", "direction": "right" },
+    { "number": 2, "name": "", "direction": "left" },
+    { "number": 3, "name": "", "direction": "right" },
+    { "number": 4, "name": "", "direction": "left" },
+    { "number": 5, "name": "", "direction": "right" },
+    { "number": 6, "name": "", "direction": "right" },
+    { "number": 7, "name": "", "direction": "left" },
+    { "number": 8, "name": "", "direction": "right" },
+    { "number": 9, "name": "", "direction": "left" },
+    { "number": 10, "name": "", "direction": "right" },
+    { "number": 11, "name": "", "direction": "right" },
+    { "number": 12, "name": "", "direction": "right" },
+    { "number": 13, "name": "", "direction": "left" },
+    { "number": 14, "name": "", "direction": "right" }
+  ],
+  "straights": [],
+  "sectors": {
+    "s1End": 0.35,
+    "s2End": 0.75
+  }
+}

@@ -151,11 +151,11 @@ const tumftmDir = resolve(SHARED_DIR, "tracks", "tumftm");
 /** Shared track metadata (sectors, segments — cross-game). */
 const sharedTracksDir = resolve(SHARED_DIR, "tracks", "meta");
 
-interface SharedTrackMeta {
+export interface SharedTrackMeta {
   name: string;
-  sectors?: TrackSectors;
+  sectors?: TrackSectors & { source?: string };
   segments?: NamedSegment[];
-  games?: Record<string, { sectors?: TrackSectors; segments?: NamedSegment[] }>;
+  games?: Record<string, { sectors?: TrackSectors & { source?: string }; segments?: NamedSegment[] }>;
 }
 
 const sharedTrackMetaCache = new Map<string, SharedTrackMeta | null>();
@@ -175,6 +175,14 @@ export function loadSharedTrackMeta(name: string): SharedTrackMeta | null {
     sharedTrackMetaCache.set(name, null);
     return null;
   }
+}
+
+/** Persist shared track metadata and keep the in-process cache coherent. */
+export function saveSharedTrackMeta(name: string, meta: SharedTrackMeta): void {
+  if (!name) throw new Error("saveSharedTrackMeta: name required");
+  if (!existsSync(sharedTracksDir)) mkdirSync(sharedTracksDir, { recursive: true });
+  writeFileSync(resolve(sharedTracksDir, `${name}.json`), JSON.stringify(meta, null, 2));
+  sharedTrackMetaCache.set(name, meta);
 }
 
 /** Load a shared outline CSV by name (e.g. "silverstone"). */

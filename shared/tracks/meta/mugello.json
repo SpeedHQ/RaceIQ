@@ -3,5 +3,366 @@
   "sectors": {
     "s1End": 0.33,
     "s2End": 0.67
-  }
+  },
+  "games": {
+    "fm-2023": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.1013
+        },
+        {
+          "type": "corner",
+          "name": "San Donato",
+          "direction": "right",
+          "startFrac": 0.1013,
+          "endFrac": 0.1674,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Luco",
+          "direction": "left",
+          "startFrac": 0.1674,
+          "endFrac": 0.1957,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Poggio Secco",
+          "direction": "right",
+          "startFrac": 0.1957,
+          "endFrac": 0.2354,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2354,
+          "endFrac": 0.2553
+        },
+        {
+          "type": "corner",
+          "name": "Materassi",
+          "direction": "left",
+          "startFrac": 0.2553,
+          "endFrac": 0.2976,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Borgo San Lorenzo",
+          "direction": "right",
+          "startFrac": 0.2976,
+          "endFrac": 0.3424,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Casanova",
+          "direction": "right",
+          "startFrac": 0.3424,
+          "endFrac": 0.3862,
+          "numbers": [
+            6
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Savelli",
+          "direction": "left",
+          "startFrac": 0.3862,
+          "endFrac": 0.4318,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Arrabbiata 1",
+          "direction": "right",
+          "startFrac": 0.4318,
+          "endFrac": 0.4926,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Arrabbiata 2",
+          "direction": "right",
+          "startFrac": 0.4926,
+          "endFrac": 0.5498,
+          "numbers": [
+            9
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Scarperia",
+          "direction": "right",
+          "startFrac": 0.5498,
+          "endFrac": 0.595,
+          "numbers": [
+            10
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Palagio",
+          "direction": "left",
+          "startFrac": 0.595,
+          "endFrac": 0.6472,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Correntaio",
+          "direction": "right",
+          "startFrac": 0.6472,
+          "endFrac": 0.7303,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Biondetti 1",
+          "direction": "left",
+          "startFrac": 0.7303,
+          "endFrac": 0.7533,
+          "numbers": [
+            13
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Biondetti 2",
+          "direction": "right",
+          "startFrac": 0.7533,
+          "endFrac": 0.7802,
+          "numbers": [
+            14
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7802,
+          "endFrac": 0.8119
+        },
+        {
+          "type": "corner",
+          "name": "Bucine",
+          "direction": "left",
+          "startFrac": 0.8119,
+          "endFrac": 0.9025,
+          "numbers": [
+            15
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9025,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3424,
+        "s2End": 0.595,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0,
+      "endFrac": 0.1013
+    },
+    {
+      "type": "corner",
+      "name": "San Donato",
+      "direction": "right",
+      "startFrac": 0.1013,
+      "endFrac": 0.1674,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Luco",
+      "direction": "left",
+      "startFrac": 0.1674,
+      "endFrac": 0.1957,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Poggio Secco",
+      "direction": "right",
+      "startFrac": 0.1957,
+      "endFrac": 0.2354,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.2354,
+      "endFrac": 0.2553
+    },
+    {
+      "type": "corner",
+      "name": "Materassi",
+      "direction": "left",
+      "startFrac": 0.2553,
+      "endFrac": 0.2976,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Borgo San Lorenzo",
+      "direction": "right",
+      "startFrac": 0.2976,
+      "endFrac": 0.3424,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Casanova",
+      "direction": "right",
+      "startFrac": 0.3424,
+      "endFrac": 0.3862,
+      "numbers": [
+        6
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Savelli",
+      "direction": "left",
+      "startFrac": 0.3862,
+      "endFrac": 0.4318,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Arrabbiata 1",
+      "direction": "right",
+      "startFrac": 0.4318,
+      "endFrac": 0.4926,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Arrabbiata 2",
+      "direction": "right",
+      "startFrac": 0.4926,
+      "endFrac": 0.5498,
+      "numbers": [
+        9
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Scarperia",
+      "direction": "right",
+      "startFrac": 0.5498,
+      "endFrac": 0.595,
+      "numbers": [
+        10
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Palagio",
+      "direction": "left",
+      "startFrac": 0.595,
+      "endFrac": 0.6472,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Correntaio",
+      "direction": "right",
+      "startFrac": 0.6472,
+      "endFrac": 0.7303,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Biondetti 1",
+      "direction": "left",
+      "startFrac": 0.7303,
+      "endFrac": 0.7533,
+      "numbers": [
+        13
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Biondetti 2",
+      "direction": "right",
+      "startFrac": 0.7533,
+      "endFrac": 0.7802,
+      "numbers": [
+        14
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.7802,
+      "endFrac": 0.8119
+    },
+    {
+      "type": "corner",
+      "name": "Bucine",
+      "direction": "left",
+      "startFrac": 0.8119,
+      "endFrac": 0.9025,
+      "numbers": [
+        15
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.9025,
+      "endFrac": 1
+    }
+  ]
 }

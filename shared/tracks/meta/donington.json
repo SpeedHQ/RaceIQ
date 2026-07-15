@@ -1,0 +1,285 @@
+{
+  "name": "Donington Park (GP circuit)",
+  "games": {
+    "acc": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "Wheatcroft Straight",
+          "startFrac": 0,
+          "endFrac": 0.0622,
+          "group": "Wheatcroft Straight"
+        },
+        {
+          "type": "corner",
+          "name": "Redgate",
+          "direction": "right",
+          "startFrac": 0.0622,
+          "endFrac": 0.137,
+          "numbers": [
+            1
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Craner Curves",
+          "direction": "right",
+          "startFrac": 0.137,
+          "endFrac": 0.2231,
+          "numbers": [
+            2
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "left",
+          "startFrac": 0.2231,
+          "endFrac": 0.263,
+          "numbers": [
+            3
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Old Hairpin",
+          "direction": "right",
+          "startFrac": 0.263,
+          "endFrac": 0.3269,
+          "numbers": [
+            4
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Starkey's Bridge",
+          "direction": "left",
+          "startFrac": 0.3269,
+          "endFrac": 0.4068,
+          "numbers": [
+            5
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "McLeans",
+          "direction": "right",
+          "startFrac": 0.4068,
+          "endFrac": 0.5024,
+          "numbers": [
+            7
+          ]
+        },
+        {
+          "type": "corner",
+          "name": "Coppice",
+          "direction": "right",
+          "startFrac": 0.5024,
+          "endFrac": 0.5829,
+          "numbers": [
+            8
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Starkey's Straight",
+          "startFrac": 0.5829,
+          "endFrac": 0.6806
+        },
+        {
+          "type": "corner",
+          "name": "Fogarty Esses",
+          "startFrac": 0.6806,
+          "endFrac": 0.7782,
+          "numbers": [
+            9,
+            10
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7782,
+          "endFrac": 0.8086
+        },
+        {
+          "type": "corner",
+          "name": "Melbourne Hairpin",
+          "direction": "right",
+          "startFrac": 0.8086,
+          "endFrac": 0.8796,
+          "numbers": [
+            11
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.8796,
+          "endFrac": 0.9075
+        },
+        {
+          "type": "corner",
+          "name": "Goddards",
+          "direction": "left",
+          "startFrac": 0.9075,
+          "endFrac": 0.9763,
+          "numbers": [
+            12
+          ]
+        },
+        {
+          "type": "straight",
+          "name": "Wheatcroft Straight",
+          "startFrac": 0.9763,
+          "endFrac": 1,
+          "group": "Wheatcroft Straight"
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3269,
+        "s2End": 0.5829,
+        "source": "corner-anchored"
+      }
+    }
+  },
+  "segments": [
+    {
+      "type": "straight",
+      "name": "Wheatcroft Straight",
+      "startFrac": 0,
+      "endFrac": 0.0622,
+      "group": "Wheatcroft Straight"
+    },
+    {
+      "type": "corner",
+      "name": "Redgate",
+      "direction": "right",
+      "startFrac": 0.0622,
+      "endFrac": 0.137,
+      "numbers": [
+        1
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Craner Curves",
+      "direction": "right",
+      "startFrac": 0.137,
+      "endFrac": 0.2231,
+      "numbers": [
+        2
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "left",
+      "startFrac": 0.2231,
+      "endFrac": 0.263,
+      "numbers": [
+        3
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Old Hairpin",
+      "direction": "right",
+      "startFrac": 0.263,
+      "endFrac": 0.3269,
+      "numbers": [
+        4
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Starkey's Bridge",
+      "direction": "left",
+      "startFrac": 0.3269,
+      "endFrac": 0.4068,
+      "numbers": [
+        5
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "McLeans",
+      "direction": "right",
+      "startFrac": 0.4068,
+      "endFrac": 0.5024,
+      "numbers": [
+        7
+      ]
+    },
+    {
+      "type": "corner",
+      "name": "Coppice",
+      "direction": "right",
+      "startFrac": 0.5024,
+      "endFrac": 0.5829,
+      "numbers": [
+        8
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Starkey's Straight",
+      "startFrac": 0.5829,
+      "endFrac": 0.6806
+    },
+    {
+      "type": "corner",
+      "name": "Fogarty Esses",
+      "startFrac": 0.6806,
+      "endFrac": 0.7782,
+      "numbers": [
+        9,
+        10
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.7782,
+      "endFrac": 0.8086
+    },
+    {
+      "type": "corner",
+      "name": "Melbourne Hairpin",
+      "direction": "right",
+      "startFrac": 0.8086,
+      "endFrac": 0.8796,
+      "numbers": [
+        11
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.8796,
+      "endFrac": 0.9075
+    },
+    {
+      "type": "corner",
+      "name": "Goddards",
+      "direction": "left",
+      "startFrac": 0.9075,
+      "endFrac": 0.9763,
+      "numbers": [
+        12
+      ]
+    },
+    {
+      "type": "straight",
+      "name": "Wheatcroft Straight",
+      "startFrac": 0.9763,
+      "endFrac": 1,
+      "group": "Wheatcroft Straight"
+    }
+  ],
+  "sectors": {
+    "s1End": 0.3269,
+    "s2End": 0.5829,
+    "source": "corner-anchored"
+  }
+}
