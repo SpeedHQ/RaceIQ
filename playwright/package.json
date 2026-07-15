@@ -9,6 +9,6 @@
     "screenshots:mobile": "bun run build && playwright test --project=mobile-screenshots"
   },
   "devDependencies": {
-    "@playwright/test": "^1.59.1"
+    "@playwright/test": "^1.61.1"
   }
 }
