@@ -5,10 +5,9 @@
  */
 import { z } from "zod";
 import type { ComparisonResult } from "../comparison";
-import type { UnitSystem, TemperatureUnit } from "../export";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import type { GameId } from "../../shared/types";
-import { compareEngineerPersona, compareLapHeader } from "./compare-engineer";
+import { compareLapHeader } from "./compare-engineer";
 import { buildTrackGuideContext } from "./track-guides";
 
 /**
@@ -271,17 +270,23 @@ function fallbackSegments(count: number): PromptSegment[] {
   return segs;
 }
 
+/**
+ * Builds the USER message for the inputs-compare flow: the task, the output
+ * requirements, and the telemetry data.
+ *
+ * Deliberately carries no persona, units, or language instruction — those
+ * belong in the system message, which compareEngineerAgent supplies from
+ * settings. Passing them here as well shipped the persona twice per request.
+ */
 export function buildInputsComparePrompt(
   lapA: LapInfo,
   lapB: LapInfo,
   comparison: ComparisonResult,
   segments: PromptSegment[] | null,
-  unit: UnitSystem = "metric",
-  temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
   /** Pre-fetched track guide text. When provided, skips internal lookup. */
   externalTrackGuide?: string,
-  /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
-  language: string = "en",
+  /** Per-lap precomputed insight blocks (see buildCompareInsightsBlock). */
+  precomputedInsights?: string,
 ): string {
   const carA = getCarName(lapA.carOrdinal ?? 0);
   const carB = getCarName(lapB.carOrdinal ?? 0);
@@ -358,9 +363,11 @@ export function buildInputsComparePrompt(
   const segNames = useSegs.map((s) => `"${s.name}"`).join(", ");
   const expectedCount = useSegs.length;
 
-  return `${compareEngineerPersona(unit, temperatureUnit, language)}
-
-This task: produce a structured per-segment comparison of driver inputs (throttle, brake, steering) plus coaching for the slower lap.
+  // No persona prefix here: this string is sent as the USER message, and
+  // compareEngineerAgent already carries the persona (built from the same
+  // settings) as its system instructions. Prepending it here shipped the whole
+  // persona twice in every request.
+  return `This task: produce a structured per-segment comparison of driver inputs (throttle, brake, steering) plus coaching for the slower lap.
 
 CRITICAL OUTPUT REQUIREMENTS:
 - Your "segments" array MUST contain EXACTLY ${expectedCount} entries.
@@ -407,6 +414,7 @@ Per-segment notes:
 
 To produce a concrete "action", you MUST diff the events/speed rows between Lap A and Lap B for the same segment and quote the resulting numbers. If the slower lap brakes 120m into a corner and the faster lap brakes at 132m, the action is "Brake 12m later into T1 (current brake point 120m, target 132m)." Do not produce actions without such numeric evidence.
 
+${precomputedInsights ?? ""}
 Segments to analyse (${expectedCount} total — produce EXACTLY ${expectedCount} entries in your "segments" array):
 ${segLines.join("\n\n")}`;
 }

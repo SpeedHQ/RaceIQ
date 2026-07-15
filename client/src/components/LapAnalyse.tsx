@@ -21,7 +21,6 @@ import { useLapPlayback } from "../hooks/useLapPlayback";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useUnits } from "../hooks/useUnits";
 import { buildExportCsv } from "../lib/lap-export";
-import { analyzeLap } from "../lib/lap-insights";
 import { client } from "../lib/rpc";
 import { m } from "../paraglide/messages";
 import { MobileNotSupported } from "../routes/__root";
@@ -394,7 +393,8 @@ function LapAnalyseInner() {
       RR: (currentPacket.TireWearRR - windowPacket.TireWearRR) / dt,
     };
   }, [currentPacket, cursorIdx, telemetry]);
-  const lapInsights = useMemo(() => analyzeLap(telemetry), [telemetry]);
+  // Insights computed server-side, included in the initial lap fetch
+  const lapInsights = useMemo(() => lapData?.insights ?? [], [lapData]);
 
   // Time display — use interpolated time during playback so timer doesn't freeze in gaps
   // Separate display time state that ticks during playback (even through gaps)

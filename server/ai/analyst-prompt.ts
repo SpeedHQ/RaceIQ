@@ -2,7 +2,7 @@ import type { TelemetryPacket, Tune, GameId } from "../../shared/types";
 import { generateExport, type UnitSystem, type TemperatureUnit } from "../export";
 import { getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
 import { buildCornerData } from "./corner-data";
-import { analyzeLap } from "../../client/src/lib/lap-insights";
+import { analyzeLap } from "../../shared/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { buildTrackGuideContext } from "./track-guides";
@@ -140,7 +140,7 @@ export function buildAnalystPrompt(
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
   // Run precomputed insight analysis
-  const insights = analyzeLap(packets);
+  const insights = analyzeLap(packets, lap.gameId ?? packets[0]?.gameId);
   let insightsText = "";
   if (insights.length > 0) {
     insightsText = "\n--- Precomputed Insights (unverified — validate against raw data) ---\n";

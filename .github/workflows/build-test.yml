@@ -8,7 +8,8 @@ on:
 
 jobs:
   build-test:
-    runs-on: blacksmith-2vcpu-ubuntu-2204
+    # 4 vCPU: the ACC fixture replays peak ~4GB heap and GC-thrash on 2 vCPU, timing out.
+    runs-on: blacksmith-4vcpu-ubuntu-2204
 
     steps:
       - uses: actions/checkout@v4

@@ -22,6 +22,8 @@ import {
 } from "../db/queries";
 import { KNOWN_GAME_IDS } from "../../shared/types";
 import { importSessionBin, detectGameIdFromBuffer } from "../import-session-bin";
+import { analyzeLap } from "../../shared/lib/lap-insights";
+import { buildCompareInsightsBlock } from "../ai/insight-format";
 import { assessLapRecording } from "../lap-quality";
 
 // Toggle: set true to use native ACC lastSectorTime transitions in recheck instead of distance-fraction
@@ -207,7 +209,11 @@ export const lapRoutes = new Hono()
       }
     }
 
-    return c.json({ ...lap, sectorTimes });
+    // Precomputed lap insights — server-side so the client gets them in the
+    // initial fetch instead of re-deriving on every render
+    const insights = lap.gameId ? analyzeLap(packets, lap.gameId) : [];
+
+    return c.json({ ...lap, sectorTimes, insights });
   })
 
   // ── Export lap telemetry as text ────────────────────────────
@@ -888,10 +894,9 @@ export const lapRoutes = new Hono()
       },
       comparison,
       segments,
-      settings.unit,
-      settings.temperatureUnit,
       undefined,
-      settings.language,
+      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) +
+        buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
 
     // Set provider env vars before calling Mastra (the dynamic model resolver
@@ -912,12 +917,41 @@ export const lapRoutes = new Hono()
     try {
       const start = performance.now();
       const result = await compareEngineerAgent.generate(prompt, {
-        structuredOutput: { schema: InputsCompareSchema },
+        structuredOutput: {
+          schema: InputsCompareSchema,
+          // LM Studio only accepts `response_format: json_schema` (it rejects
+          // json_object), and for reasoning models such as qwen3.5 it emits the
+          // schema-constrained JSON into `reasoning_content` while leaving
+          // `content` empty — so no object is ever parsed and this route throws.
+          // Prompt injection keeps the answer on the plain-text channel, which
+          // those models fill normally. Hosted providers parse native structured
+          // output fine, so only the local path opts in.
+          ...(settings.aiProvider === "local" ? { jsonPromptInjection: true } : {}),
+        },
+        // Every other AI route already caps output and disables reasoning on
+        // local models (analyse, lap chat, compare chat). This one did not, so
+        // a thinking model such as qwen3.5 could reason unboundedly and push the
+        // request past Bun.serve's 255s idleTimeout — surfacing to the client as
+        // a bare "socket hang up" from the Vite proxy.
+        modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+        providerOptions: {
+          openai: { reasoningEffort: settings.aiProvider === "local" ? "none" : "low" },
+          google: buildGoogleThinkingProviderOptions(
+            settings.aiModel || "gemini-flash-latest",
+            settings.aiThinkingBudget,
+          ) as never,
+        },
       });
       const durationMs = Math.round(performance.now() - start);
 
       const object = (result as any).object;
-      if (!object) throw new Error("Compare engineer returned no structured object");
+      if (!object) {
+        throw new Error(
+          settings.aiProvider === "local"
+            ? `Model "${settings.aiModel}" returned no output matching the expected structure. Some local models do not reliably emit structured JSON — try another model in Settings → AI Analysis.`
+            : "Compare engineer returned no structured object",
+        );
+      }
 
       // Merge server-authoritative segment types into the model response so
       // named corners never appear as "straight". Match by name first; fall
@@ -1040,6 +1074,8 @@ export const lapRoutes = new Hono()
       settings.unit,
       settings.temperatureUnit,
       settings.language,
+      buildCompareInsightsBlock("Lap A", lapA.telemetry, lapA.gameId as GameId | undefined) +
+        buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
 
     const chatProvider = settings.chatProvider;

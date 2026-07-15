@@ -15,7 +15,10 @@ import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 export const compareChatAgent = new Agent({
   id: "compare-chat",
   name: "Compare Chat",
-  instructions: compareEngineerPersona("metric"),
+  instructions: () => {
+    const s = loadSettings();
+    return compareEngineerPersona(s.unit, s.temperatureUnit, s.language);
+  },
   model: () => {
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
