@@ -5,7 +5,7 @@ import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../shared/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
-import { buildTrackGuideContext } from "./track-guides";
+import { buildTrackGuideContext, guideCornerLabels } from "./track-guides";
 import { aiLanguageInstruction } from "../../shared/locales";
 
 interface CornerDef {
@@ -29,23 +29,22 @@ function collectCornerLabels(
     startFrac: number;
     endFrac: number;
   }[],
+  guideLabels?: string[],
 ): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const c of corners) {
-    if (c.label && !seen.has(c.label)) {
-      seen.add(c.label);
-      out.push(c.label);
-    }
-  }
+  const push = (label?: string) => {
+    if (!label || seen.has(label)) return;
+    seen.add(label);
+    out.push(label);
+  };
+  for (const c of corners) push(c.label);
   if (segments) {
     for (const s of segments) {
-      if (s.type === "corner" && s.name && !seen.has(s.name)) {
-        seen.add(s.name);
-        out.push(s.name);
-      }
+      if (s.type === "corner") push(s.name);
     }
   }
+  if (guideLabels) for (const l of guideLabels) push(l);
   return out;
 }
 
@@ -179,10 +178,22 @@ export function buildAnalystPrompt(
     segmentsList += "\n";
   }
 
+  const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
+
+  // Resolve the shared meta slug so the track guide can name corners the way
+  // meta (and therefore the whitelist below) names them. Note this goes through
+  // the *server* registry: the shared adapters' getSharedTrackName are stubs.
+  const trackSlug =
+    lap.trackOrdinal != null && gameId
+      ? (tryGetServerGame(gameId)?.getSharedTrackName?.(lap.trackOrdinal) ?? undefined)
+      : undefined;
+
   // Track grounding: the model invents corner names (e.g. "Bit-Kurve" at Lusail)
   // when nothing else constrains it. Build a whitelist from whatever named
   // sources we have; if none, force Tn numbering.
-  const cornerLabelWhitelist = collectCornerLabels(corners, segments);
+  // The guide's own labels must be in the whitelist too — it coaches by name,
+  // so a name the whitelist omits is one the model is told to both use and not use.
+  const cornerLabelWhitelist = collectCornerLabels(corners, segments, guideCornerLabels(trackName, { slug: trackSlug, gameId }));
   const cornerGuardrail =
     cornerLabelWhitelist.length > 0
       ? `\n--- Valid Corner Labels (the ONLY names you may use for corners in this output) ---\n${cornerLabelWhitelist.join(", ")}\n`
@@ -198,7 +209,7 @@ export function buildAnalystPrompt(
     carDetailsText += `\nDimensions: ${specs.weightKg}kg, ${specs.hp}hp, ${specs.drivetrain}`;
   }
 
-  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName);
+  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug: trackSlug, gameId });
 
   const context = `${carDetailsText}
 Track: ${trackName}
@@ -207,7 +218,6 @@ ${exportText}
 ${cornerData}
 ${insightsText}`;
 
-  const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
   const systemPrompt = getSystemPrompt(gameId, unit, temperatureUnit, language);
 
   // Build game-specific extended context via adapter

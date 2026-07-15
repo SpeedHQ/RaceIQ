@@ -9,6 +9,7 @@ import { getCarName, getTrackName } from "../../shared/car-data";
 import type { GameId } from "../../shared/types";
 import { compareLapHeader } from "./compare-engineer";
 import { buildTrackGuideContext } from "./track-guides";
+import { tryGetServerGame } from "../games/registry";
 
 /**
  * Zod schema for the per-segment inputs comparison output.
@@ -291,7 +292,13 @@ export function buildInputsComparePrompt(
   const carA = getCarName(lapA.carOrdinal ?? 0);
   const carB = getCarName(lapB.carOrdinal ?? 0);
   const trackName = getTrackName(lapA.trackOrdinal ?? 0);
-  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName);
+  // Resolve the meta slug via the *server* registry (the shared adapters'
+  // getSharedTrackName are stubs) so the guide names corners the way meta does.
+  const trackSlug =
+    lapA.trackOrdinal != null && lapA.gameId
+      ? (tryGetServerGame(lapA.gameId)?.getSharedTrackName?.(lapA.trackOrdinal) ?? undefined)
+      : undefined;
+  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug: trackSlug, gameId: lapA.gameId });
   const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? 0;
 
   const useSegs = segments && segments.length > 0 ? segments : fallbackSegments(8);
