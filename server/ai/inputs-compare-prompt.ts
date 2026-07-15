@@ -9,6 +9,8 @@ import { getCarName, getTrackName } from "../../shared/car-data";
 import type { GameId } from "../../shared/types";
 import { compareLapHeader } from "./compare-engineer";
 import { buildTrackGuideContext } from "./track-guides";
+import { tryGetServerGame } from "../games/registry";
+import { segmentDisplayNames } from "../../shared/segment-label";
 
 /**
  * Zod schema for the per-segment inputs comparison output.
@@ -62,6 +64,8 @@ export interface PromptSegment {
   type: "corner" | "straight";
   startFrac: number;
   endFrac: number;
+  /** Official turn numbers this section covers (#84). Renders "Name (2-4)". */
+  numbers?: number[];
 }
 
 interface InputStats {
@@ -291,7 +295,12 @@ export function buildInputsComparePrompt(
   const carA = getCarName(lapA.carOrdinal ?? 0);
   const carB = getCarName(lapB.carOrdinal ?? 0);
   const trackName = getTrackName(lapA.trackOrdinal ?? 0);
-  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName);
+  // Resolve the meta slug so the guide names corners the way meta does.
+  const trackSlug =
+    lapA.trackOrdinal != null && lapA.gameId
+      ? (tryGetServerGame(lapA.gameId)?.getSharedTrackName?.(lapA.trackOrdinal) ?? undefined)
+      : undefined;
+  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug: trackSlug, gameId: lapA.gameId });
   const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? 0;
 
   const useSegs = segments && segments.length > 0 ? segments : fallbackSegments(8);
@@ -310,7 +319,12 @@ export function buildInputsComparePrompt(
     timeB: number;
     delta: number;
   }[] = [];
-  for (const seg of useSegs) {
+  // Label corners exactly as the track map and the expert guide do — "Eau
+  // Rouge/Raidillon (2-4)", not a bare name — so every part of the prompt
+  // refers to a corner by the same string.
+  const segLabels = segmentDisplayNames(useSegs);
+  for (const [segIdx, seg] of useSegs.entries()) {
+    const segLabel = segLabels[segIdx];
     const startD = startDist + seg.startFrac * totalDist;
     const endD = startDist + seg.endFrac * totalDist;
     // Find indices via linear scan (distances is monotonic)
@@ -340,7 +354,7 @@ export function buildInputsComparePrompt(
     const tireEndB = 1 - (comparison.lapB.tireWear[hi - 1] ?? 0);
 
     tableRows.push({
-      name: seg.name,
+      name: segLabel,
       type: seg.type,
       timeA: segTimeA,
       timeB: segTimeB,
@@ -351,7 +365,7 @@ export function buildInputsComparePrompt(
     const endMeters = (endD - startDist).toFixed(0);
     const sgn = segDelta >= 0 ? "+" : "";
     segLines.push(
-      `[${seg.name}] (${seg.type}, ${startMeters}-${endMeters}m) Δ=${sgn}${segDelta.toFixed(3)}s A=${segTimeA.toFixed(3)}s B=${segTimeB.toFixed(3)}s
+      `[${segLabel}] (${seg.type}, ${startMeters}-${endMeters}m) Δ=${sgn}${segDelta.toFixed(3)}s A=${segTimeA.toFixed(3)}s B=${segTimeB.toFixed(3)}s
   ${statsLine("A", sA)}
   ${statsLine("B", sB)}
   Fuel:        A ${pct(fuelStartA)}→${pct(fuelEndA)} (Δ${pct(fuelStartA - fuelEndA)})  |  B ${pct(fuelStartB)}→${pct(fuelEndB)} (Δ${pct(fuelStartB - fuelEndB)})
@@ -360,7 +374,7 @@ export function buildInputsComparePrompt(
   }
 
   // Build the explicit list of expected segment names so the model can't forget them
-  const segNames = useSegs.map((s) => `"${s.name}"`).join(", ");
+  const segNames = segLabels.map((l) => `"${l}"`).join(", ");
   const expectedCount = useSegs.length;
 
   // No persona prefix here: this string is sent as the USER message, and

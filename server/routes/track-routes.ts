@@ -33,6 +33,7 @@ import {
   getTrackAltitudeByOrdinal,
 } from "../../shared/track-data";
 import { trackMap, getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
+import { getTrackGuide } from "../ai/track-guides";
 import { detectCorners, type Corner } from "../corner-detection";
 import {
   filterLapOutliers,
@@ -492,6 +493,21 @@ export const trackRoutes = new Hono()
         totalDist: result.totalDist,
         source: "auto",
       });
+    }
+  )
+
+  // GET /api/track-guide/:ordinal — the expert guide for a track, as data.
+  // The same knowledge the AI analyst is given, so the Info page can show what
+  // the coach knows before you ask it anything.
+  .get("/api/track-guide/:ordinal",
+    zValidator("param", OrdinalParamSchema),
+    zValidator("query", GameIdQuerySchema),
+    async (c) => {
+      const { ordinal } = c.req.valid("param");
+      const gameId = c.req.query("gameId");
+      const slug = getSharedTrackName(ordinal, gameId);
+      const guide = getTrackGuide(getTrackName(ordinal, gameId as never), { slug, gameId });
+      return c.json(guide);
     }
   )
 

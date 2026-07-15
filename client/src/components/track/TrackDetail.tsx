@@ -20,6 +20,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CatalogTrackSetups } from "./CatalogTrackSetups";
 import { CommunityLeaderboard } from "./CommunityLeaderboard";
+import { TrackInfoPanel } from "./TrackInfoPanel";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";
 import type { Point, TrackInfo, TrackSectors, TrackSegment } from "./types";
 
@@ -524,7 +525,19 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
  * TrackDetail — Full-size track view with segment overlay and stats sidebar.
  * Fetches both outline and sector data; segments are color-coded (red=corner, blue=straight).
  */
-export function TrackDetail({ track, onBack, initialTab, navigate }: { track: TrackInfo; onBack: () => void; initialTab?: string; navigate: ReturnType<typeof useNavigate> }) {
+export function TrackDetail({
+  track,
+  onBack,
+  tab,
+  onTabChange,
+}: {
+  track: TrackInfo;
+  onBack: () => void;
+  /** The active tab, from the route. This component doesn't own it. */
+  tab: string;
+  /** Navigate to another tab's route. */
+  onTabChange: (tab: string) => void;
+}) {
   const gameId = useGameId();
   const gid = gameId ?? undefined;
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -594,23 +607,22 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
   const hasForzaTunes = gameId === "fm-2023";
   // Forza + AC-EVO share the catalog-driven master-detail setups panel.
   const hasCatalogSetups = hasForzaTunes || isAcEvo;
+  // "info" leads: it's the track's reference data, so it's what you want when
+  // you open a track you don't know. It's the index route of a track, so it's
+  // the one tab whose path is just /tracks/<ordinal>.
   const allTabs = hasCatalogSetups
-    ? (["laps", "setups", "debug"] as const)
+    ? (["info", "laps", "setups", "debug"] as const)
     : isF125
-      ? (["laps", "setups", "guide", "debug"] as const)
+      ? (["info", "laps", "setups", "guide", "debug"] as const)
       : isAcc
-        ? (["laps", "setups", "guide", "debug"] as const)
-        : (["laps", "debug"] as const);
+        ? (["info", "laps", "setups", "guide", "debug"] as const)
+        : (["info", "laps", "debug"] as const);
   type Tab = (typeof allTabs)[number];
   const validTabs = allTabs;
-  const [activeTab, setActiveTabState] = useState<Tab>((validTabs as readonly string[]).includes(initialTab as string) ? (initialTab as Tab) : "laps");
-  const setActiveTab = useCallback(
-    (tab: Tab) => {
-      setActiveTabState(tab);
-      navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, tab: tab === "laps" ? undefined : tab }) as never, replace: true });
-    },
-    [navigate],
-  );
+  // The tab is the route — the URL owns it, not this component. A tab the
+  // current game doesn't have falls back to info rather than rendering blank.
+  const activeTab: Tab = (validTabs as readonly string[]).includes(tab) ? (tab as Tab) : "info";
+  const setActiveTab = onTabChange;
   const navTo = useNavigate();
 
   const { data: trackMapData } = useQuery({
@@ -955,13 +967,15 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
             >
               {tab === "laps" && trackLaps.length > 0
                 ? `${m.label_laps()} (${trackLaps.length})`
-                : tab === "guide"
-                  ? m.track_detail_guides_tab()
-                  : tab === "setups"
-                    ? m.track_detail_setup_tab()
-                    : tab === "debug"
-                      ? m.trackdetail_debug_tab()
-                      : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                : tab === "info"
+                  ? m.track_detail_info_tab()
+                  : tab === "guide"
+                    ? m.track_detail_guides_tab()
+                    : tab === "setups"
+                      ? m.track_detail_setup_tab()
+                      : tab === "debug"
+                        ? m.trackdetail_debug_tab()
+                        : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
@@ -1191,6 +1205,13 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
             {/* Track map — hidden on setups tab so the setups panel can take the full left column */}
             {activeTab !== "setups" && (
               <div className={`shrink-0 flex flex-col md:flex-row gap-3 ${activeTab === "guide" && isF125 ? "md:h-[160px]" : "md:h-[320px]"}`}>
+              {/* Info summary left of map, same shape as the laps leaderboard */}
+              {activeTab === "info" && (
+                <div className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-auto flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
+                  <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="summary" />
+                </div>
+              )}
+
               {/* Leaderboard left of map on laps tab */}
               {activeTab === "laps" && (
                 <div className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-hidden flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
@@ -1309,6 +1330,11 @@ export function TrackDetail({ track, onBack, initialTab, navigate }: { track: Tr
               )}
 
               <div className={`flex-1 min-h-0 ${activeTab === "laps" ? "md:overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
+                {/* Info tab — guide + segments read full width under the map */}
+                {activeTab === "info" && (
+                  <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="details" />
+                )}
+
                 {/* Laps tab */}
                 {activeTab === "laps" && (
                   <div className="flex flex-col gap-3 lg:h-full lg:overflow-hidden">
