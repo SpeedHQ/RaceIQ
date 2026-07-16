@@ -635,6 +635,7 @@ export interface TuningSession {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  headTestId: number | null;
 }
 
 export function useTuningSessions(gameId: "acc" | "ac-evo") {
@@ -696,6 +697,10 @@ export interface TuningTest {
   engine: string | null;
   status: string;
   createdAt: string;
+  /** Laps driven on this exact version (grouped by tuning_test_id). */
+  lapCount: number;
+  /** Best (min positive) lap time in ms on this version, or null. */
+  bestLapMs: number | null;
 }
 
 export function useTuningSessionTests(id: number | null | undefined) {
@@ -730,6 +735,26 @@ export function useCreateTuningTest() {
       return (await res.json()) as TuningTest;
     },
     onSuccess: (t) => qc.invalidateQueries({ queryKey: ["tuning-session-tests", t.tuningSessionId] }),
+  });
+}
+
+export function useSetHead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ sessionId, testId }: { sessionId: number; testId: number }) => {
+      const res = await (client.api as any)["tuning-sessions"][":id"].head.$post({
+        param: { id: String(sessionId) },
+        json: { testId },
+      });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as { ok: true; headTestId: number; label: string };
+    },
+    onSuccess: (_data, { sessionId }) => {
+      qc.invalidateQueries({ queryKey: ["tuning-session", sessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
+      // Chat thread gained the deterministic checkout ack — refetch it.
+      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", sessionId] });
+    },
   });
 }
 
