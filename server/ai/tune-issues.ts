@@ -31,6 +31,7 @@ export function symptomsToIssues(symptoms: TuneSymptoms, lapNumber?: number): Tu
   const issues: TuneIssue[] = [];
 
   for (const corner of symptoms.corners) {
+    const distanceFrac = corner.distanceFrac;
     for (const phase of corner.phases) {
       if (phase.balance === "understeer" || phase.balance === "oversteer") {
         const mag = Math.abs(phase.balanceMagnitude);
@@ -38,6 +39,7 @@ export function symptomsToIssues(symptoms: TuneSymptoms, lapNumber?: number): Tu
           kind: phase.balance,
           severity: mag > BALANCE_THRESHOLD * 3 ? "critical" : "warn",
           corner: corner.label,
+          distanceFrac,
           detail: `${phase.balance === "understeer" ? "Understeer" : "Oversteer"} on ${phase.phase} (Δ${mag.toFixed(3)} rad)`,
           lapNumber,
         });
@@ -47,6 +49,7 @@ export function symptomsToIssues(symptoms: TuneSymptoms, lapNumber?: number): Tu
           kind: "brake-lockup",
           severity: "critical",
           corner: corner.label,
+          distanceFrac,
           detail: `Wheel lockup under braking (${phase.phase})`,
           lapNumber,
         });
@@ -56,6 +59,7 @@ export function symptomsToIssues(symptoms: TuneSymptoms, lapNumber?: number): Tu
           kind: "bottoming",
           severity: "warn",
           corner: corner.label,
+          distanceFrac,
           detail: `Suspension bottoming out (${phase.phase})`,
           lapNumber,
         });

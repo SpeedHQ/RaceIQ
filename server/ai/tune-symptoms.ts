@@ -25,6 +25,9 @@ export interface PhaseSymptom {
 export interface CornerSymptom {
   index: number;
   label: string;
+  /** Corner mid-point as a fraction of lap distance (0-1), for sector bucketing
+   *  and track-map placement. Undefined when lap distance can't be derived. */
+  distanceFrac?: number;
   phases: PhaseSymptom[];
 }
 
@@ -135,6 +138,10 @@ export function telemetryToSymptoms(
   const lockupCorners: string[] = [];
   const bottomingCorners: string[] = [];
 
+  // Lap distance span, for placing each corner as a 0-1 fraction along the lap.
+  const lapStart = packets.length > 0 ? packets[0].DistanceTraveled : 0;
+  const lapSpan = packets.length > 0 ? packets[packets.length - 1].DistanceTraveled - lapStart : 0;
+
   for (const corner of corners) {
     const frames = packets.filter(
       (p) =>
@@ -154,7 +161,9 @@ export function telemetryToSymptoms(
     if (phases.some((p) => p.brakeLockup)) lockupCorners.push(corner.label);
     if (phases.some((p) => p.bottoming)) bottomingCorners.push(corner.label);
 
-    cornerSymptoms.push({ index: corner.index, label: corner.label, phases });
+    const mid = (corner.distanceStart + corner.distanceEnd) / 2;
+    const distanceFrac = lapSpan > 0 ? Math.min(1, Math.max(0, (mid - lapStart) / lapSpan)) : undefined;
+    cornerSymptoms.push({ index: corner.index, label: corner.label, distanceFrac, phases });
   }
 
   // Aggregate balance: whichever tendency shows in more corners.
