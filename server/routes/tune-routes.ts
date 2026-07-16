@@ -42,6 +42,7 @@ import {
   listTuningTests,
   nextVersion,
   getTuningTest,
+  getLapCountsByTest,
 } from "../db/tuning-test-queries";
 import { detectCorners } from "../corner-detection";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
@@ -891,7 +892,15 @@ export const tuneRoutes = new Hono()
       const { id } = c.req.valid("param");
       const session = await getTuningSession(id);
       if (!session) return c.json({ error: "Tuning session not found" }, 404);
-      return c.json(await listTuningTests(id));
+      const tests = await listTuningTests(id);
+      const counts = await getLapCountsByTest(id);
+      return c.json(
+        tests.map((t) => ({
+          ...t,
+          lapCount: counts.get(t.id)?.lapCount ?? 0,
+          bestLapMs: counts.get(t.id)?.bestLapMs ?? null,
+        }))
+      );
     }
   )
 
