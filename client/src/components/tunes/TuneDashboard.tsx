@@ -1,10 +1,10 @@
 import type { LapMeta } from "@shared/types";
-import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect, useMemo } from "react";
 import { useLaps, useResolveNames, useSessions } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
-import { AutoTunePanel } from "./AutoTunePanel";
-import { LapIssuesPanel } from "./LapIssuesPanel";
 import { TuneLiveDashboard } from "./TuneLiveDashboard";
+import { TuneReviewDashboard } from "./TuneReviewDashboard";
 
 /** "live" follows the current on-track session's laps as they come in;
  *  a number selects a past recorded session by id. */
@@ -26,19 +26,26 @@ export function TuneDashboard({ gameId }: { gameId: "acc" | "ac-evo" }) {
   // an empty session has nothing to auto-tune from.
   const sortedSessions = useMemo(() => [...sessions].filter((s) => (s.lapCount ?? 0) > 0).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [sessions]);
 
-  const [source, setSource] = useState<Source | "">("");
+  // Session selection lives in the URL (?session=live|<id>&lap=<id>) so a lap is
+  // linkable. `lap` is owned by TuneReviewDashboard; we clear it when the session
+  // changes so the new session picks its own default lap.
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as { session?: Source; lap?: number };
+  const source: Source | "" = search.session ?? "";
 
-  // Default to live if the driver already has laps in on the current track
-  // session; otherwise fall back to the most recent recorded session. Leave
-  // the user's own pick alone once made.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const setSource = (v: Source | "") => navigate({ search: (prev: any) => ({ ...prev, session: v === "" ? undefined : v, lap: undefined }) } as any);
+
+  // Default the session param when absent: live if a stint is running, else the
+  // most recent recorded session. Replace history so back doesn't land on a
+  // param-less URL.
   useEffect(() => {
-    if (source !== "") return;
-    if (liveSessionLaps.length > 0) {
-      setSource("live");
-    } else if (sortedSessions.length > 0) {
-      setSource(sortedSessions[0].id);
-    }
-  }, [source, liveSessionLaps.length, sortedSessions]);
+    if (search.session != null) return;
+    const next: Source | null = liveSessionLaps.length > 0 ? "live" : sortedSessions.length > 0 ? sortedSessions[0].id : null;
+    if (next == null) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    navigate({ replace: true, search: (prev: any) => ({ ...prev, session: next }) } as any);
+  }, [search.session, liveSessionLaps.length, sortedSessions, navigate]);
 
   const isLive = source === "live";
   const selectedSession = typeof source === "number" ? sortedSessions.find((s) => s.id === source) : undefined;
@@ -100,10 +107,7 @@ export function TuneDashboard({ gameId }: { gameId: "acc" | "ac-evo" }) {
       {isLive ? (
         <TuneLiveDashboard gameId={gameId} trackName={trackName ?? undefined} sessionLaps={sessionLaps} />
       ) : (
-        <>
-          <AutoTunePanel gameId={gameId} laps={sessionLaps} trackName={trackName ?? undefined} liveMode={false} />
-          <LapIssuesPanel laps={sessionLaps} />
-        </>
+        <TuneReviewDashboard gameId={gameId} laps={sessionLaps} trackName={trackName ?? undefined} />
       )}
     </div>
   );

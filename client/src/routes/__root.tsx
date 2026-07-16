@@ -33,7 +33,7 @@ const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {
   Sessions: m.label_sessions,
   Compare: m.label_compare,
   Analyse: m.label_analyse,
-  Tune: () => "Lap Engineer",
+  Tune: () => "Setup Engineer",
   Chats: m.tab_chats,
   Tracks: m.label_tracks,
   Cars: m.label_cars,

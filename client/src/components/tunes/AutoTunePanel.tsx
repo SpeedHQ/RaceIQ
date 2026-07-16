@@ -12,6 +12,11 @@ interface AutoTunePanelProps {
    * practice laps — hands-free directional advice after every lap.
    */
   liveMode?: boolean;
+  /**
+   * When set, the panel analyses this exact lap and hides its own lap picker —
+   * used when a parent (the post-lap dashboard) already owns lap selection.
+   */
+  fixedLapId?: number;
 }
 
 /**
@@ -20,8 +25,10 @@ interface AutoTunePanelProps {
  * the reasoning, then write it to the setup file. In live mode it re-runs the
  * recommendation automatically as each fresh lap comes in.
  */
-export function AutoTunePanel({ gameId, laps, trackName, liveMode = false }: AutoTunePanelProps) {
+export function AutoTunePanel({ gameId, laps, trackName, liveMode = false, fixedLapId }: AutoTunePanelProps) {
   const [stintId, setStintId] = useState<number | "">("");
+  // The lap this panel acts on: parent-provided lap wins over the internal picker.
+  const activeLapId = fixedLapId ?? (stintId === "" ? undefined : Number(stintId));
   const [filePath, setFilePath] = useState<string>("");
   const [result, setResult] = useState<AutoTuneResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,15 +72,15 @@ export function AutoTunePanel({ gameId, laps, trackName, liveMode = false }: Aut
   }, [liveMode, newestValidLapId]);
 
   async function runPreview() {
-    if (!stintId) return;
-    await runPreviewFor(Number(stintId));
+    if (activeLapId == null) return;
+    await runPreviewFor(activeLapId);
   }
 
   async function applyToFile() {
-    if (!stintId || !filePath) return;
+    if (activeLapId == null || !filePath) return;
     setError(null);
     try {
-      const res = await autoTune.mutateAsync({ gameId, stintId: Number(stintId), filePath, trackName, preview: false });
+      const res = await autoTune.mutateAsync({ gameId, stintId: activeLapId, filePath, trackName, preview: false });
       setResult(res);
     } catch (err: any) {
       setError(err?.message ?? "Auto-tune failed");
@@ -93,17 +100,19 @@ export function AutoTunePanel({ gameId, laps, trackName, liveMode = false }: Aut
       </div>
 
       <div className="grid grid-cols-1 gap-2">
-        <label className="text-xs text-app-text-dim">
-          Stint / Lap
-          <select className="mt-1 w-full bg-app-panel border border-app-border rounded px-2 py-1 text-sm" value={stintId} onChange={(e) => setStintId(e.target.value ? Number(e.target.value) : "")}>
-            <option value="">Select a completed lap…</option>
-            {validLaps.map((l) => (
-              <option key={l.id} value={l.id}>
-                Lap {l.lapNumber} — {l.lapTime.toFixed(3)}s
-              </option>
-            ))}
-          </select>
-        </label>
+        {fixedLapId == null && (
+          <label className="text-xs text-app-text-dim">
+            Stint / Lap
+            <select className="mt-1 w-full bg-app-panel border border-app-border rounded px-2 py-1 text-sm" value={stintId} onChange={(e) => setStintId(e.target.value ? Number(e.target.value) : "")}>
+              <option value="">Select a completed lap…</option>
+              {validLaps.map((l) => (
+                <option key={l.id} value={l.id}>
+                  Lap {l.lapNumber} — {l.lapTime.toFixed(3)}s
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <label className="text-xs text-app-text-dim">
           Setup file <span className="text-app-text-muted">(optional)</span>
@@ -123,7 +132,12 @@ export function AutoTunePanel({ gameId, laps, trackName, liveMode = false }: Aut
         </label>
 
         <div className="flex gap-2 pt-1">
-          <button type="button" onClick={runPreview} disabled={!stintId || autoTune.isPending} className="px-2 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white">
+          <button
+            type="button"
+            onClick={runPreview}
+            disabled={activeLapId == null || autoTune.isPending}
+            className="px-2 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white"
+          >
             {autoTune.isPending ? "Analysing…" : filePath ? "Preview" : "Recommend"}
           </button>
           <button
@@ -142,6 +156,8 @@ export function AutoTunePanel({ gameId, laps, trackName, liveMode = false }: Aut
       {result && (
         <div className="border-t border-app-border pt-2 space-y-2">
           <div className="text-xs text-app-text-dim">Model: {result.model}</div>
+
+          <DetectedFindings symptoms={result.symptoms} />
 
           {result.hasSetup === false ? (
             // Lap-only recommendation: no setup to apply to, show advisory intents.
@@ -185,4 +201,68 @@ export function AutoTunePanel({ gameId, laps, trackName, liveMode = false }: Aut
       )}
     </div>
   );
+}
+
+interface Finding {
+  text: string;
+  severity: "critical" | "warn" | "info";
+}
+
+const FINDING_CLASS: Record<Finding["severity"], string> = {
+  critical: "text-red-400",
+  warn: "text-amber-400",
+  info: "text-sky-400",
+};
+
+/**
+ * Deterministic findings straight from the symptom report — shown regardless of
+ * what the AI returns, so a weak/empty model response never hides real physics
+ * (e.g. tyre pressures well off target). This is the same evidence the Setup
+ * Engineer reasons over, surfaced plainly.
+ */
+function DetectedFindings({ symptoms }: { symptoms: any }) {
+  const findings = deriveFindings(symptoms);
+  return (
+    <div className="space-y-1">
+      <div className="text-[11px] text-app-text-muted uppercase tracking-wider">Detected from telemetry</div>
+      {findings.length === 0 ? (
+        <div className="text-xs text-app-text-dim">No handling or tyre issues detected in this lap.</div>
+      ) : (
+        <ul className="space-y-0.5">
+          {findings.map((f) => (
+            <li key={f.text} className={`text-xs ${FINDING_CLASS[f.severity]}`}>
+              {f.text}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Project the deterministic symptom aggregate into a readable findings list.
+ *  Pressure sign convention matches the server: +delta = above target → lower. */
+function deriveFindings(symptoms: any): Finding[] {
+  const agg = symptoms?.aggregate;
+  if (!agg) return [];
+  const out: Finding[] = [];
+
+  const tp = agg.tyrePressure as Record<string, number> | null;
+  if (tp) {
+    for (const corner of ["FL", "FR", "RL", "RR"]) {
+      const delta = tp[corner];
+      if (typeof delta === "number" && Math.abs(delta) >= 1.0) {
+        const dir = delta > 0 ? "lower" : "raise";
+        out.push({
+          text: `${corner} tyre pressure ${delta > 0 ? "+" : ""}${delta.toFixed(1)} psi vs target — ${dir} it`,
+          severity: Math.abs(delta) >= 3 ? "critical" : "warn",
+        });
+      }
+    }
+  }
+  if (agg.understeerCorners?.length) out.push({ text: `Understeer at ${agg.understeerCorners.join(", ")}`, severity: "warn" });
+  if (agg.oversteerCorners?.length) out.push({ text: `Oversteer at ${agg.oversteerCorners.join(", ")}`, severity: "warn" });
+  if (agg.lockupCorners?.length) out.push({ text: `Brake lockup at ${agg.lockupCorners.join(", ")}`, severity: "warn" });
+  if (agg.bottomingCorners?.length) out.push({ text: `Suspension bottoming at ${agg.bottomingCorners.join(", ")}`, severity: "warn" });
+  return out;
 }
