@@ -29,9 +29,11 @@ import { getLaptimes, syncLaptimes } from "../laptimes-sync";
 import { getLapById } from "../db/queries";
 import { detectCorners } from "../corner-detection";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
+import { symptomsToIssues } from "../ai/tune-issues";
 import { requestTuneIntents } from "../ai/tune-intent";
 import { applyIntents } from "../ai/tune-rules";
 import { writeSetupFile } from "../ai/tune-writer";
+import { setLiveIssuesEnabled } from "../pipeline";
 
 interface CatalogTune {
   id: string;
@@ -251,6 +253,10 @@ const AssignmentQuerySchema = z.object({
 
 const LapTuneSchema = z.object({
   tuneId: z.number().int().nullable(),
+});
+
+const LiveAnalysisSchema = z.object({
+  enabled: z.boolean(),
 });
 
 // All CreateTuneSchema fields optional, minus gameId — a tune's game must not
@@ -599,7 +605,9 @@ export const tuneRoutes = new Hono()
       let model: string;
       try {
         const res = await requestTuneIntents(body.gameId, symptoms, body.trackName);
-        intents = res.intents;
+        // res.intents is the full TuneIntentsSchema shape ({summary, intents});
+        // the route (and AutoTunePanel) only wants the flat intent list.
+        intents = res.intents.intents;
         model = res.model;
       } catch (err: any) {
         return c.json({ error: err?.message ?? "AI request failed" }, 502);
@@ -627,6 +635,39 @@ export const tuneRoutes = new Hono()
       }
 
       return c.json({ symptoms, intents, applied, skipped, model, written, preview: !!body.preview, hasSetup: true });
+    }
+  )
+
+  // GET /api/laps/:id/issues — per-lap tune issue feed, derived the same way
+  // as /api/tunes/auto's symptoms step (corners → symptoms → issues) but
+  // without needing a setup file. Legacy laps with no stored telemetry (or
+  // too little of it) return an empty feed rather than erroring.
+  .get("/api/laps/:id/issues",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const lap = await getLapById(id);
+      if (!lap) return c.json({ error: "Lap not found" }, 404);
+
+      const packets = lap.telemetry;
+      if (packets.length < 30) return c.json([]);
+
+      const corners = detectCorners(packets);
+      const symptoms = telemetryToSymptoms(packets, corners);
+      const issues = symptomsToIssues(symptoms, lap.lapNumber);
+      return c.json(issues);
+    }
+  )
+
+  // POST /api/live-analysis — toggle the pipeline's live transient issue
+  // detector (Phase 4). Off by default: costs nothing extra per packet and
+  // omits _liveIssues from the WS broadcast entirely.
+  .post("/api/live-analysis",
+    zValidator("json", LiveAnalysisSchema),
+    async (c) => {
+      const { enabled } = c.req.valid("json");
+      setLiveIssuesEnabled(enabled);
+      return c.json({ enabled });
     }
   )
 

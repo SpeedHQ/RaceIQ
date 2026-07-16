@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
 import type { TelemetryPacket } from "@shared/types";
+import { useEffect, useRef } from "react";
+import { queryClient } from "../lib/queryClient";
+import { client } from "../lib/rpc";
 import { useTelemetryStore } from "../stores/telemetry";
 import type { VersionInfo } from "../stores/telemetry";
-import { client } from "../lib/rpc";
-import { queryClient } from "../lib/queryClient";
 
 function fetchVersionInfo() {
   client.api.version
@@ -65,12 +65,19 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             queryClient.invalidateQueries({ queryKey: ["sessions"] });
             useTelemetryStore.getState().incrementReprocessProgress();
+          } else if (data.type === "lap-issues") {
+            useTelemetryStore.getState().addLapIssues({
+              lapId: data.lapId as number,
+              lapNumber: data.lapNumber as number,
+              issues: data.issues,
+            });
           } else {
-            const { _sectors, _pit, ...packet } = data;
+            const { _sectors, _pit, _liveIssues, ...packet } = data;
             const s = useTelemetryStore.getState();
             s.setPacket(packet as TelemetryPacket);
             if (_sectors) s.setSectors(_sectors);
             if (_pit) s.setPit(_pit);
+            if (_liveIssues) s.setLiveIssues(_liveIssues);
             packetCountRef.current++;
           }
         } catch {

@@ -1,6 +1,6 @@
 import { resolve } from "path";
 import { mkdirSync } from "fs";
-import type { LapMeta, LiveSectorData, LivePitData, GameId, TelemetryPacket } from "../shared/types";
+import type { LapMeta, LiveSectorData, LivePitData, GameId, TelemetryPacket, TuneIssue } from "../shared/types";
 import { insertSession, insertLap, getLaps, updateSessionRawFile } from "./db/queries";
 import { getTuneAssignment } from "./db/tune-queries";
 import { wsManager } from "./ws";
@@ -83,7 +83,8 @@ export interface WsAdapter {
   broadcast(
     packet: TelemetryPacket,
     sectors?: LiveSectorData | null,
-    pit?: LivePitData | null
+    pit?: LivePitData | null,
+    liveIssues?: TuneIssue[]
   ): void;
   broadcastNotification(event: Record<string, unknown>): void;
   broadcastDevState(state: Record<string, unknown>): void;
@@ -110,8 +111,8 @@ export class RealDbAdapter implements DbAdapter {
 
 /** Delegates to wsManager singleton. Used in production. */
 export class RealWsAdapter implements WsAdapter {
-  broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null): void {
-    wsManager.broadcast(packet, sectors, pit);
+  broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null, liveIssues?: TuneIssue[]): void {
+    wsManager.broadcast(packet, sectors, pit, liveIssues);
   }
   broadcastNotification(event: Record<string, unknown>): void {
     wsManager.broadcastNotification(event);
@@ -153,7 +154,7 @@ export class CapturingDbAdapter implements DbAdapter {
 
 /** No-op WebSocket adapter. Used in tests. */
 export class NullWsAdapter implements WsAdapter {
-  broadcast(_packet: TelemetryPacket, _sectors?: LiveSectorData | null, _pit?: LivePitData | null): void {}
+  broadcast(_packet: TelemetryPacket, _sectors?: LiveSectorData | null, _pit?: LivePitData | null, _liveIssues?: TuneIssue[]): void {}
   broadcastNotification(_event: Record<string, unknown>): void {}
   broadcastDevState(_state: Record<string, unknown>): void {}
 }
@@ -223,12 +224,12 @@ export class NullSessionRecorderAdapter implements SessionRecorderAdapter {
 
 /** Capturing WebSocket adapter that records all events. Used in tests. */
 export class CapturingWsAdapter implements WsAdapter {
-  readonly broadcastedPackets: Array<{ packet: TelemetryPacket; sectors?: LiveSectorData | null; pit?: LivePitData | null }> = [];
+  readonly broadcastedPackets: Array<{ packet: TelemetryPacket; sectors?: LiveSectorData | null; pit?: LivePitData | null; liveIssues?: TuneIssue[] }> = [];
   readonly broadcastedNotifications: Record<string, unknown>[] = [];
   readonly broadcastedDevStates: Record<string, unknown>[] = [];
 
-  broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null): void {
-    this.broadcastedPackets.push({ packet, sectors, pit });
+  broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null, liveIssues?: TuneIssue[]): void {
+    this.broadcastedPackets.push({ packet, sectors, pit, liveIssues });
   }
 
   broadcastNotification(event: Record<string, unknown>): void {

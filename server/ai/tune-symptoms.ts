@@ -49,15 +49,17 @@ export interface TuneSymptoms {
 }
 
 // Balance is called only when |front-rear| exceeds this many radians (~1.15°).
-const BALANCE_THRESHOLD = 0.02;
+// Exported so the live-tuning issue detectors (server/ai/tune-issues.ts) reuse
+// the exact same thresholds instead of drifting out of sync.
+export const BALANCE_THRESHOLD = 0.02;
 // Slip ratio magnitude while braking that counts as a locked wheel.
-const LOCKUP_SLIP = 0.15;
+export const LOCKUP_SLIP = 0.15;
 // Brake input (0..255 or 0..1) treated as "braking".
-const BRAKE_ON = 0.2;
+export const BRAKE_ON = 0.2;
 // Normalised suspension travel treated as bottomed-out.
-const BOTTOM_TRAVEL = 0.95;
+export const BOTTOM_TRAVEL = 0.95;
 // Nominal ACC hot-pressure target window mid (psi).
-const ACC_PRESSURE_TARGET = 27.5;
+export const ACC_PRESSURE_TARGET = 27.5;
 
 function mean(xs: number[]): number {
   if (xs.length === 0) return 0;
@@ -67,7 +69,7 @@ function mean(xs: number[]): number {
 }
 
 /** Normalise a brake reading that may be 0..1 or 0..255 into 0..1. */
-function brakeFrac(p: TelemetryPacket): number {
+export function brakeFrac(p: TelemetryPacket): number {
   const b = p.Brake ?? 0;
   return b > 1 ? b / 255 : b;
 }

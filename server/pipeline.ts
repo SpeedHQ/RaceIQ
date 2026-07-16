@@ -1,4 +1,4 @@
-import type { TelemetryPacket, GameId, LapMeta } from "../shared/types";
+import type { TelemetryPacket, GameId, LapMeta, TuneIssue } from "../shared/types";
 import {
   type DbAdapter,
   type WsAdapter,
@@ -15,6 +15,9 @@ import { tryGetGame } from "../shared/games/registry";
 import { getServerGame } from "./games/registry";
 import { fillNormSuspension } from "./telemetry-utils";
 import { LAP_DETECTOR_ID } from "./lap-detector";
+import { detectCorners } from "./corner-detection";
+import { telemetryToSymptoms } from "./ai/tune-symptoms";
+import { symptomsToIssues, detectLiveIssues } from "./ai/tune-issues";
 
 export class Pipeline {
   private sectorTracker = new SectorTracker();
@@ -29,10 +32,26 @@ export class Pipeline {
   private _skipHistorySeeding: boolean;
   private _skipDevState: boolean;
   private _sessionLaps: LapMeta[] = [];
+  /** Live Tuning Dashboard: gates the per-packet transient issue detector.
+   *  Off by default — client opts in via `POST /api/live-analysis`. */
+  private _liveIssuesEnabled = false;
+  /** Issues computed in onLapComplete (has packets, no lapId yet), consumed in
+   *  onLapSaved (has lapId/lapNumber, no packets) to build the "lap-issues" push. */
+  private _pendingLapIssues: TuneIssue[] | null = null;
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
     return this._lapDetector;
+  }
+
+  /** Whether the live transient issue detector is currently active. */
+  get liveIssuesEnabled(): boolean {
+    return this._liveIssuesEnabled;
+  }
+
+  /** Toggled by `POST /api/live-analysis {enabled}`. */
+  setLiveIssuesEnabled(enabled: boolean): void {
+    this._liveIssuesEnabled = enabled;
   }
 
   /** True while a session is being recorded (session recorder is open). */
@@ -101,11 +120,34 @@ export class Pipeline {
           if (session && PitTracker.shouldUseCurves(session.gameId)) {
             this.pitTracker.updateWearCurves(event.packets, event.lapDistStart);
           }
+
+          // Live Tuning Dashboard per-lap issue feed. Computed here (packets are
+          // available) but pushed from onLapSaved (lapId/lapNumber are available
+          // there) — onLapComplete always fires synchronously before onLapSaved
+          // for the same lap, so this hand-off is safe.
+          try {
+            const corners = detectCorners(event.packets);
+            const symptoms = telemetryToSymptoms(event.packets, corners);
+            this._pendingLapIssues = symptomsToIssues(symptoms);
+          } catch {
+            this._pendingLapIssues = null;
+          }
+        } else {
+          this._pendingLapIssues = null;
         }
       },
 
       onLapSaved: (event) => {
         this.ws.broadcastNotification({ type: "lap-saved", ...event });
+
+        // Flush the per-lap issue feed computed in onLapComplete, now that we
+        // have lapId/lapNumber to stamp on it.
+        if (this._pendingLapIssues) {
+          const issues = this._pendingLapIssues.map((i) => ({ ...i, lapNumber: event.lapNumber }));
+          this._pendingLapIssues = null;
+          this.ws.broadcastNotification({ type: "lap-issues", lapId: event.lapId, lapNumber: event.lapNumber, issues });
+        }
+
         // Append to in-memory list and broadcast
         const session = this._lapDetector?.session ?? null;
         if (session) {
@@ -247,8 +289,14 @@ export class Pipeline {
       }
     }
 
+    // Live Tuning Dashboard transient detector — gated, off by default. Stateless
+    // per-packet call; skipped entirely (no cost) unless the client opted in.
+    const liveIssues = this._liveIssuesEnabled
+      ? detectLiveIssues(packet, this.sectorTracker.getTrackLength())
+      : undefined;
+
     // Broadcast to WebSocket clients (handles 30Hz throttle internally)
-    this.ws.broadcast(packet, sectors, pit);
+    this.ws.broadcast(packet, sectors, pit, liveIssues);
 
     if (!this._skipDevState) {
       this.ws.broadcastDevState({
@@ -290,6 +338,11 @@ export const lapDetector = {
 /** In-memory session laps for the current session. */
 export function getSessionLaps(): readonly LapMeta[] {
   return _default.sessionLaps;
+}
+
+/** Toggle the Live Tuning Dashboard's per-packet transient issue detector. */
+export function setLiveIssuesEnabled(enabled: boolean): void {
+  _default.setLiveIssuesEnabled(enabled);
 }
 
 // Periodic check: flush stale laps when packets stop (e.g. race ended, game
