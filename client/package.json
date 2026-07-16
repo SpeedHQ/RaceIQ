@@ -52,7 +52,7 @@
   },
   "devDependencies": {
     "@types/three": "^0.185.0",
-    "@biomejs/biome": "^1.9.4",
+    "@biomejs/biome": "^2.5.4",
     "@playwright/test": "^1.61.1",
     "@storybook/addon-docs": "^10.4.6",
     "@storybook/react": "^10.4.6",
@@ -63,7 +63,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "storybook": "latest",
-    "typescript": "~6.0.3",
+    "typescript": "~7.0.2",
     "vite": "^8.1.0"
   }
 }
