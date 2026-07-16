@@ -559,6 +559,11 @@ export function parseAcEvoBuffers(
     BrakeTempRearRight: brTempRR,
 
     CarOrdinal: cache.carOrdinal,
+    // Surface the raw model string for unknown cars so the session layer can
+    // register them in discovered_cars (task #1) instead of "Unknown Car".
+    ...(cache.carOrdinal < 0 && cache.lastCarModel
+      ? { carModelName: cache.lastCarModel }
+      : {}),
     CarClass: 0,
     CarPerformanceIndex: 0,
     DrivetrainType: 1,

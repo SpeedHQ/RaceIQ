@@ -82,6 +82,10 @@ export class ImportCaptureAdapter implements DbAdapter {
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
     return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
   }
+  updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
+    this._sessionMeta.set(sessionId, { carOrdinal, trackOrdinal });
+    return this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
+  }
 }
 
 /** Detect a gameId from an uploaded filename prefix (`<gameId>-...` / `<gameId>_...`). */
