@@ -105,7 +105,7 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
     const hasChildren = children.length > 0;
 
     return (
-      <div key={t.id} style={depth > 0 ? { marginLeft: depth * 20 } : undefined}>
+      <div key={t.id}>
         <div className="relative flex">
           {/* Graph rail: node dot + connecting line down to the next sibling/child. */}
           <div className="relative w-6 shrink-0 flex flex-col items-center">
