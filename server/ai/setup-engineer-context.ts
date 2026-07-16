@@ -157,7 +157,12 @@ export async function loadActiveTuningContext(sessionId: number): Promise<Active
   }
 
   const tests = await listTuningTests(sessionId);
-  const activeTest = tests.length ? tests[tests.length - 1]! : null;
+  // Head-resolved: the checked-out version the chat works from. Falls back to
+  // the mainline tip when no head is set (back-compat with pre-branching sessions).
+  const activeTest =
+    session.headTestId != null
+      ? (tests.find((t) => t.id === session.headTestId) ?? (tests.length ? tests[tests.length - 1]! : null))
+      : (tests.length ? tests[tests.length - 1]! : null);
   const setupPath = activeTest?.setupPath ?? session.baseSetupPath ?? null;
   if (!setupPath) {
     return { ok: false, status: 400, error: "No base setup on this session — create it from a saved setup first." };
