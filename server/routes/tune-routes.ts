@@ -33,6 +33,7 @@ import {
   getTuningSession,
   listTuningSessions,
   updateTuningSession,
+  setSessionHead,
 } from "../db/tuning-session-queries";
 import { getActiveTuningSession, setActiveTuningSession } from "../tuning-active";
 import { deriveFuelPerLap, type LapMetric } from "../tuning-lap-metrics";
@@ -40,6 +41,7 @@ import {
   createTuningTest,
   listTuningTests,
   nextVersion,
+  getTuningTest,
 } from "../db/tuning-test-queries";
 import { detectCorners } from "../corner-detection";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
@@ -50,7 +52,7 @@ import { applyIntents } from "../ai/tune-rules";
 import { writeSetupFile } from "../ai/tune-writer";
 import { setLiveIssuesEnabled } from "../pipeline";
 import { loadSettings } from "../settings";
-import { getChatMemory, tuneSessionThreadId, CHAT_RESOURCE_ID } from "../ai/chat-agent";
+import { getChatMemory, tuneSessionThreadId, CHAT_RESOURCE_ID, saveAssistantChatMessage } from "../ai/chat-agent";
 import { getSetupsBaseDir } from "../ai/setup-engineer-context";
 import { buildSetupEngineerAgent } from "../../mastra/agents/setup-engineer";
 import { getSecret } from "../keystore";
@@ -920,6 +922,36 @@ export const tuneRoutes = new Hono()
       return c.json(created, 201);
     }
   )
+
+  // POST /api/tuning-sessions/:id/head — check out a setup version as the
+  // session's current head. Posts a deterministic canned ack into the chat
+  // thread (best-effort) so the Setup Engineer agent keeps context on reload.
+  .post("/api/tuning-sessions/:id/head", async (c) => {
+    const id = Number(c.req.param("id"));
+    if (!Number.isFinite(id)) return c.json({ error: "Invalid session id" }, 400);
+    const body = await c.req.json().catch(() => ({}));
+    const testId = Number(body?.testId);
+    if (!Number.isFinite(testId)) return c.json({ error: "testId is required" }, 400);
+
+    const test = await getTuningTest(testId);
+    if (!test || test.tuningSessionId !== id) {
+      return c.json({ error: "Version not found in this session" }, 404);
+    }
+
+    await setSessionHead(id, testId);
+
+    // Deterministic canned ack into the chat thread so the agent keeps context.
+    try {
+      await saveAssistantChatMessage(
+        tuneSessionThreadId(id),
+        `Switched to **${test.label}** as the current setup — I'll work from here.`,
+      );
+    } catch (err: any) {
+      console.error("[tune] Failed to post checkout note:", err?.message);
+    }
+
+    return c.json({ ok: true, headTestId: testId, label: test.label });
+  })
 
   // GET /api/tuning-sessions/:id/lap-metrics — per-lap fuel/tyre metrics for the
   // laps this session owns (plan §2, Phase C). Derived server-side from each
