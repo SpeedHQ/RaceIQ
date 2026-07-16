@@ -79,16 +79,16 @@ export function AiSection() {
   }, [settingsLoaded, displaySettings.aiProvider, displaySettings.aiModel, displaySettings.aiThinkingBudget, displaySettings.localEndpoint]);
 
   // Chat settings
-  const [chatProvider, setChatProvider] = useState<string>(displaySettings.chatProvider ?? "gemini");
+  const [chatProvider, setChatProvider] = useState<string>(displaySettings.chatProvider ?? "");
   const [chatModel, setChatModel] = useState(displaySettings.chatModel ?? "");
   const [chatApiKey, setChatApiKey] = useState("");
   const [chatThinkingBudget, setChatThinkingBudget] = useState<number | null>(displaySettings.chatThinkingBudget ?? null);
 
   const [chatSaveError, setChatSaveError] = useState<string | null>(null);
   const [chatBaseline, setChatBaseline] = useState<SavedChatBaseline>(() => ({
-    provider: displaySettings.chatProvider ?? "gemini",
+    provider: displaySettings.chatProvider ?? "",
     model: displaySettings.chatModel ?? "",
-    thinkingBudget: (displaySettings.chatProvider ?? "gemini") === "gemini" ? (displaySettings.chatThinkingBudget ?? null) : null,
+    thinkingBudget: (displaySettings.chatProvider ?? "") === "gemini" ? (displaySettings.chatThinkingBudget ?? null) : null,
   }));
 
 
@@ -96,7 +96,7 @@ export function AiSection() {
   useEffect(() => {
     if (chatSynced.current || !settingsLoaded) return;
     chatSynced.current = true;
-    const nextProvider = displaySettings.chatProvider ?? "gemini";
+    const nextProvider = displaySettings.chatProvider ?? "";
     const nextModel = displaySettings.chatModel ?? "";
     const nextThinkingBudget = nextProvider === "gemini" ? (displaySettings.chatThinkingBudget ?? null) : null;
     setChatProvider(nextProvider);
@@ -108,6 +108,28 @@ export function AiSection() {
       thinkingBudget: nextThinkingBudget,
     });
   }, [settingsLoaded, displaySettings.chatProvider, displaySettings.chatModel, displaySettings.chatThinkingBudget]);
+
+  // Auto-tune settings
+  const [autoTuneProvider, setAutoTuneProvider] = useState<string>(displaySettings.autoTuneProvider ?? "");
+  const [autoTuneModel, setAutoTuneModel] = useState(displaySettings.autoTuneModel ?? "");
+  const [autoTuneApiKey, setAutoTuneApiKey] = useState("");
+
+  const [autoTuneSaveError, setAutoTuneSaveError] = useState<string | null>(null);
+  const [autoTuneBaseline, setAutoTuneBaseline] = useState<{ provider: string; model: string }>(() => ({
+    provider: displaySettings.autoTuneProvider ?? "",
+    model: displaySettings.autoTuneModel ?? "",
+  }));
+
+  const autoTuneSynced = useRef(false);
+  useEffect(() => {
+    if (autoTuneSynced.current || !settingsLoaded) return;
+    autoTuneSynced.current = true;
+    const nextProvider = displaySettings.autoTuneProvider ?? "";
+    const nextModel = displaySettings.autoTuneModel ?? "";
+    setAutoTuneProvider(nextProvider);
+    setAutoTuneModel(nextModel);
+    setAutoTuneBaseline({ provider: nextProvider, model: nextModel });
+  }, [settingsLoaded, displaySettings.autoTuneProvider, displaySettings.autoTuneModel]);
 
   const keyStatus: Record<string, boolean> = {
     gemini: !!displaySettings.geminiApiKeySet,
@@ -128,7 +150,7 @@ export function AiSection() {
     });
   };
 
-  const selectedProviders = Array.from(new Set([provider, chatProvider].filter((p) => p === "gemini" || p === "openai" || p === "local")));
+  const selectedProviders = Array.from(new Set([provider, chatProvider, autoTuneProvider].filter((p) => p === "gemini" || p === "openai" || p === "local")));
   const selectedProvidersForFetch = selectedProviders.filter((p) => p === "local" || p === "openai" || Boolean(keyStatus[p]));
   const selectedProvidersCsv = selectedProvidersForFetch.join(",");
 
@@ -194,6 +216,10 @@ export function AiSection() {
   const modelErrors = aiModels?._errors ?? {};
   const providerModelError = (provider === "gemini" || provider === "openai" || provider === "local") ? modelErrors[provider] ?? null : null;
   const chatProviderModelError = (chatProvider === "gemini" || chatProvider === "openai" || chatProvider === "local") ? modelErrors[chatProvider] ?? null : null;
+  const autoTuneModels = autoTuneProvider === "gemini" || autoTuneProvider === "openai" || autoTuneProvider === "local" ? aiModels?.[autoTuneProvider] ?? [] : [];
+  const hasAutoTuneProviderKey = autoTuneProvider === "local" || (keyStatus[autoTuneProvider] ?? false);
+  const canShowAutoTuneModelPicker = autoTuneProvider !== "" && hasAutoTuneProviderKey && autoTuneModels.length > 0;
+  const autoTuneProviderModelError = (autoTuneProvider === "gemini" || autoTuneProvider === "openai" || autoTuneProvider === "local") ? modelErrors[autoTuneProvider] ?? null : null;
 
   const initialProvider = analysisBaseline.provider;
   const initialModel = analysisBaseline.model;
@@ -216,6 +242,10 @@ export function AiSection() {
     || nextChatThinkingBudget !== initialChatThinkingBudget;
   const hasPendingChatApiKey = chatApiKey.trim().length > 0;
   const canSaveChat = chatConfigDirty || hasPendingChatApiKey;
+
+  const autoTuneConfigDirty = autoTuneProvider !== autoTuneBaseline.provider || autoTuneModel !== autoTuneBaseline.model;
+  const hasPendingAutoTuneApiKey = autoTuneApiKey.trim().length > 0;
+  const canSaveAutoTune = autoTuneConfigDirty || hasPendingAutoTuneApiKey;
 
   const saveApiKey = useMutation({
     mutationFn: async (payload: { provider: string; apiKey: string }) => {
@@ -594,6 +624,128 @@ export function AiSection() {
           {isSaving ? m.common_saving() : m.common_save()}
         </button>
         {chatSaveError && <p className="text-xs text-red-400">{chatSaveError}</p>}
+      </div>
+
+      {/* Auto-tune provider */}
+      <h2 className="text-sm font-semibold text-app-text mb-4 mt-8">{m.ai_auto_tune_provider_title()}</h2>
+      <p className="text-xs text-app-text-muted mb-4">{m.ai_auto_tune_provider_desc()}</p>
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs text-app-text-muted mb-1">{m.ai_provider_label()}</label>
+          <select
+            value={autoTuneProvider}
+            onChange={(e) => {
+              setAutoTuneProvider(e.target.value as string);
+              setAutoTuneModel("");
+            }}
+            className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
+          >
+            <option value="">{m.ai_provider_none()}</option>
+            {(aiProviders ?? []).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        {PROVIDER_KEY_LABELS[autoTuneProvider] && (
+          <div>
+            <label className="block text-xs text-app-text-muted mb-1">{PROVIDER_KEY_LABELS[autoTuneProvider].label}</label>
+            <div className="flex items-center gap-1.5 max-w-xs">
+              <input
+                type="password"
+                value={autoTuneApiKey}
+                onChange={(e) => setAutoTuneApiKey(e.target.value)}
+                placeholder={(keyStatus[autoTuneProvider] ?? false) ? m.ai_key_stored_placeholder() : PROVIDER_KEY_LABELS[autoTuneProvider].placeholder}
+                className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
+              />
+            </div>
+            <p className="text-[11px] text-app-text-muted mt-1">
+              {PROVIDER_KEY_LABELS[autoTuneProvider].helpText}{" "}
+              <a href={PROVIDER_KEY_LABELS[autoTuneProvider].helpUrl} target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">
+                {new URL(PROVIDER_KEY_LABELS[autoTuneProvider].helpUrl).hostname}
+              </a>
+            </p>
+          </div>
+        )}
+        {canShowAutoTuneModelPicker && (
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <label className="block text-xs text-app-text-muted">{m.ai_model_label()}</label>
+              <button
+                type="button"
+                onClick={() => refreshModels.mutate()}
+                disabled={aiModelsFetching || modelsRefreshing || isSaving}
+                className="inline-flex items-center gap-1 text-[11px] text-app-text-muted hover:text-app-text disabled:opacity-50"
+              >
+                <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
+                {m.ai_refresh()}
+              </button>
+              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-[11px] text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
+            </div>
+            <select
+              value={autoTuneModel}
+              onChange={(e) => setAutoTuneModel(e.target.value)}
+              className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
+            >
+              <option value="">{m.ai_model_default()}</option>
+              {autoTuneModels.map((mm: { id: string; name: string }) => (
+                <option key={mm.id} value={mm.id}>
+                  {mm.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {autoTuneProvider !== "" && !hasAutoTuneProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
+        {autoTuneProvider !== "" && hasAutoTuneProviderKey && !aiModelsFetching && autoTuneModels.length === 0 && (
+          <div className="flex items-center gap-2 text-xs text-app-text-muted">
+            <span>{m.ai_no_models()}</span>
+            <button type="button" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="inline-flex items-center gap-1 hover:text-app-text disabled:opacity-50">
+              <RefreshCw className="size-3" />
+              {m.ai_refresh()}
+            </button>
+          </div>
+        )}
+        {autoTuneProvider !== "" && hasAutoTuneProviderKey && (autoTuneProviderModelError || aiModelsError) && <p className="text-xs text-red-400">{autoTuneProviderModelError || m.ai_load_models_failed()}</p>}
+        <button
+          onClick={async () => {
+            setAutoTuneSaveError(null);
+            const startedAt = performance.now();
+            try {
+              const providerKeyId = PROVIDER_KEY_MAP[autoTuneProvider];
+              const keyPromise = autoTuneApiKey && providerKeyId
+                ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: autoTuneApiKey })
+                : null;
+              const updates = { autoTuneProvider, autoTuneModel } as Record<string, unknown>;
+              updateSettingsInCache(updates);
+              await saveSettings.mutateAsync(updates);
+              if (keyPromise) {
+                keyPromise
+                  .then(() => {
+                    updateKeyStatusInSettingsCache(providerKeyId, true);
+                    setAutoTuneApiKey("");
+                  })
+                  .catch((err: unknown) => {
+                    setAutoTuneSaveError(err instanceof Error ? err.message : m.ai_save_key_failed());
+                  });
+              }
+              qc.invalidateQueries({ queryKey: ["settings"] });
+              setAutoTuneBaseline({ provider: autoTuneProvider, model: autoTuneModel });
+              const durationMs = Math.round(performance.now() - startedAt);
+              console.info(`[AI Settings] auto-tune save completed in ${durationMs}ms`);
+            } catch (err) {
+              const durationMs = Math.round(performance.now() - startedAt);
+              console.error(`[AI Settings] auto-tune save failed in ${durationMs}ms`, err instanceof Error ? err.message : String(err));
+              setAutoTuneSaveError(err instanceof Error ? err.message : m.ai_save_chat_settings_failed());
+            }
+          }}
+          disabled={isSaving || !canSaveAutoTune}
+          className="text-sm px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed text-white transition-colors"
+        >
+          {isSaving ? m.common_saving() : m.common_save()}
+        </button>
+        {autoTuneSaveError && <p className="text-xs text-red-400">{autoTuneSaveError}</p>}
       </div>
     </section>
   );

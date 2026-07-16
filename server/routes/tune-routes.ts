@@ -614,7 +614,7 @@ export const tuneRoutes = new Hono()
         });
       }
 
-      const { setup, applied, skipped } = applyIntents(body.gameId, sourceSetup, intents);
+      const { setup, applied, skipped } = applyIntents(body.gameId, sourceSetup, intents.intents);
 
       // 4. Write the result unless this is a preview.
       let written = null;
