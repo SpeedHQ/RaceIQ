@@ -1,6 +1,6 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "./index";
-import { tuningTests } from "./schema";
+import { laps, tuningSessions, tuningTests } from "./schema";
 
 export interface CreateTuningTestData {
   tuningSessionId: number;
@@ -55,4 +55,49 @@ export async function nextVersion(sessionId: number): Promise<number> {
     .where(eq(tuningTests.tuningSessionId, sessionId))
     .get();
   return (row?.maxVersion ?? 0) + 1;
+}
+
+/**
+ * The test id the Setup Engineer should currently work from: the session's
+ * persisted head if set, else the highest-version test (mainline tip), else
+ * null when the session has no tests yet.
+ */
+export async function resolveActiveTestId(sessionId: number): Promise<number | null> {
+  const session = await db
+    .select({ headTestId: tuningSessions.headTestId })
+    .from(tuningSessions)
+    .where(eq(tuningSessions.id, sessionId))
+    .get();
+  if (session?.headTestId != null) return session.headTestId;
+
+  const tip = await db
+    .select({ id: tuningTests.id })
+    .from(tuningTests)
+    .where(eq(tuningTests.tuningSessionId, sessionId))
+    .orderBy(desc(tuningTests.version), desc(tuningTests.id))
+    .get();
+  return tip?.id ?? null;
+}
+
+/** Lap count + best (min positive) lap time per tuning_test_id for a session. */
+export async function getLapCountsByTest(
+  sessionId: number,
+): Promise<Map<number, { lapCount: number; bestLapMs: number | null }>> {
+  const rows = await db
+    .select({
+      testId: laps.tuningTestId,
+      lapCount: sql<number>`COUNT(*)`,
+      bestLapMs: sql<number | null>`MIN(CASE WHEN ${laps.lapTime} > 0 THEN ${laps.lapTime} END)`,
+    })
+    .from(laps)
+    .where(eq(laps.tuningSessionId, sessionId))
+    .groupBy(laps.tuningTestId)
+    .all();
+
+  const map = new Map<number, { lapCount: number; bestLapMs: number | null }>();
+  for (const r of rows) {
+    if (r.testId == null) continue;
+    map.set(r.testId, { lapCount: Number(r.lapCount), bestLapMs: r.bestLapMs ?? null });
+  }
+  return map;
 }

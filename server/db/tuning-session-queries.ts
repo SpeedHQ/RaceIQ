@@ -71,3 +71,13 @@ export async function updateTuningSession(
   const result = await db.update(tuningSessions).set(sets).where(eq(tuningSessions.id, id)).run();
   return result.rowsAffected > 0;
 }
+
+/** Set (or clear, with null) the checked-out head test for a session. */
+export async function setSessionHead(sessionId: number, headTestId: number | null): Promise<boolean> {
+  const result = await db
+    .update(tuningSessions)
+    .set({ headTestId, updatedAt: sql`(datetime('now'))` })
+    .where(eq(tuningSessions.id, sessionId))
+    .run();
+  return result.rowsAffected > 0;
+}
