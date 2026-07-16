@@ -30,6 +30,11 @@ const AppSettingsSchema = z.object({
   chatProvider: ChatProviderSchema.default("gemini"),
   chatModel: z.string().default("gemini-flash-latest"),
   chatThinkingBudget: z.number().int().min(0).nullable().default(null),
+  // Auto-tune analyst provider/model. Independent of the lap-analysis
+  // provider (aiProvider) so the user can point auto-tune at a different
+  // model. Reuses the same stored API keys as the analysis section.
+  autoTuneProvider: AiProviderSchema.default("gemini"),
+  autoTuneModel: z.string().default("gemini-flash-latest"),
   localEndpoint: z.string().default("http://localhost:1234/v1"),
   wsRefreshRate: z.enum(["60", "50", "40", "30"]).default("60"),
   // Max render rate for the 3D wireframe Canvas. Throttles gl.render
@@ -79,6 +84,17 @@ export function loadSettings(): AppSettings {
     // Migrate legacy claude-cli provider → gemini
     if (parsed.aiProvider === "claude-cli") {
       parsed.aiProvider = "gemini";
+    }
+    if (parsed.autoTuneProvider === "claude-cli") {
+      parsed.autoTuneProvider = "gemini";
+    }
+    // Seed auto-tune provider/model from the legacy shared analysis provider
+    // for settings written before auto-tune had its own entry.
+    if (parsed.autoTuneProvider === undefined && parsed.aiProvider !== undefined) {
+      parsed.autoTuneProvider = parsed.aiProvider;
+    }
+    if (parsed.autoTuneModel === undefined && parsed.aiModel !== undefined) {
+      parsed.autoTuneModel = parsed.aiModel;
     }
     // Strip legacy color-threshold fields — now owned by game adapters
     delete parsed.tireTempCelsiusThresholds;

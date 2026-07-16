@@ -86,13 +86,19 @@ export async function requestTuneIntents(
   const prompt = buildTunePrompt(gameId, symptoms, trackName);
   const schema = getTuneIntentJsonSchema();
 
+  // Auto-tune has its own provider/model so the user can point it at a
+  // different model than lap analysis. Fall back to the shared analysis
+  // provider for settings written before auto-tune had its own entry.
+  const provider = settings.autoTuneProvider || settings.aiProvider;
+  const tuneModel = settings.autoTuneModel || settings.aiModel;
+
   let raw: string;
   let model: string;
 
-  switch (settings.aiProvider) {
+  switch (provider) {
     case "openai": {
       const key = await getSecret("openai-api-key");
-      const r = await runOpenAi(prompt, key, settings.aiModel, schema, "tune_intents");
+      const r = await runOpenAi(prompt, key, tuneModel, schema, "tune_intents");
       raw = r.analysis;
       model = r.usage.model;
       break;
@@ -100,7 +106,7 @@ export async function requestTuneIntents(
     case "local": {
       // Local OpenAI-compatible endpoint (LM Studio / Ollama).
       const base = settings.localEndpoint || "http://localhost:1234/v1";
-      const r = await runOpenAiLocal(prompt, base, settings.aiModel, schema);
+      const r = await runOpenAiLocal(prompt, base, tuneModel, schema);
       raw = r.analysis;
       model = r.usage.model;
       break;
@@ -108,7 +114,7 @@ export async function requestTuneIntents(
     default: {
       // gemini (and legacy default)
       const key = await getSecret("gemini-api-key");
-      const r = await runGemini(prompt, key, settings.aiModel, schema);
+      const r = await runGemini(prompt, key, tuneModel, schema);
       raw = r.analysis;
       model = r.usage.model;
       break;
