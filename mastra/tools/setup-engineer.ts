@@ -22,6 +22,8 @@ import type { TuneDirection, TuneMagnitude } from "../../server/ai/schemas";
 import { applyIntents, describeKnobs, knownComponents } from "../../server/ai/tune-rules";
 import { writeSetupFile } from "../../server/ai/tune-writer";
 import { createTuningTest } from "../../server/db/tuning-test-queries";
+import { setSessionHead } from "../../server/db/tuning-session-queries";
+import { computeChildLabel, nextFreeLabel } from "../../server/ai/version-label";
 import { saveAssistantChatMessage, tuneSessionThreadId } from "../../server/ai/chat-agent";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
 import {
@@ -222,8 +224,16 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
       }));
       const { setup, applied, skipped } = applyIntents(ctx.gameId, ctx.setup, intents);
 
+      const parent = ctx.activeTest;
       const nextVer = Math.max(0, ...ctx.tests.map((t) => t.version)) + 1;
-      const saveAsName = `${setupPathStem(ctx.realPath)}-v${nextVer}`;
+
+      // Branch-relative label off the head/parent. existingChildCount = how many
+      // children the parent already has (its continuation + any forks).
+      const parentLabel = parent?.label ?? "base";
+      const childCount = parent ? ctx.tests.filter((t) => t.parentTestId === parent.id).length : 0;
+      const takenLabels = new Set(ctx.tests.map((t) => t.label));
+      const label = nextFreeLabel(computeChildLabel(parentLabel, childCount), takenLabels);
+      const saveAsName = `${setupPathStem(ctx.realPath)}-${label}`;
 
       let written;
       try {
@@ -232,16 +242,23 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
         return { ok: false, error: `Write failed: ${err.message}`, applied: [], skipped: [] };
       }
 
-      await createTuningTest({
+      const newTestId = await createTuningTest({
         tuningSessionId: sessionId,
         version: nextVer,
-        label: saveAsName,
+        label,
         setupPath: written.path,
-        parentTestId: ctx.activeTest?.id ?? null,
+        parentTestId: parent?.id ?? null,
         appliedChanges: applied.length ? JSON.stringify(applied) : null,
         driverComment: null,
         engine: "llm",
       });
+
+      // Branch grows and head follows the work: the new node becomes the head.
+      try {
+        await setSessionHead(sessionId, newTestId);
+      } catch (err: any) {
+        console.error("[SetupEngineer] Failed to advance head:", err?.message);
+      }
 
       // Best-effort: a memory write failure must not fail the apply — the
       // file + tuning test are already committed.

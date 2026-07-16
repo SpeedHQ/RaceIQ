@@ -3,6 +3,7 @@ import { createTuningSession, getTuningSession, setSessionHead } from "../server
 import { createTuningTest, resolveActiveTestId } from "../server/db/tuning-test-queries";
 import { setSessionHead as _setHead } from "../server/db/tuning-session-queries";
 import { loadActiveTuningContext } from "../server/ai/setup-engineer-context";
+import { computeChildLabel, nextFreeLabel } from "../server/ai/version-label";
 
 describe("head + active-test resolution", () => {
   let sessionId: number;
@@ -38,5 +39,17 @@ describe("loadActiveTuningContext head resolution", () => {
     // its (null) setupPath drove the "no base setup" branch rather than the tip.
     expect(ctx.ok).toBe(false);
     if (!ctx.ok) expect(ctx.error).toContain("No base setup");
+  });
+});
+
+describe("apply-changes label derivation (unit of the branch math)", () => {
+  test("forking off v1 when v2 already exists yields v1.1", () => {
+    // parent = v1, which already has one child (v2) → fork → v1.1
+    const label = nextFreeLabel(computeChildLabel("v1", 1), new Set(["v1", "v2"]));
+    expect(label).toBe("v1.1");
+  });
+  test("continuing the tip yields the next flat number", () => {
+    const label = nextFreeLabel(computeChildLabel("v2", 0), new Set(["v1", "v2"]));
+    expect(label).toBe("v3");
   });
 });
