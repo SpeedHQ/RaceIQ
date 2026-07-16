@@ -275,12 +275,19 @@ const ImportFileSchema = z.object({
 const AutoTuneSchema = z.object({
   gameId: z.enum(["acc", "ac-evo"]),
   stintId: z.number().int(),
-  // Optional: when omitted, we still derive symptoms/intents from the lap and
-  // return a recommendation, but we can't apply it to a setup or write to disk.
-  filePath: z.string().min(1).optional(),
+  // Required: ACC/AC-EVO only expose setups the driver saved in-game, and the
+  // recommendation applies changes relative to that base setup. No base setup,
+  // no meaningful recommendation — the caller must pick or create one first.
+  filePath: z.string().min(1),
   trackName: z.string().optional(),
   // When true, compute symptoms/intents/applied without writing to disk.
   preview: z.boolean().optional().default(false),
+  // Filename (without path) for the written setup. Sanitised server-side.
+  // When omitted, the source name + "-autotune" is used.
+  saveAsName: z.string().min(1).max(120).optional(),
+  // Live auto mode: overwrite the named file in place (single reload target)
+  // instead of writing a fresh, auto-incremented file.
+  overwrite: z.boolean().optional().default(false),
 });
 
 export const tuneRoutes = new Hono()
@@ -296,7 +303,23 @@ export const tuneRoutes = new Hono()
     }
   )
 
-  // GET /api/tunes/:id — get single tune
+  // GET /api/tunes/setup-files?gameId=acc — list saved setup .json files under
+  // the user's Documents/Assetto Corsa Competizione/Setups (or AC EVO).
+  // MUST be registered before /api/tunes/:id or that route swallows it.
+  .get("/api/tunes/setup-files",
+    zValidator("query", z.object({ gameId: z.enum(["acc", "ac-evo"]) })),
+    async (c) => {
+      const { gameId } = c.req.valid("query");
+      const baseDir = await getSetupsBaseDir(gameId);
+      if (!baseDir) {
+        return c.json({ baseDir: null, files: [], error: "Setups folder not found" });
+      }
+      return c.json({ baseDir, files: listSetupFiles(baseDir) });
+    }
+  )
+
+  // GET /api/tunes/:id — get single tune. Registered AFTER the static
+  // /api/tunes/* GET routes (e.g. setup-files) so it doesn't swallow them.
   .get("/api/tunes/:id",
     zValidator("param", IdParamSchema),
     async (c) => {
@@ -472,22 +495,6 @@ export const tuneRoutes = new Hono()
     }
   )
 
-  // ─── Setup-file discovery (ACC & AC-EVO) ─────────────────────────────────────
-
-  // GET /api/tunes/setup-files?gameId=acc — list setup .json files found
-  // under the user's Documents/Assetto Corsa Competizione/Setups (or AC EVO)
-  .get("/api/tunes/setup-files",
-    zValidator("query", z.object({ gameId: z.enum(["acc", "ac-evo"]) })),
-    async (c) => {
-      const { gameId } = c.req.valid("query");
-      const baseDir = await getSetupsBaseDir(gameId);
-      if (!baseDir) {
-        return c.json({ baseDir: null, files: [], error: "Setups folder not found" });
-      }
-      return c.json({ baseDir, files: listSetupFiles(baseDir) });
-    }
-  )
-
   // POST /api/tunes/import-file — read a setup file from disk, save as tune
   .post("/api/tunes/import-file",
     zValidator("json", ImportFileSchema),
@@ -628,7 +635,7 @@ export const tuneRoutes = new Hono()
       let written = null;
       if (!body.preview) {
         try {
-          written = writeSetupFile(baseDir!, realPath!, setup);
+          written = writeSetupFile(baseDir!, realPath!, setup, body.saveAsName, body.overwrite);
         } catch (err: any) {
           return c.json({ error: `Write failed: ${err.message}` }, 500);
         }

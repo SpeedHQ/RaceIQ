@@ -25,6 +25,8 @@ export function writeSetupFile(
   baseDir: string,
   sourcePath: string,
   setup: unknown,
+  fileName?: string,
+  overwrite = false,
 ): WriteSetupResult {
   const absSource = resolve(sourcePath);
   const dir = dirname(absSource);
@@ -37,14 +39,32 @@ export function writeSetupFile(
   }
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
-  const stem = (absSource.split(/[\\/]/).pop() ?? "setup").replace(/\.json$/i, "");
-  let dest = resolve(dir, `${stem}-autotune.json`);
-  let n = 2;
-  while (existsSync(dest)) {
-    dest = resolve(dir, `${stem}-autotune-${n}.json`);
-    n++;
+  // Stem: the user-supplied name (sanitised — no path parts, safe chars only),
+  // or the source name with an -autotune suffix. Collisions auto-increment so
+  // a run never clobbers an existing file.
+  const stem = fileName ? sanitizeName(fileName) : `${sourceStem(absSource)}-autotune`;
+  let dest = resolve(dir, `${stem}.json`);
+  // Live auto mode overwrites a single fixed file so the driver just reloads it
+  // in-game each lap. Manual saves never clobber — they auto-increment instead.
+  if (!overwrite) {
+    let n = 2;
+    while (existsSync(dest)) {
+      dest = resolve(dir, `${stem}-${n}.json`);
+      n++;
+    }
   }
 
   writeFileSync(dest, JSON.stringify(setup, null, 2), "utf-8");
   return { path: dest, fileName: dest.split(/[\\/]/).pop() ?? "" };
+}
+
+function sourceStem(absSource: string): string {
+  return (absSource.split(/[\\/]/).pop() ?? "setup").replace(/\.json$/i, "");
+}
+
+/** Strip directory parts and unsafe characters so a name can't escape the dir. */
+function sanitizeName(name: string): string {
+  const base = (name.split(/[\\/]/).pop() ?? "").replace(/\.json$/i, "");
+  const cleaned = base.replace(/[^a-zA-Z0-9 _.-]/g, "").trim();
+  return cleaned.length > 0 ? cleaned : "setup-engineer";
 }
