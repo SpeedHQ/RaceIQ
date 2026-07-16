@@ -53,8 +53,9 @@ import { applyIntents } from "../ai/tune-rules";
 import { writeSetupFile } from "../ai/tune-writer";
 import { setLiveIssuesEnabled } from "../pipeline";
 import { loadSettings } from "../settings";
-import { getChatMemory, tuneSessionThreadId, CHAT_RESOURCE_ID, saveAssistantChatMessage } from "../ai/chat-agent";
+import { getChatMemory, tuneSessionThreadId, CHAT_RESOURCE_ID, saveChatMessages } from "../ai/chat-agent";
 import { getSetupsBaseDir } from "../ai/setup-engineer-context";
+import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { buildSetupEngineerAgent } from "../../mastra/agents/setup-engineer";
 import { getSecret } from "../keystore";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
@@ -949,12 +950,17 @@ export const tuneRoutes = new Hono()
 
     await setSessionHead(id, testId);
 
-    // Deterministic canned ack into the chat thread so the agent keeps context.
+    // Record the checkout as its own user action + deterministic assistant ack
+    // (a distinct pair, not merged into the prior turn) so the chat reads as a
+    // real exchange and the agent keeps context on reload.
     try {
-      await saveAssistantChatMessage(
-        tuneSessionThreadId(id),
-        `Switched to **${test.label}** as the current setup — I'll work from here.`,
-      );
+      await saveChatMessages(tuneSessionThreadId(id), [
+        { role: "user", markdown: `Switch head to **${test.label}** (v${test.version}).` },
+        {
+          role: "assistant",
+          markdown: `Switched to **${test.label}** (v${test.version}) as the current setup — I'll work from here.`,
+        },
+      ]);
     } catch (err: any) {
       console.error("[tune] Failed to post checkout note:", err?.message);
     }
@@ -1091,12 +1097,95 @@ export const tuneRoutes = new Hono()
         process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
       }
 
+      // Same model-label fallback chain chat-stream.ts uses, so thinking support
+      // is detected off the model that will actually run.
+      const chatModelLabel = settings.chatModel
+        || (chatProvider === "openai"
+          ? "gpt-4o-mini"
+          : chatProvider === "local"
+            ? "local-model"
+            : "gemini-flash-latest");
+
+      // Captured before the turn runs so the onFinish reasoning-patch below can
+      // tell *this* turn's freshly-saved assistant row apart from any earlier
+      // one (Mastra stamps createdAt at save time, so the new row's createdAt is
+      // always >= this) — avoids racing/patching a previous turn's message.
+      const turnStartedAt = Date.now();
+
       const stream = await agent.stream(messages, {
         memory: { thread: tuneSessionThreadId(id), resource: CHAT_RESOURCE_ID },
+        // Ask the model to stream its thought process so the tune chat can show a
+        // live "thinking" block that auto-collapses once the reply text starts
+        // (reasoning.tsx drives the collapse off the streamed reasoning parts).
+        // toAISdkStream forwards reasoning parts into the UI-message stream by
+        // default — the writer loop below relays every part — so enabling
+        // reasoning here is the whole server-side wiring. Scoped to this route:
+        // the main AiPanel keeps includeThoughts:false.
+        providerOptions: {
+          openai: { reasoningEffort: chatProvider === "local" ? "none" : "low" },
+          google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+        },
       });
 
       const uiStream = createUIMessageStream({
         originalMessages: messages,
+        // Mastra's memory auto-save (the `memory` option above) persists the
+        // assistant turn's text/tool/usage parts but drops reasoning: it never
+        // reaches `messageList.get.response.db()`, so it's absent from the row
+        // and the thinking block vanishes on reload. The live stream *does*
+        // carry reasoning (toAISdkStream forwards it), so it's fully assembled
+        // on `responseMessage` here — we patch it back into the saved row.
+        onFinish: async ({ responseMessage }) => {
+          try {
+            const reasoningText = (responseMessage.parts ?? [])
+              .filter((p): p is Extract<typeof p, { type: "reasoning" }> => p.type === "reasoning")
+              .map((p) => p.text ?? "")
+              .join("\n")
+              .trim();
+            if (!reasoningText) return;
+
+            const mem = getChatMemory();
+            const threadId = tuneSessionThreadId(id);
+
+            // Poll until Mastra's own async save has landed this turn's assistant
+            // row (finish handling runs as the stream is consumed; it can trail
+            // this callback by a few ms). Only accept a row stamped at/after the
+            // turn started, so a prior turn's assistant message is never matched.
+            let target: any;
+            for (let attempt = 0; attempt < 40; attempt++) {
+              const recalled = await mem.recall({ threadId });
+              const raw: any[] = recalled.messages ?? [];
+              const newest = [...raw].reverse().find((m) => m.role === "assistant");
+              if (newest && new Date(newest.createdAt).getTime() >= turnStartedAt) {
+                target = newest;
+                break;
+              }
+              await new Promise((r) => setTimeout(r, 50));
+            }
+            if (!target) return;
+
+            const existingParts: any[] = Array.isArray(target.content?.parts)
+              ? target.content.parts
+              : [];
+            // Idempotent: bail if reasoning is somehow already persisted.
+            if (target.content?.reasoning || existingParts.some((p) => p.type === "reasoning")) {
+              return;
+            }
+
+            // Write reasoning both as a leading `parts` entry (so MessageList
+            // reconstructs it in order, before the answer text) and on
+            // `content.reasoning` — mirroring how MessageList itself serialises a
+            // response, and matching the GET route's read path.
+            const content = {
+              ...target.content,
+              reasoning: reasoningText,
+              parts: [{ type: "reasoning", reasoning: reasoningText }, ...existingParts],
+            };
+            await mem.saveMessages({ messages: [{ ...target, content }] });
+          } catch (err: any) {
+            console.error("[TuneChat] Failed to persist reasoning:", err?.message ?? err);
+          }
+        },
         execute: async ({ writer }) => {
           for await (const part of toAISdkStream(stream, {
             from: "agent",

@@ -102,28 +102,56 @@ export async function saveAssistantChatMessage(
   threadId: string,
   markdown: string,
 ): Promise<string> {
+  const [id] = await saveChatMessages(threadId, [{ role: "assistant", markdown }]);
+  return id;
+}
+
+/** Persist a plain-markdown **user** message into a chat thread. Same shape as
+ * {@link saveAssistantChatMessage}; used to record deterministic user actions
+ * (e.g. "Switch head to X" on checkout) as their own distinct entry. */
+export async function saveUserChatMessage(
+  threadId: string,
+  markdown: string,
+): Promise<string> {
+  const [id] = await saveChatMessages(threadId, [{ role: "user", markdown }]);
+  return id;
+}
+
+/** Persist an ordered batch of plain-markdown messages into a chat thread in a
+ * single write. Batching keeps the requested order deterministic (each message
+ * gets a strictly increasing createdAt) — a separate write per message can land
+ * on the same millisecond and reorder on read. Distinct roles also stop the
+ * MessageList reader collapsing consecutive same-role messages into one entry,
+ * so a user+assistant pair renders as two separate turns. */
+export async function saveChatMessages(
+  threadId: string,
+  entries: Array<{ role: "user" | "assistant"; markdown: string }>,
+): Promise<string[]> {
   const mem = getChatMemory();
   const existing = await mem.getThreadById({ threadId });
   if (!existing) {
     await mem.createThread({ threadId, resourceId: CHAT_RESOURCE_ID });
   }
-  const id = crypto.randomUUID();
   // Derive the exact message shape saveMessages wants without importing the
   // (non-re-exported) MastraDBMessage type by name.
   type SaveMsg = Parameters<typeof mem.saveMessages>[0]["messages"][number];
-  const message = {
-    id,
-    role: "assistant",
-    createdAt: new Date(),
-    threadId,
-    resourceId: CHAT_RESOURCE_ID,
-    type: "text",
-    content: {
-      format: 2,
-      parts: [{ type: "text", text: markdown }],
-      content: markdown,
-    },
-  } as SaveMsg;
-  await mem.saveMessages({ messages: [message] });
-  return id;
+  const base = Date.now();
+  const messages = entries.map((entry, i) => {
+    const id = crypto.randomUUID();
+    return {
+      id,
+      role: entry.role,
+      createdAt: new Date(base + i),
+      threadId,
+      resourceId: CHAT_RESOURCE_ID,
+      type: "text",
+      content: {
+        format: 2,
+        parts: [{ type: "text", text: entry.markdown }],
+        content: entry.markdown,
+      },
+    } as SaveMsg;
+  });
+  await mem.saveMessages({ messages });
+  return messages.map((m) => m.id);
 }

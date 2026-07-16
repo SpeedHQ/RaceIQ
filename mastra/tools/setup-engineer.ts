@@ -30,6 +30,7 @@ import {
   buildAppliedChangesMarkdown,
   computeSessionSymptoms,
   loadActiveTuningContext,
+  resolveGuardedSetupFile,
   setupPathStem,
 } from "../../server/ai/setup-engineer-context";
 
@@ -284,7 +285,9 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
   const branchFromVersionTool = createTool({
     id: "branch-from-version",
     description:
-      "Check out an earlier version so the NEXT apply-changes branches from it instead of the latest. " +
+      "Fork an earlier version into a new branch immediately. Creates a real new version whose setup is an " +
+      "exact copy of the target, makes it the session head, and returns it — so it shows up in the version " +
+      "tree right away and the NEXT apply-changes lands on this fork instead of the latest. " +
       "Use when the driver asks to try a different direction from an older version without overwriting newer ones. " +
       "Accepts the version label (e.g. \"v1\", \"v1.2\") or the integer version number.",
     inputSchema: z.object({
@@ -294,6 +297,7 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
       ok: z.boolean(),
       error: z.string().optional(),
       label: z.string().optional(),
+      version: z.number().optional(),
     }),
     execute: async (inputData) => {
       const ctx = await loadActiveTuningContext(sessionId);
@@ -309,16 +313,57 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
         return { ok: false, error: `No version matching "${target}" in this session.` };
       }
 
-      await setSessionHead(sessionId, match.id);
+      // Load the target's setup exactly as saved — the fork is a byte-for-byte
+      // copy under a new version, so the branch point is visible in the tree
+      // before any changes are applied.
+      const guarded = await resolveGuardedSetupFile(ctx.gameId, match.setupPath ?? "");
+      if (!guarded.ok) {
+        return { ok: false, error: `Could not read ${match.label}: ${guarded.error}` };
+      }
+
+      const nextVer = Math.max(0, ...ctx.tests.map((t) => t.version)) + 1;
+
+      // Branch-relative label off the forked target: existingChildCount = how
+      // many children it already has (its continuation + any prior forks).
+      const childCount = ctx.tests.filter((t) => t.parentTestId === match.id).length;
+      const takenLabels = new Set(ctx.tests.map((t) => t.label));
+      const label = nextFreeLabel(computeChildLabel(match.label, childCount), takenLabels);
+      const saveAsName = `${setupPathStem(guarded.realPath)}-${label}`;
+
+      let written;
+      try {
+        written = writeSetupFile(guarded.baseDir, guarded.realPath, guarded.setup, saveAsName, false);
+      } catch (err: any) {
+        return { ok: false, error: `Write failed: ${err.message}` };
+      }
+
+      const newTestId = await createTuningTest({
+        tuningSessionId: sessionId,
+        version: nextVer,
+        label,
+        setupPath: written.path,
+        parentTestId: match.id,
+        appliedChanges: null,
+        driverComment: null,
+        engine: "branch",
+      });
+
+      // The fork is the work surface now: head follows it.
+      try {
+        await setSessionHead(sessionId, newTestId);
+      } catch (err: any) {
+        console.error("[SetupEngineer] Failed to advance head:", err?.message);
+      }
+
       try {
         await saveAssistantChatMessage(
           tuneSessionThreadId(sessionId),
-          `Switched to **${match.label}** as the current setup — I'll branch from here.`,
+          `Branched **${label}** (v${nextVer}) from **${match.label}** — I'll work from here.`,
         );
       } catch (err: any) {
         console.error("[SetupEngineer] Failed to post branch note:", err?.message);
       }
-      return { ok: true, label: match.label };
+      return { ok: true, label, version: nextVer };
     },
   });
 

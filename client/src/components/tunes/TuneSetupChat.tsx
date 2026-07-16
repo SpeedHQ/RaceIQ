@@ -127,5 +127,18 @@ export function TuneSetupChat({
     return <div className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-[11px] text-app-text-dim">Loading…</div>;
   }
 
-  return <TuneSetupChatThread key={`${sessionId}:${headTestId ?? "none"}`} sessionId={sessionId} initialMessages={history ?? []} />;
+  // Remount (fresh useChat seed) whenever the persisted history changes. Chat
+  // history is invalidated in exactly one place — the checkout (useSetHead)
+  // mutation — so keying on the message count means the thread re-seeds the
+  // moment the checkout ack lands in history. Keying on headTestId alone raced:
+  // the session query (headTestId) and the chat-history query refetch
+  // independently, so a session-first resolution remounted with stale,
+  // ack-less history and the later ack never triggered another remount.
+  return (
+    <TuneSetupChatThread
+      key={`${sessionId}:${headTestId ?? "none"}:${history?.length ?? 0}`}
+      sessionId={sessionId}
+      initialMessages={history ?? []}
+    />
+  );
 }
