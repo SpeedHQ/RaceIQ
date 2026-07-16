@@ -152,5 +152,39 @@ Steering rate uses `TimestampMS` deltas; smooth `Steer` with `rollingAverage` (w
 7. Comment persistence — per-version (planned) or also per-corner annotations later.
 8. AC-Evo telemetry fidelity — confirm `TireSlipRatio`/`AngularVelocityY` populated (corner detection only just fixed there).
 
+## 6a. Tuning sessions (Setup Engineer main page) — NEW top-level concept
+
+The Setup Engineer landing page is a **tuning session list**: the driver creates
+a new tuning session or resumes an existing one. A *tuning session* is the parent
+container for the whole Setup IQ loop — it owns the base setup, the stints driven,
+and the setup versions (v1..vN) with their lap deltas. This is the front door;
+the dashboard/detail/autotune views open *inside* a selected tuning session.
+
+**Model** — new `tuning_sessions` table (hand-rolled migration):
+`id, gameId, carOrdinal, trackOrdinal, name, baseSetupPath, status (active|archived),
+createdAt, updatedAt, notes`. `setupVersions.tuningSessionId` FKs into it (each
+version belongs to one tuning session). Laps associate to a tuning session via the
+version active when they were driven (see §4c), or by the session being "active".
+
+**UI**
+- New `client/src/components/tunes/TuningSessionList.tsx` — cards: name, car/track,
+  base setup, best lap so far, version count, last active. Actions: **New session**
+  (pick car+track+base setup, or seed from the current live session/car+track) and
+  **Resume** (open its dashboard).
+- Routing: the tune route gains a session id, e.g. `?tuningSession=<id>` alongside
+  `session/lap/view` (or a nested route). No `tuningSession` param → show the list.
+- `TuneDashboard.tsx` becomes: list (no id) → session workspace (id present:
+  live-follow or review, the existing dashboards, scoped to that tuning session).
+
+**Relationship to telemetry sessions**: a tuning session is distinct from a raw
+telemetry/recording session — it can span multiple on-track runs (stints) on the
+same car+track while iterating setups. Laps are still stored as today; the tuning
+session groups the relevant ones by car+track+time window.
+
+**Sequencing**: this reshapes navigation and needs the `tuning_sessions` +
+`setupVersions` migration, so it pairs naturally with the versioning phase
+(Phase 1/4). The deterministic rules engine (§6 first PR) is independent backend
+work and can land first or in parallel.
+
 ## 6. Recommended first PR (smallest demonstrable slice)
 "Deterministic recommend + speed bands": (1) `detectCorners` returns `minSpeed`; (2) `speedBand` on `CornerSymptom`; (3) new `server/ai/tune-recommend.ts` with ~8 rules covering today's symptoms (under/oversteer × slow/fast × phase, lockup, bottoming, pressure); (4) `engine:"rules"` default in `POST /api/tunes/auto` + `driverNotes` pass-through; (5) `SetupEngineer.tsx` applied-change list with rationales; (6) unit tests on a recorded ac-evo lap fixture. No schema migration, no new UI surface — working, explainable, LLM-free one-button autotune immediately; versioning table and Detail view follow in the next two PRs.
