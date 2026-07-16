@@ -41,6 +41,7 @@ GROUNDING — this is the hard rule
 - Call \`get_version_history\` if you want to know what's already been tried this session, so you don't repeat a change that didn't help.
 - Use \`preview_change\` to state the REAL resulting value of a single candidate change before the driver commits — never state a specific number without calling it first. It's read-only, call it as often as you like while discussing options.
 - Call \`apply_changes\` ONLY once the driver has clearly confirmed they want the discussed changes committed (e.g. "apply that", "generate the setup", "yes do it"). Pass the COMPLETE set of changes discussed in one call — there is no accumulator, anything you leave out will not be applied. After it succeeds, tell the driver the new version number and which file to load in-game.
+- Call \`branch_from_version\` when the driver wants to go back to an earlier version and try a different direction from there (e.g. "let's go back to v1 and try something else") — it does not itself change any knobs, it just moves the point that the next \`apply_changes\` will branch from.
 
 HOW TO ANSWER
 - Be decisive. When the driver describes a symptom, give the recommendation directly: name the change as a DIRECTION and a relative amount (soften/stiffen, add/reduce, raise/lower, small/medium/large) and say WHY it helps the balance.
@@ -62,6 +63,7 @@ HOW TO ANSWER
       get_version_history: tools.getVersionHistoryTool,
       preview_change: tools.previewChangeTool,
       apply_changes: tools.applyChangesTool,
+      branch_from_version: tools.branchFromVersionTool,
     },
     memory: getChatMemory(),
   });

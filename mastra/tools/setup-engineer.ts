@@ -281,11 +281,53 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
     },
   });
 
+  const branchFromVersionTool = createTool({
+    id: "branch-from-version",
+    description:
+      "Check out an earlier version so the NEXT apply-changes branches from it instead of the latest. " +
+      "Use when the driver asks to try a different direction from an older version without overwriting newer ones. " +
+      "Accepts the version label (e.g. \"v1\", \"v1.2\") or the integer version number.",
+    inputSchema: z.object({
+      target: z.string().describe("A version label like \"v1.2\" or an integer version like \"1\"."),
+    }),
+    outputSchema: z.object({
+      ok: z.boolean(),
+      error: z.string().optional(),
+      label: z.string().optional(),
+    }),
+    execute: async (inputData) => {
+      const ctx = await loadActiveTuningContext(sessionId);
+      if (!ctx.ok) return { ok: false, error: ctx.error };
+
+      const target = inputData.target.trim();
+      const asNum = Number(target.replace(/^v/i, ""));
+      const match =
+        ctx.tests.find((t) => t.label.toLowerCase() === target.toLowerCase()) ??
+        (Number.isFinite(asNum) ? ctx.tests.find((t) => t.version === asNum) : undefined);
+
+      if (!match) {
+        return { ok: false, error: `No version matching "${target}" in this session.` };
+      }
+
+      await setSessionHead(sessionId, match.id);
+      try {
+        await saveAssistantChatMessage(
+          tuneSessionThreadId(sessionId),
+          `Switched to **${match.label}** as the current setup — I'll branch from here.`,
+        );
+      } catch (err: any) {
+        console.error("[SetupEngineer] Failed to post branch note:", err?.message);
+      }
+      return { ok: true, label: match.label };
+    },
+  });
+
   return {
     getCurrentSetupTool,
     getSymptomsTool,
     getVersionHistoryTool,
     previewChangeTool,
     applyChangesTool,
+    branchFromVersionTool,
   };
 }
