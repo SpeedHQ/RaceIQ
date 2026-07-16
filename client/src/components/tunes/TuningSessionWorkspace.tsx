@@ -214,7 +214,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
             <CopyChatJsonButton sessionId={session.id} />
           </div>
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <TuneSetupChat sessionId={session.id} />
+            <TuneSetupChat sessionId={session.id} headTestId={session?.headTestId ?? null} />
           </div>
         </div>
       </div>

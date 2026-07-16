@@ -1,12 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
-import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import type { UIMessage } from "ai";
-import { useChatRuntime, AssistantChatTransport, useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
-import { useSettings } from "../../hooks/queries";
-import { useUiStore } from "../../stores/ui";
-import { isAiConfigured } from "../../lib/is-ai-configured";
 import { Thread } from "@/components/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { AssistantChatTransport, useChatRuntime, useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
+import { useQuery } from "@tanstack/react-query";
+import type { UIMessage } from "ai";
+import { useSettings } from "../../hooks/queries";
+import { isAiConfigured } from "../../lib/is-ai-configured";
+import { useUiStore } from "../../stores/ui";
 
 /**
  * TuneSetupChat — the setup-scoped chat inside a tuning session (plan Phase D).
@@ -99,8 +99,10 @@ function TokenUsageFooter() {
 
 export function TuneSetupChat({
   sessionId,
+  headTestId,
 }: {
   sessionId: number;
+  headTestId: number | null;
 }) {
   const { displaySettings } = useSettings();
   const openSettings = useUiStore((s) => s.openSettings);
@@ -110,14 +112,8 @@ export function TuneSetupChat({
   if (!aiConfigured) {
     return (
       <div className="pt-2 space-y-1.5">
-        <p className="text-[11px] text-app-text-dim">
-          Add an AI provider key to discuss the setup before generating.
-        </p>
-        <button
-          type="button"
-          onClick={() => openSettings("ai")}
-          className="w-full px-3 py-1.5 text-xs rounded bg-amber-500 hover:bg-amber-400 text-black font-medium"
-        >
+        <p className="text-[11px] text-app-text-dim">Add an AI provider key to discuss the setup before generating.</p>
+        <button type="button" onClick={() => openSettings("ai")} className="w-full px-3 py-1.5 text-xs rounded bg-amber-500 hover:bg-amber-400 text-black font-medium">
           Set up AI
         </button>
       </div>
@@ -128,12 +124,8 @@ export function TuneSetupChat({
   // only reads `messages` on first render, so mounting before history resolves would
   // seed an empty thread and silently drop prior turns for the rest of the session.
   if (!isSuccess) {
-    return (
-      <div className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-[11px] text-app-text-dim">
-        Loading…
-      </div>
-    );
+    return <div className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-[11px] text-app-text-dim">Loading…</div>;
   }
 
-  return <TuneSetupChatThread key={sessionId} sessionId={sessionId} initialMessages={history ?? []} />;
+  return <TuneSetupChatThread key={`${sessionId}:${headTestId ?? "none"}`} sessionId={sessionId} initialMessages={history ?? []} />;
 }
