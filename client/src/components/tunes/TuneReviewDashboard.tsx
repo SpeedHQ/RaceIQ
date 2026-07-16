@@ -4,10 +4,10 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLapIssues, useLapTelemetry, useTirePressureOptimal } from "../../hooks/queries";
 import { TireGrid } from "../telemetry/TireGrid";
-import { AutoTunePanel } from "./AutoTunePanel";
 import { SectorDetailView } from "./SectorDetailView";
 import { SectorMap } from "./SectorMap";
 import { CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey, bandColor, buildSectorRanges } from "./SectorRangeBreakdown";
+import { NoSetupsHint, SetupEngineerControls, SetupEngineerResult, useSetupEngineer } from "./SetupEngineer";
 
 interface TuneReviewDashboardProps {
   gameId: "acc" | "ac-evo";
@@ -50,6 +50,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps }: TuneReviewDashb
   const { data: lapTel, isLoading: loadingTel } = useLapTelemetry(focusLap?.id ?? null);
   const { data: issues } = useLapIssues(focusLap?.id ?? null);
   const pressureOptimal = useTirePressureOptimal(gameId, focusLap?.carOrdinal);
+  const engineer = useSetupEngineer(gameId, trackName);
 
   const telemetry = lapTel?.telemetry ?? [];
   const sectorTimes = lapTel?.sectorTimes ?? null;
@@ -123,38 +124,35 @@ export function TuneReviewDashboard({ gameId, trackName, laps }: TuneReviewDashb
 
   return (
     <div className="flex-1 overflow-y-auto">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-app-border">
-        <div className="flex items-center gap-3">
-          <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Post-lap analysis</span>
-          <select className="bg-app-panel border border-app-border rounded px-2 py-1 text-sm font-mono" value={focusLap.id} onChange={(e) => setFocus(Number(e.target.value))}>
-            {validLaps.map((l) => (
-              <option key={l.id} value={l.id}>
-                Lap {l.lapNumber} — {l.lapTime.toFixed(3)}s
-              </option>
-            ))}
-          </select>
-          <span className="text-emerald-400 text-sm" title="valid lap">
-            ✓
-          </span>
+      {/* Toolbar: lap picker + view switcher on the left, Setup Engineer on the right */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
+        <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</span>
+        <select className="bg-app-panel border border-app-border rounded px-2 py-1 text-sm font-mono" value={focusLap.id} onChange={(e) => setFocus(Number(e.target.value))}>
+          {validLaps.map((l) => (
+            <option key={l.id} value={l.id}>
+              Lap {l.lapNumber} — {l.lapTime.toFixed(3)}s
+            </option>
+          ))}
+        </select>
+        <span className="text-emerald-400 text-sm" title="valid lap">
+          ✓
+        </span>
+        <div className="flex gap-1">
+          {(["overview", "s1", "s2", "s3"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              className={`px-2.5 py-1 text-xs rounded border ${view === v ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
+            >
+              {v === "overview" ? "Overview" : `Sector ${v.slice(1)}`}
+            </button>
+          ))}
         </div>
-        <div className="text-xs text-app-text-muted">
-          {trackName ? `${trackName} · ` : ""}Lap {focusLap.lapNumber}
+        <div className="ml-auto flex items-center gap-2">
+          {trackName && <span className="hidden lg:inline text-xs text-app-text-muted">{trackName}</span>}
+          <SetupEngineerControls state={engineer} lapId={focusLap.id} />
         </div>
-      </div>
-
-      {/* View switcher: overview of all three sectors, or a per-sector deep dive */}
-      <div className="flex gap-1 px-4 py-2 border-b border-app-border">
-        {(["overview", "s1", "s2", "s3"] as const).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setView(v)}
-            className={`px-2.5 py-1 text-xs rounded border ${view === v ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
-          >
-            {v === "overview" ? "Overview" : `Sector ${v.slice(1)}`}
-          </button>
-        ))}
       </div>
 
       {sectorIndex != null ? (
@@ -281,7 +279,13 @@ export function TuneReviewDashboard({ gameId, trackName, laps }: TuneReviewDashb
                 )}
               </div>
             </div>
-            <AutoTunePanel gameId={gameId} laps={laps} trackName={trackName} liveMode={false} fixedLapId={focusLap.id} />
+            <div>
+              <div className="px-3 pt-3 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Setup Engineer</div>
+              <div className="px-3 pt-2">
+                <NoSetupsHint state={engineer} />
+              </div>
+              <SetupEngineerResult state={engineer} />
+            </div>
           </div>
         </>
       )}

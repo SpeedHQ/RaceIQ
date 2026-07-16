@@ -512,6 +512,8 @@ export function useAutoTune() {
       filePath?: string;
       trackName?: string;
       preview?: boolean;
+      saveAsName?: string;
+      overwrite?: boolean;
     }) => {
       const res = await (client.api.tunes as any).auto.$post({ json: data });
       if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
