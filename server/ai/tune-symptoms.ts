@@ -143,11 +143,13 @@ export function telemetryToSymptoms(
   const lapSpan = packets.length > 0 ? packets[packets.length - 1].DistanceTraveled - lapStart : 0;
 
   for (const corner of corners) {
-    const frames = packets.filter(
-      (p) =>
-        p.DistanceTraveled >= corner.distanceStart &&
-        p.DistanceTraveled <= corner.distanceEnd,
-    );
+    // detectCorners reports corner bounds relative to lap start, so match
+    // frames on the same relative distance — not absolute DistanceTraveled,
+    // which is cumulative and only coincides when a lap starts at 0.
+    const frames = packets.filter((p) => {
+      const rel = p.DistanceTraveled - lapStart;
+      return rel >= corner.distanceStart && rel <= corner.distanceEnd;
+    });
     if (frames.length < 3) continue;
 
     const split = splitPhases(frames);
@@ -161,8 +163,10 @@ export function telemetryToSymptoms(
     if (phases.some((p) => p.brakeLockup)) lockupCorners.push(corner.label);
     if (phases.some((p) => p.bottoming)) bottomingCorners.push(corner.label);
 
+    // Corner mid-point is already relative to lap start, so it maps directly
+    // onto the lap-distance span.
     const mid = (corner.distanceStart + corner.distanceEnd) / 2;
-    const distanceFrac = lapSpan > 0 ? Math.min(1, Math.max(0, (mid - lapStart) / lapSpan)) : undefined;
+    const distanceFrac = lapSpan > 0 ? Math.min(1, Math.max(0, mid / lapSpan)) : undefined;
     cornerSymptoms.push({ index: corner.index, label: corner.label, distanceFrac, phases });
   }
 
