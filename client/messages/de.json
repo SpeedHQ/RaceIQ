@@ -108,6 +108,8 @@
   "ai_load_models_failed": "Modelle konnten nicht geladen werden. Prüfe den API-Schlüssel und die Anbieterverbindung.",
   "ai_chat_provider_title": "KI-Chat-Anbieter",
   "ai_chat_provider_desc": "Wähle, welcher Anbieter für den KI-Chat verwendet werden soll. Erfordert einen API-Schlüssel.",
+  "ai_auto_tune_provider_title": "Setup-Engineer-Anbieter",
+  "ai_auto_tune_provider_desc": "Wähle, welcher KI-Anbieter für die Setup-Engineer-Empfehlungen verwendet werden soll. Erfordert einen API-Schlüssel.",
   "storage_files": "Dateien",
   "storage_compressed": "Komprimiert",
   "storage_uncompressed": "Unkomprimiert",

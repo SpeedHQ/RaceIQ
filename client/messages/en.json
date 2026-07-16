@@ -108,6 +108,8 @@
   "ai_load_models_failed": "Failed to load models. Check API key and provider connection.",
   "ai_chat_provider_title": "AI Chat Provider",
   "ai_chat_provider_desc": "Choose which provider to use for the AI chat. Requires an API key.",
+  "ai_auto_tune_provider_title": "Setup Engineer Provider",
+  "ai_auto_tune_provider_desc": "Choose which AI provider to use for Setup Engineer tune recommendations. Requires an API key.",
   "storage_files": "files",
   "storage_compressed": "Compressed",
   "storage_uncompressed": "Uncompressed",
