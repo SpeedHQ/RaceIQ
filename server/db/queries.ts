@@ -6,6 +6,7 @@ import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
 import { getServerGame } from "../games/registry";
 import { getActiveTuningSession } from "../tuning-active";
+import { resolveActiveTestId } from "./tuning-test-queries";
 import { tryGetGame } from "../../shared/games/registry";
 import { gunzip } from "zlib";
 import { promisify } from "util";
@@ -221,6 +222,9 @@ async function doInsertLap(
   // reading the in-memory active id here links laps to a tuning session
   // independent of race sessionId — a tuning session can span many race
   // sessions. Cheap, unconditional on game; null when no session is active.
+  const activeTuningSessionId = getActiveTuningSession();
+  const activeTuningTestId =
+    activeTuningSessionId != null ? await resolveActiveTestId(activeTuningSessionId) : null;
   const result = await db
     .insert(laps)
     .values({
@@ -236,7 +240,8 @@ async function doInsertLap(
       profileId,
       tuneId,
       invalidReason,
-      tuningSessionId: getActiveTuningSession(),
+      tuningSessionId: activeTuningSessionId,
+      tuningTestId: activeTuningTestId,
     })
     .returning({ id: laps.id })
     .get();

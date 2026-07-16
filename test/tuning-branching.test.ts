@@ -4,6 +4,7 @@ import { createTuningTest, resolveActiveTestId } from "../server/db/tuning-test-
 import { setSessionHead as _setHead } from "../server/db/tuning-session-queries";
 import { loadActiveTuningContext } from "../server/ai/setup-engineer-context";
 import { computeChildLabel, nextFreeLabel } from "../server/ai/version-label";
+import { getActiveTuningSession, setActiveTuningSession } from "../server/tuning-active";
 
 describe("head + active-test resolution", () => {
   let sessionId: number;
@@ -51,5 +52,17 @@ describe("apply-changes label derivation (unit of the branch math)", () => {
   test("continuing the tip yields the next flat number", () => {
     const label = nextFreeLabel(computeChildLabel("v2", 0), new Set(["v1", "v2"]));
     expect(label).toBe("v3");
+  });
+});
+
+describe("resolveActiveTestId drives the lap stamp value", () => {
+  test("resolves the head test for the active session", async () => {
+    const sid = await createTuningSession({ gameId: "acc", name: "stamp" });
+    const a = await createTuningTest({ tuningSessionId: sid, version: 1, label: "v1", parentTestId: null });
+    await setSessionHead(sid, a);
+    setActiveTuningSession(sid);
+    expect(getActiveTuningSession()).toBe(sid);
+    expect(await resolveActiveTestId(sid)).toBe(a);
+    setActiveTuningSession(null);
   });
 });
