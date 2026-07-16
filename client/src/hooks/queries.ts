@@ -1,11 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { LapMeta, SessionMeta, SessionRecap, TelemetryPacket, GameId } from "@shared/types";
 import { tryGetGame } from "@shared/games/registry";
+import type { GameId, LapMeta, SessionMeta, SessionRecap, TelemetryPacket, TuneIssue } from "@shared/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useEffect } from "react";
 import type { CatalogTune } from "../data/tune-catalog";
 import { client } from "../lib/rpc";
-import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 import { useGameId } from "../stores/game";
+import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 // ── Query Keys ──────────────────────────────────────────────────────────────
 export const queryKeys = {
   laps: ["laps"] as const,
@@ -294,7 +295,7 @@ export function useAccCarClass(ordinal: number | undefined) {
   return useQuery({
     queryKey: ["acc-car-class", ordinal],
     queryFn: async () => {
-      const res = await client.api.acc.cars[":ordinal"]["class"].$get({
+      const res = await client.api.acc.cars[":ordinal"].class.$get({
         param: { ordinal: String(ordinal!) },
       });
       if (!res.ok) return null;
@@ -302,7 +303,7 @@ export function useAccCarClass(ordinal: number | undefined) {
       return body.class;
     },
     enabled: ordinal != null && ordinal >= 0,
-    staleTime: Infinity,
+    staleTime: Number.POSITIVE_INFINITY,
   });
 }
 
@@ -366,9 +367,7 @@ export function useExportLap() {
 export function useUserTunes(gameId?: GameId) {
   return useQuery({
     queryKey: [...queryKeys.userTunes, gameId ?? null],
-    queryFn: async () => rpcJson<any[]>(
-      await client.api.tunes.$get({ query: gameId ? { gameId } : {} }),
-    ),
+    queryFn: async () => rpcJson<any[]>(await client.api.tunes.$get({ query: gameId ? { gameId } : {} })),
   });
 }
 
@@ -376,13 +375,7 @@ export function useCatalogTunes() {
   const gameId = useGameId();
   return useQuery({
     queryKey: [...queryKeys.catalogTunes, gameId ?? null],
-    queryFn: async () =>
-      rpcJson<CatalogTune[]>(
-        await client.api.catalog.tunes.$get(
-          { query: {} },
-          { headers: gameId ? { "X-Game-Id": gameId } : undefined },
-        ),
-      ),
+    queryFn: async () => rpcJson<CatalogTune[]>(await client.api.catalog.tunes.$get({ query: {} }, { headers: gameId ? { "X-Game-Id": gameId } : undefined })),
   });
 }
 
@@ -398,13 +391,7 @@ export function useLaptimes() {
   const gameId = useGameId();
   return useQuery({
     queryKey: ["laptimes", gameId ?? null],
-    queryFn: async () =>
-      rpcJson<LaptimeEntry[]>(
-        await client.api.laptimes.$get(
-          {},
-          { headers: gameId ? { "X-Game-Id": gameId } : undefined },
-        ),
-      ),
+    queryFn: async () => rpcJson<LaptimeEntry[]>(await client.api.laptimes.$get({}, { headers: gameId ? { "X-Game-Id": gameId } : undefined })),
     staleTime: 1000 * 60 * 30,
   });
 }
@@ -473,7 +460,7 @@ export function useDuplicateTune() {
   return useMutation({
     mutationFn: async (id: number) => {
       const res = await client.api.tunes[":id"].duplicate.$post({ param: { id: String(id) } });
-      if (!res.ok) throw new Error((await res.json() as any).error ?? res.statusText);
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -497,7 +484,7 @@ export function useImportTuneFile() {
   return useMutation({
     mutationFn: async (data: { gameId: "acc" | "ac-evo"; filePath: string; name?: string; author?: string; carOrdinal: number; category?: string }) => {
       const res = await (client.api.tunes as any)["import-file"].$post({ json: data });
-      if (!res.ok) throw new Error((await res.json() as any).error ?? res.statusText);
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -532,6 +519,35 @@ export function useAutoTune() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["setup-files"] }),
   });
+}
+
+// ── Live Tuning Dashboard ────────────────────────────────────────────────────
+/** Per-lap tune issue feed (Phase 2). Derived server-side the same way as
+ *  useAutoTune's symptoms step, but doesn't require a setup file. */
+export function useLapIssues(lapId: number | null) {
+  return useQuery({
+    queryKey: ["lap-issues", lapId],
+    queryFn: async () => {
+      const res = await (client.api.laps as any)[":id"].issues.$get({ param: { id: String(lapId!) } });
+      return rpcJson<TuneIssue[]>(res);
+    },
+    enabled: lapId != null,
+    staleTime: 30_000,
+  });
+}
+
+/** Toggles the pipeline's live transient issue detector (Phase 4) on mount,
+ *  and switches it off again on unmount/when `enabled` flips false — nothing
+ *  else in the app needs the detector running, so scope it to the live
+ *  dashboard's lifetime rather than a global setting. */
+export function useLiveAnalysisToggle(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    void (client.api as any)["live-analysis"].$post({ json: { enabled: true } });
+    return () => {
+      void (client.api as any)["live-analysis"].$post({ json: { enabled: false } });
+    };
+  }, [enabled]);
 }
 
 // ── Tune Assignments ─────────────────────────────────────────────────────────

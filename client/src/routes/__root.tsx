@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
+import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
 import { getLocale, isLocale } from "@/paraglide/runtime";
-import { applyLocale } from "@/lib/locale";
 import { getAllGames } from "@shared/games/registry";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Link, Outlet, createRootRoute, useLocation } from "@tanstack/react-router";
@@ -33,7 +33,7 @@ const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {
   Sessions: m.label_sessions,
   Compare: m.label_compare,
   Analyse: m.label_analyse,
-  Tune: () => "Tune",
+  Tune: () => "Lap Engineer",
   Chats: m.tab_chats,
   Tracks: m.label_tracks,
   Cars: m.label_cars,
@@ -43,7 +43,10 @@ const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {
 
 let _gamePrefixes: string[] | null = null;
 function getGamePrefixes() {
-  return (_gamePrefixes ??= getAllGames().map((g) => `/${g.routePrefix}`));
+  if (_gamePrefixes === null) {
+    _gamePrefixes = getAllGames().map((g) => `/${g.routePrefix}`);
+  }
+  return _gamePrefixes;
 }
 
 function useUpdateCheck() {
@@ -61,7 +64,7 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
           <RefreshCw className={`size-5 text-blue-400 ${complete ? "" : "animate-spin"}`} />
           <h2 className="text-sm font-semibold text-white flex-1">{complete ? m.root_reprocessing_complete() : m.root_reprocessing()}</h2>
           {complete && (
-            <button onClick={onClose} className="text-white/40 hover:text-white/70 transition-colors" aria-label="Close">
+            <button type="button" onClick={onClose} className="text-white/40 hover:text-white/70 transition-colors" aria-label="Close">
               <X className="size-4" />
             </button>
           )}
@@ -115,6 +118,7 @@ function StaleLapButton() {
             accuracy.
           </p>
           <button
+            type="button"
             onClick={handleReprocess}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 transition-colors"
           >
@@ -189,7 +193,7 @@ export function RotatePrompt() {
   return (
     <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center px-6 pointer-events-none">
       <div className="relative w-full max-w-sm rounded-xl border border-app-border bg-app-surface p-6 shadow-2xl text-center pointer-events-auto">
-        <button onClick={() => setDismissed(true)} className="absolute top-2 right-2 p-1 text-app-text-muted hover:text-app-text" aria-label="Dismiss">
+        <button type="button" onClick={() => setDismissed(true)} className="absolute top-2 right-2 p-1 text-app-text-muted hover:text-app-text" aria-label="Dismiss">
           <X className="size-4" />
         </button>
         <div className="flex flex-col items-center gap-3">
@@ -418,6 +422,7 @@ function AppShell() {
           <div className="flex items-center gap-2 mr-2 shrink-0">
             {updateState?.updateAvailable && (
               <button
+                type="button"
                 onClick={() => setShowUpdateModal(true)}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-400/15 text-yellow-400 border border-yellow-400/30 hover:bg-yellow-400/25 transition-colors"
               >
@@ -438,7 +443,7 @@ function AppShell() {
             </Button>
 
             {/* Hamburger (mobile only, right side) */}
-            <button onClick={() => setMobileNavOpen(true)} className="md:hidden p-3 text-app-text-secondary hover:text-app-text" aria-label="Open navigation">
+            <button type="button" onClick={() => setMobileNavOpen(true)} className="md:hidden p-3 text-app-text-secondary hover:text-app-text" aria-label="Open navigation">
               <Menu className="size-6" />
             </button>
           </div>
@@ -451,7 +456,7 @@ function AppShell() {
             <nav className="relative w-64 max-w-[80vw] h-full bg-app-bg border-l border-app-border flex flex-col overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
                 <span className="text-sm font-semibold text-app-text">{m.nav_navigation()}</span>
-                <button onClick={() => setMobileNavOpen(false)} className="p-1 text-app-text-muted hover:text-app-text" aria-label="Close navigation">
+                <button type="button" onClick={() => setMobileNavOpen(false)} className="p-1 text-app-text-muted hover:text-app-text" aria-label="Close navigation">
                   <X className="size-4" />
                 </button>
               </div>
@@ -498,6 +503,7 @@ function AppShell() {
 
                 <div className="mx-4 my-2 border-t border-app-border" />
                 <button
+                  type="button"
                   onClick={() => {
                     setMobileNavOpen(false);
                     openSettings();
@@ -523,6 +529,7 @@ function AppShell() {
               <div className="flex items-center justify-between px-4 py-3 border-b border-app-border bg-app-surface">
                 <h1 className="text-sm font-semibold text-app-text">{m.nav_settings()}</h1>
                 <button
+                  type="button"
                   onClick={() => {
                     closeSettings();
                   }}
