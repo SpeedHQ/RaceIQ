@@ -406,4 +406,26 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          )`,
     ],
   },
+
+  // ── v27: persisted checked-out version (head) per tuning session ──────────
+  {
+    version: 27,
+    name: "tuning-session head test id",
+    sql: [
+      `ALTER TABLE tuning_sessions ADD COLUMN head_test_id INTEGER`,
+    ],
+  },
+
+  // ── v28: explicit lap → tuning-test link ──────────────────────────────────
+  // Correct lap→version attribution under branching. Laps recorded before this
+  // (or with no head) keep tuning_test_id = NULL and fall back to the
+  // createdAt time-window grouping in the UI.
+  {
+    version: 28,
+    name: "explicit lap to tuning-test link",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN tuning_test_id INTEGER`,
+      `CREATE INDEX IF NOT EXISTS idx_laps_tuning_test ON laps(tuning_test_id)`,
+    ],
+  },
 ];

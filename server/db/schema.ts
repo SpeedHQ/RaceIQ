@@ -88,6 +88,7 @@ export const laps = sqliteTable(
 			() => tuningSessions.id,
 			{ onDelete: "set null" },
 		),
+		tuningTestId: integer("tuning_test_id"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
@@ -218,6 +219,10 @@ export const tuningSessions = sqliteTable(
 		carName: text("car_name"),
 		trackName: text("track_name"),
 		baseSetupPath: text("base_setup_path"),
+		// The checked-out tuning-test the Setup Engineer chat works from.
+		// null → fall back to the mainline tip. Not a hard FK so a test can be
+		// archived independently (mirrors tuning_tests.parentTestId).
+		headTestId: integer("head_test_id"),
 		status: text("status").notNull().default("active"), // 'active' | 'archived'
 		notes: text("notes"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
