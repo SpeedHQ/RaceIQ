@@ -1,22 +1,15 @@
 import type { LapMeta } from "@shared/types";
 import { useNavigate } from "@tanstack/react-router";
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { Copy, Check } from "lucide-react";
-import { client } from "../../lib/rpc";
-import {
-  type TuningLapMetric,
-  useLaps,
-  useResolveNames,
-  useTuningSession,
-  useTuningSessionLapMetrics,
-  useTuningSessionTests,
-} from "../../hooks/queries";
+import { Check, Copy } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { type TuningLapMetric, useLaps, useResolveNames, useTuningSession, useTuningSessionLapMetrics, useTuningSessionTests } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
+import { client } from "../../lib/rpc";
 import { useTelemetryStore } from "../../stores/telemetry";
-import { TBody, TD, TH, THead, TRow, Table } from "../ui/AppTable";
 import { BackButton } from "./BackButton";
-import { TuneWorkspace } from "./TuneWorkspace";
 import { TuneSetupChat } from "./TuneSetupChat";
+import { TuneWorkspace } from "./TuneWorkspace";
+import { VersionGraph } from "./VersionGraph";
 
 /**
  * TuningSessionWorkspace — the live-first workspace that opens *inside* a tuning
@@ -49,24 +42,15 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
   // id-guarded server-side so it can't clobber a session switched to elsewhere.
   useEffect(() => {
     const api = client.api as any;
-    api["tuning-sessions"][":id"].activate
-      .$post({ param: { id: String(tuningSessionId) } })
-      .catch(() => {});
+    api["tuning-sessions"][":id"].activate.$post({ param: { id: String(tuningSessionId) } }).catch(() => {});
     return () => {
-      api["tuning-sessions"][":id"].deactivate
-        .$post({ param: { id: String(tuningSessionId) } })
-        .catch(() => {});
+      api["tuning-sessions"][":id"].deactivate.$post({ param: { id: String(tuningSessionId) } }).catch(() => {});
     };
   }, [tuningSessionId]);
 
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
-
   // Header car/track labels: setup-file-seeded sessions carry names directly;
   // ordinal-seeded ones resolve names from the ordinals.
-  const { data: names } = useResolveNames(
-    session?.trackOrdinal != null ? [session.trackOrdinal] : [],
-    session?.carOrdinal != null ? [session.carOrdinal] : [],
-  );
+  const { data: names } = useResolveNames(session?.trackOrdinal != null ? [session.trackOrdinal] : [], session?.carOrdinal != null ? [session.carOrdinal] : []);
 
   // The session's lap pool: persisted laps explicitly linked to this tuning
   // session (tuningSessionId stamped server-side, spanning any number of race
@@ -125,10 +109,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
   const driveTime = sessionLapPool.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
   // Session Fuel/lap: average over the session's laps that have a real fuel
   // metric. null (card hidden) when none do — never a fabricated 0.
-  const fuelVals = useMemo(
-    () => sessionLapPool.map((l) => metricsById.get(l.id)?.fuelPerLap).filter((v): v is number => v != null),
-    [sessionLapPool, metricsById],
-  );
+  const fuelVals = useMemo(() => sessionLapPool.map((l) => metricsById.get(l.id)?.fuelPerLap).filter((v): v is number => v != null), [sessionLapPool, metricsById]);
   const avgFuel = fuelVals.length ? fuelVals.reduce((s, v) => s + v, 0) / fuelVals.length : null;
 
   // Live stint summary (right panel) straight from the telemetry store.
@@ -139,14 +120,6 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
   // recorded laps is Phase C).
   const liveFuelPerLap = livePacket?.acc?.fuelPerLap || null;
   const lapsDone = liveSessionLaps.length;
-
-  const toggle = (id: number) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
 
   const clearSession = () =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -203,11 +176,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
         <div className="flex items-baseline gap-2">
           <span className="text-[10px] uppercase tracking-wider text-app-text-muted">Current stint</span>
           <span className={`text-xs ${lapsDone < 3 ? "text-amber-400" : "text-app-text-dim"}`}>
-            {lapsDone === 0
-              ? "No live laps yet — run 3+ clean laps for a reliable recommendation."
-              : lapsDone < 3
-                ? `${lapsDone} / 3 laps`
-                : `${lapsDone} laps`}
+            {lapsDone === 0 ? "No live laps yet — run 3+ clean laps for a reliable recommendation." : lapsDone < 3 ? `${lapsDone} / 3 laps` : `${lapsDone} laps`}
           </span>
         </div>
         <div className="flex items-center gap-4">
@@ -222,58 +191,14 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3">
         {/* Left: tune-tests table + detailed dashboard (scrolls) */}
         <div className="min-h-0 lg:overflow-y-auto space-y-3 pr-0.5">
-        <div className="border border-app-border rounded-lg overflow-hidden">
-          <div className="px-3 py-2 border-b border-app-border text-xs font-semibold text-app-text-muted uppercase tracking-wider">Tune tests (setup versions)</div>
-          <Table fit>
-            <THead>
-              <TH className="w-8" />
-              <TH>Version</TH>
-              <TH>Label</TH>
-              <TH className="text-right">Laps</TH>
-              <TH className="text-right">Best lap</TH>
-            </THead>
-            <TBody>
-              {tests.length === 0 && (
-                <TRow>
-                  <TD colSpan={5} className="text-center text-xs text-app-text-dim py-4">
-                    No setup versions yet. Create the session from a base setup to seed v1, or run Save &amp; recommend.
-                  </TD>
-                </TRow>
-              )}
-              {tests.map((t) => {
-                const laps = lapsByTest.get(t.id) ?? [];
-                const validT = laps.filter((l) => l.isValid && l.lapTime > 0);
-                const bestT = validT.length ? Math.min(...validT.map((l) => l.lapTime)) : null;
-                const isOpen = expanded.has(t.id);
-                return (
-                  <Fragment key={t.id}>
-                    <TRow onClick={() => toggle(t.id)}>
-                      <TD className="text-app-text-dim">{isOpen ? "▾" : "▸"}</TD>
-                      <TD className="font-mono">v{t.version}</TD>
-                      <TD className="text-app-text">{t.label}</TD>
-                      <TD className="text-right tabular-nums">{laps.length}</TD>
-                      <TD className="text-right font-mono tabular-nums">{bestT != null ? formatLapTime(bestT) : "—"}</TD>
-                    </TRow>
-                    {isOpen && (
-                      <TRow>
-                        <TD colSpan={5} className="p-0 bg-app-surface/40">
-                          <AppliedChangesList json={t.appliedChanges} comment={t.driverComment} />
-                          <LapBreakdown laps={laps} bestT={bestT} metricsById={metricsById} />
-                        </TD>
-                      </TRow>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </TBody>
-          </Table>
-        </div>
+          <div className="border border-app-border rounded-lg overflow-hidden">
+            <div className="px-3 py-2 border-b border-app-border text-xs font-semibold text-app-text-muted uppercase tracking-wider">Tune tests (setup versions)</div>
+            <VersionGraph sessionId={session.id} tests={tests} headTestId={session?.headTestId ?? null} lapsByTest={lapsByTest} metricsById={metricsById} />
+          </div>
 
           {/* Review-secondary: the detailed live/review dashboard (plan §3). */}
           <details className="border border-app-border rounded-lg overflow-hidden">
-            <summary className="px-3 py-2 text-xs font-semibold text-app-text-muted uppercase tracking-wider cursor-pointer hover:text-app-text">
-              Detailed live / review dashboard
-            </summary>
+            <summary className="px-3 py-2 text-xs font-semibold text-app-text-muted uppercase tracking-wider cursor-pointer hover:text-app-text">Detailed live / review dashboard</summary>
             <div className="border-t border-app-border">
               <TuneWorkspace gameId={gameId} embedded />
             </div>
@@ -293,51 +218,6 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-interface AppliedChangeDto {
-  component: string;
-  from: number;
-  to: number;
-  direction?: string;
-  reason?: string;
-}
-
-/** Parse the stored appliedChanges JSON into a typed list (empty on any issue). */
-export function parseAppliedChanges(json: string | null | undefined): AppliedChangeDto[] {
-  if (!json) return [];
-  try {
-    const parsed = JSON.parse(json);
-    return Array.isArray(parsed) ? (parsed as AppliedChangeDto[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-/** What was tweaked for a setup version — rendered in the expanded version row
- *  and (live) in the chat after Generate. Base versions have no changes. */
-function AppliedChangesList({ json, comment }: { json: string | null; comment?: string | null }) {
-  const changes = parseAppliedChanges(json);
-  if (changes.length === 0 && !comment) return null;
-  return (
-    <div className="px-3 py-2 border-b border-app-border/40 space-y-1">
-      <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Tweaks</div>
-      {changes.length === 0 ? (
-        <div className="text-[11px] text-app-text-dim">Base setup — no changes applied.</div>
-      ) : (
-        <ul className="space-y-0.5">
-          {changes.map((c, i) => (
-            <li key={`${c.component}-${i}`} className="text-[11px] text-app-text">
-              <span className="font-mono text-purple-400">{c.component}</span>{" "}
-              <span className="tabular-nums text-app-text-dim">{c.from} → {c.to}</span>
-              {c.reason && <span className="text-app-text-dim"> · {c.reason}</span>}
-            </li>
-          ))}
-        </ul>
-      )}
-      {comment && <div className="text-[11px] text-app-text-dim italic">Driver: “{comment}”</div>}
     </div>
   );
 }
@@ -401,42 +281,3 @@ function InlineStat({ label, value }: { label: string; value: string }) {
 /** Per-lap breakdown for an expanded tune test. Fuel/lap is the real
  *  server-derived number (or "—" for legacy/unavailable laps); tyre wear stays
  *  "—" (no ACC/AC-Evo channel); the spun flag is omitted (parity Phase 2). */
-function LapBreakdown({ laps, bestT, metricsById }: { laps: LapMeta[]; bestT: number | null; metricsById: Map<number, TuningLapMetric> }) {
-  if (laps.length === 0) {
-    return <div className="px-3 py-2 text-xs text-app-text-dim">No laps recorded against this version yet.</div>;
-  }
-  return (
-    <table className="w-full text-xs">
-      <thead>
-        <tr className="text-[10px] uppercase tracking-wider text-app-text-muted">
-          <th className="px-3 py-1 text-left font-medium">Lap</th>
-          <th className="px-3 py-1 text-right font-medium">Time</th>
-          <th className="px-3 py-1 text-right font-medium">Fuel/lap</th>
-          <th className="px-3 py-1 text-right font-medium">Tyre wear</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-app-border/30">
-        {laps.map((l) => {
-          const isFastest = bestT != null && l.isValid && l.lapTime === bestT;
-          const fuel = metricsById.get(l.id)?.fuelPerLap;
-          return (
-            <tr key={l.id}>
-              <td className={`px-3 py-1 font-mono ${l.isValid ? "text-app-text-muted" : "text-red-400"}`} title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
-                {!l.isValid && <span className="mr-1">✕</span>}
-                {l.lapNumber}
-              </td>
-              <td className="px-3 py-1 text-right font-mono tabular-nums text-app-text/90">
-                {isFastest && <span className="text-purple-400">★ </span>}
-                {formatLapTime(l.lapTime)}
-              </td>
-              <td className="px-3 py-1 text-right font-mono tabular-nums text-app-text/90">
-                {fuel != null ? `${fuel.toFixed(2)} L` : <span className="text-app-text-dim">—</span>}
-              </td>
-              <td className="px-3 py-1 text-right text-app-text-dim">—</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-}
