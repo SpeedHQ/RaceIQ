@@ -9,6 +9,7 @@ import { type AutoTuneResult, useAutoTune, useSetupFiles } from "../../hooks/que
  */
 export function useSetupEngineer(gameId: "acc" | "ac-evo", trackName?: string) {
   const [filePath, setFilePath] = useState<string>("");
+  const [driverNotes, setDriverNotes] = useState<string>("");
   const [result, setResult] = useState<AutoTuneResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { data: setupFiles, isLoading: loadingFiles } = useSetupFiles(gameId);
@@ -16,29 +17,35 @@ export function useSetupEngineer(gameId: "acc" | "ac-evo", trackName?: string) {
   // The lap the current recommendation is for, so Apply can reuse it without
   // the caller threading the lap id through the results UI.
   const lastLapRef = useRef<number | null>(null);
+  // Snapshot the notes used for the current recommendation so Apply re-sends the
+  // same feel input the preview was computed from.
+  const lastNotesRef = useRef<string>("");
 
   const runPreviewFor = useCallback(
     async (lapId: number) => {
       if (!filePath) return; // a base setup is required
       lastLapRef.current = lapId;
+      const notes = driverNotes.trim() || undefined;
+      lastNotesRef.current = notes ?? "";
       setError(null);
       setResult(null);
       try {
-        setResult(await autoTune.mutateAsync({ gameId, stintId: lapId, filePath, trackName, preview: true }));
+        setResult(await autoTune.mutateAsync({ gameId, stintId: lapId, filePath, trackName, preview: true, driverNotes: notes }));
       } catch (err: any) {
         setError(err?.message ?? "Setup Engineer failed");
       }
     },
-    [gameId, filePath, trackName, autoTune],
+    [gameId, filePath, trackName, driverNotes, autoTune],
   );
 
   const applyToFile = useCallback(
     async (saveAsName?: string, overwrite?: boolean) => {
       const lapId = lastLapRef.current;
       if (lapId == null || !filePath) return;
+      const notes = lastNotesRef.current || undefined;
       setError(null);
       try {
-        setResult(await autoTune.mutateAsync({ gameId, stintId: lapId, filePath, trackName, preview: false, saveAsName, overwrite }));
+        setResult(await autoTune.mutateAsync({ gameId, stintId: lapId, filePath, trackName, preview: false, saveAsName, overwrite, driverNotes: notes }));
       } catch (err: any) {
         setError(err?.message ?? "Setup Engineer failed");
       }
@@ -46,7 +53,7 @@ export function useSetupEngineer(gameId: "acc" | "ac-evo", trackName?: string) {
     [gameId, filePath, trackName, autoTune],
   );
 
-  return { filePath, setFilePath, setupFiles, loadingFiles, result, error, isPending: autoTune.isPending, runPreviewFor, applyToFile };
+  return { filePath, setFilePath, driverNotes, setDriverNotes, setupFiles, loadingFiles, result, error, isPending: autoTune.isPending, runPreviewFor, applyToFile };
 }
 
 export type SetupEngineerState = ReturnType<typeof useSetupEngineer>;
@@ -55,7 +62,7 @@ export type SetupEngineerState = ReturnType<typeof useSetupEngineer>;
  *  is required (ACC/AC-EVO only expose saved setups). Applying (writing a named
  *  setup file) happens in the results, after review. */
 export function SetupEngineerControls({ state, lapId }: { state: SetupEngineerState; lapId?: number }) {
-  const { filePath, setFilePath, setupFiles, loadingFiles, isPending, runPreviewFor } = state;
+  const { filePath, setFilePath, driverNotes, setDriverNotes, setupFiles, loadingFiles, isPending, runPreviewFor } = state;
   const noFiles = !loadingFiles && !setupFiles?.files?.length;
   return (
     <div className="flex items-center gap-2">
@@ -73,6 +80,14 @@ export function SetupEngineerControls({ state, lapId }: { state: SetupEngineerSt
           </option>
         ))}
       </select>
+      <input
+        value={driverNotes}
+        onChange={(e) => setDriverNotes(e.target.value)}
+        placeholder="How does it feel? (optional)"
+        maxLength={500}
+        title="Driver feel — biases the recommendation, never overrides telemetry. e.g. 'loose on entry', 'understeer in slow hairpins'"
+        className="bg-app-panel border border-app-border rounded px-2 py-1 text-xs w-[200px]"
+      />
       <button
         type="button"
         onClick={() => lapId != null && runPreviewFor(lapId)}
@@ -146,6 +161,21 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
               ))}
             </ul>
           )}
+          {/* LLM-free deterministic second opinion, shown alongside the model's
+              picks when the LLM engine ran. */}
+          {result.rulesIntents && result.rulesIntents.length > 0 && (
+            <div className="border-t border-app-border pt-2 space-y-1">
+              <div className="text-[11px] text-app-text-muted uppercase tracking-wider">Deterministic (LLM-free) recommendation</div>
+              <ul className="space-y-1">
+                {result.rulesIntents.map((it, i) => (
+                  <li key={`rules-${it.component}-${i}`} className="text-xs text-app-text">
+                    <span className="font-mono text-sky-400">{it.component}</span>: {it.direction} ({it.magnitude}) <span className="text-app-text-dim">({it.reason})</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {result.skipped.length > 0 && (
             <ul className="space-y-1">
               {result.skipped.map((s, i) => (

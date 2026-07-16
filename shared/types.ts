@@ -609,6 +609,9 @@ export interface LapMeta {
   s1Time?: number;
   s2Time?: number;
   s3Time?: number;
+  // Explicit tuning-session link (migration v25). Stamped at insert from the
+  // active tuning session; null for laps recorded outside a tuning session.
+  tuningSessionId?: number | null;
   // True for laps recorded before raw telemetry storage — no charts available
   isLegacy?: boolean;
 }

@@ -7,6 +7,8 @@ interface AcEvoTrack {
   name: string;
   variant: string;
   commonTrackName: string;
+  /** AC-Evo's Setups-folder key (Setups/<car>/<setupFolder>/). */
+  setupFolder: string;
 }
 
 let trackMap: Map<number, AcEvoTrack> | null = null;
@@ -26,8 +28,9 @@ function ensureLoaded(): Map<number, AcEvoTrack> {
     const name = parts[1];
     const variant = parts[2];
     const commonTrackName = parts[3]?.trim() ?? "";
+    const setupFolder = parts[4]?.trim() ?? "";
     if (!isNaN(id) && name) {
-      trackMap.set(id, { id, name: name.trim(), variant: variant.trim(), commonTrackName });
+      trackMap.set(id, { id, name: name.trim(), variant: variant.trim(), commonTrackName, setupFolder });
     }
   }
   return trackMap;
@@ -48,6 +51,14 @@ export function getAcEvoSharedTrackName(ordinal: number): string | undefined {
 /** Get all AC Evo tracks as a Map of id → info */
 export function getAcEvoTracks(): Map<number, AcEvoTrack> {
   return ensureLoaded();
+}
+
+/** Distinct AC-Evo Setups-folder track keys, sorted — the canonical track roster
+ *  for the "place a dropped setup" picker (data-driven from tracks.csv). */
+export function getAcEvoSetupFolderKeys(): string[] {
+  const keys = new Set<string>();
+  for (const t of ensureLoaded().values()) if (t.setupFolder) keys.add(t.setupFolder);
+  return [...keys].sort();
 }
 
 function norm(s: string): string {

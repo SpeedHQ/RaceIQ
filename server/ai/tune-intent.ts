@@ -20,15 +20,10 @@ import {
 import { knownComponents } from "./tune-rules";
 import type { TuneSymptoms } from "./tune-symptoms";
 
-/** Build the structured prompt embedding the symptom report + allowed knobs. */
-export function buildTunePrompt(
-  gameId: GameId,
-  symptoms: TuneSymptoms,
-  trackName?: string,
-): string {
-  const components = knownComponents(gameId);
+/** Render the deterministic symptom report as compact prompt text. Shared by the
+ *  telemetry-driven and chat-driven intent prompts. */
+function renderSymptomReport(symptoms: TuneSymptoms): string {
   const agg = symptoms.aggregate;
-
   const cornerLines = symptoms.corners
     .map((c) => {
       const phases = c.phases
@@ -47,6 +42,25 @@ export function buildTunePrompt(
     ? `Tyre pressure delta vs target (psi): FL ${agg.tyrePressure.FL.toFixed(1)}, FR ${agg.tyrePressure.FR.toFixed(1)}, RL ${agg.tyrePressure.RL.toFixed(1)}, RR ${agg.tyrePressure.RR.toFixed(1)}`
     : "Tyre pressure data unavailable for this game.";
 
+  return `Overall balance: ${agg.balance}
+Understeer corners: ${agg.understeerCorners.join(", ") || "none"}
+Oversteer corners: ${agg.oversteerCorners.join(", ") || "none"}
+Brake lockup corners: ${agg.lockupCorners.join(", ") || "none"}
+Suspension bottoming corners: ${agg.bottomingCorners.join(", ") || "none"}
+${pressure}
+
+Per-corner detail:
+${cornerLines || "  (no corners detected)"}`;
+}
+
+/** Build the structured prompt embedding the symptom report + allowed knobs. */
+export function buildTunePrompt(
+  gameId: GameId,
+  symptoms: TuneSymptoms,
+  trackName?: string,
+): string {
+  const components = knownComponents(gameId);
+
   return `You are a race engineer tuning a car in ${gameId.toUpperCase()}${trackName ? ` at ${trackName}` : ""}.
 
 Below is a deterministic symptom report derived from the driver's telemetry.
@@ -59,17 +73,97 @@ For each intent choose a direction ("increase" or "decrease") and a magnitude
 number of high-confidence changes over many speculative ones.
 
 === SYMPTOM REPORT ===
-Overall balance: ${agg.balance}
-Understeer corners: ${agg.understeerCorners.join(", ") || "none"}
-Oversteer corners: ${agg.oversteerCorners.join(", ") || "none"}
-Brake lockup corners: ${agg.lockupCorners.join(", ") || "none"}
-Suspension bottoming corners: ${agg.bottomingCorners.join(", ") || "none"}
-${pressure}
-
-Per-corner detail:
-${cornerLines || "  (no corners detected)"}
+${renderSymptomReport(symptoms)}
 
 Respond with JSON matching the schema: { "summary": string, "intents": [ { "component", "direction", "magnitude", "reason" } ] }.`;
+}
+
+/**
+ * Build the intent prompt for the PRE-DRIVE "Generate setup from chat" flow.
+ *
+ * No telemetry required: the driver's stated feel in the conversation (plus the
+ * current setup values as evidence, and the symptom report when a lap exists)
+ * drives the picks. Same guardrail as `buildTunePrompt` — the model names a
+ * component + direction + magnitude only; the deterministic rules own the clicks.
+ */
+export function buildTuneChatIntentPrompt(
+  gameId: GameId,
+  opts: {
+    conversation: string;
+    currentSetupSummary: string | null;
+    symptoms?: TuneSymptoms | null;
+    trackName?: string;
+  },
+): string {
+  const components = knownComponents(gameId);
+
+  const setupBlock = opts.currentSetupSummary
+    ? `\n=== CURRENT SETUP VALUES (evidence only — do NOT echo these back as targets) ===\n${opts.currentSetupSummary}\n`
+    : "";
+  const symptomBlock = opts.symptoms
+    ? `\n=== TELEMETRY SYMPTOM REPORT (from a driven lap) ===\n${renderSymptomReport(opts.symptoms)}\n`
+    : "";
+
+  return `You are a GT3 / endurance race engineer tuning a car in ${gameId.toUpperCase()}${opts.trackName ? ` at ${opts.trackName}` : ""}.
+
+The driver has been discussing how the car feels in the conversation below. Turn
+that discussion — together with the current setup values and any telemetry — into
+concrete setup CHANGES expressed as intents.
+
+You may ONLY use these component names (exact strings) — any other component is
+ignored:
+${components.map((c) => `  - ${c}`).join("\n")}
+
+For each intent choose a direction ("increase" or "decrease") and a magnitude
+("small", "medium", or "large"), with a one-line reason tied to what the driver
+said. NEVER output raw setup numbers — a deterministic engine converts your
+intents into exact clicks. Prefer a few high-confidence changes driven by the
+driver's stated feel over many speculative ones. If the conversation gives no
+actionable direction, return an empty intents array.
+${setupBlock}${symptomBlock}
+=== CONVERSATION (oldest first) ===
+${opts.conversation}
+
+Respond with JSON matching the schema: { "summary": string, "intents": [ { "component", "direction", "magnitude", "reason" } ] }.`;
+}
+
+/**
+ * Dispatch a single grammar-constrained intent turn to the configured auto-tune
+ * provider. Shared by `requestTuneIntents` (telemetry) and
+ * `requestTuneIntentsFromChat` (conversation) so the provider plumbing lives in
+ * one place. Returns the raw model text + resolved model id.
+ */
+async function runTuneIntentProvider(
+  prompt: string,
+  schema: object,
+): Promise<{ raw: string; model: string }> {
+  const settings = loadSettings();
+
+  // Auto-tune has its own provider/model so the user can point it at a
+  // different model than lap analysis. Fall back to the shared analysis
+  // provider for settings written before auto-tune had its own entry.
+  const provider = settings.autoTuneProvider || settings.aiProvider;
+  const tuneModel = settings.autoTuneModel || settings.aiModel;
+
+  switch (provider) {
+    case "openai": {
+      const key = await getSecret("openai-api-key");
+      const r = await runOpenAi(prompt, key, tuneModel, schema, "tune_intents");
+      return { raw: r.analysis, model: r.usage.model };
+    }
+    case "local": {
+      // Local OpenAI-compatible endpoint (LM Studio / Ollama).
+      const base = settings.localEndpoint || "http://localhost:1234/v1";
+      const r = await runOpenAiLocal(prompt, base, tuneModel, schema);
+      return { raw: r.analysis, model: r.usage.model };
+    }
+    default: {
+      // gemini (and legacy default)
+      const key = await getSecret("gemini-api-key");
+      const r = await runGemini(prompt, key, tuneModel, schema);
+      return { raw: r.analysis, model: r.usage.model };
+    }
+  }
 }
 
 /**
@@ -82,44 +176,34 @@ export async function requestTuneIntents(
   symptoms: TuneSymptoms,
   trackName?: string,
 ): Promise<{ intents: TuneIntents; model: string }> {
-  const settings = loadSettings();
   const prompt = buildTunePrompt(gameId, symptoms, trackName);
-  const schema = getTuneIntentJsonSchema();
+  const { raw, model } = await runTuneIntentProvider(prompt, getTuneIntentJsonSchema());
 
-  // Auto-tune has its own provider/model so the user can point it at a
-  // different model than lap analysis. Fall back to the shared analysis
-  // provider for settings written before auto-tune had its own entry.
-  const provider = settings.autoTuneProvider || settings.aiProvider;
-  const tuneModel = settings.autoTuneModel || settings.aiModel;
-
-  let raw: string;
-  let model: string;
-
-  switch (provider) {
-    case "openai": {
-      const key = await getSecret("openai-api-key");
-      const r = await runOpenAi(prompt, key, tuneModel, schema, "tune_intents");
-      raw = r.analysis;
-      model = r.usage.model;
-      break;
-    }
-    case "local": {
-      // Local OpenAI-compatible endpoint (LM Studio / Ollama).
-      const base = settings.localEndpoint || "http://localhost:1234/v1";
-      const r = await runOpenAiLocal(prompt, base, tuneModel, schema);
-      raw = r.analysis;
-      model = r.usage.model;
-      break;
-    }
-    default: {
-      // gemini (and legacy default)
-      const key = await getSecret("gemini-api-key");
-      const r = await runGemini(prompt, key, tuneModel, schema);
-      raw = r.analysis;
-      model = r.usage.model;
-      break;
-    }
+  const parsed = parseTuneIntents(raw);
+  if (!parsed.success) {
+    throw new Error("AI returned an invalid tune-intent response. Try again or switch models.");
   }
+  return { intents: parsed.data, model };
+}
+
+/**
+ * Pre-drive intent request: propose setup intents from the setup CHAT
+ * conversation + current setup values (and telemetry symptoms when a lap
+ * exists). No stint required — this is how the driver tunes from feel before
+ * running a lap. The LLM only names component + direction + magnitude; the
+ * deterministic `applyIntents` rules still own every click (parity §4d).
+ */
+export async function requestTuneIntentsFromChat(
+  gameId: GameId,
+  opts: {
+    conversation: string;
+    currentSetupSummary: string | null;
+    symptoms?: TuneSymptoms | null;
+    trackName?: string;
+  },
+): Promise<{ intents: TuneIntents; model: string }> {
+  const prompt = buildTuneChatIntentPrompt(gameId, opts);
+  const { raw, model } = await runTuneIntentProvider(prompt, getTuneIntentJsonSchema());
 
   const parsed = parseTuneIntents(raw);
   if (!parsed.success) {

@@ -66,8 +66,10 @@ import { Route as Fm23SetupsIndexRouteImport } from './routes/fm23/setups/index'
 import { Route as F125TunesIndexRouteImport } from './routes/f125/tunes/index'
 import { Route as F125TracksIndexRouteImport } from './routes/f125/tracks.index'
 import { Route as F125SetupsIndexRouteImport } from './routes/f125/setups/index'
+import { Route as AccTuneIndexRouteImport } from './routes/acc/tune.index'
 import { Route as AccTracksIndexRouteImport } from './routes/acc/tracks.index'
 import { Route as AccSetupsIndexRouteImport } from './routes/acc/setups/index'
+import { Route as AcEvoTuneIndexRouteImport } from './routes/ac-evo/tune.index'
 import { Route as AcEvoTracksIndexRouteImport } from './routes/ac-evo/tracks.index'
 import { Route as AcEvoSetupsIndexRouteImport } from './routes/ac-evo/setups/index'
 import { Route as Fm23SetupsNewRouteImport } from './routes/fm23/setups/new'
@@ -75,8 +77,10 @@ import { Route as Fm23SetupsCatalogRouteImport } from './routes/fm23/setups/cata
 import { Route as Fm23LivePitRouteImport } from './routes/fm23/live/pit'
 import { Route as Fm23LiveDriverRouteImport } from './routes/fm23/live/driver'
 import { Route as Fm23CarsCarOrdinalRouteImport } from './routes/fm23/cars_.$carOrdinal'
+import { Route as AccTuneTuningSessionIdRouteImport } from './routes/acc/tune.$tuningSessionId'
 import { Route as AccSetupsNewRouteImport } from './routes/acc/setups/new'
 import { Route as AccSetupsImportRouteImport } from './routes/acc/setups/import'
+import { Route as AcEvoTuneTuningSessionIdRouteImport } from './routes/ac-evo/tune.$tuningSessionId'
 import { Route as AcEvoSetupsNewRouteImport } from './routes/ac-evo/setups/new'
 import { Route as AcEvoSetupsImportRouteImport } from './routes/ac-evo/setups/import'
 import { Route as Fm23TracksTrackOrdinalIndexRouteImport } from './routes/fm23/tracks.$trackOrdinal.index'
@@ -378,6 +382,11 @@ const F125SetupsIndexRoute = F125SetupsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => F125SetupsRoute,
 } as any)
+const AccTuneIndexRoute = AccTuneIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AccTuneRoute,
+} as any)
 const AccTracksIndexRoute = AccTracksIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -387,6 +396,11 @@ const AccSetupsIndexRoute = AccSetupsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AccSetupsRoute,
+} as any)
+const AcEvoTuneIndexRoute = AcEvoTuneIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AcEvoTuneRoute,
 } as any)
 const AcEvoTracksIndexRoute = AcEvoTracksIndexRouteImport.update({
   id: '/',
@@ -423,6 +437,11 @@ const Fm23CarsCarOrdinalRoute = Fm23CarsCarOrdinalRouteImport.update({
   path: '/cars/$carOrdinal',
   getParentRoute: () => Fm23Route,
 } as any)
+const AccTuneTuningSessionIdRoute = AccTuneTuningSessionIdRouteImport.update({
+  id: '/$tuningSessionId',
+  path: '/$tuningSessionId',
+  getParentRoute: () => AccTuneRoute,
+} as any)
 const AccSetupsNewRoute = AccSetupsNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -433,6 +452,12 @@ const AccSetupsImportRoute = AccSetupsImportRouteImport.update({
   path: '/import',
   getParentRoute: () => AccSetupsRoute,
 } as any)
+const AcEvoTuneTuningSessionIdRoute =
+  AcEvoTuneTuningSessionIdRouteImport.update({
+    id: '/$tuningSessionId',
+    path: '/$tuningSessionId',
+    getParentRoute: () => AcEvoTuneRoute,
+  } as any)
 const AcEvoSetupsNewRoute = AcEvoSetupsNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -534,7 +559,7 @@ export interface FileRoutesByFullPath {
   '/ac-evo/sessions': typeof AcEvoSessionsRoute
   '/ac-evo/setups': typeof AcEvoSetupsRouteWithChildren
   '/ac-evo/tracks': typeof AcEvoTracksRouteWithChildren
-  '/ac-evo/tune': typeof AcEvoTuneRoute
+  '/ac-evo/tune': typeof AcEvoTuneRouteWithChildren
   '/acc/analyse': typeof AccAnalyseRoute
   '/acc/cars': typeof AccCarsRoute
   '/acc/chats': typeof AccChatsRoute
@@ -544,7 +569,7 @@ export interface FileRoutesByFullPath {
   '/acc/sessions': typeof AccSessionsRoute
   '/acc/setups': typeof AccSetupsRouteWithChildren
   '/acc/tracks': typeof AccTracksRouteWithChildren
-  '/acc/tune': typeof AccTuneRoute
+  '/acc/tune': typeof AccTuneRouteWithChildren
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
   '/f125/analyse': typeof F125AnalyseRoute
@@ -573,8 +598,10 @@ export interface FileRoutesByFullPath {
   '/fm23/': typeof Fm23IndexRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
+  '/ac-evo/tune/$tuningSessionId': typeof AcEvoTuneTuningSessionIdRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
+  '/acc/tune/$tuningSessionId': typeof AccTuneTuningSessionIdRoute
   '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
   '/fm23/live/driver': typeof Fm23LiveDriverRoute
   '/fm23/live/pit': typeof Fm23LivePitRoute
@@ -582,8 +609,10 @@ export interface FileRoutesByFullPath {
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
   '/ac-evo/setups/': typeof AcEvoSetupsIndexRoute
   '/ac-evo/tracks/': typeof AcEvoTracksIndexRoute
+  '/ac-evo/tune/': typeof AcEvoTuneIndexRoute
   '/acc/setups/': typeof AccSetupsIndexRoute
   '/acc/tracks/': typeof AccTracksIndexRoute
+  '/acc/tune/': typeof AccTuneIndexRoute
   '/f125/setups/': typeof F125SetupsIndexRoute
   '/f125/tracks/': typeof F125TracksIndexRoute
   '/f125/tunes/': typeof F125TunesIndexRoute
@@ -613,7 +642,6 @@ export interface FileRoutesByTo {
   '/ac-evo/live': typeof AcEvoLiveRoute
   '/ac-evo/raw': typeof AcEvoRawRoute
   '/ac-evo/sessions': typeof AcEvoSessionsRoute
-  '/ac-evo/tune': typeof AcEvoTuneRoute
   '/acc/analyse': typeof AccAnalyseRoute
   '/acc/cars': typeof AccCarsRoute
   '/acc/chats': typeof AccChatsRoute
@@ -621,7 +649,6 @@ export interface FileRoutesByTo {
   '/acc/live': typeof AccLiveRoute
   '/acc/raw': typeof AccRawRoute
   '/acc/sessions': typeof AccSessionsRoute
-  '/acc/tune': typeof AccTuneRoute
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
   '/f125/analyse': typeof F125AnalyseRoute
@@ -645,8 +672,10 @@ export interface FileRoutesByTo {
   '/fm23': typeof Fm23IndexRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
+  '/ac-evo/tune/$tuningSessionId': typeof AcEvoTuneTuningSessionIdRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
+  '/acc/tune/$tuningSessionId': typeof AccTuneTuningSessionIdRoute
   '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
   '/fm23/live/driver': typeof Fm23LiveDriverRoute
   '/fm23/live/pit': typeof Fm23LivePitRoute
@@ -654,8 +683,10 @@ export interface FileRoutesByTo {
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
   '/ac-evo/setups': typeof AcEvoSetupsIndexRoute
   '/ac-evo/tracks': typeof AcEvoTracksIndexRoute
+  '/ac-evo/tune': typeof AcEvoTuneIndexRoute
   '/acc/setups': typeof AccSetupsIndexRoute
   '/acc/tracks': typeof AccTracksIndexRoute
+  '/acc/tune': typeof AccTuneIndexRoute
   '/f125/setups': typeof F125SetupsIndexRoute
   '/f125/tracks': typeof F125TracksIndexRoute
   '/f125/tunes': typeof F125TunesIndexRoute
@@ -692,7 +723,7 @@ export interface FileRoutesById {
   '/ac-evo/sessions': typeof AcEvoSessionsRoute
   '/ac-evo/setups': typeof AcEvoSetupsRouteWithChildren
   '/ac-evo/tracks': typeof AcEvoTracksRouteWithChildren
-  '/ac-evo/tune': typeof AcEvoTuneRoute
+  '/ac-evo/tune': typeof AcEvoTuneRouteWithChildren
   '/acc/analyse': typeof AccAnalyseRoute
   '/acc/cars': typeof AccCarsRoute
   '/acc/chats': typeof AccChatsRoute
@@ -702,7 +733,7 @@ export interface FileRoutesById {
   '/acc/sessions': typeof AccSessionsRoute
   '/acc/setups': typeof AccSetupsRouteWithChildren
   '/acc/tracks': typeof AccTracksRouteWithChildren
-  '/acc/tune': typeof AccTuneRoute
+  '/acc/tune': typeof AccTuneRouteWithChildren
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
   '/f125/analyse': typeof F125AnalyseRoute
@@ -731,8 +762,10 @@ export interface FileRoutesById {
   '/fm23/': typeof Fm23IndexRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
+  '/ac-evo/tune/$tuningSessionId': typeof AcEvoTuneTuningSessionIdRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
+  '/acc/tune/$tuningSessionId': typeof AccTuneTuningSessionIdRoute
   '/fm23/cars_/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
   '/fm23/live/driver': typeof Fm23LiveDriverRoute
   '/fm23/live/pit': typeof Fm23LivePitRoute
@@ -740,8 +773,10 @@ export interface FileRoutesById {
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
   '/ac-evo/setups/': typeof AcEvoSetupsIndexRoute
   '/ac-evo/tracks/': typeof AcEvoTracksIndexRoute
+  '/ac-evo/tune/': typeof AcEvoTuneIndexRoute
   '/acc/setups/': typeof AccSetupsIndexRoute
   '/acc/tracks/': typeof AccTracksIndexRoute
+  '/acc/tune/': typeof AccTuneIndexRoute
   '/f125/setups/': typeof F125SetupsIndexRoute
   '/f125/tracks/': typeof F125TracksIndexRoute
   '/f125/tunes/': typeof F125TunesIndexRoute
@@ -818,8 +853,10 @@ export interface FileRouteTypes {
     | '/fm23/'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
+    | '/ac-evo/tune/$tuningSessionId'
     | '/acc/setups/import'
     | '/acc/setups/new'
+    | '/acc/tune/$tuningSessionId'
     | '/fm23/cars/$carOrdinal'
     | '/fm23/live/driver'
     | '/fm23/live/pit'
@@ -827,8 +864,10 @@ export interface FileRouteTypes {
     | '/fm23/setups/new'
     | '/ac-evo/setups/'
     | '/ac-evo/tracks/'
+    | '/ac-evo/tune/'
     | '/acc/setups/'
     | '/acc/tracks/'
+    | '/acc/tune/'
     | '/f125/setups/'
     | '/f125/tracks/'
     | '/f125/tunes/'
@@ -858,7 +897,6 @@ export interface FileRouteTypes {
     | '/ac-evo/live'
     | '/ac-evo/raw'
     | '/ac-evo/sessions'
-    | '/ac-evo/tune'
     | '/acc/analyse'
     | '/acc/cars'
     | '/acc/chats'
@@ -866,7 +904,6 @@ export interface FileRouteTypes {
     | '/acc/live'
     | '/acc/raw'
     | '/acc/sessions'
-    | '/acc/tune'
     | '/dash/combo-1'
     | '/dash/combo-2'
     | '/f125/analyse'
@@ -890,8 +927,10 @@ export interface FileRouteTypes {
     | '/fm23'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
+    | '/ac-evo/tune/$tuningSessionId'
     | '/acc/setups/import'
     | '/acc/setups/new'
+    | '/acc/tune/$tuningSessionId'
     | '/fm23/cars/$carOrdinal'
     | '/fm23/live/driver'
     | '/fm23/live/pit'
@@ -899,8 +938,10 @@ export interface FileRouteTypes {
     | '/fm23/setups/new'
     | '/ac-evo/setups'
     | '/ac-evo/tracks'
+    | '/ac-evo/tune'
     | '/acc/setups'
     | '/acc/tracks'
+    | '/acc/tune'
     | '/f125/setups'
     | '/f125/tracks'
     | '/f125/tunes'
@@ -975,8 +1016,10 @@ export interface FileRouteTypes {
     | '/fm23/'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
+    | '/ac-evo/tune/$tuningSessionId'
     | '/acc/setups/import'
     | '/acc/setups/new'
+    | '/acc/tune/$tuningSessionId'
     | '/fm23/cars_/$carOrdinal'
     | '/fm23/live/driver'
     | '/fm23/live/pit'
@@ -984,8 +1027,10 @@ export interface FileRouteTypes {
     | '/fm23/setups/new'
     | '/ac-evo/setups/'
     | '/ac-evo/tracks/'
+    | '/ac-evo/tune/'
     | '/acc/setups/'
     | '/acc/tracks/'
+    | '/acc/tune/'
     | '/f125/setups/'
     | '/f125/tracks/'
     | '/f125/tunes/'
@@ -1419,6 +1464,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof F125SetupsIndexRouteImport
       parentRoute: typeof F125SetupsRoute
     }
+    '/acc/tune/': {
+      id: '/acc/tune/'
+      path: '/'
+      fullPath: '/acc/tune/'
+      preLoaderRoute: typeof AccTuneIndexRouteImport
+      parentRoute: typeof AccTuneRoute
+    }
     '/acc/tracks/': {
       id: '/acc/tracks/'
       path: '/'
@@ -1432,6 +1484,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/acc/setups/'
       preLoaderRoute: typeof AccSetupsIndexRouteImport
       parentRoute: typeof AccSetupsRoute
+    }
+    '/ac-evo/tune/': {
+      id: '/ac-evo/tune/'
+      path: '/'
+      fullPath: '/ac-evo/tune/'
+      preLoaderRoute: typeof AcEvoTuneIndexRouteImport
+      parentRoute: typeof AcEvoTuneRoute
     }
     '/ac-evo/tracks/': {
       id: '/ac-evo/tracks/'
@@ -1482,6 +1541,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Fm23CarsCarOrdinalRouteImport
       parentRoute: typeof Fm23Route
     }
+    '/acc/tune/$tuningSessionId': {
+      id: '/acc/tune/$tuningSessionId'
+      path: '/$tuningSessionId'
+      fullPath: '/acc/tune/$tuningSessionId'
+      preLoaderRoute: typeof AccTuneTuningSessionIdRouteImport
+      parentRoute: typeof AccTuneRoute
+    }
     '/acc/setups/new': {
       id: '/acc/setups/new'
       path: '/new'
@@ -1495,6 +1561,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/acc/setups/import'
       preLoaderRoute: typeof AccSetupsImportRouteImport
       parentRoute: typeof AccSetupsRoute
+    }
+    '/ac-evo/tune/$tuningSessionId': {
+      id: '/ac-evo/tune/$tuningSessionId'
+      path: '/$tuningSessionId'
+      fullPath: '/ac-evo/tune/$tuningSessionId'
+      preLoaderRoute: typeof AcEvoTuneTuningSessionIdRouteImport
+      parentRoute: typeof AcEvoTuneRoute
     }
     '/ac-evo/setups/new': {
       id: '/ac-evo/setups/new'
@@ -1638,6 +1711,20 @@ const AcEvoTracksRouteWithChildren = AcEvoTracksRoute._addFileChildren(
   AcEvoTracksRouteChildren,
 )
 
+interface AcEvoTuneRouteChildren {
+  AcEvoTuneTuningSessionIdRoute: typeof AcEvoTuneTuningSessionIdRoute
+  AcEvoTuneIndexRoute: typeof AcEvoTuneIndexRoute
+}
+
+const AcEvoTuneRouteChildren: AcEvoTuneRouteChildren = {
+  AcEvoTuneTuningSessionIdRoute: AcEvoTuneTuningSessionIdRoute,
+  AcEvoTuneIndexRoute: AcEvoTuneIndexRoute,
+}
+
+const AcEvoTuneRouteWithChildren = AcEvoTuneRoute._addFileChildren(
+  AcEvoTuneRouteChildren,
+)
+
 interface AcEvoRouteChildren {
   AcEvoAnalyseRoute: typeof AcEvoAnalyseRoute
   AcEvoCarsRoute: typeof AcEvoCarsRoute
@@ -1648,7 +1735,7 @@ interface AcEvoRouteChildren {
   AcEvoSessionsRoute: typeof AcEvoSessionsRoute
   AcEvoSetupsRoute: typeof AcEvoSetupsRouteWithChildren
   AcEvoTracksRoute: typeof AcEvoTracksRouteWithChildren
-  AcEvoTuneRoute: typeof AcEvoTuneRoute
+  AcEvoTuneRoute: typeof AcEvoTuneRouteWithChildren
   AcEvoIndexRoute: typeof AcEvoIndexRoute
 }
 
@@ -1662,7 +1749,7 @@ const AcEvoRouteChildren: AcEvoRouteChildren = {
   AcEvoSessionsRoute: AcEvoSessionsRoute,
   AcEvoSetupsRoute: AcEvoSetupsRouteWithChildren,
   AcEvoTracksRoute: AcEvoTracksRouteWithChildren,
-  AcEvoTuneRoute: AcEvoTuneRoute,
+  AcEvoTuneRoute: AcEvoTuneRouteWithChildren,
   AcEvoIndexRoute: AcEvoIndexRoute,
 }
 
@@ -1702,6 +1789,19 @@ const AccTracksRouteWithChildren = AccTracksRoute._addFileChildren(
   AccTracksRouteChildren,
 )
 
+interface AccTuneRouteChildren {
+  AccTuneTuningSessionIdRoute: typeof AccTuneTuningSessionIdRoute
+  AccTuneIndexRoute: typeof AccTuneIndexRoute
+}
+
+const AccTuneRouteChildren: AccTuneRouteChildren = {
+  AccTuneTuningSessionIdRoute: AccTuneTuningSessionIdRoute,
+  AccTuneIndexRoute: AccTuneIndexRoute,
+}
+
+const AccTuneRouteWithChildren =
+  AccTuneRoute._addFileChildren(AccTuneRouteChildren)
+
 interface AccRouteChildren {
   AccAnalyseRoute: typeof AccAnalyseRoute
   AccCarsRoute: typeof AccCarsRoute
@@ -1712,7 +1812,7 @@ interface AccRouteChildren {
   AccSessionsRoute: typeof AccSessionsRoute
   AccSetupsRoute: typeof AccSetupsRouteWithChildren
   AccTracksRoute: typeof AccTracksRouteWithChildren
-  AccTuneRoute: typeof AccTuneRoute
+  AccTuneRoute: typeof AccTuneRouteWithChildren
   AccIndexRoute: typeof AccIndexRoute
 }
 
@@ -1726,7 +1826,7 @@ const AccRouteChildren: AccRouteChildren = {
   AccSessionsRoute: AccSessionsRoute,
   AccSetupsRoute: AccSetupsRouteWithChildren,
   AccTracksRoute: AccTracksRouteWithChildren,
-  AccTuneRoute: AccTuneRoute,
+  AccTuneRoute: AccTuneRouteWithChildren,
   AccIndexRoute: AccIndexRoute,
 }
 

@@ -68,6 +68,11 @@ export function chatThreadId(lapId: number): string {
   return `lap-${lapId}`;
 }
 
+/** Build the threadId for a tuning-session's setup chat (plan Phase D). */
+export function tuneSessionThreadId(sessionId: number): string {
+  return `tune-session-${sessionId}`;
+}
+
 /**
  * Build the threadId for a compare chat between two laps.
  * Uses canonical ordering (min,max) so order of selection doesn't matter.
@@ -80,3 +85,45 @@ export function compareChatThreadId(idA: number, idB: number): string {
 
 /** The resource ID used for all chat threads. */
 export const CHAT_RESOURCE_ID = "raceiq";
+
+/**
+ * Persist a plain-markdown **assistant** message into a chat thread so it shows
+ * up in the thread history the GET chat route reads back. Ensures the thread
+ * exists first (mirrors how the streaming chat route auto-creates it via the
+ * agent), then writes one message shaped as MastraMessageContentV2 — both a flat
+ * `content` string and a `parts: [{type:"text"}]` array — so the GET route's
+ * `mc.content ?? mc.parts.map(p => p.text).join("")` extractor reads it back
+ * verbatim. Returns the saved message id.
+ *
+ * Used by the generate-from-chat route to post the applied-tweaks summary inline
+ * in the setup conversation instead of a transient client-only card.
+ */
+export async function saveAssistantChatMessage(
+  threadId: string,
+  markdown: string,
+): Promise<string> {
+  const mem = getChatMemory();
+  const existing = await mem.getThreadById({ threadId });
+  if (!existing) {
+    await mem.createThread({ threadId, resourceId: CHAT_RESOURCE_ID });
+  }
+  const id = crypto.randomUUID();
+  // Derive the exact message shape saveMessages wants without importing the
+  // (non-re-exported) MastraDBMessage type by name.
+  type SaveMsg = Parameters<typeof mem.saveMessages>[0]["messages"][number];
+  const message = {
+    id,
+    role: "assistant",
+    createdAt: new Date(),
+    threadId,
+    resourceId: CHAT_RESOURCE_ID,
+    type: "text",
+    content: {
+      format: 2,
+      parts: [{ type: "text", text: markdown }],
+      content: markdown,
+    },
+  } as SaveMsg;
+  await mem.saveMessages({ messages: [message] });
+  return id;
+}

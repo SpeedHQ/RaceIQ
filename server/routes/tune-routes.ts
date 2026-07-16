@@ -1,8 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from "fs";
-import { homedir } from "os";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from "fs";
 import { resolve, sep } from "path";
 import { IdParamSchema } from "../../shared/schemas";
 import { GameIdSchema } from "../../shared/types";
@@ -26,14 +25,38 @@ import {
 } from "../db/community-tune-queries";
 import { syncCommunityTunes } from "../community-tunes-sync";
 import { getLaptimes, syncLaptimes } from "../laptimes-sync";
-import { getLapById } from "../db/queries";
+import { getLapById, getLapsForTuningSession } from "../db/queries";
+import { getAccSetupFolderKeys } from "../../shared/acc-track-data";
+import { getAcEvoSetupFolderKeys } from "../../shared/ac-evo-track-data";
+import {
+  createTuningSession,
+  getTuningSession,
+  listTuningSessions,
+  updateTuningSession,
+} from "../db/tuning-session-queries";
+import { getActiveTuningSession, setActiveTuningSession } from "../tuning-active";
+import { deriveFuelPerLap, type LapMetric } from "../tuning-lap-metrics";
+import {
+  createTuningTest,
+  listTuningTests,
+  nextVersion,
+} from "../db/tuning-test-queries";
 import { detectCorners } from "../corner-detection";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues } from "../ai/tune-issues";
 import { requestTuneIntents } from "../ai/tune-intent";
+import { symptomsToIntents } from "../ai/tune-recommend";
 import { applyIntents } from "../ai/tune-rules";
 import { writeSetupFile } from "../ai/tune-writer";
 import { setLiveIssuesEnabled } from "../pipeline";
+import { loadSettings } from "../settings";
+import { getChatMemory, tuneSessionThreadId, CHAT_RESOURCE_ID } from "../ai/chat-agent";
+import { getSetupsBaseDir } from "../ai/setup-engineer-context";
+import { buildSetupEngineerAgent } from "../../mastra/agents/setup-engineer";
+import { getSecret } from "../keystore";
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import { toAISdkStream } from "@mastra/ai-sdk";
+import { MessageList } from "@mastra/core/agent";
 
 interface CatalogTune {
   id: string;
@@ -146,23 +169,9 @@ function parseTuneRow(row: any): ParsedTune {
 }
 
 // ── Setup-file import helpers (ACC & AC-EVO) ─────────────────────────────────
-
-/** Locations where ACC / AC-EVO store user setup files under the user's profile. */
-async function getSetupsBaseDir(gameId: "acc" | "ac-evo"): Promise<string | null> {
-  const home = homedir();
-  const gameDir =
-    gameId === "acc"
-      ? "Assetto Corsa Competizione"
-      : "Assetto Corsa EVO";
-  const candidates = [
-    resolve(home, "Documents", gameDir, "Setups"),
-    resolve(home, "OneDrive", "Documents", gameDir, "Setups"),
-  ];
-  for (const p of candidates) {
-    if (existsSync(p)) return p;
-  }
-  return null;
-}
+// getSetupsBaseDir now lives in ../ai/setup-engineer-context so the Setup
+// Engineer tools (mastra/tools/setup-engineer.ts) can import just that small
+// module instead of this whole route file.
 
 interface SetupFileListing {
   carModel: string;
@@ -272,6 +281,51 @@ const ImportFileSchema = z.object({
   category: z.string().optional().default("circuit"),
 });
 
+const PlaceSetupSchema = z.object({
+  gameId: z.enum(["acc", "ac-evo"]),
+  // Car folder = the setup's own carName key (e.g. "mclaren_720s_gt3_evo").
+  carName: z.string().min(1).max(120),
+  // Track folder — driver-chosen (ACC setup JSON carries no track).
+  trackName: z.string().min(1).max(120),
+  fileName: z.string().min(1).max(160),
+  // The dropped setup JSON, as an object or raw string.
+  content: z.union([z.string(), z.record(z.string(), z.unknown())]),
+});
+
+const TuningSessionQuerySchema = z.object({
+  gameId: GameIdSchema,
+  includeArchived: z.coerce.boolean().optional().default(false),
+});
+
+const CreateTuningSessionSchema = z.object({
+  gameId: GameIdSchema,
+  name: z.string().min(1).max(120),
+  carOrdinal: z.number().int().nullable().optional(),
+  trackOrdinal: z.number().int().nullable().optional(),
+  carName: z.string().max(200).nullable().optional(),
+  trackName: z.string().max(200).nullable().optional(),
+  baseSetupPath: z.string().max(1000).nullable().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+});
+
+const UpdateTuningSessionSchema = z.object({
+  name: z.string().min(1).max(120).optional(),
+  notes: z.string().max(2000).nullable().optional(),
+  baseSetupPath: z.string().max(1000).nullable().optional(),
+  status: z.enum(["active", "archived"]).optional(),
+});
+
+const CreateTuningTestSchema = z.object({
+  label: z.string().min(1).max(200),
+  setupPath: z.string().max(1000).nullable().optional(),
+  parentTestId: z.number().int().nullable().optional(),
+  // AppliedChange[] from the autotune engine. Kept as an unknown array — the
+  // client serialises whatever the engine returned; the server stores it as JSON.
+  appliedChanges: z.array(z.unknown()).nullable().optional(),
+  driverComment: z.string().max(2000).nullable().optional(),
+  engine: z.enum(["rules", "llm"]).nullable().optional(),
+});
+
 const AutoTuneSchema = z.object({
   gameId: z.enum(["acc", "ac-evo"]),
   stintId: z.number().int(),
@@ -288,7 +342,24 @@ const AutoTuneSchema = z.object({
   // Live auto mode: overwrite the named file in place (single reload target)
   // instead of writing a fresh, auto-incremented file.
   overwrite: z.boolean().optional().default(false),
+  // Recommendation engine. "rules" (default) is the deterministic, LLM-free
+  // path (tune-recommend.ts); "llm" keeps requestTuneIntents as an opt-in
+  // second opinion. Default rules — the local model 400s and rules need no key.
+  engine: z.enum(["rules", "llm"]).optional().default("rules"),
+  // Optional free-text driver feel; biases the deterministic engine, appended
+  // verbatim to the LLM prompt path. Capped to keep the payload small.
+  driverNotes: z.string().max(500).optional(),
 });
+
+const TuneChatBodySchema = z.object({
+  messages: z.array(z.any()),
+});
+
+// Setup-file guard, session-symptom, and applied-changes-markdown helpers
+// (formerly local) now live in ../ai/setup-engineer-context — the Setup
+// Engineer tools (mastra/tools/setup-engineer.ts) share the exact same
+// implementations via loadActiveTuningContext, so /chat and the tools can't
+// disagree about what "the active setup" is.
 
 export const tuneRoutes = new Hono()
   // ─── Tune CRUD ───────────────────────────────────────────────────────────────
@@ -310,11 +381,66 @@ export const tuneRoutes = new Hono()
     zValidator("query", z.object({ gameId: z.enum(["acc", "ac-evo"]) })),
     async (c) => {
       const { gameId } = c.req.valid("query");
+      // Canonical track roster for this game, data-driven from tracks.csv
+      // (setupFolder column) — the "place a dropped setup" track picker.
+      const tracks = gameId === "acc" ? getAccSetupFolderKeys() : getAcEvoSetupFolderKeys();
       const baseDir = await getSetupsBaseDir(gameId);
       if (!baseDir) {
-        return c.json({ baseDir: null, files: [], error: "Setups folder not found" });
+        return c.json({ baseDir: null, files: [], tracks, error: "Setups folder not found" });
       }
-      return c.json({ baseDir, files: listSetupFiles(baseDir) });
+      return c.json({ baseDir, files: listSetupFiles(baseDir), tracks });
+    }
+  )
+
+  // POST /api/tunes/place-setup — write a dropped setup into the user's Setups
+  // folder (Setups/<car>/<track>/<file>.json) so it becomes a usable base, instead
+  // of rejecting files that aren't already saved in-game. car/track/file are
+  // sanitised to single path segments so the write can't escape the Setups dir.
+  .post("/api/tunes/place-setup",
+    zValidator("json", PlaceSetupSchema),
+    async (c) => {
+      const body = c.req.valid("json");
+      const baseDir = await getSetupsBaseDir(body.gameId);
+      if (!baseDir) return c.json({ error: "Setups folder not found" }, 404);
+
+      // Sanitise each path segment: no separators, no traversal, no reserved chars.
+      const clean = (s: string) => s.replace(/[<>:"/\\|?* -]/g, "").trim();
+      const car = clean(body.carName);
+      const track = clean(body.trackName);
+      let file = clean(body.fileName);
+      if (!file.toLowerCase().endsWith(".json")) file += ".json";
+      const bad = (s: string) => !s || s === "." || s === "..";
+      if (bad(car) || bad(track) || bad(file.replace(/\.json$/i, ""))) {
+        return c.json({ error: "Invalid car, track, or file name" }, 400);
+      }
+
+      // Validate/normalise the setup JSON.
+      let json: unknown;
+      try {
+        json = typeof body.content === "string" ? JSON.parse(body.content) : body.content;
+      } catch (err: any) {
+        return c.json({ error: `Invalid setup JSON: ${err.message}` }, 400);
+      }
+
+      const realBase = realpathSync(resolve(baseDir));
+      const trackDir = resolve(realBase, car, track);
+      const target = resolve(trackDir, file);
+      // Defence in depth: the resolved target must stay under the Setups dir.
+      if (!(target + sep).startsWith(realBase + sep)) {
+        return c.json({ error: "Resolved path escapes the Setups folder" }, 400);
+      }
+
+      // Don't clobber an existing setup — reuse it if the same name is already there.
+      if (existsSync(target)) {
+        return c.json({ absolutePath: target, carModel: car, trackName: track, fileName: file, placed: false });
+      }
+      try {
+        mkdirSync(trackDir, { recursive: true });
+        writeFileSync(target, JSON.stringify(json, null, 2), "utf-8");
+      } catch (err: any) {
+        return c.json({ error: `Couldn't write setup: ${err.message}` }, 500);
+      }
+      return c.json({ absolutePath: target, carModel: car, trackName: track, fileName: file, placed: true }, 201);
     }
   )
 
@@ -608,23 +734,37 @@ export const tuneRoutes = new Hono()
       const corners = detectCorners(packets);
       const symptoms = telemetryToSymptoms(packets, corners);
 
+      // Always compute the deterministic recommendation — it's pure and cheap.
+      // In rules mode it's the answer; in llm mode it rides along as an
+      // LLM-free second opinion the UI can show next to the model's picks.
+      const rulesIntents = symptomsToIntents(symptoms, body.gameId, { driverNotes: body.driverNotes });
+
       let intents;
       let model: string;
-      try {
-        const res = await requestTuneIntents(body.gameId, symptoms, body.trackName);
-        // res.intents is the full TuneIntentsSchema shape ({summary, intents});
-        // the route (and AutoTunePanel) only wants the flat intent list.
-        intents = res.intents.intents;
-        model = res.model;
-      } catch (err: any) {
-        return c.json({ error: err?.message ?? "AI request failed" }, 502);
+      let llmFreeIntents: typeof rulesIntents | null = null;
+      if (body.engine === "llm") {
+        try {
+          const res = await requestTuneIntents(body.gameId, symptoms, body.trackName);
+          // res.intents is the full TuneIntentsSchema shape ({summary, intents});
+          // the route (and AutoTunePanel) only wants the flat intent list.
+          intents = res.intents.intents;
+          model = res.model;
+        } catch (err: any) {
+          return c.json({ error: err?.message ?? "AI request failed" }, 502);
+        }
+        llmFreeIntents = rulesIntents;
+      } else {
+        // Deterministic path — no provider, no key, no network. This is the
+        // default one-button flow.
+        intents = rulesIntents;
+        model = "rules";
       }
 
       // Without a source setup we can only surface the recommended intents;
       // apply/skip and disk writes require a setup to modify.
       if (!hasSetup) {
         return c.json({
-          symptoms, intents, applied: [], skipped: [], model,
+          symptoms, intents, rulesIntents: llmFreeIntents, applied: [], skipped: [], model,
           written: null, preview: true, hasSetup: false,
         });
       }
@@ -641,7 +781,7 @@ export const tuneRoutes = new Hono()
         }
       }
 
-      return c.json({ symptoms, intents, applied, skipped, model, written, preview: !!body.preview, hasSetup: true });
+      return c.json({ symptoms, intents, rulesIntents: llmFreeIntents, applied, skipped, model, written, preview: !!body.preview, hasSetup: true });
     }
   )
 
@@ -675,6 +815,319 @@ export const tuneRoutes = new Hono()
       const { enabled } = c.req.valid("json");
       setLiveIssuesEnabled(enabled);
       return c.json({ enabled });
+    }
+  )
+
+  // ─── Tuning sessions (Setup Engineer front door, plan §6a) ─────────────────
+
+  // GET /api/tuning-sessions?gameId= — list the driver's tuning sessions.
+  .get("/api/tuning-sessions",
+    zValidator("query", TuningSessionQuerySchema),
+    async (c) => {
+      const { gameId, includeArchived } = c.req.valid("query");
+      return c.json(await listTuningSessions(gameId, { includeArchived }));
+    }
+  )
+
+  // POST /api/tuning-sessions — create a session (from a base setup or a
+  // live/recorded session seed; car/track supplied as names or ordinals).
+  // Seeds the v1 "base" tuning test from baseSetupPath when one was supplied.
+  .post("/api/tuning-sessions",
+    zValidator("json", CreateTuningSessionSchema),
+    async (c) => {
+      const body = c.req.valid("json");
+      const id = await createTuningSession(body);
+      // Seed v1 "base" only when the session was created from a base setup —
+      // an ordinal-seeded session has no setup file to version yet.
+      if (body.baseSetupPath) {
+        await createTuningTest({
+          tuningSessionId: id,
+          version: 1,
+          label: "base",
+          setupPath: body.baseSetupPath,
+          engine: null,
+        });
+      }
+      const created = await getTuningSession(id);
+      return c.json(created, 201);
+    }
+  )
+
+  // POST /api/tuning-sessions/:id/activate — mark this session as the active
+  // tuning session. Every lap recorded from now on is stamped with its id at
+  // insert (server/tuning-active.ts + queries.ts::insertLap), so membership is
+  // an explicit link independent of race sessionId — the session gathers laps
+  // across every stint until deactivated.
+  .post("/api/tuning-sessions/:id/activate",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+      setActiveTuningSession(id);
+      return c.json({ active: getActiveTuningSession() });
+    }
+  )
+
+  // POST /api/tuning-sessions/:id/deactivate — clear the active tuning session,
+  // but only if THIS id is the one currently active (so a stale unmount from an
+  // old workspace can't clobber a session the driver has since switched to).
+  .post("/api/tuning-sessions/:id/deactivate",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      if (getActiveTuningSession() === id) setActiveTuningSession(null);
+      return c.json({ active: getActiveTuningSession() });
+    }
+  )
+
+  // GET /api/tuning-sessions/:id/tests — the setup versions under evaluation
+  // in this session (v1 base → latest), oldest-first.
+  .get("/api/tuning-sessions/:id/tests",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+      return c.json(await listTuningTests(id));
+    }
+  )
+
+  // POST /api/tuning-sessions/:id/tests — record a new setup version, typically
+  // from a Save & recommend result (the written setup file + applied diff).
+  .post("/api/tuning-sessions/:id/tests",
+    zValidator("param", IdParamSchema),
+    zValidator("json", CreateTuningTestSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+
+      const body = c.req.valid("json");
+      const version = await nextVersion(id);
+      const testId = await createTuningTest({
+        tuningSessionId: id,
+        version,
+        label: body.label,
+        setupPath: body.setupPath ?? null,
+        parentTestId: body.parentTestId ?? null,
+        appliedChanges: body.appliedChanges ? JSON.stringify(body.appliedChanges) : null,
+        driverComment: body.driverComment ?? null,
+        engine: body.engine ?? null,
+      });
+      const tests = await listTuningTests(id);
+      const created = tests.find((t) => t.id === testId);
+      return c.json(created, 201);
+    }
+  )
+
+  // GET /api/tuning-sessions/:id/lap-metrics — per-lap fuel/tyre metrics for the
+  // laps this session owns (plan §2, Phase C). Derived server-side from each
+  // lap's raw telemetry frames; returns a compact per-lap summary, not frame
+  // dumps. Legacy laps with no stored telemetry omit their metric (never 0).
+  // Tyre wear is always omitted — ACC/AC-Evo shared memory exposes no genuine
+  // wear channel (see server/tuning-lap-metrics.ts).
+  .get("/api/tuning-sessions/:id/lap-metrics",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+
+      // Same lap pool the workspace uses: laps explicitly linked to this tuning
+      // session (migration v25), independent of race sessionId.
+      const sessionLaps = await getLapsForTuningSession(id);
+
+      const metrics: LapMetric[] = [];
+      for (const lapMeta of sessionLaps) {
+        const lap = await getLapById(lapMeta.id);
+        const fuelPerLap = lap ? deriveFuelPerLap(lap.telemetry) : undefined;
+        const entry: LapMetric = { lapId: lapMeta.id };
+        if (fuelPerLap != null) entry.fuelPerLap = fuelPerLap;
+        // tyreWear intentionally omitted — no real channel for ACC/AC-Evo.
+        metrics.push(entry);
+      }
+      return c.json(metrics);
+    }
+  )
+
+  // ─── Setup chat (plan §3, Phase 2) — a tool-using Setup Engineer agent, built
+  //     fresh per request and bound to this session via closures (no shared
+  //     mutable state, no runtimeContext). Its 5 tools (get_current_setup,
+  //     get_symptoms, get_version_history, preview_change, apply_changes) are
+  //     the ONLY action space: the model can't recommend or apply a knob the
+  //     tools don't expose, and preview/apply always return the real
+  //     deterministic result. apply_changes IS the old generate-from-chat path
+  //     — the driver confirms in chat and the model calls it, instead of a
+  //     separate endpoint. Same Mastra memory store + NDJSON stream + thread
+  //     `tune-session-<id>` the previous monolithic-prompt chat used.
+
+  // GET /api/tuning-sessions/:id/chat — thread history.
+  //
+  // Returns full AI-SDK v5 UIMessages (id/role/parts/metadata) instead of
+  // flattened text, so a page reload restores tool-call/tool-result groups
+  // and the token-usage footer exactly like a live turn does. `memory.recall`
+  // only gives back the raw MastraDBMessage[] (DB shape); a MessageList is
+  // Mastra's own converter from that DB shape to AI SDK v5 UIMessage shape —
+  // same converter `toAISdkStream`/the agent use internally — so tool parts
+  // (stored as MastraToolInvocationPart in content.parts) and any persisted
+  // content.metadata (incl. usage, when present) round-trip faithfully rather
+  // than being reconstructed by hand.
+  .get("/api/tuning-sessions/:id/chat",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      try {
+        const memory = getChatMemory();
+        const threadId = tuneSessionThreadId(id);
+        const thread = await memory.getThreadById({ threadId });
+        if (!thread) return c.json({ messages: [] });
+        const result = await memory.recall({ threadId });
+        const raw = result.messages ?? [];
+
+        const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
+        list.add(raw, "memory");
+        const uiMessages = list.get.all.aiV5
+          .ui()
+          .filter((m) => m.role === "user" || m.role === "assistant");
+
+        return c.json({ messages: uiMessages });
+      } catch (err: any) {
+        console.error("[TuneChat] Failed to load messages:", err.message);
+        return c.json({ messages: [] });
+      }
+    }
+  )
+
+  // POST /api/tuning-sessions/:id/chat — send a message (streaming NDJSON).
+  // Builds a fresh Setup Engineer Agent bound to this session's tools; the
+  // agent decides for itself when to call get_current_setup / get_symptoms /
+  // get_version_history / preview_change, and calls apply_changes once the
+  // driver confirms (replacing the old separate generate-from-chat POST).
+  .post("/api/tuning-sessions/:id/chat",
+    zValidator("param", IdParamSchema),
+    zValidator("json", TuneChatBodySchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const { messages } = c.req.valid("json");
+
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+
+      const gameId = session.gameId as GameId;
+      if (gameId !== "acc" && gameId !== "ac-evo") {
+        return c.json({ error: "The setup engineer only supports ACC and AC-EVO" }, 400);
+      }
+
+      const agent = buildSetupEngineerAgent({
+        gameId,
+        sessionId: id,
+        carName: session.carName,
+        trackName: session.trackName,
+        sessionName: session.name,
+        language: loadSettings().language,
+      });
+
+      // Provider/key/model plumbing — inlined from startChatStream (see
+      // ../ai/chat-stream.ts) since this route no longer uses the shared
+      // NDJSON helper (assistant-ui speaks the AI SDK v5 UI-message-stream
+      // protocol instead). Keep this block in sync with chat-stream.ts if
+      // the provider matrix changes.
+      const settings = loadSettings();
+      const chatProvider = settings.chatProvider;
+      if (chatProvider === "gemini") {
+        const key = await getSecret("gemini-api-key");
+        if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
+        process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+        delete process.env.OPENAI_BASE_URL;
+      } else if (chatProvider === "openai") {
+        const key = await getSecret("openai-api-key");
+        if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
+        process.env.OPENAI_API_KEY = key;
+        delete process.env.OPENAI_BASE_URL;
+      } else if (chatProvider === "local") {
+        process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+        process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+      }
+
+      const stream = await agent.stream(messages, {
+        memory: { thread: tuneSessionThreadId(id), resource: CHAT_RESOURCE_ID },
+      });
+
+      const uiStream = createUIMessageStream({
+        originalMessages: messages,
+        execute: async ({ writer }) => {
+          for await (const part of toAISdkStream(stream, {
+            from: "agent",
+            // Threaded straight into AI SDK v5's UIMessageStreamOptions (see
+            // @mastra/ai-sdk's AgentStreamOptionsV5.messageMetadata, which is
+            // typed as UIMessageStreamOptionsV5<UIMessageV5>['messageMetadata']).
+            // It's invoked on the underlying stream's `start` and `finish`
+            // TextStreamPart events; `finish` carries `totalUsage` in ai@7's
+            // LanguageModelV2Usage shape — { inputTokens, outputTokens,
+            // totalTokens } — already exactly the shape assistant-ui's
+            // useThreadTokenUsage() reads off the assistant message's
+            // metadata.usage (via @assistant-ui/react-ai-sdk's
+            // getThreadMessageTokenUsage). No field-name normalisation needed.
+            messageMetadata: ({ part }) => {
+              if (part.type !== "finish") return undefined;
+              const { inputTokens, outputTokens, totalTokens } = part.totalUsage;
+              return {
+                usage: {
+                  inputTokens: inputTokens ?? 0,
+                  outputTokens: outputTokens ?? 0,
+                  totalTokens: totalTokens ?? 0,
+                },
+              };
+            },
+          })) {
+            // `toAISdkStream`'s chunk type is inferred from Mastra's own bundled
+            // `ai` types, which drift slightly from this repo's `ai` version
+            // (e.g. `finishReason: "unknown"` isn't in the local FinishReason
+            // union). The wire shape is identical — cast to bridge the two.
+            await writer.write(part as Parameters<typeof writer.write>[0]);
+          }
+        },
+      });
+      return createUIMessageStreamResponse({ stream: uiStream });
+    }
+  )
+
+  // DELETE /api/tuning-sessions/:id/chat — clear the thread.
+  .delete("/api/tuning-sessions/:id/chat",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      try {
+        const memory = getChatMemory();
+        await memory.deleteThread(tuneSessionThreadId(id));
+      } catch (err: any) {
+        console.error("[TuneChat] Failed to clear thread:", err.message);
+      }
+      return c.json({ ok: true });
+    }
+  )
+
+  // GET /api/tuning-sessions/:id — one session.
+  .get("/api/tuning-sessions/:id",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const row = await getTuningSession(id);
+      if (!row) return c.json({ error: "Tuning session not found" }, 404);
+      return c.json(row);
+    }
+  )
+
+  // PATCH /api/tuning-sessions/:id — rename, note, re-point base setup, archive.
+  .patch("/api/tuning-sessions/:id",
+    zValidator("param", IdParamSchema),
+    zValidator("json", UpdateTuningSessionSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const updated = await updateTuningSession(id, c.req.valid("json"));
+      if (!updated) return c.json({ error: "Tuning session not found" }, 404);
+      return c.json(await getTuningSession(id));
     }
   )
 

@@ -6,7 +6,16 @@ export interface Corner {
   label: string; // "T1", "T2", etc.
   distanceStart: number; // meters from lap start
   distanceEnd: number; // meters from lap start
+  /** Minimum smoothed speed within the corner span, in km/h. Drives the
+   *  slow/medium/fast band in tune-symptoms. Optional so older callers and
+   *  hand-built Corner literals (tests) stay valid. */
+  minSpeedKph?: number;
+  /** Distance (m from lap start) of the minimum-speed point — the apex. */
+  apexDistance?: number;
 }
+
+// m/s → km/h; speedMph gives mph, so mph → km/h is × 1.60934.
+const MPH_TO_KPH = 1.60934;
 
 /**
  * Smooth an array of numbers with a rolling average.
@@ -133,13 +142,31 @@ export function detectCorners(packets: TelemetryPacket[]): Corner[] {
     (c) => c.distanceEnd - c.distanceStart >= 30
   );
 
-  // Label sequentially
-  const corners: Corner[] = filtered.map((c, i) => ({
-    index: i + 1,
-    label: `T${i + 1}`,
-    distanceStart: Math.round(c.distanceStart * 10) / 10,
-    distanceEnd: Math.round(c.distanceEnd * 10) / 10,
-  }));
+  // Label sequentially. Record the slowest smoothed speed (the apex) within
+  // each corner span for speed-band classification downstream. distances[] and
+  // smoothSpeed[] are aligned by packet index, so scan the indices whose
+  // relative distance falls inside the span.
+  const corners: Corner[] = filtered.map((c, i) => {
+    let minMph = Infinity;
+    let apexDist = c.distanceStart;
+    for (let j = 0; j < distances.length; j++) {
+      if (distances[j] < c.distanceStart || distances[j] > c.distanceEnd) continue;
+      if (smoothSpeed[j] < minMph) {
+        minMph = smoothSpeed[j];
+        apexDist = distances[j];
+      }
+    }
+    return {
+      index: i + 1,
+      label: `T${i + 1}`,
+      distanceStart: Math.round(c.distanceStart * 10) / 10,
+      distanceEnd: Math.round(c.distanceEnd * 10) / 10,
+      minSpeedKph: Number.isFinite(minMph)
+        ? Math.round(minMph * MPH_TO_KPH * 10) / 10
+        : undefined,
+      apexDistance: Math.round(apexDist * 10) / 10,
+    };
+  });
 
   return corners;
 }

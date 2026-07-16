@@ -23,7 +23,11 @@
 import type { Agent } from "@mastra/core/agent";
 
 import { log } from "../logger";
+import { loadSettings } from "../settings";
+import { getSecret } from "../keystore";
 import { estimateTokenCostUsd } from "./chat-pricing";
+import { CHAT_RESOURCE_ID } from "./chat-agent";
+import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
 import { toClientAiError } from "./provider-error";
 import type { ClientAiError } from "./provider-error";
 
@@ -218,6 +222,82 @@ export function chatStreamResponse(
       "Transfer-Encoding": "chunked",
     },
   });
+}
+
+/** Minimal shape of a Mastra chat agent — just the stream method we call. */
+interface ChatAgentLike {
+  stream: (message: string, opts: Record<string, unknown>) => Promise<AgentStream> | AgentStream;
+}
+
+/**
+ * Configure the chat provider from settings and start a streaming chat turn.
+ * Single source of truth for the provider/key/model plumbing shared by every
+ * chat endpoint (lap, compare, tuning-session) — previously copy-pasted, which
+ * let the `OPENAI_BASE_URL` local override leak into later OpenAI/Gemini calls.
+ *
+ * Returns the NDJSON streaming `Response` on success, or `{ error, status }`
+ * (400 when a required API key is missing, 500 on a stream failure) for the
+ * caller to turn into `c.json(...)`.
+ */
+export async function startChatStream(opts: {
+  agent: ChatAgentLike;
+  message: string;
+  threadId: string;
+  /**
+   * Per-call instructions override. Optional: agents built with their own
+   * baked-in `instructions` (e.g. the per-request Setup Engineer agent) don't
+   * need this — omitting it lets the agent's own instructions stand instead
+   * of being blanked out by an empty override.
+   */
+  systemPrompt?: string;
+  /** Log tag for stream failures, e.g. "Chat", "CompareChat", "TuneChat". */
+  logLabel: string;
+}): Promise<{ response: Response } | { error: string; status: 400 | 500 }> {
+  const settings = loadSettings();
+  const chatProvider = settings.chatProvider;
+
+  // Provider env for the Mastra/AI SDK. Always clear OPENAI_BASE_URL on the
+  // hosted providers so a prior "local" turn can't pin them to localhost.
+  if (chatProvider === "gemini") {
+    const key = await getSecret("gemini-api-key");
+    if (!key) return { error: "Gemini API key not set. Add it in Settings → AI Chat.", status: 400 };
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+    delete process.env.OPENAI_BASE_URL;
+  } else if (chatProvider === "openai") {
+    const key = await getSecret("openai-api-key");
+    if (!key) return { error: "OpenAI API key not set. Add it in Settings → AI Chat.", status: 400 };
+    process.env.OPENAI_API_KEY = key;
+    delete process.env.OPENAI_BASE_URL;
+  } else if (chatProvider === "local") {
+    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+    process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+  }
+
+  const chatModelLabel = settings.chatModel
+    || (chatProvider === "openai"
+      ? "gpt-4o-mini"
+      : chatProvider === "local"
+        ? "local-model"
+        : "gemini-flash-latest");
+
+  try {
+    const response = chatStreamResponse(
+      () => opts.agent.stream(opts.message, {
+        ...(opts.systemPrompt !== undefined ? { instructions: opts.systemPrompt } : {}),
+        memory: { thread: opts.threadId, resource: CHAT_RESOURCE_ID },
+        modelSettings: { maxOutputTokens: 4096, temperature: 0.2 },
+        providerOptions: {
+          openai: { reasoningEffort: chatProvider === "local" ? "none" : "low" },
+          google: buildGoogleThinkingProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+        },
+      }),
+      { provider: chatProvider, modelId: chatModelLabel },
+    );
+    return { response };
+  } catch (err: any) {
+    console.error(`[${opts.logLabel}] Stream failed:`, err.message);
+    return { error: err.message, status: 500 };
+  }
 }
 
 /** Stream part type is inferred from Mastra Agent.stream(). */

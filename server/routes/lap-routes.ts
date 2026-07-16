@@ -41,7 +41,7 @@ import { buildAnalystPrompt } from "../ai/analyst-prompt";
 import { resolveTrackContext } from "../ai/track-context";
 import { computeLapSectors } from "../compute-lap-sectors";
 import { getAnalystJsonSchema } from "../ai/schemas";
-import { getChatMemory, chatThreadId, compareChatThreadId, CHAT_RESOURCE_ID } from "../ai/chat-agent";
+import { getChatMemory, chatThreadId, compareChatThreadId } from "../ai/chat-agent";
 import { getSecret } from "../keystore";
 import { deleteAnalysis as deleteAnalysisQuery } from "../db/queries";
 import { tryGetGame } from "../../shared/games/registry";
@@ -52,7 +52,7 @@ const gzipAsync = promisify(gzip);
 import { loadSharedTrackMeta } from "../../shared/track-data";
 import { buildChatSystemPrompt } from "../ai/chat-prompt";
 import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
-import { chatStreamResponse } from "../ai/chat-stream";
+import { startChatStream } from "../ai/chat-stream";
 import { topCatalogReferences, normalizePacketSetup, getCatalogDisplayName } from "../ai/f1-setup-catalog";
 import type { TelemetryPacket } from "../../shared/types";
 import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "../ai/inputs-compare-prompt";
@@ -602,45 +602,15 @@ export const lapRoutes = new Hono()
     // Build chat prompt
     const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language);
 
-    // Set up API key env vars for Mastra/AI SDK (uses chatProvider setting)
-    const chatProvider = settings.chatProvider;
-    if (chatProvider === "gemini") {
-      const key = await getSecret("gemini-api-key");
-      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
-    } else if (chatProvider === "openai") {
-      const key = await getSecret("openai-api-key");
-      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
-      process.env.OPENAI_API_KEY = key;
-    } else if (chatProvider === "local") {
-      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
-    }
-
-    const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai"
-        ? "gpt-4o-mini"
-        : chatProvider === "local"
-          ? "local-model"
-          : "gemini-flash-latest");
-    try {
-      const threadId = chatThreadId(id);
-      return chatStreamResponse(
-        () => lapChatAgent.stream(message, {
-          instructions: systemPrompt,
-          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-          modelSettings: { maxOutputTokens: 4096, temperature: 0.2 },
-          providerOptions: {
-            openai: { reasoningEffort: chatProvider === "local" ? "none" : "low" },
-            google: buildGoogleThinkingProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
-          },
-        }),
-        { provider: chatProvider, modelId: chatModelLabel },
-      );
-    } catch (err: any) {
-      console.error("[Chat] Stream failed:", err.message);
-      return c.json({ error: err.message }, 500);
-    }
+    const r = await startChatStream({
+      agent: lapChatAgent,
+      message,
+      threadId: chatThreadId(id),
+      systemPrompt,
+      logLabel: "Chat",
+    });
+    if ("error" in r) return c.json({ error: r.error }, r.status);
+    return r.response;
   })
 
   // ── Chat: clear messages ───────────────────────────────────
@@ -1077,45 +1047,15 @@ export const lapRoutes = new Hono()
         buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
 
-    const chatProvider = settings.chatProvider;
-    if (chatProvider === "gemini") {
-      const key = await getSecret("gemini-api-key");
-      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
-    } else if (chatProvider === "openai") {
-      const key = await getSecret("openai-api-key");
-      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
-      process.env.OPENAI_API_KEY = key;
-    } else if (chatProvider === "local") {
-      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
-    }
-
-    const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai"
-        ? "gpt-4o-mini"
-        : chatProvider === "local"
-          ? "local-model"
-          : "gemini-flash-latest");
-    try {
-      const threadId = compareChatThreadId(id1, id2);
-
-      return chatStreamResponse(
-        () => compareChatAgent.stream(message, {
-          instructions: systemPrompt,
-          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-          modelSettings: { maxOutputTokens: 4096, temperature: 0.2 },
-          providerOptions: {
-            openai: { reasoningEffort: chatProvider === "local" ? "none" : "low" },
-            google: buildGoogleThinkingProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
-          },
-        }),
-        { provider: chatProvider, modelId: chatModelLabel },
-      );
-    } catch (err: any) {
-      console.error("[CompareChat] Stream failed:", err.message);
-      return c.json({ error: err.message }, 500);
-    }
+    const r = await startChatStream({
+      agent: compareChatAgent,
+      message,
+      threadId: compareChatThreadId(id1, id2),
+      systemPrompt,
+      logLabel: "CompareChat",
+    });
+    if ("error" in r) return c.json({ error: r.error }, r.status);
+    return r.response;
   })
 
   // ── Compare chat: clear messages ───────────────────────────

@@ -5,6 +5,7 @@ import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared
 import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
 import { getServerGame } from "../games/registry";
+import { getActiveTuningSession } from "../tuning-active";
 import { tryGetGame } from "../../shared/games/registry";
 import { gunzip } from "zlib";
 import { promisify } from "util";
@@ -215,6 +216,11 @@ async function doInsertLap(
   invalidReason: string | null,
   sectors: { s1: number; s2: number; s3: number } | null = null
 ): Promise<number> {
+  // Stamp the lap with the active tuning session (if any). This is the single
+  // choke point every live lap-detector funnels through (via the DbAdapter), so
+  // reading the in-memory active id here links laps to a tuning session
+  // independent of race sessionId — a tuning session can span many race
+  // sessions. Cheap, unconditional on game; null when no session is active.
   const result = await db
     .insert(laps)
     .values({
@@ -230,6 +236,7 @@ async function doInsertLap(
       profileId,
       tuneId,
       invalidReason,
+      tuningSessionId: getActiveTuningSession(),
     })
     .returning({ id: laps.id })
     .get();
@@ -322,6 +329,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       s1Time: laps.s1Time,
       s2Time: laps.s2Time,
       s3Time: laps.s3Time,
+      tuningSessionId: laps.tuningSessionId,
       rawFile: sessions.rawFile,
     })
     .from(laps)
@@ -347,6 +355,67 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     s1Time: r.s1Time ?? undefined,
     s2Time: r.s2Time ?? undefined,
     s3Time: r.s3Time ?? undefined,
+    tuningSessionId: r.tuningSessionId ?? null,
+    isLegacy: rawFile == null,
+  }));
+}
+
+/**
+ * Laps explicitly linked to a tuning session (migration v25), newest-first.
+ * Joined to sessions for car/track/game exactly like getLaps. This is the
+ * authoritative membership query — it replaces the old created-at time-window
+ * heuristic, so a tuning session correctly gathers its laps across ANY number
+ * of race sessions (multiple stints) and never over-includes unrelated laps.
+ *
+ * Laps recorded before v25 (or while no tuning session was active) have
+ * tuning_session_id = NULL and are therefore excluded — the link is opt-in
+ * going forward.
+ */
+export async function getLapsForTuningSession(tuningSessionId: number): Promise<LapMeta[]> {
+  const rows = await db
+    .select({
+      id: laps.id,
+      sessionId: laps.sessionId,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
+      notes: laps.notes,
+      pi: laps.pi,
+      carSetup: laps.carSetup,
+      createdAt: laps.createdAt,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
+      gameId: sessions.gameId,
+      s1Time: laps.s1Time,
+      s2Time: laps.s2Time,
+      s3Time: laps.s3Time,
+      tuningSessionId: laps.tuningSessionId,
+      rawFile: sessions.rawFile,
+    })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(eq(laps.tuningSessionId, tuningSessionId))
+    .orderBy(desc(laps.id))
+    .all();
+
+  return rows.map(({ rawFile, ...r }) => ({
+    ...r,
+    isValid: Boolean(r.isValid),
+    invalidReason: r.invalidReason ?? undefined,
+    pi: r.pi ?? 0,
+    carSetup: r.carSetup ?? undefined,
+    tuneId: r.tuneId ?? undefined,
+    tuneName: r.tuneName ?? undefined,
+    notes: r.notes ?? undefined,
+    gameId: r.gameId as GameId,
+    s1Time: r.s1Time ?? undefined,
+    s2Time: r.s2Time ?? undefined,
+    s3Time: r.s3Time ?? undefined,
+    tuningSessionId: r.tuningSessionId ?? null,
     isLegacy: rawFile == null,
   }));
 }

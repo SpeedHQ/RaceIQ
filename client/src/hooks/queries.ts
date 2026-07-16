@@ -472,10 +472,30 @@ export function useSetupFiles(gameId: "acc" | "ac-evo" | null) {
     queryKey: ["setup-files", gameId],
     queryFn: async () => {
       const res = await (client.api.tunes as any)["setup-files"].$get({ query: { gameId } });
-      return rpcJson<{ baseDir: string | null; files: { carModel: string; trackName: string; fileName: string; absolutePath: string }[]; error?: string }>(res);
+      return rpcJson<{ baseDir: string | null; files: { carModel: string; trackName: string; fileName: string; absolutePath: string }[]; tracks?: string[]; error?: string }>(res);
     },
     enabled: gameId != null,
     staleTime: 30_000,
+  });
+}
+
+/** Place a dropped setup into the user's Setups folder (Setups/<car>/<track>/file)
+ *  so it becomes a usable base — instead of rejecting files not saved in-game. */
+export function usePlaceSetup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      gameId: "acc" | "ac-evo";
+      carName: string;
+      trackName: string;
+      fileName: string;
+      content: unknown;
+    }) => {
+      const res = await (client.api.tunes as any)["place-setup"].$post({ json: data });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as { absolutePath: string; carModel: string; trackName: string; fileName: string; placed: boolean };
+    },
+    onSuccess: (_r, vars) => qc.invalidateQueries({ queryKey: ["setup-files", vars.gameId] }),
   });
 }
 
@@ -491,9 +511,19 @@ export function useImportTuneFile() {
   });
 }
 
+export interface TuneIntentDto {
+  component: string;
+  direction: "increase" | "decrease";
+  magnitude: "small" | "medium" | "large";
+  reason: string;
+}
+
 export interface AutoTuneResult {
   symptoms: any;
-  intents: { component: string; direction: "increase" | "decrease"; magnitude: "small" | "medium" | "large"; reason: string }[];
+  intents: TuneIntentDto[];
+  /** Deterministic (LLM-free) recommendation, included as a second opinion when
+   *  engine is "llm". Null in rules mode (intents already are the rules result). */
+  rulesIntents: TuneIntentDto[] | null;
   applied: { component: string; path: string; from: number; to: number; direction: string; reason: string }[];
   skipped: { component: string; reason: string }[];
   model: string;
@@ -514,6 +544,10 @@ export function useAutoTune() {
       preview?: boolean;
       saveAsName?: string;
       overwrite?: boolean;
+      /** "rules" (default, deterministic) or "llm" (opt-in). */
+      engine?: "rules" | "llm";
+      /** Free-text driver feel; biases the deterministic engine. */
+      driverNotes?: string;
     }) => {
       const res = await (client.api.tunes as any).auto.$post({ json: data });
       if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
@@ -582,5 +616,140 @@ export function useDeleteTuneAssignment() {
       });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.tuneAssignments }),
+  });
+}
+
+// ── Tuning sessions (Setup Engineer front door, plan §6a) ─────────────────────
+export interface TuningSession {
+  id: number;
+  /** Per-game display number from 1 (independent of the raw id and races). */
+  seq: number;
+  gameId: string;
+  name: string;
+  carOrdinal: number | null;
+  trackOrdinal: number | null;
+  carName: string | null;
+  trackName: string | null;
+  baseSetupPath: string | null;
+  status: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function useTuningSessions(gameId: "acc" | "ac-evo") {
+  return useQuery({
+    queryKey: ["tuning-sessions", gameId],
+    queryFn: async () => {
+      const res = await (client.api as any)["tuning-sessions"].$get({ query: { gameId } });
+      return rpcJson<TuningSession[]>(res);
+    },
+    staleTime: 10_000,
+  });
+}
+
+export function useCreateTuningSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      gameId: "acc" | "ac-evo";
+      name: string;
+      carOrdinal?: number | null;
+      trackOrdinal?: number | null;
+      carName?: string | null;
+      trackName?: string | null;
+      baseSetupPath?: string | null;
+      notes?: string | null;
+    }) => {
+      const res = await (client.api as any)["tuning-sessions"].$post({ json: data });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as TuningSession;
+    },
+    onSuccess: (s) => qc.invalidateQueries({ queryKey: ["tuning-sessions", s.gameId] }),
+  });
+}
+
+/** One tuning session by id — the workspace opened via ?tuningSession=<id>. */
+export function useTuningSession(id: number | null | undefined) {
+  return useQuery({
+    queryKey: ["tuning-session", id ?? null],
+    queryFn: async () => {
+      const res = await (client.api as any)["tuning-sessions"][":id"].$get({ param: { id: String(id!) } });
+      return rpcJson<TuningSession>(res);
+    },
+    enabled: id != null,
+    staleTime: 10_000,
+  });
+}
+
+// ── Tuning tests (setup versions under evaluation, plan §2) ───────────────────
+export interface TuningTest {
+  id: number;
+  tuningSessionId: number;
+  version: number;
+  label: string;
+  setupPath: string | null;
+  parentTestId: number | null;
+  /** JSON string of AppliedChange[] (null for a base/un-applied version). */
+  appliedChanges: string | null;
+  driverComment: string | null;
+  engine: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export function useTuningSessionTests(id: number | null | undefined) {
+  return useQuery({
+    queryKey: ["tuning-session-tests", id ?? null],
+    queryFn: async () => {
+      const res = await (client.api as any)["tuning-sessions"][":id"].tests.$get({ param: { id: String(id!) } });
+      return rpcJson<TuningTest[]>(res);
+    },
+    enabled: id != null,
+    staleTime: 5_000,
+  });
+}
+
+export function useCreateTuningTest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      sessionId,
+      ...body
+    }: {
+      sessionId: number;
+      label: string;
+      setupPath?: string | null;
+      parentTestId?: number | null;
+      appliedChanges?: unknown[] | null;
+      driverComment?: string | null;
+      engine?: "rules" | "llm" | null;
+    }) => {
+      const res = await (client.api as any)["tuning-sessions"][":id"].tests.$post({ param: { id: String(sessionId) }, json: body });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as TuningTest;
+    },
+    onSuccess: (t) => qc.invalidateQueries({ queryKey: ["tuning-session-tests", t.tuningSessionId] }),
+  });
+}
+
+// ── Per-lap tuning metrics (fuel/tyre, plan §2 Phase C) ───────────────────────
+export interface TuningLapMetric {
+  lapId: number;
+  /** Litres consumed over the lap; absent when the channel is unavailable. */
+  fuelPerLap?: number;
+  /** Tyre wear per lap; absent — no genuine ACC/AC-Evo wear channel exists. */
+  tyreWear?: number;
+}
+
+export function useTuningSessionLapMetrics(id: number | null | undefined) {
+  return useQuery({
+    queryKey: ["tuning-session-lap-metrics", id ?? null],
+    queryFn: async () => {
+      const res = await (client.api as any)["tuning-sessions"][":id"]["lap-metrics"].$get({ param: { id: String(id!) } });
+      return rpcJson<TuningLapMetric[]>(res);
+    },
+    enabled: id != null,
+    staleTime: 5_000,
   });
 }

@@ -306,4 +306,104 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_assignments_tune ON tune_assignments(tune_id)`,
     ],
   },
+
+  // ── v23: tuning sessions (Setup Engineer front door, plan §6a) ─────────────
+  //
+  // Parent container for the Setup IQ loop. Car/track stored as both ordinals
+  // (live/recorded-session seed) and names (ACC/AC-Evo setup-file seed); all
+  // nullable so either origin works. setupVersions.tuning_session_id will FK
+  // into this in a later phase.
+  {
+    version: 23,
+    name: "tuning sessions",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS tuning_sessions (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_id         TEXT NOT NULL,
+        name            TEXT NOT NULL,
+        car_ordinal     INTEGER,
+        track_ordinal   INTEGER,
+        car_name        TEXT,
+        track_name      TEXT,
+        base_setup_path TEXT,
+        status          TEXT NOT NULL DEFAULT 'active',
+        notes           TEXT,
+        created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_tuning_sessions_game ON tuning_sessions(game_id)`,
+    ],
+  },
+
+  // ── v24: tuning tests (setup versions under evaluation, plan §2) ───────────
+  //
+  // One row per setup being tested inside a tuning session. v1 "base" is seeded
+  // on session create from the session's base_setup_path; each Save & recommend
+  // appends v(N+1) with the applied diff (applied_changes JSON) and the written
+  // setup file. FK cascades from tuning_sessions so archiving/deleting a session
+  // takes its tests with it. parent_test_id is self-referential but intentionally
+  // not a hard FK — a parent version can be archived independently of its child.
+  {
+    version: 24,
+    name: "tuning tests",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS tuning_tests (
+        id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+        tuning_session_id  INTEGER NOT NULL REFERENCES tuning_sessions(id) ON DELETE CASCADE,
+        version            INTEGER NOT NULL,
+        label              TEXT NOT NULL,
+        setup_path         TEXT,
+        parent_test_id     INTEGER,
+        applied_changes    TEXT,
+        driver_comment     TEXT,
+        engine             TEXT,
+        status             TEXT NOT NULL DEFAULT 'active',
+        created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_tuning_tests_session ON tuning_tests(tuning_session_id)`,
+    ],
+  },
+
+  // ── v25: explicit lap ↔ tuning-session link ────────────────────────────────
+  //
+  // Decouples tuning-session membership from race (telemetry) sessionId. A
+  // tuning session can span MANY race sessions on the same car+track (multiple
+  // stints while iterating setups), so membership can't be derived from
+  // sessionId or a fragile created-at time window. Instead every lap recorded
+  // while a tuning session is active is stamped with its id at insert time
+  // (see server/tuning-active.ts + queries.ts::insertLap).
+  //
+  // NOTE: SQLite cannot add a column WITH an inline REFERENCES clause via
+  // ALTER TABLE, so the FK is omitted here — the column is a plain nullable
+  // INTEGER. schema.ts still declares the intended `.references(tuning_sessions)`
+  // as type-level documentation; there is no runtime FK enforcement or
+  // ON DELETE SET NULL cascade on this column. Laps recorded before this
+  // migration keep tuning_session_id = NULL and simply won't appear in any
+  // tuning session (acceptable — the feature is opt-in going forward).
+  {
+    version: 25,
+    name: "explicit lap to tuning-session link",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN tuning_session_id INTEGER`,
+      `CREATE INDEX IF NOT EXISTS idx_laps_tuning_session ON laps(tuning_session_id)`,
+    ],
+  },
+
+  // ── v26: per-game tuning-session display number ───────────────────────────
+  //
+  // A stable 1..N number per game, independent of the churned autoincrement id
+  // and of race sessions. Assigned on create as max(seq)+1 per game; existing
+  // rows are backfilled in id order within each game.
+  {
+    version: 26,
+    name: "tuning-session display seq",
+    sql: [
+      `ALTER TABLE tuning_sessions ADD COLUMN seq INTEGER NOT NULL DEFAULT 1`,
+      `UPDATE tuning_sessions
+         SET seq = (
+           SELECT COUNT(*) FROM tuning_sessions t2
+           WHERE t2.game_id = tuning_sessions.game_id AND t2.id <= tuning_sessions.id
+         )`,
+    ],
+  },
 ];

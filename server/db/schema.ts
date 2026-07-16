@@ -78,10 +78,21 @@ export const laps = sqliteTable(
 		s3Time: real("s3_time"),
 		rawByteOffset: integer("raw_byte_offset"),
 		rawFrameCount: integer("raw_frame_count"),
+		// Explicit tuning-session link (migration v25). Stamped at insert from the
+		// in-memory active tuning session (server/tuning-active.ts) so a tuning
+		// session can span many race sessions. The `.references()` here is
+		// type-level intent only — migration v25 adds a plain nullable column with
+		// NO runtime FK (SQLite can't ALTER-ADD a column with inline REFERENCES),
+		// so there is no ON DELETE SET NULL cascade in the actual DB.
+		tuningSessionId: integer("tuning_session_id").references(
+			() => tuningSessions.id,
+			{ onDelete: "set null" },
+		),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
 		sessionIdx: index("idx_laps_session").on(table.sessionId),
+		tuningSessionIdx: index("idx_laps_tuning_session").on(table.tuningSessionId),
 	}),
 );
 
@@ -180,6 +191,73 @@ export const communityTunes = sqliteTable(
 		syncedAt: text("synced_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => [index("idx_community_tunes_game").on(table.gameId)],
+);
+
+/**
+ * Tuning sessions — the Setup Engineer "front door" (plan §6a). A tuning
+ * session is the parent container for the Setup IQ loop: it owns the base
+ * setup, the stints driven, and (later phases) the setup versions v1..vN.
+ *
+ * Car/track are stored two ways because the two seed paths supply different
+ * identifiers: seeding from an ACC/AC-Evo saved setup file gives the car/track
+ * folder *names* (carName/trackName + baseSetupPath), while seeding from a live
+ * or recorded telemetry session gives numeric ordinals. Both are nullable; a
+ * session uses whichever its origin provided.
+ */
+export const tuningSessions = sqliteTable(
+	"tuning_sessions",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		// Per-game display number, counted from 1 and independent of the raw
+		// autoincrement id (which churns) and of race/telemetry sessions.
+		seq: integer("seq").notNull().default(1),
+		gameId: text("game_id").notNull(),
+		name: text("name").notNull(),
+		carOrdinal: integer("car_ordinal"),
+		trackOrdinal: integer("track_ordinal"),
+		carName: text("car_name"),
+		trackName: text("track_name"),
+		baseSetupPath: text("base_setup_path"),
+		status: text("status").notNull().default("active"), // 'active' | 'archived'
+		notes: text("notes"),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => ({
+		gameIdx: index("idx_tuning_sessions_game").on(table.gameId),
+	}),
+);
+
+/**
+ * Tuning tests — the setup versions under evaluation inside a tuning session
+ * (plan §2). One row per setup being tested: v1 "base" is seeded from the
+ * session's baseSetupPath on session create, and each Save & recommend appends
+ * v(N+1) with the applied diff + the newly written setup file.
+ *
+ * `appliedChanges` is a JSON blob of the AppliedChange[] returned by the
+ * autotune engine. `parentTestId` links a version to the one it was derived
+ * from (self-referential; not a hard FK so a parent can be archived independently).
+ */
+export const tuningTests = sqliteTable(
+	"tuning_tests",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		tuningSessionId: integer("tuning_session_id")
+			.notNull()
+			.references(() => tuningSessions.id, { onDelete: "cascade" }),
+		version: integer("version").notNull(),
+		label: text("label").notNull(),
+		setupPath: text("setup_path"),
+		parentTestId: integer("parent_test_id"),
+		appliedChanges: text("applied_changes"), // JSON: AppliedChange[]
+		driverComment: text("driver_comment"),
+		engine: text("engine"),
+		status: text("status").notNull().default("active"), // 'active' | 'archived'
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => ({
+		sessionIdx: index("idx_tuning_tests_session").on(table.tuningSessionId),
+	}),
 );
 
 /**

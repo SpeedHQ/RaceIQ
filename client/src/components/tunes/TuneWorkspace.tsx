@@ -3,6 +3,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import { useLaps, useResolveNames, useSessions } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
+import { BackButton } from "./BackButton";
 import { TuneLiveDashboard } from "./TuneLiveDashboard";
 import { TuneReviewDashboard } from "./TuneReviewDashboard";
 
@@ -11,12 +12,17 @@ import { TuneReviewDashboard } from "./TuneReviewDashboard";
 type Source = "live" | number;
 
 /**
- * TuneDashboard — dedicated, tune-focused workspace (NOT embedded in the live
+ * TuneWorkspace — dedicated, tune-focused workspace (NOT embedded in the live
  * racing dashboard). Drives the symptom→intent→apply auto-tune pipeline off
  * either the live on-track session (auto-follow, hands-free) or any past
  * recorded session the driver picks.
+ *
+ * `embedded` hides the "← Tuning sessions" back link and outer padding so the
+ * component can sit *inside* TuningSessionWorkspace as the detailed live/review
+ * body (the workspace header already owns the back link). Standalone it renders
+ * the back link itself.
  */
-export function TuneDashboard({ gameId }: { gameId: "acc" | "ac-evo" }) {
+export function TuneWorkspace({ gameId, embedded = false }: { gameId: "acc" | "ac-evo"; embedded?: boolean }) {
   const { data: sessions = [], isLoading: loadingSessions } = useSessions();
   const { data: allLaps = [] } = useLaps();
   const liveSessionLaps = useTelemetryStore((s) => s.sessionLaps);
@@ -83,8 +89,15 @@ export function TuneDashboard({ gameId }: { gameId: "acc" | "ac-evo" }) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className={embedded ? "" : "flex-1 overflow-y-auto"}>
       <div className="p-3 pb-0">
+        {!embedded && (
+          <BackButton
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onClick={() => navigate({ to: `/${gameId}/tune` } as any)}
+            className="mb-2"
+          />
+        )}
         <label className="text-xs text-app-text-dim">
           Session
           <select

@@ -7,6 +7,8 @@ interface AccTrack {
   name: string;
   variant: string;
   commonTrackName: string;
+  /** ACC's own Setups-folder key (Setups/<car>/<setupFolder>/). */
+  setupFolder: string;
 }
 
 let trackMap: Map<number, AccTrack> | null = null;
@@ -25,8 +27,9 @@ function ensureLoaded(): Map<number, AccTrack> {
     const name = parts[1];
     const variant = parts[2];
     const commonTrackName = parts[3]?.trim() ?? "";
+    const setupFolder = parts[4]?.trim() ?? "";
     if (!isNaN(id) && name) {
-      trackMap.set(id, { id, name: name.trim(), variant: variant.trim(), commonTrackName });
+      trackMap.set(id, { id, name: name.trim(), variant: variant.trim(), commonTrackName, setupFolder });
     }
   }
   return trackMap;
@@ -46,6 +49,14 @@ export function getAccSharedTrackName(ordinal: number): string | undefined {
 /** Get all ACC tracks as a Map of id → info */
 export function getAccTracks(): Map<number, AccTrack> {
   return ensureLoaded();
+}
+
+/** Distinct ACC Setups-folder track keys, sorted — the canonical track roster
+ *  for the "place a dropped setup" picker (data-driven from tracks.csv). */
+export function getAccSetupFolderKeys(): string[] {
+  const keys = new Set<string>();
+  for (const t of ensureLoaded().values()) if (t.setupFolder) keys.add(t.setupFolder);
+  return [...keys].sort();
 }
 
 /** Find a track by its ACC shared memory string name (e.g. "nurburgring", "spa") */

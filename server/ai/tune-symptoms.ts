@@ -12,6 +12,7 @@ import type { Corner } from "../corner-detection";
 
 export type Balance = "oversteer" | "understeer" | "neutral";
 export type Phase = "entry" | "mid" | "exit";
+export type SpeedBand = "slow" | "medium" | "fast";
 
 export interface PhaseSymptom {
   phase: Phase;
@@ -28,6 +29,11 @@ export interface CornerSymptom {
   /** Corner mid-point as a fraction of lap distance (0-1), for sector bucketing
    *  and track-map placement. Undefined when lap distance can't be derived. */
   distanceFrac?: number;
+  /** Apex speed (km/h) from detectCorners; undefined when unavailable. */
+  minSpeedKph?: number;
+  /** Slow/medium/fast band derived from minSpeedKph. Drives band-specific
+   *  rules in tune-recommend.ts; undefined when apex speed is unknown. */
+  speedBand?: SpeedBand;
   phases: PhaseSymptom[];
 }
 
@@ -63,6 +69,18 @@ export const BRAKE_ON = 0.2;
 export const BOTTOM_TRAVEL = 0.95;
 // Nominal ACC hot-pressure target window mid (psi).
 export const ACC_PRESSURE_TARGET = 27.5;
+// Speed-band thresholds (km/h). Fixed for now; §4a notes these may become
+// adapter-overridable (AC-Evo road cars vs ACC GT3) or track-relative later.
+export const SLOW_CORNER_KPH = 100;
+export const FAST_CORNER_KPH = 160;
+
+/** Bucket an apex speed into slow/medium/fast; undefined when speed unknown. */
+export function classifySpeedBand(minSpeedKph?: number): SpeedBand | undefined {
+  if (minSpeedKph == null || !Number.isFinite(minSpeedKph)) return undefined;
+  if (minSpeedKph < SLOW_CORNER_KPH) return "slow";
+  if (minSpeedKph > FAST_CORNER_KPH) return "fast";
+  return "medium";
+}
 
 function mean(xs: number[]): number {
   if (xs.length === 0) return 0;
@@ -167,7 +185,14 @@ export function telemetryToSymptoms(
     // onto the lap-distance span.
     const mid = (corner.distanceStart + corner.distanceEnd) / 2;
     const distanceFrac = lapSpan > 0 ? Math.min(1, Math.max(0, mid / lapSpan)) : undefined;
-    cornerSymptoms.push({ index: corner.index, label: corner.label, distanceFrac, phases });
+    cornerSymptoms.push({
+      index: corner.index,
+      label: corner.label,
+      distanceFrac,
+      minSpeedKph: corner.minSpeedKph,
+      speedBand: classifySpeedBand(corner.minSpeedKph),
+      phases,
+    });
   }
 
   // Aggregate balance: whichever tendency shows in more corners.

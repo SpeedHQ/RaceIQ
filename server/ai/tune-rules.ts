@@ -10,10 +10,19 @@
 import type { GameId } from "../../shared/types";
 import type { TuneIntent, TuneMagnitude } from "./schemas";
 
-/** A single tunable knob: where it lives + how far each magnitude moves it. */
+/**
+ * A single tunable knob: where it lives + how far each magnitude moves it.
+ *
+ * `paths` lists every JSON path this knob controls. Most knobs are a single
+ * scalar (one-element array). Symmetric axle knobs (ride height, dampers)
+ * list the pair of array indices that must move together (e.g. front ride
+ * height = rideHeight[0] and rideHeight[1]) — `applyIntents` reads the first
+ * path as the base value, computes one clamped delta, and writes it to every
+ * path so the knob stays a single driver-facing change (one AppliedChange).
+ */
 interface FieldDef {
-  /** Dot/bracket path into the setup object (e.g. "basicSetup.tyres.tyrePressure.0"). */
-  path: string;
+  /** Dot/bracket paths into the setup object, applied in lockstep. */
+  paths: string[];
   /** Step per magnitude, in the field's native raw units (usually clicks). */
   step: Record<TuneMagnitude, number>;
   /** Inclusive clamp range for the resulting raw value. */
@@ -33,22 +42,74 @@ const CLICK_STEP: Record<TuneMagnitude, number> = { small: 1, medium: 2, large: 
  */
 const RULES: Record<string, Record<string, FieldDef>> = {
   acc: {
-    "Front Anti-Roll Bar": { path: "advancedSetup.mechanicalBalance.aRBFront", step: CLICK_STEP, min: 0, max: 30 },
-    "Rear Anti-Roll Bar": { path: "advancedSetup.mechanicalBalance.aRBRear", step: CLICK_STEP, min: 0, max: 30 },
-    "Brake Bias": { path: "advancedSetup.mechanicalBalance.brakeBias", step: CLICK_STEP, min: 0, max: 100 },
-    "Front Wing": { path: "advancedSetup.aeroBalance.splitter", step: CLICK_STEP, min: 0, max: 10 },
-    "Rear Wing": { path: "advancedSetup.aeroBalance.rearWing", step: CLICK_STEP, min: 0, max: 20 },
-    "Front Tyre Pressure FL": { path: "basicSetup.tyres.tyrePressure.0", step: CLICK_STEP, min: 0, max: 60 },
-    "Front Tyre Pressure FR": { path: "basicSetup.tyres.tyrePressure.1", step: CLICK_STEP, min: 0, max: 60 },
-    "Rear Tyre Pressure RL": { path: "basicSetup.tyres.tyrePressure.2", step: CLICK_STEP, min: 0, max: 60 },
-    "Rear Tyre Pressure RR": { path: "basicSetup.tyres.tyrePressure.3", step: CLICK_STEP, min: 0, max: 60 },
+    "Front Anti-Roll Bar": { paths: ["advancedSetup.mechanicalBalance.aRBFront"], step: CLICK_STEP, min: 0, max: 30 },
+    "Rear Anti-Roll Bar": { paths: ["advancedSetup.mechanicalBalance.aRBRear"], step: CLICK_STEP, min: 0, max: 30 },
+    "Brake Bias": { paths: ["advancedSetup.mechanicalBalance.brakeBias"], step: CLICK_STEP, min: 0, max: 100 },
+    "Front Wing": { paths: ["advancedSetup.aeroBalance.splitter"], step: CLICK_STEP, min: 0, max: 10 },
+    "Rear Wing": { paths: ["advancedSetup.aeroBalance.rearWing"], step: CLICK_STEP, min: 0, max: 20 },
+    "Front Tyre Pressure FL": { paths: ["basicSetup.tyres.tyrePressure.0"], step: CLICK_STEP, min: 0, max: 60 },
+    "Front Tyre Pressure FR": { paths: ["basicSetup.tyres.tyrePressure.1"], step: CLICK_STEP, min: 0, max: 60 },
+    "Rear Tyre Pressure RL": { paths: ["basicSetup.tyres.tyrePressure.2"], step: CLICK_STEP, min: 0, max: 60 },
+    "Rear Tyre Pressure RR": { paths: ["basicSetup.tyres.tyrePressure.3"], step: CLICK_STEP, min: 0, max: 60 },
+
+    // Ride height, dampers, and diff preload — added for the Setup Engineer
+    // grounding fix (docs/setup-engineer-tools-plan.md §2). Paths verified
+    // against a real ACC setup JSON export. Ranges are conservative
+    // ACC click-index clamps and may need per-car-class scaling later (plan
+    // §5 risk) — GT3 cars generally sit well inside these bounds.
+    "Front Ride Height": {
+      paths: ["advancedSetup.aeroBalance.rideHeight.0", "advancedSetup.aeroBalance.rideHeight.1"],
+      step: CLICK_STEP,
+      min: 50,
+      max: 100,
+    },
+    "Rear Ride Height": {
+      paths: ["advancedSetup.aeroBalance.rideHeight.2", "advancedSetup.aeroBalance.rideHeight.3"],
+      step: CLICK_STEP,
+      min: 55,
+      max: 110,
+    },
+    "Front Bump": {
+      paths: ["advancedSetup.dampers.bumpSlow.0", "advancedSetup.dampers.bumpSlow.1"],
+      step: CLICK_STEP,
+      min: 0,
+      max: 20,
+    },
+    "Rear Bump": {
+      paths: ["advancedSetup.dampers.bumpSlow.2", "advancedSetup.dampers.bumpSlow.3"],
+      step: CLICK_STEP,
+      min: 0,
+      max: 20,
+    },
+    "Front Rebound": {
+      paths: ["advancedSetup.dampers.reboundSlow.0", "advancedSetup.dampers.reboundSlow.1"],
+      step: CLICK_STEP,
+      min: 0,
+      max: 20,
+    },
+    "Rear Rebound": {
+      paths: ["advancedSetup.dampers.reboundSlow.2", "advancedSetup.dampers.reboundSlow.3"],
+      step: CLICK_STEP,
+      min: 0,
+      max: 20,
+    },
+    "Diff Preload": {
+      paths: ["advancedSetup.drivetrain.preload"],
+      step: CLICK_STEP,
+      min: 0,
+      max: 100,
+    },
   },
   "ac-evo": {
-    "Front Anti-Roll Bar": { path: "frontARB", step: CLICK_STEP, min: 0, max: 30 },
-    "Rear Anti-Roll Bar": { path: "rearARB", step: CLICK_STEP, min: 0, max: 30 },
-    "Brake Bias": { path: "brakeBias", step: { small: 0.5, medium: 1, large: 2 }, min: 40, max: 70, integer: false },
-    "Front Wing": { path: "frontWing", step: CLICK_STEP, min: 0, max: 20 },
-    "Rear Wing": { path: "rearWing", step: CLICK_STEP, min: 0, max: 20 },
+    "Front Anti-Roll Bar": { paths: ["frontARB"], step: CLICK_STEP, min: 0, max: 30 },
+    "Rear Anti-Roll Bar": { paths: ["rearARB"], step: CLICK_STEP, min: 0, max: 30 },
+    "Brake Bias": { paths: ["brakeBias"], step: { small: 0.5, medium: 1, large: 2 }, min: 40, max: 70, integer: false },
+    "Front Wing": { paths: ["frontWing"], step: CLICK_STEP, min: 0, max: 20 },
+    "Rear Wing": { paths: ["rearWing"], step: CLICK_STEP, min: 0, max: 20 },
+    // Ride height / dampers intentionally left out for AC-Evo: its in-memory
+    // setup snapshot (captured from telemetry, not a setup JSON) doesn't have
+    // a verified shape for these fields yet — add once confirmed against a
+    // real snapshot (plan §2/§5).
   },
 };
 
@@ -81,7 +142,8 @@ function setByPath(obj: any, path: string, value: number): boolean {
 
 export interface AppliedChange {
   component: string;
-  path: string;
+  /** Every JSON path this knob wrote (1 for scalars, 2 for symmetric axle pairs). */
+  paths: string[];
   from: number;
   to: number;
   direction: TuneIntent["direction"];
@@ -123,11 +185,24 @@ export function applyIntents(
       skipped.push({ component: intent.component, reason: "Unknown component" });
       continue;
     }
-    const raw = getByPath(setup, def.path);
-    if (typeof raw !== "number" || !Number.isFinite(raw)) {
-      skipped.push({ component: intent.component, reason: `Missing/invalid value at ${def.path}` });
+    // Read every path first — if any is missing/non-numeric, skip the whole
+    // knob rather than partially applying (e.g. one ride-height index but not
+    // its pair).
+    const raws: number[] = [];
+    let badPath: string | undefined;
+    for (const p of def.paths) {
+      const v = getByPath(setup, p);
+      if (typeof v !== "number" || !Number.isFinite(v)) {
+        badPath = p;
+        break;
+      }
+      raws.push(v);
+    }
+    if (badPath) {
+      skipped.push({ component: intent.component, reason: `Missing/invalid value at ${badPath}` });
       continue;
     }
+    const raw = raws[0];
     const delta = def.step[intent.magnitude] * (intent.direction === "increase" ? 1 : -1);
     let next = raw + delta;
     if (def.integer !== false) next = Math.round(next);
@@ -136,13 +211,20 @@ export function applyIntents(
       skipped.push({ component: intent.component, reason: "At clamp limit — no change" });
       continue;
     }
-    if (!setByPath(setup, def.path, next)) {
-      skipped.push({ component: intent.component, reason: `Write failed at ${def.path}` });
+    let writeFailed: string | undefined;
+    for (const p of def.paths) {
+      if (!setByPath(setup, p, next)) {
+        writeFailed = p;
+        break;
+      }
+    }
+    if (writeFailed) {
+      skipped.push({ component: intent.component, reason: `Write failed at ${writeFailed}` });
       continue;
     }
     applied.push({
       component: intent.component,
-      path: def.path,
+      paths: def.paths,
       from: raw,
       to: next,
       direction: intent.direction,
@@ -157,4 +239,62 @@ export function applyIntents(
 export function knownComponents(gameId: GameId): string[] {
   const table = tableFor(gameId);
   return table ? Object.keys(table) : [];
+}
+
+export interface KnobState {
+  component: string;
+  /** Current raw value (first path only — symmetric pairs share one value). */
+  current: number | null;
+  min: number;
+  max: number;
+}
+
+/**
+ * Read a single knob's current value + clamp range out of a live setup object.
+ * Used by the setup-engineer agent's `get_current_setup` tool so the model only
+ * ever sees knobs it can actually move (plan §3). Returns null when the game
+ * has no rules table or the component is unknown.
+ */
+export function getKnobState(gameId: GameId, setup: unknown, component: string): KnobState | null {
+  const table = tableFor(gameId);
+  const def = table?.[component];
+  if (!def) return null;
+  const raw = getByPath(setup, def.paths[0]);
+  return {
+    component,
+    current: typeof raw === "number" && Number.isFinite(raw) ? raw : null,
+    min: def.min,
+    max: def.max,
+  };
+}
+
+/** `getKnobState` for every knob the game exposes — the full grounded knob list. */
+export function getAllKnobStates(gameId: GameId, setup: unknown): KnobState[] {
+  return knownComponents(gameId)
+    .map((c) => getKnobState(gameId, setup, c))
+    .filter((k): k is KnobState => k !== null);
+}
+
+export interface KnobDescription extends KnobState {
+  /** Per-magnitude step size in the knob's native units — how far
+   *  small/medium/large actually move it (what `preview_change` /
+   *  `apply_changes` will do). */
+  step: Record<TuneMagnitude, number>;
+}
+
+/**
+ * `getAllKnobStates` plus each knob's per-magnitude step size — the full
+ * grounded knob list the Setup Engineer agent's `get_current_setup` tool
+ * returns (plan §3): current value + clamp range + how far a click moves it.
+ */
+export function describeKnobs(gameId: GameId, setup: unknown): KnobDescription[] {
+  const table = tableFor(gameId);
+  if (!table) return [];
+  return knownComponents(gameId)
+    .map((component) => {
+      const state = getKnobState(gameId, setup, component);
+      if (!state) return null;
+      return { ...state, step: table[component]!.step };
+    })
+    .filter((k): k is KnobDescription => k !== null);
 }
