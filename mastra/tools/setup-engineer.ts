@@ -1,25 +1,24 @@
 /**
  * Setup Engineer tools (docs/setup-engineer-tools-plan.md §3, Phase 2).
  *
- * The applyable action space IS the tool schema — the model can only ever
- * name a component from `knownComponents(gameId)` (a zod enum baked in at
- * tool-construction time), and `preview_change` / `apply_changes` run the
- * SAME deterministic `applyIntents` the old rules-based autotune used, so the
- * number the agent states is always the real clamped result, never a guess.
+ * `preview_change` / `apply_changes` run the SAME deterministic `applyIntents`
+ * the old rules-based autotune used, so the number the agent states is always
+ * the real clamped result, never a guess. Unknown component names are skipped
+ * with a reason (see `applyIntents`) rather than rejected at the schema, since
+ * static tools cannot bake a per-game `knownComponents` enum into the schema.
  *
- * Session binding: `buildSetupEngineerTools({ gameId, sessionId })` is a
- * factory, not a module-level singleton. The chat route resolves the
- * session (and its gameId) once per request, then builds a fresh set of
- * tools closed over those two values plus a fresh `Agent` — see
- * `mastra/agents/setup-engineer.ts`. This sidesteps Mastra `runtimeContext`
- * entirely: no cross-call pending state, no thread-keyed scratch map.
+ * Session binding: the tools are module-level singletons (registered on the
+ * Mastra instance, so Mastra Studio lists them). They hold no state and close
+ * over nothing. Every tool takes an explicit `sessionId` parameter — the caller
+ * (chat route) passes the resolved session id on each call, and `gameId` is
+ * derived from it via `loadActiveTuningContext(sessionId)`. Pure functions of
+ * their inputs: unit-testable, no requestContext coupling, no cross-call state.
  */
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
-import type { GameId } from "../../shared/types";
 import type { TuneDirection, TuneMagnitude } from "../../server/ai/schemas";
-import { applyIntents, describeKnobs, knownComponents } from "../../server/ai/tune-rules";
+import { applyIntents, describeKnobs } from "../../server/ai/tune-rules";
 import { writeSetupFile } from "../../server/ai/tune-writer";
 import { createTuningTest } from "../../server/db/tuning-test-queries";
 import { setSessionHead } from "../../server/db/tuning-session-queries";
@@ -37,11 +36,15 @@ import {
 const DirectionEnum = z.enum(["increase", "decrease"]);
 const MagnitudeEnum = z.enum(["small", "medium", "large"]);
 
-/** zod enum of the game's applyable knob names — the grounding mechanism. */
-function componentEnum(gameId: GameId) {
-  const names = knownComponents(gameId);
-  return names.length > 0 ? z.enum(names as [string, ...string[]]) : z.enum(["none"] as [string, ...string[]]);
-}
+// Session binding is an explicit tool parameter (not requestContext), so these
+// stay plain static tools: the chat route passes the resolved sessionId on every
+// call. gameId is derived from the session via loadActiveTuningContext(sessionId).
+const SessionIdField = z
+  .number()
+  .int()
+  .positive()
+  .describe("The tuning session id to operate on (resolved by the caller).");
+const SessionOnly = z.object({ sessionId: SessionIdField });
 
 const AppliedChangeShape = z.object({
   component: z.string(),
@@ -50,13 +53,7 @@ const AppliedChangeShape = z.object({
   direction: DirectionEnum,
 });
 
-export interface SetupEngineerToolsContext {
-  gameId: GameId;
-  sessionId: number;
-}
-
-export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerToolsContext) {
-  const component = componentEnum(gameId);
+export function buildSetupEngineerTools() {
 
   const getCurrentSetupTool = createTool({
     id: "get-current-setup",
@@ -64,7 +61,7 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
       "Get the active setup version's tunable knobs: current value, min/max clamp range, and the " +
       "per-magnitude (small/medium/large) step size. This is the COMPLETE list of knobs you may ever " +
       "recommend or move — never suggest a change to anything not in this list.",
-    inputSchema: z.object({}),
+    inputSchema: SessionOnly,
     outputSchema: z.object({
       ok: z.boolean(),
       error: z.string().optional(),
@@ -77,7 +74,7 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
         step: z.object({ small: z.number(), medium: z.number(), large: z.number() }),
       })).default([]),
     }),
-    execute: async () => {
+    execute: async ({ sessionId }) => {
       const ctx = await loadActiveTuningContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error, knobs: [] };
       return {
@@ -94,12 +91,12 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
       "Get the deterministic symptom report (balance per corner phase, lockups, bottoming) computed from " +
       "the session's fastest valid lap. Returns 'available: false' when no lap has been driven yet — " +
       "in that case, discuss the setup from the driver's description of how the car feels.",
-    inputSchema: z.object({}),
+    inputSchema: SessionOnly,
     outputSchema: z.object({
       available: z.boolean(),
       summary: z.string(),
     }),
-    execute: async () => {
+    execute: async ({ sessionId }) => {
       const symptoms = await computeSessionSymptoms(sessionId);
       if (!symptoms) return { available: false, summary: "No analysable lap yet for this session." };
       return { available: true, summary: formatSymptoms(symptoms) };
@@ -112,7 +109,7 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
       "Get every setup version tried in this session so far, oldest first: version number, label, engine " +
       "that produced it, and the changes applied to reach it from its parent. Use this to avoid repeating " +
       "a change that was already tried, or to reason about what's been attempted.",
-    inputSchema: z.object({}),
+    inputSchema: SessionOnly,
     outputSchema: z.object({
       versions: z.array(z.object({
         version: z.number(),
@@ -127,7 +124,7 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
         })),
       })),
     }),
-    execute: async () => {
+    execute: async ({ sessionId }) => {
       const ctx = await loadActiveTuningContext(sessionId);
       const tests = ctx.ok ? ctx.tests : [];
       return {
@@ -159,7 +156,8 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
       "this to state the actual effect of a suggestion before the driver confirms it, or to check whether a " +
       "knob is already at its limit (noop: true).",
     inputSchema: z.object({
-      component,
+      sessionId: SessionIdField,
+      component: z.string(),
       direction: DirectionEnum,
       magnitude: MagnitudeEnum,
     }),
@@ -172,6 +170,7 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
       to: z.number().optional(),
     }),
     execute: async (inputData) => {
+      const { sessionId } = inputData;
       const ctx = await loadActiveTuningContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error };
       const { setup, applied, skipped } = applyIntents(ctx.gameId, ctx.setup, [{
@@ -198,8 +197,9 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
       "accumulator, so a change left out here will not be applied. Only call this after the driver has " +
       "explicitly confirmed they want it applied/generated.",
     inputSchema: z.object({
+      sessionId: SessionIdField,
       changes: z.array(z.object({
-        component,
+        component: z.string(),
         direction: DirectionEnum,
         magnitude: MagnitudeEnum,
         reason: z.string().describe("One short sentence: why this change, grounded in the symptoms/conversation."),
@@ -214,6 +214,7 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
       skipped: z.array(z.object({ component: z.string(), reason: z.string() })).default([]),
     }),
     execute: async (inputData) => {
+      const { sessionId } = inputData;
       const ctx = await loadActiveTuningContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error, applied: [], skipped: [] };
 
@@ -291,6 +292,7 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
       "Use when the driver asks to try a different direction from an older version without overwriting newer ones. " +
       "Accepts the version label (e.g. \"v1\", \"v1.2\") or the integer version number.",
     inputSchema: z.object({
+      sessionId: SessionIdField,
       target: z.string().describe("A version label like \"v1.2\" or an integer version like \"1\"."),
     }),
     outputSchema: z.object({
@@ -300,6 +302,7 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
       version: z.number().optional(),
     }),
     execute: async (inputData) => {
+      const { sessionId } = inputData;
       const ctx = await loadActiveTuningContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error };
 
@@ -376,3 +379,10 @@ export function buildSetupEngineerTools({ gameId, sessionId }: SetupEngineerTool
     branchFromVersionTool,
   };
 }
+
+/**
+ * Module-level singleton tool set — registered on the Mastra instance so Mastra
+ * Studio lists them. Session binding is an explicit `sessionId` parameter on
+ * every tool, supplied by the caller per call.
+ */
+export const setupEngineerTools = buildSetupEngineerTools();

@@ -27,11 +27,13 @@ import { lapAnalystAgent as rawLapAnalystAgent } from "../../mastra/agents/lap-a
 import { lapChatAgent as rawLapChatAgent } from "../../mastra/agents/lap-chat";
 import { compareEngineerAgent as rawCompareEngineerAgent } from "../../mastra/agents/compare-engineer";
 import { compareChatAgent as rawCompareChatAgent } from "../../mastra/agents/compare-chat";
+import { setupEngineerAgent as rawSetupEngineerAgent } from "../../mastra/agents/setup-engineer";
 
 type LapAnalystAgent = typeof rawLapAnalystAgent;
 type LapChatAgent = typeof rawLapChatAgent;
 type CompareEngineerAgent = typeof rawCompareEngineerAgent;
 type CompareChatAgent = typeof rawCompareChatAgent;
+type SetupEngineerAgent = typeof rawSetupEngineerAgent;
 
 export function isMastraSignalMigrationRequiredError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
@@ -45,6 +47,7 @@ let lapAnalystAgent: LapAnalystAgent = rawLapAnalystAgent;
 let lapChatAgent: LapChatAgent = rawLapChatAgent;
 let compareEngineerAgent: CompareEngineerAgent = rawCompareEngineerAgent;
 let compareChatAgent: CompareChatAgent = rawCompareChatAgent;
+let setupEngineerAgent: SetupEngineerAgent = rawSetupEngineerAgent;
 
 if (process.env.NODE_ENV !== "production") {
   try {
@@ -53,6 +56,7 @@ if (process.env.NODE_ENV !== "production") {
     lapChatAgent = mastra.getAgent("lap-chat") as unknown as LapChatAgent;
     compareEngineerAgent = mastra.getAgent("compare-engineer") as unknown as CompareEngineerAgent;
     compareChatAgent = mastra.getAgent("compare-chat") as unknown as CompareChatAgent;
+    setupEngineerAgent = mastra.getAgent("setup-engineer") as unknown as SetupEngineerAgent;
   } catch (err) {
     if (isMastraSignalMigrationRequiredError(err)) {
       const dataDir = process.env.DATA_DIR ?? resolve(process.cwd(), "data");
@@ -66,4 +70,4 @@ if (process.env.NODE_ENV !== "production") {
   }
 }
 
-export { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent };
+export { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent, setupEngineerAgent };

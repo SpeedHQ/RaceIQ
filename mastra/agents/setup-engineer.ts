@@ -1,38 +1,44 @@
 /**
  * Setup Engineer agent (docs/setup-engineer-tools-plan.md §3, Phase 2).
  *
- * Session-bound by construction: `buildSetupEngineerAgent({ gameId, sessionId })`
- * is a factory, not a module-level singleton — the chat route builds a fresh
- * Agent per request, closed over that session's tools (see
- * `mastra/tools/setup-engineer.ts`). Not registered in `mastra/index.ts`
- * because a static agent can't carry a sessionId; the Mastra dev playground
- * only ever sees agents that work standalone.
+ * Static singleton — registered in `mastra/index.ts` so it appears in the
+ * Mastra dev Studio playground alongside the other agents. It is NOT bound to
+ * a session at construction: the tools (`mastra/tools/setup-engineer.ts`) take
+ * an explicit `sessionId` argument, and the running server injects the active
+ * session's context (id, car, track) into a per-request system message
+ * (`buildSetupEngineerSystemPrompt`) so the model knows which sessionId to pass
+ * on every tool call. In Studio the operator supplies the sessionId by hand in
+ * the tool-call args, which is exactly how any standalone playground call works.
  */
 import { Agent } from "@mastra/core/agent";
 
-import type { GameId } from "../../shared/types";
 import { aiLanguageInstruction } from "../../shared/locales";
 import { getChatMemory } from "../../server/ai/chat-agent";
 import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
-import { buildSetupEngineerTools } from "../tools/setup-engineer";
+import { setupEngineerTools } from "../tools/setup-engineer";
 
-export interface SetupEngineerAgentContext {
-  gameId: GameId;
+export interface SetupEngineerSessionContext {
   sessionId: number;
   carName: string | null;
   trackName: string | null;
   sessionName: string;
-  language?: string;
+  gameId: string;
 }
 
-export function buildSetupEngineerAgent(ctx: SetupEngineerAgentContext): Agent {
-  const { gameId, sessionId, carName, trackName, sessionName, language = "en" } = ctx;
-  const car = carName ?? "the car";
-  const track = trackName ? ` at ${trackName}` : "";
-  const tools = buildSetupEngineerTools({ gameId, sessionId });
+/**
+ * Per-request context block. The tune chat route prepends this as a system
+ * message so the model knows the active session and, crucially, the `sessionId`
+ * it must pass to every tool call.
+ */
+export function buildSetupEngineerSystemPrompt(ctx: SetupEngineerSessionContext): string {
+  const car = ctx.carName ?? "the car";
+  const track = ctx.trackName ? ` at ${ctx.trackName}` : "";
+  return `ACTIVE SESSION — the driver is tuning ${car}${track} in ${ctx.gameId.toUpperCase()} (session "${ctx.sessionName}").
+sessionId = ${ctx.sessionId}. Pass this exact sessionId as the \`sessionId\` argument on EVERY tool call (get_current_setup, get_symptoms, get_version_history, preview_change, apply_changes, branch_from_version). Never invent or guess a different sessionId.`;
+}
 
-  const instructions = `You are a sharp, decisive GT3 / endurance race engineer working the setup for ${car}${track} in ${gameId.toUpperCase()} (session "${sessionName}"). The driver talks to you between runs about how the car feels and what to change.
+const SETUP_ENGINEER_INSTRUCTIONS = `You are a sharp, decisive GT3 / endurance race engineer working a car setup in ACC / AC-EVO. The driver talks to you between runs about how the car feels and what to change. The active session (car, track, and the sessionId you must pass to every tool) is supplied per request in a system message.
 
 GROUNDING — this is the hard rule
 - The ONLY knobs that exist are the ones \`get_current_setup\` returns. Never name, suggest, or discuss a component that tool doesn't list. If the driver asks about something not tunable (e.g. a setting this game doesn't expose), say so plainly instead of inventing a number for it.
@@ -47,24 +53,23 @@ HOW TO ANSWER
 - Be decisive. When the driver describes a symptom, give the recommendation directly: name the change as a DIRECTION and a relative amount (soften/stiffen, add/reduce, raise/lower, small/medium/large) and say WHY it helps the balance.
 - Lead with the answer, not with questions. Do NOT end messages by asking "would you like me to suggest some directions?" — just make the recommendation. Ask at most ONE short clarifying question, and only when you genuinely cannot proceed without it.
 - Keep it tight: a couple of short paragraphs or a few bullets. Address the driver as "you". No JSON in your prose replies.
-- You have NO lap-comparison feature and no telemetry beyond what \`get_symptoms\` returns. Never invent lap ids or claim to compare laps.${aiLanguageInstruction(language)}`;
+- You have NO lap-comparison feature and no telemetry beyond what \`get_symptoms\` returns. Never invent lap ids or claim to compare laps.`;
 
-  return new Agent({
-    id: `setup-engineer-${sessionId}`,
-    name: "Setup Engineer",
-    instructions,
-    model: () => {
-      const s = loadSettings();
-      return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
-    },
-    tools: {
-      get_current_setup: tools.getCurrentSetupTool,
-      get_symptoms: tools.getSymptomsTool,
-      get_version_history: tools.getVersionHistoryTool,
-      preview_change: tools.previewChangeTool,
-      apply_changes: tools.applyChangesTool,
-      branch_from_version: tools.branchFromVersionTool,
-    },
-    memory: getChatMemory(),
-  });
-}
+export const setupEngineerAgent = new Agent({
+  id: "setup-engineer",
+  name: "Setup Engineer",
+  instructions: () => `${SETUP_ENGINEER_INSTRUCTIONS}${aiLanguageInstruction(loadSettings().language)}`,
+  model: () => {
+    const s = loadSettings();
+    return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
+  },
+  tools: {
+    get_current_setup: setupEngineerTools.getCurrentSetupTool,
+    get_symptoms: setupEngineerTools.getSymptomsTool,
+    get_version_history: setupEngineerTools.getVersionHistoryTool,
+    preview_change: setupEngineerTools.previewChangeTool,
+    apply_changes: setupEngineerTools.applyChangesTool,
+    branch_from_version: setupEngineerTools.branchFromVersionTool,
+  },
+  memory: getChatMemory(),
+});

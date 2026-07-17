@@ -18,6 +18,7 @@ import { lapAnalystAgent } from "./agents/lap-analyst";
 import { lapChatAgent } from "./agents/lap-chat";
 import { compareEngineerAgent } from "./agents/compare-engineer";
 import { compareChatAgent } from "./agents/compare-chat";
+import { setupEngineerAgent } from "./agents/setup-engineer";
 import { compareAnalyseWorkflow } from "./workflows/compare-analyse";
 
 /**
@@ -41,6 +42,7 @@ export const mastra = new Mastra({
     "lap-chat": lapChatAgent,
     "compare-engineer": compareEngineerAgent,
     "compare-chat": compareChatAgent,
+    "setup-engineer": setupEngineerAgent,
   },
   workflows: {
     "compare-analyse": compareAnalyseWorkflow,
@@ -75,3 +77,4 @@ export const getLapAnalystAgent = () => mastra.getAgent("lap-analyst");
 export const getLapChatAgent = () => mastra.getAgent("lap-chat");
 export const getCompareEngineerAgent = () => mastra.getAgent("compare-engineer");
 export const getCompareChatAgent = () => mastra.getAgent("compare-chat");
+export const getSetupEngineerAgent = () => mastra.getAgent("setup-engineer");
