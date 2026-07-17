@@ -306,4 +306,29 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_assignments_tune ON tune_assignments(tune_id)`,
     ],
   },
+
+  // ── v23: discovered cars — auto-registered cars not (yet) in cars.csv ─────
+  // AC Evo has no stable ordinals; cars are keyed by name. When the shared
+  // memory reports a car name that isn't in shared/games/ac-evo/cars.csv we
+  // register it here with a generated ordinal (>= 100000, far above any CSV
+  // id) instead of importing the session as -1/"Unknown Car". On startup,
+  // reconcileDiscoveredCars() promotes rows whose name has since been added
+  // to the CSV: sessions/tunes/etc are remapped to the canonical CSV id and
+  // the discovered row is deleted.
+  {
+    version: 23,
+    name: "discovered cars registry",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS discovered_cars (
+         id          INTEGER PRIMARY KEY AUTOINCREMENT,
+         game_id     TEXT NOT NULL,
+         ordinal     INTEGER NOT NULL,
+         name        TEXT NOT NULL,
+         model       TEXT NOT NULL DEFAULT '',
+         created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+         UNIQUE(game_id, ordinal),
+         UNIQUE(game_id, name)
+       )`,
+    ],
+  },
 ];

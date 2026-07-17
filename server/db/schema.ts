@@ -43,6 +43,29 @@ export const tunes = sqliteTable(
 	}),
 );
 
+/**
+ * Cars seen in telemetry that aren't in the per-game CSV data. AC Evo keys
+ * cars by name (no stable ordinal), so unknown names get a generated ordinal
+ * (>= 100000) here instead of importing as -1/"Unknown Car". Rows are
+ * promoted to canonical CSV ids on startup once the name exists in cars.csv
+ * (see reconcileDiscoveredCars).
+ */
+export const discoveredCars = sqliteTable(
+	"discovered_cars",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		gameId: text("game_id").notNull(),
+		ordinal: integer("ordinal").notNull(),
+		name: text("name").notNull(),
+		model: text("model").notNull().default(""),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => [
+		unique().on(table.gameId, table.ordinal),
+		unique().on(table.gameId, table.name),
+	],
+);
+
 export const sessions = sqliteTable("sessions", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
 	carOrdinal: integer("car_ordinal").notNull(),

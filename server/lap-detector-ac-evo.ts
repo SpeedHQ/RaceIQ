@@ -6,6 +6,21 @@ import type { DbAdapter } from "./pipeline-adapters";
 import { assessLapRecording } from "./lap-quality";
 import { computeLapSectors } from "./compute-lap-sectors";
 import { accFirstPacketIsMidLap, classifyAccPitLap } from "./acc-lap-rules";
+import { getOrCreateDiscoveredCar } from "./db/discovered-cars";
+
+/**
+ * AC Evo has no stable car ordinals — when the parser can't match the shared
+ * memory car name against cars.csv it reports CarOrdinal -1 alongside the raw
+ * name (carModelName). Register that name in discovered_cars (generating a
+ * stable ordinal >= DISCOVERED_CAR_ORDINAL_BASE) instead of importing the
+ * session as an unresolvable -1/"Unknown Car".
+ */
+async function resolveCarOrdinal(packet: TelemetryPacket): Promise<number> {
+  if (packet.CarOrdinal >= 0 || !packet.carModelName || packet.gameId !== "ac-evo") {
+    return packet.CarOrdinal;
+  }
+  return getOrCreateDiscoveredCar(packet.gameId, packet.carModelName);
+}
 
 export const LAP_DETECTOR_AC_EVO_ID = "ac_evo_lapdetector_v1";
 
@@ -64,15 +79,16 @@ export class LapDetectorAcEvo implements ILapDetector {
       this._lapFrameCount++;
     }
     if (!this.currentSession) {
+      const resolvedCarOrdinal = await resolveCarOrdinal(packet);
       const sessionId = await this.db.insertSession(
-        packet.CarOrdinal,
+        resolvedCarOrdinal,
         packet.TrackOrdinal ?? 0,
         packet.gameId,
         packet.f1?.sessionType
       );
       this.currentSession = {
         sessionId,
-        carOrdinal: packet.CarOrdinal,
+        carOrdinal: resolvedCarOrdinal,
         trackOrdinal: packet.TrackOrdinal ?? 0,
         carPI: packet.CarPerformanceIndex,
         gameId: packet.gameId,
@@ -86,6 +102,24 @@ export class LapDetectorAcEvo implements ILapDetector {
       this._lapByteOffset = this._currentRawByteOffset;
       this._lapFrameCount = 0;
       await this.onSessionStart?.(this.currentSession);
+    }
+
+    // Backfill car/track if the session was created before shared-memory static
+    // data was populated (first frames of a capture have empty car/track strings,
+    // so the parser reports -1 until the game writes static state).
+    const resolvedTrack = packet.TrackOrdinal ?? -1;
+    const resolvedCarOrdinal = await resolveCarOrdinal(packet);
+    if (
+      (this.currentSession.trackOrdinal < 0 && resolvedTrack >= 0) ||
+      (this.currentSession.carOrdinal < 0 && resolvedCarOrdinal >= 0)
+    ) {
+      if (resolvedTrack >= 0) this.currentSession.trackOrdinal = resolvedTrack;
+      if (resolvedCarOrdinal >= 0) this.currentSession.carOrdinal = resolvedCarOrdinal;
+      await this.db.updateSessionCarTrack(
+        this.currentSession.sessionId,
+        this.currentSession.carOrdinal,
+        this.currentSession.trackOrdinal
+      );
     }
 
     const prev = this.lapBuffer[this.lapBuffer.length - 1];

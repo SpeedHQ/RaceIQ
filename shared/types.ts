@@ -498,6 +498,12 @@ export interface TelemetryPacket {
 
   // Car info
   CarOrdinal: number; // s32
+  /**
+   * Raw car name/model string from telemetry when CarOrdinal is -1 (car not
+   * in the game's cars.csv). Lets the session layer register the car in
+   * discovered_cars instead of storing an unresolvable -1. AC Evo only.
+   */
+  carModelName?: string;
   CarClass: number; // s32 (0-7)
   CarPerformanceIndex: number; // s32
   DrivetrainType: number; // s32 (0=FWD, 1=RWD, 2=AWD)

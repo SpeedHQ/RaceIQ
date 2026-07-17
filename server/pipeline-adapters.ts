@@ -1,7 +1,7 @@
 import { resolve } from "path";
 import { mkdirSync } from "fs";
 import type { LapMeta, LiveSectorData, LivePitData, GameId, TelemetryPacket } from "../shared/types";
-import { insertSession, insertLap, getLaps, updateSessionRawFile } from "./db/queries";
+import { insertSession, insertLap, getLaps, updateSessionRawFile, updateSessionCarTrack } from "./db/queries";
 import { getTuneAssignment } from "./db/tune-queries";
 import { wsManager } from "./ws";
 import { UdpRecorder } from "./udp-recorder";
@@ -50,6 +50,7 @@ export interface DbAdapter {
   ): Promise<number>;
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]>;
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void>;
+  updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void>;
   getTuneAssignment(
     gameId: GameId,
     carOrdinal: number,
@@ -103,6 +104,9 @@ export class RealDbAdapter implements DbAdapter {
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
     return updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
   }
+  updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
+    return updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
+  }
   getTuneAssignment(gameId: GameId, carOrdinal: number, trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
     return getTuneAssignment(gameId, carOrdinal, trackOrdinal);
   }
@@ -146,6 +150,16 @@ export class CapturingDbAdapter implements DbAdapter {
     return Promise.resolve();
   }
 
+  updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
+    // Backfill the captured session in place so tests observe the resolved ordinals.
+    const session = this.sessions[sessionId - 1];
+    if (session) {
+      session.carOrdinal = carOrdinal;
+      session.trackOrdinal = trackOrdinal;
+    }
+    return Promise.resolve();
+  }
+
   getTuneAssignment(_gameId: GameId, _carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
     return Promise.resolve(null);
   }
@@ -170,6 +184,9 @@ export class NullDbAdapter implements DbAdapter {
     return Promise.resolve([]);
   }
   updateSessionRawFile(_sessionId: number, _rawFile: string, _lapDetectorVersion: string): Promise<void> {
+    return Promise.resolve();
+  }
+  updateSessionCarTrack(_sessionId: number, _carOrdinal: number, _trackOrdinal: number): Promise<void> {
     return Promise.resolve();
   }
   getTuneAssignment(_gameId: GameId, _carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {

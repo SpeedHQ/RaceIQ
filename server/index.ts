@@ -12,10 +12,18 @@ import { initServerGameAdapters } from "./games/init";
 import { initGameAdapters } from "../shared/games/init";
 import { accRecorder } from "./games/acc/recorder";
 import { acEvoRecorder } from "./games/ac-evo/recorder";
+import { reconcileDiscoveredCars, listDiscoveredCars } from "./db/discovered-cars";
+import { injectDiscoveredAcEvoCars } from "../shared/ac-evo-car-data";
 
 // Register all game adapters (shared + server)
 initGameAdapters();
 initServerGameAdapters();
+
+// Promote any discovered_cars rows whose name has since landed in cars.csv,
+// then load whatever's left into the in-memory name-resolution map so
+// getAcEvoCarName()/getCarName() resolve runtime-discovered cars immediately.
+await reconcileDiscoveredCars();
+injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
 
 import { existsSync } from "fs";
 import { resolve } from "path";

@@ -9,8 +9,35 @@ interface AcEvoCar {
   class: string;
 }
 
+/**
+ * Generated ordinals for cars discovered at runtime (not in cars.csv) start
+ * here — far above any CSV id so the two ranges can never collide.
+ */
+export const DISCOVERED_CAR_ORDINAL_BASE = 100000;
+
 let carMap: Map<number, AcEvoCar> | null = null;
 let modelMap: Map<string, AcEvoCar> | null = null;
+
+// Runtime-discovered cars (from the discovered_cars table). Kept separate
+// from the CSV maps so getAllAcEvoCars()/CSV reload semantics stay unchanged.
+const discoveredById = new Map<number, AcEvoCar>();
+
+/**
+ * Register runtime-discovered cars (server-side, from discovered_cars rows)
+ * so name/class lookups resolve for cars that aren't in cars.csv yet.
+ */
+export function injectDiscoveredAcEvoCars(
+  cars: { ordinal: number; name: string; model?: string }[],
+): void {
+  for (const c of cars) {
+    discoveredById.set(c.ordinal, {
+      id: c.ordinal,
+      model: c.model ?? "",
+      name: c.name,
+      class: "Discovered",
+    });
+  }
+}
 
 function ensureLoaded(): void {
   if (carMap) return;
@@ -40,7 +67,7 @@ function ensureLoaded(): void {
 export function getAcEvoCarName(ordinal: number): string {
   if (ordinal < 0) return "Unknown Car"; // -1 sentinel: car never identified
   ensureLoaded();
-  return carMap!.get(ordinal)?.name ?? `Car #${ordinal}`;
+  return carMap!.get(ordinal)?.name ?? discoveredById.get(ordinal)?.name ?? `Car #${ordinal}`;
 }
 
 export function getAcEvoCarNameByModel(model: string): string {
@@ -83,7 +110,7 @@ export function getAcEvoCarByDisplayName(displayName: string): AcEvoCar | undefi
 
 export function getAcEvoCarClass(ordinal: number): string | undefined {
   ensureLoaded();
-  return carMap!.get(ordinal)?.class;
+  return carMap!.get(ordinal)?.class ?? discoveredById.get(ordinal)?.class;
 }
 
 export function getAllAcEvoCars(): AcEvoCar[] {
