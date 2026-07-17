@@ -1,0 +1,52 @@
+{
+  "id": "shanghai",
+  "character": "Unique 'snail' shaped opening corner sequence with a very long back straight. Wide, sweeping corners test a car's mid-corner balance and aero efficiency.",
+  "sources": "https://f1chronicle.com/the-technical-challenges-of-the-shanghai-circuits-snail-shell-corners-explained/ ; https://www.formula1.com/en/latest/article/circuit-guide-everything-you-need-to-know-about-the-shanghai-international.1b0f0ghbsPMRsHJoHTt6eB — snail-complex (T1-2, T11-13) verified",
+  "corners": [
+    {
+      "name": "Turn 1-2",
+      "numbers": [
+        1,
+        2
+      ],
+      "type": "long, decreasing-radius double-apex right (the first 'snail')",
+      "technique": "Constant-radius-tightening corner — carry patience, keep tightening the line, don't apex too early",
+      "trap": "Early apex on the first part leaves the car with nowhere to go as the corner keeps tightening"
+    },
+    {
+      "name": "Turn 5-6",
+      "numbers": [
+        5,
+        6
+      ],
+      "type": "fast, high-speed left-right combination",
+      "technique": "Commit with minimal lift, smooth steering through the direction change",
+      "trap": "Lifting unnecessarily through the high-speed section"
+    },
+    {
+      "name": "Turn 11-13",
+      "numbers": [
+        11,
+        12,
+        13
+      ],
+      "type": "increasing-radius spiral (the second 'snail'), feeding a 1.2km straight",
+      "technique": "Progressive throttle as the radius opens through the sequence, prioritise exit traction out of T13 — feeds the longest straight on the lap",
+      "trap": "Getting on power too early mid-spiral costs the exit onto the long straight after T13"
+    },
+    {
+      "name": "Turn 14",
+      "numbers": [
+        14
+      ],
+      "type": "final, medium-speed corner",
+      "technique": "Late apex, clean exit onto the pit straight",
+      "trap": "Compromised exit costs time all the way to the line"
+    }
+  ],
+  "priorityCorners": [
+    "Turn 1-2",
+    "Turn 11-13",
+    "Turn 14"
+  ]
+}

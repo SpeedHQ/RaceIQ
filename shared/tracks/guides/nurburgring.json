@@ -1,0 +1,91 @@
+{
+  "id": "nurburgring",
+  "character": "5.1km circuit in the Eifel Mountains. Technical first sector (Mercedes Arena), fast cascading second sector, and chicane-hairpin finale. Demands precision in slow sections and commitment in fast ones.",
+  "sources": "https://www.formula1.com/en/racing/2026/germany/circuit historical F1 GP-circuit corner naming (Castrol-S, Mercedes Arena, Dunlop Kehre, Schumacher S, Veedol, NGK)",
+  "corners": [
+    {
+      "name": "Castrol-S",
+      "numbers": [
+        1
+      ],
+      "type": "sharp downhill right hairpin (T1)",
+      "technique": "Brake at 100m board or start of red-white kerbing. 1st gear, late apex, use all exit road",
+      "trap": "Misjudging braking on the downhill — easy to over-shoot"
+    },
+    {
+      "name": "Mercedes Arena",
+      "numbers": [
+        2
+      ],
+      "type": "technical left-left-right sequence (T2-T4)",
+      "technique": "T2: dab brake at grey kerbing ref, 2nd gear. Stick to inside through T3 as it tightens. T4: flick in early, short-shift to 2nd",
+      "trap": "T3 keeps tightening — running wide here ruins T4 exit onto the straight"
+    },
+    {
+      "name": "Turn 5-6",
+      "numbers": [
+        5,
+        6
+      ],
+      "type": "right-left chicane",
+      "technique": "Smooth direction changes, use inside kerbs. Good exit feeds Dunlop Kehre approach",
+      "trap": "Over-driving compromises approach to the hairpin"
+    },
+    {
+      "name": "Dunlop Kehre",
+      "numbers": [
+        6
+      ],
+      "type": "downhill right hairpin (T7)",
+      "technique": "Tricky braking — no clear reference point. Trail brake to early first apex, coast, then get on power for second apex",
+      "trap": "Misjudging the downhill braking zone; no reference markers make this consistently tricky"
+    },
+    {
+      "name": "Schumacher S",
+      "numbers": [
+        9
+      ],
+      "type": "fast left-right (T8-T9)",
+      "technique": "High-speed commitment, smooth direction change. Carry speed through both parts",
+      "trap": "Fighting the car with corrections instead of flowing through"
+    },
+    {
+      "name": "Turn 10-11",
+      "numbers": [
+        10,
+        11
+      ],
+      "type": "medium-speed right-left sequence",
+      "technique": "Good exit from T11 feeds Bit-Kurve and the fast section",
+      "trap": "Over-driving T10 compromises T11 exit"
+    },
+    {
+      "name": "Bit-Kurve",
+      "type": "fast right (T12)",
+      "technique": "Flat-out right-hand kink, stay smooth",
+      "trap": "Unnecessary lifting"
+    },
+    {
+      "name": "Veedol",
+      "type": "fast left-right chicane (T13-T14)",
+      "technique": "Brake between 100m and 50m, 3rd gear. Cut inside kerb T13, smash inside kerb T14 (if ride height allows)",
+      "trap": "Hitting concrete block on T13 kerb unsettles the car"
+    },
+    {
+      "name": "NGK Chicane",
+      "numbers": [
+        12,
+        13
+      ],
+      "type": "final right hairpin (T15)",
+      "technique": "Hard braking, tight hairpin. Clean exit onto start/finish straight",
+      "trap": "Braking too late and missing the apex; poor exit costs pit straight speed"
+    }
+  ],
+  "priorityCorners": [
+    "Castrol-S",
+    "Dunlop Kehre",
+    "Veedol",
+    "NGK Chicane"
+  ]
+}

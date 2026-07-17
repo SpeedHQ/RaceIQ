@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
@@ -38,25 +38,27 @@ function knownTurns(meta: Meta): Set<number> {
   return out;
 }
 
-// Parsed from source: the guides array isn't exported, and the anchors are the
-// thing under test, so read them the way a reviewer would.
+// Read straight from the shared guide JSONs — the guides array isn't exported,
+// and the anchors are the thing under test, so read them the way a reviewer
+// would (one file per track, in guide order).
+const GUIDES_DIR = resolve(import.meta.dir, "../shared/tracks/guides");
+type GuideCorner = { name: string; numbers?: number[]; type: string };
+type RawGuide = { id: string; corners: GuideCorner[] };
+
+function loadGuides(): RawGuide[] {
+  return readdirSync(GUIDES_DIR)
+    .filter((f) => f.endsWith(".json"))
+    .sort()
+    .map((f) => JSON.parse(readFileSync(resolve(GUIDES_DIR, f), "utf8")) as RawGuide);
+}
+
 function guideAnchors(): { slug: string; name: string; numbers: number[] }[] {
-  const src = readFileSync(resolve(import.meta.dir, "../server/ai/track-guides.ts"), "utf8");
   const out: { slug: string; name: string; numbers: number[] }[] = [];
-  let slug = "";
-  for (const line of src.split("\n")) {
-    const id = line.match(/^\s*id: "([a-z0-9-]+)"/);
-    if (id) {
-      slug = id[1];
-      continue;
-    }
-    const c = line.match(/^\s*\{ name: "([^"]+)", numbers: \[([0-9, ]*)\]/);
-    if (c && slug) {
-      out.push({
-        slug,
-        name: c[1],
-        numbers: c[2].split(",").map((x) => Number(x.trim())).filter((n) => Number.isFinite(n)),
-      });
+  for (const g of loadGuides()) {
+    for (const c of g.corners) {
+      if (Array.isArray(c.numbers) && c.numbers.length) {
+        out.push({ slug: g.id, name: c.name, numbers: c.numbers });
+      }
     }
   }
   return out;
@@ -117,6 +119,15 @@ const KNOWN_ANCHOR_GAPS: Record<string, string[]> = {
   indianapolis: ["Turn 16"],
 
   // No meta file, or an empty stub — nothing to anchor against.
+  fuji: [
+    "First Corner (TGR Corner)",
+    "Coca-Cola Corner",
+    "100R",
+    "Hairpin (Advan Corner)",
+    "300R",
+    "Dunlop Corner",
+    "Netz / Panasonic Corner",
+  ],
   sochi: ["Turn 2", "Turn 3", "Turn 4", "Turn 12-13"],
   portimao: ["Primeira", "Turn 4", "Torre Vip", "Turn 15"],
   hanoi: ["Turn 1", "Turn 6-9", "Turn 11"],
@@ -133,17 +144,12 @@ const FANTASY_SLUGS = new Set([
 
 /** Guide entries with no `numbers`, i.e. still rendering under their own name. */
 function unanchoredEntries(): Record<string, string[]> {
-  const src = readFileSync(resolve(import.meta.dir, "../server/ai/track-guides.ts"), "utf8");
   const out: Record<string, string[]> = {};
-  let slug = "";
-  for (const line of src.split("\n")) {
-    const id = line.match(/^\s*id: "([a-z0-9-]+)"/);
-    if (id) {
-      slug = id[1];
-      continue;
+  for (const g of loadGuides()) {
+    if (FANTASY_SLUGS.has(g.id)) continue;
+    for (const c of g.corners) {
+      if (!Array.isArray(c.numbers) || !c.numbers.length) (out[g.id] ??= []).push(c.name);
     }
-    const c = line.match(/^\s*\{ name: "([^"]+)", type: /);
-    if (c && slug && !FANTASY_SLUGS.has(slug)) (out[slug] ??= []).push(c[1]);
   }
   return out;
 }
@@ -274,23 +280,12 @@ function proseTurns(type: string): number[] | null {
 }
 
 function guideEntries(): { slug: string; name: string; numbers: number[]; type: string }[] {
-  const src = readFileSync(resolve(import.meta.dir, "../server/ai/track-guides.ts"), "utf8");
   const out: { slug: string; name: string; numbers: number[]; type: string }[] = [];
-  let slug = "";
-  for (const line of src.split("\n")) {
-    const id = line.match(/^\s*id: "([a-z0-9-]+)"/);
-    if (id) {
-      slug = id[1];
-      continue;
-    }
-    const c = line.match(/^\s*\{ name: "([^"]+)", numbers: \[([0-9, ]*)\], type: "([^"]+)"/);
-    if (c && slug) {
-      out.push({
-        slug,
-        name: c[1],
-        numbers: c[2].split(",").map((x) => Number(x.trim())).filter(Number.isFinite),
-        type: c[3],
-      });
+  for (const g of loadGuides()) {
+    for (const c of g.corners) {
+      if (Array.isArray(c.numbers) && c.numbers.length) {
+        out.push({ slug: g.id, name: c.name, numbers: c.numbers, type: c.type });
+      }
     }
   }
   return out;

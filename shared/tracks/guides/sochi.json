@@ -1,0 +1,35 @@
+{
+  "id": "sochi",
+  "character": "Former F1 circuit built around Sochi's Olympic Park with an unusually long, constant-radius Turn 3 and mostly 90-degree corners. Tyre and brake management through the sustained long corners is the key challenge.",
+  "sources": "https://www.racefans.net/f1-information/going-to-a-race/sochi-autodrom-circuit-information/ ; https://www.f1-fansite.com/f1-circuits/sochi-street-circuit-layout-records/ — Turn 3 decreasing-radius description verified",
+  "corners": [
+    {
+      "name": "Turn 2",
+      "type": "heavy-braking corner off the main straight",
+      "technique": "Brake hard, late apex",
+      "trap": "Over-braking and losing momentum into Turn 3"
+    },
+    {
+      "name": "Turn 3",
+      "type": "very long, 180-degree decreasing-radius left-hander (longest turn of any modern F1 circuit)",
+      "technique": "Patient, progressive line as the corner tightens around its full radius",
+      "trap": "Apexing too early leaves nowhere to go as the corner keeps tightening"
+    },
+    {
+      "name": "Turn 4",
+      "type": "distinctive 180-degree left-hander",
+      "technique": "Smooth, committed steering through the long radius",
+      "trap": "Over-driving the entry and running out of track mid-corner"
+    },
+    {
+      "name": "Turn 12-13",
+      "type": "fast sweeping combination taken around 240 km/h",
+      "technique": "Minimal lift, smooth steering through the direction change",
+      "trap": "Any correction at this speed scrubs significant time"
+    }
+  ],
+  "priorityCorners": [
+    "Turn 3",
+    "Turn 12-13"
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "id": "mexico-city",
+  "character": "High-altitude circuit (2,200m) with thin air reducing aero and engine performance. Long back straight leads into a tight stadium section through the Foro Sol, surrounded by a packed grandstand.",
+  "sources": "https://www.formula1.com/en/racing/2026/mexico/circuit official F1 circuit guide; Foro Sol stadium section naming well documented",
+  "corners": [
+    {
+      "name": "Turn 1",
+      "numbers": [
+        1
+      ],
+      "type": "heavy-braking right-hander",
+      "technique": "Brake early to compensate for reduced aero grip at altitude, late apex",
+      "trap": "Misjudging braking distance due to thinner air reducing downforce and drag"
+    },
+    {
+      "name": "Turn 4-6",
+      "numbers": [
+        4,
+        5,
+        6
+      ],
+      "type": "fast, flowing esses",
+      "technique": "Smooth, rhythmic direction changes, trust the grip despite the altitude",
+      "trap": "Over-driving the reduced-grip conditions at altitude"
+    },
+    {
+      "name": "Stadium Section",
+      "numbers": [
+        12
+      ],
+      "type": "tight, technical corners through the Foro Sol baseball stadium",
+      "technique": "Patient, precise low-speed inputs, use the atmosphere but stay focused on the tightening line",
+      "trap": "Getting distracted by the stadium crowd and missing braking points"
+    },
+    {
+      "name": "Final Corner",
+      "numbers": [
+        15,
+        16,
+        17
+      ],
+      "type": "long, tightening corner onto the pit straight",
+      "technique": "Progressive throttle as the corner opens, clean exit is critical",
+      "trap": "Early throttle application before the corner fully opens causes a slide",
+      "note": "Meta names T15-17 Peraltada."
+    }
+  ],
+  "priorityCorners": [
+    "Turn 1",
+    "Stadium Section",
+    "Final Corner"
+  ]
+}

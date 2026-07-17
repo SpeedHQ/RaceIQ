@@ -1,0 +1,94 @@
+{
+  "id": "laguna-seca",
+  "character": "Compact 3.6km California circuit famous for the Corkscrew — a blind, steep-drop chicane. 55m elevation change. Technical, with few straight-line braking zones. Rewards smooth, committed driving.",
+  "sources": "https://www.tracktitan.io/post/laguna-seca-track-guide Corkscrew/Andretti Hairpin/Rainey Curve naming well documented",
+  "corners": [
+    {
+      "name": "Andretti Hairpin",
+      "numbers": [
+        2
+      ],
+      "type": "double-apex left hairpin (T1-T2)",
+      "technique": "Brake 150m before T2, straight line through T1 kink. Hit early first apex, drift out, tighten for second apex. Smooth throttle exit",
+      "trap": "Single apex approach loses exit speed onto the straight"
+    },
+    {
+      "name": "Turn 3",
+      "numbers": [
+        3
+      ],
+      "type": "medium-speed right",
+      "technique": "Brake 70m before, late apex for good exit speed",
+      "trap": "Early apex and slow exit"
+    },
+    {
+      "name": "Turn 4",
+      "numbers": [
+        4
+      ],
+      "type": "fast left sweeper",
+      "technique": "Near-flat or light braking, commit to the speed, use full track width",
+      "trap": "Lifting mid-corner kills momentum"
+    },
+    {
+      "name": "Turn 5",
+      "numbers": [
+        5
+      ],
+      "type": "medium-speed right (uphill)",
+      "technique": "Trail brake into late apex, use the elevation change to help rotation",
+      "trap": "Under-rotating on the uphill and running wide"
+    },
+    {
+      "name": "Turn 6",
+      "numbers": [
+        6
+      ],
+      "type": "fast blind left with elevation change",
+      "technique": "Brake 50m before, commit to turn-in point. Use inside kerb to help rotation, early throttle up the Rahal Straight",
+      "trap": "Blind entry makes this scary — hesitation costs time up the straight"
+    },
+    {
+      "name": "Corkscrew",
+      "numbers": [
+        8
+      ],
+      "type": "blind left-right with 18m drop (T8-T8A)",
+      "technique": "Brake ~100m before T7, hard and straight. Turn left, then as you crest the hill, flick right and drop. Commit on memory and feel — you can't see the apex",
+      "trap": "Everything about this corner is a trap — blind entry, massive elevation drop, left-right transition. Over-braking is most common; under-committing to the blind flick wastes time"
+    },
+    {
+      "name": "Rainey Curve",
+      "numbers": [
+        9
+      ],
+      "type": "fast left sweeper (T9)",
+      "technique": "Carry speed from Corkscrew exit, smooth steering, use full track width on exit",
+      "trap": "Still recovering from Corkscrew and not committing to this fast corner"
+    },
+    {
+      "name": "Turn 10",
+      "numbers": [
+        10
+      ],
+      "type": "medium-speed right",
+      "technique": "Trail brake to late apex, good exit feeds T11 approach",
+      "trap": "Early apex compromises final corner entry"
+    },
+    {
+      "name": "Turn 11",
+      "numbers": [
+        11
+      ],
+      "type": "tight left hairpin (final corner)",
+      "technique": "Brake 90m before, hard and late. Smooth exit — feeds the start/finish straight. Most important corner for lap time",
+      "trap": "Lock-up on entry; early apex causes wheelspin on exit"
+    }
+  ],
+  "priorityCorners": [
+    "Andretti Hairpin",
+    "Turn 6",
+    "Corkscrew",
+    "Turn 11"
+  ]
+}

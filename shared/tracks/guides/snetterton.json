@@ -1,0 +1,45 @@
+{
+  "id": "snetterton",
+  "character": "Fast, flat, flowing former airfield circuit in Norfolk. High-speed corners dominate — momentum and smooth inputs matter more than heavy braking.",
+  "sources": "https://driver61.com/circuit-guide/snetterton-300/ ; https://www.thecheckeredflag.co.uk/2011/03/snetterton-unveils-new-corner-names/ — Riches/Wilson/Coram/Palmer verified",
+  "corners": [
+    {
+      "name": "Riches",
+      "numbers": [
+        1
+      ],
+      "type": "fast, sweeping right-hander",
+      "technique": "Commit with smooth steering, carry maximum speed through the long radius",
+      "trap": "Lifting mid-corner kills momentum through this key speed section"
+    },
+    {
+      "name": "Wilson",
+      "type": "medium-speed technical corner",
+      "technique": "Late apex, patient throttle application on exit",
+      "trap": "Early throttle causes a slide on the tightening exit"
+    },
+    {
+      "name": "Coram",
+      "numbers": [
+        11
+      ],
+      "type": "long, fast sweeping right-hander",
+      "technique": "Commit through the long radius with smooth, minimal steering correction",
+      "trap": "Any correction at speed here scrubs significant time"
+    },
+    {
+      "name": "Palmer",
+      "numbers": [
+        3
+      ],
+      "type": "final corner onto the pit straight",
+      "technique": "Late apex, clean exit is critical — feeds the run to the line",
+      "trap": "Poor exit here costs time down the entire straight"
+    }
+  ],
+  "priorityCorners": [
+    "Riches",
+    "Coram",
+    "Palmer"
+  ]
+}

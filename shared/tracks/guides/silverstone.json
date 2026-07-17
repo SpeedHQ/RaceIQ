@@ -1,0 +1,147 @@
+{
+  "id": "silverstone",
+  "character": "Fast, flowing 5.9km circuit that rewards rhythm and momentum. High-speed corners dominate — Maggotts-Becketts is one of the best sequences in racing. Few heavy braking zones means every tenth counts in the fast stuff.",
+  "sources": "https://www.formula1.com/en/racing/2026/great-britain/circuit official F1 circuit guide; Maggotts-Becketts-Chapel sequence well documented",
+  "corners": [
+    {
+      "name": "Abbey",
+      "numbers": [
+        1
+      ],
+      "type": "fast right-hander",
+      "technique": "Lift or light brake, smooth turn-in, use bump on apex as reference",
+      "trap": "Using too much exit road compromises Farm entry"
+    },
+    {
+      "name": "Farm",
+      "numbers": [
+        2
+      ],
+      "type": "fast left-hander",
+      "technique": "Flat or near-flat, smooth inputs, three red kerbs mark apex",
+      "trap": "Sudden lift-off causes lift-off oversteer at high speed"
+    },
+    {
+      "name": "Village",
+      "numbers": [
+        3
+      ],
+      "type": "medium-speed right",
+      "technique": "First real braking zone — hard braking, late apex for good exit into The Loop",
+      "trap": "Early apex leads to running wide and slow Loop entry"
+    },
+    {
+      "name": "The Loop",
+      "numbers": [
+        4
+      ],
+      "type": "slow hairpin (slowest corner)",
+      "technique": "Patient entry, late apex, progressive throttle — exit onto Wellington Straight is critical",
+      "trap": "Early throttle causes wheelspin; poor exit loses time on the entire straight"
+    },
+    {
+      "name": "Aintree",
+      "numbers": [
+        5
+      ],
+      "type": "medium-speed sweeper",
+      "technique": "Carry momentum from Loop exit, late apex",
+      "trap": "Over-slowing kills Wellington Straight speed"
+    },
+    {
+      "name": "Brooklands",
+      "numbers": [
+        6
+      ],
+      "type": "slow left-hander",
+      "technique": "Hard braking, late apex, clean exit for Luffield",
+      "trap": "Braking too deep and missing the apex"
+    },
+    {
+      "name": "Luffield",
+      "numbers": [
+        7
+      ],
+      "type": "long slow left-hander",
+      "technique": "Double apex: hit early apex, drift out, tighten for second apex. Exit speed onto Wellington is huge",
+      "trap": "Single apex line loses exit speed onto the long straight"
+    },
+    {
+      "name": "Copse",
+      "numbers": [
+        9
+      ],
+      "type": "very fast right-hander",
+      "technique": "Requires commitment — flat or tiny lift, smooth steering, trust the grip",
+      "trap": "Hesitation mid-corner scrubs massive speed"
+    },
+    {
+      "name": "Maggotts",
+      "numbers": [
+        10,
+        11,
+        12,
+        13
+      ],
+      "type": "fast left (part of Maggotts-Becketts)",
+      "technique": "Quick flick left, clip apex, immediately prepare for right",
+      "trap": "Over-driving any part of this sequence ruins the whole complex"
+    },
+    {
+      "name": "Becketts",
+      "numbers": [
+        10,
+        11,
+        12,
+        13
+      ],
+      "type": "fast right-left (part of complex)",
+      "technique": "Flow through with smooth, quick direction changes — carry as much speed as possible",
+      "trap": "Fighting the car with big steering corrections; need rhythm and commitment"
+    },
+    {
+      "name": "Chapel",
+      "numbers": [
+        14
+      ],
+      "type": "fast right onto Hangar Straight",
+      "technique": "Exit speed is everything — feeds the longest straight on the circuit",
+      "trap": "Getting greedy through Becketts and arriving at Chapel offline"
+    },
+    {
+      "name": "Stowe",
+      "numbers": [
+        15
+      ],
+      "type": "fast right-hander",
+      "technique": "Brake in a straight line, hit the apex, use exit kerb",
+      "trap": "Braking too late on the downhill approach"
+    },
+    {
+      "name": "Vale",
+      "numbers": [
+        16
+      ],
+      "type": "medium-speed left",
+      "technique": "Multiple braking references (gantry, turn-in board, entry kerb). Good exit sets up Club",
+      "trap": "Bumpy braking zone causes lockups"
+    },
+    {
+      "name": "Club",
+      "numbers": [
+        17,
+        18
+      ],
+      "type": "fast right (final corner)",
+      "technique": "Flat in most cars — exit from Vale is critical, long vision through the corner",
+      "trap": "Poor Vale exit means slow Club and slow pit straight speed"
+    }
+  ],
+  "priorityCorners": [
+    "The Loop",
+    "Copse",
+    "Becketts",
+    "Chapel",
+    "Club"
+  ]
+}

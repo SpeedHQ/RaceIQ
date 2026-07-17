@@ -1,0 +1,129 @@
+{
+  "id": "spa",
+  "character": "High-speed, 7km flowing circuit with huge elevation changes and unpredictable weather. Rewards bravery, smooth inputs, and good exits onto long straights.",
+  "sources": "https://www.formula1.com/en/latest/article/circuit-guide-everything-you-need-to-know-about-spa-francorchamps circuit character/corners; long-established F1 circuit knowledge",
+  "corners": [
+    {
+      "name": "La Source",
+      "numbers": [
+        1
+      ],
+      "type": "tight hairpin",
+      "technique": "Brake hard 100m before, late apex, smooth throttle on exit — exit speed feeds Eau Rouge",
+      "trap": "Early apex causes wheelspin on exit, ruining Kemmel Straight speed"
+    },
+    {
+      "name": "Eau Rouge",
+      "numbers": [
+        2,
+        3,
+        4
+      ],
+      "type": "high-speed left-right-left with elevation",
+      "technique": "Approach flat-out or with minor lift, minimal steering input, let the car flow up the hill",
+      "trap": "Too much steering input unsettles the car; lifting too much costs massive straight speed"
+    },
+    {
+      "name": "Raidillon",
+      "numbers": [
+        2,
+        3,
+        4
+      ],
+      "type": "blind high-speed crest",
+      "technique": "Aim for inside kerb at crest, keep car balanced as it goes light over the top",
+      "trap": "Running wide over the crest onto exit kerb — high crash risk"
+    },
+    {
+      "name": "Les Combes",
+      "numbers": [
+        5,
+        6
+      ],
+      "type": "medium-speed right-left-right chicane",
+      "technique": "Brake 120m before T5, hard straight-line braking, smooth transitions through the chicane",
+      "trap": "Excessive kerb usage on T6 causes instability and poor exit onto Malmedy straight"
+    },
+    {
+      "name": "Malmedy",
+      "numbers": [
+        7
+      ],
+      "type": "fast right-hander",
+      "technique": "Trail brake to late apex, use full track width on exit",
+      "trap": "Early turn-in leads to running wide and slow exit"
+    },
+    {
+      "name": "Rivage",
+      "numbers": [
+        8
+      ],
+      "type": "downhill hairpin",
+      "technique": "Late apex, patient throttle — exit leads into fast section",
+      "trap": "Braking too late on the downhill approach, missing the apex"
+    },
+    {
+      "name": "Pouhon",
+      "numbers": [
+        10,
+        11
+      ],
+      "type": "double-apex high-speed left",
+      "technique": "Commit to the entry, carry speed through both apexes with smooth steering",
+      "trap": "Lifting mid-corner kills momentum through an entire sector"
+    },
+    {
+      "name": "Fagnes",
+      "numbers": [
+        12
+      ],
+      "type": "fast chicane",
+      "technique": "Light braking, smooth direction changes, use kerbs carefully",
+      "trap": "Over-driving causes snap oversteer on direction change"
+    },
+    {
+      "name": "Stavelot",
+      "numbers": [
+        15
+      ],
+      "type": "double-apex right",
+      "technique": "Late first apex, short straight, then commit to second part — exit speed is critical",
+      "trap": "Too much speed into first part compromises second apex and exit onto Courbe Paul Frère"
+    },
+    {
+      "name": "Courbe Paul Frère",
+      "numbers": [
+        16
+      ],
+      "type": "fast flowing left",
+      "technique": "Near-flat off Stavelot's exit — minimal lift, let the car run out to track edge to set up Blanchimont",
+      "trap": "Lifting early or running wide scrubs momentum all the way through Blanchimont onto the Bus Stop straight"
+    },
+    {
+      "name": "Blanchimont",
+      "numbers": [
+        17
+      ],
+      "type": "very fast left kink",
+      "technique": "Flat in most cars, tiny lift if needed — smooth steering only",
+      "trap": "Any snap correction at 250+ km/h risks losing the car"
+    },
+    {
+      "name": "Bus Stop",
+      "numbers": [
+        18,
+        19
+      ],
+      "type": "tight right-left chicane",
+      "technique": "Brake 130m before, hard and late. Clean exit feeds start/finish straight",
+      "trap": "Over-committing on entry; poor exit loses time all down the pit straight"
+    }
+  ],
+  "priorityCorners": [
+    "La Source",
+    "Eau Rouge",
+    "Pouhon",
+    "Stavelot",
+    "Bus Stop"
+  ]
+}

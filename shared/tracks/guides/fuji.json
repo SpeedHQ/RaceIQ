@@ -1,0 +1,54 @@
+{
+  "id": "fuji",
+  "character": "4.56km circuit under Mount Fuji. Enormous 1.475km main straight — the longest in Japan — feeds a heavy-braking first corner, then a tight, technical, downhill infield. Straight-line speed vs mechanical grip is the core setup compromise.",
+  "sources": "https://www.fsw.tv/ official circuit guide; TGR/Toyota GP layout. 1.475km main straight (longest in Japan); technical infield.",
+  "corners": [
+    {
+      "name": "First Corner (TGR Corner)",
+      "type": "heavy-braking medium-speed right (T1)",
+      "technique": "Brake hard from ~300 km/h at the end of the main straight, downshift to 2nd, late apex to protect exit onto the run to Coca-Cola",
+      "trap": "Locking the fronts under the huge braking load; over-slowing wastes the straight-line speed you just carried"
+    },
+    {
+      "name": "Coca-Cola Corner",
+      "type": "medium-speed right-left sequence (T2-T3)",
+      "technique": "Short braking, roll speed through, prioritise a clean exit to carry momentum downhill",
+      "trap": "Over-slowing the entry bleeds momentum through the whole infield run"
+    },
+    {
+      "name": "100R",
+      "type": "fast double-apex right (T4-T5)",
+      "technique": "Light lift or flat depending on car; hug the inside, use the banking, trust the grip",
+      "trap": "Turning in early runs you wide onto the exit kerb and unsettles the car"
+    },
+    {
+      "name": "Hairpin (Advan Corner)",
+      "type": "slow hairpin (T7, slowest corner)",
+      "technique": "Hard braking, 1st/2nd gear, late apex. Patience on throttle to avoid wheelspin on the downhill exit",
+      "trap": "Early apex kills exit drive onto the following technical section"
+    },
+    {
+      "name": "300R",
+      "type": "fast sweeping right (T10)",
+      "technique": "Near-flat commitment, minimal steering input, let the car run to the exit",
+      "trap": "Any lift or correction mid-corner is costly through this quick sweeper"
+    },
+    {
+      "name": "Dunlop Corner",
+      "type": "medium-speed right (T11-T12)",
+      "technique": "Brake in a straight line, late apex, get on power early to feed the run to the final complex",
+      "trap": "Trail-braking too deep rotates the rear on the downhill"
+    },
+    {
+      "name": "Netz / Panasonic Corner",
+      "type": "tight left-right final complex (T13-T16)",
+      "technique": "Hard braking, precise through the tightening complex, prioritise a clean exit onto the main straight",
+      "trap": "Over-driving the final complex loses exit speed onto the longest straight — the most expensive mistake on the lap"
+    }
+  ],
+  "priorityCorners": [
+    "First Corner (TGR Corner)",
+    "Hairpin (Advan Corner)",
+    "Netz / Panasonic Corner"
+  ]
+}

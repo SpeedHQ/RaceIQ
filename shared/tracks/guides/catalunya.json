@@ -1,0 +1,87 @@
+{
+  "id": "catalunya",
+  "character": "Technical 4.7km circuit used for F1 testing — demands a well-balanced car. Mix of high-speed sweeps and slow technical corners. Tire degradation is a key factor due to high-energy corners.",
+  "sources": "https://www.formula1.com/en/racing/2026/spain/circuit official F1 circuit guide (numbered-turn convention)",
+  "corners": [
+    {
+      "name": "Turn 1",
+      "numbers": [
+        1
+      ],
+      "type": "medium-speed right (Elf)",
+      "technique": "Brake just before 100m board, 2nd gear, mid-to-late apex. Part of T1-T3 complex",
+      "trap": "Getting on the kerb too aggressively into the right-left sequence"
+    },
+    {
+      "name": "Turn 3",
+      "numbers": [
+        3
+      ],
+      "type": "fast right-hander",
+      "technique": "Carry momentum from T1-T2, smooth exit leads to T4",
+      "trap": "Over-driving T1 entry compromises the entire opening complex"
+    },
+    {
+      "name": "Turn 4",
+      "numbers": [
+        4
+      ],
+      "type": "medium-speed right (Repsol)",
+      "technique": "Early apex and slowest point, speed reduction early in the corner",
+      "trap": "Going deep into T4 ruins T5 exit onto the long straight"
+    },
+    {
+      "name": "Turn 5",
+      "numbers": [
+        5
+      ],
+      "type": "slow left-right (Seat chicane)",
+      "technique": "Clean exit is everything — feeds the longest straight. Sacrifice T4 speed for T5 exit",
+      "trap": "Carrying too much speed into T5 and running wide on exit"
+    },
+    {
+      "name": "Turn 7",
+      "numbers": [
+        7
+      ],
+      "type": "uphill left-right chicane",
+      "technique": "Brake at entry kerb, 2nd gear. Use camber for grip, smooth through direction change. Early power for T8-T9",
+      "trap": "Snap oversteer on throttle application at T7 apex"
+    },
+    {
+      "name": "Turn 9",
+      "numbers": [
+        9
+      ],
+      "type": "fast right onto back straight",
+      "technique": "Critical corner — exit speed feeds the back straight. Late apex, progressive throttle",
+      "trap": "Compromising T9 exit by over-driving T7-T8"
+    },
+    {
+      "name": "Turn 10",
+      "numbers": [
+        10
+      ],
+      "type": "medium-speed right (La Caixa)",
+      "technique": "Brake after 100m board, 3rd gear. Turn in under the shadow of the hoarding, miss yellow inside kerbs",
+      "trap": "Locking up on the downhill approach"
+    },
+    {
+      "name": "Turn 12-13",
+      "type": "right into left-right chicane",
+      "technique": "Compromise T12 speed for good T13 entry. Slowest point before T13 entry. Stay tight through T13 to open T14",
+      "trap": "Going deep into T12 destroys the chicane sequence and exit"
+    },
+    {
+      "name": "Turn 14-15",
+      "type": "fast left-right onto straight",
+      "technique": "T15 is flat — exit speed from T14 feeds start/finish straight",
+      "trap": "Poor chicane exit means slow final sector and pit straight"
+    }
+  ],
+  "priorityCorners": [
+    "Turn 5",
+    "Turn 9",
+    "Turn 14-15"
+  ]
+}

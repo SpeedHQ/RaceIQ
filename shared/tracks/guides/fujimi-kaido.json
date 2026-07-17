@@ -1,0 +1,29 @@
+{
+  "id": "fujimi-kaido",
+  "character": "Fictional 16.4km closed-course mountain pass in Nagano Prefecture, Japan, with 144 turns and 826m of elevation gain — the tallest track in Forza Motorsport. Blind hairpins, tunnels, and drastic elevation changes dominate; no individual corners have established names, so this is a track for memorisation and rhythm rather than corner-specific technique.",
+  "notes": "Community knowledge (no formal corner-name guide available). This is a fictional 144-turn, 16.4km mountain-pass circuit — track character is sourced from Forza's official design article (forza.net/news/forza-motorsport-fujimi-kaido); no individual corners have established names.",
+  "corners": [
+    {
+      "name": "Lower Forest Hairpins",
+      "type": "tight, tree-lined hairpin sequence near the base of the mountain",
+      "technique": "Patient, low-speed precision, prioritise clean exits to carry speed into the climb",
+      "trap": "Carrying too much speed in and running out of track on the tight, blind hairpins"
+    },
+    {
+      "name": "Mid-Mountain Tunnels",
+      "type": "blind tunnel sections with sudden light changes",
+      "technique": "Commit on memory of the racing line, stay smooth through the reduced visibility",
+      "trap": "Hesitating in the reduced-visibility tunnels costs significant time"
+    },
+    {
+      "name": "Upper Mountain Switchbacks",
+      "type": "steep, arid switchback section near the summit (23-degree grade)",
+      "technique": "Patient braking on the steep sections, precise turn-in on each switchback",
+      "trap": "Misjudging braking distance on the steepest sections of the track"
+    }
+  ],
+  "priorityCorners": [
+    "Lower Forest Hairpins",
+    "Upper Mountain Switchbacks"
+  ]
+}

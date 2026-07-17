@@ -1,0 +1,44 @@
+{
+  "id": "maple-valley",
+  "character": "Fictional Forza Motorsport original circuit set in a Vermont valley — a fast, flowing layout with sweeping corners and gentle elevation changes. No community-established corner names exist; downhill sections in particular reward precise braking and turn-in.",
+  "notes": "Community knowledge (no formal, verified corner-name guide available). Character sourced from official Forza track-list description (forza.net) and community track discussion; no individual corner names are community-established, so generic Turn-N labels are used deliberately.",
+  "corners": [
+    {
+      "name": "Turn 1",
+      "numbers": [
+        1
+      ],
+      "type": "medium-speed corner off the front straight",
+      "technique": "Firm braking, late apex",
+      "trap": "Running wide compromises the run into the following section"
+    },
+    {
+      "name": "Turn 5",
+      "numbers": [
+        5
+      ],
+      "type": "fast, downhill sweeper",
+      "technique": "Commit through the downhill section with smooth steering; be precise with braking and turn-in on the descent",
+      "trap": "Braking too late on the downhill approach and running wide"
+    },
+    {
+      "name": "Turn 9",
+      "numbers": [
+        9
+      ],
+      "type": "tight, technical corner in the infield",
+      "technique": "Patient braking, low-speed precision, prioritise a clean exit",
+      "trap": "Carrying too much speed in and running out of track"
+    },
+    {
+      "name": "Final Corner",
+      "type": "corner onto the front straight",
+      "technique": "Late apex, clean exit is critical — feeds the front straight",
+      "trap": "Compromised exit costs time down the entire straight"
+    }
+  ],
+  "priorityCorners": [
+    "Turn 5",
+    "Final Corner"
+  ]
+}

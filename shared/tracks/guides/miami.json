@@ -1,0 +1,52 @@
+{
+  "id": "miami",
+  "character": "Modern street-style circuit around Hard Rock Stadium with a mix of tight, technical sections and a long back straight. Bumpy surface and limited grip evolution demand a forgiving driving style.",
+  "sources": "https://www.formula1.com/en/racing/2026/miami/circuit official F1 circuit guide (numbered-turn convention)",
+  "corners": [
+    {
+      "name": "Turn 1",
+      "numbers": [
+        1
+      ],
+      "type": "heavy-braking right-hander",
+      "technique": "Brake hard from the highest speed on the lap, late apex",
+      "trap": "Locking the front under the heaviest braking zone on the circuit"
+    },
+    {
+      "name": "Turn 7-10",
+      "numbers": [
+        7,
+        8,
+        9,
+        10
+      ],
+      "type": "tight, technical stadium section",
+      "technique": "Patient, precise inputs — this low-speed section rewards mechanical grip over outright commitment",
+      "trap": "Over-driving any single corner in this sequence upsets the whole section"
+    },
+    {
+      "name": "Turn 13-14",
+      "numbers": [
+        13,
+        14
+      ],
+      "type": "medium-speed chicane",
+      "technique": "Smooth direction change, use the exit kerb carefully to set up the following straight",
+      "trap": "Carrying too much speed in and running wide on exit"
+    },
+    {
+      "name": "Turn 17",
+      "numbers": [
+        17
+      ],
+      "type": "final corner onto pit straight",
+      "technique": "Late apex, clean exit is critical — feeds the main straight",
+      "trap": "Compromised exit here costs time down the entire straight"
+    }
+  ],
+  "priorityCorners": [
+    "Turn 1",
+    "Turn 7-10",
+    "Turn 17"
+  ]
+}
