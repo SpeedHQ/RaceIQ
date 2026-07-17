@@ -46,3 +46,5 @@ playwright/screenshots/
 test/artifacts/sessions/*.bin
 .claude/scheduled_tasks.lock
 /.crew
+
+*.log
