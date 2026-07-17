@@ -2,7 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
 import Papa from "papaparse";
-import { hasTrackGuide } from "../server/ai/track-guides";
+import { hasTrackGuide, isGuideSkipped } from "../server/ai/track-guides";
 
 function parseCsv(path: string): Record<string, string>[] {
   const { data } = Papa.parse<Record<string, string>>(readFileSync(path, "utf-8"), {
@@ -14,11 +14,15 @@ function parseCsv(path: string): Record<string, string>[] {
   return data;
 }
 
+// A track counts as covered if it has a direct guide OR an explicit skip
+// record (a guide file marked `skip: true` — an intentional "no dedicated
+// guide for this layout", distinct from a missing file, which is a coverage
+// bug). `missing` therefore only lists tracks with neither.
 function coverage(names: string[]): { covered: string[]; missing: string[]; ratio: number } {
   const covered: string[] = [];
   const missing: string[] = [];
   for (const name of names) {
-    if (hasTrackGuide(name)) covered.push(name);
+    if (hasTrackGuide(name) || isGuideSkipped(name)) covered.push(name);
     else missing.push(name);
   }
   return { covered, missing, ratio: names.length === 0 ? 1 : covered.length / names.length };
@@ -63,23 +67,20 @@ describe("track guide coverage — real-world circuits", () => {
 
 describe("track guide coverage — FM 2023 (real + fictional circuits)", () => {
   // FM 2023's fictional layout variants (e.g. -s short circuits, -oval, etc.)
-  // are intentionally NOT authored — we've accepted these gaps. Missing guides
-  // are surfaced as a warning so regressions stay visible, but they do not fail
-  // the build.
-  test("full track list guide coverage (missing variants warn, not fail)", () => {
+  // are intentionally NOT authored, but each now carries an explicit `skip:
+  // true` guide record — so coverage must be complete: every track has either a
+  // real guide or a deliberate skip. A brand-new track with neither is a
+  // genuine gap and fails here. To accept a new variant, add its skip record.
+  test("every track has a guide or an explicit skip record", () => {
     const rows = parseCsv(join(root, "shared/games/fm-2023/tracks.csv"));
     const names = guideIds(rows);
     const { covered, missing, ratio } = coverage(names);
     console.log(
       `FM 2023: ${covered.length}/${names.length} covered (${(ratio * 100).toFixed(0)}%). Missing: ${missing.join(", ")}`
     );
-    if (missing.length > 0) {
-      console.warn(
-        `⚠ FM 2023 has ${missing.length} un-authored guide(s) (accepted gap): ${missing.join(", ")}`
-      );
-    }
-    // At least the names array must be non-empty — guards against a broken CSV
-    // parse silently reporting "full coverage" over zero tracks.
+    // Guards against a broken CSV parse silently reporting "full coverage" over
+    // zero tracks.
     expect(names.length).toBeGreaterThan(0);
+    expect(ratio).toBe(1);
   });
 });

@@ -1,0 +1,8 @@
+{
+  "id": "laguna-seca-s",
+  "character": "short circuit variant of laguna-seca — no dedicated guide authored. The analyst falls back to the base circuit's corner coaching where the layout overlaps. Recorded as an intentional skip so coverage tests distinguish it from a missing guide.",
+  "corners": [],
+  "priorityCorners": [],
+  "skip": true,
+  "notes": "Intentional skip: FM 2023 fictional/variant layout of laguna-seca with no authored guide."
+}

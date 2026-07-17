@@ -81,6 +81,15 @@ interface TrackGuide {
   sources?: string;
   /** Optional provenance: layout-verification caveats / notes (humans only, not rendered) */
   notes?: string;
+  /**
+   * When true, this file is an intentional "no dedicated guide for this layout"
+   * record, not authored coaching. The loader excludes skipped ids from the
+   * served guide set (findGuide/getTrackGuide treat them as absent), but their
+   * presence distinguishes a deliberate skip from a missing file — a coverage
+   * bug — so test/track-guides-coverage.test.ts passes them. Skip records carry
+   * empty corners/priorityCorners and a character noting why it's skipped.
+   */
+  skip?: boolean;
 }
 
 const guidesDir = resolve(SHARED_DIR, "tracks", "guides");
@@ -116,6 +125,7 @@ const TrackGuideSchema = z
     priorityCorners: z.array(z.string()),
     sources: z.string().optional(),
     notes: z.string().optional(),
+    skip: z.boolean().optional(),
   })
   .strict();
 
@@ -131,10 +141,21 @@ export const TrackGuideFileSchema = TrackGuideSchema;
  * data/tracks/guides in compiled builds). Each carries its own `sources`/`notes`
  * provenance; those fields are for humans and don't affect rendering.
  */
-const guides: TrackGuide[] = readdirSync(guidesDir)
+const allGuideFiles: TrackGuide[] = readdirSync(guidesDir)
   .filter((f) => f.endsWith(".json"))
   .map((f) => JSON.parse(readFileSync(resolve(guidesDir, f), "utf8")) as TrackGuide)
   .sort((a, b) => a.id.localeCompare(b.id));
+
+/**
+ * Ids whose guide file is explicitly marked `skip: true` — an intentional
+ * "this layout has no dedicated guide" record, distinct from a missing file
+ * (a coverage bug). Skipped ids are never served: they're excluded from
+ * `guides` below so findGuide/getTrackGuide treat them as absent rather than
+ * handing the coach an empty guide.
+ */
+const skippedGuideIds = new Set(allGuideFiles.filter((g) => g.skip).map((g) => g.id));
+
+const guides: TrackGuide[] = allGuideFiles.filter((g) => !g.skip);
 
 // ─── Lookup logic ───
 
@@ -243,6 +264,16 @@ function findGuide(trackNameOrId: string): TrackGuide | null {
  */
 export function hasTrackGuide(trackId: string): boolean {
   return guides.some((g) => g.id === trackId);
+}
+
+/**
+ * True when a guide file exists for this id but is explicitly marked `skip:
+ * true` — the layout intentionally has no authored guide, so its absence from
+ * the served set is deliberate, not a coverage gap. The coverage test treats
+ * a skipped id as covered; runtime lookups still treat it as unguided.
+ */
+export function isGuideSkipped(trackId: string): boolean {
+  return skippedGuideIds.has(trackId);
 }
 
 export interface TrackGuideOptions {
