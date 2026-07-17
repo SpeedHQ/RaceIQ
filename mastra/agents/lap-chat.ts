@@ -10,6 +10,7 @@ import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
+import { getCornerMetricsTool } from "../tools/corner-metrics";
 
 const LAP_CHAT_INSTRUCTIONS = `You are a senior race engineer answering a driver's questions about a single lap of theirs. Lap context, telemetry summary, and (if available) the previous structured analysis are supplied per request via the system prompt. Be brief, use bullet points where helpful, cite specific numbers with units, and refer to the driver as "you". Do NOT output JSON.
 
@@ -23,6 +24,6 @@ export const lapChatAgent = new Agent({
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
   },
-  tools: { getTrackGuideTool, listTrackGuidesTool, compareF1SetupToCatalogTool },
+  tools: { getTrackGuideTool, listTrackGuidesTool, compareF1SetupToCatalogTool, getCornerMetricsTool },
   memory: getChatMemory(),
 });

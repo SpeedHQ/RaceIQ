@@ -10,6 +10,7 @@ import { Agent } from "@mastra/core/agent";
 import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
+import { getCornerMetricsTool } from "../tools/corner-metrics";
 
 const LAP_ANALYST_INSTRUCTIONS = `You are a senior race engineer reviewing a single driver's lap from telemetry data. Your job is to issue a structured verdict on the lap covering pace, handling, problem corners, braking, throttle application, coaching, and setup recommendations.
 
@@ -35,5 +36,5 @@ export const lapAnalystAgent = new Agent({
   // models (Gemma 4) that loop the tool, the analyse route inlines the
   // same data into the prompt — model can ignore the tool and still get
   // the context. See server/routes/lap-routes.ts.
-  tools: { compareF1SetupToCatalogTool },
+  tools: { compareF1SetupToCatalogTool, getCornerMetricsTool },
 });
