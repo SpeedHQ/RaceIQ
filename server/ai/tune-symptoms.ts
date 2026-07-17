@@ -9,6 +9,14 @@
  */
 import type { TelemetryPacket } from "../../shared/types";
 import type { Corner } from "../corner-detection";
+import { tireTempSymptoms, type TireTempSymptoms } from "./tune-tire-symptoms";
+import { damperSymptoms, type DamperSymptoms } from "./tune-damper-symptoms";
+import {
+  weightTransferSymptoms,
+  cornerWeightTransfer,
+  type WeightTransferSymptoms,
+  type CornerLoad,
+} from "./tune-weight-transfer";
 
 export type Balance = "oversteer" | "understeer" | "neutral";
 export type Phase = "entry" | "mid" | "exit";
@@ -35,6 +43,9 @@ export interface CornerSymptom {
    *  rules in tune-recommend.ts; undefined when apex speed is unknown. */
   speedBand?: SpeedBand;
   phases: PhaseSymptom[];
+  /** Per-corner weight-transfer read (lateral load-transfer distribution).
+   *  Undefined when the wheelLoad channel is absent for this game. */
+  load?: CornerLoad;
 }
 
 export interface TyreDeltas {
@@ -54,6 +65,15 @@ export interface TuneSymptoms {
     bottomingCorners: string[];
     /** psi delta vs the mid of the ACC target window; null when unavailable. */
     tyrePressure: TyreDeltas | null;
+    /** Per-tyre thermal profile (camber/pressure/thermal reads); null when the
+     *  acc-family temp channels are absent (older games / legacy laps). */
+    tyreTemp: TireTempSymptoms | null;
+    /** Per-corner damper profile (travel usage + shaft-velocity reads); null
+     *  when the suspension-travel channel is flat/absent. */
+    damper: DamperSymptoms | null;
+    /** Stint-level weight-transfer read (LLTD, static bias, dive, g envelope);
+     *  load-derived fields null when the wheelLoad channel is absent. */
+    weightTransfer: WeightTransferSymptoms | null;
   };
 }
 
@@ -192,6 +212,7 @@ export function telemetryToSymptoms(
       minSpeedKph: corner.minSpeedKph,
       speedBand: classifySpeedBand(corner.minSpeedKph),
       phases,
+      load: cornerWeightTransfer(frames),
     });
   }
 
@@ -209,6 +230,9 @@ export function telemetryToSymptoms(
       lockupCorners,
       bottomingCorners,
       tyrePressure: tyrePressureDeltas(packets),
+      tyreTemp: tireTempSymptoms(packets),
+      damper: damperSymptoms(packets),
+      weightTransfer: weightTransferSymptoms(packets),
     },
   };
 }

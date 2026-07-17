@@ -197,8 +197,27 @@ export interface AccExtendedData {
   tireCompound: string;
   tireCoreTemp: [number, number, number, number];
   tireInnerTemp: [number, number, number, number];
+  /**
+   * Middle-band surface temp per tire (°C, FL/FR/RL/RR). Read from physics
+   * offsets 384-396. With inner/outer this gives the 3-point lateral temp
+   * profile the tire symptom module uses for a camber-direction recommendation.
+   */
+  tireMiddleTemp?: [number, number, number, number];
   tireOuterTemp: [number, number, number, number];
   tireCamber: [number, number, number, number]; // radians, FL/FR/RL/RR
+  /**
+   * Vertical wheel load per tire (N, FL/FR/RL/RR). Physics offsets 72-84,
+   * previously skipped. Recovered retroactively from the raw .bin. Used by the
+   * weight-transfer module as a direct load-distribution signal.
+   */
+  wheelLoad?: [number, number, number, number];
+  /**
+   * Ride height (m). ACC exposes a 2-element array (front, rear) at offsets
+   * 268-272. Used by the weight-transfer module's aero-vs-mechanical split.
+   */
+  rideHeight?: [number, number];
+  /** Center-of-gravity height (m). Physics offset 220, previously skipped. */
+  cgHeight?: number;
   tireRadius: [number, number, number, number]; // metres, FL/FR/RL/RR (from STATIC)
   // Per-tire forward-rolling heading unit vector in world space (FL/FR/RL/RR, [x,y,z])
   tireContactHeading: [
@@ -234,6 +253,14 @@ export interface AccExtendedData {
   trackGripStatus: string;
   windSpeed: number;
   windDirection: number;
+  /**
+   * Ambient air / track surface temp (°C), read from SPageFilePhysics
+   * (airTemp @288, roadTemp @292 — base-struct fields from the official
+   * SharedFileOut.h). Optional: null when the source buffer predates wiring
+   * or is truncated before offset 292.
+   */
+  airTempC: number | null;
+  roadTempC: number | null;
 
   // Race state
   flagStatus: string;

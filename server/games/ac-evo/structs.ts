@@ -34,7 +34,10 @@ export const PHYSICS = {
   wheelSlipFR:    { offset: 60, type: "f32" },
   wheelSlipRL:    { offset: 64, type: "f32" },
   wheelSlipRR:    { offset: 68, type: "f32" },
-  // wheelLoad[4] @ 72-84
+  wheelLoadFL:    { offset: 72, type: "f32" },
+  wheelLoadFR:    { offset: 76, type: "f32" },
+  wheelLoadRL:    { offset: 80, type: "f32" },
+  wheelLoadRR:    { offset: 84, type: "f32" },
   tyrePressureFL: { offset: 88, type: "f32" },
   tyrePressureFR: { offset: 92, type: "f32" },
   tyrePressureRL: { offset: 96, type: "f32" },
@@ -65,7 +68,7 @@ export const PHYSICS = {
   heading:        { offset: 208, type: "f32" },
   pitch:          { offset: 212, type: "f32" },
   roll:           { offset: 216, type: "f32" },
-  // cgHeight @ 220
+  cgHeight:       { offset: 220, type: "f32" },
   damFront:       { offset: 224, type: "f32" },
   damRear:        { offset: 228, type: "f32" },
   damLeft:        { offset: 232, type: "f32" },

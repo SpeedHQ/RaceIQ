@@ -193,6 +193,17 @@ export function parseAcEvoBuffers(
   const suspRL = physicsBuf.readFloatLE(PHYSICS.suspTravelRL.offset);
   const suspRR = physicsBuf.readFloatLE(PHYSICS.suspTravelRR.offset);
 
+  const loadFL = physicsBuf.readFloatLE(PHYSICS.wheelLoadFL.offset);
+  const loadFR = physicsBuf.readFloatLE(PHYSICS.wheelLoadFR.offset);
+  const loadRL = physicsBuf.readFloatLE(PHYSICS.wheelLoadRL.offset);
+  const loadRR = physicsBuf.readFloatLE(PHYSICS.wheelLoadRR.offset);
+  const cgHeight = physicsBuf.readFloatLE(PHYSICS.cgHeight.offset);
+
+  const middleFL = physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleFL.offset);
+  const middleFR = physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleFR.offset);
+  const middleRL = physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleRL.offset);
+  const middleRR = physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleRR.offset);
+
   const combinedSlipFL = physicsBuf.readFloatLE(PHYSICS.wheelSlipFL.offset);
   const combinedSlipFR = physicsBuf.readFloatLE(PHYSICS.wheelSlipFR.offset);
   const combinedSlipRL = physicsBuf.readFloatLE(PHYSICS.wheelSlipRL.offset);
@@ -400,8 +411,12 @@ export function parseAcEvoBuffers(
     tireCompound: tyreCompound || "dry_compound",
     tireCoreTemp: [coreFL, coreFR, coreRL, coreRR],
     tireInnerTemp: [innerFL, innerFR, innerRL, innerRR],
+    tireMiddleTemp: [middleFL, middleFR, middleRL, middleRR],
     tireOuterTemp: [outerFL, outerFR, outerRL, outerRR],
     tireCamber: [camberFL, camberFR, camberRL, camberRR],
+    wheelLoad: [loadFL, loadFR, loadRL, loadRR],
+    // rideHeight not exposed by AC Evo v0.6 physics page — left undefined.
+    cgHeight,
     tireRadius: [0, 0, 0, 0], // not in v0.6 static
     tireContactHeading: contactHeading,
     brakePadCompound: 0,
@@ -421,6 +436,14 @@ export function parseAcEvoBuffers(
     trackGripStatus: "unknown",
     windSpeed: 0,
     windDirection: 0,
+    airTempC:
+      physicsBuf.length >= PHYSICS.airTemp.offset + 4
+        ? physicsBuf.readFloatLE(PHYSICS.airTemp.offset)
+        : null,
+    roadTempC:
+      physicsBuf.length >= PHYSICS.roadTemp.offset + 4
+        ? physicsBuf.readFloatLE(PHYSICS.roadTemp.offset)
+        : null,
     flagStatus,
     drsAvailable: false,
     drsEnabled: false,

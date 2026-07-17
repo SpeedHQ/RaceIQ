@@ -78,11 +78,39 @@ export function parseAccBuffers(
   const outerRL = physicsBuf.readFloatLE(PHYSICS.tyreTempOuterRL.offset);
   const outerRR = physicsBuf.readFloatLE(PHYSICS.tyreTempOuterRR.offset);
 
+  const middleFL = physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleFL.offset);
+  const middleFR = physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleFR.offset);
+  const middleRL = physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleRL.offset);
+  const middleRR = physicsBuf.readFloatLE(PHYSICS.tyreTempMiddleRR.offset);
+
   // Camber (radians, negative = top of tire leaning in)
   const camberFL = physicsBuf.readFloatLE(PHYSICS.camberFL.offset);
   const camberFR = physicsBuf.readFloatLE(PHYSICS.camberFR.offset);
   const camberRL = physicsBuf.readFloatLE(PHYSICS.camberRL.offset);
   const camberRR = physicsBuf.readFloatLE(PHYSICS.camberRR.offset);
+
+  // Vertical wheel load per tyre (N) — offsets 72-84, previously skipped
+  const loadFL = physicsBuf.readFloatLE(PHYSICS.wheelLoadFL.offset);
+  const loadFR = physicsBuf.readFloatLE(PHYSICS.wheelLoadFR.offset);
+  const loadRL = physicsBuf.readFloatLE(PHYSICS.wheelLoadRL.offset);
+  const loadRR = physicsBuf.readFloatLE(PHYSICS.wheelLoadRR.offset);
+
+  // Ride height (m) front/rear + CG height (m) — previously skipped
+  const rideHeightF = physicsBuf.readFloatLE(PHYSICS.rideHeightF.offset);
+  const rideHeightR = physicsBuf.readFloatLE(PHYSICS.rideHeightR.offset);
+  const cgHeight = physicsBuf.readFloatLE(PHYSICS.cgHeight.offset);
+
+  // Ambient air / track surface temp (°C) — base-struct fields (airTemp @288,
+  // roadTemp @292) from the official SharedFileOut.h. Guard on buffer length so
+  // truncated legacy bins yield null rather than reading past the end.
+  const airTempC =
+    physicsBuf.length >= PHYSICS.airTemp.offset + 4
+      ? physicsBuf.readFloatLE(PHYSICS.airTemp.offset)
+      : null;
+  const roadTempC =
+    physicsBuf.length >= PHYSICS.roadTemp.offset + 4
+      ? physicsBuf.readFloatLE(PHYSICS.roadTemp.offset)
+      : null;
 
   // Per-tire contact heading (unit vec, world space, forward-rolling dir)
   const chBase = PHYSICS.contactHeadingBase.offset;
@@ -263,8 +291,12 @@ export function parseAccBuffers(
     tireCompound: tireCompound || (rainTyres ? "wet_compound" : "dry_compound"),
     tireCoreTemp: [coreFL, coreFR, coreRL, coreRR],
     tireInnerTemp: [innerFL, innerFR, innerRL, innerRR],
+    tireMiddleTemp: [middleFL, middleFR, middleRL, middleRR],
     tireOuterTemp: [outerFL, outerFR, outerRL, outerRR],
     tireCamber: [camberFL, camberFR, camberRL, camberRR],
+    wheelLoad: [loadFL, loadFR, loadRL, loadRR],
+    rideHeight: [rideHeightF, rideHeightR],
+    cgHeight,
     tireRadius: [tyreRadFL, tyreRadFR, tyreRadRL, tyreRadRR],
     tireContactHeading: contactHeading,
     brakePadCompound: 0,
@@ -284,6 +316,8 @@ export function parseAccBuffers(
     trackGripStatus,
     windSpeed,
     windDirection,
+    airTempC,
+    roadTempC,
     flagStatus,
     drsAvailable: false,
     drsEnabled: false,

@@ -19,6 +19,9 @@ import {
 } from "./schemas";
 import { knownComponents } from "./tune-rules";
 import type { TuneSymptoms } from "./tune-symptoms";
+import { formatTireTempSymptoms } from "./tune-tire-symptoms";
+import { formatDamperSymptoms } from "./tune-damper-symptoms";
+import { formatWeightTransferSymptoms } from "./tune-weight-transfer";
 
 /** Render the deterministic symptom report as compact prompt text. Shared by the
  *  telemetry-driven and chat-driven intent prompts. */
@@ -34,7 +37,9 @@ function renderSymptomReport(symptoms: TuneSymptoms): string {
             (p.bottoming ? " +bottoming" : ""),
         )
         .join("; ");
-      return `  ${c.label} — ${phases}`;
+      const lltd =
+        c.load?.lltdFront != null ? ` [LLTD ${(c.load.lltdFront * 100).toFixed(0)}% front]` : "";
+      return `  ${c.label} — ${phases}${lltd}`;
     })
     .join("\n");
 
@@ -48,6 +53,9 @@ Oversteer corners: ${agg.oversteerCorners.join(", ") || "none"}
 Brake lockup corners: ${agg.lockupCorners.join(", ") || "none"}
 Suspension bottoming corners: ${agg.bottomingCorners.join(", ") || "none"}
 ${pressure}
+${formatTireTempSymptoms(agg.tyreTemp)}
+${formatDamperSymptoms(agg.damper)}
+${formatWeightTransferSymptoms(agg.weightTransfer)}
 
 Per-corner detail:
 ${cornerLines || "  (no corners detected)"}`;

@@ -114,6 +114,21 @@ export function setupPathStem(filePath: string): string {
  * chat work, just with less symptom context).
  */
 export async function computeSessionSymptoms(tuningSessionId: number): Promise<TuneSymptoms | null> {
+  const lap = await loadRepresentativeLap(tuningSessionId);
+  if (!lap) return null;
+  const corners = detectCorners(lap.telemetry);
+  return telemetryToSymptoms(lap.telemetry, corners);
+}
+
+/**
+ * The session's representative lap — the fastest valid lap it owns, with enough
+ * telemetry to analyse (≥30 frames). Single source of truth so symptom and
+ * track-condition reads always describe the same lap. Returns null when no such
+ * lap exists yet.
+ */
+async function loadRepresentativeLap(
+  tuningSessionId: number,
+): Promise<Awaited<ReturnType<typeof getLapById>> | null> {
   const sessionLaps = await getLapsForTuningSession(tuningSessionId);
   let best: (typeof sessionLaps)[number] | null = null;
   for (const l of sessionLaps) {
@@ -123,8 +138,112 @@ export async function computeSessionSymptoms(tuningSessionId: number): Promise<T
   if (!best) return null;
   const lap = await getLapById(best.id);
   if (!lap || lap.telemetry.length < 30) return null;
-  const corners = detectCorners(lap.telemetry);
-  return telemetryToSymptoms(lap.telemetry, corners);
+  return lap;
+}
+
+export interface TrackConditions {
+  frames: number;
+  /** Air / road surface temperature (°C) across the lap. null when unrecorded. */
+  airTempC: { min: number; max: number; avg: number } | null;
+  roadTempC: { min: number; max: number; avg: number } | null;
+  /** Mean rain intensity 0..1; `wet` when any frame reports meaningful rain. */
+  rainIntensity: number;
+  wet: boolean;
+  /** Most-common non-empty grip descriptor across frames ("optimum"/"green"/…). */
+  trackGripStatus: string;
+  windSpeedKmh: number;
+  windDirectionDeg: number;
+  /** AC-EVO only: static session grip label + whether weather is fixed. */
+  startingGrip: string | null;
+  staticWeather: boolean | null;
+}
+
+function summariseNumeric(values: number[]): { min: number; max: number; avg: number } | null {
+  if (values.length === 0) return null;
+  let min = values[0]!;
+  let max = values[0]!;
+  let sum = 0;
+  for (const v of values) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+    sum += v;
+  }
+  const round = (n: number) => Math.round(n * 10) / 10;
+  return { min: round(min), max: round(max), avg: round(sum / values.length) };
+}
+
+/**
+ * Deterministic weather / track-surface conditions for a tuning session's
+ * representative lap. Reads the same fastest-valid lap as `computeSessionSymptoms`
+ * so temps, rain and grip line up with the symptom report. Returns null when the
+ * session has no analysable lap yet.
+ */
+export async function computeSessionTrackConditions(
+  tuningSessionId: number,
+): Promise<TrackConditions | null> {
+  const lap = await loadRepresentativeLap(tuningSessionId);
+  if (!lap) return null;
+  const frames = lap.telemetry;
+
+  const airTemps: number[] = [];
+  const roadTemps: number[] = [];
+  const rain: number[] = [];
+  const wind: number[] = [];
+  const windDir: number[] = [];
+  const gripCounts = new Map<string, number>();
+  let startingGrip: string | null = null;
+  let staticWeather: boolean | null = null;
+
+  for (const f of frames) {
+    const air = f.acEvo?.airTempC ?? f.airTempC;
+    const road = f.acEvo?.roadTempC ?? f.roadTempC;
+    if (air != null && Number.isFinite(air)) airTemps.push(air);
+    if (road != null && Number.isFinite(road)) roadTemps.push(road);
+    if (Number.isFinite(f.rainIntensity)) rain.push(f.rainIntensity);
+    if (Number.isFinite(f.windSpeed)) wind.push(f.windSpeed);
+    if (Number.isFinite(f.windDirection)) windDir.push(f.windDirection);
+    const grip = f.trackGripStatus;
+    if (grip && grip !== "unknown") gripCounts.set(grip, (gripCounts.get(grip) ?? 0) + 1);
+    if (f.acEvo?.startingGrip && f.acEvo.startingGrip !== "unknown") startingGrip = f.acEvo.startingGrip;
+    if (f.acEvo?.isStaticWeather != null) staticWeather = f.acEvo.isStaticWeather;
+  }
+
+  const meanRain = rain.length ? rain.reduce((a, b) => a + b, 0) / rain.length : 0;
+  const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+  let topGrip = "unknown";
+  let topGripN = 0;
+  for (const [g, n] of gripCounts) {
+    if (n > topGripN) {
+      topGrip = g;
+      topGripN = n;
+    }
+  }
+
+  return {
+    frames: frames.length,
+    airTempC: summariseNumeric(airTemps),
+    roadTempC: summariseNumeric(roadTemps),
+    rainIntensity: Math.round(meanRain * 100) / 100,
+    wet: meanRain > 0.02,
+    trackGripStatus: topGrip,
+    windSpeedKmh: Math.round(mean(wind) * 10) / 10,
+    windDirectionDeg: Math.round(mean(windDir)),
+    startingGrip,
+    staticWeather,
+  };
+}
+
+/** Human-readable one-liner summary of `computeSessionTrackConditions`. */
+export function formatTrackConditions(tc: TrackConditions): string {
+  const parts: string[] = [];
+  if (tc.airTempC) parts.push(`air ${tc.airTempC.avg}°C`);
+  if (tc.roadTempC) parts.push(`track ${tc.roadTempC.avg}°C (${tc.roadTempC.min}–${tc.roadTempC.max})`);
+  parts.push(tc.wet ? `WET (rain ${Math.round(tc.rainIntensity * 100)}%)` : "dry");
+  if (tc.startingGrip) parts.push(`grip ${tc.startingGrip}`);
+  else if (tc.trackGripStatus !== "unknown") parts.push(`grip ${tc.trackGripStatus}`);
+  if (tc.windSpeedKmh > 0) parts.push(`wind ${tc.windSpeedKmh}km/h @${tc.windDirectionDeg}°`);
+  if (tc.staticWeather === false) parts.push("dynamic weather");
+  return parts.join(", ");
 }
 
 export type ActiveTuningContext =

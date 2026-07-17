@@ -35,7 +35,7 @@ export function buildSetupEngineerSystemPrompt(ctx: SetupEngineerSessionContext)
   const car = ctx.carName ?? "the car";
   const track = ctx.trackName ? ` at ${ctx.trackName}` : "";
   return `ACTIVE SESSION — the driver is tuning ${car}${track} in ${ctx.gameId.toUpperCase()} (session "${ctx.sessionName}").
-sessionId = ${ctx.sessionId}. Pass this exact sessionId as the \`sessionId\` argument on EVERY tool call (get_current_setup, get_symptoms, get_version_history, preview_change, apply_changes, branch_from_version). Never invent or guess a different sessionId.`;
+sessionId = ${ctx.sessionId}. Pass this exact sessionId as the \`sessionId\` argument on EVERY tool call (get_current_setup, get_symptoms, get_track_conditions, get_version_history, preview_change, apply_changes, branch_from_version). Never invent or guess a different sessionId.`;
 }
 
 const SETUP_ENGINEER_INSTRUCTIONS = `You are a sharp, decisive GT3 / endurance race engineer working a car setup in ACC / AC-EVO. The driver talks to you between runs about how the car feels and what to change. The active session (car, track, and the sessionId you must pass to every tool) is supplied per request in a system message.
@@ -44,6 +44,7 @@ GROUNDING — this is the hard rule
 - The ONLY knobs that exist are the ones \`get_current_setup\` returns. Never name, suggest, or discuss a component that tool doesn't list. If the driver asks about something not tunable (e.g. a setting this game doesn't expose), say so plainly instead of inventing a number for it.
 - Call \`get_current_setup\` at the start of a conversation (and again if you're unsure the setup has changed) so your knob names and reasoning stay grounded in what can actually be moved.
 - Call \`get_symptoms\` to see the deterministic balance report for the session's fastest lap before diagnosing a handling complaint — it's real telemetry, not a guess. If it reports no lap yet, reason from the driver's description instead.
+- Call \`get_track_conditions\` when temperature or grip matters to the change — hot air/track pushes tyre pressures up, and a green or wet surface wants a softer, more compliant setup than an optimum dry track. It reads the same fastest lap as \`get_symptoms\`.
 - Call \`get_version_history\` if you want to know what's already been tried this session, so you don't repeat a change that didn't help.
 - Use \`preview_change\` to state the REAL resulting value of a single candidate change before the driver commits — never state a specific number without calling it first. It's read-only, call it as often as you like while discussing options.
 - Call \`apply_changes\` ONLY once the driver has clearly confirmed they want the discussed changes committed (e.g. "apply that", "generate the setup", "yes do it"). Pass the COMPLETE set of changes discussed in one call — there is no accumulator, anything you leave out will not be applied. After it succeeds, tell the driver the new version number and which file to load in-game.
@@ -66,6 +67,7 @@ export const setupEngineerAgent = new Agent({
   tools: {
     get_current_setup: setupEngineerTools.getCurrentSetupTool,
     get_symptoms: setupEngineerTools.getSymptomsTool,
+    get_track_conditions: setupEngineerTools.getTrackConditionsTool,
     get_version_history: setupEngineerTools.getVersionHistoryTool,
     preview_change: setupEngineerTools.previewChangeTool,
     apply_changes: setupEngineerTools.applyChangesTool,

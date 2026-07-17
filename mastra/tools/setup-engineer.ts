@@ -28,6 +28,8 @@ import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
 import {
   buildAppliedChangesMarkdown,
   computeSessionSymptoms,
+  computeSessionTrackConditions,
+  formatTrackConditions,
   loadActiveTuningContext,
   resolveGuardedSetupFile,
   setupPathStem,
@@ -100,6 +102,47 @@ export function buildSetupEngineerTools() {
       const symptoms = await computeSessionSymptoms(sessionId);
       if (!symptoms) return { available: false, summary: "No analysable lap yet for this session." };
       return { available: true, summary: formatSymptoms(symptoms) };
+    },
+  });
+
+  const getTrackConditionsTool = createTool({
+    id: "get-track-conditions",
+    description:
+      "Get the deterministic weather / track-surface conditions (air & road temperature, rain, grip level, " +
+      "wind, and for AC-EVO the static starting-grip label) measured across the session's representative lap — " +
+      "the same fastest valid lap the symptom report uses. Returns 'available: false' when no lap has been " +
+      "driven yet. Use this to reason about temperature-sensitive knobs (tyre pressures, which climb with hot " +
+      "track/air) and grip: a green or wet track wants a softer, more compliant setup than an optimum dry one.",
+    inputSchema: SessionOnly,
+    outputSchema: z.object({
+      available: z.boolean(),
+      summary: z.string(),
+      airTempC: z.object({ min: z.number(), max: z.number(), avg: z.number() }).nullable().optional(),
+      roadTempC: z.object({ min: z.number(), max: z.number(), avg: z.number() }).nullable().optional(),
+      rainIntensity: z.number().optional(),
+      wet: z.boolean().optional(),
+      trackGripStatus: z.string().optional(),
+      windSpeedKmh: z.number().optional(),
+      windDirectionDeg: z.number().optional(),
+      startingGrip: z.string().nullable().optional(),
+      staticWeather: z.boolean().nullable().optional(),
+    }),
+    execute: async ({ sessionId }) => {
+      const tc = await computeSessionTrackConditions(sessionId);
+      if (!tc) return { available: false, summary: "No analysable lap yet for this session." };
+      return {
+        available: true,
+        summary: formatTrackConditions(tc),
+        airTempC: tc.airTempC,
+        roadTempC: tc.roadTempC,
+        rainIntensity: tc.rainIntensity,
+        wet: tc.wet,
+        trackGripStatus: tc.trackGripStatus,
+        windSpeedKmh: tc.windSpeedKmh,
+        windDirectionDeg: tc.windDirectionDeg,
+        startingGrip: tc.startingGrip,
+        staticWeather: tc.staticWeather,
+      };
     },
   });
 
@@ -373,6 +416,7 @@ export function buildSetupEngineerTools() {
   return {
     getCurrentSetupTool,
     getSymptomsTool,
+    getTrackConditionsTool,
     getVersionHistoryTool,
     previewChangeTool,
     applyChangesTool,

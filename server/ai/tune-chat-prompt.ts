@@ -18,6 +18,9 @@
 import type { GameId } from "../../shared/types";
 import { aiLanguageInstruction } from "../../shared/locales";
 import type { TuneSymptoms } from "./tune-symptoms";
+import { formatTireTempSymptoms } from "./tune-tire-symptoms";
+import { formatDamperSymptoms } from "./tune-damper-symptoms";
+import { formatWeightTransferSymptoms } from "./tune-weight-transfer";
 
 /** A single applied setup change, mirroring tune-rules' AppliedChange. */
 interface AppliedChangeLike {
@@ -134,6 +137,9 @@ Oversteer corners: ${agg.oversteerCorners.join(", ") || "none"}
 Brake lockup corners: ${agg.lockupCorners.join(", ") || "none"}
 Suspension bottoming corners: ${agg.bottomingCorners.join(", ") || "none"}
 ${pressure}
+${formatTireTempSymptoms(agg.tyreTemp)}
+${formatDamperSymptoms(agg.damper)}
+${formatWeightTransferSymptoms(agg.weightTransfer)}
 
 Per-corner detail:
 ${cornerLines || "  (no corners detected)"}`;
