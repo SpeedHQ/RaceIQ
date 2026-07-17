@@ -1,0 +1,48 @@
+{
+  "id": "hockenheim-s",
+  "character": "Hockenheim's 3.74km National Circuit — a shortened version of the Grand Prix layout that keeps the fast Nordkurve, the long Parabolika back straight and the tight Spitzkehre hairpin, then runs the technical Motodrom stadium section in front of the grandstands. Traction out of the slow corners and hard braking into the hairpin define the lap.",
+  "sources": "https://en.wikipedia.org/wiki/Hockenheimring (National Circuit, 3.736km, 15 turns; 2002 Tilke redesign) ; https://www.racingcircuits.info/europe/germany/hockenheimring.html — Nordkurve / Parabolika / Spitzkehre / Motodrom naming",
+  "notes": "Forza labels this variant 'National Circuit' (3.69km). Wikipedia lists the National Circuit at 3.736km with 15 turns — the shortened GP layout without the full stadium loop. Corner names are the well-documented modern-circuit names; the National variant's exact turn-by-turn numbering was not cleanly sourced, so entries render under their own names rather than turn numbers.",
+  "corners": [
+    {
+      "name": "Nordkurve",
+      "type": "medium-fast right-hander off the front straight (Turn 1)",
+      "technique": "Firm braking, late apex, get the car rotated for a clean exit",
+      "trap": "Running wide compromises the run to the following section"
+    },
+    {
+      "name": "Einfahrt Parabolika",
+      "type": "tight right that turns the lap back on itself onto the Parabolika",
+      "technique": "Brake hard, patient entry, prioritise exit drive onto the long straight",
+      "trap": "Over-slowing or a poor exit costs speed down the entire Parabolika"
+    },
+    {
+      "name": "Parabolika",
+      "type": "long, gently sweeping left that acts as the back straight",
+      "technique": "Flat out — keep the car settled and hold a tidy line into the Spitzkehre braking zone",
+      "trap": "Drifting off line late unsettles the car for the heavy braking that follows"
+    },
+    {
+      "name": "Spitzkehre",
+      "type": "very tight 160-degree hairpin at the end of the Parabolika",
+      "technique": "Hard, late braking from very high speed (around 280 to 50 km/h), patient throttle on exit",
+      "trap": "Locking the front from the huge approach speed, or getting on power too early and spinning the wheels"
+    },
+    {
+      "name": "Sachskurve",
+      "type": "fast right leading into the Motodrom stadium section",
+      "technique": "Commit through the corner and make a smooth transition into the technical stadium sequence",
+      "trap": "Over-driving the entry and compromising the stadium section that follows"
+    },
+    {
+      "name": "Motodrom",
+      "type": "tight, technical stadium section in front of the grandstands (final corners)",
+      "technique": "Patient, precise inputs through the tightening sequence; a clean exit onto the front straight is critical",
+      "trap": "A compromised exit here costs time down the entire front straight"
+    }
+  ],
+  "priorityCorners": [
+    "Spitzkehre",
+    "Motodrom"
+  ]
+}

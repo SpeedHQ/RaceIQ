@@ -1,0 +1,57 @@
+{
+  "id": "brands-hatch-s",
+  "character": "Brands Hatch Indy — the 1.9km short circuit. Paddock Hill down to Druids and back via Graham Hill, then Surtees onto the Cooper Straight and the long Clearways/Clark sweep to start-finish. Same dramatic elevation and blind crests as the GP layout, but a punishingly short lap where a single missed apex is a large fraction of your time.",
+  "sources": "https://driver61.com/circuit-guide/brands-hatch-indy/ Driver61; https://www.yourdatadriven.com/brands-hatch-indy-track-guide/ YourDataDriven; https://www.evo.co.uk/advice/9815/indy-circuit-in-detail evo",
+  "corners": [
+    {
+      "name": "Paddock Hill Bend",
+      "numbers": [
+        1
+      ],
+      "type": "fast downhill right (T1)",
+      "technique": "Brake after the 'two' board while slightly turning in. Blind apex — the corner drops away steeply. Late apex, let car drift to exit",
+      "trap": "Braking too late into the blind downhill; understeer into the gravel"
+    },
+    {
+      "name": "Druids",
+      "numbers": [
+        2
+      ],
+      "type": "slow uphill hairpin (T2)",
+      "technique": "Hard braking uphill, 1st or 2nd gear. Late apex, progressive throttle on exit",
+      "trap": "Locking fronts on the uphill approach; early apex kills exit speed down Graham Hill"
+    },
+    {
+      "name": "Graham Hill Bend",
+      "numbers": [
+        3
+      ],
+      "type": "medium-speed downhill left (T3)",
+      "technique": "Brake before outside kerbing starts, 2nd gear, mid-point apex. Don't cut inside kerb (causes TC/spin)",
+      "trap": "Too much inside kerb causes instability on the bumpy downhill"
+    },
+    {
+      "name": "Surtees",
+      "numbers": [
+        4
+      ],
+      "type": "uphill off-camber left (T4)",
+      "technique": "Tricky off-camber corner — brake at the 'one' board, trail brake in. On Indy this exit feeds the Cooper Straight and the long Clearways, so a clean rotation is worth the whole lap",
+      "trap": "Off-camber catches out — understeer on entry is common; need good car rotation"
+    },
+    {
+      "name": "Clearways",
+      "numbers": [
+        5
+      ],
+      "type": "long open right onto start-finish (T5)",
+      "technique": "The Indy circuit's defining corner. Long constant-radius right — get the car settled, take a patient apex and unwind early so you can be full throttle before the pit straight. Exit speed here sets your whole lap",
+      "trap": "Greedy early apex forces a lift; running wide on exit bleeds speed all the way down the start-finish straight"
+    }
+  ],
+  "priorityCorners": [
+    "Paddock Hill Bend",
+    "Surtees",
+    "Clearways"
+  ]
+}

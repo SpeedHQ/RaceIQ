@@ -1,0 +1,48 @@
+{
+  "id": "silverstone-s",
+  "character": "Silverstone's 2.64km National Circuit — the fast northern loop. Copse and the Maggotts-Becketts complex demand high-speed commitment, then a hard stop into the Brooklands-Luffield complex sets up the run to Woodcote. Rhythm through the fast stuff and a clean Luffield exit decide the lap.",
+  "sources": "https://www.racingcircuits.info/europe/united-kingdom/silverstone.html ; https://oversteer48.com/silverstone-circuit-configurations/ — National Circuit (1.64mi/2.64km, 6 corners): Copse, Maggotts, Becketts, Brooklands, Luffield, Woodcote, using the Wellington and National Pits straights",
+  "corners": [
+    {
+      "name": "Copse",
+      "type": "very fast right-hander (Turn 1)",
+      "technique": "Requires commitment — only a small lift, smooth steering, trust the grip",
+      "trap": "Hesitation mid-corner scrubs massive speed"
+    },
+    {
+      "name": "Maggotts",
+      "type": "fast left, first of the Maggotts-Becketts complex",
+      "technique": "Quick flick left, clip apex, immediately prepare for the right",
+      "trap": "Over-driving any part of this sequence ruins the whole complex"
+    },
+    {
+      "name": "Becketts",
+      "type": "fast right-left sequence (part of the complex)",
+      "technique": "Flow through with smooth, quick direction changes — carry as much speed as possible into the run to Brooklands",
+      "trap": "Fighting the car with big steering corrections; the section needs rhythm"
+    },
+    {
+      "name": "Brooklands",
+      "type": "medium-speed left-hander that tightens, heavy braking after the Wellington Straight",
+      "technique": "Hard braking in a straight line, late apex as it tightens, set up for Luffield",
+      "trap": "Braking too deep and missing the apex, compromising the Luffield entry"
+    },
+    {
+      "name": "Luffield",
+      "type": "long, patient right-hander (near-180 degrees)",
+      "technique": "Long, tightening right — exit speed matters more than entry commitment; be patient on the throttle",
+      "trap": "Getting greedy on entry and running wide, killing exit speed to Woodcote"
+    },
+    {
+      "name": "Woodcote",
+      "type": "fast right kink onto the National Pits Straight (final corner)",
+      "technique": "Flat or near-flat in most cars — a clean Luffield exit carries all the way onto the straight",
+      "trap": "A poor Luffield exit means slow Woodcote and slow straight-line speed to Copse"
+    }
+  ],
+  "priorityCorners": [
+    "Copse",
+    "Becketts",
+    "Luffield"
+  ]
+}

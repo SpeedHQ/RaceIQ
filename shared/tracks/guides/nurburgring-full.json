@@ -1,0 +1,67 @@
+{
+  "id": "nurburgring-full",
+  "character": "The Nürburgring 24h / VLN layout — the full 25.38km circuit combining the modern GP-Strecke stadium section with the entire Nordschleife. You start with the tight, technical GP corners in front of the grandstands, then commit to over 150 corners of the 'Green Hell' through the Eifel forest. Managing the transition between the two very different halves is the challenge.",
+  "sources": "https://www.nuerburgring.de/ (Gesamtstrecke / 24h layout, ~25.4km, GP-Strecke + Nordschleife) ; https://www.racingcircuits.info/europe/germany/nurburgring.html ; https://en.wikipedia.org/wiki/N%C3%BCrburgring — combined GP + Nordschleife 24h configuration",
+  "notes": "Forza labels this the 25.38km 'Full Circuit' — the VLN/24h layout that links the GP-Strecke stadium section into the full Nordschleife (the two are joined without the GP circuit's Mercedes Arena chicane finish). With 150+ corners across both halves, landmark corners render under their own names rather than turn numbers.",
+  "corners": [
+    {
+      "name": "Yokohama-S / Mercedes Arena",
+      "type": "tight technical stadium complex on the GP section (opening corners)",
+      "technique": "Precise, patient inputs through the slow stadium sequence — set the car up rather than force it",
+      "trap": "Over-driving the slow complex and losing the rhythm through the linked corners"
+    },
+    {
+      "name": "GP-Strecke to Nordschleife transition",
+      "type": "link from the GP stadium section onto the Nordschleife",
+      "technique": "Reset mentally and physically — the character changes completely from tight-and-technical to fast-and-committed",
+      "trap": "Carrying GP-section caution into the Nordschleife, or GP over-confidence onto blind forest corners"
+    },
+    {
+      "name": "Hatzenbach",
+      "type": "fast, flowing sequence of esses early on the Nordschleife",
+      "technique": "Commit to the rhythm — smooth, linked direction changes, don't fight the car",
+      "trap": "Over-driving the first esse throws off the whole sequence"
+    },
+    {
+      "name": "Flugplatz",
+      "type": "fast right over a crest where the car goes light ('airfield')",
+      "technique": "Commit through the compression and crest with smooth inputs; the car unloads over the top",
+      "trap": "Too much speed or steering as it goes light sends the car off"
+    },
+    {
+      "name": "Fuchsröhre",
+      "type": "very fast downhill-then-uphill compression ('Foxhole')",
+      "technique": "Full commitment down the plunge and through the compression at the bottom, then hold on up the other side",
+      "trap": "Lifting mid-compression unsettles the car at very high speed"
+    },
+    {
+      "name": "Bergwerk",
+      "type": "slow right-hander after a fast section",
+      "technique": "Hard braking, patient entry, prioritise exit drive onto the long climb toward Döttinger Höhe",
+      "trap": "A poor exit costs speed on the long uphill straight that follows"
+    },
+    {
+      "name": "Karussell",
+      "type": "steeply banked concrete carousel (near-180 degrees)",
+      "technique": "Drop into the banking, let the car sit in the concrete gutter, hold a steady line and power out",
+      "trap": "Missing the drop-in or getting light over the rough banking on exit"
+    },
+    {
+      "name": "Pflanzgarten",
+      "type": "fast, undulating jump section with blind crests",
+      "technique": "Commit through the compressions and crests with minimal steering inputs; the car takes flight",
+      "trap": "Steering while the car is light over a crest sends it off"
+    },
+    {
+      "name": "Döttinger Höhe",
+      "type": "long, flat-out straight before the final corners",
+      "technique": "Full throttle — a good exit from the preceding section carries all the way down toward the GP section",
+      "trap": "Not preparing for the heavy braking at the end of the long flat-out run"
+    }
+  ],
+  "priorityCorners": [
+    "Fuchsröhre",
+    "Bergwerk",
+    "Karussell"
+  ]
+}

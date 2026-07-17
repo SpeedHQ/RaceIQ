@@ -1,0 +1,54 @@
+{
+  "id": "catalunya-s",
+  "character": "Circuit de Barcelona-Catalunya's ~3.1km National Circuit — a shortened version of the Grand Prix track that cuts the main straight short and links back before the final sector. It keeps the demanding opening complex and the high-energy sweep onto the back straight, so a well-balanced car and tyre management still matter.",
+  "sources": "https://www.racingcircuits.info/europe/spain/circuit-de-barcelona-catalunya.html ; https://en.wikipedia.org/wiki/Circuit_de_Barcelona-Catalunya (National Circuit with chicane 3.071km / without 2.997km) ; https://www.formula1.com/en/latest/article/circuit-guide-everything-you-need-to-know-about-the-circuit-de-barcelona-catalunya.7i1UoRE8Za0Jk4LI0r68qk — shared corner naming with the GP layout (Elf, Repsol, Seat, Campsa, La Caixa)",
+  "notes": "Forza labels this 'National Circuit' (3.07km, matching the 3.071km with-chicane figure); a shorter 'National Circuit Alt' (~3.0km, chicane-free) is the separate catalunya-s2 variant. Named corners are the GP-layout names for the shared opening sector; the National layout links back to the pit straight before the GP circuit's final corners.",
+  "corners": [
+    {
+      "name": "Turn 1 (Elf)",
+      "type": "medium-speed right into the opening complex",
+      "technique": "Brake just before the 100m board, late apex, set up the right-left that follows",
+      "trap": "Getting on the kerb too aggressively into the sequence"
+    },
+    {
+      "name": "Turn 3",
+      "type": "fast right-hander",
+      "technique": "Carry momentum from the opening turns, smooth exit toward Repsol",
+      "trap": "Over-driving the T1 entry compromises the entire opening complex"
+    },
+    {
+      "name": "Repsol",
+      "type": "medium-speed right (Turn 4)",
+      "technique": "Early apex and slowest point, get the speed reduction done early in the corner",
+      "trap": "Going in too deep ruins the exit onto the following straight"
+    },
+    {
+      "name": "Seat",
+      "type": "slow left-right chicane (Turn 5)",
+      "technique": "A clean exit is everything — it feeds the longest straight; sacrifice entry speed for exit drive",
+      "trap": "Carrying too much speed in and running wide on exit"
+    },
+    {
+      "name": "Würth",
+      "type": "uphill left-right chicane (Turn 7)",
+      "technique": "Brake at the entry kerb, use the camber for grip, smooth through the direction change, early power",
+      "trap": "Snap oversteer on throttle application at the apex"
+    },
+    {
+      "name": "Campsa",
+      "type": "fast, blind right over a crest onto the back straight (Turn 9)",
+      "technique": "Critical corner — commit over the crest, late apex, progressive throttle for the straight",
+      "trap": "Lifting over the blind crest scrubs speed down the whole straight"
+    },
+    {
+      "name": "La Caixa",
+      "type": "medium-speed downhill right (Turn 10)",
+      "technique": "Brake after the 100m board, turn in tidily, avoid the inside kerbs",
+      "trap": "Locking up on the downhill approach"
+    }
+  ],
+  "priorityCorners": [
+    "Seat",
+    "Campsa"
+  ]
+}

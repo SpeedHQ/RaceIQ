@@ -235,6 +235,16 @@ function findGuide(trackNameOrId: string): TrackGuide | null {
   return null;
 }
 
+/**
+ * True only when a guide file exists whose id IS `trackId` — a direct match, no
+ * keyword/fuzzy fallback. Coverage checks must use this, not buildTrackGuideContext:
+ * findGuide's keyword fallback resolves a variant layout (e.g. "silverstone-s")
+ * to the base circuit's guide, which would count an unguided layout as covered.
+ */
+export function hasTrackGuide(trackId: string): boolean {
+  return guides.some((g) => g.id === trackId);
+}
+
 export interface TrackGuideOptions {
   /** Shared track slug (meta filename, e.g. "spa") — enables canonical naming. */
   slug?: string;

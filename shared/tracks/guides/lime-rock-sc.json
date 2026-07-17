@@ -1,0 +1,55 @@
+{
+  "id": "lime-rock-sc",
+  "character": "Lime Rock Park with the Uphill (South) Chicane — the 2.37km road course used in IMSA GT racing. A short, fast, momentum circuit where the chicane breaks up the uphill run and the rest flows: Big Bend, the Esses, the climb through the chicane, then the plunge past the Diving Turn to West Bend. Rhythm and commitment matter far more than heavy braking.",
+  "sources": "https://www.racingcircuits.info/north-america/united-states/lime-rock-park.html (Road Course with uphill chicane, 1.473mi / 2.372km) ; https://en.wikipedia.org/wiki/Lime_Rock_Park — corner naming: Big Bend, The Esses (Left/Right Hander), No Name Straight, Uphill, Diving Turn/Downhill, West Bend",
+  "notes": "Forza labels this variant 'South Chicane' (2.37km); it corresponds to the road course run WITH the uphill chicane (1.473mi / 2.372km per racingcircuits), which adds a chicane to the classic 7-turn Lime Rock layout. Sources are solid on corner names but the exact chicane apex sequence is described loosely across references — flagged for review.",
+  "corners": [
+    {
+      "name": "Big Bend",
+      "type": "long, fast, banked right-hander (Turns 1-2)",
+      "technique": "A big sweeping right taken with a lot of commitment — smooth, single arc, use the banking for grip",
+      "trap": "Over-slowing the entry kills momentum for the whole first sequence"
+    },
+    {
+      "name": "The Left Hander (Esses)",
+      "type": "quick left, first of the Esses",
+      "technique": "Flick left, clip the apex, immediately set up for the right — flow through",
+      "trap": "Over-driving the entry ruins the rhythm of the Esses"
+    },
+    {
+      "name": "The Right Hander (Esses)",
+      "type": "quick right onto the No Name Straight",
+      "technique": "Smooth direction change, get the car straight early to maximise the straight that follows",
+      "trap": "A poor exit here costs speed down the No Name Straight"
+    },
+    {
+      "name": "Uphill Chicane",
+      "type": "left-right chicane on the uphill section (unique to this layout)",
+      "technique": "Brake for the chicane, use the uphill grip, tidy through the direction change and get the power down early for the climb",
+      "trap": "Missing the chicane apexes bleeds speed on the crucial uphill run"
+    },
+    {
+      "name": "Uphill",
+      "type": "left-hand kink at the top of the climb",
+      "technique": "Carry momentum over the crest, keep the car settled as it goes light",
+      "trap": "Being greedy over the crest sends the car wide as it unloads"
+    },
+    {
+      "name": "Diving Turn",
+      "type": "fast downhill right (also called the Downhill)",
+      "technique": "Commit as the track drops away, let the car run to the edge on exit, carry speed toward West Bend",
+      "trap": "Lifting on the downhill unsettles the car and loses big time"
+    },
+    {
+      "name": "West Bend",
+      "type": "fast right that closes the lap onto the front straight (final corner)",
+      "technique": "Smooth, committed arc — a good exit feeds the pit straight and the run to Big Bend",
+      "trap": "A poor exit here compromises the entire main straight"
+    }
+  ],
+  "priorityCorners": [
+    "Big Bend",
+    "Uphill Chicane",
+    "Diving Turn"
+  ]
+}

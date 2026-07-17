@@ -9,7 +9,7 @@ ordinal,name,location,country,variant,lengthKm,commonTrackName
 22,Silverstone Racing Circuit,Silverston,gbr,National Circuit,2.64,silverstone-s
 23,Silverstone Racing Circuit,Silverston,gbr,International Circuit,2.98,silverstone-s2
 31,Nürburgring,Nürburg,ger,Full Circuit,25.38,nurburgring-full
-32,Nürburgring,Nürburg,ger,Nordschleife,20.83,nurburgring-nord
+32,Nürburgring,Nürburg,ger,Nordschleife,20.83,nordschleife
 33,Nürburgring,Nürburg,ger,GP Circuit,5.15,nurburgring
 34,Nürburgring,Nürburg,ger,Sprint Circuit,3.63,nurburgring-s
 35,Mugello Circuit,Tuscany,ita,Full Circuit,5.25,mugello

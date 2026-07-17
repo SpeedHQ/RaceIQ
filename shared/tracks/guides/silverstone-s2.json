@@ -1,0 +1,60 @@
+{
+  "id": "silverstone-s2",
+  "character": "Silverstone's 2.98km International Circuit — the southern loop of the Grand Prix track. It mixes the fast Hamilton and Hangar straights and the quick Abbey and Stowe with two very slow, technical sections at Village and Vale, which makes it feel stop-start. The Link joins Village straight to Becketts, replacing the seven GP corners in between.",
+  "sources": "https://www.racingcircuits.info/europe/united-kingdom/silverstone.html ; https://oversteer48.com/silverstone-circuit-configurations/ — International Circuit (1.85mi/2.98km, 8 corners): Abbey, Farm Curve, Village, The Link, Becketts, Stowe, Vale, Club",
+  "corners": [
+    {
+      "name": "Abbey",
+      "type": "fast right-hander (Turn 1)",
+      "technique": "Lift or light brake, smooth turn-in, use the bump on the apex as a reference",
+      "trap": "Using too much exit road compromises the run to Farm"
+    },
+    {
+      "name": "Farm Curve",
+      "type": "fast left-hander",
+      "technique": "Flat or near-flat, smooth inputs, keep the car settled through the kink",
+      "trap": "A sudden lift causes lift-off oversteer at high speed"
+    },
+    {
+      "name": "Village",
+      "type": "slow, technical right-hander (heavy braking zone)",
+      "technique": "Hard braking, late apex for a good exit onto the Link",
+      "trap": "Early apex leads to running wide and a slow exit"
+    },
+    {
+      "name": "The Link",
+      "type": "connecting section joining Village to Becketts (unique to this layout)",
+      "technique": "Settle the car and carry momentum through toward the Becketts complex",
+      "trap": "Wasting the short link with a poor Village exit"
+    },
+    {
+      "name": "Becketts",
+      "type": "fast right-left complex",
+      "technique": "Flow through with smooth, quick direction changes — carry as much speed as possible",
+      "trap": "Fighting the car with big corrections instead of finding rhythm"
+    },
+    {
+      "name": "Stowe",
+      "type": "fast right-hander",
+      "technique": "Brake in a straight line, hit the apex, use the exit kerb",
+      "trap": "Braking too late on the downhill approach"
+    },
+    {
+      "name": "Vale",
+      "type": "slow, technical left (heavy braking zone)",
+      "technique": "Multiple braking references, patient entry — a good exit sets up Club",
+      "trap": "Bumpy braking zone causes lockups"
+    },
+    {
+      "name": "Club",
+      "type": "fast right onto the pit straight (final corner)",
+      "technique": "Long vision through the corner — exit from Vale is critical for straight-line speed",
+      "trap": "A poor Vale exit means slow Club and slow pit-straight speed"
+    }
+  ],
+  "priorityCorners": [
+    "Becketts",
+    "Stowe",
+    "Club"
+  ]
+}
