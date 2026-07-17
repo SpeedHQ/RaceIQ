@@ -307,14 +307,14 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     ],
   },
 
-  // ── v23: tuning sessions (Setup Engineer front door, plan §6a) ─────────────
+  // ── v24: tuning sessions (Setup Engineer front door, plan §6a) ─────────────
   //
   // Parent container for the Setup IQ loop. Car/track stored as both ordinals
   // (live/recorded-session seed) and names (ACC/AC-Evo setup-file seed); all
   // nullable so either origin works. setupVersions.tuning_session_id will FK
   // into this in a later phase.
   {
-    version: 23,
+    version: 24,
     name: "tuning sessions",
     sql: [
       `CREATE TABLE IF NOT EXISTS tuning_sessions (
@@ -335,7 +335,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     ],
   },
 
-  // ── v24: tuning tests (setup versions under evaluation, plan §2) ───────────
+  // ── v25: tuning tests (setup versions under evaluation, plan §2) ───────────
   //
   // One row per setup being tested inside a tuning session. v1 "base" is seeded
   // on session create from the session's base_setup_path; each Save & recommend
@@ -344,7 +344,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   // takes its tests with it. parent_test_id is self-referential but intentionally
   // not a hard FK — a parent version can be archived independently of its child.
   {
-    version: 24,
+    version: 25,
     name: "tuning tests",
     sql: [
       `CREATE TABLE IF NOT EXISTS tuning_tests (
@@ -364,7 +364,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     ],
   },
 
-  // ── v25: explicit lap ↔ tuning-session link ────────────────────────────────
+  // ── v26: explicit lap ↔ tuning-session link ────────────────────────────────
   //
   // Decouples tuning-session membership from race (telemetry) sessionId. A
   // tuning session can span MANY race sessions on the same car+track (multiple
@@ -381,7 +381,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   // migration keep tuning_session_id = NULL and simply won't appear in any
   // tuning session (acceptable — the feature is opt-in going forward).
   {
-    version: 25,
+    version: 26,
     name: "explicit lap to tuning-session link",
     sql: [
       `ALTER TABLE laps ADD COLUMN tuning_session_id INTEGER`,
@@ -389,13 +389,13 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     ],
   },
 
-  // ── v26: per-game tuning-session display number ───────────────────────────
+  // ── v27: per-game tuning-session display number ───────────────────────────
   //
   // A stable 1..N number per game, independent of the churned autoincrement id
   // and of race sessions. Assigned on create as max(seq)+1 per game; existing
   // rows are backfilled in id order within each game.
   {
-    version: 26,
+    version: 27,
     name: "tuning-session display seq",
     sql: [
       `ALTER TABLE tuning_sessions ADD COLUMN seq INTEGER NOT NULL DEFAULT 1`,
@@ -407,25 +407,50 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     ],
   },
 
-  // ── v27: persisted checked-out version (head) per tuning session ──────────
+  // ── v28: persisted checked-out version (head) per tuning session ──────────
   {
-    version: 27,
+    version: 28,
     name: "tuning-session head test id",
     sql: [
       `ALTER TABLE tuning_sessions ADD COLUMN head_test_id INTEGER`,
     ],
   },
 
-  // ── v28: explicit lap → tuning-test link ──────────────────────────────────
+  // ── v29: explicit lap → tuning-test link ──────────────────────────────────
   // Correct lap→version attribution under branching. Laps recorded before this
   // (or with no head) keep tuning_test_id = NULL and fall back to the
   // createdAt time-window grouping in the UI.
   {
-    version: 28,
+    version: 29,
     name: "explicit lap to tuning-test link",
     sql: [
       `ALTER TABLE laps ADD COLUMN tuning_test_id INTEGER`,
       `CREATE INDEX IF NOT EXISTS idx_laps_tuning_test ON laps(tuning_test_id)`,
+    ],
+  },
+
+  // ── v23: discovered cars — auto-registered cars not (yet) in cars.csv ─────
+  // AC Evo has no stable ordinals; cars are keyed by name. When the shared
+  // memory reports a car name that isn't in shared/games/ac-evo/cars.csv we
+  // register it here with a generated ordinal (>= 100000, far above any CSV
+  // id) instead of importing the session as -1/"Unknown Car". On startup,
+  // reconcileDiscoveredCars() promotes rows whose name has since been added
+  // to the CSV: sessions/tunes/etc are remapped to the canonical CSV id and
+  // the discovered row is deleted.
+  {
+    version: 23,
+    name: "discovered cars registry",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS discovered_cars (
+         id          INTEGER PRIMARY KEY AUTOINCREMENT,
+         game_id     TEXT NOT NULL,
+         ordinal     INTEGER NOT NULL,
+         name        TEXT NOT NULL,
+         model       TEXT NOT NULL DEFAULT '',
+         created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+         UNIQUE(game_id, ordinal),
+         UNIQUE(game_id, name)
+       )`,
     ],
   },
 ];

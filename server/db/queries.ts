@@ -248,6 +248,15 @@ async function doInsertLap(
   return result.id;
 }
 
+/**
+ * Backfill car/track ordinals on a session that was created before shared
+ * memory static data was populated (e.g. first frames of an imported .bin
+ * capture where the recorder attached before the game wrote static state).
+ */
+export async function updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
+  await db.update(sessions).set({ carOrdinal, trackOrdinal }).where(eq(sessions.id, sessionId)).run();
+}
+
 export async function updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
   await db.update(sessions).set({ rawFile, lapDetectorVersion }).where(eq(sessions.id, sessionId)).run();
 }

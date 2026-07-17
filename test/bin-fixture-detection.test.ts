@@ -139,6 +139,35 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     expect(getAcEvoCarName(last.CarOrdinal)).toBe("Porsche 992 GT3 R Rennsport");
   }, { timeout: 30000 });
 
+  // Regression guard for the unknown-track / discovered-car fix. Before the fix
+  // this capture's track re-derived as Unknown Track (ordinal -1); the fix
+  // resolves it to Red Bull Ring - GP (ordinal 13) off the session frames.
+  // Player car is a known ordinal (Audi R8 LMS GT3 Evo II → 68). The session
+  // also contains an unknown car ("Grand Prix 2026 MCL40") which the DB reconcile
+  // path registers as a discovered ordinal — that stateful path is covered by the
+  // import/reconcile tests; here we assert the pure re-derivation the fix touched.
+  test("ac-evo-unknown-track-session17.bin.gz — session-capture, AC Evo — track re-derivation fix (was Unknown Track)", () => {
+    const file = `${DIR}/ac-evo-unknown-track-session17.bin.gz`;
+    expect(detectGameIdFromBuffer(readFileSync(file))).toBe("ac-evo");
+    expect(hasMetaFrame(gunzip(file))).toBe(true);
+
+    const packets = parseSessionCapture(file, "ac-evo");
+    expect(packets.length).toBeGreaterThan(0);
+    const last = packets[packets.length - 1]!;
+    // Track: the fix's core re-derivation. Every frame (incl. the last) now
+    // resolves to Red Bull Ring - GP (ordinal 13); before the fix it was -1.
+    expect(getAcEvoTrackName(last.TrackOrdinal)).toBe("Red Bull Ring - GP");
+
+    // Car: assert on the dominant (player) car ordinal, not `last`. All but one
+    // of the ~22.5k frames carry the player's Audi R8 (ordinal 68); the single
+    // trailing frame is an unmapped car (-1) that the DB import path registers as
+    // a discovered ordinal — a stateful step this pure-parse replay doesn't run.
+    const carCounts = new Map<number, number>();
+    for (const p of packets) carCounts.set(p.CarOrdinal, (carCounts.get(p.CarOrdinal) ?? 0) + 1);
+    const playerCarOrdinal = [...carCounts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+    expect(getAcEvoCarName(playerCarOrdinal)).toBe("Audi R8 LMS GT3 Evo II");
+  }, { timeout: 30000 });
+
   test("f1-2025-2026-04-09T21-34-10-190Z.bin.gz — raw UDP dump, F1 2025 — REGRESSION-BASELINE ONLY", () => {
     const file = `${DIR}/f1-2025-2026-04-09T21-34-10-190Z.bin.gz`;
     expect(detectGameIdFromBuffer(readFileSync(file))).toBe("f1-2025");
