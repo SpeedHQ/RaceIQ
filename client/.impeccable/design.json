@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 2,
+  "name": "RaceIQ",
+  "extensions": {
+    "colorMeta": {
+      "app-accent": { "hover": "#67e8f9", "emphasis": "#06b6d4" },
+      "surfaceRamp": ["#020617", "#0f172a", "#1e293b"],
+      "textRamp": ["#f1f5f9", "#b8c5d4", "#a0b0c0", "#7a8ea0"],
+      "dynamicsRamp": {
+        "green": "#34d399",
+        "yellow": "#fbbf24",
+        "amber": "#f59e0b",
+        "orange": "#fb923c",
+        "red": "#ef4444",
+        "blue": "#3b82f6",
+        "gray": "#94a3b8"
+      }
+    },
+    "typographyMeta": {
+      "fontFamily": "Geist Variable, sans-serif",
+      "scale": {
+        "title": "1.125rem",
+        "heading": "1rem",
+        "body": "0.9375rem",
+        "subtext": "0.875rem",
+        "label": "0.75rem",
+        "unit": "0.6875rem"
+      }
+    },
+    "shadows": {
+      "policy": "none",
+      "note": "Flat elevation by design; depth via tonal surface stepping only, --app-glass-blur pinned to 0px"
+    },
+    "interactionMeta": {
+      "activePress": "translate-y-px",
+      "focusRing": "focus-visible:ring-3 focus-visible:ring-ring/50"
+    },
+    "breakpoints": {
+      "sm": "640px",
+      "md": "768px",
+      "lg": "1024px",
+      "xl": "1280px"
+    }
+  },
+  "components": [
+    {
+      "name": "button-app-primary",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Analyze Lap</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:8px;font-family:'Geist Variable',sans-serif;font-size:0.8rem;font-weight:500;white-space:nowrap;transition:all 150ms;border:1px solid transparent;padding:6px 10px;}.ds-btn:active{transform:translateY(1px);}.ds-btn-primary{background:#22d3ee;color:#ffffff;}.ds-btn-primary:hover{background:rgba(34,211,238,0.8);}.ds-btn-primary:disabled{background:rgba(34,211,238,0.4);opacity:1;pointer-events:none;}"
+    },
+    {
+      "name": "button-app-outline",
+      "html": "<button class=\"ds-btn ds-btn-outline\">Cancel</button>",
+      "css": ".ds-btn-outline{background:transparent;color:#b8c5d4;border-color:#404040;}.ds-btn-outline:hover{color:#f1f5f9;}"
+    },
+    {
+      "name": "button-app-ghost",
+      "html": "<button class=\"ds-btn ds-btn-ghost\">Dismiss</button>",
+      "css": ".ds-btn-ghost{background:transparent;color:#b8c5d4;border-color:transparent;}.ds-btn-ghost:hover{color:#f1f5f9;}"
+    },
+    {
+      "name": "button-app-danger",
+      "html": "<button class=\"ds-btn ds-btn-danger\">Delete Session</button>",
+      "css": ".ds-btn-danger{background:#dc2626;color:#ffffff;}.ds-btn-danger:hover{background:#ef4444;}"
+    },
+    {
+      "name": "card",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\">Sector Times</div><div class=\"ds-card-body\">Corner-by-corner breakdown</div></div>",
+      "css": ".ds-card{background:#0f172a;border:1px solid #1e293b;border-radius:8px;}.ds-card:hover{background:#1e293b;}.ds-card-header{font-family:'Geist Variable',sans-serif;font-size:1rem;font-weight:600;color:#f1f5f9;padding:12px 16px;border-bottom:1px solid #1e293b;}.ds-card-body{font-family:'Geist Variable',sans-serif;font-size:0.875rem;color:#b8c5d4;padding:12px 16px;}"
+    },
+    {
+      "name": "input",
+      "html": "<input class=\"ds-input\" placeholder=\"Search laps\" />",
+      "css": ".ds-input{background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-family:'Geist Variable',sans-serif;font-size:0.875rem;padding:6px 10px;}.ds-input:focus{outline:none;border-color:#22d3ee;box-shadow:0 0 0 3px rgba(34,211,238,0.2);}.ds-input::placeholder{color:#7a8ea0;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Cockpit Display",
+    "overview": "RaceIQ reads like an instrument panel, not a startup dashboard. Near-black surfaces hold data at rest; a single cyan accent marks what's live, active, or actionable. Depth comes from tonal stepping between surface levels, never from drop shadows.",
+    "keyCharacteristics": [
+      "Near-black base with a single cyan signal color, not a rainbow of accents",
+      "Flat, tonally-layered surfaces — no shadows, no glass",
+      "A dedicated dynamics-* palette reserved for telemetry state encoding, never used for UI chrome",
+      "Compact, utilitarian type scale (11px-18px) built for data density",
+      "Tactile, confident interactive states: visible hover shifts, no timid opacity fades"
+    ],
+    "rules": [
+      "The One Signal Rule: cyan is the only interface accent; dynamics-* colors never leak into chrome",
+      "The Compact Scale Rule: never introduce a type size above 18px outside a genuine new page-level heading need",
+      "The Flat-By-Default Rule: no drop shadows, no glassmorphism, no blur; elevation is tonal stepping only"
+    ],
+    "dos": [
+      "Keep cyan as the only interface accent",
+      "Convey elevation with bg → surface → surface-alt tonal steps",
+      "Keep type scale within 11px-18px",
+      "Use translate-y-px active-press shift for tactile feel",
+      "Pack real data into every surface"
+    ],
+    "donts": [
+      "Gradient hero-metric tiles, glassmorphism, cutesy rounded card grids",
+      "Ugly, uncalibrated raw sim-overlay density",
+      "box-shadow anywhere",
+      "dynamics-* colors on buttons, nav, or chrome",
+      "A second accent color to solve a hierarchy problem"
+    ]
+  }
+}
