@@ -347,10 +347,14 @@ function LapAnalyseInner() {
     };
     w.__pauseAnimation = () => setPlaying(false);
     w.__totalFrames = telemetry.length;
+    // Per-frame lap timestamps (seconds) so the recorder can offset the start
+    // by real seconds, not a guessed fraction.
+    w.__frameTimes = telemetry.map((p) => p.CurrentLap);
     return () => {
       w.__setFrame = undefined;
       w.__pauseAnimation = undefined;
       w.__totalFrames = undefined;
+      w.__frameTimes = undefined;
     };
   }, [telemetry.length]);
 

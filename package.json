@@ -51,7 +51,7 @@
     "@libsql/client": "^0.17.4",
     "@libsql/win32-x64-msvc": "^0.5.29",
     "@mastra/ai-sdk": "^1.6.2",
-    "@mastra/core": "^1.50.1",
+    "@mastra/core": "^1.51.0",
     "@mastra/evals": "^1.5.1",
     "@mastra/libsql": "^1.15.1",
     "@mastra/memory": "^1.22.2",

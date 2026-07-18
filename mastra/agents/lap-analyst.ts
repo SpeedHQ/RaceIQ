@@ -11,6 +11,7 @@ import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
+import { liveAnalystScorers } from "../evals";
 
 const LAP_ANALYST_INSTRUCTIONS = `You are a senior race engineer reviewing a single driver's lap from telemetry data. Your job is to issue a structured verdict on the lap covering pace, handling, problem corners, braking, throttle application, coaching, and setup recommendations.
 
@@ -37,4 +38,7 @@ export const lapAnalystAgent = new Agent({
   // same data into the prompt — model can ignore the tool and still get
   // the context. See server/routes/lap-routes.ts.
   tools: { compareF1SetupToCatalogTool, getCornerMetricsTool },
+  // Live scoring in Studio: deterministic suite always, LLM-judge when
+  // EVAL_LOCAL_JUDGE=1 (LM Studio running). See mastra/evals/index.ts.
+  scorers: liveAnalystScorers,
 });

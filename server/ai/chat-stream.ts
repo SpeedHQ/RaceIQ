@@ -287,7 +287,7 @@ export async function startChatStream(opts: {
         memory: { thread: opts.threadId, resource: CHAT_RESOURCE_ID },
         modelSettings: { maxOutputTokens: 4096, temperature: 0.2 },
         providerOptions: {
-          openai: { reasoningEffort: chatProvider === "local" ? "none" : "low" },
+          openai: { reasoningEffort: "medium" },
           google: buildGoogleThinkingProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
         },
       }),

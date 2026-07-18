@@ -56,12 +56,11 @@ import { loadSettings } from "../settings";
 import { getChatMemory, tuneSessionThreadId, CHAT_RESOURCE_ID, saveChatMessages } from "../ai/chat-agent";
 import { getSetupsBaseDir } from "../ai/setup-engineer-context";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
+import { streamAgentTurnResponse } from "../ai/agent-stream";
 import { setupEngineerAgent, buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
 import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";
 import { getSecret } from "../keystore";
-import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
-import { toAISdkStream } from "@mastra/ai-sdk";
 import { MessageList } from "@mastra/core/agent";
 
 interface CatalogTune {
@@ -1148,104 +1147,18 @@ ${gatheredContext}` : sessionSystemPrompt }, ...messages],
         // reasoning here is the whole server-side wiring. Scoped to this route:
         // the main AiPanel keeps includeThoughts:false.
         providerOptions: {
-          openai: { reasoningEffort: chatProvider === "local" ? "none" : "low" },
+          openai: { reasoningEffort: "medium" },
           google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
         },
       });
 
-      const uiStream = createUIMessageStream({
+      return streamAgentTurnResponse({
+        agentStream: stream,
         originalMessages: messages,
-        // Mastra's memory auto-save (the `memory` option above) persists the
-        // assistant turn's text/tool/usage parts but drops reasoning: it never
-        // reaches `messageList.get.response.db()`, so it's absent from the row
-        // and the thinking block vanishes on reload. The live stream *does*
-        // carry reasoning (toAISdkStream forwards it), so it's fully assembled
-        // on `responseMessage` here — we patch it back into the saved row.
-        onFinish: async ({ responseMessage }) => {
-          try {
-            const reasoningText = (responseMessage.parts ?? [])
-              .filter((p: { type: string; text?: string }) => p.type === "reasoning")
-              .map((p: { type: string; text?: string }) => p.text ?? "")
-              .join("\n")
-              .trim();
-            if (!reasoningText) return;
-
-            const mem = getChatMemory();
-            const threadId = tuneSessionThreadId(id);
-
-            // Poll until Mastra's own async save has landed this turn's assistant
-            // row (finish handling runs as the stream is consumed; it can trail
-            // this callback by a few ms). Only accept a row stamped at/after the
-            // turn started, so a prior turn's assistant message is never matched.
-            let target: any;
-            for (let attempt = 0; attempt < 40; attempt++) {
-              const recalled = await mem.recall({ threadId });
-              const raw: any[] = recalled.messages ?? [];
-              const newest = [...raw].reverse().find((m) => m.role === "assistant");
-              if (newest && new Date(newest.createdAt).getTime() >= turnStartedAt) {
-                target = newest;
-                break;
-              }
-              await new Promise((r) => setTimeout(r, 50));
-            }
-            if (!target) return;
-
-            const existingParts: any[] = Array.isArray(target.content?.parts)
-              ? target.content.parts
-              : [];
-            // Idempotent: bail if reasoning is somehow already persisted.
-            if (target.content?.reasoning || existingParts.some((p) => p.type === "reasoning")) {
-              return;
-            }
-
-            // Write reasoning both as a leading `parts` entry (so MessageList
-            // reconstructs it in order, before the answer text) and on
-            // `content.reasoning` — mirroring how MessageList itself serialises a
-            // response, and matching the GET route's read path.
-            const content = {
-              ...target.content,
-              reasoning: reasoningText,
-              parts: [{ type: "reasoning", reasoning: reasoningText }, ...existingParts],
-            };
-            await mem.saveMessages({ messages: [{ ...target, content }] });
-          } catch (err: any) {
-            console.error("[TuneChat] Failed to persist reasoning:", err?.message ?? err);
-          }
-        },
-        execute: async ({ writer }) => {
-          for await (const part of toAISdkStream(stream, {
-            from: "agent",
-            // Threaded straight into AI SDK v5's UIMessageStreamOptions (see
-            // @mastra/ai-sdk's AgentStreamOptionsV5.messageMetadata, which is
-            // typed as UIMessageStreamOptionsV5<UIMessageV5>['messageMetadata']).
-            // It's invoked on the underlying stream's `start` and `finish`
-            // TextStreamPart events; `finish` carries `totalUsage` in ai@7's
-            // LanguageModelV2Usage shape — { inputTokens, outputTokens,
-            // totalTokens } — already exactly the shape assistant-ui's
-            // useThreadTokenUsage() reads off the assistant message's
-            // metadata.usage (via @assistant-ui/react-ai-sdk's
-            // getThreadMessageTokenUsage). No field-name normalisation needed.
-            messageMetadata: ({ part }) => {
-              if (part.type !== "finish") return undefined;
-              const { inputTokens, outputTokens, totalTokens } = part.totalUsage;
-              return {
-                usage: {
-                  inputTokens: inputTokens ?? 0,
-                  outputTokens: outputTokens ?? 0,
-                  totalTokens: totalTokens ?? 0,
-                },
-              };
-            },
-          })) {
-            // `toAISdkStream`'s chunk type is inferred from Mastra's own bundled
-            // `ai` types, which drift slightly from this repo's `ai` version
-            // (e.g. `finishReason: "unknown"` isn't in the local FinishReason
-            // union). The wire shape is identical — cast to bridge the two.
-            await writer.write(part as Parameters<typeof writer.write>[0]);
-          }
-        },
+        memory: getChatMemory(),
+        threadId: tuneSessionThreadId(id),
+        turnStartedAt,
       });
-      return createUIMessageStreamResponse({ stream: uiStream });
     }
   )
 

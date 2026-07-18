@@ -8,7 +8,6 @@ import {
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
-  Reasoning,
   ReasoningContent,
   ReasoningRoot,
   ReasoningText,
@@ -258,6 +257,54 @@ const MessageError: FC = () => {
   );
 };
 
+// Collapse the reasoning group the instant answer text begins: `streaming`
+// flips false as soon as the message's last part is no longer `reasoning`
+// (i.e. at text-start), rather than at message-end. `ReasoningRoot` keeps its
+// scroll-lock / "first manual toggle wins" behavior.
+const ReasoningGroupFallback: FC<
+  PropsWithChildren<{ group: ThreadGroupPart }>
+> = ({ group, children }) => {
+  const startIndex = group.indices[0] ?? 0;
+  const endIndex = group.indices[group.indices.length - 1] ?? -1;
+  const isReasoningStreaming = useAuiState((s) => {
+    if (s.message.status?.type !== "running") return false;
+    const lastIndex = s.message.parts.length - 1;
+    if (lastIndex < 0) return false;
+    const lastType = s.message.parts[lastIndex]?.type;
+    if (lastType !== "reasoning") return false;
+    return lastIndex >= startIndex && lastIndex <= endIndex;
+  });
+
+  return (
+    <ReasoningRoot streaming={isReasoningStreaming}>
+      <ReasoningTrigger active={isReasoningStreaming} />
+      <ReasoningContent aria-busy={isReasoningStreaming}>
+        <ReasoningText>{children}</ReasoningText>
+      </ReasoningContent>
+    </ReasoningRoot>
+  );
+};
+
+// Reasoning parts render standalone (no grouping): one collapsible per part.
+// Auto-opens while the reasoning tail is still streaming, then collapses the
+// instant answer text begins (last part flips off `reasoning`).
+const ReasoningPart: FC<PropsWithChildren> = ({ children }) => {
+  const isReasoningStreaming = useAuiState((s) => {
+    if (s.message.status?.type !== "running") return false;
+    const parts = s.message.parts;
+    return parts[parts.length - 1]?.type === "reasoning";
+  });
+
+  return (
+    <ReasoningRoot streaming={isReasoningStreaming}>
+      <ReasoningTrigger active={isReasoningStreaming} />
+      <ReasoningContent aria-busy={isReasoningStreaming}>
+        <ReasoningText>{children}</ReasoningText>
+      </ReasoningContent>
+    </ReasoningRoot>
+  );
+};
+
 const AssistantMessage: FC = () => {
   const {
     ToolFallback: ToolFallbackComponent = ToolFallback,
@@ -281,7 +328,7 @@ const AssistantMessage: FC = () => {
       >
         <MessagePrimitive.GroupedParts
           groupBy={groupPartByType({
-            reasoning: ["group-chainOfThought", "group-reasoning"],
+            reasoning: [],
             "tool-call": ["group-chainOfThought", "group-tool"],
             "standalone-tool-call": [],
           })}
@@ -309,20 +356,20 @@ const AssistantMessage: FC = () => {
                     <ReasoningGroup group={part}>{children}</ReasoningGroup>
                   );
                 }
-                const running = part.status.type === "running";
                 return (
-                  <ReasoningRoot streaming={running}>
-                    <ReasoningTrigger active={running} />
-                    <ReasoningContent aria-busy={running}>
-                      <ReasoningText>{children}</ReasoningText>
-                    </ReasoningContent>
-                  </ReasoningRoot>
+                  <ReasoningGroupFallback group={part}>
+                    {children}
+                  </ReasoningGroupFallback>
                 );
               }
               case "text":
                 return <MarkdownText />;
               case "reasoning":
-                return <Reasoning {...part} />;
+                return (
+                  <ReasoningPart>
+                    <MarkdownText />
+                  </ReasoningPart>
+                );
               case "tool-call":
                 return part.toolUI ?? <ToolFallbackComponent {...part} />;
               case "data":

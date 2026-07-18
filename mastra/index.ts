@@ -25,6 +25,7 @@ import { compareChatAgent } from "./agents/compare-chat";
 import { setupEngineerAgent } from "./agents/setup-engineer";
 import { compareAnalyseWorkflow } from "./workflows/compare-analyse";
 import { setupEngineerTurnWorkflow } from "./workflows/setup-engineer-turn";
+import { scorerRegistry } from "./evals";
 
 /**
  * DuckDB observability store — anchored on an absolute path (DATA_DIR or
@@ -54,6 +55,7 @@ export const mastra = new Mastra({
     "compare-analyse": compareAnalyseWorkflow,
     "setup-engineer-turn": setupEngineerTurnWorkflow,
   },
+  scorers: scorerRegistry,
   storage: new MastraCompositeStore({
     id: "raceiq-composite",
     default: new LibSQLStore({

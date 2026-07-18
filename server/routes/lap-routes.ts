@@ -457,7 +457,7 @@ export const lapRoutes = new Hono()
             modelSettings: { maxOutputTokens: 8192, temperature: 0 },
             providerOptions: {
               openai: {
-                reasoningEffort: analystProvider === "local" ? "none" : "low",
+                reasoningEffort: "medium",
                 responseFormat: {
                   type: "json_schema",
                   jsonSchema: {
@@ -904,7 +904,7 @@ export const lapRoutes = new Hono()
         // a bare "socket hang up" from the Vite proxy.
         modelSettings: { maxOutputTokens: 8192, temperature: 0 },
         providerOptions: {
-          openai: { reasoningEffort: settings.aiProvider === "local" ? "none" : "low" },
+          openai: { reasoningEffort: "medium" },
           google: buildGoogleThinkingProviderOptions(
             settings.aiModel || "gemini-flash-latest",
             settings.aiThinkingBudget,

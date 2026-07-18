@@ -19,6 +19,7 @@
  */
 import type { Hono } from "hono";
 import { MastraServer } from "@mastra/hono";
+import { scoreTracesWorkflow } from "@mastra/core/evals/scoreTraces";
 import { mastra } from "../mastra";
 
 /**
@@ -33,6 +34,17 @@ export async function mountStudioServer(app: Hono): Promise<void> {
   // Hono type from routes.ts satisfies it but TS can't prove it through generics.
   const server = new MastraServer({ app: app as never, mastra, prefix: STUDIO_API_PREFIX });
   await server.init();
+
+  // Register the internal batch-scoring-traces workflow. Studio's "Score
+  // traces" action calls core's `scoreTraces()`, which looks this workflow up
+  // via `mastra.__getInternalWorkflow("__batch-scoring-traces")`. The stock
+  // `mastra dev` playground server registers it at boot; our in-process
+  // MastraServer mount does not, so we register it here or the button 404s
+  // ("Workflow with id __batch-scoring-traces not found"). `__`-prefixed
+  // internal API — revisit if a future @mastra/core bump changes it.
+  (mastra as unknown as {
+    __registerInternalWorkflow: (wf: typeof scoreTracesWorkflow) => void;
+  }).__registerInternalWorkflow(scoreTracesWorkflow);
   console.log(
     `[Studio] Mastra API mounted at ${STUDIO_API_PREFIX} — run 'bun run mastra:studio' to inspect traces`,
   );
