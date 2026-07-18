@@ -14,8 +14,8 @@
  *     silently-skipped intent.
  */
 import { describe, expect, test } from "bun:test";
-import { z } from "zod";
 import { applyIntents, describeKnobs, knownComponents } from "../server/ai/tune-rules";
+import { readSetupEngineerContext } from "../mastra/tools/setup-engineer-request-context";
 
 function baseAccSetup() {
   return {
@@ -29,12 +29,6 @@ function baseAccSetup() {
       drivetrain: { preload: 40 },
     },
   };
-}
-
-/** Mirrors `componentEnum()` in mastra/tools/setup-engineer.ts. */
-function componentEnum(gameId: "acc" | "ac-evo") {
-  const names = knownComponents(gameId);
-  return names.length > 0 ? z.enum(names as [string, ...string[]]) : z.enum(["none"] as [string, ...string[]]);
 }
 
 describe("describeKnobs — get_current_setup grounding", () => {
@@ -95,22 +89,49 @@ describe("preview_change semantics — applyIntents on a clone, never mutating t
   });
 });
 
-describe("component enum grounding — the ONLY action space the agent can name", () => {
-  test("a known component parses", () => {
-    const schema = componentEnum("acc");
-    expect(schema.safeParse("Diff Preload").success).toBe(true);
+describe("component grounding — the engine is the guard, not the schema", () => {
+  // preview_change / apply_changes now accept `component: z.string()` (a static
+  // tool's schema can't vary per game). The deterministic engine — applyIntents
+  // — is what rejects an unknown component: it lands in `skipped` with a reason
+  // and is never applied. This is the contract that replaced the per-game enum.
+  test("a known component is applied", () => {
+    const { applied, skipped } = applyIntents("acc", baseAccSetup(), [
+      { component: "Diff Preload", direction: "increase", magnitude: "small", reason: "t" },
+    ]);
+    expect(applied.map((a) => a.component)).toContain("Diff Preload");
+    expect(skipped.map((s) => s.component)).not.toContain("Diff Preload");
   });
 
-  test("an unlisted/hallucinated component fails validation before applyIntents ever runs", () => {
-    const schema = componentEnum("acc");
-    const result = schema.safeParse("Front Anti-Roll Bar Stiffness Coefficient");
-    expect(result.success).toBe(false);
+  test("an unknown/hallucinated component is skipped with a reason, never applied", () => {
+    const { applied, skipped } = applyIntents("acc", baseAccSetup(), [
+      { component: "Front Anti-Roll Bar Stiffness Coefficient", direction: "increase", magnitude: "small", reason: "t" },
+    ]);
+    expect(applied).toHaveLength(0);
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0]!.reason).toBeTruthy();
+  });
+});
+
+describe("readSetupEngineerContext — per-request gameId/sessionId guard", () => {
+  const ctx = (entries: Record<string, unknown>) => ({ get: (k: string) => entries[k] });
+
+  test("returns { gameId, sessionId } from a Map-like request context", () => {
+    expect(readSetupEngineerContext(ctx({ gameId: "acc", sessionId: 61 }))).toEqual({
+      gameId: "acc",
+      sessionId: 61,
+    });
   });
 
-  test("a component that exists for the other game is rejected for this one", () => {
-    // Ride height / dampers are ACC-only (unverified AC-Evo snapshot shape).
-    const schema = componentEnum("ac-evo");
-    expect(schema.safeParse("Front Ride Height").success).toBe(false);
-    expect(schema.safeParse("Front Anti-Roll Bar").success).toBe(true);
+  test("throws when the context is missing", () => {
+    expect(() => readSetupEngineerContext(undefined)).toThrow(/requestContext/);
+  });
+
+  test("throws when sessionId is absent or not a number", () => {
+    expect(() => readSetupEngineerContext(ctx({ gameId: "acc" }))).toThrow();
+    expect(() => readSetupEngineerContext(ctx({ gameId: "acc", sessionId: "61" }))).toThrow();
+  });
+
+  test("throws when gameId is absent", () => {
+    expect(() => readSetupEngineerContext(ctx({ sessionId: 61 }))).toThrow();
   });
 });

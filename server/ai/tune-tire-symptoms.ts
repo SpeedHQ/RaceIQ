@@ -103,24 +103,25 @@ function thermalState(coreTempC: number): ThermalState {
  * would drag the means down.
  */
 export function tireTempSymptoms(packets: TelemetryPacket[]): TireTempSymptoms | null {
-  // The inner/core arrays are the acc-family tyre-temp signal; gate on them.
+  // The inner/core arrays are the acc-family tyre-temp signal (on packet.acc);
+  // gate on them.
   const loaded = packets.filter(
-    (p) => p.tireInnerTemp != null && p.tireCoreTemp != null && (p.Speed ?? 0) > 5,
+    (p) => p.acc?.tireInnerTemp != null && p.acc?.tireCoreTemp != null && (p.Speed ?? 0) > 5,
   );
   if (loaded.length < MIN_FRAMES) return null;
 
   // tireMiddleTemp is a newer offset (384-396); it may be absent on laps parsed
   // before it was recovered. Only offer a pressure read when it's present.
-  const hasMiddle = loaded.some((p) => p.tireMiddleTemp != null);
+  const hasMiddle = loaded.some((p) => p.acc?.tireMiddleTemp != null);
 
   const order: TireCorner[] = ["FL", "FR", "RL", "RR"];
   const corners: TireCornerTemp[] = order.map((corner, i) => {
-    const core = mean(loaded.map((p) => p.tireCoreTemp[i]));
-    const inner = mean(loaded.map((p) => p.tireInnerTemp[i]));
-    const outer = mean(loaded.map((p) => p.tireOuterTemp[i]));
+    const core = mean(loaded.map((p) => p.acc!.tireCoreTemp[i]));
+    const inner = mean(loaded.map((p) => p.acc!.tireInnerTemp[i]));
+    const outer = mean(loaded.map((p) => p.acc!.tireOuterTemp[i]));
     const innerVsOuterC = inner - outer;
     const crownVsShoulderC = hasMiddle
-      ? mean(loaded.filter((p) => p.tireMiddleTemp != null).map((p) => p.tireMiddleTemp![i])) -
+      ? mean(loaded.filter((p) => p.acc?.tireMiddleTemp != null).map((p) => p.acc!.tireMiddleTemp![i])) -
         (inner + outer) / 2
       : null;
     return {

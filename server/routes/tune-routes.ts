@@ -56,7 +56,9 @@ import { loadSettings } from "../settings";
 import { getChatMemory, tuneSessionThreadId, CHAT_RESOURCE_ID, saveChatMessages } from "../ai/chat-agent";
 import { getSetupsBaseDir } from "../ai/setup-engineer-context";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
-import { buildSetupEngineerAgent } from "../../mastra/agents/setup-engineer";
+import { setupEngineerAgent, buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
+import { RequestContext } from "@mastra/core/request-context";
+import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";
 import { getSecret } from "../keystore";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { toAISdkStream } from "@mastra/ai-sdk";
@@ -1066,14 +1068,33 @@ export const tuneRoutes = new Hono()
         return c.json({ error: "The setup engineer only supports ACC and AC-EVO" }, 400);
       }
 
-      const agent = buildSetupEngineerAgent({
+      // The Setup Engineer is now a shared singleton agent; per-session context
+      // (car/track/sessionId the tools must receive) is injected per request as
+      // a system message via buildSetupEngineerSystemPrompt.
+      const agent = setupEngineerAgent;
+      const sessionSystemPrompt = buildSetupEngineerSystemPrompt({
         gameId,
         sessionId: id,
         carName: session.carName,
         trackName: session.trackName,
         sessionName: session.name,
-        language: loadSettings().language,
       });
+
+      // Deterministic prerequisite gathering — force the read side (setup,
+      // symptoms, track conditions, history) via the registered Mastra workflow
+      // so the model always has current context and never has to call a read
+      // tool or supply a session id. Studio-observable.
+      const reqCtx = new RequestContext();
+      reqCtx.set("gameId", gameId);
+      reqCtx.set("sessionId", id);
+      let gatheredContext = "";
+      try {
+        const prereqRun = await setupEngineerTurnWorkflow.createRun();
+        const prereqResult = await prereqRun.start({ inputData: { sessionId: id }, requestContext: reqCtx });
+        if (prereqResult.status === "success") gatheredContext = prereqResult.result.context;
+      } catch (err: any) {
+        console.error("[SetupEngineer] prereq workflow failed:", err?.message);
+      }
 
       // Provider/key/model plumbing — inlined from startChatStream (see
       // ../ai/chat-stream.ts) since this route no longer uses the shared
@@ -1112,8 +1133,13 @@ export const tuneRoutes = new Hono()
       // always >= this) — avoids racing/patching a previous turn's message.
       const turnStartedAt = Date.now();
 
-      const stream = await agent.stream(messages, {
+      const stream = await agent.stream(
+        [{ role: "system", content: gatheredContext ? `${sessionSystemPrompt}
+
+${gatheredContext}` : sessionSystemPrompt }, ...messages],
+        {
         memory: { thread: tuneSessionThreadId(id), resource: CHAT_RESOURCE_ID },
+        requestContext: reqCtx,
         // Ask the model to stream its thought process so the tune chat can show a
         // live "thinking" block that auto-collapses once the reply text starts
         // (reasoning.tsx drives the collapse off the streamed reasoning parts).
@@ -1138,8 +1164,8 @@ export const tuneRoutes = new Hono()
         onFinish: async ({ responseMessage }) => {
           try {
             const reasoningText = (responseMessage.parts ?? [])
-              .filter((p): p is Extract<typeof p, { type: "reasoning" }> => p.type === "reasoning")
-              .map((p) => p.text ?? "")
+              .filter((p: { type: string; text?: string }) => p.type === "reasoning")
+              .map((p: { type: string; text?: string }) => p.text ?? "")
               .join("\n")
               .trim();
             if (!reasoningText) return;

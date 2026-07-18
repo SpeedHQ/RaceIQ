@@ -18,7 +18,25 @@ import { cacheRoutes } from "./routes/cache-routes";
 import { devRoutes } from "./routes/dev-routes";
 
 const app = new Hono()
-  .use("/*", cors())
+  // In dev, Mastra Studio (localhost:3000) probes /studio-api/auth/capabilities
+  // with `credentials: "include"`; browsers reject a wildcard ACAO on
+  // credentialed requests, so reflect the request origin + allow credentials.
+  // Prod keeps the plain wildcard (the desktop client is same-origin).
+  .use(
+    "/*",
+    IS_DEV
+      ? cors({
+          origin: (origin) => origin ?? "*",
+          credentials: true,
+          // Omit allowHeaders so Hono reflects the browser's
+          // Access-Control-Request-Headers verbatim. Mastra Studio's client
+          // sends its own headers (e.g. x-mastra-client-type) on /studio-api
+          // requests; a static allow-list drops them and the credentialed
+          // preflight fails with "Failed to fetch".
+          allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        })
+      : cors(),
+  )
   .use("/*", errorLogger())
   .route("/", settingsRoutes)
   .route("/", lapRoutes)

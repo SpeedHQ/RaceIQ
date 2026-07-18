@@ -34,19 +34,19 @@ import {
   resolveGuardedSetupFile,
   setupPathStem,
 } from "../../server/ai/setup-engineer-context";
+import { readSetupEngineerContext } from "./setup-engineer-request-context";
+import { consultLapAnalystForSession } from "../../server/ai/consult-lap-analyst";
 
 const DirectionEnum = z.enum(["increase", "decrease"]);
 const MagnitudeEnum = z.enum(["small", "medium", "large"]);
 
-// Session binding is an explicit tool parameter (not requestContext), so these
-// stay plain static tools: the chat route passes the resolved sessionId on every
-// call. gameId is derived from the session via loadActiveTuningContext(sessionId).
-const SessionIdField = z
-  .number()
-  .int()
-  .positive()
-  .describe("The tuning session id to operate on (resolved by the caller).");
-const SessionOnly = z.object({ sessionId: SessionIdField });
+// Per-session binding (gameId, sessionId) comes from Mastra requestContext, set
+// once per turn by the chat route — NOT a model-supplied tool arg. Weak local
+// models routinely dropped the sessionId arg, forcing a failed call + retry.
+// Read tools therefore take NO input; every execute reads the context via
+// readSetupEngineerContext(ctx.requestContext). Action tools keep only their
+// change args (component/direction/magnitude), never sessionId.
+const NoInput = z.object({});
 
 const AppliedChangeShape = z.object({
   component: z.string(),
@@ -63,7 +63,7 @@ export function buildSetupEngineerTools() {
       "Get the active setup version's tunable knobs: current value, min/max clamp range, and the " +
       "per-magnitude (small/medium/large) step size. This is the COMPLETE list of knobs you may ever " +
       "recommend or move — never suggest a change to anything not in this list.",
-    inputSchema: SessionOnly,
+    inputSchema: NoInput,
     outputSchema: z.object({
       ok: z.boolean(),
       error: z.string().optional(),
@@ -76,7 +76,8 @@ export function buildSetupEngineerTools() {
         step: z.object({ small: z.number(), medium: z.number(), large: z.number() }),
       })).default([]),
     }),
-    execute: async ({ sessionId }) => {
+    execute: async (_input, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
       const ctx = await loadActiveTuningContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error, knobs: [] };
       return {
@@ -93,12 +94,13 @@ export function buildSetupEngineerTools() {
       "Get the deterministic symptom report (balance per corner phase, lockups, bottoming) computed from " +
       "the session's fastest valid lap. Returns 'available: false' when no lap has been driven yet — " +
       "in that case, discuss the setup from the driver's description of how the car feels.",
-    inputSchema: SessionOnly,
+    inputSchema: NoInput,
     outputSchema: z.object({
       available: z.boolean(),
       summary: z.string(),
     }),
-    execute: async ({ sessionId }) => {
+    execute: async (_input, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
       const symptoms = await computeSessionSymptoms(sessionId);
       if (!symptoms) return { available: false, summary: "No analysable lap yet for this session." };
       return { available: true, summary: formatSymptoms(symptoms) };
@@ -113,7 +115,7 @@ export function buildSetupEngineerTools() {
       "the same fastest valid lap the symptom report uses. Returns 'available: false' when no lap has been " +
       "driven yet. Use this to reason about temperature-sensitive knobs (tyre pressures, which climb with hot " +
       "track/air) and grip: a green or wet track wants a softer, more compliant setup than an optimum dry one.",
-    inputSchema: SessionOnly,
+    inputSchema: NoInput,
     outputSchema: z.object({
       available: z.boolean(),
       summary: z.string(),
@@ -127,7 +129,8 @@ export function buildSetupEngineerTools() {
       startingGrip: z.string().nullable().optional(),
       staticWeather: z.boolean().nullable().optional(),
     }),
-    execute: async ({ sessionId }) => {
+    execute: async (_input, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
       const tc = await computeSessionTrackConditions(sessionId);
       if (!tc) return { available: false, summary: "No analysable lap yet for this session." };
       return {
@@ -146,13 +149,33 @@ export function buildSetupEngineerTools() {
     },
   });
 
+  const consultLapAnalystTool = createTool({
+    id: "consult-lap-analyst",
+    description:
+      "Delegate a full corner-by-corner driving/telemetry analysis of the session's representative lap to the " +
+      "Lap Analyst — a separate expert agent. Use this when the driver asks something that needs telemetry " +
+      "insight beyond the setup itself (e.g. where they're losing time, braking/throttle habits, which corners " +
+      "cost the most), or to decide whether a slow lap is a driving issue rather than a setup one. Returns " +
+      "'available: false' when no lap has been driven yet. This is a heavier call than get_symptoms — reach for " +
+      "it when the setup signals aren't enough.",
+    inputSchema: NoInput,
+    outputSchema: z.object({
+      available: z.boolean(),
+      summary: z.string(),
+    }),
+    execute: async (_input, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      return consultLapAnalystForSession(sessionId);
+    },
+  });
+
   const getVersionHistoryTool = createTool({
     id: "get-version-history",
     description:
       "Get every setup version tried in this session so far, oldest first: version number, label, engine " +
       "that produced it, and the changes applied to reach it from its parent. Use this to avoid repeating " +
       "a change that was already tried, or to reason about what's been attempted.",
-    inputSchema: SessionOnly,
+    inputSchema: NoInput,
     outputSchema: z.object({
       versions: z.array(z.object({
         version: z.number(),
@@ -167,7 +190,8 @@ export function buildSetupEngineerTools() {
         })),
       })),
     }),
-    execute: async ({ sessionId }) => {
+    execute: async (_input, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
       const ctx = await loadActiveTuningContext(sessionId);
       const tests = ctx.ok ? ctx.tests : [];
       return {
@@ -199,7 +223,6 @@ export function buildSetupEngineerTools() {
       "this to state the actual effect of a suggestion before the driver confirms it, or to check whether a " +
       "knob is already at its limit (noop: true).",
     inputSchema: z.object({
-      sessionId: SessionIdField,
       component: z.string(),
       direction: DirectionEnum,
       magnitude: MagnitudeEnum,
@@ -212,8 +235,8 @@ export function buildSetupEngineerTools() {
       from: z.number().optional(),
       to: z.number().optional(),
     }),
-    execute: async (inputData) => {
-      const { sessionId } = inputData;
+    execute: async (inputData, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
       const ctx = await loadActiveTuningContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error };
       const { setup, applied, skipped } = applyIntents(ctx.gameId, ctx.setup, [{
@@ -240,7 +263,6 @@ export function buildSetupEngineerTools() {
       "accumulator, so a change left out here will not be applied. Only call this after the driver has " +
       "explicitly confirmed they want it applied/generated.",
     inputSchema: z.object({
-      sessionId: SessionIdField,
       changes: z.array(z.object({
         component: z.string(),
         direction: DirectionEnum,
@@ -256,8 +278,8 @@ export function buildSetupEngineerTools() {
       applied: z.array(AppliedChangeShape).default([]),
       skipped: z.array(z.object({ component: z.string(), reason: z.string() })).default([]),
     }),
-    execute: async (inputData) => {
-      const { sessionId } = inputData;
+    execute: async (inputData, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
       const ctx = await loadActiveTuningContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error, applied: [], skipped: [] };
 
@@ -335,7 +357,6 @@ export function buildSetupEngineerTools() {
       "Use when the driver asks to try a different direction from an older version without overwriting newer ones. " +
       "Accepts the version label (e.g. \"v1\", \"v1.2\") or the integer version number.",
     inputSchema: z.object({
-      sessionId: SessionIdField,
       target: z.string().describe("A version label like \"v1.2\" or an integer version like \"1\"."),
     }),
     outputSchema: z.object({
@@ -344,8 +365,8 @@ export function buildSetupEngineerTools() {
       label: z.string().optional(),
       version: z.number().optional(),
     }),
-    execute: async (inputData) => {
-      const { sessionId } = inputData;
+    execute: async (inputData, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
       const ctx = await loadActiveTuningContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error };
 
@@ -417,6 +438,7 @@ export function buildSetupEngineerTools() {
     getCurrentSetupTool,
     getSymptomsTool,
     getTrackConditionsTool,
+    consultLapAnalystTool,
     getVersionHistoryTool,
     previewChangeTool,
     applyChangesTool,

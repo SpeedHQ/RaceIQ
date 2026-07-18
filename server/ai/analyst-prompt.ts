@@ -6,6 +6,7 @@ import { analyzeLap } from "../../shared/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { buildTrackGuideContext, guideCornerLabels } from "./track-guides";
+import { telemetryToTrackConditions, formatTrackConditions } from "./track-conditions";
 import { segmentDisplayName, segmentDisplayNames } from "../../shared/segment-label";
 import { aiLanguageInstruction } from "../../shared/locales";
 
@@ -250,9 +251,16 @@ export function buildAnalystPrompt(
 
   const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug: trackSlug, gameId });
 
+  // Weather / surface conditions, so the model can attribute a slow lap to the
+  // environment (cold, green, or wet track) rather than the driver or setup.
+  const conditions = telemetryToTrackConditions(packets);
+  const conditionsText = conditions
+    ? `\n--- Track Conditions ---\n${formatTrackConditions(conditions)}\nWeigh these before blaming pace on the driver or setup — a cold, green, or wet surface costs grip everywhere.\n`
+    : "";
+
   const context = `${carDetailsText}
 Track: ${trackName}
-${tuneText}${segmentsList}${sectorsText}${cornerGuardrail}${trackGuide}
+${conditionsText}${tuneText}${segmentsList}${sectorsText}${cornerGuardrail}${trackGuide}
 ${exportText}
 ${cornerData}
 ${insightsText}`;

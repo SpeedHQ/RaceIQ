@@ -259,8 +259,8 @@ export interface AccExtendedData {
    * SharedFileOut.h). Optional: null when the source buffer predates wiring
    * or is truncated before offset 292.
    */
-  airTempC: number | null;
-  roadTempC: number | null;
+  airTempC?: number | null;
+  roadTempC?: number | null;
 
   // Race state
   flagStatus: string;

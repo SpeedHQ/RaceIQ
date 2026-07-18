@@ -2,7 +2,7 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { AssistantChatTransport, useChatRuntime, useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UIMessage } from "ai";
 import { useSettings } from "../../hooks/queries";
 import { isAiConfigured } from "../../lib/is-ai-configured";
@@ -47,9 +47,18 @@ function useTuneChatHistory(sessionId: number) {
 }
 
 function TuneSetupChatThread({ sessionId, initialMessages }: { sessionId: number; initialMessages: UIMessage[] }) {
+  const queryClient = useQueryClient();
   const runtime = useChatRuntime({
     messages: initialMessages,
     transport: new AssistantChatTransport({ api: `/api/tuning-sessions/${sessionId}/chat` }),
+    // A turn may have applied a change or branched a version server-side (inside
+    // apply_changes / branch_from_version), which the chat stream doesn't tell
+    // the version tree about. Refetch the session + its tests so the graph shows
+    // the new version immediately instead of on the next incidental refetch.
+    onFinish: () => {
+      queryClient.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
+      queryClient.invalidateQueries({ queryKey: ["tuning-session", sessionId] });
+    },
   });
 
   return (

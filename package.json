@@ -38,7 +38,7 @@
     "laps:import": "bun scripts/import-laps.ts",
     "gzip:recording": "bun scripts/gzip-recording.ts",
     "build:installer": "bun scripts/build-installer.ts",
-    "mastra:dev": "DATA_DIR=\"$PWD/data\" npx mastra dev --dir mastra",
+    "mastra:studio": "bunx mastra@1.19.0 studio -p 3000 -h raceiq.localhost -s 1355 -x http --server-api-prefix /studio-api",
     "mastra:migrate": "DATA_DIR=\"$PWD/data\" bunx --bun mastra migrate --dir mastra",
     "postinstall": "lefthook install",
     "record:demo": "cd playwright && DEMO_START_FRAME=28% DEMO_MAX_FRAMES=2700 bunx playwright test --project=record-demo",
@@ -67,6 +67,7 @@
   },
   "devDependencies": {
     "@mastra/duckdb": "^1.5.1",
+    "@mastra/hono": "^1.5.7",
     "@mastra/loggers": "^1.2.0",
     "@mastra/observability": "^1.16.0",
     "@types/bun": "^1.3.14",

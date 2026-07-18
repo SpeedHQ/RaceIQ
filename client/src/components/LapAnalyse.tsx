@@ -333,6 +333,27 @@ function LapAnalyseInner() {
     }
   }, [cursorIdx, telemetry.length]);
 
+  // Expose deterministic frame control for Playwright recording.
+  // Mirrors Onboarding's hook so the full analyse cockpit (track dot, gauges,
+  // traces) can be stepped frame-by-frame — same index -> identical pixels.
+  useEffect(() => {
+    if (!(window as unknown as Record<string, unknown>).__recording) return;
+    const w = window as unknown as Record<string, unknown>;
+    w.__setFrame = (n: number) => {
+      const idx = Math.max(0, Math.min(telemetry.length - 1, n));
+      setCursorIdx(idx);
+      trackMapRef.current?.updateCursor(idx);
+      chartsPanelRef.current?.updateCursor(idx);
+    };
+    w.__pauseAnimation = () => setPlaying(false);
+    w.__totalFrames = telemetry.length;
+    return () => {
+      w.__setFrame = undefined;
+      w.__pauseAnimation = undefined;
+      w.__totalFrames = undefined;
+    };
+  }, [telemetry.length]);
+
   // Playback animation + keyboard controls
   const { updateOverlays } = useLapPlayback({
     playing,

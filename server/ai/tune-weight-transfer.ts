@@ -95,10 +95,10 @@ function longG(p: TelemetryPacket): number {
  * meanFront / (meanFront + meanRear).
  */
 export function lltdFrontOf(frames: TelemetryPacket[]): number | null {
-  const loaded = frames.filter((p) => p.wheelLoad != null && latG(p) > CORNER_LAT_G);
+  const loaded = frames.filter((p) => p.acc?.wheelLoad != null && latG(p) > CORNER_LAT_G);
   if (loaded.length < 3) return null;
-  const frontTransfer = mean(loaded.map((p) => Math.abs(p.wheelLoad![0] - p.wheelLoad![1])));
-  const rearTransfer = mean(loaded.map((p) => Math.abs(p.wheelLoad![2] - p.wheelLoad![3])));
+  const frontTransfer = mean(loaded.map((p) => Math.abs(p.acc!.wheelLoad![0] - p.acc!.wheelLoad![1])));
+  const rearTransfer = mean(loaded.map((p) => Math.abs(p.acc!.wheelLoad![2] - p.acc!.wheelLoad![3])));
   const total = frontTransfer + rearTransfer;
   if (total <= 0) return null;
   return frontTransfer / total;
@@ -133,24 +133,24 @@ export function weightTransferSymptoms(packets: TelemetryPacket[]): WeightTransf
   const lltdFront = lltdFrontOf(moving);
 
   // Static front weight share from near-stationary-load frames.
-  const hasLoad = moving.some((p) => p.wheelLoad != null);
+  const hasLoad = moving.some((p) => p.acc?.wheelLoad != null);
   let frontStaticBias: number | null = null;
   let brakeDiveLoadN: number | null = null;
   if (hasLoad) {
     const staticFrames = moving.filter(
-      (p) => p.wheelLoad != null && latG(p) < STATIC_G && Math.abs(longG(p)) < STATIC_G,
+      (p) => p.acc?.wheelLoad != null && latG(p) < STATIC_G && Math.abs(longG(p)) < STATIC_G,
     );
     if (staticFrames.length >= 3) {
-      const frontStatic = mean(staticFrames.map((p) => p.wheelLoad![0] + p.wheelLoad![1]));
+      const frontStatic = mean(staticFrames.map((p) => p.acc!.wheelLoad![0] + p.acc!.wheelLoad![1]));
       const totalStatic = mean(
-        staticFrames.map((p) => p.wheelLoad![0] + p.wheelLoad![1] + p.wheelLoad![2] + p.wheelLoad![3]),
+        staticFrames.map((p) => p.acc!.wheelLoad![0] + p.acc!.wheelLoad![1] + p.acc!.wheelLoad![2] + p.acc!.wheelLoad![3]),
       );
       frontStaticBias = totalStatic > 0 ? frontStatic / totalStatic : null;
 
       // Front-axle load gain under braking vs that static baseline.
-      const brakeFrames = moving.filter((p) => p.wheelLoad != null && longG(p) < -LONG_G);
+      const brakeFrames = moving.filter((p) => p.acc?.wheelLoad != null && longG(p) < -LONG_G);
       if (brakeFrames.length >= 3) {
-        const frontBraking = mean(brakeFrames.map((p) => p.wheelLoad![0] + p.wheelLoad![1]));
+        const frontBraking = mean(brakeFrames.map((p) => p.acc!.wheelLoad![0] + p.acc!.wheelLoad![1]));
         brakeDiveLoadN = frontBraking - frontStatic;
       }
     }
