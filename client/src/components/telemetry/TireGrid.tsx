@@ -12,11 +12,16 @@ export interface WheelData {
   pressure?: number; // psi, optional
 }
 
+type CornerSet<T> = Record<"FL" | "FR" | "RL" | "RR", T>;
+
 interface TireGridProps {
-  fl: WheelData;
-  fr: WheelData;
-  rl: WheelData;
-  rr: WheelData;
+  /** Per-corner data. Either pass `corners` (one object, four corners) or
+   *  the individual fl/fr/rl/rr props — not both. */
+  corners?: CornerSet<WheelData>;
+  fl?: WheelData;
+  fr?: WheelData;
+  rl?: WheelData;
+  rr?: WheelData;
   healthThresholds: { green: number; yellow: number }; // fractions 0–1
   tempThresholds: { blue: number; orange: number; red: number }; // °C
   pressureOptimal?: { min: number; max: number }; // psi
@@ -25,16 +30,20 @@ interface TireGridProps {
   compoundStyle?: { bg: string; text: string };
 }
 
-export function TireGrid({ fl, fr, rl, rr, healthThresholds, tempThresholds, pressureOptimal, brakeTempThresholds, compound, compoundStyle }: TireGridProps) {
+export function TireGrid({ corners, fl, fr, rl, rr, healthThresholds, tempThresholds, pressureOptimal, brakeTempThresholds, compound, compoundStyle }: TireGridProps) {
+  const flData = corners?.FL ?? fl!;
+  const frData = corners?.FR ?? fr!;
+  const rlData = corners?.RL ?? rl!;
+  const rrData = corners?.RR ?? rr!;
   const units = useUnits();
   const greenPct = healthThresholds.green * 100;
   const yellowPct = healthThresholds.yellow * 100;
 
   const wheels = [
-    { label: "FL", ...fl },
-    { label: "FR", ...fr },
-    { label: "RL", ...rl },
-    { label: "RR", ...rr },
+    { label: "FL", ...flData },
+    { label: "FR", ...frData },
+    { label: "RL", ...rlData },
+    { label: "RR", ...rrData },
   ];
 
   const hasBrake = wheels.some((w) => w.brakeTemp !== undefined);

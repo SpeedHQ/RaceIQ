@@ -41,7 +41,7 @@ import { buildAnalystPrompt } from "../ai/analyst-prompt";
 import { resolveTrackContext } from "../ai/track-context";
 import { computeLapSectors } from "../compute-lap-sectors";
 import { getAnalystJsonSchema } from "../ai/schemas";
-import { getChatMemory, chatThreadId, compareChatThreadId } from "../ai/chat-agent";
+import { getChatMemory, chatThreadId, compareChatThreadId, CHAT_RESOURCE_ID } from "../ai/chat-agent";
 import { getSecret } from "../keystore";
 import { deleteAnalysis as deleteAnalysisQuery } from "../db/queries";
 import { tryGetGame } from "../../shared/games/registry";
@@ -52,7 +52,9 @@ const gzipAsync = promisify(gzip);
 import { loadSharedTrackMeta } from "../../shared/track-data";
 import { buildChatSystemPrompt } from "../ai/chat-prompt";
 import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
-import { startChatStream } from "../ai/chat-stream";
+import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
+import { streamAgentTurnResponse } from "../ai/agent-stream";
+import { MessageList } from "@mastra/core/agent";
 import { topCatalogReferences, normalizePacketSetup, getCatalogDisplayName } from "../ai/f1-setup-catalog";
 import type { TelemetryPacket } from "../../shared/types";
 import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "../ai/inputs-compare-prompt";
@@ -142,7 +144,7 @@ const BulkDeleteSchema = z.object({
 });
 
 const ChatBodySchema = z.object({
-  message: z.string().min(1).max(2000),
+  messages: z.array(z.any()),
 });
 
 export const lapRoutes = new Hono()
@@ -540,20 +542,14 @@ export const lapRoutes = new Hono()
       if (!thread) return c.json({ messages: [] });
       const result = await memory.recall({ threadId });
       const raw = result.messages ?? [];
-      const messages = raw
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => {
-          const c = m.content as any;
-          let content = "";
-          if (typeof c === "string") {
-            content = c;
-          } else if (c && typeof c === "object") {
-            // Mastra format: { format, parts: [{type, text}], content: "plain text" }
-            content = c.content ?? c.parts?.map((p: any) => p.text ?? "").join("") ?? "";
-          }
-          return { role: m.role, content, createdAt: m.createdAt ?? "" };
-        });
-      return c.json({ messages });
+
+      const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
+      list.add(raw, "memory");
+      const uiMessages = list.get.all.aiV5
+        .ui()
+        .filter((m) => m.role === "user" || m.role === "assistant");
+
+      return c.json({ messages: uiMessages });
     } catch (err: any) {
       console.error("[Chat] Failed to load messages:", err.message);
       return c.json({ messages: [] });
@@ -563,7 +559,7 @@ export const lapRoutes = new Hono()
   // ── Chat: send message (streaming) ─────────────────────────
   .post("/api/laps/:id/chat", zValidator("param", IdParamSchema), zValidator("json", ChatBodySchema), async (c) => {
     const { id } = c.req.valid("param");
-    const { message } = c.req.valid("json");
+    const { messages } = c.req.valid("json");
 
     const lap = await getLapById(id);
     if (!lap) return c.json({ error: "Lap not found" }, 404);
@@ -602,15 +598,58 @@ export const lapRoutes = new Hono()
     // Build chat prompt
     const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language);
 
-    const r = await startChatStream({
-      agent: lapChatAgent,
-      message,
-      threadId: chatThreadId(id),
-      systemPrompt,
-      logLabel: "Chat",
-    });
-    if ("error" in r) return c.json({ error: r.error }, r.status);
-    return r.response;
+    // Provider/key/model plumbing — inlined from the old startChatStream
+    // helper (removed, was the NDJSON transport's shared provider setup)
+    // since this route now speaks the AI SDK v5 UI-message-stream
+    // protocol instead).
+    const chatProvider = settings.chatProvider;
+    if (chatProvider === "gemini") {
+      const key = await getSecret("gemini-api-key");
+      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
+      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
+    } else if (chatProvider === "openai") {
+      const key = await getSecret("openai-api-key");
+      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
+      process.env.OPENAI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
+    } else if (chatProvider === "local") {
+      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+    }
+
+    const chatModelLabel = settings.chatModel
+      || (chatProvider === "openai"
+        ? "gpt-4o-mini"
+        : chatProvider === "local"
+          ? "local-model"
+          : "gemini-flash-latest");
+
+    const threadId = chatThreadId(id);
+    const turnStartedAt = Date.now();
+    try {
+      const stream = await lapChatAgent.stream(
+        [{ role: "system", content: systemPrompt }, ...messages],
+        {
+          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+          providerOptions: {
+            openai: { reasoningEffort: "medium" },
+            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+          },
+        },
+      );
+
+      return streamAgentTurnResponse({
+        agentStream: stream,
+        originalMessages: messages,
+        memory: getChatMemory(),
+        threadId,
+        turnStartedAt,
+      });
+    } catch (err: any) {
+      console.error("[Chat] Stream failed:", err.message);
+      return c.json({ error: err.message }, 500);
+    }
   })
 
   // ── Chat: clear messages ───────────────────────────────────
@@ -970,19 +1009,14 @@ export const lapRoutes = new Hono()
       if (!thread) return c.json({ messages: [] });
       const result = await memory.recall({ threadId });
       const raw = result.messages ?? [];
-      const messages = raw
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => {
-          const c = m.content as any;
-          let content = "";
-          if (typeof c === "string") {
-            content = c;
-          } else if (c && typeof c === "object") {
-            content = c.content ?? c.parts?.map((p: any) => p.text ?? "").join("") ?? "";
-          }
-          return { role: m.role, content, createdAt: m.createdAt ?? "" };
-        });
-      return c.json({ messages });
+
+      const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
+      list.add(raw, "memory");
+      const uiMessages = list.get.all.aiV5
+        .ui()
+        .filter((m) => m.role === "user" || m.role === "assistant");
+
+      return c.json({ messages: uiMessages });
     } catch (err: any) {
       console.error("[CompareChat] Failed to load messages:", err.message);
       return c.json({ messages: [] });
@@ -992,7 +1026,7 @@ export const lapRoutes = new Hono()
   // ── Compare chat: send message (streaming) ────────────────
   .post("/api/laps/:id1/compare/:id2/chat", zValidator("param", CompareParamsSchema), zValidator("json", ChatBodySchema), async (c) => {
     const { id1, id2 } = c.req.valid("param");
-    const { message } = c.req.valid("json");
+    const { messages } = c.req.valid("json");
     if (id1 === id2) return c.json({ error: "Cannot compare a lap with itself" }, 400);
 
     const lapA = await getLapById(id1);
@@ -1047,15 +1081,54 @@ export const lapRoutes = new Hono()
         buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
 
-    const r = await startChatStream({
-      agent: compareChatAgent,
-      message,
-      threadId: compareChatThreadId(id1, id2),
-      systemPrompt,
-      logLabel: "CompareChat",
-    });
-    if ("error" in r) return c.json({ error: r.error }, r.status);
-    return r.response;
+    const chatProvider = settings.chatProvider;
+    if (chatProvider === "gemini") {
+      const key = await getSecret("gemini-api-key");
+      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
+      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
+    } else if (chatProvider === "openai") {
+      const key = await getSecret("openai-api-key");
+      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
+      process.env.OPENAI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
+    } else if (chatProvider === "local") {
+      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+    }
+
+    const chatModelLabel = settings.chatModel
+      || (chatProvider === "openai"
+        ? "gpt-4o-mini"
+        : chatProvider === "local"
+          ? "local-model"
+          : "gemini-flash-latest");
+
+    const threadId = compareChatThreadId(id1, id2);
+    const turnStartedAt = Date.now();
+    try {
+      const stream = await compareChatAgent.stream(
+        [{ role: "system", content: systemPrompt }, ...messages],
+        {
+          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+          providerOptions: {
+            openai: { reasoningEffort: "medium" },
+            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+          },
+        },
+      );
+
+      return streamAgentTurnResponse({
+        agentStream: stream,
+        originalMessages: messages,
+        memory: getChatMemory(),
+        threadId,
+        turnStartedAt,
+      });
+    } catch (err: any) {
+      console.error("[CompareChat] Stream failed:", err.message);
+      return c.json({ error: err.message }, 500);
+    }
   })
 
   // ── Compare chat: clear messages ───────────────────────────

@@ -32,6 +32,17 @@ export interface VersionGraphProps {
 
 const byVersionDesc = (a: TuningTest, b: TuningTest) => b.version - a.version;
 
+/** Row-level stat with an always-visible label so a placeholder "—" (no laps
+ *  yet) still reads as a defined column, not blank space. */
+function RowStat({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="flex flex-col items-end leading-tight">
+      <span className="text-[8px] uppercase tracking-wider text-app-text-muted/70">{label}</span>
+      <span className="font-mono text-app-text-dim">{value}</span>
+    </span>
+  );
+}
+
 /**
  * Group tests into a parent/child forest via `parentTestId`. Roots are tests
  * with no parent (or whose parent isn't in this test list — e.g. filtered
@@ -101,6 +112,14 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
     const laps = lapsByTest.get(t.id) ?? [];
     const validLaps = laps.filter((l) => l.isValid && l.lapTime > 0);
     const bestT = validLaps.length ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
+    const worstT = validLaps.length ? Math.max(...validLaps.map((l) => l.lapTime)) : null;
+    const avgT = validLaps.length ? validLaps.reduce((s, l) => s + l.lapTime, 0) / validLaps.length : null;
+    const fuelVals = laps.map((l) => metricsById.get(l.id)?.fuelPerLap).filter((v): v is number => v != null);
+    const avgFuel = fuelVals.length ? fuelVals.reduce((s, v) => s + v, 0) / fuelVals.length : null;
+    // Per-lap worst-tyre value (max across corners, computed server-side),
+    // averaged across the test's laps.
+    const tyreVals = laps.map((l) => metricsById.get(l.id)?.tyreWear).filter((v): v is number => v != null);
+    const avgWorstWear = tyreVals.length ? tyreVals.reduce((s, v) => s + v, 0) / tyreVals.length : null;
     const children = (childrenOf.get(t.id) ?? []).filter((c) => !rendered.has(c.id));
     const hasChildren = children.length > 0;
 
@@ -119,24 +138,26 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
               <span className="font-mono text-xs text-app-text">v{t.version}</span>
               <span className="text-xs text-app-text truncate">{t.label}</span>
               {isHead && <span className="text-[9px] uppercase tracking-wider text-purple-400 border border-purple-400/40 rounded px-1 py-px shrink-0">HEAD</span>}
+              {!isHead && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setHead.mutate({ sessionId, testId: t.id });
+                  }}
+                  disabled={setHead.isPending}
+                  className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                >
+                  Checkout
+                </button>
+              )}
               <span className="ml-auto flex items-center gap-3 shrink-0 text-[11px] tabular-nums">
-                <span className="text-app-text-dim">
-                  {laps.length} lap{laps.length === 1 ? "" : "s"}
-                </span>
-                <span className="font-mono text-app-text-dim">{bestT != null ? formatLapTime(bestT) : "—"}</span>
-                {!isHead && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setHead.mutate({ sessionId, testId: t.id });
-                    }}
-                    disabled={setHead.isPending}
-                    className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim disabled:opacity-50 disabled:pointer-events-none"
-                  >
-                    Checkout
-                  </button>
-                )}
+                <RowStat label="laps" value={String(laps.length)} />
+                <RowStat label="avg" value={avgT != null ? formatLapTime(avgT) : "—"} />
+                <RowStat label="best" value={bestT != null ? formatLapTime(bestT) : "—"} />
+                <RowStat label="worst" value={worstT != null ? formatLapTime(worstT) : "—"} />
+                <RowStat label="fuel/lap" value={avgFuel != null ? `${avgFuel.toFixed(2)}L` : "—"} />
+                <RowStat label="worst wear" value={avgWorstWear != null ? `${avgWorstWear.toFixed(0)}%` : "—"} />
               </span>
             </button>
             {isOpen && (

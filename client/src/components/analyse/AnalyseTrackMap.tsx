@@ -36,11 +36,15 @@ export const AnalyseTrackMap = forwardRef<
     segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
     highlights?: TrackHighlight[] | null;
     showInputs?: boolean;
+    /** When false, the track shape is drawn from `outline` (real edges) instead
+     *  of the telemetry-derived path — used by the live view to show only the
+     *  track edges, not the accumulating driving line. Car dot still renders. */
+    showTrace?: boolean;
     rotateWithCar: boolean;
     zoom?: number;
     containerHeight?: number;
   }
->(function AnalyseTrackMap({ telemetry, cursorIdx, outline, boundaries, sectors, segments, highlights, showInputs, rotateWithCar, zoom = 1, containerHeight }, ref) {
+>(function AnalyseTrackMap({ telemetry, cursorIdx, outline, boundaries, sectors, segments, highlights, showInputs, showTrace = true, rotateWithCar, zoom = 1, containerHeight }, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const carCanvasRef = useRef<HTMLCanvasElement>(null);
   const pulseRef = useRef<HTMLCanvasElement>(null);
@@ -76,7 +80,7 @@ export const AnalyseTrackMap = forwardRef<
 
     const telemetryPointsWithIdx = telemetry.map((p, idx) => ({ x: p.PositionX, z: p.PositionZ, idx })).filter((p) => p.x !== 0 || p.z !== 0);
     const telemetryPoints = telemetryPointsWithIdx as { x: number; z: number }[];
-    const displayOutline: Point[] = telemetryPoints.length > 2 ? telemetryPoints : (outline ?? []);
+    const displayOutline: Point[] = !showTrace ? (outline ?? []) : telemetryPoints.length > 2 ? telemetryPoints : (outline ?? []);
 
     if (displayOutline.length < 2) {
       transformRef.current = null;
@@ -400,7 +404,7 @@ export const AnalyseTrackMap = forwardRef<
     }
     // containerHeight triggers redraw on resize (not used directly but signals layout change)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [telemetry, outline, boundaries, sectors, segments, rotateWithCar, zoom, highlights, showInputs, containerHeight]);
+  }, [telemetry, outline, boundaries, sectors, segments, rotateWithCar, zoom, highlights, showInputs, showTrace, containerHeight]);
 
   // Composite the cached offscreen track onto the main canvas with rotation for follow view.
   const compositeTrack = useCallback(

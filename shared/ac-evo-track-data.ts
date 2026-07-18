@@ -128,3 +128,16 @@ export function getAcEvoTrackByName(trackStr: string, config?: string): AcEvoTra
 
   return findExact(needle) ?? findFuzzy(needle);
 }
+
+/** Resolve an AC-Evo Setups-folder key to its track by matching the setupFolder
+ *  column. On collisions returns the lowest id. */
+export function getAcEvoTrackBySetupFolder(key: string): AcEvoTrack | undefined {
+  ensureLoaded();
+  const needle = norm(key);
+  let best: AcEvoTrack | undefined;
+  for (const t of trackMap!.values()) {
+    if (!t.setupFolder) continue;
+    if (norm(t.setupFolder) === needle && (!best || t.id < best.id)) best = t;
+  }
+  return best;
+}

@@ -5,12 +5,12 @@ import { useSettings } from "../hooks/queries";
 import { useUiStore } from "../stores/ui";
 import { Button } from "./ui/button";
 import { toPng } from "html-to-image";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { SetupSection } from "./ai/analysis-display";
-import { readChatStream, type ChatStreamError, type ChatUsage, type ChatStreamStatus } from "../lib/chat-stream";
+import { readChatStream, type ChatStreamError, type ChatStreamStatus } from "../lib/chat-stream";
 import { isAiConfigured } from "../lib/is-ai-configured";
-import { Sparkles, RefreshCw, Gauge, Sliders, AlertTriangle, Lightbulb, Download, Send, Trash2, CircleDot, Zap } from "lucide-react";
+import { ChatPanel } from "./ai-chat/ChatPanel";
+import type { UIMessage } from "ai";
+import { Sparkles, RefreshCw, Gauge, Sliders, AlertTriangle, Lightbulb, Download, Trash2, CircleDot, Zap } from "lucide-react";
 
 interface AnalysisUsage {
   inputTokens: number;
@@ -205,12 +205,11 @@ function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }
   );
 }
 
-// ── Chat types ───────────────────────────────────────────────
-
-interface ChatMessage {
-  role: string;
-  content: string;
-  usage?: ChatUsage;
+async function fetchLapChatHistory(lapId: number): Promise<UIMessage[]> {
+  const res = await fetch(`/api/laps/${lapId}/chat`);
+  if (!res.ok) return [];
+  const data = (await res.json()) as { messages?: UIMessage[] };
+  return (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
 }
 
 export interface AiPanelHandle {
@@ -235,34 +234,21 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   const [hasTune, setHasTune] = useState(false);
   const analysisRef = useRef<HTMLDivElement>(null);
 
-  // Chat state
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-  const [streaming, setStreaming] = useState("");
-  const [chatError, setChatError] = useState<string | null>(null);
-  // Live status from the NDJSON stream: "thinking" (waiting for first token),
-  // "generating" (tokens flowing), or null when idle. `chatTool` shows the
-  // currently-executing tool name (e.g. "compare-f1-setup-to-catalog").
-  const [chatStatus, setChatStatus] = useState<ChatStreamStatus | null>(null);
-  const [chatTool, setChatTool] = useState<string | null>(null);
-  const [chatUsage, setChatUsage] = useState<ChatUsage | null>(null);
-  // Same live-status pair for the analyse flow (separate from chat so the
-  // two can run independently — user can chat while an analysis regenerates).
+  // Same live-status pair for the analyse flow (separate from chat — chat now
+  // lives in the shared ChatPanel component and streams via assistant-ui).
   const [analyseStatus, setAnalyseStatus] = useState<ChatStreamStatus | null>(null);
   const [analyseTool, setAnalyseTool] = useState<string | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [chatRemountKey, setChatRemountKey] = useState(0);
 
   useImperativeHandle(
     ref,
     () => ({
       clearChat: () => {
-        setMessages([]);
-        setChatInput("");
-        setStreaming("");
-        setChatError(null);
-        // Clear persisted chat only (keeps analysis)
-        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" }).catch(() => {});
+        // Clear persisted chat only (keeps analysis), then remount ChatPanel
+        // so it re-seeds from the now-empty thread.
+        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
+          .catch(() => {})
+          .finally(() => setChatRemountKey((k) => k + 1));
       },
       clearAnalysis: () => {
         setAnalysis(null);
@@ -270,18 +256,18 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         setError(null);
         onHighlightsChange?.([]);
         // DELETE clears both chat + analysis on server
-        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" }).catch(() => {});
+        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
+          .catch(() => {})
+          .finally(() => setChatRemountKey((k) => k + 1));
       },
       clearAll: () => {
         setAnalysis(null);
         setUsage(null);
-        setMessages([]);
-        setChatInput("");
-        setStreaming("");
-        setChatError(null);
         setError(null);
         onHighlightsChange?.([]);
-        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" }).catch(() => {});
+        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
+          .catch(() => {})
+          .finally(() => setChatRemountKey((k) => k + 1));
       },
     }),
     [lapId, onHighlightsChange],
@@ -394,19 +380,6 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     [lapId, onAnalysisLoaded, segments, onHighlightsChange],
   );
 
-  // Load chat messages
-  const loadChat = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/laps/${lapId}/chat`);
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data.messages ?? []);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [lapId]);
-
   // Load cached analysis (no AI call — returns null if not cached)
   const loadCachedAnalysis = useCallback(async () => {
     try {
@@ -442,25 +415,16 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     }
   }, [lapId]);
 
-  // Load chat and cached analysis on open
+  // Load cached analysis on open
   useEffect(() => {
     if (!panelOpen) return;
-    loadChat();
     loadCachedAnalysis();
-  }, [lapId, panelOpen, loadChat, loadCachedAnalysis]);
+  }, [lapId, panelOpen, loadCachedAnalysis]);
 
   // Reset on lap change
   useEffect(() => {
     setAnalysis(null);
-    setMessages([]);
-    setChatInput("");
-    setStreaming("");
   }, [lapId]);
-
-  // Auto-scroll chat
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streaming]);
 
   // Export analysis as image
   const handleExport = useCallback(async () => {
@@ -484,80 +448,10 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     }
   }, [carName, trackName]);
 
-  // Send chat message — consumes the NDJSON stream defined in
-  // server/ai/chat-stream.ts so we can surface thinking / tool-call /
-  // generating states separately from the text body.
-  const sendChat = useCallback(async () => {
-    const msg = chatInput.trim();
-    if (!msg || chatLoading) return;
-    setChatLoading(true);
-    setChatError(null);
-    setStreaming("");
-    setChatStatus("thinking");
-    setChatTool(null);
-    setChatUsage(null);
-    setMessages((prev) => [...prev, { role: "user", content: msg }]);
-    setChatInput("");
-    let fullText = "";
-    let finalUsage: ChatUsage | null = null;
-    try {
-      const res = await fetch(`/api/laps/${lapId}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg }),
-      });
-      if (!res.ok) {
-        const errData = (await res.json().catch(() => ({ error: m.aipanel_request_failed() }))) as { error?: string };
-        throw new Error(errData.error || `HTTP ${res.status}`);
-      }
-      await readChatStream(res, (event) => {
-        switch (event.type) {
-          case "status":
-            setChatStatus((event as unknown as { state: ChatStreamStatus }).state);
-            break;
-          case "tool": {
-            const t = event as unknown as { state: "start" | "end"; name: string };
-            setChatTool(t.state === "start" ? t.name : null);
-            break;
-          }
-          case "text":
-            fullText += (event as unknown as { delta: string }).delta;
-            setStreaming(fullText);
-            break;
-          case "usage": {
-            const u = event as unknown as { inputTokens: number; outputTokens: number; costUsd?: number };
-            finalUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens, costUsd: u.costUsd ?? 0 };
-            break;
-          }
-          case "error": {
-            const e = event as unknown as StreamErrorEvent;
-            throw new Error(formatStreamError(e));
-          }
-          case "done":
-            break;
-        }
-      });
-      setStreaming("");
-      setMessages((prev) => [...prev, { role: "assistant", content: fullText, usage: finalUsage ?? undefined }]);
-      setChatUsage(finalUsage);
-    } catch (err: unknown) {
-      setChatError(toErrorMessage(err));
-    } finally {
-      setChatLoading(false);
-      setChatStatus(null);
-      setChatTool(null);
-    }
-  }, [chatInput, chatLoading, lapId]);
-
-  const clearChat = useCallback(async () => {
-    try {
-      await fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" });
-    } catch {
-      /* ignore */
-    }
-    setMessages([]);
-    setStreaming("");
-    setChatError(null);
+  const clearChat = useCallback(() => {
+    fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
+      .catch(() => {})
+      .finally(() => setChatRemountKey((k) => k + 1));
   }, [lapId]);
 
   return (
@@ -602,7 +496,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         )}
 
         {/* Empty state — after clear */}
-        {aiConfigured && !analysis && !loading && !error && messages.length === 0 && (
+        {aiConfigured && !analysis && !loading && !error && (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Sparkles className="size-5 text-amber-400" />
             <p className="text-[11px] text-app-text-muted">{m.aipanel_no_analysis()}</p>
@@ -810,124 +704,28 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           </div>
         )}
 
-        {/* Chat messages continue the conversation */}
-        {!loading && (analysis || messages.length > 0) && (
-          <>
-            {messages.length > 0 && (
-              <div className="flex justify-end">
-                <button onClick={clearChat} className="text-[9px] text-app-text-muted hover:text-red-400 transition-colors">
-                  <Trash2 className="size-3" />
-                </button>
-              </div>
-            )}
-
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className="max-w-[90%]">
-                  <div
-                    className={`rounded-lg px-2.5 py-1.5 text-[11px] leading-relaxed ${
-                      msg.role === "user" ? "bg-cyan-600/20 border border-cyan-500/30 text-app-text" : "bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary"
-                    }`}
-                  >
-                    <div className="prose-chat">
-                      <Markdown remarkPlugins={[remarkGfm]}>{msg.content}</Markdown>
-                    </div>
-                  </div>
-                  {msg.role === "assistant" && msg.usage && (
-                    <div className="pl-1 pt-0.5 text-[9px] text-app-text-muted font-mono">
-                      {msg.usage.inputTokens.toLocaleString()}↓ {msg.usage.outputTokens.toLocaleString()}↑ ${msg.usage.costUsd.toFixed(4)}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {streaming && (
-              <div className="flex flex-col items-start gap-0.5">
-                <div className="max-w-[90%] rounded-lg px-2.5 py-1.5 text-[11px] leading-relaxed bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary">
-                  <div className="prose-chat">
-                    <Markdown remarkPlugins={[remarkGfm]}>{streaming}</Markdown>
-                  </div>
-                </div>
-                {chatStatus === "generating" && <span className="text-[9px] text-app-text-muted font-mono pl-1">{m.aipanel_generating()}</span>}
-              </div>
-            )}
-            {chatUsage && !streaming && (
-              <div className="flex justify-start pl-1">
-                <span className="text-[9px] text-app-text-muted font-mono">
-                  {chatUsage.inputTokens.toLocaleString()}↓ {chatUsage.outputTokens.toLocaleString()}↑ ${chatUsage.costUsd.toFixed(4)}
-                </span>
-              </div>
-            )}
-
-            {chatLoading && (chatStatus === "thinking" || chatTool) && !streaming && (
-              <div className="flex justify-start">
-                <div className="rounded-lg px-2.5 py-1.5 bg-app-surface-alt/60 border border-app-border-input/40">
-                  <div className="flex items-center gap-1.5">
-                    <div className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    <span className="text-[10px] text-app-text-secondary">{chatTool ? `${m.aipanel_using_tool()} ${chatTool}` : chatStatus === "thinking" ? m.aipanel_thinking() : m.aipanel_waiting_model()}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            {chatError && (
-              <div className="flex justify-start">
-                <div className="rounded-lg px-2.5 py-2 bg-red-400/10 border border-red-400/20">
-                  <p className="text-[11px] text-red-400">{chatError}</p>
-                  <Button
-                    variant="app-outline"
-                    size="app-sm"
-                    onClick={() => {
-                      const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
-                      if (lastUserMsg) {
-                        setChatInput(lastUserMsg.content);
-                        setMessages((prev) => prev.slice(0, -1));
-                        setChatError(null);
-                      }
-                    }}
-                    className="mt-1"
-                  >
-                    {m.label_retry()}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
+        {/* Chat continues the conversation, below the analysis card. Only
+            mounted once analysis exists (or chat has been used before) so
+            the panel doesn't show an empty composer with nothing to discuss
+            yet — matches the old gating behaviour. */}
+        {!loading && analysis && (
+          <div className="flex justify-end -mb-1">
+            <button onClick={clearChat} className="text-[9px] text-app-text-muted hover:text-red-400 transition-colors">
+              <Trash2 className="size-3" />
+            </button>
+          </div>
         )}
-
-        <div ref={chatEndRef} />
       </div>
 
-      {/* Chat input — pinned at bottom */}
-      {!loading && (analysis || messages.length > 0) && (
-        <div className="shrink-0 border-t border-app-border p-2 flex gap-1.5">
-          <textarea
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendChat();
-              }
-            }}
-            placeholder={m.aipanel_chat_placeholder()}
-            disabled={chatLoading}
-            rows={1}
-            style={{ height: "auto", maxHeight: "9.375rem" }}
-            className="flex-1 bg-app-surface border border-app-border-input rounded px-3 py-2.5 text-[12px] text-app-text placeholder:text-app-text-muted focus:outline-none focus:border-cyan-500/50 disabled:opacity-50 resize-none overflow-y-auto"
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement;
-              target.style.height = "auto";
-              target.style.height = target.scrollHeight + "px";
-            }}
+      {!loading && analysis && (
+        <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
+          <ChatPanel
+            key={chatRemountKey}
+            api={`/api/laps/${lapId}/chat`}
+            fetchHistory={() => fetchLapChatHistory(lapId)}
+            historyQueryKey={["lap-chat-history", lapId, chatRemountKey]}
+            remountKey={`${lapId}:${chatRemountKey}`}
           />
-          <button
-            onClick={sendChat}
-            disabled={chatLoading || !chatInput.trim()}
-            className="shrink-0 p-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors disabled:opacity-40 self-end"
-          >
-            <Send className="size-3" />
-          </button>
         </div>
       )}
     </div>

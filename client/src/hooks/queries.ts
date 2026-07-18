@@ -195,8 +195,9 @@ export function useTrackOutline(ord: number | undefined, gameIdOverride?: GameId
   });
 }
 
-export function useTrackBoundaries(ord: number | undefined) {
-  const gameId = useGameId();
+export function useTrackBoundaries(ord: number | undefined, gameIdOverride?: GameId | null) {
+  const storeGameId = useGameId();
+  const gameId = gameIdOverride ?? storeGameId;
   return useQuery({
     queryKey: ["track-boundaries", ord!, gameId ?? null],
     queryFn: async () => {

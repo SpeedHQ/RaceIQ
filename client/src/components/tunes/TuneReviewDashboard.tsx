@@ -54,7 +54,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps }: TuneReviewDashb
 
   const telemetry = lapTel?.telemetry ?? [];
   const sectorTimes = lapTel?.sectorTimes ?? null;
-  const snap = useMemo(() => tireSnapshot(telemetry), [telemetry]);
+  const corners = useMemo(() => tireSnapshot(telemetry), [telemetry]);
   const game = tryGetGame(gameId);
 
   const [metricKey, setMetricKey] = useState<MetricKey>("tyreTemp");
@@ -263,12 +263,9 @@ export function TuneReviewDashboard({ gameId, trackName, laps }: TuneReviewDashb
             <div className="lg:border-r border-app-border">
               <div className="px-3 pt-3 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Tyres · end of lap</div>
               <div>
-                {snap ? (
+                {corners ? (
                   <TireGrid
-                    fl={{ tempC: snap.FL.tempC, wear: snap.FL.wear, brakeTemp: snap.FL.brakeTemp, pressure: snap.FL.pressure }}
-                    fr={{ tempC: snap.FR.tempC, wear: snap.FR.wear, brakeTemp: snap.FR.brakeTemp, pressure: snap.FR.pressure }}
-                    rl={{ tempC: snap.RL.tempC, wear: snap.RL.wear, brakeTemp: snap.RL.brakeTemp, pressure: snap.RL.pressure }}
-                    rr={{ tempC: snap.RR.tempC, wear: snap.RR.wear, brakeTemp: snap.RR.brakeTemp, pressure: snap.RR.pressure }}
+                    corners={corners}
                     healthThresholds={game?.tireHealthThresholds ?? { green: 0.85, yellow: 0.7 }}
                     tempThresholds={{ blue: 70, orange: 100, red: 110 }}
                     pressureOptimal={pressureOptimal}
@@ -308,7 +305,7 @@ function IssuePill({ issue, onHover }: { issue: TuneIssue; onHover?: (frac: numb
   );
 }
 
-interface CornerSnap {
+export interface CornerSnap {
   tempC: number;
   wear: number;
   pressure: number;
@@ -316,7 +313,7 @@ interface CornerSnap {
 }
 
 /** End-of-lap tyre snapshot: averaged temp/pressure/brake-temp, wear at end. */
-function tireSnapshot(pkts: TelemetryPacket[]): Record<"FL" | "FR" | "RL" | "RR", CornerSnap> | null {
+export function tireSnapshot(pkts: TelemetryPacket[]): Record<"FL" | "FR" | "RL" | "RR", CornerSnap> | null {
   if (pkts.length === 0) return null;
   const last = pkts[pkts.length - 1];
   const avg = (sel: (p: TelemetryPacket) => number | undefined) => {

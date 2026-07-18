@@ -845,13 +845,14 @@ export const tuneRoutes = new Hono()
       // Seed v1 "base" only when the session was created from a base setup —
       // an ordinal-seeded session has no setup file to version yet.
       if (body.baseSetupPath) {
-        await createTuningTest({
+        const baseTestId = await createTuningTest({
           tuningSessionId: id,
           version: 1,
           label: "base",
           setupPath: body.baseSetupPath,
           engine: null,
         });
+        await setSessionHead(id, baseTestId);
       }
       const created = await getTuningSession(id);
       return c.json(created, 201);

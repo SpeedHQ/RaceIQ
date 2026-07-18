@@ -2,7 +2,7 @@ import type { ServerGameAdapter } from "../types";
 import type { TelemetryPacket } from "../../../shared/types";
 import { accAdapter } from "../../../shared/games/acc";
 import { getAccCarName, getAccCarByModel } from "../../../shared/acc-car-data";
-import { getAccTrackName, getAccSharedTrackName, getAccTrackByName } from "../../../shared/acc-track-data";
+import { getAccTrackName, getAccSharedTrackName, getAccTrackByName, getAccTrackBySetupFolder } from "../../../shared/acc-track-data";
 import { LapDetectorAcc } from "../../lap-detector-acc";
 import { parseAccBuffers } from "./parser";
 import { STATIC } from "./structs";
@@ -57,6 +57,10 @@ export const accServerAdapter: ServerGameAdapter = {
 
   getSharedTrackName(ordinal: number): string | undefined {
     return getAccSharedTrackName(ordinal);
+  },
+
+  getTrackOrdinalByName(name: string): number | undefined {
+    return getAccTrackBySetupFolder(name)?.id ?? getAccTrackByName(name)?.id;
   },
 
   // ACC uses shared memory, not UDP — canHandle returns false since

@@ -2,7 +2,7 @@ import type { ServerGameAdapter } from "../types";
 import type { TelemetryPacket } from "../../../shared/types";
 import { acEvoAdapter } from "../../../shared/games/ac-evo";
 import { getAcEvoCarName } from "../../../shared/ac-evo-car-data";
-import { getAcEvoTrackName, getAcEvoSharedTrackName } from "../../../shared/ac-evo-track-data";
+import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "../../../shared/ac-evo-track-data";
 import { LapDetectorAcEvo } from "../../lap-detector-ac-evo";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
 import { ACEVO_PACKED_MAGIC, unpackTriplet } from "../shared/pack-triplet";
@@ -54,6 +54,10 @@ export const acEvoServerAdapter: ServerGameAdapter = {
 
   getSharedTrackName(ordinal: number): string | undefined {
     return getAcEvoSharedTrackName(ordinal);
+  },
+
+  getTrackOrdinalByName(name: string): number | undefined {
+    return getAcEvoTrackBySetupFolder(name)?.id ?? getAcEvoTrackByName(name)?.id;
   },
 
   canHandle(buf: Buffer): boolean {

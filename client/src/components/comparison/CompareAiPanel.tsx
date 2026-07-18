@@ -1,16 +1,15 @@
-import { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from "react";
+import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
 import { m } from "../../paraglide/messages";
 import { createPortal } from "react-dom";
-import Markdown from "react-markdown";
-import { readChatStream, type ChatUsage, type ChatStreamStatus, type ChatStreamError } from "../../lib/chat-stream";
-import remarkGfm from "remark-gfm";
-import { Sparkles, RefreshCw, Send, Trash2, Eye, X } from "lucide-react";
+import { Sparkles, RefreshCw, Trash2, Eye, X } from "lucide-react";
 import { client } from "../../lib/rpc";
 import { useSettings } from "../../hooks/queries";
 import { useUiStore } from "../../stores/ui";
 import { Button } from "../ui/button";
 import { AnalysisDisplay, type AnalysisData } from "../ai/analysis-display";
 import { isAiConfigured } from "../../lib/is-ai-configured";
+import { ChatPanel } from "../ai-chat/ChatPanel";
+import type { UIMessage } from "ai";
 
 type ParsedAnalysis = Partial<AnalysisData>;
 
@@ -63,10 +62,11 @@ interface AnalysisSummary {
   raw: ParsedAnalysis;
 }
 
-interface ChatMessage {
-  role: string;
-  content: string;
-  usage?: ChatUsage;
+async function fetchCompareChatHistory(lapAId: number, lapBId: number): Promise<UIMessage[]> {
+  const res = await fetch(`/api/laps/${lapAId}/compare/${lapBId}/chat`);
+  if (!res.ok) return [];
+  const data = (await res.json()) as { messages?: UIMessage[] };
+  return (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
 }
 
 function summarize(parsed: ParsedAnalysis): AnalysisSummary {
@@ -502,116 +502,12 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
   const [hasB, setHasB] = useState(false);
   const [viewing, setViewing] = useState<{ kind: "lap"; label: string; summary: AnalysisSummary } | { kind: "inputs"; analysis: InputsAnalysis } | null>(null);
 
-  // Chat
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-  const [streaming, setStreaming] = useState("");
-  const [chatError, setChatError] = useState<string | null>(null);
-  const [chatStatus, setChatStatus] = useState<ChatStreamStatus | null>(null);
-  const [chatTool, setChatTool] = useState<string | null>(null);
-  const [chatUsage, setChatUsage] = useState<ChatUsage | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [chatRemountKey, setChatRemountKey] = useState(0);
 
-  const loadChat = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/laps/${lapA.id}/compare/${lapB.id}/chat`);
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data.messages ?? []);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [lapA.id, lapB.id]);
-
-  useEffect(() => {
-    if (!panelOpen) return;
-    loadChat();
-  }, [panelOpen, loadChat]);
-
-  // Reset chat on lap pair change
-  useEffect(() => {
-    setMessages([]);
-    setChatInput("");
-    setStreaming("");
-    setChatError(null);
-  }, [lapA.id, lapB.id]);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streaming]);
-
-  const sendChat = useCallback(async () => {
-    const msg = chatInput.trim();
-    if (!msg || chatLoading) return;
-    setChatLoading(true);
-    setChatError(null);
-    setStreaming("");
-    setChatStatus("thinking");
-    setChatTool(null);
-    setChatUsage(null);
-    setMessages((prev) => [...prev, { role: "user", content: msg }]);
-    setChatInput("");
-    let fullText = "";
-    let finalUsage: ChatUsage | null = null;
-    try {
-      const res = await fetch(`/api/laps/${lapA.id}/compare/${lapB.id}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg }),
-      });
-      if (!res.ok) {
-        const errData = (await res.json().catch(() => ({ error: m.compare_request_failed() }))) as { error?: string };
-        throw new Error(errData.error || `HTTP ${res.status}`);
-      }
-      await readChatStream(res, (event) => {
-        switch (event.type) {
-          case "status":
-            setChatStatus((event as unknown as { state: ChatStreamStatus }).state);
-            break;
-          case "tool": {
-            const t = event as unknown as { state: "start" | "end"; name: string };
-            setChatTool(t.state === "start" ? t.name : null);
-            break;
-          }
-          case "text":
-            fullText += (event as unknown as { delta: string }).delta;
-            setStreaming(fullText);
-            break;
-          case "usage": {
-            const u = event as unknown as { inputTokens: number; outputTokens: number; costUsd?: number };
-            finalUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens, costUsd: u.costUsd ?? 0 };
-            break;
-          }
-          case "error":
-            throw new Error((event as ChatStreamError).message);
-          case "ping":
-          case "done":
-            break;
-        }
-      });
-      setStreaming("");
-      setMessages((prev) => [...prev, { role: "assistant", content: fullText, usage: finalUsage ?? undefined }]);
-      setChatUsage(finalUsage);
-    } catch (err: unknown) {
-      setChatError(err instanceof Error ? err.message : m.compare_chat_failed());
-    } finally {
-      setChatLoading(false);
-      setChatStatus(null);
-      setChatTool(null);
-    }
-  }, [chatInput, chatLoading, lapA.id, lapB.id]);
-
-  const clearChat = useCallback(async () => {
-    try {
-      await fetch(`/api/laps/${lapA.id}/compare/${lapB.id}/chat`, { method: "DELETE" });
-    } catch {
-      /* ignore */
-    }
-    setMessages([]);
-    setStreaming("");
-    setChatError(null);
+  const clearChat = useCallback(() => {
+    fetch(`/api/laps/${lapA.id}/compare/${lapB.id}/chat`, { method: "DELETE" })
+      .catch(() => {})
+      .finally(() => setChatRemountKey((k) => k + 1));
   }, [lapA.id, lapB.id]);
 
   useImperativeHandle(
@@ -649,111 +545,22 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
 
         {!bothReady && <div className="text-[10px] text-app-text-muted text-center py-2 border border-dashed border-app-border-input/40 rounded">{m.compare_analyse_both_laps()}</div>}
 
-        {bothReady && (
-          <>
-            {messages.length > 0 && (
-              <div className="flex justify-end">
-                <button onClick={clearChat} className="text-[9px] text-app-text-muted hover:text-red-400">
-                  <Trash2 className="size-3" />
-                </button>
-              </div>
-            )}
-
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className="max-w-[90%]">
-                  <div
-                    className={`rounded-lg px-2.5 py-1.5 text-[11px] leading-relaxed ${
-                      msg.role === "user" ? "bg-cyan-600/20 border border-cyan-500/30 text-app-text" : "bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary"
-                    }`}
-                  >
-                    <div className="prose-chat">
-                      <Markdown remarkPlugins={[remarkGfm]}>{msg.content}</Markdown>
-                    </div>
-                  </div>
-                  {msg.role === "assistant" && msg.usage && (
-                    <div className="pl-1 pt-0.5 text-[9px] text-app-text-muted font-mono">
-                      {msg.usage.inputTokens.toLocaleString()}↓ {msg.usage.outputTokens.toLocaleString()}↑ ${msg.usage.costUsd.toFixed(4)}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {streaming && (
-              <div className="flex flex-col items-start gap-0.5">
-                <div className="max-w-[90%] rounded-lg px-2.5 py-1.5 text-[11px] leading-relaxed bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary">
-                  <div className="prose-chat">
-                    <Markdown remarkPlugins={[remarkGfm]}>{streaming}</Markdown>
-                  </div>
-                </div>
-                {chatStatus === "generating" && <span className="text-[9px] text-app-text-muted font-mono pl-1">{m.aipanel_generating()}</span>}
-              </div>
-            )}
-
-            {chatLoading && !streaming && (
-              <div className="flex justify-start">
-                <div className="rounded-lg px-2.5 py-1.5 bg-app-surface-alt/60 border border-app-border-input/40">
-                  <div className="flex items-center gap-1.5">
-                    <div className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    <span className="text-[10px] text-app-text-secondary">
-                      {chatTool ? `${m.compare_chat_using_tool()} ${chatTool}` : chatStatus === "thinking" ? m.compare_chat_thinking() : m.compare_chat_waiting()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {chatUsage && !streaming && !chatLoading && (
-              <div className="flex justify-start pl-1">
-                <span className="text-[9px] text-app-text-muted font-mono">
-                  {chatUsage.inputTokens.toLocaleString()}↓ {chatUsage.outputTokens.toLocaleString()}↑ ${chatUsage.costUsd.toFixed(4)}
-                </span>
-              </div>
-            )}
-
-            {chatError && (
-              <div className="flex justify-start">
-                <div className="rounded-lg px-2.5 py-2 bg-red-400/10 border border-red-400/20">
-                  <p className="text-[11px] text-red-400">{chatError}</p>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        <div ref={chatEndRef} />
       </div>
 
       {bothReady && (
-        <div className="shrink-0 border-t border-app-border p-2 flex gap-1.5">
-          <textarea
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendChat();
-              }
-            }}
-            placeholder={m.compare_chat_placeholder()}
-            disabled={chatLoading}
-            rows={1}
-            style={{ height: "auto", maxHeight: "9.375rem" }}
-            className="flex-1 bg-app-surface border border-app-border-input rounded px-3 py-2.5 text-[12px] text-app-text placeholder:text-app-text-muted focus:outline-none focus:border-cyan-500/50 disabled:opacity-50 resize-none overflow-y-auto"
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement;
-              target.style.height = "auto";
-              target.style.height = target.scrollHeight + "px";
-            }}
+        <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
+          <div className="flex justify-end px-2 pt-1">
+            <button onClick={clearChat} className="text-[9px] text-app-text-muted hover:text-red-400">
+              <Trash2 className="size-3" />
+            </button>
+          </div>
+          <ChatPanel
+            key={chatRemountKey}
+            api={`/api/laps/${lapA.id}/compare/${lapB.id}/chat`}
+            fetchHistory={() => fetchCompareChatHistory(lapA.id, lapB.id)}
+            historyQueryKey={["compare-chat-history", lapA.id, lapB.id, chatRemountKey]}
+            remountKey={`${lapA.id}:${lapB.id}:${chatRemountKey}`}
           />
-          <button
-            onClick={sendChat}
-            disabled={chatLoading || !chatInput.trim()}
-            className="shrink-0 p-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors disabled:opacity-40 self-end"
-          >
-            <Send className="size-3" />
-          </button>
         </div>
       )}
 

@@ -1,6 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "./index";
 import { tuningSessions } from "./schema";
+import { tryGetServerGame } from "../games/registry";
 
 export interface CreateTuningSessionData {
   gameId: string;
@@ -22,6 +23,9 @@ export async function createTuningSession(data: CreateTuningSessionData): Promis
     .get();
   const seq = (seqRow?.maxSeq ?? 0) + 1;
 
+  const trackOrdinal =
+    data.trackOrdinal ?? (data.trackName ? tryGetServerGame(data.gameId)?.getTrackOrdinalByName?.(data.trackName) : undefined) ?? null;
+
   const result = await db
     .insert(tuningSessions)
     .values({
@@ -29,7 +33,7 @@ export async function createTuningSession(data: CreateTuningSessionData): Promis
       gameId: data.gameId,
       name: data.name,
       carOrdinal: data.carOrdinal ?? null,
-      trackOrdinal: data.trackOrdinal ?? null,
+      trackOrdinal,
       carName: data.carName ?? null,
       trackName: data.trackName ?? null,
       baseSetupPath: data.baseSetupPath ?? null,

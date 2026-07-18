@@ -71,3 +71,18 @@ export function getAccTrackByName(trackStr: string): AccTrack | undefined {
   }
   return undefined;
 }
+
+/** Resolve an ACC Setups-folder key (e.g. "red_bull_ring", "barcelona") to its
+ *  track by matching the setupFolder column. On base-vs-2019 collisions returns
+ *  the lowest id (base variant). */
+export function getAccTrackBySetupFolder(key: string): AccTrack | undefined {
+  ensureLoaded();
+  const needle = key.toLowerCase().replace(/[-_\s]/g, "");
+  let best: AccTrack | undefined;
+  for (const t of trackMap!.values()) {
+    if (!t.setupFolder) continue;
+    const hay = t.setupFolder.toLowerCase().replace(/[-_\s]/g, "");
+    if (hay === needle && (!best || t.id < best.id)) best = t;
+  }
+  return best;
+}

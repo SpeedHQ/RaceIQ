@@ -93,6 +93,26 @@ export function buildSectorRanges(telemetry: TelemetryPacket[], sectorTimes: Sec
   return { sectors, domain: [Math.floor(gMin - pad), Math.ceil(gMax + pad)] };
 }
 
+/** Compute per-corner ranges for a metric over a whole telemetry slice (no
+ *  sector split), on a shared padded domain — used by the live test dashboard
+ *  where the current lap is still in progress. */
+export function buildLiveRanges(telemetry: TelemetryPacket[], metric: MetricDef): { ranges: Record<CornerKey, Range>; domain: [number, number] } | null {
+  if (telemetry.length < 5) return null;
+  const skipZero = metric.key !== "wear";
+  const ranges = Object.fromEntries(CORNERS.map((c) => [c, rangeOf(telemetry, metric.sel[c], skipZero)])) as Record<CornerKey, Range>;
+  let gMin = Number.POSITIVE_INFINITY;
+  let gMax = Number.NEGATIVE_INFINITY;
+  for (const c of CORNERS) {
+    const r = ranges[c];
+    if (r.n === 0) continue;
+    if (r.min < gMin) gMin = r.min;
+    if (r.max > gMax) gMax = r.max;
+  }
+  if (!Number.isFinite(gMin)) return { ranges, domain: [0, 1] };
+  const pad = Math.max(metric.key === "wear" ? 1 : 4, (gMax - gMin) * 0.15);
+  return { ranges, domain: [Math.floor(gMin - pad), Math.ceil(gMax + pad)] };
+}
+
 /** Four corner bars (min→max fill, avg tick) on a shared domain. When `cursor`
  *  is supplied (from hovering the track map), a line marks the live value. */
 export function CornerBars({

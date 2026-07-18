@@ -1,14 +1,15 @@
 import type { LapMeta } from "@shared/types";
 import { useNavigate } from "@tanstack/react-router";
 import { Check, Copy } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { type TuningLapMetric, useLaps, useResolveNames, useTuningSession, useTuningSessionLapMetrics, useTuningSessionTests } from "../../hooks/queries";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type TuningLapMetric, type TuningTest, useLaps, useResolveNames, useTuningSession, useTuningSessionLapMetrics, useTuningSessionTests } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { client } from "../../lib/rpc";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { BackButton } from "./BackButton";
+import { LiveTestDashboard } from "./LiveTestDashboard";
+import { TestReviewDashboard } from "./TestReviewDashboard";
 import { TuneSetupChat } from "./TuneSetupChat";
-import { TuneWorkspace } from "./TuneWorkspace";
 import { VersionGraph } from "./VersionGraph";
 
 /**
@@ -111,6 +112,17 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
   // metric. null (card hidden) when none do — never a fabricated 0.
   const fuelVals = useMemo(() => sessionLapPool.map((l) => metricsById.get(l.id)?.fuelPerLap).filter((v): v is number => v != null), [sessionLapPool, metricsById]);
   const avgFuel = fuelVals.length ? fuelVals.reduce((s, v) => s + v, 0) / fuelVals.length : null;
+  // Best setup = the tune test with the fastest single valid lap.
+  const bestTest = useMemo(() => {
+    let best: { test: TuningTest; lapTime: number } | null = null;
+    for (const t of tests) {
+      const laps = (lapsByTest.get(t.id) ?? []).filter((l) => l.isValid && l.lapTime > 0);
+      if (!laps.length) continue;
+      const lapTime = Math.min(...laps.map((l) => l.lapTime));
+      if (!best || lapTime < best.lapTime) best = { test: t, lapTime };
+    }
+    return best;
+  }, [tests, lapsByTest]);
 
   // Live stint summary (right panel) straight from the telemetry store.
   const liveValid = useMemo(() => liveSessionLaps.filter((l) => l.isValid && l.lapTime > 0), [liveSessionLaps]);
@@ -120,6 +132,11 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
   // recorded laps is Phase C).
   const liveFuelPerLap = livePacket?.acc?.fuelPerLap || null;
   const lapsDone = liveSessionLaps.length;
+
+  const [leftTab, setLeftTab] = useState<"tests" | "review">("tests");
+  const [testPhase, setTestPhase] = useState<"idle" | "live" | "review">("idle");
+  const [reviewLapIds, setReviewLapIds] = useState<number[]>([]);
+  const lapsRecordedDuringTest = useMemo(() => sessionLapPool.filter((l) => reviewLapIds.includes(l.id)), [sessionLapPool, reviewLapIds]);
 
   const clearSession = () =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -152,57 +169,82 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
         </div>
       </div>
 
-      {/* Stat cards */}
-      <div className="shrink-0">
-        {lapCount === 0 ? (
-          <div className="text-xs text-app-text-dim border border-app-border rounded-lg px-3 py-2">
-            No laps recorded for this session yet. Head out on track — the stats and stint summary fill in as laps complete.
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-            <StatCard label="Laps" value={String(lapCount)} />
-            {bestLap != null && <StatCard label="Best lap" value={formatLapTime(bestLap)} />}
-            {avgLap != null && <StatCard label="Avg (valid) lap" value={formatLapTime(avgLap)} />}
-            {driveTime > 0 && <StatCard label="Drive time" value={formatDuration(driveTime)} />}
-            {avgFuel != null && <StatCard label="Fuel/lap" value={`${avgFuel.toFixed(2)} L`} />}
-            {/* Tyre deg card hidden — ACC/AC-Evo expose no genuine tyre-wear channel. */}
-          </div>
-        )}
-      </div>
-
-      {/* Current stint strip — moved out of the right panel (above the table) so
-          the right column gives its full height to the AI chat. */}
-      <div className="shrink-0 flex items-center justify-between gap-3 flex-wrap border border-app-border rounded-lg px-3 py-2">
-        <div className="flex items-baseline gap-2">
-          <span className="text-[10px] uppercase tracking-wider text-app-text-muted">Current stint</span>
-          <span className={`text-xs ${lapsDone < 3 ? "text-amber-400" : "text-app-text-dim"}`}>
-            {lapsDone === 0 ? "No live laps yet — run 3+ clean laps for a reliable recommendation." : lapsDone < 3 ? `${lapsDone} / 3 laps` : `${lapsDone} laps`}
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          <InlineStat label="Best" value={liveBest != null ? formatLapTime(liveBest) : "—"} />
-          <InlineStat label="Avg" value={liveAvg != null ? formatLapTime(liveAvg) : "—"} />
-          <InlineStat label="Fuel/lap" value={liveFuelPerLap != null ? `${liveFuelPerLap.toFixed(2)} L` : "—"} />
-        </div>
-      </div>
-
       {/* Main row fills the remaining height. Left column scrolls; the right
           panel (Recommend + chat) is permanent and full-height. */}
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3">
-        {/* Left: tune-tests table + detailed dashboard (scrolls) */}
-        <div className="min-h-0 lg:overflow-y-auto space-y-3 pr-0.5">
-          <div className="border border-app-border rounded-lg overflow-hidden">
-            <div className="px-3 py-2 border-b border-app-border text-xs font-semibold text-app-text-muted uppercase tracking-wider">Tune tests (setup versions)</div>
-            <VersionGraph sessionId={session.id} tests={tests} headTestId={session?.headTestId ?? null} lapsByTest={lapsByTest} metricsById={metricsById} />
+        {/* Left: tab switcher between tune-tests table and the detailed
+            live/review dashboard (plan §3) — own full-height panel per tab,
+            not a stacked collapsible. */}
+        <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
+          <div className="shrink-0 flex border-b border-app-border">
+            <TabButton active={leftTab === "tests"} onClick={() => setLeftTab("tests")}>
+              Tune tests (setup versions)
+            </TabButton>
+            <TabButton active={leftTab === "review"} onClick={() => setLeftTab("review")}>
+              Live &amp; review dashboard
+            </TabButton>
           </div>
-
-          {/* Review-secondary: the detailed live/review dashboard (plan §3). */}
-          <details className="border border-app-border rounded-lg overflow-hidden">
-            <summary className="px-3 py-2 text-xs font-semibold text-app-text-muted uppercase tracking-wider cursor-pointer hover:text-app-text">Detailed live / review dashboard</summary>
-            <div className="border-t border-app-border">
-              <TuneWorkspace gameId={gameId} embedded />
-            </div>
-          </details>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {leftTab === "tests" ? (
+              <>
+                {/* Session overview — always rendered as placeholders ("—") so
+                    the row layout doesn't jump once laps start landing. */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 p-2 border-b border-app-border">
+                  <StatCard label="Laps" value={String(lapCount)} />
+                  <StatCard label="Best lap" value={bestLap != null ? formatLapTime(bestLap) : "—"} />
+                  <StatCard label="Best setup" value={bestTest ? `v${bestTest.test.version} · ${formatLapTime(bestTest.lapTime)}` : "—"} />
+                  <StatCard label="Avg (valid) lap" value={avgLap != null ? formatLapTime(avgLap) : "—"} />
+                  <StatCard label="Drive time" value={driveTime > 0 ? formatDuration(driveTime) : "—"} />
+                  <StatCard label="Fuel/lap" value={avgFuel != null ? `${avgFuel.toFixed(2)} L` : "—"} />
+                  {/* Tyre deg card omitted — ACC/AC-Evo expose no genuine tyre-wear channel. */}
+                </div>
+                <VersionGraph sessionId={session.id} tests={tests} headTestId={session?.headTestId ?? null} lapsByTest={lapsByTest} metricsById={metricsById} />
+              </>
+            ) : testPhase === "idle" ? (
+              <div className="h-full flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() => setTestPhase("live")}
+                  className="px-4 py-2 text-sm rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold"
+                >
+                  Start Test
+                </button>
+              </div>
+            ) : testPhase === "live" ? (
+              <div className="h-full flex flex-col min-h-0">
+                {/* Current stint strip — moved here from the page header (plan
+                    follow-up) since it's specifically about the live test run. */}
+                <div className="shrink-0 flex items-center justify-between gap-3 flex-wrap px-3 py-2 border-b border-app-border">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[10px] uppercase tracking-wider text-app-text-muted">Current stint</span>
+                    <span className={`text-xs ${lapsDone < 3 ? "text-amber-400" : "text-app-text-dim"}`}>
+                      {lapsDone === 0 ? "No live laps yet — run 3+ clean laps for a reliable recommendation." : lapsDone < 3 ? `${lapsDone} / 3 laps` : `${lapsDone} laps`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <InlineStat label="Best" value={liveBest != null ? formatLapTime(liveBest) : "—"} />
+                    <InlineStat label="Avg" value={liveAvg != null ? formatLapTime(liveAvg) : "—"} />
+                    <InlineStat label="Fuel/lap" value={liveFuelPerLap != null ? `${liveFuelPerLap.toFixed(2)} L` : "—"} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReviewLapIds(liveSessionLaps.map((l) => l.id));
+                      setTestPhase("review");
+                    }}
+                    className="px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold"
+                  >
+                    End Test
+                  </button>
+                </div>
+                <div className="flex-1 min-h-0">
+                  <LiveTestDashboard gameId={gameId} trackOrdinal={session.trackOrdinal ?? null} />
+                </div>
+              </div>
+            ) : (
+              <TestReviewDashboard gameId={gameId} laps={lapsRecordedDuringTest} metricsById={metricsById} onNewTest={() => setTestPhase("idle")} />
+            )}
+          </div>
         </div>
 
         {/* Right: the Setup Engineer chat, full height. Recommending/applying a
@@ -230,6 +272,20 @@ function formatDuration(sec: number): string {
   const h = Math.floor(totalMin / 60);
   const min = totalMin % 60;
   return `${h}h ${min}m`;
+}
+
+function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${
+        active ? "text-app-text border-purple-500" : "text-app-text-muted border-transparent hover:text-app-text"
+      }`}
+    >
+      {children}
+    </button>
+  );
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {
