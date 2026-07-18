@@ -37,6 +37,8 @@ export const CarWireframe = React.memo(function CarWireframe({
   minimal,
   hideControls,
   autoOrbit,
+  viewPresetOverride,
+  inputsOverride,
 }: {
   gameId?: GameId;
   packet: TelemetryPacket;
@@ -53,6 +55,10 @@ export const CarWireframe = React.memo(function CarWireframe({
   minimal?: boolean;
   hideControls?: boolean;
   autoOrbit?: boolean;
+  /** Forces the initial camera preset (used by the headless demo recorder). Does not affect default UI behavior. */
+  viewPresetOverride?: ViewPreset;
+  /** Forces the "inputs" (throttle/brake trace) toggle on/off, without touching the persisted localStorage toggles (used by the headless demo recorder). */
+  inputsOverride?: boolean;
   onModelOffset?: (offset: { x: number; y: number; z: number }) => void;
 }) {
   const [configsLoaded, setConfigsLoaded] = useState(false);
@@ -101,8 +107,14 @@ export const CarWireframe = React.memo(function CarWireframe({
     ...DEFAULT_TOGGLES,
     ...storedToggles,
     ...(hideControls ? { wheelInfo: false } : {}),
+    ...(inputsOverride !== undefined ? { inputs: inputsOverride } : {}),
   };
-  const [viewPreset, setViewPreset] = useState<ViewPreset>("3/4");
+  const [viewPreset, setViewPreset] = useState<ViewPreset>(viewPresetOverride ?? "3/4");
+  // CameraController only repositions the camera in response to a viewPreset
+  // *change* (see its useFrame effect) — it never applies the preset on
+  // initial mount, so the Canvas's own initial camera prop must already
+  // match the requested preset when one is forced (demo recorder).
+  const initialCameraPosition = viewPresetOverride ? VIEW_PRESETS[viewPresetOverride].position : ([4, 2.5, 4] as [number, number, number]);
 
   const flippedBoundaries = useMemo(() => {
     if (!boundaries) return null;
@@ -127,7 +139,7 @@ export const CarWireframe = React.memo(function CarWireframe({
   return (
     <div className="w-full h-full relative flex-1">
       <Canvas
-        camera={{ position: [4, 2.5, 4], fov: 50 }}
+        camera={{ position: initialCameraPosition, fov: 50 }}
         gl={{ antialias: false, alpha: true, powerPreference: "high-performance", preserveDrawingBuffer: !!(window as unknown as Record<string, unknown>).__recording }}
         dpr={[1, 1.5]}
         frameloop="always"

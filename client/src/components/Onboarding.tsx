@@ -6,6 +6,7 @@ import { m } from "@/paraglide/messages";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { LOCALES } from "@shared/locales";
 import type { TelemetryPacket } from "@shared/types";
+import type { ViewPreset } from "../lib/wireframe-data";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SiDiscord, SiGithub } from "react-icons/si";
@@ -26,6 +27,23 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
   const rafIdRef = useRef<number>(0);
   const pausedRef = useRef(false);
   const trackOrdinal = telemetry[0]?.TrackOrdinal;
+
+  // Headless demo recorder override: ?demoViewPreset=front|rear|3/4|left|right|top
+  // forces a static camera preset instead of the default auto-orbit. Absent in
+  // normal onboarding use, so default wizard behavior is unaffected.
+  const demoViewPreset = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    const raw = new URLSearchParams(window.location.search).get("demoViewPreset");
+    return raw && ["3/4", "front", "rear", "left", "right", "top"].includes(raw) ? (raw as ViewPreset) : null;
+  }, []);
+
+  // Headless demo recorder override: ?demoInputs=1 forces the throttle/brake
+  // input overlay on. Absent in normal onboarding use, so default wizard
+  // behavior (inputs off) is unaffected.
+  const demoInputs = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("demoInputs") === "1";
+  }, []);
 
   // Fetch track outline
   useQuery({
@@ -140,7 +158,9 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
         carModel={DEMO_CAR}
         minimal
         hideControls
-        autoOrbit
+        autoOrbit={!demoViewPreset}
+        viewPresetOverride={demoViewPreset ?? undefined}
+        inputsOverride={demoInputs ? true : undefined}
       />
     </div>
   );
@@ -154,8 +174,8 @@ export function StepWelcome() {
       const res = await fetch("/demo-lap.csv");
       if (!res.ok) return [];
       const text = await res.text();
-      const lines = text.split("\n");
-      const headers = lines[0].split(",");
+      const lines = text.split(/\r?\n/);
+      const headers = lines[0].split(",").map((h) => h.trim());
       const packets: TelemetryPacket[] = [];
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i]) continue;

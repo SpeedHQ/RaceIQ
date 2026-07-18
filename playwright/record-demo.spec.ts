@@ -26,6 +26,7 @@ import { resolve } from "path";
 const MAX_FRAMES = parseInt(process.env.DEMO_MAX_FRAMES ?? "1800", 10);
 const START_FRAME_RAW = process.env.DEMO_START_FRAME ?? "0";
 const FRAMES_DIR = resolve(process.env.DEMO_FRAMES_DIR ?? "/tmp/raceiq-demo-frames");
+const VIEW_PRESET = process.env.DEMO_VIEW_PRESET; // e.g. "front" | "rear" | "3/4" | "top" — forces a static camera angle
 const WORKER_COUNT = 4;
 
 test("record demo render", async ({ page }, testInfo) => {
@@ -53,7 +54,8 @@ test("record demo render", async ({ page }, testInfo) => {
   });
 
   // Fresh server: onboardingComplete=false → wizard shows automatically
-  await page.goto("/");
+  const gotoUrl = VIEW_PRESET ? `/?demoViewPreset=${encodeURIComponent(VIEW_PRESET)}&demoInputs=1` : "/?demoInputs=1";
+  await page.goto(gotoUrl);
 
   await page.waitForSelector("canvas", { timeout: 15_000 });
   await page.waitForFunction(
