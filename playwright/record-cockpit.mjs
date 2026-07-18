@@ -6,7 +6,12 @@
 // telemetry, then ffmpeg stitches them into an mp4.
 //
 // Usage:
-//   bun record-cockpit.mjs [url] [startFrac] [numFrames] [stride]
+//   node record-cockpit.mjs [url] [startFrac] [numFrames] [stride]
+//
+// MUST run under node, NOT bun. bun (v1.3.14, Windows) does not wire the extra
+// pipe file descriptors (fd 3/4) that Playwright's --remote-debugging-pipe CDP
+// transport requires, so the browser spawns but the CDP handshake never connects
+// and chromium.launch() hangs until its 30s timeout. node connects in ~64ms.
 //
 // Requires the dev server running with the real session (raceiq.localhost:1355)
 // and the LapAnalyse __recording hook (gated by window.__recording).
@@ -37,6 +42,9 @@ const VIEW_SCHEDULE = (process.argv[7] ?? "")
     return { frac: parseFloat(frac), view: view.trim() };
   })
   .filter((v) => v.frac >= 0 && v.view);
+// Shift the start point earlier in the lap by this many real seconds, resolved
+// against the telemetry's own per-frame lap timestamps (window.__frameTimes).
+const START_SEC_EARLIER = parseFloat(process.argv[8] ?? "0");
 const FRAMES_DIR = resolve(process.env.COCKPIT_FRAMES_DIR ?? "/tmp/raceiq-cockpit-frames");
 
 const log = (m) => console.log(`[cockpit] ${m}`);
@@ -77,7 +85,19 @@ await page.waitForFunction(
   { timeout: 30_000 },
 );
 const totalFrames = await page.evaluate(() => window.__totalFrames);
-const start = Math.floor(totalFrames * START_FRAC);
+let start = Math.floor(totalFrames * START_FRAC);
+// Walk the start index earlier until it is >= START_SEC_EARLIER seconds before
+// the fractional start, using the telemetry's real per-frame lap timestamps.
+if (START_SEC_EARLIER > 0) {
+  const frameTimes = await page.evaluate(() => window.__frameTimes ?? null);
+  if (frameTimes && frameTimes[start] != null) {
+    const targetT = frameTimes[start] - START_SEC_EARLIER;
+    while (start > 0 && frameTimes[start] > targetT) start--;
+    log(`shifted start ${START_SEC_EARLIER}s earlier -> frame ${start}`);
+  } else {
+    log(`__frameTimes unavailable; ignoring START_SEC_EARLIER`);
+  }
+}
 const count = Math.min(NUM_FRAMES, Math.floor((totalFrames - start) / STRIDE));
 log(`telemetry packets: ${totalFrames} | start ${start} | capturing ${count} frames (stride ${STRIDE})`);
 
