@@ -1,5 +1,5 @@
 import type { LapMeta } from "@shared/types";
-import type { TuningLapMetric } from "../../hooks/queries";
+import { type TuningLapMetric, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 
 /**
@@ -77,7 +77,20 @@ function lapStatusLabel(l: LapMeta): string | null {
 /** Per-lap breakdown for an expanded tune test. Fuel/lap and tyre wear are the
  *  real server-derived numbers (or "—" for legacy/unavailable laps, e.g. when the
  *  server omits a channel); the spun flag is omitted (parity Phase 2). */
-export function LapBreakdown({ laps, bestT, metricsById }: { laps: LapMeta[]; bestT: number | null; metricsById: Map<number, TuningLapMetric> }) {
+export function LapBreakdown({
+  laps,
+  bestT,
+  metricsById,
+  tuningSessionId,
+}: {
+  laps: LapMeta[];
+  bestT: number | null;
+  metricsById: Map<number, TuningLapMetric>;
+  /** Session to invalidate after toggling exclusion (design §Phase 7). Laps
+   *  outside a tuning session (no exclude toggle context) can omit this. */
+  tuningSessionId?: number | null;
+}) {
+  const setExcluded = useSetLapExcluded();
   if (laps.length === 0) {
     return <div className="px-3 py-2 text-xs text-app-text-dim">No laps recorded against this version yet.</div>;
   }
@@ -90,6 +103,7 @@ export function LapBreakdown({ laps, bestT, metricsById }: { laps: LapMeta[]; be
           <th className="px-3 py-1 text-right font-medium">Time</th>
           <th className="px-3 py-1 text-right font-medium">Fuel/lap</th>
           <th className="px-3 py-1 text-right font-medium">Tyre wear</th>
+          <th className="px-3 py-1 text-right font-medium">Tuning</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-app-border/30">
@@ -100,24 +114,44 @@ export function LapBreakdown({ laps, bestT, metricsById }: { laps: LapMeta[]; be
           const wear = metric?.tyreWear;
           const status = lapStatusLabel(l);
           const isPitStatus = status != null && status.toLowerCase() !== "invalid";
+          const excluded = l.tuningExcluded === true;
+          const strike = excluded ? "line-through decoration-app-text-dim/60 opacity-60" : "";
           return (
             <tr key={l.id}>
-              <td className={`px-3 py-1 font-mono ${l.isValid ? "text-app-text-muted" : "text-red-400"}`} title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
+              <td className={`px-3 py-1 font-mono ${strike} ${l.isValid ? "text-app-text-muted" : "text-red-400"}`} title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
                 {l.lapNumber}
               </td>
               <td className="px-3 py-1 text-left">
                 {status && (
-                  <span className={`text-[10px] uppercase tracking-wider ${isPitStatus ? "text-amber-400" : "text-red-400"}`} title={l.invalidReason ?? undefined}>
+                  <span className={`text-[10px] uppercase tracking-wider ${strike} ${isPitStatus ? "text-amber-400" : "text-red-400"}`} title={l.invalidReason ?? undefined}>
                     {status}
                   </span>
                 )}
+                {excluded && <span className="ml-1 text-[10px] uppercase tracking-wider text-app-text-dim border border-app-border rounded px-1 py-0.5">Excluded</span>}
               </td>
-              <td className="px-3 py-1 text-right font-mono tabular-nums text-app-text/90">
+              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>
                 {isFastest && <span className="text-purple-400">★ </span>}
                 {formatLapTime(l.lapTime)}
               </td>
-              <td className="px-3 py-1 text-right font-mono tabular-nums text-app-text/90">{fuel != null ? `${fuel.toFixed(2)} L` : <span className="text-app-text-dim">—</span>}</td>
-              <td className="px-3 py-1 text-right font-mono tabular-nums text-app-text/90">{wear != null ? `${wear.toFixed(0)}%` : <span className="text-app-text-dim">—</span>}</td>
+              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>
+                {fuel != null ? `${fuel.toFixed(2)} L` : <span className="text-app-text-dim">—</span>}
+              </td>
+              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>
+                {wear != null ? `${wear.toFixed(0)}%` : <span className="text-app-text-dim">—</span>}
+              </td>
+              <td className="px-3 py-1 text-right">
+                <button
+                  type="button"
+                  onClick={() => setExcluded.mutate({ lapId: l.id, excluded: !excluded, tuningSessionId })}
+                  disabled={setExcluded.isPending}
+                  title={excluded ? "Include this lap in the tuning aggregate again" : "Exclude this lap from the tuning aggregate (blunder, off-track, spin)"}
+                  className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border disabled:opacity-50 disabled:pointer-events-none ${
+                    excluded ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"
+                  }`}
+                >
+                  {excluded ? "Include" : "Exclude"}
+                </button>
+              </td>
             </tr>
           );
         })}

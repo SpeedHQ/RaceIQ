@@ -189,15 +189,23 @@ export async function updateLapValidity(id: number, isValid: boolean, invalidRea
 
 /**
  * Flip a lap's `tuningExcluded` flag (Setup Engineer `set_lap_excluded` tool,
- * docs/setup-engineer-flow-design.md §Phase 3). Returns the PRIOR value so the
- * caller can log an inverse via `recordAction` for undo.
+ * docs/setup-engineer-flow-design.md §Phase 3, and the `/api/laps/:id/tuning-excluded`
+ * REST route, §Phase 7). Returns the PRIOR value plus the lap's `tuningSessionId`
+ * so the caller can log an inverse via `recordAction` for undo.
  */
-export async function setLapTuningExcluded(lapId: number, excluded: boolean): Promise<{ ok: boolean; prev: boolean }> {
-  const row = await db.select({ tuningExcluded: laps.tuningExcluded }).from(laps).where(eq(laps.id, lapId)).get();
-  if (!row) return { ok: false, prev: false };
+export async function setLapTuningExcluded(
+  lapId: number,
+  excluded: boolean,
+): Promise<{ ok: boolean; prev: boolean; tuningSessionId: number | null }> {
+  const row = await db
+    .select({ tuningExcluded: laps.tuningExcluded, tuningSessionId: laps.tuningSessionId })
+    .from(laps)
+    .where(eq(laps.id, lapId))
+    .get();
+  if (!row) return { ok: false, prev: false, tuningSessionId: null };
   const prev = Boolean(row.tuningExcluded);
   await db.update(laps).set({ tuningExcluded: excluded ? 1 : null }).where(eq(laps.id, lapId)).run();
-  return { ok: true, prev };
+  return { ok: true, prev, tuningSessionId: row.tuningSessionId };
 }
 
 /**
@@ -508,6 +516,115 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
     tuningExcluded: Boolean(r.tuningExcluded),
     isLegacy: rawFile == null,
   }));
+}
+
+/**
+ * Candidate laps for "Add laps from history" (Phase 6, docs/setup-engineer-flow-design.md
+ * §Phase 6): laps matching this tuning session's game + car + track that aren't
+ * already stamped to ANY tuning session. Ordinal-only match — a name-seeded
+ * session already resolves `trackOrdinal` from `trackName` at creation
+ * (createTuningSession), so by the time this query runs that fallback is
+ * already baked into the ordinal; `carOrdinal`/`trackOrdinal` left null on the
+ * session (never resolved) are treated as "match any" for that dimension
+ * rather than excluding everything. Newest-first, same shape as getLapsForTuningSession.
+ */
+export async function getImportableLapsForTuningSession(
+  gameId: GameId,
+  carOrdinal: number | null,
+  trackOrdinal: number | null,
+): Promise<LapMeta[]> {
+  const conds = [eq(sessions.gameId, gameId), isNull(laps.tuningSessionId)];
+  if (carOrdinal != null) conds.push(eq(sessions.carOrdinal, carOrdinal));
+  if (trackOrdinal != null) conds.push(eq(sessions.trackOrdinal, trackOrdinal));
+
+  const rows = await db
+    .select({
+      id: laps.id,
+      sessionId: laps.sessionId,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
+      notes: laps.notes,
+      pi: laps.pi,
+      carSetup: laps.carSetup,
+      createdAt: laps.createdAt,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
+      gameId: sessions.gameId,
+      s1Time: laps.s1Time,
+      s2Time: laps.s2Time,
+      s3Time: laps.s3Time,
+      tuningSessionId: laps.tuningSessionId,
+      tuningTestId: laps.tuningTestId,
+      tuningExcluded: laps.tuningExcluded,
+      rawFile: sessions.rawFile,
+    })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(and(...conds))
+    .orderBy(desc(laps.id))
+    .all();
+
+  return rows.map(({ rawFile, ...r }) => ({
+    ...r,
+    isValid: Boolean(r.isValid),
+    invalidReason: r.invalidReason ?? undefined,
+    pi: r.pi ?? 0,
+    carSetup: r.carSetup ?? undefined,
+    tuneId: r.tuneId ?? undefined,
+    tuneName: r.tuneName ?? undefined,
+    notes: r.notes ?? undefined,
+    gameId: r.gameId as GameId,
+    s1Time: r.s1Time ?? undefined,
+    s2Time: r.s2Time ?? undefined,
+    s3Time: r.s3Time ?? undefined,
+    tuningSessionId: r.tuningSessionId ?? null,
+    tuningTestId: r.tuningTestId ?? null,
+    tuningExcluded: Boolean(r.tuningExcluded),
+    isLegacy: rawFile == null,
+  }));
+}
+
+/**
+ * Stamp a batch of laps onto a tuning session (and optional test/branch) —
+ * "Add laps from history" attach step. Only laps that are currently unstamped
+ * (`tuningSessionId IS NULL`) are touched, so a lapIds list stale from a
+ * concurrent import can't steal laps from another session. Returns the ids
+ * actually updated.
+ */
+export async function importLapsToTuningSession(
+  tuningSessionId: number,
+  lapIds: number[],
+  tuningTestId: number | null,
+): Promise<number[]> {
+  if (lapIds.length === 0) return [];
+  const result = await db
+    .update(laps)
+    .set({ tuningSessionId, tuningTestId })
+    .where(and(inArray(laps.id, lapIds), isNull(laps.tuningSessionId)))
+    .returning({ id: laps.id })
+    .all();
+  return result.map((r) => r.id);
+}
+
+/**
+ * Undo inverse for `importLapsToTuningSession` (Phase 9): clear
+ * `tuningSessionId`/`tuningTestId` on exactly the lap ids the import stamped,
+ * returning them to the unstamped/importable pool. No existence guard needed
+ * beyond the id list itself — these are always ids `recordAction` captured
+ * from the import's own return value.
+ */
+export async function unstampLapsFromTuningSession(lapIds: number[]): Promise<void> {
+  if (lapIds.length === 0) return;
+  await db
+    .update(laps)
+    .set({ tuningSessionId: null, tuningTestId: null })
+    .where(inArray(laps.id, lapIds))
+    .run();
 }
 
 export type LapSummary = {

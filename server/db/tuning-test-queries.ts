@@ -1,6 +1,7 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "./index";
 import { laps, tuningSessions, tuningTests } from "./schema";
+import { setSessionHead } from "./tuning-session-queries";
 
 export interface CreateTuningTestData {
   tuningSessionId: number;
@@ -36,18 +37,136 @@ export async function createTuningTest(data: CreateTuningTestData): Promise<numb
 }
 
 /** Tests for a session, oldest-first (v1 base → latest) so the UI can render
- *  the version history in creation order and attach live laps to the last row. */
-export async function listTuningTests(sessionId: number) {
+ *  the version history in creation order and attach live laps to the last row.
+ *  Excludes soft-deleted (`status='deleted'`, design Phase 8) nodes by default
+ *  so trashed versions never leak into version-history/label/AI-context reads —
+ *  pass `includeDeleted: true` for the trash view / subtree walks. */
+export async function listTuningTests(sessionId: number, opts: { includeDeleted?: boolean } = {}) {
+  const conds = [eq(tuningTests.tuningSessionId, sessionId)];
+  if (!opts.includeDeleted) conds.push(ne(tuningTests.status, "deleted"));
   return await db
     .select()
     .from(tuningTests)
-    .where(eq(tuningTests.tuningSessionId, sessionId))
+    .where(and(...conds))
     .orderBy(asc(tuningTests.version), asc(tuningTests.id))
     .all();
 }
 
+/** Walk `parentTestId` children transitively from `rootId` (inclusive) over an
+ *  already-fetched test list — pure/pure-ish helper shared by delete/restore
+ *  so the subtree definition can't drift between the two ops. */
+export function collectSubtreeIds(
+  tests: { id: number; parentTestId: number | null }[],
+  rootId: number,
+): number[] {
+  const childrenOf = new Map<number, number[]>();
+  for (const t of tests) {
+    if (t.parentTestId == null) continue;
+    const arr = childrenOf.get(t.parentTestId) ?? [];
+    arr.push(t.id);
+    childrenOf.set(t.parentTestId, arr);
+  }
+  const result: number[] = [];
+  const seen = new Set<number>();
+  const stack = [rootId];
+  while (stack.length) {
+    const id = stack.pop()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    result.push(id);
+    for (const c of childrenOf.get(id) ?? []) stack.push(c);
+  }
+  return result;
+}
+
+/** Nearest ancestor of `fromId` that is neither inside `trashedIds` nor itself
+ *  `status='deleted'` — where a trashed head gets moved to. `null` when no
+ *  surviving ancestor exists (falls back to the mainline tip via
+ *  `resolveActiveTestId`). */
+export function findNearestSurvivingAncestor(
+  tests: { id: number; parentTestId: number | null; status: string }[],
+  fromId: number,
+  trashedIds: Set<number>,
+): number | null {
+  const byId = new Map(tests.map((t) => [t.id, t]));
+  let cur = byId.get(fromId);
+  while (cur?.parentTestId != null) {
+    const parent = byId.get(cur.parentTestId);
+    if (!parent) return null;
+    if (!trashedIds.has(parent.id) && parent.status !== "deleted") return parent.id;
+    cur = parent;
+  }
+  return null;
+}
+
+/** Bulk status flip used by delete/restore. No-op on an empty id list. */
+export async function setTestsStatus(ids: number[], status: string): Promise<void> {
+  if (!ids.length) return;
+  await db.update(tuningTests).set({ status }).where(inArray(tuningTests.id, ids)).run();
+}
+
+export interface DeleteSubtreeResult {
+  deletedIds: number[];
+  headMoved: boolean;
+  prevHeadTestId: number | null;
+  newHeadTestId: number | null;
+}
+
+/**
+ * Soft-delete `testId` and its whole descendant subtree (design Phase 8):
+ * flips `status` to 'deleted' on every node reachable via `parentTestId`
+ * (including the target itself). Reversible — rows are never removed, so
+ * `restoreTestSubtree` can flip them back. If `currentHeadTestId` falls
+ * inside the trashed subtree, the session head is moved off it to the
+ * nearest surviving ancestor (or cleared, falling back to the mainline tip).
+ */
+export async function deleteTestSubtree(
+  sessionId: number,
+  testId: number,
+  currentHeadTestId: number | null,
+): Promise<DeleteSubtreeResult> {
+  const allTests = await listTuningTests(sessionId, { includeDeleted: true });
+  const deletedIds = collectSubtreeIds(allTests, testId);
+  await setTestsStatus(deletedIds, "deleted");
+
+  const trashedSet = new Set(deletedIds);
+  let headMoved = false;
+  let newHeadTestId = currentHeadTestId;
+  if (currentHeadTestId != null && trashedSet.has(currentHeadTestId)) {
+    newHeadTestId = findNearestSurvivingAncestor(allTests, testId, trashedSet);
+    await setSessionHead(sessionId, newHeadTestId);
+    headMoved = true;
+  }
+
+  return { deletedIds, headMoved, prevHeadTestId: currentHeadTestId, newHeadTestId };
+}
+
+/**
+ * Restore path (design Phase 8): flips every node in `testId`'s subtree that
+ * is currently `status='deleted'` back to 'active'. Nodes in the subtree that
+ * survived under another status are left untouched.
+ */
+export async function restoreTestSubtree(sessionId: number, testId: number): Promise<number[]> {
+  const allTests = await listTuningTests(sessionId, { includeDeleted: true });
+  const subtreeIds = collectSubtreeIds(allTests, testId);
+  const byId = new Map(allTests.map((t) => [t.id, t]));
+  const restoredIds = subtreeIds.filter((tid) => byId.get(tid)?.status === "deleted");
+  await setTestsStatus(restoredIds, "active");
+  return restoredIds;
+}
+
 export async function getTuningTest(id: number) {
   return (await db.select().from(tuningTests).where(eq(tuningTests.id, id)).get()) ?? null;
+}
+
+/**
+ * Backfill/update a test node's F1 `setup_snapshot` (Phase 10). Used both to
+ * stamp the base node once telemetry with `f1?.setup` first arrives (design
+ * "base-capture timing") and by the live "capture current setup" action.
+ * Never touches `setupPath` — file-based games don't call this.
+ */
+export async function updateTuningTestSetupSnapshot(id: number, setupSnapshot: string): Promise<void> {
+  await db.update(tuningTests).set({ setupSnapshot }).where(eq(tuningTests.id, id)).run();
 }
 
 /** Next version number for a session — max(version) + 1, or 1 when none exist. */

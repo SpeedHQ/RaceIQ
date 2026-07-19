@@ -51,8 +51,19 @@ describe("describeKnobs — get_current_setup grounding", () => {
   });
 
   test("returns [] for a game with no rules table", () => {
-    // f1-2025 has no RULES entry in tune-rules.ts.
-    expect(describeKnobs("f1-2025" as any, {})).toEqual([]);
+    // "gt7" has no RULES entry in tune-rules.ts.
+    expect(describeKnobs("gt7" as any, {})).toEqual([]);
+  });
+
+  test("f1-2025 has a RULES table sourced from the catalog (Phase 10)", () => {
+    const knobs = describeKnobs("f1-2025", {});
+    const names = knobs.map((k) => k.component);
+    expect(names.sort()).toEqual(knownComponents("f1-2025").sort());
+
+    const wing = knobs.find((k) => k.component === "Front Wing")!;
+    expect(wing.min).toBe(0);
+    expect(wing.max).toBe(50);
+    expect(wing.current).toBeNull();
   });
 
   test("current is null when the setup is missing the field", () => {

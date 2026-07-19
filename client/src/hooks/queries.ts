@@ -128,6 +128,32 @@ export function useBulkDeleteLaps() {
   });
 }
 
+/** Include/exclude a lap from the tuning aggregate (design §Phase 7 — the
+ *  user-facing counterpart to the `set_lap_excluded` agent tool). `tuningSessionId`
+ *  is optional so the mutation still works for laps outside a tuning session
+ *  (nothing tuning-scoped to invalidate then). */
+export function useSetLapExcluded() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ lapId, excluded }: { lapId: number; excluded: boolean; tuningSessionId?: number | null }) => {
+      const res = await (client.api.laps as any)[":id"]["tuning-excluded"].$post({
+        param: { id: String(lapId) },
+        json: { excluded },
+      });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as { ok: true; lapId: number; excluded: boolean };
+    },
+    onSuccess: (_data, { tuningSessionId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.laps });
+      if (tuningSessionId != null) {
+        qc.invalidateQueries({ queryKey: ["tuning-session", tuningSessionId] });
+        qc.invalidateQueries({ queryKey: ["tuning-session-tests", tuningSessionId] });
+        qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", tuningSessionId] });
+      }
+    },
+  });
+}
+
 // ── Status ──────────────────────────────────────────────────────────────────
 // Server status is now pushed via WebSocket → useTelemetryStore().serverStatus
 // The REST endpoint /api/status still exists for one-off checks.
@@ -637,6 +663,8 @@ export interface TuningSession {
   createdAt: string;
   updatedAt: string;
   headTestId: number | null;
+  /** Track-length-aware stint nudge (Phase 5) — advisory, computed server-side on GET. */
+  lapTarget?: number;
 }
 
 export function useTuningSessions(gameId: "acc" | "ac-evo") {
@@ -754,6 +782,221 @@ export function useSetHead() {
       qc.invalidateQueries({ queryKey: ["tuning-session", sessionId] });
       qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
       // Chat thread gained the deterministic checkout ack — refetch it.
+      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", sessionId] });
+    },
+  });
+}
+
+/** Add a second (or Nth) root to the session's version forest from an
+ *  existing Setups-folder file (design Phase 4). */
+export function useAddBase() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      sessionId,
+      setupPath,
+      label,
+      setHead,
+    }: {
+      sessionId: number;
+      setupPath: string;
+      label?: string;
+      setHead?: boolean;
+    }) => {
+      const res = await (client.api as any)["tuning-sessions"][":id"].bases.$post({
+        param: { id: String(sessionId) },
+        json: { setupPath, label, setHead },
+      });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as TuningTest;
+    },
+    onSuccess: (t) => {
+      qc.invalidateQueries({ queryKey: ["tuning-session", t.tuningSessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-tests", t.tuningSessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", t.tuningSessionId] });
+    },
+  });
+}
+
+/** Laps matching this session's game/car/track that aren't stamped to any
+ *  tuning session yet — the pool for "Add laps from history" (design Phase 6). */
+export function useImportableLaps(sessionId: number | null | undefined) {
+  return useQuery({
+    queryKey: ["tuning-session-importable-laps", sessionId ?? null],
+    queryFn: async () => {
+      const res = await (client.api as any)["tuning-sessions"][":id"]["importable-laps"].$get({
+        param: { id: String(sessionId!) },
+      });
+      return rpcJson<LapMeta[]>(res);
+    },
+    enabled: sessionId != null,
+    staleTime: 5_000,
+  });
+}
+
+/** Stamp a batch of history laps onto this session (and optionally a
+ *  specific branch/test) — the attach step for "Add laps from history". */
+export function useImportLaps() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      sessionId,
+      lapIds,
+      tuningTestId,
+    }: {
+      sessionId: number;
+      lapIds: number[];
+      tuningTestId?: number | null;
+    }) => {
+      const res = await (client.api as any)["tuning-sessions"][":id"]["import-laps"].$post({
+        param: { id: String(sessionId) },
+        json: { lapIds, tuningTestId },
+      });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as { importedIds: number[] };
+    },
+    onSuccess: (_data, { sessionId }) => {
+      qc.invalidateQueries({ queryKey: ["tuning-session", sessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-importable-laps", sessionId] });
+      qc.invalidateQueries({ queryKey: ["laps"] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", sessionId] });
+    },
+  });
+}
+
+/** "Use as inspiration" — byte-copy an existing version's setup into a fresh
+ *  root (no chat round trip), the non-chat counterpart to the
+ *  branch-from-version tool's asNewRoot mode. */
+export function useInspireVersion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      sessionId,
+      sourceTestId,
+      label,
+    }: {
+      sessionId: number;
+      sourceTestId: number;
+      label?: string;
+    }) => {
+      const res = await (client.api as any)["tuning-sessions"][":id"].inspire.$post({
+        param: { id: String(sessionId) },
+        json: { sourceTestId, label },
+      });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as TuningTest;
+    },
+    onSuccess: (t) => {
+      qc.invalidateQueries({ queryKey: ["tuning-session", t.tuningSessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-tests", t.tuningSessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", t.tuningSessionId] });
+    },
+  });
+}
+
+/** Trash view — deleted versions only (design Phase 8's `?includeDeleted=1`
+ *  escape hatch, filtered client-side to just the trashed rows). Disabled
+ *  until the disclosure listing it is actually opened. */
+export function useDeletedTuningTests(id: number | null | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ["tuning-session-tests", id ?? null, "deleted"],
+    queryFn: async () => {
+      const res = await (client.api as any)["tuning-sessions"][":id"].tests.$get({
+        param: { id: String(id!) },
+        query: { includeDeleted: "1" },
+      });
+      const all = await rpcJson<TuningTest[]>(res);
+      return all.filter((t) => t.status === "deleted");
+    },
+    enabled: enabled && id != null,
+    staleTime: 5_000,
+  });
+}
+
+/** "Delete branch" — soft-delete a version and its whole descendant subtree
+ *  (design Phase 8). Reversible via useRestoreVersion. */
+export function useDeleteVersion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ sessionId, testId }: { sessionId: number; testId: number }) => {
+      const res = await (client.api as any)["tuning-sessions"][":id"].tests[":testId"].delete.$post({
+        param: { id: String(sessionId), testId: String(testId) },
+      });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as { ok: true; deletedIds: number[]; headTestId: number | null };
+    },
+    onSuccess: (_data, { sessionId }) => {
+      qc.invalidateQueries({ queryKey: ["tuning-session", sessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", sessionId] });
+    },
+  });
+}
+
+export interface TuningActionRow {
+  id: number;
+  tuningSessionId: number;
+  kind: string;
+  inversePayload: unknown;
+  undone: boolean;
+  createdAt: string;
+}
+
+/** Action history (design Phase 9) — newest-first, includes already-undone
+ *  rows so the panel can show them struck through. */
+export function useTuningHistory(id: number | null | undefined) {
+  return useQuery({
+    queryKey: ["tuning-session-actions", id ?? null],
+    queryFn: async () => {
+      const res = await (client.api as any)["tuning-sessions"][":id"].actions.$get({
+        param: { id: String(id!) },
+      });
+      return rpcJson<TuningActionRow[]>(res);
+    },
+    enabled: id != null,
+    staleTime: 5_000,
+  });
+}
+
+/** Undo the most recent not-yet-undone action for a session (design Phase 9).
+ *  Shared inverse logic with the AI's `undo_last_action` tool — either surface
+ *  can trigger it, both invalidate the same broad set of queries since the
+ *  inverse of any action kind can touch head/tests/laps/chat. */
+export function useUndo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ sessionId }: { sessionId: number }) => {
+      const res = await (client.api as any)["tuning-sessions"][":id"].undo.$post({
+        param: { id: String(sessionId) },
+      });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as { ok: boolean; undone: boolean; kind?: string; warning?: string };
+    },
+    onSuccess: (_data, { sessionId }) => {
+      qc.invalidateQueries({ queryKey: ["tuning-session", sessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-actions", sessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", sessionId] });
+      qc.invalidateQueries({ queryKey: ["laps"] });
+    },
+  });
+}
+
+/** Restore a soft-deleted version subtree back to active (design Phase 8). */
+export function useRestoreVersion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ sessionId, testId }: { sessionId: number; testId: number }) => {
+      const res = await (client.api as any)["tuning-sessions"][":id"].tests[":testId"].restore.$post({
+        param: { id: String(sessionId), testId: String(testId) },
+      });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as TuningTest;
+    },
+    onSuccess: (_data, { sessionId }) => {
+      qc.invalidateQueries({ queryKey: ["tuning-session", sessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
       qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", sessionId] });
     },
   });

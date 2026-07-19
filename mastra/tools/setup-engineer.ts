@@ -19,8 +19,7 @@ import { z } from "zod";
 
 import type { TuneDirection, TuneMagnitude } from "../../server/ai/schemas";
 import { applyIntents, describeKnobs } from "../../server/ai/tune-rules";
-import { writeSetupFile } from "../../server/ai/tune-writer";
-import { createTuningTest } from "../../server/db/tuning-test-queries";
+import { createTuningTest, deleteTestSubtree } from "../../server/db/tuning-test-queries";
 import { setSessionHead } from "../../server/db/tuning-session-queries";
 import { computeChildLabel, nextFreeLabel } from "../../server/ai/version-label";
 import { saveAssistantChatMessage, tuneSessionThreadId } from "../../server/ai/chat-agent";
@@ -31,14 +30,14 @@ import {
   computeSessionTrackConditions,
   formatTrackConditions,
   loadActiveTuningContext,
-  resolveGuardedSetupFile,
-  setupPathStem,
 } from "../../server/ai/setup-engineer-context";
+import { readActiveSetup, writeAppliedSetup, activeSetupStem } from "../../server/ai/setup-io";
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
 import { consultLapAnalystForSession } from "../../server/ai/consult-lap-analyst";
 import { loadCleanLapAggregate } from "../../server/ai/clean-lap-aggregate";
 import { setLapTuningExcluded } from "../../server/db/queries";
 import { recordAction } from "../../server/db/tuning-action-queries";
+import { undoLastAction } from "../../server/tuning-undo";
 
 const DirectionEnum = z.enum(["increase", "decrease"]);
 const MagnitudeEnum = z.enum(["small", "medium", "large"]);
@@ -303,11 +302,13 @@ export function buildSetupEngineerTools() {
       const childCount = parent ? ctx.tests.filter((t) => t.parentTestId === parent.id).length : 0;
       const takenLabels = new Set(ctx.tests.map((t) => t.label));
       const label = nextFreeLabel(computeChildLabel(parentLabel, childCount), takenLabels);
-      const saveAsName = `${setupPathStem(ctx.realPath)}-${label}`;
+      // ACC/AC-EVO: "<original filename stem>-<label>". F1 has no file, so the
+      // label alone names the advisory diff.
+      const stem = ctx.gameId === "f1-2025" ? label : `${activeSetupStem(ctx.gameId, ctx.realPath, "setup")}-${label}`;
 
       let written;
       try {
-        written = writeSetupFile(ctx.baseDir, ctx.realPath, setup, saveAsName, false);
+        written = writeAppliedSetup(ctx.gameId, { baseDir: ctx.baseDir, realPath: ctx.realPath, setup, stem });
       } catch (err: any) {
         return { ok: false, error: `Write failed: ${err.message}`, applied: [], skipped: [] };
       }
@@ -316,7 +317,8 @@ export function buildSetupEngineerTools() {
         tuningSessionId: sessionId,
         version: nextVer,
         label,
-        setupPath: written.path,
+        setupPath: written.setupPath,
+        setupSnapshot: written.setupSnapshot,
         parentTestId: parent?.id ?? null,
         appliedChanges: applied.length ? JSON.stringify(applied) : null,
         driverComment: null,
@@ -324,10 +326,19 @@ export function buildSetupEngineerTools() {
       });
 
       // Branch grows and head follows the work: the new node becomes the head.
+      const prevHeadTestId = parent?.id ?? null;
       try {
         await setSessionHead(sessionId, newTestId);
       } catch (err: any) {
         console.error("[SetupEngineer] Failed to advance head:", err?.message);
+      }
+
+      // Best-effort: an action-log write failure must not fail the apply —
+      // the file + tuning test + head are already committed.
+      try {
+        await recordAction(sessionId, "apply-changes", { testId: newTestId, prevHeadTestId });
+      } catch (err: any) {
+        console.error("[SetupEngineer] Failed to log apply-changes action:", err?.message);
       }
 
       // Best-effort: a memory write failure must not fail the apply — the
@@ -335,7 +346,7 @@ export function buildSetupEngineerTools() {
       try {
         await saveAssistantChatMessage(
           tuneSessionThreadId(sessionId),
-          buildAppliedChangesMarkdown(nextVer, applied, written.fileName),
+          buildAppliedChangesMarkdown(nextVer, applied, written.fileName, ctx.gameId !== "f1-2025"),
         );
       } catch (err: any) {
         console.error("[SetupEngineer] Failed to post applied-tweaks message:", err?.message);
@@ -358,9 +369,16 @@ export function buildSetupEngineerTools() {
       "exact copy of the target, makes it the session head, and returns it — so it shows up in the version " +
       "tree right away and the NEXT apply-changes lands on this fork instead of the latest. " +
       "Use when the driver asks to try a different direction from an older version without overwriting newer ones. " +
-      "Accepts the version label (e.g. \"v1\", \"v1.2\") or the integer version number.",
+      "Accepts the version label (e.g. \"v1\", \"v1.2\") or the integer version number. " +
+      "Set asNewRoot when the driver wants to use an old version as INSPIRATION for a fresh starting point " +
+      "rather than a fork of it — the copy seeds a new root (no parent) instead of a child of the target, " +
+      "so it grows its own line in the version tree.",
     inputSchema: z.object({
       target: z.string().describe("A version label like \"v1.2\" or an integer version like \"1\"."),
+      asNewRoot: z.boolean().optional().describe(
+        "When true, the copy becomes a new root (parentTestId=null) — an independent base inspired by the " +
+        "target — instead of a child branch of it.",
+      ),
     }),
     outputSchema: z.object({
       ok: z.boolean(),
@@ -386,23 +404,28 @@ export function buildSetupEngineerTools() {
       // Load the target's setup exactly as saved — the fork is a byte-for-byte
       // copy under a new version, so the branch point is visible in the tree
       // before any changes are applied.
-      const guarded = await resolveGuardedSetupFile(ctx.gameId, match.setupPath ?? "");
+      const guarded = await readActiveSetup(ctx.gameId, { setupPath: match.setupPath ?? null, setupSnapshot: match.setupSnapshot ?? null });
       if (!guarded.ok) {
         return { ok: false, error: `Could not read ${match.label}: ${guarded.error}` };
       }
 
       const nextVer = Math.max(0, ...ctx.tests.map((t) => t.version)) + 1;
+      const asNewRoot = inputData.asNewRoot ?? false;
 
       // Branch-relative label off the forked target: existingChildCount = how
       // many children it already has (its continuation + any prior forks).
-      const childCount = ctx.tests.filter((t) => t.parentTestId === match.id).length;
+      // asNewRoot isn't a child of the target at all — it's an inspired fresh
+      // start — so it gets its own "<label>-insp" line instead of continuing
+      // the target's numbering.
       const takenLabels = new Set(ctx.tests.map((t) => t.label));
-      const label = nextFreeLabel(computeChildLabel(match.label, childCount), takenLabels);
-      const saveAsName = `${setupPathStem(guarded.realPath)}-${label}`;
+      const label = asNewRoot
+        ? nextFreeLabel(`${match.label}-insp`, takenLabels)
+        : nextFreeLabel(computeChildLabel(match.label, ctx.tests.filter((t) => t.parentTestId === match.id).length), takenLabels);
+      const stem = ctx.gameId === "f1-2025" ? label : `${activeSetupStem(ctx.gameId, guarded.realPath, "setup")}-${label}`;
 
       let written;
       try {
-        written = writeSetupFile(guarded.baseDir, guarded.realPath, guarded.setup, saveAsName, false);
+        written = writeAppliedSetup(ctx.gameId, { baseDir: guarded.baseDir, realPath: guarded.realPath, setup: guarded.setup, stem });
       } catch (err: any) {
         return { ok: false, error: `Write failed: ${err.message}` };
       }
@@ -411,14 +434,16 @@ export function buildSetupEngineerTools() {
         tuningSessionId: sessionId,
         version: nextVer,
         label,
-        setupPath: written.path,
-        parentTestId: match.id,
+        setupPath: written.setupPath,
+        setupSnapshot: written.setupSnapshot,
+        parentTestId: asNewRoot ? null : match.id,
         appliedChanges: null,
         driverComment: null,
         engine: "branch",
       });
 
-      // The fork is the work surface now: head follows it.
+      // The fork (or new base) is the work surface now: head follows it.
+      const prevHeadTestId = ctx.session.headTestId ?? null;
       try {
         await setSessionHead(sessionId, newTestId);
       } catch (err: any) {
@@ -426,9 +451,17 @@ export function buildSetupEngineerTools() {
       }
 
       try {
+        await recordAction(sessionId, "branch", { testId: newTestId, prevHeadTestId });
+      } catch (err: any) {
+        console.error("[SetupEngineer] Failed to log branch action:", err?.message);
+      }
+
+      try {
         await saveAssistantChatMessage(
           tuneSessionThreadId(sessionId),
-          `Branched **${label}** (v${nextVer}) from **${match.label}** — I'll work from here.`,
+          asNewRoot
+            ? `Started a new base **${label}** (v${nextVer}) inspired by **${match.label}** — I'll work from here.`
+            : `Branched **${label}** (v${nextVer}) from **${match.label}** — I'll work from here.`,
         );
       } catch (err: any) {
         console.error("[SetupEngineer] Failed to post branch note:", err?.message);
@@ -509,6 +542,81 @@ export function buildSetupEngineerTools() {
     },
   });
 
+  const deleteVersionTool = createTool({
+    id: "delete-version",
+    description:
+      "Soft-delete a setup version and its whole branch (all versions forked from it). Reversible — trashed " +
+      "versions can be restored later. If the session's current head is inside the deleted branch, the head " +
+      "moves to the nearest surviving ancestor automatically. Confirm with the driver before calling — this " +
+      "affects a real, laps-bearing version tree, not just the one node named.",
+    inputSchema: z.object({
+      testId: z.number().int().positive(),
+    }),
+    outputSchema: z.object({
+      ok: z.boolean(),
+      error: z.string().optional(),
+      deletedIds: z.array(z.number()).default([]),
+      headTestId: z.number().nullable().optional(),
+    }),
+    execute: async (inputData, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      const ctx = await loadActiveTuningContext(sessionId);
+      if (!ctx.ok) return { ok: false, error: ctx.error, deletedIds: [] };
+
+      const test = ctx.tests.find((t) => t.id === inputData.testId);
+      if (!test) return { ok: false, error: `No version ${inputData.testId} found in this session.`, deletedIds: [] };
+
+      const result = await deleteTestSubtree(sessionId, inputData.testId, ctx.session.headTestId ?? null);
+
+      try {
+        await recordAction(sessionId, "delete", {
+          rootTestId: inputData.testId,
+          testIds: result.deletedIds,
+          prevHeadTestId: result.headMoved ? result.prevHeadTestId : null,
+        });
+      } catch (err: any) {
+        console.error("[SetupEngineer] Failed to log delete action:", err?.message);
+      }
+
+      return { ok: true, deletedIds: result.deletedIds, headTestId: result.newHeadTestId };
+    },
+  });
+
+  const undoLastActionTool = createTool({
+    id: "undo-last-action",
+    description:
+      "Undo the most recent action taken in this session (apply/branch/add-base/inspire/import/set-head/delete/" +
+      "restore/rename/exclude) — user or AI. Use when the driver says \"undo that\" / \"undo the last change\" / " +
+      "\"go back\". Reverses exactly one action per call; call again to go further back. If undoing a version " +
+      "created by apply/branch/add-base/inspire and that version already has laps or child branches on it, it " +
+      "warns and soft-deletes the whole subtree so nothing is silently stranded (restorable from the trash).",
+    inputSchema: NoInput,
+    outputSchema: z.object({
+      ok: z.boolean(),
+      error: z.string().optional(),
+      undone: z.boolean(),
+      kind: z.string().optional(),
+      warning: z.string().optional(),
+    }),
+    execute: async (_input, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      const result = await undoLastAction(sessionId);
+
+      if (result.undone) {
+        try {
+          await saveAssistantChatMessage(
+            tuneSessionThreadId(sessionId),
+            result.warning ? `Undone — ${result.warning}` : `Undone (${result.kind}).`,
+          );
+        } catch (err: any) {
+          console.error("[SetupEngineer] Failed to post undo note:", err?.message);
+        }
+      }
+
+      return result;
+    },
+  });
+
   return {
     getCurrentSetupTool,
     getSymptomsTool,
@@ -520,6 +628,8 @@ export function buildSetupEngineerTools() {
     branchFromVersionTool,
     setLapExcludedTool,
     compareLapConsistencyTool,
+    deleteVersionTool,
+    undoLastActionTool,
   };
 }
 

@@ -25,9 +25,16 @@ import {
 } from "../db/community-tune-queries";
 import { syncCommunityTunes } from "../community-tunes-sync";
 import { getLaptimes, syncLaptimes } from "../laptimes-sync";
-import { getLapById, getLapsForTuningSession } from "../db/queries";
+import {
+  getLapById,
+  getLapsForTuningSession,
+  getImportableLapsForTuningSession,
+  importLapsToTuningSession,
+} from "../db/queries";
 import { getAccSetupFolderKeys } from "../../shared/acc-track-data";
 import { getAcEvoSetupFolderKeys } from "../../shared/ac-evo-track-data";
+import { getTrackLengthMeters } from "../../shared/track-data";
+import { suggestLapTarget } from "../../shared/lap-target";
 import {
   createTuningSession,
   getTuningSession,
@@ -43,7 +50,12 @@ import {
   nextVersion,
   getTuningTest,
   getLapCountsByTest,
+  updateTuningTestSetupSnapshot,
+  deleteTestSubtree,
+  restoreTestSubtree,
 } from "../db/tuning-test-queries";
+import { recordAction, listActions } from "../db/tuning-action-queries";
+import { undoLastAction } from "../tuning-undo";
 import { detectCorners } from "../corner-detection";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues } from "../ai/tune-issues";
@@ -54,7 +66,8 @@ import { writeSetupFile } from "../ai/tune-writer";
 import { setLiveIssuesEnabled } from "../pipeline";
 import { loadSettings } from "../settings";
 import { getChatMemory, tuneSessionThreadId, CHAT_RESOURCE_ID, saveChatMessages } from "../ai/chat-agent";
-import { getSetupsBaseDir } from "../ai/setup-engineer-context";
+import { getSetupsBaseDir, resolveGuardedSetupFile, captureF1SetupFromLaps, type AccGameId } from "../ai/setup-engineer-context";
+import { nextFreeLabel } from "../ai/version-label";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { streamAgentTurnResponse } from "../ai/agent-stream";
 import { setupEngineerAgent, buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
@@ -329,6 +342,42 @@ const CreateTuningTestSchema = z.object({
   appliedChanges: z.array(z.unknown()).nullable().optional(),
   driverComment: z.string().max(2000).nullable().optional(),
   engine: z.enum(["rules", "llm"]).nullable().optional(),
+});
+
+const AddBaseSchema = z.object({
+  setupPath: z.string().min(1).max(1000),
+  label: z.string().min(1).max(200).optional(),
+  setHead: z.boolean().optional(),
+});
+
+/** Path params `:id/:testId` — same integer coercion as `IdParamSchema`, for
+ *  routes scoped to one setup version within a session (delete/restore). */
+const TestParamSchema = z.object({
+  id: z
+    .string()
+    .transform((val) => parseInt(val, 10))
+    .refine((n) => Number.isInteger(n), "id must be an integer"),
+  testId: z
+    .string()
+    .transform((val) => parseInt(val, 10))
+    .refine((n) => Number.isInteger(n), "testId must be an integer"),
+});
+
+/** `?includeDeleted=1` escape hatch (design Phase 8) — everywhere else the
+ *  `/tests` list stays trash-free by default. */
+const IncludeDeletedQuerySchema = z.object({
+  includeDeleted: z.string().optional(),
+});
+
+const InspireSchema = z.object({
+  sourceTestId: z.number().int(),
+  label: z.string().min(1).max(200).optional(),
+  setHead: z.boolean().optional(),
+});
+
+const ImportLapsSchema = z.object({
+  lapIds: z.array(z.number().int()).min(1).max(500),
+  tuningTestId: z.number().int().nullable().optional(),
 });
 
 const AutoTuneSchema = z.object({
@@ -891,11 +940,13 @@ export const tuneRoutes = new Hono()
   // in this session (v1 base → latest), oldest-first.
   .get("/api/tuning-sessions/:id/tests",
     zValidator("param", IdParamSchema),
+    zValidator("query", IncludeDeletedQuerySchema),
     async (c) => {
       const { id } = c.req.valid("param");
+      const { includeDeleted } = c.req.valid("query");
       const session = await getTuningSession(id);
       if (!session) return c.json({ error: "Tuning session not found" }, 404);
-      const tests = await listTuningTests(id);
+      const tests = await listTuningTests(id, { includeDeleted: includeDeleted === "1" });
       const counts = await getLapCountsByTest(id);
       return c.json(
         tests.map((t) => ({
@@ -935,6 +986,360 @@ export const tuneRoutes = new Hono()
     }
   )
 
+  // POST /api/tuning-sessions/:id/tests/:testId/delete — soft-delete a version
+  // and its whole descendant subtree (design Phase 8). Reversible: status
+  // flips to 'deleted' rather than removing rows, so the /restore route below
+  // can flip it back. If the session head was inside the trashed subtree, it's
+  // moved to the nearest surviving ancestor (or cleared, falling back to the
+  // mainline tip via resolveActiveTestId).
+  .post("/api/tuning-sessions/:id/tests/:testId/delete",
+    zValidator("param", TestParamSchema),
+    async (c) => {
+      const { id, testId } = c.req.valid("param");
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+      const test = await getTuningTest(testId);
+      if (!test || test.tuningSessionId !== id) {
+        return c.json({ error: "Version not found in this session" }, 404);
+      }
+      if (test.status === "deleted") {
+        return c.json({ error: "Version is already deleted" }, 400);
+      }
+
+      const result = await deleteTestSubtree(id, testId, session.headTestId ?? null);
+
+      try {
+        await recordAction(id, "delete", {
+          rootTestId: testId,
+          testIds: result.deletedIds,
+          prevHeadTestId: result.headMoved ? result.prevHeadTestId : null,
+        });
+      } catch (err: any) {
+        console.error("[tune] Failed to log delete action:", err?.message);
+      }
+
+      try {
+        const extra = result.deletedIds.length - 1;
+        await saveChatMessages(tuneSessionThreadId(id), [
+          { role: "user", markdown: `Delete **${test.label}** (v${test.version}) and its branch.` },
+          {
+            role: "assistant",
+            markdown: `Deleted **${test.label}** (v${test.version})${extra > 0 ? ` and ${extra} child version${extra === 1 ? "" : "s"}` : ""} — restorable from the trash.`,
+          },
+        ]);
+      } catch (err: any) {
+        console.error("[tune] Failed to post delete note:", err?.message);
+      }
+
+      return c.json({ ok: true, deletedIds: result.deletedIds, headTestId: result.newHeadTestId });
+    }
+  )
+
+  // POST /api/tuning-sessions/:id/tests/:testId/restore — flip a soft-deleted
+  // subtree back to 'active' (design Phase 8's reversible half). Only nodes
+  // currently 'deleted' within the target's subtree are restored.
+  .post("/api/tuning-sessions/:id/tests/:testId/restore",
+    zValidator("param", TestParamSchema),
+    async (c) => {
+      const { id, testId } = c.req.valid("param");
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+      const test = await getTuningTest(testId);
+      if (!test || test.tuningSessionId !== id) {
+        return c.json({ error: "Version not found in this session" }, 404);
+      }
+      if (test.status !== "deleted") {
+        return c.json({ error: "Version is not deleted" }, 400);
+      }
+
+      const restoredIds = await restoreTestSubtree(id, testId);
+
+      try {
+        await recordAction(id, "restore", { rootTestId: testId, testIds: restoredIds });
+      } catch (err: any) {
+        console.error("[tune] Failed to log restore action:", err?.message);
+      }
+
+      try {
+        const extra = restoredIds.length - 1;
+        await saveChatMessages(tuneSessionThreadId(id), [
+          { role: "user", markdown: `Restore **${test.label}** (v${test.version}) from the trash.` },
+          {
+            role: "assistant",
+            markdown: `Restored **${test.label}** (v${test.version})${extra > 0 ? ` and ${extra} child version${extra === 1 ? "" : "s"}` : ""}.`,
+          },
+        ]);
+      } catch (err: any) {
+        console.error("[tune] Failed to post restore note:", err?.message);
+      }
+
+      const restored = (await listTuningTests(id, { includeDeleted: true })).find((t) => t.id === testId);
+      return c.json(restored, 200);
+    }
+  )
+
+  // POST /api/tuning-sessions/:id/bases — add a second (or Nth) root to the
+  // session's version forest from an existing Setups-folder file (design
+  // Phase 4). Unlike branch/apply, the new node has parentTestId=null — it's
+  // a fresh starting point, not a fork of anything already in the tree.
+  // Posts the same kind of canned chat ack /head uses so the agent keeps
+  // context on reload.
+  .post("/api/tuning-sessions/:id/bases",
+    zValidator("param", IdParamSchema),
+    zValidator("json", AddBaseSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+
+      const body = c.req.valid("json");
+      const guarded = await resolveGuardedSetupFile(session.gameId as AccGameId, body.setupPath);
+      if (!guarded.ok) return c.json({ error: guarded.error }, guarded.status);
+
+      const tests = await listTuningTests(id);
+      const takenLabels = new Set(tests.map((t) => t.label));
+      const label = nextFreeLabel(body.label ?? "base", takenLabels);
+
+      const version = await nextVersion(id);
+      const testId = await createTuningTest({
+        tuningSessionId: id,
+        version,
+        label,
+        setupPath: guarded.realPath,
+        parentTestId: null,
+        engine: null,
+      });
+
+      const prevHeadTestId = session.headTestId ?? null;
+      if (body.setHead) await setSessionHead(id, testId);
+
+      try {
+        await recordAction(id, "add-base", { testId, prevHeadTestId: body.setHead ? prevHeadTestId : null });
+      } catch (err: any) {
+        console.error("[tune] Failed to log add-base action:", err?.message);
+      }
+
+      try {
+        await saveChatMessages(tuneSessionThreadId(id), [
+          { role: "user", markdown: `Add **${label}** (v${version}) as a new base.` },
+          {
+            role: "assistant",
+            markdown: body.setHead
+              ? `Added **${label}** (v${version}) as a new base and switched to it — I'll work from here.`
+              : `Added **${label}** (v${version}) as a new base.`,
+          },
+        ]);
+      } catch (err: any) {
+        console.error("[tune] Failed to post add-base note:", err?.message);
+      }
+
+      const created = (await listTuningTests(id)).find((t) => t.id === testId);
+      return c.json(created, 201);
+    }
+  )
+
+  // POST /api/tuning-sessions/:id/capture-setup — F1's "Add base" affordance
+  // (design Phase 10): F1 has no setup file to pick, so capture the current
+  // `F1CarSetup` from the session's most recent lap's telemetry and stamp it
+  // onto the active test (or a fresh base when the session has none yet).
+  .post("/api/tuning-sessions/:id/capture-setup",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+      if (session.gameId !== "f1-2025") {
+        return c.json({ error: "Setup capture is only available for F1 2025 sessions" }, 400);
+      }
+
+      const captured = await captureF1SetupFromLaps(id);
+      if (!captured) {
+        return c.json({ error: "No lap with F1 setup telemetry found yet — drive a lap first." }, 400);
+      }
+
+      const tests = await listTuningTests(id);
+      const activeTest = session.headTestId != null
+        ? (tests.find((t) => t.id === session.headTestId) ?? (tests.length ? tests[tests.length - 1]! : null))
+        : (tests.length ? tests[tests.length - 1]! : null);
+
+      let testId: number;
+      let label: string;
+      let version: number;
+      if (activeTest) {
+        await updateTuningTestSetupSnapshot(activeTest.id, captured);
+        testId = activeTest.id;
+        label = activeTest.label;
+        version = activeTest.version;
+      } else {
+        const takenLabels = new Set(tests.map((t) => t.label));
+        label = nextFreeLabel("base", takenLabels);
+        version = await nextVersion(id);
+        testId = await createTuningTest({
+          tuningSessionId: id,
+          version,
+          label,
+          setupSnapshot: captured,
+          parentTestId: null,
+          engine: null,
+        });
+        await setSessionHead(id, testId);
+      }
+
+      try {
+        await saveChatMessages(tuneSessionThreadId(id), [
+          { role: "user", markdown: `Capture current car setup.` },
+          { role: "assistant", markdown: `Captured the current setup into **${label}** (v${version}) from telemetry.` },
+        ]);
+      } catch (err: any) {
+        console.error("[tune] Failed to post capture-setup note:", err?.message);
+      }
+
+      const updated = (await listTuningTests(id)).find((t) => t.id === testId);
+      return c.json(updated, 200);
+    }
+  )
+
+  // GET /api/tuning-sessions/:id/importable-laps — "Add laps from history"
+  // (design Phase 6): laps matching this session's game + car + track that
+  // aren't already stamped to any tuning session.
+  .get("/api/tuning-sessions/:id/importable-laps",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+
+      const importable = await getImportableLapsForTuningSession(
+        session.gameId as GameId,
+        session.carOrdinal ?? null,
+        session.trackOrdinal ?? null
+      );
+      return c.json(importable);
+    }
+  )
+
+  // POST /api/tuning-sessions/:id/import-laps — stamp a batch of history laps
+  // onto this session (and optionally a specific branch/test), attaching them
+  // to the aggregate the same way live-collected laps are. Posts a canned
+  // chat ack so the agent picks the newly attached laps up on reload.
+  .post("/api/tuning-sessions/:id/import-laps",
+    zValidator("param", IdParamSchema),
+    zValidator("json", ImportLapsSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+
+      const body = c.req.valid("json");
+      if (body.tuningTestId != null) {
+        const test = await getTuningTest(body.tuningTestId);
+        if (!test || test.tuningSessionId !== id) {
+          return c.json({ error: "Tuning test not found in this session" }, 404);
+        }
+      }
+
+      const importedIds = await importLapsToTuningSession(
+        id,
+        body.lapIds,
+        body.tuningTestId ?? null
+      );
+
+      try {
+        await recordAction(id, "import-laps", { lapIds: importedIds });
+      } catch (err: any) {
+        console.error("[tune] Failed to log import-laps action:", err?.message);
+      }
+
+      try {
+        await saveChatMessages(tuneSessionThreadId(id), [
+          {
+            role: "user",
+            markdown: `Import ${body.lapIds.length} lap${body.lapIds.length === 1 ? "" : "s"} from history.`,
+          },
+          {
+            role: "assistant",
+            markdown: `Imported ${importedIds.length} lap${importedIds.length === 1 ? "" : "s"} from history${
+              body.tuningTestId != null ? " into the selected version" : " into the session baseline"
+            }.`,
+          },
+        ]);
+      } catch (err: any) {
+        console.error("[tune] Failed to post import-laps note:", err?.message);
+      }
+
+      return c.json({ importedIds }, 201);
+    }
+  )
+
+  // POST /api/tuning-sessions/:id/inspire — non-chat counterpart to the
+  // branch-from-version tool's asNewRoot mode: byte-copy an existing
+  // version's setup under a new label, but seed it as a fresh root
+  // (parentTestId=null) instead of a child of the source. Lets the UI offer
+  // "Use as inspiration" per node in VersionGraph without a chat round trip.
+  .post("/api/tuning-sessions/:id/inspire",
+    zValidator("param", IdParamSchema),
+    zValidator("json", InspireSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+
+      const body = c.req.valid("json");
+      const tests = await listTuningTests(id);
+      const source = tests.find((t) => t.id === body.sourceTestId);
+      if (!source) return c.json({ error: "Source version not found in this session" }, 404);
+
+      const guarded = await resolveGuardedSetupFile(session.gameId as AccGameId, source.setupPath ?? "");
+      if (!guarded.ok) return c.json({ error: `Could not read ${source.label}: ${guarded.error}` }, guarded.status);
+
+      const takenLabels = new Set(tests.map((t) => t.label));
+      const label = nextFreeLabel(body.label ?? `${source.label}-insp`, takenLabels);
+      const saveAsName = `${source.setupPath?.split(/[\\/]/).pop()?.replace(/\.json$/i, "") ?? "setup"}-${label}`;
+
+      let written;
+      try {
+        written = writeSetupFile(guarded.baseDir, guarded.realPath, guarded.setup, saveAsName, false);
+      } catch (err: any) {
+        return c.json({ error: `Write failed: ${err.message}` }, 500);
+      }
+
+      const version = await nextVersion(id);
+      const testId = await createTuningTest({
+        tuningSessionId: id,
+        version,
+        label,
+        setupPath: written.path,
+        parentTestId: null,
+        engine: "branch",
+      });
+
+      const prevHeadTestId = session.headTestId ?? null;
+      const setHead = body.setHead ?? true;
+      if (setHead) await setSessionHead(id, testId);
+
+      try {
+        await recordAction(id, "inspire", { testId, prevHeadTestId: setHead ? prevHeadTestId : null });
+      } catch (err: any) {
+        console.error("[tune] Failed to log inspire action:", err?.message);
+      }
+
+      try {
+        await saveChatMessages(tuneSessionThreadId(id), [
+          { role: "user", markdown: `Use **${source.label}** as inspiration for a new base.` },
+          {
+            role: "assistant",
+            markdown: `Started a new base **${label}** (v${version}) inspired by **${source.label}** — I'll work from here.`,
+          },
+        ]);
+      } catch (err: any) {
+        console.error("[tune] Failed to post inspire note:", err?.message);
+      }
+
+      const created = (await listTuningTests(id)).find((t) => t.id === testId);
+      return c.json(created, 201);
+    }
+  )
+
   // POST /api/tuning-sessions/:id/head — check out a setup version as the
   // session's current head. Posts a deterministic canned ack into the chat
   // thread (best-effort) so the Setup Engineer agent keeps context on reload.
@@ -950,7 +1355,15 @@ export const tuneRoutes = new Hono()
       return c.json({ error: "Version not found in this session" }, 404);
     }
 
+    const session = await getTuningSession(id);
+    const prevHeadTestId = session?.headTestId ?? null;
     await setSessionHead(id, testId);
+
+    try {
+      await recordAction(id, "set-head", { prevHeadTestId });
+    } catch (err: any) {
+      console.error("[tune] Failed to log set-head action:", err?.message);
+    }
 
     // Record the checkout as its own user action + deterministic assistant ack
     // (a distinct pair, not merged into the prior turn) so the chat reads as a
@@ -969,6 +1382,50 @@ export const tuneRoutes = new Hono()
 
     return c.json({ ok: true, headTestId: testId, label: test.label });
   })
+
+  // GET /api/tuning-sessions/:id/actions — session action log, newest-first
+  // (design Phase 9), for the History panel. Tiny rows (refs only), so the
+  // whole session depth is returned unpaginated.
+  .get("/api/tuning-sessions/:id/actions",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+      return c.json(await listActions(id));
+    }
+  )
+
+  // POST /api/tuning-sessions/:id/undo — reverse the newest not-yet-undone
+  // action (design Phase 9). Applies the kind-specific inverse via
+  // `undoLastAction` (shared with the AI's `undo_last_action` tool),
+  // idempotent — a second call with nothing left pending is a no-op ok:true.
+  .post("/api/tuning-sessions/:id/undo",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+
+      const result = await undoLastAction(id);
+
+      if (result.undone) {
+        try {
+          await saveChatMessages(tuneSessionThreadId(id), [
+            { role: "user", markdown: "Undo the last action." },
+            {
+              role: "assistant",
+              markdown: result.warning ? `Undone — ${result.warning}` : `Undone (${result.kind}).`,
+            },
+          ]);
+        } catch (err: any) {
+          console.error("[tune] Failed to post undo note:", err?.message);
+        }
+      }
+
+      return c.json(result);
+    }
+  )
 
   // GET /api/tuning-sessions/:id/lap-metrics — per-lap fuel/tyre metrics for the
   // laps this session owns (plan §2, Phase C). Derived server-side from each
@@ -1065,8 +1522,8 @@ export const tuneRoutes = new Hono()
       if (!session) return c.json({ error: "Tuning session not found" }, 404);
 
       const gameId = session.gameId as GameId;
-      if (gameId !== "acc" && gameId !== "ac-evo") {
-        return c.json({ error: "The setup engineer only supports ACC and AC-EVO" }, 400);
+      if (gameId !== "acc" && gameId !== "ac-evo" && gameId !== "f1-2025") {
+        return c.json({ error: "The setup engineer only supports ACC, AC-EVO and F1 2025" }, 400);
       }
 
       // The Setup Engineer is now a shared singleton agent; per-session context
@@ -1180,13 +1637,26 @@ ${gatheredContext}` : sessionSystemPrompt }, ...messages],
   )
 
   // GET /api/tuning-sessions/:id — one session.
+  // Ships a computed `lapTarget` (Phase 5, track-length-aware stint nudge):
+  // advisory-only "how many laps is a full stint here", derived from the
+  // session's best known lap time, falling back to track length / avg speed,
+  // falling back to a fixed default. Decoupled from the confidence model.
   .get("/api/tuning-sessions/:id",
     zValidator("param", IdParamSchema),
     async (c) => {
       const { id } = c.req.valid("param");
       const row = await getTuningSession(id);
       if (!row) return c.json({ error: "Tuning session not found" }, 404);
-      return c.json(row);
+
+      const sessionLaps = await getLapsForTuningSession(id);
+      const bestLap = sessionLaps.reduce<number | null>((best, l) => {
+        if (!l.isValid || l.lapTime <= 0) return best;
+        return best == null || l.lapTime < best ? l.lapTime : best;
+      }, null);
+      const trackLengthM = row.trackOrdinal != null ? getTrackLengthMeters(row.trackOrdinal, row.gameId) : null;
+      const lapTarget = suggestLapTarget(bestLap, trackLengthM);
+
+      return c.json({ ...row, lapTarget });
     }
   )
 
@@ -1196,8 +1666,29 @@ ${gatheredContext}` : sessionSystemPrompt }, ...messages],
     zValidator("json", UpdateTuningSessionSchema),
     async (c) => {
       const { id } = c.req.valid("param");
-      const updated = await updateTuningSession(id, c.req.valid("json"));
+      const body = c.req.valid("json");
+      const before = await getTuningSession(id);
+      if (!before) return c.json({ error: "Tuning session not found" }, 404);
+
+      const updated = await updateTuningSession(id, body);
       if (!updated) return c.json({ error: "Tuning session not found" }, 404);
+
+      // Only record the prior value of fields this PATCH actually touched, so
+      // undo restores exactly what changed rather than clobbering untouched
+      // fields with a stale snapshot.
+      const inverse: Record<string, unknown> = {};
+      if (body.name !== undefined) inverse.name = before.name;
+      if (body.notes !== undefined) inverse.notes = before.notes;
+      if (body.baseSetupPath !== undefined) inverse.baseSetupPath = before.baseSetupPath;
+      if (body.status !== undefined) inverse.status = before.status;
+      if (Object.keys(inverse).length > 0) {
+        try {
+          await recordAction(id, "rename-note", inverse);
+        } catch (err: any) {
+          console.error("[tune] Failed to log rename-note action:", err?.message);
+        }
+      }
+
       return c.json(await getTuningSession(id));
     }
   )

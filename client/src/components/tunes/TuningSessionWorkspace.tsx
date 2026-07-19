@@ -6,7 +6,10 @@ import { type TuningLapMetric, type TuningTest, useLaps, useResolveNames, useTun
 import { formatLapTime } from "../../lib/format";
 import { client } from "../../lib/rpc";
 import { useTelemetryStore } from "../../stores/telemetry";
+import { AddBaseModal } from "./AddBaseModal";
 import { BackButton } from "./BackButton";
+import { HistoryPanel } from "./HistoryPanel";
+import { ImportLapsModal } from "./ImportLapsModal";
 import { LiveTestDashboard } from "./LiveTestDashboard";
 import { TuneSetupChat } from "./TuneSetupChat";
 import { VersionGraph } from "./VersionGraph";
@@ -29,6 +32,9 @@ import { VersionGraph } from "./VersionGraph";
  */
 export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "acc" | "ac-evo"; tuningSessionId: number }) {
   const navigate = useNavigate();
+  const [showAddBase, setShowAddBase] = useState(false);
+  const [showImportLaps, setShowImportLaps] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const { data: session, isLoading: loadingSession } = useTuningSession(tuningSessionId);
   const { data: tests = [] } = useTuningSessionTests(tuningSessionId);
   const { data: lapMetrics = [] } = useTuningSessionLapMetrics(tuningSessionId);
@@ -131,6 +137,9 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
   // recorded laps is Phase C).
   const liveFuelPerLap = livePacket?.acc?.fuelPerLap || null;
   const lapsDone = liveSessionLaps.length;
+  // Phase 5 — track-length-aware stint nudge, advisory only. Falls back to 3
+  // (the old hardcoded target) until the session payload lands.
+  const lapTarget = session?.lapTarget ?? 3;
 
   const [testPhase, setTestPhase] = useState<"idle" | "live">("idle");
 
@@ -188,7 +197,45 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
                   <StatCard label="Fuel/lap" value={avgFuel != null ? `${avgFuel.toFixed(2)} L` : "—"} />
                   {/* Tyre deg card omitted — ACC/AC-Evo expose no genuine tyre-wear channel. */}
                 </div>
+                <div className="flex items-center justify-between px-2 pt-2 flex-wrap gap-1">
+                  <span className="text-[10px] uppercase tracking-wider text-app-text-muted">Version tree</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setTestPhase("live")}
+                      className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim"
+                    >
+                      Run live test
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowImportLaps(true)}
+                      className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim"
+                    >
+                      Add laps from history
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddBase(true)}
+                      className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim"
+                    >
+                      + Add base
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowHistory(true)}
+                      className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim"
+                    >
+                      History
+                    </button>
+                  </div>
+                </div>
                 <VersionGraph sessionId={session.id} tests={tests} headTestId={session?.headTestId ?? null} lapsByTest={lapsByTest} metricsById={metricsById} />
+                {showAddBase && <AddBaseModal gameId={gameId} sessionId={session.id} onClose={() => setShowAddBase(false)} />}
+                {showImportLaps && (
+                  <ImportLapsModal gameId={gameId} sessionId={session.id} tests={tests} onClose={() => setShowImportLaps(false)} />
+                )}
+                {showHistory && <HistoryPanel sessionId={session.id} onClose={() => setShowHistory(false)} />}
               </>
             ) : (
               <div className="h-full flex flex-col min-h-0">
@@ -197,8 +244,8 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
                 <div className="shrink-0 flex items-center justify-between gap-3 flex-wrap px-3 py-2 border-b border-app-border">
                   <div className="flex items-baseline gap-2">
                     <span className="text-[10px] uppercase tracking-wider text-app-text-muted">Current stint</span>
-                    <span className={`text-xs ${lapsDone < 3 ? "text-amber-400" : "text-app-text-dim"}`}>
-                      {lapsDone === 0 ? "No live laps yet — run 3+ clean laps for a reliable recommendation." : lapsDone < 3 ? `${lapsDone} / 3 laps` : `${lapsDone} laps`}
+                    <span className={`text-xs ${lapsDone < lapTarget ? "text-amber-400" : "text-app-text-dim"}`}>
+                      {lapsDone === 0 ? `No live laps yet — run ${lapTarget} clean laps this run for a reliable recommendation.` : lapsDone < lapTarget ? `${lapsDone} / ${lapTarget} laps this run` : `${lapsDone} laps`}
                     </span>
                   </div>
                   <div className="flex items-center gap-4">

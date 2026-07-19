@@ -1,6 +1,7 @@
 import { type DragEvent, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { SearchSelect } from "../ui/SearchSelect";
+import { SetupFilePicker } from "./SetupFilePicker";
 import {
   type TuningSession,
   useCreateTuningSession,
@@ -153,8 +154,6 @@ function NewTuningSessionModal({
   const files = setupFiles?.files ?? [];
   const noFiles = !loadingFiles && files.length === 0;
 
-  // Distinct cars; tracks for the chosen car; files for the chosen car+track.
-  const cars = useMemo(() => [...new Set(files.map((f) => f.carModel))].sort(), [files]);
   // Place-into-Setups track options: the full canonical ACC track roster (so the
   // driver can place a setup for any track, not only ones they already have a
   // folder for) unioned with whatever folders they do have (catches AC-Evo and
@@ -165,14 +164,6 @@ function NewTuningSessionModal({
     const canonical = setupFiles?.tracks ?? [];
     return [...new Set([...canonical, ...files.map((f) => f.trackName)])].sort();
   }, [setupFiles, files]);
-  const tracks = useMemo(
-    () => [...new Set(files.filter((f) => f.carModel === car).map((f) => f.trackName))].sort(),
-    [files, car],
-  );
-  const carTrackFiles = useMemo(
-    () => files.filter((f) => f.carModel === car && f.trackName === track),
-    [files, car, track],
-  );
 
   // Default the name from the chosen car+track so the driver can just click Create.
   const effectiveName = name.trim() || (car && track ? `${car} @ ${track}` : "");
@@ -335,41 +326,11 @@ function NewTuningSessionModal({
         )}
 
         {/* Cascading searchable pickers */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <label className="flex flex-col gap-1">
-            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Car</span>
-            <SearchSelect
-              value={car}
-              onChange={(v) => { setCar(v); setTrack(""); setBaseSetupPath(""); }}
-              options={cars.map((c) => ({ value: c, label: c }))}
-              placeholder={loadingFiles ? "Loading…" : noFiles ? "No saved setups" : "Search cars…"}
-              disabled={loadingFiles || noFiles}
-              focusColor="purple-500"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Track</span>
-            <SearchSelect
-              value={track}
-              onChange={(v) => { setTrack(v); setBaseSetupPath(""); }}
-              options={tracks.map((t) => ({ value: t, label: t }))}
-              placeholder={!car ? "Pick a car first" : "Search tracks…"}
-              disabled={!car}
-              focusColor="purple-500"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Base setup</span>
-            <SearchSelect
-              value={baseSetupPath}
-              onChange={(v) => setBaseSetupPath(v)}
-              options={carTrackFiles.map((f) => ({ value: f.absolutePath, label: f.fileName }))}
-              placeholder={!car || !track ? "Pick car + track" : "Search setups…"}
-              disabled={!car || !track}
-              focusColor="purple-500"
-            />
-          </label>
-        </div>
+        <SetupFilePicker
+          gameId={gameId}
+          value={{ car, track, setupPath: baseSetupPath }}
+          onChange={(v) => { setCar(v.car); setTrack(v.track); setBaseSetupPath(v.setupPath); }}
+        />
 
         <label className="flex flex-col gap-1">
           <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Session name</span>

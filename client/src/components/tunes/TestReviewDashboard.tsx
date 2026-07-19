@@ -1,6 +1,6 @@
 import type { LapMeta, TuneIssue } from "@shared/types";
 import { useMemo, useState } from "react";
-import { type TuningLapMetric, useLapIssues, useLapTelemetry } from "../../hooks/queries";
+import { type TuningLapMetric, useLapIssues, useLapTelemetry, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { SectorDetailView } from "./SectorDetailView";
 
@@ -8,6 +8,8 @@ interface TestReviewDashboardProps {
   gameId: "acc" | "ac-evo";
   laps: LapMeta[];
   metricsById?: Map<number, TuningLapMetric>;
+  /** Session to invalidate after toggling exclusion (design §Phase 7). */
+  tuningSessionId?: number | null;
 }
 
 /**
@@ -16,7 +18,7 @@ interface TestReviewDashboardProps {
  * Per-lap tabs reuse SectorDetailView exactly as TuneReviewDashboard.tsx
  * composes it for a single lap (sector map + hover-synced corner bars).
  */
-export function TestReviewDashboard({ gameId: _gameId, laps, metricsById }: TestReviewDashboardProps) {
+export function TestReviewDashboard({ gameId: _gameId, laps, metricsById, tuningSessionId }: TestReviewDashboardProps) {
   const sortedLaps = useMemo(() => [...laps].sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
   const [tab, setTab] = useState<"overview" | number>("overview");
 
@@ -34,7 +36,11 @@ export function TestReviewDashboard({ gameId: _gameId, laps, metricsById }: Test
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {tab === "overview" ? <OverviewTab laps={sortedLaps} metricsById={metricsById} /> : <LapTab lap={sortedLaps.find((l) => l.id === tab) ?? null} />}
+        {tab === "overview" ? (
+          <OverviewTab laps={sortedLaps} metricsById={metricsById} tuningSessionId={tuningSessionId} />
+        ) : (
+          <LapTab lap={sortedLaps.find((l) => l.id === tab) ?? null} />
+        )}
       </div>
     </div>
   );
@@ -54,7 +60,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   );
 }
 
-function OverviewTab({ laps, metricsById }: { laps: LapMeta[]; metricsById?: Map<number, TuningLapMetric> }) {
+function OverviewTab({ laps, metricsById, tuningSessionId }: { laps: LapMeta[]; metricsById?: Map<number, TuningLapMetric>; tuningSessionId?: number | null }) {
   const validLaps = useMemo(() => laps.filter((l) => l.isValid && l.lapTime > 0), [laps]);
   const lapCount = laps.length;
   const bestLap = validLaps.length ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
@@ -66,6 +72,8 @@ function OverviewTab({ laps, metricsById }: { laps: LapMeta[]; metricsById?: Map
   const wearVals = laps.map((l) => metricsById?.get(l.id)?.tyreWear).filter((v): v is number => v != null);
   const avgWorstWear = wearVals.length ? wearVals.reduce((s, v) => s + v, 0) / wearVals.length : null;
 
+  const setExcluded = useSetLapExcluded();
+
   return (
     <div className="p-3">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -76,7 +84,33 @@ function OverviewTab({ laps, metricsById }: { laps: LapMeta[]; metricsById?: Map
         <StatCard label="Fuel/lap" value={avgFuel != null ? `${avgFuel.toFixed(2)}L` : "—"} />
         <StatCard label="Worst wear" value={avgWorstWear != null ? `${avgWorstWear.toFixed(0)}%` : "—"} />
       </div>
-      {lapCount === 0 && <div className="text-xs text-app-text-dim mt-3">No laps were recorded during this test.</div>}
+      {lapCount === 0 ? (
+        <div className="text-xs text-app-text-dim mt-3">No laps were recorded during this test.</div>
+      ) : (
+        <ul className="mt-3 divide-y divide-app-border/30 border border-app-border/40 rounded-md overflow-hidden">
+          {laps.map((l) => {
+            const excluded = l.tuningExcluded === true;
+            return (
+              <li key={l.id} className="flex items-center gap-2 px-3 py-1.5 text-xs">
+                <span className={`font-mono ${excluded ? "line-through decoration-app-text-dim/60 opacity-60" : "text-app-text/90"}`}>Lap {l.lapNumber}</span>
+                <span className={`font-mono tabular-nums text-app-text-dim ${excluded ? "line-through decoration-app-text-dim/60 opacity-60" : ""}`}>{formatLapTime(l.lapTime)}</span>
+                {excluded && <span className="text-[10px] uppercase tracking-wider text-app-text-dim border border-app-border rounded px-1 py-0.5">Excluded</span>}
+                <button
+                  type="button"
+                  onClick={() => setExcluded.mutate({ lapId: l.id, excluded: !excluded, tuningSessionId })}
+                  disabled={setExcluded.isPending}
+                  title={excluded ? "Include this lap in the tuning aggregate again" : "Exclude this lap from the tuning aggregate (blunder, off-track, spin)"}
+                  className={`ml-auto text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border disabled:opacity-50 disabled:pointer-events-none ${
+                    excluded ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"
+                  }`}
+                >
+                  {excluded ? "Include" : "Exclude"}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

@@ -111,6 +111,39 @@ const RULES: Record<string, Record<string, FieldDef>> = {
     // a verified shape for these fields yet — add once confirmed against a
     // real snapshot (plan §2/§5).
   },
+  // F1 2025 — flat `F1CarSetup` value model (no nested paths, unlike ACC).
+  // Ranges are NOT invented: min/max below are the observed min/max of each
+  // field across all 24 track folders in the bundled community catalog
+  // (`shared/tunes/f1-25/f1laps/*/setups.json`, read via `loadCatalogEntries()`
+  // / `TRACK_CATALOG` in `server/ai/f1-setup-catalog.ts`), computed by
+  // aggregating every `CatalogEntry.setup` across the bundle. `engineBraking`
+  // and `fuelLoad` are deliberately omitted — the catalog carries no data for
+  // either field, so no non-fabricated range exists for them. `Brake Bias`
+  // targets the packet's `brakeBias` path but its range is sourced from the
+  // catalog's `frontBrakeBias` field (packet has one combined bias value,
+  // catalog stores it as a front-axle setting — same 50–60 scale).
+  "f1-2025": {
+    "Front Wing": { paths: ["frontWing"], step: CLICK_STEP, min: 0, max: 50 },
+    "Rear Wing": { paths: ["rearWing"], step: CLICK_STEP, min: 0, max: 50 },
+    "On-Throttle Diff": { paths: ["onThrottle"], step: CLICK_STEP, min: 10, max: 100 },
+    "Off-Throttle Diff": { paths: ["offThrottle"], step: CLICK_STEP, min: 10, max: 100 },
+    "Front Camber": { paths: ["frontCamber"], step: { small: 0.1, medium: 0.2, large: 0.4 }, min: -3.5, max: -2.5, integer: false },
+    "Rear Camber": { paths: ["rearCamber"], step: { small: 0.1, medium: 0.2, large: 0.4 }, min: -2, max: -1, integer: false },
+    "Front Toe": { paths: ["frontToe"], step: { small: 0.02, medium: 0.05, large: 0.1 }, min: 0, max: 0.2, integer: false },
+    "Rear Toe": { paths: ["rearToe"], step: { small: 0.02, medium: 0.05, large: 0.1 }, min: 0.1, max: 0.25, integer: false },
+    "Front Suspension": { paths: ["frontSuspension"], step: CLICK_STEP, min: 1, max: 41 },
+    "Rear Suspension": { paths: ["rearSuspension"], step: CLICK_STEP, min: 1, max: 41 },
+    "Front Anti-Roll Bar": { paths: ["frontAntiRollBar"], step: CLICK_STEP, min: 1, max: 21 },
+    "Rear Anti-Roll Bar": { paths: ["rearAntiRollBar"], step: CLICK_STEP, min: 1, max: 21 },
+    "Front Ride Height": { paths: ["frontRideHeight"], step: CLICK_STEP, min: 15, max: 34 },
+    "Rear Ride Height": { paths: ["rearRideHeight"], step: CLICK_STEP, min: 40, max: 60 },
+    "Brake Pressure": { paths: ["brakePressure"], step: CLICK_STEP, min: 90, max: 100 },
+    "Brake Bias": { paths: ["brakeBias"], step: CLICK_STEP, min: 50, max: 60 },
+    "Front Left Tyre Pressure": { paths: ["frontLeftTyrePressure"], step: { small: 0.1, medium: 0.3, large: 0.5 }, min: 22.5, max: 29.5, integer: false },
+    "Front Right Tyre Pressure": { paths: ["frontRightTyrePressure"], step: { small: 0.1, medium: 0.3, large: 0.5 }, min: 22.5, max: 29.5, integer: false },
+    "Rear Left Tyre Pressure": { paths: ["rearLeftTyrePressure"], step: { small: 0.1, medium: 0.3, large: 0.5 }, min: 20.5, max: 26.5, integer: false },
+    "Rear Right Tyre Pressure": { paths: ["rearRightTyrePressure"], step: { small: 0.1, medium: 0.3, large: 0.5 }, min: 20.5, max: 26.5, integer: false },
+  },
 };
 
 function tableFor(gameId: GameId): Record<string, FieldDef> | null {

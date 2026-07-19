@@ -1,6 +1,14 @@
 import type { LapMeta } from "@shared/types";
 import { useMemo, useState } from "react";
-import { type TuningLapMetric, type TuningTest, useSetHead } from "../../hooks/queries";
+import {
+  type TuningLapMetric,
+  type TuningTest,
+  useDeletedTuningTests,
+  useDeleteVersion,
+  useInspireVersion,
+  useRestoreVersion,
+  useSetHead,
+} from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { AppliedChangesList, LapBreakdown } from "./tune-version-shared";
 
@@ -83,7 +91,12 @@ function buildForest(tests: TuningTest[]): { roots: TuningTest[]; childrenOf: Ma
 
 export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metricsById }: VersionGraphProps) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [trashOpen, setTrashOpen] = useState(false);
   const setHead = useSetHead();
+  const inspire = useInspireVersion();
+  const deleteVersion = useDeleteVersion();
+  const restoreVersion = useRestoreVersion();
+  const deletedTests = useDeletedTuningTests(sessionId, trashOpen);
   const { roots, childrenOf } = useMemo(() => buildForest(tests), [tests]);
 
   const toggle = (id: number) =>
@@ -151,6 +164,32 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
                   Checkout
                 </button>
               )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  inspire.mutate({ sessionId, sourceTestId: t.id });
+                }}
+                disabled={inspire.isPending}
+                title="Copy this version's setup into a fresh, independent base"
+                className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim disabled:opacity-50 disabled:pointer-events-none shrink-0"
+              >
+                Use as inspiration
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const extra = hasChildren ? " and its whole branch" : "";
+                  if (!window.confirm(`Delete v${t.version} "${t.label}"${extra}? This can be restored from the trash.`)) return;
+                  deleteVersion.mutate({ sessionId, testId: t.id });
+                }}
+                disabled={deleteVersion.isPending}
+                title={hasChildren ? "Trash this version and its whole branch (reversible)" : "Trash this version (reversible)"}
+                className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-red-400 hover:border-red-400/40 disabled:opacity-50 disabled:pointer-events-none shrink-0"
+              >
+                Delete branch
+              </button>
               <span className="ml-auto flex items-center gap-3 shrink-0 text-[11px] tabular-nums">
                 <RowStat label="laps" value={String(laps.length)} />
                 <RowStat label="avg" value={avgT != null ? formatLapTime(avgT) : "—"} />
@@ -163,7 +202,7 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
             {isOpen && (
               <div className="ml-3 border border-app-border/60 rounded-md overflow-hidden bg-app-surface/40">
                 <AppliedChangesList json={t.appliedChanges} comment={t.driverComment} />
-                <LapBreakdown laps={laps} bestT={bestT} metricsById={metricsById} />
+                <LapBreakdown laps={laps} bestT={bestT} metricsById={metricsById} tuningSessionId={sessionId} />
               </div>
             )}
           </div>
@@ -173,5 +212,41 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
     );
   };
 
-  return <div className="py-1">{roots.map((t, i) => renderNode(t, 0, i === roots.length - 1))}</div>;
+  return (
+    <div className="py-1">
+      {roots.map((t, i) => renderNode(t, 0, i === roots.length - 1))}
+      <div className="mt-2 border-t border-app-border/60 pt-1">
+        <button
+          type="button"
+          onClick={() => setTrashOpen((v) => !v)}
+          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left hover:bg-app-surface-alt/40"
+        >
+          <span className="text-app-text-dim text-xs w-3">{trashOpen ? "▾" : "▸"}</span>
+          <span className="text-xs text-app-text-muted">Trash{deletedTests.data?.length ? ` (${deletedTests.data.length})` : ""}</span>
+        </button>
+        {trashOpen && (
+          <div className="ml-3 pb-1">
+            {deletedTests.isLoading && <div className="px-2 py-1 text-[11px] text-app-text-dim">Loading…</div>}
+            {!deletedTests.isLoading && (deletedTests.data?.length ?? 0) === 0 && (
+              <div className="px-2 py-1 text-[11px] text-app-text-dim">Nothing in the trash.</div>
+            )}
+            {deletedTests.data?.map((t) => (
+              <div key={t.id} className="flex items-center gap-2 px-2 py-1 text-xs">
+                <span className="font-mono text-app-text-dim">v{t.version}</span>
+                <span className="text-app-text-muted truncate">{t.label}</span>
+                <button
+                  type="button"
+                  onClick={() => restoreVersion.mutate({ sessionId, testId: t.id })}
+                  disabled={restoreVersion.isPending}
+                  className="ml-auto normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                >
+                  Restore
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

@@ -54,6 +54,7 @@ DECISION RULES
 - Use \`preview_change\` to state the REAL resulting value of a single candidate change before the driver commits — never state a specific number without calling it first. It's read-only, call it as often as you like while discussing options.
 - Call \`apply_changes\` as soon as the driver clearly greenlights a change you've already named — "apply that", "yes do it", "let's try it", "change it", "go ahead", or a plain "yes" right after you proposed a specific change ALL mean apply NOW. Do NOT preview again and do NOT ask a second "shall I apply?" once they've said yes — that double-confirm is a bug. Pass the COMPLETE set of changes discussed in one call (there is no accumulator — anything left out is not applied). Only hold off if you genuinely haven't yet proposed a concrete change. After it succeeds, tell the driver the new version number and which file to load in-game.
 - Call \`branch_from_version\` when the driver wants to go back to an earlier version and try a different direction from there (e.g. "let's go back to v1 and try something else") — it does not itself change any knobs, it just moves the point that the next \`apply_changes\` will branch from.
+- Call \`undo_last_action\` when the driver says "undo that" / "undo the last change" / "go back" without naming a version — it reverses exactly the most recent action (yours or theirs), once per call. If it comes back with a warning (the undone version already had laps or branches on it), relay that warning plainly.
 
 HOW TO ANSWER
 - Be decisive. When the driver describes a symptom, give the recommendation directly: name the change as a DIRECTION and a relative amount (soften/stiffen, add/reduce, raise/lower, small/medium/large) and say WHY it helps the balance.
@@ -79,6 +80,8 @@ export const setupEngineerAgent = new Agent({
     apply_changes: setupEngineerTools.applyChangesTool,
     branch_from_version: setupEngineerTools.branchFromVersionTool,
     set_lap_excluded: setupEngineerTools.setLapExcludedTool,
+    delete_version: setupEngineerTools.deleteVersionTool,
+    undo_last_action: setupEngineerTools.undoLastActionTool,
   },
   memory: getChatMemory(),
 });
