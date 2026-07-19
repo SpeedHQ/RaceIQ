@@ -3,30 +3,34 @@
  * Engineer.
  *
  * An official Mastra workflow that force-calls the read side of the engineer's
- * toolset (current setup, symptoms, track conditions, version history) up front,
- * every turn, instead of leaving it to the model to decide and to supply a
- * session id. The weak local chat models routinely skipped `get_track_conditions`
- * or fumbled the `sessionId` arg; running the reads as a workflow removes that
- * whole failure class and keeps the agent prompt static — the gathered context
- * is injected as data, so the model only has to reason and act.
+ * toolset (current setup, clean-lap evidence, track conditions, version
+ * history) up front, every turn, instead of leaving it to the model to decide
+ * and to supply a session id. The weak local chat models routinely skipped
+ * `get_track_conditions` or fumbled the `sessionId` arg; running the reads as
+ * a workflow removes that whole failure class and keeps the agent prompt
+ * static — the gathered context is injected as data, so the model only has to
+ * reason and act.
+ *
+ * Phase 3 (docs/setup-engineer-flow-design.md): the symptom/track-conditions
+ * single-lap reads are replaced by ONE `loadCleanLapAggregate` call, which
+ * reduces the session/branch's laps to a statistically clean pool (spread,
+ * confidence, per-corner consistency) instead of trusting the fastest lap in
+ * isolation. The lap-by-lap breakdown is surfaced too, so the model can name a
+ * specific blunder lap and offer to exclude it via `set_lap_excluded`.
  *
  * The route runs this via `createRun()` → `start({ inputData, requestContext })`,
  * so the step is captured by Mastra observability (Studio). Its `context` output
  * is appended to the engineer's system message; the model then runs with only
- * the action tools (`preview_change` / `apply_changes` / `branch_from_version`)
- * plus `consult_lap_analyst`.
+ * the action tools (`preview_change` / `apply_changes` / `branch_from_version` /
+ * `set_lap_excluded`) plus `consult_lap_analyst` / `compare_lap_consistency`.
  */
 import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { z } from "zod";
 
 import { describeKnobs } from "../../server/ai/tune-rules";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
-import {
-  computeSessionSymptoms,
-  computeSessionTrackConditions,
-  formatTrackConditions,
-  loadActiveTuningContext,
-} from "../../server/ai/setup-engineer-context";
+import { formatTrackConditions, loadActiveTuningContext } from "../../server/ai/setup-engineer-context";
+import { loadCleanLapAggregate } from "../../server/ai/clean-lap-aggregate";
 import { listTuningTests } from "../../server/db/tuning-test-queries";
 
 const InputSchema = z.object({
@@ -59,18 +63,62 @@ const gatherPrereqs = createStep({
       sections.push(`--- CURRENT SETUP ---\n(unavailable: ${ctx.error})`);
     }
 
-    // Deterministic symptom report over the representative lap.
-    const symptoms = await computeSessionSymptoms(sessionId);
+    // Clean-lap evidence bundle: confidence, per-lap breakdown, per-corner
+    // consistency, aggregated symptoms, and track conditions — all reduced
+    // from the session/branch's statistically clean lap pool in one call.
+    const agg = await loadCleanLapAggregate(sessionId);
+    const { consistency } = agg;
+
+    const confidenceLines = [
+      `confidence: ${consistency.confidence.toUpperCase()}`,
+      `clean laps: ${consistency.cleanLapCount}`,
+      `best lap: ${consistency.bestLapSec != null ? `${consistency.bestLapSec.toFixed(3)}s` : "n/a"}`,
+      `spread: ${consistency.spreadSec != null ? `${consistency.spreadSec.toFixed(3)}s` : "n/a"}` +
+        (consistency.spreadPct != null ? ` (${(consistency.spreadPct * 100).toFixed(2)}%)` : ""),
+      `dropped outliers: ${consistency.droppedOutliers}`,
+      `fallback to single lap: ${agg.fallbackSingleLap}`,
+      `source: ${agg.sourceScope}`,
+    ];
+    if (agg.sourceScope === "session-baseline") {
+      confidenceLines.push("(session baseline pool — laps may mix setups; confidence capped at medium)");
+    }
+    if (agg.fallbackSingleLap) {
+      confidenceLines.push(
+        "(only <2 clean laps — reasoning from the single fastest lap; treat suggestions as low-confidence)",
+      );
+    }
+    sections.push(`--- CONFIDENCE ---\n${confidenceLines.join("\n")}`);
+
     sections.push(
-      "--- SYMPTOMS (deterministic, from the session's fastest lap) ---\n" +
-        (symptoms ? formatSymptoms(symptoms) : "No analysable lap yet — reason from the driver's description."),
+      "--- LAP BREAKDOWN ---\n" +
+        (agg.lapBreakdown.length
+          ? agg.lapBreakdown
+              .map((r) => `lap ${r.lapId}: ${r.lapTimeSec.toFixed(3)}s — ${r.reason}${r.imported ? " (imported)" : ""}`)
+              .join("\n")
+          : "No laps recorded for this session yet."),
     );
 
-    // Weather / track-surface conditions for the same lap.
-    const conditions = await computeSessionTrackConditions(sessionId);
+    sections.push(
+      "--- CONSISTENCY BY CORNER ---\n" +
+        (consistency.cornerConsistency
+          ? consistency.cornerConsistency
+              .map(
+                (c) =>
+                  `${c.corner}: line ±${c.lateralSpreadM.toFixed(2)}m, brakeVar ${c.brakeVar.toFixed(2)}, ` +
+                  `throttleVar ${c.throttleVar.toFixed(2)}${c.lowTrust ? " — LOW TRUST (driving inconsistency, not the car)" : ""}`,
+              )
+              .join("\n")
+          : "Not enough clean laps to measure line/input consistency."),
+    );
+
+    sections.push(
+      `--- SYMPTOMS (aggregate over ${consistency.cleanLapCount} clean laps) ---\n` +
+        (agg.symptoms ? formatSymptoms(agg.symptoms) : "No analysable lap yet — reason from the driver's description."),
+    );
+
     sections.push(
       "--- TRACK CONDITIONS ---\n" +
-        (conditions ? formatTrackConditions(conditions) : "No conditions data for this session yet."),
+        (agg.trackConditions ? formatTrackConditions(agg.trackConditions) : "No conditions data for this session yet."),
     );
 
     // What's already been tried this session, so the model doesn't repeat it.

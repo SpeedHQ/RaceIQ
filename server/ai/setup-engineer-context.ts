@@ -18,11 +18,17 @@ import { listTuningTests } from "../db/tuning-test-queries";
 import { detectCorners } from "../corner-detection";
 import { telemetryToSymptoms, type TuneSymptoms } from "./tune-symptoms";
 import { telemetryToTrackConditions, type TrackConditions } from "./track-conditions";
+import { loadCleanLapAggregate } from "./clean-lap-aggregate";
 
 // Re-exported so existing importers (the get_track_conditions tool) keep a
 // single import site; the implementation lives in track-conditions.ts.
 export { formatTrackConditions } from "./track-conditions";
 export type { TrackConditions } from "./track-conditions";
+
+// Re-exported so callers of the Phase 1 clean-lap aggregate have a single
+// import site alongside the rest of the setup-engineer context helpers; the
+// implementation lives in clean-lap-aggregate.ts.
+export type { Confidence, ConsistencyReport, LapBreakdownRow, CleanLapAggregate } from "./clean-lap-aggregate";
 
 export type AccGameId = "acc" | "ac-evo";
 
@@ -168,6 +174,15 @@ export async function computeSessionTrackConditions(
   const lap = await loadRepresentativeLap(tuningSessionId);
   if (!lap) return null;
   return telemetryToTrackConditions(lap.telemetry);
+}
+
+/**
+ * Phase 1 clean-lap aggregate for a tuning session (optionally scoped to one
+ * branch/test). Thin wrapper so setup-engineer callers import everything from
+ * this module instead of reaching into clean-lap-aggregate.ts directly.
+ */
+export async function computeSessionAggregate(sessionId: number, testId?: number) {
+  return loadCleanLapAggregate(sessionId, testId ? { testId } : undefined);
 }
 
 export type ActiveTuningContext =

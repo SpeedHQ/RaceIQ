@@ -188,6 +188,19 @@ export async function updateLapValidity(id: number, isValid: boolean, invalidRea
 }
 
 /**
+ * Flip a lap's `tuningExcluded` flag (Setup Engineer `set_lap_excluded` tool,
+ * docs/setup-engineer-flow-design.md §Phase 3). Returns the PRIOR value so the
+ * caller can log an inverse via `recordAction` for undo.
+ */
+export async function setLapTuningExcluded(lapId: number, excluded: boolean): Promise<{ ok: boolean; prev: boolean }> {
+  const row = await db.select({ tuningExcluded: laps.tuningExcluded }).from(laps).where(eq(laps.id, lapId)).get();
+  if (!row) return { ok: false, prev: false };
+  const prev = Boolean(row.tuningExcluded);
+  await db.update(laps).set({ tuningExcluded: excluded ? 1 : null }).where(eq(laps.id, lapId)).run();
+  return { ok: true, prev };
+}
+
+/**
  * Insert a completed lap with compressed telemetry.
  */
 export function insertLap(
@@ -407,6 +420,8 @@ export async function getLapsForTuningSession(tuningSessionId: number): Promise<
       s2Time: laps.s2Time,
       s3Time: laps.s3Time,
       tuningSessionId: laps.tuningSessionId,
+      tuningTestId: laps.tuningTestId,
+      tuningExcluded: laps.tuningExcluded,
       rawFile: sessions.rawFile,
     })
     .from(laps)
@@ -430,6 +445,67 @@ export async function getLapsForTuningSession(tuningSessionId: number): Promise<
     s2Time: r.s2Time ?? undefined,
     s3Time: r.s3Time ?? undefined,
     tuningSessionId: r.tuningSessionId ?? null,
+    tuningTestId: r.tuningTestId ?? null,
+    tuningExcluded: Boolean(r.tuningExcluded),
+    isLegacy: rawFile == null,
+  }));
+}
+
+/**
+ * Laps explicitly stamped to one tuning TEST (setup version) — the current
+ * run's pool (migration v29). Same shape as getLapsForTuningSession but scoped
+ * to a single branch node so the clean-lap aggregate reflects exactly the laps
+ * driven on that setup. Newest-first.
+ */
+export async function getLapMetaForTuningTest(tuningTestId: number): Promise<LapMeta[]> {
+  const rows = await db
+    .select({
+      id: laps.id,
+      sessionId: laps.sessionId,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
+      notes: laps.notes,
+      pi: laps.pi,
+      carSetup: laps.carSetup,
+      createdAt: laps.createdAt,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
+      gameId: sessions.gameId,
+      s1Time: laps.s1Time,
+      s2Time: laps.s2Time,
+      s3Time: laps.s3Time,
+      tuningSessionId: laps.tuningSessionId,
+      tuningTestId: laps.tuningTestId,
+      tuningExcluded: laps.tuningExcluded,
+      rawFile: sessions.rawFile,
+    })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(eq(laps.tuningTestId, tuningTestId))
+    .orderBy(desc(laps.id))
+    .all();
+
+  return rows.map(({ rawFile, ...r }) => ({
+    ...r,
+    isValid: Boolean(r.isValid),
+    invalidReason: r.invalidReason ?? undefined,
+    pi: r.pi ?? 0,
+    carSetup: r.carSetup ?? undefined,
+    tuneId: r.tuneId ?? undefined,
+    tuneName: r.tuneName ?? undefined,
+    notes: r.notes ?? undefined,
+    gameId: r.gameId as GameId,
+    s1Time: r.s1Time ?? undefined,
+    s2Time: r.s2Time ?? undefined,
+    s3Time: r.s3Time ?? undefined,
+    tuningSessionId: r.tuningSessionId ?? null,
+    tuningTestId: r.tuningTestId ?? null,
+    tuningExcluded: Boolean(r.tuningExcluded),
     isLegacy: rawFile == null,
   }));
 }

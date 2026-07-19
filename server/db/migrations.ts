@@ -453,4 +453,32 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_laps_tuning_test ON laps(tuning_test_id)`,
     ],
   },
+
+  // ── v30: Setup Engineer flow — exclusions, F1 snapshot, action log ─────────
+  // Three additive changes for the solidified tuning-session flow
+  // (docs/setup-engineer-flow-design.md §Phase 0):
+  //  • laps.tuning_excluded    — user flag dropping a lap from the tuning aggregate.
+  //  • tuning_tests.setup_snapshot — F1's captured/target F1CarSetup JSON (null for
+  //    file-based ACC/AC-Evo nodes, which keep using setup_path).
+  //  • tuning_actions          — append-only action log backing session undo. Stores
+  //    only small refs (JSON inverse payloads), no blobs. Soft ref to the session,
+  //    no FK (SQLite can't ALTER-ADD an inline REFERENCES; matches the tuning_session_id
+  //    precedent). tuning_tests.status gains a 'deleted' value — no DDL, text column.
+  {
+    version: 30,
+    name: "setup engineer flow: exclusions, F1 snapshot, action log",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN tuning_excluded INTEGER`,
+      `ALTER TABLE tuning_tests ADD COLUMN setup_snapshot TEXT`,
+      `CREATE TABLE IF NOT EXISTS tuning_actions (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        tuning_session_id INTEGER NOT NULL,
+        kind              TEXT NOT NULL,
+        inverse_payload   TEXT,
+        undone            INTEGER NOT NULL DEFAULT 0,
+        created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_tuning_actions_session ON tuning_actions(tuning_session_id)`,
+    ],
+  },
 ];

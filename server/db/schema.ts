@@ -112,6 +112,9 @@ export const laps = sqliteTable(
 			{ onDelete: "set null" },
 		),
 		tuningTestId: integer("tuning_test_id"),
+		// User flag (migration v30): 1 = manually excluded from the tuning
+		// aggregate (beyond the auto-outlier rule). Nullable; null/0 = included.
+		tuningExcluded: integer("tuning_excluded"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
@@ -280,11 +283,38 @@ export const tuningTests = sqliteTable(
 		appliedChanges: text("applied_changes"), // JSON: AppliedChange[]
 		driverComment: text("driver_comment"),
 		engine: text("engine"),
-		status: text("status").notNull().default("active"), // 'active' | 'archived'
+		// F1's captured base / target F1CarSetup JSON (migration v30). Null for
+		// file-based ACC/AC-Evo nodes, which keep using setupPath.
+		setupSnapshot: text("setup_snapshot"),
+		status: text("status").notNull().default("active"), // 'active' | 'archived' | 'deleted'
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
 		sessionIdx: index("idx_tuning_tests_session").on(table.tuningSessionId),
+	}),
+);
+
+/**
+ * Tuning actions — append-only action log backing session-scoped undo
+ * (migration v30, docs/setup-engineer-flow-design.md §Phase 9). Every mutating
+ * op (apply/branch/add-base/import/set-head/delete/restore/rename/exclude)
+ * records its inverse here. `inversePayload` holds only small JSON refs (created
+ * testId, prior head, prior lap stamps) — no blobs — so full-session depth is
+ * cheap. `tuningSessionId` is a soft ref (no FK; SQLite can't ALTER-ADD one,
+ * matching the laps.tuning_session_id precedent).
+ */
+export const tuningActions = sqliteTable(
+	"tuning_actions",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		tuningSessionId: integer("tuning_session_id").notNull(),
+		kind: text("kind").notNull(),
+		inversePayload: text("inverse_payload"), // JSON
+		undone: integer("undone", { mode: "boolean" }).notNull().default(false),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => ({
+		sessionIdx: index("idx_tuning_actions_session").on(table.tuningSessionId),
 	}),
 );
 

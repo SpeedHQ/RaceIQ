@@ -645,6 +645,12 @@ export interface LapMeta {
   // Explicit tuning-session link (migration v25). Stamped at insert from the
   // active tuning session; null for laps recorded outside a tuning session.
   tuningSessionId?: number | null;
+  // Explicit tuning-test (setup version) link (migration v29). Null when the lap
+  // predates head tracking or was driven with no head set.
+  tuningTestId?: number | null;
+  // User flag (migration v30): true = manually excluded from the tuning
+  // aggregate. Undefined/false = included.
+  tuningExcluded?: boolean;
   // True for laps recorded before raw telemetry storage — no charts available
   isLegacy?: boolean;
 }

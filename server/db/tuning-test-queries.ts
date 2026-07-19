@@ -12,6 +12,8 @@ export interface CreateTuningTestData {
   appliedChanges?: string | null;
   driverComment?: string | null;
   engine?: string | null;
+  /** F1's captured base / target F1CarSetup JSON; null for file-based nodes. */
+  setupSnapshot?: string | null;
 }
 
 export async function createTuningTest(data: CreateTuningTestData): Promise<number> {
@@ -26,6 +28,7 @@ export async function createTuningTest(data: CreateTuningTestData): Promise<numb
       appliedChanges: data.appliedChanges ?? null,
       driverComment: data.driverComment ?? null,
       engine: data.engine ?? null,
+      setupSnapshot: data.setupSnapshot ?? null,
     })
     .returning({ id: tuningTests.id })
     .get();

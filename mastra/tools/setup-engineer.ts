@@ -36,6 +36,9 @@ import {
 } from "../../server/ai/setup-engineer-context";
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
 import { consultLapAnalystForSession } from "../../server/ai/consult-lap-analyst";
+import { loadCleanLapAggregate } from "../../server/ai/clean-lap-aggregate";
+import { setLapTuningExcluded } from "../../server/db/queries";
+import { recordAction } from "../../server/db/tuning-action-queries";
 
 const DirectionEnum = z.enum(["increase", "decrease"]);
 const MagnitudeEnum = z.enum(["small", "medium", "large"]);
@@ -434,6 +437,78 @@ export function buildSetupEngineerTools() {
     },
   });
 
+  const setLapExcludedTool = createTool({
+    id: "set-lap-excluded",
+    description:
+      "Include or exclude a specific lap from the session's clean-lap evidence pool (CONFIDENCE / LAP " +
+      "BREAKDOWN / SYMPTOMS in the context block). Use when the driver agrees a named lap was a blunder " +
+      "(off-track, spin, big outlier) that shouldn't count as clean — or to bring a previously-excluded lap " +
+      "back in. Propose the exclusion by lap id first; only call this once the driver agrees.",
+    inputSchema: z.object({
+      lapId: z.number().int().positive(),
+      excluded: z.boolean(),
+    }),
+    outputSchema: z.object({
+      ok: z.boolean(),
+      error: z.string().optional(),
+      lapId: z.number().optional(),
+      excluded: z.boolean().optional(),
+    }),
+    execute: async (inputData, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      const { ok, prev } = await setLapTuningExcluded(inputData.lapId, inputData.excluded);
+      if (!ok) return { ok: false, error: `No lap ${inputData.lapId} found.` };
+
+      // Best-effort: an action-log write failure must not fail the tool — the
+      // lap flag is already committed.
+      try {
+        await recordAction(sessionId, "set-lap-excluded", { lapId: inputData.lapId, prevExcluded: prev });
+      } catch (err: any) {
+        console.error("[SetupEngineer] Failed to log set-lap-excluded action:", err?.message);
+      }
+
+      return { ok: true, lapId: inputData.lapId, excluded: inputData.excluded };
+    },
+  });
+
+  const compareLapConsistencyTool = createTool({
+    id: "compare-lap-consistency",
+    description:
+      "Read-only. Get the per-corner racing-line and input consistency across the session's clean lap pool — " +
+      "the same data summarised under CONSISTENCY BY CORNER in the context block, in full. Use for a deeper " +
+      "on-demand look when deciding whether a slow or twitchy corner is a genuine setup issue or a driving " +
+      "inconsistency (LOW TRUST corners point at the driver, not the car).",
+    inputSchema: NoInput,
+    outputSchema: z.object({
+      available: z.boolean(),
+      summary: z.string(),
+      corners: z.array(z.object({
+        corner: z.string(),
+        lateralSpreadM: z.number(),
+        brakeVar: z.number(),
+        throttleVar: z.number(),
+        lowTrust: z.boolean(),
+      })).default([]),
+    }),
+    execute: async (_input, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      const agg = await loadCleanLapAggregate(sessionId);
+      const corners = agg.consistency.cornerConsistency;
+      if (!corners) {
+        return {
+          available: false,
+          summary: "Not enough clean laps (need ≥ 2) to measure line/input consistency.",
+          corners: [],
+        };
+      }
+      const lowTrust = corners.filter((c) => c.lowTrust).map((c) => c.corner);
+      const summary = lowTrust.length
+        ? `Low-trust (driving-inconsistent) corners: ${lowTrust.join(", ")}. Other corners show a trustworthy line/input signal.`
+        : "All corners show a consistent line/inputs across the clean laps — deviations reflect the car, not the driver.";
+      return { available: true, summary, corners };
+    },
+  });
+
   return {
     getCurrentSetupTool,
     getSymptomsTool,
@@ -443,6 +518,8 @@ export function buildSetupEngineerTools() {
     previewChangeTool,
     applyChangesTool,
     branchFromVersionTool,
+    setLapExcludedTool,
+    compareLapConsistencyTool,
   };
 }
 
