@@ -7,7 +7,7 @@
  * instead of pulling in the whole Hono route file. Also used by tune-routes.ts
  * itself so the setup-file-guard logic has exactly one implementation.
  */
-import { existsSync, readFileSync, realpathSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync } from "fs";
 import { homedir } from "os";
 import { resolve, sep } from "path";
 
@@ -37,7 +37,15 @@ export async function getSetupsBaseDir(gameId: AccGameId): Promise<string | null
   for (const p of candidates) {
     if (existsSync(p)) return p;
   }
-  return null;
+
+  const primary = candidates[0];
+  try {
+    mkdirSync(primary, { recursive: true });
+    console.log(`[setup-engineer] Setups folder not found, created: ${primary}`);
+    return primary;
+  } catch {
+    return null;
+  }
 }
 
 export type GuardedSetup =

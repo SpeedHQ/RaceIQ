@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { TelemetryPacket } from "@shared/types";
 import { useTrackBoundaries, useTrackOutline } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
-import { Vitals2D } from "../telemetry/Vitals2D";
 import { CurrentLapTireStrip } from "./CurrentLapTireStrip";
 import { LiveIssuesFeed } from "./LiveIssuesFeed";
 import { LiveLapCards } from "./LiveLapCards";
@@ -47,7 +46,16 @@ function LiveTrackConditions({ packet }: { packet: TelemetryPacket | undefined }
  * clicked "Start Test" in TuningSessionWorkspace; that parent owns the
  * Start/End Test buttons.
  */
-export function LiveTestDashboard({ gameId, trackOrdinal }: { gameId: "acc" | "ac-evo"; trackOrdinal: number | null }) {
+export function LiveTestDashboard({
+  gameId,
+  trackOrdinal,
+  initialTrace,
+}: {
+  gameId: "acc" | "ac-evo";
+  trackOrdinal: number | null;
+  /** Test/story-only: pre-seed the live trace so it renders instantly without replaying packets. */
+  initialTrace?: TelemetryPacket[];
+}) {
   const packet = useTelemetryStore((s) => s.packet);
   const rawPacket = useTelemetryStore((s) => s.rawPacket);
   const sessionLaps = useTelemetryStore((s) => s.sessionLaps);
@@ -62,7 +70,7 @@ export function LiveTestDashboard({ gameId, trackOrdinal }: { gameId: "acc" | "a
 
   // Live driving line for the current in-progress lap: append each new packet,
   // reset when a new lap starts. Capped defensively for very long laps.
-  const [liveTrace, setLiveTrace] = useState<TelemetryPacket[]>([]);
+  const [liveTrace, setLiveTrace] = useState<TelemetryPacket[]>(() => initialTrace ?? []);
   const lastRawRef = useRef<TelemetryPacket | null>(null);
   useEffect(() => {
     if (!rawPacket) return;
@@ -97,7 +105,7 @@ export function LiveTestDashboard({ gameId, trackOrdinal }: { gameId: "acc" | "a
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Top row: live track position + car vitals + lap info */}
-      <div className="shrink-0 grid grid-cols-1 lg:grid-cols-[1.4fr_1.2fr_1.5fr_1.3fr] border-b border-app-border">
+      <div className="shrink-0 grid grid-cols-1 lg:grid-cols-[1.8fr_1.5fr_1.3fr] border-b border-app-border">
         <div className="lg:border-r border-app-border flex flex-col">
           <div className="px-3 pt-2 pb-1 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Track Position</div>
           <div className="relative" style={{ height: 360 }}>
@@ -123,13 +131,9 @@ export function LiveTestDashboard({ gameId, trackOrdinal }: { gameId: "acc" | "a
             <LiveTrackConditions packet={liveTrace[liveTrace.length - 1]} />
           </div>
         </div>
-        <div className="flex flex-col gap-2 overflow-y-auto lg:border-r border-app-border">
-          <div className="px-3 pt-2 pb-1 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Car Vitals</div>
-          <Vitals2D packet={rawPacket ?? null} />
-        </div>
         <div className="overflow-y-auto lg:border-r border-app-border">
           <div className="px-3 pt-2 pb-1 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Live Timing</div>
-          <LiveLapInfo sectors={sectors} currentLap={packet?.CurrentLap ?? null} />
+          <LiveLapInfo sectors={sectors} currentLap={packet?.CurrentLap ?? null} totalLaps={sessionLaps.length} />
         </div>
         <div className="h-full min-h-0">
           <LiveIssuesFeed />

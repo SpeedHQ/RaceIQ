@@ -8,7 +8,6 @@ interface TestReviewDashboardProps {
   gameId: "acc" | "ac-evo";
   laps: LapMeta[];
   metricsById?: Map<number, TuningLapMetric>;
-  onNewTest: () => void;
 }
 
 /**
@@ -17,7 +16,7 @@ interface TestReviewDashboardProps {
  * Per-lap tabs reuse SectorDetailView exactly as TuneReviewDashboard.tsx
  * composes it for a single lap (sector map + hover-synced corner bars).
  */
-export function TestReviewDashboard({ gameId: _gameId, laps, metricsById, onNewTest }: TestReviewDashboardProps) {
+export function TestReviewDashboard({ gameId: _gameId, laps, metricsById }: TestReviewDashboardProps) {
   const sortedLaps = useMemo(() => [...laps].sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
   const [tab, setTab] = useState<"overview" | number>("overview");
 
@@ -32,13 +31,6 @@ export function TestReviewDashboard({ gameId: _gameId, laps, metricsById, onNewT
             Lap {l.lapNumber}
           </TabButton>
         ))}
-        <button
-          type="button"
-          onClick={onNewTest}
-          className="ml-auto px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold shrink-0"
-        >
-          New test
-        </button>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">

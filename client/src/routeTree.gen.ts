@@ -92,8 +92,10 @@ import { Route as Fm23TracksTrackOrdinalTabRouteImport } from './routes/fm23/tra
 import { Route as Fm23SetupsWheelProfileIdRouteImport } from './routes/fm23/setups/wheel/$profileId'
 import { Route as Fm23SetupsEditTuneIdRouteImport } from './routes/fm23/setups/edit.$tuneId'
 import { Route as F125TracksTrackOrdinalTabRouteImport } from './routes/f125/tracks.$trackOrdinal.$tab'
+import { Route as AccTuneTuningSessionIdReviewRouteImport } from './routes/acc/tune.$tuningSessionId_.review'
 import { Route as AccTracksTrackOrdinalTabRouteImport } from './routes/acc/tracks.$trackOrdinal.$tab'
 import { Route as AccSetupsEditTuneIdRouteImport } from './routes/acc/setups/edit.$tuneId'
+import { Route as AcEvoTuneTuningSessionIdReviewRouteImport } from './routes/ac-evo/tune.$tuningSessionId_.review'
 import { Route as AcEvoTracksTrackOrdinalTabRouteImport } from './routes/ac-evo/tracks.$trackOrdinal.$tab'
 import { Route as AcEvoSetupsEditTuneIdRouteImport } from './routes/ac-evo/setups/edit.$tuneId'
 
@@ -520,6 +522,12 @@ const F125TracksTrackOrdinalTabRoute =
     path: '/$trackOrdinal/$tab',
     getParentRoute: () => F125TracksRoute,
   } as any)
+const AccTuneTuningSessionIdReviewRoute =
+  AccTuneTuningSessionIdReviewRouteImport.update({
+    id: '/$tuningSessionId_/review',
+    path: '/$tuningSessionId/review',
+    getParentRoute: () => AccTuneRoute,
+  } as any)
 const AccTracksTrackOrdinalTabRoute =
   AccTracksTrackOrdinalTabRouteImport.update({
     id: '/$trackOrdinal/$tab',
@@ -531,6 +539,12 @@ const AccSetupsEditTuneIdRoute = AccSetupsEditTuneIdRouteImport.update({
   path: '/edit/$tuneId',
   getParentRoute: () => AccSetupsRoute,
 } as any)
+const AcEvoTuneTuningSessionIdReviewRoute =
+  AcEvoTuneTuningSessionIdReviewRouteImport.update({
+    id: '/$tuningSessionId_/review',
+    path: '/$tuningSessionId/review',
+    getParentRoute: () => AcEvoTuneRoute,
+  } as any)
 const AcEvoTracksTrackOrdinalTabRoute =
   AcEvoTracksTrackOrdinalTabRouteImport.update({
     id: '/$trackOrdinal/$tab',
@@ -620,8 +634,10 @@ export interface FileRoutesByFullPath {
   '/fm23/tracks/': typeof Fm23TracksIndexRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/ac-evo/tracks/$trackOrdinal/$tab': typeof AcEvoTracksTrackOrdinalTabRoute
+  '/ac-evo/tune/$tuningSessionId/review': typeof AcEvoTuneTuningSessionIdReviewRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/acc/tracks/$trackOrdinal/$tab': typeof AccTracksTrackOrdinalTabRoute
+  '/acc/tune/$tuningSessionId/review': typeof AccTuneTuningSessionIdReviewRoute
   '/f125/tracks/$trackOrdinal/$tab': typeof F125TracksTrackOrdinalTabRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
@@ -694,8 +710,10 @@ export interface FileRoutesByTo {
   '/fm23/tracks': typeof Fm23TracksIndexRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/ac-evo/tracks/$trackOrdinal/$tab': typeof AcEvoTracksTrackOrdinalTabRoute
+  '/ac-evo/tune/$tuningSessionId/review': typeof AcEvoTuneTuningSessionIdReviewRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/acc/tracks/$trackOrdinal/$tab': typeof AccTracksTrackOrdinalTabRoute
+  '/acc/tune/$tuningSessionId/review': typeof AccTuneTuningSessionIdReviewRoute
   '/f125/tracks/$trackOrdinal/$tab': typeof F125TracksTrackOrdinalTabRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
@@ -784,8 +802,10 @@ export interface FileRoutesById {
   '/fm23/tracks/': typeof Fm23TracksIndexRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/ac-evo/tracks/$trackOrdinal/$tab': typeof AcEvoTracksTrackOrdinalTabRoute
+  '/ac-evo/tune/$tuningSessionId_/review': typeof AcEvoTuneTuningSessionIdReviewRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/acc/tracks/$trackOrdinal/$tab': typeof AccTracksTrackOrdinalTabRoute
+  '/acc/tune/$tuningSessionId_/review': typeof AccTuneTuningSessionIdReviewRoute
   '/f125/tracks/$trackOrdinal/$tab': typeof F125TracksTrackOrdinalTabRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
@@ -875,8 +895,10 @@ export interface FileRouteTypes {
     | '/fm23/tracks/'
     | '/ac-evo/setups/edit/$tuneId'
     | '/ac-evo/tracks/$trackOrdinal/$tab'
+    | '/ac-evo/tune/$tuningSessionId/review'
     | '/acc/setups/edit/$tuneId'
     | '/acc/tracks/$trackOrdinal/$tab'
+    | '/acc/tune/$tuningSessionId/review'
     | '/f125/tracks/$trackOrdinal/$tab'
     | '/fm23/setups/edit/$tuneId'
     | '/fm23/setups/wheel/$profileId'
@@ -949,8 +971,10 @@ export interface FileRouteTypes {
     | '/fm23/tracks'
     | '/ac-evo/setups/edit/$tuneId'
     | '/ac-evo/tracks/$trackOrdinal/$tab'
+    | '/ac-evo/tune/$tuningSessionId/review'
     | '/acc/setups/edit/$tuneId'
     | '/acc/tracks/$trackOrdinal/$tab'
+    | '/acc/tune/$tuningSessionId/review'
     | '/f125/tracks/$trackOrdinal/$tab'
     | '/fm23/setups/edit/$tuneId'
     | '/fm23/setups/wheel/$profileId'
@@ -1038,8 +1062,10 @@ export interface FileRouteTypes {
     | '/fm23/tracks/'
     | '/ac-evo/setups/edit/$tuneId'
     | '/ac-evo/tracks/$trackOrdinal/$tab'
+    | '/ac-evo/tune/$tuningSessionId_/review'
     | '/acc/setups/edit/$tuneId'
     | '/acc/tracks/$trackOrdinal/$tab'
+    | '/acc/tune/$tuningSessionId_/review'
     | '/f125/tracks/$trackOrdinal/$tab'
     | '/fm23/setups/edit/$tuneId'
     | '/fm23/setups/wheel/$profileId'
@@ -1646,6 +1672,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof F125TracksTrackOrdinalTabRouteImport
       parentRoute: typeof F125TracksRoute
     }
+    '/acc/tune/$tuningSessionId_/review': {
+      id: '/acc/tune/$tuningSessionId_/review'
+      path: '/$tuningSessionId/review'
+      fullPath: '/acc/tune/$tuningSessionId/review'
+      preLoaderRoute: typeof AccTuneTuningSessionIdReviewRouteImport
+      parentRoute: typeof AccTuneRoute
+    }
     '/acc/tracks/$trackOrdinal/$tab': {
       id: '/acc/tracks/$trackOrdinal/$tab'
       path: '/$trackOrdinal/$tab'
@@ -1659,6 +1692,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/acc/setups/edit/$tuneId'
       preLoaderRoute: typeof AccSetupsEditTuneIdRouteImport
       parentRoute: typeof AccSetupsRoute
+    }
+    '/ac-evo/tune/$tuningSessionId_/review': {
+      id: '/ac-evo/tune/$tuningSessionId_/review'
+      path: '/$tuningSessionId/review'
+      fullPath: '/ac-evo/tune/$tuningSessionId/review'
+      preLoaderRoute: typeof AcEvoTuneTuningSessionIdReviewRouteImport
+      parentRoute: typeof AcEvoTuneRoute
     }
     '/ac-evo/tracks/$trackOrdinal/$tab': {
       id: '/ac-evo/tracks/$trackOrdinal/$tab'
@@ -1714,11 +1754,13 @@ const AcEvoTracksRouteWithChildren = AcEvoTracksRoute._addFileChildren(
 interface AcEvoTuneRouteChildren {
   AcEvoTuneTuningSessionIdRoute: typeof AcEvoTuneTuningSessionIdRoute
   AcEvoTuneIndexRoute: typeof AcEvoTuneIndexRoute
+  AcEvoTuneTuningSessionIdReviewRoute: typeof AcEvoTuneTuningSessionIdReviewRoute
 }
 
 const AcEvoTuneRouteChildren: AcEvoTuneRouteChildren = {
   AcEvoTuneTuningSessionIdRoute: AcEvoTuneTuningSessionIdRoute,
   AcEvoTuneIndexRoute: AcEvoTuneIndexRoute,
+  AcEvoTuneTuningSessionIdReviewRoute: AcEvoTuneTuningSessionIdReviewRoute,
 }
 
 const AcEvoTuneRouteWithChildren = AcEvoTuneRoute._addFileChildren(
@@ -1792,11 +1834,13 @@ const AccTracksRouteWithChildren = AccTracksRoute._addFileChildren(
 interface AccTuneRouteChildren {
   AccTuneTuningSessionIdRoute: typeof AccTuneTuningSessionIdRoute
   AccTuneIndexRoute: typeof AccTuneIndexRoute
+  AccTuneTuningSessionIdReviewRoute: typeof AccTuneTuningSessionIdReviewRoute
 }
 
 const AccTuneRouteChildren: AccTuneRouteChildren = {
   AccTuneTuningSessionIdRoute: AccTuneTuningSessionIdRoute,
   AccTuneIndexRoute: AccTuneIndexRoute,
+  AccTuneTuningSessionIdReviewRoute: AccTuneTuningSessionIdReviewRoute,
 }
 
 const AccTuneRouteWithChildren =

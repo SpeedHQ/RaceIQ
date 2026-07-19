@@ -43,6 +43,7 @@ export function AnalyseVizPanel({
       {/* Wheel panel tabs */}
       <div className="flex w-full border-b border-app-border shrink-0">
         <button
+          type="button"
           onClick={() => onVizModeChange("2d")}
           className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
             vizMode === "2d" ? "text-app-text border-b-2 border-app-accent" : "text-app-text-muted hover:text-app-text"
@@ -51,6 +52,7 @@ export function AnalyseVizPanel({
           2D
         </button>
         <button
+          type="button"
           onClick={() => onVizModeChange("3d")}
           className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
             vizMode === "3d" ? "text-app-text border-b-2 border-app-accent" : "text-app-text-muted hover:text-app-text"

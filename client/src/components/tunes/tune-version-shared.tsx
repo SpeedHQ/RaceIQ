@@ -59,9 +59,24 @@ export function AppliedChangesList({ json, comment }: { json: string | null; com
   );
 }
 
-/** Per-lap breakdown for an expanded tune test. Fuel/lap is the real
- *  server-derived number (or "—" for legacy/unavailable laps); tyre wear stays
- *  "—" (no ACC/AC-Evo channel); the spun flag is omitted (parity Phase 2). */
+/** invalidReason values that are pit-lane classification, not an error — shown
+ *  as a neutral status badge instead of the red "invalid" styling. Set by
+ *  classifyAccPitLap (server/acc-lap-rules.ts) for ACC/AC-Evo. */
+const PIT_STATUS_REASONS = new Set(["outlap", "inlap", "pit lap"]);
+
+/** Short label for the Status column. Pit-lane laps get their classification
+ *  ("Outlap"/"Inlap"/"Pit lap"); other invalid reasons collapse to "Invalid"
+ *  (full reason still in the row title); valid laps show nothing. */
+function lapStatusLabel(l: LapMeta): string | null {
+  if (l.isValid) return null;
+  const reason = l.invalidReason ?? null;
+  if (reason && PIT_STATUS_REASONS.has(reason)) return reason[0].toUpperCase() + reason.slice(1);
+  return "Invalid";
+}
+
+/** Per-lap breakdown for an expanded tune test. Fuel/lap and tyre wear are the
+ *  real server-derived numbers (or "—" for legacy/unavailable laps, e.g. when the
+ *  server omits a channel); the spun flag is omitted (parity Phase 2). */
 export function LapBreakdown({ laps, bestT, metricsById }: { laps: LapMeta[]; bestT: number | null; metricsById: Map<number, TuningLapMetric> }) {
   if (laps.length === 0) {
     return <div className="px-3 py-2 text-xs text-app-text-dim">No laps recorded against this version yet.</div>;
@@ -71,6 +86,7 @@ export function LapBreakdown({ laps, bestT, metricsById }: { laps: LapMeta[]; be
       <thead>
         <tr className="text-[10px] uppercase tracking-wider text-app-text-muted">
           <th className="px-3 py-1 text-left font-medium">Lap</th>
+          <th className="px-3 py-1 text-left font-medium">Status</th>
           <th className="px-3 py-1 text-right font-medium">Time</th>
           <th className="px-3 py-1 text-right font-medium">Fuel/lap</th>
           <th className="px-3 py-1 text-right font-medium">Tyre wear</th>
@@ -79,19 +95,29 @@ export function LapBreakdown({ laps, bestT, metricsById }: { laps: LapMeta[]; be
       <tbody className="divide-y divide-app-border/30">
         {laps.map((l) => {
           const isFastest = bestT != null && l.isValid && l.lapTime === bestT;
-          const fuel = metricsById.get(l.id)?.fuelPerLap;
+          const metric = metricsById.get(l.id);
+          const fuel = metric?.fuelPerLap;
+          const wear = metric?.tyreWear;
+          const status = lapStatusLabel(l);
+          const isPitStatus = status != null && status.toLowerCase() !== "invalid";
           return (
             <tr key={l.id}>
               <td className={`px-3 py-1 font-mono ${l.isValid ? "text-app-text-muted" : "text-red-400"}`} title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
-                {!l.isValid && <span className="mr-1">✕</span>}
                 {l.lapNumber}
+              </td>
+              <td className="px-3 py-1 text-left">
+                {status && (
+                  <span className={`text-[10px] uppercase tracking-wider ${isPitStatus ? "text-amber-400" : "text-red-400"}`} title={l.invalidReason ?? undefined}>
+                    {status}
+                  </span>
+                )}
               </td>
               <td className="px-3 py-1 text-right font-mono tabular-nums text-app-text/90">
                 {isFastest && <span className="text-purple-400">★ </span>}
                 {formatLapTime(l.lapTime)}
               </td>
               <td className="px-3 py-1 text-right font-mono tabular-nums text-app-text/90">{fuel != null ? `${fuel.toFixed(2)} L` : <span className="text-app-text-dim">—</span>}</td>
-              <td className="px-3 py-1 text-right text-app-text-dim">—</td>
+              <td className="px-3 py-1 text-right font-mono tabular-nums text-app-text/90">{wear != null ? `${wear.toFixed(0)}%` : <span className="text-app-text-dim">—</span>}</td>
             </tr>
           );
         })}

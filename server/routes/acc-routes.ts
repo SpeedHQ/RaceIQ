@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, mkdirSync, copyFileSync } from "fs";
 import { resolve } from "path";
+import { homedir } from "os";
 import { SHARED_DIR } from "../paths";
 import { accRecorder } from "../games/acc/recorder";
 import { replayRecording } from "../games/acc/replay";
@@ -282,7 +283,6 @@ export const accRoutes = new Hono()
     const srcPath = resolve(ACC_SETUP_FILES_DIR, setupFile);
     if (!existsSync(srcPath)) return c.json({ error: "Setup file not found on disk" }, 404);
 
-    const { homedir } = await import("os");
     const possiblePaths = [
       resolve(homedir(), "Documents", "Assetto Corsa Competizione", "Setups"),
       resolve(homedir(), "OneDrive", "Documents", "Assetto Corsa Competizione", "Setups"),
@@ -294,7 +294,9 @@ export const accRoutes = new Hono()
     }
 
     if (!accSetupsDir) {
-      return c.json({ error: "ACC Setups folder not found. Checked: " + possiblePaths.join(", ") }, 404);
+      accSetupsDir = possiblePaths[0];
+      mkdirSync(accSetupsDir, { recursive: true });
+      console.log(`[acc] ACC Setups folder not found, created: ${accSetupsDir}`);
     }
 
     const destDir = resolve(accSetupsDir, carModel, trackName);

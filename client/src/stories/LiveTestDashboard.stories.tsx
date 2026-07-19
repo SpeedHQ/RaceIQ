@@ -31,27 +31,14 @@ function StoryDecorator({ children, animate }: { children: React.ReactNode; anim
   useEffect(() => {
     useTelemetryStore.setState({
       connected: true,
-      rawPacket: fakeAccPacket,
+      // Last frame of the pre-seeded lap so appending it doesn't reset the trace.
+      rawPacket: liveTrace[liveTrace.length - 1] ?? fakeAccPacket,
       packet: fakeAccDisplayPacket,
       sectors: fakeSectors,
       sessionLaps: fakeSessionLaps,
       isRaceOn: true,
       lapIssuesFeed: [{ lapId: 10, lapNumber: 4, issues: fakeTuneIssues }],
     });
-  }, []);
-
-  // Prefill on mount: drip the whole lap fast once so the tyre + fuel bars get a
-  // real min→max range to render (they need ≥5 frames of live trace). The
-  // dashboard's liveTrace is internal state fed only by rawPacket, so we step
-  // through the frames rather than injecting the array directly.
-  useEffect(() => {
-    let i = 0;
-    const id = setInterval(() => {
-      useTelemetryStore.setState({ rawPacket: liveTrace[i] });
-      i++;
-      if (i >= liveTrace.length) clearInterval(id);
-    }, 4);
-    return () => clearInterval(id);
   }, []);
 
   // `animate` Storybook control replays the lap continuously (off by default).
@@ -95,5 +82,5 @@ type Story = StoryObj<typeof LiveTestDashboard>;
 
 export const Default: Story = {
   // @ts-expect-error — animate is a story-only arg, not a component prop
-  args: { gameId: "acc", trackOrdinal: 7, animate: false },
+  args: { gameId: "acc", trackOrdinal: 7, initialTrace: liveTrace, animate: false },
 };

@@ -36,7 +36,7 @@ import {
   setSessionHead,
 } from "../db/tuning-session-queries";
 import { getActiveTuningSession, setActiveTuningSession } from "../tuning-active";
-import { deriveFuelPerLap, type LapMetric } from "../tuning-lap-metrics";
+import { deriveFuelPerLap, deriveTyreWear, type LapMetric } from "../tuning-lap-metrics";
 import {
   createTuningTest,
   listTuningTests,
@@ -974,8 +974,8 @@ export const tuneRoutes = new Hono()
   // laps this session owns (plan §2, Phase C). Derived server-side from each
   // lap's raw telemetry frames; returns a compact per-lap summary, not frame
   // dumps. Legacy laps with no stored telemetry omit their metric (never 0).
-  // Tyre wear is always omitted — ACC/AC-Evo shared memory exposes no genuine
-  // wear channel (see server/tuning-lap-metrics.ts).
+  // Tyre wear is the worst-tyre % worn at lap end, derived from the game's per-
+  // tyre wear channel (see server/tuning-lap-metrics.ts); omitted when absent.
   .get("/api/tuning-sessions/:id/lap-metrics",
     zValidator("param", IdParamSchema),
     async (c) => {
@@ -991,9 +991,10 @@ export const tuneRoutes = new Hono()
       for (const lapMeta of sessionLaps) {
         const lap = await getLapById(lapMeta.id);
         const fuelPerLap = lap ? deriveFuelPerLap(lap.telemetry) : undefined;
+        const tyreWear = lap ? deriveTyreWear(lap.telemetry) : undefined;
         const entry: LapMetric = { lapId: lapMeta.id };
         if (fuelPerLap != null) entry.fuelPerLap = fuelPerLap;
-        // tyreWear intentionally omitted — no real channel for ACC/AC-Evo.
+        if (tyreWear != null) entry.tyreWear = tyreWear;
         metrics.push(entry);
       }
       return c.json(metrics);

@@ -1,14 +1,13 @@
 import type { LapMeta } from "@shared/types";
 import { useNavigate } from "@tanstack/react-router";
 import { Check, Copy } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { type TuningLapMetric, type TuningTest, useLaps, useResolveNames, useTuningSession, useTuningSessionLapMetrics, useTuningSessionTests } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { client } from "../../lib/rpc";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { BackButton } from "./BackButton";
 import { LiveTestDashboard } from "./LiveTestDashboard";
-import { TestReviewDashboard } from "./TestReviewDashboard";
 import { TuneSetupChat } from "./TuneSetupChat";
 import { VersionGraph } from "./VersionGraph";
 
@@ -19,9 +18,9 @@ import { VersionGraph } from "./VersionGraph";
  * deterministic autotune over the fastest valid lap, writes the next setup
  * version, and records it as a new tuning test (plan §1, Phase B).
  *
- * Per-lap fuel/lap and the session Fuel/lap card are real server-derived numbers
- * (Phase C, useTuningSessionLapMetrics). Tyre wear stays "—": ACC/AC-Evo shared
- * memory exposes no genuine wear channel, so nothing is faked. The spun flag is
+ * Per-lap fuel/lap and tyre wear (and the session Fuel/lap card) are real
+ * server-derived numbers (Phase C, useTuningSessionLapMetrics) — wear is the
+ * worst-tyre % worn per lap, from the game's tyre-wear channel. The spun flag is
  * omitted (parity Phase 2 spin detection). The right panel's setup chat
  * (TuneSetupChat) is a tool-using Setup Engineer agent
  * (docs/setup-engineer-tools-plan.md §3) — it reads the current setup and
@@ -68,7 +67,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
     return [...byId.values()];
   }, [allLaps, liveSessionLaps, tuningSessionId]);
 
-  // Server-derived per-lap metrics (fuel/lap; tyre wear omitted — no channel),
+  // Server-derived per-lap metrics (fuel/lap + worst-tyre wear),
   // keyed by lap id for the table + the session Fuel/lap card.
   const metricsById = useMemo(() => {
     const m = new Map<number, TuningLapMetric>();
@@ -133,10 +132,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
   const liveFuelPerLap = livePacket?.acc?.fuelPerLap || null;
   const lapsDone = liveSessionLaps.length;
 
-  const [leftTab, setLeftTab] = useState<"tests" | "review">("tests");
-  const [testPhase, setTestPhase] = useState<"idle" | "live" | "review">("idle");
-  const [reviewLapIds, setReviewLapIds] = useState<number[]>([]);
-  const lapsRecordedDuringTest = useMemo(() => sessionLapPool.filter((l) => reviewLapIds.includes(l.id)), [sessionLapPool, reviewLapIds]);
+  const [testPhase, setTestPhase] = useState<"idle" | "live">("idle");
 
   const clearSession = () =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -171,21 +167,15 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
 
       {/* Main row fills the remaining height. Left column scrolls; the right
           panel (Recommend + chat) is permanent and full-height. */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3">
-        {/* Left: tab switcher between tune-tests table and the detailed
-            live/review dashboard (plan §3) — own full-height panel per tab,
-            not a stacked collapsible. */}
+      {/* Chat column is hidden during a live test — the live dashboard gets the
+          full width; chat returns on the review page / idle workspace. */}
+      <div className={`flex-1 min-h-0 grid grid-cols-1 gap-3 ${testPhase === "live" ? "" : "lg:grid-cols-[1fr_360px]"}`}>
+        {/* Left: tune-tests table normally; the live dashboard takes over the
+            panel while a test is running. Review moved to its own route
+            (…/review) — no tab switcher. */}
         <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
-          <div className="shrink-0 flex border-b border-app-border">
-            <TabButton active={leftTab === "tests"} onClick={() => setLeftTab("tests")}>
-              Tune tests (setup versions)
-            </TabButton>
-            <TabButton active={leftTab === "review"} onClick={() => setLeftTab("review")}>
-              Live &amp; review dashboard
-            </TabButton>
-          </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
-            {leftTab === "tests" ? (
+            {testPhase === "idle" ? (
               <>
                 {/* Session overview — always rendered as placeholders ("—") so
                     the row layout doesn't jump once laps start landing. */}
@@ -200,17 +190,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
                 </div>
                 <VersionGraph sessionId={session.id} tests={tests} headTestId={session?.headTestId ?? null} lapsByTest={lapsByTest} metricsById={metricsById} />
               </>
-            ) : testPhase === "idle" ? (
-              <div className="h-full flex items-center justify-center">
-                <button
-                  type="button"
-                  onClick={() => setTestPhase("live")}
-                  className="px-4 py-2 text-sm rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold"
-                >
-                  Start Test
-                </button>
-              </div>
-            ) : testPhase === "live" ? (
+            ) : (
               <div className="h-full flex flex-col min-h-0">
                 {/* Current stint strip — moved here from the page header (plan
                     follow-up) since it's specifically about the live test run. */}
@@ -226,23 +206,35 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
                     <InlineStat label="Avg" value={liveAvg != null ? formatLapTime(liveAvg) : "—"} />
                     <InlineStat label="Fuel/lap" value={liveFuelPerLap != null ? `${liveFuelPerLap.toFixed(2)} L` : "—"} />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setReviewLapIds(liveSessionLaps.map((l) => l.id));
-                      setTestPhase("review");
-                    }}
-                    className="px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold"
-                  >
-                    End Test
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const lapIds = liveSessionLaps.map((l) => l.id);
+                        setTestPhase("idle");
+                        navigate({
+                          to: `/${gameId}/tune/${tuningSessionId}/review`,
+                          search: { laps: lapIds.join(",") },
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        } as any);
+                      }}
+                      className="px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold"
+                    >
+                      Review laps
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTestPhase("idle")}
+                      className="px-3 py-1 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text"
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
                 <div className="flex-1 min-h-0">
                   <LiveTestDashboard gameId={gameId} trackOrdinal={session.trackOrdinal ?? null} />
                 </div>
               </div>
-            ) : (
-              <TestReviewDashboard gameId={gameId} laps={lapsRecordedDuringTest} metricsById={metricsById} onNewTest={() => setTestPhase("idle")} />
             )}
           </div>
         </div>
@@ -253,7 +245,18 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
         <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
           <div className="shrink-0 px-3 py-2 border-b border-app-border flex items-center justify-between">
             <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Setup engineer</span>
-            <CopyChatJsonButton sessionId={session.id} />
+            <div className="flex items-center gap-3">
+              {testPhase === "idle" && (
+                <button
+                  type="button"
+                  onClick={() => setTestPhase("live")}
+                  className="px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold"
+                >
+                  Dashboard
+                </button>
+              )}
+              <CopyChatJsonButton sessionId={session.id} />
+            </div>
           </div>
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             <TuneSetupChat sessionId={session.id} headTestId={session?.headTestId ?? null} />
@@ -272,20 +275,6 @@ function formatDuration(sec: number): string {
   const h = Math.floor(totalMin / 60);
   const min = totalMin % 60;
   return `${h}h ${min}m`;
-}
-
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${
-        active ? "text-app-text border-purple-500" : "text-app-text-muted border-transparent hover:text-app-text"
-      }`}
-    >
-      {children}
-    </button>
-  );
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {

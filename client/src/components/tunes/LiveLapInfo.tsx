@@ -20,7 +20,7 @@ function Delta({ value }: { value: number }) {
  * and the server-computed sector splits. All values come from the WS-pushed
  * LiveSectorData / current packet — no client-side timing computation here.
  */
-export function LiveLapInfo({ sectors, currentLap }: { sectors: LiveSectorData | null; currentLap: number | null }) {
+export function LiveLapInfo({ sectors, currentLap, totalLaps }: { sectors: LiveSectorData | null; currentLap: number | null; totalLaps: number }) {
   const running = sectors ? (sectors.estimatedLap > 0 ? sectors.estimatedLap : sectors.currentSectorTime) : 0;
   return (
     <div className="flex flex-col gap-2 p-3">
@@ -34,7 +34,10 @@ export function LiveLapInfo({ sectors, currentLap }: { sectors: LiveSectorData |
         </div>
         <div className="text-right">
           <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Lap</div>
-          <div className="text-2xl font-mono font-bold tabular-nums text-app-accent">{currentLap ?? "—"}</div>
+          <div className="text-2xl font-mono font-bold tabular-nums text-app-accent">
+            {currentLap ?? "—"}
+            {totalLaps > 0 && <span className="text-sm text-app-text-muted"> / {totalLaps}</span>}
+          </div>
         </div>
       </div>
 

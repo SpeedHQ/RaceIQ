@@ -11,9 +11,9 @@ export interface LapMetric {
   /** Litres consumed over the lap. */
   fuelPerLap?: number;
   /**
-   * Tyre wear per lap. Currently always omitted: ACC and AC-Evo shared memory
-   * expose tyre temps/pressures but no genuine wear channel, so there is nothing
-   * real to derive. Kept in the shape so a future game/channel can populate it.
+   * Worst-tyre wear at lap end, as a percentage worn (0 = new, 100 = dead).
+   * Derived from the game's per-tyre wear channel (ACC/AC-Evo shared memory and
+   * F1 both expose it); omitted when no frame carries a usable reading.
    */
   tyreWear?: number;
 }
@@ -51,5 +51,29 @@ export function deriveFuelPerLap(packets: TelemetryPacket[]): number | undefined
     if (delta > 0 && delta < 100) return round2(delta);
   }
 
+  return undefined;
+}
+
+/**
+ * Worst-tyre wear at lap end, as a percentage worn (0 = new, 100 = fully worn).
+ *
+ * `TireWearFL/FR/RL/RR` are a 0..1 fraction worn (higher = more worn) on ACC and
+ * AC-Evo, and on F1 (which divides its raw 0..100 channel by 100). F1 also sets
+ * them to -1 when the channel is unavailable, so negatives are skipped. Reads the
+ * last frame whose four tyres are all finite and ≥ 0 (most worn, and complete at
+ * lap end), then reports the single worst tyre × 100.
+ *
+ * Returns undefined when no frame carries a usable reading — legacy laps with no
+ * stored telemetry, or games without a wear channel — so the caller omits the
+ * metric instead of reporting 0.
+ */
+export function deriveTyreWear(packets: TelemetryPacket[]): number | undefined {
+  for (let i = packets.length - 1; i >= 0; i--) {
+    const p = packets[i];
+    const tyres = [p.TireWearFL, p.TireWearFR, p.TireWearRL, p.TireWearRR];
+    if (tyres.some((w) => typeof w !== "number" || !Number.isFinite(w) || w < 0)) continue;
+    const worst = Math.max(...(tyres as number[]));
+    return round2(worst * 100);
+  }
   return undefined;
 }
