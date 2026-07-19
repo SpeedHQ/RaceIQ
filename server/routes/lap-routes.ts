@@ -66,25 +66,7 @@ import { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent }
 import { buildGoogleProviderOptions, buildGoogleThinkingProviderOptions } from "../ai/google-provider-options";
 import { toClientAiError } from "../ai/provider-error";
 import { extractJson } from "../ai/extract-json";
-
-/** Parse a stored carSetup JSON blob, returning null on any error. */
-function safeParseJson(raw: string): Record<string, unknown> | null {
-  try {
-    const v = JSON.parse(raw);
-    return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Scan telemetry packets for the first `f1.setup` object. */
-function firstPacketF1Setup(packets: TelemetryPacket[]): Record<string, unknown> | null {
-  for (const p of packets) {
-    const s = p.f1?.setup;
-    if (s && typeof s === "object") return s as unknown as Record<string, unknown>;
-  }
-  return null;
-}
+import { resolveLapF1Setup } from "../ai/f1-setup-identity";
 
 /**
  * Build the "F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS" block appended to
@@ -93,9 +75,9 @@ function firstPacketF1Setup(packets: TelemetryPacket[]): Record<string, unknown>
  * (Gemma 4) can answer in one shot instead of looping tool calls.
  */
 function buildF1SetupReferenceBlock(carSetupJson: string | undefined, telemetry: TelemetryPacket[], trackOrdinal: number): string {
-  const setup = carSetupJson ? safeParseJson(carSetupJson) : firstPacketF1Setup(telemetry);
+  const setup = resolveLapF1Setup({ carSetup: carSetupJson, telemetry });
   if (!setup || trackOrdinal < 0) return "";
-  const current = normalizePacketSetup(setup);
+  const current = normalizePacketSetup(setup as unknown as Record<string, unknown>);
   const refs = topCatalogReferences(trackOrdinal, 5, current);
   if (refs.length === 0) return "";
 

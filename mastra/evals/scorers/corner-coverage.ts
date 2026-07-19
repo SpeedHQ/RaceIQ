@@ -1,5 +1,5 @@
 import { createScorer } from "@mastra/core/evals";
-import { parseAnalystOutput } from "../../../server/ai/schemas";
+import { type AnalystOutput, parseAnalystOutput } from "../../../server/ai/schemas";
 
 /**
  * Fraction of the fixture's expected slowest corners that the analyst
@@ -39,7 +39,7 @@ function extractHaystack(output: unknown): string {
   return JSON.stringify(output ?? "");
 }
 
-function stringifyAnalyst(a: ReturnType<typeof parseAnalystOutput> extends { success: true; data: infer D } ? D : never): string {
+function stringifyAnalyst(a: AnalystOutput): string {
   const parts: string[] = [a.verdict];
   for (const c of a.corners) parts.push(c.name, c.issue, c.fix);
   for (const t of a.technique) parts.push(t.tip, t.detail);

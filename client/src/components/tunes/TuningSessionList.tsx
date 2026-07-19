@@ -1,14 +1,18 @@
-import { type DragEvent, useMemo, useRef, useState } from "react";
+import { type DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { SearchSelect } from "../ui/SearchSelect";
 import { SetupFilePicker } from "./SetupFilePicker";
 import {
+  type TuningGameId,
   type TuningSession,
   useCreateTuningSession,
   usePlaceSetup,
+  useResolveNames,
   useSetupFiles,
+  useTracks,
   useTuningSessions,
 } from "../../hooks/queries";
+import { useTelemetryStore } from "../../stores/telemetry";
 
 /**
  * TuningSessionList — the Setup Engineer landing page (plan §6a). Lists the
@@ -23,7 +27,7 @@ export function TuningSessionList({
   gameId,
   onOpen,
 }: {
-  gameId: "acc" | "ac-evo";
+  gameId: TuningGameId;
   onOpen: (id: number) => void;
 }) {
   const { data: sessions = [], isLoading } = useTuningSessions(gameId);
@@ -47,13 +51,18 @@ export function TuningSessionList({
         </button>
       </div>
 
-      {creating && (
+      {creating && (gameId === "f1-2025" ? (
+        <NewF1TuningSessionModal
+          onClose={() => setCreating(false)}
+          onCreated={(id) => { setCreating(false); onOpen(id); }}
+        />
+      ) : (
         <NewTuningSessionModal
           gameId={gameId}
           onClose={() => setCreating(false)}
           onCreated={(id) => { setCreating(false); onOpen(id); }}
         />
-      )}
+      ))}
 
       <TuningSessionTable sessions={sessions} onOpen={onOpen} isLoading={isLoading} />
     </div>
@@ -364,6 +373,151 @@ function NewTuningSessionModal({
             onClick={submit}
             disabled={create.isPending || !canCreate}
             title={!canCreate ? "Pick car, track, and a base setup" : undefined}
+            className="px-3 py-1.5 text-xs rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-semibold"
+          >
+            {create.isPending ? "Creating…" : "Create session"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/**
+ * F1 2025's new-session modal (design Phase 10) — F1 exposes no saved setup
+ * file to pick, so there's no SetupFilePicker/drag-in step here: the session
+ * is created with a null base setup and the first base is captured from
+ * telemetry instead (via useCaptureSetup, from the workspace's "+ Add base"
+ * button). Car/track are optional free text, prefilled from the live packet's
+ * ordinals when resolvable — otherwise left blank and backfilled from the
+ * first lap.
+ */
+function NewF1TuningSessionModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (id: number) => void;
+}) {
+  const packet = useTelemetryStore((s) => s.packet);
+  const { data: names } = useResolveNames(
+    packet?.TrackOrdinal != null ? [packet.TrackOrdinal] : [],
+    packet?.CarOrdinal != null ? [packet.CarOrdinal] : [],
+  );
+  const liveCar = packet?.CarOrdinal != null ? (names?.carNames[String(packet.CarOrdinal)] ?? "") : "";
+  const liveTrack = packet?.TrackOrdinal != null ? (names?.trackNames[String(packet.TrackOrdinal)] ?? "") : "";
+
+  const { data: tracksData } = useTracks();
+
+  const trackOptions = useMemo(() => {
+    const list = (tracksData as { ordinal: number; name: string }[] | undefined) ?? [];
+    return [...new Set(list.map((t) => t.name).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b))
+      .map((n) => ({ value: n, label: n }));
+  }, [tracksData]);
+
+  const create = useCreateTuningSession();
+  const [name, setName] = useState("");
+  const [car, setCar] = useState(liveCar);
+  const [track, setTrack] = useState("");
+  const [trackAutoSet, setTrackAutoSet] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // trackOptions may be empty on first render (query not resolved yet), so we
+  // can't reliably prefill from the useState initializer — wait for the
+  // options to load, then prefill once from the live packet's track, only if
+  // the driver hasn't already picked one themselves.
+  useEffect(() => {
+    if (!trackAutoSet && !track && liveTrack && trackOptions.some((o) => o.value === liveTrack)) {
+      setTrackAutoSet(true);
+      setTrack(liveTrack);
+    }
+  }, [trackAutoSet, track, liveTrack, trackOptions]);
+
+  const effectiveName = name.trim() || (track ? (car ? `${car} @ ${track}` : track) : "");
+  const canCreate = !!effectiveName && !!track.trim();
+
+  const submit = async () => {
+    if (!canCreate) return;
+    setError(null);
+    try {
+      const s = await create.mutateAsync({
+        gameId: "f1-2025",
+        name: effectiveName,
+        carName: car.trim() || null,
+        trackName: track.trim() || null,
+        baseSetupPath: null,
+      });
+      onCreated(s.id);
+    } catch (err: any) {
+      setError(err?.message ?? "Could not create tuning session");
+    }
+  };
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[480px] max-w-[94vw] flex flex-col gap-4 p-5"
+        onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+      >
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-app-text">New tuning session</p>
+          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">×</button>
+        </div>
+
+        <p className="text-[11px] text-app-text-dim">
+          F1 setups are read from telemetry — your base setup will be captured from your first lap, or via
+          "Capture current setup" in the session.
+        </p>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Session name</span>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={car && track ? `${car} @ ${track}` : "Session name"}
+            maxLength={120}
+            className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs"
+          />
+        </label>
+
+        <div className="flex gap-2">
+          <label className="flex flex-col gap-1 flex-1">
+            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Car (optional)</span>
+            <input
+              value={car}
+              onChange={(e) => setCar(e.target.value)}
+              placeholder="Car name"
+              maxLength={200}
+              className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs"
+            />
+          </label>
+          <label className="flex flex-col gap-1 flex-1">
+            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Track</span>
+            <SearchSelect
+              value={track}
+              onChange={setTrack}
+              options={trackOptions}
+              placeholder="Search tracks…"
+              focusColor="purple-500"
+            />
+          </label>
+        </div>
+
+        {error && <div className="text-xs text-red-400">{error}</div>}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={create.isPending || !canCreate}
+            title={!canCreate ? "Pick a track" : undefined}
             className="px-3 py-1.5 text-xs rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-semibold"
           >
             {create.isPending ? "Creating…" : "Create session"}

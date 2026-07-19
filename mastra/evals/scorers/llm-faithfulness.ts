@@ -25,7 +25,7 @@
  * (nothing to contradict) so it never blocks a run it can't actually grade.
  */
 import { createScorer } from "@mastra/core/evals";
-import { parseAnalystOutput } from "../../../server/ai/schemas";
+import { type AnalystOutput, parseAnalystOutput } from "../../../server/ai/schemas";
 
 const JUDGE_BASE_URL = process.env.EVAL_JUDGE_BASE_URL ?? "http://localhost:1234/v1";
 const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? "google/gemma-4-e2b";
@@ -79,7 +79,7 @@ function outputToText(output: unknown): string {
   return JSON.stringify(output ?? "");
 }
 
-function stringifyAnalyst(a: ReturnType<typeof parseAnalystOutput> extends { success: true; data: infer D } ? D : never): string {
+function stringifyAnalyst(a: AnalystOutput): string {
   const parts: string[] = [a.verdict];
   for (const m of a.pace) parts.push(`${m.label}: ${m.value} — ${m.detail}`);
   for (const m of a.handling) parts.push(`${m.label}: ${m.value} — ${m.detail}`);

@@ -23,9 +23,12 @@ import { queryClient } from "../lib/queryClient";
 // the lowercased English key; only the *display* label is localized.
 const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Tune", "Chats", "Tracks", "Cars", "Setups", "Raw"] as const;
 
-// Sub-tabs only exposed for certain games (auto-tune pipeline is acc/ac-evo only).
+// Sub-tabs only exposed for certain games. Tune is acc/ac-evo/f1-2025 — ACC and
+// AC-Evo use the file-based auto-tune pipeline (saved setup → autotune engine);
+// F1 2025 has no setup file, so it uses the telemetry-capture flow instead
+// (base setup captured from a driven lap, see TuningSessionWorkspace).
 const GAME_SUB_TAB_GATE: Partial<Record<(typeof GAME_SUB_TABS)[number], readonly string[]>> = {
-  Tune: ["/acc", "/ac-evo"],
+  Tune: ["/acc", "/ac-evo", "/f125"],
 };
 
 const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {

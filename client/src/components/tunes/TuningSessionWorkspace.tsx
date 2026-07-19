@@ -2,7 +2,16 @@ import type { LapMeta } from "@shared/types";
 import { useNavigate } from "@tanstack/react-router";
 import { Check, Copy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { type TuningLapMetric, type TuningTest, useLaps, useResolveNames, useTuningSession, useTuningSessionLapMetrics, useTuningSessionTests } from "../../hooks/queries";
+import {
+  type TuningGameId,
+  type TuningLapMetric,
+  type TuningTest,
+  useLaps,
+  useResolveNames,
+  useTuningSession,
+  useTuningSessionLapMetrics,
+  useTuningSessionTests,
+} from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { client } from "../../lib/rpc";
 import { useTelemetryStore } from "../../stores/telemetry";
@@ -30,7 +39,7 @@ import { VersionGraph } from "./VersionGraph";
  * symptoms itself via tools and calls apply_changes when the driver confirms,
  * so this component no longer drives a separate generate-from-chat mutation.
  */
-export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "acc" | "ac-evo"; tuningSessionId: number }) {
+export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: TuningGameId; tuningSessionId: number }) {
   const navigate = useNavigate();
   const [showAddBase, setShowAddBase] = useState(false);
   const [showImportLaps, setShowImportLaps] = useState(false);
@@ -214,13 +223,15 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
                     >
                       Add laps from history
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddBase(true)}
-                      className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim"
-                    >
-                      + Add base
-                    </button>
+                    {gameId !== "f1-2025" && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAddBase(true)}
+                        className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim"
+                      >
+                        + Add base
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setShowHistory(true)}
@@ -231,7 +242,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
                   </div>
                 </div>
                 <VersionGraph sessionId={session.id} tests={tests} headTestId={session?.headTestId ?? null} lapsByTest={lapsByTest} metricsById={metricsById} />
-                {showAddBase && <AddBaseModal gameId={gameId} sessionId={session.id} onClose={() => setShowAddBase(false)} />}
+                {showAddBase && gameId !== "f1-2025" && <AddBaseModal gameId={gameId} sessionId={session.id} onClose={() => setShowAddBase(false)} />}
                 {showImportLaps && (
                   <ImportLapsModal gameId={gameId} sessionId={session.id} tests={tests} onClose={() => setShowImportLaps(false)} />
                 )}
@@ -279,7 +290,16 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: "a
                   </div>
                 </div>
                 <div className="flex-1 min-h-0">
-                  <LiveTestDashboard gameId={gameId} trackOrdinal={session.trackOrdinal ?? null} />
+                  {gameId !== "f1-2025" ? (
+                    <LiveTestDashboard gameId={gameId} trackOrdinal={session.trackOrdinal ?? null} />
+                  ) : (
+                    // F1's live-test view (track outline, corner overlays) is
+                    // ACC/AC-Evo only for now — lap results still land in the
+                    // review page via "Review laps" below.
+                    <div className="h-full flex items-center justify-center text-xs text-app-text-dim p-6 text-center">
+                      Live dashboard isn't available for F1 2025 yet — drive your laps and use "Review laps" below.
+                    </div>
+                  )}
                 </div>
               </div>
             )}

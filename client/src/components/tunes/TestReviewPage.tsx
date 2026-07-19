@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { type TuningLapMetric, useLaps, useTuningSession, useTuningSessionLapMetrics } from "../../hooks/queries";
+import { type TuningGameId, type TuningLapMetric, useLaps, useTuningSession, useTuningSessionLapMetrics } from "../../hooks/queries";
 import { BackButton } from "./BackButton";
 import { TestReviewDashboard } from "./TestReviewDashboard";
 import { TuneSetupChat } from "./TuneSetupChat";
@@ -12,7 +12,7 @@ import { TuneSetupChat } from "./TuneSetupChat";
  * param; laps themselves are re-read from the persisted laps query (they are
  * stamped/persisted server-side as they land, so they survive the navigation).
  */
-export function TestReviewPage({ gameId, tuningSessionId, lapIds }: { gameId: "acc" | "ac-evo"; tuningSessionId: number; lapIds: number[] }) {
+export function TestReviewPage({ gameId, tuningSessionId, lapIds }: { gameId: TuningGameId; tuningSessionId: number; lapIds: number[] }) {
   const navigate = useNavigate();
   const { data: session } = useTuningSession(tuningSessionId);
   const { data: allLaps = [] } = useLaps();
@@ -36,7 +36,10 @@ export function TestReviewPage({ gameId, tuningSessionId, lapIds }: { gameId: "a
           persistent Setup Engineer chat right — the chat is never hidden. */}
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3">
         <div className="min-h-0 overflow-y-auto border border-app-border rounded-lg">
-          <TestReviewDashboard gameId={gameId} laps={laps} metricsById={metricsById} tuningSessionId={tuningSessionId} />
+          {/* TestReviewDashboard is ACC/AC-Evo only (dashboard-specific tyre/setup
+              panels) and its gameId prop is unused (`_gameId`) — narrow rather
+              than widen its type, since F1 never actually reaches those panels. */}
+          <TestReviewDashboard gameId={gameId === "f1-2025" ? "acc" : gameId} laps={laps} metricsById={metricsById} tuningSessionId={tuningSessionId} />
         </div>
         <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
           <div className="shrink-0 px-3 py-2 border-b border-app-border">

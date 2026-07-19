@@ -47,6 +47,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.16",
+    "@ai-sdk/provider-utils": "^5.0.11",
     "@hono/zod-validator": "^0.8.0",
     "@libsql/client": "^0.17.4",
     "@libsql/win32-x64-msvc": "^0.5.29",

@@ -30,6 +30,7 @@ import { Route as Fm23ChatsRouteImport } from './routes/fm23/chats'
 import { Route as Fm23CarsRouteImport } from './routes/fm23/cars'
 import { Route as Fm23AnalyseRouteImport } from './routes/fm23/analyse'
 import { Route as F125TunesRouteImport } from './routes/f125/tunes'
+import { Route as F125TuneRouteImport } from './routes/f125/tune'
 import { Route as F125TracksRouteImport } from './routes/f125/tracks'
 import { Route as F125SetupsRouteImport } from './routes/f125/setups'
 import { Route as F125SessionsRouteImport } from './routes/f125/sessions'
@@ -64,6 +65,7 @@ import { Route as AcEvoAnalyseRouteImport } from './routes/ac-evo/analyse'
 import { Route as Fm23TracksIndexRouteImport } from './routes/fm23/tracks.index'
 import { Route as Fm23SetupsIndexRouteImport } from './routes/fm23/setups/index'
 import { Route as F125TunesIndexRouteImport } from './routes/f125/tunes/index'
+import { Route as F125TuneIndexRouteImport } from './routes/f125/tune.index'
 import { Route as F125TracksIndexRouteImport } from './routes/f125/tracks.index'
 import { Route as F125SetupsIndexRouteImport } from './routes/f125/setups/index'
 import { Route as AccTuneIndexRouteImport } from './routes/acc/tune.index'
@@ -77,6 +79,7 @@ import { Route as Fm23SetupsCatalogRouteImport } from './routes/fm23/setups/cata
 import { Route as Fm23LivePitRouteImport } from './routes/fm23/live/pit'
 import { Route as Fm23LiveDriverRouteImport } from './routes/fm23/live/driver'
 import { Route as Fm23CarsCarOrdinalRouteImport } from './routes/fm23/cars_.$carOrdinal'
+import { Route as F125TuneTuningSessionIdRouteImport } from './routes/f125/tune.$tuningSessionId'
 import { Route as AccTuneTuningSessionIdRouteImport } from './routes/acc/tune.$tuningSessionId'
 import { Route as AccSetupsNewRouteImport } from './routes/acc/setups/new'
 import { Route as AccSetupsImportRouteImport } from './routes/acc/setups/import'
@@ -91,6 +94,7 @@ import { Route as AcEvoTracksTrackOrdinalIndexRouteImport } from './routes/ac-ev
 import { Route as Fm23TracksTrackOrdinalTabRouteImport } from './routes/fm23/tracks.$trackOrdinal.$tab'
 import { Route as Fm23SetupsWheelProfileIdRouteImport } from './routes/fm23/setups/wheel/$profileId'
 import { Route as Fm23SetupsEditTuneIdRouteImport } from './routes/fm23/setups/edit.$tuneId'
+import { Route as F125TuneTuningSessionIdReviewRouteImport } from './routes/f125/tune.$tuningSessionId_.review'
 import { Route as F125TracksTrackOrdinalTabRouteImport } from './routes/f125/tracks.$trackOrdinal.$tab'
 import { Route as AccTuneTuningSessionIdReviewRouteImport } from './routes/acc/tune.$tuningSessionId_.review'
 import { Route as AccTracksTrackOrdinalTabRouteImport } from './routes/acc/tracks.$trackOrdinal.$tab'
@@ -202,6 +206,11 @@ const Fm23AnalyseRoute = Fm23AnalyseRouteImport.update({
 const F125TunesRoute = F125TunesRouteImport.update({
   id: '/tunes',
   path: '/tunes',
+  getParentRoute: () => F125Route,
+} as any)
+const F125TuneRoute = F125TuneRouteImport.update({
+  id: '/tune',
+  path: '/tune',
   getParentRoute: () => F125Route,
 } as any)
 const F125TracksRoute = F125TracksRouteImport.update({
@@ -374,6 +383,11 @@ const F125TunesIndexRoute = F125TunesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => F125TunesRoute,
 } as any)
+const F125TuneIndexRoute = F125TuneIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => F125TuneRoute,
+} as any)
 const F125TracksIndexRoute = F125TracksIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -438,6 +452,11 @@ const Fm23CarsCarOrdinalRoute = Fm23CarsCarOrdinalRouteImport.update({
   id: '/cars_/$carOrdinal',
   path: '/cars/$carOrdinal',
   getParentRoute: () => Fm23Route,
+} as any)
+const F125TuneTuningSessionIdRoute = F125TuneTuningSessionIdRouteImport.update({
+  id: '/$tuningSessionId',
+  path: '/$tuningSessionId',
+  getParentRoute: () => F125TuneRoute,
 } as any)
 const AccTuneTuningSessionIdRoute = AccTuneTuningSessionIdRouteImport.update({
   id: '/$tuningSessionId',
@@ -516,6 +535,12 @@ const Fm23SetupsEditTuneIdRoute = Fm23SetupsEditTuneIdRouteImport.update({
   path: '/edit/$tuneId',
   getParentRoute: () => Fm23SetupsRoute,
 } as any)
+const F125TuneTuningSessionIdReviewRoute =
+  F125TuneTuningSessionIdReviewRouteImport.update({
+    id: '/$tuningSessionId_/review',
+    path: '/$tuningSessionId/review',
+    getParentRoute: () => F125TuneRoute,
+  } as any)
 const F125TracksTrackOrdinalTabRoute =
   F125TracksTrackOrdinalTabRouteImport.update({
     id: '/$trackOrdinal/$tab',
@@ -595,6 +620,7 @@ export interface FileRoutesByFullPath {
   '/f125/sessions': typeof F125SessionsRoute
   '/f125/setups': typeof F125SetupsRouteWithChildren
   '/f125/tracks': typeof F125TracksRouteWithChildren
+  '/f125/tune': typeof F125TuneRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
   '/fm23/analyse': typeof Fm23AnalyseRoute
   '/fm23/cars': typeof Fm23CarsRoute
@@ -616,6 +642,7 @@ export interface FileRoutesByFullPath {
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
   '/acc/tune/$tuningSessionId': typeof AccTuneTuningSessionIdRoute
+  '/f125/tune/$tuningSessionId': typeof F125TuneTuningSessionIdRoute
   '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
   '/fm23/live/driver': typeof Fm23LiveDriverRoute
   '/fm23/live/pit': typeof Fm23LivePitRoute
@@ -629,6 +656,7 @@ export interface FileRoutesByFullPath {
   '/acc/tune/': typeof AccTuneIndexRoute
   '/f125/setups/': typeof F125SetupsIndexRoute
   '/f125/tracks/': typeof F125TracksIndexRoute
+  '/f125/tune/': typeof F125TuneIndexRoute
   '/f125/tunes/': typeof F125TunesIndexRoute
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
   '/fm23/tracks/': typeof Fm23TracksIndexRoute
@@ -639,6 +667,7 @@ export interface FileRoutesByFullPath {
   '/acc/tracks/$trackOrdinal/$tab': typeof AccTracksTrackOrdinalTabRoute
   '/acc/tune/$tuningSessionId/review': typeof AccTuneTuningSessionIdReviewRoute
   '/f125/tracks/$trackOrdinal/$tab': typeof F125TracksTrackOrdinalTabRoute
+  '/f125/tune/$tuningSessionId/review': typeof F125TuneTuningSessionIdReviewRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
   '/fm23/tracks/$trackOrdinal/$tab': typeof Fm23TracksTrackOrdinalTabRoute
@@ -692,6 +721,7 @@ export interface FileRoutesByTo {
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
   '/acc/tune/$tuningSessionId': typeof AccTuneTuningSessionIdRoute
+  '/f125/tune/$tuningSessionId': typeof F125TuneTuningSessionIdRoute
   '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
   '/fm23/live/driver': typeof Fm23LiveDriverRoute
   '/fm23/live/pit': typeof Fm23LivePitRoute
@@ -705,6 +735,7 @@ export interface FileRoutesByTo {
   '/acc/tune': typeof AccTuneIndexRoute
   '/f125/setups': typeof F125SetupsIndexRoute
   '/f125/tracks': typeof F125TracksIndexRoute
+  '/f125/tune': typeof F125TuneIndexRoute
   '/f125/tunes': typeof F125TunesIndexRoute
   '/fm23/setups': typeof Fm23SetupsIndexRoute
   '/fm23/tracks': typeof Fm23TracksIndexRoute
@@ -715,6 +746,7 @@ export interface FileRoutesByTo {
   '/acc/tracks/$trackOrdinal/$tab': typeof AccTracksTrackOrdinalTabRoute
   '/acc/tune/$tuningSessionId/review': typeof AccTuneTuningSessionIdReviewRoute
   '/f125/tracks/$trackOrdinal/$tab': typeof F125TracksTrackOrdinalTabRoute
+  '/f125/tune/$tuningSessionId/review': typeof F125TuneTuningSessionIdReviewRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
   '/fm23/tracks/$trackOrdinal/$tab': typeof Fm23TracksTrackOrdinalTabRoute
@@ -763,6 +795,7 @@ export interface FileRoutesById {
   '/f125/sessions': typeof F125SessionsRoute
   '/f125/setups': typeof F125SetupsRouteWithChildren
   '/f125/tracks': typeof F125TracksRouteWithChildren
+  '/f125/tune': typeof F125TuneRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
   '/fm23/analyse': typeof Fm23AnalyseRoute
   '/fm23/cars': typeof Fm23CarsRoute
@@ -784,6 +817,7 @@ export interface FileRoutesById {
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
   '/acc/tune/$tuningSessionId': typeof AccTuneTuningSessionIdRoute
+  '/f125/tune/$tuningSessionId': typeof F125TuneTuningSessionIdRoute
   '/fm23/cars_/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
   '/fm23/live/driver': typeof Fm23LiveDriverRoute
   '/fm23/live/pit': typeof Fm23LivePitRoute
@@ -797,6 +831,7 @@ export interface FileRoutesById {
   '/acc/tune/': typeof AccTuneIndexRoute
   '/f125/setups/': typeof F125SetupsIndexRoute
   '/f125/tracks/': typeof F125TracksIndexRoute
+  '/f125/tune/': typeof F125TuneIndexRoute
   '/f125/tunes/': typeof F125TunesIndexRoute
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
   '/fm23/tracks/': typeof Fm23TracksIndexRoute
@@ -807,6 +842,7 @@ export interface FileRoutesById {
   '/acc/tracks/$trackOrdinal/$tab': typeof AccTracksTrackOrdinalTabRoute
   '/acc/tune/$tuningSessionId_/review': typeof AccTuneTuningSessionIdReviewRoute
   '/f125/tracks/$trackOrdinal/$tab': typeof F125TracksTrackOrdinalTabRoute
+  '/f125/tune/$tuningSessionId_/review': typeof F125TuneTuningSessionIdReviewRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
   '/fm23/tracks/$trackOrdinal/$tab': typeof Fm23TracksTrackOrdinalTabRoute
@@ -856,6 +892,7 @@ export interface FileRouteTypes {
     | '/f125/sessions'
     | '/f125/setups'
     | '/f125/tracks'
+    | '/f125/tune'
     | '/f125/tunes'
     | '/fm23/analyse'
     | '/fm23/cars'
@@ -877,6 +914,7 @@ export interface FileRouteTypes {
     | '/acc/setups/import'
     | '/acc/setups/new'
     | '/acc/tune/$tuningSessionId'
+    | '/f125/tune/$tuningSessionId'
     | '/fm23/cars/$carOrdinal'
     | '/fm23/live/driver'
     | '/fm23/live/pit'
@@ -890,6 +928,7 @@ export interface FileRouteTypes {
     | '/acc/tune/'
     | '/f125/setups/'
     | '/f125/tracks/'
+    | '/f125/tune/'
     | '/f125/tunes/'
     | '/fm23/setups/'
     | '/fm23/tracks/'
@@ -900,6 +939,7 @@ export interface FileRouteTypes {
     | '/acc/tracks/$trackOrdinal/$tab'
     | '/acc/tune/$tuningSessionId/review'
     | '/f125/tracks/$trackOrdinal/$tab'
+    | '/f125/tune/$tuningSessionId/review'
     | '/fm23/setups/edit/$tuneId'
     | '/fm23/setups/wheel/$profileId'
     | '/fm23/tracks/$trackOrdinal/$tab'
@@ -953,6 +993,7 @@ export interface FileRouteTypes {
     | '/acc/setups/import'
     | '/acc/setups/new'
     | '/acc/tune/$tuningSessionId'
+    | '/f125/tune/$tuningSessionId'
     | '/fm23/cars/$carOrdinal'
     | '/fm23/live/driver'
     | '/fm23/live/pit'
@@ -966,6 +1007,7 @@ export interface FileRouteTypes {
     | '/acc/tune'
     | '/f125/setups'
     | '/f125/tracks'
+    | '/f125/tune'
     | '/f125/tunes'
     | '/fm23/setups'
     | '/fm23/tracks'
@@ -976,6 +1018,7 @@ export interface FileRouteTypes {
     | '/acc/tracks/$trackOrdinal/$tab'
     | '/acc/tune/$tuningSessionId/review'
     | '/f125/tracks/$trackOrdinal/$tab'
+    | '/f125/tune/$tuningSessionId/review'
     | '/fm23/setups/edit/$tuneId'
     | '/fm23/setups/wheel/$profileId'
     | '/fm23/tracks/$trackOrdinal/$tab'
@@ -1023,6 +1066,7 @@ export interface FileRouteTypes {
     | '/f125/sessions'
     | '/f125/setups'
     | '/f125/tracks'
+    | '/f125/tune'
     | '/f125/tunes'
     | '/fm23/analyse'
     | '/fm23/cars'
@@ -1044,6 +1088,7 @@ export interface FileRouteTypes {
     | '/acc/setups/import'
     | '/acc/setups/new'
     | '/acc/tune/$tuningSessionId'
+    | '/f125/tune/$tuningSessionId'
     | '/fm23/cars_/$carOrdinal'
     | '/fm23/live/driver'
     | '/fm23/live/pit'
@@ -1057,6 +1102,7 @@ export interface FileRouteTypes {
     | '/acc/tune/'
     | '/f125/setups/'
     | '/f125/tracks/'
+    | '/f125/tune/'
     | '/f125/tunes/'
     | '/fm23/setups/'
     | '/fm23/tracks/'
@@ -1067,6 +1113,7 @@ export interface FileRouteTypes {
     | '/acc/tracks/$trackOrdinal/$tab'
     | '/acc/tune/$tuningSessionId_/review'
     | '/f125/tracks/$trackOrdinal/$tab'
+    | '/f125/tune/$tuningSessionId_/review'
     | '/fm23/setups/edit/$tuneId'
     | '/fm23/setups/wheel/$profileId'
     | '/fm23/tracks/$trackOrdinal/$tab'
@@ -1236,6 +1283,13 @@ declare module '@tanstack/react-router' {
       path: '/tunes'
       fullPath: '/f125/tunes'
       preLoaderRoute: typeof F125TunesRouteImport
+      parentRoute: typeof F125Route
+    }
+    '/f125/tune': {
+      id: '/f125/tune'
+      path: '/tune'
+      fullPath: '/f125/tune'
+      preLoaderRoute: typeof F125TuneRouteImport
       parentRoute: typeof F125Route
     }
     '/f125/tracks': {
@@ -1476,6 +1530,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof F125TunesIndexRouteImport
       parentRoute: typeof F125TunesRoute
     }
+    '/f125/tune/': {
+      id: '/f125/tune/'
+      path: '/'
+      fullPath: '/f125/tune/'
+      preLoaderRoute: typeof F125TuneIndexRouteImport
+      parentRoute: typeof F125TuneRoute
+    }
     '/f125/tracks/': {
       id: '/f125/tracks/'
       path: '/'
@@ -1566,6 +1627,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/fm23/cars/$carOrdinal'
       preLoaderRoute: typeof Fm23CarsCarOrdinalRouteImport
       parentRoute: typeof Fm23Route
+    }
+    '/f125/tune/$tuningSessionId': {
+      id: '/f125/tune/$tuningSessionId'
+      path: '/$tuningSessionId'
+      fullPath: '/f125/tune/$tuningSessionId'
+      preLoaderRoute: typeof F125TuneTuningSessionIdRouteImport
+      parentRoute: typeof F125TuneRoute
     }
     '/acc/tune/$tuningSessionId': {
       id: '/acc/tune/$tuningSessionId'
@@ -1664,6 +1732,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/fm23/setups/edit/$tuneId'
       preLoaderRoute: typeof Fm23SetupsEditTuneIdRouteImport
       parentRoute: typeof Fm23SetupsRoute
+    }
+    '/f125/tune/$tuningSessionId_/review': {
+      id: '/f125/tune/$tuningSessionId_/review'
+      path: '/$tuningSessionId/review'
+      fullPath: '/f125/tune/$tuningSessionId/review'
+      preLoaderRoute: typeof F125TuneTuningSessionIdReviewRouteImport
+      parentRoute: typeof F125TuneRoute
     }
     '/f125/tracks/$trackOrdinal/$tab': {
       id: '/f125/tracks/$trackOrdinal/$tab'
@@ -1904,6 +1979,22 @@ const F125TracksRouteWithChildren = F125TracksRoute._addFileChildren(
   F125TracksRouteChildren,
 )
 
+interface F125TuneRouteChildren {
+  F125TuneTuningSessionIdRoute: typeof F125TuneTuningSessionIdRoute
+  F125TuneIndexRoute: typeof F125TuneIndexRoute
+  F125TuneTuningSessionIdReviewRoute: typeof F125TuneTuningSessionIdReviewRoute
+}
+
+const F125TuneRouteChildren: F125TuneRouteChildren = {
+  F125TuneTuningSessionIdRoute: F125TuneTuningSessionIdRoute,
+  F125TuneIndexRoute: F125TuneIndexRoute,
+  F125TuneTuningSessionIdReviewRoute: F125TuneTuningSessionIdReviewRoute,
+}
+
+const F125TuneRouteWithChildren = F125TuneRoute._addFileChildren(
+  F125TuneRouteChildren,
+)
+
 interface F125TunesRouteChildren {
   F125TunesIndexRoute: typeof F125TunesIndexRoute
 }
@@ -1926,6 +2017,7 @@ interface F125RouteChildren {
   F125SessionsRoute: typeof F125SessionsRoute
   F125SetupsRoute: typeof F125SetupsRouteWithChildren
   F125TracksRoute: typeof F125TracksRouteWithChildren
+  F125TuneRoute: typeof F125TuneRouteWithChildren
   F125TunesRoute: typeof F125TunesRouteWithChildren
   F125IndexRoute: typeof F125IndexRoute
 }
@@ -1940,6 +2032,7 @@ const F125RouteChildren: F125RouteChildren = {
   F125SessionsRoute: F125SessionsRoute,
   F125SetupsRoute: F125SetupsRouteWithChildren,
   F125TracksRoute: F125TracksRouteWithChildren,
+  F125TuneRoute: F125TuneRouteWithChildren,
   F125TunesRoute: F125TunesRouteWithChildren,
   F125IndexRoute: F125IndexRoute,
 }

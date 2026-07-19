@@ -667,7 +667,14 @@ export interface TuningSession {
   lapTarget?: number;
 }
 
-export function useTuningSessions(gameId: "acc" | "ac-evo") {
+/** Game ids that can own a tuning session. ACC/AC-Evo carry a setup file on
+ *  disk (SetupFilePicker, autotune, import); F1 2025 has no setup file — its
+ *  base setup is captured from telemetry (see useCaptureSetup) — so file-only
+ *  components (SetupFilePicker, AutoTunePanel, etc.) stay typed "acc" | "ac-evo"
+ *  and F1-path components must gate them off rather than widen them. */
+export type TuningGameId = "acc" | "ac-evo" | "f1-2025";
+
+export function useTuningSessions(gameId: TuningGameId) {
   return useQuery({
     queryKey: ["tuning-sessions", gameId],
     queryFn: async () => {
@@ -682,7 +689,7 @@ export function useCreateTuningSession() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: {
-      gameId: "acc" | "ac-evo";
+      gameId: TuningGameId;
       name: string;
       carOrdinal?: number | null;
       trackOrdinal?: number | null;
@@ -787,6 +794,29 @@ export function useSetHead() {
   });
 }
 
+/** F1 2025's "Add base" affordance (design Phase 10) — F1 has no setup file to
+ *  pick, so this captures the current `F1CarSetup` from the session's most
+ *  recent lap's telemetry and stamps it onto the active test (or creates a
+ *  fresh base when the session has none yet). Throws with the server's
+ *  "drive a lap first" message when no F1 setup telemetry has landed yet. */
+export function useCaptureSetup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (sessionId: number) => {
+      const res = await (client.api as any)["tuning-sessions"][":id"]["capture-setup"].$post({
+        param: { id: String(sessionId) },
+      });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as TuningTest;
+    },
+    onSuccess: (t) => {
+      qc.invalidateQueries({ queryKey: ["tuning-session", t.tuningSessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-tests", t.tuningSessionId] });
+      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", t.tuningSessionId] });
+    },
+  });
+}
+
 /** Add a second (or Nth) root to the session's version forest from an
  *  existing Setups-folder file (design Phase 4). */
 export function useAddBase() {
@@ -818,6 +848,14 @@ export function useAddBase() {
   });
 }
 
+/** `LapMeta` plus F1-only setup-grouping fields returned by the
+ *  importable-laps endpoint when the session's game is `f1-2025`. Both
+ *  fields are `undefined`/absent for non-F1 sessions. */
+export type ImportableLap = LapMeta & {
+  setupFingerprint?: string | null;
+  setupSummary?: string | null;
+};
+
 /** Laps matching this session's game/car/track that aren't stamped to any
  *  tuning session yet — the pool for "Add laps from history" (design Phase 6). */
 export function useImportableLaps(sessionId: number | null | undefined) {
@@ -827,7 +865,7 @@ export function useImportableLaps(sessionId: number | null | undefined) {
       const res = await (client.api as any)["tuning-sessions"][":id"]["importable-laps"].$get({
         param: { id: String(sessionId!) },
       });
-      return rpcJson<LapMeta[]>(res);
+      return rpcJson<ImportableLap[]>(res);
     },
     enabled: sessionId != null,
     staleTime: 5_000,

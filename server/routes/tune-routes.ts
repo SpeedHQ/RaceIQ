@@ -68,6 +68,7 @@ import { loadSettings } from "../settings";
 import { getChatMemory, tuneSessionThreadId, CHAT_RESOURCE_ID, saveChatMessages } from "../ai/chat-agent";
 import { getSetupsBaseDir, resolveGuardedSetupFile, captureF1SetupFromLaps, type AccGameId } from "../ai/setup-engineer-context";
 import { nextFreeLabel } from "../ai/version-label";
+import { resolveLapF1Setup, f1SetupFingerprint, summarizeF1Setup } from "../ai/f1-setup-identity";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { streamAgentTurnResponse } from "../ai/agent-stream";
 import { setupEngineerAgent, buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
@@ -1214,7 +1215,29 @@ export const tuneRoutes = new Hono()
         session.carOrdinal ?? null,
         session.trackOrdinal ?? null
       );
-      return c.json(importable);
+
+      if (session.gameId !== "f1-2025") {
+        return c.json(importable);
+      }
+
+      // F1 only: attach setup fingerprint/summary so the import modal can
+      // group laps by setup. Avoid loading telemetry for laps that already
+      // have a `carSetup` snapshot — only null-carSetup laps pay that cost.
+      const enriched = await Promise.all(
+        importable.map(async (lap) => {
+          let setup = resolveLapF1Setup({ carSetup: lap.carSetup ?? null });
+          if (!setup && !lap.carSetup) {
+            const full = await getLapById(lap.id);
+            if (full) setup = resolveLapF1Setup({ carSetup: full.carSetup ?? null, telemetry: full.telemetry });
+          }
+          return {
+            ...lap,
+            setupFingerprint: setup ? f1SetupFingerprint(setup) : null,
+            setupSummary: setup ? summarizeF1Setup(setup) : null,
+          };
+        })
+      );
+      return c.json(enriched);
     }
   )
 
@@ -1231,18 +1254,118 @@ export const tuneRoutes = new Hono()
       if (!session) return c.json({ error: "Tuning session not found" }, 404);
 
       const body = c.req.valid("json");
-      if (body.tuningTestId != null) {
-        const test = await getTuningTest(body.tuningTestId);
-        if (!test || test.tuningSessionId !== id) {
-          return c.json({ error: "Tuning test not found in this session" }, 404);
+
+      if (session.gameId !== "f1-2025") {
+        if (body.tuningTestId != null) {
+          const test = await getTuningTest(body.tuningTestId);
+          if (!test || test.tuningSessionId !== id) {
+            return c.json({ error: "Tuning test not found in this session" }, 404);
+          }
+        }
+
+        const importedIds = await importLapsToTuningSession(
+          id,
+          body.lapIds,
+          body.tuningTestId ?? null
+        );
+
+        try {
+          await recordAction(id, "import-laps", { lapIds: importedIds });
+        } catch (err: any) {
+          console.error("[tune] Failed to log import-laps action:", err?.message);
+        }
+
+        try {
+          await saveChatMessages(tuneSessionThreadId(id), [
+            {
+              role: "user",
+              markdown: `Import ${body.lapIds.length} lap${body.lapIds.length === 1 ? "" : "s"} from history.`,
+            },
+            {
+              role: "assistant",
+              markdown: `Imported ${importedIds.length} lap${importedIds.length === 1 ? "" : "s"} from history${
+                body.tuningTestId != null ? " into the selected version" : " into the session baseline"
+              }.`,
+            },
+          ]);
+        } catch (err: any) {
+          console.error("[tune] Failed to post import-laps note:", err?.message);
+        }
+
+        return c.json({ importedIds }, 201);
+      }
+
+      // F1: auto-sort laps into setups by fingerprint — body.tuningTestId is
+      // ignored, each lap's own carSetup decides where it lands.
+      const existingTests = await listTuningTests(id);
+      const fpToTestId = new Map<string, number>();
+      for (const t of existingTests) {
+        if (!t.setupSnapshot) continue;
+        try {
+          const snap = JSON.parse(t.setupSnapshot);
+          fpToTestId.set(f1SetupFingerprint(snap), t.id);
+        } catch {
+          // ignore malformed snapshot
+        }
+      }
+      const takenLabels = new Set(existingTests.map((t) => t.label));
+
+      // group key: testId (existing/newly-created) or null for baseline
+      const groups = new Map<number | null, number[]>();
+      for (const lapId of body.lapIds) {
+        const full = await getLapById(lapId);
+        if (!full) continue;
+        const setup = resolveLapF1Setup({ carSetup: full.carSetup ?? null, telemetry: full.telemetry });
+
+        let targetTestId: number | null;
+        if (!setup) {
+          targetTestId = null;
+        } else {
+          const fp = f1SetupFingerprint(setup);
+          const existing = fpToTestId.get(fp);
+          if (existing != null) {
+            targetTestId = existing;
+          } else {
+            const version = await nextVersion(id);
+            const label = nextFreeLabel("import", takenLabels);
+            takenLabels.add(label);
+            const newTestId = await createTuningTest({
+              tuningSessionId: id,
+              version,
+              label,
+              parentTestId: null,
+              setupSnapshot: JSON.stringify(setup),
+              engine: null,
+            });
+            fpToTestId.set(fp, newTestId);
+            targetTestId = newTestId;
+          }
+        }
+
+        const group = groups.get(targetTestId);
+        if (group) group.push(lapId);
+        else groups.set(targetTestId, [lapId]);
+      }
+
+      const importedIds: number[] = [];
+      let bestGroupTestId: number | null | undefined;
+      let bestGroupCount = -1;
+      for (const [targetTestId, groupLapIds] of groups) {
+        const ids = await importLapsToTuningSession(id, groupLapIds, targetTestId);
+        importedIds.push(...ids);
+        if (ids.length > bestGroupCount) {
+          bestGroupCount = ids.length;
+          bestGroupTestId = targetTestId;
         }
       }
 
-      const importedIds = await importLapsToTuningSession(
-        id,
-        body.lapIds,
-        body.tuningTestId ?? null
-      );
+      if (session.headTestId == null && bestGroupTestId != null && bestGroupCount > 0) {
+        try {
+          await setSessionHead(id, bestGroupTestId);
+        } catch (err: any) {
+          console.error("[tune] Failed to set session head after import:", err?.message);
+        }
+      }
 
       try {
         await recordAction(id, "import-laps", { lapIds: importedIds });
@@ -1250,6 +1373,7 @@ export const tuneRoutes = new Hono()
         console.error("[tune] Failed to log import-laps action:", err?.message);
       }
 
+      const distinctSetupCount = groups.size;
       try {
         await saveChatMessages(tuneSessionThreadId(id), [
           {
@@ -1258,8 +1382,8 @@ export const tuneRoutes = new Hono()
           },
           {
             role: "assistant",
-            markdown: `Imported ${importedIds.length} lap${importedIds.length === 1 ? "" : "s"} from history${
-              body.tuningTestId != null ? " into the selected version" : " into the session baseline"
+            markdown: `Imported ${importedIds.length} lap${importedIds.length === 1 ? "" : "s"}, sorted into ${distinctSetupCount} setup${
+              distinctSetupCount === 1 ? "" : "s"
             }.`,
           },
         ]);
