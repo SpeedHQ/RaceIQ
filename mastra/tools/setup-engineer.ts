@@ -19,10 +19,19 @@ import { z } from "zod";
 
 import type { TuneDirection, TuneMagnitude } from "../../server/ai/schemas";
 import { applyIntents, describeKnobs } from "../../server/ai/tune-rules";
-import { createTuningTest, deleteTestSubtree } from "../../server/db/tuning-test-queries";
+import {
+  createTuningTest,
+  deleteTestSubtree,
+  getTuningTest,
+  getTuningTestByVersion,
+  resolveActiveTestId,
+  setTuningTestNote,
+  setTuningTestNotes,
+} from "../../server/db/tuning-test-queries";
 import { setSessionHead } from "../../server/db/tuning-session-queries";
 import { computeChildLabel, nextFreeLabel } from "../../server/ai/version-label";
 import { saveAssistantChatMessage, tuneSessionThreadId } from "../../server/ai/chat-agent";
+import { wsManager } from "../../server/ws";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
 import {
   buildAppliedChangesMarkdown,
@@ -35,9 +44,14 @@ import { readActiveSetup, writeAppliedSetup, activeSetupStem } from "../../serve
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
 import { consultLapAnalystForSession } from "../../server/ai/consult-lap-analyst";
 import { loadCleanLapAggregate } from "../../server/ai/clean-lap-aggregate";
-import { setLapTuningExcluded } from "../../server/db/queries";
+import { setLapTuningExcluded, getLapById, getLapsForTuningSession } from "../../server/db/queries";
 import { recordAction } from "../../server/db/tuning-action-queries";
 import { undoLastAction } from "../../server/tuning-undo";
+import { detectCorners } from "../../server/corner-detection";
+import { telemetryToSymptoms } from "../../server/ai/tune-symptoms";
+import { symptomsToIssues } from "../../server/ai/tune-issues";
+import { compareLaps } from "../../server/comparison";
+import type { TelemetryPacket } from "../../shared/types";
 
 const DirectionEnum = z.enum(["increase", "decrease"]);
 const MagnitudeEnum = z.enum(["small", "medium", "large"]);
@@ -56,6 +70,48 @@ const AppliedChangeShape = z.object({
   to: z.number(),
   direction: DirectionEnum,
 });
+
+const IssueShape = z.object({
+  kind: z.string(),
+  severity: z.string(),
+  corner: z.string().optional(),
+  detail: z.string(),
+  lapNumber: z.number().optional(),
+});
+
+const CornerSnapShape = z.object({
+  tempC: z.number(),
+  wear: z.number(),
+  pressure: z.number(),
+  brakeTempC: z.number(),
+});
+
+// Same per-corner tyre read the review UI shows (client/src/components/tunes/
+// TuneReviewDashboard.tsx::tireSnapshot) — reimplemented here since that file
+// is client-only. Wear is the LAST frame's value (cumulative), everything
+// else is a lap-average.
+function tireSnapshot(pkts: TelemetryPacket[]): Record<"FL" | "FR" | "RL" | "RR", { tempC: number; wear: number; pressure: number; brakeTempC: number }> | null {
+  if (pkts.length === 0) return null;
+  const last = pkts[pkts.length - 1]!;
+  const avg = (sel: (p: TelemetryPacket) => number | undefined) => {
+    let s = 0;
+    for (const p of pkts) s += sel(p) ?? 0;
+    return s / pkts.length;
+  };
+  return {
+    FL: { tempC: avg((p) => p.TireTempFL), wear: last.TireWearFL, pressure: avg((p) => p.TirePressureFrontLeft), brakeTempC: avg((p) => p.BrakeTempFrontLeft) },
+    FR: { tempC: avg((p) => p.TireTempFR), wear: last.TireWearFR, pressure: avg((p) => p.TirePressureFrontRight), brakeTempC: avg((p) => p.BrakeTempFrontRight) },
+    RL: { tempC: avg((p) => p.TireTempRL), wear: last.TireWearRL, pressure: avg((p) => p.TirePressureRearLeft), brakeTempC: avg((p) => p.BrakeTempRearLeft) },
+    RR: { tempC: avg((p) => p.TireTempRR), wear: last.TireWearRR, pressure: avg((p) => p.TirePressureRearRight), brakeTempC: avg((p) => p.BrakeTempRearRight) },
+  };
+}
+
+// Cap on how many laps get_lap_issues walks when no lapId is given — mirrors
+// clean-lap-aggregate.ts's MAX_CLEAN_LAPS: beyond this the per-lap telemetry
+// fetch cost isn't worth it for a chat-turn tool call.
+const MAX_ISSUE_LAPS = 8;
+// Matches loadRepresentativeLap's/clean-lap-aggregate's analysable-lap gate.
+const MIN_TELEMETRY_FRAMES = 30;
 
 export function buildSetupEngineerTools() {
 
@@ -184,6 +240,7 @@ export function buildSetupEngineerTools() {
         label: z.string(),
         engine: z.string().nullable(),
         driverComment: z.string().nullable(),
+        notes: z.string().nullable(),
         changes: z.array(z.object({
           component: z.string(),
           from: z.number(),
@@ -210,6 +267,7 @@ export function buildSetupEngineerTools() {
             label: t.label,
             engine: t.engine,
             driverComment: t.driverComment,
+            notes: t.notes ?? null,
             changes,
           };
         }),
@@ -333,6 +391,11 @@ export function buildSetupEngineerTools() {
         console.error("[SetupEngineer] Failed to advance head:", err?.message);
       }
 
+      // Push the new version to any open clients so the tree + head update
+      // live, as each version lands — not batched at end-of-turn. No-op when
+      // no clients are connected.
+      wsManager.broadcastNotification({ type: "tuning-session-updated", sessionId });
+
       // Best-effort: an action-log write failure must not fail the apply —
       // the file + tuning test + head are already committed.
       try {
@@ -365,14 +428,18 @@ export function buildSetupEngineerTools() {
   const branchFromVersionTool = createTool({
     id: "branch-from-version",
     description:
-      "Fork an earlier version into a new branch immediately. Creates a real new version whose setup is an " +
-      "exact copy of the target, makes it the session head, and returns it — so it shows up in the version " +
-      "tree right away and the NEXT apply-changes lands on this fork instead of the latest. " +
-      "Use when the driver asks to try a different direction from an older version without overwriting newer ones. " +
+      "Fork an earlier version into a new branch (or clone a version) immediately. Creates a real new version " +
+      "whose setup is an exact copy of the target and returns it — so it shows up in the version tree right away. " +
+      "Does NOT change the checkout: the session head stays where it is, so a later apply-changes still lands on " +
+      "the currently checked-out version, not this new one. If the driver wants to work from the new branch, they " +
+      "switch to it themselves in the version tree — never auto-switch on their behalf. " +
+      "Use when the driver asks to clone a version or try a different direction from an older one without " +
+      "overwriting newer ones, or to make N baselines. " +
       "Accepts the version label (e.g. \"v1\", \"v1.2\") or the integer version number. " +
-      "Set asNewRoot when the driver wants to use an old version as INSPIRATION for a fresh starting point " +
-      "rather than a fork of it — the copy seeds a new root (no parent) instead of a child of the target, " +
-      "so it grows its own line in the version tree.",
+      "DEFAULT is a CHILD fork: leave asNewRoot unset and the copy nests under the target (v1 → v1.1, v1.2). " +
+      "\"copy\", \"clone\", \"branch off\", \"make copies of\" all mean a child fork — do NOT set asNewRoot for these. " +
+      "Set asNewRoot ONLY when the driver explicitly wants an INDEPENDENT / fresh starting point that merely " +
+      "takes the target as inspiration — the copy then seeds a new root (no parent) and grows its own line.",
     inputSchema: z.object({
       target: z.string().describe("A version label like \"v1.2\" or an integer version like \"1\"."),
       asNewRoot: z.boolean().optional().describe(
@@ -442,13 +509,15 @@ export function buildSetupEngineerTools() {
         engine: "branch",
       });
 
-      // The fork (or new base) is the work surface now: head follows it.
+      // Branch/clone does NOT move the checkout. Head only changes on an
+      // explicit, confirmed user switch — creating baselines must never yank
+      // the work surface out from under the driver. (apply_changes still
+      // advances head, because iterating on the current version is the point.)
       const prevHeadTestId = ctx.session.headTestId ?? null;
-      try {
-        await setSessionHead(sessionId, newTestId);
-      } catch (err: any) {
-        console.error("[SetupEngineer] Failed to advance head:", err?.message);
-      }
+
+      // Push the new version to any open clients so the tree updates live, as
+      // each version lands — not batched at end-of-turn. No-op when no clients.
+      wsManager.broadcastNotification({ type: "tuning-session-updated", sessionId });
 
       try {
         await recordAction(sessionId, "branch", { testId: newTestId, prevHeadTestId });
@@ -460,8 +529,8 @@ export function buildSetupEngineerTools() {
         await saveAssistantChatMessage(
           tuneSessionThreadId(sessionId),
           asNewRoot
-            ? `Started a new base **${label}** (v${nextVer}) inspired by **${match.label}** — I'll work from here.`
-            : `Branched **${label}** (v${nextVer}) from **${match.label}** — I'll work from here.`,
+            ? `Started a new base **${label}** (v${nextVer}) inspired by **${match.label}**. It's in the tree — switch to it when you want to work from it.`
+            : `Branched **${label}** (v${nextVer}) from **${match.label}**. It's in the tree — switch to it when you want to work from it.`,
         );
       } catch (err: any) {
         console.error("[SetupEngineer] Failed to post branch note:", err?.message);
@@ -504,6 +573,78 @@ export function buildSetupEngineerTools() {
     },
   });
 
+  const updateNotesTool = createTool({
+    id: "update-notes",
+    description:
+      "Write a note on a setup version node. Two fields: `engineer` (default) is YOUR reasoning about the " +
+      "version (why a change was made, what to try next, what the driver reported) — shown back to you in " +
+      "VERSION HISTORY every turn, so use it to persist context that must survive the conversation being " +
+      "summarised (compaction); the driver cannot edit it. `driver` is the driver's feel comment on the " +
+      "version — set `field: \"driver\"` to record what the driver told you about how the car felt. Defaults " +
+      "to the current version; pass `version` to annotate an earlier one. This OVERWRITES the chosen field, " +
+      "so include anything from the existing note you want to keep. Pass an empty note to clear it.",
+    inputSchema: z.object({
+      version: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe("Version number to annotate. Omit to note the current (head) version."),
+      field: z
+        .enum(["engineer", "driver"])
+        .optional()
+        .describe("Which note to write: 'engineer' (your reasoning, default) or 'driver' (the driver's feel comment)."),
+      note: z.string().max(4000).describe("The note text. Empty string clears the note."),
+    }),
+    outputSchema: z.object({
+      ok: z.boolean(),
+      error: z.string().optional(),
+      version: z.number().optional(),
+    }),
+    execute: async (inputData, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+
+      // Resolve the target node — the requested version, or the head when the
+      // model didn't name one.
+      let target: { id: number; version: number } | undefined;
+      if (inputData.version != null) {
+        const t = await getTuningTestByVersion(sessionId, inputData.version);
+        if (!t) return { ok: false, error: `No version ${inputData.version} in this session.` };
+        target = { id: t.id, version: t.version };
+      } else {
+        const headId = await resolveActiveTestId(sessionId);
+        if (headId == null) return { ok: false, error: "No version exists yet to attach a note to." };
+        const t = await getTuningTest(headId);
+        if (!t) return { ok: false, error: "No version exists yet to attach a note to." };
+        target = { id: t.id, version: t.version };
+      }
+
+      const note = inputData.note.trim() === "" ? null : inputData.note;
+      const field = inputData.field ?? "engineer";
+
+      // Write the chosen field, capturing the prior value for undo.
+      if (field === "driver") {
+        const prev = await setTuningTestNote(target.id, note);
+        wsManager.broadcastNotification({ type: "tuning-session-updated", sessionId });
+        try {
+          await recordAction(sessionId, "edit-test-note", { testId: target.id, prevDriverComment: prev });
+        } catch (err: any) {
+          console.error("[SetupEngineer] Failed to log edit-test-note action:", err?.message);
+        }
+      } else {
+        const prevNotes = await setTuningTestNotes(target.id, note);
+        wsManager.broadcastNotification({ type: "tuning-session-updated", sessionId });
+        try {
+          await recordAction(sessionId, "edit-test-notes", { testId: target.id, prevNotes });
+        } catch (err: any) {
+          console.error("[SetupEngineer] Failed to log edit-test-notes action:", err?.message);
+        }
+      }
+
+      return { ok: true, version: target.version };
+    },
+  });
+
   const compareLapConsistencyTool = createTool({
     id: "compare-lap-consistency",
     description:
@@ -539,6 +680,241 @@ export function buildSetupEngineerTools() {
         ? `Low-trust (driving-inconsistent) corners: ${lowTrust.join(", ")}. Other corners show a trustworthy line/input signal.`
         : "All corners show a consistent line/inputs across the clean laps — deviations reflect the car, not the driver.";
       return { available: true, summary, corners };
+    },
+  });
+
+  const listLapsTool = createTool({
+    id: "list-laps",
+    description:
+      "Read-only. List every lap recorded in this tuning session: lap id/number, lap time, sector times, " +
+      "delta to the session's best valid lap, validity, and the excluded flag. Compact — no telemetry arrays. " +
+      "Use this to see the full lap pool before deciding which lap(s) to dig into with get_lap_detail, " +
+      "get_lap_issues, or compare_laps.",
+    inputSchema: NoInput,
+    outputSchema: z.object({
+      ok: z.boolean(),
+      error: z.string().optional(),
+      laps: z.array(z.object({
+        lapId: z.number(),
+        lapNumber: z.number(),
+        lapTime: z.number(),
+        isValid: z.boolean(),
+        excluded: z.boolean(),
+        s1Time: z.number().nullable(),
+        s2Time: z.number().nullable(),
+        s3Time: z.number().nullable(),
+        deltaToBestSec: z.number().nullable(),
+      })).default([]),
+    }),
+    execute: async (_input, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      const laps = await getLapsForTuningSession(sessionId);
+      const bestLapTime = laps.reduce<number | null>((best, l) => {
+        if (!l.isValid || l.lapTime <= 0) return best;
+        return best == null || l.lapTime < best ? l.lapTime : best;
+      }, null);
+      return {
+        ok: true,
+        laps: laps.map((l) => ({
+          lapId: l.id,
+          lapNumber: l.lapNumber,
+          lapTime: l.lapTime,
+          isValid: l.isValid,
+          excluded: Boolean(l.tuningExcluded),
+          s1Time: l.s1Time ?? null,
+          s2Time: l.s2Time ?? null,
+          s3Time: l.s3Time ?? null,
+          deltaToBestSec: bestLapTime != null && l.isValid && l.lapTime > 0 ? l.lapTime - bestLapTime : null,
+        })),
+      };
+    },
+  });
+
+  const getLapDetailTool = createTool({
+    id: "get-lap-detail",
+    description:
+      "Read-only. Full review detail for ONE lap in this session: sector times, a per-corner summary " +
+      "(label, apex speed, band), per-tyre wear/temperature/pressure/brake-temp, and lap-average metrics " +
+      "(top speed, avg throttle/brake). Rejects a lapId that isn't in this session. Use after list_laps to " +
+      "inspect a specific lap the driver asks about.",
+    inputSchema: z.object({ lapId: z.number().int().positive() }),
+    outputSchema: z.object({
+      ok: z.boolean(),
+      error: z.string().optional(),
+      lapNumber: z.number().optional(),
+      lapTime: z.number().optional(),
+      isValid: z.boolean().optional(),
+      excluded: z.boolean().optional(),
+      s1Time: z.number().nullable().optional(),
+      s2Time: z.number().nullable().optional(),
+      s3Time: z.number().nullable().optional(),
+      corners: z.array(z.object({
+        label: z.string(),
+        minSpeedKph: z.number().optional(),
+      })).optional(),
+      tires: z.object({
+        FL: CornerSnapShape,
+        FR: CornerSnapShape,
+        RL: CornerSnapShape,
+        RR: CornerSnapShape,
+      }).nullable().optional(),
+      metrics: z.object({
+        topSpeedKph: z.number(),
+        avgThrottle: z.number(),
+        avgBrake: z.number(),
+      }).nullable().optional(),
+    }),
+    execute: async (inputData, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      const sessionLaps = await getLapsForTuningSession(sessionId);
+      const meta = sessionLaps.find((l) => l.id === inputData.lapId);
+      if (!meta) return { ok: false, error: `Lap ${inputData.lapId} is not in this session.` };
+
+      const lap = await getLapById(inputData.lapId);
+      if (!lap) return { ok: false, error: `Lap ${inputData.lapId} not found.` };
+
+      const telemetry = lap.telemetry;
+      if (telemetry.length === 0) {
+        return {
+          ok: true,
+          lapNumber: meta.lapNumber,
+          lapTime: meta.lapTime,
+          isValid: meta.isValid,
+          excluded: Boolean(meta.tuningExcluded),
+          s1Time: meta.s1Time ?? null,
+          s2Time: meta.s2Time ?? null,
+          s3Time: meta.s3Time ?? null,
+          corners: [],
+          tires: null,
+          metrics: null,
+        };
+      }
+
+      const corners = detectCorners(telemetry).map((c) => ({ label: c.label, minSpeedKph: c.minSpeedKph }));
+      const topSpeedKph = telemetry.reduce((max, p) => Math.max(max, p.Speed * 3.6), 0);
+      const avg = (sel: (p: TelemetryPacket) => number) => telemetry.reduce((s, p) => s + sel(p), 0) / telemetry.length;
+
+      return {
+        ok: true,
+        lapNumber: meta.lapNumber,
+        lapTime: meta.lapTime,
+        isValid: meta.isValid,
+        excluded: Boolean(meta.tuningExcluded),
+        s1Time: meta.s1Time ?? null,
+        s2Time: meta.s2Time ?? null,
+        s3Time: meta.s3Time ?? null,
+        corners,
+        tires: tireSnapshot(telemetry),
+        metrics: {
+          topSpeedKph,
+          avgThrottle: avg((p) => p.Accel ?? 0),
+          avgBrake: avg((p) => p.Brake ?? 0),
+        },
+      };
+    },
+  });
+
+  const getLapIssuesTool = createTool({
+    id: "get-lap-issues",
+    description:
+      "Read-only. Detected issues (understeer/oversteer, brake lockup, suspension bottoming, tyre pressure) " +
+      "for a lap in this session, via the SAME deterministic detector the review dashboard's issue feed uses. " +
+      "Pass lapId for one lap; omit it to scan every analysable lap in the session (capped, newest matter most). " +
+      "Rejects a lapId that isn't in this session.",
+    inputSchema: z.object({ lapId: z.number().int().positive().optional() }),
+    outputSchema: z.object({
+      ok: z.boolean(),
+      error: z.string().optional(),
+      truncated: z.boolean().optional(),
+      laps: z.array(z.object({
+        lapId: z.number(),
+        lapNumber: z.number(),
+        issues: z.array(IssueShape),
+      })).default([]),
+    }),
+    execute: async (inputData, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      const sessionLaps = await getLapsForTuningSession(sessionId);
+
+      const issuesForLap = async (meta: (typeof sessionLaps)[number]) => {
+        const lap = await getLapById(meta.id);
+        if (!lap || lap.telemetry.length < MIN_TELEMETRY_FRAMES) return null;
+        const corners = detectCorners(lap.telemetry);
+        const symptoms = telemetryToSymptoms(lap.telemetry, corners);
+        return symptomsToIssues(symptoms, meta.lapNumber);
+      };
+
+      if (inputData.lapId != null) {
+        const meta = sessionLaps.find((l) => l.id === inputData.lapId);
+        if (!meta) return { ok: false, error: `Lap ${inputData.lapId} is not in this session.`, laps: [] };
+        const issues = await issuesForLap(meta);
+        if (issues == null) return { ok: false, error: `Lap ${inputData.lapId} has no analysable telemetry.`, laps: [] };
+        return { ok: true, laps: [{ lapId: meta.id, lapNumber: meta.lapNumber, issues }] };
+      }
+
+      const analysable = sessionLaps.filter((l) => l.isValid && l.lapTime > 0);
+      const truncated = analysable.length > MAX_ISSUE_LAPS;
+      const scoped = analysable.slice(0, MAX_ISSUE_LAPS);
+      const laps: { lapId: number; lapNumber: number; issues: ReturnType<typeof symptomsToIssues> }[] = [];
+      for (const meta of scoped) {
+        const issues = await issuesForLap(meta);
+        if (issues != null) laps.push({ lapId: meta.id, lapNumber: meta.lapNumber, issues });
+      }
+      return { ok: true, truncated, laps };
+    },
+  });
+
+  const compareLapsTool = createTool({
+    id: "compare-laps",
+    description:
+      "Read-only. Head-to-head comparison of two laps in this session: overall time delta and a per-corner " +
+      "time-delta breakdown, via the SAME comparison engine the lap-compare view uses. No raw telemetry traces " +
+      "returned — just the deltas. Rejects a lapId that isn't in this session.",
+    inputSchema: z.object({
+      lapId1: z.number().int().positive(),
+      lapId2: z.number().int().positive(),
+    }),
+    outputSchema: z.object({
+      ok: z.boolean(),
+      error: z.string().optional(),
+      lapA: z.object({ lapId: z.number(), lapNumber: z.number(), lapTime: z.number() }).optional(),
+      lapB: z.object({ lapId: z.number(), lapNumber: z.number(), lapTime: z.number() }).optional(),
+      timeDeltaSec: z.number().optional().describe("Final cumulative delta: positive = lap A slower overall."),
+      corners: z.array(z.object({
+        label: z.string(),
+        deltaSeconds: z.number(),
+        timeA: z.number(),
+        timeB: z.number(),
+      })).optional(),
+    }),
+    execute: async (inputData, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      if (inputData.lapId1 === inputData.lapId2) return { ok: false, error: "Cannot compare a lap with itself." };
+
+      const sessionLaps = await getLapsForTuningSession(sessionId);
+      const metaA = sessionLaps.find((l) => l.id === inputData.lapId1);
+      const metaB = sessionLaps.find((l) => l.id === inputData.lapId2);
+      if (!metaA) return { ok: false, error: `Lap ${inputData.lapId1} is not in this session.` };
+      if (!metaB) return { ok: false, error: `Lap ${inputData.lapId2} is not in this session.` };
+
+      const lapA = await getLapById(inputData.lapId1);
+      const lapB = await getLapById(inputData.lapId2);
+      if (!lapA || !lapB) return { ok: false, error: "One or both laps could not be loaded." };
+      if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) {
+        return { ok: false, error: "One or both laps have no telemetry data." };
+      }
+
+      const corners = detectCorners(lapA.telemetry);
+      const result = compareLaps(lapA.telemetry, lapB.telemetry, corners);
+      const timeDeltaSec = result.timeDelta.length > 0 ? result.timeDelta[result.timeDelta.length - 1]! : 0;
+
+      return {
+        ok: true,
+        lapA: { lapId: metaA.id, lapNumber: metaA.lapNumber, lapTime: metaA.lapTime },
+        lapB: { lapId: metaB.id, lapNumber: metaB.lapNumber, lapTime: metaB.lapTime },
+        timeDeltaSec,
+        corners: result.cornerDeltas.map((c) => ({ label: c.label, deltaSeconds: c.deltaSeconds, timeA: c.timeA, timeB: c.timeB })),
+      };
     },
   });
 
@@ -627,9 +1003,14 @@ export function buildSetupEngineerTools() {
     applyChangesTool,
     branchFromVersionTool,
     setLapExcludedTool,
+    updateNotesTool,
     compareLapConsistencyTool,
     deleteVersionTool,
     undoLastActionTool,
+    listLapsTool,
+    getLapDetailTool,
+    getLapIssuesTool,
+    compareLapsTool,
   };
 }
 

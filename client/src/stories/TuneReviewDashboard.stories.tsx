@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createRouter, createMemoryHistory, RouterProvider, createRootRoute } from "@tanstack/react-router";
+import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { TuneReviewDashboard } from "../components/tunes/TuneReviewDashboard";
 import { fakeSessionLaps } from "./fakeData";
-import { generateFakeLapTelemetry, fakeSectorTimes, fakeTuneIssues } from "./setupEngineerFakeLap";
+import { fakeSectorTimes, fakeTuneIssues, generateFakeLapTelemetry } from "./setupEngineerFakeLap";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },

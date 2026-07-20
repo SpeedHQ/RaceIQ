@@ -126,7 +126,13 @@ const gatherPrereqs = createStep({
     sections.push(
       "--- VERSION HISTORY (oldest first) ---\n" +
         (tests.length
-          ? tests.map((t) => `v${t.version} "${t.label}"${t.engine ? ` (${t.engine})` : ""}`).join(", ")
+          ? tests
+              .map(
+                (t) =>
+                  `v${t.version} "${t.label}"${t.engine ? ` (${t.engine})` : ""}` +
+                  (t.notes ? ` — note: ${t.notes}` : ""),
+              )
+              .join("\n")
           : "none yet"),
     );
 

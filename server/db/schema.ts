@@ -282,6 +282,11 @@ export const tuningTests = sqliteTable(
 		parentTestId: integer("parent_test_id"),
 		appliedChanges: text("applied_changes"), // JSON: AppliedChange[]
 		driverComment: text("driver_comment"),
+		// Engineer/AI free-text annotation on this node — distinct from the
+		// driver's subjective feel comment. The setup-engineer agent writes here
+		// to persist per-version reasoning that must survive chat compaction
+		// (migration v31).
+		notes: text("notes"),
 		engine: text("engine"),
 		// F1's captured base / target F1CarSetup JSON (migration v30). Null for
 		// file-based ACC/AC-Evo nodes, which keep using setupPath.

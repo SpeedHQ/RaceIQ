@@ -481,4 +481,16 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_tuning_actions_session ON tuning_actions(tuning_session_id)`,
     ],
   },
+
+  // ── v31: Engineer notes on version nodes ───────────────────────────────────
+  // Per-node free-text engineer/AI annotation, distinct from driver_comment
+  // (the driver's subjective feel note). The setup-engineer agent writes here
+  // to persist per-version reasoning across chat compaction, and it's surfaced
+  // in the injected VERSION HISTORY context every turn so the note is readable
+  // back after the conversation is summarised.
+  {
+    version: 31,
+    name: "engineer notes on version nodes",
+    sql: [`ALTER TABLE tuning_tests ADD COLUMN notes TEXT`],
+  },
 ];

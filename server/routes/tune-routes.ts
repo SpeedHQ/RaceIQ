@@ -31,8 +31,10 @@ import {
   getImportableLapsForTuningSession,
   importLapsToTuningSession,
 } from "../db/queries";
-import { getAccSetupFolderKeys } from "../../shared/acc-track-data";
-import { getAcEvoSetupFolderKeys } from "../../shared/ac-evo-track-data";
+import { getAccSetupFolderKeys, getAccTrackBySetupFolder } from "../../shared/acc-track-data";
+import { getAcEvoSetupFolderKeys, getAcEvoTrackBySetupFolder } from "../../shared/ac-evo-track-data";
+import { getAllAccCars } from "../../shared/acc-car-data";
+import { getAllAcEvoCars } from "../../shared/ac-evo-car-data";
 import { getTrackLengthMeters } from "../../shared/track-data";
 import { suggestLapTarget } from "../../shared/lap-target";
 import {
@@ -51,6 +53,8 @@ import {
   getTuningTest,
   getLapCountsByTest,
   updateTuningTestSetupSnapshot,
+  setTuningTestNote,
+  setTuningTestNotes,
   deleteTestSubtree,
   restoreTestSubtree,
 } from "../db/tuning-test-queries";
@@ -345,6 +349,13 @@ const CreateTuningTestSchema = z.object({
   engine: z.enum(["rules", "llm"]).nullable().optional(),
 });
 
+/** PATCH a single version node — its free-text driver note and/or the
+ *  engineer/AI note (independent fields, either or both may be sent). */
+const UpdateTuningTestSchema = z.object({
+  driverComment: z.string().max(2000).nullable().optional(),
+  notes: z.string().max(4000).nullable().optional(),
+});
+
 const AddBaseSchema = z.object({
   setupPath: z.string().min(1).max(1000),
   label: z.string().min(1).max(200).optional(),
@@ -370,11 +381,6 @@ const IncludeDeletedQuerySchema = z.object({
   includeDeleted: z.string().optional(),
 });
 
-const InspireSchema = z.object({
-  sourceTestId: z.number().int(),
-  label: z.string().min(1).max(200).optional(),
-  setHead: z.boolean().optional(),
-});
 
 const ImportLapsSchema = z.object({
   lapIds: z.array(z.number().int()).min(1).max(500),
@@ -408,6 +414,13 @@ const AutoTuneSchema = z.object({
 
 const TuneChatBodySchema = z.object({
   messages: z.array(z.any()),
+  // Compact text summary of whatever lap review the driver currently has open
+  // in the Review Laps dashboard (client's TuneReviewDashboard), rebuilt on
+  // every lap switch and resent with every turn — lets the agent see exactly
+  // what the driver is looking at without a tool round-trip. Capped well
+  // above the builder's realistic output (a handful of sectors/corners/issues
+  // renders to a few hundred bytes) as a defensive payload-size guard.
+  extendedContext: z.string().max(8000).optional(),
 });
 
 // Setup-file guard, session-symptom, and applied-changes-markdown helpers
@@ -439,11 +452,26 @@ export const tuneRoutes = new Hono()
       // Canonical track roster for this game, data-driven from tracks.csv
       // (setupFolder column) — the "place a dropped setup" track picker.
       const tracks = gameId === "acc" ? getAccSetupFolderKeys() : getAcEvoSetupFolderKeys();
+      // Friendly display name per setup-folder key (e.g. "barcelona" → "Barcelona"),
+      // resolved from tracks.csv. Falls back to the key for anything not in the CSV.
+      const trackByKey = gameId === "acc" ? getAccTrackBySetupFolder : getAcEvoTrackBySetupFolder;
+      const trackNames: Record<string, string> = {};
+      for (const key of tracks) {
+        const t = trackByKey(key);
+        // Include the variant (GP / Indy / …) so layout variants of the same
+        // circuit (e.g. Brands Hatch GP vs Indy) don't collapse to one label.
+        trackNames[key] = t ? (t.variant ? `${t.name} ${t.variant}` : t.name) : key;
+      }
+      // Canonical car roster (model slug + friendly name) from cars.csv, so the
+      // picker can offer every car — not only ones the driver already saved a
+      // setup for — and show the friendly name instead of the raw slug.
+      const cars = (gameId === "acc" ? getAllAccCars() : getAllAcEvoCars())
+        .map((car) => ({ model: car.model, name: car.name }));
       const baseDir = await getSetupsBaseDir(gameId);
       if (!baseDir) {
-        return c.json({ baseDir: null, files: [], tracks, error: "Setups folder not found" });
+        return c.json({ baseDir: null, files: [], tracks, trackNames, cars, error: "Setups folder not found" });
       }
-      return c.json({ baseDir, files: listSetupFiles(baseDir), tracks });
+      return c.json({ baseDir, files: listSetupFiles(baseDir), tracks, trackNames, cars });
     }
   )
 
@@ -987,6 +1015,45 @@ export const tuneRoutes = new Hono()
     }
   )
 
+  // PATCH /api/tuning-sessions/:id/tests/:testId — edit a single version node's
+  // free-text driver note (per-node annotation). Undoable via "edit-test-note".
+  .patch("/api/tuning-sessions/:id/tests/:testId",
+    zValidator("param", TestParamSchema),
+    zValidator("json", UpdateTuningTestSchema),
+    async (c) => {
+      const { id, testId } = c.req.valid("param");
+      const body = c.req.valid("json");
+      const session = await getTuningSession(id);
+      if (!session) return c.json({ error: "Tuning session not found" }, 404);
+      const test = await getTuningTest(testId);
+      if (!test || test.tuningSessionId !== id) {
+        return c.json({ error: "Version not found in this session" }, 404);
+      }
+
+      if (body.driverComment !== undefined) {
+        const note = body.driverComment === "" ? null : body.driverComment;
+        const prev = await setTuningTestNote(testId, note);
+        try {
+          await recordAction(id, "edit-test-note", { testId, prevDriverComment: prev });
+        } catch (err: any) {
+          console.error("[tune] Failed to log edit-test-note action:", err?.message);
+        }
+      }
+
+      if (body.notes !== undefined) {
+        const notes = body.notes === "" ? null : body.notes;
+        const prev = await setTuningTestNotes(testId, notes);
+        try {
+          await recordAction(id, "edit-test-notes", { testId, prevNotes: prev });
+        } catch (err: any) {
+          console.error("[tune] Failed to log edit-test-notes action:", err?.message);
+        }
+      }
+
+      return c.json(await getTuningTest(testId));
+    }
+  )
+
   // POST /api/tuning-sessions/:id/tests/:testId/delete — soft-delete a version
   // and its whole descendant subtree (design Phase 8). Reversible: status
   // flips to 'deleted' rather than removing rows, so the /restore route below
@@ -1395,75 +1462,6 @@ export const tuneRoutes = new Hono()
     }
   )
 
-  // POST /api/tuning-sessions/:id/inspire — non-chat counterpart to the
-  // branch-from-version tool's asNewRoot mode: byte-copy an existing
-  // version's setup under a new label, but seed it as a fresh root
-  // (parentTestId=null) instead of a child of the source. Lets the UI offer
-  // "Use as inspiration" per node in VersionGraph without a chat round trip.
-  .post("/api/tuning-sessions/:id/inspire",
-    zValidator("param", IdParamSchema),
-    zValidator("json", InspireSchema),
-    async (c) => {
-      const { id } = c.req.valid("param");
-      const session = await getTuningSession(id);
-      if (!session) return c.json({ error: "Tuning session not found" }, 404);
-
-      const body = c.req.valid("json");
-      const tests = await listTuningTests(id);
-      const source = tests.find((t) => t.id === body.sourceTestId);
-      if (!source) return c.json({ error: "Source version not found in this session" }, 404);
-
-      const guarded = await resolveGuardedSetupFile(session.gameId as AccGameId, source.setupPath ?? "");
-      if (!guarded.ok) return c.json({ error: `Could not read ${source.label}: ${guarded.error}` }, guarded.status);
-
-      const takenLabels = new Set(tests.map((t) => t.label));
-      const label = nextFreeLabel(body.label ?? `${source.label}-insp`, takenLabels);
-      const saveAsName = `${source.setupPath?.split(/[\\/]/).pop()?.replace(/\.json$/i, "") ?? "setup"}-${label}`;
-
-      let written;
-      try {
-        written = writeSetupFile(guarded.baseDir, guarded.realPath, guarded.setup, saveAsName, false);
-      } catch (err: any) {
-        return c.json({ error: `Write failed: ${err.message}` }, 500);
-      }
-
-      const version = await nextVersion(id);
-      const testId = await createTuningTest({
-        tuningSessionId: id,
-        version,
-        label,
-        setupPath: written.path,
-        parentTestId: null,
-        engine: "branch",
-      });
-
-      const prevHeadTestId = session.headTestId ?? null;
-      const setHead = body.setHead ?? true;
-      if (setHead) await setSessionHead(id, testId);
-
-      try {
-        await recordAction(id, "inspire", { testId, prevHeadTestId: setHead ? prevHeadTestId : null });
-      } catch (err: any) {
-        console.error("[tune] Failed to log inspire action:", err?.message);
-      }
-
-      try {
-        await saveChatMessages(tuneSessionThreadId(id), [
-          { role: "user", markdown: `Use **${source.label}** as inspiration for a new base.` },
-          {
-            role: "assistant",
-            markdown: `Started a new base **${label}** (v${version}) inspired by **${source.label}** — I'll work from here.`,
-          },
-        ]);
-      } catch (err: any) {
-        console.error("[tune] Failed to post inspire note:", err?.message);
-      }
-
-      const created = (await listTuningTests(id)).find((t) => t.id === testId);
-      return c.json(created, 201);
-    }
-  )
-
   // POST /api/tuning-sessions/:id/head — check out a setup version as the
   // session's current head. Posts a deterministic canned ack into the chat
   // thread (best-effort) so the Setup Engineer agent keeps context on reload.
@@ -1640,7 +1638,7 @@ export const tuneRoutes = new Hono()
     zValidator("json", TuneChatBodySchema),
     async (c) => {
       const { id } = c.req.valid("param");
-      const { messages } = c.req.valid("json");
+      const { messages, extendedContext } = c.req.valid("json");
 
       const session = await getTuningSession(id);
       if (!session) return c.json({ error: "Tuning session not found" }, 404);
@@ -1715,10 +1713,16 @@ export const tuneRoutes = new Hono()
       // always >= this) — avoids racing/patching a previous turn's message.
       const turnStartedAt = Date.now();
 
-      const stream = await agent.stream(
-        [{ role: "system", content: gatheredContext ? `${sessionSystemPrompt}
+      // System prompt segments, additive: session identity, deterministic
+      // prereq-gathered context (setup/symptoms/history), then whatever lap
+      // review the driver currently has open on screen (if any) — so the
+      // agent's picture matches what the driver is looking at this turn.
+      const systemSegments = [sessionSystemPrompt];
+      if (gatheredContext) systemSegments.push(gatheredContext);
+      if (extendedContext) systemSegments.push(extendedContext);
 
-${gatheredContext}` : sessionSystemPrompt }, ...messages],
+      const stream = await agent.stream(
+        [{ role: "system", content: systemSegments.join("\n\n") }, ...messages],
         {
         memory: { thread: tuneSessionThreadId(id), resource: CHAT_RESOURCE_ID },
         requestContext: reqCtx,

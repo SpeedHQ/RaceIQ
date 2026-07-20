@@ -2,17 +2,30 @@ import { tryGetGame } from "@shared/games/registry";
 import type { LapMeta, TelemetryPacket, TuneIssue } from "@shared/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { TuningTest } from "../../hooks/queries";
 import { useLapIssues, useLapTelemetry, useTirePressureOptimal } from "../../hooks/queries";
 import { TireGrid } from "../telemetry/TireGrid";
 import { SectorDetailView } from "./SectorDetailView";
 import { SectorMap } from "./SectorMap";
-import { CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey, bandColor, buildSectorRanges } from "./SectorRangeBreakdown";
+import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey } from "./SectorRangeBreakdown";
 import { NoSetupsHint, SetupEngineerControls, SetupEngineerResult, useSetupEngineer } from "./SetupEngineer";
 
 interface TuneReviewDashboardProps {
   gameId: "acc" | "ac-evo";
   trackName?: string;
   laps: LapMeta[];
+  /** When set, renders a "Back to session" button in the toolbar. */
+  onBack?: () => void;
+  /** The version node being reviewed (resolved by the route from ?testId or
+   *  the session HEAD). Used to display its driver comment / engineer notes
+   *  read-only — editing stays in VersionGraph. */
+  test?: TuningTest;
+  /** Fires whenever the compact text summary of the currently-open lap review
+   *  changes (lap switch, sector telemetry load, metric change, etc.) — lets a
+   *  parent pipe "what the user is currently looking at" into the Setup
+   *  Engineer chat's request context. Fires with `null` when nothing is open
+   *  (no laps yet). */
+  onOpenLapContextChange?: (text: string | null) => void;
 }
 
 const SECTOR_COLORS = ["#f87171", "#60a5fa", "#facc15"] as const;
@@ -29,7 +42,7 @@ const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {
  * recommendation. Everything is reconstructed from the selected lap's stored
  * telemetry — no live stream.
  */
-export function TuneReviewDashboard({ gameId, trackName, laps }: TuneReviewDashboardProps) {
+export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, onOpenLapContextChange }: TuneReviewDashboardProps) {
   const validLaps = useMemo(() => [...laps].filter((l) => l.isValid && !l.isLegacy).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
 
   // Focus lap lives in the URL (?lap=<id>) so it's linkable/shareable.
@@ -118,14 +131,95 @@ export function TuneReviewDashboard({ gameId, trackName, laps }: TuneReviewDashb
     [metric],
   );
 
+  // Compact text summary of exactly what's rendered for the focused lap —
+  // lap/time, sector times + deltas vs this session's best, corner/tyre data,
+  // detected issues, the selected metric's per-sector ranges, driver/engineer
+  // notes, and excluded/invalid flags. Piped up to the parent so it can feed
+  // the Setup Engineer chat "what the user currently sees" (rebuilt whenever
+  // any of this changes, not captured once).
+  const openLapContext = useMemo(() => {
+    if (!focusLap) return null;
+    const lines: string[] = [];
+    lines.push("CURRENTLY OPEN LAP REVIEW (visible to user):");
+    lines.push(
+      `Lap ${focusLap.lapNumber} — ${focusLap.lapTime.toFixed(3)}s${focusLap.isValid ? "" : ` (INVALID${focusLap.invalidReason ? `: ${focusLap.invalidReason}` : ""})`}${focusLap.tuningExcluded ? " (excluded from tuning aggregate)" : ""}`,
+    );
+
+    if (sectorTimes) {
+      const bestOf = (sel: (l: LapMeta) => number | undefined) => {
+        let best: number | undefined;
+        for (const l of laps) {
+          const v = sel(l);
+          if (v == null || v <= 0) continue;
+          if (best == null || v < best) best = v;
+        }
+        return best;
+      };
+      const bestS = [bestOf((l) => l.s1Time), bestOf((l) => l.s2Time), bestOf((l) => l.s3Time)];
+      const sectorLine = [0, 1, 2]
+        .map((i) => {
+          const t = sectorTimes.times[i];
+          if (!(t > 0)) return `S${i + 1} —`;
+          const best = bestS[i];
+          const delta = best != null ? t - best : null;
+          const deltaStr = delta == null ? "" : delta <= 0.0005 ? " (best)" : ` (+${delta.toFixed(3)})`;
+          return `S${i + 1} ${t.toFixed(3)}s${deltaStr}`;
+        })
+        .join(", ");
+      lines.push(`Sectors: ${sectorLine}`);
+    }
+
+    if (corners) {
+      const cornerLine = CORNERS.map((c) => {
+        const s = corners[c];
+        return `${c} temp ${s.tempC.toFixed(0)}°C, wear ${s.wear.toFixed(0)}%, pressure ${s.pressure.toFixed(1)}psi, brake ${s.brakeTemp.toFixed(0)}°C`;
+      }).join("; ");
+      lines.push(`Tyres (end of lap): ${cornerLine}`);
+    }
+
+    if (issues && issues.length > 0) {
+      lines.push(`Detected issues: ${issues.map((it) => `${it.kind}${it.corner ? ` ${it.corner}` : ""} (${it.severity}) — ${it.detail}`).join("; ")}`);
+    } else if (issues) {
+      lines.push("Detected issues: none.");
+    }
+
+    if (ranges) {
+      lines.push(`${metric.label} ranges (min-max, ${metric.unit}) by sector:`);
+      ranges.sectors.forEach((sec, i) => {
+        const cornerStr = CORNERS.map((c) => {
+          const r = sec[c];
+          return r.n === 0 ? `${c} —` : `${c} ${r.min.toFixed(0)}-${r.max.toFixed(0)} (avg ${r.avg.toFixed(0)})`;
+        }).join(", ");
+        lines.push(`  S${i + 1}: ${cornerStr}`);
+      });
+    }
+
+    if (test?.driverComment) lines.push(`Driver comment: ${test.driverComment}`);
+    if (test?.notes) lines.push(`Engineer notes: ${test.notes}`);
+
+    return lines.join("\n");
+  }, [focusLap, sectorTimes, laps, corners, issues, ranges, metric, test]);
+
+  useEffect(() => {
+    onOpenLapContextChange?.(openLapContext);
+  }, [openLapContext, onOpenLapContextChange]);
+
+  // No focus lap yet (empty session / ?laps= with nothing recorded): render the
+  // overview skeleton — same spine layout, placeholder times/maps — so the page
+  // reads as the review dashboard rather than a bare "no laps" message.
   if (!focusLap) {
-    return <div className="p-6 text-sm text-app-text-dim">No valid laps with telemetry in this session yet.</div>;
+    return <ReviewOverviewSkeleton trackName={trackName} onBack={onBack} />;
   }
 
   return (
     <div className="flex-1 overflow-y-auto">
       {/* Toolbar: lap picker + view switcher on the left, Setup Engineer on the right */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
+        {onBack && (
+          <button type="button" onClick={onBack} className="px-2.5 py-1 text-xs rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim">
+            ← Session
+          </button>
+        )}
         <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</span>
         <select className="bg-app-panel border border-app-border rounded px-2 py-1 text-sm font-mono" value={focusLap.id} onChange={(e) => setFocus(Number(e.target.value))}>
           {validLaps.map((l) => (
@@ -154,6 +248,23 @@ export function TuneReviewDashboard({ gameId, trackName, laps }: TuneReviewDashb
           <SetupEngineerControls state={engineer} lapId={focusLap.id} />
         </div>
       </div>
+
+      {(test?.driverComment || test?.notes) && (
+        <div className="border-b border-app-border px-4 py-2.5 space-y-2">
+          {test?.driverComment && (
+            <div>
+              <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Driver comment</div>
+              <div className="text-xs text-app-text whitespace-pre-wrap">{test.driverComment}</div>
+            </div>
+          )}
+          {test?.notes && (
+            <div>
+              <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Engineer notes</div>
+              <div className="text-xs text-app-text whitespace-pre-wrap">{test.notes}</div>
+            </div>
+          )}
+        </div>
+      )}
 
       {sectorIndex != null ? (
         <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
@@ -290,18 +401,79 @@ export function TuneReviewDashboard({ gameId, trackName, laps }: TuneReviewDashb
   );
 }
 
+/** Overview skeleton shown when the session has no recorded lap yet — mirrors
+ *  the real overview (toolbar + sector spine) with placeholder times/maps so the
+ *  page reads as the review dashboard, not a bare empty message. */
+function ReviewOverviewSkeleton({ trackName, onBack }: { trackName?: string; onBack?: () => void }) {
+  return (
+    <div className="flex-1 overflow-y-auto">
+      {/* Toolbar — mirrors the real one; controls disabled with no lap loaded. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
+        {onBack && (
+          <button type="button" onClick={onBack} className="px-2.5 py-1 text-xs rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim">
+            ← Session
+          </button>
+        )}
+        <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</span>
+        <div className="bg-app-panel border border-app-border rounded px-2 py-1 text-sm font-mono text-app-text-dim">No laps yet</div>
+        <div className="flex gap-1">
+          {(["overview", "s1", "s2", "s3"] as const).map((v) => (
+            <span key={v} className={`px-2.5 py-1 text-xs rounded border ${v === "overview" ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-dim"}`}>
+              {v === "overview" ? "Overview" : `Sector ${v.slice(1)}`}
+            </span>
+          ))}
+        </div>
+        {trackName && <span className="ml-auto hidden lg:inline text-xs text-app-text-muted">{trackName}</span>}
+      </div>
+
+      {/* Sector spine — placeholder times + empty maps. */}
+      <div className="border-b border-app-border">
+        <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-app-border">
+          <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Sectors</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className={`p-3 ${i < 2 ? "sm:border-r border-app-border" : ""} border-t sm:border-t-0 border-app-border first:border-t-0`}>
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLORS[i] }} />
+                <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Sector {i + 1}</span>
+              </div>
+              <div className="text-xl font-mono tabular-nums text-app-text-dim mt-1.5">—</div>
+              <div className="mt-2 aspect-video rounded border border-dashed border-app-border grid place-items-center text-xs text-app-text-dim">No telemetry</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="px-4 py-6 text-sm text-app-text-dim">Drive a stint and finish a lap — your recorded laps and their sector breakdown will appear here.</div>
+    </div>
+  );
+}
+
 function IssuePill({ issue, onHover }: { issue: TuneIssue; onHover?: (frac: number | null) => void }) {
   const locatable = issue.distanceFrac != null && !!onHover;
+  if (!locatable) {
+    return (
+      <div className={`text-xs px-2 py-1 rounded border ${SEVERITY_CLASS[issue.severity]}`}>
+        <span className="font-mono uppercase mr-1.5 opacity-70">{issue.kind}</span>
+        {issue.corner ? <span className="font-mono mr-1">{issue.corner}</span> : null}
+        {issue.detail}
+      </div>
+    );
+  }
   return (
-    <div
-      onMouseEnter={locatable ? () => onHover!(issue.distanceFrac!) : undefined}
-      onMouseLeave={locatable ? () => onHover!(null) : undefined}
-      className={`text-xs px-2 py-1 rounded border ${SEVERITY_CLASS[issue.severity]} ${locatable ? "cursor-pointer" : ""}`}
+    <button
+      type="button"
+      onMouseEnter={() => onHover!(issue.distanceFrac!)}
+      onMouseLeave={() => onHover!(null)}
+      onFocus={() => onHover!(issue.distanceFrac!)}
+      onBlur={() => onHover!(null)}
+      className={`text-xs px-2 py-1 rounded border text-left ${SEVERITY_CLASS[issue.severity]} cursor-pointer`}
     >
       <span className="font-mono uppercase mr-1.5 opacity-70">{issue.kind}</span>
       {issue.corner ? <span className="font-mono mr-1">{issue.corner}</span> : null}
       {issue.detail}
-    </div>
+    </button>
   );
 }
 

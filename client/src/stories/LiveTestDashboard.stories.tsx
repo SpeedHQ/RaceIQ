@@ -1,10 +1,10 @@
-import { useEffect } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useTelemetryStore } from "../stores/telemetry";
+import { useEffect } from "react";
 import { LiveTestDashboard } from "../components/tunes/LiveTestDashboard";
-import { fakeAccPacket, fakeAccDisplayPacket, fakeSectors, fakeSessionLaps } from "./fakeData";
-import { generateFakeLapTelemetry, fakeSectorTimes, fakeTuneIssues } from "./setupEngineerFakeLap";
+import { useTelemetryStore } from "../stores/telemetry";
+import { fakeAccDisplayPacket, fakeAccPacket, fakeSectors, fakeSessionLaps } from "./fakeData";
+import { fakeSectorTimes, fakeTuneIssues, generateFakeLapTelemetry } from "./setupEngineerFakeLap";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },

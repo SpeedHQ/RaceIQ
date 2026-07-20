@@ -169,6 +169,35 @@ export async function updateTuningTestSetupSnapshot(id: number, setupSnapshot: s
   await db.update(tuningTests).set({ setupSnapshot }).where(eq(tuningTests.id, id)).run();
 }
 
+/** Set (or clear, with null) a version node's free-text driver note. This is the
+ *  user's own annotation on a node — distinct from the applied-changes summary.
+ *  Returns the prior value so the caller can log an inverse for undo. */
+export async function setTuningTestNote(id: number, note: string | null): Promise<string | null> {
+  const before = await getTuningTest(id);
+  await db.update(tuningTests).set({ driverComment: note }).where(eq(tuningTests.id, id)).run();
+  return before?.driverComment ?? null;
+}
+
+/** Set (or clear, with null) a version node's engineer/AI note — distinct from
+ *  the driver's feel comment. Returns the prior value so the caller can log an
+ *  inverse for undo. */
+export async function setTuningTestNotes(id: number, notes: string | null): Promise<string | null> {
+  const before = await getTuningTest(id);
+  await db.update(tuningTests).set({ notes }).where(eq(tuningTests.id, id)).run();
+  return before?.notes ?? null;
+}
+
+/** Resolve one session's version node by its user-facing version number — used
+ *  by the setup-engineer agent's note tool, which reasons in version numbers
+ *  (never internal test ids). Null when no such version exists. */
+export async function getTuningTestByVersion(sessionId: number, version: number) {
+  return await db
+    .select()
+    .from(tuningTests)
+    .where(and(eq(tuningTests.tuningSessionId, sessionId), eq(tuningTests.version, version)))
+    .get();
+}
+
 /** Next version number for a session — max(version) + 1, or 1 when none exist. */
 export async function nextVersion(sessionId: number): Promise<number> {
   const row = await db

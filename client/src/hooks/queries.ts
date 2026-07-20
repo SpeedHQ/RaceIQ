@@ -2,7 +2,7 @@ import { tryGetGame } from "@shared/games/registry";
 import type { GameId, LapMeta, SessionMeta, SessionRecap, TelemetryPacket, TuneIssue } from "@shared/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import type { CatalogTune } from "../data/tune-catalog";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
@@ -317,6 +317,22 @@ export function useCarName(ord: number | undefined) {
   });
 }
 
+// ── ACC car model → friendly name map ───────────────────────────────────────
+// Sessions store the raw ACC model slug (e.g. "mercedes_amg_gt3_evo") as
+// carName. Resolve it to the published display name ("Mercedes-AMG GT3 Evo
+// 2020") for the UI. Returns a lookup fn; unknown slugs pass through unchanged.
+export function useAccCarName() {
+  const { data: cars = [] } = useQuery({
+    queryKey: ["acc-cars"],
+    queryFn: () => client.api.acc.cars.$get().then((r) => r.json() as unknown as { model: string; name: string }[]),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  return useMemo(() => {
+    const byModel = new Map(cars.map((c) => [c.model, c.name] as const));
+    return (model: string | null | undefined) => (model ? (byModel.get(model) ?? model) : model);
+  }, [cars]);
+}
+
 // ── ACC car class (server-resolved) ─────────────────────────────────────────
 export function useAccCarClass(ordinal: number | undefined) {
   return useQuery({
@@ -499,7 +515,14 @@ export function useSetupFiles(gameId: "acc" | "ac-evo" | null) {
     queryKey: ["setup-files", gameId],
     queryFn: async () => {
       const res = await (client.api.tunes as any)["setup-files"].$get({ query: { gameId } });
-      return rpcJson<{ baseDir: string | null; files: { carModel: string; trackName: string; fileName: string; absolutePath: string }[]; tracks?: string[]; error?: string }>(res);
+      return rpcJson<{
+        baseDir: string | null;
+        files: { carModel: string; trackName: string; fileName: string; absolutePath: string }[];
+        tracks?: string[];
+        trackNames?: Record<string, string>;
+        cars?: { model: string; name: string }[];
+        error?: string;
+      }>(res);
     },
     enabled: gameId != null,
     staleTime: 30_000,
@@ -511,13 +534,7 @@ export function useSetupFiles(gameId: "acc" | "ac-evo" | null) {
 export function usePlaceSetup() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: {
-      gameId: "acc" | "ac-evo";
-      carName: string;
-      trackName: string;
-      fileName: string;
-      content: unknown;
-    }) => {
+    mutationFn: async (data: { gameId: "acc" | "ac-evo"; carName: string; trackName: string; fileName: string; content: unknown }) => {
       const res = await (client.api.tunes as any)["place-setup"].$post({ json: data });
       if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
       return (await res.json()) as { absolutePath: string; carModel: string; trackName: string; fileName: string; placed: boolean };
@@ -730,6 +747,8 @@ export interface TuningTest {
   /** JSON string of AppliedChange[] (null for a base/un-applied version). */
   appliedChanges: string | null;
   driverComment: string | null;
+  /** Engineer/AI free-text annotation, distinct from the driver's feel comment. */
+  notes: string | null;
   engine: string | null;
   status: string;
   createdAt: string;
@@ -771,6 +790,44 @@ export function useCreateTuningTest() {
       return (await res.json()) as TuningTest;
     },
     onSuccess: (t) => qc.invalidateQueries({ queryKey: ["tuning-session-tests", t.tuningSessionId] }),
+  });
+}
+
+/** Edit a single version node's free-text driver note. Pass an empty string or
+ *  null to clear it. */
+export function useSetTestNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ sessionId, testId, driverComment }: { sessionId: number; testId: number; driverComment: string | null }) => {
+      const res = await (client.api as any)["tuning-sessions"][":id"].tests[":testId"].$patch({
+        param: { id: String(sessionId), testId: String(testId) },
+        json: { driverComment },
+      });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as TuningTest;
+    },
+    onSuccess: (_t, { sessionId }) => {
+      qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
+    },
+  });
+}
+
+/** Edit a single version node's engineer/AI note (distinct from the driver
+ *  comment). Pass an empty string or null to clear it. */
+export function useSetTestNotes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ sessionId, testId, notes }: { sessionId: number; testId: number; notes: string | null }) => {
+      const res = await (client.api as any)["tuning-sessions"][":id"].tests[":testId"].$patch({
+        param: { id: String(sessionId), testId: String(testId) },
+        json: { notes },
+      });
+      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      return (await res.json()) as TuningTest;
+    },
+    onSuccess: (_t, { sessionId }) => {
+      qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
+    },
   });
 }
 
@@ -822,17 +879,7 @@ export function useCaptureSetup() {
 export function useAddBase() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      sessionId,
-      setupPath,
-      label,
-      setHead,
-    }: {
-      sessionId: number;
-      setupPath: string;
-      label?: string;
-      setHead?: boolean;
-    }) => {
+    mutationFn: async ({ sessionId, setupPath, label, setHead }: { sessionId: number; setupPath: string; label?: string; setHead?: boolean }) => {
       const res = await (client.api as any)["tuning-sessions"][":id"].bases.$post({
         param: { id: String(sessionId) },
         json: { setupPath, label, setHead },
@@ -877,15 +924,7 @@ export function useImportableLaps(sessionId: number | null | undefined) {
 export function useImportLaps() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      sessionId,
-      lapIds,
-      tuningTestId,
-    }: {
-      sessionId: number;
-      lapIds: number[];
-      tuningTestId?: number | null;
-    }) => {
+    mutationFn: async ({ sessionId, lapIds, tuningTestId }: { sessionId: number; lapIds: number[]; tuningTestId?: number | null }) => {
       const res = await (client.api as any)["tuning-sessions"][":id"]["import-laps"].$post({
         param: { id: String(sessionId) },
         json: { lapIds, tuningTestId },
@@ -899,36 +938,6 @@ export function useImportLaps() {
       qc.invalidateQueries({ queryKey: ["tuning-session-importable-laps", sessionId] });
       qc.invalidateQueries({ queryKey: ["laps"] });
       qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", sessionId] });
-    },
-  });
-}
-
-/** "Use as inspiration" — byte-copy an existing version's setup into a fresh
- *  root (no chat round trip), the non-chat counterpart to the
- *  branch-from-version tool's asNewRoot mode. */
-export function useInspireVersion() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      sessionId,
-      sourceTestId,
-      label,
-    }: {
-      sessionId: number;
-      sourceTestId: number;
-      label?: string;
-    }) => {
-      const res = await (client.api as any)["tuning-sessions"][":id"].inspire.$post({
-        param: { id: String(sessionId) },
-        json: { sourceTestId, label },
-      });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
-      return (await res.json()) as TuningTest;
-    },
-    onSuccess: (t) => {
-      qc.invalidateQueries({ queryKey: ["tuning-session", t.tuningSessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-tests", t.tuningSessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", t.tuningSessionId] });
     },
   });
 }

@@ -1,8 +1,9 @@
+import { getGame } from "@shared/games/registry";
 import { useNavigate } from "@tanstack/react-router";
-import { useMemo } from "react";
-import { type TuningGameId, type TuningLapMetric, useLaps, useTuningSession, useTuningSessionLapMetrics } from "../../hooks/queries";
+import { useMemo, useState } from "react";
+import { type TuningGameId, useLaps, useTuningSession, useTuningSessionTests } from "../../hooks/queries";
 import { BackButton } from "./BackButton";
-import { TestReviewDashboard } from "./TestReviewDashboard";
+import { TuneReviewDashboard } from "./TuneReviewDashboard";
 import { TuneSetupChat } from "./TuneSetupChat";
 
 /**
@@ -12,22 +13,23 @@ import { TuneSetupChat } from "./TuneSetupChat";
  * param; laps themselves are re-read from the persisted laps query (they are
  * stamped/persisted server-side as they land, so they survive the navigation).
  */
-export function TestReviewPage({ gameId, tuningSessionId, lapIds }: { gameId: TuningGameId; tuningSessionId: number; lapIds: number[] }) {
+export function TestReviewPage({ gameId, tuningSessionId, lapIds, testId }: { gameId: TuningGameId; tuningSessionId: number; lapIds: number[]; testId?: number }) {
   const navigate = useNavigate();
   const { data: session } = useTuningSession(tuningSessionId);
   const { data: allLaps = [] } = useLaps();
-  const { data: lapMetrics = [] } = useTuningSessionLapMetrics(tuningSessionId);
+  const tests = useTuningSessionTests(tuningSessionId);
+  // Compact summary of whatever lap review is open in the dashboard below,
+  // rebuilt by TuneReviewDashboard on every lap switch and piped into the
+  // Setup Engineer chat so it "sees what the user sees".
+  const [lapReviewContext, setLapReviewContext] = useState<string | null>(null);
 
   const laps = useMemo(() => allLaps.filter((l) => lapIds.includes(l.id)).sort((a, b) => a.lapNumber - b.lapNumber), [allLaps, lapIds]);
-  const metricsById = useMemo(() => {
-    const m = new Map<number, TuningLapMetric>();
-    for (const entry of lapMetrics) m.set(entry.lapId, entry);
-    return m;
-  }, [lapMetrics]);
+
+  const activeTest = tests.data?.find((t) => t.id === testId) ?? tests.data?.find((t) => t.id === session?.headTestId) ?? undefined;
 
   const backToWorkspace = () =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    navigate({ to: `/${gameId}/tune/${tuningSessionId}` } as any);
+    navigate({ to: `/${getGame(gameId).routePrefix}/tune/${tuningSessionId}` } as any);
 
   return (
     <div className="h-full flex flex-col overflow-hidden p-3 gap-3">
@@ -36,17 +38,24 @@ export function TestReviewPage({ gameId, tuningSessionId, lapIds }: { gameId: Tu
           persistent Setup Engineer chat right — the chat is never hidden. */}
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3">
         <div className="min-h-0 overflow-y-auto border border-app-border rounded-lg">
-          {/* TestReviewDashboard is ACC/AC-Evo only (dashboard-specific tyre/setup
-              panels) and its gameId prop is unused (`_gameId`) — narrow rather
-              than widen its type, since F1 never actually reaches those panels. */}
-          <TestReviewDashboard gameId={gameId === "f1-2025" ? "acc" : gameId} laps={laps} metricsById={metricsById} tuningSessionId={tuningSessionId} />
+          {/* TuneReviewDashboard's gameId union is ACC/AC-Evo (setup-engineer
+              panels); F1 rides the ACC path — it never reaches ACC-specific
+              setup data, and the sector/tyre analysis is game-agnostic. */}
+          <TuneReviewDashboard
+            gameId={gameId === "f1-2025" ? "acc" : gameId}
+            laps={laps}
+            trackName={session?.trackName ?? undefined}
+            onBack={backToWorkspace}
+            test={activeTest}
+            onOpenLapContextChange={setLapReviewContext}
+          />
         </div>
         <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
           <div className="shrink-0 px-3 py-2 border-b border-app-border">
             <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Setup engineer</span>
           </div>
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <TuneSetupChat sessionId={tuningSessionId} headTestId={session?.headTestId ?? null} />
+            <TuneSetupChat sessionId={tuningSessionId} headTestId={session?.headTestId ?? null} extendedContext={lapReviewContext} />
           </div>
         </div>
       </div>
