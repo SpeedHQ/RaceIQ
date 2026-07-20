@@ -541,6 +541,7 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
             fetchHistory={() => fetchCompareChatHistory(lapA.id, lapB.id)}
             historyQueryKey={["compare-chat-history", lapA.id, lapB.id, chatRemountKey]}
             remountKey={`${lapA.id}:${lapB.id}:${chatRemountKey}`}
+            compactThreadId={`compare-${Math.min(lapA.id, lapB.id)}-${Math.max(lapA.id, lapB.id)}`}
           />
         </div>
       )}

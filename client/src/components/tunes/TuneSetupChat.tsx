@@ -70,6 +70,7 @@ export function TuneSetupChat({
       fetchHistory={() => fetchTuneChatHistory(sessionId)}
       historyQueryKey={["tuning-session-chat-history", sessionId]}
       remountKey={`${sessionId}:${headTestId ?? "none"}`}
+      compactThreadId={`tune-session-${sessionId}`}
       extraBody={extendedContext ? { extendedContext } : undefined}
       onFinish={() => {
         queryClient.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });

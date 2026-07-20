@@ -751,6 +751,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             fetchHistory={() => fetchLapChatHistory(lapId)}
             historyQueryKey={["lap-chat-history", lapId, chatRemountKey]}
             remountKey={`${lapId}:${chatRemountKey}`}
+            compactThreadId={`lap-${lapId}`}
           />
         </div>
       )}
