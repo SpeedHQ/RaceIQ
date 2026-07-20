@@ -1,10 +1,10 @@
-import { useState, useMemo, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useSearch, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { detectPlatform, PLATFORM_LABEL, PlatformIcon } from "@/components/acc/acc-links";
+import { m } from "@/paraglide/messages";
 import { client } from "../../lib/rpc";
 import { SearchSelect } from "../ui/SearchSelect";
-import { PLATFORM_LABEL, PlatformIcon, detectPlatform } from "@/components/acc/acc-links";
-import { m } from "@/paraglide/messages";
 
 interface AccSetup {
   name: string;
@@ -26,7 +26,6 @@ interface AccSetup {
   hasWet?: boolean;
   source?: string;
 }
-
 
 interface AccCar {
   id: number;

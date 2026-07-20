@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
-import { Button } from "./ui/button";
-import { useQuery } from "@tanstack/react-query";
-import type { TuneSettings } from "../data/tune-catalog";
 import type { TuneCategory } from "@shared/types";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { m } from "@/paraglide/messages";
+import type { TuneSettings } from "../data/tune-catalog";
+import { useSettings } from "../hooks/queries";
 import { client } from "../lib/rpc";
 import { GearRatioChart } from "./tune/GearRatioChart";
-import { useSettings } from "../hooks/queries";
-import { m } from "@/paraglide/messages";
+import { Button } from "./ui/button";
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -135,19 +135,7 @@ export interface TuneFormData {
 
 // ── NumberField ──────────────────────────────────────────────────────────────
 
-export function NumberField({
-  label,
-  value,
-  onChange,
-  step,
-  unit,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  step?: number;
-  unit?: string;
-}) {
+export function NumberField({ label, value, onChange, step, unit }: { label: string; value: number; onChange: (v: number) => void; step?: number; unit?: string }) {
   return (
     <label className="flex items-center justify-between gap-3 text-xs">
       <span className="text-app-text-muted whitespace-nowrap">{label}</span>
@@ -167,11 +155,7 @@ export function NumberField({
 
 // ── TuneSettingsPanel (read-only) ────────────────────────────────────────────
 
-export function TuneSettingsPanel({
-  settings: raw,
-}: {
-  settings: TuneSettings;
-}) {
+export function TuneSettingsPanel({ settings: raw }: { settings: TuneSettings }) {
   const settings = {
     ...raw,
     rollCenterHeight: raw.rollCenterHeight ?? { front: 0, rear: 0 },
@@ -274,10 +258,7 @@ export function TuneSettingsPanel({
   const remainingSections = sections.filter((section) => section.title !== "Tires" && section.title !== "Gearing" && section.title !== "Alignment");
   const orderedSections = [...(tiresSection ? [tiresSection] : []), ...(gearingSection ? [gearingSection] : []), ...(alignmentSection ? [alignmentSection] : []), ...remainingSections];
 
-  const renderSection = (section: {
-    title: string;
-    rows: [string, string][];
-  }) => (
+  const renderSection = (section: { title: string; rows: [string, string][] }) => (
     <div key={section.title} className="mb-3 break-inside-avoid rounded-lg bg-app-bg p-3">
       <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{section.title}</h4>
       <div className="space-y-0">
@@ -422,7 +403,10 @@ export function UserTuneCard({
             </button>
             {onDuplicate && (
               <button
-                onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDuplicate();
+                }}
                 disabled={isDuplicating}
                 className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-50 transition-colors"
               >
@@ -719,7 +703,7 @@ export function TuneForm({
             <span className="text-xs font-medium text-app-text-muted">{m.label_car()}</span>
             <input
               type="text"
-              value={carDropOpen ? carSearchQuery : (selectedCarName || m.tune_form_select_car_placeholder())}
+              value={carDropOpen ? carSearchQuery : selectedCarName || m.tune_form_select_car_placeholder()}
               onChange={(e) => {
                 setCarSearchQuery(e.target.value);
                 setCarDropOpen(true);

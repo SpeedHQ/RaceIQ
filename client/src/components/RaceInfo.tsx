@@ -2,8 +2,8 @@ import type { LiveSectorData } from "@shared/types";
 import { m } from "@/paraglide/messages";
 import type { DisplayPacket } from "../lib/convert-packet";
 import { LiveTrackMap } from "./LiveTrackMap";
-import { LapTimes } from "./telemetry/LapTimes";
 import { SectorTimes } from "./SectorTimes";
+import { LapTimes } from "./telemetry/LapTimes";
 
 export function RaceInfo({
   packet,

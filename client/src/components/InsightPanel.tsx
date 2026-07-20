@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { LapInsight, InsightCategory } from "../lib/lap-insights";
 import { m } from "@/paraglide/messages";
+import type { InsightCategory, LapInsight } from "../lib/lap-insights";
 
 const SEVERITY_COLOR: Record<string, string> = {
   info: "#94a3b8",
@@ -8,13 +8,7 @@ const SEVERITY_COLOR: Record<string, string> = {
   critical: "#ef4444",
 };
 
-function InsightRow({
-  insight,
-  onJump,
-}: {
-  insight: LapInsight;
-  onJump: (idx: number) => void;
-}) {
+function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: number) => void }) {
   const [eventIdx, setEventIdx] = useState(0);
   const hasMultiple = insight.frameIndices.length > 1;
 
@@ -60,13 +54,7 @@ function InsightRow({
   );
 }
 
-export function InsightPanel({
-  insights,
-  onJumpToFrame,
-}: {
-  insights: LapInsight[];
-  onJumpToFrame: (frameIdx: number) => void;
-}) {
+export function InsightPanel({ insights, onJumpToFrame }: { insights: LapInsight[]; onJumpToFrame: (frameIdx: number) => void }) {
   const categories: { key: InsightCategory; icon: string; label: string }[] = [
     { key: "suspension", icon: "🔧", label: m.insight_category_suspension() },
     { key: "tires", icon: "🛞", label: m.label_tires() },

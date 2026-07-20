@@ -1,7 +1,7 @@
-import { useEffect, useRef, useCallback, useState } from "react";
-import { useTelemetryStore } from "../stores/telemetry";
-import { client } from "../lib/rpc";
 import type { TelemetryPacket } from "@shared/types";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { client } from "../lib/rpc";
+import { useTelemetryStore } from "../stores/telemetry";
 
 /**
  * Demo mode — fetches a real recorded lap from the database and replays

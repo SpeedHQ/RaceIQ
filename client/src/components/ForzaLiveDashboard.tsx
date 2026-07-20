@@ -1,22 +1,16 @@
-import { useTelemetryStore } from "../stores/telemetry";
 import { Link } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
-import { useTrackName, useCarName } from "../hooks/queries";
-import { useGameId, useGameRoute } from "../stores/game";
-import { LiveTelemetry, type DashboardMode } from "./LiveTelemetry";
-import { RecordedLaps } from "./RecordedLaps";
-import { LapTimeChart } from "./LapTimeChart";
+import { useCarName, useTrackName } from "../hooks/queries";
 import { useDemoMode } from "../hooks/useDemoMode";
+import { useGameId, useGameRoute } from "../stores/game";
+import { useTelemetryStore } from "../stores/telemetry";
+import { LapTimeChart } from "./LapTimeChart";
+import { type DashboardMode, LiveTelemetry } from "./LiveTelemetry";
 import { NoDataView } from "./NoDataView";
 import { RaceInfo } from "./RaceInfo";
+import { RecordedLaps } from "./RecordedLaps";
 
-function PageHeader({
-  dashMode,
-  demo,
-}: {
-  dashMode: DashboardMode;
-  demo: ReturnType<typeof useDemoMode>;
-}) {
+function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnType<typeof useDemoMode> }) {
   const prefix = useGameRoute();
   const gameId = useGameId();
 

@@ -1,12 +1,12 @@
-import type { RefObject } from "react";
 import type { TelemetryPacket } from "@shared/types";
-import type { DisplayPacket } from "../../lib/convert-packet";
+import type { RefObject } from "react";
 import type { useUnits } from "../../hooks/useUnits";
-import type { Point } from "./AnalyseTrackMap";
-import { Vitals2D } from "../telemetry/Vitals2D";
-import { GForceCircle } from "../telemetry/GForceCircle";
+import type { DisplayPacket } from "../../lib/convert-packet";
 import { BodyAttitude } from "../BodyAttitude";
 import { CarWireframe } from "../CarWireframe";
+import { GForceCircle } from "../telemetry/GForceCircle";
+import { Vitals2D } from "../telemetry/Vitals2D";
+import type { Point } from "./AnalyseTrackMap";
 
 interface Props {
   vizMode: "2d" | "3d";

@@ -1,6 +1,6 @@
-import { m } from "@/paraglide/messages";
 import type { TelemetryPacket, TuneIssue } from "@shared/types";
 import { useEffect, useRef, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
 

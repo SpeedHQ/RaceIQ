@@ -1,7 +1,7 @@
-import { useEffect, useCallback } from "react";
 import type { TelemetryPacket } from "@shared/types";
-import type { TrackMapHandle } from "../components/analyse/AnalyseTrackMap";
+import { useCallback, useEffect } from "react";
 import type { ChartsPanelHandle } from "../components/analyse/AnalyseChartsPanel";
+import type { TrackMapHandle } from "../components/analyse/AnalyseTrackMap";
 
 interface UseLapPlaybackOptions {
   playing: boolean;

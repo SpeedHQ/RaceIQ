@@ -1,5 +1,5 @@
+import type { F1ExtendedData, TelemetryPacket } from "@shared/types";
 import { m } from "@/paraglide/messages";
-import type { TelemetryPacket, F1ExtendedData } from "@shared/types";
 import { F1TyreCompound } from "./F1TyreCompound";
 
 function formatSpeed(mps: number, unit: "metric" | "imperial"): string {
@@ -19,15 +19,7 @@ function fToC(f: number): number {
   return (f - 32) / 1.8;
 }
 
-export function F1TelemetryPanel({
-  packet,
-  f1,
-  unitSystem = "metric",
-}: {
-  packet: TelemetryPacket;
-  f1: F1ExtendedData;
-  unitSystem?: "metric" | "imperial";
-}) {
+export function F1TelemetryPanel({ packet, f1, unitSystem = "metric" }: { packet: TelemetryPacket; f1: F1ExtendedData; unitSystem?: "metric" | "imperial" }) {
   const throttlePct = (packet.Accel / 255) * 100;
   const brakePct = (packet.Brake / 255) * 100;
   const gear = packet.Gear <= 0 ? (packet.Gear === 0 ? "N" : "R") : packet.Gear.toString();
@@ -92,7 +84,9 @@ export function F1TelemetryPanel({
       {/* Tyre info */}
       <div className="flex items-center justify-between">
         <F1TyreCompound f1={f1} />
-        <div className="text-xs text-zinc-500">{m.f1tele_fuel()}: {packet.Fuel.toFixed(1)} {m.f1tele_fuel_unit()}</div>
+        <div className="text-xs text-zinc-500">
+          {m.f1tele_fuel()}: {packet.Fuel.toFixed(1)} {m.f1tele_fuel_unit()}
+        </div>
       </div>
 
       {/* Tyre temps (display in Celsius for F1) */}

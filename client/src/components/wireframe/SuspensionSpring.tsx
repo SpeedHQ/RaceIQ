@@ -1,5 +1,5 @@
-import { useMemo } from "react";
 import { Line } from "@react-three/drei";
+import { useMemo } from "react";
 import { suspHexColor } from "../../lib/wireframe-utils";
 
 export function SuspensionSpring({

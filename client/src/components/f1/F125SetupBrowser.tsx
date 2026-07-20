@@ -1,12 +1,12 @@
-import { F125SetupValues } from "@/components/f1/f125-setup-groups";
-import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
-import type { ComboOption } from "@/components/tune/browser/ComboBox";
-import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
-import { m } from "@/paraglide/messages";
-import { useUiStore } from "@/stores/ui";
-import { client } from "@/lib/rpc";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { F125SetupValues } from "@/components/f1/f125-setup-groups";
+import type { ComboOption } from "@/components/tune/browser/ComboBox";
+import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
+import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
+import { client } from "@/lib/rpc";
+import { m } from "@/paraglide/messages";
+import { useUiStore } from "@/stores/ui";
 
 interface F125Setup {
   team: string;

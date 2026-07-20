@@ -1,7 +1,7 @@
-import { useRef, useEffect, useCallback, useState } from "react";
-import { m } from "@/paraglide/messages";
-import type { TelemetryPacket } from "@shared/types";
 import { hasWorldPositions, lapPath } from "@shared/lib/lap-path";
+import type { TelemetryPacket } from "@shared/types";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
 

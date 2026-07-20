@@ -1,6 +1,6 @@
 import { getAllGames } from "@shared/games/registry";
-import { useSettings, useSaveSettings } from "../../hooks/queries";
 import { m } from "@/paraglide/messages";
+import { useSaveSettings, useSettings } from "../../hooks/queries";
 
 export function GamesSection() {
   const { displaySettings } = useSettings();

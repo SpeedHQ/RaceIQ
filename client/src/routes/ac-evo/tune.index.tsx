@@ -9,10 +9,5 @@ export const Route = createFileRoute("/ac-evo/tune/")({
 
 function RouteComponent() {
   const navigate = useNavigate();
-  return (
-    <TuningSessionList
-      gameId="ac-evo"
-      onOpen={(id) => navigate({ to: "/ac-evo/tune/$tuningSessionId", params: { tuningSessionId: String(id) } })}
-    />
-  );
+  return <TuningSessionList gameId="ac-evo" onOpen={(id) => navigate({ to: "/ac-evo/tune/$tuningSessionId", params: { tuningSessionId: String(id) } })} />;
 }

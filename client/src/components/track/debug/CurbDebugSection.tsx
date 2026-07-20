@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useGameId } from "@/stores/game";
 import { client } from "@/lib/rpc";
+import { useGameId } from "@/stores/game";
 import type { TrackBoundaries, TrackCurb } from "../types";
 
 /**

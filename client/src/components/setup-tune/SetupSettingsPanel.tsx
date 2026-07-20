@@ -4,13 +4,7 @@ import { arityLabels, getByPath, getSchemaForGame } from "./setup-schema";
 /** Read-only summary of an ACC / AC-EVO setup JSON, grouped by the same
  *  sections FillForm edits. Skips fields absent from the settings object —
  *  imported / community setups may only cover a subset. */
-export function SetupSettingsPanel({
-  gameId,
-  settings,
-}: {
-  gameId: GameId;
-  settings: Record<string, unknown>;
-}) {
+export function SetupSettingsPanel({ gameId, settings }: { gameId: GameId; settings: Record<string, unknown> }) {
   const sections = getSchemaForGame(gameId);
 
   return (

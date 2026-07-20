@@ -1,15 +1,15 @@
-import { useState, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
-import { m } from "../../paraglide/messages";
-import { createPortal } from "react-dom";
-import { Sparkles, RefreshCw, Trash2, Eye, X } from "lucide-react";
-import { client } from "../../lib/rpc";
-import { useSettings } from "../../hooks/queries";
-import { useUiStore } from "../../stores/ui";
-import { Button } from "../ui/button";
-import { AnalysisDisplay, type AnalysisData } from "../ai/analysis-display";
-import { isAiConfigured } from "../../lib/is-ai-configured";
-import { ChatPanel } from "../ai-chat/ChatPanel";
 import type { UIMessage } from "ai";
+import { Eye, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
+import { createPortal } from "react-dom";
+import { useSettings } from "../../hooks/queries";
+import { isAiConfigured } from "../../lib/is-ai-configured";
+import { client } from "../../lib/rpc";
+import { m } from "../../paraglide/messages";
+import { useUiStore } from "../../stores/ui";
+import { type AnalysisData, AnalysisDisplay } from "../ai/analysis-display";
+import { ChatPanel } from "../ai-chat/ChatPanel";
+import { Button } from "../ui/button";
 
 type ParsedAnalysis = Partial<AnalysisData>;
 
@@ -195,17 +195,7 @@ function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boolean) {
   return { analysis, loading, error, run };
 }
 
-function InputsSection({
-  lapAId,
-  lapBId,
-  panelOpen,
-  onView,
-}: {
-  lapAId: number;
-  lapBId: number;
-  panelOpen: boolean;
-  onView: (analysis: InputsAnalysis) => void;
-}) {
+function InputsSection({ lapAId, lapBId, panelOpen, onView }: { lapAId: number; lapBId: number; panelOpen: boolean; onView: (analysis: InputsAnalysis) => void }) {
   const { analysis, loading, error, run } = useInputsAnalysis(lapAId, lapBId, panelOpen);
 
   return (
@@ -456,15 +446,7 @@ function InputsModal({
   );
 }
 
-function AnalysisModal({
-  label,
-  summary,
-  onClose,
-}: {
-  label: string;
-  summary: AnalysisSummary;
-  onClose: () => void;
-}) {
+function AnalysisModal({ label, summary, onClose }: { label: string; summary: AnalysisSummary; onClose: () => void }) {
   const a = summary.raw ?? {};
   return createPortal(
     <div
@@ -544,7 +526,6 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
         <InputsSection lapAId={lapA.id} lapBId={lapB.id} panelOpen={panelOpen} onView={(a) => setViewing({ kind: "inputs", analysis: a })} />
 
         {!bothReady && <div className="text-[10px] text-app-text-muted text-center py-2 border border-dashed border-app-border-input/40 rounded">{m.compare_analyse_both_laps()}</div>}
-
       </div>
 
       {bothReady && (

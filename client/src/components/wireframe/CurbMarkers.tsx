@@ -1,19 +1,10 @@
+import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import type { TelemetryPacket } from "@shared/types";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { buildTrackIndex, filterByDistanceIndexed } from "../../lib/wireframe-utils";
 
-export function CurbMarkers({
-  telemetry,
-  packet,
-  carModel,
-}: {
-  telemetry: TelemetryPacket[];
-  cursorIdx?: number;
-  packet: TelemetryPacket;
-  carModel: CarModelEnrichment;
-}) {
+export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: TelemetryPacket[]; cursorIdx?: number; packet: TelemetryPacket; carModel: CarModelEnrichment }) {
   // Wheel offsets in car-local frame: [forward, right] in meters
   // Forza world: forward = (sin(yaw), cos(yaw)), right = (cos(yaw), -sin(yaw))
   // Forza PositionX/Z is ~0.065m ahead of geometric center (measured from

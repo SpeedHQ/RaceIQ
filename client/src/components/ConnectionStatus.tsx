@@ -1,6 +1,6 @@
-import { useTelemetryStore } from "../stores/telemetry";
-import { useSettings } from "../hooks/queries";
 import { m } from "@/paraglide/messages";
+import { useSettings } from "../hooks/queries";
+import { useTelemetryStore } from "../stores/telemetry";
 import { deriveConnectionStatusView } from "./connection-status-logic";
 
 interface Props {

@@ -2,8 +2,8 @@ import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useRef } from "react";
 import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
-import { useTelemetryStore } from "../stores/telemetry";
 import type { VersionInfo } from "../stores/telemetry";
+import { useTelemetryStore } from "../stores/telemetry";
 
 function fetchVersionInfo() {
   client.api.version
@@ -65,6 +65,10 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             queryClient.invalidateQueries({ queryKey: ["sessions"] });
             useTelemetryStore.getState().incrementReprocessProgress();
+          } else if (data.type === "tuning-session-updated") {
+            const sid = data.sessionId as number;
+            queryClient.invalidateQueries({ queryKey: ["tuning-session-tests", sid] });
+            queryClient.invalidateQueries({ queryKey: ["tuning-session", sid] });
           } else if (data.type === "lap-issues") {
             useTelemetryStore.getState().addLapIssues({
               lapId: data.lapId as number,

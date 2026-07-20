@@ -1,18 +1,6 @@
 import { useId } from "react";
 
-export function GearRatioChart({
-  ratios,
-  finalDrive,
-  topSpeedKph,
-  topSpeedMph,
-  maxRpm = 8000,
-}: {
-  ratios: number[];
-  finalDrive: number;
-  topSpeedKph?: number;
-  topSpeedMph?: number;
-  maxRpm?: number;
-}) {
+export function GearRatioChart({ ratios, finalDrive, topSpeedKph, topSpeedMph, maxRpm = 8000 }: { ratios: number[]; finalDrive: number; topSpeedKph?: number; topSpeedMph?: number; maxRpm?: number }) {
   const clipId = useId();
   if (!ratios.length) return null;
 

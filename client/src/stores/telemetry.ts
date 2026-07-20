@@ -1,6 +1,6 @@
 import type { LapMeta, LivePitData, LiveSectorData, TelemetryPacket, TuneIssue } from "@shared/types";
 import { create } from "zustand";
-import { type DisplayPacket, convertPacket } from "../lib/convert-packet";
+import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
 
 export interface DisplaySettings {
   unit: "metric" | "imperial";

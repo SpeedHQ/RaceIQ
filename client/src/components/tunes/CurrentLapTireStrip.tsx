@@ -1,6 +1,6 @@
-import { useMemo } from "react";
 import type { TelemetryPacket } from "@shared/types";
-import { CornerBars, METRICS, buildLiveRanges } from "./SectorRangeBreakdown";
+import { useMemo } from "react";
+import { buildLiveRanges, CornerBars, METRICS } from "./SectorRangeBreakdown";
 
 /**
  * CurrentLapTireStrip — compact horizontal row of the same per-corner range
@@ -51,11 +51,7 @@ export function CurrentLapTireStrip({ telemetry }: { telemetry: TelemetryPacket[
           <span className="text-[10px] font-semibold uppercase tracking-wider text-app-text-muted">Fuel</span>
           <span className="text-[9px] text-app-text-dim">L</span>
         </div>
-        {fuel ? (
-          <FuelCell min={fuel.min} avg={fuel.avg} max={fuel.max} domain={fuel.domain} />
-        ) : (
-          <div className="h-[64px] flex items-center justify-center text-[10px] text-app-text-dim">—</div>
-        )}
+        {fuel ? <FuelCell min={fuel.min} avg={fuel.avg} max={fuel.max} domain={fuel.domain} /> : <div className="h-[64px] flex items-center justify-center text-[10px] text-app-text-dim">—</div>}
       </div>
     </div>
   );
@@ -75,7 +71,9 @@ function FuelCell({ min, avg, max, domain }: { min: number; avg: number; max: nu
           <div className="absolute left-0 right-0 rounded opacity-30" style={{ background: color, bottom: `${pct(min)}%`, top: `${100 - pct(max)}%` }} />
           <div className="absolute left-[-2px] right-[-2px] h-[2px]" style={{ background: color, bottom: `${pct(avg)}%` }} />
         </div>
-        <span className="text-[10px] font-mono tabular-nums" style={{ color }}>{Math.round(avg)}</span>
+        <span className="text-[10px] font-mono tabular-nums" style={{ color }}>
+          {Math.round(avg)}
+        </span>
         <span className="text-[9px] text-app-text-dim uppercase">L</span>
       </div>
     </div>

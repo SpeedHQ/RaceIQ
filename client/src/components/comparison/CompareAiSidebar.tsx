@@ -1,8 +1,8 @@
+import { Sparkles } from "lucide-react";
 import type { RefObject } from "react";
 import { m } from "../../paraglide/messages";
-import { Sparkles } from "lucide-react";
-import { CompareAiPanel, type CompareAiPanelHandle } from "./CompareAiPanel";
 import { Button } from "../ui/button";
+import { CompareAiPanel, type CompareAiPanelHandle } from "./CompareAiPanel";
 
 interface CompareAiSidebarProps {
   lapA: { id: number; label: string; lapTime: number };

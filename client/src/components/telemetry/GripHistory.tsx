@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
 import type { TelemetryPacket } from "@shared/types";
+import { useEffect, useRef, useState } from "react";
 import { client } from "@/lib/rpc";
-import { GripSparkline, GRIP_MAX_SAMPLES } from "./GripSparkline";
+import { GRIP_MAX_SAMPLES, GripSparkline } from "./GripSparkline";
 
 /**
  * GripHistory — Manages a per-wheel rolling buffer of combined slip values.

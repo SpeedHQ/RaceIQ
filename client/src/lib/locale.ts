@@ -1,4 +1,4 @@
-import { setLocale, isLocale } from "@/paraglide/runtime";
+import { isLocale, setLocale } from "@/paraglide/runtime";
 import { useUiStore } from "@/stores/ui";
 
 /**

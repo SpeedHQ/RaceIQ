@@ -1,17 +1,17 @@
-import { useState, useCallback } from "react";
-import { Copy, Check } from "lucide-react";
-import type { TelemetryPacket, GameId } from "@shared/types";
+import type { GameId, TelemetryPacket } from "@shared/types";
+import { Check, Copy } from "lucide-react";
+import { useCallback, useState } from "react";
+import type { useUnits } from "../../hooks/useUnits";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import type { LapInsight } from "../../lib/lap-insights";
-import type { useUnits } from "../../hooks/useUnits";
 import { m } from "../../paraglide/messages";
+import { InsightPanel } from "../InsightPanel";
 import { getSteeringLock } from "../Settings";
-import { MetricsPanel } from "./AnalyseMetricsPanel";
 import { AnalyseDynamicsPanel } from "./AnalyseDynamicsPanel";
 import { AnalyseF1ErsPanel } from "./AnalyseF1ErsPanel";
-import { AnalyseTireWheelsPanel } from "./AnalyseTireWheelsPanel";
+import { MetricsPanel } from "./AnalyseMetricsPanel";
 import { AnalyseSuspensionPanel } from "./AnalyseSuspensionPanel";
-import { InsightPanel } from "../InsightPanel";
+import { AnalyseTireWheelsPanel } from "./AnalyseTireWheelsPanel";
 
 interface WearRate {
   FL: number;

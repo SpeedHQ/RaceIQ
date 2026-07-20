@@ -1,11 +1,11 @@
+import type { TelemetryPacket } from "@shared/types";
 import type { RefObject } from "react";
 import { m } from "../../paraglide/messages";
-import type { TelemetryPacket } from "@shared/types";
-import { Compass } from "../Compass";
-import { WeatherWidget } from "./WeatherWidget";
-import { AnalyseTrackMap, type TrackMapHandle, type Point } from "./AnalyseTrackMap";
-import { AnalyseSteeringOverlay } from "./AnalyseSteeringOverlay";
 import type { AnalysisHighlight } from "../AiPanel";
+import { Compass } from "../Compass";
+import { AnalyseSteeringOverlay } from "./AnalyseSteeringOverlay";
+import { AnalyseTrackMap, type Point, type TrackMapHandle } from "./AnalyseTrackMap";
+import { WeatherWidget } from "./WeatherWidget";
 
 interface AnalyseTrackPanelProps {
   telemetry: TelemetryPacket[];

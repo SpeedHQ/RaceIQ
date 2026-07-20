@@ -1,11 +1,11 @@
+import { tryGetGame } from "@shared/games/registry";
+import type { GameId } from "@shared/types";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { ComboDash } from "../components/dashes/ComboDash";
+import { useUnits } from "../hooks/useUnits";
 import { useGameStore } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
-import { useUnits } from "../hooks/useUnits";
-import { tryGetGame } from "@shared/games/registry";
-import type { GameId } from "@shared/types";
 
 function ComboDash1Route() {
   const setGameId = useGameStore((s) => s.setGameId);

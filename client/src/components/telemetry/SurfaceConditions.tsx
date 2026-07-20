@@ -1,6 +1,6 @@
 import type { TelemetryPacket } from "@shared/types";
-import { m } from "@/paraglide/messages";
 import type { DisplayPacket } from "@/lib/convert-packet";
+import { m } from "@/paraglide/messages";
 
 /**
  * SurfaceConditions — Shows per-wheel curb and puddle status in a compact 2x2 grid.

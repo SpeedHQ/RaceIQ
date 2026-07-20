@@ -1,12 +1,12 @@
+import { getAllGames } from "@shared/games/registry";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
+import { Menu, RefreshCw, Settings2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
 import { getLocale, isLocale } from "@/paraglide/runtime";
-import { getAllGames } from "@shared/games/registry";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Link, Outlet, createRootRoute, useLocation } from "@tanstack/react-router";
-import { Menu, RefreshCw, Settings2, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { OnboardingModal } from "../components/Onboarding";
 import { Settings } from "../components/Settings";
@@ -14,10 +14,9 @@ import { UpdateModal } from "../components/UpdateModal";
 import { ThemeProvider } from "../context/theme";
 import { useSettings } from "../hooks/queries";
 import { useWebSocket } from "../hooks/useWebSocket";
+import { queryClient } from "../lib/queryClient";
 import { useTelemetryStore } from "../stores/telemetry";
 import { useUiStore } from "../stores/ui";
-
-import { queryClient } from "../lib/queryClient";
 
 // Canonical (English, path-stable) game sub-tab keys. The URL segment is always
 // the lowercased English key; only the *display* label is localized.

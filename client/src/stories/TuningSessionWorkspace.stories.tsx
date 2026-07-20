@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createRouter, createMemoryHistory, RouterProvider, createRootRoute } from "@tanstack/react-router";
+import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { TuningSessionWorkspace } from "../components/tunes/TuningSessionWorkspace";
-import type { TuningSession, TuningTest, TuningLapMetric } from "../hooks/queries";
+import type { TuningLapMetric, TuningSession, TuningTest } from "../hooks/queries";
 import { fakeSessionLaps } from "./fakeData";
 
 const queryClient = new QueryClient({

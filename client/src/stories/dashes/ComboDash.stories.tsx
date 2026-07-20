@@ -1,22 +1,22 @@
+import type { GameId, TelemetryPacket } from "@shared/types";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { ComboDash } from "../../components/dashes/ComboDash";
-import {
-  fakeForzaPacket,
-  fakeForzaDisplayPacket,
-  fakeF1Packet,
-  fakeF1DisplayPacket,
-  fakeAccPacket,
-  fakeAccDisplayPacket,
-  fakeAcEvoPacket,
-  fakeAcEvoDisplayPacket,
-  fakeSectors,
-  fakePit,
-} from "../fakeData";
-import type { TelemetryPacket, GameId } from "@shared/types";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { useGameStore } from "../../stores/game";
+import {
+  fakeAccDisplayPacket,
+  fakeAccPacket,
+  fakeAcEvoDisplayPacket,
+  fakeAcEvoPacket,
+  fakeF1DisplayPacket,
+  fakeF1Packet,
+  fakeForzaDisplayPacket,
+  fakeForzaPacket,
+  fakePit,
+  fakeSectors,
+} from "../fakeData";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },

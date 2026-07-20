@@ -1,12 +1,12 @@
-import type { RefObject } from "react";
-import { m } from "../../paraglide/messages";
 import type { TelemetryPacket } from "@shared/types";
+import type { RefObject } from "react";
 import type { DisplayPacket } from "../../lib/convert-packet";
-import type { TrackMapHandle, Point } from "./AnalyseTrackMap";
-import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
-import { AnalyseSegmentList } from "./AnalyseSegmentList";
-import { AnalyseVizPanel } from "./AnalyseVizPanel";
+import { m } from "../../paraglide/messages";
 import type { AnalysisHighlight } from "../AiPanel";
+import { AnalyseSegmentList } from "./AnalyseSegmentList";
+import type { Point, TrackMapHandle } from "./AnalyseTrackMap";
+import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
+import { AnalyseVizPanel } from "./AnalyseVizPanel";
 
 interface AnalyseTopSectionProps {
   // Layout

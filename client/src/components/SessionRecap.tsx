@@ -1,6 +1,6 @@
-import { m } from "@/paraglide/messages";
 import type { GameId, SessionRecap as SessionRecapDto } from "@shared/types";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { useSessionRecap, useTrackOutline, useTrackSectorBoundaries } from "../hooks/queries";
 import { drawTrack } from "../lib/canvas/draw-track";
 import { formatLapTime } from "../lib/format";
@@ -29,15 +29,7 @@ function sectorLabel(status: SectorStatus): string {
   }
 }
 
-function SectorTrackMap({
-  trackOrdinal,
-  gameId,
-  sectors,
-}: {
-  trackOrdinal: number;
-  gameId: GameId;
-  sectors: NonNullable<SessionRecapDto["sectors"]>;
-}) {
+function SectorTrackMap({ trackOrdinal, gameId, sectors }: { trackOrdinal: number; gameId: GameId; sectors: NonNullable<SessionRecapDto["sectors"]> }) {
   const { data: outlineData } = useTrackOutline(trackOrdinal, gameId);
   const { data: bounds } = useTrackSectorBoundaries(trackOrdinal, gameId);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -192,15 +184,7 @@ function buildRecapText(recap: SessionRecapDto): string {
  * inline (the home card) use it; the modal does not, since it is already opened
  * from a list that can navigate on its own.
  */
-export function SessionRecap({
-  sessionId,
-  gameId: gameIdProp,
-  linkToAnalyse = false,
-}: {
-  sessionId: number;
-  gameId?: GameId | null;
-  linkToAnalyse?: boolean;
-}) {
+export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = false }: { sessionId: number; gameId?: GameId | null; linkToAnalyse?: boolean }) {
   const storeGameId = useGameId();
   const gameId = gameIdProp ?? storeGameId;
   const { data: recap, isLoading, isError } = useSessionRecap(sessionId, gameId);

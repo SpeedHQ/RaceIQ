@@ -1,6 +1,6 @@
 import { useUnits } from "@/hooks/useUnits";
+import { BRAKE_COLOR_CLASSES, type BrakeTempThresholds, brakeTempColor } from "@/lib/vehicle-dynamics";
 import { m } from "@/paraglide/messages";
-import { brakeTempColor, BRAKE_COLOR_CLASSES, type BrakeTempThresholds } from "@/lib/vehicle-dynamics";
 
 const PAD_NEW_MM = 29; // ACC: pads start at 29mm when new
 

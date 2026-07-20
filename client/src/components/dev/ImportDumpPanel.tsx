@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
-import { m } from "@/paraglide/messages";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { useRef, useState } from "react";
 import { formatLapTime } from "@/lib/format";
+import { m } from "@/paraglide/messages";
 
 interface ImportedLap {
   lapId: number;

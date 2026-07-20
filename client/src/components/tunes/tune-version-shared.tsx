@@ -133,12 +133,8 @@ export function LapBreakdown({
                 {isFastest && <span className="text-purple-400">★ </span>}
                 {formatLapTime(l.lapTime)}
               </td>
-              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>
-                {fuel != null ? `${fuel.toFixed(2)} L` : <span className="text-app-text-dim">—</span>}
-              </td>
-              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>
-                {wear != null ? `${wear.toFixed(0)}%` : <span className="text-app-text-dim">—</span>}
-              </td>
+              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>{fuel != null ? `${fuel.toFixed(2)} L` : <span className="text-app-text-dim">—</span>}</td>
+              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>{wear != null ? `${wear.toFixed(0)}%` : <span className="text-app-text-dim">—</span>}</td>
               <td className="px-3 py-1 text-right">
                 <button
                   type="button"

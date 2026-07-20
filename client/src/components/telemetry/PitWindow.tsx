@@ -1,5 +1,5 @@
+import type { GameId, LivePitData } from "@shared/types";
 import { m } from "@/paraglide/messages";
-import type { LivePitData, GameId } from "@shared/types";
 
 interface PitWindowProps {
   pit: LivePitData | null;

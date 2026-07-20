@@ -1,15 +1,15 @@
-import { countryName } from "@/lib/country-names";
-import { client } from "@/lib/rpc";
-import { m } from "@/paraglide/messages";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
+import { countryName } from "@/lib/country-names";
+import { client } from "@/lib/rpc";
+import { trackRoutePath } from "@/lib/track-routes";
+import { m } from "@/paraglide/messages";
 import { useCatalogTunes, useTracks, useUserTunes } from "../hooks/queries";
 import { useGameId } from "../stores/game";
 import { tuneMatchesTrack } from "./track/CatalogTrackSetups";
 import { TrackCard } from "./track/TrackCard";
 import type { TrackInfo } from "./track/types";
-import { trackRoutePath } from "@/lib/track-routes";
 import { AppInput } from "./ui/AppInput";
 
 type SortKey = "name" | "laps";
@@ -129,14 +129,7 @@ export function TrackViewer() {
       {withOutline.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
           {withOutline.map((t) => (
-            <TrackCard
-              key={t.ordinal}
-              track={t}
-              onSelect={handleSelectTrack}
-              gameId={gameId}
-              setupCount={setupCountFor(t.ordinal)}
-              guideCount={guideCountFor(t.ordinal)}
-            />
+            <TrackCard key={t.ordinal} track={t} onSelect={handleSelectTrack} gameId={gameId} setupCount={setupCountFor(t.ordinal)} guideCount={guideCountFor(t.ordinal)} />
           ))}
         </div>
       )}

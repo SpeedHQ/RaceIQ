@@ -1,13 +1,13 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import type { TelemetryPacket } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
-import { m } from "@/paraglide/messages";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { ComboDash } from "../components/dashes/ComboDash";
 import { ComboDash2 } from "../components/dashes/ComboDash2";
+import { fakeForzaDisplayPacket, fakeForzaPacket, fakePit, fakeSectors, generateFakeSessionLaps } from "../stories/fakeData";
 import { RotatePrompt } from "./__root";
-import { fakeForzaPacket, fakeForzaDisplayPacket, fakeSectors, fakePit, generateFakeSessionLaps } from "../stories/fakeData";
-import type { TelemetryPacket } from "@shared/types";
 
 const PREVIEW_LAPS = generateFakeSessionLaps(10);
 

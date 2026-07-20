@@ -1,7 +1,7 @@
+import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { useFrame } from "@react-three/fiber";
-import { brakeTempColor, tirePressureColor, COLORS_HEX } from "../../lib/vehicle-dynamics";
+import { brakeTempColor, COLORS_HEX, tirePressureColor } from "../../lib/vehicle-dynamics";
 
 const _tmpVec = new THREE.Vector3();
 const REF_DIST = 4;

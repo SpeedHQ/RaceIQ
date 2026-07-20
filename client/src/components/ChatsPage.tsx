@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from "react";
-import { m } from "@/paraglide/messages";
-import { useNavigate } from "@tanstack/react-router";
-import { Sparkles, MessageSquare, Trash2, ExternalLink } from "lucide-react";
-import { useGameId } from "../stores/game";
 import { getGame } from "@shared/games/registry";
+import { useNavigate } from "@tanstack/react-router";
+import { ExternalLink, MessageSquare, Sparkles, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { m } from "@/paraglide/messages";
+import { useGameId } from "../stores/game";
 
 interface LapSummary {
   id: number;

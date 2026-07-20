@@ -1,7 +1,7 @@
+import type { GameId } from "@shared/types";
 import { useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { Button } from "../ui/button";
-import type { GameId } from "@shared/types";
 import { FillForm } from "./FillForm";
 import { getSchemaForGame } from "./setup-schema";
 
@@ -126,13 +126,9 @@ export function SetupTuneForm({
   const [description, setDescription] = useState(initialData?.description ?? "");
 
   // Structured-form state: keep a live settings object the fill-form mutates.
-  const [settings, setSettings] = useState<Record<string, unknown>>(
-    () => (initialData?.settings as Record<string, unknown>) ?? {},
-  );
+  const [settings, setSettings] = useState<Record<string, unknown>>(() => (initialData?.settings as Record<string, unknown>) ?? {});
   // JSON-mode state: the textarea string (may be invalid mid-edit).
-  const [jsonText, setJsonText] = useState(() =>
-    initialData?.settings ? JSON.stringify(initialData.settings, null, 2) : "{}",
-  );
+  const [jsonText, setJsonText] = useState(() => (initialData?.settings ? JSON.stringify(initialData.settings, null, 2) : "{}"));
   const [jsonError, setJsonError] = useState("");
 
   const [mode, setMode] = useState<Mode>("form");
@@ -224,10 +220,14 @@ export function SetupTuneForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col min-h-full">
       <div className="sticky top-0 z-10 bg-app-bg border-b border-app-border flex items-center gap-3 px-4 py-2">
-        <Button type="button" variant="app-ghost" size="app-sm" onClick={onCancel}>&larr;</Button>
+        <Button type="button" variant="app-ghost" size="app-sm" onClick={onCancel}>
+          &larr;
+        </Button>
         <h2 className="text-sm font-semibold text-app-text">{title}</h2>
         <div className="flex items-center gap-2 ml-auto">
-          <Button type="button" variant="app-outline" size="app-sm" onClick={onCancel}>{m.common_cancel()}</Button>
+          <Button type="button" variant="app-outline" size="app-sm" onClick={onCancel}>
+            {m.common_cancel()}
+          </Button>
           <Button type="submit" variant="app-primary" size="app-sm" disabled={!name || isSubmitting}>
             {isSubmitting ? m.common_saving() : m.setupform_save_tune()}
           </Button>
@@ -245,9 +245,7 @@ export function SetupTuneForm({
             aria-checked={mode === "form"}
             onClick={() => switchMode("form")}
             className={`px-3 py-1 text-xs rounded border ${
-              mode === "form"
-                ? "bg-app-accent/20 border-app-accent text-app-text"
-                : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text"
+              mode === "form" ? "bg-app-accent/20 border-app-accent text-app-text" : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text"
             }`}
           >
             {m.setupform_fill_form()}
@@ -258,9 +256,7 @@ export function SetupTuneForm({
             aria-checked={mode === "json"}
             onClick={() => switchMode("json")}
             className={`px-3 py-1 text-xs rounded border ${
-              mode === "json"
-                ? "bg-app-accent/20 border-app-accent text-app-text"
-                : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text"
+              mode === "json" ? "bg-app-accent/20 border-app-accent text-app-text" : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text"
             }`}
           >
             {m.setupform_paste_json()}
@@ -298,7 +294,9 @@ export function SetupTuneForm({
             className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
           >
             {cars.map((c) => (
-              <option key={c.ordinal} value={c.ordinal}>{c.name}</option>
+              <option key={c.ordinal} value={c.ordinal}>
+                {c.name}
+              </option>
             ))}
           </select>
         </label>
@@ -311,7 +309,9 @@ export function SetupTuneForm({
             className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
           >
             {categories.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
             ))}
           </select>
         </label>
@@ -335,9 +335,7 @@ export function SetupTuneForm({
           </div>
         )}
 
-        {mode === "form" && schema.length > 0 && (
-          <FillForm sections={schema} settings={settings} onChange={setSettings} />
-        )}
+        {mode === "form" && schema.length > 0 && <FillForm sections={schema} settings={settings} onChange={setSettings} />}
 
         {mode === "json" && (
           <label className="col-span-2 space-y-1">
@@ -352,9 +350,8 @@ export function SetupTuneForm({
               className="w-full h-96 bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs font-mono text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
             />
             <p className="text-[10px] text-app-text-muted">
-              Paste the full setup JSON produced by {gameLabel}. Every in-game tunable
-              lives inside <code>basicSetup</code> or <code>advancedSetup</code> —
-              the section counter above shows which groups are present.
+              Paste the full setup JSON produced by {gameLabel}. Every in-game tunable lives inside <code>basicSetup</code> or <code>advancedSetup</code> — the section counter above shows which groups
+              are present.
             </p>
           </label>
         )}

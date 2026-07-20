@@ -6,8 +6,10 @@ import { createTuningSession } from "../server/db/tuning-session-queries";
 import {
   createTuningTest,
   getTuningTest,
+  getTuningTestByVersion,
   listTuningTests,
   nextVersion,
+  setTuningTestNotes,
 } from "../server/db/tuning-test-queries";
 
 /** Query layer behind the tuning-tests endpoints — the setup versions under
@@ -48,6 +50,46 @@ describe("tuning-test queries", () => {
     expect(row?.status).toBe("active");
     expect(row?.setupPath).toBe("/x/Setups/car/track/base.json");
     expect(JSON.parse(row!.appliedChanges!)).toEqual([{ component: "frontARB", from: 5, to: 4 }]);
+  });
+
+  test("engineer notes: set returns prior value, clears with null, distinct from driver comment", async () => {
+    const sessionId = await seedSession();
+    const id = await createTuningTest({
+      tuningSessionId: sessionId,
+      version: 1,
+      label: "base",
+      driverComment: "felt loose on entry",
+    });
+
+    // First write: prior value was null (new column).
+    expect(await setTuningTestNotes(id, "softened front ARB, retry next stint")).toBeNull();
+    let row = await getTuningTest(id);
+    expect(row?.notes).toBe("softened front ARB, retry next stint");
+    // Never touches the driver's feel comment.
+    expect(row?.driverComment).toBe("felt loose on entry");
+
+    // Overwrite returns the prior note (undo inverse).
+    expect(await setTuningTestNotes(id, "v2 plan: raise rear ride height")).toBe(
+      "softened front ARB, retry next stint",
+    );
+
+    // Clear with null.
+    expect(await setTuningTestNotes(id, null)).toBe("v2 plan: raise rear ride height");
+    row = await getTuningTest(id);
+    expect(row?.notes).toBeNull();
+  });
+
+  test("getTuningTestByVersion resolves a node by its version within the session", async () => {
+    const a = await seedSession();
+    const b = await seedSession();
+    await createTuningTest({ tuningSessionId: a, version: 1, label: "base" });
+    await createTuningTest({ tuningSessionId: a, version: 2, label: "v2" });
+    await createTuningTest({ tuningSessionId: b, version: 1, label: "other base" });
+
+    expect((await getTuningTestByVersion(a, 2))?.label).toBe("v2");
+    // Scoped to the session — b's v1 is not a's v1.
+    expect((await getTuningTestByVersion(a, 1))?.label).toBe("base");
+    expect(await getTuningTestByVersion(a, 99)).toBeUndefined();
   });
 
   test("list is scoped to the session and ordered oldest-first by version", async () => {

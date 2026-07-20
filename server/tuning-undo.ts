@@ -9,7 +9,7 @@
  * with `undone=false`, so a second call naturally picks the next action back
  * (or finds nothing) rather than re-applying the same inverse.
  *
- * Guard (design issue F): undoing apply-changes/branch/add-base/inspire
+ * Guard (design issue F): undoing apply-changes/branch/add-base
  * soft-deletes the tuning-test node the action created. If laps have since
  * been driven on that node (or it grew children), those would be orphaned
  * onto a trashed node — so, like delete, the WHOLE subtree is soft-deleted
@@ -23,6 +23,8 @@ import {
   getTuningTest,
   listTuningTests,
   restoreTestSubtree,
+  setTuningTestNote,
+  setTuningTestNotes,
 } from "./db/tuning-test-queries";
 import { listActions, markUndone, type TuningAction } from "./db/tuning-action-queries";
 import { setLapTuningExcluded, unstampLapsFromTuningSession } from "./db/queries";
@@ -52,8 +54,7 @@ export async function undoLastAction(sessionId: number): Promise<UndoResult> {
   switch (action.kind) {
     case "apply-changes":
     case "branch":
-    case "add-base":
-    case "inspire": {
+    case "add-base": {
       const payload = action.inversePayload as { testId: number; prevHeadTestId: number | null } | null;
       if (payload?.testId != null) {
         const test = await getTuningTest(payload.testId);
@@ -107,6 +108,16 @@ export async function undoLastAction(sessionId: number): Promise<UndoResult> {
         | Partial<{ name: string; notes: string | null; baseSetupPath: string | null; status: string }>
         | null;
       if (payload) await updateTuningSession(sessionId, payload);
+      break;
+    }
+    case "edit-test-note": {
+      const payload = action.inversePayload as { testId: number; prevDriverComment: string | null } | null;
+      if (payload?.testId != null) await setTuningTestNote(payload.testId, payload.prevDriverComment);
+      break;
+    }
+    case "edit-test-notes": {
+      const payload = action.inversePayload as { testId: number; prevNotes: string | null } | null;
+      if (payload?.testId != null) await setTuningTestNotes(payload.testId, payload.prevNotes);
       break;
     }
     case "set-lap-excluded": {

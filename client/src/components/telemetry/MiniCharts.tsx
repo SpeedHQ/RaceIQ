@@ -120,19 +120,7 @@ export function FourLineChart({
 }
 
 /** SingleLineChart — Same sliding-window canvas approach as FourLineChart but for a single metric. */
-export function SingleLineChart({
-  data,
-  label,
-  color,
-  maxY,
-  height = 50,
-}: {
-  data: number[];
-  label: string;
-  color: string;
-  maxY?: number;
-  height?: number;
-}) {
+export function SingleLineChart({ data, label, color, maxY, height = 50 }: { data: number[]; label: string; color: string; maxY?: number; height?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [renderTick, setRenderTick] = useState(0);

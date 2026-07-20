@@ -1,9 +1,9 @@
-import { Thread, type ThreadProps } from "@/components/assistant-ui/thread";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { AssistantChatTransport, useChatRuntime, useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import { useQuery } from "@tanstack/react-query";
 import type { UIMessage } from "ai";
+import { Thread, type ThreadProps } from "@/components/assistant-ui/thread";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useSettings } from "../../hooks/queries";
 import { isAiConfigured } from "../../lib/is-ai-configured";
 import { useUiStore } from "../../stores/ui";
@@ -43,6 +43,10 @@ function TokenUsageFooter() {
       <span>{usage.totalTokens} tok</span>
       {usage.inputTokens != null && <span>in {usage.inputTokens}</span>}
       {usage.outputTokens != null && <span>out {usage.outputTokens}</span>}
+      {/* Reasoning/cached only surface when the provider reports them
+          (Gemini/OpenAI reasoning models); hidden for models that don't. */}
+      {(usage.reasoningTokens ?? 0) > 0 && <span>think {usage.reasoningTokens}</span>}
+      {(usage.cachedInputTokens ?? 0) > 0 && <span>cached {usage.cachedInputTokens}</span>}
       {cost > 0 && <span>≈ ${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(3)}</span>}
     </div>
   );
@@ -63,12 +67,32 @@ export interface ChatPanelProps {
   components?: ThreadProps["components"];
   emptyState?: React.ReactNode;
   className?: string;
+  /** Extra fields merged into every chat POST body (e.g. a live-updating
+   *  "what the user currently sees" context string). Re-read on every render,
+   *  so a caller can keep this current (via its own state/props) without
+   *  forcing a runtime remount — see AssistantChatTransport's `body`, which
+   *  AI SDK re-resolves on every message send rather than once at mount. */
+  extraBody?: Record<string, unknown>;
 }
 
-function ChatPanelThread({ api, initialMessages, onFinish, components, className }: { api: string; initialMessages: UIMessage[]; onFinish?: () => void; components?: ThreadProps["components"]; className?: string }) {
+function ChatPanelThread({
+  api,
+  initialMessages,
+  onFinish,
+  components,
+  className,
+  extraBody,
+}: {
+  api: string;
+  initialMessages: UIMessage[];
+  onFinish?: () => void;
+  components?: ThreadProps["components"];
+  className?: string;
+  extraBody?: Record<string, unknown>;
+}) {
   const runtime = useChatRuntime({
     messages: initialMessages,
-    transport: new AssistantChatTransport({ api }),
+    transport: new AssistantChatTransport({ api, body: extraBody }),
     onFinish,
   });
 
@@ -86,7 +110,7 @@ function ChatPanelThread({ api, initialMessages, onFinish, components, className
   );
 }
 
-export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFinish, components, emptyState, className }: ChatPanelProps) {
+export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFinish, components, emptyState, className, extraBody }: ChatPanelProps) {
   const { displaySettings } = useSettings();
   const openSettings = useUiStore((s) => s.openSettings);
   const aiConfigured = isAiConfigured(displaySettings);
@@ -120,6 +144,7 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
       onFinish={onFinish}
       components={components}
       className={className}
+      extraBody={extraBody}
     />
   );
 }

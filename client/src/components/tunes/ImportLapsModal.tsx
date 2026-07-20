@@ -1,7 +1,7 @@
-import { createPortal } from "react-dom";
-import { useMemo, useState } from "react";
-import { useImportableLaps, useImportLaps, type TuningTest, type ImportableLap } from "../../hooks/queries";
 import type { GameId } from "@shared/types";
+import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { type ImportableLap, type TuningTest, useImportableLaps, useImportLaps } from "../../hooks/queries";
 
 function fmtLapTime(ms: number | null | undefined): string {
   if (ms == null || ms <= 0) return "—";
@@ -29,17 +29,7 @@ const UNKNOWN_SETUP_KEY = "__unknown__";
  * which may not match the target version's setup file, so those keep the
  * manual target picker plus a generic consistency warning.
  */
-export function ImportLapsModal({
-  gameId,
-  sessionId,
-  tests,
-  onClose,
-}: {
-  gameId: GameId;
-  sessionId: number;
-  tests: TuningTest[];
-  onClose: () => void;
-}) {
+export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId: GameId; sessionId: number; tests: TuningTest[]; onClose: () => void }) {
   const isF1 = gameId === "f1-2025";
   const { data: importable, isLoading } = useImportableLaps(sessionId);
   const importLaps = useImportLaps();
@@ -105,10 +95,7 @@ export function ImportLapsModal({
   const showSetupWarning = (gameId === "acc" || gameId === "ac-evo") && selected.size > 0;
 
   const renderLapRow = (lap: ImportableLap) => (
-    <label
-      key={lap.id}
-      className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer hover:bg-app-bg/60"
-    >
+    <label key={lap.id} className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer hover:bg-app-bg/60">
       <input type="checkbox" checked={selected.has(lap.id)} onChange={() => toggle(lap.id)} />
       <span className="text-app-text tabular-nums">{fmtLapTime(lap.lapTime)}</span>
       <span className="text-app-text-dim">{lap.isValid ? "Valid" : "Invalid"}</span>
@@ -120,33 +107,32 @@ export function ImportLapsModal({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[720px] max-w-[94vw] max-h-[86vh] flex flex-col gap-4 p-5"
-        onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
       >
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-app-text">Add laps from history</p>
-          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">×</button>
+          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
+            ×
+          </button>
         </div>
-        <p className="text-xs text-app-text-dim -mt-2">
-          Attach laps already recorded for this car and track to this session, instead of driving fresh ones.
-        </p>
+        <p className="text-xs text-app-text-dim -mt-2">Attach laps already recorded for this car and track to this session, instead of driving fresh ones.</p>
 
         {isF1 ? (
           <div className="text-xs text-app-text-dim bg-app-bg/60 border border-app-border rounded px-3 py-2">
-            F1 laps are auto-sorted into setups from their in-car setup — matching setups merge, new ones become
-            versions.
+            F1 laps are auto-sorted into setups from their in-car setup — matching setups merge, new ones become versions.
           </div>
         ) : (
           <label className="flex flex-col gap-1">
             <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Attach to</span>
-            <select
-              value={targetTestId}
-              onChange={(e) => setTargetTestId(e.target.value)}
-              className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs"
-            >
+            <select value={targetTestId} onChange={(e) => setTargetTestId(e.target.value)} className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs">
               <option value="">Session baseline (no specific version)</option>
               {tests.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -159,8 +145,8 @@ export function ImportLapsModal({
 
         {showSetupWarning && (
           <div className="text-xs text-amber-400 bg-amber-950/30 border border-amber-900/60 rounded px-3 py-2">
-            These laps were driven under whatever setup was saved at the time, which may not match the target
-            version's setup file. Review them for consistency before relying on them for tuning advice.
+            These laps were driven under whatever setup was saved at the time, which may not match the target version's setup file. Review them for consistency before relying on them for tuning
+            advice.
           </div>
         )}
 
@@ -168,11 +154,7 @@ export function ImportLapsModal({
           <span>Importable laps ({laps.length})</span>
           <div className="flex items-center gap-3 normal-case">
             {isF1 && (
-              <button
-                type="button"
-                onClick={() => setGroupBySetup((v) => !v)}
-                className="text-app-text-dim hover:text-app-text"
-              >
+              <button type="button" onClick={() => setGroupBySetup((v) => !v)} className="text-app-text-dim hover:text-app-text">
                 {groupBySetup ? "Ungroup" : "Group by setup"}
               </button>
             )}
@@ -186,9 +168,7 @@ export function ImportLapsModal({
 
         <div className="flex-1 min-h-[120px] overflow-y-auto border border-app-border rounded divide-y divide-app-border">
           {isLoading && <div className="text-xs text-app-text-dim p-3">Loading…</div>}
-          {!isLoading && laps.length === 0 && (
-            <div className="text-xs text-app-text-dim p-3">No unattached laps match this session's car and track.</div>
-          )}
+          {!isLoading && laps.length === 0 && <div className="text-xs text-app-text-dim p-3">No unattached laps match this session's car and track.</div>}
           {!isLoading && isF1 && groupBySetup && groups
             ? groups.map((g) => {
                 const groupSelected = g.laps.every((l) => selected.has(l.id));
@@ -197,11 +177,11 @@ export function ImportLapsModal({
                     <label className="flex items-center gap-2 px-3 py-1.5 text-xs bg-app-bg/40 cursor-pointer hover:bg-app-bg/60 font-medium">
                       <input type="checkbox" checked={groupSelected} onChange={() => toggleGroup(g.laps)} />
                       <span className="text-app-text truncate">{g.summary}</span>
-                      <span className="ml-auto text-app-text-muted">{g.laps.length} lap{g.laps.length === 1 ? "" : "s"}</span>
+                      <span className="ml-auto text-app-text-muted">
+                        {g.laps.length} lap{g.laps.length === 1 ? "" : "s"}
+                      </span>
                     </label>
-                    <div className="divide-y divide-app-border">
-                      {g.laps.map((lap) => renderLapRow(lap))}
-                    </div>
+                    <div className="divide-y divide-app-border">{g.laps.map((lap) => renderLapRow(lap))}</div>
                   </div>
                 );
               })

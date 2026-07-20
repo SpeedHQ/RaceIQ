@@ -1,9 +1,9 @@
+import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import type { TelemetryPacket } from "@shared/types";
 import type { CarModelEnrichment } from "../../data/car-models";
-import { getWheelOffsets, trailColorFromState } from "../../lib/wireframe-utils";
 import { allWheelStates } from "../../lib/vehicle-dynamics";
+import { getWheelOffsets, trailColorFromState } from "../../lib/wireframe-utils";
 import { useGameId } from "../../stores/game";
 
 // Trail length in meters of track behind each wheel. Distance-based so the
@@ -20,15 +20,7 @@ const MAX_TRAIL_SAMPLES = 64;
 // MAX_TRAIL_SAMPLES × 4 wheels = 256 worst case.
 const MAX_TRAIL_INSTANCES = 256;
 
-export function TireTrails({
-  telemetry,
-  cursorIdx,
-  carModel,
-}: {
-  telemetry: TelemetryPacket[];
-  cursorIdx: number;
-  carModel: CarModelEnrichment;
-}) {
+export function TireTrails({ telemetry, cursorIdx, carModel }: { telemetry: TelemetryPacket[]; cursorIdx: number; carModel: CarModelEnrichment }) {
   const gameId = useGameId();
   const trailLengthM = gameId === "acc" ? TRAIL_LENGTH_M_ACC : TRAIL_LENGTH_M_DEFAULT;
   const WHEEL_OFFSETS = useMemo(() => getWheelOffsets(carModel), [carModel]);

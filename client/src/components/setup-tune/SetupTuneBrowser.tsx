@@ -1,22 +1,18 @@
-import type { ComboOption } from "@/components/tune/browser/ComboBox";
-import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
-import { type RawUserTune, buildRows } from "@/components/tune/browser/buildRows";
-import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
-import type { CatalogTune } from "@/data/tune-catalog";
-import { useCatalogTunes, useCloneCatalogTune, useDeleteTune, useDuplicateTune, useResolveNames, useUserTunes } from "@/hooks/queries";
 import type { GameId } from "@shared/types";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { buildRows, type RawUserTune } from "@/components/tune/browser/buildRows";
+import type { ComboOption } from "@/components/tune/browser/ComboBox";
+import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
+import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
+import type { CatalogTune } from "@/data/tune-catalog";
+import { useCatalogTunes, useCloneCatalogTune, useDeleteTune, useDuplicateTune, useResolveNames, useUserTunes } from "@/hooks/queries";
 import { m } from "@/paraglide/messages";
 import { useUiStore } from "@/stores/ui";
 import { SetupSettingsPanel } from "./SetupSettingsPanel";
 import type { GameCarOption } from "./use-game-cars";
 
-const SOURCE_KEYS: Pick<SourceTab, "key">[] = [
-  { key: "all" },
-  { key: "community" },
-  { key: "user" },
-];
+const SOURCE_KEYS: Pick<SourceTab, "key">[] = [{ key: "all" }, { key: "community" }, { key: "user" }];
 
 const SOURCE_LABELS: Record<string, () => string> = {
   all: m.browser_all,
@@ -28,15 +24,7 @@ const SOURCE_LABELS: Record<string, () => string> = {
  *  and pagination as the FM browser, with a game-specific read-only settings
  *  summary and an "Import from file" link instead of the built-in JSON
  *  file-picker (ACC/AC-EVO import from the game's own Setups folder). */
-export function SetupTuneBrowser({
-  gameId,
-  routePrefix,
-  cars,
-}: {
-  gameId: GameId;
-  routePrefix: string;
-  cars: GameCarOption[];
-}) {
+export function SetupTuneBrowser({ gameId, routePrefix, cars }: { gameId: GameId; routePrefix: string; cars: GameCarOption[] }) {
   const navigate = useNavigate();
   const { data: userTunes = [] } = useUserTunes(gameId);
   const { data: apiCatalog = [] } = useCatalogTunes();

@@ -1,6 +1,12 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { createTuningSession, getTuningSession, setSessionHead } from "../server/db/tuning-session-queries";
-import { createTuningTest, deleteTestSubtree, listTuningTests } from "../server/db/tuning-test-queries";
+import {
+  createTuningTest,
+  deleteTestSubtree,
+  getTuningTest,
+  listTuningTests,
+  setTuningTestNotes,
+} from "../server/db/tuning-test-queries";
 import { recordAction, listActions } from "../server/db/tuning-action-queries";
 import { undoLastAction } from "../server/tuning-undo";
 
@@ -25,6 +31,22 @@ describe("undoLastAction", () => {
     expect(result.undone).toBe(true);
     expect(result.kind).toBe("set-head");
     expect((await getTuningSession(sid))!.headTestId).toBe(v1);
+  });
+
+  test("undoes edit-test-notes, restoring the prior engineer note", async () => {
+    const sid = await createTuningSession({ gameId: "acc", name: "undo-notes" });
+    const v1 = await createTuningTest({ tuningSessionId: sid, version: 1, label: "v1", parentTestId: null });
+
+    // Simulate the add-note tool / PATCH route: set the note, log the prior value.
+    const prevNotes = await setTuningTestNotes(v1, "trying softer front ARB");
+    await recordAction(sid, "edit-test-notes", { testId: v1, prevNotes });
+    expect((await getTuningTest(v1))?.notes).toBe("trying softer front ARB");
+
+    const result = await undoLastAction(sid);
+    expect(result.ok).toBe(true);
+    expect(result.kind).toBe("edit-test-notes");
+    // Prior value was null (fresh node) → note cleared.
+    expect((await getTuningTest(v1))?.notes).toBeNull();
   });
 
   test("undo of delete restores the subtree and prior head; second undo call is a no-op", async () => {

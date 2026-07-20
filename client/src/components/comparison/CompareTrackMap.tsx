@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { m } from "../../paraglide/messages";
-import type { TelemetryPacket, GameId } from "@shared/types";
+import type { GameId, TelemetryPacket } from "@shared/types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type BoundaryData, COLOR_A, COLOR_B, computeZoom, drawInputsHUD, drawTrackCanvas, findTelemetryAtDistance, formatSectionTime, type Point } from "../../lib/comparison-utils";
 import { client } from "../../lib/rpc";
-import { needsTrackFlip, flipPoints, flipBoundaries } from "../../lib/track-coords";
-import { COLOR_A, COLOR_B, drawTrackCanvas, drawInputsHUD, computeZoom, formatSectionTime, findTelemetryAtDistance, type Point, type BoundaryData } from "../../lib/comparison-utils";
+import { flipBoundaries, flipPoints, needsTrackFlip } from "../../lib/track-coords";
+import { m } from "../../paraglide/messages";
 
 export interface SegmentTiming {
   name: string;

@@ -1,5 +1,5 @@
-import { m } from "@/paraglide/messages";
 import type { F1ExtendedData } from "@shared/types";
+import { m } from "@/paraglide/messages";
 
 const WEATHER_LABELS: Record<number, string> = {
   0: "Clear",
@@ -19,7 +19,11 @@ export function F1WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm text-zinc-200 font-medium">{label}</div>
-          {f1.rainPercentage > 0 && <div className="text-[10px] text-blue-400">{m.f1weather_rain_label()} {f1.rainPercentage}%</div>}
+          {f1.rainPercentage > 0 && (
+            <div className="text-[10px] text-blue-400">
+              {m.f1weather_rain_label()} {f1.rainPercentage}%
+            </div>
+          )}
         </div>
         <div className="text-right">
           <div className="text-xs text-zinc-400">

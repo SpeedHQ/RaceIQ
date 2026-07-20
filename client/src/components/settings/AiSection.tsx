@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from "react";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useSettings, useSaveSettings } from "@/hooks/queries";
-import { m } from "@/paraglide/messages";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useSaveSettings, useSettings } from "@/hooks/queries";
+import { m } from "@/paraglide/messages";
 
 const PROVIDER_KEY_MAP: Record<string, string> = {
   gemini: "gemini",
@@ -25,7 +25,6 @@ function supportsGeminiThinkingBudget(modelId: string): boolean {
   if (!model) return true;
   return !model.startsWith("gemma-") && !model.includes("/gemma-");
 }
-
 
 type ProviderId = "gemini" | "openai" | "local";
 type ModelsResponse = {
@@ -55,7 +54,6 @@ export function AiSection() {
     thinkingBudget: (displaySettings.aiProvider ?? "") === "gemini" ? (displaySettings.aiThinkingBudget ?? null) : null,
     localEndpoint: displaySettings.localEndpoint ?? "http://localhost:1234/v1",
   }));
-
 
   // Sync local state once when server settings first load (not on every refetch)
   const synced = useRef(false);
@@ -90,7 +88,6 @@ export function AiSection() {
     model: displaySettings.chatModel ?? "",
     thinkingBudget: (displaySettings.chatProvider ?? "") === "gemini" ? (displaySettings.chatThinkingBudget ?? null) : null,
   }));
-
 
   const chatSynced = useRef(false);
   useEffect(() => {
@@ -201,35 +198,33 @@ export function AiSection() {
     },
   });
   const modelsRefreshing = refreshModels.isPending;
-  const models = provider === "gemini" || provider === "openai" || provider === "local" ? aiModels?.[provider] ?? [] : [];
+  const models = provider === "gemini" || provider === "openai" || provider === "local" ? (aiModels?.[provider] ?? []) : [];
   const hasProviderKey = provider === "local" || (keyStatus[provider] ?? false);
   const canShowModelPicker = provider !== "" && hasProviderKey && models.length > 0;
   const effectiveGeminiModel = model || "gemini-flash-latest";
   const modelSupportsThinking = provider === "gemini" && supportsGeminiThinkingBudget(effectiveGeminiModel);
   const effectiveThinkingBudget = modelSupportsThinking ? thinkingBudget : null;
-  const chatModels = chatProvider === "gemini" || chatProvider === "openai" || chatProvider === "local" ? aiModels?.[chatProvider] ?? [] : [];
+  const chatModels = chatProvider === "gemini" || chatProvider === "openai" || chatProvider === "local" ? (aiModels?.[chatProvider] ?? []) : [];
   const hasChatProviderKey = chatProvider === "local" || (keyStatus[chatProvider] ?? false);
   const canShowChatModelPicker = chatProvider !== "" && hasChatProviderKey && chatModels.length > 0;
   const effectiveChatGeminiModel = chatModel || "gemini-flash-latest";
   const chatModelSupportsThinking = chatProvider === "gemini" && supportsGeminiThinkingBudget(effectiveChatGeminiModel);
   const effectiveChatThinkingBudget = chatModelSupportsThinking ? chatThinkingBudget : null;
   const modelErrors = aiModels?._errors ?? {};
-  const providerModelError = (provider === "gemini" || provider === "openai" || provider === "local") ? modelErrors[provider] ?? null : null;
-  const chatProviderModelError = (chatProvider === "gemini" || chatProvider === "openai" || chatProvider === "local") ? modelErrors[chatProvider] ?? null : null;
-  const autoTuneModels = autoTuneProvider === "gemini" || autoTuneProvider === "openai" || autoTuneProvider === "local" ? aiModels?.[autoTuneProvider] ?? [] : [];
+  const providerModelError = provider === "gemini" || provider === "openai" || provider === "local" ? (modelErrors[provider] ?? null) : null;
+  const chatProviderModelError = chatProvider === "gemini" || chatProvider === "openai" || chatProvider === "local" ? (modelErrors[chatProvider] ?? null) : null;
+  const autoTuneModels = autoTuneProvider === "gemini" || autoTuneProvider === "openai" || autoTuneProvider === "local" ? (aiModels?.[autoTuneProvider] ?? []) : [];
   const hasAutoTuneProviderKey = autoTuneProvider === "local" || (keyStatus[autoTuneProvider] ?? false);
   const canShowAutoTuneModelPicker = autoTuneProvider !== "" && hasAutoTuneProviderKey && autoTuneModels.length > 0;
-  const autoTuneProviderModelError = (autoTuneProvider === "gemini" || autoTuneProvider === "openai" || autoTuneProvider === "local") ? modelErrors[autoTuneProvider] ?? null : null;
+  const autoTuneProviderModelError = autoTuneProvider === "gemini" || autoTuneProvider === "openai" || autoTuneProvider === "local" ? (modelErrors[autoTuneProvider] ?? null) : null;
 
   const initialProvider = analysisBaseline.provider;
   const initialModel = analysisBaseline.model;
   const initialThinkingBudget = analysisBaseline.thinkingBudget;
   const initialLocalEndpoint = analysisBaseline.localEndpoint;
   const nextThinkingBudget = provider === "gemini" ? effectiveThinkingBudget : null;
-  const analysisConfigDirty = provider !== initialProvider
-    || model !== initialModel
-    || nextThinkingBudget !== initialThinkingBudget
-    || (provider === "local" && localEndpoint !== initialLocalEndpoint);
+  const analysisConfigDirty =
+    provider !== initialProvider || model !== initialModel || nextThinkingBudget !== initialThinkingBudget || (provider === "local" && localEndpoint !== initialLocalEndpoint);
   const hasPendingAnalysisApiKey = apiKey.trim().length > 0;
   const canSaveAnalysis = analysisConfigDirty || hasPendingAnalysisApiKey;
 
@@ -237,9 +232,7 @@ export function AiSection() {
   const initialChatModel = chatBaseline.model;
   const initialChatThinkingBudget = chatBaseline.thinkingBudget;
   const nextChatThinkingBudget = chatProvider === "gemini" ? effectiveChatThinkingBudget : null;
-  const chatConfigDirty = chatProvider !== initialChatProvider
-    || chatModel !== initialChatModel
-    || nextChatThinkingBudget !== initialChatThinkingBudget;
+  const chatConfigDirty = chatProvider !== initialChatProvider || chatModel !== initialChatModel || nextChatThinkingBudget !== initialChatThinkingBudget;
   const hasPendingChatApiKey = chatApiKey.trim().length > 0;
   const canSaveChat = chatConfigDirty || hasPendingChatApiKey;
 
@@ -264,9 +257,7 @@ export function AiSection() {
     const startedAt = performance.now();
     try {
       const providerKeyId = PROVIDER_KEY_MAP[provider];
-      const keyPromise = apiKey && providerKeyId
-        ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey })
-        : null;
+      const keyPromise = apiKey && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey }) : null;
       const updates: Record<string, unknown> = {
         aiProvider: provider,
         aiModel: model,
@@ -294,7 +285,6 @@ export function AiSection() {
         thinkingBudget: provider === "gemini" ? effectiveThinkingBudget : null,
         localEndpoint: provider === "local" ? localEndpoint : initialLocalEndpoint,
       });
-
     } catch (err) {
       const durationMs = Math.round(performance.now() - startedAt);
       console.error(`[AI Settings] analysis save failed in ${durationMs}ms`, err instanceof Error ? err.message : String(err));
@@ -587,9 +577,7 @@ export function AiSection() {
             const startedAt = performance.now();
             try {
               const providerKeyId = PROVIDER_KEY_MAP[chatProvider];
-              const keyPromise = chatApiKey && providerKeyId
-                ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: chatApiKey })
-                : null;
+              const keyPromise = chatApiKey && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: chatApiKey }) : null;
               const updates = { chatProvider, chatModel, chatThinkingBudget: chatProvider === "gemini" ? effectiveChatThinkingBudget : null } as Record<string, unknown>;
               updateSettingsInCache(updates);
               await saveSettings.mutateAsync(updates);
@@ -611,7 +599,6 @@ export function AiSection() {
               });
               const durationMs = Math.round(performance.now() - startedAt);
               console.info(`[AI Settings] chat save completed in ${durationMs}ms`);
-
             } catch (err) {
               const durationMs = Math.round(performance.now() - startedAt);
               console.error(`[AI Settings] chat save failed in ${durationMs}ms`, err instanceof Error ? err.message : String(err));
@@ -707,16 +694,16 @@ export function AiSection() {
             </button>
           </div>
         )}
-        {autoTuneProvider !== "" && hasAutoTuneProviderKey && (autoTuneProviderModelError || aiModelsError) && <p className="text-xs text-red-400">{autoTuneProviderModelError || m.ai_load_models_failed()}</p>}
+        {autoTuneProvider !== "" && hasAutoTuneProviderKey && (autoTuneProviderModelError || aiModelsError) && (
+          <p className="text-xs text-red-400">{autoTuneProviderModelError || m.ai_load_models_failed()}</p>
+        )}
         <button
           onClick={async () => {
             setAutoTuneSaveError(null);
             const startedAt = performance.now();
             try {
               const providerKeyId = PROVIDER_KEY_MAP[autoTuneProvider];
-              const keyPromise = autoTuneApiKey && providerKeyId
-                ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: autoTuneApiKey })
-                : null;
+              const keyPromise = autoTuneApiKey && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: autoTuneApiKey }) : null;
               const updates = { autoTuneProvider, autoTuneModel } as Record<string, unknown>;
               updateSettingsInCache(updates);
               await saveSettings.mutateAsync(updates);

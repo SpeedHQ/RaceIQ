@@ -17,12 +17,13 @@ export type TuningActionKind =
   | "apply-changes"
   | "branch"
   | "add-base"
-  | "inspire"
   | "import-laps"
   | "set-head"
   | "delete"
   | "restore"
   | "rename-note"
+  | "edit-test-note"
+  | "edit-test-notes"
   | "set-lap-excluded";
 
 export interface TuningAction {

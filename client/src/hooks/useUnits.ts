@@ -1,10 +1,10 @@
-import { useMemo, useEffect } from "react";
-import { useSettings } from "./queries";
-import { convertSpeed, convertDistance, speedLabel, distanceLabel } from "../lib/speed";
-import { convertTemp, fahrenheitToCelsius } from "../lib/temperature";
-import { useTelemetryStore } from "../stores/telemetry";
-import { useGameId } from "../stores/game";
+import { useEffect, useMemo } from "react";
 import { tryGetGame } from "../../../shared/games/registry";
+import { convertDistance, convertSpeed, distanceLabel, speedLabel } from "../lib/speed";
+import { convertTemp, fahrenheitToCelsius } from "../lib/temperature";
+import { useGameId } from "../stores/game";
+import { useTelemetryStore } from "../stores/telemetry";
+import { useSettings } from "./queries";
 
 const DEFAULT_TIRE_TEMP = { cold: 75, warm: 115, hot: 150 };
 

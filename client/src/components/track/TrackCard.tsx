@@ -1,10 +1,10 @@
-import { useEffect, useState, useRef } from "react";
-import { m } from "@/paraglide/messages";
 import type { GameId } from "@shared/types";
-import { client } from "@/lib/rpc";
+import { useEffect, useRef, useState } from "react";
 import { drawTrack } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
-import type { TrackInfo, Point } from "./types";
+import { client } from "@/lib/rpc";
+import { m } from "@/paraglide/messages";
+import type { Point, TrackInfo } from "./types";
 
 /** TrackCard — Gallery thumbnail: fetches outline by ordinal and renders a small static track map. */
 export function TrackCard({
@@ -13,7 +13,13 @@ export function TrackCard({
   gameId,
   setupCount,
   guideCount,
-}: { track: TrackInfo; onSelect: (t: TrackInfo) => void; gameId?: GameId | null; setupCount?: number; guideCount?: number }) {
+}: {
+  track: TrackInfo;
+  onSelect: (t: TrackInfo) => void;
+  gameId?: GameId | null;
+  setupCount?: number;
+  guideCount?: number;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
   const [flipX, setFlipX] = useState(false);

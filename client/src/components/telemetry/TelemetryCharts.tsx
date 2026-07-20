@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { DisplayPacket } from "@/lib/convert-packet";
 import { client } from "@/lib/rpc";
 import { GRIP_MAX_SAMPLES } from "./GripSparkline";
-import { FourLineChart, SingleLineChart, DualLineChart } from "./MiniCharts";
+import { DualLineChart, FourLineChart, SingleLineChart } from "./MiniCharts";
 
 /**
  * TelemetryCharts — Aggregates all rolling 60s time-series data into chart components.

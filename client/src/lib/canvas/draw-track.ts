@@ -35,13 +35,7 @@ function overlaps(a: Rect, b: Rect): boolean {
  * partial set. Each label tries the outside of the track first, then the
  * inside, before giving up.
  */
-function placeLabels(
-  ctx: CanvasRenderingContext2D,
-  labels: LabelCandidate[],
-  large: boolean,
-  w: number,
-  h: number,
-) {
+function placeLabels(ctx: CanvasRenderingContext2D, labels: LabelCandidate[], large: boolean, w: number, h: number) {
   ctx.font = large ? "bold 9px monospace" : "bold 7px monospace";
   ctx.textAlign = "center";
   const offDist = large ? 14 : 8;
@@ -259,9 +253,7 @@ export function drawTrack(
 
     // Corner names carry their official turn numbers ("Eau Rouge/Raidillon (2-4)");
     // thumbnails stay clean with names only.
-    const displayNames = large
-      ? segmentDisplayNames(sectors.segments)
-      : segmentDisplayNames(sectors.segments.map((s) => ({ ...s, numbers: undefined })));
+    const displayNames = large ? segmentDisplayNames(sectors.segments) : segmentDisplayNames(sectors.segments.map((s) => ({ ...s, numbers: undefined })));
     // The start/finish straight is two segments but one straight — label the
     // longer half so its name doesn't appear twice on the map.
     const labelledGroups = new Set<string>();

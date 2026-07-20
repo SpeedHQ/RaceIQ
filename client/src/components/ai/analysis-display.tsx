@@ -1,6 +1,6 @@
-import { useRef, useState, type ReactNode } from "react";
+import { AlertTriangle, ChevronRight, CircleDot, Download, Gauge, Lightbulb, RefreshCw, Sliders, Sparkles, Trash2, Wrench, X, Zap } from "lucide-react";
+import { type ReactNode, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
-import { Sparkles, RefreshCw, Gauge, Sliders, AlertTriangle, Lightbulb, Wrench, Download, Trash2, CircleDot, Zap, X, ChevronRight } from "lucide-react";
 
 export interface AnalysisHighlight {
   startFrac: number;
@@ -275,7 +275,9 @@ export function SetupSection({
         <Wrench className="size-3.5 text-app-text-secondary" />
         <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">{m.aidisplay_setup()}</span>
         <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{setup.length}</span>
-        {!hasTune && <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">{m.aidisplay_best_guess()}</span>}
+        {!hasTune && (
+          <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">{m.aidisplay_best_guess()}</span>
+        )}
         <ChevronRight className="ml-auto size-3.5 text-app-text-muted" />
       </button>
 
@@ -286,8 +288,15 @@ export function SetupSection({
               <Wrench className="size-4 text-app-text-secondary" />
               <h2 className="text-sm font-semibold text-app-text">{m.aidisplay_setup_recommendations()}</h2>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{setup.length}</span>
-              {!hasTune && <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">{m.aidisplay_best_guess()}</span>}
-              <button type="button" onClick={() => setOpen(false)} className="ml-auto p-1 rounded hover:bg-app-border-input/30 text-app-text-muted hover:text-app-text" aria-label={m.aidisplay_close_setup()}>
+              {!hasTune && (
+                <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">{m.aidisplay_best_guess()}</span>
+              )}
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="ml-auto p-1 rounded hover:bg-app-border-input/30 text-app-text-muted hover:text-app-text"
+                aria-label={m.aidisplay_close_setup()}
+              >
                 <X className="size-4" />
               </button>
             </div>

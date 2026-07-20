@@ -22,7 +22,11 @@ export function TuneViewModal({ tuneId, onClose }: { tuneId: number; onClose: ()
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-app-text">{tune.name}</h2>
-                {tune.author && <p className="text-xs text-app-text-muted">{m.tuneview_by_author()} {tune.author}</p>}
+                {tune.author && (
+                  <p className="text-xs text-app-text-muted">
+                    {m.tuneview_by_author()} {tune.author}
+                  </p>
+                )}
               </div>
               <Button variant="app-ghost" size="app-sm" onClick={onClose}>
                 &times;

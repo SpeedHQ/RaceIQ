@@ -1,5 +1,5 @@
-import { useState } from "react";
 import fanatec15nm from "@shared/setup/fanatec-15nm.json";
+import { useState } from "react";
 import { m } from "@/paraglide/messages";
 
 interface Setting {

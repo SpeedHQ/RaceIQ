@@ -1,20 +1,20 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { m } from "@/paraglide/messages";
-import { useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
 import type { LapMeta, SessionMeta } from "@shared/types";
 import { RAW_STORAGE_VERSION } from "@shared/types";
-import { queryKeys, useSessions, useLaps, useDeleteLap } from "../hooks/queries";
-import { useGameId, useGameRoute } from "../stores/game";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { m } from "@/paraglide/messages";
+import { queryKeys, useDeleteLap, useLaps, useSessions } from "../hooks/queries";
 import { client } from "../lib/rpc";
+import { RotatePrompt } from "../routes/__root";
+import { useGameId, useGameRoute } from "../stores/game";
 import { formatLapTime } from "./LiveTelemetry";
-import { Button } from "./ui/button";
-import { NoteModal } from "./ui/NoteModal";
+import { SessionRecapModal } from "./SessionRecapModal";
 import { AppInput } from "./ui/AppInput";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
+import { Button } from "./ui/button";
 import { Tooltip } from "./ui/InfoTooltip";
-import { RotatePrompt } from "../routes/__root";
-import { SessionRecapModal } from "./SessionRecapModal";
+import { NoteModal } from "./ui/NoteModal";
 
 const PAGE_SIZE = 25;
 
@@ -233,19 +233,7 @@ function formatSessionType(type?: string): string {
   return type.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function SortHeader({
-  label,
-  field,
-  sortKey,
-  sortDir,
-  toggleSort,
-}: {
-  label: string;
-  field: SortKey;
-  sortKey: SortKey;
-  sortDir: SortDir;
-  toggleSort: (f: SortKey) => void;
-}) {
+function SortHeader({ label, field, sortKey, sortDir, toggleSort }: { label: string; field: SortKey; sortKey: SortKey; sortDir: SortDir; toggleSort: (f: SortKey) => void }) {
   return (
     <TH className="cursor-pointer select-none hover:text-app-text/90" onClick={() => toggleSort(field)}>
       {label} {sortKey === field ? (sortDir === "asc" ? "▲" : "▼") : ""}
@@ -517,8 +505,7 @@ export function SessionsPage() {
             })()}
           {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
             <button onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors">
-              {m.common_delete()}{" "}
-              {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
+              {m.common_delete()} {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
               {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
               {selectedLaps.size > 0 ? `${selectedLaps.size} ${m.sessions_count_laps()}` : ""}
             </button>

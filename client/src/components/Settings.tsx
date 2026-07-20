@@ -1,12 +1,12 @@
+import { LOCALES } from "@shared/locales";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SearchSelect } from "@/components/ui/SearchSelect";
 import { isDevelopment } from "@/lib/env";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
-import { SearchSelect } from "@/components/ui/SearchSelect";
-import { LOCALES } from "@shared/locales";
-import { useEffect, useState } from "react";
 import { type Theme, useTheme } from "../context/theme";
 import { useSaveSettings, useSettings } from "../hooks/queries";
 import { useUiStore } from "../stores/ui";
@@ -24,34 +24,34 @@ import { WheelPicker } from "./settings/WheelPicker";
 
 // Re-export localStorage utilities so existing importers don't break
 export {
+  getSoundEnabled,
+  getSoundType,
+  getSoundUrl,
+  getSoundVolume,
   getSteeringLock,
   getWheelStyle,
-  getSoundEnabled,
-  setSoundEnabled,
-  getSoundVolume,
-  setSoundVolume,
-  getSoundType,
-  setSoundType,
-  getSoundUrl,
-  setSoundUrl,
   SOUND_PRESETS,
   type SoundType,
+  setSoundEnabled,
+  setSoundType,
+  setSoundUrl,
+  setSoundVolume,
 } from "../lib/settings-storage";
 
 import {
-  SOUND_PRESETS,
-  STEER_LOCK_KEY,
-  WHEEL_STYLE_KEY,
   getSoundEnabled,
   getSoundType,
   getSoundUrl,
   getSoundVolume,
   getSteeringLock,
   getWheelStyle,
+  SOUND_PRESETS,
+  STEER_LOCK_KEY,
   setSoundEnabled,
   setSoundType,
   setSoundUrl,
   setSoundVolume,
+  WHEEL_STYLE_KEY,
 } from "../lib/settings-storage";
 
 const NAV_ITEMS = [
@@ -264,7 +264,9 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                     }`}
                   />
                 </button>
-                <span className="text-sm text-app-text-muted">{!displaySettings.isCompiled ? m.settings_launch_installed_only() : displaySettings.launchOnLogin ? m.common_enabled() : m.common_disabled()}</span>
+                <span className="text-sm text-app-text-muted">
+                  {!displaySettings.isCompiled ? m.settings_launch_installed_only() : displaySettings.launchOnLogin ? m.common_enabled() : m.common_disabled()}
+                </span>
               </div>
               <p className="text-app-text-muted text-xs mt-1">{m.settings_launch_on_login_desc()}</p>
             </div>
@@ -361,9 +363,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                 <option value="30">30 fps</option>
                 <option value="15">15 fps</option>
               </select>
-              <p className="text-app-text-muted text-xs mt-1">
-                {m.settings_render_frame_cap_desc()}
-              </p>
+              <p className="text-app-text-muted text-xs mt-1">{m.settings_render_frame_cap_desc()}</p>
             </div>
 
             <div className="mt-6 pt-6 border-t border-app-border">
@@ -449,8 +449,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
           <section>
             <h2 className="text-lg font-semibold text-app-text mb-1">{m.settings_wheel_title()}</h2>
             <p className="text-sm text-app-text-muted mb-4">
-              {m.settings_wheel_desc()}{" "}
-              <code className="text-xs bg-app-surface-alt px-1 py-0.5 rounded">client/public/wheels/</code>
+              {m.settings_wheel_desc()} <code className="text-xs bg-app-surface-alt px-1 py-0.5 rounded">client/public/wheels/</code>
             </p>
             <WheelPicker
               value={wheelStyle}
@@ -602,7 +601,9 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             )}
 
             <div className="mb-4">
-              <Label className="text-app-text-secondary mb-2 block">{m.label_volume()} — {Math.round(soundVolume * 100)}%</Label>
+              <Label className="text-app-text-secondary mb-2 block">
+                {m.label_volume()} — {Math.round(soundVolume * 100)}%
+              </Label>
               <input
                 type="range"
                 min="0"

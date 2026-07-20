@@ -1,4 +1,4 @@
-import type { TelemetryPacket, LapMeta } from "@shared/types";
+import type { LapMeta, TelemetryPacket } from "@shared/types";
 import { LapTimeChart } from "../LapTimeChart";
 import { RecordedLaps } from "../RecordedLaps";
 import { DashShell } from "./dash-shell";

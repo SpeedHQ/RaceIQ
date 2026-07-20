@@ -1,7 +1,7 @@
-import { useRef, useCallback, useEffect, useLayoutEffect, useImperativeHandle, forwardRef } from "react";
-import type { TelemetryPacket } from "@shared/types";
 import { tryGetGame } from "@shared/games/registry";
-import { needsTrackFlip, flipPoints } from "../../lib/track-coords";
+import type { TelemetryPacket } from "@shared/types";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef } from "react";
+import { flipPoints, needsTrackFlip } from "../../lib/track-coords";
 
 export interface Point {
   x: number;
@@ -609,7 +609,7 @@ export const AnalyseTrackMap = forwardRef<
         return;
       }
       const t = cycle / 1000;
-      const eased = 1 - Math.pow(1 - t, 3);
+      const eased = 1 - (1 - t) ** 3;
       const s = 10 + eased * 6;
       const opacity = 0.8 * (1 - t);
       ctx2.save();

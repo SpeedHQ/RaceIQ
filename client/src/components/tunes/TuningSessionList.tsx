@@ -1,18 +1,9 @@
 import { type DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { type TuningGameId, type TuningSession, useAccCarName, useCreateTuningSession, usePlaceSetup, useResolveNames, useSetupFiles, useTracks, useTuningSessions } from "../../hooks/queries";
+import { useTelemetryStore } from "../../stores/telemetry";
 import { SearchSelect } from "../ui/SearchSelect";
 import { SetupFilePicker } from "./SetupFilePicker";
-import {
-  type TuningGameId,
-  type TuningSession,
-  useCreateTuningSession,
-  usePlaceSetup,
-  useResolveNames,
-  useSetupFiles,
-  useTracks,
-  useTuningSessions,
-} from "../../hooks/queries";
-import { useTelemetryStore } from "../../stores/telemetry";
 
 /**
  * TuningSessionList — the Setup Engineer landing page (plan §6a). Lists the
@@ -23,13 +14,7 @@ import { useTelemetryStore } from "../../stores/telemetry";
  * `onOpen(id)` navigates to the session workspace route
  * (`/<game>/tune/$tuningSessionId`).
  */
-export function TuningSessionList({
-  gameId,
-  onOpen,
-}: {
-  gameId: TuningGameId;
-  onOpen: (id: number) => void;
-}) {
+export function TuningSessionList({ gameId, onOpen }: { gameId: TuningGameId; onOpen: (id: number) => void }) {
   const { data: sessions = [], isLoading } = useTuningSessions(gameId);
   const [creating, setCreating] = useState(false);
 
@@ -38,46 +23,41 @@ export function TuningSessionList({
       <div className="space-y-2">
         <div>
           <h1 className="text-lg font-semibold text-app-text">Tuning sessions</h1>
-          <p className="text-xs text-app-text-dim mt-0.5">
-            A tuning session tracks one car + track as you iterate setups — base setup, stints driven, and (soon) versions with lap deltas.
-          </p>
+          <p className="text-xs text-app-text-dim mt-0.5">A tuning session tracks one car + track as you iterate setups — base setup, stints driven, and (soon) versions with lap deltas.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          className="self-start px-3 py-1.5 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold"
-        >
+        <button type="button" onClick={() => setCreating(true)} className="self-start px-3 py-1.5 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">
           + New session
         </button>
       </div>
 
-      {creating && (gameId === "f1-2025" ? (
-        <NewF1TuningSessionModal
-          onClose={() => setCreating(false)}
-          onCreated={(id) => { setCreating(false); onOpen(id); }}
-        />
-      ) : (
-        <NewTuningSessionModal
-          gameId={gameId}
-          onClose={() => setCreating(false)}
-          onCreated={(id) => { setCreating(false); onOpen(id); }}
-        />
-      ))}
+      {creating &&
+        (gameId === "f1-2025" ? (
+          <NewF1TuningSessionModal
+            onClose={() => setCreating(false)}
+            onCreated={(id) => {
+              setCreating(false);
+              onOpen(id);
+            }}
+          />
+        ) : (
+          <NewTuningSessionModal
+            gameId={gameId}
+            onClose={() => setCreating(false)}
+            onCreated={(id) => {
+              setCreating(false);
+              onOpen(id);
+            }}
+          />
+        ))}
 
-      <TuningSessionTable sessions={sessions} onOpen={onOpen} isLoading={isLoading} />
+      <TuningSessionTable sessions={sessions} onOpen={onOpen} isLoading={isLoading} gameId={gameId} />
     </div>
   );
 }
 
-function TuningSessionTable({
-  sessions,
-  onOpen,
-  isLoading,
-}: {
-  sessions: TuningSession[];
-  onOpen: (id: number) => void;
-  isLoading: boolean;
-}) {
+function TuningSessionTable({ sessions, onOpen, isLoading, gameId }: { sessions: TuningSession[]; onOpen: (id: number) => void; isLoading: boolean; gameId: TuningGameId }) {
+  const accCarName = useAccCarName();
+  const carName = (n: string | null | undefined) => (gameId === "acc" ? accCarName(n) : n) ?? "—";
   return (
     <div className="overflow-x-auto border border-app-border rounded-lg">
       <table className="w-full text-sm border-collapse">
@@ -103,16 +83,14 @@ function TuningSessionTable({
           {sessions.map((s) => {
             const base = s.baseSetupPath?.split(/[\\/]/).pop() ?? "—";
             return (
-              <tr
-                key={s.id}
-                onClick={() => onOpen(s.id)}
-                className="border-b border-app-border/60 last:border-0 hover:bg-app-panel/60 cursor-pointer"
-              >
+              <tr key={s.id} onClick={() => onOpen(s.id)} className="border-b border-app-border/60 last:border-0 hover:bg-app-panel/60 cursor-pointer">
                 <td className="px-3 py-2 text-right font-mono text-app-text-dim tabular-nums">{s.seq}</td>
                 <td className="px-3 py-2 font-medium text-app-text">{s.name}</td>
-                <td className="px-3 py-2 text-app-text-dim">{s.carName ?? "—"}</td>
+                <td className="px-3 py-2 text-app-text-dim">{carName(s.carName)}</td>
                 <td className="px-3 py-2 text-app-text-dim">{s.trackName ?? "—"}</td>
-                <td className="px-3 py-2 text-app-text-dim font-mono text-xs max-w-[220px] truncate" title={s.baseSetupPath ?? undefined}>{base}</td>
+                <td className="px-3 py-2 text-app-text-dim font-mono text-xs max-w-[220px] truncate" title={s.baseSetupPath ?? undefined}>
+                  {base}
+                </td>
                 <td className="px-3 py-2 text-app-text-dim whitespace-nowrap">{new Date(s.updatedAt).toLocaleDateString()}</td>
                 <td className="px-3 py-2 text-right">
                   <span className="text-purple-400 text-xs font-semibold">Resume →</span>
@@ -132,15 +110,7 @@ function TuningSessionTable({
  * expose setups the driver saved in-game, so the base setup determines car +
  * track — a session is always one car + one track.
  */
-function NewTuningSessionModal({
-  gameId,
-  onClose,
-  onCreated,
-}: {
-  gameId: "acc" | "ac-evo";
-  onClose: () => void;
-  onCreated: (id: number) => void;
-}) {
+function NewTuningSessionModal({ gameId, onClose, onCreated }: { gameId: "acc" | "ac-evo"; onClose: () => void; onCreated: (id: number) => void }) {
   const { data: setupFiles, isLoading: loadingFiles } = useSetupFiles(gameId);
   const create = useCreateTuningSession();
   const place = usePlaceSetup();
@@ -255,14 +225,21 @@ function NewTuningSessionModal({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[680px] max-w-[94vw] flex flex-col gap-4 p-5"
-        onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+      <div
+        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[680px] max-w-[94vw] flex flex-col gap-4 p-5"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
       >
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-app-text">New tuning session</p>
-          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">×</button>
+          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
+            ×
+          </button>
         </div>
 
         {/* Drag-in / click-to-browse zone */}
@@ -271,12 +248,18 @@ function NewTuningSessionModal({
           type="file"
           accept=".json,application/json"
           className="hidden"
-          onChange={(e) => { void processFile(e.target.files?.[0]); e.target.value = ""; }}
+          onChange={(e) => {
+            void processFile(e.target.files?.[0]);
+            e.target.value = "";
+          }}
         />
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
           className={`w-full rounded-lg border border-dashed px-3 py-8 text-center text-xs transition-colors ${
@@ -338,7 +321,11 @@ function NewTuningSessionModal({
         <SetupFilePicker
           gameId={gameId}
           value={{ car, track, setupPath: baseSetupPath }}
-          onChange={(v) => { setCar(v.car); setTrack(v.track); setBaseSetupPath(v.setupPath); }}
+          onChange={(v) => {
+            setCar(v.car);
+            setTrack(v.track);
+            setBaseSetupPath(v.setupPath);
+          }}
         />
 
         <label className="flex flex-col gap-1">
@@ -393,18 +380,9 @@ function NewTuningSessionModal({
  * ordinals when resolvable — otherwise left blank and backfilled from the
  * first lap.
  */
-function NewF1TuningSessionModal({
-  onClose,
-  onCreated,
-}: {
-  onClose: () => void;
-  onCreated: (id: number) => void;
-}) {
+function NewF1TuningSessionModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: number) => void }) {
   const packet = useTelemetryStore((s) => s.packet);
-  const { data: names } = useResolveNames(
-    packet?.TrackOrdinal != null ? [packet.TrackOrdinal] : [],
-    packet?.CarOrdinal != null ? [packet.CarOrdinal] : [],
-  );
+  const { data: names } = useResolveNames(packet?.TrackOrdinal != null ? [packet.TrackOrdinal] : [], packet?.CarOrdinal != null ? [packet.CarOrdinal] : []);
   const liveCar = packet?.CarOrdinal != null ? (names?.carNames[String(packet.CarOrdinal)] ?? "") : "";
   const liveTrack = packet?.TrackOrdinal != null ? (names?.trackNames[String(packet.TrackOrdinal)] ?? "") : "";
 
@@ -412,9 +390,7 @@ function NewF1TuningSessionModal({
 
   const trackOptions = useMemo(() => {
     const list = (tracksData as { ordinal: number; name: string }[] | undefined) ?? [];
-    return [...new Set(list.map((t) => t.name).filter(Boolean))]
-      .sort((a, b) => a.localeCompare(b))
-      .map((n) => ({ value: n, label: n }));
+    return [...new Set(list.map((t) => t.name).filter(Boolean))].sort((a, b) => a.localeCompare(b)).map((n) => ({ value: n, label: n }));
   }, [tracksData]);
 
   const create = useCreateTuningSession();
@@ -458,20 +434,35 @@ function NewF1TuningSessionModal({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
-      <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[480px] max-w-[94vw] flex flex-col gap-4 p-5"
-        onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+      <div
+        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[480px] max-w-[94vw] flex flex-col gap-4 p-5"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
       >
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-app-text">New tuning session</p>
-          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">×</button>
+          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
+            ×
+          </button>
         </div>
 
-        <p className="text-[11px] text-app-text-dim">
-          F1 setups are read from telemetry — your base setup will be captured from your first lap, or via
-          "Capture current setup" in the session.
-        </p>
+        <p className="text-[11px] text-app-text-dim">F1 setups are read from telemetry — your base setup will be captured from your first lap, or via "Capture current setup" in the session.</p>
+
+        <div className="flex gap-2">
+          <label className="flex flex-col gap-1 flex-1">
+            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Car (optional)</span>
+            <input value={car} onChange={(e) => setCar(e.target.value)} placeholder="Car name" maxLength={200} className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs" />
+          </label>
+          <label className="flex flex-col gap-1 flex-1">
+            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Track</span>
+            <SearchSelect value={track} onChange={setTrack} options={trackOptions} placeholder="Search tracks…" focusColor="purple-500" />
+          </label>
+        </div>
 
         <label className="flex flex-col gap-1">
           <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Session name</span>
@@ -483,29 +474,6 @@ function NewF1TuningSessionModal({
             className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs"
           />
         </label>
-
-        <div className="flex gap-2">
-          <label className="flex flex-col gap-1 flex-1">
-            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Car (optional)</span>
-            <input
-              value={car}
-              onChange={(e) => setCar(e.target.value)}
-              placeholder="Car name"
-              maxLength={200}
-              className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs"
-            />
-          </label>
-          <label className="flex flex-col gap-1 flex-1">
-            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Track</span>
-            <SearchSelect
-              value={track}
-              onChange={setTrack}
-              options={trackOptions}
-              placeholder="Search tracks…"
-              focusColor="purple-500"
-            />
-          </label>
-        </div>
 
         {error && <div className="text-xs text-red-400">{error}</div>}
 

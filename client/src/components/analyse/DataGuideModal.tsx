@@ -1,5 +1,5 @@
-import { m } from "../../paraglide/messages";
 import { X } from "lucide-react";
+import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 
 interface SectionProps {
@@ -140,7 +140,10 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
           {/* Slip */}
           <Section title={m.dataguide_slip()}>
             <Row label={m.dataguide_ratio()} desc="Wheel speed vs ground speed. High ratio = wheelspin/lockup. Colour: green &lt;10% · amber &lt;30% · red beyond." />
-            <Row label={m.dataguide_angle()} desc="Angle between wheel heading and direction of travel. Peak mechanical grip is typically 6–12° (speed-dependent). Thresholds scale down at low speed." />
+            <Row
+              label={m.dataguide_angle()}
+              desc="Angle between wheel heading and direction of travel. Peak mechanical grip is typically 6–12° (speed-dependent). Thresholds scale down at low speed."
+            />
           </Section>
 
           {/* Wheels */}

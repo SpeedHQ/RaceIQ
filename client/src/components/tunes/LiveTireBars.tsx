@@ -1,6 +1,6 @@
-import { useMemo } from "react";
 import type { TelemetryPacket } from "@shared/types";
-import { CornerBars, METRICS, buildLiveRanges } from "./SectorRangeBreakdown";
+import { useMemo } from "react";
+import { buildLiveRanges, CornerBars, METRICS } from "./SectorRangeBreakdown";
 
 /**
  * LiveTireBars — the "4 vertical bars per corner, min→max fill + avg tick"

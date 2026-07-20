@@ -1,9 +1,9 @@
+import { Sparkles } from "lucide-react";
 import type { RefObject } from "react";
 import { m } from "../../paraglide/messages";
-import { Sparkles } from "lucide-react";
-import { AiPanel, type AnalysisHighlight, type AiPanelHandle } from "../AiPanel";
-import { AiPanelMenu } from "./AiPanelMenu";
+import { AiPanel, type AiPanelHandle, type AnalysisHighlight } from "../AiPanel";
 import { Button } from "../ui/button";
+import { AiPanelMenu } from "./AiPanelMenu";
 
 interface AnalyseAiSidebarProps {
   lapId: number;

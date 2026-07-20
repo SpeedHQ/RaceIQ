@@ -1,12 +1,12 @@
-import { PLATFORM_LABEL, PlatformIcon, detectPlatform } from "@/components/acc/acc-links";
-import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
-import type { ComboOption } from "@/components/tune/browser/ComboBox";
-import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
-import { m } from "@/paraglide/messages";
-import { useUiStore } from "@/stores/ui";
-import { client } from "@/lib/rpc";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { detectPlatform, PLATFORM_LABEL, PlatformIcon } from "@/components/acc/acc-links";
+import type { ComboOption } from "@/components/tune/browser/ComboBox";
+import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
+import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
+import { client } from "@/lib/rpc";
+import { m } from "@/paraglide/messages";
+import { useUiStore } from "@/stores/ui";
 
 interface AccSetup {
   name: string;
@@ -140,10 +140,7 @@ function AccSetupValues({ data }: { data: AccSetupFile }) {
 
 function AccSetupPanel({ setup }: { setup: AccSetup }) {
   const install = useMutation({
-    mutationFn: () =>
-      client.api.acc.setups.install
-        .$post({ json: { carModel: setup.carModel, trackName: setup.trackName, setupFile: setup.setupFile! } })
-        .then((r) => r.json() as Promise<unknown>),
+    mutationFn: () => client.api.acc.setups.install.$post({ json: { carModel: setup.carModel, trackName: setup.trackName, setupFile: setup.setupFile! } }).then((r) => r.json() as Promise<unknown>),
   });
   // Fetch the raw ACC setup JSON lazily — this panel only mounts when the row
   // is expanded, so the request fires on expand.

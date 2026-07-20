@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import type { GameId } from "@shared/types";
+import { create } from "zustand";
 import { useTelemetryStore } from "./telemetry";
 
 /** Map gameId → route path segment. Derived from each adapter's routePrefix. */

@@ -5,8 +5,8 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useCarName,
-  useLapTelemetry,
   useLaps as useLapsQuery,
+  useLapTelemetry,
   useResolveNames,
   useSettings,
   useTrackBoundaries,

@@ -1,6 +1,6 @@
-import { memo, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
-import { m } from "../../paraglide/messages";
+import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import type { DisplayPacket } from "../../lib/convert-packet";
+import { m } from "../../paraglide/messages";
 import { TelemetryChart } from "./AnalyseTelemetryChart";
 
 export interface ChartData {

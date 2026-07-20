@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/types";
 import { tryGetGame } from "@shared/games/registry";
+import type { GameId } from "@shared/types";
 
 export interface Pt {
   x: number;

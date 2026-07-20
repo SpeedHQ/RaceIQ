@@ -1,11 +1,11 @@
+import type { GameId, TuneSettings } from "@shared/types";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { SetupSettingsPanel } from "@/components/setup-tune/SetupSettingsPanel";
 import type { RawUserTune } from "@/components/tune/browser/buildRows";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { useCatalogTunes, useResolveNames, useUserTunes } from "@/hooks/queries";
 import { tracksMatch } from "@/lib/track-match";
-import type { GameId, TuneSettings } from "@shared/types";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 
 // Normalised community-or-user setup row for the panel list.
@@ -142,17 +142,7 @@ function rowsOf(...entries: [string, boolean, string][]): [string, string][] {
  *  AC-EVO). Same shell as the ACC / F1 track setup panels — a filterable,
  *  selectable list on the left and a read-only settings grid on the right —
  *  minus the download/video pieces those games carry (this data has none). */
-export function CatalogTrackSetups({
-  gameId,
-  trackName,
-  trackVariant,
-  trackOrdinal,
-}: {
-  gameId: GameId;
-  trackName: string;
-  trackVariant: string;
-  trackOrdinal: number;
-}) {
+export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdinal }: { gameId: GameId; trackName: string; trackVariant: string; trackOrdinal: number }) {
   const search = useSearch({ strict: false }) as { setup?: string };
   const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState<string | null>(null);

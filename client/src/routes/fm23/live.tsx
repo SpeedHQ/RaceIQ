@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, Navigate, useLocation } from "@tanstack/react-router";
+import { createFileRoute, Navigate, Outlet, useLocation } from "@tanstack/react-router";
 
 function Fm23LiveLayout() {
   const location = useLocation();

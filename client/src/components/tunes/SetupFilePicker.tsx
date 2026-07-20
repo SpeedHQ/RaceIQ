@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { SearchSelect } from "../ui/SearchSelect";
 import { useSetupFiles } from "../../hooks/queries";
+import { SearchSelect } from "../ui/SearchSelect";
 
 export interface SetupFilePickerValue {
   car: string;
@@ -23,46 +23,69 @@ export function SetupFilePicker({
   gameId,
   value,
   onChange,
+  lockedCar,
   labels = { car: "Car", track: "Track", setup: "Base setup" },
 }: {
   gameId: "acc" | "ac-evo";
   value: SetupFilePickerValue;
   onChange: (value: SetupFilePickerValue) => void;
+  /** When set, the car is fixed to this model slug and shown read-only — only
+   *  track + setup are pickable (e.g. Add base: same car, another track). */
+  lockedCar?: string;
   labels?: { car?: string; track?: string; setup?: string };
 }) {
   const { data: setupFiles, isLoading: loadingFiles } = useSetupFiles(gameId);
   const files = setupFiles?.files ?? [];
-  const noFiles = !loadingFiles && files.length === 0;
 
-  const cars = useMemo(() => [...new Set(files.map((f) => f.carModel))].sort(), [files]);
-  const tracks = useMemo(
-    () => [...new Set(files.filter((f) => f.carModel === value.car).map((f) => f.trackName))].sort(),
-    [files, value.car],
-  );
-  const carTrackFiles = useMemo(
-    () => files.filter((f) => f.carModel === value.car && f.trackName === value.track),
-    [files, value.car, value.track],
-  );
+  // Friendly car label per model slug, from the canonical cars.csv roster.
+  const carNameByModel = useMemo(() => new Map((setupFiles?.cars ?? []).map((c) => [c.model, c.name] as const)), [setupFiles]);
+
+  // Car options = full canonical roster unioned with any model that already has
+  // a saved setup (catches slugs missing from the CSV). Labelled with the
+  // friendly name; the value stays the model slug the session is keyed on.
+  const cars = useMemo(() => {
+    const models = new Set<string>([...(setupFiles?.cars ?? []).map((c) => c.model), ...files.map((f) => f.carModel)]);
+    return [...models].map((model) => ({ value: model, label: carNameByModel.get(model) ?? model })).sort((a, b) => a.label.localeCompare(b.label));
+  }, [setupFiles, files, carNameByModel]);
+  const noCars = !loadingFiles && cars.length === 0;
+
+  // Track options = full canonical track roster unioned with tracks the chosen
+  // car already has setups for, so any track is selectable even without a base.
+  const tracks = useMemo(() => [...new Set([...(setupFiles?.tracks ?? []), ...files.filter((f) => f.carModel === value.car).map((f) => f.trackName)])].sort(), [setupFiles, files, value.car]);
+  const carTrackFiles = useMemo(() => files.filter((f) => f.carModel === value.car && f.trackName === value.track), [files, value.car, value.track]);
+  // Saved-setup count per track for the current car — shown against each track
+  // so the driver sees where they already have bases (e.g. "Barcelona (3)").
+  const countByTrack = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const f of files) if (f.carModel === value.car) m.set(f.trackName, (m.get(f.trackName) ?? 0) + 1);
+    return m;
+  }, [files, value.car]);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-      <label className="flex flex-col gap-1">
-        <span className="text-[11px] text-app-text-muted uppercase tracking-wider">{labels.car ?? "Car"}</span>
-        <SearchSelect
-          value={value.car}
-          onChange={(v) => onChange({ car: v, track: "", setupPath: "" })}
-          options={cars.map((c) => ({ value: c, label: c }))}
-          placeholder={loadingFiles ? "Loading…" : noFiles ? "No saved setups" : "Search cars…"}
-          disabled={loadingFiles || noFiles}
-          focusColor="purple-500"
-        />
-      </label>
+    <div className={`grid grid-cols-1 gap-3 ${lockedCar ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+      {!lockedCar && (
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-app-text-muted uppercase tracking-wider">{labels.car ?? "Car"}</span>
+          <SearchSelect
+            value={value.car}
+            onChange={(v) => onChange({ car: v, track: "", setupPath: "" })}
+            options={cars}
+            placeholder={loadingFiles ? "Loading…" : noCars ? "No cars" : "Search cars…"}
+            disabled={loadingFiles || noCars}
+            focusColor="purple-500"
+          />
+        </label>
+      )}
       <label className="flex flex-col gap-1">
         <span className="text-[11px] text-app-text-muted uppercase tracking-wider">{labels.track ?? "Track"}</span>
         <SearchSelect
           value={value.track}
           onChange={(v) => onChange({ ...value, track: v, setupPath: "" })}
-          options={tracks.map((t) => ({ value: t, label: t }))}
+          options={tracks.map((t) => {
+            const name = setupFiles?.trackNames?.[t] ?? t;
+            const n = countByTrack.get(t) ?? 0;
+            return { value: t, label: n ? `${name} (${n})` : name, disabled: n === 0 };
+          })}
           placeholder={!value.car ? "Pick a car first" : "Search tracks…"}
           disabled={!value.car}
           focusColor="purple-500"

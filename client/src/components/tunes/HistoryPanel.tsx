@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useTuningHistory, useUndo, type TuningActionRow } from "../../hooks/queries";
+import { type TuningActionRow, useTuningHistory, useUndo } from "../../hooks/queries";
 
 /**
  * History panel (design Phase 9) — session-scoped, newest-first action log
@@ -16,21 +16,25 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[520px] max-w-[94vw] max-h-[80vh] flex flex-col gap-3 p-5"
-        onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
       >
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-app-text">History</p>
-          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">×</button>
+          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
+            ×
+          </button>
         </div>
 
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs text-app-text-dim">
-            {nextPending ? `Undo reverses: ${describeAction(nextPending)}` : "Nothing left to undo."}
-          </p>
+          <p className="text-xs text-app-text-dim">{nextPending ? `Undo reverses: ${describeAction(nextPending)}` : "Nothing left to undo."}</p>
           <button
             type="button"
             onClick={() => undo.mutate({ sessionId })}
@@ -70,7 +74,6 @@ const KIND_LABELS: Record<string, string> = {
   "apply-changes": "Applied changes",
   branch: "Branched from a version",
   "add-base": "Added a base",
-  inspire: "Inspired a new version",
   "import-laps": "Imported laps",
   "set-head": "Switched head version",
   delete: "Deleted a version",

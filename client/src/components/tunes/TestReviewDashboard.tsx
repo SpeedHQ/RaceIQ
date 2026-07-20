@@ -36,11 +36,7 @@ export function TestReviewDashboard({ gameId: _gameId, laps, metricsById, tuning
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {tab === "overview" ? (
-          <OverviewTab laps={sortedLaps} metricsById={metricsById} tuningSessionId={tuningSessionId} />
-        ) : (
-          <LapTab lap={sortedLaps.find((l) => l.id === tab) ?? null} />
-        )}
+        {tab === "overview" ? <OverviewTab laps={sortedLaps} metricsById={metricsById} tuningSessionId={tuningSessionId} /> : <LapTab lap={sortedLaps.find((l) => l.id === tab) ?? null} />}
       </div>
     </div>
   );
@@ -51,9 +47,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
     <button
       type="button"
       onClick={onClick}
-      className={`px-2.5 py-1 text-xs rounded border shrink-0 ${
-        active ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"
-      }`}
+      className={`px-2.5 py-1 text-xs rounded border shrink-0 ${active ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
     >
       {children}
     </button>
@@ -159,9 +153,7 @@ function LapTab({ lap }: { lap: LapMeta | null }) {
               key={i}
               type="button"
               onClick={() => setSectorIndex(i)}
-              className={`px-2.5 py-1 text-xs rounded border ${
-                sectorIndex === i ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"
-              }`}
+              className={`px-2.5 py-1 text-xs rounded border ${sectorIndex === i ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
             >
               Sector {i + 1}
             </button>

@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { DevStateViewer } from "../components/DevStateViewer";
-import { E2EViewer } from "../components/settings/E2EViewer";
 import { ImportDumpPanel } from "../components/dev/ImportDumpPanel";
+import { E2EViewer } from "../components/settings/E2EViewer";
 
 function DevPage() {
   const [activeTab, setActiveTab] = useState<"state" | "e2e" | "import">("state");

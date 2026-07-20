@@ -1,7 +1,7 @@
 import type { TelemetryPacket, TuneIssue } from "@shared/types";
 import { useState } from "react";
 import { SectorMap } from "./SectorMap";
-import { CORNERS, CornerBars, type CornerKey, METRICS, bandColor, buildSectorRanges } from "./SectorRangeBreakdown";
+import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS } from "./SectorRangeBreakdown";
 
 interface SectorTimes {
   times: [number, number, number];

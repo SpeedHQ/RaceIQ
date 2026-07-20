@@ -1,14 +1,14 @@
-import { useTelemetryStore } from "../../stores/telemetry";
 import { tryGetGame } from "@shared/games/registry";
 import type { GameId } from "@shared/types";
 import { m } from "@/paraglide/messages";
-import { TireGrid } from "../telemetry/TireGrid";
+import { useCarName, useTirePressureOptimal, useTrackName } from "../../hooks/queries";
+import { useTelemetryStore } from "../../stores/telemetry";
 import { LapTimeChart } from "../LapTimeChart";
-import { PitEstimate } from "../telemetry/PitEstimate";
-import { RecordedLaps } from "../RecordedLaps";
 import { NoDataView } from "../NoDataView";
-import { useTrackName, useCarName, useTirePressureOptimal } from "../../hooks/queries";
 import { RaceInfo } from "../RaceInfo";
+import { RecordedLaps } from "../RecordedLaps";
+import { PitEstimate } from "../telemetry/PitEstimate";
+import { TireGrid } from "../telemetry/TireGrid";
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 

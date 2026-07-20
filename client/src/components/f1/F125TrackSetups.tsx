@@ -1,11 +1,11 @@
-import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSearch, useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { SETUP_GROUPS } from "@/components/f1/f125-setup-groups";
+import { Button } from "@/components/ui/button";
+import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useUiStore } from "@/stores/ui";
-import { client } from "@/lib/rpc";
-import { Button } from "@/components/ui/button";
-import { SETUP_GROUPS } from "@/components/f1/f125-setup-groups";
 
 function setupId(s: { author: string; provider: string; lapTime: string }): string {
   return btoa(`${s.provider}|${s.author}|${s.lapTime}`).replace(/=+$/, "");
@@ -51,7 +51,6 @@ interface F125TrackSummary {
   trackOrdinal: number;
   setupCount: number;
 }
-
 
 function ProviderBadge({ provider }: { provider: string }) {
   if (provider === "f1laps") return <span className="px-1 py-0.5 text-[8px] font-bold uppercase rounded bg-blue-500/20 text-blue-400 shrink-0">F1L</span>;

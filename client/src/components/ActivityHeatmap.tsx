@@ -1,7 +1,7 @@
+import type { LapMeta } from "@shared/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
-import type { LapMeta } from "@shared/types";
 
 const CELL = 11;
 const GAP = 3;
@@ -130,13 +130,15 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
       <div className="flex items-baseline justify-between mb-2">
         <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">{m.heatmap_title()}</h2>
         <div className="text-[11px] text-app-text/90-dim">
-          {fmtDuration(totalSeconds)} · {totalDays} {m.heatmap_active_days()} · {m.heatmap_longest_streak()} {longestStreak} {m.heatmap_days_word()} · {m.heatmap_longest_day()} {fmtDuration(bestDaySeconds)}
+          {fmtDuration(totalSeconds)} · {totalDays} {m.heatmap_active_days()} · {m.heatmap_longest_streak()} {longestStreak} {m.heatmap_days_word()} · {m.heatmap_longest_day()}{" "}
+          {fmtDuration(bestDaySeconds)}
         </div>
       </div>
       <div ref={scrollRef} className="rounded-lg p-4 overflow-x-auto relative">
         <div className="flex gap-2 w-max mx-auto">
           <div className="flex flex-col justify-between py-[14px] pr-1 text-[9px] text-app-text/90-dim leading-none select-none">
             {dayLabels.map((l, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: static ordered weekday labels, never reordered
               <div key={i} style={{ height: CELL }}>
                 {l}
               </div>
@@ -144,8 +146,8 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
           </div>
           <div>
             <div className="relative" style={{ height: 14, width }}>
-              {monthMarkers.map((m, i) => (
-                <div key={i} className="absolute text-[9px] text-app-text/90-dim uppercase tracking-wider" style={{ left: m.week * (CELL + GAP) }}>
+              {monthMarkers.map((m) => (
+                <div key={`${m.label}-${m.week}`} className="absolute text-[9px] text-app-text/90-dim uppercase tracking-wider" style={{ left: m.week * (CELL + GAP) }}>
                   {m.label}
                 </div>
               ))}
@@ -160,8 +162,9 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
                   const stroke = isBestDay ? "rgba(34, 211, 238, 1)" : isToday ? "rgba(139, 92, 246, 0.9)" : "rgba(255,255,255,0.04)";
                   const strokeWidth = isBestDay ? 1.5 : isToday ? 1 : 0.5;
                   return (
+                    // biome-ignore lint/a11y/noStaticElementInteractions: hover-only tooltip on decorative SVG cell; data available in legend/stats
                     <rect
-                      key={`${w}-${d}`}
+                      key={key}
                       x={w * (CELL + GAP)}
                       y={d * (CELL + GAP)}
                       width={CELL}
@@ -203,8 +206,8 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
           </span>
           <div className="flex items-center gap-1.5">
             <span>{m.heatmap_less()}</span>
-            {LEVEL_COLORS.map((c, i) => (
-              <span key={i} className="inline-block rounded-sm" style={{ width: CELL, height: CELL, background: c, border: "0.5px solid rgba(255,255,255,0.04)" }} />
+            {LEVEL_COLORS.map((c) => (
+              <span key={c} className="inline-block rounded-sm" style={{ width: CELL, height: CELL, background: c, border: "0.5px solid rgba(255,255,255,0.04)" }} />
             ))}
             <span>{m.heatmap_more()}</span>
           </div>

@@ -1,5 +1,5 @@
-import { memo, useMemo, type RefObject } from "react";
 import type { TelemetryPacket } from "@shared/types";
+import { memo, type RefObject, useMemo } from "react";
 import { formatLapTime } from "@/lib/format";
 
 interface SectorTimesData {

@@ -3,13 +3,7 @@ import { m } from "@/paraglide/messages";
 import type { RaceStrategy } from "../../data/tune-catalog";
 import { CONDITION_COLORS } from "./tune-constants.tsx";
 
-export function StrategyPanel({
-  strategies,
-  tuneId,
-}: {
-  strategies: RaceStrategy[];
-  tuneId: string;
-}) {
+export function StrategyPanel({ strategies, tuneId }: { strategies: RaceStrategy[]; tuneId: string }) {
   const [activeCondition, setActiveCondition] = useState(strategies[0].condition);
   const strategy = strategies.find((s) => s.condition === activeCondition) ?? strategies[0];
 

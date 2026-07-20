@@ -1,6 +1,6 @@
 import type { TelemetryPacket } from "@shared/types";
-import { brakeBarColor } from "./AnalyseMetricsPanel";
 import { getSteeringLock } from "../Settings";
+import { brakeBarColor } from "./AnalyseMetricsPanel";
 
 interface Props {
   packet: TelemetryPacket;

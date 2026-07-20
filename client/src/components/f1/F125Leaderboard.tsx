@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { m } from "@/paraglide/messages";
+import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { client } from "@/lib/rpc";
-import { Table, THead, TH, TBody, TRow, TD } from "@/components/ui/AppTable";
+import { m } from "@/paraglide/messages";
 
 interface LeaderboardEntry {
   rank: number;

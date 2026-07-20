@@ -1,6 +1,6 @@
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
-import { useNavigate } from "@tanstack/react-router";
 import { useDeleteLap } from "../hooks/queries";
 import { useGameRoute } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";

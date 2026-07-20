@@ -1,5 +1,5 @@
-import { useMemo } from "react";
 import { Line } from "@react-three/drei";
+import { useMemo } from "react";
 import * as THREE from "three";
 import type { CarModelEnrichment } from "../../data/car-models";
 

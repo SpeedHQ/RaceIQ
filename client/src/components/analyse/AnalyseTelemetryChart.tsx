@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 export interface ChartSeries {
   data: number[];

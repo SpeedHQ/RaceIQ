@@ -1,5 +1,5 @@
-import { createPortal } from "react-dom";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useAddBase } from "../../hooks/queries";
 import { SetupFilePicker, type SetupFilePickerValue } from "./SetupFilePicker";
 
@@ -13,14 +13,18 @@ import { SetupFilePicker, type SetupFilePickerValue } from "./SetupFilePicker";
 export function AddBaseModal({
   gameId,
   sessionId,
+  lockedCar,
   onClose,
 }: {
   gameId: "acc" | "ac-evo";
   sessionId: number;
+  /** The session's car model slug — Add base is always for the same car (a base
+   *  from another track), so the car is fixed and not pickable. */
+  lockedCar?: string;
   onClose: () => void;
 }) {
   const addBase = useAddBase();
-  const [picked, setPicked] = useState<SetupFilePickerValue>({ car: "", track: "", setupPath: "" });
+  const [picked, setPicked] = useState<SetupFilePickerValue>({ car: lockedCar ?? "", track: "", setupPath: "" });
   const [label, setLabel] = useState("");
   const [setHead, setSetHead] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,32 +43,31 @@ export function AddBaseModal({
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[680px] max-w-[94vw] flex flex-col gap-4 p-5"
-        onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
       >
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-app-text">Add base</p>
-          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">×</button>
+          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
+            ×
+          </button>
         </div>
         <p className="text-xs text-app-text-dim -mt-2">
-          Pick a saved setup to start a second (or Nth) root in this session's version tree — an independent
-          starting point alongside the existing versions, not a fork of any of them.
+          Pick a saved setup to start a second (or Nth) root in this session's version tree — an independent starting point alongside the existing versions, not a fork of any of them.
         </p>
 
-        <SetupFilePicker gameId={gameId} value={picked} onChange={setPicked} />
+        <SetupFilePicker gameId={gameId} value={picked} onChange={setPicked} lockedCar={lockedCar} />
 
         <label className="flex flex-col gap-1">
           <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Label (optional)</span>
-          <input
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="base"
-            maxLength={200}
-            className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs"
-          />
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="base" maxLength={200} className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs" />
         </label>
 
         <label className="flex items-center gap-2 text-xs text-app-text-dim">

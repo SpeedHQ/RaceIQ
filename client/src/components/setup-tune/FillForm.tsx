@@ -1,12 +1,5 @@
 import { useState } from "react";
-import {
-  type FieldDef,
-  type SectionDef,
-  arityLabels,
-  arityLength,
-  getByPath,
-  setByPath,
-} from "./setup-schema";
+import { arityLabels, arityLength, type FieldDef, getByPath, type SectionDef, setByPath } from "./setup-schema";
 
 // Renders each setup section as a collapsible card with numeric inputs.
 // `settings` is the source of truth; every edit calls `onChange` with a
@@ -29,15 +22,7 @@ function displayValue(v: unknown): string {
   return "";
 }
 
-function ScalarInput({
-  field,
-  settings,
-  onChange,
-}: {
-  field: FieldDef;
-  settings: Record<string, unknown>;
-  onChange: (next: Record<string, unknown>) => void;
-}) {
+function ScalarInput({ field, settings, onChange }: { field: FieldDef; settings: Record<string, unknown>; onChange: (next: Record<string, unknown>) => void }) {
   const value = getByPath(settings, field.path);
   return (
     <label className="space-y-1 block">
@@ -59,15 +44,7 @@ function ScalarInput({
   );
 }
 
-function ArrayInput({
-  field,
-  settings,
-  onChange,
-}: {
-  field: FieldDef;
-  settings: Record<string, unknown>;
-  onChange: (next: Record<string, unknown>) => void;
-}) {
+function ArrayInput({ field, settings, onChange }: { field: FieldDef; settings: Record<string, unknown>; onChange: (next: Record<string, unknown>) => void }) {
   const len = arityLength(field.arity);
   const labels = arityLabels(field.arity);
   const raw = getByPath(settings, field.path);
@@ -123,18 +100,10 @@ function SectionCard({
 
   return (
     <div className="rounded-lg ring-1 ring-app-border bg-app-surface">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-3 py-2 text-left"
-      >
+      <button type="button" onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between px-3 py-2 text-left">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-app-text">{section.label}</span>
-          <span
-            className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded ${
-              hasData ? "bg-emerald-500/20 text-emerald-400" : "bg-app-bg text-app-text-muted"
-            }`}
-          >
+          <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded ${hasData ? "bg-emerald-500/20 text-emerald-400" : "bg-app-bg text-app-text-muted"}`}>
             {hasData ? "set" : "—"}
           </span>
         </div>
@@ -143,11 +112,7 @@ function SectionCard({
       {open && (
         <div className="px-3 pb-3 pt-1 space-y-3 border-t border-app-border">
           {section.fields.map((f) =>
-            f.arity === "scalar" ? (
-              <ScalarInput key={f.path} field={f} settings={settings} onChange={onChange} />
-            ) : (
-              <ArrayInput key={f.path} field={f} settings={settings} onChange={onChange} />
-            ),
+            f.arity === "scalar" ? <ScalarInput key={f.path} field={f} settings={settings} onChange={onChange} /> : <ArrayInput key={f.path} field={f} settings={settings} onChange={onChange} />,
           )}
         </div>
       )}
@@ -155,25 +120,11 @@ function SectionCard({
   );
 }
 
-export function FillForm({
-  sections,
-  settings,
-  onChange,
-}: {
-  sections: SectionDef[];
-  settings: Record<string, unknown>;
-  onChange: (next: Record<string, unknown>) => void;
-}) {
+export function FillForm({ sections, settings, onChange }: { sections: SectionDef[]; settings: Record<string, unknown>; onChange: (next: Record<string, unknown>) => void }) {
   return (
     <div className="col-span-2 space-y-2">
       {sections.map((s, i) => (
-        <SectionCard
-          key={s.key}
-          section={s}
-          settings={settings}
-          onChange={onChange}
-          defaultOpen={i === 0}
-        />
+        <SectionCard key={s.key} section={s} settings={settings} onChange={onChange} defaultOpen={i === 0} />
       ))}
     </div>
   );

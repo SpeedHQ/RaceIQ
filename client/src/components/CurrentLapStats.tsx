@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
 import type { TelemetryPacket } from "@shared/types";
-import { m } from "../paraglide/messages";
+import { useEffect, useRef, useState } from "react";
 import { client } from "../lib/rpc";
+import { m } from "../paraglide/messages";
 import { useGameId } from "../stores/game";
 
 interface Props {

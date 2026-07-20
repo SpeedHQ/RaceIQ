@@ -1,5 +1,5 @@
-import { AccSetupBrowser } from "@/components/acc/AccSetupBrowser";
 import { createFileRoute } from "@tanstack/react-router";
+import { AccSetupBrowser } from "@/components/acc/AccSetupBrowser";
 
 function AccSetupsPage() {
   return (

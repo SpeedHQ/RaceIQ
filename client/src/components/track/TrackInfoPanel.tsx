@@ -1,12 +1,12 @@
-import { TBody, TD, TH, THead, TRow, Table } from "@/components/ui/AppTable";
-import { countryName } from "@/lib/country-names";
-import { client } from "@/lib/rpc";
-import { segmentDisplayNames } from "@/lib/segment-label";
-import { m } from "@/paraglide/messages";
 import type { ResolvedTrackGuide } from "@shared/track-guide-types";
 import type { GameId } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { countryName } from "@/lib/country-names";
+import { client } from "@/lib/rpc";
+import { segmentDisplayNames } from "@/lib/segment-label";
+import { m } from "@/paraglide/messages";
 import type { TrackInfo as TrackInfoType, TrackSectors } from "./types";
 
 /**

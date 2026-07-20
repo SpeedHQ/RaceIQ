@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import type { TelemetryPacket } from "@shared/types";
-import { useTrackBoundaries, useTrackOutline } from "../../hooks/queries";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { type TuningGameId, useTrackBoundaries, useTrackOutline } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
+import type { Point } from "../analyse/AnalyseTrackMap";
+import { AnalyseTrackPanel } from "../analyse/AnalyseTrackPanel";
 import { CurrentLapTireStrip } from "./CurrentLapTireStrip";
 import { LiveIssuesFeed } from "./LiveIssuesFeed";
 import { LiveLapCards } from "./LiveLapCards";
 import { LiveLapInfo } from "./LiveLapInfo";
-import type { Point } from "../analyse/AnalyseTrackMap";
-import { AnalyseTrackPanel } from "../analyse/AnalyseTrackPanel";
 
 const MAX_LIVE_TRACE = 5000;
 
@@ -51,7 +51,7 @@ export function LiveTestDashboard({
   trackOrdinal,
   initialTrace,
 }: {
-  gameId: "acc" | "ac-evo";
+  gameId: TuningGameId;
   trackOrdinal: number | null;
   /** Test/story-only: pre-seed the live trace so it renders instantly without replaying packets. */
   initialTrace?: TelemetryPacket[];
@@ -145,13 +145,7 @@ export function LiveTestDashboard({
         {/* recorded laps so far, as a card row, with the in-progress lap leading */}
         <div className="shrink-0 border-b border-app-border">
           <div className="px-3 pt-2 pb-1 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Laps</div>
-          <LiveLapCards
-            laps={sessionLaps}
-            trackOrdinal={trackOrd ?? undefined}
-            sectors={sectors}
-            currentLapNumber={rawPacket?.LapNumber ?? null}
-            maxLaps={30}
-          />
+          <LiveLapCards laps={sessionLaps} trackOrdinal={trackOrd ?? undefined} sectors={sectors} currentLapNumber={rawPacket?.LapNumber ?? null} maxLaps={30} />
         </div>
         {/* compact live tyre readout for the in-progress lap — sector-by-sector
             breakdown reviews a completed lap, not what's happening right now */}

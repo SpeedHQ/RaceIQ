@@ -1,25 +1,15 @@
+import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
-import { useNavigate } from "@tanstack/react-router";
+import { useImportTuneFile, useSetupFiles } from "../../hooks/queries";
 import { Button } from "../ui/button";
-import { useSetupFiles, useImportTuneFile } from "../../hooks/queries";
 import { getCategoriesForGame } from "./SetupTuneForm";
 
 /** Page for importing a setup file from the user's Documents folder.
  *  The server walks the game's Setups directory (/<car>/<track>/<name>.json)
  *  and returns the list; the user picks one, associates it with a known car
  *  ordinal, and the server reads + stores the JSON as a tune. */
-export function ImportSetupFile({
-  gameId,
-  routePrefix,
-  gameLabel,
-  cars,
-}: {
-  gameId: "acc" | "ac-evo";
-  routePrefix: string;
-  gameLabel: string;
-  cars: { ordinal: number; name: string }[];
-}) {
+export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { gameId: "acc" | "ac-evo"; routePrefix: string; gameLabel: string; cars: { ordinal: number; name: string }[] }) {
   const navigate = useNavigate();
   const { data, isLoading } = useSetupFiles(gameId);
   const importMut = useImportTuneFile();
@@ -51,18 +41,23 @@ export function ImportSetupFile({
 
   const doImport = () => {
     if (!selectedPath) return;
-    const finalName = name || selectedPath.split(/[\\/]/).pop()?.replace(/\.json$/i, "") || "Imported";
-    importMut.mutate(
-      { gameId, filePath: selectedPath, name: finalName, author, carOrdinal, category },
-      { onSuccess: () => navigate({ to: `${routePrefix}/setups` }) },
-    );
+    const finalName =
+      name ||
+      selectedPath
+        .split(/[\\/]/)
+        .pop()
+        ?.replace(/\.json$/i, "") ||
+      "Imported";
+    importMut.mutate({ gameId, filePath: selectedPath, name: finalName, author, carOrdinal, category }, { onSuccess: () => navigate({ to: `${routePrefix}/setups` }) });
   };
 
   return (
     <div className="flex-1 overflow-auto p-4 max-w-3xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-app-text">{m.import_title_prefix()} {gameLabel} {m.import_title_suffix()}</h1>
+          <h1 className="text-lg font-bold text-app-text">
+            {m.import_title_prefix()} {gameLabel} {m.import_title_suffix()}
+          </h1>
           <p className="text-xs text-app-text-muted">
             {m.import_pick_setup()} {data?.baseDir ? <span className="font-mono text-[10px]">{data.baseDir}</span> : null}
           </p>
@@ -76,16 +71,15 @@ export function ImportSetupFile({
         <div className="text-center py-12 text-app-text-muted text-sm">{m.import_scanning()}</div>
       ) : !data?.baseDir ? (
         <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-4 text-sm text-app-text-muted">
-          <p>{m.import_folder_not_found_prefix()} {gameLabel} {m.import_folder_not_found_suffix()}</p>
+          <p>
+            {m.import_folder_not_found_prefix()} {gameLabel} {m.import_folder_not_found_suffix()}
+          </p>
           <p className="mt-2 text-[11px]">
-            {m.import_expected_path()} <code className="font-mono">Documents/{gameId === "acc" ? "Assetto Corsa Competizione" : "Assetto Corsa EVO"}/Setups</code>.
-            {m.import_launch_game()}
+            {m.import_expected_path()} <code className="font-mono">Documents/{gameId === "acc" ? "Assetto Corsa Competizione" : "Assetto Corsa EVO"}/Setups</code>.{m.import_launch_game()}
           </p>
         </div>
       ) : filteredCarEntries.length === 0 ? (
-        <div className="text-center py-12 text-app-text-muted text-sm">
-          {m.import_no_files()}
-        </div>
+        <div className="text-center py-12 text-app-text-muted text-sm">{m.import_no_files()}</div>
       ) : (
         <div className="grid grid-cols-[1fr_1fr] gap-4">
           <div className="rounded-lg bg-app-surface ring-1 ring-app-border overflow-hidden flex flex-col min-h-0">
@@ -101,9 +95,7 @@ export function ImportSetupFile({
             <div className="overflow-auto max-h-96">
               {filteredCarEntries.map(([carModel, files]) => (
                 <div key={carModel} className="border-b border-app-border last:border-0">
-                  <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-app-text-muted bg-app-bg/50">
-                    {carModel}
-                  </div>
+                  <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-app-text-muted bg-app-bg/50">{carModel}</div>
                   {files.map((f) => (
                     <button
                       key={f.absolutePath}
@@ -113,9 +105,7 @@ export function ImportSetupFile({
                         if (!name) setName(f.fileName.replace(/\.json$/i, ""));
                       }}
                       className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
-                        selectedPath === f.absolutePath
-                          ? "bg-app-accent/20 text-app-accent"
-                          : "text-app-text hover:bg-app-surface"
+                        selectedPath === f.absolutePath ? "bg-app-accent/20 text-app-accent" : "text-app-text hover:bg-app-surface"
                       }`}
                     >
                       <div className="truncate">{f.fileName}</div>
@@ -160,7 +150,9 @@ export function ImportSetupFile({
                     className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
                   >
                     {cars.map((c) => (
-                      <option key={c.ordinal} value={c.ordinal}>{c.name}</option>
+                      <option key={c.ordinal} value={c.ordinal}>
+                        {c.name}
+                      </option>
                     ))}
                   </select>
                 </label>
@@ -172,23 +164,15 @@ export function ImportSetupFile({
                     className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
                   >
                     {categories.map((c) => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
                     ))}
                   </select>
                 </label>
-                {importMut.error && (
-                  <div className="text-[10px] text-red-400">
-                    {(importMut.error as Error).message}
-                  </div>
-                )}
+                {importMut.error && <div className="text-[10px] text-red-400">{(importMut.error as Error).message}</div>}
                 <div className="flex justify-end pt-2">
-                  <Button
-                    type="button"
-                    variant="app-primary"
-                    size="app-sm"
-                    onClick={doImport}
-                    disabled={!selectedPath || importMut.isPending}
-                  >
+                  <Button type="button" variant="app-primary" size="app-sm" onClick={doImport} disabled={!selectedPath || importMut.isPending}>
                     {importMut.isPending ? m.label_importing() : m.import_import_setup()}
                   </Button>
                 </div>

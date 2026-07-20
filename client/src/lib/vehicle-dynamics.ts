@@ -5,8 +5,8 @@
  */
 
 export * from "../../../shared/lib/vehicle-physics";
-import { SLIP_RATIO_PEAK, SLIP_ANGLE_PEAK_RAD } from "../../../shared/lib/vehicle-physics";
 
+import { SLIP_ANGLE_PEAK_RAD, SLIP_RATIO_PEAK } from "../../../shared/lib/vehicle-physics";
 
 // ── Semantic Color Palette ────────────────────────────────────────
 // Reads from CSS custom properties defined in index.css (--dynamics-*).

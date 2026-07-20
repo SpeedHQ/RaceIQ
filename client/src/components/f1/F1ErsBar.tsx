@@ -52,9 +52,13 @@ export function F1ErsBar({ f1 }: { f1: F1ExtendedData }) {
 
       {/* Deploy / Harvest stats */}
       <div className="flex justify-between text-[10px] text-zinc-500">
-        <span>{m.f1ers_deploy()}: {deployedPct.toFixed(0)}%</span>
+        <span>
+          {m.f1ers_deploy()}: {deployedPct.toFixed(0)}%
+        </span>
         <span>{pct.toFixed(0)}%</span>
-        <span>{m.f1ers_harvest()}: {harvestedPct.toFixed(0)}%</span>
+        <span>
+          {m.f1ers_harvest()}: {harvestedPct.toFixed(0)}%
+        </span>
       </div>
     </div>
   );

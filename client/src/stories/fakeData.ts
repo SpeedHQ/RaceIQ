@@ -2,7 +2,7 @@
  * Fake telemetry data for Storybook stories.
  * All values are plausible real-world racing data.
  */
-import type { TelemetryPacket, LiveSectorData, LivePitData, LapMeta } from "@shared/types";
+import type { LapMeta, LivePitData, LiveSectorData, TelemetryPacket } from "@shared/types";
 import type { DisplayPacket } from "../lib/convert-packet";
 
 // ── Shared base packet fields ────────────────────────────────────────────────

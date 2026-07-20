@@ -1,3 +1,4 @@
+import { getGame } from "@shared/games/registry";
 import type { LapMeta } from "@shared/types";
 import { useNavigate } from "@tanstack/react-router";
 import { Check, Copy } from "lucide-react";
@@ -6,6 +7,7 @@ import {
   type TuningGameId,
   type TuningLapMetric,
   type TuningTest,
+  useAccCarName,
   useLaps,
   useResolveNames,
   useTuningSession,
@@ -47,6 +49,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
   const { data: session, isLoading: loadingSession } = useTuningSession(tuningSessionId);
   const { data: tests = [] } = useTuningSessionTests(tuningSessionId);
   const { data: lapMetrics = [] } = useTuningSessionLapMetrics(tuningSessionId);
+  const accCarName = useAccCarName();
   const { data: allLaps = [] } = useLaps();
   const liveSessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const livePacket = useTelemetryStore((s) => s.packet);
@@ -152,9 +155,10 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
 
   const [testPhase, setTestPhase] = useState<"idle" | "live">("idle");
 
+  const routePrefix = getGame(gameId).routePrefix;
   const clearSession = () =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    navigate({ to: `/${gameId}/tune` } as any);
+    navigate({ to: `/${routePrefix}/tune` } as any);
 
   if (loadingSession || !session) {
     return (
@@ -165,7 +169,8 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
     );
   }
 
-  const carLabel = session.carName ?? (session.carOrdinal != null ? names?.carNames[String(session.carOrdinal)] : undefined) ?? null;
+  const rawCarLabel = session.carName ?? (session.carOrdinal != null ? names?.carNames[String(session.carOrdinal)] : undefined) ?? null;
+  const carLabel = gameId === "acc" ? accCarName(rawCarLabel) : rawCarLabel;
   const trackLabel = session.trackName ?? (session.trackOrdinal != null ? names?.trackNames[String(session.trackOrdinal)] : undefined) ?? null;
   const subtitle = [carLabel, trackLabel].filter(Boolean).join(" · ");
 
@@ -211,13 +216,6 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setTestPhase("live")}
-                      className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim"
-                    >
-                      Run live test
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => setShowImportLaps(true)}
                       className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim"
                     >
@@ -241,11 +239,24 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
                     </button>
                   </div>
                 </div>
-                <VersionGraph sessionId={session.id} tests={tests} headTestId={session?.headTestId ?? null} lapsByTest={lapsByTest} metricsById={metricsById} />
-                {showAddBase && gameId !== "f1-2025" && <AddBaseModal gameId={gameId} sessionId={session.id} onClose={() => setShowAddBase(false)} />}
-                {showImportLaps && (
-                  <ImportLapsModal gameId={gameId} sessionId={session.id} tests={tests} onClose={() => setShowImportLaps(false)} />
-                )}
+                <VersionGraph
+                  sessionId={session.id}
+                  tests={tests}
+                  headTestId={session?.headTestId ?? null}
+                  lapsByTest={lapsByTest}
+                  metricsById={metricsById}
+                  onOpenReview={(t) => {
+                    const ids = (lapsByTest.get(t.id) ?? []).map((l) => l.id);
+                    setTestPhase("idle");
+                    navigate({
+                      to: `/${routePrefix}/tune/${tuningSessionId}/review`,
+                      search: { laps: ids.join(","), testId: t.id },
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    } as any);
+                  }}
+                />
+                {showAddBase && gameId !== "f1-2025" && <AddBaseModal gameId={gameId} sessionId={session.id} lockedCar={session.carName ?? undefined} onClose={() => setShowAddBase(false)} />}
+                {showImportLaps && <ImportLapsModal gameId={gameId} sessionId={session.id} tests={tests} onClose={() => setShowImportLaps(false)} />}
                 {showHistory && <HistoryPanel sessionId={session.id} onClose={() => setShowHistory(false)} />}
               </>
             ) : (
@@ -256,7 +267,11 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
                   <div className="flex items-baseline gap-2">
                     <span className="text-[10px] uppercase tracking-wider text-app-text-muted">Current stint</span>
                     <span className={`text-xs ${lapsDone < lapTarget ? "text-amber-400" : "text-app-text-dim"}`}>
-                      {lapsDone === 0 ? `No live laps yet — run ${lapTarget} clean laps this run for a reliable recommendation.` : lapsDone < lapTarget ? `${lapsDone} / ${lapTarget} laps this run` : `${lapsDone} laps`}
+                      {lapsDone === 0
+                        ? `No live laps yet — run ${lapTarget} clean laps this run for a reliable recommendation.`
+                        : lapsDone < lapTarget
+                          ? `${lapsDone} / ${lapTarget} laps this run`
+                          : `${lapsDone} laps`}
                     </span>
                   </div>
                   <div className="flex items-center gap-4">
@@ -271,7 +286,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
                         const lapIds = liveSessionLaps.map((l) => l.id);
                         setTestPhase("idle");
                         navigate({
-                          to: `/${gameId}/tune/${tuningSessionId}/review`,
+                          to: `/${routePrefix}/tune/${tuningSessionId}/review`,
                           search: { laps: lapIds.join(",") },
                           // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         } as any);
@@ -280,26 +295,13 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
                     >
                       Review laps
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setTestPhase("idle")}
-                      className="px-3 py-1 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text"
-                    >
+                    <button type="button" onClick={() => setTestPhase("idle")} className="px-3 py-1 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text">
                       Close
                     </button>
                   </div>
                 </div>
                 <div className="flex-1 min-h-0">
-                  {gameId !== "f1-2025" ? (
-                    <LiveTestDashboard gameId={gameId} trackOrdinal={session.trackOrdinal ?? null} />
-                  ) : (
-                    // F1's live-test view (track outline, corner overlays) is
-                    // ACC/AC-Evo only for now — lap results still land in the
-                    // review page via "Review laps" below.
-                    <div className="h-full flex items-center justify-center text-xs text-app-text-dim p-6 text-center">
-                      Live dashboard isn't available for F1 2025 yet — drive your laps and use "Review laps" below.
-                    </div>
-                  )}
+                  <LiveTestDashboard gameId={gameId} trackOrdinal={session.trackOrdinal ?? null} />
                 </div>
               </div>
             )}
@@ -308,27 +310,24 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
 
         {/* Right: the Setup Engineer chat, full height. Recommending/applying a
             setup happens inside the conversation — the driver asks the agent to
-            generate and it calls apply_changes itself (no separate buttons). */}
-        <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
-          <div className="shrink-0 px-3 py-2 border-b border-app-border flex items-center justify-between">
-            <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Setup engineer</span>
-            <div className="flex items-center gap-3">
-              {testPhase === "idle" && (
-                <button
-                  type="button"
-                  onClick={() => setTestPhase("live")}
-                  className="px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold"
-                >
+            generate and it calls apply_changes itself (no separate buttons).
+            Hidden during a live test — the live dashboard gets the full width. */}
+        {testPhase === "idle" && (
+          <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
+            <div className="shrink-0 px-3 py-2 border-b border-app-border flex items-center justify-between">
+              <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Setup engineer</span>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={() => setTestPhase("live")} className="px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">
                   Dashboard
                 </button>
-              )}
-              <CopyChatJsonButton sessionId={session.id} />
+                <CopyChatJsonButton sessionId={session.id} />
+              </div>
+            </div>
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <TuneSetupChat sessionId={session.id} headTestId={session?.headTestId ?? null} />
             </div>
           </div>
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <TuneSetupChat sessionId={session.id} headTestId={session?.headTestId ?? null} />
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

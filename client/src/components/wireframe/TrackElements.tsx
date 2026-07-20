@@ -1,18 +1,10 @@
-import { useEffect, useLayoutEffect, useMemo } from "react";
 import { Line } from "@react-three/drei";
-import * as THREE from "three";
 import type { TelemetryPacket } from "@shared/types";
-import { buildTrackIndex, filterByDistanceIndexed, createWallGeometry, updateWallGeometry, DIST_AHEAD } from "../../lib/wireframe-utils";
+import { useEffect, useLayoutEffect, useMemo } from "react";
+import * as THREE from "three";
+import { buildTrackIndex, createWallGeometry, DIST_AHEAD, filterByDistanceIndexed, updateWallGeometry } from "../../lib/wireframe-utils";
 
-export function TrackOutline({
-  outline,
-  packet,
-  distAhead,
-}: {
-  outline: { x: number; z: number }[];
-  packet: TelemetryPacket;
-  distAhead?: number;
-}) {
+export function TrackOutline({ outline, packet, distAhead }: { outline: { x: number; z: number }[]; packet: TelemetryPacket; distAhead?: number }) {
   const ahead = distAhead ?? DIST_AHEAD;
   // One-time index build per outline — stable while the reference is stable
   // (React Query returns the same object until refetch).

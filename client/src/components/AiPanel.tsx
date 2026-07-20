@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from "react";
-import { m } from "@/paraglide/messages";
-import { client } from "../lib/rpc";
-import { useSettings } from "../hooks/queries";
-import { useUiStore } from "../stores/ui";
-import { Button } from "./ui/button";
-import { toPng } from "html-to-image";
-import { SetupSection } from "./ai/analysis-display";
-import { readChatStream, type ChatStreamError, type ChatStreamStatus } from "../lib/chat-stream";
-import { isAiConfigured } from "../lib/is-ai-configured";
-import { ChatPanel } from "./ai-chat/ChatPanel";
 import type { UIMessage } from "ai";
-import { Sparkles, RefreshCw, Gauge, Sliders, AlertTriangle, Lightbulb, Download, Trash2, CircleDot, Zap } from "lucide-react";
+import { toPng } from "html-to-image";
+import { AlertTriangle, CircleDot, Download, Gauge, Lightbulb, RefreshCw, Sliders, Sparkles, Trash2, Zap } from "lucide-react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { m } from "@/paraglide/messages";
+import { useSettings } from "../hooks/queries";
+import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "../lib/chat-stream";
+import { isAiConfigured } from "../lib/is-ai-configured";
+import { client } from "../lib/rpc";
+import { useUiStore } from "../stores/ui";
+import { SetupSection } from "./ai/analysis-display";
+import { ChatPanel } from "./ai-chat/ChatPanel";
+import { Button } from "./ui/button";
 
 interface AnalysisUsage {
   inputTokens: number;
@@ -182,14 +182,27 @@ function TrackCard({
   children: React.ReactNode;
 }) {
   const clickable = !!(seg && onJumpToFrac);
+  const activate = () => {
+    if (!seg) return;
+    onJumpToFrac?.((seg.startFrac + seg.endFrac) / 2);
+    onHighlightsChange?.([{ startFrac: seg.startFrac, endFrac: seg.endFrac, color, label: seg.name }]);
+  };
   return (
     <div
       className={`${className ?? ""} ${clickable ? "cursor-pointer hover:brightness-110 transition" : ""}`}
-      onClick={() => {
-        if (!seg) return;
-        onJumpToFrac?.((seg.startFrac + seg.endFrac) / 2);
-        onHighlightsChange?.([{ startFrac: seg.startFrac, endFrac: seg.endFrac, color, label: seg.name }]);
-      }}
+      {...(clickable
+        ? {
+            role: "button" as const,
+            tabIndex: 0,
+            onClick: activate,
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                activate();
+              }
+            },
+          }
+        : {})}
     >
       {children}
     </div>
@@ -466,7 +479,11 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               <p className="text-[11px] text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
               <p className="text-[10px] text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
             </div>
-            <button onClick={() => openSettings("ai")} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors">
+            <button
+              type="button"
+              onClick={() => openSettings("ai")}
+              className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors"
+            >
               {m.aipanel_set_up_ai()}
             </button>
           </div>
@@ -482,7 +499,13 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             </div>
             <div className="text-center">
               <p className="text-[11px] text-app-text-secondary font-medium">
-                {analyseTool ? `${m.aipanel_using_tool()} ${analyseTool}` : analyseStatus === "generating" ? m.aipanel_generating_analysis() : analyseStatus === "thinking" ? m.aipanel_thinking() : m.aipanel_preparing_model()}
+                {analyseTool
+                  ? `${m.aipanel_using_tool()} ${analyseTool}`
+                  : analyseStatus === "generating"
+                    ? m.aipanel_generating_analysis()
+                    : analyseStatus === "thinking"
+                      ? m.aipanel_thinking()
+                      : m.aipanel_preparing_model()}
               </p>
               <p className="text-[10px] text-app-text-dim mt-1">{analyseStatus === "generating" ? m.aipanel_streaming_tokens() : m.aipanel_reviewing_data()}</p>
               {!analyseStatus && <p className="text-[9px] text-app-text-dim mt-0.5">{m.aipanel_may_take()}</p>}
@@ -500,7 +523,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Sparkles className="size-5 text-amber-400" />
             <p className="text-[11px] text-app-text-muted">{m.aipanel_no_analysis()}</p>
-            <button onClick={() => fetchAnalysis(false)} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
+            <button type="button" onClick={() => fetchAnalysis(false)} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
               <Sparkles className="size-3" />
               {m.aipanel_analyse_lap()}
             </button>
@@ -531,8 +554,8 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 <div>
                   <SectionHeader icon={<Gauge className="size-3" />} title={m.label_pace()} />
                   <div className="grid grid-cols-1 gap-1.5">
-                    {analysis.pace.map((item, i) => (
-                      <MetricCard key={i} item={item} />
+                    {analysis.pace.map((item) => (
+                      <MetricCard key={item.label} item={item} />
                     ))}
                   </div>
                 </div>
@@ -543,8 +566,8 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 <div>
                   <SectionHeader icon={<Sliders className="size-3" />} title={m.label_handling()} />
                   <div className="grid grid-cols-1 gap-1.5">
-                    {analysis.handling.map((item, i) => (
-                      <MetricCard key={i} item={item} />
+                    {analysis.handling.map((item) => (
+                      <MetricCard key={item.label} item={item} />
                     ))}
                   </div>
                 </div>
@@ -555,9 +578,9 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 <div>
                   <SectionHeader icon={<AlertTriangle className="size-3" />} title={m.label_problem_corners()} />
                   <div className="space-y-1.5">
-                    {analysis.corners.map((corner, i) => (
+                    {analysis.corners.map((corner) => (
                       <TrackCard
-                        key={i}
+                        key={corner.name}
                         seg={findSegment(cornerFracs.length ? cornerFracs : segments, corner.name)}
                         color={corner.severity === "major" ? "critical" : corner.severity === "moderate" ? "warning" : "good"}
                         onJumpToFrac={onJumpToFrac}
@@ -581,9 +604,9 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 <div>
                   <SectionHeader icon={<CircleDot className="size-3" />} title={m.label_braking_points()} />
                   <div className="space-y-1.5">
-                    {analysis.braking.map((item, i) => (
+                    {analysis.braking.map((item) => (
                       <TrackCard
-                        key={i}
+                        key={item.corner}
                         seg={findSegment(cornerFracs.length ? cornerFracs : segments, item.corner)}
                         color={item.assessment}
                         onJumpToFrac={onJumpToFrac}
@@ -606,9 +629,9 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 <div>
                   <SectionHeader icon={<Zap className="size-3" />} title={m.label_throttle_application()} />
                   <div className="space-y-1.5">
-                    {analysis.throttle.map((item, i) => (
+                    {analysis.throttle.map((item) => (
                       <TrackCard
-                        key={i}
+                        key={item.corner}
                         seg={findSegment(cornerFracs.length ? cornerFracs : segments, item.corner)}
                         color={item.assessment}
                         onJumpToFrac={onJumpToFrac}
@@ -633,7 +656,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                   <div className="space-y-1.5">
                     {analysis.coaching.map((item, i) => (
                       <TrackCard
-                        key={i}
+                        key={item.tip}
                         seg={findSegment(cornerFracs.length ? cornerFracs : segments, item.tip, item.detail)}
                         color="warning"
                         onJumpToFrac={onJumpToFrac}
@@ -670,6 +693,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                   </span>
                 )}
                 <button
+                  type="button"
                   onClick={handleExport}
                   className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
                   title={m.label_export_as_image()}
@@ -677,6 +701,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                   <Download className="size-3" /> {m.aipanel_export()}
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     clearChat();
                     fetchAnalysis(true);
@@ -688,6 +713,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                   <RefreshCw className="size-3" /> {m.label_regenerate()}
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     clearChat();
                     setAnalysis(null);
@@ -710,7 +736,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             yet — matches the old gating behaviour. */}
         {!loading && analysis && (
           <div className="flex justify-end -mb-1">
-            <button onClick={clearChat} className="text-[9px] text-app-text-muted hover:text-red-400 transition-colors">
+            <button type="button" onClick={clearChat} className="text-[9px] text-app-text-muted hover:text-red-400 transition-colors">
               <Trash2 className="size-3" />
             </button>
           </div>

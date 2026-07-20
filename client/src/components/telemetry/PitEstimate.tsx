@@ -1,6 +1,6 @@
+import type { GameId, LivePitData, TelemetryPacket } from "@shared/types";
+import { tireHealthBgClass, tireHealthTextClass } from "@/lib/vehicle-dynamics";
 import { m } from "@/paraglide/messages";
-import type { TelemetryPacket, LivePitData, GameId } from "@shared/types";
-import { tireHealthTextClass, tireHealthBgClass } from "@/lib/vehicle-dynamics";
 import { PitWindow } from "./PitWindow";
 
 interface PitEstimateProps {
@@ -88,8 +88,14 @@ export function PitEstimate({ packet, pit, gameId }: PitEstimateProps) {
             <div />
             <div className="text-[10px] text-app-text-dim uppercase tracking-wider text-right w-12">{m.pit_health()}</div>
             <div className="text-[10px] text-app-text-dim uppercase tracking-wider text-right w-14">{m.pit_wear_lap()}</div>
-            <div className="text-[10px] text-amber-400/70 uppercase tracking-wider text-right w-12">{m.pit_cliff()}{pit?.cliffPct ? ` ${pit.cliffPct}%` : ""}</div>
-            <div className="text-[10px] text-red-400/70 uppercase tracking-wider text-right w-12">{m.pit_dead()}{pit?.deadPct ? ` ${pit.deadPct}%` : ""}</div>
+            <div className="text-[10px] text-amber-400/70 uppercase tracking-wider text-right w-12">
+              {m.pit_cliff()}
+              {pit?.cliffPct ? ` ${pit.cliffPct}%` : ""}
+            </div>
+            <div className="text-[10px] text-red-400/70 uppercase tracking-wider text-right w-12">
+              {m.pit_dead()}
+              {pit?.deadPct ? ` ${pit.deadPct}%` : ""}
+            </div>
           </div>
 
           {tireData.map((t) => (

@@ -50,10 +50,11 @@ export interface StreamAgentTurnOptions {
  * row that Mastra's own async save leaves reasoning-less.
  */
 async function persistReasoningToMemory(
-  responseMessage: { parts?: Array<{ type: string; text?: string }> },
+  responseMessage: { id?: string; parts?: Array<{ type: string; text?: string }> },
   memory: AgentTurnMemory,
   threadId: string,
   turnStartedAt: number,
+  reasoningDurationMs: number,
 ): Promise<void> {
   try {
     const reasoningText = (responseMessage.parts ?? [])
@@ -65,13 +66,30 @@ async function persistReasoningToMemory(
 
     // Poll until Mastra's own async save has landed this turn's assistant row
     // (finish handling runs as the stream is consumed; it can trail this
-    // callback by a few ms). Only accept a row stamped at/after the turn
-    // started, so a prior turn's assistant message is never matched.
+    // callback by a few ms).
+    //
+    // Prefer an exact id match against the streamed response message — that is
+    // unambiguously the model's own row. Fall back to the newest assistant row
+    // stamped at/after the turn started, but SKIP deterministic tool/route notes
+    // (branch_from_version, apply summaries, ...). Those are saved *during* the
+    // turn and can carry a newer createdAt than Mastra's trailing model save, so
+    // the old "newest assistant" heuristic would stamp the reasoning onto the
+    // last branch note — surfacing a phantom thinking block on it.
+    const isNote = (m: any) => m?.content?.metadata?.deterministic === true;
     let target: any;
     for (let attempt = 0; attempt < 40; attempt++) {
       const recalled = await memory.recall({ threadId });
       const raw: any[] = recalled.messages ?? [];
-      const newest = [...raw].reverse().find((m) => m.role === "assistant");
+      const byId = responseMessage.id
+        ? raw.find((m) => m.role === "assistant" && m.id === responseMessage.id)
+        : undefined;
+      if (byId) {
+        target = byId;
+        break;
+      }
+      const newest = [...raw]
+        .reverse()
+        .find((m) => m.role === "assistant" && !isNote(m));
       if (newest && new Date(newest.createdAt).getTime() >= turnStartedAt) {
         target = newest;
         break;
@@ -92,10 +110,17 @@ async function persistReasoningToMemory(
     // reconstructs it in order, before the answer text) and on
     // `content.reasoning` — mirroring how MessageList itself serialises a
     // response, and matching the GET route's read path.
+    // Stamp the turn's thinking wall-time onto content.metadata so it
+    // round-trips through MessageList.ui() (same path as usage) and the
+    // reasoning trigger can show "Reasoning (Ns)" after a refresh.
     const content = {
       ...target.content,
       reasoning: reasoningText,
       parts: [{ type: "reasoning", reasoning: reasoningText }, ...existingParts],
+      metadata: {
+        ...(target.content?.metadata ?? {}),
+        ...(reasoningDurationMs > 0 ? { reasoning: { durationMs: reasoningDurationMs } } : {}),
+      },
     };
     await memory.saveMessages({ messages: [{ ...target, content }] });
   } catch (err: any) {
@@ -117,11 +142,18 @@ export function streamAgentTurnResponse(opts: StreamAgentTurnOptions): Response 
     persistReasoning = true,
   } = opts;
 
+  // Wall-clock span of the turn's thinking: first reasoning chunk → last one.
+  // Captured in the stream loop, read at finish (metadata) and onFinish (persist).
+  let reasoningFirstTs = 0;
+  let reasoningLastTs = 0;
+  const reasoningDurationMs = () =>
+    reasoningLastTs > reasoningFirstTs ? reasoningLastTs - reasoningFirstTs : 0;
+
   const uiStream = createUIMessageStream({
     originalMessages,
     onFinish: persistReasoning
       ? async ({ responseMessage }) =>
-          persistReasoningToMemory(responseMessage as any, memory, threadId, turnStartedAt)
+          persistReasoningToMemory(responseMessage as any, memory, threadId, turnStartedAt, reasoningDurationMs())
       : undefined,
     execute: async ({ writer }) => {
       for await (const part of toAISdkStream(agentStream, {
@@ -140,15 +172,25 @@ export function streamAgentTurnResponse(opts: StreamAgentTurnOptions): Response 
         messageMetadata: ({ part }) => {
           if (part.type !== "finish") return undefined;
           const { inputTokens, outputTokens, totalTokens } = part.totalUsage;
+          const durationMs = reasoningDurationMs();
           return {
             usage: {
               inputTokens: inputTokens ?? 0,
               outputTokens: outputTokens ?? 0,
               totalTokens: totalTokens ?? 0,
             },
+            ...(durationMs > 0 ? { reasoning: { durationMs } } : {}),
           };
         },
       })) {
+        // Stamp thinking wall-time as reasoning chunks flow past. AI SDK v5
+        // emits reasoning as `reasoning-start`/`reasoning-delta`/`reasoning-end`
+        // parts — match the whole family by prefix.
+        if (String((part as { type?: string }).type ?? "").startsWith("reasoning")) {
+          const now = Date.now();
+          if (reasoningFirstTs === 0) reasoningFirstTs = now;
+          reasoningLastTs = now;
+        }
         // `toAISdkStream`'s chunk type is inferred from Mastra's own bundled `ai`
         // types, which drift slightly from this repo's `ai` version (e.g.
         // `finishReason: "unknown"` isn't in the local FinishReason union). The

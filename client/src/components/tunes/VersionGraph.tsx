@@ -1,14 +1,7 @@
 import type { LapMeta } from "@shared/types";
 import { useMemo, useState } from "react";
-import {
-  type TuningLapMetric,
-  type TuningTest,
-  useDeletedTuningTests,
-  useDeleteVersion,
-  useInspireVersion,
-  useRestoreVersion,
-  useSetHead,
-} from "../../hooks/queries";
+import { createPortal } from "react-dom";
+import { type TuningLapMetric, type TuningTest, useDeleteVersion, useSetHead, useSetTestNote } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { AppliedChangesList, LapBreakdown } from "./tune-version-shared";
 
@@ -36,9 +29,145 @@ export interface VersionGraphProps {
   headTestId: number | null;
   lapsByTest: Map<number, LapMeta[]>;
   metricsById: Map<number, TuningLapMetric>;
+  /** Opens the post-test review dashboard scoped to this node's laps/testId. */
+  onOpenReview?: (test: TuningTest) => void;
 }
 
 const byVersionDesc = (a: TuningTest, b: TuningTest) => b.version - a.version;
+
+/** Generic free-text per-node editor. Seeds from the node's stored value,
+ *  saves via the supplied mutation, and only enables Save when the text
+ *  actually changed. Backs both the driver comment and the engineer notes. */
+function NodeTextEditor({
+  label,
+  value,
+  placeholder,
+  pending,
+  error,
+  onSave,
+  rows = 2,
+}: {
+  label: string;
+  value: string | null;
+  placeholder: string;
+  pending: boolean;
+  error: unknown;
+  onSave: (next: string | null, done: () => void) => void;
+  rows?: number;
+}) {
+  const [draft, setDraft] = useState(value ?? "");
+  // Re-seed when the server value changes (e.g. after undo) unless the user is
+  // mid-edit with unsaved changes.
+  const [dirty, setDirty] = useState(false);
+  const current = value ?? "";
+  const trimmed = draft.trim();
+  const changed = trimmed !== current;
+
+  return (
+    <div className="px-3 py-2 border-b border-app-border/40 space-y-1">
+      <div className="text-[10px] uppercase tracking-wider text-app-text-muted">{label}</div>
+      <textarea
+        value={dirty ? draft : current}
+        onChange={(e) => {
+          setDirty(true);
+          setDraft(e.target.value);
+        }}
+        rows={rows}
+        placeholder={placeholder}
+        className="w-full resize-y rounded-md border border-app-border bg-app-surface/60 px-2 py-1 text-[11px] text-app-text placeholder:text-app-text-dim focus:border-app-text-dim focus:outline-none"
+      />
+      {dirty && changed && (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onSave(trimmed === "" ? null : trimmed, () => setDirty(false))}
+            disabled={pending}
+            className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-app-accent text-app-accent bg-app-accent/10 hover:bg-app-accent/20 disabled:opacity-50 disabled:pointer-events-none"
+          >
+            {pending ? "Saving…" : "Save"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDirty(false);
+              setDraft(current);
+            }}
+            className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text"
+          >
+            Cancel
+          </button>
+          {error != null && <span className="text-[10px] text-red-400">{(error as Error).message}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Driver's subjective feel comment for this version. */
+function DriverCommentEditor({ sessionId, testId, note, rows }: { sessionId: number; testId: number; note: string | null; rows?: number }) {
+  const setNote = useSetTestNote();
+  return (
+    <NodeTextEditor
+      label="Driver comment"
+      value={note}
+      placeholder="How did the car feel on this version?"
+      pending={setNote.isPending}
+      error={setNote.error}
+      rows={rows}
+      onSave={(next, done) => setNote.mutate({ sessionId, testId, driverComment: next }, { onSuccess: done })}
+    />
+  );
+}
+
+/** Engineer/AI note — reasoning on this version, written by the setup engineer
+ *  and persisted across chat compaction. READ-ONLY in the UI: only the setup
+ *  engineer agent edits it, so the driver can't accidentally clobber it. */
+function EngineerNotesView({ notes }: { notes: string | null }) {
+  return (
+    <div className="px-3 py-2 space-y-1">
+      <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Engineer notes</div>
+      {notes ? (
+        <p className="text-[11px] text-app-text whitespace-pre-wrap max-h-64 overflow-y-auto">{notes}</p>
+      ) : (
+        <p className="text-[11px] text-app-text-dim italic">No engineer notes yet — the setup engineer adds these.</p>
+      )}
+    </div>
+  );
+}
+
+/** Modal wrapping both per-node comment editors, opened from a node's "Notes"
+ *  button. Closes on backdrop click, the × button, or Escape. */
+function NotesModal({ sessionId, test, onClose }: { sessionId: number; test: TuningTest; onClose: () => void }) {
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[820px] max-w-[94vw] max-h-[90vh] overflow-y-auto flex flex-col p-5"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-semibold text-app-text">
+            <span className="font-mono text-app-text-dim">v{test.version}</span> {test.label} — notes
+          </p>
+          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
+            ×
+          </button>
+        </div>
+        <div className="grid grid-cols-2 divide-x divide-app-border/60 border border-app-border/60 rounded-md overflow-hidden bg-app-surface/40">
+          <DriverCommentEditor sessionId={sessionId} testId={test.id} note={test.driverComment} rows={8} />
+          <EngineerNotesView notes={test.notes} />
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
 
 /** Row-level stat with an always-visible label so a placeholder "—" (no laps
  *  yet) still reads as a defined column, not blank space. */
@@ -89,14 +218,11 @@ function buildForest(tests: TuningTest[]): { roots: TuningTest[]; childrenOf: Ma
   return { roots: [...roots, ...orphanedCycle], childrenOf };
 }
 
-export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metricsById }: VersionGraphProps) {
+export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metricsById, onOpenReview }: VersionGraphProps) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const [trashOpen, setTrashOpen] = useState(false);
+  const [notesForId, setNotesForId] = useState<number | null>(null);
   const setHead = useSetHead();
-  const inspire = useInspireVersion();
   const deleteVersion = useDeleteVersion();
-  const restoreVersion = useRestoreVersion();
-  const deletedTests = useDeletedTuningTests(sessionId, trashOpen);
   const { roots, childrenOf } = useMemo(() => buildForest(tests), [tests]);
 
   const toggle = (id: number) =>
@@ -164,17 +290,29 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
                   Checkout
                 </button>
               )}
+              {onOpenReview && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenReview(t);
+                  }}
+                  className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                >
+                  Review
+                </button>
+              )}
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  inspire.mutate({ sessionId, sourceTestId: t.id });
+                  setNotesForId(t.id);
                 }}
-                disabled={inspire.isPending}
-                title="Copy this version's setup into a fresh, independent base"
-                className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                title={t.driverComment || t.notes ? "View / edit notes" : "Add notes"}
+                className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim shrink-0 inline-flex items-center gap-1"
               >
-                Use as inspiration
+                Notes
+                {(t.driverComment || t.notes) && <span className="size-1.5 rounded-full bg-app-accent" />}
               </button>
               <button
                 type="button"
@@ -201,7 +339,7 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
             </button>
             {isOpen && (
               <div className="ml-3 border border-app-border/60 rounded-md overflow-hidden bg-app-surface/40">
-                <AppliedChangesList json={t.appliedChanges} comment={t.driverComment} />
+                <AppliedChangesList json={t.appliedChanges} />
                 <LapBreakdown laps={laps} bestT={bestT} metricsById={metricsById} tuningSessionId={sessionId} />
               </div>
             )}
@@ -212,41 +350,15 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
     );
   };
 
+  const actionError = setHead.error ?? deleteVersion.error;
+
+  const notesTest = notesForId != null ? (tests.find((t) => t.id === notesForId) ?? null) : null;
+
   return (
     <div className="py-1">
+      {notesTest && <NotesModal sessionId={sessionId} test={notesTest} onClose={() => setNotesForId(null)} />}
+      {actionError && <div className="mx-2 mb-1 rounded-md border border-red-400/40 bg-red-400/10 px-2 py-1 text-[11px] text-red-300">{(actionError as Error).message}</div>}
       {roots.map((t, i) => renderNode(t, 0, i === roots.length - 1))}
-      <div className="mt-2 border-t border-app-border/60 pt-1">
-        <button
-          type="button"
-          onClick={() => setTrashOpen((v) => !v)}
-          className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left hover:bg-app-surface-alt/40"
-        >
-          <span className="text-app-text-dim text-xs w-3">{trashOpen ? "▾" : "▸"}</span>
-          <span className="text-xs text-app-text-muted">Trash{deletedTests.data?.length ? ` (${deletedTests.data.length})` : ""}</span>
-        </button>
-        {trashOpen && (
-          <div className="ml-3 pb-1">
-            {deletedTests.isLoading && <div className="px-2 py-1 text-[11px] text-app-text-dim">Loading…</div>}
-            {!deletedTests.isLoading && (deletedTests.data?.length ?? 0) === 0 && (
-              <div className="px-2 py-1 text-[11px] text-app-text-dim">Nothing in the trash.</div>
-            )}
-            {deletedTests.data?.map((t) => (
-              <div key={t.id} className="flex items-center gap-2 px-2 py-1 text-xs">
-                <span className="font-mono text-app-text-dim">v{t.version}</span>
-                <span className="text-app-text-muted truncate">{t.label}</span>
-                <button
-                  type="button"
-                  onClick={() => restoreVersion.mutate({ sessionId, testId: t.id })}
-                  disabled={restoreVersion.isPending}
-                  className="ml-auto normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim disabled:opacity-50 disabled:pointer-events-none shrink-0"
-                >
-                  Restore
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

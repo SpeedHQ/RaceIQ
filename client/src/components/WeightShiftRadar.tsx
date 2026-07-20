@@ -1,6 +1,6 @@
+import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useRef } from "react";
 import { m } from "@/paraglide/messages";
-import type { TelemetryPacket } from "@shared/types";
 
 /**
  * WeightShiftRadar — Canvas-drawn weight transfer visualization.
