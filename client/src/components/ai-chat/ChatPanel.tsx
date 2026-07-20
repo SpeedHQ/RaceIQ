@@ -69,7 +69,11 @@ function TokenUsageFooter({ compactThreadId, historyQueryKey }: { compactThreadI
   const model = settings.chatModel ?? settings.aiModel ?? "";
   const limit = contextWindowFor(provider, model);
 
-  const used = (usage?.inputTokens ?? 0) + (usage?.cachedInputTokens ?? 0);
+  // `inputTokens` is the full prompt size the provider billed for this turn —
+  // for Gemini/OpenAI (the defaults) cached reads are already folded into it,
+  // so we do NOT add `cachedInputTokens` (that would double-count). This is a
+  // rough "how full is the window" indicator, not exact accounting.
+  const used = usage?.inputTokens ?? 0;
   const level = meterLevel(used, limit);
   const barColor = level === "danger" ? "bg-red-500" : level === "warn" ? "bg-amber-500" : "bg-app-border";
   const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
