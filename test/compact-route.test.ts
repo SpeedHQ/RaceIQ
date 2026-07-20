@@ -1,9 +1,12 @@
 import { describe, test, expect, mock } from "bun:test";
 
-// Mock compact-thread before importing the routes so the route uses the stub.
-const compactThread = mock(async (threadId: string) => ({ summary: "S", before: 8, after: 1 }));
+// Mock the runner seam (not compact-thread.ts directly) so this global module
+// mock does not bleed into compact-thread.test.ts. The route imports
+// compactThread through ../ai/compact-thread-runner; compact-thread.test.ts
+// imports the real ../server/ai/compact-thread — different module keys.
+const compactThread = mock(async (_threadId: string) => ({ summary: "S", before: 8, after: 1 }));
 class NothingToCompactError extends Error { constructor(m?: string){ super(m); this.name = "NothingToCompactError"; } }
-mock.module("../server/ai/compact-thread", () => ({ compactThread, NothingToCompactError }));
+mock.module("../server/ai/compact-thread-runner", () => ({ compactThread, NothingToCompactError }));
 
 const { chatsRoutes } = await import("../server/routes/chats-routes");
 

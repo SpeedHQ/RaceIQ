@@ -6,7 +6,7 @@ import { getLapById } from "../db/queries";
 import { getTuningSession } from "../db/tuning-session-queries";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import { getChatMemory, CHAT_RESOURCE_ID } from "../ai/chat-agent";
-import { compactThread, NothingToCompactError } from "../ai/compact-thread";
+import { compactThread, NothingToCompactError } from "../ai/compact-thread-runner";
 
 const ChatsQuerySchema = z.object({
   gameId: GameIdSchema,
