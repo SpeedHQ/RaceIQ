@@ -51,8 +51,11 @@ export function TestReviewPage({ gameId, tuningSessionId, lapIds, testId }: { ga
           />
         </div>
         <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
-          <div className="shrink-0 px-3 py-2 border-b border-app-border">
+          <div className="shrink-0 px-3 py-2 border-b border-app-border flex items-center justify-between">
             <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Setup engineer</span>
+            <button type="button" onClick={backToWorkspace} className="px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">
+              Session
+            </button>
           </div>
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             <TuneSetupChat sessionId={tuningSessionId} headTestId={session?.headTestId ?? null} extendedContext={lapReviewContext} />
