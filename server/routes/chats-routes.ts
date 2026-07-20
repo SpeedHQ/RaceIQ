@@ -3,8 +3,10 @@ import { zValidator } from "@hono/zod-validator";
 import { GameIdSchema } from "../../shared/types";
 import { z } from "zod";
 import { getLapById } from "../db/queries";
+import { getTuningSession } from "../db/tuning-session-queries";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import { getChatMemory, CHAT_RESOURCE_ID } from "../ai/chat-agent";
+import { compactThread, NothingToCompactError } from "../ai/compact-thread";
 
 const ChatsQuerySchema = z.object({
   gameId: GameIdSchema,
@@ -20,10 +22,21 @@ interface LapSummary {
   gameId: string;
 }
 
+/** Setup-engineer (tuning-session) chat, keyed by session rather than laps. */
+interface TuneSummary {
+  id: number;
+  seq: number;
+  name: string;
+  carName: string;
+  gameId: string;
+}
+
 interface ChatRow {
   threadId: string;
-  type: "analyse" | "compare";
+  type: "analyse" | "compare" | "tune";
   laps: LapSummary[];
+  /** Present for type === "tune". */
+  tune?: TuneSummary;
   trackName: string;
   createdAt: string;
   updatedAt: string;
@@ -89,6 +102,22 @@ export const chatsRoutes = new Hono()
               createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : String(t.createdAt),
               updatedAt: t.updatedAt instanceof Date ? t.updatedAt.toISOString() : String(t.updatedAt),
             });
+          } else if (id.startsWith("tune-session-")) {
+            const sessionId = Number(id.slice("tune-session-".length));
+            if (!Number.isFinite(sessionId)) continue;
+            const session = await getTuningSession(sessionId);
+            if (!session || session.gameId !== gameId) continue;
+            const carName = session.carName ?? getCarName(session.carOrdinal ?? 0, session.gameId);
+            const trackName = session.trackName ?? getTrackName(session.trackOrdinal ?? 0, session.gameId);
+            rows.push({
+              threadId: id,
+              type: "tune",
+              laps: [],
+              tune: { id: session.id, seq: session.seq, name: session.name, carName, gameId: session.gameId },
+              trackName,
+              createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : String(t.createdAt),
+              updatedAt: t.updatedAt instanceof Date ? t.updatedAt.toISOString() : String(t.updatedAt),
+            });
           }
         }
         rows.sort((x, y) => y.updatedAt.localeCompare(x.updatedAt));
@@ -114,4 +143,22 @@ export const chatsRoutes = new Hono()
         return c.json({ error: err.message }, 500);
       }
     }
+  )
+
+  // ── Compact a chat thread (summarize + replace) ────────────
+  .post(
+    "/api/chats/:threadId/compact",
+    async (c) => {
+      const threadId = c.req.param("threadId");
+      try {
+        const result = await compactThread(threadId);
+        return c.json(result);
+      } catch (err: any) {
+        if (err instanceof NothingToCompactError) {
+          return c.json({ error: err.message }, 422);
+        }
+        console.error("[Chats] Failed to compact:", err.message);
+        return c.json({ error: err.message }, 500);
+      }
+    },
   );
