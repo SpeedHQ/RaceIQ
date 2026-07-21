@@ -6,7 +6,12 @@
  */
 const DEFAULT_WINDOW = 32_000;
 
-export function contextWindowFor(provider: string, model: string): number {
+/**
+ * `localContext` — real context length reported by the local server (LM Studio
+ * native API, surfaced via /api/ai-models `contextLength`). Used for the
+ * "local" provider; falls back to the conservative default when absent.
+ */
+export function contextWindowFor(provider: string, model: string, localContext?: number): number {
   const m = (model || "").toLowerCase();
   switch (provider) {
     case "gemini":
@@ -20,7 +25,7 @@ export function contextWindowFor(provider: string, model: string): number {
     case "anthropic":
       return 200_000;
     case "local":
-      return DEFAULT_WINDOW;
+      return localContext && localContext > 0 ? localContext : DEFAULT_WINDOW;
     default:
       return DEFAULT_WINDOW;
   }

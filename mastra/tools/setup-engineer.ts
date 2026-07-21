@@ -150,8 +150,10 @@ export function buildSetupEngineerTools() {
     id: "get-symptoms",
     description:
       "Get the deterministic symptom report (balance per corner phase, lockups, bottoming) computed from " +
-      "the session's fastest valid lap. Returns 'available: false' when no lap has been driven yet — " +
-      "in that case, discuss the setup from the driver's description of how the car feels.",
+      "the session's fastest valid lap. Call this before diagnosing handling problems or proposing setup " +
+      "changes, so recommendations target measured symptoms rather than guesses. Returns 'available: false' " +
+      "when no lap has been driven yet — in that case, discuss the setup from the driver's description of " +
+      "how the car feels.",
     inputSchema: NoInput,
     outputSchema: z.object({
       available: z.boolean(),

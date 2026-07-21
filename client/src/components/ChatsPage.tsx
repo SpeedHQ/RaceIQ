@@ -15,10 +15,19 @@ interface LapSummary {
   gameId: string;
 }
 
+interface TuneSummary {
+  id: number;
+  seq: number;
+  name: string;
+  carName: string;
+  gameId: string;
+}
+
 interface ChatRow {
   threadId: string;
-  type: "analyse" | "compare";
+  type: "analyse" | "compare" | "tune";
   laps: LapSummary[];
+  tune?: TuneSummary;
   trackName: string;
   createdAt: string;
   updatedAt: string;
@@ -106,6 +115,11 @@ export function ChatsPage() {
             ai: 1,
           } as never,
         });
+      } else if (row.type === "tune" && row.tune) {
+        navigate({
+          to: `${prefix}/tune/$tuningSessionId` as never,
+          params: { tuningSessionId: String(row.tune.id) } as never,
+        });
       }
     },
     [gameId, navigate],
@@ -149,28 +163,40 @@ export function ChatsPage() {
                   <td className="px-3 py-2">
                     <span
                       className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                        row.type === "compare" ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30" : "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                        row.type === "compare"
+                          ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/30"
+                          : row.type === "tune"
+                            ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
+                            : "bg-amber-500/15 text-amber-300 border border-amber-500/30"
                       }`}
                     >
-                      {row.type}
+                      {row.type === "tune" ? "setup" : row.type}
                     </span>
                   </td>
                   <td className="px-3 py-2 text-app-text">{row.trackName || "—"}</td>
                   <td className="px-3 py-2 text-app-text-secondary">
-                    {row.laps.map((l, i) => (
-                      <div key={i} className="flex items-center gap-1.5">
-                        {row.type === "compare" && <span className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-orange-500" : "bg-blue-500"}`} />}
-                        <span className="truncate max-w-[180px]">{l.carName}</span>
-                      </div>
-                    ))}
+                    {row.type === "tune" && row.tune ? (
+                      <span className="truncate max-w-[180px] block">{row.tune.carName || "—"}</span>
+                    ) : (
+                      row.laps.map((l, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          {row.type === "compare" && <span className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-orange-500" : "bg-blue-500"}`} />}
+                          <span className="truncate max-w-[180px]">{l.carName}</span>
+                        </div>
+                      ))
+                    )}
                   </td>
                   <td className="px-3 py-2 text-app-text-secondary font-mono text-[11px]">
-                    {row.laps.map((l, i) => (
-                      <div key={i}>
-                        {m.chats_lap_number()} {l.lapNumber} — {formatLapTime(l.lapTime)}
-                        {!l.isValid && <span className="text-red-400 ml-1">(inv)</span>}
-                      </div>
-                    ))}
+                    {row.type === "tune" && row.tune ? (
+                      <span className="truncate max-w-[220px] block">#{row.tune.seq} — {row.tune.name}</span>
+                    ) : (
+                      row.laps.map((l, i) => (
+                        <div key={i}>
+                          {m.chats_lap_number()} {l.lapNumber} — {formatLapTime(l.lapTime)}
+                          {!l.isValid && <span className="text-red-400 ml-1">(inv)</span>}
+                        </div>
+                      ))
+                    )}
                   </td>
                   <td className="px-3 py-2 text-app-text-muted">{formatRelative(row.updatedAt)}</td>
                   <td className="px-3 py-2 text-right">

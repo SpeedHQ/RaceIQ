@@ -17,7 +17,7 @@ import { getTrackLengthMeters } from "../../shared/track-data";
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
 let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
-let cachedLocalModels: { endpoint: string; models: { id: string; name: string }[]; at: number } | null = null;
+let cachedLocalModels: { endpoint: string; models: { id: string; name: string; contextLength?: number }[]; at: number } | null = null;
 let cachedLocalEmpty: { endpoint: string; at: number } | null = null;
 export const settingsRoutes = new Hono()
   // GET /api/status
@@ -124,7 +124,7 @@ export const settingsRoutes = new Hono()
     const shouldFetchLocal = useRequestedProviders
       ? requestedProviders.has("local")
       : settings.aiProvider === "local" || settings.chatProvider === "local";
-    let localModels: { id: string; name: string }[] = [];
+    let localModels: { id: string; name: string; contextLength?: number }[] = [];
     let localError: string | null = null;
     if (shouldFetchLocal) {
       const endpoint = settings.localEndpoint || "http://localhost:1234/v1";
@@ -139,7 +139,7 @@ export const settingsRoutes = new Hono()
       const fetchedLocal = localCacheHit && cachedLocalModels
         ? (console.info("[AI] ai-models local cache hit"), { models: cachedLocalModels.models, error: null as string | null })
         : localEmptyRecent
-          ? (console.info("[AI] ai-models local recent-empty cache hit"), { models: [] as { id: string; name: string }[], error: localError })
+          ? (console.info("[AI] ai-models local recent-empty cache hit"), { models: [] as { id: string; name: string; contextLength?: number }[], error: localError })
           : (console.info("[AI] ai-models local cache miss"), await getLocalModelsDetailed(endpoint));
       localError = fetchedLocal.error;
       const fetchedLocalModels = fetchedLocal.models;

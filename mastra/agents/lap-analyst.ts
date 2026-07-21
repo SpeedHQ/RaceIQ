@@ -11,7 +11,9 @@ import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
+import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { liveAnalystScorers } from "../evals";
+import { TRACK_GUIDE_PROMPT } from "../../shared/prompt-snippets";
 
 const LAP_ANALYST_INSTRUCTIONS = `You are a senior race engineer reviewing a single driver's lap from telemetry data. Your job is to issue a structured verdict on the lap covering pace, handling, problem corners, braking, throttle application, coaching, and setup recommendations.
 
@@ -23,7 +25,7 @@ DISCIPLINE (applies to every game):
 - Every \`setup[]\` entry must explain WHY in \`fix\`. When a reference source is available (e.g. the F1 tool returns ranked community setups), cite it by rank and name (e.g. "rank 2 — mitchlobbes, Mercedes"). Do not fall back to vague phrasing like "as seen in top community setups".
 - Every \`symptom\` must cite a concrete data point (distance marker, frame count, temperature, occurrence count). Avoid generic statements like "rear-end snapping" with no data attached.
 
-For F1 2025 laps: the prompt already contains a block labelled "F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS" with the driver's current setup and pre-diffed top-5 community references. Use that inline data to fill \`setup[]\` — cite \`rank N — team / author\` per entry, stay within the F1 25 setup ranges. The \`compare-f1-setup-to-catalog\` tool is available as a redundant source but you do NOT need to call it when the inline block is present; prefer emitting the final JSON immediately.`;
+For F1 2025 laps: the prompt already contains a block labelled "F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS" with the driver's current setup and pre-diffed top-5 community references. Use that inline data to fill \`setup[]\` — cite \`rank N — team / author\` per entry, stay within the F1 25 setup ranges. The \`compare-f1-setup-to-catalog\` tool is available as a redundant source but you do NOT need to call it when the inline block is present; prefer emitting the final JSON immediately.${TRACK_GUIDE_PROMPT}`;
 
 export const lapAnalystAgent = new Agent({
   id: "lap-analyst",
@@ -37,7 +39,7 @@ export const lapAnalystAgent = new Agent({
   // models (Gemma 4) that loop the tool, the analyse route inlines the
   // same data into the prompt — model can ignore the tool and still get
   // the context. See server/routes/lap-routes.ts.
-  tools: { compareF1SetupToCatalogTool, getCornerMetricsTool },
+  tools: { compareF1SetupToCatalogTool, getCornerMetricsTool, getTrackGuideTool, listTrackGuidesTool },
   // Live scoring in Studio: deterministic suite always, LLM-judge when
   // EVAL_LOCAL_JUDGE=1 (LM Studio running). See mastra/evals/index.ts.
   scorers: liveAnalystScorers,

@@ -67,7 +67,25 @@ function TokenUsageFooter({ compactThreadId, historyQueryKey }: { compactThreadI
   const settings = displaySettings as { aiProvider?: string; aiModel?: string; chatProvider?: string; chatModel?: string };
   const provider = settings.chatProvider ?? settings.aiProvider ?? "gemini";
   const model = settings.chatModel ?? settings.aiModel ?? "";
-  const limit = contextWindowFor(provider, model);
+
+  // For the local provider, ask the server for LM Studio's real per-model
+  // context length (surfaced by /api/ai-models via LM Studio's native API).
+  // Falls back to the static default when unavailable (Ollama, server down).
+  const { data: localModels } = useQuery({
+    queryKey: ["ai-models", "local-context"],
+    queryFn: async () => {
+      const res = await fetch("/api/ai-models?providers=local");
+      if (!res.ok) throw new Error(`ai-models failed (${res.status})`);
+      const body = (await res.json()) as { local?: { id: string; contextLength?: number }[] };
+      return body.local ?? [];
+    },
+    enabled: provider === "local",
+    staleTime: 60_000,
+  });
+  const localContext = provider === "local"
+    ? (localModels?.find((m) => m.id === model) ?? (localModels?.length === 1 ? localModels[0] : undefined))?.contextLength
+    : undefined;
+  const limit = contextWindowFor(provider, model, localContext);
 
   // `inputTokens` is the full prompt size the provider billed for this turn —
   // for Gemini/OpenAI (the defaults) cached reads are already folded into it,
