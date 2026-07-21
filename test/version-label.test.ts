@@ -2,23 +2,17 @@ import { describe, expect, test } from "bun:test";
 import { computeChildLabel, nextFreeLabel } from "../server/ai/version-label";
 
 describe("computeChildLabel", () => {
-  test("first child of mainline increments last segment", () => {
-    expect(computeChildLabel("v1", 0)).toBe("v2");
-    expect(computeChildLabel("v2", 0)).toBe("v3");
+  test("every child nests under the parent in creation order", () => {
+    expect(computeChildLabel("v1", 0)).toBe("v1.1");
+    expect(computeChildLabel("v1", 1)).toBe("v1.2");
+    expect(computeChildLabel("v1", 2)).toBe("v1.3");
+    expect(computeChildLabel("v2", 0)).toBe("v2.1");
+    expect(computeChildLabel("v1.2", 0)).toBe("v1.2.1");
   });
-  test("first child of a branch increments the branch's last segment", () => {
-    expect(computeChildLabel("v1.1", 0)).toBe("v1.2");
-    expect(computeChildLabel("v1.2.3", 0)).toBe("v1.2.4");
-  });
-  test("second+ child forks by appending a nested segment", () => {
-    expect(computeChildLabel("v1", 1)).toBe("v1.1");
-    expect(computeChildLabel("v1", 2)).toBe("v1.2");
-    expect(computeChildLabel("v2", 1)).toBe("v2.1");
-  });
-  test("non-numeric base label ('base') forks/continues predictably", () => {
-    // 'base' has no trailing number → first child starts the numbered line at v1.
+  test("non-numeric base label ('base') numbers children at top level", () => {
+    // 'base' has no trailing number → children start the numbered line at v1, v2, …
     expect(computeChildLabel("base", 0)).toBe("v1");
-    expect(computeChildLabel("base", 1)).toBe("base.1");
+    expect(computeChildLabel("base", 1)).toBe("v2");
   });
 });
 

@@ -44,14 +44,14 @@ describe("loadActiveTuningContext head resolution", () => {
 });
 
 describe("apply-changes label derivation (unit of the branch math)", () => {
-  test("forking off v1 when v2 already exists yields v1.1", () => {
-    // parent = v1, which already has one child (v2) → fork → v1.1
-    const label = nextFreeLabel(computeChildLabel("v1", 1), new Set(["v1", "v2"]));
-    expect(label).toBe("v1.1");
+  test("second child of v1 nests as v1.2", () => {
+    // parent = v1 with one existing child (v1.1) → next child → v1.2
+    const label = nextFreeLabel(computeChildLabel("v1", 1), new Set(["v1", "v1.1"]));
+    expect(label).toBe("v1.2");
   });
-  test("continuing the tip yields the next flat number", () => {
+  test("first child of the tip nests under it", () => {
     const label = nextFreeLabel(computeChildLabel("v2", 0), new Set(["v1", "v2"]));
-    expect(label).toBe("v3");
+    expect(label).toBe("v2.1");
   });
 });
 
