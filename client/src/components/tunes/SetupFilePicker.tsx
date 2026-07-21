@@ -45,7 +45,17 @@ export function SetupFilePicker({
   // friendly name; the value stays the model slug the session is keyed on.
   const cars = useMemo(() => {
     const models = new Set<string>([...(setupFiles?.cars ?? []).map((c) => c.model), ...files.map((f) => f.carModel)]);
-    return [...models].map((model) => ({ value: model, label: carNameByModel.get(model) ?? model })).sort((a, b) => a.label.localeCompare(b.label));
+    // Setup count per car — cars with no saved setup are shown but disabled,
+    // since a session needs a base setup file to start from.
+    const countByCar = new Map<string, number>();
+    for (const f of files) countByCar.set(f.carModel, (countByCar.get(f.carModel) ?? 0) + 1);
+    return [...models]
+      .map((model) => {
+        const name = carNameByModel.get(model) ?? model;
+        const n = countByCar.get(model) ?? 0;
+        return { value: model, label: n ? `${name} (${n})` : name, disabled: n === 0 };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [setupFiles, files, carNameByModel]);
   const noCars = !loadingFiles && cars.length === 0;
 
@@ -62,9 +72,9 @@ export function SetupFilePicker({
   }, [files, value.car]);
 
   return (
-    <div className={`grid grid-cols-1 gap-3 ${lockedCar ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+    <div className="grid grid-cols-1 gap-3">
       {!lockedCar && (
-        <label className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1">
           <span className="text-[11px] text-app-text-muted uppercase tracking-wider">{labels.car ?? "Car"}</span>
           <SearchSelect
             value={value.car}
@@ -74,9 +84,9 @@ export function SetupFilePicker({
             disabled={loadingFiles || noCars}
             focusColor="purple-500"
           />
-        </label>
+        </div>
       )}
-      <label className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1">
         <span className="text-[11px] text-app-text-muted uppercase tracking-wider">{labels.track ?? "Track"}</span>
         <SearchSelect
           value={value.track}
@@ -90,8 +100,8 @@ export function SetupFilePicker({
           disabled={!value.car}
           focusColor="purple-500"
         />
-      </label>
-      <label className="flex flex-col gap-1">
+      </div>
+      <div className="flex flex-col gap-1">
         <span className="text-[11px] text-app-text-muted uppercase tracking-wider">{labels.setup ?? "Base setup"}</span>
         <SearchSelect
           value={value.setupPath}
@@ -101,7 +111,7 @@ export function SetupFilePicker({
           disabled={!value.car || !value.track}
           focusColor="purple-500"
         />
-      </label>
+      </div>
     </div>
   );
 }
