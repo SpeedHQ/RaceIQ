@@ -152,10 +152,16 @@ export function formatCarSetup(setup: CarSetupFile, fields = setup.raw, indent =
   return lines.join("\n");
 }
 
-/** One human-readable row of a decoded setup (label + display value). */
+/** One human-readable row of a decoded setup (label + display value).
+ *  `num`/`min`/`max` are present when the row is a confirmed numeric field with
+ *  a real extracted per-car range — the UI draws a range bar (like the AI
+ *  analysis result) only for those rows; nothing is invented. */
 export interface CarSetupRow {
   label: string;
   value: string;
+  num?: number;
+  min?: number;
+  max?: number;
 }
 
 /** A titled group of rows, e.g. "Front left" or "Aero". */
@@ -208,17 +214,32 @@ function genericRows(fields: WireField[], prefix: string, skip: Set<number> = ne
  * rows still read better than the raw tree because they're grouped per
  * corner/system.
  */
-export function summarizeCarSetup(setup: CarSetupFile): CarSetupSection[] {
+export function summarizeCarSetup(
+  setup: CarSetupFile,
+  ranges?: Record<string, { min: number; max: number; step: number } | null> | null,
+): CarSetupSection[] {
   const sections: CarSetupSection[] = [];
   const msgs = (no: number) => setup.raw.filter((f): f is Extract<WireField, { type: "message" }> => f.no === no && f.type === "message");
+  /** Attach a real extracted per-car range to a numeric row when one exists. */
+  const withRange = (row: CarSetupRow, n: number, key: string): CarSetupRow => {
+    const r = ranges?.[key];
+    return r ? { ...row, num: n, min: r.min, max: r.max } : row;
+  };
 
-  const fuel = msgs(1)[0];
-  if (fuel) {
-    const fuelLoad = num(fuel.fields.find((f) => f.no === 2));
+  // #1 — mechanical/brakes/diff. Brake bias lives at #1.#3.#1 (same shape as
+  // the game's carsetuplimits files, verified against a real Audi R8 GT3 Evo II
+  // save: value 61 within the extracted 50–65 range).
+  const mech = msgs(1)[0];
+  if (mech) {
     const rows: CarSetupRow[] = [];
-    if (fuelLoad != null) rows.push({ label: "Fuel load", value: `${fmt(fuelLoad)} L` });
-    rows.push(...genericRows(fuel.fields, "", new Set([2])));
-    sections.push({ title: "Fuel & strategy", rows });
+    const brakeMsg = mech.fields.find((f): f is Extract<WireField, { type: "message" }> => f.no === 3 && f.type === "message");
+    const bias = brakeMsg ? num(brakeMsg.fields.find((f) => f.no === 1)) : null;
+    if (bias != null) {
+      rows.push(withRange({ label: "Brake bias", value: `${fmt(bias)}% front` }, bias, "brakeBias"));
+      if (brakeMsg) rows.push(...genericRows(brakeMsg.fields, "Brakes ", new Set([1])));
+    }
+    rows.push(...genericRows(mech.fields, "", new Set(bias != null ? [3] : [])));
+    if (rows.length) sections.push({ title: "Mechanical & brakes", rows });
   }
 
   const springs = msgs(2);
@@ -245,14 +266,43 @@ export function summarizeCarSetup(setup: CarSetupFile): CarSetupSection[] {
     if (rows.length) sections.push({ title: CORNER_NAMES[i] ?? `Corner ${i + 1}`, rows });
   }
 
-  const brakes = msgs(5)[0];
-  if (brakes) sections.push({ title: "Brakes / misc", rows: genericRows(brakes.fields, "") });
+  // #5 — electronics/assists (TC/ABS-style click values); no verified labels.
+  const electronics = msgs(5)[0];
+  if (electronics) sections.push({ title: "Electronics", rows: genericRows(electronics.fields, "") });
 
+  // #6 — aero & ride height, same field numbers as the carsetuplimits files:
+  // #2 front ride height, #3 rear ride height, #4 front wing, #5 rear wing
+  // (verified: Audi save 55/75/–/4 vs extracted ranges 54–70 / 60–90 / null / 1–6).
   const aero = msgs(6)[0];
-  if (aero) sections.push({ title: "Aero", rows: genericRows(aero.fields, "") });
+  if (aero) {
+    const rows: CarSetupRow[] = [];
+    const labelled: Array<[number, string, string, string]> = [
+      [2, "Front ride height", "frontRideHeight", " mm"],
+      [3, "Rear ride height", "rearRideHeight", " mm"],
+      [4, "Front wing", "frontWing", ""],
+      [5, "Rear wing", "rearWing", ""],
+    ];
+    const skip = new Set<number>();
+    for (const [no, label, key, unit] of labelled) {
+      const v = num(aero.fields.find((f) => f.no === no));
+      if (v != null) {
+        rows.push(withRange({ label, value: `${fmt(v)}${unit}` }, v, key));
+        skip.add(no);
+      }
+    }
+    rows.push(...genericRows(aero.fields, "", skip));
+    sections.push({ title: "Aero & ride height", rows });
+  }
 
-  const misc = msgs(7)[0];
-  if (misc) sections.push({ title: "Other", rows: genericRows(misc.fields, "") });
+  // #7 — fuel: #7.#1 fuel load in litres (verified: 30 within extracted 1–120).
+  const fuel = msgs(7)[0];
+  if (fuel) {
+    const rows: CarSetupRow[] = [];
+    const fuelLoad = num(fuel.fields.find((f) => f.no === 1));
+    if (fuelLoad != null) rows.push(withRange({ label: "Fuel load", value: `${fmt(fuelLoad)} L` }, fuelLoad, "fuel"));
+    rows.push(...genericRows(fuel.fields, "", new Set(fuelLoad != null ? [1] : [])));
+    sections.push({ title: "Fuel & strategy", rows });
+  }
 
   return sections.filter((s) => s.rows.length > 0);
 }

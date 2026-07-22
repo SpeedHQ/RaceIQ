@@ -261,7 +261,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
                 </div>
                 <VersionGraph
                   sessionId={session.id}
-                  gameId={gameId === "acc" || gameId === "ac-evo" ? gameId : null}
+                  gameId={gameId}
                   tests={tests}
                   headTestId={session?.headTestId ?? null}
                   lapsByTest={lapsByTest}

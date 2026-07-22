@@ -8,6 +8,7 @@
  * hallucinated intent can never corrupt a setup file.
  */
 import type { GameId } from "../../shared/types";
+import { getAcEvoCarByDisplayName } from "../../shared/ac-evo-car-data";
 import type { TuneIntent, TuneMagnitude } from "./schemas";
 
 /**
@@ -153,12 +154,24 @@ const RULES: Record<string, Record<string, FieldDef>> = {
 // pak), so ACC stays on the per-game global clamps above.
 import acEvoRangesJson from "../../shared/games/ac-evo/setup-ranges.json";
 
-interface CarRange {
+export interface CarRange {
   min: number;
   max: number;
   step: number;
 }
 const AC_EVO_CAR_RANGES = acEvoRangesJson as unknown as Record<string, Record<string, CarRange | null>>;
+
+/** Raw extracted per-car AC Evo ranges (snapshot-field-keyed), or null when the
+ *  car has no extracted data. Used by the setup-file viewer to draw range bars.
+ *  Accepts either the model slug ("audi_r8_lms_gt3_evo_2") or the display name
+ *  ("Audi R8 LMS GT3 Evo II" — what the Setups folder is named on disk). */
+export function getAcEvoCarRanges(carModel?: string): Record<string, CarRange | null> | null {
+  if (!carModel) return null;
+  const direct = AC_EVO_CAR_RANGES[carModel];
+  if (direct) return direct;
+  const car = getAcEvoCarByDisplayName(carModel);
+  return (car && AC_EVO_CAR_RANGES[car.model]) ?? null;
+}
 
 /**
  * Per-game rule table, narrowed to a specific car when per-car data exists.

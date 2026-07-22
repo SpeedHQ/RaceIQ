@@ -17,7 +17,7 @@ import { detectCorners } from "../corner-detection";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { requestTuneIntents } from "../ai/tune-intent";
 import { symptomsToIntents } from "../ai/tune-recommend";
-import { applyIntents } from "../ai/tune-rules";
+import { applyIntents, getAcEvoCarRanges } from "../ai/tune-rules";
 import { writeSetupFile } from "../ai/tune-writer";
 import { getSetupsBaseDir, resolveGuardedSetupFile } from "../ai/setup-engineer-context";
 import { formatCarSetup, readCarSetupFile, summarizeCarSetup } from "../games/ac-evo/carsetup";
@@ -291,12 +291,28 @@ export const tuneCrudRoutes = new Hono()
       if (guarded.realPath.toLowerCase().endsWith(".carsetup")) {
         const parsed = await readCarSetupFile(guarded.realPath);
         if (!parsed) return c.json({ error: "Couldn't decode .carsetup file" }, 400);
+        // Setups live under <base>/<carModel>/<track>/<file> — the first path
+        // segment names the car, which selects the extracted per-car range
+        // table (same convention as /api/tunes/auto, see below). Ranges let
+        // the viewer draw min/max bars like the AI analysis result; rows
+        // without a known range simply render without a bar.
+        let carModel: string | undefined;
+        const baseDir = await getSetupsBaseDir(gameId);
+        if (baseDir) {
+          try {
+            const realBase = realpathSync(resolve(baseDir));
+            if ((guarded.realPath + sep).startsWith(realBase + sep)) {
+              const relSegments = guarded.realPath.slice(realBase.length + 1).split(sep);
+              if (relSegments.length >= 2) carModel = relSegments[0];
+            }
+          } catch { /* base dir vanished mid-request — render without ranges */ }
+        }
         return c.json({
           fileName,
           kind: "carsetup" as const,
           presetId: parsed.presetId ?? null,
           formatted: formatCarSetup(parsed),
-          sections: summarizeCarSetup(parsed),
+          sections: summarizeCarSetup(parsed, getAcEvoCarRanges(carModel)),
           setup: null,
         });
       }

@@ -1,9 +1,10 @@
-import type { LapMeta } from "@shared/types";
+import type { F1CarSetup, LapMeta } from "@shared/types";
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { type TuningLapMetric, type TuningTest, useDeleteVersion, useSetHead, useSetTestNote } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { Button } from "../ui/button";
+import { F1SetupModal } from "../analyse/F1SetupModal";
 import { SetupContentModal } from "./SetupFilePicker";
 import { AppliedChangesList, LapBreakdown, summarizeAppliedChanges } from "./tune-version-shared";
 
@@ -27,7 +28,7 @@ import { AppliedChangesList, LapBreakdown, summarizeAppliedChanges } from "./tun
  */
 export interface VersionGraphProps {
   sessionId: number;
-  gameId: "acc" | "ac-evo" | null;
+  gameId: "acc" | "ac-evo" | "f1-2025" | null;
   tests: TuningTest[];
   headTestId: number | null;
   lapsByTest: Map<number, LapMeta[]>;
@@ -228,6 +229,16 @@ export function VersionGraph({ sessionId, gameId, tests, headTestId, lapsByTest,
   const [notesForId, setNotesForId] = useState<number | null>(null);
   const [setupForId, setSetupForId] = useState<number | null>(null);
   const setupTest = setupForId != null ? (tests.find((t) => t.id === setupForId) ?? null) : null;
+  // F1: setup lives as an F1CarSetup JSON snapshot on the node, not a file.
+  const setupSnapshot = useMemo<F1CarSetup | null>(() => {
+    if (!setupTest?.setupSnapshot) return null;
+    try {
+      const v = JSON.parse(setupTest.setupSnapshot);
+      return typeof v === "object" && v !== null ? (v as F1CarSetup) : null;
+    } catch {
+      return null;
+    }
+  }, [setupTest]);
   const setHead = useSetHead();
   const deleteVersion = useDeleteVersion();
   const { roots, childrenOf } = useMemo(() => buildForest(tests), [tests]);
@@ -301,7 +312,7 @@ export function VersionGraph({ sessionId, gameId, tests, headTestId, lapsByTest,
                   Checkout
                 </button>
               )}
-              {gameId && t.setupPath && (
+              {gameId && (gameId === "f1-2025" ? t.setupSnapshot != null : t.setupPath != null) && (
                 <Button
                   variant="app-outline"
                   size="app-sm"
@@ -382,9 +393,10 @@ export function VersionGraph({ sessionId, gameId, tests, headTestId, lapsByTest,
   return (
     <div className="py-1">
       {notesTest && <NotesModal sessionId={sessionId} test={notesTest} onClose={() => setNotesForId(null)} />}
-      {gameId && setupTest?.setupPath && (
+      {(gameId === "acc" || gameId === "ac-evo") && setupTest?.setupPath && (
         <SetupContentModal gameId={gameId} path={setupTest.setupPath} fileName={setupTest.setupPath.split(/[\\/]/).pop() ?? setupTest.label} onClose={() => setSetupForId(null)} />
       )}
+      {gameId === "f1-2025" && setupSnapshot && <F1SetupModal setup={setupSnapshot} onClose={() => setSetupForId(null)} />}
       {actionError && <div className="mx-2 mb-1 rounded-md border border-red-400/40 bg-red-400/10 px-2 py-1 text-[11px] text-red-300">{(actionError as Error).message}</div>}
       {roots.map((t, i) => renderNode(t, 0, i === roots.length - 1))}
     </div>

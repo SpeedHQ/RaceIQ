@@ -776,6 +776,8 @@ export interface TuningTest {
   /** Engineer/AI free-text annotation, distinct from the driver's feel comment. */
   notes: string | null;
   engine: string | null;
+  /** F1's captured base / target F1CarSetup JSON; null for file-based (ACC/AC-EVO) nodes. */
+  setupSnapshot: string | null;
   status: string;
   createdAt: string;
   /** Laps driven on this exact version (grouped by tuning_test_id). */
