@@ -162,6 +162,9 @@ export interface CarSetupRow {
   num?: number;
   min?: number;
   max?: number;
+  /** True when the value is stored in the file but has no in-game slider for
+   *  this car (fixed physics parameter) — UI greys it out. */
+  fixed?: boolean;
 }
 
 /** A titled group of rows, e.g. "Front left" or "Aero". */
@@ -190,30 +193,39 @@ function fmt(v: number): string {
  *  message being rendered) to a human label (verified via slider diffing).
  *  Fields with no label are omitted from the UI — the raw decode script is
  *  the place to inspect unmapped wire fields. */
+/** A guess entry: plain label, or label + `fixed` for values stored in the
+ *  file that have no in-game slider (fixed physics params — UI greys them). */
+type GuessEntry = string | { label: string; fixed: true };
+
 function genericRows(
   fields: WireField[],
   prefix: string,
   skip: Set<number> = new Set(),
-  guesses: Record<string, string> = {},
+  guesses: Record<string, GuessEntry> = {},
   path = "",
 ): CarSetupRow[] {
   const rows: CarSetupRow[] = [];
-  const labelFor = (no: number): string | null => guesses[`${path}#${no}`] ?? null;
+  const guessFor = (no: number): { label: string; fixed?: true } | null => {
+    const g = guesses[`${path}#${no}`];
+    if (g == null) return null;
+    return typeof g === "string" ? { label: g } : g;
+  };
   for (const f of fields) {
     if (skip.has(f.no)) continue;
     if (f.type === "message") {
       rows.push(...genericRows(f.fields, prefix, new Set(), guesses, `${path}#${f.no}.`));
       continue;
     }
-    const label = labelFor(f.no);
-    if (label == null) continue;
+    const g = guessFor(f.no);
+    if (g == null) continue;
+    const { label, fixed } = g;
     if (f.type === "bytes") {
-      rows.push({ label, value: f.floats ? f.floats.map((v) => fmt(+v.toFixed(4))).join(" / ") : `0x${f.hex}` });
+      rows.push({ label, value: f.floats ? f.floats.map((v) => fmt(+v.toFixed(4))).join(" / ") : `0x${f.hex}`, fixed });
     } else if (f.type === "string") {
-      rows.push({ label, value: f.value });
+      rows.push({ label, value: f.value, fixed });
     } else {
       const v = num(f);
-      if (v != null) rows.push({ label, value: fmt(v) });
+      if (v != null) rows.push({ label, value: fmt(v), fixed });
     }
   }
   return rows;
@@ -229,17 +241,17 @@ const ALIGNMENT_GUESSES: Record<string, string> = {
   // #6 is a computed twin of toe (tiny signed radians) — hidden in summarizeCarSetup, not shown
   "#7": "Tyre compound", // index; no per-car name list exists in content.kspkg (compound generators are class-level), so the raw number is shown
 };
-const SPRING_GUESSES: Record<string, string> = {
+const SPRING_GUESSES: Record<string, GuessEntry> = {
   "#2.#1": "Bumpstop range", // small signed metres (-0.023); ACE UI calls this bump stop range
-  "#2.#2": "Bumpstop rate", // 1000
-  "#3.#1": "Packer range", // 0.048 m
-  "#3.#2": "Packer rate", // 1500
+  "#2.#2": { label: "Bumpstop rate", fixed: true }, // 1000; per-car constant, no slider
+  "#3.#1": { label: "Packer range", fixed: true }, // 0.048 m; no in-game slider
+  "#3.#2": { label: "Packer rate", fixed: true }, // 1500; no in-game slider
 };
-const DAMPER_GUESSES: Record<string, string> = {
+const DAMPER_GUESSES: Record<string, GuessEntry> = {
   "#1": "Slow bump", // clicks (8); matches ACE "Slow bump" slider
-  "#2": "Slow bump rate", // 8000; per-car rate, not a click count
+  "#2": { label: "Slow bump rate", fixed: true }, // 8000; per-car rate, not a click count
   "#3": "Slow rebound", // clicks (8); matches ACE "Slow rebound" slider
-  "#4": "Slow rebound rate", // 6000; per-car rate, not a click count
+  "#4": { label: "Slow rebound rate", fixed: true }, // 6000; per-car rate, not a click count
 };
 const ELECTRONICS_GUESSES: Record<string, string> = {
   "#1": "TC", // 5→12 when TC set to 12
@@ -304,8 +316,8 @@ export function summarizeCarSetup(
       const power = num(diffMsg.fields.find((f) => f.no === 1));
       const coast = num(diffMsg.fields.find((f) => f.no === 2));
       const preload = num(diffMsg.fields.find((f) => f.no === 3));
-      if (power != null) rows.push({ label: "Diff power", value: fmt(power) });
-      if (coast != null) rows.push({ label: "Diff coast", value: fmt(coast) });
+      if (power != null) rows.push({ label: "Diff power", value: fmt(power), fixed: true });
+      if (coast != null) rows.push({ label: "Diff coast", value: fmt(coast), fixed: true });
       if (preload != null) rows.push({ label: "Diff preload", value: `${fmt(preload)} Nm` });
       rows.push(...genericRows(diffMsg.fields, "Diff ", new Set([1, 2, 3])));
       skip.add(4);

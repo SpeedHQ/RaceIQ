@@ -28,16 +28,14 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                   masonry columns beside it. */}
               {(() => {
                 const CORNER_ORDER = ["Front left", "Front right", "Rear left", "Rear right"];
-                const corners = [...sections]
-                  .filter((s) => CORNER_ORDER.includes(s.title))
-                  .sort((a, b) => CORNER_ORDER.indexOf(a.title) - CORNER_ORDER.indexOf(b.title));
+                const corners = [...sections].filter((s) => CORNER_ORDER.includes(s.title)).sort((a, b) => CORNER_ORDER.indexOf(a.title) - CORNER_ORDER.indexOf(b.title));
                 const others = sections.filter((s) => !CORNER_ORDER.includes(s.title));
                 const card = (s: (typeof sections)[number], masonry: boolean) => (
                   <div key={s.title} className={`${masonry ? "mb-3 break-inside-avoid " : ""}rounded-lg bg-app-bg p-3`}>
                     <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-accent">{s.title}</h4>
                     <div className="space-y-0.5">
                       {s.rows.map((r) => (
-                        <div key={r.label} className="text-xs">
+                        <div key={r.label} className={`text-xs${r.fixed ? " opacity-45" : ""}`} title={r.fixed ? "Fixed for this car — not adjustable in the in-game tune menu" : undefined}>
                           <div className="flex justify-between gap-2">
                             <span className="whitespace-nowrap text-app-text-muted">{r.label}</span>
                             <span className="whitespace-nowrap font-mono text-app-text">{r.value}</span>
@@ -63,14 +61,8 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                 );
                 return (
                   <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
-                    {corners.length > 0 && (
-                      <div className="grid shrink-0 grid-cols-1 content-start gap-3 sm:grid-cols-2 xl:w-1/2">
-                        {corners.map((s) => card(s, false))}
-                      </div>
-                    )}
-                    <div className="w-full min-w-0 columns-1 gap-3 md:columns-2">
-                      {others.map((s) => card(s, true))}
-                    </div>
+                    {corners.length > 0 && <div className="grid shrink-0 grid-cols-1 content-start gap-3 sm:grid-cols-2 xl:w-1/2">{corners.map((s) => card(s, false))}</div>}
+                    <div className="w-full min-w-0 columns-1 gap-3 md:columns-2">{others.map((s) => card(s, true))}</div>
                   </div>
                 );
               })()}

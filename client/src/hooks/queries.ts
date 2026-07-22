@@ -545,7 +545,7 @@ export function useSetupFileContent(gameId: "acc" | "ac-evo" | null, path: strin
         kind: "json" | "carsetup";
         presetId: string | null;
         formatted: string | null;
-        sections: { title: string; rows: { label: string; value: string; num?: number; min?: number; max?: number }[] }[] | null;
+        sections: { title: string; rows: { label: string; value: string; num?: number; min?: number; max?: number; fixed?: boolean }[] }[] | null;
         setup: Record<string, unknown> | null;
         error?: string;
       }>(res);
