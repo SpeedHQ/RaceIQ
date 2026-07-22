@@ -323,7 +323,9 @@ export function buildSetupEngineerTools() {
       "rules engine in one pass, writes a new versioned setup file, and records it as the session's next " +
       "tuning-test version. Call this ONCE, with the complete list of changes discussed — there is no " +
       "accumulator, so a change left out here will not be applied. Only call this after the driver has " +
-      "explicitly confirmed they want it applied/generated.",
+      "explicitly confirmed they want it applied/generated. To create a child of a specific version (e.g. " +
+      "several experimental children of v1), pass `target` — do NOT use branch-from-version for that, since " +
+      "a plain branch is a byte-copy with no changes recorded.",
     inputSchema: z.object({
       changes: z.array(z.object({
         component: z.string(),
@@ -331,6 +333,7 @@ export function buildSetupEngineerTools() {
         magnitude: MagnitudeEnum,
         reason: z.string().describe("One short sentence: why this change, grounded in the symptoms/conversation."),
       })).min(1),
+      target: z.string().optional().describe("Label or version number to apply the changes on top of (becomes the new version's parent). Omit to apply on the current head."),
     }),
     outputSchema: z.object({
       ok: z.boolean(),
@@ -345,15 +348,36 @@ export function buildSetupEngineerTools() {
       const ctx = await loadActiveTuningContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error, applied: [], skipped: [] };
 
+      // Optional explicit base: apply on top of a named version instead of the
+      // head. This is how "make N children of vX" works — each child forks off
+      // vX with its own recorded changes, instead of byte-copy branches.
+      let baseSetup = ctx.setup;
+      let baseRealPath = ctx.realPath;
+      let baseDir = ctx.baseDir;
+      let parent = ctx.activeTest;
+      if (inputData.target) {
+        const target = inputData.target.trim().replace(/^v/i, "");
+        const asNum = Number(target);
+        const match =
+          ctx.tests.find((t) => t.label.toLowerCase() === inputData.target!.trim().toLowerCase()) ??
+          ctx.tests.find((t) => t.label.toLowerCase() === target.toLowerCase()) ??
+          (Number.isFinite(asNum) ? ctx.tests.find((t) => t.version === asNum) : undefined);
+        if (!match) return { ok: false, error: `No version matching "${inputData.target}" in this session.`, applied: [], skipped: [] };
+        const guarded = await readActiveSetup(ctx.gameId, { setupPath: match.setupPath ?? null, setupSnapshot: match.setupSnapshot ?? null });
+        if (!guarded.ok) return { ok: false, error: `Could not read ${match.label}: ${guarded.error}`, applied: [], skipped: [] };
+        baseSetup = guarded.setup;
+        baseRealPath = guarded.realPath;
+        baseDir = guarded.baseDir;
+        parent = match;
+      }
+
       const intents = inputData.changes.map((c) => ({
         component: c.component,
         direction: c.direction as TuneDirection,
         magnitude: c.magnitude as TuneMagnitude,
         reason: c.reason,
       }));
-      const { setup, applied, skipped } = applyIntents(ctx.gameId, ctx.setup, intents);
-
-      const parent = ctx.activeTest;
+      const { setup, applied, skipped } = applyIntents(ctx.gameId, baseSetup, intents);
       const nextVer = Math.max(0, ...ctx.tests.map((t) => t.version)) + 1;
 
       // Branch-relative label off the head/parent. existingChildCount = how many
@@ -368,11 +392,11 @@ export function buildSetupEngineerTools() {
       // ACC/AC-EVO: "<original filename stem>[-<slug>]-<label>". F1 has no
       // file, so the slug + label alone name the advisory diff.
       const descriptive = slug ? `${slug}-${label}` : label;
-      const stem = ctx.gameId === "f1-2025" ? descriptive : `${activeSetupStem(ctx.gameId, ctx.realPath, "setup")}-${descriptive}`;
+      const stem = ctx.gameId === "f1-2025" ? descriptive : `${activeSetupStem(ctx.gameId, baseRealPath, "setup")}-${descriptive}`;
 
       let written;
       try {
-        written = writeAppliedSetup(ctx.gameId, { baseDir: ctx.baseDir, realPath: ctx.realPath, setup, stem });
+        written = writeAppliedSetup(ctx.gameId, { baseDir, realPath: baseRealPath, setup, stem });
       } catch (err: any) {
         return { ok: false, error: `Write failed: ${err.message}`, applied: [], skipped: [] };
       }
