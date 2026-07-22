@@ -146,7 +146,7 @@ const RULES: Record<string, Record<string, FieldDef>> = {
   },
 };
 
-// Per-car ranges extracted from AC Evo game data (content.kspkg → cardata.car)
+// Per-car ranges extracted from AC Evo game data (content.kspkg → carsetuplimits)
 // by scripts/extract-acevo-setup-ranges.ts. Keyed by carModel → snapshot field
 // name (matches FieldDef.paths[0] for "ac-evo"). `null` = not tunable on car.
 // ACC has no equivalent: its car data is encrypted (.kunosblob inside the UE4
