@@ -334,6 +334,8 @@ export function buildSetupEngineerTools() {
         magnitude: MagnitudeEnum,
         reason: z.string().describe("One short sentence: why this change, grounded in the symptoms/conversation."),
       })).min(1),
+      goal: z.string().describe("One short line: the driver's goal for this version, e.g. \"faster straight speed\", \"stiffer suspension\". Stored on the version and shown in the tree."),
+      driverConfirmed: z.boolean().describe("true ONLY if the driver explicitly approved this exact set of changes in a message AFTER you proposed it (e.g. \"yes\", \"apply that\"). false if you have not yet proposed the changes and been told to go ahead."),
       target: z.string().optional().describe("Label or version number to apply the changes on top of (becomes the new version's parent). Omit to apply on the current head."),
     }),
     outputSchema: z.object({
@@ -346,6 +348,21 @@ export function buildSetupEngineerTools() {
     }),
     execute: async (inputData, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+      // Hard gate: the model must attest the driver approved the proposal.
+      // Weak local models skip the propose→confirm step and jump straight to
+      // apply (observed: 6 unconfirmed suspension changes); refusing here
+      // forces them back into preview + ask before anything is written.
+      if (!inputData.driverConfirmed) {
+        return {
+          ok: false,
+          error:
+            "Not applied — driver has not confirmed. First propose the change(s) with preview_change and " +
+            "their goal, ask the driver, and only call apply_changes (driverConfirmed: true) after they " +
+            "explicitly say yes.",
+          applied: [],
+          skipped: [],
+        };
+      }
       const ctx = await loadActiveTuningContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error, applied: [], skipped: [] };
 
@@ -413,6 +430,7 @@ export function buildSetupEngineerTools() {
         parentTestId: parent?.id ?? null,
         appliedChanges: applied.length ? JSON.stringify(applied) : null,
         driverComment: null,
+        notes: inputData.goal?.trim() || null,
         engine: "llm",
       });
 
@@ -442,7 +460,7 @@ export function buildSetupEngineerTools() {
       try {
         await saveAssistantChatMessage(
           tuneSessionThreadId(sessionId),
-          buildAppliedChangesMarkdown(label, applied, written.fileName, gameHasSetupFile(ctx.gameId)),
+          buildAppliedChangesMarkdown(label, applied, written.fileName, gameHasSetupFile(ctx.gameId), inputData.goal?.trim() || null),
         );
       } catch (err: any) {
         console.error("[SetupEngineer] Failed to post applied-tweaks message:", err?.message);

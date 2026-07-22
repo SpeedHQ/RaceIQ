@@ -187,6 +187,15 @@ export async function computeSessionAggregate(sessionId: number, testId?: number
 
 export type TuningGameId = AccGameId | "f1-2025";
 
+/**
+ * Only ACC/AC-EVO write a real setup file the user loads from the in-game
+ * setup menu. F1 2025 and Forza expose no loadable setup file — applies
+ * there are advisory-only diffs the user keys into the setup screen.
+ */
+export function gameHasSetupFile(gameId: TuningGameId): boolean {
+  return gameId === "acc" || gameId === "ac-evo";
+}
+
 export type ActiveTuningContext =
   | {
       ok: true;
@@ -284,14 +293,18 @@ export async function captureF1SetupFromLaps(tuningSessionId: number): Promise<s
  * moved.
  */
 export function buildAppliedChangesMarkdown(
-  version: number,
+  /** Display label (e.g. "v1.4") — matches the version tree, NOT the raw
+   *  storage version number. */
+  label: string,
   applied: { component: string; from: number; to: number }[],
   fileName: string,
   /** F1 has no setup file to load — omit the "load in-game" line and post
    *  an advisory-only diff (design "Apply output" section). */
   hasFile: boolean = true,
+  /** One-line goal of the change ("faster straight speed") — shown under the header. */
+  goal?: string | null,
 ): string {
-  const header = `**Applied — v${version}**`;
+  const header = goal ? `**Applied — ${label}** — _${goal}_` : `**Applied — ${label}**`;
   const loadLine = hasFile ? `Load \`${fileName}\` in-game from the setup menu.` : `Advisory only — apply these values in the in-game setup screen.`;
   if (applied.length === 0) {
     return `${header}\n\nNo changes were needed — the setup already fits.\n\n${loadLine}`;

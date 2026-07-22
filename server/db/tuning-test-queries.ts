@@ -12,6 +12,8 @@ export interface CreateTuningTestData {
   /** AppliedChange[] from the autotune engine, serialised to JSON. */
   appliedChanges?: string | null;
   driverComment?: string | null;
+  /** One-line goal of the version ("faster straight speed") — shown in the tree. */
+  notes?: string | null;
   engine?: string | null;
   /** F1's captured base / target F1CarSetup JSON; null for file-based nodes. */
   setupSnapshot?: string | null;
@@ -28,6 +30,7 @@ export async function createTuningTest(data: CreateTuningTestData): Promise<numb
       parentTestId: data.parentTestId ?? null,
       appliedChanges: data.appliedChanges ?? null,
       driverComment: data.driverComment ?? null,
+      notes: data.notes ?? null,
       engine: data.engine ?? null,
       setupSnapshot: data.setupSnapshot ?? null,
     })
