@@ -226,8 +226,11 @@ function genericRows(
  *  diffing; anything confirmed should graduate to a real label in
  *  summarizeCarSetup and be removed from here. */
 const ALIGNMENT_GUESSES: Record<string, string> = {
-  "#4": "Toe", // front-only in observed saves; small signed value (-0.072)
-  "#5": "Caster", // front ~6.4°; rear value (~3.8) makes this suspect — verify
+  // #3 is Toe (confirmed; promoted to real label in summarizeCarSetup)
+  // #4 is NOT Toe (front-only constant, e.g. -0.0138) — leave raw
+  "#5": "Caster", // front ~6.4–6.7°; rear ~3.6–3.8 also moves with caster edits; derived twin at #5/#6 tracks camber/toe live
+  "#6": "Toe (derived)", // tiny signed radians; tracks toe but computed, not the slider input
+  "#7": "Compound", // absent→1 on all corners after a compound change
 };
 const SPRING_GUESSES: Record<string, string> = {
   "#2.#1": "Bumpstop gap", // small signed metres (-0.023)
@@ -242,13 +245,16 @@ const DAMPER_GUESSES: Record<string, string> = {
   "#4": "Rebound rate", // 6000
 };
 const ELECTRONICS_GUESSES: Record<string, string> = {
-  "#1": "TC",
-  "#2": "ABS",
-  "#3": "Stability",
-  "#5": "Engine map",
+  "#1": "TC", // 5→12 when TC set to 12
+  "#2": "TC2", // 5→7
+  "#3": "ABS", // 5→4
+  "#5": "Telemetry laps", // 10→20 when telemetry laps set to 20
 };
 const BRAKE_GUESSES: Record<string, string> = {
   "#2": "Brake power", // 100 (%) — matches the ACE "Brake power" slider
+};
+const MECH_GUESSES: Record<string, string> = {
+  "#2": "Steering ratio", // GT3: 14→15 alongside a steer-ratio change; F1 default 14
 };
 
 /**
@@ -273,19 +279,41 @@ export function summarizeCarSetup(
     return r ? { ...row, num: n, min: r.min, max: r.max } : row;
   };
 
-  // #1 — mechanical/brakes/diff. Brake bias lives at #1.#3.#1 (same shape as
-  // the game's carsetuplimits files, verified against a real Audi R8 GT3 Evo II
-  // save: value 61 within the extracted 50–65 range).
+  // #1 — mechanical/brakes/diff (verified against a Ferrari SF25 "F1 default"
+  // save with known slider values, plus the Audi R8 GT3 Evo II saves):
+  //   #1.#1 floats[2]  front/rear anti-roll bar stiffness (74000/20000 N/m for
+  //                    ARB clicks 8/4; GT3 pair moved when ARBs were changed)
+  //   #1.#3.#1 brake bias (55, within extracted 50–65) · #1.#3.#2 brake power (100)
+  //   #1.#4 diff: #1 power (0.2) · #2 coast (0.25) · #3 preload (45 Nm)
   const mech = msgs(1)[0];
   if (mech) {
     const rows: CarSetupRow[] = [];
+    const skip = new Set<number>();
+    const arb = mech.fields.find((f): f is Extract<WireField, { type: "bytes" }> => f.no === 1 && f.type === "bytes");
+    if (arb?.floats?.length === 2) {
+      rows.push({ label: "Front ARB stiffness", value: `${fmt(arb.floats[0] / 1000)} kN/m` });
+      rows.push({ label: "Rear ARB stiffness", value: `${fmt(arb.floats[1] / 1000)} kN/m` });
+      skip.add(1);
+    }
     const brakeMsg = mech.fields.find((f): f is Extract<WireField, { type: "message" }> => f.no === 3 && f.type === "message");
     const bias = brakeMsg ? num(brakeMsg.fields.find((f) => f.no === 1)) : null;
     if (bias != null) {
       rows.push(withRange({ label: "Brake bias", value: `${fmt(bias)}% front` }, bias, "brakeBias"));
       if (brakeMsg) rows.push(...genericRows(brakeMsg.fields, "Brakes ", new Set([1]), BRAKE_GUESSES));
+      skip.add(3);
     }
-    rows.push(...genericRows(mech.fields, "", new Set(bias != null ? [3] : [])));
+    const diffMsg = mech.fields.find((f): f is Extract<WireField, { type: "message" }> => f.no === 4 && f.type === "message");
+    if (diffMsg) {
+      const power = num(diffMsg.fields.find((f) => f.no === 1));
+      const coast = num(diffMsg.fields.find((f) => f.no === 2));
+      const preload = num(diffMsg.fields.find((f) => f.no === 3));
+      if (power != null) rows.push({ label: "Diff power", value: fmt(power) });
+      if (coast != null) rows.push({ label: "Diff coast", value: fmt(coast) });
+      if (preload != null) rows.push({ label: "Diff preload", value: `${fmt(preload)} Nm` });
+      rows.push(...genericRows(diffMsg.fields, "Diff ", new Set([1, 2, 3])));
+      skip.add(4);
+    }
+    rows.push(...genericRows(mech.fields, "", skip, MECH_GUESSES));
     if (rows.length) sections.push({ title: "Mechanical & brakes", rows });
   }
 
@@ -296,11 +324,18 @@ export function summarizeCarSetup(
     const rows: CarSetupRow[] = [];
     const align = alignment[i];
     if (align) {
+      // Range keys per corner (extraction order FL, FR, RL, RR): pressure is
+      // per-wheel; camber/toe ranges are per-axle in setup-ranges.json.
+      const pressureKey = ["frontLeftTyrePressure", "frontRightTyrePressure", "rearLeftTyrePressure", "rearRightTyrePressure"][i];
+      const axle = i < 2 ? "front" : "rear";
       const pressure = num(align.fields.find((f) => f.no === 1));
       const camber = num(align.fields.find((f) => f.no === 2));
-      if (pressure != null) rows.push({ label: "Tyre pressure", value: `${fmt(pressure)} psi` });
-      if (camber != null) rows.push({ label: "Camber", value: `${fmt(camber)}°` });
-      rows.push(...genericRows(align.fields, "Alignment ", new Set([1, 2]), ALIGNMENT_GUESSES));
+      if (pressure != null) rows.push(withRange({ label: "Tyre pressure", value: `${fmt(pressure)} psi` }, pressure, pressureKey));
+      if (camber != null) rows.push(withRange({ label: "Camber", value: `${fmt(camber)}°` }, camber, `${axle}Camber`));
+      // #3 — toe, raw slider value (verified: FL 0.1→0.06 matched the toe slider edit)
+      const toe = num(align.fields.find((f) => f.no === 3));
+      if (toe != null) rows.push(withRange({ label: "Toe", value: fmt(toe) }, toe, `${axle}Toe`));
+      rows.push(...genericRows(align.fields, "Alignment ", new Set([1, 2, 3]), ALIGNMENT_GUESSES));
     }
     const spring = springs[i];
     if (spring) {
@@ -313,11 +348,19 @@ export function summarizeCarSetup(
     if (rows.length) sections.push({ title: CORNER_NAMES[i] ?? `Corner ${i + 1}`, rows });
   }
 
-  // #5 — electronics/assists (TC/ABS-style click values); no verified labels.
+  // #5 — electronics/assists (TC/ABS-style click values).
   const electronics = msgs(5)[0];
-  if (electronics) sections.push({ title: "Electronics", rows: genericRows(electronics.fields, "", new Set(), ELECTRONICS_GUESSES) });
+  if (electronics) {
+    const rows: CarSetupRow[] = [];
+    // #4 — engine map, 0-indexed (verified: UI map 6 stored as 5; absent at default).
+    const engineMap = num(electronics.fields.find((f) => f.no === 4));
+    if (engineMap != null) rows.push({ label: "Engine map", value: fmt(engineMap + 1) });
+    rows.push(...genericRows(electronics.fields, "", new Set(engineMap != null ? [4] : []), ELECTRONICS_GUESSES));
+    sections.push({ title: "Electronics", rows });
+  }
 
-  // #6 — aero & ride height, same field numbers as the carsetuplimits files:
+  // #6 — aero & ride height (verified by slider diffing + F1 default save:
+  // front wing 7 / rear wing 14 landed at #4/#5):
   // #2 front ride height, #3 rear ride height, #4 front wing, #5 rear wing
   // (verified: Audi save 55/75/–/4 vs extracted ranges 54–70 / 60–90 / null / 1–6).
   const aero = msgs(6)[0];
@@ -341,7 +384,9 @@ export function summarizeCarSetup(
     sections.push({ title: "Aero & ride height", rows });
   }
 
-  // #7 — fuel: #7.#1 fuel load in litres (verified: 30 within extracted 1–120).
+  // #7 — fuel: #7.#1 fuel load in litres (verified twice: 30 within extracted
+  // 1–120; F1 slider 14 stored as 14, prior 60). ERS deploy/recharge/heat-charging
+  // are NOT persisted in .carsetup (F1 save diff showed no change).
   const fuel = msgs(7)[0];
   if (fuel) {
     const rows: CarSetupRow[] = [];
