@@ -31,6 +31,23 @@ export function parseAppliedChanges(json: string | null | undefined): AppliedCha
   }
 }
 
+/** One-line summary of a version's tweaks for collapsed tree rows, e.g.
+ *  "+1 rear wing, softer rear ARB". Prefers the stored direction word when
+ *  present, otherwise falls back to the signed numeric delta. Null when the
+ *  version has no applied changes (base setup). */
+export function summarizeAppliedChanges(json: string | null | undefined): string | null {
+  const changes = parseAppliedChanges(json);
+  if (changes.length === 0) return null;
+  return changes
+    .map((c) => {
+      if (c.direction) return `${c.direction} ${c.component}`;
+      const delta = c.to - c.from;
+      if (Number.isFinite(delta) && delta !== 0) return `${delta > 0 ? "+" : ""}${+delta.toFixed(2)} ${c.component}`;
+      return c.component;
+    })
+    .join(", ");
+}
+
 /** What was tweaked for a setup version — rendered in the expanded version row
  *  and (live) in the chat after Generate. Base versions have no changes. */
 export function AppliedChangesList({ json, comment }: { json: string | null; comment?: string | null }) {

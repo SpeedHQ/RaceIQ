@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { type TuningLapMetric, type TuningTest, useDeleteVersion, useSetHead, useSetTestNote } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
-import { AppliedChangesList, LapBreakdown } from "./tune-version-shared";
+import { AppliedChangesList, LapBreakdown, summarizeAppliedChanges } from "./tune-version-shared";
 
 /**
  * Commit-graph-style view of a tuning session's setup versions (plan §1/§task-11).
@@ -274,7 +274,8 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
           <div className="flex-1 min-w-0 pb-2">
             <button type="button" onClick={() => toggle(t.id)} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left hover:bg-app-surface-alt/40">
               <span className="text-app-text-dim text-xs w-3">{isOpen ? "▾" : "▸"}</span>
-              <span className="font-mono text-xs text-app-text truncate">{t.label}</span>
+              <span className="font-mono text-xs text-app-text shrink-0">{t.label}</span>
+              <span className="text-[11px] text-app-text-muted truncate min-w-0">{summarizeAppliedChanges(t.appliedChanges) ?? (t.parentTestId == null ? "Base setup" : "no changes recorded")}</span>
               {isHead && <span className="text-[9px] uppercase tracking-wider text-purple-400 border border-purple-400/40 rounded px-1 py-px shrink-0">HEAD</span>}
               {!isHead && (
                 <button
