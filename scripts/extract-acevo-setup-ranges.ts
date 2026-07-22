@@ -33,37 +33,27 @@ import { join } from "node:path";
 import { Kspkg, findContentKspkg, type KspkgEntry } from "../server/games/ac-evo/kspkg";
 import { decodeProtoMessage, type ProtoField } from "../server/games/ac-evo/kspkg-tables";
 
-const args = process.argv.slice(2);
-function argValue(flag: string): string | undefined {
-  const i = args.indexOf(flag);
-  return i >= 0 ? args[i + 1] : undefined;
-}
-
-const kspkgPath = findContentKspkg(argValue("--kspkg"));
-if (!kspkgPath) {
-  console.error("content.kspkg not found; pass --kspkg <path>");
-  process.exit(1);
-}
-console.error(`kspkg: ${kspkgPath}`);
-
-const pkg = Kspkg.open(kspkgPath);
-
 const LIMITS_RE = /^content\/cars\/([^/]+)\/data\/setup\/([^/]+)\.carsetuplimits$/i;
-/** carFolder -> limits entries (some cars ship variants, e.g. ae86 tuned). */
-const cars = new Map<string, KspkgEntry[]>();
-for (const e of pkg.entries) {
-  const m = e.path.replace(/\\/g, "/").match(LIMITS_RE);
-  if (m && !e.isDirectory) {
-    const list = cars.get(m[1]) ?? [];
-    list.push(e);
-    cars.set(m[1], list);
-  }
-}
-console.error(`cars with carsetuplimits: ${cars.size}`);
 
-if (args.includes("--list")) {
-  for (const name of [...cars.keys()].sort()) console.log(name);
-  process.exit(0);
+/** Open content.kspkg and collect carFolder -> limits entries (some cars ship variants, e.g. ae86 tuned). */
+function collectCars(kspkgPathArg?: string): { pkg: Kspkg; cars: Map<string, KspkgEntry[]> } {
+  const kspkgPath = findContentKspkg(kspkgPathArg);
+  if (!kspkgPath) {
+    throw new Error("content.kspkg not found; pass --kspkg <path> or set AC_EVO_KSPKG");
+  }
+  console.error(`kspkg: ${kspkgPath}`);
+  const pkg = Kspkg.open(kspkgPath);
+  const cars = new Map<string, KspkgEntry[]>();
+  for (const e of pkg.entries) {
+    const m = e.path.replace(/\\/g, "/").match(LIMITS_RE);
+    if (m && !e.isDirectory) {
+      const list = cars.get(m[1]) ?? [];
+      list.push(e);
+      cars.set(m[1], list);
+    }
+  }
+  console.error(`cars with carsetuplimits: ${cars.size}`);
+  return { pkg, cars };
 }
 
 // ---- proto helpers -------------------------------------------------------
@@ -134,21 +124,6 @@ function dumpTree(fields: ProtoField[], indent: string, depth: number): void {
   }
 }
 
-const dumpCar = argValue("--dump");
-if (dumpCar) {
-  const entries = cars.get(dumpCar);
-  if (!entries) {
-    console.error(`car not found: ${dumpCar}`);
-    process.exit(1);
-  }
-  for (const entry of entries) {
-    const buf = pkg.readFile(entry);
-    console.error(`${entry.path}: ${buf.length} bytes`);
-    dumpTree(decodeProtoMessage(buf), "", 0);
-  }
-  process.exit(0);
-}
-
 // ---- full extraction -----------------------------------------------------
 
 function extractSetupRanges(buf: Buffer): Record<string, Range> | null {
@@ -182,23 +157,67 @@ function modelKey(folder: string): string {
   return folder.replace(/^ks_/, "");
 }
 
-const out: Record<string, Record<string, Range>> = {};
-for (const [car, entries] of [...cars.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-  // Prefer the shortest filename when a car ships variant limits (stock first).
-  const entry = [...entries].sort((a, b) => a.path.length - b.path.length)[0];
-  if (entries.length > 1) {
-    console.error(`note: ${car} has ${entries.length} limits variants; using ${entry.path}`);
-  }
+/** Extract every car's ranges and rewrite shared/games/ac-evo/setup-ranges.json. Returns car count. */
+export function runSetupRangesExtraction(kspkgPathArg?: string): number {
+  const { pkg, cars } = collectCars(kspkgPathArg);
+  const out: Record<string, Record<string, Range>> = {};
   try {
-    const ranges = extractSetupRanges(pkg.readFile(entry));
-    if (ranges) out[modelKey(car)] = ranges;
-    else console.error(`no setup block: ${car}`);
-  } catch (err) {
-    console.error(`failed ${car}: ${(err as Error).message}`);
+    for (const [car, entries] of [...cars.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+      // Prefer the shortest filename when a car ships variant limits (stock first).
+      const entry = [...entries].sort((a, b) => a.path.length - b.path.length)[0];
+      if (entries.length > 1) {
+        console.error(`note: ${car} has ${entries.length} limits variants; using ${entry.path}`);
+      }
+      try {
+        const ranges = extractSetupRanges(pkg.readFile(entry));
+        if (ranges) out[modelKey(car)] = ranges;
+        else console.error(`no setup block: ${car}`);
+      } catch (err) {
+        console.error(`failed ${car}: ${(err as Error).message}`);
+      }
+    }
+  } finally {
+    pkg.close();
   }
+
+  const outPath = join(import.meta.dir, "..", "shared", "games", "ac-evo", "setup-ranges.json");
+  writeFileSync(outPath, JSON.stringify(out, null, 2) + "\n");
+  console.error(`wrote ${outPath}: ${Object.keys(out).length} cars`);
+  return Object.keys(out).length;
 }
 
-const outPath = join(import.meta.dir, "..", "shared", "games", "ac-evo", "setup-ranges.json");
-writeFileSync(outPath, JSON.stringify(out, null, 2) + "\n");
-console.error(`wrote ${outPath}: ${Object.keys(out).length} cars`);
-pkg.close();
+function main(): void {
+  const args = process.argv.slice(2);
+  const argValue = (flag: string): string | undefined => {
+    const i = args.indexOf(flag);
+    return i >= 0 ? args[i + 1] : undefined;
+  };
+
+  const dumpCar = argValue("--dump");
+  if (args.includes("--list") || dumpCar) {
+    const { pkg, cars } = collectCars(argValue("--kspkg"));
+    try {
+      if (args.includes("--list")) {
+        for (const name of [...cars.keys()].sort()) console.log(name);
+        return;
+      }
+      const entries = cars.get(dumpCar!);
+      if (!entries) {
+        console.error(`car not found: ${dumpCar}`);
+        process.exit(1);
+      }
+      for (const entry of entries) {
+        const buf = pkg.readFile(entry);
+        console.error(`${entry.path}: ${buf.length} bytes`);
+        dumpTree(decodeProtoMessage(buf), "", 0);
+      }
+    } finally {
+      pkg.close();
+    }
+    return;
+  }
+
+  runSetupRangesExtraction(argValue("--kspkg"));
+}
+
+if (import.meta.main) main();
