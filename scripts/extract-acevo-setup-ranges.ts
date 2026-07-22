@@ -95,6 +95,7 @@ function readRange(f: ProtoField | undefined): Range {
   const min = minF && minF.wire === 5 ? f32(minF) : 0;
   const max = f32(maxF);
   const step = stepF && stepF.wire === 5 ? f32(stepF) : undefined;
+  if (min === max) return null; // fixed value => not changeable on this car (e.g. SF25 caster/spring rate)
   const round = (n: number) => Math.round(n * 1e6) / 1e6;
   return { min: round(min), max: round(max), ...(step !== undefined ? { step: round(step) } : {}) };
 }
@@ -137,6 +138,24 @@ function extractSetupRanges(buf: Buffer): Record<string, Range> | null {
   if (g1) {
     const brakes = nested(field(g1, 3) ?? ({} as ProtoField));
     out.brakeBias = brakes ? readRange(field(brakes, 1)) : null;
+    out.brakePressure = brakes ? readRange(field(brakes, 2)) : null;
+  }
+  // #4 x4 per-corner alignment/tyre blocks in FL, FR, RL, RR order (verified:
+  // SF25 front camber −2.6…−1.5 in corners 0–1, rear −1.6…−0.8 in 2–3, and PSI
+  // 13–25 vs the F1 slick pressures; "PSI"/"DEG" unit strings anchor the slots).
+  //   corner.#1 tyre pressure (PSI) · #2 camber (DEG) · #3 toe (DEG)
+  //   (#4 toe-rad / #5 caster / #6 etc. are fixed min==max blocks => null)
+  const corners = fieldsOf(top, 4).map((f) => nested(f)).filter((c): c is ProtoField[] => !!c);
+  if (corners.length === 4) {
+    const [fl, fr, rl, rr] = corners;
+    out.frontLeftTyrePressure = readRange(field(fl, 1));
+    out.frontRightTyrePressure = readRange(field(fr, 1));
+    out.rearLeftTyrePressure = readRange(field(rl, 1));
+    out.rearRightTyrePressure = readRange(field(rr, 1));
+    out.frontCamber = readRange(field(fl, 2));
+    out.rearCamber = readRange(field(rl, 2));
+    out.frontToe = readRange(field(fl, 3));
+    out.rearToe = readRange(field(rl, 3));
   }
   if (g6) {
     out.frontRideHeight = readRange(field(g6, 2));

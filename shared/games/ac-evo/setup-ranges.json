@@ -5,6 +5,39 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": 0,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 100,
       "max": 300,
@@ -29,16 +62,37 @@
       "max": 100,
       "step": 1
     },
-    "frontRideHeight": {
-      "min": 125,
-      "max": 125,
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 22,
+      "max": 35,
       "step": 1
     },
-    "rearRideHeight": {
-      "min": 180,
-      "max": 180,
+    "frontRightTyrePressure": {
+      "min": 22,
+      "max": 35,
       "step": 1
     },
+    "rearLeftTyrePressure": {
+      "min": 22,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 22,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": null,
+    "frontRideHeight": null,
+    "rearRideHeight": null,
     "frontWing": null,
     "rearWing": null,
     "fuel": {
@@ -52,6 +106,39 @@
       "min": 60,
       "max": 90,
       "step": 0.2
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.5,
+      "max": 0.5,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.5,
+      "max": 0.5,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 80,
@@ -77,6 +164,39 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 90,
       "max": 120,
@@ -100,6 +220,39 @@
       "min": 0,
       "max": 100,
       "step": 1
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.3,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 100,
@@ -125,6 +278,39 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.1,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 80,
       "max": 250,
@@ -149,6 +335,47 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 25,
+      "max": 40,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 25,
+      "max": 40,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 25,
+      "max": 40,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 25,
+      "max": 40,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -2,
+      "max": -1,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -2,
+      "max": -1,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 50,
       "max": 160,
@@ -161,17 +388,54 @@
     },
     "frontWing": null,
     "rearWing": null,
-    "fuel": {
-      "min": 10,
-      "max": 10,
-      "step": 1
-    }
+    "fuel": null
   },
   "audi_r8_lms_gt3_evo_2": {
     "brakeBias": {
       "min": 50,
       "max": 65,
       "step": 0.2
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -4.5,
+      "max": -2.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3.5,
+      "max": -1.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.15,
+      "max": 0.1,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.15,
+      "max": 0.2,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 54,
@@ -200,6 +464,47 @@
       "min": 50,
       "max": 65,
       "step": 0.2
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -3.5,
+      "max": -2.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3.5,
+      "max": -1.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 90,
@@ -233,6 +538,39 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.3,
+      "max": 0.3,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.3,
+      "max": 0.3,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 80,
       "max": 200,
@@ -256,6 +594,39 @@
       "min": 0,
       "max": 100,
       "step": 1
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 23,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 23,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 23,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 23,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 100,
@@ -281,16 +652,41 @@
       "max": 85,
       "step": 1
     },
-    "frontRideHeight": {
-      "min": 100,
-      "max": 100,
-      "step": 10
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
     },
-    "rearRideHeight": {
-      "min": 100,
-      "max": 100,
-      "step": 10
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
     },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "frontRideHeight": null,
+    "rearRideHeight": null,
     "frontWing": null,
     "rearWing": null,
     "fuel": {
@@ -304,6 +700,39 @@
       "min": 0,
       "max": 100,
       "step": 0.1
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.05
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.05
     },
     "frontRideHeight": {
       "min": 0,
@@ -328,6 +757,47 @@
       "min": 60,
       "max": 75,
       "step": 0.2
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -5.2,
+      "max": -2.8,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -4.5,
+      "max": -2,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 125,
@@ -357,6 +827,47 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": {
+      "min": -2,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -2,
+      "max": -1,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.1,
+      "max": 0.15,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.1,
+      "max": 0.3,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 50,
       "max": 200,
@@ -385,6 +896,47 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontCamber": {
+      "min": -2.5,
+      "max": -1,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -2.5,
+      "max": -1,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 0,
       "max": 200,
@@ -409,6 +961,47 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": {
+      "min": -2.5,
+      "max": -1,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.15,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.15,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 50,
       "max": 200,
@@ -432,6 +1025,39 @@
       "min": 50,
       "max": 80,
       "step": 0.2
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.15,
+      "max": 0.1,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.15,
+      "max": 0.2,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 50,
@@ -461,6 +1087,39 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.1,
+      "max": 0.3,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.1,
+      "max": 0.3,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 70,
       "max": 160,
@@ -484,6 +1143,43 @@
       "min": 50,
       "max": 75,
       "step": 0.2
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 18,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 18,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 18,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 18,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": {
+      "min": -3,
+      "max": -1,
+      "step": 0.1
+    },
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 145,
@@ -509,6 +1205,43 @@
       "max": 75,
       "step": 0.2
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": {
+      "min": -3,
+      "max": -1,
+      "step": 0.1
+    },
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.05,
+      "max": 0.25,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 120,
       "max": 145,
@@ -533,6 +1266,47 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": {
+      "min": -3.5,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -2.5,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.1,
+      "max": 0.3,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.1,
+      "max": 0.3,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 650,
       "max": 750,
@@ -556,6 +1330,47 @@
       "min": 50,
       "max": 65,
       "step": 0.2
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 22,
+      "max": 34,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 22,
+      "max": 34,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 22,
+      "max": 34,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 22,
+      "max": 34,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -3,
+      "max": -0.5,
+      "step": 0.25
+    },
+    "rearCamber": {
+      "min": -3,
+      "max": -0.5,
+      "step": 0.25
+    },
+    "frontToe": {
+      "min": -0.25,
+      "max": 0.25,
+      "step": 0.05
+    },
+    "rearToe": {
+      "min": -0.25,
+      "max": 0.25,
+      "step": 0.05
     },
     "frontRideHeight": {
       "min": 52,
@@ -589,6 +1404,47 @@
       "max": 75,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 22,
+      "max": 34,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 22,
+      "max": 34,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 22,
+      "max": 34,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 22,
+      "max": 34,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -2.5,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -2.5,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.25,
+      "max": 0.25,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.25,
+      "max": 0.25,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 80,
       "max": 100,
@@ -616,21 +1472,42 @@
     }
   },
   "datsun_240z_fairlady": {
-    "brakeBias": {
-      "min": 85,
-      "max": 85,
-      "step": 8.5
+    "brakeBias": null,
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 22,
+      "max": 35,
+      "step": 0.1
     },
-    "frontRideHeight": {
-      "min": 100,
-      "max": 100,
-      "step": 10
+    "frontRightTyrePressure": {
+      "min": 22,
+      "max": 35,
+      "step": 0.1
     },
-    "rearRideHeight": {
-      "min": 100,
-      "max": 100,
-      "step": 10
+    "rearLeftTyrePressure": {
+      "min": 22,
+      "max": 35,
+      "step": 0.1
     },
+    "rearRightTyrePressure": {
+      "min": 22,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -1,
+      "max": 1,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -1,
+      "max": 1,
+      "step": 0.1
+    },
+    "frontToe": null,
+    "rearToe": null,
+    "frontRideHeight": null,
+    "rearRideHeight": null,
     "frontWing": null,
     "rearWing": null,
     "fuel": {
@@ -644,6 +1521,43 @@
       "min": 50,
       "max": 80,
       "step": 1
+    },
+    "brakePressure": {
+      "min": 75,
+      "max": 100,
+      "step": 5
+    },
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 30,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 30,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 30,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 30,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.05
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.05
     },
     "frontRideHeight": {
       "min": 130,
@@ -673,6 +1587,47 @@
       "max": 80,
       "step": 0.2
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -4.5,
+      "max": -2.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3.5,
+      "max": -1.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.15,
+      "max": 0.1,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.15,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 50,
       "max": 85,
@@ -701,6 +1656,47 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": {
+      "min": -2.5,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -2.5,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.15,
+      "max": 0.25,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.15,
+      "max": 0.25,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 50,
       "max": 200,
@@ -724,6 +1720,43 @@
       "min": 50,
       "max": 75,
       "step": 0.2
+    },
+    "brakePressure": {
+      "min": 80,
+      "max": 110,
+      "step": 1
+    },
+    "frontLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.4,
+      "max": 0.4,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.4,
+      "max": 0.4,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 75,
@@ -757,16 +1790,49 @@
       "max": 100,
       "step": 1
     },
-    "frontRideHeight": {
-      "min": 100,
-      "max": 100,
-      "step": 10
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
     },
-    "rearRideHeight": {
-      "min": 100,
-      "max": 100,
-      "step": 10
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
     },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": {
+      "min": -2.5,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -2.5,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.15,
+      "max": 0.25,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.15,
+      "max": 0.25,
+      "step": 0.01
+    },
+    "frontRideHeight": null,
+    "rearRideHeight": null,
     "frontWing": null,
     "rearWing": null,
     "fuel": {
@@ -780,6 +1846,47 @@
       "min": 50,
       "max": 65,
       "step": 0.2
+    },
+    "brakePressure": {
+      "min": 80,
+      "max": 100,
+      "step": 1
+    },
+    "frontLeftTyrePressure": {
+      "min": 18,
+      "max": 30,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 18,
+      "max": 30,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 18,
+      "max": 30,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 18,
+      "max": 30,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -4,
+      "max": -0.8,
+      "step": 0.1
+    },
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.3,
+      "max": 0.3,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": 0,
+      "max": 0.2,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 30,
@@ -813,6 +1920,47 @@
       "max": 70,
       "step": 0.2
     },
+    "brakePressure": {
+      "min": 75,
+      "max": 100,
+      "step": 5
+    },
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 28,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 28,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 28,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 28,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -3,
+      "max": -1,
+      "step": 0.1
+    },
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.3,
+      "max": 0.3,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.3,
+      "max": 0.3,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 80,
       "max": 110,
@@ -844,6 +1992,47 @@
       "min": 50,
       "max": 70,
       "step": 0.1
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 13,
+      "max": 25,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 13,
+      "max": 25,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 13,
+      "max": 25,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 13,
+      "max": 25,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -2.6,
+      "max": -1.5,
+      "step": 0.05
+    },
+    "rearCamber": {
+      "min": -1.6,
+      "max": -0.8,
+      "step": 0.05
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 40,
@@ -877,6 +2066,39 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.1,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.1,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 10,
       "max": 200,
@@ -900,6 +2122,51 @@
       "min": 50,
       "max": 80,
       "step": 0.2
+    },
+    "brakePressure": {
+      "min": 80,
+      "max": 100,
+      "step": 1
+    },
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -4,
+      "max": -2.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3.5,
+      "max": -2,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 50,
@@ -929,6 +2196,39 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 32,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 32,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 32,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 32,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 20,
       "max": 180,
@@ -952,6 +2252,43 @@
       "min": 0,
       "max": 100,
       "step": 1
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": {
+      "min": -3.3,
+      "max": -1,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.1,
+      "max": 0.1,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.1,
+      "max": 0.1,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 100,
@@ -977,6 +2314,39 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 45,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 45,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 45,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 45,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.3,
+      "max": 0.3,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.3,
+      "max": 0.3,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 60,
       "max": 300,
@@ -1000,6 +2370,47 @@
       "min": 50,
       "max": 65,
       "step": 0.2
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -3.5,
+      "max": -2.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3.5,
+      "max": -1.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 70,
@@ -1033,6 +2444,47 @@
       "max": 65,
       "step": 0.2
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -3.5,
+      "max": -2.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3.5,
+      "max": -1.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 70,
       "max": 100,
@@ -1065,6 +2517,39 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 20,
       "max": 180,
@@ -1088,6 +2573,39 @@
       "min": 50,
       "max": 80,
       "step": 0.2
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 19,
+      "max": 32,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 19,
+      "max": 32,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 19,
+      "max": 32,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 19,
+      "max": 32,
+      "step": 0.1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.4,
+      "max": 0.4,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.4,
+      "max": 0.4,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 75,
@@ -1117,6 +2635,51 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": {
+      "min": 100,
+      "max": 150,
+      "step": 2.5
+    },
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -2.5,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -2.5,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.4,
+      "max": 0.4,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.4,
+      "max": 0.4,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 100,
       "max": 150,
@@ -1144,6 +2707,39 @@
       "min": 0,
       "max": 100,
       "step": 1
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.3,
+      "max": 0.3,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.3,
+      "max": 0.4,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 140,
@@ -1173,6 +2769,47 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": {
+      "min": -2,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3,
+      "max": -1,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.35,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 100,
       "max": 250,
@@ -1197,6 +2834,47 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": {
+      "min": -3,
+      "max": -1,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3,
+      "max": -1,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.4,
+      "max": 0.4,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 0,
       "max": 200,
@@ -1220,6 +2898,47 @@
       "min": 55,
       "max": 70,
       "step": 0.2
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -3.5,
+      "max": -1,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3.5,
+      "max": -1,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 65,
@@ -1253,6 +2972,39 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.4,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.4,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 100,
       "max": 170,
@@ -1277,6 +3029,47 @@
       "max": 90,
       "step": 0.2
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 18,
+      "max": 30,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 18,
+      "max": 30,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 18,
+      "max": 30,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 18,
+      "max": 30,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -3.8,
+      "max": -1,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3.8,
+      "max": -1,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 111,
       "max": 130,
@@ -1300,6 +3093,47 @@
       "min": 0,
       "max": 100,
       "step": 1
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 45,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 45,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 45,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 45,
+      "step": 1
+    },
+    "frontCamber": {
+      "min": -2,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -2,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 125,
@@ -1333,6 +3167,47 @@
       "max": 68,
       "step": 0.5
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 32,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 32,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 32,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 32,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -3.5,
+      "max": -1,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3.5,
+      "max": -1,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 100,
       "max": 110,
@@ -1361,6 +3236,39 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 80,
       "max": 230,
@@ -1385,16 +3293,41 @@
       "max": 100,
       "step": 1
     },
-    "frontRideHeight": {
-      "min": 100,
-      "max": 100,
-      "step": 10
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
     },
-    "rearRideHeight": {
-      "min": 100,
-      "max": 100,
-      "step": 10
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
     },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "frontRideHeight": null,
+    "rearRideHeight": null,
     "frontWing": null,
     "rearWing": null,
     "fuel": {
@@ -1408,6 +3341,47 @@
       "min": 50,
       "max": 80,
       "step": 0.2
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -3.5,
+      "max": -2.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3.5,
+      "max": -1.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.4,
+      "max": 0.4,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.4,
+      "max": 0.4,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 80,
@@ -1441,6 +3415,39 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 17,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 50,
       "max": 150,
@@ -1472,6 +3479,51 @@
       "min": 48,
       "max": 70,
       "step": 0.2
+    },
+    "brakePressure": {
+      "min": 80,
+      "max": 100,
+      "step": 1
+    },
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -4.5,
+      "max": -2.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3.5,
+      "max": -1.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 70,
@@ -1505,6 +3557,47 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontCamber": {
+      "min": -1.3,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -1.3,
+      "max": -0.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.1,
+      "max": 0.3,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.1,
+      "max": 0.3,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 100,
       "max": 200,
@@ -1528,6 +3621,51 @@
       "min": 48,
       "max": 70,
       "step": 0.2
+    },
+    "brakePressure": {
+      "min": 80,
+      "max": 100,
+      "step": 1
+    },
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -4.5,
+      "max": -2.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3.5,
+      "max": -1.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 70,
@@ -1561,6 +3699,47 @@
       "max": 75,
       "step": 0.2
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -5,
+      "max": -2.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -4,
+      "max": -1.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 72,
       "max": 110,
@@ -1593,6 +3772,47 @@
       "max": 65,
       "step": 0.2
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -4,
+      "max": -2.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -3.5,
+      "max": -2,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 50,
       "max": 85,
@@ -1620,6 +3840,47 @@
       "min": 0,
       "max": 100,
       "step": 1
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": {
+      "min": -2.8,
+      "max": -1.5,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -2.8,
+      "max": -1.5,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.4,
+      "max": 0.4,
+      "step": 0.1
+    },
+    "rearToe": {
+      "min": -0.4,
+      "max": 0.4,
+      "step": 0.1
     },
     "frontRideHeight": {
       "min": 100,
@@ -1653,6 +3914,39 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 100,
       "max": 200,
@@ -1677,6 +3971,39 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 100,
       "max": 200,
@@ -1696,10 +4023,39 @@
     }
   },
   "toyota_gr86": {
-    "brakeBias": {
-      "min": 72,
-      "max": 72,
-      "step": 7.2
+    "brakeBias": null,
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 45,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 45,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 45,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 45,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.5,
+      "max": 0.5,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.5,
+      "max": 0.5,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 60,
@@ -1725,6 +4081,47 @@
       "max": 100,
       "step": 1
     },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 18,
+      "max": 32,
+      "step": 0.1
+    },
+    "frontRightTyrePressure": {
+      "min": 18,
+      "max": 32,
+      "step": 0.1
+    },
+    "rearLeftTyrePressure": {
+      "min": 18,
+      "max": 32,
+      "step": 0.1
+    },
+    "rearRightTyrePressure": {
+      "min": 18,
+      "max": 32,
+      "step": 0.1
+    },
+    "frontCamber": {
+      "min": -2,
+      "max": 1,
+      "step": 0.1
+    },
+    "rearCamber": {
+      "min": -2,
+      "max": 1,
+      "step": 0.1
+    },
+    "frontToe": {
+      "min": -0.5,
+      "max": 0.5,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.5,
+      "max": 0.5,
+      "step": 0.01
+    },
     "frontRideHeight": {
       "min": 100,
       "max": 160,
@@ -1749,16 +4146,41 @@
       "max": 100,
       "step": 7.8
     },
-    "frontRideHeight": {
-      "min": 100,
-      "max": 100,
-      "step": 10
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
     },
-    "rearRideHeight": {
-      "min": 100,
-      "max": 100,
-      "step": 10
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
     },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 40,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.2,
+      "max": 0.2,
+      "step": 0.01
+    },
+    "frontRideHeight": null,
+    "rearRideHeight": null,
     "frontWing": null,
     "rearWing": null,
     "fuel": {
@@ -1772,6 +4194,39 @@
       "min": 0,
       "max": 100,
       "step": 1
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.15,
+      "max": 0.2,
+      "step": 0.05
+    },
+    "rearToe": {
+      "min": -0.05,
+      "max": 0.2,
+      "step": 0.05
     },
     "frontRideHeight": {
       "min": 50,
@@ -1796,6 +4251,39 @@
       "min": 0,
       "max": 100,
       "step": 1
+    },
+    "brakePressure": null,
+    "frontLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearLeftTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "rearRightTyrePressure": {
+      "min": 20,
+      "max": 35,
+      "step": 1
+    },
+    "frontCamber": null,
+    "rearCamber": null,
+    "frontToe": {
+      "min": -0.3,
+      "max": 0.3,
+      "step": 0.01
+    },
+    "rearToe": {
+      "min": -0.3,
+      "max": 0.3,
+      "step": 0.01
     },
     "frontRideHeight": {
       "min": 80,
