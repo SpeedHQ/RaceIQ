@@ -21,7 +21,7 @@
  * The route runs this via `createRun()` → `start({ inputData, requestContext })`,
  * so the step is captured by Mastra observability (Studio). Its `context` output
  * is appended to the engineer's system message; the model then runs with only
- * the action tools (`preview_change` / `apply_changes` / `branch_from_version` /
+ * the action tools (`preview_change` / `apply_changes` /
  * `set_lap_excluded`) plus `consult_lap_analyst` / `compare_lap_consistency`.
  */
 import { createStep, createWorkflow } from "@mastra/core/workflows";

@@ -38,9 +38,10 @@ import {
   computeSessionSymptoms,
   computeSessionTrackConditions,
   formatTrackConditions,
+  gameHasSetupFile,
   loadActiveTuningContext,
 } from "../../server/ai/setup-engineer-context";
-import { readActiveSetup, writeAppliedSetup, activeSetupStem } from "../../server/ai/setup-io";
+import { readActiveSetup, writeAppliedSetup } from "../../server/ai/setup-io";
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
 import { consultLapAnalystForSession } from "../../server/ai/consult-lap-analyst";
 import { loadCleanLapAggregate } from "../../server/ai/clean-lap-aggregate";
@@ -389,10 +390,12 @@ export function buildSetupEngineerTools() {
       // Descriptive slug from what actually changed, e.g. "soft-rarb" —
       // makes files readable at a glance in-game ("mugello-soft-rarb-v3").
       const slug = changeSlug(applied);
-      // ACC/AC-EVO: "<original filename stem>[-<slug>]-<label>". F1 has no
-      // file, so the slug + label alone name the advisory diff.
-      const descriptive = slug ? `${slug}-${label}` : label;
-      const stem = ctx.gameId === "f1-2025" ? descriptive : `${activeSetupStem(ctx.gameId, baseRealPath, "setup")}-${descriptive}`;
+      // ACC/AC-EVO: "<session name>-<label>[-<slug>]". Session name leads so a
+      // session's files group together in-game, then version label so they
+      // sort/scan by version ("evening-stint-v3-soft-rarb"); F1 has no file,
+      // so the label + slug alone name the advisory diff.
+      const descriptive = slug ? `${label}-${slug}` : label;
+      const stem = gameHasSetupFile(ctx.gameId) ? `${ctx.session.name}-${descriptive}` : descriptive;
 
       let written;
       try {
@@ -439,7 +442,7 @@ export function buildSetupEngineerTools() {
       try {
         await saveAssistantChatMessage(
           tuneSessionThreadId(sessionId),
-          buildAppliedChangesMarkdown(nextVer, applied, written.fileName, ctx.gameId !== "f1-2025"),
+          buildAppliedChangesMarkdown(label, applied, written.fileName, gameHasSetupFile(ctx.gameId)),
         );
       } catch (err: any) {
         console.error("[SetupEngineer] Failed to post applied-tweaks message:", err?.message);
@@ -452,113 +455,6 @@ export function buildSetupEngineerTools() {
         applied: applied.map((a) => ({ component: a.component, from: a.from, to: a.to, direction: a.direction })),
         skipped,
       };
-    },
-  });
-
-  const branchFromVersionTool = createTool({
-    id: "branch-from-version",
-    description:
-      "Fork an earlier version into a new branch (or clone a version) immediately. Creates a real new version " +
-      "whose setup is an exact copy of the target and returns it — so it shows up in the version tree right away. " +
-      "Does NOT change the checkout: the session head stays where it is, so a later apply-changes still lands on " +
-      "the currently checked-out version, not this new one. If the driver wants to work from the new branch, they " +
-      "switch to it themselves in the version tree — never auto-switch on their behalf. " +
-      "Use when the driver asks to clone a version or try a different direction from an older one without " +
-      "overwriting newer ones, or to make N baselines. " +
-      "Accepts the version label (e.g. \"v1\", \"v1.2\") or the integer version number. " +
-      "DEFAULT is a CHILD fork: leave asNewRoot unset and the copy nests under the target (v1 → v1.1, v1.2). " +
-      "\"copy\", \"clone\", \"branch off\", \"make copies of\" all mean a child fork — do NOT set asNewRoot for these. " +
-      "Set asNewRoot ONLY when the driver explicitly wants an INDEPENDENT / fresh starting point that merely " +
-      "takes the target as inspiration — the copy then seeds a new root (no parent) and grows its own line.",
-    inputSchema: z.object({
-      target: z.string().describe("A version label like \"v1.2\" or an integer version like \"1\"."),
-      asNewRoot: z.boolean().optional().describe(
-        "When true, the copy becomes a new root (parentTestId=null) — an independent base inspired by the " +
-        "target — instead of a child branch of it.",
-      ),
-    }),
-    outputSchema: z.object({
-      ok: z.boolean(),
-      error: z.string().optional(),
-      label: z.string().optional(),
-      version: z.number().optional(),
-    }),
-    execute: async (inputData, execCtx) => {
-      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const ctx = await loadActiveTuningContext(sessionId);
-      if (!ctx.ok) return { ok: false, error: ctx.error };
-
-      const target = inputData.target.trim();
-      const asNum = Number(target.replace(/^v/i, ""));
-      const match =
-        ctx.tests.find((t) => t.label.toLowerCase() === target.toLowerCase()) ??
-        (Number.isFinite(asNum) ? ctx.tests.find((t) => t.version === asNum) : undefined);
-
-      if (!match) {
-        return { ok: false, error: `No version matching "${target}" in this session.` };
-      }
-
-      // Load the target's setup exactly as saved — the fork is a byte-for-byte
-      // copy under a new version, so the branch point is visible in the tree
-      // before any changes are applied.
-      const guarded = await readActiveSetup(ctx.gameId, { setupPath: match.setupPath ?? null, setupSnapshot: match.setupSnapshot ?? null });
-      if (!guarded.ok) {
-        return { ok: false, error: `Could not read ${match.label}: ${guarded.error}` };
-      }
-
-      const nextVer = Math.max(0, ...ctx.tests.map((t) => t.version)) + 1;
-      const asNewRoot = inputData.asNewRoot ?? false;
-
-      // Branch-relative label off the forked target: existingChildCount = how
-      // many children it already has (its continuation + any prior forks).
-      // asNewRoot isn't a child of the target at all — it's an inspired fresh
-      // start — so it gets its own "<label>-insp" line instead of continuing
-      // the target's numbering.
-      const takenLabels = new Set(ctx.tests.map((t) => t.label));
-      const label = asNewRoot
-        ? nextFreeLabel(`${match.label}-insp`, takenLabels)
-        : nextFreeLabel(computeChildLabel(match.label, ctx.tests.filter((t) => t.parentTestId === match.id).length), takenLabels);
-      const stem = ctx.gameId === "f1-2025" ? label : `${activeSetupStem(ctx.gameId, guarded.realPath, "setup")}-${label}`;
-
-      let written;
-      try {
-        written = writeAppliedSetup(ctx.gameId, { baseDir: guarded.baseDir, realPath: guarded.realPath, setup: guarded.setup, stem });
-      } catch (err: any) {
-        return { ok: false, error: `Write failed: ${err.message}` };
-      }
-
-      const newTestId = await createTuningTest({
-        tuningSessionId: sessionId,
-        version: nextVer,
-        label,
-        setupPath: written.setupPath,
-        setupSnapshot: written.setupSnapshot,
-        parentTestId: asNewRoot ? null : match.id,
-        appliedChanges: null,
-        driverComment: null,
-        engine: "branch",
-      });
-
-      // Branch/clone does NOT move the checkout. Head only changes on an
-      // explicit, confirmed user switch — creating baselines must never yank
-      // the work surface out from under the driver. (apply_changes still
-      // advances head, because iterating on the current version is the point.)
-      const prevHeadTestId = ctx.session.headTestId ?? null;
-
-      // Push the new version to any open clients so the tree updates live, as
-      // each version lands — not batched at end-of-turn. No-op when no clients.
-      wsManager.broadcastNotification({ type: "tuning-session-updated", sessionId });
-
-      try {
-        await recordAction(sessionId, "branch", { testId: newTestId, prevHeadTestId });
-      } catch (err: any) {
-        console.error("[SetupEngineer] Failed to log branch action:", err?.message);
-      }
-
-      // No deterministic chat note here: this tool only runs inside an agent
-      // turn, and the agent already narrates the branch in its reply — a note
-      // would duplicate it (three "Branched ..." bubbles after one request).
-      return { ok: true, label, version: nextVer };
     },
   });
 
@@ -1024,7 +920,6 @@ export function buildSetupEngineerTools() {
     getVersionHistoryTool,
     previewChangeTool,
     applyChangesTool,
-    branchFromVersionTool,
     setLapExcludedTool,
     updateNotesTool,
     compareLapConsistencyTool,

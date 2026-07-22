@@ -74,7 +74,7 @@ async function persistReasoningToMemory(
     // Prefer an exact id match against the streamed response message — that is
     // unambiguously the model's own row. Fall back to the newest assistant row
     // stamped at/after the turn started, but SKIP deterministic tool/route notes
-    // (branch_from_version, apply summaries, ...). Those are saved *during* the
+    // (apply summaries, .... Those are saved *during* the
     // turn and can carry a newer createdAt than Mastra's trailing model save, so
     // the old "newest assistant" heuristic would stamp the reasoning onto the
     // last branch note — surfacing a phantom thinking block on it.

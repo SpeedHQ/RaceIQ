@@ -150,7 +150,7 @@ export async function saveChatMessages(
         parts: [{ type: "text", text: entry.markdown }],
         content: entry.markdown,
         // Mark as a deterministic, tool/route-emitted note. These land in the
-        // thread *during* an agent turn (e.g. branch_from_version posting a note
+        // thread *during* an agent turn (e.g. a tool posting a note
         // per fork), so their createdAt can be newer than Mastra's trailing save
         // of the model's own assistant row. The reasoning-persistence poll must
         // not mistake one of these for the model's response and stamp a phantom
