@@ -23,38 +23,57 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
           {sections && (
             <div className="space-y-4">
               {/* Same grouped card grid the setup catalogue (CatalogTrackSetups /
-                  F1 setup detail) uses — masonry columns of titled cards. */}
-              <div className="w-full columns-1 gap-3 md:columns-2 xl:columns-3">
-              {sections.map((s) => (
-                <div key={s.title} className="mb-3 break-inside-avoid rounded-lg bg-app-bg p-3">
-                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-accent">{s.title}</h4>
-                  <div className="space-y-0.5">
-                    {s.rows.map((r) => (
-                      <div key={r.label} className="text-xs">
-                        <div className="flex justify-between gap-2">
-                          <span className="whitespace-nowrap text-app-text-muted">{r.label}</span>
-                          <span className="whitespace-nowrap font-mono text-app-text">{r.value}</span>
-                        </div>
-                        {/* Range bar (like the AI analysis result) — only for rows
-                            with a real extracted per-car min/max from the server. */}
-                        {r.num != null && r.min != null && r.max != null && r.max > r.min && (
-                          <div className="mt-1 flex items-center gap-2">
-                            <span className="text-[10px] font-mono tabular-nums text-muted-foreground">{r.min}</span>
-                            <div className="relative h-1 flex-1 rounded bg-muted">
-                              <span
-                                className="absolute top-1/2 h-2.5 w-0.5 -translate-y-1/2 rounded bg-purple-400"
-                                style={{ left: `${Math.min(100, Math.max(0, ((r.num - r.min) / (r.max - r.min)) * 100))}%` }}
-                              />
-                            </div>
-                            <span className="text-[10px] font-mono tabular-nums text-muted-foreground">{r.max}</span>
+                  F1 setup detail) uses. The four corner sections are pinned into
+                  an aligned 2x2 grid (FL/FR over RL/RR); everything else flows in
+                  masonry columns beside it. */}
+              {(() => {
+                const CORNER_ORDER = ["Front left", "Front right", "Rear left", "Rear right"];
+                const corners = [...sections]
+                  .filter((s) => CORNER_ORDER.includes(s.title))
+                  .sort((a, b) => CORNER_ORDER.indexOf(a.title) - CORNER_ORDER.indexOf(b.title));
+                const others = sections.filter((s) => !CORNER_ORDER.includes(s.title));
+                const card = (s: (typeof sections)[number], masonry: boolean) => (
+                  <div key={s.title} className={`${masonry ? "mb-3 break-inside-avoid " : ""}rounded-lg bg-app-bg p-3`}>
+                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-accent">{s.title}</h4>
+                    <div className="space-y-0.5">
+                      {s.rows.map((r) => (
+                        <div key={r.label} className="text-xs">
+                          <div className="flex justify-between gap-2">
+                            <span className="whitespace-nowrap text-app-text-muted">{r.label}</span>
+                            <span className="whitespace-nowrap font-mono text-app-text">{r.value}</span>
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          {/* Range bar (like the AI analysis result) — only for rows
+                              with a real extracted per-car min/max from the server. */}
+                          {r.num != null && r.min != null && r.max != null && r.max > r.min && (
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className="text-[10px] font-mono tabular-nums text-muted-foreground">{r.min}</span>
+                              <div className="relative h-1 flex-1 rounded bg-muted">
+                                <span
+                                  className="absolute top-1/2 h-2.5 w-0.5 -translate-y-1/2 rounded bg-purple-400"
+                                  style={{ left: `${Math.min(100, Math.max(0, ((r.num - r.min) / (r.max - r.min)) * 100))}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] font-mono tabular-nums text-muted-foreground">{r.max}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-              </div>
+                );
+                return (
+                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
+                    {corners.length > 0 && (
+                      <div className="grid shrink-0 grid-cols-1 content-start gap-3 sm:grid-cols-2 xl:w-1/2">
+                        {corners.map((s) => card(s, false))}
+                      </div>
+                    )}
+                    <div className="w-full min-w-0 columns-1 gap-3 md:columns-2">
+                      {others.map((s) => card(s, true))}
+                    </div>
+                  </div>
+                );
+              })()}
               {body && (
                 <details>
                   <summary className="cursor-pointer text-[11px] text-muted-foreground">Raw file contents</summary>
