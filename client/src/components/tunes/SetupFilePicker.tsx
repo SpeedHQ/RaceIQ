@@ -12,7 +12,7 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
   const body = data?.formatted ?? (data?.setup ? JSON.stringify(data.setup, null, 2) : null);
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex max-h-[80vh] w-[min(90vw,640px)] flex-col sm:max-w-[640px]">
+      <DialogContent className="flex max-h-[85vh] w-[min(94vw,960px)] flex-col sm:max-w-[960px]">
         <DialogHeader className="min-w-0 pr-8">
           <DialogTitle className="truncate">{data?.fileName ?? fileName}</DialogTitle>
           {data?.presetId && <DialogDescription className="truncate text-[11px]">Preset {data.presetId}</DialogDescription>}
@@ -22,15 +22,18 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
           {(error || data?.error) && <div className="text-sm text-red-400">{data?.error ?? "Couldn't read the setup file."}</div>}
           {sections && (
             <div className="space-y-4">
+              {/* Same grouped card grid the setup catalogue (CatalogTrackSetups /
+                  F1 setup detail) uses — masonry columns of titled cards. */}
+              <div className="w-full columns-1 gap-3 md:columns-2 xl:columns-3">
               {sections.map((s) => (
-                <div key={s.title}>
-                  <div className="mb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{s.title}</div>
-                  <div className="divide-y divide-border rounded-md border border-border">
+                <div key={s.title} className="mb-3 break-inside-avoid rounded-lg bg-app-bg p-3">
+                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-accent">{s.title}</h4>
+                  <div className="space-y-0.5">
                     {s.rows.map((r) => (
-                      <div key={r.label} className="px-3 py-1.5 text-[12px]">
-                        <div className="flex items-center justify-between gap-4">
-                          <span className="text-muted-foreground">{r.label}</span>
-                          <span className="font-mono">{r.value}</span>
+                      <div key={r.label} className="text-xs">
+                        <div className="flex justify-between gap-2">
+                          <span className="whitespace-nowrap text-app-text-muted">{r.label}</span>
+                          <span className="whitespace-nowrap font-mono text-app-text">{r.value}</span>
                         </div>
                         {/* Range bar (like the AI analysis result) — only for rows
                             with a real extracted per-car min/max from the server. */}
@@ -51,6 +54,7 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                   </div>
                 </div>
               ))}
+              </div>
               {body && (
                 <details>
                   <summary className="cursor-pointer text-[11px] text-muted-foreground">Raw file contents</summary>
