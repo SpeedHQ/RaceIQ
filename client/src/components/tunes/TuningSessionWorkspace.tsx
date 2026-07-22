@@ -22,6 +22,7 @@ import { BackButton } from "./BackButton";
 import { HistoryPanel } from "./HistoryPanel";
 import { ImportLapsModal } from "./ImportLapsModal";
 import { LiveTestDashboard } from "./LiveTestDashboard";
+import { SetupContentModal } from "./SetupFilePicker";
 import { TuneSetupChat } from "./TuneSetupChat";
 import { VersionGraph } from "./VersionGraph";
 
@@ -46,8 +47,12 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
   const [showAddBase, setShowAddBase] = useState(false);
   const [showImportLaps, setShowImportLaps] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
   const { data: session, isLoading: loadingSession } = useTuningSession(tuningSessionId);
   const { data: tests = [] } = useTuningSessionTests(tuningSessionId);
+  /** Setup file the session is currently on: the head test's version, falling
+   *  back to the session's base setup (before any test exists). */
+  const currentSetupPath = tests.find((t) => t.id === session?.headTestId)?.setupPath ?? session?.baseSetupPath ?? null;
   const { data: lapMetrics = [] } = useTuningSessionLapMetrics(tuningSessionId);
   const accCarName = useAccCarName();
   const { data: allLaps = [] } = useLaps();
@@ -184,9 +189,24 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
             <span className="text-app-text-muted font-mono mr-2">#{session.seq}</span>
             {session.name}
           </h1>
-          {subtitle && <div className="text-xs text-app-text-muted">{subtitle}</div>}
+          <div className="flex items-center gap-2">
+            {subtitle && <div className="text-xs text-app-text-muted">{subtitle}</div>}
+            {gameId !== "f1-2025" && currentSetupPath && (
+              <button
+                type="button"
+                onClick={() => setShowSetup(true)}
+                title="View the contents of the current setup file"
+                className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim"
+              >
+                View tune
+              </button>
+            )}
+          </div>
         </div>
       </div>
+      {showSetup && gameId !== "f1-2025" && currentSetupPath && (
+        <SetupContentModal gameId={gameId} path={currentSetupPath} fileName={currentSetupPath.split(/[\\/]/).pop() ?? "Setup"} onClose={() => setShowSetup(false)} />
+      )}
 
       {/* Main row fills the remaining height. Left column scrolls; the right
           panel (Recommend + chat) is permanent and full-height. */}
@@ -241,6 +261,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
                 </div>
                 <VersionGraph
                   sessionId={session.id}
+                  gameId={gameId === "acc" || gameId === "ac-evo" ? gameId : null}
                   tests={tests}
                   headTestId={session?.headTestId ?? null}
                   lapsByTest={lapsByTest}

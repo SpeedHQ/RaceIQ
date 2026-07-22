@@ -1,41 +1,27 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useSetupFileContent, useSetupFiles } from "../../hooks/queries";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SearchSelect } from "../ui/SearchSelect";
 
 /** Read-only modal showing the picked setup file — parsed JSON pretty-printed
  *  for ACC, decoded wire-tree text for AC Evo .carsetup files. */
-function SetupContentModal({ gameId, path, fileName, onClose }: { gameId: "acc" | "ac-evo"; path: string; fileName: string; onClose: () => void }) {
+export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId: "acc" | "ac-evo"; path: string; fileName: string; onClose: () => void }) {
   const { data, isLoading, error } = useSetupFileContent(gameId, path);
   const body = data?.formatted ?? (data?.setup ? JSON.stringify(data.setup, null, 2) : null);
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[min(90vw,640px)] max-h-[80vh] flex flex-col"
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-        }}
-      >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
-          <div className="min-w-0">
-            <div className="text-sm font-medium text-app-text truncate">{data?.fileName ?? fileName}</div>
-            {data?.presetId && <div className="text-[11px] text-app-text-muted truncate">Preset {data.presetId}</div>}
-          </div>
-          <button type="button" onClick={onClose} className="text-app-text-muted hover:text-app-text text-lg leading-none px-1" aria-label="Close">
-            ×
-          </button>
-        </div>
-        <div className="overflow-auto px-4 py-3">
-          {isLoading && <div className="text-sm text-app-text-muted">Loading…</div>}
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="flex max-h-[80vh] w-[min(90vw,640px)] flex-col sm:max-w-[640px]">
+        <DialogHeader className="min-w-0 pr-8">
+          <DialogTitle className="truncate">{data?.fileName ?? fileName}</DialogTitle>
+          {data?.presetId && <DialogDescription className="truncate text-[11px]">Preset {data.presetId}</DialogDescription>}
+        </DialogHeader>
+        <div className="overflow-auto">
+          {isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
           {(error || data?.error) && <div className="text-sm text-red-400">{data?.error ?? "Couldn't read the setup file."}</div>}
-          {body && <pre className="text-[12px] leading-relaxed text-app-text whitespace-pre-wrap font-mono">{body}</pre>}
+          {body && <pre className="text-[12px] leading-relaxed whitespace-pre-wrap font-mono">{body}</pre>}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -72,7 +58,6 @@ export function SetupFilePicker({
   labels?: { car?: string; track?: string; setup?: string };
 }) {
   const { data: setupFiles, isLoading: loadingFiles, refetch, isFetching } = useSetupFiles(gameId);
-  const [viewOpen, setViewOpen] = useState(false);
   const files = setupFiles?.files ?? [];
 
   // Friendly car label per model slug, from the canonical cars.csv roster.
@@ -97,9 +82,6 @@ export function SetupFilePicker({
   }, [setupFiles, files, carNameByModel]);
   const noCars = !loadingFiles && cars.length === 0;
 
-  // Track options = full canonical track roster unioned with tracks the chosen
-  // car already has setups for, so any track is selectable even without a base.
-  const tracks = useMemo(() => [...new Set([...(setupFiles?.tracks ?? []), ...files.filter((f) => f.carModel === value.car).map((f) => f.trackName)])].sort(), [setupFiles, files, value.car]);
   // AC Evo saves setups per circuit, not per layout — variants of one track
   // (Brands Hatch GP + Indy) share a single on-disk Setups folder, so an Indy
   // session must also see files saved under the shared/base folder. The server
@@ -111,6 +93,17 @@ export function SetupFilePicker({
     for (const a of setupFiles?.trackAliases?.[track] ?? []) set.add(norm(a));
     return set;
   };
+  // Track options = full canonical track roster, plus on-disk folders the chosen
+  // car has setups under ONLY when no canonical key (or one of its aliases)
+  // already covers that folder — so the raw folder name ("Brands Hatch") never
+  // shows next to its friendly variant rows, only truly unknown folders do.
+  const tracks = useMemo(() => {
+    const canonical = setupFiles?.tracks ?? [];
+    const covered = new Set<string>();
+    for (const key of canonical) for (const a of aliasesFor(key)) covered.add(a);
+    const extras = files.filter((f) => f.carModel === value.car && !covered.has(norm(f.trackName))).map((f) => f.trackName);
+    return [...new Set([...canonical, ...extras])].sort();
+  }, [setupFiles, files, value.car]);
   const carTrackFiles = useMemo(() => {
     const wanted = aliasesFor(value.track);
     return files.filter((f) => f.carModel === value.car && wanted.has(norm(f.trackName)));
@@ -169,16 +162,6 @@ export function SetupFilePicker({
         <div className="flex items-center justify-between">
           <span className="text-[11px] text-app-text-muted uppercase tracking-wider">{labels.setup ?? "Base setup"}</span>
           <div className="flex items-center gap-3">
-            {value.setupPath && (
-              <button
-                type="button"
-                onClick={() => setViewOpen(true)}
-                title="View the contents of the selected setup file"
-                className="text-[11px] text-app-text-muted hover:text-app-text flex items-center gap-1"
-              >
-                View tune
-              </button>
-            )}
             <button
               type="button"
               onClick={() => refetch()}
@@ -200,9 +183,6 @@ export function SetupFilePicker({
           focusColor="purple-500"
         />
       </div>
-      {viewOpen && value.setupPath && (
-        <SetupContentModal gameId={gameId} path={value.setupPath} fileName={carTrackFiles.find((f) => f.absolutePath === value.setupPath)?.fileName ?? "Setup"} onClose={() => setViewOpen(false)} />
-      )}
     </div>
   );
 }

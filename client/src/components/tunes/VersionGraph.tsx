@@ -3,6 +3,8 @@ import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { type TuningLapMetric, type TuningTest, useDeleteVersion, useSetHead, useSetTestNote } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
+import { Button } from "../ui/button";
+import { SetupContentModal } from "./SetupFilePicker";
 import { AppliedChangesList, LapBreakdown, summarizeAppliedChanges } from "./tune-version-shared";
 
 /**
@@ -25,6 +27,7 @@ import { AppliedChangesList, LapBreakdown, summarizeAppliedChanges } from "./tun
  */
 export interface VersionGraphProps {
   sessionId: number;
+  gameId: "acc" | "ac-evo" | null;
   tests: TuningTest[];
   headTestId: number | null;
   lapsByTest: Map<number, LapMeta[]>;
@@ -220,9 +223,11 @@ function buildForest(tests: TuningTest[]): { roots: TuningTest[]; childrenOf: Ma
   return { roots: [...roots, ...orphanedCycle], childrenOf };
 }
 
-export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metricsById, onOpenReview }: VersionGraphProps) {
+export function VersionGraph({ sessionId, gameId, tests, headTestId, lapsByTest, metricsById, onOpenReview }: VersionGraphProps) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [notesForId, setNotesForId] = useState<number | null>(null);
+  const [setupForId, setSetupForId] = useState<number | null>(null);
+  const setupTest = setupForId != null ? (tests.find((t) => t.id === setupForId) ?? null) : null;
   const setHead = useSetHead();
   const deleteVersion = useDeleteVersion();
   const { roots, childrenOf } = useMemo(() => buildForest(tests), [tests]);
@@ -296,6 +301,20 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
                   Checkout
                 </button>
               )}
+              {gameId && t.setupPath && (
+                <Button
+                  variant="app-outline"
+                  size="app-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSetupForId(t.id);
+                  }}
+                  title="View this version's setup file contents"
+                  className="normal-case tracking-normal font-sans"
+                >
+                  Setup
+                </Button>
+              )}
               {onOpenReview && (
                 <button
                   type="button"
@@ -363,6 +382,9 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
   return (
     <div className="py-1">
       {notesTest && <NotesModal sessionId={sessionId} test={notesTest} onClose={() => setNotesForId(null)} />}
+      {gameId && setupTest?.setupPath && (
+        <SetupContentModal gameId={gameId} path={setupTest.setupPath} fileName={setupTest.setupPath.split(/[\\/]/).pop() ?? setupTest.label} onClose={() => setSetupForId(null)} />
+      )}
       {actionError && <div className="mx-2 mb-1 rounded-md border border-red-400/40 bg-red-400/10 px-2 py-1 text-[11px] text-red-300">{(actionError as Error).message}</div>}
       {roots.map((t, i) => renderNode(t, 0, i === roots.length - 1))}
     </div>
