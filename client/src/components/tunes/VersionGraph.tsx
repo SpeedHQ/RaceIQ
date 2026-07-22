@@ -280,7 +280,7 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
               <span className="text-app-text-dim text-xs w-3">{isOpen ? "▾" : "▸"}</span>
               <span className="font-mono text-xs text-app-text shrink-0">{t.label}</span>
               <span className="text-[11px] text-app-text-muted truncate min-w-0">
-                {summarizeAppliedChanges(t.appliedChanges) ?? (t.parentTestId == null ? (t.setupPath?.split(/[\\/]/).pop() ?? "Base setup") : "no changes recorded")}
+                {t.notes || (summarizeAppliedChanges(t.appliedChanges) ?? (t.parentTestId == null ? (t.setupPath?.split(/[\\/]/).pop() ?? "Base setup") : "no changes recorded"))}
               </span>
               {isHead && <span className="text-[9px] uppercase tracking-wider text-purple-400 border border-purple-400/40 rounded px-1 py-px shrink-0">HEAD</span>}
               {!isHead && (
