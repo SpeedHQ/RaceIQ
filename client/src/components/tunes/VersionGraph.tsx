@@ -265,8 +265,10 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
     return (
       <div key={t.id}>
         <div className="relative flex">
-          {/* Graph rail: node dot + connecting line down to the next sibling/child. */}
+          {/* Graph rail: node dot; branch lines are drawn by the children
+              container's border-l plus this horizontal elbow tick back to it. */}
           <div className="relative w-6 shrink-0 flex flex-col items-center">
+            {depth > 0 && <div className="absolute -left-3 top-[15px] w-[24px] h-px bg-app-border" />}
             {(!isLastSibling || hasChildren) && <div className="absolute top-3 bottom-0 w-px bg-app-border" />}
             <div className={`z-10 mt-[10px] size-2.5 rounded-full border-2 ${isHead ? "bg-purple-400 border-purple-400" : "bg-app-surface border-app-text-dim"}`} title={isHead ? "HEAD" : undefined} />
           </div>
@@ -345,7 +347,7 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
             )}
           </div>
         </div>
-        {children.map((c, i) => renderNode(c, depth + 1, i === children.length - 1))}
+        {hasChildren && <div className="ml-3 pl-3 border-l border-app-border">{children.map((c, i) => renderNode(c, depth + 1, i === children.length - 1))}</div>}
       </div>
     );
   };
