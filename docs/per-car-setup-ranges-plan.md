@@ -102,6 +102,21 @@ No public per-car ranges dataset exists. Hybrid approach:
 3. Run ACC derivation script, review `constant` report, seed overrides.
 4. Wire Phase 3, build (`tsc -b && vite build`), test, push to main.
 
+## Limitations (current state)
+
+- **Only AC Evo has real per-car min/max/step for tuneables.** Extracted from the game's
+  `carsetuplimits` data into `shared/games/ac-evo/setup-ranges.json` (68 cars). Every other
+  game uses hand-set global clamps in `server/ai/tune-rules.ts` `RULES`:
+  - **ACC** — no data source found (Phase 2 skipped); conservative global click-index
+    clamps shared by all cars, `carModel` is ignored.
+  - **F1 2025** — ranges are observed min/max across the bundled community catalog, not
+    game-provided limits; shared by all teams/tracks.
+- AC Evo ranges are real-world units (mm, %, psi) keyed by flat telemetry-snapshot fields.
+  Server-side intent clamping only — the client setup form (nested Kunos click-index JSON)
+  is NOT clamped by this data (no verified click↔real conversion; see Phase 3.3).
+- Unknown AC Evo car (not in the 68 extracted) silently falls back to the global per-game
+  defaults — no warning surfaced to the user.
+
 ## Open questions
 
 - AC Evo `cardata.car` proto layout unknown until first dump — parser shape TBD from real data.
