@@ -185,24 +185,71 @@ function fmt(v: number): string {
 }
 
 /** Leaf fields of a message rendered as generic numbered rows (fallback for
- *  fields whose meaning we haven't confirmed yet). */
-function genericRows(fields: WireField[], prefix: string, skip: Set<number> = new Set()): CarSetupRow[] {
+ *  fields whose meaning we haven't confirmed yet).
+ *
+ *  `guesses` maps a wire-number path (e.g. "#4" or "#2.#1", relative to the
+ *  message being rendered) to a provisional human label. Guessed labels are
+ *  suffixed with "?" and keep the wire number so the UI never presents an
+ *  unverified name as fact. */
+function genericRows(
+  fields: WireField[],
+  prefix: string,
+  skip: Set<number> = new Set(),
+  guesses: Record<string, string> = {},
+  path = "",
+): CarSetupRow[] {
   const rows: CarSetupRow[] = [];
+  const labelFor = (no: number): string => {
+    const p = `${path}#${no}`;
+    const g = guesses[p];
+    return g ? `${g}? (${p})` : `${prefix}${p}`;
+  };
   for (const f of fields) {
     if (skip.has(f.no)) continue;
     if (f.type === "message") {
-      rows.push(...genericRows(f.fields, `${prefix}#${f.no}.`));
+      rows.push(...genericRows(f.fields, prefix, new Set(), guesses, `${path}#${f.no}.`));
     } else if (f.type === "bytes") {
-      rows.push({ label: `${prefix}#${f.no}`, value: f.floats ? f.floats.map((v) => fmt(+v.toFixed(4))).join(" / ") : `0x${f.hex}` });
+      rows.push({ label: labelFor(f.no), value: f.floats ? f.floats.map((v) => fmt(+v.toFixed(4))).join(" / ") : `0x${f.hex}` });
     } else if (f.type === "string") {
-      rows.push({ label: `${prefix}#${f.no}`, value: f.value });
+      rows.push({ label: labelFor(f.no), value: f.value });
     } else {
       const v = num(f);
-      if (v != null) rows.push({ label: `${prefix}#${f.no}`, value: fmt(v) });
+      if (v != null) rows.push({ label: labelFor(f.no), value: fmt(v) });
     }
   }
   return rows;
 }
+
+/** Provisional (UNVERIFIED) field-name guesses, inferred from typical values in
+ *  real saves plus the known ACE setup-screen layout. Each rendered with a "?"
+ *  suffix by genericRows. To be confirmed/corrected by single-slider save
+ *  diffing; anything confirmed should graduate to a real label in
+ *  summarizeCarSetup and be removed from here. */
+const ALIGNMENT_GUESSES: Record<string, string> = {
+  "#4": "Toe", // front-only in observed saves; small signed value (-0.072)
+  "#5": "Caster", // front ~6.4°; rear value (~3.8) makes this suspect — verify
+};
+const SPRING_GUESSES: Record<string, string> = {
+  "#2.#1": "Bumpstop gap", // small signed metres (-0.023)
+  "#2.#2": "Bumpstop rate", // 1000
+  "#3.#1": "Packer/travel", // 0.048 m
+  "#3.#2": "Packer rate", // 1500
+};
+const DAMPER_GUESSES: Record<string, string> = {
+  "#1": "Bump", // clicks (8)
+  "#2": "Bump rate", // 8000
+  "#3": "Rebound", // clicks (8)
+  "#4": "Rebound rate", // 6000
+};
+const ELECTRONICS_GUESSES: Record<string, string> = {
+  "#1": "TC",
+  "#2": "ABS",
+  "#3": "Stability",
+  "#5": "Engine map",
+};
+const BRAKE_GUESSES: Record<string, string> = {
+  "#2": "Brake power", // 100 (%) — matches the ACE "Brake power" slider
+};
 
 /**
  * Map the decoded wire tree to labelled, human-readable sections for the UI.
@@ -236,7 +283,7 @@ export function summarizeCarSetup(
     const bias = brakeMsg ? num(brakeMsg.fields.find((f) => f.no === 1)) : null;
     if (bias != null) {
       rows.push(withRange({ label: "Brake bias", value: `${fmt(bias)}% front` }, bias, "brakeBias"));
-      if (brakeMsg) rows.push(...genericRows(brakeMsg.fields, "Brakes ", new Set([1])));
+      if (brakeMsg) rows.push(...genericRows(brakeMsg.fields, "Brakes ", new Set([1]), BRAKE_GUESSES));
     }
     rows.push(...genericRows(mech.fields, "", new Set(bias != null ? [3] : [])));
     if (rows.length) sections.push({ title: "Mechanical & brakes", rows });
@@ -253,22 +300,22 @@ export function summarizeCarSetup(
       const camber = num(align.fields.find((f) => f.no === 2));
       if (pressure != null) rows.push({ label: "Tyre pressure", value: `${fmt(pressure)} psi` });
       if (camber != null) rows.push({ label: "Camber", value: `${fmt(camber)}°` });
-      rows.push(...genericRows(align.fields, "Alignment ", new Set([1, 2])));
+      rows.push(...genericRows(align.fields, "Alignment ", new Set([1, 2]), ALIGNMENT_GUESSES));
     }
     const spring = springs[i];
     if (spring) {
       const rate = num(spring.fields.find((f) => f.no === 1));
       if (rate != null) rows.push({ label: "Spring rate", value: `${fmt(rate / 1000)} kN/m` });
-      rows.push(...genericRows(spring.fields, "Spring ", new Set([1])));
+      rows.push(...genericRows(spring.fields, "Spring ", new Set([1]), SPRING_GUESSES));
     }
     const damper = dampers[i];
-    if (damper) rows.push(...genericRows(damper.fields, "Damper "));
+    if (damper) rows.push(...genericRows(damper.fields, "Damper ", new Set(), DAMPER_GUESSES));
     if (rows.length) sections.push({ title: CORNER_NAMES[i] ?? `Corner ${i + 1}`, rows });
   }
 
   // #5 — electronics/assists (TC/ABS-style click values); no verified labels.
   const electronics = msgs(5)[0];
-  if (electronics) sections.push({ title: "Electronics", rows: genericRows(electronics.fields, "") });
+  if (electronics) sections.push({ title: "Electronics", rows: genericRows(electronics.fields, "", new Set(), ELECTRONICS_GUESSES) });
 
   // #6 — aero & ride height, same field numbers as the carsetuplimits files:
   // #2 front ride height, #3 rear ride height, #4 front wing, #5 rear wing
