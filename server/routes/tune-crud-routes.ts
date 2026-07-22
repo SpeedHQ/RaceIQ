@@ -10,7 +10,7 @@ import type { GameId } from "../../shared/types";
 import { getCommunityTuneById } from "../db/community-tune-queries";
 import { getLapById } from "../db/queries";
 import { getAccSetupFolderKeys, getAccTrackBySetupFolder } from "../../shared/acc-track-data";
-import { getAcEvoSetupFolderKeys, getAcEvoTrackBySetupFolder } from "../../shared/ac-evo-track-data";
+import { getAcEvoSetupFolderKeys, getAcEvoTrackBySetupFolder, getAcEvoSetupFolderAliases } from "../../shared/ac-evo-track-data";
 import { getAllAccCars } from "../../shared/acc-car-data";
 import { getAllAcEvoCars } from "../../shared/ac-evo-car-data";
 import { detectCorners } from "../corner-detection";
@@ -19,7 +19,8 @@ import { requestTuneIntents } from "../ai/tune-intent";
 import { symptomsToIntents } from "../ai/tune-recommend";
 import { applyIntents } from "../ai/tune-rules";
 import { writeSetupFile } from "../ai/tune-writer";
-import { getSetupsBaseDir } from "../ai/setup-engineer-context";
+import { getSetupsBaseDir, resolveGuardedSetupFile } from "../ai/setup-engineer-context";
+import { formatCarSetup, readCarSetupFile } from "../games/ac-evo/carsetup";
 import { communityRowToCatalog, CarOrdinalQuerySchema } from "./tune-shared";
 
 /** Forza's TuneSettings has a specific shape that the built-in Forza UI expects.
@@ -254,11 +255,51 @@ export const tuneCrudRoutes = new Hono()
       // setup for — and show the friendly name instead of the raw slug.
       const cars = (gameId === "acc" ? getAllAccCars() : getAllAcEvoCars())
         .map((car) => ({ model: car.model, name: car.name }));
+      // AC Evo saves setups per circuit, not per layout — every variant shares
+      // one on-disk folder (Brands Hatch GP + Indy → "brands_hatch"). Expose the
+      // alias group per track key so the picker matches files saved under any
+      // sibling variant's folder. Derived in code from tracks.csv base names —
+      // NOT extra CSV rows — so it applies to every multi-variant track. ACC
+      // keeps distinct folders per variant, so no aliases there.
+      const trackAliases: Record<string, string[]> = {};
+      if (gameId === "ac-evo") {
+        for (const key of tracks) {
+          const aliases = getAcEvoSetupFolderAliases(key);
+          if (aliases.length > 1) trackAliases[key] = aliases;
+        }
+      }
       const baseDir = await getSetupsBaseDir(gameId);
       if (!baseDir) {
-        return c.json({ baseDir: null, files: [], tracks, trackNames, cars, error: "Setups folder not found" });
+        return c.json({ baseDir: null, files: [], tracks, trackNames, trackAliases, cars, error: "Setups folder not found" });
       }
-      return c.json({ baseDir, files: listSetupFiles(baseDir), tracks, trackNames, cars });
+      return c.json({ baseDir, files: listSetupFiles(baseDir), tracks, trackNames, trackAliases, cars });
+    }
+  )
+
+  // GET /api/tunes/setup-file-content?gameId=acc&path=… — read one saved setup
+  // file so the picker's "View" button can show its contents. Path is guarded
+  // against the game's Setups dir (same realpath/symlink guard as /api/tunes/auto).
+  // ACC/legacy .json → parsed object; AC EVO .carsetup → decoded wire tree text
+  // + preset id. MUST be registered before /api/tunes/:id.
+  .get("/api/tunes/setup-file-content",
+    zValidator("query", z.object({ gameId: z.enum(["acc", "ac-evo"]), path: z.string().min(1) })),
+    async (c) => {
+      const { gameId, path } = c.req.valid("query");
+      const guarded = await resolveGuardedSetupFile(gameId, path);
+      if (!guarded.ok) return c.json({ error: guarded.error }, guarded.status);
+      const fileName = guarded.realPath.split(/[\\/]/).pop() ?? "setup";
+      if (guarded.realPath.toLowerCase().endsWith(".carsetup")) {
+        const parsed = await readCarSetupFile(guarded.realPath);
+        if (!parsed) return c.json({ error: "Couldn't decode .carsetup file" }, 400);
+        return c.json({
+          fileName,
+          kind: "carsetup" as const,
+          presetId: parsed.presetId ?? null,
+          formatted: formatCarSetup(parsed),
+          setup: null,
+        });
+      }
+      return c.json({ fileName, kind: "json" as const, presetId: null, formatted: null, setup: guarded.setup });
     }
   )
 

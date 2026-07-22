@@ -61,6 +61,29 @@ export function getAcEvoSetupFolderKeys(): string[] {
   return [...keys].sort();
 }
 
+/** Setup-folder keys that share one on-disk Setups folder with `key`.
+ *
+ *  AC Evo saves setups per circuit, not per layout: every variant of a track
+ *  (Brands Hatch GP and Indy, …) writes to the same Setups/<car>/<folder>/
+ *  directory, keyed by the base track name. The CSV keeps one setupFolder key
+ *  per variant (needed as distinct picker/session keys), so this derives the
+ *  alias group generically: all setupFolder keys of variants with the same
+ *  base `name`. Always includes `key` itself; returns [key] for unknown keys. */
+export function getAcEvoSetupFolderAliases(key: string): string[] {
+  ensureLoaded();
+  const needle = norm(key);
+  let baseName: string | undefined;
+  for (const t of trackMap!.values()) {
+    if (t.setupFolder && norm(t.setupFolder) === needle) { baseName = norm(t.name); break; }
+  }
+  if (!baseName) return [key];
+  const aliases = new Set<string>([key]);
+  for (const t of trackMap!.values()) {
+    if (t.setupFolder && norm(t.name) === baseName) aliases.add(t.setupFolder);
+  }
+  return [...aliases].sort();
+}
+
 function norm(s: string): string {
   return s.toLowerCase().replace(/[-_\s]/g, "");
 }

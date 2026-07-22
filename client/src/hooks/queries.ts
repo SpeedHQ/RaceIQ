@@ -520,11 +520,36 @@ export function useSetupFiles(gameId: "acc" | "ac-evo" | null) {
         files: { carModel: string; trackName: string; fileName: string; absolutePath: string }[];
         tracks?: string[];
         trackNames?: Record<string, string>;
+        /** AC Evo: variants of one circuit share an on-disk Setups folder — the
+         *  alias group per track key (only present when >1 key shares a folder). */
+        trackAliases?: Record<string, string[]>;
         cars?: { model: string; name: string }[];
         error?: string;
       }>(res);
     },
     enabled: gameId != null,
+    staleTime: 30_000,
+  });
+}
+
+/** Content of one saved setup file, for the picker's "View" modal. `path` null
+ *  disables the query (modal closed). .json → parsed object; .carsetup →
+ *  decoded wire-tree text + preset id. */
+export function useSetupFileContent(gameId: "acc" | "ac-evo" | null, path: string | null) {
+  return useQuery({
+    queryKey: ["setup-file-content", gameId, path],
+    queryFn: async () => {
+      const res = await (client.api.tunes as any)["setup-file-content"].$get({ query: { gameId, path } });
+      return rpcJson<{
+        fileName: string;
+        kind: "json" | "carsetup";
+        presetId: string | null;
+        formatted: string | null;
+        setup: Record<string, unknown> | null;
+        error?: string;
+      }>(res);
+    },
+    enabled: gameId != null && path != null,
     staleTime: 30_000,
   });
 }
