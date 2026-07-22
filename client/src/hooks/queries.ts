@@ -534,7 +534,7 @@ export function useSetupFiles(gameId: "acc" | "ac-evo" | null) {
 
 /** Content of one saved setup file, for the picker's "View" modal. `path` null
  *  disables the query (modal closed). .json → parsed object; .carsetup →
- *  decoded wire-tree text + preset id. */
+ *  human-readable sections + decoded wire-tree text + preset id. */
 export function useSetupFileContent(gameId: "acc" | "ac-evo" | null, path: string | null) {
   return useQuery({
     queryKey: ["setup-file-content", gameId, path],
@@ -545,6 +545,7 @@ export function useSetupFileContent(gameId: "acc" | "ac-evo" | null, path: strin
         kind: "json" | "carsetup";
         presetId: string | null;
         formatted: string | null;
+        sections: { title: string; rows: { label: string; value: string }[] }[] | null;
         setup: Record<string, unknown> | null;
         error?: string;
       }>(res);

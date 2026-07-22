@@ -151,3 +151,108 @@ export function formatCarSetup(setup: CarSetupFile, fields = setup.raw, indent =
   }
   return lines.join("\n");
 }
+
+/** One human-readable row of a decoded setup (label + display value). */
+export interface CarSetupRow {
+  label: string;
+  value: string;
+}
+
+/** A titled group of rows, e.g. "Front left" or "Aero". */
+export interface CarSetupSection {
+  title: string;
+  rows: CarSetupRow[];
+}
+
+const CORNER_NAMES = ["Front left", "Front right", "Rear left", "Rear right"] as const;
+
+function num(f: WireField | undefined): number | null {
+  if (!f) return null;
+  if (f.type === "float") return +f.value.toFixed(4);
+  if (f.type === "fixed64") return f.double;
+  if (f.type === "varint") return Number(f.value);
+  return null;
+}
+
+function fmt(v: number): string {
+  return Number.isInteger(v) ? String(v) : String(+v.toFixed(4));
+}
+
+/** Leaf fields of a message rendered as generic numbered rows (fallback for
+ *  fields whose meaning we haven't confirmed yet). */
+function genericRows(fields: WireField[], prefix: string, skip: Set<number> = new Set()): CarSetupRow[] {
+  const rows: CarSetupRow[] = [];
+  for (const f of fields) {
+    if (skip.has(f.no)) continue;
+    if (f.type === "message") {
+      rows.push(...genericRows(f.fields, `${prefix}#${f.no}.`));
+    } else if (f.type === "bytes") {
+      rows.push({ label: `${prefix}#${f.no}`, value: f.floats ? f.floats.map((v) => fmt(+v.toFixed(4))).join(" / ") : `0x${f.hex}` });
+    } else if (f.type === "string") {
+      rows.push({ label: `${prefix}#${f.no}`, value: f.value });
+    } else {
+      const v = num(f);
+      if (v != null) rows.push({ label: `${prefix}#${f.no}`, value: fmt(v) });
+    }
+  }
+  return rows;
+}
+
+/**
+ * Map the decoded wire tree to labelled, human-readable sections for the UI.
+ *
+ * Only field numbers we're confident about (per the observed layout in the
+ * module header) get friendly labels — tyre pressure/camber from the #4
+ * alignment blocks, spring rate from the #2 corner blocks, fuel from #1.
+ * Everything else keeps its wire number so we never mislabel a value; those
+ * rows still read better than the raw tree because they're grouped per
+ * corner/system.
+ */
+export function summarizeCarSetup(setup: CarSetupFile): CarSetupSection[] {
+  const sections: CarSetupSection[] = [];
+  const msgs = (no: number) => setup.raw.filter((f): f is Extract<WireField, { type: "message" }> => f.no === no && f.type === "message");
+
+  const fuel = msgs(1)[0];
+  if (fuel) {
+    const fuelLoad = num(fuel.fields.find((f) => f.no === 2));
+    const rows: CarSetupRow[] = [];
+    if (fuelLoad != null) rows.push({ label: "Fuel load", value: `${fmt(fuelLoad)} L` });
+    rows.push(...genericRows(fuel.fields, "", new Set([2])));
+    sections.push({ title: "Fuel & strategy", rows });
+  }
+
+  const springs = msgs(2);
+  const dampers = msgs(3);
+  const alignment = msgs(4);
+  for (let i = 0; i < 4; i++) {
+    const rows: CarSetupRow[] = [];
+    const align = alignment[i];
+    if (align) {
+      const pressure = num(align.fields.find((f) => f.no === 1));
+      const camber = num(align.fields.find((f) => f.no === 2));
+      if (pressure != null) rows.push({ label: "Tyre pressure", value: `${fmt(pressure)} psi` });
+      if (camber != null) rows.push({ label: "Camber", value: `${fmt(camber)}°` });
+      rows.push(...genericRows(align.fields, "Alignment ", new Set([1, 2])));
+    }
+    const spring = springs[i];
+    if (spring) {
+      const rate = num(spring.fields.find((f) => f.no === 1));
+      if (rate != null) rows.push({ label: "Spring rate", value: `${fmt(rate / 1000)} kN/m` });
+      rows.push(...genericRows(spring.fields, "Spring ", new Set([1])));
+    }
+    const damper = dampers[i];
+    if (damper) rows.push(...genericRows(damper.fields, "Damper "));
+    if (rows.length) sections.push({ title: CORNER_NAMES[i] ?? `Corner ${i + 1}`, rows });
+  }
+
+  const brakes = msgs(5)[0];
+  if (brakes) sections.push({ title: "Brakes / misc", rows: genericRows(brakes.fields, "") });
+
+  const aero = msgs(6)[0];
+  if (aero) sections.push({ title: "Aero", rows: genericRows(aero.fields, "") });
+
+  const misc = msgs(7)[0];
+  if (misc) sections.push({ title: "Other", rows: genericRows(misc.fields, "") });
+
+  return sections.filter((s) => s.rows.length > 0);
+}

@@ -3,10 +3,12 @@ import { useSetupFileContent, useSetupFiles } from "../../hooks/queries";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SearchSelect } from "../ui/SearchSelect";
 
-/** Read-only modal showing the picked setup file — parsed JSON pretty-printed
- *  for ACC, decoded wire-tree text for AC Evo .carsetup files. */
+/** Read-only modal showing the picked setup file — human-readable sections
+ *  when available, otherwise parsed JSON pretty-printed for ACC or decoded
+ *  wire-tree text for AC Evo .carsetup files. */
 export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId: "acc" | "ac-evo"; path: string; fileName: string; onClose: () => void }) {
   const { data, isLoading, error } = useSetupFileContent(gameId, path);
+  const sections = data?.sections?.length ? data.sections : null;
   const body = data?.formatted ?? (data?.setup ? JSON.stringify(data.setup, null, 2) : null);
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -18,7 +20,30 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
         <div className="overflow-auto">
           {isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
           {(error || data?.error) && <div className="text-sm text-red-400">{data?.error ?? "Couldn't read the setup file."}</div>}
-          {body && <pre className="text-[12px] leading-relaxed whitespace-pre-wrap font-mono">{body}</pre>}
+          {sections && (
+            <div className="space-y-4">
+              {sections.map((s) => (
+                <div key={s.title}>
+                  <div className="mb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{s.title}</div>
+                  <div className="divide-y divide-border rounded-md border border-border">
+                    {s.rows.map((r) => (
+                      <div key={r.label} className="flex items-center justify-between gap-4 px-3 py-1.5 text-[12px]">
+                        <span className="text-muted-foreground">{r.label}</span>
+                        <span className="font-mono">{r.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {body && (
+                <details>
+                  <summary className="cursor-pointer text-[11px] text-muted-foreground">Raw file contents</summary>
+                  <pre className="mt-2 text-[12px] leading-relaxed whitespace-pre-wrap font-mono">{body}</pre>
+                </details>
+              )}
+            </div>
+          )}
+          {!sections && body && <pre className="text-[12px] leading-relaxed whitespace-pre-wrap font-mono">{body}</pre>}
         </div>
       </DialogContent>
     </Dialog>

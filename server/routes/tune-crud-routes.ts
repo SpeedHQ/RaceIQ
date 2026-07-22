@@ -20,7 +20,7 @@ import { symptomsToIntents } from "../ai/tune-recommend";
 import { applyIntents } from "../ai/tune-rules";
 import { writeSetupFile } from "../ai/tune-writer";
 import { getSetupsBaseDir, resolveGuardedSetupFile } from "../ai/setup-engineer-context";
-import { formatCarSetup, readCarSetupFile } from "../games/ac-evo/carsetup";
+import { formatCarSetup, readCarSetupFile, summarizeCarSetup } from "../games/ac-evo/carsetup";
 import { communityRowToCatalog, CarOrdinalQuerySchema } from "./tune-shared";
 
 /** Forza's TuneSettings has a specific shape that the built-in Forza UI expects.
@@ -296,10 +296,11 @@ export const tuneCrudRoutes = new Hono()
           kind: "carsetup" as const,
           presetId: parsed.presetId ?? null,
           formatted: formatCarSetup(parsed),
+          sections: summarizeCarSetup(parsed),
           setup: null,
         });
       }
-      return c.json({ fileName, kind: "json" as const, presetId: null, formatted: null, setup: guarded.setup });
+      return c.json({ fileName, kind: "json" as const, presetId: null, formatted: null, sections: null, setup: guarded.setup });
     }
   )
 
