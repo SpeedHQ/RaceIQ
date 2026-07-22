@@ -382,7 +382,7 @@ export function buildSetupEngineerTools() {
 
       // Branch-relative label off the head/parent. existingChildCount = how many
       // children the parent already has (its continuation + any forks).
-      const parentLabel = parent?.label ?? "base";
+      const parentLabel = parent?.label ?? "v1";
       const childCount = parent ? ctx.tests.filter((t) => t.parentTestId === parent.id).length : 0;
       const takenLabels = new Set(ctx.tests.map((t) => t.label));
       const label = nextFreeLabel(computeChildLabel(parentLabel, childCount), takenLabels);

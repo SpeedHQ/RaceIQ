@@ -38,7 +38,7 @@
     "laps:import": "bun scripts/import-laps.ts",
     "gzip:recording": "bun scripts/gzip-recording.ts",
     "build:installer": "bun scripts/build-installer.ts",
-    "mastra:studio": "portless studio sh -c 'bunx mastra@1.19.0 studio -p $PORT -h raceiq.localhost -s 1355 -x http --server-api-prefix /studio-api'",
+    "mastra:studio": "portless studio sh -c 'bunx mastra@1.19.0 studio -p $PORT -h localhost -s 3117 -x http --server-api-prefix /studio-api'",
     "mastra:migrate": "DATA_DIR=\"$PWD/data\" bunx --bun mastra migrate --dir mastra",
     "postinstall": "lefthook install",
     "record:demo": "cd playwright && DEMO_START_FRAME=28% DEMO_MAX_FRAMES=2700 bunx playwright test --project=record-demo",
