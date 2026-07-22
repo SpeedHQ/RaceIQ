@@ -531,16 +531,9 @@ export function buildSetupEngineerTools() {
         console.error("[SetupEngineer] Failed to log branch action:", err?.message);
       }
 
-      try {
-        await saveAssistantChatMessage(
-          tuneSessionThreadId(sessionId),
-          asNewRoot
-            ? `Started a new base **${label}** (v${nextVer}) inspired by **${match.label}**. It's in the tree — switch to it when you want to work from it.`
-            : `Branched **${label}** (v${nextVer}) from **${match.label}**. It's in the tree — switch to it when you want to work from it.`,
-        );
-      } catch (err: any) {
-        console.error("[SetupEngineer] Failed to post branch note:", err?.message);
-      }
+      // No deterministic chat note here: this tool only runs inside an agent
+      // turn, and the agent already narrates the branch in its reply — a note
+      // would duplicate it (three "Branched ..." bubbles after one request).
       return { ok: true, label, version: nextVer };
     },
   });
