@@ -153,7 +153,7 @@ function NotesModal({ sessionId, test, onClose }: { sessionId: number; test: Tun
       >
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold text-app-text">
-            <span className="font-mono text-app-text-dim">v{test.version}</span> {test.label} — notes
+            <span className="font-mono">{test.label}</span> — notes
           </p>
           <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
             ×
@@ -274,8 +274,7 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
           <div className="flex-1 min-w-0 pb-2">
             <button type="button" onClick={() => toggle(t.id)} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left hover:bg-app-surface-alt/40">
               <span className="text-app-text-dim text-xs w-3">{isOpen ? "▾" : "▸"}</span>
-              <span className="font-mono text-xs text-app-text">v{t.version}</span>
-              <span className="text-xs text-app-text truncate">{t.label}</span>
+              <span className="font-mono text-xs text-app-text truncate">{t.label}</span>
               {isHead && <span className="text-[9px] uppercase tracking-wider text-purple-400 border border-purple-400/40 rounded px-1 py-px shrink-0">HEAD</span>}
               {!isHead && (
                 <button
@@ -319,7 +318,7 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
                 onClick={(e) => {
                   e.stopPropagation();
                   const extra = hasChildren ? " and its whole branch" : "";
-                  if (!window.confirm(`Delete v${t.version} "${t.label}"${extra}? This can be restored from the trash.`)) return;
+                  if (!window.confirm(`Delete "${t.label}"${extra}? This can be restored from the trash.`)) return;
                   deleteVersion.mutate({ sessionId, testId: t.id });
                 }}
                 disabled={deleteVersion.isPending}

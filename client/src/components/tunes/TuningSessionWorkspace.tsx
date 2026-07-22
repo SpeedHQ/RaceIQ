@@ -205,7 +205,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 p-2 border-b border-app-border">
                   <StatCard label="Laps" value={String(lapCount)} />
                   <StatCard label="Best lap" value={bestLap != null ? formatLapTime(bestLap) : "—"} />
-                  <StatCard label="Best setup" value={bestTest ? `v${bestTest.test.version} · ${formatLapTime(bestTest.lapTime)}` : "—"} />
+                  <StatCard label="Best setup" value={bestTest ? `${bestTest.test.label} · ${formatLapTime(bestTest.lapTime)}` : "—"} />
                   <StatCard label="Avg (valid) lap" value={avgLap != null ? formatLapTime(avgLap) : "—"} />
                   <StatCard label="Drive time" value={driveTime > 0 ? formatDuration(driveTime) : "—"} />
                   <StatCard label="Fuel/lap" value={avgFuel != null ? `${avgFuel.toFixed(2)} L` : "—"} />

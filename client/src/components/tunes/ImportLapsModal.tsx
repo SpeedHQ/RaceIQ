@@ -136,7 +136,7 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
               <option value="">Session baseline (no specific version)</option>
               {tests.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.label} (v{t.version})
+                  {t.label}
                 </option>
               ))}
             </select>
