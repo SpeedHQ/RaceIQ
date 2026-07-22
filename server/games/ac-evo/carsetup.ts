@@ -229,20 +229,20 @@ const ALIGNMENT_GUESSES: Record<string, string> = {
   // #3 is Toe (confirmed; promoted to real label in summarizeCarSetup)
   // #4 is NOT Toe (front-only constant, e.g. -0.0138) — leave raw
   "#5": "Caster", // front ~6.4–6.7°; rear ~3.6–3.8 also moves with caster edits; derived twin at #5/#6 tracks camber/toe live
-  "#6": "Toe (derived)", // tiny signed radians; tracks toe but computed, not the slider input
-  "#7": "Compound", // absent→1 on all corners after a compound change
+  // #6 is a computed twin of toe (tiny signed radians) — hidden in summarizeCarSetup, not shown
+  "#7": "Tyre compound", // index; no per-car name list exists in content.kspkg (compound generators are class-level), so the raw number is shown
 };
 const SPRING_GUESSES: Record<string, string> = {
-  "#2.#1": "Bumpstop gap", // small signed metres (-0.023)
+  "#2.#1": "Bumpstop range", // small signed metres (-0.023); ACE UI calls this bump stop range
   "#2.#2": "Bumpstop rate", // 1000
-  "#3.#1": "Packer/travel", // 0.048 m
+  "#3.#1": "Packer range", // 0.048 m
   "#3.#2": "Packer rate", // 1500
 };
 const DAMPER_GUESSES: Record<string, string> = {
-  "#1": "Bump", // clicks (8)
-  "#2": "Bump rate", // 8000
-  "#3": "Rebound", // clicks (8)
-  "#4": "Rebound rate", // 6000
+  "#1": "Slow bump", // clicks (8); matches ACE "Slow bump" slider
+  "#2": "Slow bump rate", // 8000; per-car rate, not a click count
+  "#3": "Slow rebound", // clicks (8); matches ACE "Slow rebound" slider
+  "#4": "Slow rebound rate", // 6000; per-car rate, not a click count
 };
 const ELECTRONICS_GUESSES: Record<string, string> = {
   "#1": "TC", // 5→12 when TC set to 12
@@ -332,10 +332,12 @@ export function summarizeCarSetup(
       const camber = num(align.fields.find((f) => f.no === 2));
       if (pressure != null) rows.push(withRange({ label: "Tyre pressure", value: `${fmt(pressure)} psi` }, pressure, pressureKey));
       if (camber != null) rows.push(withRange({ label: "Camber", value: `${fmt(camber)}°` }, camber, `${axle}Camber`));
-      // #3 — toe, raw slider value (verified: FL 0.1→0.06 matched the toe slider edit)
-      const toe = num(align.fields.find((f) => f.no === 3));
-      if (toe != null) rows.push(withRange({ label: "Toe", value: fmt(toe) }, toe, `${axle}Toe`));
-      rows.push(...genericRows(align.fields, "Alignment ", new Set([1, 2, 3]), ALIGNMENT_GUESSES));
+      // #3 — toe, raw slider value (verified: FL 0.1→0.06 matched the toe slider edit).
+      // proto3 omits zero-valued fields, so an absent #3 means toe 0 — always render.
+      const toe = num(align.fields.find((f) => f.no === 3)) ?? 0;
+      rows.push(withRange({ label: "Toe", value: fmt(toe) }, toe, `${axle}Toe`));
+      // #6 is a computed twin of toe (not the slider input) — hide it to avoid confusion.
+      rows.push(...genericRows(align.fields, "Alignment ", new Set([1, 2, 3, 6]), ALIGNMENT_GUESSES));
     }
     const spring = springs[i];
     if (spring) {
