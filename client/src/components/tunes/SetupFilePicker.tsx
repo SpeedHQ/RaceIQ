@@ -27,9 +27,25 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                   <div className="mb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{s.title}</div>
                   <div className="divide-y divide-border rounded-md border border-border">
                     {s.rows.map((r) => (
-                      <div key={r.label} className="flex items-center justify-between gap-4 px-3 py-1.5 text-[12px]">
-                        <span className="text-muted-foreground">{r.label}</span>
-                        <span className="font-mono">{r.value}</span>
+                      <div key={r.label} className="px-3 py-1.5 text-[12px]">
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="text-muted-foreground">{r.label}</span>
+                          <span className="font-mono">{r.value}</span>
+                        </div>
+                        {/* Range bar (like the AI analysis result) — only for rows
+                            with a real extracted per-car min/max from the server. */}
+                        {r.num != null && r.min != null && r.max != null && r.max > r.min && (
+                          <div className="mt-1 flex items-center gap-2">
+                            <span className="text-[10px] font-mono tabular-nums text-muted-foreground">{r.min}</span>
+                            <div className="relative h-1 flex-1 rounded bg-muted">
+                              <span
+                                className="absolute top-1/2 h-2.5 w-0.5 -translate-y-1/2 rounded bg-purple-400"
+                                style={{ left: `${Math.min(100, Math.max(0, ((r.num - r.min) / (r.max - r.min)) * 100))}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] font-mono tabular-nums text-muted-foreground">{r.max}</span>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
