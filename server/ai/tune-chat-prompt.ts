@@ -171,7 +171,7 @@ function formatHistory(tests: TuneChatTest[]): string {
       }
       const comment = t.driverComment ? ` — driver: "${t.driverComment}"` : "";
       const engine = t.engine ? ` [${t.engine}]` : "";
-      return `  v${t.version} ${t.label}${engine}: ${changes}${comment}`;
+      return `  ${t.label}${engine}: ${changes}${comment}`;
     })
     .join("\n");
 }

@@ -861,7 +861,8 @@ export function buildSetupEngineerTools() {
       "Soft-delete a setup version and its whole branch (all versions forked from it). Reversible — trashed " +
       "versions can be restored later. If the session's current head is inside the deleted branch, the head " +
       "moves to the nearest surviving ancestor automatically. Confirm with the driver before calling — this " +
-      "affects a real, laps-bearing version tree, not just the one node named.",
+      "affects a real, laps-bearing version tree, not just the one node named. Never call it until the " +
+      "driver has explicitly said yes to deleting that specific version in a message after you asked.",
     inputSchema: z.object({
       testId: z.number().int().positive(),
     }),

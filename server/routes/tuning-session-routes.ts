@@ -285,10 +285,10 @@ export const tuningSessionRoutes = new Hono()
       try {
         const extra = result.deletedIds.length - 1;
         await saveChatMessages(tuneSessionThreadId(id), [
-          { role: "user", markdown: `Delete **${test.label}** (v${test.version}) and its branch.` },
+          { role: "user", markdown: `Delete **${test.label}** and its branch.` },
           {
             role: "assistant",
-            markdown: `Deleted **${test.label}** (v${test.version})${extra > 0 ? ` and ${extra} child version${extra === 1 ? "" : "s"}` : ""} — restorable from the trash.`,
+            markdown: `Deleted **${test.label}**${extra > 0 ? ` and ${extra} child version${extra === 1 ? "" : "s"}` : ""} — restorable from the trash.`,
           },
         ]);
       } catch (err: any) {
@@ -327,10 +327,10 @@ export const tuningSessionRoutes = new Hono()
       try {
         const extra = restoredIds.length - 1;
         await saveChatMessages(tuneSessionThreadId(id), [
-          { role: "user", markdown: `Restore **${test.label}** (v${test.version}) from the trash.` },
+          { role: "user", markdown: `Restore **${test.label}** from the trash.` },
           {
             role: "assistant",
-            markdown: `Restored **${test.label}** (v${test.version})${extra > 0 ? ` and ${extra} child version${extra === 1 ? "" : "s"}` : ""}.`,
+            markdown: `Restored **${test.label}**${extra > 0 ? ` and ${extra} child version${extra === 1 ? "" : "s"}` : ""}.`,
           },
         ]);
       } catch (err: any) {
@@ -384,12 +384,12 @@ export const tuningSessionRoutes = new Hono()
 
       try {
         await saveChatMessages(tuneSessionThreadId(id), [
-          { role: "user", markdown: `Add **${label}** (v${version}) as a new base.` },
+          { role: "user", markdown: `Add **${label}** as a new base.` },
           {
             role: "assistant",
             markdown: body.setHead
-              ? `Added **${label}** (v${version}) as a new base and switched to it — I'll work from here.`
-              : `Added **${label}** (v${version}) as a new base.`,
+              ? `Added **${label}** as a new base and switched to it — I'll work from here.`
+              : `Added **${label}** as a new base.`,
           },
         ]);
       } catch (err: any) {
@@ -451,7 +451,7 @@ export const tuningSessionRoutes = new Hono()
       try {
         await saveChatMessages(tuneSessionThreadId(id), [
           { role: "user", markdown: `Capture current car setup.` },
-          { role: "assistant", markdown: `Captured the current setup into **${label}** (v${version}) from telemetry.` },
+          { role: "assistant", markdown: `Captured the current setup into **${label}** from telemetry.` },
         ]);
       } catch (err: any) {
         console.error("[tune] Failed to post capture-setup note:", err?.message);
@@ -687,10 +687,10 @@ export const tuningSessionRoutes = new Hono()
     // real exchange and the agent keeps context on reload.
     try {
       await saveChatMessages(tuneSessionThreadId(id), [
-        { role: "user", markdown: `Switch head to **${test.label}** (v${test.version}).` },
+        { role: "user", markdown: `Switch head to **${test.label}**.` },
         {
           role: "assistant",
-          markdown: `Switched to **${test.label}** (v${test.version}) as the current setup — I'll work from here.`,
+          markdown: `Switched to **${test.label}** as the current setup — I'll work from here.`,
         },
       ]);
     } catch (err: any) {

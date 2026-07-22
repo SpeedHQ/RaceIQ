@@ -95,7 +95,7 @@ describe("buildTuneChatSystemPrompt", () => {
     // Setup summary
     expect(prompt).toContain("basicSetup.tyres.tyrePressure");
     // Applied-change history across versions
-    expect(prompt).toContain("v1 base");
+    expect(prompt).toContain("base:");
     expect(prompt).toContain("frontARB 5→4");
     expect(prompt).toContain('driver: "loose on entry"');
     // The deterministic-owns-the-numbers guardrail (parity §4d)
