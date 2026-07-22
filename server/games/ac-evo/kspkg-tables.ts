@@ -11,7 +11,7 @@
  * is defensive so new/unknown fields are ignored rather than fatal.
  */
 
-interface ProtoField {
+export interface ProtoField {
   num: number;
   wire: number;
   /** wire 2 payload */

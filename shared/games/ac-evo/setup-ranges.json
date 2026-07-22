@@ -1,0 +1,1818 @@
+{
+  "abarth_695_biposto": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 300,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 300,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 2,
+      "max": 35,
+      "step": 1
+    }
+  },
+  "alfa_romeo_75_turbo_evo": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 125,
+      "max": 125,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 180,
+      "max": 180,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 49,
+      "step": 1
+    }
+  },
+  "alfa_romeo_giulia_gta_sprint": {
+    "brakeBias": {
+      "min": 60,
+      "max": 90,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 80,
+      "max": 250,
+      "step": 10
+    },
+    "rearRideHeight": {
+      "min": 80,
+      "max": 250,
+      "step": 10
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 58,
+      "step": 1
+    }
+  },
+  "alfa_romeo_giulia_gtam": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 90,
+      "max": 120,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 200,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 2,
+      "max": 58,
+      "step": 1
+    }
+  },
+  "alfa_romeo_junior": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 280,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 280,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 2,
+      "max": 45,
+      "step": 1
+    }
+  },
+  "alpine_a110_s": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 80,
+      "max": 250,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 80,
+      "max": 250,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 45,
+      "step": 1
+    }
+  },
+  "alpine_a290_b": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 50,
+      "max": 160,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 50,
+      "max": 160,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 10,
+      "max": 10,
+      "step": 1
+    }
+  },
+  "audi_r8_lms_gt3_evo_2": {
+    "brakeBias": {
+      "min": 50,
+      "max": 65,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 54,
+      "max": 70,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 60,
+      "max": 90,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": {
+      "min": 1,
+      "max": 6,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 120,
+      "step": 1
+    }
+  },
+  "audi_r8_lms_gt4_evo": {
+    "brakeBias": {
+      "min": 50,
+      "max": 65,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 90,
+      "max": 110,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 130,
+      "step": 1
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 5,
+      "step": 1
+    },
+    "rearWing": {
+      "min": -2,
+      "max": 6,
+      "step": 2
+    },
+    "fuel": {
+      "min": 1,
+      "max": 118,
+      "step": 1
+    }
+  },
+  "audi_rs_3_sportback": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 80,
+      "max": 200,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 80,
+      "max": 200,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 0,
+      "max": 55,
+      "step": 1
+    }
+  },
+  "audi_rs_6_avant": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 150,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 150,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 73,
+      "step": 1
+    }
+  },
+  "audi_sport_quattro": {
+    "brakeBias": {
+      "min": 65,
+      "max": 85,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 100,
+      "step": 10
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 100,
+      "step": 10
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 90,
+      "step": 1
+    }
+  },
+  "bmw_m2_coupe": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 0.1
+    },
+    "frontRideHeight": {
+      "min": 0,
+      "max": 200,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 0,
+      "max": 200,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 52,
+      "step": 1
+    }
+  },
+  "bmw_m2_cs_racing": {
+    "brakeBias": {
+      "min": 60,
+      "max": 75,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 125,
+      "max": 150,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 120,
+      "max": 150,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": {
+      "min": 0,
+      "max": 5,
+      "step": 1
+    },
+    "fuel": {
+      "min": 0,
+      "max": 120,
+      "step": 1
+    }
+  },
+  "bmw_m3_e30_evo_iii": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 50,
+      "max": 200,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 50,
+      "max": 200,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 55,
+      "step": 1
+    }
+  },
+  "bmw_m3_e46_csl": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 0,
+      "max": 200,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 0,
+      "max": 200,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 63,
+      "step": 1
+    }
+  },
+  "bmw_m4_csl": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 50,
+      "max": 200,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 50,
+      "max": 200,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 2,
+      "max": 59,
+      "step": 1
+    }
+  },
+  "bmw_m4_gt3": {
+    "brakeBias": {
+      "min": 50,
+      "max": 80,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 50,
+      "max": 85,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 50,
+      "max": 85,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": {
+      "min": -2,
+      "max": 6,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 120,
+      "step": 1
+    }
+  },
+  "bmw_m8_competition": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 70,
+      "max": 160,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 70,
+      "max": 160,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 68,
+      "step": 1
+    }
+  },
+  "caterham_485_csr": {
+    "brakeBias": {
+      "min": 50,
+      "max": 75,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 145,
+      "max": 165,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 140,
+      "max": 165,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 41,
+      "step": 1
+    }
+  },
+  "caterham_academy": {
+    "brakeBias": {
+      "min": 50,
+      "max": 75,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 120,
+      "max": 145,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 105,
+      "max": 135,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 36,
+      "step": 1
+    }
+  },
+  "chevrolet_camaro_zl1": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 650,
+      "max": 750,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 650,
+      "max": 750,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 2,
+      "max": 72,
+      "step": 1
+    }
+  },
+  "dallara_exp": {
+    "brakeBias": {
+      "min": 50,
+      "max": 65,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 52,
+      "max": 62,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 65,
+      "max": 75,
+      "step": 1
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 5,
+      "step": 1
+    },
+    "rearWing": {
+      "min": 5,
+      "max": 15,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 55,
+      "step": 1
+    }
+  },
+  "dallara_stradale_coupe": {
+    "brakeBias": {
+      "min": 50,
+      "max": 75,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 80,
+      "max": 100,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 80,
+      "max": 110,
+      "step": 1
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 5,
+      "step": 1
+    },
+    "rearWing": {
+      "min": 5,
+      "max": 15,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 55,
+      "step": 1
+    }
+  },
+  "datsun_240z_fairlady": {
+    "brakeBias": {
+      "min": 85,
+      "max": 85,
+      "step": 8.5
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 100,
+      "step": 10
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 100,
+      "step": 10
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 60,
+      "step": 1
+    }
+  },
+  "ferrari_288_gto": {
+    "brakeBias": {
+      "min": 50,
+      "max": 80,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 130,
+      "max": 160,
+      "step": 5
+    },
+    "rearRideHeight": {
+      "min": 150,
+      "max": 170,
+      "step": 5
+    },
+    "frontWing": null,
+    "rearWing": {
+      "min": 0,
+      "max": 6,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 100,
+      "step": 1
+    }
+  },
+  "ferrari_296_gt3": {
+    "brakeBias": {
+      "min": 50,
+      "max": 80,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 50,
+      "max": 85,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 50,
+      "max": 85,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": {
+      "min": -2,
+      "max": 10,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 120,
+      "step": 1
+    }
+  },
+  "ferrari_296_gtb": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 50,
+      "max": 200,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 50,
+      "max": 200,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 2,
+      "max": 65,
+      "step": 1
+    }
+  },
+  "ferrari_488_challenge_evo": {
+    "brakeBias": {
+      "min": 50,
+      "max": 75,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 75,
+      "max": 95,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 90,
+      "max": 110,
+      "step": 1
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 3,
+      "step": 1
+    },
+    "rearWing": {
+      "min": 6,
+      "max": 12,
+      "step": 1
+    },
+    "fuel": {
+      "min": 2,
+      "max": 110,
+      "step": 1
+    }
+  },
+  "ferrari_daytona_sp3": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 100,
+      "step": 10
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 100,
+      "step": 10
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 86,
+      "step": 1
+    }
+  },
+  "ferrari_f2004": {
+    "brakeBias": {
+      "min": 50,
+      "max": 65,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 30,
+      "max": 70,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 30,
+      "max": 70,
+      "step": 1
+    },
+    "frontWing": {
+      "min": 2,
+      "max": 28,
+      "step": 1
+    },
+    "rearWing": {
+      "min": 2,
+      "max": 28,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 150,
+      "step": 1
+    }
+  },
+  "ferrari_f40_lm": {
+    "brakeBias": {
+      "min": 50,
+      "max": 70,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 80,
+      "max": 110,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 80,
+      "max": 120,
+      "step": 1
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 3,
+      "step": 1
+    },
+    "rearWing": {
+      "min": 2,
+      "max": 6,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 120,
+      "step": 1
+    }
+  },
+  "ferrari_sf_25": {
+    "brakeBias": {
+      "min": 50,
+      "max": 70,
+      "step": 0.1
+    },
+    "frontRideHeight": {
+      "min": 40,
+      "max": 50,
+      "step": 0.5
+    },
+    "rearRideHeight": {
+      "min": 55,
+      "max": 80,
+      "step": 0.5
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 12,
+      "step": 1
+    },
+    "rearWing": {
+      "min": 6,
+      "max": 20,
+      "step": 2
+    },
+    "fuel": {
+      "min": 1,
+      "max": 145,
+      "step": 1
+    }
+  },
+  "ford_escort_rs_cosworth": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 10,
+      "max": 200,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 10,
+      "max": 200,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 65,
+      "step": 1
+    }
+  },
+  "ford_mustang_gt3": {
+    "brakeBias": {
+      "min": 50,
+      "max": 80,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 50,
+      "max": 85,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 50,
+      "max": 85,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": {
+      "min": 0,
+      "max": 7,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 120,
+      "step": 1
+    }
+  },
+  "honda_nsx_r": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 20,
+      "max": 180,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 20,
+      "max": 180,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 70,
+      "step": 1
+    }
+  },
+  "honda_s2000_ap1": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 250,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 250,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 50,
+      "step": 1
+    }
+  },
+  "hyundai_i30_n_hb": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 60,
+      "max": 300,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 60,
+      "max": 300,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 2,
+      "max": 55,
+      "step": 1
+    }
+  },
+  "ktm_x_bow_gt2": {
+    "brakeBias": {
+      "min": 50,
+      "max": 65,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 70,
+      "max": 110,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 80,
+      "max": 120,
+      "step": 1
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 5,
+      "step": 1
+    },
+    "rearWing": {
+      "min": -2,
+      "max": 6,
+      "step": 2
+    },
+    "fuel": {
+      "min": 1,
+      "max": 118,
+      "step": 1
+    }
+  },
+  "ktm_x_bow_gt4": {
+    "brakeBias": {
+      "min": 50,
+      "max": 65,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 70,
+      "max": 100,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 75,
+      "max": 120,
+      "step": 1
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 5,
+      "step": 1
+    },
+    "rearWing": {
+      "min": 0,
+      "max": 12,
+      "step": 1.5
+    },
+    "fuel": {
+      "min": 1,
+      "max": 120,
+      "step": 1
+    }
+  },
+  "lamborghini_countach": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 20,
+      "max": 180,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 20,
+      "max": 180,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 120,
+      "step": 1
+    }
+  },
+  "lamborghini_huracan_st_evo2": {
+    "brakeBias": {
+      "min": 50,
+      "max": 80,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 75,
+      "max": 100,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 80,
+      "max": 105,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": {
+      "min": 2,
+      "max": 16,
+      "step": 1
+    },
+    "fuel": {
+      "min": 2,
+      "max": 120,
+      "step": 1
+    }
+  },
+  "lamborghini_huracan_sto": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 150,
+      "step": 2.5
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 150,
+      "step": 2.5
+    },
+    "frontWing": null,
+    "rearWing": {
+      "min": -3,
+      "max": 1,
+      "step": 2
+    },
+    "fuel": {
+      "min": 2,
+      "max": 83,
+      "step": 1
+    }
+  },
+  "lancia_delta_hf_integrale_evo_ii": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 140,
+      "max": 175,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 80,
+      "max": 200,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 57,
+      "step": 1
+    }
+  },
+  "lotus_emira": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 250,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 138,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 53,
+      "step": 1
+    }
+  },
+  "lotus_exige_v6_cup": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 0,
+      "max": 200,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 0,
+      "max": 200,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 40,
+      "step": 1
+    }
+  },
+  "maserati_mc20_gt2": {
+    "brakeBias": {
+      "min": 55,
+      "max": 70,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 65,
+      "max": 90,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 70,
+      "max": 95,
+      "step": 1
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "rearWing": {
+      "min": -4,
+      "max": 10,
+      "step": 2
+    },
+    "fuel": {
+      "min": 1,
+      "max": 120,
+      "step": 1
+    }
+  },
+  "mazda_mx5_na": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 170,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 170,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 2,
+      "max": 48,
+      "step": 1
+    }
+  },
+  "mazda_mx5_nd_cup": {
+    "brakeBias": {
+      "min": 50,
+      "max": 90,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 111,
+      "max": 130,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 111,
+      "max": 130,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 2,
+      "max": 45,
+      "step": 1
+    }
+  },
+  "mercedes_190e_evo_ii": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 125,
+      "max": 150,
+      "step": 5
+    },
+    "rearRideHeight": {
+      "min": 125,
+      "max": 150,
+      "step": 5
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 3,
+      "step": 1
+    },
+    "rearWing": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "fuel": {
+      "min": 2,
+      "max": 70,
+      "step": 1
+    }
+  },
+  "mercedes_amg_gt2": {
+    "brakeBias": {
+      "min": 55,
+      "max": 68,
+      "step": 0.5
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 110,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 120,
+      "max": 140,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": {
+      "min": 2,
+      "max": 6,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 120,
+      "step": 1
+    }
+  },
+  "mini_jcs_1990": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 80,
+      "max": 230,
+      "step": 0.5
+    },
+    "rearRideHeight": {
+      "min": 80,
+      "max": 230,
+      "step": 0.5
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 34,
+      "step": 1
+    }
+  },
+  "peugeot_205_t16": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 100,
+      "step": 10
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 100,
+      "step": 10
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 110,
+      "step": 1
+    }
+  },
+  "porsche_718_cayman_gt4_cs_mr": {
+    "brakeBias": {
+      "min": 50,
+      "max": 80,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 80,
+      "max": 110,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 80,
+      "max": 110,
+      "step": 1
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 5,
+      "step": 1
+    },
+    "rearWing": {
+      "min": 0,
+      "max": 4,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 115,
+      "step": 1
+    }
+  },
+  "porsche_718_cayman_gt4_rs": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 50,
+      "max": 150,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 50,
+      "max": 150,
+      "step": 1
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 5,
+      "step": 1
+    },
+    "rearWing": {
+      "min": 0,
+      "max": 4,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 64,
+      "step": 1
+    }
+  },
+  "porsche_935": {
+    "brakeBias": {
+      "min": 48,
+      "max": 70,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 70,
+      "max": 100,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 75,
+      "max": 105,
+      "step": 1
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "rearWing": {
+      "min": 2,
+      "max": 9,
+      "step": 1
+    },
+    "fuel": {
+      "min": 2,
+      "max": 120,
+      "step": 1
+    }
+  },
+  "porsche_964_turbo_3_6": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 200,
+      "step": 10
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 200,
+      "step": 10
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 0,
+      "max": 92,
+      "step": 1
+    }
+  },
+  "porsche_991ii_gt2_rs_clubsport_evo": {
+    "brakeBias": {
+      "min": 48,
+      "max": 70,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 70,
+      "max": 100,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 75,
+      "max": 105,
+      "step": 1
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "rearWing": {
+      "min": 3,
+      "max": 9,
+      "step": 1
+    },
+    "fuel": {
+      "min": 2,
+      "max": 120,
+      "step": 1
+    }
+  },
+  "porsche_992_gt3_cup": {
+    "brakeBias": {
+      "min": 48,
+      "max": 75,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 72,
+      "max": 110,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 125,
+      "step": 1
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "rearWing": {
+      "min": -1,
+      "max": 13,
+      "step": 1
+    },
+    "fuel": {
+      "min": 2,
+      "max": 112,
+      "step": 1
+    }
+  },
+  "porsche_992_gt3_r_rennsport": {
+    "brakeBias": {
+      "min": 48,
+      "max": 65,
+      "step": 0.2
+    },
+    "frontRideHeight": {
+      "min": 50,
+      "max": 85,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 50,
+      "max": 85,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": {
+      "min": 5.3,
+      "max": 12.3,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 117,
+      "step": 1
+    }
+  },
+  "porsche_992_gt3_rs": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 110,
+      "step": 5
+    },
+    "rearRideHeight": {
+      "min": 110,
+      "max": 125,
+      "step": 5
+    },
+    "frontWing": {
+      "min": 0,
+      "max": 20,
+      "step": 1
+    },
+    "rearWing": {
+      "min": -6,
+      "max": 28,
+      "step": 1
+    },
+    "fuel": {
+      "min": 1,
+      "max": 90,
+      "step": 1
+    }
+  },
+  "renault_5_gt_turbo": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 200,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 200,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 50,
+      "step": 1
+    }
+  },
+  "toyota_ae86_sprinter_trueno": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 200,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 200,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 50,
+      "step": 1
+    }
+  },
+  "toyota_gr86": {
+    "brakeBias": {
+      "min": 72,
+      "max": 72,
+      "step": 7.2
+    },
+    "frontRideHeight": {
+      "min": 60,
+      "max": 200,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 60,
+      "max": 200,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 2,
+      "max": 50,
+      "step": 1
+    }
+  },
+  "toyota_supra_mkiv": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 160,
+      "step": 10
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 160,
+      "step": 10
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 70,
+      "step": 1
+    }
+  },
+  "volkswagen_golf_gti_mk1": {
+    "brakeBias": {
+      "min": 50,
+      "max": 100,
+      "step": 7.8
+    },
+    "frontRideHeight": {
+      "min": 100,
+      "max": 100,
+      "step": 10
+    },
+    "rearRideHeight": {
+      "min": 100,
+      "max": 100,
+      "step": 10
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 1,
+      "max": 45,
+      "step": 1
+    }
+  },
+  "volkswagen_golf_gti_mk8": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 50,
+      "max": 250,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 50,
+      "max": 250,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 2,
+      "max": 50,
+      "step": 1
+    }
+  },
+  "volkswagen_golf_r_mk8": {
+    "brakeBias": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontRideHeight": {
+      "min": 80,
+      "max": 200,
+      "step": 1
+    },
+    "rearRideHeight": {
+      "min": 80,
+      "max": 200,
+      "step": 1
+    },
+    "frontWing": null,
+    "rearWing": null,
+    "fuel": {
+      "min": 0,
+      "max": 55,
+      "step": 1
+    }
+  }
+}
