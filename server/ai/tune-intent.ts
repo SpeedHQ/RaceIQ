@@ -66,8 +66,9 @@ export function buildTunePrompt(
   gameId: GameId,
   symptoms: TuneSymptoms,
   trackName?: string,
+  carModel?: string,
 ): string {
-  const components = knownComponents(gameId);
+  const components = knownComponents(gameId, carModel);
 
   return `You are a race engineer tuning a car in ${gameId.toUpperCase()}${trackName ? ` at ${trackName}` : ""}.
 
@@ -101,9 +102,10 @@ export function buildTuneChatIntentPrompt(
     currentSetupSummary: string | null;
     symptoms?: TuneSymptoms | null;
     trackName?: string;
+    carModel?: string;
   },
 ): string {
-  const components = knownComponents(gameId);
+  const components = knownComponents(gameId, opts.carModel);
 
   const setupBlock = opts.currentSetupSummary
     ? `\n=== CURRENT SETUP VALUES (evidence only — do NOT echo these back as targets) ===\n${opts.currentSetupSummary}\n`
@@ -183,8 +185,9 @@ export async function requestTuneIntents(
   gameId: GameId,
   symptoms: TuneSymptoms,
   trackName?: string,
+  carModel?: string,
 ): Promise<{ intents: TuneIntents; model: string }> {
-  const prompt = buildTunePrompt(gameId, symptoms, trackName);
+  const prompt = buildTunePrompt(gameId, symptoms, trackName, carModel);
   const { raw, model } = await runTuneIntentProvider(prompt, getTuneIntentJsonSchema());
 
   const parsed = parseTuneIntents(raw);
@@ -208,6 +211,7 @@ export async function requestTuneIntentsFromChat(
     currentSetupSummary: string | null;
     symptoms?: TuneSymptoms | null;
     trackName?: string;
+    carModel?: string;
   },
 ): Promise<{ intents: TuneIntents; model: string }> {
   const prompt = buildTuneChatIntentPrompt(gameId, opts);

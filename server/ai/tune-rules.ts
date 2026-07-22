@@ -146,8 +146,49 @@ const RULES: Record<string, Record<string, FieldDef>> = {
   },
 };
 
-function tableFor(gameId: GameId): Record<string, FieldDef> | null {
-  return RULES[gameId] ?? null;
+// Per-car ranges extracted from AC Evo game data (content.kspkg → cardata.car)
+// by scripts/extract-acevo-setup-ranges.ts. Keyed by carModel → snapshot field
+// name (matches FieldDef.paths[0] for "ac-evo"). `null` = not tunable on car.
+// ACC has no equivalent: its car data is encrypted (.kunosblob inside the UE4
+// pak), so ACC stays on the per-game global clamps above.
+import acEvoRangesJson from "../../shared/games/ac-evo/setup-ranges.json";
+
+interface CarRange {
+  min: number;
+  max: number;
+  step: number;
+}
+const AC_EVO_CAR_RANGES = acEvoRangesJson as unknown as Record<string, Record<string, CarRange | null>>;
+
+/**
+ * Per-game rule table, narrowed to a specific car when per-car data exists.
+ * - Component marked `null` for the car ⇒ dropped (never suggested, rejected on apply).
+ * - Component with extracted min/max/step ⇒ clamps and step sizes replaced.
+ * - Car (or game) without per-car data ⇒ per-game global table unchanged.
+ */
+function tableFor(gameId: GameId, carModel?: string): Record<string, FieldDef> | null {
+  const base = RULES[gameId] ?? null;
+  if (!base || gameId !== "ac-evo" || !carModel) return base;
+  const car = AC_EVO_CAR_RANGES[carModel];
+  if (!car) return base;
+  const narrowed: Record<string, FieldDef> = {};
+  for (const [component, def] of Object.entries(base)) {
+    const key = def.paths[0];
+    if (!(key in car)) {
+      narrowed[component] = def; // no per-car data for this field — keep global
+      continue;
+    }
+    const r = car[key];
+    if (r === null) continue; // not tunable on this car
+    narrowed[component] = {
+      ...def,
+      min: r.min,
+      max: r.max,
+      step: { small: r.step, medium: r.step * 2, large: r.step * 4 },
+      integer: Number.isInteger(r.step) && Number.isInteger(r.min) ? def.integer : false,
+    };
+  }
+  return narrowed;
 }
 
 /** Read a dotted/bracketed path; returns undefined when any segment is missing. */
@@ -198,9 +239,10 @@ export function applyIntents(
   gameId: GameId,
   currentSetup: unknown,
   intents: TuneIntent[],
+  carModel?: string,
 ): ApplyResult {
   const setup = structuredClone(currentSetup);
-  const table = tableFor(gameId);
+  const table = tableFor(gameId, carModel);
   const applied: AppliedChange[] = [];
   const skipped: { component: string; reason: string }[] = [];
 
@@ -269,8 +311,8 @@ export function applyIntents(
 }
 
 /** The component names known for a game — embedded in the intent prompt. */
-export function knownComponents(gameId: GameId): string[] {
-  const table = tableFor(gameId);
+export function knownComponents(gameId: GameId, carModel?: string): string[] {
+  const table = tableFor(gameId, carModel);
   return table ? Object.keys(table) : [];
 }
 
@@ -288,8 +330,8 @@ export interface KnobState {
  * ever sees knobs it can actually move (plan §3). Returns null when the game
  * has no rules table or the component is unknown.
  */
-export function getKnobState(gameId: GameId, setup: unknown, component: string): KnobState | null {
-  const table = tableFor(gameId);
+export function getKnobState(gameId: GameId, setup: unknown, component: string, carModel?: string): KnobState | null {
+  const table = tableFor(gameId, carModel);
   const def = table?.[component];
   if (!def) return null;
   const raw = getByPath(setup, def.paths[0]);
@@ -302,9 +344,9 @@ export function getKnobState(gameId: GameId, setup: unknown, component: string):
 }
 
 /** `getKnobState` for every knob the game exposes — the full grounded knob list. */
-export function getAllKnobStates(gameId: GameId, setup: unknown): KnobState[] {
-  return knownComponents(gameId)
-    .map((c) => getKnobState(gameId, setup, c))
+export function getAllKnobStates(gameId: GameId, setup: unknown, carModel?: string): KnobState[] {
+  return knownComponents(gameId, carModel)
+    .map((c) => getKnobState(gameId, setup, c, carModel))
     .filter((k): k is KnobState => k !== null);
 }
 
@@ -320,12 +362,12 @@ export interface KnobDescription extends KnobState {
  * grounded knob list the Setup Engineer agent's `get_current_setup` tool
  * returns (plan §3): current value + clamp range + how far a click moves it.
  */
-export function describeKnobs(gameId: GameId, setup: unknown): KnobDescription[] {
-  const table = tableFor(gameId);
+export function describeKnobs(gameId: GameId, setup: unknown, carModel?: string): KnobDescription[] {
+  const table = tableFor(gameId, carModel);
   if (!table) return [];
-  return knownComponents(gameId)
+  return knownComponents(gameId, carModel)
     .map((component) => {
-      const state = getKnobState(gameId, setup, component);
+      const state = getKnobState(gameId, setup, component, carModel);
       if (!state) return null;
       return { ...state, step: table[component]!.step };
     })

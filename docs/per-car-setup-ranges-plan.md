@@ -78,12 +78,22 @@ No public per-car ranges dataset exists. Hybrid approach:
 
 ### Phase 3 — wiring
 
-1. `server/ai/tune-rules.ts`:
-   - New loader `getCarRules(gameId, carModel)`: per-car JSON (+ overrides for ACC) → clamp/narrow the existing `RULES` entries; fall back to current per-game defaults when car unknown.
-   - Component absent for car ⇒ excluded from intent prompt component list AND rejected by rule application.
-2. `server/ai/tune-writer.ts` / setup engineer path: same per-car gating before writing values.
-3. Client (`client/src/components/setup-tune/setup-schema.ts` + `SetupSettingsPanel.tsx` / `SetupTuneForm.tsx`): thread per-car ranges through (serve via existing setup routes), clamp inputs, hide unavailable fields.
-4. Tests: `test/` — fixture JSONs for one ACC car + one AC Evo car; assert clamping, fallback, and unavailable-component rejection.
+1. `server/ai/tune-rules.ts` — DONE (as internal `tableFor(gameId, carModel)` rather than
+   an exported `getCarRules`): per-car JSON narrows the existing `RULES` entries; falls back
+   to per-game defaults when car (or game data) is unknown. Component `null` for the car ⇒
+   dropped from `knownComponents` (intent prompt list) AND rejected by `applyIntents`.
+2. Setup engineer / tune routes — DONE: `tune-crud-routes.ts` derives `carModel` from the
+   setup path (`<base>/<carModel>/<track>/<file>.json`) and threads it into both
+   `requestTuneIntents` and `applyIntents`.
+3. Client — DEFERRED: the extracted AC Evo ranges are real-world values keyed by flat
+   telemetry-snapshot fields (`brakeBias` %, `frontRideHeight` mm, …), while the client form
+   edits the nested Kunos click-index JSON (`advancedSetup.…`, integer clicks). No verified
+   click↔real conversion exists, so clamping/hiding client inputs from this data would
+   fabricate mappings. Revisit if/when a click-scale table per car is extracted.
+4. Tests — DONE: `test/tune-rules.test.ts` covers per-car narrowing against the real
+   extracted data (abarth_695_biposto null wings; ferrari_296_gt3 clamps/steps), null-component
+   rejection, unknown-car fallback, and ACC ignoring `carModel`. (No ACC fixture — Phase 2
+   skipped, ACC stays on global clamps.)
 
 ## Order of work (Windows session)
 

@@ -139,3 +139,72 @@ describe("applyIntents — multi-path FieldDef (ride height, dampers, diff prelo
     expect(components).not.toContain("Front Bump");
   });
 });
+
+// ── Per-car narrowing (AC Evo setup-ranges.json, plan Phase 3) ─────────────
+// Fixture cars pulled from the real extracted data:
+//  - abarth_695_biposto: frontWing/rearWing are null (no wings on car),
+//    brakeBias 0–100 step 1.
+//  - ferrari_296_gt3: brakeBias 50–80 step 0.2, rearWing −2–10, frontWing null.
+function baseEvoSnapshot() {
+  return { frontARB: 5, rearARB: 5, brakeBias: 55, frontWing: 3, rearWing: 4 };
+}
+
+describe("applyIntents / knownComponents — per-car narrowing (ac-evo)", () => {
+  test("null component (Abarth wings) is dropped from knownComponents", () => {
+    const components = knownComponents("ac-evo", "abarth_695_biposto");
+    expect(components).not.toContain("Front Wing");
+    expect(components).not.toContain("Rear Wing");
+    // Fields without per-car data keep the global entries
+    expect(components).toContain("Front Anti-Roll Bar");
+    expect(components).toContain("Brake Bias");
+  });
+
+  test("null component is rejected on apply (Abarth Rear Wing)", () => {
+    const result = applyIntents("ac-evo", baseEvoSnapshot(), [intent("Rear Wing", "increase")], "abarth_695_biposto");
+    expect(result.applied).toHaveLength(0);
+    expect(result.skipped).toHaveLength(1);
+    expect(result.skipped[0]!.reason).toMatch(/Unknown component/);
+    expect(result.setup.rearWing).toBe(4); // untouched
+  });
+
+  test("per-car clamps replace globals (Ferrari 296 GT3 brake bias, step 0.2)", () => {
+    const setup = baseEvoSnapshot();
+    setup.brakeBias = 79.9;
+    const result = applyIntents("ac-evo", setup, [intent("Brake Bias", "increase", "large")], "ferrari_296_gt3");
+    expect(result.applied).toHaveLength(1);
+    expect(result.applied[0]!.to).toBe(80); // clamped to per-car max, not global 70
+  });
+
+  test("per-car step sizes are used (Ferrari brake bias medium = 0.2×2)", () => {
+    const result = applyIntents("ac-evo", baseEvoSnapshot(), [intent("Brake Bias", "increase", "medium")], "ferrari_296_gt3");
+    expect(result.applied).toHaveLength(1);
+    expect(result.applied[0]!.to).toBeCloseTo(55.4, 5);
+  });
+
+  test("per-car min can go below the global floor (Ferrari rear wing −2)", () => {
+    const setup = baseEvoSnapshot();
+    setup.rearWing = -1;
+    const result = applyIntents("ac-evo", setup, [intent("Rear Wing", "decrease", "small")], "ferrari_296_gt3");
+    expect(result.applied).toHaveLength(1);
+    expect(result.applied[0]!.to).toBe(-2); // global min is 0 — per-car allows −2
+  });
+
+  test("unknown car falls back to the per-game global table", () => {
+    const components = knownComponents("ac-evo", "not_a_real_car");
+    expect(components).toContain("Rear Wing");
+    const result = applyIntents("ac-evo", baseEvoSnapshot(), [intent("Brake Bias", "increase", "large")], "not_a_real_car");
+    expect(result.applied).toHaveLength(1);
+    expect(result.applied[0]!.to).toBe(57); // global step {large: 2}
+  });
+
+  test("no carModel keeps existing global behaviour", () => {
+    const result = applyIntents("ac-evo", baseEvoSnapshot(), [intent("Front Wing", "increase", "small")]);
+    expect(result.applied).toHaveLength(1);
+    expect(result.applied[0]!.to).toBe(4);
+  });
+
+  test("acc carModel is ignored (no per-car data — encrypted game files)", () => {
+    const components = knownComponents("acc", "ferrari_296_gt3");
+    expect(components).toEqual(knownComponents("acc"));
+  });
+});

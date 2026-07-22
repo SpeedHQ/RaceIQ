@@ -572,6 +572,7 @@ export const tuneCrudRoutes = new Hono()
       let baseDir: string | null = null;
       let realPath: string | null = null;
       let sourceSetup: any = null;
+      let carModel: string | undefined;
 
       if (hasSetup) {
         baseDir = await getSetupsBaseDir(body.gameId);
@@ -596,6 +597,11 @@ export const tuneCrudRoutes = new Hono()
 
         try { sourceSetup = JSON.parse(readFileSync(realPath, "utf-8")); }
         catch (err: any) { return c.json({ error: `Invalid setup JSON: ${err.message}` }, 400); }
+
+        // Setups live under <base>/<carModel>/<track>/<file>.json — the first
+        // path segment names the car, which selects per-car clamp tables.
+        const relSegments = realPath.slice(realBase.length + 1).split(sep);
+        if (relSegments.length >= 2) carModel = relSegments[0];
       }
 
       // 3. Symptoms → intents → applied setup.
@@ -612,7 +618,7 @@ export const tuneCrudRoutes = new Hono()
       let llmFreeIntents: typeof rulesIntents | null = null;
       if (body.engine === "llm") {
         try {
-          const res = await requestTuneIntents(body.gameId, symptoms, body.trackName);
+          const res = await requestTuneIntents(body.gameId, symptoms, body.trackName, carModel);
           // res.intents is the full TuneIntentsSchema shape ({summary, intents});
           // the route (and AutoTunePanel) only wants the flat intent list.
           intents = res.intents.intents;
@@ -637,7 +643,7 @@ export const tuneCrudRoutes = new Hono()
         });
       }
 
-      const { setup, applied, skipped } = applyIntents(body.gameId, sourceSetup, intents);
+      const { setup, applied, skipped } = applyIntents(body.gameId, sourceSetup, intents, carModel);
 
       // 4. Write the result unless this is a preview.
       let written = null;
