@@ -184,13 +184,12 @@ function fmt(v: number): string {
   return Number.isInteger(v) ? String(v) : String(+v.toFixed(4));
 }
 
-/** Leaf fields of a message rendered as generic numbered rows (fallback for
- *  fields whose meaning we haven't confirmed yet).
+/** Leaf fields of a message rendered as labelled rows.
  *
  *  `guesses` maps a wire-number path (e.g. "#4" or "#2.#1", relative to the
- *  message being rendered) to a provisional human label. Guessed labels are
- *  suffixed with "?" and keep the wire number so the UI never presents an
- *  unverified name as fact. */
+ *  message being rendered) to a human label (verified via slider diffing).
+ *  Fields with no label are omitted from the UI — the raw decode script is
+ *  the place to inspect unmapped wire fields. */
 function genericRows(
   fields: WireField[],
   prefix: string,
@@ -199,32 +198,30 @@ function genericRows(
   path = "",
 ): CarSetupRow[] {
   const rows: CarSetupRow[] = [];
-  const labelFor = (no: number): string => {
-    const p = `${path}#${no}`;
-    const g = guesses[p];
-    return g ? `${g}? (${p})` : `${prefix}${p}`;
-  };
+  const labelFor = (no: number): string | null => guesses[`${path}#${no}`] ?? null;
   for (const f of fields) {
     if (skip.has(f.no)) continue;
     if (f.type === "message") {
       rows.push(...genericRows(f.fields, prefix, new Set(), guesses, `${path}#${f.no}.`));
-    } else if (f.type === "bytes") {
-      rows.push({ label: labelFor(f.no), value: f.floats ? f.floats.map((v) => fmt(+v.toFixed(4))).join(" / ") : `0x${f.hex}` });
+      continue;
+    }
+    const label = labelFor(f.no);
+    if (label == null) continue;
+    if (f.type === "bytes") {
+      rows.push({ label, value: f.floats ? f.floats.map((v) => fmt(+v.toFixed(4))).join(" / ") : `0x${f.hex}` });
     } else if (f.type === "string") {
-      rows.push({ label: labelFor(f.no), value: f.value });
+      rows.push({ label, value: f.value });
     } else {
       const v = num(f);
-      if (v != null) rows.push({ label: labelFor(f.no), value: fmt(v) });
+      if (v != null) rows.push({ label, value: fmt(v) });
     }
   }
   return rows;
 }
 
-/** Provisional (UNVERIFIED) field-name guesses, inferred from typical values in
- *  real saves plus the known ACE setup-screen layout. Each rendered with a "?"
- *  suffix by genericRows. To be confirmed/corrected by single-slider save
- *  diffing; anything confirmed should graduate to a real label in
- *  summarizeCarSetup and be removed from here. */
+/** Field-name labels verified (or strongly evidenced) via single-slider save
+ *  diffing against real saves plus the known ACE setup-screen layout.
+ *  Unlabelled wire fields are hidden from the UI by genericRows. */
 const ALIGNMENT_GUESSES: Record<string, string> = {
   // #3 is Toe (confirmed; promoted to real label in summarizeCarSetup)
   // #4 is NOT Toe (front-only constant, e.g. -0.0138) — leave raw
