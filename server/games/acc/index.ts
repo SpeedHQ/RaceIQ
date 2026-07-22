@@ -1,3 +1,4 @@
+import { resolve } from "path";
 import type { ServerGameAdapter } from "../types";
 import type { TelemetryPacket } from "../../../shared/types";
 import { accAdapter } from "../../../shared/games/acc";
@@ -46,6 +47,13 @@ export const accServerAdapter: ServerGameAdapter = {
   ...accAdapter,
 
   processNames: ["acc.exe", "acs2.exe", "AC2-Win64-Shipping.exe"],
+
+  getSetupsDirCandidates(home: string): string[] {
+    return [
+      resolve(home, "Documents", "Assetto Corsa Competizione", "Setups"),
+      resolve(home, "OneDrive", "Documents", "Assetto Corsa Competizione", "Setups"),
+    ];
+  },
 
   getCarName(ordinal: number): string {
     return getAccCarName(ordinal);

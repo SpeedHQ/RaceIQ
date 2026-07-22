@@ -1,3 +1,4 @@
+import { resolve } from "path";
 import type { ServerGameAdapter } from "../types";
 import type { TelemetryPacket } from "../../../shared/types";
 import { acEvoAdapter } from "../../../shared/games/ac-evo";
@@ -43,6 +44,12 @@ export const acEvoServerAdapter: ServerGameAdapter = {
   ...acEvoAdapter,
 
   processNames: ["AssettoCorsaEVO.exe"],
+
+  getSetupsDirCandidates(home: string): string[] {
+    // AC EVO saves setups to Saved Games\ACE\Car Setups as binary
+    // .carsetup (protobuf) files — not under Documents like ACC.
+    return [resolve(home, "Saved Games", "ACE", "Car Setups")];
+  },
 
   getCarName(ordinal: number): string {
     return getAcEvoCarName(ordinal);

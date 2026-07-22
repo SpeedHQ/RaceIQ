@@ -362,6 +362,26 @@ export interface KnobDescription extends KnobState {
  * grounded knob list the Setup Engineer agent's `get_current_setup` tool
  * returns (plan §3): current value + clamp range + how far a click moves it.
  */
+/**
+ * Prompt block listing each knob's hard clamp range for the matched car —
+ * injected into the intent prompts so the model doesn't waste intents pushing
+ * a knob past its limit. Only real per-car data is surfaced: when the car has
+ * no extracted ranges (or the game has none), the block says the ranges are
+ * unknown instead of echoing global fallback clamps as if they were the car's.
+ */
+export function renderKnobLimitsBlock(gameId: GameId, carModel?: string): string {
+  const header = "=== KNOB LIMITS (hard clamps — intents past these are wasted) ===";
+  const matched = gameId === "ac-evo" && !!carModel && !!AC_EVO_CAR_RANGES[carModel];
+  if (!matched) {
+    return `${header}\nTuning ranges unknown for this car — prefer small/medium magnitudes; the engine clamps to real limits.`;
+  }
+  const table = tableFor(gameId, carModel)!;
+  const lines = Object.entries(table)
+    .map(([component, def]) => `  - ${component}: ${def.min} to ${def.max} (small step ${def.step.small})`)
+    .join("\n");
+  return `${header}\n${lines}\nDo not suggest "increase" on a knob already at max, or "decrease" at min.`;
+}
+
 export function describeKnobs(gameId: GameId, setup: unknown, carModel?: string): KnobDescription[] {
   const table = tableFor(gameId, carModel);
   if (!table) return [];

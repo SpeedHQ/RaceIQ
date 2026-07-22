@@ -17,7 +17,7 @@ import {
   parseTuneIntents,
   type TuneIntents,
 } from "./schemas";
-import { knownComponents } from "./tune-rules";
+import { knownComponents, renderKnobLimitsBlock } from "./tune-rules";
 import type { TuneSymptoms } from "./tune-symptoms";
 import { formatTireTempSymptoms } from "./tune-tire-symptoms";
 import { formatDamperSymptoms } from "./tune-damper-symptoms";
@@ -81,6 +81,8 @@ For each intent choose a direction ("increase" or "decrease") and a magnitude
 ("small", "medium", or "large"). Never output raw setup numbers. Prefer a small
 number of high-confidence changes over many speculative ones.
 
+${renderKnobLimitsBlock(gameId, carModel)}
+
 === SYMPTOM REPORT ===
 ${renderSymptomReport(symptoms)}
 
@@ -130,6 +132,8 @@ said. NEVER output raw setup numbers — a deterministic engine converts your
 intents into exact clicks. Prefer a few high-confidence changes driven by the
 driver's stated feel over many speculative ones. If the conversation gives no
 actionable direction, return an empty intents array.
+
+${renderKnobLimitsBlock(gameId, opts.carModel)}
 ${setupBlock}${symptomBlock}
 === CONVERSATION (oldest first) ===
 ${opts.conversation}

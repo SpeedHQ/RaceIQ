@@ -125,7 +125,9 @@ function listSetupFiles(baseDir: string): SetupFileListing[] {
       const trackPath = resolve(carPath, trackName);
       let files: string[];
       try {
-        files = readdirSync(trackPath).filter((f) => f.toLowerCase().endsWith(".json"));
+        // .json = ACC / legacy AC EVO Documents setups; .carsetup = AC EVO
+        // Saved Games\ACE\Car Setups binary setups.
+        files = readdirSync(trackPath).filter((f) => /\.(json|carsetup)$/i.test(f));
       } catch {
         continue;
       }
@@ -272,7 +274,7 @@ export const tuneCrudRoutes = new Hono()
       if (!baseDir) return c.json({ error: "Setups folder not found" }, 404);
 
       // Sanitise each path segment: no separators, no traversal, no reserved chars.
-      const clean = (s: string) => s.replace(/[<>:"/\\|?* -]/g, "").trim();
+      const clean = (s: string) => s.replace(/[<>:"/\\|?*\x00-\x1f-]/g, "").trim();
       const car = clean(body.carName);
       const track = clean(body.trackName);
       let file = clean(body.fileName);

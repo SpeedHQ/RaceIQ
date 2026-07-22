@@ -34,7 +34,7 @@ export function SetupFilePicker({
   lockedCar?: string;
   labels?: { car?: string; track?: string; setup?: string };
 }) {
-  const { data: setupFiles, isLoading: loadingFiles } = useSetupFiles(gameId);
+  const { data: setupFiles, isLoading: loadingFiles, refetch, isFetching } = useSetupFiles(gameId);
   const files = setupFiles?.files ?? [];
 
   // Friendly car label per model slug, from the canonical cars.csv roster.
@@ -102,7 +102,19 @@ export function SetupFilePicker({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <span className="text-[11px] text-app-text-muted uppercase tracking-wider">{labels.setup ?? "Base setup"}</span>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-app-text-muted uppercase tracking-wider">{labels.setup ?? "Base setup"}</span>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            title="Rescan the Setups folder for new files"
+            className="text-[11px] text-app-text-muted hover:text-app-text disabled:opacity-50 flex items-center gap-1"
+          >
+            <span className={isFetching ? "animate-spin inline-block" : "inline-block"}>⟳</span>
+            Refresh
+          </button>
+        </div>
         <SearchSelect
           value={value.setupPath}
           onChange={(v) => onChange({ ...value, setupPath: v })}

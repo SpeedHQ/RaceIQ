@@ -11,6 +11,8 @@ import { existsSync, mkdirSync, readFileSync, realpathSync } from "fs";
 import { homedir } from "os";
 import { resolve, sep } from "path";
 
+import { tryGetServerGame } from "../games/registry";
+
 import type { GameId } from "../../shared/types";
 import { getLapById, getLapsForTuningSession } from "../db/queries";
 import { getTuningSession } from "../db/tuning-session-queries";
@@ -32,14 +34,15 @@ export type { Confidence, ConsistencyReport, LapBreakdownRow, CleanLapAggregate 
 
 export type AccGameId = "acc" | "ac-evo";
 
-/** Locations where ACC / AC-EVO store user setup files under the user's profile. */
+/**
+ * Locations where a game stores user setup files under the user's profile.
+ * Candidate dirs come from the game adapter (`getSetupsDirCandidates`), so
+ * per-game paths live with the game code instead of being hardcoded here.
+ */
 export async function getSetupsBaseDir(gameId: AccGameId): Promise<string | null> {
   const home = homedir();
-  const gameDir = gameId === "acc" ? "Assetto Corsa Competizione" : "Assetto Corsa EVO";
-  const candidates = [
-    resolve(home, "Documents", gameDir, "Setups"),
-    resolve(home, "OneDrive", "Documents", gameDir, "Setups"),
-  ];
+  const candidates = tryGetServerGame(gameId)?.getSetupsDirCandidates?.(home) ?? [];
+  if (candidates.length === 0) return null;
   for (const p of candidates) {
     if (existsSync(p)) return p;
   }
@@ -85,8 +88,9 @@ export async function resolveGuardedSetupFile(
   if (!(realPath + sep).startsWith(realBase + sep)) {
     return { ok: false, status: 400, error: "Path must be inside the Setups folder" };
   }
-  if (!realPath.toLowerCase().endsWith(".json")) {
-    return { ok: false, status: 400, error: "Only .json setup files can be auto-tuned" };
+  const isCarsetup = realPath.toLowerCase().endsWith(".carsetup");
+  if (!realPath.toLowerCase().endsWith(".json") && !isCarsetup) {
+    return { ok: false, status: 400, error: "Only .json or .carsetup setup files are supported" };
   }
 
   // Read is separated from parse so a failed read isn't mislabelled as bad JSON.
@@ -114,6 +118,10 @@ export async function resolveGuardedSetupFile(
     return { ok: false, status: 500, error: `Couldn't read setup file: ${readErr?.message ?? "unknown error"}` };
   }
 
+  // .carsetup (AC EVO Saved Games\ACE format) is binary — usable as a session
+  // base (path + guard checks above), but not parseable for auto-tune intents.
+  if (isCarsetup) return { ok: true, baseDir, realPath, setup: null };
+
   let setup: any;
   try { setup = JSON.parse(raw); }
   catch (err: any) { return { ok: false, status: 400, error: `Invalid setup JSON: ${err.message}` }; }
@@ -121,9 +129,9 @@ export async function resolveGuardedSetupFile(
   return { ok: true, baseDir, realPath, setup };
 }
 
-/** Filename stem (no directory, no .json) of a setup path — for the versioned save name. */
+/** Filename stem (no directory, no .json/.carsetup) of a setup path — for the versioned save name. */
 export function setupPathStem(filePath: string): string {
-  return (filePath.split(/[\\/]/).pop() ?? "setup").replace(/\.json$/i, "");
+  return (filePath.split(/[\\/]/).pop() ?? "setup").replace(/\.(json|carsetup)$/i, "");
 }
 
 /**
