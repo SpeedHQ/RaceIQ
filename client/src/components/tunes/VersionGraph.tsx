@@ -171,11 +171,11 @@ function NotesModal({ sessionId, test, onClose }: { sessionId: number; test: Tun
 
 /** Row-level stat with an always-visible label so a placeholder "—" (no laps
  *  yet) still reads as a defined column, not blank space. */
-function RowStat({ label, value }: { label: string; value: string }) {
+function RowStat({ label, value, width = "w-[8ch]" }: { label: string; value: string; width?: string }) {
   return (
-    <span className="flex flex-col items-end leading-tight">
-      <span className="text-[8px] uppercase tracking-wider text-app-text-muted/70">{label}</span>
-      <span className="font-mono text-app-text-dim">{value}</span>
+    <span className={`flex flex-col items-end leading-tight shrink-0 ${width}`}>
+      <span className="text-[8px] uppercase tracking-wider text-app-text-muted/70 whitespace-nowrap">{label}</span>
+      <span className="font-mono text-app-text-dim whitespace-nowrap">{value}</span>
     </span>
   );
 }
@@ -329,12 +329,12 @@ export function VersionGraph({ sessionId, tests, headTestId, lapsByTest, metrics
                 Delete branch
               </button>
               <span className="ml-auto flex items-center gap-3 shrink-0 text-[11px] tabular-nums">
-                <RowStat label="laps" value={String(laps.length)} />
-                <RowStat label="avg" value={avgT != null ? formatLapTime(avgT) : "—"} />
-                <RowStat label="best" value={bestT != null ? formatLapTime(bestT) : "—"} />
-                <RowStat label="worst" value={worstT != null ? formatLapTime(worstT) : "—"} />
-                <RowStat label="fuel/lap" value={avgFuel != null ? `${avgFuel.toFixed(2)}L` : "—"} />
-                <RowStat label="worst wear" value={avgWorstWear != null ? `${avgWorstWear.toFixed(0)}%` : "—"} />
+                <RowStat label="laps" value={String(laps.length)} width="w-[3ch]" />
+                <RowStat label="avg" value={avgT != null ? formatLapTime(avgT) : "-:--.---"} />
+                <RowStat label="best" value={bestT != null ? formatLapTime(bestT) : "-:--.---"} />
+                <RowStat label="worst" value={worstT != null ? formatLapTime(worstT) : "-:--.---"} />
+                <RowStat label="fuel/lap" value={avgFuel != null ? `${avgFuel.toFixed(2)}L` : "—"} width="w-[7ch]" />
+                <RowStat label="worst wear" value={avgWorstWear != null ? `${avgWorstWear.toFixed(0)}%` : "—"} width="w-[10ch]" />
               </span>
             </button>
             {isOpen && (

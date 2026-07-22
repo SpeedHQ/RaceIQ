@@ -4,8 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide",
-    "build": "bun run i18n:compile && tsc -b && vite build",
+    "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --output-structure locale-modules",
+    "i18n:compile:prod": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --output-structure message-modules",
+    "build": "bun run i18n:compile:prod && tsc -b && vite build",
     "lint": "biome check .",
     "format": "biome format --write .",
     "preview": "vite preview",

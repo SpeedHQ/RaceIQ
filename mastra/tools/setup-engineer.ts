@@ -29,7 +29,7 @@ import {
   setTuningTestNotes,
 } from "../../server/db/tuning-test-queries";
 import { setSessionHead } from "../../server/db/tuning-session-queries";
-import { computeChildLabel, nextFreeLabel } from "../../server/ai/version-label";
+import { changeSlug, computeChildLabel, nextFreeLabel } from "../../server/ai/version-label";
 import { saveAssistantChatMessage, tuneSessionThreadId } from "../../server/ai/chat-agent";
 import { wsManager } from "../../server/ws";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
@@ -362,9 +362,13 @@ export function buildSetupEngineerTools() {
       const childCount = parent ? ctx.tests.filter((t) => t.parentTestId === parent.id).length : 0;
       const takenLabels = new Set(ctx.tests.map((t) => t.label));
       const label = nextFreeLabel(computeChildLabel(parentLabel, childCount), takenLabels);
-      // ACC/AC-EVO: "<original filename stem>-<label>". F1 has no file, so the
-      // label alone names the advisory diff.
-      const stem = ctx.gameId === "f1-2025" ? label : `${activeSetupStem(ctx.gameId, ctx.realPath, "setup")}-${label}`;
+      // Descriptive slug from what actually changed, e.g. "soft-rarb" —
+      // makes files readable at a glance in-game ("mugello-soft-rarb-v3").
+      const slug = changeSlug(applied);
+      // ACC/AC-EVO: "<original filename stem>[-<slug>]-<label>". F1 has no
+      // file, so the slug + label alone name the advisory diff.
+      const descriptive = slug ? `${slug}-${label}` : label;
+      const stem = ctx.gameId === "f1-2025" ? descriptive : `${activeSetupStem(ctx.gameId, ctx.realPath, "setup")}-${descriptive}`;
 
       let written;
       try {

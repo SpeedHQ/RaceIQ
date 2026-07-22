@@ -9,10 +9,10 @@ const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 
 // `""` retained in the enum only for backwards compatibility with previously
 // stored settings files where the user hadn't picked a provider yet. Fresh
-// installs and defaults resolve to "gemini" + "gemini-flash-latest" so the
-// whole AI stack points at a real model without extra setup.
-const AiProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("gemini");
-const ChatProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("gemini");
+// installs and defaults resolve to "" (no provider selected) — the user must
+// explicitly pick a provider in Settings before any AI feature runs.
+const AiProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("");
+const ChatProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("");
 
 const AppSettingsSchema = z.object({
   onboardingComplete: z.boolean().default(false),
@@ -24,17 +24,17 @@ const AppSettingsSchema = z.object({
   // AI "respond in <language>" instruction. Keep in sync with shared/locales.ts
   // and client/project.inlang/settings.json.
   language: z.enum(LOCALE_CODES as [string, ...string[]]).default("en"),
-  aiProvider: AiProviderSchema.default("gemini"),
-  aiModel: z.string().default("gemini-flash-latest"),
+  aiProvider: AiProviderSchema.default(""),
+  aiModel: z.string().default(""),
   aiThinkingBudget: z.number().int().min(0).nullable().default(null),
-  chatProvider: ChatProviderSchema.default("gemini"),
-  chatModel: z.string().default("gemini-flash-latest"),
+  chatProvider: ChatProviderSchema.default(""),
+  chatModel: z.string().default(""),
   chatThinkingBudget: z.number().int().min(0).nullable().default(null),
   // Auto-tune analyst provider/model. Independent of the lap-analysis
   // provider (aiProvider) so the user can point auto-tune at a different
   // model. Reuses the same stored API keys as the analysis section.
-  autoTuneProvider: AiProviderSchema.default("gemini"),
-  autoTuneModel: z.string().default("gemini-flash-latest"),
+  autoTuneProvider: AiProviderSchema.default(""),
+  autoTuneModel: z.string().default(""),
   localEndpoint: z.string().default("http://localhost:1234/v1"),
   wsRefreshRate: z.enum(["60", "50", "40", "30"]).default("60"),
   // Max render rate for the 3D wireframe Canvas. Throttles gl.render

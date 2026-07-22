@@ -46,22 +46,28 @@ export type ThreadComponents = {
 
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
+  /** Disables the composer input + send (e.g. while a server-side Compact runs). */
+  inputDisabled?: boolean | undefined;
 };
 
 const EMPTY_COMPONENTS: ThreadComponents = {};
 
 const ThreadComponentsContext = createContext<ThreadComponents>(EMPTY_COMPONENTS);
 
+const InputDisabledContext = createContext(false);
+
 // Startup exposes a loading placeholder thread; treat it as a new chat so
 // the composer mounts centered. Loads after startup keep the docked layout.
 const isNewChatView = (s: AssistantState) => s.thread.messages.length === 0 && (!s.thread.isLoading || s.threads.isLoading);
 
-export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
+export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS, inputDisabled = false }) => {
   const isEmpty = useAuiState(isNewChatView);
 
   return (
     <ThreadComponentsContext.Provider value={components}>
-      <ThreadRoot isEmpty={isEmpty} />
+      <InputDisabledContext.Provider value={inputDisabled}>
+        <ThreadRoot isEmpty={isEmpty} />
+      </InputDisabledContext.Provider>
     </ThreadComponentsContext.Provider>
   );
 };
@@ -167,6 +173,7 @@ const ThreadSuggestionItem: FC = () => {
 };
 
 const Composer: FC = () => {
+  const inputDisabled = useContext(InputDisabledContext);
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone
@@ -179,12 +186,13 @@ const Composer: FC = () => {
       >
         <ComposerAttachments />
         <ComposerPrimitive.Input
-          placeholder="Send a message..."
-          className="aui-composer-input caret-primary placeholder:text-muted-foreground/80 max-h-32 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base outline-none"
+          placeholder={inputDisabled ? "Compacting…" : "Send a message..."}
+          className="aui-composer-input caret-primary placeholder:text-muted-foreground/80 max-h-32 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base outline-none disabled:opacity-50"
           rows={1}
           autoFocus
           enterKeyHint="send"
           aria-label="Message input"
+          disabled={inputDisabled}
         />
         <ComposerAction />
       </ComposerPrimitive.AttachmentDropzone>

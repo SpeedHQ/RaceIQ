@@ -397,6 +397,9 @@ export const lapRoutes = new Hono()
     // Bridge keystore secret → env var so Mastra / AI SDK providers can resolve it.
     // The Mastra lap-analyst agent reads the provider from settings via `getMastraModelId`.
     const analystProvider = settings.aiProvider;
+    if (!analystProvider) {
+      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Analysis." }, 400);
+    }
     if (analystProvider === "openai") {
       const key = await getSecret("openai-api-key");
       if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
@@ -587,6 +590,9 @@ export const lapRoutes = new Hono()
     // since this route now speaks the AI SDK v5 UI-message-stream
     // protocol instead).
     const chatProvider = settings.chatProvider;
+    if (!chatProvider) {
+      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
+    }
     if (chatProvider === "gemini") {
       const key = await getSecret("gemini-api-key");
       if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
@@ -919,6 +925,9 @@ export const lapRoutes = new Hono()
 
     // Set provider env vars before calling Mastra (the dynamic model resolver
     // reads settings at request time but env-based API keys must be in scope).
+    if (!settings.aiProvider) {
+      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Analysis." }, 400);
+    }
     if (settings.aiProvider === "openai") {
       const key = await getSecret("openai-api-key");
       if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
@@ -1092,6 +1101,9 @@ export const lapRoutes = new Hono()
     );
 
     const chatProvider = settings.chatProvider;
+    if (!chatProvider) {
+      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
+    }
     if (chatProvider === "gemini") {
       const key = await getSecret("gemini-api-key");
       if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);

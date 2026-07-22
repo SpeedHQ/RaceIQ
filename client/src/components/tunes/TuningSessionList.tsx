@@ -12,7 +12,7 @@ import { SetupFilePicker } from "./SetupFilePicker";
  * dashboard/detail/autotune views open *inside* a selected session.
  *
  * `onOpen(id)` navigates to the session workspace route
- * (`/<game>/tune/$tuningSessionId`).
+ * (`/<game>/tuning/$tuningSessionId`).
  */
 export function TuningSessionList({ gameId, onOpen }: { gameId: TuningGameId; onOpen: (id: number) => void }) {
   const { data: sessions = [], isLoading } = useTuningSessions(gameId);

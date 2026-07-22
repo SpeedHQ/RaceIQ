@@ -8,7 +8,7 @@ import { TuneSetupChat } from "./TuneSetupChat";
 
 /**
  * TestReviewPage — the post-test review dashboard as its own route
- * (/​<game>/tune/<id>/review?laps=1,2,3) rather than a tab inside the tuning
+ * (/​<game>/tuning/<id>/review?laps=1,2,3) rather than a tab inside the tuning
  * workspace. The lap ids recorded during the test travel in the `laps` search
  * param; laps themselves are re-read from the persisted laps query (they are
  * stamped/persisted server-side as they land, so they survive the navigation).
@@ -29,7 +29,7 @@ export function TestReviewPage({ gameId, tuningSessionId, lapIds, testId }: { ga
 
   const backToWorkspace = () =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    navigate({ to: `/${getGame(gameId).routePrefix}/tune/${tuningSessionId}` } as any);
+    navigate({ to: `/${getGame(gameId).routePrefix}/tuning/${tuningSessionId}` } as any);
 
   return (
     <div className="h-full flex flex-col overflow-hidden p-3 gap-3">

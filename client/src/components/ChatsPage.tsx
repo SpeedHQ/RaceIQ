@@ -117,7 +117,7 @@ export function ChatsPage() {
         });
       } else if (row.type === "tune" && row.tune) {
         navigate({
-          to: `${prefix}/tune/$tuningSessionId` as never,
+          to: `${prefix}/tuning/$tuningSessionId` as never,
           params: { tuningSessionId: String(row.tune.id) } as never,
         });
       }

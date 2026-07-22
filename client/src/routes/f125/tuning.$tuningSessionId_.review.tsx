@@ -5,7 +5,7 @@ import { TestReviewPage } from "../../components/tunes/TestReviewPage";
  *  during the test that just ended. */
 export type TuneReviewSearch = { laps?: string; lap?: number; view?: "overview" | "s1" | "s2" | "s3"; testId?: number };
 
-export const Route = createFileRoute("/acc/tune/$tuningSessionId_/review")({
+export const Route = createFileRoute("/f125/tuning/$tuningSessionId_/review")({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): TuneReviewSearch => ({
     laps: typeof search.laps === "string" ? search.laps : undefined,
@@ -23,5 +23,5 @@ function RouteComponent() {
     .split(",")
     .map((s) => Number(s))
     .filter((n) => Number.isFinite(n));
-  return <TestReviewPage gameId="acc" tuningSessionId={Number(tuningSessionId)} lapIds={lapIds} testId={testId} />;
+  return <TestReviewPage gameId="f1-2025" tuningSessionId={Number(tuningSessionId)} lapIds={lapIds} testId={testId} />;
 }

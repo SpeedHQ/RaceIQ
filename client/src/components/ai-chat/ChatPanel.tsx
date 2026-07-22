@@ -56,12 +56,21 @@ export function formatTokens(n: number): string {
  *  rough client-side estimate from the configured chat provider's rates. Also
  *  renders a context-window usage meter and, when a thread id is available, a
  *  Compact button that summarizes and replaces older messages server-side. */
-function TokenUsageFooter({ compactThreadId, historyQueryKey }: { compactThreadId?: string; historyQueryKey: unknown[] }) {
+function TokenUsageFooter({
+  compactThreadId,
+  historyQueryKey,
+  compacting,
+  setCompacting,
+}: {
+  compactThreadId?: string;
+  historyQueryKey: unknown[];
+  compacting: boolean;
+  setCompacting: (v: boolean) => void;
+}) {
   const usage = useThreadTokenUsage();
   const { displaySettings } = useSettings();
   const queryClient = useQueryClient();
   const isRunning = useAuiState((s) => s.thread.isRunning);
-  const [compacting, setCompacting] = useState(false);
   const [compactMsg, setCompactMsg] = useState<string | null>(null);
 
   const settings = displaySettings as { aiProvider?: string; aiModel?: string; chatProvider?: string; chatModel?: string };
@@ -91,10 +100,24 @@ function TokenUsageFooter({ compactThreadId, historyQueryKey }: { compactThreadI
   // for Gemini/OpenAI (the defaults) cached reads are already folded into it,
   // so we do NOT add `cachedInputTokens` (that would double-count). This is a
   // rough "how full is the window" indicator, not exact accounting.
-  const used = usage?.inputTokens ?? 0;
-  const level = meterLevel(used, limit);
+  //
+  // Before any billed usage exists (fresh thread, history persisted without
+  // usage, or while the user is typing) fall back to a live client-side
+  // estimate: all visible message text plus the composer draft, at ~4 chars
+  // per token. Coarse, but it makes the meter move as you type.
+  const estimatedTokens = useAuiState((s) => {
+    let chars = s.composer.text.length;
+    for (const m of s.thread.messages) {
+      for (const part of m.content) {
+        if (part.type === "text" || part.type === "reasoning") chars += part.text.length;
+      }
+    }
+    return Math.ceil(chars / 4);
+  });
+  const used = usage?.inputTokens || estimatedTokens;
+  const level = meterLevel(used, limit ?? 0);
   const barColor = level === "danger" ? "bg-red-500" : level === "warn" ? "bg-amber-500" : "bg-app-border";
-  const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
+  const pct = limit != null && limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
 
   const rate = RATE_PER_MTOK[provider] ?? RATE_PER_MTOK.gemini;
   const cost = ((usage?.inputTokens ?? 0) * rate.in + (usage?.outputTokens ?? 0) * rate.out) / 1_000_000;
@@ -128,11 +151,13 @@ function TokenUsageFooter({ compactThreadId, historyQueryKey }: { compactThreadI
       {/* Context meter */}
       <span className="flex items-center gap-1" title={level === "ok" ? undefined : "Context is filling up — consider compacting"}>
         <span>
-          {formatTokens(used)} / {formatTokens(limit)}
+          {formatTokens(used)} / {limit != null ? formatTokens(limit) : "?"}
         </span>
-        <span className="inline-block h-1 w-10 rounded-full bg-app-border/30 overflow-hidden">
-          <span className={`block h-full ${barColor}`} style={{ width: `${pct}%` }} />
-        </span>
+        {limit != null && (
+          <span className="inline-block h-1 w-10 rounded-full bg-app-border/30 overflow-hidden">
+            <span className={`block h-full ${barColor}`} style={{ width: `${pct}%` }} />
+          </span>
+        )}
       </span>
       {hasUsage && <span>{usage!.totalTokens} tok</span>}
       {hasUsage && usage!.inputTokens != null && <span>in {usage!.inputTokens}</span>}
@@ -205,15 +230,21 @@ function ChatPanelThread({
     transport: new AssistantChatTransport({ api, body: extraBody }),
     onFinish,
   });
+  const [compacting, setCompacting] = useState(false);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <TooltipProvider>
         <div className={className ?? "h-full min-h-0 flex flex-col text-[11px] [&_*]:text-[11px] [&_svg]:size-3.5 [&_.aui-composer-input]:text-[11px]"}>
           <div className="flex-1 min-h-0 flex flex-col">
-            <Thread components={components} />
+            <Thread components={components} inputDisabled={compacting} />
           </div>
-          <TokenUsageFooter compactThreadId={compactThreadId} historyQueryKey={historyQueryKey} />
+          <TokenUsageFooter
+            compactThreadId={compactThreadId}
+            historyQueryKey={historyQueryKey}
+            compacting={compacting}
+            setCompacting={setCompacting}
+          />
         </div>
       </TooltipProvider>
     </AssistantRuntimeProvider>

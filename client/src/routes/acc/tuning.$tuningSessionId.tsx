@@ -12,7 +12,7 @@ export type TuneSearch = {
   view?: TuneView;
 };
 
-export const Route = createFileRoute("/acc/tune/$tuningSessionId")({
+export const Route = createFileRoute("/acc/tuning/$tuningSessionId")({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): TuneSearch => ({
     session: search.session === "live" ? "live" : search.session != null ? Number(search.session) : undefined,

@@ -158,7 +158,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
   const routePrefix = getGame(gameId).routePrefix;
   const clearSession = () =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    navigate({ to: `/${routePrefix}/tune` } as any);
+    navigate({ to: `/${routePrefix}/tuning` } as any);
 
   if (loadingSession || !session) {
     return (
@@ -249,7 +249,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
                     const ids = (lapsByTest.get(t.id) ?? []).map((l) => l.id);
                     setTestPhase("idle");
                     navigate({
-                      to: `/${routePrefix}/tune/${tuningSessionId}/review`,
+                      to: `/${routePrefix}/tuning/${tuningSessionId}/review`,
                       search: { laps: ids.join(","), testId: t.id },
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     } as any);
@@ -286,7 +286,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
                         const lapIds = liveSessionLaps.map((l) => l.id);
                         setTestPhase("idle");
                         navigate({
-                          to: `/${routePrefix}/tune/${tuningSessionId}/review`,
+                          to: `/${routePrefix}/tuning/${tuningSessionId}/review`,
                           search: { laps: lapIds.join(",") },
                           // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         } as any);

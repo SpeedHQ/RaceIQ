@@ -12,7 +12,7 @@ export type TuneSearch = {
   view?: TuneView;
 };
 
-export const Route = createFileRoute("/ac-evo/tune/$tuningSessionId")({
+export const Route = createFileRoute("/f125/tuning/$tuningSessionId")({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): TuneSearch => ({
     session: search.session === "live" ? "live" : search.session != null ? Number(search.session) : undefined,
@@ -23,5 +23,5 @@ export const Route = createFileRoute("/ac-evo/tune/$tuningSessionId")({
 
 function RouteComponent() {
   const { tuningSessionId } = Route.useParams();
-  return <TuningSessionWorkspace gameId="ac-evo" tuningSessionId={Number(tuningSessionId)} />;
+  return <TuningSessionWorkspace gameId="f1-2025" tuningSessionId={Number(tuningSessionId)} />;
 }

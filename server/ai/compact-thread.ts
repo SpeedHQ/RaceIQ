@@ -7,6 +7,7 @@ import { Agent } from "@mastra/core/agent";
 import { MessageList } from "@mastra/core/agent";
 import { getChatMemory, CHAT_RESOURCE_ID, getMastraModelId } from "./chat-agent";
 import { loadSettings } from "../settings";
+import { getSecret } from "../keystore";
 
 export const MIN_COMPACT_MESSAGES = 6;
 export const COMPACT_SUMMARY_PREFIX = "🗜️ **Conversation compacted.**\n\n";
@@ -34,6 +35,22 @@ export interface CompactDeps {
 
 async function defaultSummarize(transcript: string): Promise<string> {
   const s = loadSettings();
+  // Bridge provider env the same way the chat routes do — Mastra resolves
+  // `openai/...` model ids from process.env, so without this a compact with
+  // a local/OpenAI provider fails with "Could not find API key
+  // process.env.OPENAI_API_KEY".
+  if (s.chatProvider === "gemini") {
+    const key = await getSecret("gemini-api-key");
+    if (key) process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+    delete process.env.OPENAI_BASE_URL;
+  } else if (s.chatProvider === "openai") {
+    const key = await getSecret("openai-api-key");
+    if (key) process.env.OPENAI_API_KEY = key;
+    delete process.env.OPENAI_BASE_URL;
+  } else if (s.chatProvider === "local") {
+    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+    process.env.OPENAI_BASE_URL = s.localEndpoint || "http://localhost:1234/v1";
+  }
   const compactor = new Agent({
     id: "compactor",
     name: "Compactor",
@@ -114,7 +131,7 @@ export async function compactThread(
 
   const summary = await summarize(transcript);
 
-  const summaryId = await writeSummaryMessage(memory, threadId, COMPACT_SUMMARY_PREFIX + summary);
+  const summaryId = await writeSummaryMessage(memory, threadId, COMPACT_SUMMARY_PREFIX + summary.trim());
 
   try {
     await memory.deleteMessages(oldIds);

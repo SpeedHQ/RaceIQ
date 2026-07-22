@@ -55,6 +55,7 @@ async function persistReasoningToMemory(
   threadId: string,
   turnStartedAt: number,
   reasoningDurationMs: number,
+  usage?: { inputTokens: number; outputTokens: number; totalTokens: number },
 ): Promise<void> {
   try {
     const reasoningText = (responseMessage.parts ?? [])
@@ -62,7 +63,9 @@ async function persistReasoningToMemory(
       .map((p) => p.text ?? "")
       .join("\n")
       .trim();
-    if (!reasoningText) return;
+    // Persist even without reasoning when there's usage to stamp — the token
+    // footer needs it to survive a refresh (Mastra's own save drops both).
+    if (!reasoningText && !usage) return;
 
     // Poll until Mastra's own async save has landed this turn's assistant row
     // (finish handling runs as the stream is consumed; it can trail this
@@ -101,10 +104,11 @@ async function persistReasoningToMemory(
     const existingParts: any[] = Array.isArray(target.content?.parts)
       ? target.content.parts
       : [];
-    // Idempotent: bail if reasoning is somehow already persisted.
-    if (target.content?.reasoning || existingParts.some((p) => p.type === "reasoning")) {
-      return;
-    }
+    // Idempotent: skip re-stamping reasoning if it's somehow already there.
+    const hasReasoning =
+      Boolean(target.content?.reasoning) || existingParts.some((p) => p.type === "reasoning");
+    const writeReasoning = Boolean(reasoningText) && !hasReasoning;
+    if (!writeReasoning && !usage) return;
 
     // Write reasoning both as a leading `parts` entry (so MessageList
     // reconstructs it in order, before the answer text) and on
@@ -115,11 +119,18 @@ async function persistReasoningToMemory(
     // reasoning trigger can show "Reasoning (Ns)" after a refresh.
     const content = {
       ...target.content,
-      reasoning: reasoningText,
-      parts: [{ type: "reasoning", reasoning: reasoningText }, ...existingParts],
+      ...(writeReasoning
+        ? {
+            reasoning: reasoningText,
+            parts: [{ type: "reasoning", reasoning: reasoningText }, ...existingParts],
+          }
+        : {}),
       metadata: {
         ...(target.content?.metadata ?? {}),
         ...(reasoningDurationMs > 0 ? { reasoning: { durationMs: reasoningDurationMs } } : {}),
+        // Token usage for the footer — same round-trip path as reasoning
+        // duration (MessageList.ui() → metadata.usage → useThreadTokenUsage).
+        ...(usage ? { usage } : {}),
       },
     };
     await memory.saveMessages({ messages: [{ ...target, content }] });
@@ -149,11 +160,16 @@ export function streamAgentTurnResponse(opts: StreamAgentTurnOptions): Response 
   const reasoningDurationMs = () =>
     reasoningLastTs > reasoningFirstTs ? reasoningLastTs - reasoningFirstTs : 0;
 
+  // Final token usage off the stream's `finish` part — captured in
+  // messageMetadata below, persisted to memory in onFinish so the footer
+  // survives a refresh.
+  let finishUsage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined;
+
   const uiStream = createUIMessageStream({
     originalMessages,
     onFinish: persistReasoning
       ? async ({ responseMessage }) =>
-          persistReasoningToMemory(responseMessage as any, memory, threadId, turnStartedAt, reasoningDurationMs())
+          persistReasoningToMemory(responseMessage as any, memory, threadId, turnStartedAt, reasoningDurationMs(), finishUsage)
       : undefined,
     execute: async ({ writer }) => {
       for await (const part of toAISdkStream(agentStream, {
@@ -173,12 +189,13 @@ export function streamAgentTurnResponse(opts: StreamAgentTurnOptions): Response 
           if (part.type !== "finish") return undefined;
           const { inputTokens, outputTokens, totalTokens } = part.totalUsage;
           const durationMs = reasoningDurationMs();
+          finishUsage = {
+            inputTokens: inputTokens ?? 0,
+            outputTokens: outputTokens ?? 0,
+            totalTokens: totalTokens ?? 0,
+          };
           return {
-            usage: {
-              inputTokens: inputTokens ?? 0,
-              outputTokens: outputTokens ?? 0,
-              totalTokens: totalTokens ?? 0,
-            },
+            usage: finishUsage,
             ...(durationMs > 0 ? { reasoning: { durationMs } } : {}),
           };
         },

@@ -130,7 +130,7 @@ function withRouter(Story: React.ComponentType) {
   const rootRoute = createRootRoute({ component: Comp });
   const router = createRouter({
     routeTree: rootRoute,
-    history: createMemoryHistory({ initialEntries: [`/acc/tune/${sessionId}`] }),
+    history: createMemoryHistory({ initialEntries: [`/acc/tuning/${sessionId}`] }),
   });
   return <RouterProvider router={router} />;
 }

@@ -94,7 +94,7 @@ export function TuneWorkspace({ gameId, embedded = false }: { gameId: "acc" | "a
         {!embedded && (
           <BackButton
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            onClick={() => navigate({ to: `/${gameId}/tune` } as any)}
+            onClick={() => navigate({ to: `/${gameId}/tuning` } as any)}
             className="mb-2"
           />
         )}
