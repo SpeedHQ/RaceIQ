@@ -21,13 +21,34 @@
  */
 import { readFile } from "fs/promises";
 
+/**
+ * Byte spans (absolute offsets into the top-level file buffer) recorded
+ * during decode so `carsetup-writer.ts` can surgically patch a field's
+ * bytes without re-encoding fields it doesn't touch. `tagStart` is where the
+ * field's tag varint begins; `valueStart`/`valueEnd` bound the value itself
+ * (for scalars) or the length-delimited payload (for message/string/bytes).
+ * Length-delimited fields additionally record `lenStart`/`lenEnd`, the span
+ * of their own length-prefix varint (`lenEnd === valueStart`). All spans are
+ * optional so this stays purely additive — existing decode-only callers that
+ * construct/consume `WireField` values without spans are unaffected.
+ */
+interface Span {
+  tagStart?: number;
+  valueStart?: number;
+  valueEnd?: number;
+}
+interface LenSpan extends Span {
+  lenStart?: number;
+  lenEnd?: number;
+}
+
 export type WireField =
-  | { no: number; type: "varint"; value: string }
-  | { no: number; type: "fixed64"; double: number }
-  | { no: number; type: "float"; value: number }
-  | { no: number; type: "message"; fields: WireField[] }
-  | { no: number; type: "string"; value: string }
-  | { no: number; type: "bytes"; hex: string; floats: number[] | null };
+  | ({ no: number; type: "varint"; value: string } & Span)
+  | ({ no: number; type: "fixed64"; double: number } & Span)
+  | ({ no: number; type: "float"; value: number } & Span)
+  | ({ no: number; type: "message"; fields: WireField[] } & LenSpan)
+  | ({ no: number; type: "string"; value: string } & LenSpan)
+  | ({ no: number; type: "bytes"; hex: string; floats: number[] | null } & LenSpan);
 
 export interface CarSetupFile {
   /** Preset identifier string if present (field #9). */
@@ -62,11 +83,12 @@ function tryFloats(bytes: Buffer): number[] | null {
   return out;
 }
 
-function parseMessage(buf: Buffer, depth = 0): WireField[] | null {
+function parseMessage(buf: Buffer, depth = 0, absOffset = 0): WireField[] | null {
   if (depth > 16) return null;
   const fields: WireField[] = [];
   let pos = 0;
   while (pos < buf.length) {
+    const tagStart = pos;
     const tag = readVarint(buf, pos);
     if (!tag) return null;
     const no = Number(tag[0] >> 3n);
@@ -74,35 +96,68 @@ function parseMessage(buf: Buffer, depth = 0): WireField[] | null {
     if (no === 0 || no > 10000) return null;
     pos = tag[1];
     if (wire === 0) {
+      const valueStart = pos;
       const v = readVarint(buf, pos);
       if (!v) return null;
-      fields.push({ no, type: "varint", value: v[0].toString() });
       pos = v[1];
+      fields.push({
+        no,
+        type: "varint",
+        value: v[0].toString(),
+        tagStart: absOffset + tagStart,
+        valueStart: absOffset + valueStart,
+        valueEnd: absOffset + pos,
+      });
     } else if (wire === 1) {
       if (pos + 8 > buf.length) return null;
-      fields.push({ no, type: "fixed64", double: buf.readDoubleLE(pos) });
+      fields.push({
+        no,
+        type: "fixed64",
+        double: buf.readDoubleLE(pos),
+        tagStart: absOffset + tagStart,
+        valueStart: absOffset + pos,
+        valueEnd: absOffset + pos + 8,
+      });
       pos += 8;
     } else if (wire === 5) {
       if (pos + 4 > buf.length) return null;
-      fields.push({ no, type: "float", value: buf.readFloatLE(pos) });
+      fields.push({
+        no,
+        type: "float",
+        value: buf.readFloatLE(pos),
+        tagStart: absOffset + tagStart,
+        valueStart: absOffset + pos,
+        valueEnd: absOffset + pos + 4,
+      });
       pos += 4;
     } else if (wire === 2) {
+      const lenStart = pos;
       const len = readVarint(buf, pos);
       if (!len) return null;
       const n = Number(len[0]);
       pos = len[1];
+      const lenEnd = pos;
       if (pos + n > buf.length) return null;
       const bytes = buf.subarray(pos, pos + n);
+      const valueStart = pos;
       pos += n;
-      const msg = n > 0 ? parseMessage(bytes, depth + 1) : [];
+      const valueEnd = pos;
+      const span: LenSpan = {
+        tagStart: absOffset + tagStart,
+        lenStart: absOffset + lenStart,
+        lenEnd: absOffset + lenEnd,
+        valueStart: absOffset + valueStart,
+        valueEnd: absOffset + valueEnd,
+      };
+      const msg = n > 0 ? parseMessage(bytes, depth + 1, absOffset + valueStart) : [];
       if (msg) {
-        fields.push({ no, type: "message", fields: msg });
+        fields.push({ no, type: "message", fields: msg, ...span });
       } else {
         const s = bytes.toString("utf8");
         if (/^[\x20-\x7e\r\n\t]+$/.test(s)) {
-          fields.push({ no, type: "string", value: s });
+          fields.push({ no, type: "string", value: s, ...span });
         } else {
-          fields.push({ no, type: "bytes", hex: bytes.toString("hex"), floats: tryFloats(Buffer.from(bytes)) });
+          fields.push({ no, type: "bytes", hex: bytes.toString("hex"), floats: tryFloats(Buffer.from(bytes)), ...span });
         }
       }
     } else {
@@ -181,13 +236,13 @@ const CORNER_NAMES = ["Front left", "Front right", "Rear left", "Rear right"] as
  * default 3. Verified: click 1 → 16 kN/m, click 3 → 28 kN/m; click 2 → 22
  * assumed (even 6 kN/m step). Per-car table — extend as more saves are mapped.
  */
-const ARB_CLICK_BY_KNM: Record<number, number> = { 16: 1, 22: 2, 28: 3 };
+export const ARB_CLICK_BY_KNM: Record<number, number> = { 16: 1, 22: 2, 28: 3 };
 
 /**
  * Map an ARB stiffness (kN/m) to a click number, tolerating float noise and
  * small per-car offsets: nearest table key within ±1 kN/m, else null.
  */
-function arbClickFromKnm(kNm: number): number | null {
+export function arbClickFromKnm(kNm: number): number | null {
   let best: number | null = null;
   let bestDiff = Infinity;
   for (const [key, click] of Object.entries(ARB_CLICK_BY_KNM)) {

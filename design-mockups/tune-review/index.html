@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Tune Review — 5 design mockups</title>
+<link rel="stylesheet" href="shared.css"></head><body><div class="page">
+<div class="topbar"><h1>Tune Review Dashboard — 5 redesign mockups</h1>
+  <span class="sub">RaceIQ color scheme · synthetic stint data</span></div>
+
+<div class="grid" style="grid-template-columns:1fr 1fr;">
+  <a class="card" href="1-stint-ribbon.html"><h2>1 — Stint Ribbon</h2>
+    <p style="color:var(--app-text-secondary)">Stat tiles + lap pace strip + stacked input lanes (throttle / brake / steering / speed) over track fraction with best-lap ghost and corner markers. Closest to your ask.</p></a>
+  <a class="card" href="2-command-center.html"><h2>2 — Command Center</h2>
+    <p style="color:var(--app-text-secondary)">Consistency gauge + verdict card + smoothness meters left; lap-time regression, sector×lap heatmap, tire temp trends right.</p></a>
+  <a class="card" href="3-overlay-analyst.html"><h2>3 — Overlay Analyst</h2>
+    <p style="color:var(--app-text-secondary)">Single shared track-fraction axis: speed overlay (focus vs best), running time delta, input traces. Crosshair across all panels.</p></a>
+  <a class="card" href="4-corner-ledger.html"><h2>4 — Corner Ledger</h2>
+    <p style="color:var(--app-text-secondary)">Corner-by-corner table: min speed, Δ best, brake-point variance, input sparklines, verdict pills. Time-loss waterfall sidebar.</p></a>
+  <a class="card" href="5-degradation-view.html"><h2>5 — Degradation View</h2>
+    <p style="color:var(--app-text-secondary)">Stint over time: pace with ±1σ consistency band, fuel-corrected pace, degradation fit + projection, tire temp spread, input drift.</p></a>
+  <a class="card" href="6-track-focus.html"><h2>6 — Track Focus</h2>
+    <p style="color:var(--app-text-secondary)">Track map left with hover cursor + clickable corners; tabbed right pane: Consistency (steering/brake/throttle compared), Speed &amp; Delta, Sectors, Tires. Cursor synced both ways.</p></a>
+</div>
+
+<div class="card" style="margin-top:14px;">
+  <h2>Info missing from current dashboard (added in these designs)</h2>
+  <ul style="color:var(--app-text-secondary);margin:0;padding-left:18px;line-height:1.8">
+    <li><b>Consistency score</b> — 100 − scaled CoV of valid lap times, with σ shown</li>
+    <li><b>Pace degradation slope</b> — linear fit s/lap + projected future lap time</li>
+    <li><b>Input traces over track fraction</b> — stacked throttle/brake/steering lines vs best-lap ghost</li>
+    <li><b>Running time delta</b> — where in the lap time is gained/lost</li>
+    <li><b>Input smoothness</b> — brake/throttle overlap %, coasting %, steering harshness</li>
+    <li><b>Brake-point variance per corner</b> — biggest consistency driver</li>
+    <li><b>Sector × lap heatmap</b> — spot which sector degrades first</li>
+    <li><b>Fuel-corrected pace</b> — separates tire deg from fuel burn</li>
+    <li><b>Tire temp spread (FR−RL)</b> — setup-balance signal across the stint</li>
+  </ul>
+</div>
+</div></body></html>
